@@ -104,6 +104,7 @@ enum class TokenType {
     KEYWORD_ELSE_IF,        ///< وإلا_إذا / else if
     KEYWORD_WHILE,          ///< بينما / while
     KEYWORD_FOR,            ///< لكل / for
+    KEYWORD_IN,             ///< في / in
     KEYWORD_BREAK,          ///< اخرج / break
     KEYWORD_CONTINUE,       ///< استمر / continue
     
@@ -137,6 +138,7 @@ enum class TokenType {
     KEYWORD_CONST,          ///< ثابت / const
     KEYWORD_LET,            ///< اجعل / let
     KEYWORD_STATIC,         ///< ساكن / static
+    KEYWORD_ENUM,           ///< تعداد / enum
     
     // ========== أنواع البيانات الأساسية / Basic Data Types ==========
     TYPE_INTEGER,           ///< رقم / integer

@@ -114,6 +114,8 @@ set(LEXER_SOURCES
 # المحلل النحوي / Parser
 set(PARSER_SOURCES
     src/parser/parser_core.cpp
+    src/parser/parser_core_impl.cpp
+    src/parser/parser_core_helpers.cpp
 )
 
 # عُقد الشجرة النحوية التجريدية / AST Nodes
