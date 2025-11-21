@@ -535,6 +535,10 @@ Token LexerCore::scanOperator() {
         advance(); advance();
         return Token(TokenType::OP_MULTIPLY_ASSIGN, "*=", start_position_);
     }
+    if (c == '*' && next == '*') {
+        advance(); advance();
+        return Token(TokenType::OP_POWER, "**", start_position_);
+    }
     if (c == '/' && next == '=') {
         advance(); advance();
         return Token(TokenType::OP_DIVIDE_ASSIGN, "/=", start_position_);
@@ -558,6 +562,10 @@ Token LexerCore::scanOperator() {
     if (c == '-' && next == '>') {
         advance(); advance();
         return Token(TokenType::ARROW, "->", start_position_);
+    }
+    if (c == '=' && next == '>') {
+        advance(); advance();
+        return Token(TokenType::FAT_ARROW, "=>", start_position_);
     }
     
     // عوامل أحادية الحرف
@@ -655,9 +663,10 @@ Token LexerCore::nextToken() {
         case ',': return Token(TokenType::COMMA, ",", start_position_);
         case ';': return Token(TokenType::SEMICOLON, ";", start_position_);
         case ':': return Token(TokenType::COLON, ":", start_position_);
+        case '@': return Token(TokenType::AT_SIGN, "@", start_position_); // (AR) للمُزخرِفات / (EN) for decorators
     }
     
-    // عوامل (نعيد الحرف للخلف)
+    // عوامل (نعيد الحرف للخلف) / Operators (backtrack character)
     current_--;
     column_--;
     return scanOperator();

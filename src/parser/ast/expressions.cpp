@@ -272,5 +272,25 @@ std::string GeneratorExpr::toString() const {
     return oss.str();
 }
 
+// =========================================================================
+// Decorator Expression / تعبير المُزخرِف
+// =========================================================================
+
+std::string DecoratorExpr::toString() const {
+    std::ostringstream oss;
+    oss << "@" << name;
+    
+    if (hasArguments && !arguments.empty()) {
+        oss << "(";
+        for (size_t i = 0; i < arguments.size(); ++i) {
+            if (i > 0) oss << ", ";
+            oss << arguments[i]->toString();
+        }
+        oss << ")";
+    }
+    
+    return oss.str();
+}
+
 } // namespace AST
 } // namespace Sad

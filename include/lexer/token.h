@@ -97,6 +97,8 @@ enum class TokenType {
     KEYWORD_NEW,            ///< جديد / new
     KEYWORD_THIS,           ///< هذا / this
     KEYWORD_CONSTRUCTOR,    ///< منشئ / constructor
+    KEYWORD_LAMBDA,         ///< لامدا / lambda
+    KEYWORD_YIELD,          ///< اعطِ / yield
     
     // ========== الكلمات المفتاحية - التحكم في التدفق / Keywords - Control Flow ==========
     KEYWORD_IF,             ///< إذا / if
@@ -207,7 +209,9 @@ enum class TokenType {
     COLON,                  ///< : نقطتان / colon
     DOT,                    ///< . نقطة / dot (member access)
     ARROW,                  ///< -> سهم / arrow
+    FAT_ARROW,              ///< => سهم عريض / fat arrow (lambda/arrow functions)
     QUESTION,               ///< ? علامة استفهام / question mark
+    AT_SIGN,                ///< @ علامة آت / at sign (decorators)
     
     // ========== رموز خاصة / Special Tokens ==========
     COMMENT,                ///< تعليق / comment

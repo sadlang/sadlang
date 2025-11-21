@@ -79,7 +79,7 @@ std::string ASTPrinter::indent() const {
 void ASTPrinter::visitBinaryExpr(BinaryExpr* expr) {
     result_ += "(";
     expr->left->accept(*this);
-    result_ += " " + Lexer::Token::getTypeName(expr->op) + " ";
+    result_ += " " + Lexer::Token::typeToString(expr->op) + " ";
     expr->right->accept(*this);
     result_ += ")";
 }
@@ -92,7 +92,7 @@ void ASTPrinter::visitBinaryExpr(BinaryExpr* expr) {
  */
 void ASTPrinter::visitUnaryExpr(UnaryExpr* expr) {
     result_ += "(";
-    result_ += Lexer::Token::getTypeName(expr->op);
+    result_ += Lexer::Token::typeToString(expr->op);
     expr->operand->accept(*this);
     result_ += ")";
 }

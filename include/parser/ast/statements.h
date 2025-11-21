@@ -47,7 +47,7 @@ public:
         : Statement(expr->position), expression(std::move(expr)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitExprStmt(this);
+        visitor.visitExprStmt(*this);
     }
     
     std::string toString() const override {
@@ -91,7 +91,7 @@ public:
           initializer(std::move(init)), isConst(isConst) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitVarDeclStmt(this);
+        visitor.visitVarDeclStmt(*this);
     }
     
     std::string toString() const override;
@@ -131,7 +131,7 @@ public:
           thenBranch(std::move(thenBr)), elseBranch(std::move(elseBr)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitIfStmt(this);
+        visitor.visitIfStmt(*this);
     }
     
     std::string toString() const override;
@@ -167,7 +167,7 @@ public:
         : Statement(pos), condition(std::move(cond)), body(std::move(body)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitWhileStmt(this);
+        visitor.visitWhileStmt(*this);
     }
     
     std::string toString() const override;
@@ -204,7 +204,7 @@ public:
           body(std::move(body)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitForStmt(this);
+        visitor.visitForStmt(*this);
     }
     
     std::string toString() const override;
@@ -242,7 +242,7 @@ public:
           iterable(std::move(iter)), body(std::move(body)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitForRangeStmt(this);
+        visitor.visitForRangeStmt(*this);
     }
     
     std::string toString() const override;
@@ -276,11 +276,70 @@ public:
         : Statement(pos), value(std::move(val)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitReturnStmt(this);
+        visitor.visitReturnStmt(*this);
     }
     
     std::string toString() const override {
         return value ? "return " + value->toString() + ";" : "return;";
+    }
+};
+
+// =========================================================================
+// Yield Statement / جملة الإعطاء (المولّدات)
+// =========================================================================
+
+/**
+ * @brief Yield statement node / عقدة جملة yield
+ * 
+ * Represents a yield statement in generator functions.
+ * يمثل جملة yield في الدوال المولّدة.
+ * 
+ * Supports two forms:
+ * - yield expr         : yields a single value
+ * - yield from iterable: delegates to another generator
+ * 
+ * يدعم صيغتين:
+ * - yield expr         : تُعطي قيمة واحدة
+ * - yield from iterable: تفوّض إلى مولّد آخر
+ * 
+ * @example Examples / أمثلة:
+ * - yield 42
+ * - yield x * 2
+ * - yield from range(10)
+ * - اعطِ 100
+ * - اعطِ from قائمة
+ */
+class YieldStmt : public Statement {
+public:
+    ExprPtr value;              ///< Yielded value / القيمة المُعطاة
+    bool isYieldFrom;           ///< Is 'yield from'? / هل 'yield from'؟
+    
+    /**
+     * @brief Constructor for simple yield / البناء لـ yield بسيط
+     * @param val Yielded value / القيمة المُعطاة
+     * @param pos Source position / الموقع في الكود
+     */
+    YieldStmt(ExprPtr val = nullptr, const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), value(std::move(val)), isYieldFrom(false) {}
+    
+    /**
+     * @brief Constructor for yield from / البناء لـ yield from
+     * @param val Iterable expression / تعبير قابل للتكرار
+     * @param yieldFrom Flag indicating 'yield from' / علامة تدل على 'yield from'
+     * @param pos Source position / الموقع في الكود
+     */
+    YieldStmt(ExprPtr val, bool yieldFrom, const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), value(std::move(val)), isYieldFrom(yieldFrom) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitYieldStmt(*this);
+    }
+    
+    std::string toString() const override {
+        if (isYieldFrom) {
+            return value ? "yield from " + value->toString() + ";" : "yield from;";
+        }
+        return value ? "yield " + value->toString() + ";" : "yield;";
     }
 };
 
@@ -308,7 +367,7 @@ public:
         : Statement(pos) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitBreakStmt(this);
+        visitor.visitBreakStmt(*this);
     }
     
     std::string toString() const override {
@@ -340,7 +399,7 @@ public:
         : Statement(pos) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitContinueStmt(this);
+        visitor.visitContinueStmt(*this);
     }
     
     std::string toString() const override {
@@ -374,7 +433,7 @@ public:
         : Statement(pos), statements(std::move(stmts)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitBlockStmt(this);
+        visitor.visitBlockStmt(*this);
     }
     
     std::string toString() const override;
@@ -394,6 +453,14 @@ struct CatchClause {
     
     CatchClause(const std::string& var, Data::DataType type, StmtPtr body)
         : exceptionVar(var), exceptionType(type), body(std::move(body)) {}
+    
+    // Copy constructor deleted (contains unique_ptr)
+    CatchClause(const CatchClause&) = delete;
+    CatchClause& operator=(const CatchClause&) = delete;
+    
+    // Move constructor and assignment
+    CatchClause(CatchClause&&) = default;
+    CatchClause& operator=(CatchClause&&) = default;
 };
 
 /**
@@ -423,7 +490,7 @@ public:
           catchClauses(std::move(catches)), finallyBlock(std::move(finallyBlk)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitTryStmt(this);
+        visitor.visitTryStmt(*this);
     }
     
     std::string toString() const override;
@@ -457,7 +524,7 @@ public:
         : Statement(pos), exception(std::move(exc)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitRaiseStmt(this);
+        visitor.visitRaiseStmt(*this);
     }
     
     std::string toString() const override {
@@ -494,7 +561,7 @@ public:
           body(std::move(body)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitWithStmt(this);
+        visitor.visitWithStmt(*this);
     }
     
     std::string toString() const override;

@@ -89,6 +89,12 @@ namespace {
 std::string FunctionDecl::toString() const {
     std::ostringstream oss;
     
+    // (AR) إضافة المُزخرِفات في البداية
+    // (EN) Add decorators at the beginning
+    for (const auto& decorator : decorators) {
+        oss << decorator->toString() << "\n";
+    }
+    
     if (isExported) {
         oss << "export ";
     }

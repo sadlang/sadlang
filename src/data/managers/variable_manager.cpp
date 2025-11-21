@@ -1,14 +1,349 @@
-// ======================================================================
-// variable_manager.cpp - مدير المتغيرات / Variable Manager
-// ======================================================================
+/**
+ * @file variable_manager.cpp
+ * @brief (AR) تنفيذ مدير المتغيرات
+ * @brief (EN) Variable manager implementation
+ * 
+ * @author S Language Development Team
+ * @date November 21, 2025
+ * @version 1.0
+ */
 
 #include "../../../include/data/managers/variable_manager.h"
+#include <sstream>
+#include <iostream>
 
 namespace Sad {
 namespace Data {
 
-// TODO: سيتم تنفيذ هذا في المرحلة الرابعة
-// TODO: This will be implemented in phase 4
+// ========================================
+// (AR) المُنشئ والمُدمر
+// (EN) Constructor and Destructor
+// ========================================
+
+VariableManager::VariableManager() 
+    : scopeManager_(std::make_unique<ScopeManager>()) {
+    // (AR) تم إنشاء النطاق العام تلقائياً في ScopeManager
+    // (EN) Global scope automatically created in ScopeManager
+}
+
+VariableManager::~VariableManager() {
+    // (AR) التنظيف التلقائي عن طريق unique_ptr
+    // (EN) Automatic cleanup via unique_ptr
+}
+
+// ========================================
+// (AR) عمليات المتغيرات الأساسية
+// (EN) Basic Variable Operations
+// ========================================
+
+void VariableManager::define(const std::string& name, const Value& value) {
+    // (AR) الحصول على النطاق الحالي
+    // (EN) Get current scope
+    Scope* currentScope = scopeManager_->getCurrentScope();
+    
+    // (AR) التحقق: هل المتغير معرف مسبقاً في نفس النطاق؟
+    // (EN) Check: is variable already defined in same scope?
+    if (currentScope->hasVariable(name)) {
+        std::ostringstream oss;
+        oss << "(AR) المتغير '" << name << "' معرّف مسبقاً في النطاق الحالي "
+            << "(EN) Variable '" << name << "' already defined in current scope";
+        throw std::runtime_error(oss.str());
+    }
+    
+    // (AR) تعريف المتغير في مدير النطاقات (تسجيل الاسم)
+    // (EN) Define variable in scope manager (register name)
+    scopeManager_->declareVariable(name);
+    
+    // (AR) حفظ القيمة في الخريطة
+    // (EN) Store value in map
+    scopeVariables_[currentScope][name] = value;
+}
+
+void VariableManager::assign(const std::string& name, const Value& value) {
+    // (AR) البحث عن النطاق الذي يحتوي على المتغير
+    // (EN) Find scope containing the variable
+    Scope* varScope = findVariableScope(name);
+    
+    // (AR) إذا لم يُعثر على المتغير، رمي خطأ
+    // (EN) If variable not found, throw error
+    if (varScope == nullptr) {
+        throwError(
+            "المتغير '" + name + "' غير معرّف",
+            "Variable '" + name + "' not defined"
+        );
+    }
+    
+    // (AR) تحديث القيمة
+    // (EN) Update value
+    scopeVariables_[varScope][name] = value;
+}
+
+Value VariableManager::get(const std::string& name) const {
+    // (AR) البحث عن النطاق الذي يحتوي على المتغير
+    // (EN) Find scope containing the variable
+    Scope* varScope = findVariableScope(name);
+    
+    // (AR) إذا لم يُعثر على المتغير، رمي خطأ
+    // (EN) If variable not found, throw error
+    if (varScope == nullptr) {
+        throwError(
+            "المتغير '" + name + "' غير معرّف",
+            "Variable '" + name + "' not defined"
+        );
+    }
+    
+    // (AR) إرجاع القيمة
+    // (EN) Return value
+    auto scopeIt = scopeVariables_.find(varScope);
+    if (scopeIt != scopeVariables_.end()) {
+        auto varIt = scopeIt->second.find(name);
+        if (varIt != scopeIt->second.end()) {
+            return varIt->second;
+        }
+    }
+    
+    // (AR) هذا لا يجب أن يحدث (تناقض داخلي)
+    // (EN) This should never happen (internal inconsistency)
+    throwError(
+        "خطأ داخلي: المتغير '" + name + "' موجود في النطاق لكن بدون قيمة",
+        "Internal error: Variable '" + name + "' exists in scope but has no value"
+    );
+    
+    // (AR) لن نصل هنا أبداً
+    // (EN) Never reached
+    return Value();
+}
+
+bool VariableManager::exists(const std::string& name) const {
+    // (AR) البحث عن المتغير في سلسلة النطاقات
+    // (EN) Search for variable in scope chain
+    // 
+    // (AR) نبحث في خريطة القيم بدلاً من ScopeManager للتأكد من وجود القيمة فعلياً
+    // (EN) Search in value map instead of ScopeManager to ensure value actually exists
+    return findVariableScope(name) != nullptr;
+}
+
+bool VariableManager::remove(const std::string& name) {
+    // (AR) الحصول على النطاق الحالي
+    // (EN) Get current scope
+    Scope* currentScope = scopeManager_->getCurrentScope();
+    
+    // (AR) التحقق من وجود المتغير في النطاق الحالي
+    // (EN) Check if variable exists in current scope
+    if (!currentScope->hasVariable(name)) {
+        return false;
+    }
+    
+    // (AR) حذف القيمة من الخريطة
+    // (EN) Remove value from map
+    auto scopeIt = scopeVariables_.find(currentScope);
+    if (scopeIt != scopeVariables_.end()) {
+        scopeIt->second.erase(name);
+    }
+    
+    // (AR) ملاحظة: لا نحذف من ScopeManager لأنه يُدير التصريحات فقط
+    // (EN) Note: We don't remove from ScopeManager as it only manages declarations
+    
+    return true;
+}
+
+// ========================================
+// (AR) إدارة النطاقات
+// (EN) Scope Management
+// ========================================
+
+void VariableManager::enterScope(ScopeType type, const std::string& name) {
+    // (AR) إنشاء نطاق جديد في مدير النطاقات
+    // (EN) Create new scope in scope manager
+    scopeManager_->pushScope(type, name);
+    
+    // (AR) سيتم إنشاء خريطة المتغيرات للنطاق الجديد عند أول تعريف
+    // (EN) Variable map for new scope will be created on first define
+}
+
+void VariableManager::exitScope() {
+    // (AR) الحصول على النطاق الحالي قبل حذفه
+    // (EN) Get current scope before removing it
+    Scope* currentScope = scopeManager_->getCurrentScope();
+    
+    // (AR) حذف جميع متغيرات هذا النطاق
+    // (EN) Delete all variables in this scope
+    scopeVariables_.erase(currentScope);
+    
+    // (AR) إزالة النطاق من المكدس
+    // (EN) Remove scope from stack
+    scopeManager_->popScope();
+}
+
+// ========================================
+// (AR) استعلامات ومعلومات
+// (EN) Queries and Information
+// ========================================
+
+size_t VariableManager::getVariableCount() const {
+    // (AR) عدد المتغيرات في النطاق الحالي
+    // (EN) Number of variables in current scope
+    Scope* currentScope = scopeManager_->getCurrentScope();
+    auto it = scopeVariables_.find(currentScope);
+    
+    if (it != scopeVariables_.end()) {
+        return it->second.size();
+    }
+    
+    return 0;
+}
+
+size_t VariableManager::getTotalVariableCount() const {
+    // (AR) العدد الكلي للمتغيرات في جميع النطاقات
+    // (EN) Total number of variables in all scopes
+    size_t total = 0;
+    for (const auto& scopePair : scopeVariables_) {
+        total += scopePair.second.size();
+    }
+    return total;
+}
+
+std::vector<std::string> VariableManager::getVariableNames() const {
+    // (AR) قائمة أسماء المتغيرات في النطاق الحالي
+    // (EN) List of variable names in current scope
+    std::vector<std::string> names;
+    
+    Scope* currentScope = scopeManager_->getCurrentScope();
+    auto it = scopeVariables_.find(currentScope);
+    
+    if (it != scopeVariables_.end()) {
+        for (const auto& varPair : it->second) {
+            names.push_back(varPair.first);
+        }
+    }
+    
+    return names;
+}
+
+std::string VariableManager::getVariableInfo(const std::string& name) const {
+    // (AR) معلومات عن المتغير
+    // (EN) Information about variable
+    std::ostringstream oss;
+    
+    Scope* varScope = findVariableScope(name);
+    
+    if (varScope == nullptr) {
+        oss << "(AR) المتغير '" << name << "' غير معرّف "
+            << "(EN) Variable '" << name << "' not defined";
+        return oss.str();
+    }
+    
+    // (AR) الحصول على القيمة
+    // (EN) Get value
+    auto scopeIt = scopeVariables_.find(varScope);
+    if (scopeIt != scopeVariables_.end()) {
+        auto varIt = scopeIt->second.find(name);
+        if (varIt != scopeIt->second.end()) {
+            const Value& val = varIt->second;
+            oss << "Variable '" << name << "': "
+                << val.debugString()
+                << " (in " << varScope->debugString() << ")";
+            return oss.str();
+        }
+    }
+    
+    oss << "(AR) خطأ داخلي: متغير بدون قيمة "
+        << "(EN) Internal error: variable without value";
+    return oss.str();
+}
+
+void VariableManager::clear() {
+    // (AR) حذف جميع المتغيرات
+    // (EN) Delete all variables
+    scopeVariables_.clear();
+    
+    // (AR) العودة إلى النطاق العام (حذف جميع النطاقات الأخرى)
+    // (EN) Return to global scope (remove all other scopes)
+    while (!scopeManager_->isGlobalScope()) {
+        scopeManager_->popScope();
+    }
+}
+
+void VariableManager::printAllVariables() const {
+    // (AR) طباعة جميع المتغيرات
+    // (EN) Print all variables
+    std::cout << "\n=== (AR) جميع المتغيرات / (EN) All Variables ===\n";
+    std::cout << "(AR) العدد الكلي / (EN) Total: " << getTotalVariableCount() << "\n\n";
+    
+    for (const auto& scopePair : scopeVariables_) {
+        Scope* scope = scopePair.first;
+        const auto& variables = scopePair.second;
+        
+        std::cout << "  " << scope->debugString() << ":\n";
+        
+        if (variables.empty()) {
+            std::cout << "    (AR) فارغ / (EN) Empty\n";
+        } else {
+            for (const auto& varPair : variables) {
+                std::cout << "    - " << varPair.first << " = " 
+                         << varPair.second.debugString() << "\n";
+            }
+        }
+        std::cout << "\n";
+    }
+    std::cout << "===================================\n\n";
+}
+
+std::string VariableManager::debugString() const {
+    // (AR) نص تصحيح
+    // (EN) Debug string
+    std::ostringstream oss;
+    oss << "VariableManager["
+        << "total_vars=" << getTotalVariableCount()
+        << ", current_scope_vars=" << getVariableCount()
+        << ", " << scopeManager_->debugString()
+        << "]";
+    return oss.str();
+}
+
+// ========================================
+// (AR) دوال مساعدة خاصة
+// (EN) Private Helper Functions
+// ========================================
+
+Scope* VariableManager::findVariableScope(const std::string& name) const {
+    // (AR) البحث عن النطاق الذي يحتوي على المتغير
+    // (EN) Find scope containing the variable
+    // 
+    // (AR) نبحث من النطاق الحالي صعوداً إلى النطاق العام
+    // (EN) Search from current scope up to global scope
+    // 
+    // (AR) نبحث في خريطة القيم لضمان وجود القيمة فعلياً
+    // (EN) Search in value map to ensure value actually exists
+    
+    Scope* scope = scopeManager_->getCurrentScope();
+    
+    while (scope != nullptr) {
+        // (AR) التحقق من وجود المتغير في هذا النطاق
+        // (EN) Check if variable exists in this scope
+        auto scopeIt = scopeVariables_.find(scope);
+        if (scopeIt != scopeVariables_.end()) {
+            auto varIt = scopeIt->second.find(name);
+            if (varIt != scopeIt->second.end()) {
+                return scope;
+            }
+        }
+        
+        // (AR) الانتقال للنطاق الأب
+        // (EN) Move to parent scope
+        scope = scope->getParent();
+    }
+    
+    return nullptr;
+}
+
+void VariableManager::throwError(const std::string& messageAr, const std::string& messageEn) const {
+    // (AR) رمي خطأ ثنائي اللغة
+    // (EN) Throw bilingual error
+    std::ostringstream oss;
+    oss << "(AR) " << messageAr << " (EN) " << messageEn;
+    throw std::runtime_error(oss.str());
+}
 
 } // namespace Data
 } // namespace Sad

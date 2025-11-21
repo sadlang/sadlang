@@ -22,6 +22,7 @@
 
 #include <unordered_map>
 #include <string>
+#include <vector>
 #include "token.h"
 
 namespace Sad {

@@ -162,6 +162,8 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::KEYWORD_NEW:         return "KEYWORD_NEW";
         case TokenType::KEYWORD_THIS:        return "KEYWORD_THIS";
         case TokenType::KEYWORD_CONSTRUCTOR: return "KEYWORD_CONSTRUCTOR";
+        case TokenType::KEYWORD_LAMBDA:      return "KEYWORD_LAMBDA";
+        case TokenType::KEYWORD_YIELD:       return "KEYWORD_YIELD";
         
         // الكلمات المفتاحية - التحكم في التدفق
         case TokenType::KEYWORD_IF:          return "KEYWORD_IF";
@@ -169,6 +171,7 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::KEYWORD_ELSE_IF:     return "KEYWORD_ELSE_IF";
         case TokenType::KEYWORD_WHILE:       return "KEYWORD_WHILE";
         case TokenType::KEYWORD_FOR:         return "KEYWORD_FOR";
+        case TokenType::KEYWORD_IN:          return "KEYWORD_IN";
         case TokenType::KEYWORD_BREAK:       return "KEYWORD_BREAK";
         case TokenType::KEYWORD_CONTINUE:    return "KEYWORD_CONTINUE";
         
@@ -270,9 +273,11 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::COLON:               return "COLON";
         case TokenType::DOT:                 return "DOT";
         case TokenType::ARROW:               return "ARROW";
+        case TokenType::FAT_ARROW:           return "FAT_ARROW";
         case TokenType::QUESTION:            return "QUESTION";
+        case TokenType::AT_SIGN:             return "AT_SIGN";
         
-        // رموز خاصة
+        // رموز خاصة / Special tokens
         case TokenType::COMMENT:             return "COMMENT";
         case TokenType::NEWLINE:             return "NEWLINE";
         case TokenType::END_OF_FILE:         return "END_OF_FILE";

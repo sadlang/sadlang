@@ -25,12 +25,14 @@ namespace AST {
 /**
  * @brief Function declaration node / عقدة تصريح الدالة
  * 
- * Represents a function declaration.
- * يمثل تصريح دالة.
+ * Represents a function declaration with optional decorators.
+ * يمثل تصريح دالة مع مُزخرِفات اختيارية.
  * 
  * @example Examples / أمثلة:
  * - func add(a: int, b: int) -> int { return a + b; }
  * - دالة جمع(أ: صحيح، ب: صحيح) -> صحيح { أرجع أ + ب؛ }
+ * - @staticmethod\nfunction test() {}
+ * - @cache(maxsize=100)\nfunction expensive() {}
  */
 class FunctionDecl : public Statement {
 public:
@@ -39,9 +41,10 @@ public:
     Data::DataType returnType;      ///< Return type / نوع الإرجاع
     StmtPtr body;                   ///< Function body / جسم الدالة
     bool isExported;                ///< Is exported? / مصدّر؟
+    ExprList decorators;            ///< Decorators (@decorator) / المُزخرِفات
     
     /**
-     * @brief Constructor / البناء
+     * @brief Constructor without decorators / البناء بدون مُزخرِفات
      * @param name Function name / اسم الدالة
      * @param params Parameter list / قائمة المعاملات
      * @param retType Return type / نوع الإرجاع
@@ -53,10 +56,29 @@ public:
                  Data::DataType retType, StmtPtr body, bool exported = false,
                  const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
-          returnType(retType), body(std::move(body)), isExported(exported) {}
+          returnType(retType), body(std::move(body)), isExported(exported), 
+          decorators() {}
+    
+    /**
+     * @brief Constructor with decorators / البناء مع مُزخرِفات
+     * @param name Function name / اسم الدالة
+     * @param params Parameter list / قائمة المعاملات
+     * @param retType Return type / نوع الإرجاع
+     * @param body Function body / جسم الدالة
+     * @param decs Decorator list / قائمة المُزخرِفات
+     * @param exported Is exported / مصدّر
+     * @param pos Source position / الموقع في الكود
+     */
+    FunctionDecl(const std::string& name, std::vector<Parameter> params,
+                 Data::DataType retType, StmtPtr body, ExprList decs,
+                 bool exported = false,
+                 const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), name(name), parameters(std::move(params)),
+          returnType(retType), body(std::move(body)), isExported(exported),
+          decorators(std::move(decs)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitFunctionDecl(this);
+        visitor.visitFunctionDecl(*this);
     }
     
     std::string toString() const override;
@@ -108,7 +130,7 @@ public:
           members(std::move(members)), isExported(exported) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitClassDecl(this);
+        visitor.visitClassDecl(*this);
     }
     
     std::string toString() const override;
@@ -148,7 +170,7 @@ public:
           access(access), isStatic(isStatic) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitFieldDecl(this);
+        visitor.visitFieldDecl(*this);
     }
     
     std::string toString() const override;
@@ -194,7 +216,7 @@ public:
           isStatic(isStatic), isVirtual(isVirtual), isOverride(isOverride) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitMethodDecl(this);
+        visitor.visitMethodDecl(*this);
     }
     
     std::string toString() const override;
@@ -230,7 +252,7 @@ public:
           superArgs(std::move(superArgs)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitConstructorDecl(this);
+        visitor.visitConstructorDecl(*this);
     }
     
     std::string toString() const override;
@@ -262,7 +284,7 @@ public:
         : Statement(pos), body(std::move(body)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitDestructorDecl(this);
+        visitor.visitDestructorDecl(*this);
     }
     
     std::string toString() const override {
@@ -283,6 +305,14 @@ struct EnumMember {
     
     EnumMember(const std::string& n, ExprPtr v = nullptr)
         : name(n), value(std::move(v)) {}
+    
+    // Copy constructor deleted (contains unique_ptr)
+    EnumMember(const EnumMember&) = delete;
+    EnumMember& operator=(const EnumMember&) = delete;
+    
+    // Move constructor and assignment
+    EnumMember(EnumMember&&) = default;
+    EnumMember& operator=(EnumMember&&) = default;
 };
 
 /**
@@ -312,7 +342,7 @@ public:
           isExported(exported) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitEnumDecl(this);
+        visitor.visitEnumDecl(*this);
     }
     
     std::string toString() const override;
@@ -352,7 +382,7 @@ public:
           symbols(std::move(symbols)), importAll(importAll) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitImportStmt(this);
+        visitor.visitImportStmt(*this);
     }
     
     std::string toString() const override;
@@ -384,7 +414,7 @@ public:
         : Statement(pos), declaration(std::move(decl)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitExportStmt(this);
+        visitor.visitExportStmt(*this);
     }
     
     std::string toString() const override {

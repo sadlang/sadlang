@@ -51,7 +51,7 @@ public:
         : Expression(pos), left(std::move(l)), op(o), right(std::move(r)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitBinaryExpr(this);
+        visitor.visitBinaryExpr(*this);
     }
     
     std::string toString() const override {
@@ -94,7 +94,7 @@ public:
         : Expression(pos), op(o), operand(std::move(operand)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitUnaryExpr(this);
+        visitor.visitUnaryExpr(*this);
     }
     
     std::string toString() const override {
@@ -133,7 +133,7 @@ public:
         : Expression(tok.getPosition()), token(tok) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitLiteralExpr(this);
+        visitor.visitLiteralExpr(*this);
     }
     
     std::string toString() const override {
@@ -170,7 +170,7 @@ public:
         : Expression(pos), name(n) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitVariableExpr(this);
+        visitor.visitVariableExpr(*this);
     }
     
     std::string toString() const override {
@@ -210,7 +210,7 @@ public:
         : Expression(pos), name(n), value(std::move(val)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitAssignExpr(this);
+        visitor.visitAssignExpr(*this);
     }
     
     std::string toString() const override {
@@ -252,7 +252,7 @@ public:
         : Expression(pos), callee(std::move(callee)), arguments(std::move(args)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitCallExpr(this);
+        visitor.visitCallExpr(*this);
     }
     
     std::string toString() const override;
@@ -290,7 +290,7 @@ public:
         : Expression(pos), object(std::move(obj)), index(std::move(idx)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitIndexExpr(this);
+        visitor.visitIndexExpr(*this);
     }
     
     std::string toString() const override {
@@ -330,7 +330,7 @@ public:
         : Expression(pos), object(std::move(obj)), member(mem) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitMemberExpr(this);
+        visitor.visitMemberExpr(*this);
     }
     
     std::string toString() const override {
@@ -369,7 +369,7 @@ public:
         : Expression(pos), elements(std::move(elems)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitArrayExpr(this);
+        visitor.visitArrayExpr(*this);
     }
     
     std::string toString() const override;
@@ -392,6 +392,14 @@ struct MapPair {
     
     MapPair(ExprPtr k, ExprPtr v)
         : key(std::move(k)), value(std::move(v)) {}
+    
+    // Copy constructor deleted (contains unique_ptr)
+    MapPair(const MapPair&) = delete;
+    MapPair& operator=(const MapPair&) = delete;
+    
+    // Move constructor and assignment
+    MapPair(MapPair&&) = default;
+    MapPair& operator=(MapPair&&) = default;
 };
 
 /**
@@ -418,7 +426,7 @@ public:
         : Expression(pos), pairs(std::move(p)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitMapExpr(this);
+        visitor.visitMapExpr(*this);
     }
     
     std::string toString() const override;
@@ -443,6 +451,14 @@ struct Parameter {
     Parameter(const std::string& n, Data::DataType t = Data::DataType::UNKNOWN,
               ExprPtr def = nullptr)
         : name(n), type(t), defaultValue(std::move(def)) {}
+    
+    // Copy constructor deleted (contains unique_ptr)
+    Parameter(const Parameter&) = delete;
+    Parameter& operator=(const Parameter&) = delete;
+    
+    // Move constructor and assignment
+    Parameter(Parameter&&) = default;
+    Parameter& operator=(Parameter&&) = default;
 };
 
 /**
@@ -472,7 +488,7 @@ public:
         : Expression(pos), parameters(std::move(params)), body(std::move(body)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitLambdaExpr(this);
+        visitor.visitLambdaExpr(*this);
     }
     
     std::string toString() const override;
@@ -519,7 +535,7 @@ public:
           iterable(std::move(iter)), condition(std::move(cond)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitListComprehensionExpr(this);
+        visitor.visitListComprehensionExpr(*this);
     }
     
     std::string toString() const override;
@@ -561,7 +577,7 @@ public:
           variable(var), iterable(std::move(iter)), condition(std::move(cond)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitDictComprehensionExpr(this);
+        visitor.visitDictComprehensionExpr(*this);
     }
     
     std::string toString() const override;
@@ -602,13 +618,106 @@ public:
           iterable(std::move(iter)), condition(std::move(cond)) {}
     
     void accept(ASTVisitor& visitor) override {
-        visitor.visitGeneratorExpr(this);
+        visitor.visitGeneratorExpr(*this);
     }
     
     std::string toString() const override;
     
     Data::DataType getType() const override {
         return Data::DataType::FUNCTION; // Generator is a special function
+    }
+};
+
+// =========================================================================
+// Decorator Expression / تعبير المُزخرِف
+// =========================================================================
+
+/**
+ * @brief Decorator expression node / عقدة تعبير المُزخرِف
+ * 
+ * Represents a decorator applied to a function or class.
+ * يمثل مُزخرِف (decorator) يُطبّق على دالة أو صنف.
+ * 
+ * Decorators modify or enhance the behavior of functions/classes.
+ * المُزخرِفات تُعدّل أو تُحسّن سلوك الدوال/الأصناف.
+ * 
+ * @example Examples / أمثلة:
+ * - Simple: @staticmethod
+ * - With args: @cache(maxsize=100)
+ * - Multiple: @decorator1 @decorator2 def func(): pass
+ * - Arabic: @مُزخرِف دالة اسم(): pass
+ * 
+ * @note (AR) في لغة ص، المُزخرِفات تُطبّق من الأسفل للأعلى (مثل Python)
+ * @note (EN) In Sad language, decorators apply bottom-to-top (like Python)
+ */
+class DecoratorExpr : public Expression {
+public:
+    std::string name;          ///< Decorator name / اسم المُزخرِف
+    ExprList arguments;        ///< Decorator arguments (optional) / وسائط المُزخرِف
+    bool hasArguments;         ///< Whether decorator has arguments / هل يحتوي على وسائط
+    
+    /**
+     * @brief Constructor for decorator without arguments / بناء مُزخرِف بدون وسائط
+     * @param decoratorName Name of the decorator / اسم المُزخرِف
+     * @param pos Source position / الموقع في الكود
+     * 
+     * @example Examples / أمثلة:
+     * @code
+     * // @staticmethod
+     * DecoratorExpr("staticmethod", {})
+     * 
+     * // @مُزخرِف
+     * DecoratorExpr("مُزخرِف", {})
+     * @endcode
+     */
+    DecoratorExpr(const std::string& decoratorName,
+                  const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), name(decoratorName), 
+          arguments(), hasArguments(false) {}
+    
+    /**
+     * @brief Constructor for decorator with arguments / بناء مُزخرِف مع وسائط
+     * @param decoratorName Name of the decorator / اسم المُزخرِف
+     * @param args List of argument expressions / قائمة تعبيرات الوسائط
+     * @param pos Source position / الموقع في الكود
+     * 
+     * @example Examples / أمثلة:
+     * @code
+     * // @cache(maxsize=100)
+     * DecoratorExpr("cache", {assignExpr("maxsize", literal(100))})
+     * 
+     * // @retry(times=3, delay=1.5)
+     * DecoratorExpr("retry", {assign("times", 3), assign("delay", 1.5)})
+     * @endcode
+     */
+    DecoratorExpr(const std::string& decoratorName, ExprList args,
+                  const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), name(decoratorName), 
+          arguments(std::move(args)), hasArguments(true) {}
+    
+    /**
+     * @brief Accept visitor pattern / قبول نمط الزائر
+     */
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitDecoratorExpr(*this);
+    }
+    
+    /**
+     * @brief Convert to string representation / تحويل لنص
+     * @return String representation / التمثيل النصي
+     * 
+     * @example Output examples / أمثلة المخرجات:
+     * - "@decorator" → "Decorator(decorator)"
+     * - "@cache(100)" → "Decorator(cache, args=[100])"
+     */
+    std::string toString() const override;
+    
+    /**
+     * @brief Get expression type / الحصول على نوع التعبير
+     * @return DataType::FUNCTION (decorators are function-like) / دالة (المُزخرِفات شبيهة بالدوال)
+     */
+    Data::DataType getType() const override {
+        return Data::DataType::FUNCTION; // Decorators are function-like
     }
 };
 

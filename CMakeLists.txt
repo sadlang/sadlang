@@ -191,11 +191,43 @@ set_target_properties(sad PROPERTIES
 if(BUILD_TESTS)
     enable_testing()
     
-    # إضافة مجلد الاختبارات / Add tests subdirectory
-    # سيتم إضافة الاختبارات لاحقاً / Tests will be added later
-    # add_subdirectory(tests)
+    # ملفات اختبارات المحلل النحوي / Parser test files
+    set(PARSER_TEST_SOURCES
+        tests/parser_tests/expressions/test_arithmetic.cpp
+        tests/parser_tests/expressions/test_logical.cpp
+        tests/parser_tests/expressions/test_comparison.cpp
+        tests/parser_tests/expressions/test_literals.cpp
+    )
+    
+    # برنامج تشغيل الاختبارات / Test runner executable
+    add_executable(parser_tests
+        tests/parser_tests/test_runner.cpp
+        ${PARSER_TEST_SOURCES}
+    )
+    
+    # ربط المكتبات المطلوبة / Link required libraries
+    target_link_libraries(parser_tests PRIVATE sad_core)
+    
+    # إضافة مسار تضمين لملفات الاختبار / Add include path for test files
+    target_include_directories(parser_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/tests/parser_tests
+    )
+    
+    # تعيين خصائص البرنامج / Set executable properties
+    set_target_properties(parser_tests PROPERTIES
+        OUTPUT_NAME "parser_tests"
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    )
+    
+    # إضافة اختبارات CTest / Add CTest tests
+    add_test(
+        NAME ParserTests
+        COMMAND parser_tests
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
     
     message(STATUS "✓ الاختبارات مفعلة / Tests enabled")
+    message(STATUS "  - اختبارات المحلل النحوي / Parser tests: ${PARSER_TEST_SOURCES}")
 endif()
 
 # ======================================================================

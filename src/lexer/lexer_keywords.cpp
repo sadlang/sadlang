@@ -45,27 +45,52 @@ void KeywordTable::initialize() {
     DEBUG_PRINT("بدء تهيئة جدول الكلمات المفتاحية");
     
     // ========== الكلمات المفتاحية - الدوال والبنيات ==========
-    // Keywords - Functions & Structures
+    // Keywords - Functions & Structures (Arabic + English)
     keywords_["دالة"] = TokenType::KEYWORD_FUNCTION;
+    keywords_["function"] = TokenType::KEYWORD_FUNCTION;
+    keywords_["func"] = TokenType::KEYWORD_FUNCTION;
     keywords_["إرجاع"] = TokenType::KEYWORD_RETURN;
+    keywords_["return"] = TokenType::KEYWORD_RETURN;
     keywords_["صنف"] = TokenType::KEYWORD_CLASS;
+    keywords_["class"] = TokenType::KEYWORD_CLASS;
     keywords_["جديد"] = TokenType::KEYWORD_NEW;
+    keywords_["new"] = TokenType::KEYWORD_NEW;
     keywords_["هذا"] = TokenType::KEYWORD_THIS;
+    keywords_["this"] = TokenType::KEYWORD_THIS;
     keywords_["منشئ"] = TokenType::KEYWORD_CONSTRUCTOR;
+    keywords_["constructor"] = TokenType::KEYWORD_CONSTRUCTOR;
+    keywords_["لامدا"] = TokenType::KEYWORD_LAMBDA;
+    keywords_["lambda"] = TokenType::KEYWORD_LAMBDA;
+    keywords_["اعطِ"] = TokenType::KEYWORD_YIELD;
+    keywords_["yield"] = TokenType::KEYWORD_YIELD;
     
-    DEBUG_PRINT("تمت إضافة 6 كلمات: الدوال والبنيات");
+    DEBUG_PRINT("تمت إضافة 18 كلمة: الدوال والبنيات (عربي + إنجليزي)");
     
     // ========== الكلمات المفتاحية - التحكم في التدفق ==========
-    // Keywords - Control Flow
+    // Keywords - Control Flow (Arabic + English)
     keywords_["إذا"] = TokenType::KEYWORD_IF;
+    keywords_["if"] = TokenType::KEYWORD_IF;
     keywords_["وإلا"] = TokenType::KEYWORD_ELSE;
+    keywords_["else"] = TokenType::KEYWORD_ELSE;
     keywords_["وإلا_إذا"] = TokenType::KEYWORD_ELSE_IF;
+    keywords_["elif"] = TokenType::KEYWORD_ELSE_IF;
     keywords_["بينما"] = TokenType::KEYWORD_WHILE;
+    keywords_["while"] = TokenType::KEYWORD_WHILE;
     keywords_["لكل"] = TokenType::KEYWORD_FOR;
+    keywords_["for"] = TokenType::KEYWORD_FOR;
     keywords_["اخرج"] = TokenType::KEYWORD_BREAK;
+    keywords_["break"] = TokenType::KEYWORD_BREAK;
     keywords_["استمر"] = TokenType::KEYWORD_CONTINUE;
+    keywords_["continue"] = TokenType::KEYWORD_CONTINUE;
     
-    DEBUG_PRINT("تمت إضافة 7 كلمات: التحكم في التدفق");
+    DEBUG_PRINT("تمت إضافة 14 كلمة: التحكم في التدفق (عربي + إنجليزي)");
+    
+    // ========== الكلمات المفتاحية الإضافية ==========
+    // Additional Keywords
+    keywords_["في"] = TokenType::KEYWORD_IN;
+    keywords_["in"] = TokenType::KEYWORD_IN;
+    
+    DEBUG_PRINT("تمت إضافة 2 كلمة: كلمات إضافية");
     
     // ========== الكلمات المفتاحية - معالجة الأخطاء ==========
     // Keywords - Error Handling
@@ -107,6 +132,7 @@ void KeywordTable::initialize() {
     // ========== الكلمات المفتاحية - المتغيرات ==========
     // Keywords - Variables
     keywords_["متغير"] = TokenType::KEYWORD_VAR;
+    keywords_["var"] = TokenType::KEYWORD_VAR;
     keywords_["ثابت"] = TokenType::KEYWORD_CONST;
     keywords_["اجعل"] = TokenType::KEYWORD_LET;
     keywords_["ساكن"] = TokenType::KEYWORD_STATIC;
@@ -114,25 +140,53 @@ void KeywordTable::initialize() {
     DEBUG_PRINT("تمت إضافة 4 كلمات: المتغيرات");
     
     // ========== أنواع البيانات الأساسية ==========
-    // Basic Data Types
-    keywords_["رقم"] = TokenType::TYPE_INTEGER;
-    keywords_["عشري"] = TokenType::TYPE_DOUBLE;
-    keywords_["نص"] = TokenType::TYPE_STRING;
-    keywords_["منطقي"] = TokenType::TYPE_BOOLEAN;
-    keywords_["فراغ"] = TokenType::TYPE_VOID;
-    keywords_["عدم"] = TokenType::TYPE_NULL;
-    keywords_["مصفوفة"] = TokenType::TYPE_ARRAY;
-    keywords_["خريطة"] = TokenType::TYPE_MAP;
+    // Basic Data Types (Arabic + English)
     
-    DEBUG_PRINT("تمت إضافة 8 كلمات: أنواع البيانات");
+    // Integer Types (Arabic + English)
+    keywords_["رقم"] = TokenType::TYPE_INTEGER;
+    keywords_["int"] = TokenType::TYPE_INTEGER;
+    keywords_["integer"] = TokenType::TYPE_INTEGER;
+    
+    // Float/Double Types (Arabic + English)
+    keywords_["عشري"] = TokenType::TYPE_DOUBLE;
+    keywords_["float"] = TokenType::TYPE_DOUBLE;
+    keywords_["double"] = TokenType::TYPE_DOUBLE;
+    
+    // String Types (Arabic + English)
+    keywords_["نص"] = TokenType::TYPE_STRING;
+    keywords_["string"] = TokenType::TYPE_STRING;
+    keywords_["str"] = TokenType::TYPE_STRING;
+    
+    // Boolean Types (Arabic + English)
+    keywords_["منطقي"] = TokenType::TYPE_BOOLEAN;
+    keywords_["bool"] = TokenType::TYPE_BOOLEAN;
+    keywords_["boolean"] = TokenType::TYPE_BOOLEAN;
+    
+    // Void/None Types (Arabic + English)
+    keywords_["فراغ"] = TokenType::TYPE_VOID;
+    keywords_["void"] = TokenType::TYPE_VOID;
+    keywords_["عدم"] = TokenType::TYPE_NULL;
+    keywords_["null"] = TokenType::TYPE_NULL;
+    keywords_["none"] = TokenType::TYPE_NULL;
+    
+    // Composite Types (Arabic + English)
+    keywords_["مصفوفة"] = TokenType::TYPE_ARRAY;
+    keywords_["array"] = TokenType::TYPE_ARRAY;
+    keywords_["خريطة"] = TokenType::TYPE_MAP;
+    keywords_["map"] = TokenType::TYPE_MAP;
+    keywords_["dict"] = TokenType::TYPE_MAP;
+    
+    DEBUG_PRINT("تمت إضافة 22 كلمة: أنواع البيانات (عربي + إنجليزي)");
     
     // ========== القيم الحرفية ==========
-    // Literal Values
+    // Literal Values (Arabic + English)
     keywords_["صحيح"] = TokenType::LITERAL_TRUE;
+    keywords_["true"] = TokenType::LITERAL_TRUE;
     keywords_["خطأ"] = TokenType::LITERAL_FALSE;
+    keywords_["false"] = TokenType::LITERAL_FALSE;
     keywords_["لاشيء"] = TokenType::LITERAL_NULL;
     
-    DEBUG_PRINT("تمت إضافة 3 كلمات: القيم الحرفية");
+    DEBUG_PRINT("تمت إضافة 5 كلمات: القيم الحرفية (عربي + إنجليزي)");
     
     // تعيين علَم التهيئة
     // Set initialization flag

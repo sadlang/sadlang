@@ -162,10 +162,16 @@ private:
      * @brief (AR) يحلل تصريح دالة (دالة عادية، طريقة، دالة مولّدة).
      *        (EN) Parses function declaration (regular function, method, generator).
      * 
+     * @brief (AR) يحلل تصريح دالة (function) مع مُزخرِفات اختيارية.
+     *        (EN) Parses function declaration with optional decorators.
+     * 
+     * @param decorators (AR) قائمة المُزخرِفات المُطبقة على الدالة
+     *                   (EN) List of decorators applied to the function
+     * 
      * @return (AR) مؤشر لعقدة تصريح الدالة.
      *         (EN) Pointer to function declaration node.
      */
-    AST::StmtPtr parseFunctionDecl();
+    AST::StmtPtr parseFunctionDecl(AST::ExprList decorators = AST::ExprList());
 
     /**
      * @brief (AR) يحلل تصريح صنف (class) مع الحقول والطرق.
@@ -251,6 +257,32 @@ private:
      *         (EN) Pointer to return statement node.
      */
     AST::StmtPtr parseReturnStmt();
+
+    /**
+     * @brief (AR) يحلل جملة yield (للدوال المولّدة).
+     *        (EN) Parses yield statement (for generator functions).
+     * 
+     * Grammar / القواعد:
+     *   yield_stmt → "yield" [ "from" ]? expression? ";"
+     * 
+     * Supports two forms:
+     * - yield expr         : yields a single value
+     * - yield from iterable: delegates to another generator
+     * 
+     * يدعم صيغتين:
+     * - yield expr         : تُعطي قيمة واحدة
+     * - yield from iterable: تفوّض إلى مولّد آخر
+     * 
+     * @example Examples / أمثلة:
+     * - yield 42;
+     * - yield x * 2;
+     * - yield from range(10);
+     * - اعطِ 100؛
+     * 
+     * @return (AR) مؤشر لعقدة جملة Yield.
+     *         (EN) Pointer to yield statement node.
+     */
+    AST::StmtPtr parseYieldStmt();
 
     /**
      * @brief (AR) يحلل جملة break (للخروج من الحلقات).
@@ -435,6 +467,62 @@ private:
      *         (EN) Pointer to lambda expression node.
      */
     AST::ExprPtr parseLambda();
+    
+    /**
+     * @brief (AR) يحلل مُزخرِف (decorator): @decorator أو @decorator(args).
+     *        (EN) Parses decorator: @decorator or @decorator(args).
+     * 
+     * Grammar / القواعد:
+     *   decorator ::= '@' identifier ['(' [argument_list] ')']
+     * 
+     * Examples / أمثلة:
+     *   - @staticmethod
+     *   - @cache(maxsize=100)
+     *   - @retry(times=3, delay=1.5)
+     *   - @مُزخرِف
+     *   - @تخزين_مؤقت(حجم=100)
+     * 
+     * @return (AR) مؤشر لعقدة تعبير المُزخرِف.
+     *         (EN) Pointer to decorator expression node.
+     * 
+     * @note (AR) يجب أن يكون الرمز الحالي هو AT_SIGN (@)
+     * @note (EN) Current token must be AT_SIGN (@)
+     */
+    AST::ExprPtr parseDecorator();
+
+    /**
+     * @brief (AR) يحلل arrow function: (x, y) => x + y.
+     *        (EN) Parses arrow function: (x, y) => x + y.
+     * 
+     * Grammar:
+     *   arrow_function ::= '(' [typed_param_list] ')' '=>' expression
+     *                    | identifier '=>' expression
+     * 
+     * Examples:
+     *   - (x, y) => x + y
+     *   - x => x * 2
+     *   - () => 42
+     *   - (x: int) => x * 2
+     * 
+     * @return (AR) مؤشر لعقدة تعبير arrow function (LambdaExpr).
+     *         (EN) Pointer to arrow function expression node (LambdaExpr).
+     */
+    AST::ExprPtr parseArrowFunction();
+
+    /**
+     * @brief (AR) يتحقق إذا كان التسلسل الحالي arrow function.
+     *        (EN) Checks if current sequence is arrow function.
+     * 
+     * Lookahead patterns:
+     *   - identifier '=>'  (e.g., x => x * 2)
+     *   - '(' ... ')' '=>'  (e.g., (x, y) => x + y)
+     * 
+     * Note: This function uses lookahead and restores parser position.
+     * 
+     * @return (AR) true إذا كان arrow function، وإلا false.
+     *         (EN) true if arrow function, false otherwise.
+     */
+    bool isArrowFunction();
 
     /**
      * @brief (AR) يحلل List Comprehension ([x*2 for x in list]).
@@ -535,6 +623,14 @@ private:
      */
     const Lexer::Token& peek() const;
 
+/**
+     * @brief (AR) يعيد الرمز التالي.
+     *        (EN) Returns next token.
+     * 
+     * @return (AR) الرمز التالي. (EN) Next token.
+     */
+    const Lexer::Token& peekNext() const;
+
     /**
      * @brief (AR) يعيد الرمز السابق.
      *        (EN) Returns previous token.
@@ -562,8 +658,41 @@ private:
      *        (EN) Parses function parameter list (x, y, z).
      * 
      * @return (AR) مصفوفة من أسماء المعاملات. (EN) Vector of parameter names.
+     * 
+     * @deprecated (AR) استخدم parseTypedParameterList() للحصول على معاملات مكتوبة.
+     *             (EN) Use parseTypedParameterList() for typed parameters.
      */
     std::vector<std::string> parseParameterList();
+
+    /**
+     * @brief (AR) يحلل قائمة معاملات مكتوبة: (x: int, y: float).
+     *        (EN) Parses typed parameter list: (x: int, y: float).
+     * 
+     * @details (AR) يدعم التنسيقات التالية:
+     *               - معاملات بسيطة: (x, y, z) → جميعها UNKNOWN
+     *               - معاملات مكتوبة: (x: int, y: float) → بأنواع محددة
+     *               - معاملات بقيم افتراضية: (x: int = 10) → قيمة ابتدائية
+     *               - مختلط: (x, y: int, z: string = "hello")
+     * 
+     *          (EN) Supports the following formats:
+     *               - Simple parameters: (x, y, z) → all UNKNOWN
+     *               - Typed parameters: (x: int, y: float) → with specific types
+     *               - Parameters with defaults: (x: int = 10) → initial value
+     *               - Mixed: (x, y: int, z: string = "hello")
+     * 
+     * @return (AR) مصفوفة من كائنات Parameter مع الأسماء والأنواع والقيم الافتراضية.
+     *         (EN) Vector of Parameter objects with names, types, and default values.
+     * 
+     * @example
+     * @code{.cpp}
+     * // Arabic example / مثال عربي
+     * دالة جمع(أ: رقم، ب: رقم) { إرجاع أ + ب; }
+     * 
+     * // English example
+     * function add(a: int, b: int) { return a + b; }
+     * @endcode
+     */
+    std::vector<AST::Parameter> parseTypedParameterList();
 
     /**
      * @brief (AR) يحلل قائمة وسائط استدعاء دالة (f(1, 2, 3)).
@@ -572,6 +701,70 @@ private:
      * @return (AR) مصفوفة من تعبيرات الوسائط. (EN) Vector of argument expressions.
      */
     AST::ExprList parseArgumentList();
+
+    // ======================================================================
+    // (AR) دوال نظام الأنواع / (EN) Type System Functions
+    // ======================================================================
+
+    /**
+     * @brief (AR) يحلل نوع بيانات (int, float, string, etc).
+     *        (EN) Parses data type (int, float, string, etc).
+     * 
+     * @details (AR) تدعم هذه الدالة تحليل:
+     *               - الأنواع الأساسية: رقم، عشري، نص، منطقي، فراغ
+     *               - الأنواع الإنجليزية: int, float, string, bool, void
+     *               - الأنواع المركبة: مصفوفة، قاموس (array, dict)
+     *               - الأنواع العامة: Array<int>, Map<string, int>
+     * 
+     *          (EN) This function supports parsing:
+     *               - Basic types: رقم، عشري، نص، منطقي، فراغ
+     *               - English types: int, float, string, bool, void
+     *               - Composite types: مصفوفة، قاموس (array, dict)
+     *               - Generic types: Array<int>, Map<string, int>
+     * 
+     * @return (AR) نوع البيانات المُحلل (UNKNOWN إذا فشل).
+     *         (EN) Parsed data type (UNKNOWN if failed).
+     * 
+     * @throws (AR) لا تُلقي استثناءات، تُسجل الخطأ داخلياً.
+     *         (EN) Does not throw, logs error internally.
+     * 
+     * @example
+     * @code{.cpp}
+     * // تحليل نوع بسيط / Parse simple type
+     * auto type1 = parseType(); // "int" → INTEGER
+     * 
+     * // تحليل نوع عام / Parse generic type
+     * auto type2 = parseType(); // "Array<int>" → ARRAY
+     * @endcode
+     */
+    Data::DataType parseType();
+
+    /**
+     * @brief (AR) يحلل نوع عام (Generic Type) مثل Array<T>.
+     *        (EN) Parses generic type like Array<T>.
+     * 
+     * @details (AR) تُستخدم لتحليل الأنواع ذات المعاملات العامة مثل:
+     *               - Array<int>
+     *               - Map<string, float>
+     *               - مصفوفة<رقم>
+     *               - قاموس<نص، عشري>
+     * 
+     *          (EN) Used to parse types with generic parameters like:
+     *               - Array<int>
+     *               - Map<string, float>
+     *               - مصفوفة<رقم>
+     *               - قاموس<نص، عشري>
+     * 
+     * @param baseType (AR) النوع الأساسي (ARRAY, MAP).
+     *                 (EN) Base type (ARRAY, MAP).
+     * 
+     * @return (AR) نوع البيانات مع معلومات المعاملات العامة.
+     *         (EN) Data type with generic parameter information.
+     * 
+     * @note (AR) التنفيذ الحالي يسجل المعاملات العامة لكن لا يستخدمها في runtime.
+     *       (EN) Current implementation records generic parameters but doesn't use them at runtime.
+     */
+    Data::DataType parseGenericType(Data::DataType baseType);
 
 private:
     // ======================================================================

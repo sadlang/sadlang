@@ -59,6 +59,7 @@ StmtList ParserCore::parseProgram() {
     // (AR) التحليل حتى نهاية الملف
     while (!isAtEnd()) {
         try {
+            std::cout << "Parsing program...\n";
             auto stmt = parseDeclaration();
             if (stmt) {
                 statements.push_back(std::move(stmt));
@@ -107,31 +108,61 @@ std::vector<std::string> ParserCore::getErrors() const {
  *        (EN) Parses single declaration (function, class, variable, import, export).
  */
 StmtPtr ParserCore::parseDeclaration() {
+    // (AR) التحقق من المُزخرِفات قبل التصريح
+    // (EN) Check for decorators before declaration
+    ExprList decorators;
+    while (check(TT::AT_SIGN)) {
+        match(TT::AT_SIGN);  // consume @
+        decorators.push_back(parseDecorator());
+    }
+    
     // Check for declaration keywords
     // (AR) التحقق من كلمات التصريح المفتاحية
-    
     if (match(TT::KEYWORD_FUNCTION)) {
-        return parseFunctionDecl();
+        return parseFunctionDecl(std::move(decorators));
     }
     
     if (match(TT::KEYWORD_CLASS)) {
+        // TODO: Add decorator support for classes in future
+        // (AR) ملاحظة: دعم المُزخرِفات للأصناف سيُضاف مستقبلاً
+        if (!decorators.empty()) {
+            error("(AR) المُزخرِفات للأصناف غير مدعومة بعد. (EN) Class decorators not yet supported.");
+        }
         return parseClassDecl();
     }
     
     if (match(TT::KEYWORD_VAR) || match(TT::KEYWORD_LET) || match(TT::KEYWORD_CONST)) {
+        if (!decorators.empty()) {
+            error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
+        }
         return parseVarDecl();
     }
     
     if (match(TT::KEYWORD_ENUM)) {
+        if (!decorators.empty()) {
+            error("(AR) المُزخرِفات لا تُستخدم مع التعدادات. (EN) Decorators cannot be used with enums.");
+        }
         return parseEnumDecl();
     }
     
     if (match(TT::KEYWORD_IMPORT)) {
+        if (!decorators.empty()) {
+            error("(AR) المُزخرِفات لا تُستخدم مع الاستيراد. (EN) Decorators cannot be used with import.");
+        }
         return parseImportStmt();
     }
     
     if (match(TT::KEYWORD_EXPORT)) {
+        if (!decorators.empty()) {
+            error("(AR) المُزخرِفات لا تُستخدم مع التصدير. (EN) Decorators cannot be used with export.");
+        }
         return parseExportStmt();
+    }
+    
+    // If decorators without valid target
+    // (AR) إذا وُجدت مُزخرِفات بدون هدف صالح
+    if (!decorators.empty()) {
+        error("(AR) المُزخرِفات يجب أن تسبق تصريح دالة. (EN) Decorators must precede a function declaration.");
     }
     
     // If no declaration keyword, parse as statement
@@ -163,6 +194,10 @@ StmtPtr ParserCore::parseStatement() {
         return parseReturnStmt();
     }
     
+    if (match(TT::KEYWORD_YIELD)) {
+        return parseYieldStmt();
+    }
+    
     if (match(TT::KEYWORD_BREAK)) {
         return parseBreakStmt();
     }
@@ -171,10 +206,125 @@ StmtPtr ParserCore::parseStatement() {
         return parseContinueStmt();
     }
     
-    if (match(TT::BRACE_LEFT)) {
-        return parseBlockStmt();
+    // Check for block vs map literal
+    // Strategy: { followed by expression is likely map if we find : early
+    // Block: { stmt; stmt; }
+    // Map: {k: v} or {k: v for x in list}
+    // (AR) التحقق من block أو خريطة حرفية
+    if (check(TT::BRACE_LEFT)) {
+        std::cout << "Found BRACE_LEFT, trying to determine type\n";
+        
+        // Save position
+        Token brace = current_;
+        advance(); // consume {
+        
+        // Check for empty map
+        if (check(TT::BRACE_RIGHT)) {
+            std::cout << "Empty map: {}\n";
+            consume(TT::BRACE_RIGHT, "Expected }");
+            auto mapExpr = std::make_unique<MapExpr>(std::vector<MapPair>{}, brace.getPosition());
+            return std::make_unique<ExprStmt>(std::move(mapExpr));
+        }
+        
+        // Try to parse first expression (key)
+        // This could be: identifier, number, string, or complex expression
+        std::cout << "Parsing potential map key expression\n";
+        ExprPtr firstKey = parseExpression();
+        
+        if (!firstKey) {
+            std::cout << "Failed to parse key, treating as block\n";
+            auto block = parseBlockStmt();
+            return block;
+        }
+        
+        // Check if followed by colon (map syntax)
+        if (check(TT::COLON)) {
+            std::cout << "Detected colon - this is a map!\n";
+            consume(TT::COLON, "Expected :");
+            
+            // Parse first value
+            ExprPtr firstValue = parseExpression();
+            
+            if (!firstValue) {
+                error("Expected value expression after :");
+                return nullptr;
+            }
+            
+            // Check for dict comprehension
+            if (check(TT::KEYWORD_FOR)) {
+                std::cout << "Dict comprehension detected!\n";
+                advance(); // consume 'for'
+                
+                Token loopVar = consume(TT::IDENTIFIER, "Expected loop variable");
+                consume(TT::KEYWORD_IN, "Expected 'in'");
+                auto iterable = parseExpression();
+                
+                ExprPtr condition = nullptr;
+                if (match(TT::KEYWORD_IF)) {
+                    condition = parseExpression();
+                }
+                
+                consume(TT::BRACE_RIGHT, "Expected }");
+                
+                // Create dict comprehension
+                auto dictComp = std::make_unique<DictComprehensionExpr>(
+                    std::move(firstKey),
+                    std::move(firstValue),
+                    loopVar.getValue(),
+                    std::move(iterable),
+                    std::move(condition),
+                    brace.getPosition()
+                );
+                
+                return std::make_unique<ExprStmt>(std::move(dictComp));
+            }
+            
+            // Regular map literal
+            std::cout << "Regular map literal\n";
+            std::vector<MapPair> pairs;
+            pairs.emplace_back(std::move(firstKey), std::move(firstValue));
+            
+            while (match(TT::COMMA)) {
+                if (check(TT::BRACE_RIGHT)) break;
+                
+                auto key = parseExpression();
+                consume(TT::COLON, "Expected :");
+                auto value = parseExpression();
+                pairs.emplace_back(std::move(key), std::move(value));
+            }
+            
+            consume(TT::BRACE_RIGHT, "Expected }");
+            
+            auto mapExpr = std::make_unique<MapExpr>(std::move(pairs), brace.getPosition());
+            return std::make_unique<ExprStmt>(std::move(mapExpr));
+        }
+        
+        // No colon found - this must be a block statement with expression
+        // But we've already consumed { and parsed an expression
+        // This is problematic - we need to handle this as expression statement in block
+        std::cout << "No colon found, treating as block with expression statement\n";
+        
+        // We have an expression, make it an expression statement
+        auto exprStmt = std::make_unique<ExprStmt>(std::move(firstKey));
+        
+        // Continue parsing rest of block
+        StmtList statements;
+        statements.push_back(std::move(exprStmt));
+        
+        // Parse remaining statements
+        while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
+            auto stmt = parseDeclaration();
+            if (stmt) {
+                statements.push_back(std::move(stmt));
+            }
+        }
+        
+        consume(TT::BRACE_RIGHT, "Expected }");
+        
+        return std::make_unique<BlockStmt>(std::move(statements), brace.getPosition());
     }
     
+    std::cout << "Parsing declaration after block/map check...\n";
     if (match(TT::KEYWORD_TRY)) {
         return parseTryStmt();
     }
@@ -193,22 +343,40 @@ StmtPtr ParserCore::parseStatement() {
 // ======================================================================
 
 /**
- * @brief (AR) يحلل تصريح دالة: دالة اسم(معاملات) { جسم }.
- *        (EN) Parses function declaration: function name(params) { body }.
+ * @brief (AR) يحلل تصريح دالة مع مُزخرِفات اختيارية.
+ *        (EN) Parses function declaration with optional decorators.
+ * 
+ * @param decorators (AR) قائمة المُزخرِفات (إن وُجدت)
+ *                   (EN) List of decorators (if any)
+ * 
+ * Grammar / القواعد:
+ *   function_decl → decorator* "function" IDENTIFIER "(" parameters ")" [ ":" type ] block
+ * 
+ * @example Examples / أمثلة:
+ * - function test() {}
+ * - @staticmethod\nfunction test() {}
+ * - @cache(100)\n@memoize\nfunction expensive() {}
  */
-StmtPtr ParserCore::parseFunctionDecl() {
+StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
     // Expect function name
     // (AR) توقع اسم الدالة
     Token name = consume(TT::IDENTIFIER, 
         "(AR) توقع اسم الدالة. (EN) Expected function name.");
     
-    // Parse parameter list
-    // (AR) تحليل قائمة المعاملات
+    // Parse parameter list (now with type annotations)
+    // (AR) تحليل قائمة المعاملات (الآن مع تصريحات الأنواع)
     consume(TT::PAREN_LEFT, 
         "(AR) توقع '(' بعد اسم الدالة. (EN) Expected '(' after function name.");
-    auto params = parseParameterList();
+    auto paramObjs = parseTypedParameterList();
     consume(TT::PAREN_RIGHT, 
         "(AR) توقع ')' بعد المعاملات. (EN) Expected ')' after parameters.");
+    
+    // Optional return type annotation: function name(...) : type
+    // (AR) تصريح نوع الإرجاع الاختياري: دالة اسم(...) : نوع
+    Data::DataType returnType = Data::DataType::UNKNOWN;
+    if (match(TT::COLON)) {
+        returnType = parseType();
+    }
     
     // Parse function body
     // (AR) تحليل جسم الدالة
@@ -216,12 +384,28 @@ StmtPtr ParserCore::parseFunctionDecl() {
         "(AR) توقع '{' قبل جسم الدالة. (EN) Expected '{' before function body.");
     auto body = parseBlockStmt();
     
-    // Create function declaration node
-    // (AR) إنشاء عقدة تصريح الدالة
+    // (AR) إنشاء عقدة تصريح الدالة مع المُزخرِفات
+    // (EN) Create function declaration node with decorators
+    if (!decorators.empty()) {
+        return std::make_unique<FunctionDecl>(
+            name.getValue(),
+            std::move(paramObjs),
+            returnType,
+            std::move(body),
+            std::move(decorators),
+            false,
+            name.getPosition()
+        );
+    }
+    
+    // (AR) إنشاء عقدة تصريح الدالة بدون مُزخرِفات
+    // (EN) Create function declaration node without decorators
     return std::make_unique<FunctionDecl>(
         name.getValue(),
-        params,
+        std::move(paramObjs),
+        returnType,
         std::move(body),
+        false,
         name.getPosition()
     );
 }
@@ -269,19 +453,71 @@ StmtPtr ParserCore::parseClassDecl() {
         name.getValue(),
         superclass,
         std::move(members),
+        false,
         name.getPosition()
     );
 }
 
 /**
- * @brief (AR) يحلل تصريح متغير: متغير اسم = قيمة;
- *        (EN) Parses variable declaration: var name = value;
+ * @brief (AR) يحلل تصريح متغير بصيغتين:
+ *             1. var/let/const name : type = value;
+ *             2. type name = value;
+ *        (EN) Parses variable declaration in two formats:
+ *             1. var/let/const name : type = value;
+ *             2. type name = value;
  */
 StmtPtr ParserCore::parseVarDecl() {
-    // Expect variable name
-    // (AR) توقع اسم المتغير
-    Token name = consume(TT::IDENTIFIER, 
-        "(AR) توقع اسم المتغير. (EN) Expected variable name.");
+    Data::DataType varType = Data::DataType::UNKNOWN;
+    Token name(TT::IDENTIFIER, "");  // Initialize with default
+    
+    // Check if we have type-first syntax: type IDENTIFIER
+    // (AR) التحقق من صيغة النوع أولاً: نوع معرّف
+    if (check(TT::IDENTIFIER)) {
+        // Peek ahead to determine if this is a type name
+        // (AR) النظر للأمام لتحديد ما إذا كان هذا اسم نوع
+        Token possibleType = peek();
+        TokenType typeToken = possibleType.getType();
+        std::string typeName = possibleType.getValue();
+        
+        // Check if it's a known type name (int, string, float, bool, etc.)
+        // (AR) التحقق مما إذا كان اسم نوع معروف
+        bool isKnownType = (typeToken == TT::TYPE_INTEGER || typeName == "صحيح" ||
+                            typeName == "عشري" || typeToken == TT::TYPE_DOUBLE ||
+                           typeToken == TT::TYPE_STRING || typeName == "نص" ||
+                           typeToken == TT::TYPE_BOOLEAN || typeName == "منطقي" ||
+                           typeToken == TT::TYPE_VOID || typeName == "عدم" ||
+                           typeToken == TT::TYPE_NULL || typeName == "تلقائي");
+        
+        if (isKnownType) {
+            // Format 2: type IDENTIFIER = value;
+            // (AR) الصيغة 2: نوع معرّف = قيمة;
+            varType = parseType();
+            name = consume(TT::IDENTIFIER, 
+                "(AR) توقع اسم المتغير بعد النوع. (EN) Expected variable name after type.");
+        } else {
+            // Format 1: var/let/const IDENTIFIER : type = value;
+            // (AR) الصيغة 1: var/let/const معرّف : نوع = قيمة;
+            name = consume(TT::IDENTIFIER, 
+                "(AR) توقع اسم المتغير. (EN) Expected variable name.");
+            
+            // Optional type annotation: name : type
+            // (AR) تصريح النوع الاختياري: اسم : نوع
+            if (match(TT::COLON)) {
+                varType = parseType();
+            }
+        }
+    } else {
+        // Format 1: var/let/const IDENTIFIER : type = value;
+        // (AR) الصيغة 1: var/let/const معرّف : نوع = قيمة;
+        name = consume(TT::IDENTIFIER, 
+            "(AR) توقع اسم المتغير. (EN) Expected variable name.");
+        
+        // Optional type annotation: name : type
+        // (AR) تصريح النوع الاختياري: اسم : نوع
+        if (match(TT::COLON)) {
+            varType = parseType();
+        }
+    }
     
     // Optional initializer
     // (AR) المُهيّئ الاختياري
@@ -290,14 +526,19 @@ StmtPtr ParserCore::parseVarDecl() {
         initializer = parseExpression();
     }
     
-    consume(TT::SEMICOLON, 
-        "(AR) توقع ';' بعد تصريح المتغير. (EN) Expected ';' after variable declaration.");
+    // Optional semicolon (support both Arabic and English)
+    // (AR) فاصلة منقوطة اختيارية (دعم العربية والإنجليزية)
+    if (check(TT::SEMICOLON)) {
+        advance();
+    }
     
     // Create variable declaration statement
     // (AR) إنشاء جملة تصريح المتغير
     return std::make_unique<VarDeclStmt>(
         name.getValue(),
+        varType,
         std::move(initializer),
+        false,
         name.getPosition()
     );
 }
@@ -345,7 +586,8 @@ StmtPtr ParserCore::parseEnumDecl() {
     // (AR) إنشاء عقدة تصريح Enum
     return std::make_unique<EnumDecl>(
         name.getValue(),
-        members,
+        std::move(members),
+        false,
         name.getPosition()
     );
 }
@@ -367,6 +609,9 @@ StmtPtr ParserCore::parseImportStmt() {
     // (AR) إنشاء عقدة جملة الاستيراد
     return std::make_unique<ImportStmt>(
         moduleName.getValue(),
+        "",
+        std::vector<std::string>{},
+        false,
         moduleName.getPosition()
     );
 }
@@ -376,19 +621,15 @@ StmtPtr ParserCore::parseImportStmt() {
  *        (EN) Parses export statement: export identifier;
  */
 StmtPtr ParserCore::parseExportStmt() {
-    // Expect exported name
-    // (AR) توقع الاسم المُصدّر
-    Token exportName = consume(TT::IDENTIFIER, 
-        "(AR) توقع اسم العنصر المُصدّر. (EN) Expected exported item name.");
-    
-    consume(TT::SEMICOLON, 
-        "(AR) توقع ';' بعد جملة التصدير. (EN) Expected ';' after export statement.");
+    // Parse the declaration to be exported
+    // (AR) تحليل التصريح المُصدّر
+    auto declaration = parseDeclaration();
     
     // Create export statement node
     // (AR) إنشاء عقدة جملة التصدير
     return std::make_unique<ExportStmt>(
-        exportName.getValue(),
-        exportName.getPosition()
+        std::move(declaration),
+        previous().getPosition()
     );
 }
 
@@ -486,12 +727,13 @@ StmtPtr ParserCore::parseForStmt() {
     // (AR) تحليل الجسم
     auto body = parseStatement();
     
-    // Create for statement node
-    // (AR) إنشاء عقدة جملة For
-    return std::make_unique<ForStmt>(
+    // Create for-range statement node
+    // (AR) إنشاء عقدة جملة For-Range
+    return std::make_unique<ForRangeStmt>(
         var.getValue(),
         std::move(collection),
         std::move(body),
+        "",
         var.getPosition()
     );
 }
@@ -518,6 +760,58 @@ StmtPtr ParserCore::parseReturnStmt() {
     return std::make_unique<ReturnStmt>(
         std::move(value),
         keyword.getPosition()
+    );
+}
+
+/**
+ * @brief (AR) يحلل جملة yield (للدوال المولّدة).
+ *        (EN) Parses yield statement (for generator functions).
+ * 
+ * Grammar:
+ *   yield_stmt → "yield" [ "from" ]? expression? ";"
+ * 
+ * Supports:
+ *   - yield expr         : yields a single value
+ *   - yield from iterable: delegates to another generator
+ *   - yield              : yields None
+ * 
+ * Examples:
+ *   yield 42;
+ *   yield x * 2;
+ *   yield from other_generator();
+ *   اعطِ 100؛
+ */
+StmtPtr ParserCore::parseYieldStmt() {
+    // (AR) توقع yield قد استُهلكت بالفعل
+    // (EN) Expect yield already consumed
+    Token yieldToken = previous();
+    
+    // (AR) التحقق من 'yield from' (حيث 'from' معرّف وليس كلمة مفتاحية)
+    // (EN) Check for 'yield from' (where 'from' is identifier, not keyword)
+    bool isYieldFrom = false;
+    if (check(TT::IDENTIFIER) && peek().getValue() == "from") {
+        advance(); // consume 'from' identifier
+        isYieldFrom = true;
+    }
+    
+    // (AR) تحليل القيمة الاختيارية
+    // (EN) Parse optional value
+    ExprPtr value = nullptr;
+    if (!check(TT::SEMICOLON) && !check(TT::BRACE_RIGHT) && !isAtEnd()) {
+        value = parseExpression();
+    }
+    
+    // (AR) توقع الفاصلة المنقوطة
+    // (EN) Expect semicolon
+    consume(TT::SEMICOLON, 
+        "(AR) توقع ';' بعد جملة yield. (EN) Expected ';' after yield statement.");
+    
+    // (AR) إنشاء عقدة جملة Yield
+    // (EN) Create yield statement node
+    return std::make_unique<YieldStmt>(
+        std::move(value), 
+        isYieldFrom, 
+        yieldToken.getPosition()
     );
 }
 
@@ -624,7 +918,7 @@ StmtPtr ParserCore::parseTryStmt() {
     // (AR) إنشاء عقدة جملة Try
     return std::make_unique<TryStmt>(
         std::move(tryBlock),
-        catchClauses,
+        std::move(catchClauses),
         std::move(finallyBlock),
         previous().getPosition()
     );
@@ -655,9 +949,23 @@ StmtPtr ParserCore::parseRaiseStmt() {
  *        (EN) Parses with statement: with resource { body }.
  */
 StmtPtr ParserCore::parseWithStmt() {
+    consume(TT::PAREN_LEFT,
+        "(AR) توقع '(' بعد with. (EN) Expected '(' after with.");
+    
+    // Parse variable name
+    // (AR) تحليل اسم المتغير
+    Token varName = consume(TT::IDENTIFIER,
+        "(AR) توقع اسم متغير. (EN) Expected variable name.");
+    
+    consume(TT::OP_ASSIGN,
+        "(AR) توقع '=' في with. (EN) Expected '=' in with.");
+    
     // Parse resource expression
     // (AR) تحليل تعبير المورد
     auto resource = parseExpression();
+    
+    consume(TT::PAREN_RIGHT,
+        "(AR) توقع ')' بعد with. (EN) Expected ')' after with.");
     
     // Parse body
     // (AR) تحليل الجسم
@@ -668,9 +976,10 @@ StmtPtr ParserCore::parseWithStmt() {
     // Create with statement node
     // (AR) إنشاء عقدة جملة With
     return std::make_unique<WithStmt>(
+        varName.getValue(),
         std::move(resource),
         std::move(body),
-        previous().getPosition()
+        varName.getPosition()
     );
 }
 
@@ -680,15 +989,16 @@ StmtPtr ParserCore::parseWithStmt() {
  */
 StmtPtr ParserCore::parseExpressionStmt() {
     auto expr = parseExpression();
-    consume(TT::SEMICOLON, 
-        "(AR) توقع ';' بعد التعبير. (EN) Expected ';' after expression.");
+    
+    // Semicolon is optional for expression statements
+    // (AR) الفاصلة المنقوطة اختيارية لجمل التعبير
+    if (check(TT::SEMICOLON)) {
+        consume(TT::SEMICOLON, "");
+    }
     
     // Create expression statement node
     // (AR) إنشاء عقدة جملة التعبير
-    return std::make_unique<ExprStmt>(
-        std::move(expr),
-        previous().getPosition()
-    );
+    return std::make_unique<ExprStmt>(std::move(expr));
 }
 
 // ======================================================================
@@ -954,6 +1264,19 @@ ExprPtr ParserCore::parsePostfix() {
  *        (EN) Parses primary expressions: numbers, strings, variables.
  */
 ExprPtr ParserCore::parsePrimary() {
+    // Lambda expression: lambda x: x + 1
+    // (AR) تعبير لامدا
+    if (match(TT::KEYWORD_LAMBDA)) {
+        return parseLambda();
+    }
+    
+    // TODO: Arrow function support needs proper lookahead implementation
+    // Arrow function: (x, y) => x + y  OR  x => x * 2
+    // (AR) دالة سهمية: (x, y) => x + y  أو  x => x * 2
+    // if (isArrowFunction()) {
+    //     return parseArrowFunction();
+    // }
+    
     // Literals
     // (AR) القيم الحرفية
     
@@ -1018,9 +1341,9 @@ ExprPtr ParserCore::parsePrimary() {
 ExprPtr ParserCore::parseLambda() {
     // Parse parameters
     // (AR) تحليل المعاملات
-    std::vector<std::string> params;
+    std::vector<std::string> paramNames;
     if (!check(TT::COLON)) {
-        params = parseParameterList();
+        paramNames = parseParameterList();
     }
     
     consume(TT::COLON, 
@@ -1030,32 +1353,153 @@ ExprPtr ParserCore::parseLambda() {
     // (AR) تحليل تعبير الجسم
     auto body = parseExpression();
     
+    // Convert param names to Parameter objects
+    // (AR) تحويل أسماء المعاملات إلى كائنات Parameter
+    std::vector<Parameter> params;
+    params.reserve(paramNames.size());
+    for (const auto& name : paramNames) {
+        params.emplace_back(name, Data::DataType::UNKNOWN, nullptr);
+    }
+    
     // Create lambda expression node
     // (AR) إنشاء عقدة تعبير Lambda
     return std::make_unique<LambdaExpr>(
-        params,
+        std::move(params),
         std::move(body),
         previous().getPosition()
     );
 }
 
 /**
- * @brief (AR) يحلل مصفوفة حرفية: [1, 2, 3].
- *        (EN) Parses array literal: [1, 2, 3].
+ * @brief (AR) يحلل مُزخرِف (decorator): @decorator أو @decorator(args).
+ *        (EN) Parses decorator: @decorator or @decorator(args).
+ */
+ExprPtr ParserCore::parseDecorator() {
+    // Expect @ sign (should already be consumed by caller)
+    // (AR) نتوقع @ (يجب أن يكون مُستهلكاً من المُستدعي)
+    Token atSign = previous();
+    
+    // Expect decorator name
+    // (AR) نتوقع اسم المُزخرِف
+    Token decoratorName = consume(TT::IDENTIFIER,
+        "(AR) توقع اسم المُزخرِف بعد @. "
+        "(EN) Expected decorator name after @.");
+    
+    // Check for arguments
+    // (AR) التحقق من الوسائط
+    if (check(TT::PAREN_LEFT)) {
+        // Decorator with arguments: @decorator(arg1, arg2, ...)
+        // (AR) مُزخرِف مع وسائط
+        advance(); // consume (
+        
+        ExprList args;
+        
+        // Parse arguments if not empty
+        // (AR) تحليل الوسائط إذا لم تكن فارغة
+        if (!check(TT::PAREN_RIGHT)) {
+            args = parseArgumentList();
+        }
+        
+        consume(TT::PAREN_RIGHT,
+            "(AR) توقع ')' بعد وسائط المُزخرِف. "
+            "(EN) Expected ')' after decorator arguments.");
+        
+        // Create decorator with arguments
+        // (AR) إنشاء مُزخرِف مع وسائط
+        return std::make_unique<DecoratorExpr>(
+            decoratorName.getValue(),
+            std::move(args),
+            atSign.getPosition()
+        );
+    }
+    
+    // Decorator without arguments: @decorator
+    // (AR) مُزخرِف بدون وسائط
+    return std::make_unique<DecoratorExpr>(
+        decoratorName.getValue(),
+        atSign.getPosition()
+    );
+}
+
+/**
+ * @brief (AR) يحلل مصفوفة حرفية أو list comprehension: [1, 2, 3] أو [x * 2 for x in list].
+ *        (EN) Parses array literal or list comprehension: [1, 2, 3] or [x * 2 for x in list].
  */
 ExprPtr ParserCore::parseArrayLiteral() {
-    ExprList elements;
+    // Check for empty array
+    // (AR) التحقق من مصفوفة فارغة
+    if (check(TT::BRACKET_RIGHT)) {
+        consume(TT::BRACKET_RIGHT, "");
+        return std::make_unique<ArrayExpr>(ExprList{}, previous().getPosition());
+    }
     
-    // Parse elements
-    // (AR) تحليل العناصر
-    if (!check(TT::BRACKET_RIGHT)) {
-        do {
-            elements.push_back(parseExpression());
-        } while (match(TT::COMMA));
+    // Parse first element/expression
+    // (AR) تحليل العنصر/التعبير الأول
+    auto firstExpr = parseExpression();
+    
+    // Check if this is a list comprehension
+    // (AR) التحقق إذا كان list comprehension
+    if (check(TT::KEYWORD_FOR)) {
+        // This is a list comprehension: [expr for var in iterable if cond]
+        // (AR) هذا list comprehension
+        
+        advance(); // consume 'for'
+        
+        // Parse variable
+        // (AR) تحليل المتغير
+        Token var = consume(TT::IDENTIFIER, 
+            "(AR) توقع اسم متغير في list comprehension. "
+            "(EN) Expected variable name in list comprehension.");
+        
+        // Expect 'in' keyword
+        // (AR) توقع كلمة 'في'
+        consume(TT::KEYWORD_IN, 
+            "(AR) توقع 'في' في list comprehension. "
+            "(EN) Expected 'in' in list comprehension.");
+        
+        // Parse iterable
+        // (AR) تحليل المجموعة القابلة للتكرار
+        auto iterable = parseExpression();
+        
+        // Optional condition
+        // (AR) الشرط الاختياري
+        ExprPtr condition = nullptr;
+        if (match(TT::KEYWORD_IF)) {
+            condition = parseExpression();
+        }
+        
+        consume(TT::BRACKET_RIGHT, 
+            "(AR) توقع ']' بعد list comprehension. "
+            "(EN) Expected ']' after list comprehension.");
+        
+        // Create list comprehension node
+        // (AR) إنشاء عقدة List Comprehension
+        return std::make_unique<ListComprehensionExpr>(
+            std::move(firstExpr),
+            var.getValue(),
+            std::move(iterable),
+            std::move(condition),
+            var.getPosition()
+        );
+    }
+    
+    // Regular array literal
+    // (AR) مصفوفة حرفية عادية
+    ExprList elements;
+    elements.push_back(std::move(firstExpr));
+    
+    // Parse remaining elements
+    // (AR) تحليل العناصر المتبقية
+    while (match(TT::COMMA)) {
+        if (check(TT::BRACKET_RIGHT)) {
+            break; // Trailing comma
+        }
+        elements.push_back(parseExpression());
     }
     
     consume(TT::BRACKET_RIGHT, 
-        "(AR) توقع ']' بعد عناصر المصفوفة. (EN) Expected ']' after array elements.");
+        "(AR) توقع ']' بعد عناصر المصفوفة. "
+        "(EN) Expected ']' after array elements.");
     
     // Create array expression node
     // (AR) إنشاء عقدة تعبير المصفوفة
@@ -1066,26 +1510,120 @@ ExprPtr ParserCore::parseArrayLiteral() {
 }
 
 /**
- * @brief (AR) يحلل خريطة حرفية: {key: value, ...}.
- *        (EN) Parses map literal: {key: value, ...}.
+ * @brief (AR) يحلل خريطة حرفية أو dict comprehension: {k: v} أو {k: v for k, v in items}.
+ *        (EN) Parses map literal or dict comprehension: {k: v} or {k: v for k, v in items}.
  */
 ExprPtr ParserCore::parseMapLiteral() {
-    std::vector<std::pair<ExprPtr, ExprPtr>> pairs;
+    // Check for empty map
+    // (AR) التحقق من خريطة فارغة
+    if (check(TT::BRACE_RIGHT)) {
+        consume(TT::BRACE_RIGHT, "");
+        return std::make_unique<MapExpr>(std::vector<MapPair>{}, previous().getPosition());
+    }
     
-    // Parse key-value pairs
-    // (AR) تحليل أزواج المفتاح-القيمة
-    if (!check(TT::BRACE_RIGHT)) {
-        do {
-            auto key = parseExpression();
-            consume(TT::COLON, 
-                "(AR) توقع ':' بعد مفتاح الخريطة. (EN) Expected ':' after map key.");
-            auto value = parseExpression();
-            pairs.push_back({std::move(key), std::move(value)});
-        } while (match(TT::COMMA));
+    // Parse first key expression (or key variable template in comprehension)
+    // (AR) تحليل تعبير المفتاح الأول (أو قالب متغير المفتاح في comprehension)
+    auto firstKey = parseExpression();
+    if (!firstKey) {
+        error("Failed to parse key expression in map literal");
+        // Try to recover by consuming until }
+        while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
+            advance();
+        }
+        if (check(TT::BRACE_RIGHT)) consume(TT::BRACE_RIGHT, "");
+        return nullptr;
+    }
+    
+    consume(TT::COLON, 
+        "(AR) توقع ':' بعد مفتاح الخريطة. "
+        "(EN) Expected ':' after map key.");
+    
+    // Parse first value expression (or value variable template in comprehension)
+    // (AR) تحليل تعبير القيمة الأولى (أو قالب متغير القيمة في comprehension)
+    auto firstValue = parseExpression();
+    if (!firstValue) {
+        error("Failed to parse value expression in map literal");
+        // Try to recover by consuming until }
+        while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
+            advance();
+        }
+        if (check(TT::BRACE_RIGHT)) consume(TT::BRACE_RIGHT, "");
+        return nullptr;
+    }
+    
+    // Check if this is a dict comprehension
+    // (AR) التحقق إذا كان dict comprehension
+    if (check(TT::KEYWORD_FOR)) {
+        // This is a dict comprehension: {k: v for var in iterable if cond}
+        // Note: firstKey and firstValue are the TEMPLATE expressions (k, v)
+        // The loop variable comes AFTER 'for'
+        // (AR) هذا dict comprehension - firstKey و firstValue هي القوالب
+        
+        advance(); // consume 'for'
+        
+        // Parse loop variable (can be single: 'x' or tuple: 'k, v')
+        // For now, we support single variable only
+        // (AR) تحليل متغير الحلقة
+        Token loopVar = consume(TT::IDENTIFIER, 
+            "(AR) توقع اسم متغير الحلقة في dict comprehension. "
+            "(EN) Expected loop variable name in dict comprehension.");
+        
+        // Expect 'in' keyword
+        // (AR) توقع كلمة 'في'
+        consume(TT::KEYWORD_IN, 
+            "(AR) توقع 'في' في dict comprehension. "
+            "(EN) Expected 'in' in dict comprehension.");
+        
+        // Parse iterable
+        // (AR) تحليل المجموعة القابلة للتكرار
+        auto iterable = parseExpression();
+        
+        // Optional condition
+        // (AR) الشرط الاختياري
+        ExprPtr condition = nullptr;
+        if (match(TT::KEYWORD_IF)) {
+            condition = parseExpression();
+        }
+        
+        consume(TT::BRACE_RIGHT, 
+            "(AR) توقع '}' بعد dict comprehension. "
+            "(EN) Expected '}' after dict comprehension.");
+        
+        // Create dict comprehension node
+        // (AR) إنشاء عقدة Dict Comprehension
+        return std::make_unique<DictComprehensionExpr>(
+            std::move(firstKey),
+            std::move(firstValue),
+            loopVar.getValue(),
+            std::move(iterable),
+            std::move(condition),
+            loopVar.getPosition()
+        );
+    }
+    
+    // Regular map literal
+    // (AR) خريطة حرفية عادية
+    std::vector<MapPair> pairs;
+    pairs.emplace_back(std::move(firstKey), std::move(firstValue));
+    
+    // Parse remaining key-value pairs
+    // (AR) تحليل أزواج المفتاح-القيمة المتبقية
+    while (match(TT::COMMA)) {
+        if (check(TT::BRACE_RIGHT)) {
+            break; // Trailing comma
+        }
+        
+        auto key = parseExpression();
+        consume(TT::COLON, 
+            "(AR) توقع ':' بعد مفتاح الخريطة. "
+            "(EN) Expected ':' after map key.");
+        auto value = parseExpression();
+        pairs.emplace_back(std::move(key), std::move(value));
     }
     
     consume(TT::BRACE_RIGHT, 
-        "(AR) توقع '}' بعد عناصر الخريطة. (EN) Expected '}' after map elements.");
+        "(AR) توقع '}' بعد عناصر الخريطة. "
+        "(EN) Expected '}' after map elements.");
     
     // Create map expression node
     // (AR) إنشاء عقدة تعبير الخريطة
