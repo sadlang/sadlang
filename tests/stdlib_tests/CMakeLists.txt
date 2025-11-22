@@ -86,6 +86,19 @@ target_include_directories(type_functions_tests PRIVATE
 )
 
 # ==============================================================================
+# اختبارات الدوال الأخرى / Other Functions Tests
+# ==============================================================================
+add_executable(other_functions_tests
+    other_functions_tests.cpp
+    ${CMAKE_SOURCE_DIR}/../../src/stdlib/core/other_functions.cpp
+    ${CMAKE_SOURCE_DIR}/../../src/data/types/value.cpp
+)
+
+target_include_directories(other_functions_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/../../include
+)
+
+# ==============================================================================
 # إضافة اختبارات CTest / Add CTest Tests
 # ==============================================================================
 enable_testing()
@@ -94,6 +107,7 @@ add_test(NAME StringFunctionsTests COMMAND string_functions_tests)
 add_test(NAME ArrayFunctionsTests COMMAND array_functions_tests)
 add_test(NAME MathFunctionsTests COMMAND math_functions_tests)
 add_test(NAME TypeFunctionsTests COMMAND type_functions_tests)
+add_test(NAME OtherFunctionsTests COMMAND other_functions_tests)
 
 # ==============================================================================
 # خيارات الترجمة / Compilation Options
@@ -104,12 +118,14 @@ if(MSVC)
     target_compile_options(array_functions_tests PRIVATE /W4 /utf-8)
     target_compile_options(math_functions_tests PRIVATE /W4 /utf-8)
     target_compile_options(type_functions_tests PRIVATE /W4 /utf-8)
+    target_compile_options(other_functions_tests PRIVATE /W4 /utf-8)
 else()
     # GCC/Clang options
     target_compile_options(string_functions_tests PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(array_functions_tests PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(math_functions_tests PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(type_functions_tests PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(other_functions_tests PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # ==============================================================================
@@ -124,4 +140,5 @@ message(STATUS "    - String Functions Tests")
 message(STATUS "    - Array Functions Tests")
 message(STATUS "    - Math Functions Tests")
 message(STATUS "    - Type Functions Tests")
+message(STATUS "    - Other Functions Tests")
 message(STATUS "═══════════════════════════════════════════════════════")
