@@ -81,6 +81,8 @@
 #include <functional>
 #include <stdexcept>
 
+#include "../types/value.h"
+
 // Forward declarations for AST nodes
 namespace Sad {
 namespace Parser {
@@ -139,7 +141,7 @@ public:
      */
     FunctionDefinition(const std::string& name,
                       const std::vector<FunctionParameter>& params,
-                      std::function<void()> nativeImpl);
+                      std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>>&)> nativeImpl);
     
     // Getters
     std::string getName() const { return name_; }
@@ -150,6 +152,23 @@ public:
     
     std::shared_ptr<Parser::ASTNode> getBody() const { return body_; }
     bool hasBody() const { return body_ != nullptr; }
+    
+    /**
+     * @brief (AR) التحقق من وجود تنفيذ أصلي (دالة مضمنة)
+     * @brief (EN) Check if has native implementation (built-in function)
+     */
+    bool hasNativeImplementation() const { return nativeImplementation_ != nullptr; }
+    
+    /**
+     * @brief (AR) استدعاء التنفيذ الأصلي
+     * @brief (EN) Call native implementation
+     */
+    std::shared_ptr<Data::Value> callNative(const std::vector<std::shared_ptr<Data::Value>>& args) const {
+        if (nativeImplementation_) {
+            return nativeImplementation_(args);
+        }
+        return nullptr;
+    }
     
     std::string getReturnType() const { return returnType_; }
     void setReturnType(const std::string& type) { returnType_ = type; }
@@ -198,7 +217,7 @@ private:
     std::shared_ptr<Parser::ASTNode> body_;        ///< (AR) جسم الدالة (AST) / (EN) Function body (AST)
     std::shared_ptr<Parser::ASTNode> declaration_;  ///< (AR) التصريح الأصلي (للوصول للـ defaults) / (EN) Original declaration (for defaults access)
     std::shared_ptr<Parser::ASTNode> functionDecl_;  ///< (AR) FunctionDecl الأصلي (للوصول لـ Parameters) / (EN) Original FunctionDecl (for Parameters access)
-    std::function<void()> nativeImplementation_;   ///< (AR) تنفيذ أصلي (للدوال المضمنة) / (EN) Native implementation (for built-in)
+    std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>>&)> nativeImplementation_;   ///< (AR) تنفيذ أصلي (للدوال المضمنة) / (EN) Native implementation (for built-in)
     std::string returnType_;                        ///< (AR) نوع الإرجاع / (EN) Return type
 };
 
@@ -285,7 +304,17 @@ public:
      */
     void defineBuiltInFunction(const std::string& name,
                                const std::vector<FunctionParameter>& params,
-                               std::function<void()> impl);
+                               std::function<std::shared_ptr<Value>(const std::vector<std::shared_ptr<Value>>&)> impl);
+    
+    /**
+     * @brief (AR) تسجيل دالة مضمنة جديدة (مع معالج ValuePtr)
+     * @brief (EN) Register new built-in function (with ValuePtr handler)
+     * 
+     * @param name (AR) اسم الدالة / (EN) Function name
+     * @param func (AR) الدالة / (EN) Function implementation
+     */
+    void registerBuiltinFunction(const std::string& name,
+                                const std::function<std::shared_ptr<Value>(const std::vector<std::shared_ptr<Value>>&)>& func);
     
     /**
      * @brief (AR) حذف دالة

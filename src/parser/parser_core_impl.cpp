@@ -37,11 +37,27 @@ ParserCore::ParserCore(LexerCore& lexer)
     : lexer_(lexer)
     , current_(TT::END_OF_FILE, "")  // Initialize with dummy token
     , previous_(TT::END_OF_FILE, "") // Initialize with dummy token
+    , nextToken_(TT::END_OF_FILE, "") // Initialize with dummy token for lookahead
     , panicMode_(false)
 {
-    // Initialize by fetching first token
-    // (AR) التهيئة بجلب الرمز الأول
-    advance();
+    // Initialize by fetching first two tokens for proper lookahead
+    // (AR) التهيئة بجلب أول رمزين للنظر المسبق الصحيح
+    
+    // Fetch first token into current_, skipping whitespace/comments
+    current_ = lexer_.nextToken();
+    while (current_.getType() == TT::WHITESPACE || 
+           current_.getType() == TT::COMMENT ||
+           current_.getType() == TT::NEWLINE) {
+        current_ = lexer_.nextToken();
+    }
+    
+    // Fetch second token into nextToken_, also skipping whitespace/comments
+    nextToken_ = lexer_.nextToken();
+    while (nextToken_.getType() == TT::WHITESPACE || 
+           nextToken_.getType() == TT::COMMENT ||
+           nextToken_.getType() == TT::NEWLINE) {
+        nextToken_ = lexer_.nextToken();
+    }
 }
 
 // ======================================================================
@@ -55,20 +71,31 @@ ParserCore::ParserCore(LexerCore& lexer)
 StmtList ParserCore::parseProgram() {
     StmtList statements;
     
+    std::cout << "[parser_core_impl.cpp] بدء parseProgram - current token: " 
+              << static_cast<int>(current_.getType()) << " = '" 
+              << current_.getValue() << "'\n";
+    
     // Parse until EOF
     // (AR) التحليل حتى نهاية الملف
     while (!isAtEnd()) {
         try {
-            std::cout << "Parsing program...\n";
+            std::cout << "[parser_core_impl.cpp] داخل حلقة parseProgram - current token: " 
+                      << static_cast<int>(current_.getType()) << " = '" 
+                      << current_.getValue() << "'\n";
             auto stmt = parseDeclaration();
             if (stmt) {
                 statements.push_back(std::move(stmt));
+                std::cout << "[parser_core_impl.cpp] تمت إضافة جملة - العدد الكلي: " 
+                          << statements.size() << "\n";
             }
         } catch (const std::exception& e) {
             error(e.what());
             synchronize();
         }
     }
+    
+    std::cout << "[parser_core_impl.cpp] انتهى parseProgram - عدد الجمل: " 
+              << statements.size() << "\n";
     
     return statements;
 }
@@ -108,6 +135,8 @@ std::vector<std::string> ParserCore::getErrors() const {
  *        (EN) Parses single declaration (function, class, variable, import, export).
  */
 StmtPtr ParserCore::parseDeclaration() {
+std::cout << "Parsing declaration...\n";
+
     // (AR) التحقق من المُزخرِفات قبل التصريح
     // (EN) Check for decorators before declaration
     ExprList decorators;
@@ -136,6 +165,43 @@ StmtPtr ParserCore::parseDeclaration() {
             error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
         }
         return parseVarDecl();
+    }
+    
+    std::cout << "Checking for type-first variable declaration...\n";
+    
+    // Check for type-first variable declaration: type IDENTIFIER = value;
+    // Use proper lookahead to verify TYPE is followed by IDENTIFIER
+    // (AR) التحقق من تصريح المتغير ببدء النوع: نوع معرّف = قيمة;
+    // استخدام النظر المسبق الصحيح للتحقق أن TYPE متبوع بـ IDENTIFIER
+    if (isTypeToken(current_.getType())) {
+        // Look ahead to see if next token is IDENTIFIER
+        const Token& nextTok = peekNext();
+        
+        if (nextTok.getType() == TT::IDENTIFIER) {
+            // Valid variable declaration: TYPE IDENTIFIER
+            std::cout << "Found TYPE IDENTIFIER pattern - parsing as variable declaration\n";
+            if (!decorators.empty()) {
+                error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
+            }
+            return parseVarDecl();
+        } else {
+            // TYPE token not followed by IDENTIFIER - this is an error
+            // The user wrote a type keyword but didn't follow it with a variable name
+            std::cout << "TYPE token not followed by IDENTIFIER - syntax error\n";
+            error("(AR) توقع معرّف بعد نوع البيانات. (EN) Expected identifier after data type.");
+            // Skip the invalid type token and continue
+            advance();
+            return parseStatement();
+        }
+    }
+    
+    // Check if IDENTIFIER - could be function call or expression statement
+    // (AR) التحقق إذا كان معرّف - قد يكون استدعاء دالة أو جملة تعبير
+    if (check(TT::IDENTIFIER)) {
+        // This is either a function call or expression statement
+        // Let parseStatement handle it
+        std::cout << "Found IDENTIFIER - parsing as statement\n";
+        return parseStatement();
     }
     
     if (match(TT::KEYWORD_ENUM)) {
@@ -470,45 +536,23 @@ StmtPtr ParserCore::parseVarDecl() {
     Data::DataType varType = Data::DataType::UNKNOWN;
     Token name(TT::IDENTIFIER, "");  // Initialize with default
     
-    // Check if we have type-first syntax: type IDENTIFIER
-    // (AR) التحقق من صيغة النوع أولاً: نوع معرّف
-    if (check(TT::IDENTIFIER)) {
-        // Peek ahead to determine if this is a type name
-        // (AR) النظر للأمام لتحديد ما إذا كان هذا اسم نوع
-        Token possibleType = peek();
-        TokenType typeToken = possibleType.getType();
-        std::string typeName = possibleType.getValue();
-        
-        // Check if it's a known type name (int, string, float, bool, etc.)
-        // (AR) التحقق مما إذا كان اسم نوع معروف
-        bool isKnownType = (typeToken == TT::TYPE_INTEGER || typeName == "صحيح" ||
-                            typeName == "عشري" || typeToken == TT::TYPE_DOUBLE ||
-                           typeToken == TT::TYPE_STRING || typeName == "نص" ||
-                           typeToken == TT::TYPE_BOOLEAN || typeName == "منطقي" ||
-                           typeToken == TT::TYPE_VOID || typeName == "عدم" ||
-                           typeToken == TT::TYPE_NULL || typeName == "تلقائي");
-        
-        if (isKnownType) {
-            // Format 2: type IDENTIFIER = value;
-            // (AR) الصيغة 2: نوع معرّف = قيمة;
-            varType = parseType();
-            name = consume(TT::IDENTIFIER, 
-                "(AR) توقع اسم المتغير بعد النوع. (EN) Expected variable name after type.");
-        } else {
-            // Format 1: var/let/const IDENTIFIER : type = value;
-            // (AR) الصيغة 1: var/let/const معرّف : نوع = قيمة;
-            name = consume(TT::IDENTIFIER, 
-                "(AR) توقع اسم المتغير. (EN) Expected variable name.");
-            
-            // Optional type annotation: name : type
-            // (AR) تصريح النوع الاختياري: اسم : نوع
-            if (match(TT::COLON)) {
-                varType = parseType();
-            }
-        }
-    } else {
+    // Check if we have type-first syntax: TYPE IDENTIFIER = value;
+    // (AR) التحقق من صيغة النوع أولاً: نوع معرّف = قيمة;
+    if (isTypeToken(current_.getType())) {
+        // Format 2: TYPE IDENTIFIER = value;
+        // Current token is already a type token (TYPE_INTEGER, TYPE_STRING, etc.)
+        // (AR) الصيغة 2: نوع معرّف = قيمة;
+        // الرمز الحالي هو بالفعل رمز نوع
+        std::cout << "[parseVarDecl] Found type token, parsing type-first declaration\n";
+        varType = parseType();
+        name = consume(TT::IDENTIFIER, 
+            "(AR) توقع اسم المتغير بعد النوع. (EN) Expected variable name after type.");
+    } else if (check(TT::IDENTIFIER)) {
         // Format 1: var/let/const IDENTIFIER : type = value;
+        // or just: IDENTIFIER = value; (type inference)
         // (AR) الصيغة 1: var/let/const معرّف : نوع = قيمة;
+        // أو فقط: معرّف = قيمة; (استنتاج النوع)
+        std::cout << "[parseVarDecl] Found identifier, parsing standard declaration\n";
         name = consume(TT::IDENTIFIER, 
             "(AR) توقع اسم المتغير. (EN) Expected variable name.");
         
@@ -517,6 +561,11 @@ StmtPtr ParserCore::parseVarDecl() {
         if (match(TT::COLON)) {
             varType = parseType();
         }
+    } else {
+        // Neither type token nor identifier - this is an error
+        // (AR) لا رمز نوع ولا معرّف - هذا خطأ
+        error("(AR) توقع نوع أو اسم متغير في تصريح المتغير. (EN) Expected type or variable name in variable declaration.");
+        return nullptr;
     }
     
     // Optional initializer

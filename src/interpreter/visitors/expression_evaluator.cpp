@@ -12,6 +12,7 @@
 #include "../../../include/parser/ast/statements.h"
 #include "../../../include/parser/ast/declarations.h"
 #include <cmath>
+#include <iostream>
 
 namespace Sad {
 namespace Interpreter {
@@ -472,6 +473,13 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
     // (AR) نبحث عن دالة تقبل هذا العدد من المعاملات (مع الافتراضيات)
     // (EN) Search for function that accepts this argument count (with defaults)
     for (const auto& candidate : allOverloads) {
+        // (AR) الدوال المضمنة يمكن أن تقبل أي عدد من المعاملات
+        // (EN) Built-in functions can accept any number of arguments
+        if (candidate->hasNativeImplementation()) {
+            func = candidate;
+            break;
+        }
+        
         if (candidate->acceptsArgumentCount(arguments.size())) {
             func = candidate;
             break;
@@ -493,6 +501,26 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
                 std::to_string(arguments.size()) + " parameters"
             );
         }
+    }
+    
+    // (AR) التحقق من وجود تنفيذ أصلي (دالة مضمنة) / (EN) Check for native implementation (built-in function)
+    if (func->hasNativeImplementation()) {
+        // (AR) تحويل القيم إلى ValuePtr / (EN) Convert values to ValuePtr
+        std::vector<std::shared_ptr<Data::Value>> valuePtrs;
+        for (const auto& arg : arguments) {
+            valuePtrs.push_back(std::make_shared<Data::Value>(arg));
+        }
+        
+        // (AR) استدعاء التنفيذ الأصلي / (EN) Call native implementation
+        auto resultPtr = func->callNative(valuePtrs);
+        
+        if (resultPtr) {
+            lastResult_ = *resultPtr;
+        } else {
+            lastResult_ = Data::Value();  // void return
+        }
+        
+        return;
     }
     
     // (AR) التحقق من وجود جسم للدالة / (EN) Check if function has body

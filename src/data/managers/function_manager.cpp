@@ -32,7 +32,7 @@ FunctionDefinition::FunctionDefinition(const std::string& name,
 
 FunctionDefinition::FunctionDefinition(const std::string& name,
                                      const std::vector<FunctionParameter>& params,
-                                     std::function<void()> nativeImpl)
+                                     std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>>&)> nativeImpl)
     : name_(name), type_(FunctionType::BUILT_IN), parameters_(params),
       body_(nullptr), declaration_(nullptr), functionDecl_(nullptr),
       nativeImplementation_(nativeImpl), returnType_("auto") {
@@ -223,7 +223,7 @@ void FunctionManager::defineFunction(const std::string& name,
 
 void FunctionManager::defineBuiltInFunction(const std::string& name,
                                            const std::vector<FunctionParameter>& params,
-                                           std::function<void()> impl) {
+                                           std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>>&)> impl) {
     // (AR) تعريف دالة مضمنة
     // (EN) Define built-in function
     
@@ -448,6 +448,32 @@ void FunctionManager::throwError(const std::string& messageAr,
     oss << "(AR) خطأ في مدير الدوال: " << messageAr << "\n";
     oss << "(EN) Function Manager Error: " << messageEn;
     throw std::runtime_error(oss.str());
+}
+
+// ============================================================================
+// (AR) تسجيل الدوال المضمنة
+// (EN) Register Built-in Functions
+// ============================================================================
+
+void FunctionManager::registerBuiltinFunction(
+    const std::string& name,
+    const std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>>&)>& func) {
+    
+    // (AR) إنشاء دالة مضمنة جديدة مع دعم معاملات متعددة
+    // (EN) Create new built-in function with support for multiple arguments
+    
+    // (AR) حذف الدالة إذا كانت موجودة بالفعل
+    // (EN) Remove function if it already exists
+    removeFunction(name);
+    
+    // (AR) إنشاء تعريف دالة مضمنة جديدة - نستخدم func مباشرة بدون wrapper
+    // (EN) Create new built-in function definition - use func directly without wrapper
+    std::vector<FunctionParameter> params;
+    auto funcDef = std::make_shared<FunctionDefinition>(name, params, func);
+    
+    // (AR) تخزين الدالة في الخريطة
+    // (EN) Store function in map
+    functions_[name].push_back(funcDef);
 }
 
 } // namespace Data

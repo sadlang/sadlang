@@ -79,98 +79,98 @@ public:
      *        (EN) Visits binary expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitBinaryExpr(BinaryExpr* expr) override;
+    void visitBinaryExpr(BinaryExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة التعبير الأحادي.
      *        (EN) Visits unary expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitUnaryExpr(UnaryExpr* expr) override;
+    void visitUnaryExpr(UnaryExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة التعبير الحرفي.
      *        (EN) Visits literal expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitLiteralExpr(LiteralExpr* expr) override;
+    void visitLiteralExpr(LiteralExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة تعبير المتغير.
      *        (EN) Visits variable expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitVariableExpr(VariableExpr* expr) override;
+    void visitVariableExpr(VariableExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة تعبير الإسناد.
      *        (EN) Visits assignment expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitAssignExpr(AssignExpr* expr) override;
+    void visitAssignExpr(AssignExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة استدعاء الدالة.
      *        (EN) Visits function call expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitCallExpr(CallExpr* expr) override;
+    void visitCallExpr(CallExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة تعبير الفهرسة.
      *        (EN) Visits index expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitIndexExpr(IndexExpr* expr) override;
+    void visitIndexExpr(IndexExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة الوصول للعضو.
      *        (EN) Visits member access expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitMemberExpr(MemberExpr* expr) override;
+    void visitMemberExpr(MemberExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة المصفوفة الحرفية.
      *        (EN) Visits array literal expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitArrayExpr(ArrayExpr* expr) override;
+    void visitArrayExpr(ArrayExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة القاموس الحرفي.
      *        (EN) Visits map literal expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitMapExpr(MapExpr* expr) override;
+    void visitMapExpr(MapExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة تعبير Lambda.
      *        (EN) Visits lambda expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitLambdaExpr(LambdaExpr* expr) override;
+    void visitLambdaExpr(LambdaExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة الاستيعاب القائمي.
      *        (EN) Visits list comprehension node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitListComprehensionExpr(ListComprehensionExpr* expr) override;
+    void visitListComprehensionExpr(ListComprehensionExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة الاستيعاب القاموسي.
      *        (EN) Visits dictionary comprehension node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitDictComprehensionExpr(DictComprehensionExpr* expr) override;
+    void visitDictComprehensionExpr(DictComprehensionExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة تعبير المولد.
      *        (EN) Visits generator expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitGeneratorExpr(GeneratorExpr* expr) override;
+    void visitGeneratorExpr(GeneratorExpr& expr) override;
     
     // =====================================================================
     // Statement Visitors / زوار الجمل
@@ -181,91 +181,91 @@ public:
      *        (EN) Visits expression statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitExprStmt(ExprStmt* stmt) override;
+    void visitExprStmt(ExprStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة تصريح المتغير.
      *        (EN) Visits variable declaration statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitVarDeclStmt(VarDeclStmt* stmt) override;
+    void visitVarDeclStmt(VarDeclStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة إذا.
      *        (EN) Visits if statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitIfStmt(IfStmt* stmt) override;
+    void visitIfStmt(IfStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة بينما.
      *        (EN) Visits while statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitWhileStmt(WhileStmt* stmt) override;
+    void visitWhileStmt(WhileStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة لكل (C-style).
      *        (EN) Visits for statement (C-style).
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitForStmt(ForStmt* stmt) override;
+    void visitForStmt(ForStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة لكل في (range-based).
      *        (EN) Visits for-range statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitForRangeStmt(ForRangeStmt* stmt) override;
+    void visitForRangeStmt(ForRangeStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة إرجاع.
      *        (EN) Visits return statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitReturnStmt(ReturnStmt* stmt) override;
+    void visitReturnStmt(ReturnStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة خروج.
      *        (EN) Visits break statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitBreakStmt(BreakStmt* stmt) override;
+    void visitBreakStmt(BreakStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة تابع.
      *        (EN) Visits continue statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitContinueStmt(ContinueStmt* stmt) override;
+    void visitContinueStmt(ContinueStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة الكتلة.
      *        (EN) Visits block statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitBlockStmt(BlockStmt* stmt) override;
+    void visitBlockStmt(BlockStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة محاولة-التقاط.
      *        (EN) Visits try-catch statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitTryStmt(TryStmt* stmt) override;
+    void visitTryStmt(TryStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة رفع الاستثناء.
      *        (EN) Visits raise statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitRaiseStmt(RaiseStmt* stmt) override;
+    void visitRaiseStmt(RaiseStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة مع.
      *        (EN) Visits with statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitWithStmt(WithStmt* stmt) override;
+    void visitWithStmt(WithStmt& stmt) override;
     
     // =====================================================================
     // Declaration Visitors / زوار التصريحات
@@ -276,63 +276,63 @@ public:
      *        (EN) Visits function declaration.
      * @param decl (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitFunctionDecl(FunctionDecl* decl) override;
+    void visitFunctionDecl(FunctionDecl& decl) override;
     
     /**
      * @brief (AR) يزور تصريح الصنف.
      *        (EN) Visits class declaration.
      * @param decl (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitClassDecl(ClassDecl* decl) override;
+    void visitClassDecl(ClassDecl& decl) override;
     
     /**
      * @brief (AR) يزور تصريح الحقل.
      *        (EN) Visits field declaration.
      * @param decl (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitFieldDecl(FieldDecl* decl) override;
+    void visitFieldDecl(FieldDecl& decl) override;
     
     /**
      * @brief (AR) يزور تصريح الطريقة.
      *        (EN) Visits method declaration.
      * @param decl (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitMethodDecl(MethodDecl* decl) override;
+    void visitMethodDecl(MethodDecl& decl) override;
     
     /**
      * @brief (AR) يزور تصريح الباني.
      *        (EN) Visits constructor declaration.
      * @param decl (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitConstructorDecl(ConstructorDecl* decl) override;
+    void visitConstructorDecl(ConstructorDecl& decl) override;
     
     /**
      * @brief (AR) يزور تصريح الهادم.
      *        (EN) Visits destructor declaration.
      * @param decl (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitDestructorDecl(DestructorDecl* decl) override;
+    void visitDestructorDecl(DestructorDecl& decl) override;
     
     /**
      * @brief (AR) يزور تصريح التعداد.
      *        (EN) Visits enum declaration.
      * @param decl (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitEnumDecl(EnumDecl* decl) override;
+    void visitEnumDecl(EnumDecl& decl) override;
     
     /**
      * @brief (AR) يزور جملة الاستيراد.
      *        (EN) Visits import statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitImportStmt(ImportStmt* stmt) override;
+    void visitImportStmt(ImportStmt& stmt) override;
     
     /**
      * @brief (AR) يزور جملة التصدير.
      *        (EN) Visits export statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
-    void visitExportStmt(ExportStmt* stmt) override;
+    void visitExportStmt(ExportStmt& stmt) override;
 
 private:
     std::string result_;        ///< (AR) النتيجة المُخزنة. (EN) Stored result.

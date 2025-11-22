@@ -766,6 +766,15 @@ private:
      */
     Data::DataType parseGenericType(Data::DataType baseType);
 
+    /**
+     * @brief (AR) يفحص ما إذا كان نوع الرمز يمثل نوع بيانات.
+     *        (EN) Checks if token type represents a data type.
+     * 
+     * @param tokenType (AR) نوع الرمز المراد فحصه (EN) Token type to check
+     * @return (AR) true إذا كان نوع بيانات (EN) true if it's a data type
+     */
+    bool isTypeToken(Lexer::TokenType tokenType);
+
 private:
     // ======================================================================
     // (AR) الأعضاء الخاصة / (EN) Private Members
@@ -774,6 +783,7 @@ private:
     Lexer::LexerCore& lexer_;           ///< (AR) مرجع للمحلل المعجمي (EN) Reference to lexer
     Lexer::Token current_;               ///< (AR) الرمز الحالي (EN) Current token
     Lexer::Token previous_;              ///< (AR) الرمز السابق (EN) Previous token
+    Lexer::Token nextToken_;             ///< (AR) الرمز التالي للنظر المسبق (EN) Next token for lookahead
     std::vector<std::string> errors_;    ///< (AR) قائمة الأخطاء (EN) List of errors
     bool panicMode_;                     ///< (AR) وضع الذعر للتعافي من الأخطاء (EN) Panic mode for error recovery
 };

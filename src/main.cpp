@@ -25,7 +25,11 @@
 #include <fstream>
 #include <string>
 #include <cstring>
+#include <sstream>
 #include "../include/utils/string_utils.h"
+#include "../include/lexer/lexer_core.h"
+#include "../include/parser/parser_core.h"
+#include "../include/interpreter/core/interpreter_core.h"
 
 // تعريف معلومات الإصدار / Version information
 #define SAD_VERSION_MAJOR 1
@@ -236,53 +240,72 @@ bool readProgramFile(const std::string& filename, std::string& content) {
  * @param code كود البرنامج / Program code
  * @return int كود الخروج (0 = نجاح، غير 0 = خطأ)
  *             Exit code (0 = success, non-zero = error)
- * 
- * @throws قد يرمي استثناءات من المفسر / May throw interpreter exceptions
- * 
- * @note حالياً يطبع الكود فقط (للاختبار)
- *       Currently only prints code (for testing)
- *       سيتم إضافة المحلل المعجمي والمفسر لاحقاً
- *       Lexer and interpreter will be added later
  */
 int executeProgram(const std::string& filename, const std::string& code) {
     DEBUG_PRINT("بدء تنفيذ البرنامج: " + filename);
     
-    std::cout << "========================================" << std::endl;
-    std::cout << "تنفيذ البرنامج / Executing Program" << std::endl;
-    std::cout << "الملف / File: " << filename << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << std::endl;
-    
-    // TODO: سيتم إضافة المحلل المعجمي هنا
-    // TODO: Add lexer here
-    // Lexer lexer(code);
-    // auto tokens = lexer.tokenize();
-    
-    // TODO: سيتم إضافة المحلل النحوي هنا
-    // TODO: Add parser here
-    // Parser parser(tokens);
-    // auto ast = parser.parse();
-    
-    // TODO: سيتم إضافة المفسر هنا
-    // TODO: Add interpreter here
-    // Interpreter interpreter(ast);
-    // interpreter.execute();
-    
-    // حالياً: طباعة الكود فقط للاختبار
-    // Currently: Just print code for testing
-    std::cout << "محتوى البرنامج / Program Content:" << std::endl;
-    std::cout << "----------------------------------------" << std::endl;
-    std::cout << code << std::endl;
-    std::cout << "----------------------------------------" << std::endl;
-    std::cout << std::endl;
-    
-    std::cout << "ملاحظة: المفسر قيد التطوير" << std::endl;
-    std::cout << "Note: Interpreter is under development" << std::endl;
-    std::cout << std::endl;
-    
-    DEBUG_PRINT("انتهى تنفيذ البرنامج بنجاح");
-    
-    return 0;
+    try {
+        std::cout << "========================================" << std::endl;
+        std::cout << "تنفيذ البرنامج / Executing Program" << std::endl;
+        std::cout << "الملف / File: " << filename << std::endl;
+        std::cout << "========================================" << std::endl;
+        std::cout << std::endl;
+        
+        // الخطوة 1: التحليل المعجمي / Step 1: Lexical Analysis
+        std::cout << "[1/4] التحليل المعجمي / Lexical Analysis..." << std::endl;
+        Sad::Lexer::LexerCore lexer(code);
+        std::cout << "      تم إنشاء محلل معجمي" << std::endl;
+        std::cout << "      Lexer created" << std::endl;
+        std::cout << std::endl;
+        
+        // الخطوة 2: التحليل النحوي / Step 2: Syntactic Analysis
+        std::cout << "[2/4] التحليل النحوي / Syntactic Analysis..." << std::endl;
+        Sad::Parser::ParserCore parser(lexer);
+        auto ast = parser.parseProgram();
+        std::cout << "      تم بناء شجرة AST" << std::endl;
+        std::cout << "      AST built" << std::endl;
+        std::cout << std::endl;
+        std::cout << "      عدد العقد في شجرة AST: " << ast.size() << std::endl;
+        std::cout << "      عدد جمل البرنامج: " << ast.size() << std::endl;
+        std::cout<< " ast content printout:" << std::endl;
+        for (size_t i = 0; i < ast.size(); ++i) {
+            std::cout << "  AST Statement " << i << ": " << ast[i]->toString() << std::endl;
+        }
+        // الخطوة 3: إعداد المفسر / Step 3: Interpreter Setup
+        std::cout << "[3/4] إعداد المفسر / Interpreter Setup..." << std::endl;
+        Sad::Interpreter::Interpreter interpreter;
+        std::cout << "      تم إنشاء المفسر" << std::endl;
+        std::cout << "      Interpreter created" << std::endl;
+        std::cout << std::endl;
+        
+        // الخطوة 4: التنفيذ / Step 4: Execution
+        std::cout << "[4/4] التنفيذ / Execution..." << std::endl;
+        std::cout << "========================================" << std::endl;
+        std::cout << std::endl;
+        
+        auto result = interpreter.execute(ast);
+        
+        std::cout << std::endl;
+        std::cout << "========================================" << std::endl;
+        std::cout << "✅ اكتمل التنفيذ بنجاح / Execution completed" << std::endl;
+        std::cout << "========================================" << std::endl;
+        std::cout << std::endl;
+        
+        DEBUG_PRINT("انتهى تنفيذ البرنامج بنجاح");
+        
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << std::endl;
+        std::cerr << "========================================" << std::endl;
+        std::cerr << "❌ خطأ في التنفيذ / Execution Error" << std::endl;
+        std::cerr << "========================================" << std::endl;
+        std::cerr << "الرسالة / Message: " << e.what() << std::endl;
+        std::cerr << std::endl;
+        
+        DEBUG_PRINT("خطأ: " + std::string(e.what()));
+        
+        return 1;
+    }
 }
 
 // ======================================================================

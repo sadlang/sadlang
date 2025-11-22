@@ -152,14 +152,18 @@ ExprPtr ParserCore::parseDictComprehension() {
  */
 void ParserCore::advance() {
     previous_ = current_;
-    current_ = lexer_.nextToken();
+    current_ = nextToken_; // Move nextToken_ to current_
     
-    // Skip whitespace and comments
-    // (AR) تجاوز المسافات والتعليقات
+    // Fetch new nextToken_ for lookahead
+    nextToken_ = lexer_.nextToken();
+    
+    // Skip whitespace and comments in both current and nextToken_
+    // (AR) تجاوز المسافات والتعليقات في كل من current و nextToken_
     while (current_.getType() == TT::WHITESPACE || 
            current_.getType() == TT::COMMENT ||
            current_.getType() == TT::NEWLINE) {
-        current_ = lexer_.nextToken();
+        current_ = nextToken_;
+        nextToken_ = lexer_.nextToken();
     }
 }
 
@@ -219,7 +223,12 @@ Token ParserCore::consume(TokenType type, const std::string& message) {
  *        (EN) Checks if reached end of file.
  */
 bool ParserCore::isAtEnd() const {
-    return current_.getType() == TT::END_OF_FILE;
+    bool result = current_.getType() == TT::END_OF_FILE;
+    if (result) {
+        std::cout << "[parser_core_helpers.cpp] isAtEnd() = true - current token type: " 
+                  << static_cast<int>(current_.getType()) << "\n";
+    }
+    return result;
 }
 
 /**
@@ -231,23 +240,14 @@ const Token& ParserCore::peek() const {
 }
 
 /**
- * @brief (AR) يرجع الرمز التالي (lookahead 2).
- *        (EN) Returns next token (lookahead 2).
+ * @brief (AR) يرجع الرمز التالي (lookahead 2) بشكل صحيح.
+ *        (EN) Returns next token (lookahead 2) correctly.
  * 
- * @note (AR) هذه الدالة تستدعي lexer للحصول على الرمز التالي دون استهلاكه.
- *            قد تكون مكلفة، استخدمها بحذر.
- *       (EN) This function calls lexer to get next token without consuming it.
- *            May be expensive, use with caution.
+ * @note (AR) الآن تستخدم nextToken_ المخزن مسبقًا لتوفير نظر مسبق حقيقي.
+ *       (EN) Now uses pre-cached nextToken_ to provide true lookahead.
  */
 const Token& ParserCore::peekNext() const {
-    // Since we can't modify state in const function and lexer doesn't support
-    // true lookahead without consuming, we'll need to work around this.
-    // For now, return current_ as a safe fallback.
-    // TODO: Implement proper 2-token lookahead if needed frequently.
-    // (AR) حيث لا يمكننا تعديل الحالة في دالة const ولا يدعم lexer 
-    //      lookahead حقيقي دون استهلاك، نحتاج لحل بديل.
-    //      حالياً، نرجع current_ كحل آمن.
-    return current_;
+    return nextToken_;
 }
 
 /**
@@ -577,6 +577,32 @@ ExprPtr ParserCore::parseArrowFunction() {
     // (AR) معطل مؤقتاً - يحتاج تنفيذ صحيح
     error("Arrow functions not yet implemented");
     return nullptr;
+}
+
+// ======================================================================
+// (AR) دوال فحص النوع / (EN) Type Checking Functions
+// ======================================================================
+
+/**
+ * @brief (AR) يفحص ما إذا كان الرمز الحالي رمز نوع بيانات.
+ *        (EN) Checks if current token is a data type token.
+ * 
+ * (AR) يتحقق من أن الرمز الحالي يمثل نوع بيانات أساسي (رقم، عشري، نص، إلخ)
+ * (EN) Checks if current token represents a basic data type (int, float, string, etc)
+ */
+bool ParserCore::isTypeToken(TokenType tokenType) {
+    using TT = TokenType;
+    
+    // Basic data types
+    // (AR) أنواع البيانات الأساسية
+    return tokenType == TT::TYPE_INTEGER ||
+           tokenType == TT::TYPE_DOUBLE ||
+           tokenType == TT::TYPE_STRING ||
+           tokenType == TT::TYPE_BOOLEAN ||
+           tokenType == TT::TYPE_VOID ||
+           tokenType == TT::TYPE_NULL ||
+           tokenType == TT::TYPE_ARRAY ||
+           tokenType == TT::TYPE_MAP;
 }
 
 } // namespace Parser

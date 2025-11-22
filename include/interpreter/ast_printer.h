@@ -116,6 +116,34 @@ public:
         decreaseIndent();
     }
     
+    void visitIndexExpr(AST::IndexExpr& node) override {
+        printIndent();
+        output_ << "IndexExpr\n";
+        
+        increaseIndent();
+        printIndent();
+        output_ << "Object:\n";
+        increaseIndent();
+        node.object->accept(*this);
+        decreaseIndent();
+        
+        printIndent();
+        output_ << "Index:\n";
+        increaseIndent();
+        node.index->accept(*this);
+        decreaseIndent();
+        decreaseIndent();
+    }
+    
+    void visitMemberExpr(AST::MemberExpr& node) override {
+        printIndent();
+        output_ << "MemberExpr(" << node.member << ")\n";
+        
+        increaseIndent();
+        node.object->accept(*this);
+        decreaseIndent();
+    }
+    
     void visitArrayExpr(AST::ArrayExpr& node) override {
         printIndent();
         output_ << "Array[" << node.elements.size() << " elements]\n";
@@ -141,6 +169,49 @@ public:
             decreaseIndent();
         }
         decreaseIndent();
+    }
+    
+    void visitLambdaExpr(AST::LambdaExpr& node) override {
+        printIndent();
+        output_ << "LambdaExpr\n";
+        
+        increaseIndent();
+        if (!node.parameters.empty()) {
+            printIndent();
+            output_ << "Parameters: ";
+            for (size_t i = 0; i < node.parameters.size(); ++i) {
+                if (i > 0) output_ << ", ";
+                output_ << node.parameters[i].name;
+            }
+            output_ << "\n";
+        }
+        
+        printIndent();
+        output_ << "Body:\n";
+        increaseIndent();
+        node.body->accept(*this);
+        decreaseIndent();
+        decreaseIndent();
+    }
+    
+    void visitListComprehensionExpr(AST::ListComprehensionExpr& node) override {
+        printIndent();
+        output_ << "ListComprehension\n";
+    }
+    
+    void visitDictComprehensionExpr(AST::DictComprehensionExpr& node) override {
+        printIndent();
+        output_ << "DictComprehension\n";
+    }
+    
+    void visitGeneratorExpr(AST::GeneratorExpr& node) override {
+        printIndent();
+        output_ << "GeneratorExpr\n";
+    }
+    
+    void visitDecoratorExpr(AST::DecoratorExpr& node) override {
+        printIndent();
+        output_ << "DecoratorExpr\n";
     }
     
     // Statement visitors
@@ -221,6 +292,16 @@ public:
         decreaseIndent();
     }
     
+    void visitForStmt(AST::ForStmt& node) override {
+        printIndent();
+        output_ << "ForStmt\n";
+    }
+    
+    void visitForRangeStmt(AST::ForRangeStmt& node) override {
+        printIndent();
+        output_ << "ForRangeStmt\n";
+    }
+    
     void visitReturnStmt(AST::ReturnStmt& node) override {
         printIndent();
         output_ << "Return\n";
@@ -230,6 +311,36 @@ public:
             node.value->accept(*this);
             decreaseIndent();
         }
+    }
+    
+    void visitYieldStmt(AST::YieldStmt& node) override {
+        printIndent();
+        output_ << "YieldStmt\n";
+    }
+    
+    void visitBreakStmt(AST::BreakStmt& node) override {
+        printIndent();
+        output_ << "BreakStmt\n";
+    }
+    
+    void visitContinueStmt(AST::ContinueStmt& node) override {
+        printIndent();
+        output_ << "ContinueStmt\n";
+    }
+    
+    void visitTryStmt(AST::TryStmt& node) override {
+        printIndent();
+        output_ << "TryStmt\n";
+    }
+    
+    void visitRaiseStmt(AST::RaiseStmt& node) override {
+        printIndent();
+        output_ << "RaiseStmt\n";
+    }
+    
+    void visitWithStmt(AST::WithStmt& node) override {
+        printIndent();
+        output_ << "WithStmt\n";
     }
     
     void visitFunctionDecl(AST::FunctionDecl& node) override {
@@ -255,6 +366,46 @@ public:
             decreaseIndent();
         }
         decreaseIndent();
+    }
+    
+    void visitClassDecl(AST::ClassDecl& node) override {
+        printIndent();
+        output_ << "ClassDecl(" << node.name << ")\n";
+    }
+    
+    void visitFieldDecl(AST::FieldDecl& node) override {
+        printIndent();
+        output_ << "FieldDecl(" << node.name << ")\n";
+    }
+    
+    void visitMethodDecl(AST::MethodDecl& node) override {
+        printIndent();
+        output_ << "MethodDecl(" << node.name << ")\n";
+    }
+    
+    void visitConstructorDecl(AST::ConstructorDecl& node) override {
+        printIndent();
+        output_ << "ConstructorDecl\n";
+    }
+    
+    void visitDestructorDecl(AST::DestructorDecl& node) override {
+        printIndent();
+        output_ << "DestructorDecl\n";
+    }
+    
+    void visitEnumDecl(AST::EnumDecl& node) override {
+        printIndent();
+        output_ << "EnumDecl\n";
+    }
+    
+    void visitImportStmt(AST::ImportStmt& node) override {
+        printIndent();
+        output_ << "ImportStmt\n";
+    }
+    
+    void visitExportStmt(AST::ExportStmt& node) override {
+        printIndent();
+        output_ << "ExportStmt\n";
     }
     
 private:

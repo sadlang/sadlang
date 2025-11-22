@@ -76,11 +76,11 @@ std::string ASTPrinter::indent() const {
  * 
  * @param expr (AR) مؤشر لعقدة التعبير الثنائي. (EN) Pointer to binary expression node.
  */
-void ASTPrinter::visitBinaryExpr(BinaryExpr* expr) {
+void ASTPrinter::visitBinaryExpr(BinaryExpr& expr) {
     result_ += "(";
-    expr->left->accept(*this);
-    result_ += " " + Lexer::Token::typeToString(expr->op) + " ";
-    expr->right->accept(*this);
+    expr.left->accept(*this);
+    result_ += " " + Lexer::Token::typeToString(expr.op) + " ";
+    expr.right->accept(*this);
     result_ += ")";
 }
 
@@ -90,10 +90,10 @@ void ASTPrinter::visitBinaryExpr(BinaryExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة التعبير الأحادي. (EN) Pointer to unary expression node.
  */
-void ASTPrinter::visitUnaryExpr(UnaryExpr* expr) {
+void ASTPrinter::visitUnaryExpr(UnaryExpr& expr) {
     result_ += "(";
-    result_ += Lexer::Token::typeToString(expr->op);
-    expr->operand->accept(*this);
+    result_ += Lexer::Token::typeToString(expr.op);
+    expr.operand->accept(*this);
     result_ += ")";
 }
 
@@ -103,8 +103,8 @@ void ASTPrinter::visitUnaryExpr(UnaryExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة التعبير الحرفي. (EN) Pointer to literal expression node.
  */
-void ASTPrinter::visitLiteralExpr(LiteralExpr* expr) {
-    result_ += expr->token.getValue();
+void ASTPrinter::visitLiteralExpr(LiteralExpr& expr) {
+    result_ += expr.token.getValue();
 }
 
 /**
@@ -113,8 +113,8 @@ void ASTPrinter::visitLiteralExpr(LiteralExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة تعبير المتغير. (EN) Pointer to variable expression node.
  */
-void ASTPrinter::visitVariableExpr(VariableExpr* expr) {
-    result_ += expr->name;
+void ASTPrinter::visitVariableExpr(VariableExpr& expr) {
+    result_ += expr.name;
 }
 
 /**
@@ -123,10 +123,10 @@ void ASTPrinter::visitVariableExpr(VariableExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة تعبير الإسناد. (EN) Pointer to assignment expression node.
  */
-void ASTPrinter::visitAssignExpr(AssignExpr* expr) {
+void ASTPrinter::visitAssignExpr(AssignExpr& expr) {
     result_ += "(";
-    result_ += expr->name + " = ";
-    expr->value->accept(*this);
+    result_ += expr.name + " = ";
+    expr.value->accept(*this);
     result_ += ")";
 }
 
@@ -136,13 +136,13 @@ void ASTPrinter::visitAssignExpr(AssignExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة استدعاء الدالة. (EN) Pointer to function call node.
  */
-void ASTPrinter::visitCallExpr(CallExpr* expr) {
-    expr->callee->accept(*this);
+void ASTPrinter::visitCallExpr(CallExpr& expr) {
+    expr.callee->accept(*this);
     result_ += "(";
     
-    for (size_t i = 0; i < expr->arguments.size(); ++i) {
+    for (size_t i = 0; i < expr.arguments.size(); ++i) {
         if (i > 0) result_ += ", ";
-        expr->arguments[i]->accept(*this);
+        expr.arguments[i]->accept(*this);
     }
     
     result_ += ")";
@@ -154,10 +154,10 @@ void ASTPrinter::visitCallExpr(CallExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة تعبير الفهرسة. (EN) Pointer to index expression node.
  */
-void ASTPrinter::visitIndexExpr(IndexExpr* expr) {
-    expr->object->accept(*this);
+void ASTPrinter::visitIndexExpr(IndexExpr& expr) {
+    expr.object->accept(*this);
     result_ += "[";
-    expr->index->accept(*this);
+    expr.index->accept(*this);
     result_ += "]";
 }
 
@@ -167,9 +167,9 @@ void ASTPrinter::visitIndexExpr(IndexExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة الوصول للعضو. (EN) Pointer to member access node.
  */
-void ASTPrinter::visitMemberExpr(MemberExpr* expr) {
-    expr->object->accept(*this);
-    result_ += "." + expr->member;
+void ASTPrinter::visitMemberExpr(MemberExpr& expr) {
+    expr.object->accept(*this);
+    result_ += "." + expr.member;
 }
 
 /**
@@ -178,12 +178,12 @@ void ASTPrinter::visitMemberExpr(MemberExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة المصفوفة الحرفية. (EN) Pointer to array literal node.
  */
-void ASTPrinter::visitArrayExpr(ArrayExpr* expr) {
+void ASTPrinter::visitArrayExpr(ArrayExpr& expr) {
     result_ += "[";
     
-    for (size_t i = 0; i < expr->elements.size(); ++i) {
+    for (size_t i = 0; i < expr.elements.size(); ++i) {
         if (i > 0) result_ += ", ";
-        expr->elements[i]->accept(*this);
+        expr.elements[i]->accept(*this);
     }
     
     result_ += "]";
@@ -195,14 +195,14 @@ void ASTPrinter::visitArrayExpr(ArrayExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة القاموس الحرفي. (EN) Pointer to map literal node.
  */
-void ASTPrinter::visitMapExpr(MapExpr* expr) {
+void ASTPrinter::visitMapExpr(MapExpr& expr) {
     result_ += "{";
     
-    for (size_t i = 0; i < expr->pairs.size(); ++i) {
+    for (size_t i = 0; i < expr.pairs.size(); ++i) {
         if (i > 0) result_ += ", ";
-        expr->pairs[i].key->accept(*this);
+        expr.pairs[i].key->accept(*this);
         result_ += ": ";
-        expr->pairs[i].value->accept(*this);
+        expr.pairs[i].value->accept(*this);
     }
     
     result_ += "}";
@@ -214,16 +214,16 @@ void ASTPrinter::visitMapExpr(MapExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة تعبير Lambda. (EN) Pointer to lambda expression node.
  */
-void ASTPrinter::visitLambdaExpr(LambdaExpr* expr) {
+void ASTPrinter::visitLambdaExpr(LambdaExpr& expr) {
     result_ += "(";
     
-    for (size_t i = 0; i < expr->parameters.size(); ++i) {
+    for (size_t i = 0; i < expr.parameters.size(); ++i) {
         if (i > 0) result_ += ", ";
-        result_ += expr->parameters[i].name;
+        result_ += expr.parameters[i].name;
     }
     
     result_ += ") => ";
-    expr->body->accept(*this);
+    expr.body->accept(*this);
 }
 
 /**
@@ -232,15 +232,15 @@ void ASTPrinter::visitLambdaExpr(LambdaExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة الاستيعاب القائمي. (EN) Pointer to list comprehension node.
  */
-void ASTPrinter::visitListComprehensionExpr(ListComprehensionExpr* expr) {
+void ASTPrinter::visitListComprehensionExpr(ListComprehensionExpr& expr) {
     result_ += "[";
-    expr->element->accept(*this);
-    result_ += " for " + expr->variable + " in ";
-    expr->iterable->accept(*this);
+    expr.element->accept(*this);
+    result_ += " for " + expr.variable + " in ";
+    expr.iterable->accept(*this);
     
-    if (expr->condition) {
+    if (expr.condition) {
         result_ += " if ";
-        expr->condition->accept(*this);
+        expr.condition->accept(*this);
     }
     
     result_ += "]";
@@ -252,17 +252,17 @@ void ASTPrinter::visitListComprehensionExpr(ListComprehensionExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة الاستيعاب القاموسي. (EN) Pointer to dict comprehension node.
  */
-void ASTPrinter::visitDictComprehensionExpr(DictComprehensionExpr* expr) {
+void ASTPrinter::visitDictComprehensionExpr(DictComprehensionExpr& expr) {
     result_ += "{";
-    expr->key->accept(*this);
+    expr.key->accept(*this);
     result_ += ": ";
-    expr->value->accept(*this);
-    result_ += " for " + expr->variable + " in ";
-    expr->iterable->accept(*this);
+    expr.value->accept(*this);
+    result_ += " for " + expr.variable + " in ";
+    expr.iterable->accept(*this);
     
-    if (expr->condition) {
+    if (expr.condition) {
         result_ += " if ";
-        expr->condition->accept(*this);
+        expr.condition->accept(*this);
     }
     
     result_ += "}";
@@ -274,15 +274,15 @@ void ASTPrinter::visitDictComprehensionExpr(DictComprehensionExpr* expr) {
  * 
  * @param expr (AR) مؤشر لعقدة تعبير المولد. (EN) Pointer to generator expression node.
  */
-void ASTPrinter::visitGeneratorExpr(GeneratorExpr* expr) {
+void ASTPrinter::visitGeneratorExpr(GeneratorExpr& expr) {
     result_ += "(";
-    expr->element->accept(*this);
-    result_ += " for " + expr->variable + " in ";
-    expr->iterable->accept(*this);
+    expr.element->accept(*this);
+    result_ += " for " + expr.variable + " in ";
+    expr.iterable->accept(*this);
     
-    if (expr->condition) {
+    if (expr.condition) {
         result_ += " if ";
-        expr->condition->accept(*this);
+        expr.condition->accept(*this);
     }
     
     result_ += ")";
@@ -298,9 +298,9 @@ void ASTPrinter::visitGeneratorExpr(GeneratorExpr* expr) {
  * 
  * @param stmt (AR) مؤشر لجملة التعبير. (EN) Pointer to expression statement.
  */
-void ASTPrinter::visitExprStmt(ExprStmt* stmt) {
+void ASTPrinter::visitExprStmt(ExprStmt& stmt) {
     result_ += indent();
-    stmt->expression->accept(*this);
+    stmt.expression->accept(*this);
     result_ += ";\n";
 }
 
@@ -310,14 +310,14 @@ void ASTPrinter::visitExprStmt(ExprStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة تصريح المتغير. (EN) Pointer to variable declaration.
  */
-void ASTPrinter::visitVarDeclStmt(VarDeclStmt* stmt) {
+void ASTPrinter::visitVarDeclStmt(VarDeclStmt& stmt) {
     result_ += indent();
-    result_ += (stmt->isConst ? "const " : "var ");
-    result_ += stmt->name;
+    result_ += (stmt.isConst ? "const " : "var ");
+    result_ += stmt.name;
     
-    if (stmt->initializer) {
+    if (stmt.initializer) {
         result_ += " = ";
-        stmt->initializer->accept(*this);
+        stmt.initializer->accept(*this);
     }
     
     result_ += ";\n";
@@ -329,19 +329,19 @@ void ASTPrinter::visitVarDeclStmt(VarDeclStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة إذا. (EN) Pointer to if statement.
  */
-void ASTPrinter::visitIfStmt(IfStmt* stmt) {
+void ASTPrinter::visitIfStmt(IfStmt& stmt) {
     result_ += indent() + "if (";
-    stmt->condition->accept(*this);
+    stmt.condition->accept(*this);
     result_ += ")\n";
     
     increaseIndent();
-    stmt->thenBranch->accept(*this);
+    stmt.thenBranch->accept(*this);
     decreaseIndent();
     
-    if (stmt->elseBranch) {
+    if (stmt.elseBranch) {
         result_ += indent() + "else\n";
         increaseIndent();
-        stmt->elseBranch->accept(*this);
+        stmt.elseBranch->accept(*this);
         decreaseIndent();
     }
 }
@@ -352,13 +352,13 @@ void ASTPrinter::visitIfStmt(IfStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة بينما. (EN) Pointer to while statement.
  */
-void ASTPrinter::visitWhileStmt(WhileStmt* stmt) {
+void ASTPrinter::visitWhileStmt(WhileStmt& stmt) {
     result_ += indent() + "while (";
-    stmt->condition->accept(*this);
+    stmt.condition->accept(*this);
     result_ += ")\n";
     
     increaseIndent();
-    stmt->body->accept(*this);
+    stmt.body->accept(*this);
     decreaseIndent();
 }
 
@@ -368,26 +368,26 @@ void ASTPrinter::visitWhileStmt(WhileStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة لكل. (EN) Pointer to for statement.
  */
-void ASTPrinter::visitForStmt(ForStmt* stmt) {
+void ASTPrinter::visitForStmt(ForStmt& stmt) {
     result_ += indent() + "for (";
     
-    if (stmt->initializer) {
-        stmt->initializer->accept(*this);
+    if (stmt.initializer) {
+        stmt.initializer->accept(*this);
     }
     result_ += "; ";
     
-    if (stmt->condition) {
-        stmt->condition->accept(*this);
+    if (stmt.condition) {
+        stmt.condition->accept(*this);
     }
     result_ += "; ";
     
-    if (stmt->increment) {
-        stmt->increment->accept(*this);
+    if (stmt.increment) {
+        stmt.increment->accept(*this);
     }
     result_ += ")\n";
     
     increaseIndent();
-    stmt->body->accept(*this);
+    stmt.body->accept(*this);
     decreaseIndent();
 }
 
@@ -397,13 +397,13 @@ void ASTPrinter::visitForStmt(ForStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة لكل في. (EN) Pointer to for-range statement.
  */
-void ASTPrinter::visitForRangeStmt(ForRangeStmt* stmt) {
-    result_ += indent() + "for (" + stmt->variable + " in ";
-    stmt->iterable->accept(*this);
+void ASTPrinter::visitForRangeStmt(ForRangeStmt& stmt) {
+    result_ += indent() + "for (" + stmt.variable + " in ";
+    stmt.iterable->accept(*this);
     result_ += ")\n";
     
     increaseIndent();
-    stmt->body->accept(*this);
+    stmt.body->accept(*this);
     decreaseIndent();
 }
 
@@ -413,12 +413,12 @@ void ASTPrinter::visitForRangeStmt(ForRangeStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة إرجاع. (EN) Pointer to return statement.
  */
-void ASTPrinter::visitReturnStmt(ReturnStmt* stmt) {
+void ASTPrinter::visitReturnStmt(ReturnStmt& stmt) {
     result_ += indent() + "return";
     
-    if (stmt->value) {
+    if (stmt.value) {
         result_ += " ";
-        stmt->value->accept(*this);
+        stmt.value->accept(*this);
     }
     
     result_ += ";\n";
@@ -430,7 +430,7 @@ void ASTPrinter::visitReturnStmt(ReturnStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة خروج. (EN) Pointer to break statement.
  */
-void ASTPrinter::visitBreakStmt(BreakStmt* stmt) {
+void ASTPrinter::visitBreakStmt(BreakStmt& stmt) {
     result_ += indent() + "break;\n";
 }
 
@@ -440,7 +440,7 @@ void ASTPrinter::visitBreakStmt(BreakStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة تابع. (EN) Pointer to continue statement.
  */
-void ASTPrinter::visitContinueStmt(ContinueStmt* stmt) {
+void ASTPrinter::visitContinueStmt(ContinueStmt& stmt) {
     result_ += indent() + "continue;\n";
 }
 
@@ -450,11 +450,11 @@ void ASTPrinter::visitContinueStmt(ContinueStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة الكتلة. (EN) Pointer to block statement.
  */
-void ASTPrinter::visitBlockStmt(BlockStmt* stmt) {
+void ASTPrinter::visitBlockStmt(BlockStmt& stmt) {
     result_ += indent() + "{\n";
     
     increaseIndent();
-    for (const auto& statement : stmt->statements) {
+    for (const auto& statement : stmt.statements) {
         statement->accept(*this);
     }
     decreaseIndent();
@@ -468,18 +468,18 @@ void ASTPrinter::visitBlockStmt(BlockStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة محاولة-التقاط. (EN) Pointer to try-catch statement.
  */
-void ASTPrinter::visitTryStmt(TryStmt* stmt) {
+void ASTPrinter::visitTryStmt(TryStmt& stmt) {
     result_ += indent() + "try\n";
-    stmt->tryBlock->accept(*this);
+    stmt.tryBlock->accept(*this);
     
-    for (const auto& catchClause : stmt->catchClauses) {
+    for (const auto& catchClause : stmt.catchClauses) {
         result_ += indent() + "catch (" + catchClause.exceptionVar + ")\n";
         catchClause.body->accept(*this);
     }
     
-    if (stmt->finallyBlock) {
+    if (stmt.finallyBlock) {
         result_ += indent() + "finally\n";
-        stmt->finallyBlock->accept(*this);
+        stmt.finallyBlock->accept(*this);
     }
 }
 
@@ -489,9 +489,9 @@ void ASTPrinter::visitTryStmt(TryStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة رفع الاستثناء. (EN) Pointer to raise statement.
  */
-void ASTPrinter::visitRaiseStmt(RaiseStmt* stmt) {
+void ASTPrinter::visitRaiseStmt(RaiseStmt& stmt) {
     result_ += indent() + "raise ";
-    stmt->exception->accept(*this);
+    stmt.exception->accept(*this);
     result_ += ";\n";
 }
 
@@ -501,13 +501,13 @@ void ASTPrinter::visitRaiseStmt(RaiseStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة مع. (EN) Pointer to with statement.
  */
-void ASTPrinter::visitWithStmt(WithStmt* stmt) {
-    result_ += indent() + "with (" + stmt->variable + " = ";
-    stmt->resource->accept(*this);
+void ASTPrinter::visitWithStmt(WithStmt& stmt) {
+    result_ += indent() + "with (" + stmt.variable + " = ";
+    stmt.resource->accept(*this);
     result_ += ")\n";
     
     increaseIndent();
-    stmt->body->accept(*this);
+    stmt.body->accept(*this);
     decreaseIndent();
 }
 
@@ -521,16 +521,16 @@ void ASTPrinter::visitWithStmt(WithStmt* stmt) {
  * 
  * @param decl (AR) مؤشر لتصريح الدالة. (EN) Pointer to function declaration.
  */
-void ASTPrinter::visitFunctionDecl(FunctionDecl* decl) {
-    result_ += indent() + "func " + decl->name + "(";
+void ASTPrinter::visitFunctionDecl(FunctionDecl& decl) {
+    result_ += indent() + "func " + decl.name + "(";
     
-    for (size_t i = 0; i < decl->parameters.size(); ++i) {
+    for (size_t i = 0; i < decl.parameters.size(); ++i) {
         if (i > 0) result_ += ", ";
-        result_ += decl->parameters[i].name;
+        result_ += decl.parameters[i].name;
     }
     
     result_ += ")\n";
-    decl->body->accept(*this);
+    decl.body->accept(*this);
 }
 
 /**
@@ -539,17 +539,17 @@ void ASTPrinter::visitFunctionDecl(FunctionDecl* decl) {
  * 
  * @param decl (AR) مؤشر لتصريح الصنف. (EN) Pointer to class declaration.
  */
-void ASTPrinter::visitClassDecl(ClassDecl* decl) {
-    result_ += indent() + "class " + decl->name;
+void ASTPrinter::visitClassDecl(ClassDecl& decl) {
+    result_ += indent() + "class " + decl.name;
     
-    if (!decl->superclass.empty()) {
-        result_ += " extends " + decl->superclass;
+    if (!decl.superclass.empty()) {
+        result_ += " extends " + decl.superclass;
     }
     
     result_ += "\n" + indent() + "{\n";
     
     increaseIndent();
-    for (const auto& member : decl->members) {
+    for (const auto& member : decl.members) {
         member->accept(*this);
     }
     decreaseIndent();
@@ -563,12 +563,12 @@ void ASTPrinter::visitClassDecl(ClassDecl* decl) {
  * 
  * @param decl (AR) مؤشر لتصريح الحقل. (EN) Pointer to field declaration.
  */
-void ASTPrinter::visitFieldDecl(FieldDecl* decl) {
-    result_ += indent() + "var " + decl->name;
+void ASTPrinter::visitFieldDecl(FieldDecl& decl) {
+    result_ += indent() + "var " + decl.name;
     
-    if (decl->initializer) {
+    if (decl.initializer) {
         result_ += " = ";
-        decl->initializer->accept(*this);
+        decl.initializer->accept(*this);
     }
     
     result_ += ";\n";
@@ -580,16 +580,16 @@ void ASTPrinter::visitFieldDecl(FieldDecl* decl) {
  * 
  * @param decl (AR) مؤشر لتصريح الطريقة. (EN) Pointer to method declaration.
  */
-void ASTPrinter::visitMethodDecl(MethodDecl* decl) {
-    result_ += indent() + "func " + decl->name + "(";
+void ASTPrinter::visitMethodDecl(MethodDecl& decl) {
+    result_ += indent() + "func " + decl.name + "(";
     
-    for (size_t i = 0; i < decl->parameters.size(); ++i) {
+    for (size_t i = 0; i < decl.parameters.size(); ++i) {
         if (i > 0) result_ += ", ";
-        result_ += decl->parameters[i].name;
+        result_ += decl.parameters[i].name;
     }
     
     result_ += ")\n";
-    decl->body->accept(*this);
+    decl.body->accept(*this);
 }
 
 /**
@@ -598,16 +598,16 @@ void ASTPrinter::visitMethodDecl(MethodDecl* decl) {
  * 
  * @param decl (AR) مؤشر لتصريح الباني. (EN) Pointer to constructor declaration.
  */
-void ASTPrinter::visitConstructorDecl(ConstructorDecl* decl) {
+void ASTPrinter::visitConstructorDecl(ConstructorDecl& decl) {
     result_ += indent() + "constructor(";
     
-    for (size_t i = 0; i < decl->parameters.size(); ++i) {
+    for (size_t i = 0; i < decl.parameters.size(); ++i) {
         if (i > 0) result_ += ", ";
-        result_ += decl->parameters[i].name;
+        result_ += decl.parameters[i].name;
     }
     
     result_ += ")\n";
-    decl->body->accept(*this);
+    decl.body->accept(*this);
 }
 
 /**
@@ -616,9 +616,9 @@ void ASTPrinter::visitConstructorDecl(ConstructorDecl* decl) {
  * 
  * @param decl (AR) مؤشر لتصريح الهادم. (EN) Pointer to destructor declaration.
  */
-void ASTPrinter::visitDestructorDecl(DestructorDecl* decl) {
+void ASTPrinter::visitDestructorDecl(DestructorDecl& decl) {
     result_ += indent() + "destructor\n";
-    decl->body->accept(*this);
+    decl.body->accept(*this);
 }
 
 /**
@@ -627,14 +627,14 @@ void ASTPrinter::visitDestructorDecl(DestructorDecl* decl) {
  * 
  * @param decl (AR) مؤشر لتصريح التعداد. (EN) Pointer to enum declaration.
  */
-void ASTPrinter::visitEnumDecl(EnumDecl* decl) {
-    result_ += indent() + "enum " + decl->name + "\n";
+void ASTPrinter::visitEnumDecl(EnumDecl& decl) {
+    result_ += indent() + "enum " + decl.name + "\n";
     result_ += indent() + "{\n";
     
     increaseIndent();
-    for (size_t i = 0; i < decl->members.size(); ++i) {
-        result_ += indent() + decl->members[i].name;
-        if (i < decl->members.size() - 1) result_ += ",";
+    for (size_t i = 0; i < decl.members.size(); ++i) {
+        result_ += indent() + decl.members[i].name;
+        if (i < decl.members.size() - 1) result_ += ",";
         result_ += "\n";
     }
     decreaseIndent();
@@ -648,11 +648,11 @@ void ASTPrinter::visitEnumDecl(EnumDecl* decl) {
  * 
  * @param stmt (AR) مؤشر لجملة الاستيراد. (EN) Pointer to import statement.
  */
-void ASTPrinter::visitImportStmt(ImportStmt* stmt) {
-    result_ += indent() + "import \"" + stmt->modulePath + "\"";
+void ASTPrinter::visitImportStmt(ImportStmt& stmt) {
+    result_ += indent() + "import \"" + stmt.modulePath + "\"";
     
-    if (!stmt->alias.empty()) {
-        result_ += " as " + stmt->alias;
+    if (!stmt.alias.empty()) {
+        result_ += " as " + stmt.alias;
     }
     
     result_ += ";\n";
@@ -664,9 +664,9 @@ void ASTPrinter::visitImportStmt(ImportStmt* stmt) {
  * 
  * @param stmt (AR) مؤشر لجملة التصدير. (EN) Pointer to export statement.
  */
-void ASTPrinter::visitExportStmt(ExportStmt* stmt) {
+void ASTPrinter::visitExportStmt(ExportStmt& stmt) {
     result_ += indent() + "export ";
-    stmt->declaration->accept(*this);
+    stmt.declaration->accept(*this);
 }
 
 } // namespace AST
