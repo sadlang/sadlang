@@ -206,6 +206,12 @@ set(STDLIB_SOURCES
     src/stdlib/io/io_functions.cpp
 )
 
+# المحسن المتقدم / Advanced Optimizer (Phase 10)
+set(OPTIMIZER_SOURCES
+    src/optimizer/advanced_optimizer.cpp
+    src/optimizer/optimization_pass.cpp
+)
+
 # جميع ملفات المصدر / All source files
 set(ALL_SOURCES
     ${UTILS_SOURCES}
@@ -222,6 +228,7 @@ set(ALL_SOURCES
     ${ERROR_SOURCES}
     ${STDLIB_SOURCES}
     ${BUILTINS_SOURCES}
+    ${OPTIMIZER_SOURCES}
 )
 
 # ======================================================================
@@ -324,6 +331,42 @@ if(BUILD_TESTS)
         COMMAND io_functions_tests
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
+    
+    # ======================================================================
+    # اختبارات المحسن المتقدم (Phase 10) / Advanced Optimizer Tests (Phase 10)
+    # ======================================================================
+    
+    if(EXISTS "${CMAKE_SOURCE_DIR}/tests/optimizer/advanced_optimizer_test.cpp")
+        # Advanced Optimizer Tests executable
+        add_executable(optimizer_tests
+            tests/optimizer/advanced_optimizer_test.cpp
+        )
+        
+        # Link required libraries
+        target_link_libraries(optimizer_tests PRIVATE sad_core)
+        
+        # Add include paths
+        target_include_directories(optimizer_tests PRIVATE
+            ${CMAKE_SOURCE_DIR}
+        )
+        
+        # Set executable properties
+        set_target_properties(optimizer_tests PROPERTIES
+            OUTPUT_NAME "optimizer_tests"
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        )
+        
+        # Add CTest test
+        add_test(
+            NAME OptimizerTests
+            COMMAND optimizer_tests
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        )
+        
+        message(STATUS "✓ اختبارات المحسن المتقدم مفعلة / Advanced Optimizer tests enabled")
+    else()
+        message(STATUS "⚠ اختبارات المحسن المتقدم غير متاحة / Advanced Optimizer tests not available")
+    endif()
     
     # ======================================================================
     # اختبارات البرمجة الكائنية (Phase 0) / OOP Tests (Phase 0)
