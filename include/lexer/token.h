@@ -44,21 +44,35 @@ namespace Lexer {
 struct Position {
     size_t line;      ///< رقم السطر / Line number (1-based)
     size_t column;    ///< رقم العمود / Column number (1-based)
+    size_t offset;    ///< الإزاحة من بداية الملف / Offset from file start (0-based)
+    size_t length;    ///< طول الرمز بالأحرف / Token length in characters
     
     /**
      * @brief (AR) منشئ افتراضي - يبدأ من السطر 1 العمود 1
      * @brief (EN) Default constructor - starts at line 1, column 1
      */
-    Position() : line(1), column(1) {}
+    Position() : line(1), column(1), offset(0), length(0) {}
     
     /**
-     * @brief (AR) منشئ بقيم محددة
-     * @brief (EN) Constructor with specific values
+     * @brief (AR) منشئ بقيم محددة (متوافق مع الكود القديم)
+     * @brief (EN) Constructor with specific values (backward compatible)
      * 
      * @param l (size_t) — (AR) رقم السطر / (EN) line number
      * @param c (size_t) — (AR) رقم العمود / (EN) column number
      */
-    Position(size_t l, size_t c) : line(l), column(c) {}
+    Position(size_t l, size_t c) : line(l), column(c), offset(0), length(0) {}
+    
+    /**
+     * @brief (AR) منشئ كامل مع جميع المعلومات
+     * @brief (EN) Full constructor with all information
+     * 
+     * @param l (size_t) — (AR) رقم السطر / (EN) line number
+     * @param c (size_t) — (AR) رقم العمود / (EN) column number
+     * @param o (size_t) — (AR) الإزاحة من بداية الملف / (EN) offset from file start
+     * @param len (size_t) — (AR) طول الرمز / (EN) token length
+     */
+    Position(size_t l, size_t c, size_t o, size_t len) 
+        : line(l), column(c), offset(o), length(len) {}
     
     /**
      * @brief (AR) تحويل الموقع إلى نص للطباعة
@@ -94,11 +108,14 @@ enum class TokenType {
     KEYWORD_FUNCTION,       ///< دالة / function
     KEYWORD_RETURN,         ///< إرجاع / return
     KEYWORD_CLASS,          ///< صنف / class
+    KEYWORD_INHERITS,       ///< يرث / inherits (NEW: spec 03_oop.md §1,2 - inheritance keyword)
+    KEYWORD_END,            ///< نهاية / end (NEW: spec 03_oop.md §1 - class/block terminator)
     KEYWORD_NEW,            ///< جديد / new
     KEYWORD_THIS,           ///< هذا / this
     KEYWORD_CONSTRUCTOR,    ///< منشئ / constructor
-    KEYWORD_LAMBDA,         ///< لامدا / lambda
-    KEYWORD_YIELD,          ///< اعطِ / yield
+    KEYWORD_CONSTRUCTOR_ALT,///< باني / constructor (alternative)
+    KEYWORD_DESTRUCTOR,     ///< مدمر / destructor
+    KEYWORD_SUPER,          ///< الأساس / super (base class)
     
     // ========== الكلمات المفتاحية - التحكم في التدفق / Keywords - Control Flow ==========
     KEYWORD_IF,             ///< إذا / if
@@ -110,11 +127,16 @@ enum class TokenType {
     KEYWORD_BREAK,          ///< اخرج / break
     KEYWORD_CONTINUE,       ///< استمر / continue
     
+    // ========== الكلمات المفتاحية - Switch/Case (spec 04_syntax.md) ==========
+    KEYWORD_CASE,           ///< حالة / case (switch statement)
+    KEYWORD_WHEN,           ///< عندما / when (alternative for case)
+    KEYWORD_DEFAULT,        ///< افتراضي / default (switch default case)
+    
     // ========== الكلمات المفتاحية - التعامل مع الأخطاء / Keywords - Error Handling ==========
-    KEYWORD_TRY,            ///< حاول / try
-    KEYWORD_CATCH,          ///< اصطد / catch
-    KEYWORD_THROW,          ///< ارمِ / throw
-    KEYWORD_FINALLY,        ///< أخيراً / finally
+    KEYWORD_TRY,            ///< حاول / try (spec 05_python_features.md)
+    KEYWORD_CATCH,          ///< امسك / catch (spec 05_python_features.md)
+    KEYWORD_THROW,          ///< ارمِ / throw (spec 05_python_features.md)
+    KEYWORD_FINALLY,        ///< أخيراً / finally (spec 05_python_features.md)
     
     // ========== الكلمات المفتاحية - التحكم بالوصول / Keywords - Access Control ==========
     KEYWORD_PUBLIC,         ///< عام / public
@@ -122,25 +144,30 @@ enum class TokenType {
     KEYWORD_PROTECTED,      ///< محمي / protected
     
     // ========== الكلمات المفتاحية - الوراثة / Keywords - Inheritance ==========
-    KEYWORD_EXTENDS,        ///< يرث / extends
-    KEYWORD_IMPLEMENTS,     ///< ينفذ / implements
-    KEYWORD_INTERFACE,      ///< واجهة / interface
-    KEYWORD_ABSTRACT,       ///< مجرد / abstract
-    KEYWORD_VIRTUAL,        ///< افتراضي / virtual
-    KEYWORD_OVERRIDE,       ///< تجاوز / override
+    KEYWORD_EXTENDS,        ///< يرث / extends (same as KEYWORD_INHERITS - spec 04_syntax.md)
+    // NOTE: Advanced OOP features (implements, interface, abstract, override) removed - Phase 2
+    // NOTE: virtual removed - conflicts with DEFAULT keyword (افتراضي)
     
-    // ========== الكلمات المفتاحية - الوحدات / Keywords - Modules ==========
+    // ========== الكلمات المفتاحية - الوحدات / Keywords - Modules (spec 08_modules_and_ffi.md) ==========
     KEYWORD_IMPORT,         ///< استورد / import
+    KEYWORD_FROM,           ///< من / from (for "from X import Y")
+    KEYWORD_AS,             ///< كـ / as (for "import X as Y")
     KEYWORD_EXPORT,         ///< صدّر / export
-    KEYWORD_MODULE,         ///< وحدة / module
-    KEYWORD_PACKAGE,        ///< حزمة / package
+    // NOTE: module and package keywords removed - not in spec
     
     // ========== الكلمات المفتاحية - المتغيرات / Keywords - Variables ==========
-    KEYWORD_VAR,            ///< متغير / var
-    KEYWORD_CONST,          ///< ثابت / const
-    KEYWORD_LET,            ///< اجعل / let
-    KEYWORD_STATIC,         ///< ساكن / static
-    KEYWORD_ENUM,           ///< تعداد / enum
+    // NOTE: var and let removed - not in spec (type inference works without them)
+    KEYWORD_CONST,          ///< ثابت / const (spec 04_syntax.md - not "const" but "static" semantics)
+    KEYWORD_STATIC,         ///< ساكن / static (spec 04_syntax.md)
+    KEYWORD_PROPERTY,       ///< خاصية / property (Phase 6.3 - Properties/Getters/Setters)
+    KEYWORD_GET,            ///< احصل / get (Phase 6.3 - Property getter)
+    KEYWORD_SET,            ///< عيّن / set (Phase 6.3 - Property setter)
+    KEYWORD_ENUM,           ///< تعداد / enum (spec 01_types.md)
+    
+    // ========== ميزات Python المدعومة / Supported Python Features (spec 05_python_features.md) ==========
+    KEYWORD_LAMBDA,         ///< لامدا / lambda (anonymous functions)
+    KEYWORD_YIELD,          ///< اعطِ / yield (generators)
+    // NOTE: Decorators (@) are Phase 2 - not yet implemented
     
     // ========== أنواع البيانات الأساسية / Basic Data Types ==========
     TYPE_INTEGER,           ///< رقم / integer
@@ -151,6 +178,7 @@ enum class TokenType {
     TYPE_NULL,              ///< عدم / null
     TYPE_ARRAY,             ///< مصفوفة / array
     TYPE_MAP,               ///< خريطة / map
+    TYPE_ANY,               ///< أي / any (accepts any type - spec 01_types.md, 04_syntax.md)
     
     // ========== القيم الحرفية / Literal Values ==========
     LITERAL_TRUE,           ///< صحيح / true
@@ -205,8 +233,11 @@ enum class TokenType {
     
     // ========== علامات الترقيم / Punctuation ==========
     COMMA,                  ///< , فاصلة / comma
+    ARABIC_COMMA,           ///< ، فاصلة عربية (U+060C, spec 03_oop.md §1)
     SEMICOLON,              ///< ; فاصلة منقوطة / semicolon
+    ARABIC_SEMICOLON,       ///< ؛ فاصلة منقوطة عربية (U+061B, spec 03_oop.md §1)
     COLON,                  ///< : نقطتان / colon
+    DOUBLE_COLON,           ///< :: نقطتان مزدوجتان / double colon (static member access)
     DOT,                    ///< . نقطة / dot (member access)
     ARROW,                  ///< -> سهم / arrow
     FAT_ARROW,              ///< => سهم عريض / fat arrow (lambda/arrow functions)

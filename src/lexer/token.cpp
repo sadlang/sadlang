@@ -159,11 +159,13 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::KEYWORD_FUNCTION:    return "KEYWORD_FUNCTION";
         case TokenType::KEYWORD_RETURN:      return "KEYWORD_RETURN";
         case TokenType::KEYWORD_CLASS:       return "KEYWORD_CLASS";
+        case TokenType::KEYWORD_INHERITS:    return "KEYWORD_INHERITS"; // spec 03_oop.md §1,2
+        case TokenType::KEYWORD_END:         return "KEYWORD_END"; // spec 03_oop.md §1
         case TokenType::KEYWORD_NEW:         return "KEYWORD_NEW";
         case TokenType::KEYWORD_THIS:        return "KEYWORD_THIS";
         case TokenType::KEYWORD_CONSTRUCTOR: return "KEYWORD_CONSTRUCTOR";
-        case TokenType::KEYWORD_LAMBDA:      return "KEYWORD_LAMBDA";
-        case TokenType::KEYWORD_YIELD:       return "KEYWORD_YIELD";
+        // (AR) ملاحظة: LAMBDA و YIELD في قسم ميزات Python أدناه
+        // (EN) Note: LAMBDA and YIELD in Python features section below
         
         // الكلمات المفتاحية - التحكم في التدفق
         case TokenType::KEYWORD_IF:          return "KEYWORD_IF";
@@ -174,6 +176,11 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::KEYWORD_IN:          return "KEYWORD_IN";
         case TokenType::KEYWORD_BREAK:       return "KEYWORD_BREAK";
         case TokenType::KEYWORD_CONTINUE:    return "KEYWORD_CONTINUE";
+        
+        // Switch/Case keywords (spec 04_syntax.md)
+        case TokenType::KEYWORD_CASE:        return "KEYWORD_CASE";
+        case TokenType::KEYWORD_WHEN:        return "KEYWORD_WHEN";
+        case TokenType::KEYWORD_DEFAULT:     return "KEYWORD_DEFAULT";
         
         // الكلمات المفتاحية - معالجة الأخطاء
         case TokenType::KEYWORD_TRY:         return "KEYWORD_TRY";
@@ -188,23 +195,20 @@ std::string Token::typeToString(TokenType type) {
         
         // الكلمات المفتاحية - الوراثة
         case TokenType::KEYWORD_EXTENDS:     return "KEYWORD_EXTENDS";
-        case TokenType::KEYWORD_IMPLEMENTS:  return "KEYWORD_IMPLEMENTS";
-        case TokenType::KEYWORD_INTERFACE:   return "KEYWORD_INTERFACE";
-        case TokenType::KEYWORD_ABSTRACT:    return "KEYWORD_ABSTRACT";
-        case TokenType::KEYWORD_VIRTUAL:     return "KEYWORD_VIRTUAL";
-        case TokenType::KEYWORD_OVERRIDE:    return "KEYWORD_OVERRIDE";
         
-        // الكلمات المفتاحية - الوحدات
+        // الكلمات المفتاحية - الوحدات (spec 08_modules_and_ffi.md) (spec 08_modules_and_ffi.md)
         case TokenType::KEYWORD_IMPORT:      return "KEYWORD_IMPORT";
+        case TokenType::KEYWORD_FROM:        return "KEYWORD_FROM";
+        case TokenType::KEYWORD_AS:          return "KEYWORD_AS";
         case TokenType::KEYWORD_EXPORT:      return "KEYWORD_EXPORT";
-        case TokenType::KEYWORD_MODULE:      return "KEYWORD_MODULE";
-        case TokenType::KEYWORD_PACKAGE:     return "KEYWORD_PACKAGE";
         
         // الكلمات المفتاحية - المتغيرات
-        case TokenType::KEYWORD_VAR:         return "KEYWORD_VAR";
         case TokenType::KEYWORD_CONST:       return "KEYWORD_CONST";
-        case TokenType::KEYWORD_LET:         return "KEYWORD_LET";
         case TokenType::KEYWORD_STATIC:      return "KEYWORD_STATIC";
+        
+        // ميزات Python (spec 05_python_features.md)
+        case TokenType::KEYWORD_LAMBDA:      return "KEYWORD_LAMBDA";
+        case TokenType::KEYWORD_YIELD:       return "KEYWORD_YIELD";
         
         // أنواع البيانات
         case TokenType::TYPE_INTEGER:        return "TYPE_INTEGER";
@@ -215,6 +219,7 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::TYPE_NULL:           return "TYPE_NULL";
         case TokenType::TYPE_ARRAY:          return "TYPE_ARRAY";
         case TokenType::TYPE_MAP:            return "TYPE_MAP";
+        case TokenType::TYPE_ANY:            return "TYPE_ANY";
         
         // القيم الحرفية
         case TokenType::LITERAL_TRUE:        return "LITERAL_TRUE";
@@ -269,7 +274,9 @@ std::string Token::typeToString(TokenType type) {
         
         // علامات الترقيم
         case TokenType::COMMA:               return "COMMA";
+        case TokenType::ARABIC_COMMA:        return "ARABIC_COMMA"; // U+060C spec 03_oop.md §1
         case TokenType::SEMICOLON:           return "SEMICOLON";
+        case TokenType::ARABIC_SEMICOLON:    return "ARABIC_SEMICOLON"; // U+061B spec 03_oop.md §1
         case TokenType::COLON:               return "COLON";
         case TokenType::DOT:                 return "DOT";
         case TokenType::ARROW:               return "ARROW";

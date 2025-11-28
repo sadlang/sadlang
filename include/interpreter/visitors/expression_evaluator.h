@@ -46,15 +46,20 @@
 
 #include "../../parser/ast/ast_visitor.h"
 #include "../../parser/ast/expressions.h"
+#include "../../parser/ast/class_nodes.h"
 #include "../../data/types/value.h"
 #include "../../data/managers/variable_manager.h"
 #include "../../data/managers/function_manager.h"
 #include "../../lexer/token.h"
+#include "../../interpreter/exception.h"  // For RuntimeError, TypeError, etc.
 #include <stdexcept>
 #include <string>
 
 // Forward declaration to avoid circular dependency
 namespace Sad {
+namespace Data {
+    class ClassType;
+}
 namespace Interpreter {
     class StatementExecutor;
 }
@@ -63,14 +68,8 @@ namespace Interpreter {
 namespace Sad {
 namespace Interpreter {
 
-/**
- * @brief (AR) استثناء وقت التشغيل
- * @brief (EN) Runtime exception
- */
-class RuntimeError : public std::runtime_error {
-public:
-    RuntimeError(const std::string& message) : std::runtime_error(message) {}
-};
+// Note: RuntimeError is now defined in interpreter/exception.h
+// ملاحظة: RuntimeError معرف الآن في interpreter/exception.h
 
 /**
  * @brief (AR) مُقيِّم التعابير - ينفذ نمط الزائر لتقييم AST
@@ -143,6 +142,12 @@ public:
     void visitUnaryExpr(AST::UnaryExpr& node) override;
     
     /**
+     * @brief (AR) تقييم تعبير ثلاثي شرطي (cond ? true : false)
+     * @brief (EN) Evaluate ternary conditional expression (cond ? true : false)
+     */
+    void visitTernaryExpr(AST::TernaryExpr& node) override;
+    
+    /**
      * @brief (AR) تقييم قيمة حرفية (42، "hello"، true)
      * @brief (EN) Evaluate literal value (42, "hello", true)
      */
@@ -153,6 +158,13 @@ public:
      * @brief (EN) Read variable value (x, counter)
      */
     void visitVariableExpr(AST::VariableExpr& node) override;
+    
+    /**
+     * @brief (AR) تنفيذ تعبير 'هذا' (this)
+     * @brief (EN) Execute 'this' expression
+     */
+    void visitThisExpr(AST::ThisExpr& node) override;
+    void visitSuperExpr(AST::SuperExpr& node) override;
     
     /**
      * @brief (AR) تنفيذ عملية إسناد (x = 10)
@@ -208,6 +220,24 @@ public:
      */
     void visitDictComprehensionExpr(AST::DictComprehensionExpr& node) override;
     
+    /**
+     * @brief (AR) تقييم إنشاء كائن جديد (جديد صنف())
+     * @brief (EN) Evaluate new object creation (new Class())
+     */
+    void visitNewExpr(AST::NewExpr& node) override;
+    
+    /**
+     * @brief (AR) تقييم تعيين قيمة لعضو في كائن (obj.field = value)
+     * @brief (EN) Evaluate member assignment (obj.field = value)
+     */
+    void visitMemberAssignExpr(AST::MemberAssignExpr& node) override;
+    
+    /**
+     * @brief (AR) تقييم استدعاء طريقة على كائن (obj.method(args))
+     * @brief (EN) Evaluate method call on object (obj.method(args))
+     */
+    void visitMethodCallExpr(AST::MethodCallExpr& node) override;
+    
 private:
     Data::VariableManager& variableManager_;    ///< (AR) مدير المتغيرات / (EN) Variable manager
     Data::FunctionManager& functionManager_;    ///< (AR) مدير الدوال / (EN) Function manager
@@ -219,25 +249,38 @@ private:
      * @brief (AR) تنفيذ عملية ثنائية حسابية
      * @brief (EN) Execute arithmetic binary operation
      */
-    Data::Value evaluateArithmeticOp(const Data::Value& left, Lexer::TokenType op, const Data::Value& right);
+    Data::Value evaluateArithmeticOp(const Data::Value& left, Lexer::TokenType op, const Data::Value& right, const Lexer::Position& pos);
     
     /**
      * @brief (AR) تنفيذ عملية مقارنة
      * @brief (EN) Execute comparison operation
      */
-    Data::Value evaluateComparisonOp(const Data::Value& left, Lexer::TokenType op, const Data::Value& right);
+    Data::Value evaluateComparisonOp(const Data::Value& left, Lexer::TokenType op, const Data::Value& right, const Lexer::Position& pos);
     
     /**
      * @brief (AR) تنفيذ عملية منطقية
      * @brief (EN) Execute logical operation
      */
-    Data::Value evaluateLogicalOp(const Data::Value& left, Lexer::TokenType op, const Data::Value& right);
+    Data::Value evaluateLogicalOp(const Data::Value& left, Lexer::TokenType op, const Data::Value& right, const Lexer::Position& pos);
     
     /**
      * @brief (AR) تحويل Token إلى Value
      * @brief (EN) Convert Token to Value
      */
     Data::Value tokenToValue(const Lexer::Token& token);
+    
+    /**
+     * @brief (AR) فحص إمكانية الوصول لعضو في صنف
+     * @brief (EN) Check access permission for class member
+     * 
+     * @param visibility (AR) مستوى الوصول / (EN) Visibility level
+     * @param memberName (AR) اسم العضو / (EN) Member name
+     * @param targetClass (AR) الصنف الهدف / (EN) Target class
+     * @throws RuntimeError (AR) إذا كان الوصول محظوراً / (EN) If access is denied
+     */
+    void checkMemberAccess(AST::Visibility visibility, 
+                          const std::string& memberName,
+                          Data::ClassType* targetClass);
 };
 
 } // namespace Interpreter

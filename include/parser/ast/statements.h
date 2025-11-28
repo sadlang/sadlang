@@ -567,6 +567,83 @@ public:
     std::string toString() const override;
 };
 
+// =========================================================================
+// Switch Statement / جملة حالة (Switch/Case)
+// =========================================================================
+
+/**
+ * @brief Case branch for switch statement / فرع حالة لجملة حالة
+ * 
+ * Represents a single case branch في switch statement.
+ * يمثل فرع حالة واحد في جملة حالة.
+ * 
+ * Spec: docs/language_spec/rules/04_syntax.md - switch_stmt
+ */
+struct CaseBranch {
+    ExprPtr value;              ///< Case value / قيمة الحالة
+    StmtPtr body;               ///< Case body / جسم الحالة
+    
+    CaseBranch(ExprPtr val, StmtPtr bod)
+        : value(std::move(val)), body(std::move(bod)) {}
+};
+
+/**
+ * @brief Switch statement node / عقدة جملة حالة
+ * 
+ * Represents a switch-case statement with parenthesized condition.
+ * يمثل جملة حالة-عندما مع شرط بين أقواس.
+ * 
+ * Spec: docs/language_spec/rules/04_syntax.md
+ * Syntax: حالة (expr) عندما val1: body1 عندما val2: body2 افتراضي: default_body نهاية
+ * 
+ * Features / الميزات:
+ * - No fall-through: executes only first matching case / لا يوجد fall-through
+ * - Default case is optional / الحالة الافتراضية اختيارية
+ * - Values can be any expression / القيم يمكن أن تكون أي تعبير
+ * 
+ * @example Examples / أمثلة:
+ * @code{.s}
+ * حالة (يوم)
+ *     عندما 1:
+ *         اطبع("الإثنين")
+ *     عندما 2:
+ *         اطبع("الثلاثاء")
+ *     افتراضي:
+ *         اطبع("يوم آخر")
+ * نهاية
+ * 
+ * حالة (اللون)
+ *     عندما "أحمر": اطبع("Red")
+ *     عندما "أزرق": اطبع("Blue")
+ * نهاية
+ * @endcode
+ */
+class SwitchStmt : public Statement {
+public:
+    ExprPtr expression;                 ///< Switch expression / تعبير الحالة
+    std::vector<CaseBranch> cases;      ///< Case branches / فروع الحالات
+    StmtPtr defaultCase;                ///< Default case (optional) / الحالة الافتراضية
+    
+    /**
+     * @brief Constructor / البناء
+     * @param expr Switch expression / تعبير الحالة
+     * @param caseList Case branches / فروع الحالات
+     * @param defCase Default case / الحالة الافتراضية
+     * @param pos Source position / الموقع في الكود
+     */
+    SwitchStmt(ExprPtr expr, std::vector<CaseBranch> caseList,
+               StmtPtr defCase = nullptr,
+               const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), expression(std::move(expr)),
+          cases(std::move(caseList)), defaultCase(std::move(defCase)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitSwitchStmt(*this);
+    }
+    
+    std::string toString() const override;
+};
+
 } // namespace AST
 } // namespace Sad
 

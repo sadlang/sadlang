@@ -130,10 +130,21 @@ public:
 
 private:
     bool isDigit(char c) const;
+    bool isHexDigit(char c) const;
     bool isAlpha(char c) const;
     bool isAlphaNumeric(char c) const;
     bool isWhitespace(char c) const;
     Token makeError(const std::string& message);
+    
+    /**
+     * @brief (AR) إنشاء رمز مع حساب الطول تلقائياً من start_position_
+     * @brief (EN) Create token with automatic length calculation from start_position_
+     * 
+     * @param type (TokenType) — (AR) نوع الرمز / (EN) token type
+     * @param value (std::string) — (AR) قيمة الرمز / (EN) token value
+     * @return (Token) — (AR) الرمز مع الموقع والطول / (EN) token with position and length
+     */
+    Token makeToken(TokenType type, const std::string& value);
 
     std::string source_;
     size_t current_;

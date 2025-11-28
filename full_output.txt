@@ -1,0 +1,1872 @@
+﻿[main.cpp:331] ╪¿╪»╪í ╪¿╪▒┘ז╪º┘ו╪¼ ┘ה╪║╪⌐ ╪╡
+[main.cpp:156] ┘ב╪¡╪╡ ╪º┘ו╪¬╪»╪º╪» ╪º┘ה┘ו┘ה┘ב: C:\s\s_language\examples\types\02_floats_mixed.s
+[string_utils.cpp:177] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז ╪º┘ה┘ז╪╡ ┘ך┘ז╪¬┘ח┘ך ╪¿┘א: ".s"
+[string_utils.cpp:191] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: true
+[main.cpp:195] ┘ג╪▒╪º╪í╪⌐ ┘ו┘ה┘ב ╪º┘ה╪¿╪▒┘ז╪º┘ו╪¼: C:\s\s_language\examples\types\02_floats_mixed.s
+[main.cpp:218] ╪¬┘ו╪¬ ┘ג╪▒╪º╪í╪⌐ 3336 ╪¡╪▒┘ב ┘ו┘ז ╪º┘ה┘ו┘ה┘ב
+[main.cpp:245] ╪¿╪»╪í ╪¬┘ז┘ב┘ך╪░ ╪º┘ה╪¿╪▒┘ז╪º┘ו╪¼: C:\s\s_language\examples\types\02_floats_mixed.s
+========================================
+╪¬┘ז┘ב┘ך╪░ ╪º┘ה╪¿╪▒┘ז╪º┘ו╪¼ / Executing Program
+╪º┘ה┘ו┘ה┘ב / File: C:\s\s_language\examples\types\02_floats_mixed.s
+========================================
+
+[1/4] ╪º┘ה╪¬╪¡┘ה┘ך┘ה ╪º┘ה┘ו╪╣╪¼┘ו┘ך / Lexical Analysis...
+[lexer_core.cpp:61] ╪Ñ┘ז╪┤╪º╪í ┘ו╪¡┘ה┘ה ┘ו╪╣╪¼┘ו┘ך ╪¼╪»┘ך╪» - ╪¡╪¼┘ו ╪º┘ה┘ו╪╡╪»╪▒: 3336 ╪¡╪▒┘ב
+[lexer_keywords.cpp:45] ╪¿╪»╪í ╪¬┘ח┘ך╪ª╪⌐ ╪¼╪»┘ט┘ה ╪º┘ה┘ד┘ה┘ו╪º╪¬ ╪º┘ה┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:80] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ 20 ┘ד┘ה┘ו╪⌐: ╪º┘ה╪»┘ט╪º┘ה ┘ט╪º┘ה╪¿┘ז┘ך╪º╪¬ (╪╣╪▒╪¿┘ך + ╪Ñ┘ז╪¼┘ה┘ך╪▓┘ך)
+[lexer_keywords.cpp:99] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ 14 ┘ד┘ה┘ו╪⌐: ╪º┘ה╪¬╪¡┘ד┘ו ┘ב┘ך ╪º┘ה╪¬╪»┘ב┘ג (╪╣╪▒╪¿┘ך + ╪Ñ┘ז╪¼┘ה┘ך╪▓┘ך)
+[lexer_keywords.cpp:106] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ 2 ┘ד┘ה┘ו╪⌐: ┘ד┘ה┘ו╪º╪¬ ╪Ñ╪╢╪º┘ב┘ך╪⌐
+[lexer_keywords.cpp:115] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ 4 ┘ד┘ה┘ו╪º╪¬: ┘ו╪╣╪º┘ה╪¼╪⌐ ╪º┘ה╪ú╪«╪╖╪º╪í
+[lexer_keywords.cpp:123] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ 3 ┘ד┘ה┘ו╪º╪¬: ╪º┘ה╪¬╪¡┘ד┘ו ╪¿╪º┘ה┘ט╪╡┘ט┘ה
+[lexer_keywords.cpp:134] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ 6 ┘ד┘ה┘ו╪º╪¬: ╪º┘ה┘ט╪▒╪º╪½╪⌐
+[lexer_keywords.cpp:143] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ 4 ┘ד┘ה┘ו╪º╪¬: ╪º┘ה┘ט╪¡╪»╪º╪¬
+[lexer_keywords.cpp:153] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ 4 ┘ד┘ה┘ו╪º╪¬: ╪º┘ה┘ו╪¬╪║┘ך╪▒╪º╪¬
+[lexer_keywords.cpp:192] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ 22 ┘ד┘ה┘ו╪⌐: ╪ú┘ז┘ט╪º╪╣ ╪º┘ה╪¿┘ך╪º┘ז╪º╪¬ (╪╣╪▒╪¿┘ך + ╪Ñ┘ז╪¼┘ה┘ך╪▓┘ך)
+[lexer_keywords.cpp:202] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ 5 ┘ד┘ה┘ו╪º╪¬: ╪º┘ה┘ג┘ך┘ו ╪º┘ה╪¡╪▒┘ב┘ך╪⌐ (╪╣╪▒╪¿┘ך + ╪Ñ┘ז╪¼┘ה┘ך╪▓┘ך)
+[lexer_keywords.cpp:209] ╪º┘ד╪¬┘ו╪º┘ה ╪¬┘ח┘ך╪ª╪⌐ ╪¼╪»┘ט┘ה ╪º┘ה┘ד┘ה┘ו╪º╪¬ ╪º┘ה┘ו┘ב╪¬╪º╪¡┘ך╪⌐ - ╪º┘ה┘ו╪¼┘ו┘ט╪╣: 90 ┘ד┘ה┘ו╪⌐
+[lexer_keywords.cpp:297] ╪¼┘ו╪╣ ╪¼┘ו┘ך╪╣ ╪º┘ה┘ד┘ה┘ו╪º╪¬ ╪º┘ה┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:319] ╪¬┘ו ╪¼┘ו╪╣ 90 ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_core.cpp:65] ╪¬┘ו ╪¬┘ח┘ך╪ª╪⌐ ╪¼╪»┘ט┘ה ╪º┘ה┘ד┘ה┘ו╪º╪¬ ╪º┘ה┘ו┘ב╪¬╪º╪¡┘ך╪⌐ - ╪╣╪»╪» ╪º┘ה┘ד┘ה┘ו╪º╪¬: 90
+      ╪¬┘ו ╪Ñ┘ז╪┤╪º╪í ┘ו╪¡┘ה┘ה ┘ו╪╣╪¼┘ו┘ך
+      Lexer created
+
+[2/4] ╪º┘ה╪¬╪¡┘ה┘ך┘ה ╪º┘ה┘ז╪¡┘ט┘ך / Syntactic Analysis...
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: END_OF_FILE = ''
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: END_OF_FILE = ''
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: END_OF_FILE = ''
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 2
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 3
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 4
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 5
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 6
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 7
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 8
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 8:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 8:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 8:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪│╪╣╪▒
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪│╪╣╪▒"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪│╪╣╪▒
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪│╪╣╪▒', 8:10)
+[parser_core_impl.cpp] ╪¿╪»╪í parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 8:17)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 8:19
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 19.99 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '19.99', 8:19)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 9
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 9:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 9:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 9:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ז╪│╪¿╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ז╪│╪¿╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ז╪│╪¿╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ז╪│╪¿╪⌐', 9:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 1
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 9:19)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 9:21
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 0.5 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '0.5', 9:21)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 10
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 10:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 10:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 10:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪¿╪º┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪¿╪º┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪¿╪º┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪¿╪º┘ך', 10:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 2
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 10:17)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 10:19
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 3.14159 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '3.14159', 10:19)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 11
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 11:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 11:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 11:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪│╪º┘ה╪¿
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪│╪º┘ה╪¿"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪│╪º┘ה╪¿
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪│╪º┘ה╪¿', 11:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 3
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 11:19)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: -
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_MINUS, '-', 11:21)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 11:22
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 2.718 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '2.718', 11:22)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 12
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 13
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 13:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 13:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 13:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 4
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 13:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+=== ╪º┘ה╪ú╪▒┘ג╪º┘ו ╪º┘ה╪╣╪┤╪▒┘ך╪⌐ ===
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+=== ╪º┘ה╪ú╪▒┘ג╪º┘ו ╪º┘ה╪╣╪┤╪▒┘ך╪⌐ ===
+', 13:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 13:53)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 14
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 14:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 14:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 14:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 5
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 14:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "╪º┘ה╪│╪╣╪▒:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '╪º┘ה╪│╪╣╪▒:', 14:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 14:23)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 14:25
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪│╪╣╪▒
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪│╪╣╪▒"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪│╪╣╪▒
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪│╪╣╪▒', 14:25)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 14:31)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 14:33
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 14:33)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 14:37)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 15
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 15:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 15:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 15:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 6
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 15:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "╪º┘ה┘ז╪│╪¿╪⌐:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '╪º┘ה┘ז╪│╪¿╪⌐:', 15:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 15:25)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 15:27
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ז╪│╪¿╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ז╪│╪¿╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ז╪│╪¿╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ז╪│╪¿╪⌐', 15:27)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 15:35)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 15:37
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 15:37)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 15:41)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 16
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 16:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 16:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 16:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 7
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 16:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "╪¿╪º┘ך ╧א:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '╪¿╪º┘ך ╧א:', 16:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 16:22)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 16:24
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪¿╪º┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪¿╪º┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪¿╪º┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪¿╪º┘ך', 16:24)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 16:30)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 16:32
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 16:32)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 16:36)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 17
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 17:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 17:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 17:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 8
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 17:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "╪│╪º┘ה╪¿:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '╪│╪º┘ה╪¿:', 17:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 17:21)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 17:23
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪│╪º┘ה╪¿
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪│╪º┘ה╪¿"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪│╪º┘ה╪¿
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪│╪º┘ה╪¿', 17:23)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 17:31)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 17:33
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 17:33)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 17:37)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 18
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 19
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 20
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 20:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 20:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 20:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ד╪¿┘ך╪▒_╪¼╪»╪º┘כ
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ד╪¿┘ך╪▒_╪¼╪»╪º┘כ"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ד╪¿┘ך╪▒_╪¼╪»╪º┘כ
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ד╪¿┘ך╪▒_╪¼╪»╪º┘כ', 20:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 9
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 20:28)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 20:30
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 1.5e10 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '1.5e10', 20:30)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 21
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 21:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 21:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 21:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ', 21:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 10
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 21:28)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 21:30
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 2.5e-5 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '2.5e-5', 21:30)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 22
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 22:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 22:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 22:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪│╪▒╪╣╪⌐_╪º┘ה╪╢┘ט╪í
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪│╪▒╪╣╪⌐_╪º┘ה╪╢┘ט╪í"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪│╪▒╪╣╪⌐_╪º┘ה╪╢┘ט╪í
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪│╪▒╪╣╪⌐_╪º┘ה╪╢┘ט╪í', 22:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 11
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 22:30)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 22:32
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 3.0e8 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '3.0e8', 22:32)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 23
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 24
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 24:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 24:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 24:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 12
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 24:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+=== ╪º┘ה╪¬╪»┘ט┘ך┘ז ╪º┘ה╪╣┘ה┘ו┘ך ===
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+=== ╪º┘ה╪¬╪»┘ט┘ך┘ז ╪º┘ה╪╣┘ה┘ו┘ך ===
+', 24:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 24:51)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 25
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 25:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 25:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 25:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 13
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 25:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "1.5e10 ="
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '1.5e10 =', 25:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 25:20)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 25:22
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ד╪¿┘ך╪▒_╪¼╪»╪º┘כ
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ד╪¿┘ך╪▒_╪¼╪»╪º┘כ"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ד╪¿┘ך╪▒_╪¼╪»╪º┘כ
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ד╪¿┘ך╪▒_╪¼╪»╪º┘כ', 25:22)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 25:39)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 25:41
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 25:41)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 25:45)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 26
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 26:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 26:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 26:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 14
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 26:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "2.5e-5 ="
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '2.5e-5 =', 26:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 26:20)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 26:22
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ', 26:22)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 26:39)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 26:41
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 26:41)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 26:45)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 27
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 27:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 27:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 27:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 15
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 27:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "╪│╪▒╪╣╪⌐ ╪º┘ה╪╢┘ט╪í 3.0e8 m/s ="
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '╪│╪▒╪╣╪⌐ ╪º┘ה╪╢┘ט╪í 3.0e8 m/s =', 27:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 27:43)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 27:45
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪│╪▒╪╣╪⌐_╪º┘ה╪╢┘ט╪í
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪│╪▒╪╣╪⌐_╪º┘ה╪╢┘ט╪í"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪│╪▒╪╣╪⌐_╪º┘ה╪╢┘ט╪í
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪│╪▒╪╣╪⌐_╪º┘ה╪╢┘ט╪í', 27:45)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 27:64)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 27:66
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 27:66)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 27:70)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 28
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 29
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 30
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 30:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 30:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 30:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪¼┘ו┘ט╪╣_╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪¼┘ו┘ט╪╣_╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪¼┘ו┘ט╪╣_╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪¼┘ו┘ט╪╣_╪╣╪┤╪▒┘ך', 30:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 16
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 30:30)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 30:32
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 3.5 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '3.5', 30:32)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: +
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_PLUS, '+', 30:36)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 30:38
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 2.1 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '2.1', 30:38)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 31
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 31:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 31:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 31:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪¡╪º╪╡┘ה_╪╢╪▒╪¿
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪¡╪º╪╡┘ה_╪╢╪▒╪¿"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪¡╪º╪╡┘ה_╪╢╪▒╪¿
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪¡╪º╪╡┘ה_╪╢╪▒╪¿', 31:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 17
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 31:26)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 31:28
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 2.5 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '2.5', 31:28)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: *
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_MULTIPLY, '*', 31:32)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 31:34
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 4.0 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '4.0', 31:34)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 32
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 32:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 32:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 32:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ג╪│┘ו╪⌐_╪╣╪┤╪▒┘ך╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ג╪│┘ו╪⌐_╪╣╪┤╪▒┘ך╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ג╪│┘ו╪⌐_╪╣╪┤╪▒┘ך╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ג╪│┘ו╪⌐_╪╣╪┤╪▒┘ך╪⌐', 32:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 18
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 32:30)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 32:32
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 7.5 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '7.5', 32:32)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: /
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_DIVIDE, '/', 32:36)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 32:38
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 2.0 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '2.0', 32:38)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 33
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 33:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 33:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 33:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ג┘ט╪⌐_╪╣╪┤╪▒┘ך╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ג┘ט╪⌐_╪╣╪┤╪▒┘ך╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ג┘ט╪⌐_╪╣╪┤╪▒┘ך╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ג┘ט╪⌐_╪╣╪┤╪▒┘ך╪⌐', 33:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 19
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 33:28)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 33:30
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 2.5 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '2.5', 33:30)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: *
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_POWER, '**', 33:34)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 33:37
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 2.0 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '2.0', 33:37)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 34
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 35
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 35:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 35:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 35:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 20
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 35:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+=== ╪╣┘ו┘ה┘ך╪º╪¬ ╪╣╪┤╪▒┘ך╪⌐ ===
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+=== ╪╣┘ו┘ה┘ך╪º╪¬ ╪╣╪┤╪▒┘ך╪⌐ ===
+', 35:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 35:47)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 36
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 36:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 36:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 36:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 21
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 36:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "3.5 + 2.1 ="
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '3.5 + 2.1 =', 36:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 36:23)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 36:25
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪¼┘ו┘ט╪╣_╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪¼┘ו┘ט╪╣_╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪¼┘ו┘ט╪╣_╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪¼┘ו┘ט╪╣_╪╣╪┤╪▒┘ך', 36:25)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 36:44)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 36:46
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 36:46)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 36:50)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 37
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 37:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 37:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 37:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 22
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 37:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "2.5 * 4.0 ="
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '2.5 * 4.0 =', 37:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 37:23)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 37:25
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪¡╪º╪╡┘ה_╪╢╪▒╪¿
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪¡╪º╪╡┘ה_╪╢╪▒╪¿"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪¡╪º╪╡┘ה_╪╢╪▒╪¿
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪¡╪º╪╡┘ה_╪╢╪▒╪¿', 37:25)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 37:40)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 37:42
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 37:42)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 37:46)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 38
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 38:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 38:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 38:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 23
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 38:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "7.5 / 2.0 ="
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '7.5 / 2.0 =', 38:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 38:23)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 38:25
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ג╪│┘ו╪⌐_╪╣╪┤╪▒┘ך╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ג╪│┘ו╪⌐_╪╣╪┤╪▒┘ך╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ג╪│┘ו╪⌐_╪╣╪┤╪▒┘ך╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ג╪│┘ו╪⌐_╪╣╪┤╪▒┘ך╪⌐', 38:25)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 38:44)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 38:46
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 38:46)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 38:50)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 39
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 39:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 39:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 39:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 24
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 39:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "2.5 ** 2.0 ="
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '2.5 ** 2.0 =', 39:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 39:24)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 39:26
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ג┘ט╪⌐_╪╣╪┤╪▒┘ך╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ג┘ט╪⌐_╪╣╪┤╪▒┘ך╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ג┘ט╪⌐_╪╣╪┤╪▒┘ך╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ג┘ט╪⌐_╪╣╪┤╪▒┘ך╪⌐', 39:26)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 39:43)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 39:45
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 39:45)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 39:49)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 40
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 41
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 42
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 42:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 42:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 42:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪«╪¬┘ה╪╖1
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪«╪¬┘ה╪╖1"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪«╪¬┘ה╪╖1
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪«╪¬┘ה╪╖1', 42:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 25
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 42:22)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 42:24
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 5 - ╪º┘ה┘ז┘ט╪╣: ╪╡╪¡┘ך╪¡
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_INTEGER, '5', 42:24)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: +
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_PLUS, '+', 42:26)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 42:28
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 2.5 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '2.5', 42:28)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 43
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 43:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 43:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 43:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪«╪¬┘ה╪╖2
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪«╪¬┘ה╪╖2"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪«╪¬┘ה╪╖2
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪«╪¬┘ה╪╖2', 43:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 26
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 43:22)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 43:24
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 10 - ╪º┘ה┘ז┘ט╪╣: ╪╡╪¡┘ך╪¡
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_INTEGER, '10', 43:24)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: *
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_MULTIPLY, '*', 43:27)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 43:29
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 1.5 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '1.5', 43:29)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 44
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 44:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 44:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 44:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪«╪¬┘ה╪╖3
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪«╪¬┘ה╪╖3"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪«╪¬┘ה╪╖3
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪«╪¬┘ה╪╖3', 44:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 27
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 44:22)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 44:24
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 100 - ╪º┘ה┘ז┘ט╪╣: ╪╡╪¡┘ך╪¡
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_INTEGER, '100', 44:24)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: /
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_DIVIDE, '/', 44:28)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 44:30
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 3.0 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '3.0', 44:30)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 45
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 45:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 45:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 45:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪«╪¬┘ה╪╖4
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪«╪¬┘ה╪╖4"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪«╪¬┘ה╪╖4
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪«╪¬┘ה╪╖4', 45:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 28
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 45:22)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 45:24
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 7.5 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '7.5', 45:24)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: +
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_PLUS, '+', 45:28)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 45:30
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 10 - ╪º┘ה┘ז┘ט╪╣: ╪╡╪¡┘ך╪¡
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_INTEGER, '10', 45:30)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 46
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 47
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 47:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 47:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 47:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 29
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 47:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+=== ╪╣┘ו┘ה┘ך╪º╪¬ ┘ו╪«╪¬┘ה╪╖╪⌐ ===
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+=== ╪╣┘ו┘ה┘ך╪º╪¬ ┘ו╪«╪¬┘ה╪╖╪⌐ ===
+', 47:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 47:49)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 48
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 48:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 48:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 48:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 30
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 48:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "5 + 2.5 ="
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '5 + 2.5 =', 48:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 48:21)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 48:23
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪«╪¬┘ה╪╖1
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪«╪¬┘ה╪╖1"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪«╪¬┘ה╪╖1
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪«╪¬┘ה╪╖1', 48:23)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 48:34)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 48:36
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 48:36)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 48:40)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 49
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 49:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 49:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 49:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 31
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 49:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "10 * 1.5 ="
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '10 * 1.5 =', 49:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 49:22)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 49:24
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪«╪¬┘ה╪╖2
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪«╪¬┘ה╪╖2"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪«╪¬┘ה╪╖2
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪«╪¬┘ה╪╖2', 49:24)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 49:35)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 49:37
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 49:37)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 49:41)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 50
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 50:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 50:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 50:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 32
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 50:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "100 / 3.0 ="
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '100 / 3.0 =', 50:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 50:23)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 50:25
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪«╪¬┘ה╪╖3
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪«╪¬┘ה╪╖3"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪«╪¬┘ה╪╖3
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪«╪¬┘ה╪╖3', 50:25)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 50:36)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 50:38
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 50:38)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 50:42)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 51
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 51:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 51:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 51:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 33
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 51:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "7.5 + 10 ="
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '7.5 + 10 =', 51:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 51:22)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 51:24
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪«╪¬┘ה╪╖4
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪«╪¬┘ה╪╖4"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪«╪¬┘ה╪╖4
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪«╪¬┘ה╪╖4', 51:24)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 51:35)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 51:37
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 51:37)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 51:41)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 52
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 53
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 54
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 54:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 54:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 54:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ז╪╡┘ב_┘ג╪╖╪▒
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ז╪╡┘ב_┘ג╪╖╪▒"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ז╪╡┘ב_┘ג╪╖╪▒
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ז╪╡┘ב_┘ג╪╖╪▒', 54:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 34
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 54:24)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 54:26
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 5.0 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '5.0', 54:26)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 55
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 55:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 55:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 55:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪│╪º╪¡╪⌐_╪»╪º╪ª╪▒╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪│╪º╪¡╪⌐_╪»╪º╪ª╪▒╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪│╪º╪¡╪⌐_╪»╪º╪ª╪▒╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪│╪º╪¡╪⌐_╪»╪º╪ª╪▒╪⌐', 55:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 35
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 55:32)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 55:34
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪¿╪º┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪¿╪º┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪¿╪º┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪¿╪º┘ך', 55:34)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: *
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_MULTIPLY, '*', 55:41)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 55:43
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ז╪╡┘ב_┘ג╪╖╪▒
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ז╪╡┘ב_┘ג╪╖╪▒"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ז╪╡┘ב_┘ג╪╖╪▒
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ז╪╡┘ב_┘ג╪╖╪▒', 55:43)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: *
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_POWER, '**', 55:57)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 55:60
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 2.0 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '2.0', 55:60)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 56
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 56:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 56:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 56:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪¡┘ך╪╖_╪»╪º╪ª╪▒╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪¡┘ך╪╖_╪»╪º╪ª╪▒╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪¡┘ך╪╖_╪»╪º╪ª╪▒╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪¡┘ך╪╖_╪»╪º╪ª╪▒╪⌐', 56:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 36
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 56:30)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 56:32
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 2.0 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '2.0', 56:32)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: *
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_MULTIPLY, '*', 56:36)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 56:38
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪¿╪º┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪¿╪º┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪¿╪º┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪¿╪º┘ך', 56:38)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: *
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_MULTIPLY, '*', 56:45)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 56:47
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ז╪╡┘ב_┘ג╪╖╪▒
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ז╪╡┘ב_┘ג╪╖╪▒"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ז╪╡┘ב_┘ג╪╖╪▒
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ז╪╡┘ב_┘ג╪╖╪▒', 56:47)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 57
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 58
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 58:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 58:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 58:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 37
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 58:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+=== ╪¡╪│╪º╪¿╪º╪¬ ╪º┘ה╪»╪º╪ª╪▒╪⌐ ===
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+=== ╪¡╪│╪º╪¿╪º╪¬ ╪º┘ה╪»╪º╪ª╪▒╪⌐ ===
+', 58:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 58:51)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 59
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 59:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 59:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 59:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 38
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 59:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "┘ז╪╡┘ב ╪º┘ה┘ג╪╖╪▒:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '┘ז╪╡┘ב ╪º┘ה┘ג╪╖╪▒:', 59:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 59:30)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 59:32
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ז╪╡┘ב_┘ג╪╖╪▒
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ז╪╡┘ב_┘ג╪╖╪▒"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ז╪╡┘ב_┘ג╪╖╪▒
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ז╪╡┘ב_┘ג╪╖╪▒', 59:32)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 59:45)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 59:47
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 59:47)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 59:51)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 60
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 60:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 60:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 60:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 39
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 60:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "╪º┘ה┘ו╪│╪º╪¡╪⌐:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '╪º┘ה┘ו╪│╪º╪¡╪⌐:', 60:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 60:27)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 60:29
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪│╪º╪¡╪⌐_╪»╪º╪ª╪▒╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪│╪º╪¡╪⌐_╪»╪º╪ª╪▒╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪│╪º╪¡╪⌐_╪»╪º╪ª╪▒╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪│╪º╪¡╪⌐_╪»╪º╪ª╪▒╪⌐', 60:29)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 60:50)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 60:52
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 60:52)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 60:56)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 61
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 61:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 61:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 61:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 40
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 61:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "╪º┘ה┘ו╪¡┘ך╪╖:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '╪º┘ה┘ו╪¡┘ך╪╖:', 61:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 61:25)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 61:27
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו╪¡┘ך╪╖_╪»╪º╪ª╪▒╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו╪¡┘ך╪╖_╪»╪º╪ª╪▒╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו╪¡┘ך╪╖_╪»╪º╪ª╪▒╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו╪¡┘ך╪╖_╪»╪º╪ª╪▒╪⌐', 61:27)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 61:46)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 61:48
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 61:48)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 61:52)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 62
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 63
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 64
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 64:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו┘ז╪╖┘ג┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו┘ז╪╖┘ג┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "┘ו┘ז╪╖┘ג┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_BOOLEAN
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ┘ו┘ז╪╖┘ג┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_BOOLEAN, '┘ו┘ז╪╖┘ג┘ך', 64:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 64:12
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪ú┘ד╪¿╪▒_╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪ú┘ד╪¿╪▒_╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪ú┘ד╪¿╪▒_╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪ú┘ד╪¿╪▒_╪╣╪┤╪▒┘ך', 64:12)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 41
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 46 = '┘ו┘ז╪╖┘ג┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 64:30)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 64:32
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 10.5 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '10.5', 64:32)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: >
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_GREATER, '>', 64:37)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 64:39
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 5.2 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '5.2', 64:39)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 65
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 65:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו┘ז╪╖┘ג┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו┘ז╪╖┘ג┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "┘ו┘ז╪╖┘ג┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_BOOLEAN
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ┘ו┘ז╪╖┘ג┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_BOOLEAN, '┘ו┘ז╪╖┘ג┘ך', 65:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 65:12
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ך╪│╪º┘ט┘ך_╪¬┘ג╪▒┘ך╪¿╪º┘כ
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ך╪│╪º┘ט┘ך_╪¬┘ג╪▒┘ך╪¿╪º┘כ"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ך╪│╪º┘ט┘ך_╪¬┘ג╪▒┘ך╪¿╪º┘כ
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ך╪│╪º┘ט┘ך_╪¬┘ג╪▒┘ך╪¿╪º┘כ', 65:12)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 42
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 46 = '┘ו┘ז╪╖┘ג┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 65:38)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 65:40
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 3.14 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '3.14', 65:40)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_EQUAL, '==', 65:45)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 65:48
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 3.14 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '3.14', 65:48)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 66
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 66:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו┘ז╪╖┘ג┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו┘ז╪╖┘ג┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "┘ו┘ז╪╖┘ג┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_BOOLEAN
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ┘ו┘ז╪╖┘ג┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_BOOLEAN, '┘ו┘ז╪╖┘ג┘ך', 66:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 66:12
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ', 66:12)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 43
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 46 = '┘ו┘ז╪╖┘ג┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 66:30)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 66:32
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 0.0001 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '0.0001', 66:32)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: <
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_LESS, '<', 66:39)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 66:41
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 0.001 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '0.001', 66:41)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 67
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 68
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 68:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 68:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 68:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 44
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 68:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+=== ┘ו┘ג╪º╪▒┘ז╪⌐ ╪º┘ה╪ú╪▒┘ג╪º┘ו ╪º┘ה╪╣╪┤╪▒┘ך╪⌐ ===
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+=== ┘ו┘ג╪º╪▒┘ז╪⌐ ╪º┘ה╪ú╪▒┘ג╪º┘ו ╪º┘ה╪╣╪┤╪▒┘ך╪⌐ ===
+', 68:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 68:66)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 69
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 69:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 69:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 69:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 45
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 69:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "10.5 > 5.2:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '10.5 > 5.2:', 69:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 69:23)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 69:25
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪ú┘ד╪¿╪▒_╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪ú┘ד╪¿╪▒_╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪ú┘ד╪¿╪▒_╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪ú┘ד╪¿╪▒_╪╣╪┤╪▒┘ך', 69:25)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 69:42)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 69:44
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 69:44)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 69:48)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 70
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 70:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 70:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 70:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 46
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 70:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "3.14 == 3.14:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '3.14 == 3.14:', 70:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 70:25)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 70:27
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ך╪│╪º┘ט┘ך_╪¬┘ג╪▒┘ך╪¿╪º┘כ
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ך╪│╪º┘ט┘ך_╪¬┘ג╪▒┘ך╪¿╪º┘כ"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ך╪│╪º┘ט┘ך_╪¬┘ג╪▒┘ך╪¿╪º┘כ
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ך╪│╪º┘ט┘ך_╪¬┘ג╪▒┘ך╪¿╪º┘כ', 70:27)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 70:52)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 70:54
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 70:54)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 70:58)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 71
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 71:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 71:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 71:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 47
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 71:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "0.0001 < 0.001:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '0.0001 < 0.001:', 71:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 71:27)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 71:29
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ', 71:29)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 71:46)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 71:48
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 71:48)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 71:52)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 72
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 73
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 74
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 74:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 74:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 74:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪▒┘ג┘ו_╪│╪º┘ה╪¿
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪▒┘ג┘ו_╪│╪º┘ה╪¿"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪▒┘ג┘ו_╪│╪º┘ה╪¿
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪▒┘ג┘ו_╪│╪º┘ה╪¿', 74:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 48
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 74:26)
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: -
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_MINUS, '-', 74:28)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 74:29
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 15.7 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '15.7', 74:29)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 75
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 75:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪▒┘ג┘ו
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪▒┘ג┘ו"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪▒┘ג┘ו"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_INTEGER
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪▒┘ג┘ו
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_INTEGER, '╪▒┘ג┘ו', 75:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 75:8
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ג┘ך┘ו╪⌐_┘ו╪╖┘ה┘ג╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ג┘ך┘ו╪⌐_┘ו╪╖┘ה┘ג╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ג┘ך┘ו╪⌐_┘ו╪╖┘ה┘ג╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ג┘ך┘ו╪⌐_┘ו╪╖┘ה┘ג╪⌐', 75:8)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 49
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 43 = '╪▒┘ג┘ו'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 75:28)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 75:30
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 15.7 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '15.7', 75:30)
+[lexer_core.cpp:277] ╪¬╪«╪╖┘ך ╪¬╪╣┘ה┘ך┘ג ╪│╪╖╪▒ ┘ט╪º╪¡╪»
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 76
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 76:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪╣╪┤╪▒┘ך
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ז╪╣┘ו - ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐
+[lexer_keywords.cpp:243] ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ┘ז┘ט╪╣ ╪º┘ה╪▒┘ו╪▓ ┘ה┘ה┘ד┘ה┘ו╪⌐: "╪╣╪┤╪▒┘ך"
+[lexer_keywords.cpp:261] ╪¬┘ו ╪º┘ה╪╣╪½┘ט╪▒ ╪╣┘ה┘י ╪º┘ה┘ז┘ט╪╣: TYPE_DOUBLE
+[lexer_core.cpp:562] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(TYPE_DOUBLE, '╪╣╪┤╪▒┘ך', 76:1)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 76:10
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ו┘ג╪▒╪¿
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ו┘ג╪▒╪¿"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ו┘ג╪▒╪¿
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ו┘ג╪▒╪¿', 76:10)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 50
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 44 = '╪╣╪┤╪▒┘ך'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found TYPE IDENTIFIER pattern - parsing as variable declaration
+[token.cpp:44] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¿╪»┘ט┘ז ┘ו┘ט┘ג╪╣: IDENTIFIER = ''
+[parseVarDecl] Found type token, parsing type-first declaration
+[lexer_core.cpp:602] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪╣╪º┘ו┘ה: =
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(OP_ASSIGN, '=', 76:19)
+[lexer_core.cpp:315] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 76:21
+[lexer_core.cpp:424] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ╪▒┘ג┘ו: 15.5 - ╪º┘ה┘ז┘ט╪╣: ╪╣╪┤╪▒┘ך
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(NUMBER_DOUBLE, '15.5', 76:21)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 77
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 78
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 78:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 78:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 78:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 51
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 78:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+=== ╪╣┘ו┘ה┘ך╪º╪¬ ┘ו╪¬┘ג╪»┘ו╪⌐ ===
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+=== ╪╣┘ו┘ה┘ך╪º╪¬ ┘ו╪¬┘ג╪»┘ו╪⌐ ===
+', 78:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 78:49)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 79
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 79:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 79:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 79:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 52
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 79:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "╪▒┘ג┘ו ╪│╪º┘ה╪¿:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '╪▒┘ג┘ו ╪│╪º┘ה╪¿:', 79:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 79:28)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 79:30
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪▒┘ג┘ו_╪│╪º┘ה╪¿
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪▒┘ג┘ו_╪│╪º┘ה╪¿"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪▒┘ג┘ו_╪│╪º┘ה╪¿
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪▒┘ג┘ו_╪│╪º┘ה╪¿', 79:30)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 79:45)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 79:47
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 79:47)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 79:51)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 80
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 80:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 80:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 80:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 53
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 80:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "┘ג┘ך┘ו╪⌐ ┘ו╪╖┘ה┘ג╪⌐ ╪¬┘ג╪▒┘ך╪¿╪º┘כ:"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '┘ג┘ך┘ו╪⌐ ┘ו╪╖┘ה┘ג╪⌐ ╪¬┘ג╪▒┘ך╪¿╪º┘כ:', 80:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 80:47)
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 80:49
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ┘ג┘ך┘ו╪⌐_┘ו╪╖┘ה┘ג╪⌐
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "┘ג┘ך┘ו╪⌐_┘ו╪╖┘ה┘ג╪⌐"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ┘ג┘ך┘ו╪⌐_┘ו╪╖┘ה┘ג╪⌐
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '┘ג┘ך┘ו╪⌐_┘ו╪╖┘ה┘ג╪⌐', 80:49)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(COMMA, ',', 80:68)
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 80:70
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+', 80:70)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 80:74)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 81
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 82
+[lexer_core.cpp:531] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ו╪╣╪▒┘ב ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 82:1
+[lexer_core.cpp:557] ╪¬┘ו ┘ג╪▒╪º╪í╪⌐ ┘ו╪╣╪▒┘ב: ╪º╪╖╪¿╪╣
+[lexer_keywords.cpp:221] ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז╪¬ ╪º┘ה┘ד┘ה┘ו╪⌐ ┘ו┘ב╪¬╪º╪¡┘ך╪⌐: "╪º╪╖╪¿╪╣"
+[lexer_keywords.cpp:234] ╪º┘ה┘ז╪¬┘ך╪¼╪⌐: ┘ה╪º - ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך
+[lexer_core.cpp:567] ╪º┘ה┘ו╪╣╪▒┘ב ┘ח┘ט ┘ו╪╣╪▒┘ב ╪╣╪º╪»┘ך: ╪º╪╖╪¿╪╣
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(IDENTIFIER, '╪º╪╖╪¿╪╣', 82:1)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_LEFT, '(', 82:9)
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 54
+[parser_core_impl.cpp] ╪»╪º╪«┘ה ╪¡┘ה┘ג╪⌐ parseProgram - current token: 54 = '╪º╪╖╪¿╪╣'
+Parsing declaration...
+Checking for type-first variable declaration...
+Found IDENTIFIER - parsing as statement
+Parsing declaration after block/map check...
+[lexer_core.cpp:459] ╪¿╪»╪í ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡ ╪╣┘ז╪» ╪º┘ה┘ו┘ט┘ג╪╣: 82:10
+[lexer_core.cpp:498] ╪¬┘ו ┘ו╪╣╪º┘ה╪¼╪⌐ ┘ז╪╡: "
+Γ£ו ╪º╪«╪¬╪¿╪º╪▒ ╪º┘ה╪ú╪▒┘ג╪º┘ו ╪º┘ה╪╣╪┤╪▒┘ך╪⌐ ┘ט╪º┘ה╪╣┘ו┘ה┘ך╪º╪¬ ╪º┘ה┘ו╪«╪¬┘ה╪╖╪⌐ ╪º┘ד╪¬┘ו┘ה"
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(STRING_LITERAL, '
+Γ£ו ╪º╪«╪¬╪¿╪º╪▒ ╪º┘ה╪ú╪▒┘ג╪º┘ו ╪º┘ה╪╣╪┤╪▒┘ך╪⌐ ┘ט╪º┘ה╪╣┘ו┘ה┘ך╪º╪¬ ╪º┘ה┘ו╪«╪¬┘ה╪╖╪⌐ ╪º┘ד╪¬┘ו┘ה', 82:10)
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(PAREN_RIGHT, ')', 82:107)
+[lexer_core.cpp:157] ╪│╪╖╪▒ ╪¼╪»┘ך╪» - ╪º┘ה╪│╪╖╪▒ ╪º┘ה╪¡╪º┘ה┘ך: 83
+[lexer_core.cpp:728] ╪º┘ה┘ט╪╡┘ט┘ה ┘ה┘ז┘ח╪º┘ך╪⌐ ╪º┘ה┘ו┘ה┘ב
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(END_OF_FILE, '', 83:1)
+[lexer_core.cpp:728] ╪º┘ה┘ט╪╡┘ט┘ה ┘ה┘ז┘ח╪º┘ך╪⌐ ╪º┘ה┘ו┘ה┘ב
+[token.cpp:35] ╪Ñ┘ז╪┤╪º╪í ╪▒┘ו╪▓ ╪¼╪»┘ך╪»: Token(END_OF_FILE, '', 83:1)
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_impl.cpp] ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪¼┘ו┘ה╪⌐ - ╪º┘ה╪╣╪»╪» ╪º┘ה┘ד┘ה┘ך: 55
+[parser_core_helpers.cpp] isAtEnd() = true - current token type: 99
+[parser_core_impl.cpp] ╪º┘ז╪¬┘ח┘י parseProgram - ╪╣╪»╪» ╪º┘ה╪¼┘ו┘ה: 55
+      ╪¬┘ו ╪¿┘ז╪º╪í ╪┤╪¼╪▒╪⌐ AST
+      AST built
+
+      ╪╣╪»╪» ╪º┘ה╪╣┘ג╪» ┘ב┘ך ╪┤╪¼╪▒╪⌐ AST: 55
+      ╪╣╪»╪» ╪¼┘ו┘ה ╪º┘ה╪¿╪▒┘ז╪º┘ו╪¼: 55
+ast print content :
+var ╪│╪╣╪▒: 2 = 19.99;
+var ┘ז╪│╪¿╪⌐: 2 = 0.5;
+var ╪¿╪º┘ך: 2 = 3.14159;
+var ╪│╪º┘ה╪¿: 2 = (OP_MINUS2.718);
+╪º╪╖╪¿╪╣(
+=== ╪º┘ה╪ú╪▒┘ג╪º┘ו ╪º┘ה╪╣╪┤╪▒┘ך╪⌐ ===
+);
+╪º╪╖╪¿╪╣(╪º┘ה╪│╪╣╪▒:, ╪│╪╣╪▒, 
+);
+╪º╪╖╪¿╪╣(╪º┘ה┘ז╪│╪¿╪⌐:, ┘ז╪│╪¿╪⌐, 
+);
+╪º╪╖╪¿╪╣(╪¿╪º┘ך ╧א:, ╪¿╪º┘ך, 
+);
+╪º╪╖╪¿╪╣(╪│╪º┘ה╪¿:, ╪│╪º┘ה╪¿, 
+);
+var ┘ד╪¿┘ך╪▒_╪¼╪»╪º┘כ: 2 = 1.5e10;
+var ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ: 2 = 2.5e-5;
+var ╪│╪▒╪╣╪⌐_╪º┘ה╪╢┘ט╪í: 2 = 3.0e8;
+╪º╪╖╪¿╪╣(
+=== ╪º┘ה╪¬╪»┘ט┘ך┘ז ╪º┘ה╪╣┘ה┘ו┘ך ===
+);
+╪º╪╖╪¿╪╣(1.5e10 =, ┘ד╪¿┘ך╪▒_╪¼╪»╪º┘כ, 
+);
+╪º╪╖╪¿╪╣(2.5e-5 =, ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ, 
+);
+╪º╪╖╪¿╪╣(╪│╪▒╪╣╪⌐ ╪º┘ה╪╢┘ט╪í 3.0e8 m/s =, ╪│╪▒╪╣╪⌐_╪º┘ה╪╢┘ט╪í, 
+);
+var ┘ו╪¼┘ו┘ט╪╣_╪╣╪┤╪▒┘ך: 2 = (3.5 OP_PLUS 2.1);
+var ╪¡╪º╪╡┘ה_╪╢╪▒╪¿: 2 = (2.5 OP_MULTIPLY 4.0);
+var ┘ג╪│┘ו╪⌐_╪╣╪┤╪▒┘ך╪⌐: 2 = (7.5 OP_DIVIDE 2.0);
+var ┘ג┘ט╪⌐_╪╣╪┤╪▒┘ך╪⌐: 2 = (2.5 OP_POWER 2.0);
+╪º╪╖╪¿╪╣(
+=== ╪╣┘ו┘ה┘ך╪º╪¬ ╪╣╪┤╪▒┘ך╪⌐ ===
+);
+╪º╪╖╪¿╪╣(3.5 + 2.1 =, ┘ו╪¼┘ו┘ט╪╣_╪╣╪┤╪▒┘ך, 
+);
+╪º╪╖╪¿╪╣(2.5 * 4.0 =, ╪¡╪º╪╡┘ה_╪╢╪▒╪¿, 
+);
+╪º╪╖╪¿╪╣(7.5 / 2.0 =, ┘ג╪│┘ו╪⌐_╪╣╪┤╪▒┘ך╪⌐, 
+);
+╪º╪╖╪¿╪╣(2.5 ** 2.0 =, ┘ג┘ט╪⌐_╪╣╪┤╪▒┘ך╪⌐, 
+);
+var ┘ו╪«╪¬┘ה╪╖1: 2 = (5 OP_PLUS 2.5);
+var ┘ו╪«╪¬┘ה╪╖2: 2 = (10 OP_MULTIPLY 1.5);
+var ┘ו╪«╪¬┘ה╪╖3: 2 = (100 OP_DIVIDE 3.0);
+var ┘ו╪«╪¬┘ה╪╖4: 2 = (7.5 OP_PLUS 10);
+╪º╪╖╪¿╪╣(
+=== ╪╣┘ו┘ה┘ך╪º╪¬ ┘ו╪«╪¬┘ה╪╖╪⌐ ===
+);
+╪º╪╖╪¿╪╣(5 + 2.5 =, ┘ו╪«╪¬┘ה╪╖1, 
+);
+╪º╪╖╪¿╪╣(10 * 1.5 =, ┘ו╪«╪¬┘ה╪╖2, 
+);
+╪º╪╖╪¿╪╣(100 / 3.0 =, ┘ו╪«╪¬┘ה╪╖3, 
+);
+╪º╪╖╪¿╪╣(7.5 + 10 =, ┘ו╪«╪¬┘ה╪╖4, 
+);
+var ┘ז╪╡┘ב_┘ג╪╖╪▒: 2 = 5.0;
+var ┘ו╪│╪º╪¡╪⌐_╪»╪º╪ª╪▒╪⌐: 2 = (╪¿╪º┘ך OP_MULTIPLY (┘ז╪╡┘ב_┘ג╪╖╪▒ OP_POWER 2.0));
+var ┘ו╪¡┘ך╪╖_╪»╪º╪ª╪▒╪⌐: 2 = ((2.0 OP_MULTIPLY ╪¿╪º┘ך) OP_MULTIPLY ┘ז╪╡┘ב_┘ג╪╖╪▒);
+╪º╪╖╪¿╪╣(
+=== ╪¡╪│╪º╪¿╪º╪¬ ╪º┘ה╪»╪º╪ª╪▒╪⌐ ===
+);
+╪º╪╖╪¿╪╣(┘ז╪╡┘ב ╪º┘ה┘ג╪╖╪▒:, ┘ז╪╡┘ב_┘ג╪╖╪▒, 
+);
+╪º╪╖╪¿╪╣(╪º┘ה┘ו╪│╪º╪¡╪⌐:, ┘ו╪│╪º╪¡╪⌐_╪»╪º╪ª╪▒╪⌐, 
+);
+╪º╪╖╪¿╪╣(╪º┘ה┘ו╪¡┘ך╪╖:, ┘ו╪¡┘ך╪╖_╪»╪º╪ª╪▒╪⌐, 
+);
+var ╪ú┘ד╪¿╪▒_╪╣╪┤╪▒┘ך: 4 = (10.5 OP_GREATER 5.2);
+var ┘ך╪│╪º┘ט┘ך_╪¬┘ג╪▒┘ך╪¿╪º┘כ: 4 = (3.14 OP_EQUAL 3.14);
+var ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ: 4 = (0.0001 OP_LESS 0.001);
+╪º╪╖╪¿╪╣(
+=== ┘ו┘ג╪º╪▒┘ז╪⌐ ╪º┘ה╪ú╪▒┘ג╪º┘ו ╪º┘ה╪╣╪┤╪▒┘ך╪⌐ ===
+);
+╪º╪╖╪¿╪╣(10.5 > 5.2:, ╪ú┘ד╪¿╪▒_╪╣╪┤╪▒┘ך, 
+);
+╪º╪╖╪¿╪╣(3.14 == 3.14:, ┘ך╪│╪º┘ט┘ך_╪¬┘ג╪▒┘ך╪¿╪º┘כ, 
+);
+╪º╪╖╪¿╪╣(0.0001 < 0.001:, ╪╡╪║┘ך╪▒_╪¼╪»╪º┘כ, 
+);
+var ╪▒┘ג┘ו_╪│╪º┘ה╪¿: 2 = (OP_MINUS15.7);
+var ┘ג┘ך┘ו╪⌐_┘ו╪╖┘ה┘ג╪⌐: 1 = 15.7;
+var ┘ו┘ג╪▒╪¿: 2 = 15.5;
+╪º╪╖╪¿╪╣(
+=== ╪╣┘ו┘ה┘ך╪º╪¬ ┘ו╪¬┘ג╪»┘ו╪⌐ ===
+);
+╪º╪╖╪¿╪╣(╪▒┘ג┘ו ╪│╪º┘ה╪¿:, ╪▒┘ג┘ו_╪│╪º┘ה╪¿, 
+);
+╪º╪╖╪¿╪╣(┘ג┘ך┘ו╪⌐ ┘ו╪╖┘ה┘ג╪⌐ ╪¬┘ג╪▒┘ך╪¿╪º┘כ:, ┘ג┘ך┘ו╪⌐_┘ו╪╖┘ה┘ג╪⌐, 
+);
+╪º╪╖╪¿╪╣(
+Γ£ו ╪º╪«╪¬╪¿╪º╪▒ ╪º┘ה╪ú╪▒┘ג╪º┘ו ╪º┘ה╪╣╪┤╪▒┘ך╪⌐ ┘ט╪º┘ה╪╣┘ו┘ה┘ך╪º╪¬ ╪º┘ה┘ו╪«╪¬┘ה╪╖╪⌐ ╪º┘ד╪¬┘ו┘ה);
+[3/4] ╪Ñ╪╣╪»╪º╪» ╪º┘ה┘ו┘ב╪│╪▒ / Interpreter Setup...
+      ╪¬┘ו ╪Ñ┘ז╪┤╪º╪í ╪º┘ה┘ו┘ב╪│╪▒
+      Interpreter created
+
+[4/4] ╪º┘ה╪¬┘ז┘ב┘ך╪░ / Execution...
+========================================
+
+
+=== ╪º┘ה╪ú╪▒┘ג╪º┘ו ╪º┘ה╪╣╪┤╪▒┘ך╪⌐ ===
+╪º┘ה╪│╪╣╪▒: 19.99 
+╪º┘ה┘ז╪│╪¿╪⌐: 0.5 
+╪¿╪º┘ך ╧א: 3.14159 
+╪│╪º┘ה╪¿: -2.718 
+
+=== ╪º┘ה╪¬╪»┘ט┘ך┘ז ╪º┘ה╪╣┘ה┘ו┘ך ===
+1.5e10 = 15000000000 
+2.5e-5 = 0.000025 
+╪│╪▒╪╣╪⌐ ╪º┘ה╪╢┘ט╪í 3.0e8 m/s = 300000000 
+
+=== ╪╣┘ו┘ה┘ך╪º╪¬ ╪╣╪┤╪▒┘ך╪⌐ ===
+3.5 + 2.1 = 5.6 
+2.5 * 4.0 = 10 
+7.5 / 2.0 = 3.75 
+2.5 ** 2.0 = 6.25 
+
+=== ╪╣┘ו┘ה┘ך╪º╪¬ ┘ו╪«╪¬┘ה╪╖╪⌐ ===
+5 + 2.5 = 7.5 
+10 * 1.5 = 15 
+100 / 3.0 = 33.333333 
+7.5 + 10 = 17.5 
+
+=== ╪¡╪│╪º╪¿╪º╪¬ ╪º┘ה╪»╪º╪ª╪▒╪⌐ ===
+┘ז╪╡┘ב ╪º┘ה┘ג╪╖╪▒: 5 
+╪º┘ה┘ו╪│╪º╪¡╪⌐: 78.53975 
+╪º┘ה┘ו╪¡┘ך╪╖: 31.4159 
+
+========================================
+Γ£ו ╪º┘ד╪¬┘ו┘ה ╪º┘ה╪¬┘ז┘ב┘ך╪░ ╪¿┘ז╪¼╪º╪¡ / Execution completed
+========================================
+
+[main.cpp:295] ╪º┘ז╪¬┘ח┘י ╪¬┘ז┘ב┘ך╪░ ╪º┘ה╪¿╪▒┘ז╪º┘ו╪¼ ╪¿┘ז╪¼╪º╪¡
+========================================
+╪¬┘ו ╪º┘ה╪¬┘ז┘ב┘ך╪░ ╪¿┘ז╪¼╪º╪¡ / Execution Successful
+========================================

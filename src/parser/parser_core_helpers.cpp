@@ -9,6 +9,7 @@
  */
 
 #include "../../include/parser/parser_core.h"
+#include "../../include/data/managers/class_manager.h"
 #include <iostream>
 #include <sstream>
 
@@ -212,7 +213,136 @@ Token ParserCore::consume(TokenType type, const std::string& message) {
         return previous();
     }
     
-    error(message);
+    // (AR) إنشاء رسالة خطأ ثنائية اللغة تلقائية
+    // (EN) Create automatic bilingual error message
+    std::string expected_ar;
+    std::string expected_en;
+    std::string fixText;
+    std::string fixDesc_ar;
+    std::string fixDesc_en;
+    bool addFixIt = false;
+    
+    switch (type) {
+        case TT::PAREN_RIGHT:
+            expected_ar = "قوس إغلاق ')'";
+            expected_en = "closing parenthesis ')'";
+            fixText = ")";
+            fixDesc_ar = "أضف ')' هنا";
+            fixDesc_en = "Add ')' here";
+            addFixIt = true;
+            break;
+        case TT::PAREN_LEFT:
+            expected_ar = "قوس فتح '('";
+            expected_en = "opening parenthesis '('";
+            fixText = "(";
+            fixDesc_ar = "أضف '(' هنا";
+            fixDesc_en = "Add '(' here";
+            addFixIt = true;
+            break;
+        case TT::BRACKET_RIGHT:
+            expected_ar = "قوس مربع إغلاق ']'";
+            expected_en = "closing bracket ']'";
+            fixText = "]";
+            fixDesc_ar = "أضف ']' هنا";
+            fixDesc_en = "Add ']' here";
+            addFixIt = true;
+            break;
+        case TT::BRACKET_LEFT:
+            expected_ar = "قوس مربع فتح '['";
+            expected_en = "opening bracket '['";
+            fixText = "[";
+            fixDesc_ar = "أضف '[' هنا";
+            fixDesc_en = "Add '[' here";
+            addFixIt = true;
+            break;
+        case TT::BRACE_RIGHT:
+            expected_ar = "قوس معقوف إغلاق '}'";
+            expected_en = "closing brace '}'";
+            fixText = "}";
+            fixDesc_ar = "أضف '}' هنا";
+            fixDesc_en = "Add '}' here";
+            addFixIt = true;
+            break;
+        case TT::BRACE_LEFT:
+            expected_ar = "قوس معقوف فتح '{'";
+            expected_en = "opening brace '{'";
+            fixText = "{";
+            fixDesc_ar = "أضف '{' هنا";
+            fixDesc_en = "Add '{' here";
+            addFixIt = true;
+            break;
+        case TT::SEMICOLON:
+        case TT::ARABIC_SEMICOLON:
+            expected_ar = "فاصلة منقوطة ';'";
+            expected_en = "semicolon ';'";
+            fixText = ";";
+            fixDesc_ar = "أضف ';' في نهاية الجملة";
+            fixDesc_en = "Add ';' at end of statement";
+            addFixIt = true;
+            break;
+        case TT::COMMA:
+            expected_ar = "فاصلة ','";
+            expected_en = "comma ','";
+            fixText = ",";
+            fixDesc_ar = "أضف ',' للفصل بين العناصر";
+            fixDesc_en = "Add ',' to separate items";
+            addFixIt = true;
+            break;
+        case TT::COLON:
+            expected_ar = "نقطتان ':'";
+            expected_en = "colon ':'";
+            fixText = ":";
+            fixDesc_ar = "أضف ':' هنا";
+            fixDesc_en = "Add ':' here";
+            addFixIt = true;
+            break;
+        case TT::KEYWORD_END:
+            expected_ar = "كلمة 'نهاية'";
+            expected_en = "keyword 'نهاية' (end)";
+            fixText = "نهاية";
+            fixDesc_ar = "أضف 'نهاية' لإغلاق الكتلة";
+            fixDesc_en = "Add 'نهاية' to close block";
+            addFixIt = true;
+            break;
+        case TT::IDENTIFIER:
+            expected_ar = "معرّف (اسم متغير أو دالة)";
+            expected_en = "identifier (variable or function name)";
+            break;
+        case TT::OP_ASSIGN:
+            expected_ar = "علامة إسناد '='";
+            expected_en = "assignment '='";
+            break;
+        case TT::ARROW:
+            expected_ar = "سهم '->'";
+            expected_en = "arrow '->'";
+            break;
+        default:
+            expected_ar = "رمز من نوع " + std::to_string(static_cast<int>(type));
+            expected_en = "token of type " + std::to_string(static_cast<int>(type));
+            break;
+    }
+    
+    // (AR) إذا كانت رسالة مخصصة موجودة، استخدمها
+    // (EN) If custom message exists, use it
+    if (!message.empty() && message.find("Expected") == std::string::npos) {
+        error(message);
+    } else {
+        // (AR) إنشاء رسالة تلقائية
+        // (EN) Create automatic message
+        std::string msg_ar = "خطأ نحوي: توقعت " + expected_ar + 
+                            "، لكن وجدت '" + current_.getValue() + "' في السطر " +
+                            std::to_string(current_.getPosition().line);
+        std::string msg_en = "Syntax error: expected " + expected_en + 
+                            ", but found '" + current_.getValue() + "' at line " +
+                            std::to_string(current_.getPosition().line);
+        
+        if (addFixIt) {
+            errorWithFixIt(msg_ar, fixText, fixDesc_ar, fixDesc_en);
+        } else {
+            errorBilingual(msg_ar, msg_en);
+        }
+    }
+    
     // Return dummy token to allow continuation
     // (AR) إرجاع رمز وهمي للسماح بالاستمرار
     return current_;
@@ -225,8 +355,9 @@ Token ParserCore::consume(TokenType type, const std::string& message) {
 bool ParserCore::isAtEnd() const {
     bool result = current_.getType() == TT::END_OF_FILE;
     if (result) {
-        std::cout << "[parser_core_helpers.cpp] isAtEnd() = true - current token type: " 
-                  << static_cast<int>(current_.getType()) << "\n";
+        // DEBUG: Disabled
+        // std::cout << "[parser_core_helpers.cpp] isAtEnd() = true - current token type: " 
+        //           << static_cast<int>(current_.getType()) << "\n";
     }
     return result;
 }
@@ -262,19 +393,180 @@ const Token& ParserCore::previous() const {
  * @brief (AR) يسجل خطأ تحليل مع معلومات المكان.
  *        (EN) Records parsing error with location information.
  */
+void ParserCore::errorWithFixIt(const std::string& message,
+                                const std::string& fixText,
+                                const std::string& fixDesc_ar,
+                                const std::string& fixDesc_en) {
+    if (panicMode_) return;  // Avoid error cascades
+    
+    panicMode_ = true;
+    
+    // (AR) بناء SourceLocation من الرمز الحالي
+    // (EN) Build SourceLocation from current token
+    Errors::SourceLocation loc(
+        filename_.empty() ? "<source>" : filename_,
+        current_.getPosition().line,
+        current_.getPosition().column,
+        current_.getPosition().offset,
+        current_.getPosition().length
+    );
+    
+    // (AR) إنشاء FixItHint
+    // (EN) Create FixItHint
+    Errors::FixItHint fixIt(
+        Errors::FixItHint::Type::INSERT,
+        loc,
+        fixText,
+        fixDesc_ar,
+        fixDesc_en
+    );
+    
+    // (AR) إنشاء Diagnostic كامل مع Fix-it hint
+    // (EN) Create complete Diagnostic with Fix-it hint
+    Errors::Diagnostic diag(
+        Errors::ErrorCode::SYN_UNEXPECTED_TOKEN,
+        Errors::DiagnosticSeverity::ERROR,
+        loc,
+        message,  // Arabic message
+        message   // English message (same for now)
+    );
+    diag.addFixIt(fixIt);
+    
+    // (AR) استخدام ErrorManager لتسجيل الخطأ
+    // (EN) Use ErrorManager to report error
+    Errors::ErrorManager::getInstance().report(diag);
+}
+
 void ParserCore::error(const std::string& message) {
     if (panicMode_) return;  // Avoid error cascades
     
     panicMode_ = true;
     
-    // Build error message with location
-    // (AR) بناء رسالة الخطأ مع الموقع
-    std::stringstream ss;
-    ss << "[Line " << current_.getPosition().line 
-       << ", Col " << current_.getPosition().column << "] "
-       << message;
+    // (AR) بناء SourceLocation من الرمز الحالي
+    // (EN) Build SourceLocation from current token
+    Errors::SourceLocation loc(
+        filename_.empty() ? "<source>" : filename_,
+        current_.getPosition().line,
+        current_.getPosition().column,
+        current_.getPosition().offset,
+        current_.getPosition().length
+    );
     
-    errors_.push_back(ss.str());
+    // (AR) استخدام ErrorManager لتسجيل الخطأ
+    // (EN) Use ErrorManager to report error
+    // الترتيب الصحيح: code, location, message_ar, message_en
+    Errors::ErrorManager::getInstance().reportError(
+        Errors::ErrorCode::SYN_UNEXPECTED_TOKEN,
+        loc,
+        message,  // Arabic message
+        message   // English message (same for now)
+    );
+}
+
+/**
+ * @brief (AR) يسجل خطأ مع رسالة ثنائية اللغة وطباعة الكود المصدري.
+ *        (EN) Records error with bilingual message and prints source code.
+ */
+void ParserCore::errorBilingual(const std::string& message_ar,
+                                const std::string& message_en,
+                                bool showCode) {
+    if (panicMode_) return;
+    panicMode_ = true;
+    
+    Errors::SourceLocation loc(
+        filename_.empty() ? "<source>" : filename_,
+        current_.getPosition().line,
+        current_.getPosition().column,
+        current_.getPosition().offset,
+        current_.getPosition().length
+    );
+    
+    Errors::ErrorManager::getInstance().reportError(
+        Errors::ErrorCode::SYN_UNEXPECTED_TOKEN,
+        loc,
+        message_ar,
+        message_en
+    );
+}
+
+/**
+ * @brief (AR) يُنشئ رسالة خطأ لرمز غير متوقع مع التوقع.
+ *        (EN) Creates error message for unexpected token with expectation.
+ */
+void ParserCore::errorExpectedToken(const std::string& expected_ar,
+                                    const std::string& expected_en,
+                                    const std::string& context_ar,
+                                    const std::string& context_en) {
+    if (panicMode_) return;
+    panicMode_ = true;
+    
+    Errors::SourceLocation loc(
+        filename_.empty() ? "<source>" : filename_,
+        current_.getPosition().line,
+        current_.getPosition().column,
+        current_.getPosition().offset,
+        current_.getPosition().length
+    );
+    
+    // (AR) بناء رسالة الخطأ
+    // (EN) Build error message
+    std::string msg_ar = "خطأ نحوي: توقعت " + expected_ar;
+    std::string msg_en = "Syntax error: expected " + expected_en;
+    
+    if (!context_ar.empty()) {
+        msg_ar += " " + context_ar;
+        msg_en += " " + context_en;
+    }
+    
+    msg_ar += "، لكن وجدت '" + current_.getValue() + "'";
+    msg_en += ", but found '" + current_.getValue() + "'";
+    
+    // (AR) إضافة معلومات عن الموقع
+    // (EN) Add location information
+    msg_ar += " في السطر " + std::to_string(loc.line) + 
+              "، العمود " + std::to_string(loc.column);
+    msg_en += " at line " + std::to_string(loc.line) + 
+              ", column " + std::to_string(loc.column);
+    
+    Errors::ErrorManager::getInstance().reportError(
+        Errors::ErrorCode::SYN_UNEXPECTED_TOKEN,
+        loc,
+        msg_ar,
+        msg_en
+    );
+}
+
+/**
+ * @brief (AR) يُنشئ رسالة خطأ لجملة غير مكتملة.
+ *        (EN) Creates error message for incomplete statement.
+ */
+void ParserCore::errorIncompleteStatement(const std::string& statement_ar,
+                                          const std::string& statement_en,
+                                          const std::string& missing_ar,
+                                          const std::string& missing_en) {
+    if (panicMode_) return;
+    panicMode_ = true;
+    
+    Errors::SourceLocation loc(
+        filename_.empty() ? "<source>" : filename_,
+        current_.getPosition().line,
+        current_.getPosition().column,
+        current_.getPosition().offset,
+        current_.getPosition().length
+    );
+    
+    std::string msg_ar = "خطأ: " + statement_ar + " غير مكتملة - ينقصها " + missing_ar;
+    std::string msg_en = "Error: incomplete " + statement_en + " - missing " + missing_en;
+    
+    msg_ar += " في السطر " + std::to_string(loc.line);
+    msg_en += " at line " + std::to_string(loc.line);
+    
+    Errors::ErrorManager::getInstance().reportError(
+        Errors::ErrorCode::SYN_UNEXPECTED_TOKEN,  // استخدام كود موجود
+        loc,
+        msg_ar,
+        msg_en
+    );
 }
 
 /**
@@ -296,7 +588,7 @@ void ParserCore::synchronize() {
         switch (current_.getType()) {
             case TT::KEYWORD_CLASS:
             case TT::KEYWORD_FUNCTION:
-            case TT::KEYWORD_VAR:
+            case TT::KEYWORD_CONST:  // (AR) استخدام const بدلاً من var
             case TT::KEYWORD_FOR:
             case TT::KEYWORD_IF:
             case TT::KEYWORD_WHILE:
@@ -603,6 +895,30 @@ bool ParserCore::isTypeToken(TokenType tokenType) {
            tokenType == TT::TYPE_NULL ||
            tokenType == TT::TYPE_ARRAY ||
            tokenType == TT::TYPE_MAP;
+}
+
+Data::DataType ParserCore::mapTokenTypeToDataType(TokenType tokenType) {
+    using TT = TokenType;
+    
+    switch (tokenType) {
+        case TT::TYPE_INTEGER:  return Data::DataType::INTEGER;
+        case TT::TYPE_DOUBLE:   return Data::DataType::FLOAT;
+        case TT::TYPE_STRING:   return Data::DataType::STRING;
+        case TT::TYPE_BOOLEAN:  return Data::DataType::BOOLEAN;
+        case TT::TYPE_VOID:     return Data::DataType::NONE;
+        case TT::TYPE_NULL:     return Data::DataType::NONE;
+        case TT::TYPE_ARRAY:    return Data::DataType::ARRAY;
+        case TT::TYPE_MAP:      return Data::DataType::MAP;
+        default:                return Data::DataType::UNKNOWN;
+    }
+}
+
+bool ParserCore::isClassName(const std::string& name) {
+    // (AR) التحقق من أن المعرّف هو اسم صنف مسجّل في ClassManager
+    // (EN) Check if identifier is registered class name in ClassManager
+    
+    auto* classManager = Data::ClassManager::getInstance();
+    return classManager->hasClass(name);
 }
 
 } // namespace Parser

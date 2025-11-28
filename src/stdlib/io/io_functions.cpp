@@ -25,6 +25,35 @@ namespace IO {
 // Helper Methods
 // ====================================================================
 
+std::string IOFunctions::processEscapeSequences(const std::string& input) {
+    /**
+     * (AR) معالجة تسلسلات الهروب في النصوص / (EN) Process escape sequences in strings
+     * Converts \n, \t, \r, \\, \", etc. to their actual characters
+     */
+    std::string result;
+    result.reserve(input.size());
+    
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (input[i] == '\\' && i + 1 < input.size()) {
+            char next = input[i + 1];
+            switch (next) {
+                case 'n':  result += '\n'; i++; break;  // Newline
+                case 't':  result += '\t'; i++; break;  // Tab
+                case 'r':  result += '\r'; i++; break;  // Carriage return
+                case '\\': result += '\\'; i++; break;  // Backslash
+                case '"':  result += '"';  i++; break;  // Quote
+                case '\'': result += '\''; i++; break;  // Single quote
+                case '0':  result += '\0'; i++; break;  // Null character
+                default:   result += input[i]; break;   // Not an escape, keep backslash
+            }
+        } else {
+            result += input[i];
+        }
+    }
+    
+    return result;
+}
+
 std::string IOFunctions::valueToString(const Data::Value& value) {
     using VT = Data::ValueType;
     
@@ -52,7 +81,7 @@ std::string IOFunctions::valueToString(const Data::Value& value) {
         }
         
         case VT::STRING:
-            return value.toString();
+            return processEscapeSequences(value.toString());
         
         case VT::BOOLEAN:
             return value.toBool() ? "صحيح" : "خطأ";  // Arabic: "true" : "false"

@@ -1,12 +1,47 @@
-# 📑 فهرس التقارير والتوثيق - المكتبة القياسية
-# Reports and Documentation Index - Standard Library
+# 📑 فهرس التقارير والتوثيق
+# Reports and Documentation Index
 
-**آخر تحديث / Last Update**: نوفمبر 22، 2025  
-**الحالة / Status**: 39/49 دالة (79.6%)
+**آخر تحديث / Last Update**: نوفمبر 25، 2025  
+**الحالة / Status**: المراحل 1-7 مكتملة / Phases 1-7 Complete
 
 ---
 
 ## 🎯 التقارير الرئيسية / Main Reports
+
+### 🆕 **المرحلة 6 و 7: Switch/Case و Ternary Operator** ⭐ الأحدث! / Latest!
+
+#### 1. **docs/PHASE6_7_COMPLETION_REPORT.md** 📊
+- ملخص تنفيذي للمرحلتين
+- إحصائيات الإنجاز
+- قوائم التحقق الكاملة
+- الدروس المستفادة
+
+**الوقت المقدر للقراءة**: 10 دقائق
+
+---
+
+#### 2. **docs/PHASE6_FEATURES.md** 📚
+- دليل شامل للميزات الجديدة
+- البنية النحوية الكاملة
+- أمثلة متعددة
+- التطبيق الداخلي
+- مقارنة مع C/C++
+
+**الوقت المقدر للقراءة**: 15 دقيقة
+
+---
+
+#### 3. **docs/examples/PHASE6_ADVANCED_EXAMPLES.md** 💡
+- 10+ أمثلة متقدمة
+- حالات استخدام واقعية
+- أمثلة دمج الميزات
+- تعليقات توضيحية مفصلة
+
+**الوقت المقدر للقراءة**: 20 دقيقة
+
+---
+
+### 📚 المكتبة القياسية / Standard Library
 
 ### 1. **QUICK_SUMMARY.md** ⭐ ابدأ هنا! / Start Here!
 - ملخص سريع جداً
@@ -90,6 +125,22 @@
 ---
 
 ## 🎯 الوثيقة المناسبة حسب الهدف / Document by Goal
+
+### 🆕 المرحلة 6 و 7 / Phase 6 & 7
+
+#### "أريد فهم الميزات الجديدة (Switch/Ternary)"
+➡️ **docs/PHASE6_FEATURES.md** (15 دقيقة)  
+➡️ ملفات الاختبار: `test_simple_switch.s`, `test_ternary_num.s`
+
+#### "أريد أمثلة متقدمة للاستخدام"
+➡️ **docs/examples/PHASE6_ADVANCED_EXAMPLES.md** ⭐⭐⭐
+
+#### "أريد ملخص الإنجاز والإحصائيات"
+➡️ **docs/PHASE6_7_COMPLETION_REPORT.md**
+
+---
+
+### 📚 المكتبة القياسية / Standard Library
 
 ### "أريد نظرة سريعة على ما تم إنجازه"
 ➡️ **QUICK_SUMMARY.md** (2 دقيقة)

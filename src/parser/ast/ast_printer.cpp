@@ -13,6 +13,8 @@
  */
 
 #include "../../../include/parser/ast/ast_printer.h"
+#include "../../../include/parser/ast/property_nodes.h"
+#include "../../../include/parser/ast/class_nodes.h"
 #include <sstream>
 
 namespace Sad {
@@ -98,6 +100,25 @@ void ASTPrinter::visitUnaryExpr(UnaryExpr& expr) {
 }
 
 /**
+ * @brief (AR) يزور عقدة التعبير الثلاثي الشرطي - يطبع بتنسيق (شرط ? صحيح : خطأ).
+ *        (EN) Visits ternary conditional expression node - prints in (cond ? true : false) format.
+ * 
+ * @param expr (AR) مؤشر لعقدة التعبير الثلاثي. (EN) Pointer to ternary expression node.
+ * 
+ * Format: (condition ? true_value : false_value)
+ * مثال: (س > 0 ? "موجب" : "سالب")
+ */
+void ASTPrinter::visitTernaryExpr(TernaryExpr& expr) {
+    result_ += "(";
+    expr.condition->accept(*this);
+    result_ += " ? ";
+    expr.trueExpr->accept(*this);
+    result_ += " : ";
+    expr.falseExpr->accept(*this);
+    result_ += ")";
+}
+
+/**
  * @brief (AR) يزور عقدة التعبير الحرفي - يطبع القيمة الحرفية.
  *        (EN) Visits literal expression node - prints literal value.
  * 
@@ -115,6 +136,17 @@ void ASTPrinter::visitLiteralExpr(LiteralExpr& expr) {
  */
 void ASTPrinter::visitVariableExpr(VariableExpr& expr) {
     result_ += expr.name;
+}
+
+void ASTPrinter::visitThisExpr(ThisExpr& expr) {
+    result_ += "this";
+}
+
+void ASTPrinter::visitSuperExpr(SuperExpr& expr) {
+    result_ += "super";
+    if (!expr.memberName.empty()) {
+        result_ += "." + expr.memberName;
+    }
 }
 
 /**
@@ -170,6 +202,16 @@ void ASTPrinter::visitIndexExpr(IndexExpr& expr) {
 void ASTPrinter::visitMemberExpr(MemberExpr& expr) {
     expr.object->accept(*this);
     result_ += "." + expr.member;
+}
+
+/**
+ * @brief (AR) يزور عقدة تعيين قيمة لعضو - يطبع التعيين.
+ *        (EN) Visits member assignment node - prints assignment.
+ */
+void ASTPrinter::visitMemberAssignExpr(MemberAssignExpr& expr) {
+    expr.object->accept(*this);
+    result_ += "." + expr.member + " = ";
+    expr.value->accept(*this);
 }
 
 /**
@@ -392,7 +434,7 @@ void ASTPrinter::visitForStmt(ForStmt& stmt) {
 }
 
 /**
- * @brief (AR) يزور جملة لكل في - يطبع المتغير والكائن القابل للتكرار.
+ * @brief (AR) يزور جملة لكل في - يطبع المتغير والعنصر القابل للتكرار.
  *        (EN) Visits for-range statement - prints variable and iterable.
  * 
  * @param stmt (AR) مؤشر لجملة لكل في. (EN) Pointer to for-range statement.
@@ -405,6 +447,49 @@ void ASTPrinter::visitForRangeStmt(ForRangeStmt& stmt) {
     increaseIndent();
     stmt.body->accept(*this);
     decreaseIndent();
+}
+
+/**
+ * @brief (AR) يزور جملة حالة (switch-case) - يطبع التعبير والحالات.
+ *        (EN) Visits switch-case statement - prints expression and cases.
+ * 
+ * @param stmt (AR) مؤشر لجملة حالة. (EN) Pointer to switch statement.
+ * 
+ * Format / التنسيق:
+ *   حالة <expression>
+ *       عندما <value>: <statement>
+ *       افتراضي: <statement>
+ *   نهاية
+ */
+void ASTPrinter::visitSwitchStmt(SwitchStmt& stmt) {
+    result_ += indent() + "switch (";
+    stmt.expression->accept(*this);
+    result_ += ")\n";
+    
+    result_ += indent() + "{\n";
+    increaseIndent();
+    
+    // Print all case branches / طباعة جميع فروع الحالات
+    for (const auto& caseItem : stmt.cases) {
+        result_ += indent() + "case ";
+        caseItem.value->accept(*this);
+        result_ += ":\n";
+        
+        increaseIndent();
+        caseItem.body->accept(*this);
+        decreaseIndent();
+    }
+    
+    // Print default case if exists / طباعة الحالة الافتراضية إن وُجدت
+    if (stmt.defaultCase) {
+        result_ += indent() + "default:\n";
+        increaseIndent();
+        stmt.defaultCase->accept(*this);
+        decreaseIndent();
+    }
+    
+    decreaseIndent();
+    result_ += indent() + "}\n";
 }
 
 /**
@@ -608,6 +693,48 @@ void ASTPrinter::visitConstructorDecl(ConstructorDecl& decl) {
     
     result_ += ")\n";
     decl.body->accept(*this);
+}
+
+/**
+ * @brief (AR) يزور تصريح الخاصية - يطبع الاسم والـ getter/setter.
+ *        (EN) Visits property declaration - prints name and getter/setter.
+ * 
+ * @param decl (AR) مؤشر لتصريح الخاصية. (EN) Pointer to property declaration.
+ */
+void ASTPrinter::visitPropertyDecl(PropertyDecl& decl) {
+    result_ += indent() + "property " + decl.name;
+    
+    if (decl.isStatic) {
+        result_ += " (static)";
+    }
+    
+    if (decl.isReadOnly()) {
+        result_ += " (read-only)";
+    } else if (decl.isWriteOnly()) {
+        result_ += " (write-only)";
+    }
+    
+    result_ += "\n";
+    
+    // Print getter
+    if (decl.getter) {
+        result_ += indent() + "  get:\n";
+        indentLevel_ += 2;
+        if (decl.getter->body) {
+            decl.getter->body->accept(*this);
+        }
+        indentLevel_ -= 2;
+    }
+    
+    // Print setter if exists
+    if (decl.setter) {
+        result_ += indent() + "  set(" + decl.setter->parameterName + "):\n";
+        indentLevel_ += 2;
+        if (decl.setter->body) {
+            decl.setter->body->accept(*this);
+        }
+        indentLevel_ -= 2;
+    }
 }
 
 /**

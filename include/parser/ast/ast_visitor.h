@@ -17,6 +17,7 @@ namespace AST {
 // Expression nodes / عُقد التعابير
 class BinaryExpr;
 class UnaryExpr;
+class TernaryExpr;        // (AR) التعبير الثلاثي / (EN) Ternary expression
 class LiteralExpr;
 class VariableExpr;
 class AssignExpr;
@@ -31,6 +32,14 @@ class DictComprehensionExpr;
 class GeneratorExpr;
 class DecoratorExpr;
 
+// OOP Expression nodes / عُقد تعابير OOP
+class NewExpr;
+class MemberAccessExpr;
+class MemberAssignExpr;
+class MethodCallExpr;
+class ThisExpr;
+class SuperExpr;
+
 // Statement nodes / عُقد العبارات
 class ExprStmt;
 class VarDeclStmt;
@@ -38,6 +47,7 @@ class IfStmt;
 class WhileStmt;
 class ForStmt;
 class ForRangeStmt;
+class SwitchStmt;         // (AR) جملة حالة / (EN) Switch statement
 class ReturnStmt;
 class YieldStmt;      // (AR) جملة yield / (EN) Yield statement
 class BreakStmt;
@@ -47,11 +57,15 @@ class TryStmt;
 class RaiseStmt;
 class WithStmt;
 
+// OOP Statement nodes / عُقد عبارات OOP
+class ClassDeclStmt;
+
 // Declaration nodes / عُقد التصريحات
 class FunctionDecl;
 class ClassDecl;
 class FieldDecl;
 class MethodDecl;
+class PropertyDecl;
 class ConstructorDecl;
 class DestructorDecl;
 class EnumDecl;
@@ -117,6 +131,22 @@ public:
     virtual void visitUnaryExpr(UnaryExpr& expr) = 0;
     
     /**
+     * @brief Visit ternary conditional expression node / زيارة عقدة التعبير الثلاثي الشرطي
+     * @param expr Ternary expression node (condition ? true_val : false_val)
+     * 
+     * Examples: x > 0 ? "positive" : "negative", age >= 18 ? "بالغ" : "قاصر"
+     * أمثلة: س > 0 ؟ "موجب" : "سالب"، العمر >= 18 ؟ "بالغ" : "قاصر"
+     * 
+     * Syntax / النحو:
+     *   condition ? true_expression : false_expression
+     *   الشرط ؟ تعبير_صحيح : تعبير_خطأ
+     * 
+     * (AR) التعبير الثلاثي يُقيّم الشرط ويُرجع أحد التعبيرين بناءً على النتيجة
+     * (EN) Ternary expression evaluates condition and returns one of two expressions
+     */
+    virtual void visitTernaryExpr(TernaryExpr& expr) = 0;
+    
+    /**
      * @brief Visit literal expression node / زيارة عقدة التعبير الحرفي
      * @param expr Literal expression node (e.g., 42, "text", true)
      * 
@@ -165,6 +195,14 @@ public:
      * Examples: obj.field, person.name, كائن.حقل
      */
     virtual void visitMemberExpr(MemberExpr& expr) = 0;
+    
+    /**
+     * @brief Visit member assignment expression node / زيارة عقدة تعبير تعيين قيمة لعضو
+     * @param expr Member assignment expression node (e.g., obj.field = value)
+     * 
+     * Examples: obj.field = 10, person.name = "أحمد", شخص.اسم = "محمد"
+     */
+    virtual void visitMemberAssignExpr(MemberAssignExpr& expr) = 0;
     
     /**
      * @brief Visit array literal expression node / زيارة عقدة تعبير المصفوفة الحرفية
@@ -230,6 +268,50 @@ public:
     virtual void visitDecoratorExpr(DecoratorExpr& expr) = 0;
     
     // =====================================================================
+    // OOP Expression visitors / زوار تعابير OOP
+    // =====================================================================
+    
+    /**
+     * @brief Visit new expression node / زيارة عقدة تعبير new
+     * @param expr New expression node (object instantiation)
+     * 
+     * Examples: new Person("أحمد", 25), جديد شخص("أحمد"، 25)
+     */
+    virtual void visitNewExpr(NewExpr& expr) = 0;
+    
+    /**
+     * @brief Visit member access expression node / زيارة عقدة تعبير الوصول للعضو
+     * @param expr Member access expression node
+     * 
+     * Examples: object.field, person.name, كائن.حقل
+     */
+    virtual void visitMemberAccessExpr(MemberAccessExpr& expr) = 0;
+    
+    /**
+     * @brief Visit method call expression node / زيارة عقدة تعبير استدعاء الطريقة
+     * @param expr Method call expression node
+     * 
+     * Examples: object.method(), person.sayHello(), كائن.طريقة()
+     */
+    virtual void visitMethodCallExpr(MethodCallExpr& expr) = 0;
+    
+    /**
+     * @brief Visit this expression node / زيارة عقدة تعبير this
+     * @param expr This expression node
+     * 
+     * Examples: this, this.field, هذا، هذا.حقل
+     */
+    virtual void visitThisExpr(ThisExpr& expr) = 0;
+    
+    /**
+     * @brief Visit super expression node / زيارة عقدة تعبير super
+     * @param expr Super expression node
+     * 
+     * Examples: super.method(), الأساس.طريقة()
+     */
+    virtual void visitSuperExpr(SuperExpr& expr) = 0;
+    
+    // =====================================================================
     // Statement visitors / زوار العبارات
     // =====================================================================
     
@@ -282,6 +364,43 @@ public:
      * أمثلة: لكل (رقم ع = 0؛ ع < 10؛ ع++) {...}
      */
     virtual void visitForRangeStmt(ForRangeStmt& stmt) = 0;
+    
+    /**
+     * @brief Visit switch-case statement node / زيارة عقدة عبارة switch-case
+     * @param stmt Switch statement node
+     * 
+     * Examples / أمثلة:
+     * 
+     *   حالة قيمة
+     *       عندما 1:
+     *           اطبع("واحد")
+     *       عندما 2:
+     *           اطبع("اثنان")
+     *       افتراضي:
+     *           اطبع("آخر")
+     *   نهاية
+     * 
+     *   switch value
+     *       case 1:
+     *           print("one")
+     *       case 2:
+     *           print("two")
+     *       default:
+     *           print("other")
+     *   end
+     * 
+     * Syntax / النحو:
+     *   حالة <expression>
+     *       عندما <value>: <statement>
+     *       [افتراضي: <statement>]
+     *   نهاية
+     * 
+     * (AR) جملة switch تقارن تعبيراً بعدة قيم وتنفذ الكود المطابق
+     * (EN) Switch statement compares an expression against multiple values
+     * 
+     * Spec: docs/language_spec/rules/04_syntax.md
+     */
+    virtual void visitSwitchStmt(SwitchStmt& stmt) = 0;
     
     /**
      * @brief Visit return statement node / زيارة عقدة عبارة return
@@ -351,6 +470,14 @@ public:
      */
     virtual void visitWithStmt(WithStmt& stmt) = 0;
     
+    /**
+     * @brief Visit class declaration statement node / زيارة عقدة عبارة تصريح الصنف
+     * @param stmt Class declaration statement node
+     * 
+     * Examples: class Person {...}, صنف شخص {...}
+     */
+    virtual void visitClassDeclStmt(ClassDeclStmt& stmt) = 0;
+    
     // =====================================================================
     // Declaration visitors / زوار التصريحات
     // =====================================================================
@@ -388,6 +515,15 @@ public:
      * دالة عضو في الصنف.
      */
     virtual void visitMethodDecl(MethodDecl& decl) = 0;
+    
+    /**
+     * @brief Visit property declaration node / زيارة عقدة تصريح الخاصية
+     * @param decl Property declaration node
+     * 
+     * Property with getter/setter blocks. (Phase 6.3)
+     * خاصية مع كتل القراءة/الكتابة.
+     */
+    virtual void visitPropertyDecl(PropertyDecl& decl) = 0;
     
     /**
      * @brief Visit constructor declaration node / زيارة عقدة تصريح الباني
@@ -444,12 +580,14 @@ public:
     // Expression visitors / زوار التعابير
     void visitBinaryExpr(BinaryExpr& expr) override {}
     void visitUnaryExpr(UnaryExpr& expr) override {}
+    void visitTernaryExpr(TernaryExpr& expr) override {}
     void visitLiteralExpr(LiteralExpr& expr) override {}
     void visitVariableExpr(VariableExpr& expr) override {}
     void visitAssignExpr(AssignExpr& expr) override {}
     void visitCallExpr(CallExpr& expr) override {}
     void visitIndexExpr(IndexExpr& expr) override {}
     void visitMemberExpr(MemberExpr& expr) override {}
+    void visitMemberAssignExpr(MemberAssignExpr& expr) override {}
     void visitArrayExpr(ArrayExpr& expr) override {}
     void visitMapExpr(MapExpr& expr) override {}
     void visitLambdaExpr(LambdaExpr& expr) override {}
@@ -458,6 +596,13 @@ public:
     void visitGeneratorExpr(GeneratorExpr& expr) override {}
     void visitDecoratorExpr(DecoratorExpr& expr) override {}
     
+    // OOP Expression visitors / زوار تعابير OOP
+    void visitNewExpr(NewExpr& expr) override {}
+    void visitMemberAccessExpr(MemberAccessExpr& expr) override {}
+    void visitMethodCallExpr(MethodCallExpr& expr) override {}
+    void visitThisExpr(ThisExpr& expr) override {}
+    void visitSuperExpr(SuperExpr& expr) override {}
+    
     // Statement visitors / زوار العبارات
     void visitExprStmt(ExprStmt& stmt) override {}
     void visitVarDeclStmt(VarDeclStmt& stmt) override {}
@@ -465,6 +610,7 @@ public:
     void visitWhileStmt(WhileStmt& stmt) override {}
     void visitForStmt(ForStmt& stmt) override {}
     void visitForRangeStmt(ForRangeStmt& stmt) override {}
+    void visitSwitchStmt(SwitchStmt& stmt) override {}
     void visitReturnStmt(ReturnStmt& stmt) override {}
     void visitYieldStmt(YieldStmt& stmt) override {}
     void visitBreakStmt(BreakStmt& stmt) override {}
@@ -473,12 +619,14 @@ public:
     void visitTryStmt(TryStmt& stmt) override {}
     void visitRaiseStmt(RaiseStmt& stmt) override {}
     void visitWithStmt(WithStmt& stmt) override {}
+    void visitClassDeclStmt(ClassDeclStmt& stmt) override {}
     
     // Declaration visitors / زوار التصريحات
     void visitFunctionDecl(FunctionDecl& decl) override {}
     void visitClassDecl(ClassDecl& decl) override {}
     void visitFieldDecl(FieldDecl& decl) override {}
     void visitMethodDecl(MethodDecl& decl) override {}
+    void visitPropertyDecl(PropertyDecl& decl) override {}
     void visitConstructorDecl(ConstructorDecl& decl) override {}
     void visitDestructorDecl(DestructorDecl& decl) override {}
     void visitEnumDecl(EnumDecl& decl) override {}

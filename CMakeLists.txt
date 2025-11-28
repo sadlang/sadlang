@@ -47,7 +47,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # ======================================================================
 option(BUILD_TESTS "بناء الاختبارات / Build tests" OFF)
 option(BUILD_EXAMPLES "بناء الأمثلة / Build examples" ON)
-option(ENABLE_DEBUG_LOGGING "تفعيل سجلات التنقيح / Enable debug logging" ON)
+option(ENABLE_DEBUG_LOGGING "تفعيل سجلات التنقيح / Enable debug logging" OFF)
 
 # ======================================================================
 # تعريفات المعالج المسبق / Preprocessor Definitions
@@ -78,6 +78,7 @@ if(MSVC)
         /W4           # مستوى التحذيرات 4 / Warning level 4
         /WX-          # عدم اعتبار التحذيرات أخطاء / Don't treat warnings as errors
         /permissive-  # وضع المطابقة الصارمة / Standards conformance mode
+        /FS           # إصلاح مشكلة PDB المتزامنة / Fix PDB synchronization issue
     )
 else()
     # خيارات GCC/Clang
@@ -116,6 +117,14 @@ set(PARSER_SOURCES
     src/parser/parser_core.cpp
     src/parser/parser_core_impl.cpp
     src/parser/parser_core_helpers.cpp
+    src/parser/parser_core_oop.cpp
+)
+
+# البرمجة الكائنية - المحلل النحوي / OOP - Parser
+# (AR) معطل مؤقتاً - يحتاج تكامل مع ParserCore
+# (EN) Temporarily disabled - needs integration with ParserCore
+set(OOP_PARSER_SOURCES
+    # src/parser/oop/parser_classes.cpp
 )
 
 # عُقد الشجرة النحوية التجريدية / AST Nodes
@@ -124,6 +133,7 @@ set(AST_SOURCES
     src/parser/ast/expressions.cpp
     src/parser/ast/statements.cpp
     src/parser/ast/declarations.cpp
+    src/parser/ast/property_nodes.cpp
     src/parser/ast/ast_printer.cpp
 )
 
@@ -133,6 +143,8 @@ set(INTERPRETER_SOURCES
     src/interpreter/core/builtin_registry.cpp
     src/interpreter/visitors/expression_evaluator.cpp
     src/interpreter/visitors/statement_executor.cpp
+    src/interpreter/visitors/statement_executor_oop.cpp
+    src/interpreter/exception.cpp
 )
 
 # إدارة البيانات / Data Management
@@ -143,13 +155,48 @@ set(DATA_SOURCES
     src/data/managers/function_manager.cpp
 )
 
+# البرمجة الكائنية - الأنواع / OOP - Types
+set(OOP_TYPES_SOURCES
+    src/data/types/class_type.cpp
+    src/data/types/object_instance.cpp
+)
+
+# البرمجة الكائنية - المديران / OOP - Managers
+set(OOP_MANAGERS_SOURCES
+    src/data/managers/class_manager.cpp
+    src/data/managers/object_manager.cpp
+)
+
+# البرمجة الكائنية - عُقد AST / OOP - AST Nodes
+set(OOP_AST_SOURCES
+    src/ast/oop/class_nodes.cpp
+)
+
+# البرمجة الكائنية - المحلل النحوي / OOP - Parser
+# (AR) تم نقل دوال تحليل OOP إلى parser_core_oop.cpp
+# (EN) OOP parsing functions moved to parser_core_oop.cpp
+# set(OOP_PARSER_SOURCES
+#     src/parser/oop/parser_classes.cpp
+# )
+
+# البرمجة الكائنية - المفسر / OOP - Interpreter
+# (AR) معطل مؤقتاً - يحتاج تكامل مع InterpreterCore
+# (EN) Temporarily disabled - needs integration with InterpreterCore
+set(OOP_INTERPRETER_SOURCES
+    # src/interpreter/oop/interpreter_classes.cpp
+)
+
 # المكتبات القياسية - الدوال المضمنة / Standard Libraries - Built-in Functions
 set(BUILTINS_SOURCES
     src/stdlib/core/builtins.cpp
 )
 
 # إدارة الأخطاء / Error Management
+# (AR) نظام إدارة الأخطاء الموحد - المرحلة 1 مكتملة
+# (EN) Unified error management system - Phase 1 completed
 set(ERROR_SOURCES
+    src/errors/error_codes.cpp
+    src/errors/diagnostic.cpp
     src/errors/error_manager.cpp
 )
 
@@ -167,6 +214,11 @@ set(ALL_SOURCES
     ${AST_SOURCES}
     ${INTERPRETER_SOURCES}
     ${DATA_SOURCES}
+    ${OOP_TYPES_SOURCES}
+    ${OOP_MANAGERS_SOURCES}
+    ${OOP_AST_SOURCES}
+    ${OOP_PARSER_SOURCES}
+    ${OOP_INTERPRETER_SOURCES}
     ${ERROR_SOURCES}
     ${STDLIB_SOURCES}
     ${BUILTINS_SOURCES}
@@ -272,6 +324,42 @@ if(BUILD_TESTS)
         COMMAND io_functions_tests
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
+    
+    # ======================================================================
+    # اختبارات البرمجة الكائنية (Phase 0) / OOP Tests (Phase 0)
+    # ======================================================================
+    
+    if(EXISTS "${CMAKE_SOURCE_DIR}/tests/oop_tests/class_declaration_tests.cpp")
+        # OOP Tests executable
+        add_executable(oop_tests
+            tests/oop_tests/class_declaration_tests.cpp
+        )
+        
+        # Link required libraries
+        target_link_libraries(oop_tests PRIVATE sad_core)
+        
+        # Add include paths
+        target_include_directories(oop_tests PRIVATE
+            ${CMAKE_SOURCE_DIR}
+        )
+        
+        # Set executable properties
+        set_target_properties(oop_tests PROPERTIES
+            OUTPUT_NAME "oop_tests"
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        )
+        
+        # Add CTest test
+        add_test(
+            NAME OOPTests
+            COMMAND oop_tests
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        )
+        
+        message(STATUS "✓ اختبارات البرمجة الكائنية / OOP tests enabled")
+    else()
+        message(STATUS "⚠ اختبارات البرمجة الكائنية غير متاحة / OOP tests not available")
+    endif()
     
     message(STATUS "✓ الاختبارات مفعلة / Tests enabled")
     message(STATUS "  - اختبارات دوال الإدخال/الإخراج / I/O Functions tests: tests/stdlib_tests/test_io_simple.cpp")

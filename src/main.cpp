@@ -30,6 +30,7 @@
 #include "../include/lexer/lexer_core.h"
 #include "../include/parser/parser_core.h"
 #include "../include/interpreter/core/interpreter_core.h"
+#include "../include/errors/error_manager.h"  // (AR) نظام إدارة الأخطاء / (EN) Error management system
 
 // تعريف معلومات الإصدار / Version information
 #define SAD_VERSION_MAJOR 1
@@ -244,6 +245,9 @@ bool readProgramFile(const std::string& filename, std::string& content) {
 int executeProgram(const std::string& filename, const std::string& code) {
     DEBUG_PRINT("بدء تنفيذ البرنامج: " + filename);
     
+    // (AR) تنظيف الأخطاء السابقة / (EN) Clear previous errors
+    Sad::Errors::ErrorManager::getInstance().clear();
+    
     try {
         std::cout << "========================================" << std::endl;
         std::cout << "تنفيذ البرنامج / Executing Program" << std::endl;
@@ -254,7 +258,7 @@ int executeProgram(const std::string& filename, const std::string& code) {
         // الخطوة 1: التحليل المعجمي / Step 1: Lexical Analysis
         std::cout << "[1/4] التحليل المعجمي / Lexical Analysis..." << std::endl;
         Sad::Lexer::LexerCore lexer(code);
-        std::cout << "      تم إنشاء محلل معجمي" << std::endl;
+        std::cout << "      تم إنشاف محلل معجمي" << std::endl;
         std::cout << "      Lexer created" << std::endl;
         std::cout << std::endl;
         
@@ -262,14 +266,30 @@ int executeProgram(const std::string& filename, const std::string& code) {
         std::cout << "[2/4] التحليل النحوي / Syntactic Analysis..." << std::endl;
         Sad::Parser::ParserCore parser(lexer);
         auto ast = parser.parseProgram();
+        
+        // (AR) فحص الأخطاء بعد التحليل النحوي / (EN) Check for parsing errors
+        if (Sad::Errors::ErrorManager::getInstance().hasErrors()) {
+            std::cout << std::endl;
+            std::cout << "========================================" << std::endl;
+            std::cout << "❌ فشل التحليل النحوي / Parsing Failed" << std::endl;
+            std::cout << "========================================" << std::endl;
+            std::cout << std::endl;
+            
+            // (AR) طباعة جميع الأخطاء بشكل جميل / (EN) Print all errors beautifully
+            Sad::Errors::ErrorManager::getInstance().printAll();
+            
+            return 1;
+        }
+        
         std::cout << "      تم بناء شجرة AST" << std::endl;
         std::cout << "      AST built" << std::endl;
         std::cout << std::endl;
         std::cout << "      عدد العقد في شجرة AST: " << ast.size() << std::endl;
         std::cout << "      عدد جمل البرنامج: " << ast.size() << std::endl;
-        std::cout<< " ast content printout:" << std::endl;
-        for (size_t i = 0; i < ast.size(); ++i) {
-            std::cout << "  AST Statement " << i << ": " << ast[i]->toString() << std::endl;
+       
+        std::cout <<"ast print content :"<<std::endl;
+        for (const auto& stmt : ast) {
+            std::cout << stmt->toString() << std::endl;
         }
         // الخطوة 3: إعداد المفسر / Step 3: Interpreter Setup
         std::cout << "[3/4] إعداد المفسر / Interpreter Setup..." << std::endl;
@@ -284,6 +304,27 @@ int executeProgram(const std::string& filename, const std::string& code) {
         std::cout << std::endl;
         
         auto result = interpreter.execute(ast);
+        
+        // (AR) فحص الأخطاء التنفيذية / (EN) Check for runtime errors
+        if (!result.success || Sad::Errors::ErrorManager::getInstance().hasErrors()) {
+            std::cout << std::endl;
+            std::cout << "========================================" << std::endl;
+            std::cout << "❌ فشل التنفيذ / Execution Failed" << std::endl;
+            std::cout << "========================================" << std::endl;
+            std::cout << std::endl;
+            
+            // Print error message from result if available
+            if (!result.success && !result.errorMessage.empty()) {
+                std::cerr << result.errorMessage << std::endl;
+            }
+            
+            // (AR) طباعة جميع الأخطاء بشكل جميل / (EN) Print all errors beautifully
+            if (Sad::Errors::ErrorManager::getInstance().hasErrors()) {
+                Sad::Errors::ErrorManager::getInstance().printAll();
+            }
+            
+            return 1;
+        }
         
         std::cout << std::endl;
         std::cout << "========================================" << std::endl;
@@ -368,7 +409,6 @@ int main(int argc, char* argv[]) {
     // معالجة الملف
     // Process file
     std::string filename = arg;
-    
     // التحقق من امتداد الملف
     // Check file extension
     if (!checkFileExtension(filename)) {

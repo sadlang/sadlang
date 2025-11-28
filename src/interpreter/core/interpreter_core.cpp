@@ -8,6 +8,7 @@
  */
 
 #include "../../../include/interpreter/core/interpreter_core.h"
+#include "../../../include/errors/error_manager.h"
 #include <iostream>
 #include <stdexcept>
 
@@ -71,6 +72,11 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
             
             if (!result.success) {
                 return result;  // (AR) فشل التنفيذ / (EN) Execution failed
+            }
+            
+            // (AR) التحقق من وجود أخطاء بعد تنفيذ كل جملة / (EN) Check for errors after each statement
+            if (Sad::Errors::ErrorManager::getInstance().hasErrors()) {
+                return ExecutionResult(false, Data::Value(), "Runtime error occurred");
             }
             
             lastValue = result.result;

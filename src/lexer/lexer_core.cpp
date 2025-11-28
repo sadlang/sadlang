@@ -185,11 +185,11 @@ bool LexerCore::isAtEnd() const {
 }
 
 /**
- * @brief (AR) الحصول على الموقع الحالي (سطر وعمود)
- * @brief (EN) Get current position (line and column)
+ * @brief (AR) الحصول على الموقع الحالي (سطر وعمود وإزاحة)
+ * @brief (EN) Get current position (line, column, and offset)
  *
- * @return (Position) — (AR) هيكل Position يحتوي على line و column
- *                      (EN) Position struct containing line and column
+ * @return (Position) — (AR) هيكل Position يحتوي على line و column و offset
+ *                      (EN) Position struct containing line, column, and offset
  *
  * مثال الاستخدام / Usage example:
  * @code
@@ -202,7 +202,7 @@ bool LexerCore::isAtEnd() const {
  * - EN: Used when creating new token to save its position
  */
 Position LexerCore::getCurrentPosition() const {
-    return Position(line_, column_);
+    return Position(line_, column_, current_, 0);  // length will be set by caller
 }
 
 // ======================================================================
@@ -318,7 +318,68 @@ Token LexerCore::scanNumber() {
     bool isDouble = false;
     bool hasDecimalPoint = false;
     
-    // معالجة الأرقام
+    // فحص الأرقام بصيغ خاصة (Binary, Octal, Hex)
+    // Check for special number formats (0b, 0o, 0x)
+    if (peek() == '0' && !isAtEnd()) {
+        char nextChar = peekNext();
+        
+        // Binary: 0b1010
+        if (nextChar == 'b' || nextChar == 'B') {
+            numStr += advance(); // consume '0'
+            numStr += advance(); // consume 'b'
+            
+            // قراءة الأرقام الثنائية (0,1)
+            if (isAtEnd() || (peek() != '0' && peek() != '1')) {
+                return makeError("رقم ثنائي بصيغة خاطئة / Invalid binary number format");
+            }
+            
+            while (!isAtEnd() && (peek() == '0' || peek() == '1')) {
+                numStr += advance();
+            }
+            
+            DEBUG_PRINT("تم معالجة رقم ثنائي: " + numStr);
+            return Token(TokenType::NUMBER_INTEGER, numStr, start_position_);
+        }
+        
+        // Octal: 0o17
+        if (nextChar == 'o' || nextChar == 'O') {
+            numStr += advance(); // consume '0'
+            numStr += advance(); // consume 'o'
+            
+            // قراءة الأرقام الثمانية (0-7)
+            if (isAtEnd() || !isDigit(peek()) || peek() > '7') {
+                return makeError("رقم ثماني بصيغة خاطئة / Invalid octal number format");
+            }
+            
+            while (!isAtEnd() && isDigit(peek()) && peek() <= '7') {
+                numStr += advance();
+            }
+            
+            DEBUG_PRINT("تم معالجة رقم ثماني: " + numStr);
+            return Token(TokenType::NUMBER_INTEGER, numStr, start_position_);
+        }
+        
+        // Hexadecimal: 0xFF
+        if (nextChar == 'x' || nextChar == 'X') {
+            numStr += advance(); // consume '0'
+            numStr += advance(); // consume 'x'
+            
+            // قراءة الأرقام الست عشرية (0-9, A-F, a-f)
+            if (isAtEnd() || !isHexDigit(peek())) {
+                return makeError("رقم ست عشري بصيغة خاطئة / Invalid hexadecimal number format");
+            }
+            
+            while (!isAtEnd() && isHexDigit(peek())) {
+                numStr += advance();
+            }
+            
+            DEBUG_PRINT("تم معالجة رقم ست عشري: " + numStr);
+            return Token(TokenType::NUMBER_INTEGER, numStr, start_position_);
+        }
+    }
+    
+    // معالجة الأرقام العادية (عشرية وعشرية عائمة)
+    // Handle regular numbers (decimal and floating point)
     while (!isAtEnd() && (isDigit(peek()) || peek() == '.')) {
         if (peek() == '.') {
             // تحقق من عدم وجود نقطة عشرية مسبقاً
@@ -335,6 +396,26 @@ Token LexerCore::scanNumber() {
             isDouble = true;
             numStr += advance();
         } else {
+            numStr += advance();
+        }
+    }
+    
+    // فحص الصيغة العلمية (Scientific notation): 1.5e10, 2e-5
+    if (!isAtEnd() && (peek() == 'e' || peek() == 'E')) {
+        isDouble = true;
+        numStr += advance(); // consume 'e' or 'E'
+        
+        // فحص إشارة اختيارية (+/-)
+        if (!isAtEnd() && (peek() == '+' || peek() == '-')) {
+            numStr += advance();
+        }
+        
+        // يجب أن يكون هناك رقم بعد 'e'
+        if (isAtEnd() || !isDigit(peek())) {
+            return makeError("صيغة علمية خاطئة / Invalid scientific notation");
+        }
+        
+        while (!isAtEnd() && isDigit(peek())) {
             numStr += advance();
         }
     }
@@ -456,6 +537,20 @@ Token LexerCore::scanIdentifier() {
     
     // الأحرف التالية (حرف، رقم، أو _)
     while (!isAtEnd() && (isAlphaNumeric(peek()) || peek() == '_')) {
+        // (AR) فحص خاص: إذا كان الحرف الحالي 0xD8، تحقق من البايت التالي
+        // (EN) Special check: If current byte is 0xD8, check next byte
+        // لمنع قراءة ، (0xD8 0x8C) أو ؛ (0xD8 0x9B) كجزء من المعرف
+        // To prevent reading ، (0xD8 0x8C) or ؛ (0xD8 0x9B) as part of identifier
+        if (static_cast<unsigned char>(peek()) == 0xD8) {
+            // تحقق من البايت التالي
+            if (current_ + 1 < source_.length()) {
+                unsigned char next = static_cast<unsigned char>(source_[current_ + 1]);
+                if (next == 0x8C || next == 0x9B) {
+                    // هذا فاصلة عربية أو فاصلة منقوطة عربية - لا نقرأها
+                    break;
+                }
+            }
+        }
         identifier += advance();
     }
     
@@ -646,6 +741,26 @@ Token LexerCore::nextToken() {
         return scanString();
     }
     
+    // (AR) فحص الفاصلة والفاصلة المنقوطة العربية (UTF-8 multi-byte) - يجب أن يكون قبل scanIdentifier!
+    // (EN) Check for Arabic comma and semicolon (UTF-8 multi-byte) - MUST be before scanIdentifier!
+    // Spec: docs\language_spec\rules\03_oop.md §1
+    // ، (U+060C) = 0xD8 0x8C in UTF-8
+    // ؛ (U+061B) = 0xD8 0x9B in UTF-8
+    if (static_cast<unsigned char>(c) == 0xD8 && (current_ + 1) < source_.length()) {
+        unsigned char next = static_cast<unsigned char>(source_[current_ + 1]);
+        if (next == 0x8C) {
+            // ، Arabic comma
+            advance(); // consume 0xD8
+            advance(); // consume 0x8C
+            return Token(TokenType::ARABIC_COMMA, "،", start_position_);
+        } else if (next == 0x9B) {
+            // ؛ Arabic semicolon
+            advance(); // consume 0xD8
+            advance(); // consume 0x9B
+            return Token(TokenType::ARABIC_SEMICOLON, "؛", start_position_);
+        }
+    }
+    
     // معرفات وكلمات مفتاحية
     if (isAlpha(c) || c == '_') {
         return scanIdentifier();
@@ -663,6 +778,7 @@ Token LexerCore::nextToken() {
         case ',': return Token(TokenType::COMMA, ",", start_position_);
         case ';': return Token(TokenType::SEMICOLON, ";", start_position_);
         case ':': return Token(TokenType::COLON, ":", start_position_);
+        case '?': return Token(TokenType::QUESTION, "?", start_position_); // (AR) للعامل الثلاثي / (EN) for ternary operator
         case '@': return Token(TokenType::AT_SIGN, "@", start_position_); // (AR) للمُزخرِفات / (EN) for decorators
     }
     
@@ -740,6 +856,16 @@ bool LexerCore::isDigit(char c) const {
 }
 
 /**
+ * @brief (AR) التحقق إذا كان الحرف رقماً ست عشرياً (0-9, A-F, a-f)
+ * @brief (EN) Check if character is a hexadecimal digit (0-9, A-F, a-f)
+ */
+bool LexerCore::isHexDigit(char c) const {
+    return (c >= '0' && c <= '9') || 
+           (c >= 'A' && c <= 'F') || 
+           (c >= 'a' && c <= 'f');
+}
+
+/**
  * @brief (AR) التحقق إذا كان الحرف حرفاً أبجدياً (عربي أو لاتيني أو _)
  * @brief (EN) Check if character is alphabetic (Arabic, Latin, or _)
  *
@@ -750,10 +876,23 @@ bool LexerCore::isDigit(char c) const {
  * - EN: Supports A-Z and a-z and _
  */
 bool LexerCore::isAlpha(char c) const {
-    return (c >= 'a' && c <= 'z') ||
-           (c >= 'A' && c <= 'Z') ||
-           (c == '_') ||
-           (static_cast<unsigned char>(c) >= 0x80); // UTF-8 للعربية
+    // (AR) فحص الأحرف الإنجليزية و _
+    // (EN) Check English letters and _
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_')) {
+        return true;
+    }
+    
+    // (AR) فحص الأحرف العربية (UTF-8 multi-byte)
+    // (EN) Check Arabic characters (UTF-8 multi-byte)
+    // استبعاد الفاصلة العربية ، (0xD8 0x8C) والفاصلة المنقوطة العربية ؛ (0xD8 0x9B)
+    // Exclude Arabic comma (0xD8 0x8C) and Arabic semicolon (0xD8 0x9B)
+    unsigned char uc = static_cast<unsigned char>(c);
+    if (uc == 0xD8) {
+        // نحتاج للتحقق من البايت التالي - لكن isAlpha لا تستطيع الوصول إليه
+        // نقبل 0xD8 هنا، وسنتحقق في scanIdentifier من أن التسلسل ليس ، أو ؛
+        return true;
+    }
+    return uc >= 0x80; // UTF-8 للعربية
 }
 
 /**
@@ -785,6 +924,30 @@ bool LexerCore::isWhitespace(char c) const {
 Token LexerCore::makeError(const std::string& message) {
     DEBUG_PRINT("إنشاء رمز خطأ: " + message);
     return Token(TokenType::INVALID, message, start_position_);
+}
+
+/**
+ * @brief (AR) إنشاء رمز مع حساب الطول تلقائياً من الموقع الحالي
+ * @brief (EN) Create token with automatic length calculation from current position
+ * 
+ * @details (AR) تحسب الطول = current_ - start_position_.offset
+ *               ثم تُنشئ Position جديد مع الطول المحسوب
+ *          (EN) Calculates length = current_ - start_position_.offset
+ *               Then creates new Position with calculated length
+ * 
+ * @param type (TokenType) — (AR) نوع الرمز / (EN) token type
+ * @param value (std::string) — (AR) قيمة الرمز / (EN) token value
+ * @return (Token) — (AR) الرمز مع الموقع والطول / (EN) token with position and length
+ * 
+ * مثال:
+ * // عند المعالجة: start_position_.offset = 10, current_ = 15
+ * return makeToken(TokenType::IDENTIFIER, "hello"); // length = 5
+ */
+Token LexerCore::makeToken(TokenType type, const std::string& value) {
+    size_t length = current_ - start_position_.offset;
+    Position pos(start_position_.line, start_position_.column, 
+                 start_position_.offset, length);
+    return Token(type, value, pos);
 }
 
 } // namespace Lexer

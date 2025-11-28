@@ -89,6 +89,16 @@ public:
     void visitUnaryExpr(UnaryExpr& expr) override;
     
     /**
+     * @brief (AR) يزور عقدة التعبير الثلاثي الشرطي.
+     *        (EN) Visits ternary conditional expression node.
+     * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
+     * 
+     * Format: (condition ? true_value : false_value)
+     * التنسيق: (الشرط ؟ القيمة_الصحيحة : القيمة_الخاطئة)
+     */
+    void visitTernaryExpr(TernaryExpr& expr) override;
+    
+    /**
      * @brief (AR) يزور عقدة التعبير الحرفي.
      *        (EN) Visits literal expression node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
@@ -101,6 +111,14 @@ public:
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
     void visitVariableExpr(VariableExpr& expr) override;
+    
+    /**
+     * @brief (AR) يزور عقدة تعبير هذا (this).
+     *        (EN) Visits this expression node.
+     * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitThisExpr(ThisExpr& expr) override;
+    void visitSuperExpr(SuperExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة تعبير الإسناد.
@@ -129,6 +147,13 @@ public:
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
     void visitMemberExpr(MemberExpr& expr) override;
+    
+    /**
+     * @brief (AR) يزور عقدة تعيين قيمة لعضو.
+     *        (EN) Visits member assignment expression node.
+     * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitMemberAssignExpr(MemberAssignExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة المصفوفة الحرفية.
@@ -219,6 +244,19 @@ public:
     void visitForRangeStmt(ForRangeStmt& stmt) override;
     
     /**
+     * @brief (AR) يزور جملة حالة (switch-case).
+     *        (EN) Visits switch-case statement.
+     * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
+     * 
+     * Format / التنسيق:
+     *   حالة <expr>
+     *       عندما <value>: <statement>
+     *       افتراضي: <statement>
+     *   نهاية
+     */
+    void visitSwitchStmt(SwitchStmt& stmt) override;
+    
+    /**
      * @brief (AR) يزور جملة إرجاع.
      *        (EN) Visits return statement.
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
@@ -298,6 +336,13 @@ public:
      * @param decl (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
     void visitMethodDecl(MethodDecl& decl) override;
+    
+    /**
+     * @brief (AR) يزور تصريح خاصية (Property).
+     *        (EN) Visits property declaration.
+     * @param decl (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitPropertyDecl(PropertyDecl& decl) override;
     
     /**
      * @brief (AR) يزور تصريح الباني.

@@ -180,6 +180,17 @@ public:
 
 private:
     /**
+     * @brief (AR) معالجة تسلسلات الهروب في النصوص
+     * @brief (EN) Process escape sequences in strings
+     * 
+     * @param input (AR) النص الأصلي / (EN) Original string
+     * @return std::string (AR) النص بعد المعالجة / (EN) Processed string
+     * 
+     * @note Converts \n, \t, \r, \\, etc. to their actual characters
+     */
+    static std::string processEscapeSequences(const std::string& input);
+
+    /**
      * @brief (AR) المساعد الداخلي للطباعة
      * @brief (EN) Internal helper for printing a single value
      * 

@@ -9,6 +9,8 @@
 
 #include "../../../include/interpreter/visitors/statement_executor.h"
 #include "../../../include/parser/ast/declarations.h"
+#include "../../../include/errors/error_manager.h"
+#include "../../../include/interpreter/exception.h"
 #include <iostream>
 
 namespace Sad {
@@ -57,6 +59,15 @@ void StatementExecutor::visitVarDeclStmt(AST::VarDeclStmt& node) {
     
     if (node.initializer) {
         value = evaluateExpression(*node.initializer);
+        
+        // (AR) تحويل النوع إذا لزم الأمر / (EN) Type conversion if needed
+        if (node.type == Data::DataType::INTEGER && value.getType() == Data::ValueType::DOUBLE) {
+            // (AR) تحويل عشري → رقم صحيح / (EN) Convert double → integer
+            value = Data::Value(static_cast<int>(value.toDouble()));
+        } else if (node.type == Data::DataType::FLOAT && value.getType() == Data::ValueType::INTEGER) {
+            // (AR) تحويل رقم صحيح → عشري / (EN) Convert integer → double
+            value = Data::Value(static_cast<double>(value.toInt()));
+        }
     } else {
         // (AR) قيمة افتراضية حسب النوع / (EN) Default value based on type
         switch (node.type) {
@@ -285,7 +296,12 @@ void StatementExecutor::visitForRangeStmt(AST::ForRangeStmt& node) {
         }
     }
     else {
-        throw ExecutionError("نوع غير قابل للتكرار / Non-iterable type");
+        Sad::Errors::ErrorManager::getInstance().reportError(
+            Sad::Errors::ErrorCode::RUN_INVALID_CAST,
+            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            "نوع غير قابل للتكرار",
+            "Non-iterable type"
+        );
     }
     
     // (AR) تقليل عمق الحلقة / (EN) Decrease loop depth
@@ -293,6 +309,64 @@ void StatementExecutor::visitForRangeStmt(AST::ForRangeStmt& node) {
     
     // (AR) الخروج من النطاق / (EN) Exit scope
     scopeManager_.popScope();
+}
+
+// =========================================================================
+// (AR) تنفيذ جملة Switch-Case / (EN) Switch-Case Statement Execution
+// =========================================================================
+
+/**
+ * @brief (AR) يُنفذ جملة switch-case: حالة تعبير ... نهاية
+ *        (EN) Executes switch-case statement: case expression ... end
+ * 
+ * Evaluates the switch expression, then compares it against each case value.
+ * Executes the body of the first matching case, or the default case if no match.
+ * 
+ * يُقيّم تعبير switch، ثم يقارنه مع كل قيمة حالة.
+ * يُنفذ جسم أول حالة مطابقة، أو الحالة الافتراضية إذا لم يوجد تطابق.
+ * 
+ * Syntax / النحو:
+ *   حالة <expression>
+ *       عندما <value>: <statement>
+ *       [افتراضي: <statement>]
+ *   نهاية
+ * 
+ * @note Unlike C, there's no fall-through - only one case executes
+ * @note على عكس C، لا يوجد fall-through - تُنفذ حالة واحدة فقط
+ */
+void StatementExecutor::visitSwitchStmt(AST::SwitchStmt& node) {
+    // (AR) تقييم تعبير Switch / (EN) Evaluate switch expression
+    Data::Value switchValue = evaluateExpression(*node.expression);
+    
+    // (AR) علامة لمعرفة إذا وجدنا تطابق / (EN) Flag to track if we found a match
+    bool foundMatch = false;
+    
+    // (AR) التكرار عبر حالات Case / (EN) Iterate through case branches
+    for (const auto& caseItem : node.cases) {
+        // (AR) تقييم قيمة الحالة / (EN) Evaluate case value
+        Data::Value caseValue = evaluateExpression(*caseItem.value);
+        
+        // (AR) مقارنة القيم / (EN) Compare values
+        // Use operator== which returns Value, then convert to bool
+        if ((switchValue == caseValue).toBool()) {
+            // (AR) وجدنا تطابق، نفذ جسم الحالة / (EN) Found match, execute case body
+            foundMatch = true;
+            
+            // (AR) تنفيذ جسم الحالة / (EN) Execute case body
+            caseItem.body->accept(*this);
+            
+            // (AR) لا يوجد fall-through، اخرج بعد التنفيذ / (EN) No fall-through, exit after execution
+            break;
+        }
+    }
+    
+    // (AR) إذا لم نجد تطابق، نفذ الحالة الافتراضية إن وُجدت / (EN) If no match, execute default case if present
+    if (!foundMatch && node.defaultCase) {
+        node.defaultCase->accept(*this);
+    }
+    
+    // (AR) ملاحظة: لا حاجة لإدارة break/continue لأن switch ليس حلقة
+    // (EN) Note: No need to handle break/continue as switch is not a loop
 }
 
 // =========================================================================
@@ -314,7 +388,13 @@ void StatementExecutor::visitReturnStmt(AST::ReturnStmt& node) {
 void StatementExecutor::visitBreakStmt(AST::BreakStmt& node) {
     // (AR) التحقق من أننا داخل حلقة / (EN) Check that we're inside a loop
     if (!isInLoop()) {
-        throw ExecutionError("'break' خارج حلقة / 'break' outside loop");
+        Sad::Errors::ErrorManager::getInstance().reportError(
+            Sad::Errors::ErrorCode::RUN_STACK_OVERFLOW,
+            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            "'break' خارج حلقة",
+            "'break' outside loop"
+        );
+        return;
     }
     
     // (AR) تعيين حالة التحكم / (EN) Set flow control state
@@ -324,7 +404,13 @@ void StatementExecutor::visitBreakStmt(AST::BreakStmt& node) {
 void StatementExecutor::visitContinueStmt(AST::ContinueStmt& node) {
     // (AR) التحقق من أننا داخل حلقة / (EN) Check that we're inside a loop
     if (!isInLoop()) {
-        throw ExecutionError("'continue' خارج حلقة / 'continue' outside loop");
+        Sad::Errors::ErrorManager::getInstance().reportError(
+            Sad::Errors::ErrorCode::RUN_STACK_OVERFLOW,
+            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            "'continue' خارج حلقة",
+            "'continue' outside loop"
+        );
+        return;
     }
     
     // (AR) تعيين حالة التحكم / (EN) Set flow control state
@@ -340,7 +426,7 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
         // (AR) تنفيذ كتلة المحاولة / (EN) Execute try block
         node.tryBlock->accept(*this);
     }
-    catch (const ExecutionError& e) {
+    catch (const Interpreter::SadException& e) {
         // (AR) البحث عن بند التقاط مناسب / (EN) Find matching catch clause
         bool caught = false;
         
@@ -353,7 +439,8 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
             
             // (AR) تعريف متغير الاستثناء / (EN) Define exception variable
             if (!catchClause.exceptionVar.empty()) {
-                variableManager_.define(catchClause.exceptionVar, Data::Value(std::string(e.what())));
+                variableManager_.define(catchClause.exceptionVar, 
+                    Data::Value(e.getMessage()));
             }
             
             // (AR) تنفيذ كتلة الالتقاط / (EN) Execute catch block
@@ -371,6 +458,29 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
             throw;
         }
     }
+    catch (const ExecutionError& e) {
+        // (AR) التقاط ExecutionError القديم للتوافق / (EN) Catch old ExecutionError for compatibility
+        bool caught = false;
+        
+        for (auto& catchClause : node.catchClauses) {
+            scopeManager_.pushScope(Data::ScopeType::BLOCK);
+            
+            if (!catchClause.exceptionVar.empty()) {
+                variableManager_.define(catchClause.exceptionVar, 
+                    Data::Value(std::string(e.what())));
+            }
+            
+            catchClause.body->accept(*this);
+            scopeManager_.popScope();
+            
+            caught = true;
+            break;
+        }
+        
+        if (!caught) {
+            throw;
+        }
+    }
     catch (...) {
         // (AR) التقاط استثناءات أخرى / (EN) Catch other exceptions
         bool caught = false;
@@ -379,7 +489,8 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
             scopeManager_.pushScope(Data::ScopeType::BLOCK);
             
             if (!catchClause.exceptionVar.empty()) {
-                variableManager_.define(catchClause.exceptionVar, Data::Value("Unknown exception"));
+                variableManager_.define(catchClause.exceptionVar, 
+                    Data::Value("Unknown exception"));
             }
             
             catchClause.body->accept(*this);
@@ -405,7 +516,10 @@ void StatementExecutor::visitRaiseStmt(AST::RaiseStmt& node) {
     Data::Value exceptionValue = evaluateExpression(*node.exception);
     
     // (AR) رفع الاستثناء / (EN) Raise exception
-    throw ExecutionError(exceptionValue.toString());
+    throw Interpreter::RuntimeError(
+        exceptionValue.toString(),
+        node.position
+    );
 }
 
 void StatementExecutor::visitFunctionDecl(AST::FunctionDecl& node) {

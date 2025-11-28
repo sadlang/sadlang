@@ -64,6 +64,44 @@ Data::DataType UnaryExpr::getType() const {
 }
 
 // =========================================================================
+// TernaryExpr Implementation
+// =========================================================================
+
+/**
+ * @brief (AR) يحسب نوع البيانات للتعبير الثلاثي الشرطي.
+ *        (EN) Determines data type for ternary conditional expression.
+ * 
+ * The ternary expression's type is determined by the common type of both branches.
+ * If both branches have the same type, that type is returned.
+ * Otherwise, a common type is inferred (e.g., if one is INT and other is FLOAT, returns FLOAT).
+ * 
+ * نوع التعبير الثلاثي يُحدد بالنوع المشترك للفرعين.
+ * إذا كان الفرعان من نفس النوع، يُرجع ذلك النوع.
+ * وإلا، يُستنتج نوع مشترك (مثلاً، إذا كان أحدهما INT والآخر FLOAT، يُرجع FLOAT).
+ */
+Data::DataType TernaryExpr::getType() const {
+    auto trueType = trueExpr->getType();
+    auto falseType = falseExpr->getType();
+    
+    // If both branches have same type, return it
+    // إذا كان الفرعان من نفس النوع، ارجعه
+    if (trueType == falseType) {
+        return trueType;
+    }
+    
+    // Numeric type promotion: FLOAT takes precedence
+    // ترقية النوع الرقمي: FLOAT له الأولوية
+    if ((trueType == Data::DataType::INTEGER && falseType == Data::DataType::FLOAT) ||
+        (trueType == Data::DataType::FLOAT && falseType == Data::DataType::INTEGER)) {
+        return Data::DataType::FLOAT;
+    }
+    
+    // If types differ and no clear promotion, default to the true branch type
+    // إذا اختلفت الأنواع ولا توجد ترقية واضحة، افتراضياً نوع الفرع الصحيح
+    return trueType;
+}
+
+// =========================================================================
 // LiteralExpr Implementation
 // =========================================================================
 

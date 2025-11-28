@@ -162,6 +162,12 @@ public:
     void visitForRangeStmt(AST::ForRangeStmt& node) override;
     
     /**
+     * @brief (AR) زيارة جملة switch-case / (EN) Visit switch-case statement
+     * @details تُقيّم تعبيراً وتنفذ الحالة المطابقة / Evaluates expression and executes matching case
+     */
+    void visitSwitchStmt(AST::SwitchStmt& node) override;
+    
+    /**
      * @brief (AR) زيارة جملة إرجاع / (EN) Visit return statement
      * @details تُرجع من دالة مع قيمة اختيارية / Returns from function with optional value
      */
@@ -202,6 +208,46 @@ public:
      * @details تسجل الدالة في FunctionManager / Registers function in FunctionManager
      */
     void visitFunctionDecl(AST::FunctionDecl& node) override;
+    
+    // =========================================================================
+    // (AR) زيارة تصريحات OOP / (EN) OOP Declaration Visitors
+    // =========================================================================
+    
+    /**
+     * @brief (AR) زيارة تصريح صنف / (EN) Visit class declaration
+     * @details تسجل الصنف في ClassManager / Registers class in ClassManager
+     */
+    void visitClassDecl(AST::ClassDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة تصريح حقل / (EN) Visit field declaration
+     * @details يعالج حقل في صنف / Processes field in class
+     */
+    void visitFieldDecl(AST::FieldDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة تصريح طريقة / (EN) Visit method declaration
+     * @details يسجل طريقة في صنف / Registers method in class
+     */
+    void visitMethodDecl(AST::MethodDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة تصريح خاصية / (EN) Visit property declaration
+     * @details يسجل خاصية في صنف / Registers property in class
+     */
+    void visitPropertyDecl(AST::PropertyDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة تصريح باني / (EN) Visit constructor declaration
+     * @details يسجل باني في صنف / Registers constructor in class
+     */
+    void visitConstructorDecl(AST::ConstructorDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة تصريح هادم / (EN) Visit destructor declaration
+     * @details يسجل هادم في صنف / Registers destructor in class
+     */
+    void visitDestructorDecl(AST::DestructorDecl& node) override;
     
 private:
     // (AR) المراجع للمديرين / (EN) Manager references

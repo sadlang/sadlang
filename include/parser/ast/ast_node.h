@@ -34,10 +34,15 @@ public:
     Lexer::Position position; ///< Source code position / موقع الكود المصدري
     
     /**
+     * @brief Default constructor / البناء الافتراضي
+     */
+    ASTNode() : position() {}
+    
+    /**
      * @brief Constructor with position / البناء مع الموقع
      * @param pos Source position / الموقع في الكود المصدري
      */
-    explicit ASTNode(const Lexer::Position& pos = Lexer::Position())
+    explicit ASTNode(const Lexer::Position& pos)
         : position(pos) {}
     
     /**

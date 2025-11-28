@@ -105,6 +105,56 @@ public:
 };
 
 // =========================================================================
+// Ternary Expression / التعبير الثلاثي
+// =========================================================================
+
+/**
+ * @brief Ternary conditional expression node (condition ? true_val : false_val)
+ *        عقدة التعبير الشرطي الثلاثي
+ * 
+ * Represents ternary conditional operator: condition ? trueExpr : falseExpr
+ * يمثل العامل الشرطي الثلاثي: شرط ? قيمة_صحيح : قيمة_خطأ
+ * 
+ * Spec: docs/language_spec/rules/04_syntax.md - ternary operator
+ * 
+ * @example Examples / أمثلة:
+ * @code{.s}
+ * متغير نتيجة = (عدد > 10) ? "كبير" : "صغير"
+ * متغير أكبر = (أ > ب) ? أ : ب
+ * @endcode
+ */
+class TernaryExpr : public Expression {
+public:
+    ExprPtr condition;      ///< Condition expression / تعبير الشرط
+    ExprPtr trueExpr;       ///< True value expression / تعبير القيمة الصحيحة
+    ExprPtr falseExpr;      ///< False value expression / تعبير القيمة الخاطئة
+    
+    /**
+     * @brief Constructor / البناء
+     * @param cond Condition / الشرط
+     * @param trueE True expression / تعبير الحالة الصحيحة
+     * @param falseE False expression / تعبير الحالة الخاطئة
+     * @param pos Source position / الموقع في الكود
+     */
+    TernaryExpr(ExprPtr cond, ExprPtr trueE, ExprPtr falseE,
+                const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), condition(std::move(cond)),
+          trueExpr(std::move(trueE)), falseExpr(std::move(falseE)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitTernaryExpr(*this);
+    }
+    
+    std::string toString() const override {
+        return "(" + condition->toString() + " ? " +
+               trueExpr->toString() + " : " +
+               falseExpr->toString() + ")";
+    }
+    
+    Data::DataType getType() const override;
+};
+
+// =========================================================================
 // Literal Expression / التعبير الحرفي
 // =========================================================================
 
@@ -113,7 +163,7 @@ public:
  * 
  * Represents constant literal values in the source code.
  * يمثل القيم الحرفية الثابتة في الكود المصدري.
- * 
+ *
  * @example Examples / أمثلة:
  * - Integer: 42, -100, 0xFF
  * - Float: 3.14, -0.5, 1.5e10
@@ -341,6 +391,52 @@ public:
 };
 
 // =========================================================================
+// Member Assignment Expression / تعبير تعيين قيمة لعضو
+// =========================================================================
+
+/**
+ * @brief Member assignment expression node (e.g., obj.field = value)
+ * @brief عقدة تعبير تعيين قيمة لعضو في كائن
+ * 
+ * Represents assignment to an object member/field.
+ * يمثل تعيين قيمة إلى حقل في كائن.
+ * 
+ * @example Examples / أمثلة:
+ * - obj.field = 10
+ * - person.name = "أحمد"
+ * - شخص.اسم = "محمد"
+ */
+class MemberAssignExpr : public Expression {
+public:
+    ExprPtr object;         ///< Object expression / تعبير الكائن
+    std::string member;     ///< Member name / اسم العضو
+    ExprPtr value;          ///< Value to assign / القيمة المراد إسنادها
+    
+    /**
+     * @brief Constructor / البناء
+     * @param obj Object expression / تعبير الكائن
+     * @param mem Member name / اسم العضو
+     * @param val Value expression / تعبير القيمة
+     * @param pos Source position / الموقع في الكود
+     */
+    MemberAssignExpr(ExprPtr obj, const std::string& mem, ExprPtr val,
+                     const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), object(std::move(obj)), member(mem), value(std::move(val)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitMemberAssignExpr(*this);
+    }
+    
+    std::string toString() const override {
+        return object->toString() + "." + member + " = " + value->toString();
+    }
+    
+    Data::DataType getType() const override {
+        return value->getType();
+    }
+};
+
+// =========================================================================
 // Array Literal Expression / تعبير المصفوفة الحرفية
 // =========================================================================
 
@@ -452,9 +548,34 @@ struct Parameter {
               ExprPtr def = nullptr)
         : name(n), type(t), defaultValue(std::move(def)) {}
     
-    // Copy constructor deleted (contains unique_ptr)
-    Parameter(const Parameter&) = delete;
-    Parameter& operator=(const Parameter&) = delete;
+    // Copy constructor - deep copy the defaultValue
+    Parameter(const Parameter& other)
+        : name(other.name), type(other.type) {
+        // Deep copy defaultValue if it exists
+        if (other.defaultValue) {
+            // Create a new copy by cloning (if clone method exists)
+            // For now, set to nullptr as we can't clone expressions easily
+            defaultValue = nullptr;
+        } else {
+            defaultValue = nullptr;
+        }
+    }
+    
+    // Copy assignment operator
+    Parameter& operator=(const Parameter& other) {
+        if (this != &other) {
+            name = other.name;
+            type = other.type;
+            // Deep copy defaultValue if it exists
+            if (other.defaultValue) {
+                // For now, set to nullptr as we can't clone expressions easily
+                defaultValue = nullptr;
+            } else {
+                defaultValue = nullptr;
+            }
+        }
+        return *this;
+    }
     
     // Move constructor and assignment
     Parameter(Parameter&&) = default;

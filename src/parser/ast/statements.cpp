@@ -106,6 +106,42 @@ std::string ForRangeStmt::toString() const {
 }
 
 // =========================================================================
+// SwitchStmt Implementation
+// =========================================================================
+
+/**
+ * @brief (AR) يحول جملة switch إلى نص.
+ *        (EN) Converts switch statement to string.
+ * 
+ * Format:
+ *   switch (expression) {
+ *       case value1: body1
+ *       case value2: body2
+ *       default: defaultBody
+ *   }
+ */
+std::string SwitchStmt::toString() const {
+    std::ostringstream oss;
+    oss << "switch (" << expression->toString() << ") {\n";
+    
+    // Print all case branches
+    // طباعة جميع فروع الحالات
+    for (const auto& caseItem : cases) {
+        oss << "  case " << caseItem.value->toString() << ": ";
+        oss << caseItem.body->toString() << "\n";
+    }
+    
+    // Print default case if exists
+    // طباعة الحالة الافتراضية إن وُجدت
+    if (defaultCase) {
+        oss << "  default: " << defaultCase->toString() << "\n";
+    }
+    
+    oss << "}";
+    return oss.str();
+}
+
+// =========================================================================
 // BlockStmt Implementation
 // =========================================================================
 

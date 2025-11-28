@@ -49,6 +49,8 @@
 #include "ast/expressions.h"
 #include "ast/statements.h"
 #include "ast/declarations.h"
+#include "ast/property_nodes.h"
+#include "ast/class_nodes.h"
 #include "../errors/error_manager.h"
 
 #include <vector>
@@ -181,6 +183,76 @@ private:
      *         (EN) Pointer to class declaration node.
      */
     AST::StmtPtr parseClassDecl();
+
+    // ======================================================================
+    // (AR) دوال تحليل البرمجة الكائنية / (EN) OOP Parsing Functions
+    // ======================================================================
+
+    /**
+     * @brief (AR) يحلل تصريح خاصية في صنف
+     *        (EN) Parses field declaration in class
+     */
+    std::unique_ptr<AST::FieldDecl> parseFieldDeclaration(AST::AccessModifier access, bool isStatic = false);
+
+    /**
+     * @brief (AR) يحلل تصريح خاصية (Property) مع getter/setter
+     *        (EN) Parses property declaration with getter/setter
+     */
+    std::unique_ptr<AST::PropertyDecl> parsePropertyDeclaration(AST::AccessModifier access, bool isStatic = false);
+
+    /**
+     * @brief (AR) يحلل تصريح طريقة في صنف
+     *        (EN) Parses method declaration in class
+     */
+    std::unique_ptr<AST::MethodDecl> parseMethodDeclaration(AST::AccessModifier access, bool isStatic, bool isVirtual, bool isAbstract);
+
+    /**
+     * @brief (AR) يحلل تصريح باني (constructor)
+     *        (EN) Parses constructor declaration
+     */
+    std::unique_ptr<AST::ConstructorDecl> parseConstructorDeclaration(const std::string& className, AST::AccessModifier access);
+
+    /**
+     * @brief (AR) يحلل تصريح هدام (destructor)
+     *        (EN) Parses destructor declaration
+     */
+    std::unique_ptr<AST::DestructorDecl> parseDestructorDeclaration(const std::string& className, AST::AccessModifier access);
+
+    /**
+     * @brief (AR) يحلل معدلات الرؤية (عام، خاص، محمي) والمعدلات (ثابت، افتراضي، مجرد)
+     *        (EN) Parses visibility modifiers and modifiers (static, virtual, abstract)
+     */
+    AST::AccessModifier parseModifiers(bool& isStatic, bool& isVirtual, bool& isAbstract);
+
+    /**
+     * @brief (AR) يحلل تعبير new لإنشاء كائن
+     *        (EN) Parses new expression for object instantiation
+     */
+    AST::ExprPtr parseNewExpression();
+
+    /**
+     * @brief (AR) يحلل تعبير this
+     *        (EN) Parses this expression
+     */
+    AST::ExprPtr parseThisExpression();
+
+    /**
+     * @brief (AR) يحلل تعبير super
+     *        (EN) Parses super expression
+     */
+    AST::ExprPtr parseSuperExpression();
+
+    /**
+     * @brief (AR) يحلل قائمة تهيئة الباني
+     *        (EN) Parses constructor initializer list
+     */
+    std::vector<AST::FieldInitializer> parseInitializerList();
+
+    /**
+     * @brief (AR) يحلل معاملات دالة/طريقة
+     *        (EN) Parses function/method parameters
+     */
+    std::vector<AST::Parameter> parseParameters();
 
     /**
      * @brief (AR) يحلل تصريح متغير (var x = value).
@@ -339,6 +411,41 @@ private:
     AST::StmtPtr parseWithStmt();
 
     /**
+     * @brief (AR) يحلل جملة switch-case للتحكم متعدد الفروع.
+     *        (EN) Parses switch-case statement for multi-way branching.
+     * 
+     * Grammar / القواعد:
+     *   switch_stmt → KEYWORD_CASE "(" expr ")"
+     *                 (KEYWORD_WHEN expr ":" stmt)*
+     *                 [KEYWORD_DEFAULT ":" stmt]
+     *                 KEYWORD_END
+     * 
+     * Syntax / النحو:
+     *   حالة (<expression>)
+     *       عندما <value>: <statement>
+     *       [عندما <value>: <statement>]*
+     *       [افتراضي: <statement>]
+     *   نهاية
+     * 
+     * @example Examples / أمثلة:
+     * حالة (يوم)
+     *     عندما 1: اطبع("الإثنين")
+     *     عندما 2: اطبع("الثلاثاء")
+     *     افتراضي: اطبع("يوم آخر")
+     * نهاية
+     * 
+     * @return (AR) مؤشر لعقدة جملة Switch.
+     *         (EN) Pointer to switch statement node.
+     * 
+     * @note (AR) الشرط يجب أن يكون بين أقواس.
+     *       (EN) Condition must be enclosed in parentheses.
+     * @note (AR) لا يوجد fall-through - ينفذ أول حالة مطابقة فقط.
+     *       (EN) No fall-through - executes only first matching case.
+     * @note Spec reference: docs/language_spec/rules/04_syntax.md
+     */
+    AST::StmtPtr parseSwitchStmt();
+
+    /**
      * @brief (AR) يحلل جملة تعبير (تعبير ينتهي بفاصلة منقوطة).
      *        (EN) Parses expression statement (expression followed by semicolon).
      * 
@@ -368,6 +475,30 @@ private:
      *         (EN) Pointer to assignment expression node.
      */
     AST::ExprPtr parseAssignment();
+
+    /**
+     * @brief (AR) يحلل التعبير الثلاثي الشرطي (ternary conditional).
+     *        (EN) Parses ternary conditional expression.
+     * 
+     * Grammar / القواعد:
+     *   ternary → logical_or ("?" expression ":" ternary)?
+     * 
+     * Syntax / النحو:
+     *   condition ? true_expression : false_expression
+     *   الشرط ؟ تعبير_صحيح : تعبير_خطأ
+     * 
+     * @example Examples / أمثلة:
+     * x > 0 ? "positive" : "negative"
+     * age >= 18 ? "adult" : "minor"
+     * العمر >= 18 ؟ "بالغ" : "قاصر"
+     * 
+     * @return (AR) مؤشر لعقدة التعبير الثلاثي أو تعبير منطقي.
+     *         (EN) Pointer to ternary expression or logical expression node.
+     * 
+     * @note Right-associative: a ? b : c ? d : e → a ? b : (c ? d : e)
+     * @note Spec reference: docs/language_spec/rules/04_syntax.md
+     */
+    AST::ExprPtr parseTernary();
 
     /**
      * @brief (AR) يحلل العوامل المنطقية (أو - OR).
@@ -640,12 +771,67 @@ private:
     const Lexer::Token& previous() const;
 
     /**
+     * @brief (AR) يبلغ عن خطأ برسالة واقتراح إصلاح.
+     *        (EN) Reports error with message and fix-it hint.
+     * 
+     * @param message (AR) رسالة الخطأ. (EN) Error message.
+     * @param fixText (AR) النص المقترح للإصلاح. (EN) Suggested fix text.
+     * @param fixDesc_ar (AR) وصف الإصلاح بالعربية. (EN) Arabic fix description.
+     * @param fixDesc_en (AR) وصف الإصلاح بالإنجليزية. (EN) English fix description.
+     */
+    void errorWithFixIt(const std::string& message, 
+                        const std::string& fixText,
+                        const std::string& fixDesc_ar,
+                        const std::string& fixDesc_en);
+
+    /**
      * @brief (AR) يسجل خطأ تحليل مع رسالة ومكان الخطأ.
      *        (EN) Records parsing error with message and location.
      * 
      * @param message (AR) رسالة الخطأ. (EN) Error message.
      */
     void error(const std::string& message);
+
+    /**
+     * @brief (AR) يسجل خطأ مع رسالة ثنائية اللغة وطباعة الكود المصدري.
+     *        (EN) Records error with bilingual message and prints source code.
+     * 
+     * @param message_ar (AR) رسالة الخطأ بالعربية.
+     * @param message_en (EN) Error message in English.
+     * @param showCode (AR) عرض الكود المصدري (افتراضي: true).
+     *                 (EN) Show source code (default: true).
+     */
+    void errorBilingual(const std::string& message_ar, 
+                        const std::string& message_en,
+                        bool showCode = true);
+
+    /**
+     * @brief (AR) يُنشئ رسالة خطأ لرمز غير متوقع مع التوقع.
+     *        (EN) Creates error message for unexpected token with expectation.
+     * 
+     * @param expected_ar (AR) الرمز المتوقع بالعربية.
+     * @param expected_en (EN) Expected token in English.
+     * @param context_ar (AR) السياق بالعربية (مثال: "في جملة if").
+     * @param context_en (EN) Context in English (e.g., "in if statement").
+     */
+    void errorExpectedToken(const std::string& expected_ar,
+                           const std::string& expected_en,
+                           const std::string& context_ar = "",
+                           const std::string& context_en = "");
+
+    /**
+     * @brief (AR) يُنشئ رسالة خطأ لجملة غير مكتملة.
+     *        (EN) Creates error message for incomplete statement.
+     * 
+     * @param statement_ar (AR) نوع الجملة بالعربية.
+     * @param statement_en (EN) Statement type in English.
+     * @param missing_ar (AR) العنصر الناقص بالعربية.
+     * @param missing_en (EN) Missing element in English.
+     */
+    void errorIncompleteStatement(const std::string& statement_ar,
+                                  const std::string& statement_en,
+                                  const std::string& missing_ar,
+                                  const std::string& missing_en);
 
     /**
      * @brief (AR) يحاول التعافي من خطأ التحليل بالانتقال للجملة التالية.
@@ -774,6 +960,32 @@ private:
      * @return (AR) true إذا كان نوع بيانات (EN) true if it's a data type
      */
     bool isTypeToken(Lexer::TokenType tokenType);
+    
+    /**
+     * @brief (AR) التحقق من أن المعرّف هو اسم صنف مسجّل
+     *        (EN) Checks if identifier is a registered class name
+     * 
+     * @param name (AR) اسم المعرّف (EN) Identifier name
+     * @return (AR) true إذا كان اسم صنف (EN) true if it's a class name
+     */
+    bool isClassName(const std::string& name);
+    
+    /**
+     * @brief (AR) تحليل تعبير إنشاء كائن (جديد صنف())
+     *        (EN) Parse object creation expression (جديد Class())
+     * 
+     * @return (AR) عقدة تعبير (EN) Expression node
+     */
+    std::unique_ptr<AST::Expr> parseNewExpr();
+    
+    /**
+     * @brief (AR) يحول نوع الرمز إلى نوع بيانات
+     *        (EN) Converts token type to data type
+     * 
+     * @param tokenType (AR) نوع الرمز (EN) Token type
+     * @return (AR) نوع البيانات المقابل (EN) Corresponding data type
+     */
+    Data::DataType mapTokenTypeToDataType(Lexer::TokenType tokenType);
 
 private:
     // ======================================================================
@@ -784,8 +996,8 @@ private:
     Lexer::Token current_;               ///< (AR) الرمز الحالي (EN) Current token
     Lexer::Token previous_;              ///< (AR) الرمز السابق (EN) Previous token
     Lexer::Token nextToken_;             ///< (AR) الرمز التالي للنظر المسبق (EN) Next token for lookahead
-    std::vector<std::string> errors_;    ///< (AR) قائمة الأخطاء (EN) List of errors
     bool panicMode_;                     ///< (AR) وضع الذعر للتعافي من الأخطاء (EN) Panic mode for error recovery
+    std::string filename_;               ///< (AR) اسم الملف المصدري (EN) Source filename
 };
 
 } // namespace Parser

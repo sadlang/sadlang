@@ -39,6 +39,7 @@ ParserCore::ParserCore(LexerCore& lexer)
     , previous_(TT::END_OF_FILE, "") // Initialize with dummy token
     , nextToken_(TT::END_OF_FILE, "") // Initialize with dummy token for lookahead
     , panicMode_(false)
+    , filename_("<source>")  // (AR) اسم ملف افتراضي / (EN) default filename
 {
     // Initialize by fetching first two tokens for proper lookahead
     // (AR) التهيئة بجلب أول رمزين للنظر المسبق الصحيح
@@ -71,22 +72,25 @@ ParserCore::ParserCore(LexerCore& lexer)
 StmtList ParserCore::parseProgram() {
     StmtList statements;
     
-    std::cout << "[parser_core_impl.cpp] بدء parseProgram - current token: " 
-              << static_cast<int>(current_.getType()) << " = '" 
-              << current_.getValue() << "'\n";
+    // DEBUG: Disabled
+    // std::cout << "[parser_core_impl.cpp] بدء parseProgram - current token: " 
+    //           << static_cast<int>(current_.getType()) << " = '" 
+    //           << current_.getValue() << "'\n";
     
     // Parse until EOF
     // (AR) التحليل حتى نهاية الملف
     while (!isAtEnd()) {
         try {
-            std::cout << "[parser_core_impl.cpp] داخل حلقة parseProgram - current token: " 
-                      << static_cast<int>(current_.getType()) << " = '" 
-                      << current_.getValue() << "'\n";
+            // DEBUG: Disabled
+            // std::cout << "[parser_core_impl.cpp] داخل حلقة parseProgram - current token: " 
+            //           << static_cast<int>(current_.getType()) << " = '" 
+            //           << current_.getValue() << "'\n";
             auto stmt = parseDeclaration();
             if (stmt) {
                 statements.push_back(std::move(stmt));
-                std::cout << "[parser_core_impl.cpp] تمت إضافة جملة - العدد الكلي: " 
-                          << statements.size() << "\n";
+                // DEBUG: Disabled
+                // std::cout << "[parser_core_impl.cpp] تمت إضافة جملة - العدد الكلي: " 
+                //           << statements.size() << "\n";
             }
         } catch (const std::exception& e) {
             error(e.what());
@@ -94,8 +98,9 @@ StmtList ParserCore::parseProgram() {
         }
     }
     
-    std::cout << "[parser_core_impl.cpp] انتهى parseProgram - عدد الجمل: " 
-              << statements.size() << "\n";
+    // DEBUG: Disabled
+    // std::cout << "[parser_core_impl.cpp] انتهى parseProgram - عدد الجمل: " 
+    //           << statements.size() << "\n";
     
     return statements;
 }
@@ -105,7 +110,7 @@ StmtList ParserCore::parseProgram() {
  *        (EN) Checks for parsing errors.
  */
 bool ParserCore::hasErrors() const {
-    return !errors_.empty();
+    return Errors::ErrorManager::getInstance().hasErrors();
 }
 
 /**
@@ -113,9 +118,9 @@ bool ParserCore::hasErrors() const {
  *        (EN) Prints all errors.
  */
 void ParserCore::printErrors() const {
-    for (const auto& err : errors_) {
-        std::cerr << err << std::endl;
-    }
+    // (AR) استخدام ErrorManager لطباعة الأخطاء بشكل جميل
+    // (EN) Use ErrorManager to print errors beautifully
+    Errors::ErrorManager::getInstance().printAll();
 }
 
 /**
@@ -123,7 +128,16 @@ void ParserCore::printErrors() const {
  *        (EN) Returns error list.
  */
 std::vector<std::string> ParserCore::getErrors() const {
-    return errors_;
+    // (AR) تحويل التشخيصات إلى قائمة نصية
+    // (EN) Convert diagnostics to text list
+    std::vector<std::string> result;
+    const auto& diagnostics = Errors::ErrorManager::getInstance().getAllDiagnostics();
+    
+    for (const auto& diag : diagnostics) {
+        result.push_back(diag.format(Errors::Language::ENGLISH, false));
+    }
+    
+    return result;
 }
 
 // ======================================================================
@@ -160,7 +174,8 @@ std::cout << "Parsing declaration...\n";
         return parseClassDecl();
     }
     
-    if (match(TT::KEYWORD_VAR) || match(TT::KEYWORD_LET) || match(TT::KEYWORD_CONST)) {
+    // (AR) دعم الثوابت مع كلمة ثابت / (EN) Support constants with const keyword
+    if (match(TT::KEYWORD_CONST)) {
         if (!decorators.empty()) {
             error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
         }
@@ -176,10 +191,11 @@ std::cout << "Parsing declaration...\n";
     if (isTypeToken(current_.getType())) {
         // Look ahead to see if next token is IDENTIFIER
         const Token& nextTok = peekNext();
-        
+         std::cout << "Found TYPE IDENTIFIER pattern - parsing as variable declaration\n"<< nextTok.getTypeName()<< "\n position: "<< nextTok.getPosition().toString() <<"\n";
+            
         if (nextTok.getType() == TT::IDENTIFIER) {
             // Valid variable declaration: TYPE IDENTIFIER
-            std::cout << "Found TYPE IDENTIFIER pattern - parsing as variable declaration\n";
+            std::cout << "Found TYPE IDENTIFIER pattern - parsing as variable declaration\n"<< nextTok.getTypeName()<< "\n position: "<< nextTok.getPosition().toString() <<"\n";
             if (!decorators.empty()) {
                 error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
             }
@@ -188,10 +204,30 @@ std::cout << "Parsing declaration...\n";
             // TYPE token not followed by IDENTIFIER - this is an error
             // The user wrote a type keyword but didn't follow it with a variable name
             std::cout << "TYPE token not followed by IDENTIFIER - syntax error\n";
-            error("(AR) توقع معرّف بعد نوع البيانات. (EN) Expected identifier after data type.");
-            // Skip the invalid type token and continue
-            advance();
-            return parseStatement();
+            errorExpectedToken("معرّف (اسم متغير)", "identifier (variable name)", "بعد نوع البيانات", "after data type");
+            // Try to recover by synchronizing to next statement
+            synchronize();
+            return nullptr;
+        }
+    }
+    
+    // Check for class-typed variable declaration: ClassName varName = ...
+    // (AR) التحقق من تصريح متغير من نوع صنف: اسم_الصنف اسم_المتغير = ...
+    if (check(TT::IDENTIFIER)) {
+        // Peek to see if this looks like: IDENTIFIER IDENTIFIER ASSIGN
+        // or: IDENTIFIER IDENTIFIER = جديد
+        const Token& nextTok = peekNext();
+        if (nextTok.getType() == TT::IDENTIFIER) {
+            // Could be class-typed variable, but we can't check ClassManager during parsing
+            // So we use a heuristic: if current looks like a type name (starts with capital letter
+            // or is registered as a class), treat as variable declaration
+            // For now, always treat IDENTIFIER IDENTIFIER pattern as variable declaration
+            // (AR) نستخدم قاعدة: إذا وجدنا معرّف متبوع بمعرّف، نعتبره تصريح متغير
+            std::cout << "Found IDENTIFIER IDENTIFIER pattern - treating as variable declaration\n";
+            if (!decorators.empty()) {
+                error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
+            }
+            return parseVarDecl();
         }
     }
     
@@ -244,6 +280,7 @@ StmtPtr ParserCore::parseStatement() {
     // Control flow statements
     // (AR) جمل التحكم في التدفق
     
+    std::cout << "Parsing statement...\n"<< current_.getTypeName() << "\n";
     if (match(TT::KEYWORD_IF)) {
         return parseIfStmt();
     }
@@ -254,6 +291,10 @@ StmtPtr ParserCore::parseStatement() {
     
     if (match(TT::KEYWORD_FOR)) {
         return parseForStmt();
+    }
+    
+    if (match(TT::KEYWORD_CASE)) {
+        return parseSwitchStmt();
     }
     
     if (match(TT::KEYWORD_RETURN)) {
@@ -312,7 +353,7 @@ StmtPtr ParserCore::parseStatement() {
             ExprPtr firstValue = parseExpression();
             
             if (!firstValue) {
-                error("Expected value expression after :");
+                errorExpectedToken("تعبير قيمة", "value expression", "بعد ':' في list comprehension", "after ':' in list comprehension");
                 return nullptr;
             }
             
@@ -390,7 +431,9 @@ StmtPtr ParserCore::parseStatement() {
         return std::make_unique<BlockStmt>(std::move(statements), brace.getPosition());
     }
     
-    std::cout << "Parsing declaration after block/map check...\n";
+    std::cout << "Parsing declaration after block/map check...\n" ;
+    std::cout <<"\n position: "<< current_.getPosition().toString() <<"\n"<< current_.getTypeName()  << "\n";
+    ;
     if (match(TT::KEYWORD_TRY)) {
         return parseTryStmt();
     }
@@ -444,10 +487,9 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
         returnType = parseType();
     }
     
-    // Parse function body
-    // (AR) تحليل جسم الدالة
-    consume(TT::BRACE_LEFT, 
-        "(AR) توقع '{' قبل جسم الدالة. (EN) Expected '{' before function body.");
+    // Parse function body - starts directly, ends with 'نهاية'
+    // (AR) تحليل جسم الدالة - يبدأ مباشرة، ينتهي بـ 'نهاية'
+    // Spec: docs/language_spec/rules/02_functions.md - function body ends with 'نهاية'
     auto body = parseBlockStmt();
     
     // (AR) إنشاء عقدة تصريح الدالة مع المُزخرِفات
@@ -477,50 +519,140 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
 }
 
 /**
- * @brief (AR) يحلل تصريح صنف: صنف اسم { حقول وطرق }.
- *        (EN) Parses class declaration: class name { fields and methods }.
+ * @brief (AR) يحلل تصريح صنف كامل مع جميع الأعضاء
+ *        (EN) Parses complete class declaration with all members
+ * 
+ * الصيغة / Syntax:
+ *   صنف اسم_الصنف [يرث اسم_الأساس] {
+ *       أعضاء...
+ *   }
  */
 StmtPtr ParserCore::parseClassDecl() {
-    // Expect class name
-    // (AR) توقع اسم الصنف
-    Token name = consume(TT::IDENTIFIER, 
-        "(AR) توقع اسم الصنف. (EN) Expected class name.");
+    std::cout << "[OOP] بدء تحليل تصريح صنف\n";
     
-    // Check for inheritance
-    // (AR) التحقق من الوراثة
-    std::string superclass;
-    if (match(TT::KEYWORD_EXTENDS)) {
-        Token super = consume(TT::IDENTIFIER, 
-            "(AR) توقع اسم الصنف الأب. (EN) Expected superclass name.");
-        superclass = super.getValue();
+    // (AR) اسم الصنف / (EN) Class name
+    // Spec: docs\language_spec\rules\03_oop.md §1 - class_decl ::= 'صنف' IDENTIFIER ...
+    Token nameToken = consume(TT::IDENTIFIER, 
+        "(AR) توقع اسم الصنف بعد 'صنف'. (EN) Expected class name after 'class'.");
+    std::string className = nameToken.getValue();
+    
+    std::cout << "[OOP] اسم الصنف: " << className << "\n";
+    
+    // (AR) الوراثة (اختياري) - دعم كلا من ':' و'يرث'
+    // (EN) Inheritance (optional) - support both ':' and 'يرث'
+    // Spec: docs\language_spec\rules\03_oop.md §1,2 - [(':' | 'يرث') base_class_list]
+    std::vector<std::string> baseClassNames;
+    if (matchAny({TT::COLON, TT::KEYWORD_INHERITS})) {
+        // (AR) قائمة الأصناف الأساسية (دعم الفاصلة العربية والإنجليزية)
+        // (EN) Base class list (support both Arabic and English commas)
+        // Spec: docs\language_spec\rules\03_oop.md §1 - base_class_list ::= IDENTIFIER ((',' | '،') IDENTIFIER)*
+        do {
+            Token baseToken = consume(TT::IDENTIFIER,
+                "(AR) توقع اسم الصنف الأساسي. (EN) Expected base class name.");
+            baseClassNames.push_back(baseToken.getValue());
+            std::cout << "[OOP] يرث من: " << baseToken.getValue() << "\n";
+        } while (matchAny({TT::COMMA, TT::ARABIC_COMMA})); // Support both commas
     }
     
-    // Parse class body
-    // (AR) تحليل جسم الصنف
-    consume(TT::BRACE_LEFT, 
-        "(AR) توقع '{' قبل جسم الصنف. (EN) Expected '{' before class body.");
+    // (AR) جسم الصنف مباشرة بدون أقواس - ينتهي بـ 'نهاية'
+    // (EN) Class body directly without braces - ends with 'نهاية'
+    // Spec: docs\language_spec\rules\03_oop.md §1 - class_decl ends with 'نهاية' NOT '}'
+    // Note: NO BRACE_LEFT here! Class body is parsed directly
     
+    // (AR) تحليل أعضاء الصنف / (EN) Parse class members
+    // Spec: docs\language_spec\rules\03_oop.md §1 - class_decl ends with 'نهاية'
     StmtList members;
-    while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
-        // Parse class members (fields, methods, constructor)
-        // (AR) تحليل أعضاء الصنف (حقول، طرق، بناء)
-        auto member = parseDeclaration();
-        if (member) {
-            members.push_back(std::move(member));
+    while (!check(TT::KEYWORD_END) && !isAtEnd()) {
+        // (AR) تحليل حقول الصنف: نوع اسم_الحقل [؛]
+        // (EN) Parse class fields: type field_name [;]
+        
+        // Check for visibility modifiers or field declaration
+        bool isStatic = false;
+        bool isVirtual = false;
+        bool isAbstract = false;
+        AccessModifier access = parseModifiers(isStatic, isVirtual, isAbstract);
+        
+        // Check if it's a property (starts with 'خاصية' or 'property')
+        if (check(TT::KEYWORD_PROPERTY)) {
+            advance(); // consume 'خاصية'
+            auto property = parsePropertyDeclaration(access, isStatic);
+            if (property) {
+                members.push_back(std::move(property));
+            }
+            continue;
+        }
+        
+        // Check if it's a method (starts with 'دالة' or 'function')
+        if (check(TT::KEYWORD_FUNCTION)) {
+            advance(); // consume 'دالة'
+            auto method = parseMethodDeclaration(access, isStatic, isVirtual, isAbstract);
+            if (method) {
+                members.push_back(std::move(method));
+            }
+            continue;
+        }
+        
+        // Check for constructor ('باني' keyword or class name followed by '(')
+        if (check(TT::KEYWORD_CONSTRUCTOR_ALT) ||  // 'باني'
+            (check(TT::IDENTIFIER) && current_.getValue() == className && 
+             peekNext().getType() == TT::PAREN_LEFT)) {
+            
+            if (check(TT::KEYWORD_CONSTRUCTOR_ALT)) {
+                advance(); // consume 'باني'
+            } else {
+                advance(); // consume class name
+            }
+            
+            auto constructor = parseConstructorDeclaration(className, access);
+            if (constructor) {
+                members.push_back(std::move(constructor));
+            }
+            continue;
+        }
+        
+        // Check for destructor (keyword 'مدمر')
+        if (check(TT::KEYWORD_DESTRUCTOR)) {
+            auto destructor = parseDestructorDeclaration(className, access);
+            if (destructor) {
+                members.push_back(std::move(destructor));
+            }
+            continue;
+        }
+        
+        // Otherwise, parse as field declaration
+        // Field syntax: type name [= value] [;]
+        // Support both built-in types (نص، رقم) and class types (شخص، حيوان)
+        if (isTypeToken(current_.getType()) || 
+            (check(TT::IDENTIFIER) && isClassName(current_.getValue()))) {
+            auto field = parseFieldDeclaration(access, isStatic);
+            if (field) {
+                members.push_back(std::move(field));
+            }
+        } else {
+            // Unknown member, skip to avoid infinite loop
+            error("(AR) عضو صنف غير معروف. (EN) Unknown class member.");
+            advance(); // Skip token
         }
     }
     
-    consume(TT::BRACE_RIGHT, 
-        "(AR) توقع '}' بعد جسم الصنف. (EN) Expected '}' after class body.");
+    // (AR) توقع 'نهاية' في نهاية تعريف الصنف
+    // (EN) Expect 'نهاية' at end of class definition
+    // Spec: docs\language_spec\rules\03_oop.md §1 - class_decl ends with 'نهاية'
+    consume(TT::KEYWORD_END,
+        "(AR) توقع 'نهاية' بعد جسم الصنف. (EN) Expected 'نهاية' after class body.");
     
-    // Create class declaration node
-    // (AR) إنشاء عقدة تصريح الصنف
+    std::cout << "[OOP] انتهى تحليل صنف '" << className << "' - "
+              << members.size() << " أعضاء\n";
+    
+    // Store first base class for backward compatibility, or empty string
+    std::string firstBaseClass = baseClassNames.empty() ? "" : baseClassNames[0];
+    
     return std::make_unique<ClassDecl>(
-        name.getValue(),
-        superclass,
+        className,
+        firstBaseClass, // TODO: Update ClassDecl to support multiple base classes
         std::move(members),
         false,
-        name.getPosition()
+        nameToken.getPosition()
     );
 }
 
@@ -534,6 +666,7 @@ StmtPtr ParserCore::parseClassDecl() {
  */
 StmtPtr ParserCore::parseVarDecl() {
     Data::DataType varType = Data::DataType::UNKNOWN;
+    std::string className = "";  // For class-typed variables
     Token name(TT::IDENTIFIER, "");  // Initialize with default
     
     // Check if we have type-first syntax: TYPE IDENTIFIER = value;
@@ -548,23 +681,41 @@ StmtPtr ParserCore::parseVarDecl() {
         name = consume(TT::IDENTIFIER, 
             "(AR) توقع اسم المتغير بعد النوع. (EN) Expected variable name after type.");
     } else if (check(TT::IDENTIFIER)) {
-        // Format 1: var/let/const IDENTIFIER : type = value;
-        // or just: IDENTIFIER = value; (type inference)
-        // (AR) الصيغة 1: var/let/const معرّف : نوع = قيمة;
-        // أو فقط: معرّف = قيمة; (استنتاج النوع)
-        std::cout << "[parseVarDecl] Found identifier, parsing standard declaration\n";
-        name = consume(TT::IDENTIFIER, 
-            "(AR) توقع اسم المتغير. (EN) Expected variable name.");
-        
-        // Optional type annotation: name : type
-        // (AR) تصريح النوع الاختياري: اسم : نوع
-        if (match(TT::COLON)) {
-            varType = parseType();
+        // Check if this identifier is a class name (for class-typed variables)
+        // (AR) التحقق مما إذا كان هذا المعرّف هو اسم صنف
+        if (isClassName(current_.getValue())) {
+            // Class-typed variable: ClassName varName = ...;
+            // (AR) متغير من نوع صنف: اسم_الصنف اسم_المتغير = ...;
+            std::cout << "[parseVarDecl] Found class name, parsing class-typed variable\n";
+            className = current_.getValue();
+            varType = Data::DataType::OBJECT;
+            advance();  // Consume class name
+            name = consume(TT::IDENTIFIER,
+                "(AR) توقع اسم المتغير بعد نوع الصنف. (EN) Expected variable name after class type.");
+        } else {
+            // Format 1: var/let/const IDENTIFIER : type = value;
+            // or just: IDENTIFIER = value; (type inference)
+            // (AR) الصيغة 1: var/let/const معرّف : نوع = قيمة;
+            // أو فقط: معرّف = قيمة; (استنتاج النوع)
+            std::cout << "[parseVarDecl] Found identifier, parsing standard declaration\n";
+            name = consume(TT::IDENTIFIER, 
+                "(AR) توقع اسم المتغير. (EN) Expected variable name.");
+            
+            // Optional type annotation: name : type
+            // (AR) تصريح النوع الاختياري: اسم : نوع
+            if (match(TT::COLON)) {
+                varType = parseType();
+            }
         }
     } else {
         // Neither type token nor identifier - this is an error
         // (AR) لا رمز نوع ولا معرّف - هذا خطأ
-        error("(AR) توقع نوع أو اسم متغير في تصريح المتغير. (EN) Expected type or variable name in variable declaration.");
+        errorIncompleteStatement(
+            "تصريح المتغير",
+            "variable declaration",
+            "نوع البيانات أو اسم المتغير",
+            "data type or variable name"
+        );
         return nullptr;
     }
     
@@ -699,15 +850,21 @@ StmtPtr ParserCore::parseIfStmt() {
     consume(TT::PAREN_RIGHT, 
         "(AR) توقع ')' بعد الشرط. (EN) Expected ')' after condition.");
     
-    // Parse then branch
-    // (AR) تحليل فرع then
-    auto thenBranch = parseStatement();
+    // Parse then branch - directly as block (spec 04_syntax.md)
+    // (AR) تحليل فرع then - مباشرة ككتلة
+    auto thenBranch = parseBlockStmt();
     
     // Parse optional else branch
     // (AR) تحليل فرع else الاختياري
     StmtPtr elseBranch = nullptr;
     if (match(TT::KEYWORD_ELSE)) {
-        elseBranch = parseStatement();
+        // Check for else-if
+        if (check(TT::KEYWORD_IF)) {
+            advance(); // consume 'if'
+            elseBranch = parseIfStmt(); // Recursive for else-if
+        } else {
+            elseBranch = parseBlockStmt(); // Regular else block
+        }
     }
     
     // Create if statement node
@@ -733,9 +890,9 @@ StmtPtr ParserCore::parseWhileStmt() {
     consume(TT::PAREN_RIGHT, 
         "(AR) توقع ')' بعد الشرط. (EN) Expected ')' after condition.");
     
-    // Parse body
-    // (AR) تحليل الجسم
-    auto body = parseStatement();
+    // Parse body - directly as block (spec 04_syntax.md)
+    // (AR) تحليل الجسم - مباشرة ككتلة
+    auto body = parseBlockStmt();
     
     // Create while statement node
     // (AR) إنشاء عقدة جملة While
@@ -762,7 +919,7 @@ StmtPtr ParserCore::parseForStmt() {
     // Expect 'in' keyword (Arabic: في)
     // (AR) توقع كلمة 'في'
     if (!match(TT::KEYWORD_IN)) {
-        error("(AR) توقع 'في' في حلقة for. (EN) Expected 'in' in for loop.");
+        errorExpectedToken("كلمة 'في'", "keyword 'في' (in)", "في حلقة for", "in for loop");
     }
     
     // Parse collection expression
@@ -772,9 +929,9 @@ StmtPtr ParserCore::parseForStmt() {
     consume(TT::PAREN_RIGHT, 
         "(AR) توقع ')' بعد مجموعة for. (EN) Expected ')' after for collection.");
     
-    // Parse body
-    // (AR) تحليل الجسم
-    auto body = parseStatement();
+    // Parse body - directly as block (spec 04_syntax.md)
+    // (AR) تحليل الجسم - مباشرة ككتلة
+    auto body = parseBlockStmt();
     
     // Create for-range statement node
     // (AR) إنشاء عقدة جملة For-Range
@@ -899,17 +1056,17 @@ StmtPtr ParserCore::parseContinueStmt() {
 StmtPtr ParserCore::parseBlockStmt() {
     StmtList statements;
     
-    // Parse statements until closing brace
-    // (AR) تحليل الجمل حتى القوس المُغلق
-    while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
+    // Parse statements until 'نهاية' keyword (spec 04_syntax.md)
+    // (AR) تحليل الجمل حتى كلمة 'نهاية'
+    while (!check(TT::KEYWORD_END) && !isAtEnd()) {
         auto stmt = parseDeclaration();
         if (stmt) {
             statements.push_back(std::move(stmt));
         }
     }
     
-    consume(TT::BRACE_RIGHT, 
-        "(AR) توقع '}' بعد الكتلة. (EN) Expected '}' after block.");
+    consume(TT::KEYWORD_END, 
+        "(AR) توقع 'نهاية' بعد الكتلة. (EN) Expected 'نهاية' after block.");
     
     // Create block statement node
     // (AR) إنشاء عقدة كتلة الجمل
@@ -924,10 +1081,8 @@ StmtPtr ParserCore::parseBlockStmt() {
  *        (EN) Parses try-catch statement: try { } catch { }.
  */
 StmtPtr ParserCore::parseTryStmt() {
-    // Parse try block
-    // (AR) تحليل كتلة try
-    consume(TT::BRACE_LEFT, 
-        "(AR) توقع '{' بعد 'حاول'. (EN) Expected '{' after 'try'.");
+    // Parse try block using Arabic syntax
+    // (AR) تحليل كتلة try باستخدام الصيغة العربية
     auto tryBlock = parseBlockStmt();
     
     // Parse catch clauses
@@ -935,7 +1090,7 @@ StmtPtr ParserCore::parseTryStmt() {
     std::vector<CatchClause> catchClauses;
     while (match(TT::KEYWORD_CATCH)) {
         consume(TT::PAREN_LEFT, 
-            "(AR) توقع '(' بعد 'اصطد'. (EN) Expected '(' after 'catch'.");
+            "(AR) توقع '(' بعد 'امسك'. (EN) Expected '(' after 'catch'.");
         
         Token exceptionVar = consume(TT::IDENTIFIER, 
             "(AR) توقع اسم متغير الاستثناء. (EN) Expected exception variable name.");
@@ -943,8 +1098,8 @@ StmtPtr ParserCore::parseTryStmt() {
         consume(TT::PAREN_RIGHT, 
             "(AR) توقع ')' بعد متغير الاستثناء. (EN) Expected ')' after exception variable.");
         
-        consume(TT::BRACE_LEFT, 
-            "(AR) توقع '{' قبل جسم catch. (EN) Expected '{' before catch body.");
+        // Parse catch body using Arabic syntax
+        // (AR) تحليل جسم catch باستخدام الصيغة العربية
         auto catchBody = parseBlockStmt();
         
         catchClauses.push_back(CatchClause(
@@ -954,12 +1109,10 @@ StmtPtr ParserCore::parseTryStmt() {
         ));
     }
     
-    // Parse optional finally block
-    // (AR) تحليل كتلة finally الاختيارية
+    // Parse optional finally block using Arabic syntax
+    // (AR) تحليل كتلة finally الاختيارية باستخدام الصيغة العربية
     StmtPtr finallyBlock = nullptr;
     if (match(TT::KEYWORD_FINALLY)) {
-        consume(TT::BRACE_LEFT, 
-            "(AR) توقع '{' بعد 'أخيراً'. (EN) Expected '{' after 'finally'.");
         finallyBlock = parseBlockStmt();
     }
     
@@ -1033,6 +1186,112 @@ StmtPtr ParserCore::parseWithStmt() {
 }
 
 /**
+ * @brief (AR) يحلل جملة switch-case: حالة تعبير ... نهاية.
+ *        (EN) Parses switch-case statement: case expression ... end.
+ * 
+ * Grammar / القواعد:
+ *   switch_stmt → KEYWORD_CASE "(" expr ")"
+ *                 (KEYWORD_WHEN expr ":" stmt)*
+ *                 [KEYWORD_DEFAULT ":" stmt]
+ *                 KEYWORD_END
+ * 
+ * Syntax / النحو:
+ *   حالة (<expression>)
+ *       عندما <value>: <statement>
+ *       [افتراضي: <statement>]
+ *   نهاية
+ */
+StmtPtr ParserCore::parseSwitchStmt() {
+    // Save position for error reporting
+    // (AR) حفظ الموقع للإبلاغ عن الأخطاء
+    Token startToken = previous();
+    
+    // Expect opening parenthesis
+    // (AR) توقع قوس الفتح
+    consume(TT::PAREN_LEFT,
+        "(AR) توقع '(' بعد 'حالة'. (EN) Expected '(' after 'case'.");
+    
+    // Parse switch expression
+    // (AR) تحليل تعبير switch
+    auto expr = parseExpression();
+    
+    // Expect closing parenthesis
+    // (AR) توقع قوس الإغلاق
+    consume(TT::PAREN_RIGHT,
+        "(AR) توقع ')' بعد تعبير الحالة. (EN) Expected ')' after case expression.");
+    
+    // Parse case branches
+    // (AR) تحليل فروع الحالات
+    std::vector<CaseBranch> cases;
+    StmtPtr defaultCase = nullptr;
+    
+    // Continue parsing cases until we hit default or end
+    // (AR) استمر في تحليل الحالات حتى نصل إلى افتراضي أو نهاية
+    while (!check(TT::KEYWORD_END) && !isAtEnd()) {
+        if (match(TT::KEYWORD_WHEN)) {
+            // Parse case value
+            // (AR) تحليل قيمة الحالة
+            auto caseValue = parseExpression();
+            
+            consume(TT::COLON,
+                "(AR) توقع ':' بعد قيمة الحالة. (EN) Expected ':' after case value.");
+            
+            // Parse case body (single statement or block)
+            // (AR) تحليل جسم الحالة (جملة واحدة أو كتلة)
+            StmtPtr caseBody;
+            if (check(TT::BRACE_LEFT)) {
+                caseBody = parseBlockStmt();
+            } else {
+                caseBody = parseStatement();
+            }
+            
+            // Add case branch
+            // (AR) إضافة فرع الحالة
+            cases.push_back({std::move(caseValue), std::move(caseBody)});
+            
+        } else if (match(TT::KEYWORD_DEFAULT)) {
+            // Parse default case
+            // (AR) تحليل الحالة الافتراضية
+            consume(TT::COLON,
+                "(AR) توقع ':' بعد افتراضي. (EN) Expected ':' after default.");
+            
+            // Parse default body
+            // (AR) تحليل جسم الحالة الافتراضية
+            if (check(TT::BRACE_LEFT)) {
+                defaultCase = parseBlockStmt();
+            } else {
+                defaultCase = parseStatement();
+            }
+            
+            // Default must be last, so break
+            // (AR) الحالة الافتراضية يجب أن تكون الأخيرة، لذا اخرج
+            break;
+        } else {
+            // Error: expected case or default
+            // (AR) خطأ: توقع عندما أو افتراضي
+            throw std::runtime_error(
+                "(AR) توقع 'عندما' أو 'افتراضي' في جملة حالة. "
+                "(EN) Expected 'when' or 'default' in switch statement at line " + 
+                std::to_string(current_.getPosition().line));
+        }
+    }
+    
+    // Consume end keyword
+    // (AR) استهلك كلمة نهاية
+    consume(TT::KEYWORD_END,
+        "(AR) توقع 'نهاية' لإنهاء جملة حالة. (EN) Expected 'end' to close switch statement.");
+    
+    // Create switch statement node
+    // (AR) إنشاء عقدة جملة Switch
+    return std::make_unique<SwitchStmt>(
+        std::move(expr),
+        std::move(cases),
+        std::move(defaultCase),
+        startToken.getPosition()
+    );
+}
+
+/**
  * @brief (AR) يحلل جملة تعبير: تعبير;
  *        (EN) Parses expression statement: expression;
  */
@@ -1041,8 +1300,12 @@ StmtPtr ParserCore::parseExpressionStmt() {
     
     // Semicolon is optional for expression statements
     // (AR) الفاصلة المنقوطة اختيارية لجمل التعبير
-    if (check(TT::SEMICOLON)) {
-        consume(TT::SEMICOLON, "");
+    if (check(TT::SEMICOLON) || check(TT::ARABIC_SEMICOLON)) {
+        if (check(TT::SEMICOLON)) {
+            consume(TT::SEMICOLON, "");
+        } else {
+            consume(TT::ARABIC_SEMICOLON, "");
+        }
     }
     
     // Create expression statement node
@@ -1067,7 +1330,7 @@ ExprPtr ParserCore::parseExpression() {
  *        (EN) Parses assignment: name = value.
  */
 ExprPtr ParserCore::parseAssignment() {
-    auto expr = parseLogicalOr();
+    auto expr = parseTernary();
     
     // Check for assignment operator
     // (AR) التحقق من عامل التعيين
@@ -1075,8 +1338,8 @@ ExprPtr ParserCore::parseAssignment() {
         Token equals = previous();
         auto value = parseAssignment();
         
-        // Left side must be a variable
-        // (AR) الجانب الأيسر يجب أن يكون متغيراً
+        // Left side must be a variable or member access
+        // (AR) الجانب الأيسر يجب أن يكون متغيراً أو وصول لعضو
         if (auto* var = dynamic_cast<VariableExpr*>(expr.get())) {
             return std::make_unique<AssignExpr>(
                 var->name,
@@ -1085,7 +1348,71 @@ ExprPtr ParserCore::parseAssignment() {
             );
         }
         
-        error("(AR) هدف تعيين غير صالح. (EN) Invalid assignment target.");
+        // Support member access assignment: obj.field = value
+        // (AR) دعم تعيين قيمة لعضو الكائن
+        if (auto* member = dynamic_cast<MemberExpr*>(expr.get())) {
+            // Extract object and member name, then create MemberAssignExpr
+            // Need to clone the object expression since we're consuming expr
+            ExprPtr objectCopy;
+            
+            // We need to transfer ownership properly
+            // Release the MemberExpr and extract its parts
+            std::unique_ptr<MemberExpr> memberPtr(static_cast<MemberExpr*>(expr.release()));
+            
+            return std::make_unique<MemberAssignExpr>(
+                std::move(memberPtr->object),
+                memberPtr->member,
+                std::move(value),
+                equals.getPosition()
+            );
+        }
+        
+        errorBilingual(
+            "خطأ: هدف الإسناد غير صالح - يجب أن يكون معرّفاً أو حقل كائن",
+            "Error: invalid assignment target - must be identifier or object field"
+        );
+    }
+    
+    return expr;
+}
+
+/**
+ * @brief (AR) يحلل التعبير الثلاثي الشرطي: شرط ? صحيح : خطأ.
+ *        (EN) Parses ternary conditional: condition ? true : false.
+ * 
+ * Grammar / القواعد:
+ *   ternary → logical_or ("?" expression ":" ternary)?
+ * 
+ * Right-associative: a ? b : c ? d : e → a ? b : (c ? d : e)
+ */
+ExprPtr ParserCore::parseTernary() {
+    auto expr = parseLogicalOr();
+    
+    // Check for ternary operator ?
+    // (AR) التحقق من عامل الثلاثي ؟
+    if (match(TT::QUESTION)) {
+        Token questionToken = previous();
+        // Parse true branch
+        // (AR) تحليل الفرع الصحيح
+        auto trueExpr = parseExpression();
+        
+        // Expect colon
+        // (AR) توقع نقطتان
+        consume(TT::COLON,
+            "(AR) توقع ':' في التعبير الثلاثي. (EN) Expected ':' in ternary expression.");
+        
+        // Parse false branch (recursive for right-associativity)
+        // (AR) تحليل الفرع الخاطئ (تكراري لتحقيق الربط الأيمن)
+        auto falseExpr = parseTernary();
+        
+        // Create ternary expression node
+        // (AR) إنشاء عقدة التعبير الثلاثي
+        return std::make_unique<TernaryExpr>(
+            std::move(expr),
+            std::move(trueExpr),
+            std::move(falseExpr),
+            questionToken.getPosition()
+        );
     }
     
     return expr;
@@ -1278,15 +1605,32 @@ ExprPtr ParserCore::parsePostfix() {
             );
         }
         else if (match(TT::DOT)) {
-            // Member access
-            // (AR) الوصول لعضو
+            // Member access or method call
+            // (AR) الوصول لعضو أو استدعاء طريقة
             Token member = consume(TT::IDENTIFIER, 
                 "(AR) توقع اسم عضو بعد '.'. (EN) Expected member name after '.'.");
-            expr = std::make_unique<MemberExpr>(
-                std::move(expr),
-                member.getValue(),
-                member.getPosition()
-            );
+            
+            // Check if this is a method call: obj.method()
+            if (check(TT::PAREN_LEFT)) {
+                match(TT::PAREN_LEFT);
+                auto args = parseArgumentList();
+                consume(TT::PAREN_RIGHT, 
+                    "(AR) توقع ')' بعد وسائط الطريقة. (EN) Expected ')' after method arguments.");
+                expr = std::make_unique<MethodCallExpr>(
+                    std::move(expr),
+                    member.getValue()
+                );
+                // Add arguments
+                auto* methodCall = static_cast<MethodCallExpr*>(expr.get());
+                methodCall->arguments = std::move(args);
+            } else {
+                // Regular member access: obj.field
+                expr = std::make_unique<MemberExpr>(
+                    std::move(expr),
+                    member.getValue(),
+                    member.getPosition()
+                );
+            }
         }
         else if (match(TT::BRACKET_LEFT)) {
             // Index access
@@ -1313,6 +1657,24 @@ ExprPtr ParserCore::parsePostfix() {
  *        (EN) Parses primary expressions: numbers, strings, variables.
  */
 ExprPtr ParserCore::parsePrimary() {
+    // OOP: new expression for object instantiation
+    // (AR) تعبير جديد لإنشاء كائن
+    if (match(TT::KEYWORD_NEW)) {
+        return parseNewExpr();
+    }
+    
+    // OOP: this expression for current object
+    // (AR) تعبير هذا للكائن الحالي
+    if (match(TT::KEYWORD_THIS)) {
+        return std::make_unique<ThisExpr>();
+    }
+    
+    // OOP: super expression for base class
+    // (AR) تعبير الأساس للصنف الأب
+    if (match(TT::KEYWORD_SUPER)) {
+        return std::make_unique<SuperExpr>();
+    }
+    
     // Lambda expression: lambda x: x + 1
     // (AR) تعبير لامدا
     if (match(TT::KEYWORD_LAMBDA)) {
@@ -1379,7 +1741,10 @@ ExprPtr ParserCore::parsePrimary() {
         return parseMapLiteral();
     }
     
-    error("(AR) توقع تعبير. (EN) Expected expression.");
+    errorBilingual(
+        "خطأ نحوي: توقعت تعبيراً (رقم، نص، معرّف، إلخ) في السطر " + std::to_string(current_.getPosition().line),
+        "Syntax error: expected expression (number, string, identifier, etc.) at line " + std::to_string(current_.getPosition().line)
+    );
     return nullptr;
 }
 
@@ -1574,7 +1939,10 @@ ExprPtr ParserCore::parseMapLiteral() {
     // (AR) تحليل تعبير المفتاح الأول (أو قالب متغير المفتاح في comprehension)
     auto firstKey = parseExpression();
     if (!firstKey) {
-        error("Failed to parse key expression in map literal");
+        errorBilingual(
+            "خطأ في تحليل مفتاح الخريطة - تعبير غير صالح",
+            "Failed to parse key expression in map literal - invalid expression"
+        );
         // Try to recover by consuming until }
         while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
             advance();
@@ -1591,7 +1959,10 @@ ExprPtr ParserCore::parseMapLiteral() {
     // (AR) تحليل تعبير القيمة الأولى (أو قالب متغير القيمة في comprehension)
     auto firstValue = parseExpression();
     if (!firstValue) {
-        error("Failed to parse value expression in map literal");
+        errorBilingual(
+            "خطأ في تحليل قيمة الخريطة - تعبير غير صالح",
+            "Failed to parse value expression in map literal - invalid expression"
+        );
         // Try to recover by consuming until }
         while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
             advance();
