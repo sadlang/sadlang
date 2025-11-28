@@ -28,13 +28,21 @@ std::shared_ptr<ASTNode> DeadCodeEliminationPass::apply(std::shared_ptr<ASTNode>
 std::shared_ptr<ASTNode> ConstantFoldingPass::apply(std::shared_ptr<ASTNode> ast) {
     if (!ast) return nullptr;
     
-    // TODO: تطبيق طي الثوابت
+    std::cout << "  → تطبيق طي الثوابت...\n";
+    std::cout << "  → Applying constant folding...\n";
+    
+    // TODO: تنفيذ visitor لطي الثوابت
     // مثال: 2 + 3 → 5
     // مثال: "hello" + " world" → "hello world"
     // مثال: true && false → false
+    //
+    // التنفيذ يحتاج إلى:
+    // 1. visitor يجتاز الـ AST
+    // 2. يتحقق من BinaryExpr حيث كلا الطرفين literals
+    // 3. يحسب القيمة ويستبدل التعبير بـ literal جديد
     
-    std::cout << "  → تطبيق طي الثوابت...\n";
-    std::cout << "  → Applying constant folding...\n";
+    std::cout << "    ℹ التنفيذ الكامل قيد التطوير\n";
+    std::cout << "    ℹ Full implementation under development\n";
     
     return ast;
 }

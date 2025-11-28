@@ -4,10 +4,15 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
-#include "ast.h"
+#include "parser/ast/ast_node.h"
 #include "optimization_pass.h"
 
 namespace sad {
+
+// Use Sad::AST namespace for convenience
+using Sad::AST::ASTNode;
+using Sad::AST::Expression;
+using Sad::AST::Statement;
 
 /**
  * محسن الكود المتقدم

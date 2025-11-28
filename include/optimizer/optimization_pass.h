@@ -3,9 +3,14 @@
 
 #include <memory>
 #include <string>
-#include "ast.h"
+#include "parser/ast/ast_node.h"
 
 namespace sad {
+
+// Use Sad::AST namespace for convenience
+using Sad::AST::ASTNode;
+using Sad::AST::Expression;
+using Sad::AST::Statement;
 
 /**
  * واجهة ممر التحسين
