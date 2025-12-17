@@ -16,19 +16,19 @@ namespace Sad {
 namespace Data {
 
 // ========================================
-// (AR) المُنشئ والمُدمر
+// (AR) البناء والهدم
 // (EN) Constructor and Destructor
 // ========================================
 
-VariableManager::VariableManager() 
-    : scopeManager_(std::make_unique<ScopeManager>()) {
-    // (AR) تم إنشاء النطاق العام تلقائياً في ScopeManager
-    // (EN) Global scope automatically created in ScopeManager
+VariableManager::VariableManager(ScopeManager& scopeManager) 
+    : scopeManager_(scopeManager) {
+    // (AR) نستخدم ScopeManager الموجود بالفعل - لا حاجة لإنشاء scope عام هنا
+    // (EN) Use existing ScopeManager - no need to create global scope here
 }
 
 VariableManager::~VariableManager() {
-    // (AR) التنظيف التلقائي عن طريق unique_ptr
-    // (EN) Automatic cleanup via unique_ptr
+    // (AR) التنظيف التلقائي - ScopeManager يُدار من الخارج
+    // (EN) Automatic cleanup - ScopeManager managed externally
 }
 
 // ========================================
@@ -39,7 +39,7 @@ VariableManager::~VariableManager() {
 void VariableManager::define(const std::string& name, const Value& value) {
     // (AR) الحصول على النطاق الحالي
     // (EN) Get current scope
-    Scope* currentScope = scopeManager_->getCurrentScope();
+    Scope* currentScope = scopeManager_.getCurrentScope();
     
     // (AR) التحقق: هل المتغير معرف مسبقاً في نفس النطاق؟
     // (EN) Check: is variable already defined in same scope?
@@ -52,7 +52,7 @@ void VariableManager::define(const std::string& name, const Value& value) {
     
     // (AR) تعريف المتغير في مدير النطاقات (تسجيل الاسم)
     // (EN) Define variable in scope manager (register name)
-    scopeManager_->declareVariable(name);
+    scopeManager_.declareVariable(name);
     
     // (AR) حفظ القيمة في الخريطة
     // (EN) Store value in map
@@ -126,7 +126,7 @@ bool VariableManager::exists(const std::string& name) const {
 bool VariableManager::remove(const std::string& name) {
     // (AR) الحصول على النطاق الحالي
     // (EN) Get current scope
-    Scope* currentScope = scopeManager_->getCurrentScope();
+    Scope* currentScope = scopeManager_.getCurrentScope();
     
     // (AR) التحقق من وجود المتغير في النطاق الحالي
     // (EN) Check if variable exists in current scope
@@ -155,7 +155,7 @@ bool VariableManager::remove(const std::string& name) {
 void VariableManager::enterScope(ScopeType type, const std::string& name) {
     // (AR) إنشاء نطاق جديد في مدير النطاقات
     // (EN) Create new scope in scope manager
-    scopeManager_->pushScope(type, name);
+    scopeManager_.pushScope(type, name);
     
     // (AR) سيتم إنشاء خريطة المتغيرات للنطاق الجديد عند أول تعريف
     // (EN) Variable map for new scope will be created on first define
@@ -164,7 +164,7 @@ void VariableManager::enterScope(ScopeType type, const std::string& name) {
 void VariableManager::exitScope() {
     // (AR) الحصول على النطاق الحالي قبل حذفه
     // (EN) Get current scope before removing it
-    Scope* currentScope = scopeManager_->getCurrentScope();
+    Scope* currentScope = scopeManager_.getCurrentScope();
     
     // (AR) حذف جميع متغيرات هذا النطاق
     // (EN) Delete all variables in this scope
@@ -172,7 +172,7 @@ void VariableManager::exitScope() {
     
     // (AR) إزالة النطاق من المكدس
     // (EN) Remove scope from stack
-    scopeManager_->popScope();
+    scopeManager_.popScope();
 }
 
 // ========================================
@@ -183,7 +183,7 @@ void VariableManager::exitScope() {
 size_t VariableManager::getVariableCount() const {
     // (AR) عدد المتغيرات في النطاق الحالي
     // (EN) Number of variables in current scope
-    Scope* currentScope = scopeManager_->getCurrentScope();
+    Scope* currentScope = scopeManager_.getCurrentScope();
     auto it = scopeVariables_.find(currentScope);
     
     if (it != scopeVariables_.end()) {
@@ -208,7 +208,7 @@ std::vector<std::string> VariableManager::getVariableNames() const {
     // (EN) List of variable names in current scope
     std::vector<std::string> names;
     
-    Scope* currentScope = scopeManager_->getCurrentScope();
+    Scope* currentScope = scopeManager_.getCurrentScope();
     auto it = scopeVariables_.find(currentScope);
     
     if (it != scopeVariables_.end()) {
@@ -259,8 +259,8 @@ void VariableManager::clear() {
     
     // (AR) العودة إلى النطاق العام (حذف جميع النطاقات الأخرى)
     // (EN) Return to global scope (remove all other scopes)
-    while (!scopeManager_->isGlobalScope()) {
-        scopeManager_->popScope();
+    while (!scopeManager_.isGlobalScope()) {
+        scopeManager_.popScope();
     }
 }
 
@@ -296,7 +296,7 @@ std::string VariableManager::debugString() const {
     oss << "VariableManager["
         << "total_vars=" << getTotalVariableCount()
         << ", current_scope_vars=" << getVariableCount()
-        << ", " << scopeManager_->debugString()
+        << ", " << scopeManager_.debugString()
         << "]";
     return oss.str();
 }
@@ -316,7 +316,7 @@ Scope* VariableManager::findVariableScope(const std::string& name) const {
     // (AR) نبحث في خريطة القيم لضمان وجود القيمة فعلياً
     // (EN) Search in value map to ensure value actually exists
     
-    Scope* scope = scopeManager_->getCurrentScope();
+    Scope* scope = scopeManager_.getCurrentScope();
     
     while (scope != nullptr) {
         // (AR) التحقق من وجود المتغير في هذا النطاق
@@ -343,6 +343,15 @@ void VariableManager::throwError(const std::string& messageAr, const std::string
     std::ostringstream oss;
     oss << "(AR) " << messageAr << " (EN) " << messageEn;
     throw std::runtime_error(oss.str());
+}
+
+void VariableManager::cleanupScope(Scope* scope) {
+    // (AR) حذف جميع المتغيرات المرتبطة بهذا النطاق
+    // (EN) Delete all variables associated with this scope
+    auto it = scopeVariables_.find(scope);
+    if (it != scopeVariables_.end()) {
+        scopeVariables_.erase(it);
+    }
 }
 
 } // namespace Data

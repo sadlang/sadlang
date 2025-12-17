@@ -182,12 +182,32 @@ std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
             parameters.push_back(Parameter(paramToken.getValue(), paramType, nullptr));
             
             // Spec: docs\language_spec\rules\03_oop.md §1 - param_list ::= param ((',' | '،') param)*
-            // TODO: Add support for Arabic comma '،' when ARABIC_COMMA token is added
-        } while (match(TT::COMMA));
+        } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));
     }
     
     consume(TT::PAREN_RIGHT,
         "(AR) توقع ')' بعد معاملات الطريقة. (EN) Expected ')' after method parameters.");
+    
+    // (AR) التحقق من عدم استخدام { } في تعريف الطريقة
+    // (EN) Check for incorrect { } usage in method definition
+    if (!isAbstract && check(TT::BRACE_LEFT)) {
+        error(
+            "(AR) ❌ خطأ نحوي: لا يمكن استخدام '{' في تعريف الطرق!\n"
+            "في لغة ص، الطرق لا تستخدم الأقواس المعقوفة { }.\n"
+            "يجب أن تبدأ جسم الطريقة مباشرة وتنتهي بكلمة 'نهاية'.\n\n"
+            "❌ خطأ:\n"
+            "  طريقة " + methodName + "() {\n"
+            "    # الكود\n"
+            "  }\n\n"
+            "✅ صحيح:\n"
+            "  طريقة " + methodName + "()\n"
+            "    # الكود\n"
+            "  نهاية\n\n"
+            "(EN) ❌ Syntax error: Cannot use '{' in method definition!\n"
+            "In Sad language, methods do not use curly braces { }.\n"
+            "Method body must start directly and end with 'نهاية' keyword.\n"
+        );
+    }
     
     // (AR) جسم الطريقة / (EN) Method body
     StmtPtr body = nullptr;
@@ -200,7 +220,10 @@ std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
         body = parseBlockStmt();
     }
     
-    bool isOverride = false; // TODO: detect override keyword
+    bool isOverride = false; 
+    // (AR) ملاحظة: override غير مدعوم حالياً - سيتم إضافته في Phase 2
+    // (EN) Note: override not currently supported - will be added in Phase 2
+    // Reason: KEYWORD_OVERRIDE was removed from TokenType (conflicts with other keywords)
     return std::make_unique<MethodDecl>(methodName, std::move(parameters), returnType,
                                          std::move(body), access, isStatic, isVirtual,
                                          isOverride, nameToken.getPosition());
@@ -244,10 +267,65 @@ std::unique_ptr<ConstructorDecl> ParserCore::parseConstructorDeclaration(const s
     consume(TT::PAREN_RIGHT,
         "(AR) توقع ')' بعد معاملات الباني. (EN) Expected ')' after constructor parameters.");
     
-    // (AR) قائمة التهيئة (اختياري) / (EN) Initializer list (optional)
+    // (AR) التحقق من عدم استخدام { } في تعريف الباني
+    // (EN) Check for incorrect { } usage in constructor definition
+    if (check(TT::BRACE_LEFT)) {
+        error(
+            "(AR) ❌ خطأ نحوي: لا يمكن استخدام '{' في تعريف الباني!\n"
+            "في لغة ص، البناة لا تستخدم الأقواس المعقوفة { }.\n"
+            "يجب أن يبدأ جسم الباني مباشرة ويختم بكلمة 'نهاية'.\n\n"
+            "❌ خطأ:\n"
+            "  باني " + className + "() {\n"
+            "    # الكود\n"
+            "  }\n\n"
+            "✅ صحيح:\n"
+            "  باني " + className + "()\n"
+            "    # الكود\n"
+            "  نهاية\n\n"
+            "(EN) ❌ Syntax error: Cannot use '{' in constructor definition!\n"
+            "In Sad language, constructors do not use curly braces { }.\n"
+            "Constructor body must start directly and end with 'نهاية' keyword.\n"
+        );
+    }
+    
+    // (AR) قائمة التهيئة (اختياري): : الأساس(args)
+    // (EN) Initializer list (optional): : super(args)
+    // Spec: docs\language_spec\rules\03_oop.md - constructor can call base constructor
+    // Syntax: باني(params) : الأساس(arg1, arg2)
     ExprList superArgs;
     if (match(TT::COLON)) {
-        // TODO: parse initializer list properly
+        // (AR) توقع كلمة "الأساس" أو "super"
+        // (EN) Expect "الأساس" or "super" keyword
+        if (!match(TT::KEYWORD_SUPER)) {
+            // (AR) إذا لم تكن كلمة "الأساس"، قد تكون identifier للحقل
+            // (EN) If not "super", might be field identifier
+            // Note: Field initializers (: field1(val1), field2(val2)) are advanced feature
+            // Will be implemented in future phase when needed
+            // For now, we only support super constructor call
+            error(
+                "(AR) خطأ نحوي: بعد ':' في الباني، يجب استدعاء الباني الأساسي.\n"
+                "الصيغة: باني(المعاملات) : الأساس(القيم)\n"
+                "مثال: باني(رقم س) : الأساس(س)\n\n"
+                "(EN) Syntax error: After ':' in constructor, must call super constructor.\n"
+                "Syntax: constructor(params) : super(values)\n"
+                "Example: constructor(int x) : super(x)"
+            );
+        }
+        
+        // (AR) تحليل معاملات الباني الأساسي: (arg1, arg2, ...)
+        // (EN) Parse super constructor arguments: (arg1, arg2, ...)
+        consume(TT::PAREN_LEFT,
+            "(AR) توقع '(' بعد 'الأساس'. (EN) Expected '(' after 'super'.");
+        
+        if (!check(TT::PAREN_RIGHT)) {
+            do {
+                superArgs.push_back(parseExpression());
+            } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));
+        }
+        
+        consume(TT::PAREN_RIGHT,
+            "(AR) توقع ')' بعد معاملات الباني الأساسي. "
+            "(EN) Expected ')' after super constructor arguments.");
     }
     
     // (AR) جسم الباني / (EN) Constructor body
@@ -340,12 +418,25 @@ ExprPtr ParserCore::parseNewExpr() {
 /**
  * @brief (AR) يحلل تعبير this (هذا)
  *        (EN) Parses this expression
+ * 
+ * الصيغة / Syntax: 'هذا' (this keyword)
+ * Spec: docs\language_spec\rules\03_oop.md §2 - this keyword
+ * 
+ * @return (ExprPtr) (AR) مؤشر لعقدة ThisExpr
+ *                  (EN) Pointer to ThisExpr node
+ * 
+ * @example Examples / أمثلة:
+ * هذا.خاصية = 5
+ * هذا.طريقة()
+ * this.property = 5
+ * this.method()
  */
 ExprPtr ParserCore::parseThisExpression() {
     std::cout << "[OOP] تحليل تعبير 'هذا' (this)\n";
-    // TODO: Create proper ThisExpression AST node
-    // For now, return a placeholder (VariableExpr with special name)
-    return std::make_unique<VariableExpr>("__this", Lexer::Position());
+    
+    // (AR) إنشاء عقدة ThisExpr
+    // (EN) Create ThisExpr node
+    return std::make_unique<ThisExpr>();
 }
 
 // ======================================================================
@@ -359,7 +450,18 @@ ExprPtr ParserCore::parseThisExpression() {
  * الصيغة / Syntax: 'الأساس' '.' method_name '(' [arg_list] ')'
  *                  | 'الأساس' '(' [arg_list] ')'  // Constructor call
  * Spec: docs\language_spec\rules\03_oop.md §2 - super_call
- * Note: Used for calling parent class methods or constructor
+ * 
+ * @return (ExprPtr) (AR) مؤشر لعقدة SuperExpr
+ *                  (EN) Pointer to SuperExpr node
+ * 
+ * @note (AR) يُستخدم لاستدعاء طرق أو باني الصنف الأساسي
+ *       (EN) Used for calling parent class methods or constructor
+ * 
+ * @example Examples / أمثلة:
+ * الأساس.طريقة()  // Call parent method
+ * الأساس(args)     // Call parent constructor
+ * super.method()    // Call parent method
+ * super(args)       // Call parent constructor
  */
 ExprPtr ParserCore::parseSuperExpression() {
     std::cout << "[OOP] تحليل تعبير 'الأساس' (super)\n";
@@ -367,15 +469,12 @@ ExprPtr ParserCore::parseSuperExpression() {
     // Spec: docs\language_spec\rules\03_oop.md §2 - super keyword: `الأساس` refers to parent class
     // This can be followed by:
     // 1. '.methodName(args)' - calling parent method
-    // 2. '(args)' - calling parent constructor
+    // 2. '(args)' - calling parent constructor (handled in initializer list)
     
-    // TODO: Create proper SuperExpression AST node
-    // For now, return a placeholder (VariableExpr with special name)
-    // Full implementation will handle:
-    //   - Dot notation for method calls: الأساس.method_name(args)
-    //   - Direct call for constructor: الأساس(args)
-    
-    return std::make_unique<VariableExpr>("__super", Lexer::Position());
+    // (AR) إنشاء عقدة SuperExpr
+    // (EN) Create SuperExpr node
+    // Note: Member name will be set later during member access parsing
+    return std::make_unique<SuperExpr>();
 }
 
 // ======================================================================

@@ -42,7 +42,8 @@ void test_simple_comprehension() {
     // var doubled = [x * 2 for x in numbers];
     // assert doubled == [2, 4, 6, 8, 10]
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -122,7 +123,8 @@ void test_comprehension_with_filter() {
     // var evens = [x for x in numbers if x % 2 == 0];
     // assert evens == [2, 4, 6]
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -209,7 +211,8 @@ void test_comprehension_complex() {
     // var result = [(x * 2) + 1 for x in numbers];
     // assert result == [3, 5, 7]
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);

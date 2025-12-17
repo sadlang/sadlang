@@ -78,7 +78,8 @@ using namespace Sad::Lexer;
 void test_var_decl_with_init() {
     TEST_START("test_var_decl_with_init");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -99,7 +100,8 @@ void test_var_decl_with_init() {
 void test_var_decl_without_init() {
     TEST_START("test_var_decl_without_init");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -119,7 +121,8 @@ void test_var_decl_without_init() {
 void test_var_decl_string() {
     TEST_START("test_var_decl_string");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -140,7 +143,8 @@ void test_var_decl_string() {
 void test_var_decl_const() {
     TEST_START("test_var_decl_const");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -165,7 +169,8 @@ void test_var_decl_const() {
 void test_expr_stmt() {
     TEST_START("test_expr_stmt");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -195,7 +200,8 @@ void test_expr_stmt() {
 void test_block_simple() {
     TEST_START("test_block_simple");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -222,7 +228,8 @@ void test_block_simple() {
 void test_block_scoped() {
     TEST_START("test_block_scoped");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -255,7 +262,8 @@ void test_block_scoped() {
 void test_if_true() {
     TEST_START("test_if_true");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -284,7 +292,8 @@ void test_if_true() {
 void test_if_false() {
     TEST_START("test_if_false");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -313,7 +322,8 @@ void test_if_false() {
 void test_if_else() {
     TEST_START("test_if_else");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -346,7 +356,8 @@ void test_if_else() {
 void test_if_with_comparison() {
     TEST_START("test_if_with_comparison");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -385,7 +396,8 @@ void test_if_with_comparison() {
 void test_while_simple() {
     TEST_START("test_while_simple");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -419,7 +431,8 @@ void test_while_simple() {
 void test_while_with_break() {
     TEST_START("test_while_with_break");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -465,7 +478,8 @@ void test_while_with_break() {
 void test_for_simple() {
     TEST_START("test_for_simple");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -515,7 +529,8 @@ void test_for_simple() {
 void test_for_range_array() {
     TEST_START("test_for_range_array");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -561,7 +576,8 @@ void test_for_range_array() {
 void test_while_with_continue() {
     TEST_START("test_while_with_continue");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -617,7 +633,8 @@ void test_while_with_continue() {
 void test_for_with_continue() {
     TEST_START("test_for_with_continue");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -677,7 +694,8 @@ void test_for_with_continue() {
 void test_nested_loops() {
     TEST_START("test_nested_loops");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -766,7 +784,8 @@ void test_nested_loops() {
 void test_if_elif_else() {
     TEST_START("test_if_elif_else");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -830,7 +849,8 @@ void test_if_elif_else() {
 void test_nested_if() {
     TEST_START("test_nested_if");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -884,7 +904,8 @@ void test_nested_if() {
 void test_var_decl_with_expression() {
     TEST_START("test_var_decl_with_expression");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -920,7 +941,8 @@ void test_var_decl_with_expression() {
 void test_return_from_loop() {
     TEST_START("test_return_from_loop");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -984,7 +1006,8 @@ void test_return_from_loop() {
 void test_break_from_nested_loop() {
     TEST_START("test_break_from_nested_loop");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -1079,7 +1102,8 @@ void test_break_from_nested_loop() {
 void test_multiple_conditions() {
     TEST_START("test_multiple_conditions");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -1128,7 +1152,8 @@ void test_multiple_conditions() {
 void test_empty_while_loop() {
     TEST_START("test_empty_while_loop");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -1159,7 +1184,8 @@ void test_empty_while_loop() {
 void test_for_loop_no_body_execution() {
     TEST_START("test_for_loop_no_body_execution");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -1201,7 +1227,8 @@ void test_for_loop_no_body_execution() {
 void test_for_range_empty_array() {
     TEST_START("test_for_range_empty_array");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);

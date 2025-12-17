@@ -288,6 +288,56 @@ public:
                           const char* file = __builtin_FILE(), 
                           int line = __builtin_LINE());
 
+    // ==================================================================
+    // دوال دعم الأرقام العربية / Arabic Digit Support Functions
+    // ==================================================================
+    /**
+     * @brief التحقق من أن الحرف رقم عربي-هندي (٠-٩)
+     *        Check if character is an Arabic-Indic digit (٠-٩)
+     * 
+     * @param c الحرف المراد فحصه / Character to check
+     * @return bool true إذا كان رقماً عربياً / true if Arabic digit
+     * 
+     * @note الأرقام العربية UTF-8: ٠ = U+0660 to ٩ = U+0669
+     *       Arabic digits UTF-8: ٠ = U+0660 to ٩ = U+0669
+     */
+    static bool isArabicDigit(unsigned char c);
+    
+    /**
+     * @brief التحقق من أن الحرف رقم (عربي أو إنجليزي)
+     *        Check if character is a digit (Arabic or English)
+     * 
+     * @param c الحرف المراد فحصه / Character to check
+     * @return bool true إذا كان رقماً / true if digit
+     */
+    static bool isDigit(unsigned char c);
+    
+    /**
+     * @brief تحويل رقم عربي إلى رقم إنجليزي
+     *        Convert Arabic digit to English digit
+     * 
+     * @param c الحرف المراد تحويله / Character to convert
+     * @return char الرقم الإنجليزي المقابل / Corresponding English digit
+     * 
+     * @example
+     *   char result = arabicDigitToEnglish('٥');
+     *   // result = '5'
+     */
+    static char arabicDigitToEnglish(unsigned char c);
+    
+    /**
+     * @brief تحويل نص يحتوي على أرقام عربية إلى أرقام إنجليزية
+     *        Convert string with Arabic digits to English digits
+     * 
+     * @param str النص المراد تحويله / String to convert
+     * @return std::string النص بأرقام إنجليزية / String with English digits
+     * 
+     * @example
+     *   std::string result = convertArabicDigitsToEnglish("العدد ٥٣");
+     *   // result = "العدد 53"
+     */
+    static std::string convertArabicDigitsToEnglish(const std::string& str);
+
 private:
     // ==================================================================
     // دالة مساعدة للتحقق من المسافات

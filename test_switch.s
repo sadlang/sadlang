@@ -1,4 +1,4 @@
-// (AR) اختبار حالة / (EN) Test switch
+# (AR) اختبار حالة / (EN) Test switch
 
 رقم يوم = 3
 

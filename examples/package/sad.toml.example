@@ -1,0 +1,219 @@
+# بسم الله الرحمن الرحيم
+# sad.toml - Sad Package Configuration Example
+# مثال لملف إعدادات حزمة Sad
+
+# ======================================================================
+# [package] - معلومات الحزمة الأساسية / Package Basic Information
+# ======================================================================
+[package]
+# اسم الحزمة (مطلوب) / Package name (required)
+# يجب أن يبدأ بحرف صغير ويحتوي فقط على حروف صغيرة، أرقام، شرطات، وشرطات سفلية
+# Must start with lowercase letter and contain only lowercase letters, numbers, hyphens, and underscores
+name = "my_awesome_package"
+
+# إصدار الحزمة (مطلوب) / Package version (required)
+# يتبع Semantic Versioning 2.0.0 (MAJOR.MINOR.PATCH)
+# Follows Semantic Versioning 2.0.0 (MAJOR.MINOR.PATCH)
+version = "1.0.0"
+
+# وصف الحزمة (اختياري) / Package description (optional)
+description = "حزمة رائعة للغة ص / An awesome Sad Language package"
+
+# المؤلفون (اختياري) / Authors (optional)
+# يمكن تضمين الاسم والبريد الإلكتروني / Can include name and email
+authors = [
+    "محمد أحمد <muhammad@example.com>",
+    "فاطمة علي <fatima@example.com>"
+]
+
+# الترخيص (اختياري) / License (optional)
+# مثال: MIT, Apache-2.0, GPL-3.0, BSD-3-Clause
+license = "MIT"
+
+# مستودع الكود المصدري (اختياري) / Source repository (optional)
+repository = "https://github.com/username/my_awesome_package"
+
+# الصفحة الرئيسية (اختياري) / Homepage (optional)
+homepage = "https://mypackage.example.com"
+
+# ملف README (اختياري) / README file (optional)
+readme = "README.md"
+
+# الكلمات المفتاحية (اختياري) / Keywords (optional)
+# للمساعدة في البحث / Helps with search
+keywords = ["web", "http", "api", "networking"]
+
+# الفئات (اختياري) / Categories (optional)
+categories = ["networking", "web-frameworks", "utilities"]
+
+# ======================================================================
+# [dependencies] - التبعيات الرئيسية / Main Dependencies
+# ======================================================================
+[dependencies]
+# تبعية بإصدار متوافق (^) / Compatible version (^)
+# ^1.0.0 يعني >= 1.0.0 و < 2.0.0
+# ^1.0.0 means >= 1.0.0 and < 2.0.0
+http = "^1.0.0"
+
+# تبعية بتحديثات التصحيح (~) / Patch updates (~)
+# ~2.3.0 يعني >= 2.3.0 و < 2.4.0
+# ~2.3.0 means >= 2.3.0 and < 2.4.0
+json = "~2.3.0"
+
+# تبعية بإصدار محدد / Exact version
+database = "3.1.5"
+
+# تبعية بأي إصدار / Any version
+crypto = "*"
+
+# تبعية بإصدار أدنى / Minimum version
+xml = ">=1.5.0"
+
+# تبعية بإصدار أقصى / Maximum version
+image = "<3.0.0"
+
+# تبعية بنطاق إصدارات / Version range
+router = ">=1.0.0, <2.0.0"
+
+# ======================================================================
+# [dev-dependencies] - تبعيات التطوير / Development Dependencies
+# ======================================================================
+# تستخدم فقط أثناء التطوير والاختبار
+# Used only during development and testing
+[dev-dependencies]
+test_framework = "^0.5.0"
+benchmarking = "^1.0.0"
+documentation = "^2.1.0"
+
+# ======================================================================
+# [build-dependencies] - تبعيات البناء / Build Dependencies
+# ======================================================================
+# تستخدم أثناء عملية البناء فقط
+# Used during the build process only
+[build-dependencies]
+code_generator = "^2.0.0"
+protobuf_compiler = "^3.0.0"
+
+# ======================================================================
+# [build] - إعدادات البناء / Build Configuration
+# ======================================================================
+[build]
+# الملف الرئيسي (نقطة الدخول) / Main file (entry point)
+main = "src/main.s"
+
+# مجلدات الملفات المصدرية / Source directories
+# قائمة بالمجلدات التي تحتوي على ملفات .s و .sad
+# List of directories containing .s and .sad files
+source-dirs = ["src", "lib"]
+
+# مجلدات الملفات الرأسية / Include directories
+# للملفات الرأسية (.sh) إن وجدت
+# For header files (.sh) if any
+include-dirs = ["include", "headers"]
+
+# أنماط الاستثناء / Exclude patterns
+# ملفات ومجلدات يجب تجاهلها
+# Files and directories to ignore
+exclude = [
+    "tests",
+    "examples",
+    "docs",
+    "*.tmp",
+    "*.bak"
+]
+
+# ======================================================================
+# [scripts] - النصوص البرمجية / Scripts
+# ======================================================================
+# نصوص مخصصة يمكن تنفيذها / Custom scripts that can be executed
+[scripts]
+build = "sad build --release"
+test = "sad test --all"
+bench = "sad benchmark --verbose"
+clean = "rm -rf build/"
+
+# ======================================================================
+# [features] - المزايا الاختيارية / Optional Features
+# ======================================================================
+# مزايا يمكن تفعيلها أو تعطيلها
+# Features that can be enabled or disabled
+[features]
+# المزايا الافتراضية / Default features
+default = ["http", "json"]
+
+# مزايا إضافية / Additional features
+full = ["http", "json", "xml", "crypto", "database"]
+minimal = []
+async = ["http", "async_runtime"]
+web = ["http", "json", "router", "templates"]
+
+# ======================================================================
+# [profile.dev] - ملف التطوير / Development Profile
+# ======================================================================
+[profile.dev]
+optimization = 0
+debug = true
+warnings = "all"
+
+# ======================================================================
+# [profile.release] - ملف الإصدار / Release Profile
+# ======================================================================
+[profile.release]
+optimization = 3
+debug = false
+strip = true
+
+# ======================================================================
+# [metadata] - بيانات وصفية إضافية / Additional Metadata
+# ======================================================================
+[metadata]
+# الحد الأدنى من إصدار Sad المطلوب / Minimum Sad version required
+sad_version = ">=1.0.0"
+
+# النظام الأساسي المستهدف / Target platform
+platforms = ["windows", "linux", "macos"]
+
+# اللغات المدعومة / Supported languages
+languages = ["ar", "en"]
+
+# الوثائق / Documentation
+documentation_url = "https://docs.mypackage.example.com"
+changelog_url = "https://github.com/username/my_awesome_package/blob/main/CHANGELOG.md"
+
+# ======================================================================
+# أمثلة على إعدادات متقدمة / Examples of Advanced Settings
+# ======================================================================
+
+# [workspace] - مساحة عمل متعددة الحزم / Multi-package workspace
+# غير مفعّل في هذا المثال / Not enabled in this example
+# [workspace]
+# members = ["packages/*", "tools/cli"]
+# exclude = ["packages/experimental"]
+
+# [patch] - تصحيحات للتبعيات / Dependency patches
+# لاستبدال تبعية مؤقتاً / To temporarily replace a dependency
+# [patch.http]
+# path = "../local-http"
+# git = "https://github.com/fork/http"
+# branch = "experimental"
+
+# [target] - إعدادات خاصة بالمنصة / Platform-specific settings
+# [target.'cfg(windows)'.dependencies]
+# windows_only_lib = "^1.0.0"
+# 
+# [target.'cfg(unix)'.dependencies]
+# unix_only_lib = "^2.0.0"
+
+# ======================================================================
+# ملاحظات / Notes
+# ======================================================================
+# 1. يجب أن يكون الملف بصيغة UTF-8 / File must be UTF-8 encoded
+# 2. التعليقات تبدأ بـ # / Comments start with #
+# 3. القيم النصية تُوضع بين علامات اقتباس / String values in quotes
+# 4. المصفوفات تُكتب بين [] / Arrays written with []
+# 5. الجداول تبدأ بـ [اسم_الجدول] / Tables start with [table_name]
+# 6. الأقسام الاختيارية يمكن حذفها / Optional sections can be omitted
+# ======================================================================
+
+# الحمد لله رب العالمين
+# Alhamdulillah - All praise is due to Allah

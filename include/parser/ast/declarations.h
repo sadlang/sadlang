@@ -12,6 +12,7 @@
 #include "ast_visitor.h"
 #include "expressions.h"
 #include "statements.h"
+#include "module_nodes.h"
 #include <vector>
 #include <string>
 
@@ -100,25 +101,44 @@ enum class AccessModifier {
 /**
  * @brief Class declaration node / عقدة تصريح الصنف
  * 
- * Represents a class declaration with fields and methods.
- * يمثل تصريح صنف مع حقول وطرق.
+ * Represents a class declaration with optional multiple inheritance.
+ * يمثل تصريح صنف مع إمكانية الوراثة المتعددة.
  * 
  * @example Examples / أمثلة:
  * - class Person { ... }
  * - صنف شخص { ... }
  * - class Student extends Person { ... }
+ * - class Assistant extends Teacher, Employee { ... }
+ * - صنف مساعد يرث معلم، موظف { ... }
+ * 
+ * @note (AR) دعم الوراثة المتعددة: يمكن للصنف أن يرث من أكثر من صنف أب
+ *       (EN) Multiple inheritance support: A class can inherit from multiple base classes
  */
 class ClassDecl : public Statement {
 public:
-    std::string name;               ///< Class name / اسم الصنف
-    std::string superclass;         ///< Superclass name (optional) / اسم الصنف الأب
-    StmtList members;               ///< Class members / أعضاء الصنف
-    bool isExported;                ///< Is exported? / مصدّر؟
+    std::string name;                        ///< Class name / اسم الصنف
+    std::vector<std::string> superclasses;   ///< Base class names (multiple inheritance) / أسماء الأصناف الأساسية
+    StmtList members;                        ///< Class members / أعضاء الصنف
+    bool isExported;                         ///< Is exported? / مصدّر؟
     
     /**
-     * @brief Constructor / البناء
+     * @brief Constructor with multiple base classes / البناء مع أصناف أساسية متعددة
      * @param name Class name / اسم الصنف
-     * @param superclass Superclass name / اسم الصنف الأب
+     * @param bases Base class names / أسماء الأصناف الأساسية
+     * @param members Member list / قائمة الأعضاء
+     * @param exported Is exported / مصدّر
+     * @param pos Source position / الموقع في الكود
+     */
+    ClassDecl(const std::string& name, const std::vector<std::string>& bases,
+              StmtList members, bool exported = false,
+              const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), name(name), superclasses(bases),
+          members(std::move(members)), isExported(exported) {}
+    
+    /**
+     * @brief Constructor with single base class (backward compatibility) / البناء مع صنف أساسي واحد
+     * @param name Class name / اسم الصنف
+     * @param superclass Single base class name / اسم الصنف الأساسي الواحد
      * @param members Member list / قائمة الأعضاء
      * @param exported Is exported / مصدّر
      * @param pos Source position / الموقع في الكود
@@ -126,7 +146,8 @@ public:
     ClassDecl(const std::string& name, const std::string& superclass,
               StmtList members, bool exported = false,
               const Lexer::Position& pos = Lexer::Position())
-        : Statement(pos), name(name), superclass(superclass),
+        : Statement(pos), name(name), 
+          superclasses(superclass.empty() ? std::vector<std::string>() : std::vector<std::string>{superclass}),
           members(std::move(members)), isExported(exported) {}
     
     void accept(ASTVisitor& visitor) override {
@@ -349,67 +370,34 @@ public:
 };
 
 // =========================================================================
-// Import Statement / جملة الاستيراد
+// (AR) نظام الوحدات - الاستيراد والتصدير / (EN) Module System
 // =========================================================================
 
 /**
- * @brief Import statement node / عقدة جملة الاستيراد
+ * @note (AR) تم نقل عُقد نظام الوحدات إلى ملف منفصل: module_nodes.h
+ *       (EN) Module system nodes moved to separate file: module_nodes.h
  * 
- * Represents a module import statement.
- * يمثل جملة استيراد وحدة.
+ * @details
+ * (AR) الأصناف الجديدة في module_nodes.h:
+ *      - ImportStmt: استيراد كامل (استورد وحدة [كـ اسم])
+ *      - FromImportStmt: استيراد انتقائي (من وحدة استورد رمز)
+ *      - ExportDecl: تصدير (صدّر تصريح)
+ *      - ImportItem: عنصر مستورد مع اسم مستعار
  * 
- * @example Examples / أمثلة:
- * - import "math"
- * - import "graphics" as gfx
- * - استورد "رياضيات"
- * - from "math" import sin, cos
+ * (EN) New classes in module_nodes.h:
+ *      - ImportStmt: Full import
+ *      - FromImportStmt: Selective import
+ *      - ExportDecl: Export declaration
+ *      - ImportItem: Imported item with alias
+ * 
+ * @see module_nodes.h
  */
-class ImportStmt : public Statement {
-public:
-    std::string modulePath;         ///< Module path / مسار الوحدة
-    std::string alias;              ///< Module alias (optional) / الاسم البديل
-    std::vector<std::string> symbols; ///< Specific symbols to import / رموز محددة
-    bool importAll;                 ///< Import all symbols / استيراد الكل
-    
-    /**
-     * @brief Constructor / البناء
-     */
-    ImportStmt(const std::string& path, const std::string& alias = "",
-               std::vector<std::string> symbols = {},
-               bool importAll = false,
-               const Lexer::Position& pos = Lexer::Position())
-        : Statement(pos), modulePath(path), alias(alias),
-          symbols(std::move(symbols)), importAll(importAll) {}
-    
-    void accept(ASTVisitor& visitor) override {
-        visitor.visitImportStmt(*this);
-    }
-    
-    std::string toString() const override;
-};
 
-// =========================================================================
-// Export Statement / جملة التصدير
-// =========================================================================
-
-/**
- * @brief Export statement node / عقدة جملة التصدير
- * 
- * Represents an export statement for modules.
- * يمثل جملة تصدير للوحدات.
- * 
- * @example Examples / أمثلة:
- * - export func calculate() { ... }
- * - export var PI = 3.14
- * - صدّر دالة احسب() { ... }
- */
+// (AR) ExportStmt القديم محفوظ للتوافق / (EN) Legacy ExportStmt for compatibility
 class ExportStmt : public Statement {
 public:
-    StmtPtr declaration;            ///< Declaration to export / التصريح المصدَّر
+    StmtPtr declaration;
     
-    /**
-     * @brief Constructor / البناء
-     */
     ExportStmt(StmtPtr decl, const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), declaration(std::move(decl)) {}
     
@@ -418,7 +406,7 @@ public:
     }
     
     std::string toString() const override {
-        return "export " + declaration->toString();
+        return "export " + (declaration ? declaration->toString() : "");
     }
 };
 

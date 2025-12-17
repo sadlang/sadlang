@@ -1,4 +1,4 @@
-// (AR) اختبار عامل ثلاثي / (EN) Test ternary operator
+# (AR) اختبار عامل ثلاثي / (EN) Test ternary operator
 
 رقم س = 10
 نص النتيجة = س > 5 ? "كبير" : "صغير"

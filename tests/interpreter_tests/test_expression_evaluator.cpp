@@ -70,7 +70,8 @@ using namespace Sad::Data;
 void test_literal_integer() {
     TEST_START("test_literal_integer");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -87,7 +88,8 @@ void test_literal_integer() {
 void test_literal_double() {
     TEST_START("test_literal_double");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -104,7 +106,8 @@ void test_literal_double() {
 void test_literal_string() {
     TEST_START("test_literal_string");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -121,7 +124,8 @@ void test_literal_string() {
 void test_literal_bool_true() {
     TEST_START("test_literal_bool_true");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -138,7 +142,8 @@ void test_literal_bool_true() {
 void test_literal_bool_false() {
     TEST_START("test_literal_bool_false");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -155,7 +160,8 @@ void test_literal_bool_false() {
 void test_literal_null() {
     TEST_START("test_literal_null");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -176,7 +182,8 @@ void test_literal_null() {
 void test_variable_read() {
     TEST_START("test_variable_read");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -196,7 +203,8 @@ void test_variable_read() {
 void test_variable_assign() {
     TEST_START("test_variable_assign");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -226,7 +234,8 @@ void test_variable_assign() {
 void test_addition_integer() {
     TEST_START("test_addition_integer");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -245,7 +254,8 @@ void test_addition_integer() {
 void test_subtraction() {
     TEST_START("test_subtraction");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -264,7 +274,8 @@ void test_subtraction() {
 void test_multiplication() {
     TEST_START("test_multiplication");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -283,7 +294,8 @@ void test_multiplication() {
 void test_division() {
     TEST_START("test_division");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -302,7 +314,8 @@ void test_division() {
 void test_modulo() {
     TEST_START("test_modulo");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -321,7 +334,8 @@ void test_modulo() {
 void test_power() {
     TEST_START("test_power");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -340,7 +354,8 @@ void test_power() {
 void test_string_concatenation() {
     TEST_START("test_string_concatenation");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -359,7 +374,8 @@ void test_string_concatenation() {
 void test_mixed_double_operations() {
     TEST_START("test_mixed_double_operations");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -382,7 +398,8 @@ void test_mixed_double_operations() {
 void test_equality() {
     TEST_START("test_equality");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -401,7 +418,8 @@ void test_equality() {
 void test_inequality() {
     TEST_START("test_inequality");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -420,7 +438,8 @@ void test_inequality() {
 void test_less_than() {
     TEST_START("test_less_than");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -439,7 +458,8 @@ void test_less_than() {
 void test_greater_than() {
     TEST_START("test_greater_than");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -458,7 +478,8 @@ void test_greater_than() {
 void test_less_equal() {
     TEST_START("test_less_equal");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -477,7 +498,8 @@ void test_less_equal() {
 void test_greater_equal() {
     TEST_START("test_greater_equal");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -496,7 +518,8 @@ void test_greater_equal() {
 void test_string_equality() {
     TEST_START("test_string_equality");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -519,7 +542,8 @@ void test_string_equality() {
 void test_logical_and_true() {
     TEST_START("test_logical_and_true");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -538,7 +562,8 @@ void test_logical_and_true() {
 void test_logical_and_false() {
     TEST_START("test_logical_and_false");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -557,7 +582,8 @@ void test_logical_and_false() {
 void test_logical_or_true() {
     TEST_START("test_logical_or_true");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -576,7 +602,8 @@ void test_logical_or_true() {
 void test_logical_or_false() {
     TEST_START("test_logical_or_false");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -599,7 +626,8 @@ void test_logical_or_false() {
 void test_unary_minus_integer() {
     TEST_START("test_unary_minus_integer");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -617,7 +645,8 @@ void test_unary_minus_integer() {
 void test_unary_minus_double() {
     TEST_START("test_unary_minus_double");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -635,7 +664,8 @@ void test_unary_minus_double() {
 void test_unary_not_true() {
     TEST_START("test_unary_not_true");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -653,7 +683,8 @@ void test_unary_not_true() {
 void test_unary_not_false() {
     TEST_START("test_unary_not_false");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -675,7 +706,8 @@ void test_unary_not_false() {
 void test_array_creation_empty() {
     TEST_START("test_array_creation_empty");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -694,7 +726,8 @@ void test_array_creation_empty() {
 void test_array_creation() {
     TEST_START("test_array_creation");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -721,7 +754,8 @@ void test_array_creation() {
 void test_array_indexing() {
     TEST_START("test_array_indexing");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -749,7 +783,8 @@ void test_array_indexing() {
 void test_map_creation_empty() {
     TEST_START("test_map_creation_empty");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -768,7 +803,8 @@ void test_map_creation_empty() {
 void test_map_creation() {
     TEST_START("test_map_creation");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -799,7 +835,8 @@ void test_map_creation() {
 void test_map_indexing() {
     TEST_START("test_map_indexing");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -832,7 +869,8 @@ void test_map_indexing() {
 void test_nested_arithmetic() {
     TEST_START("test_nested_arithmetic");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     
@@ -854,7 +892,8 @@ void test_nested_arithmetic() {
 void test_complex_expression_with_variables() {
     TEST_START("test_complex_expression_with_variables");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ExpressionEvaluator evaluator(varMgr, funcMgr);
     

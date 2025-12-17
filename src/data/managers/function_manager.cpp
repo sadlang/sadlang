@@ -161,16 +161,36 @@ void FunctionManager::defineFunction(const std::string& name,
                   "Cannot define function without name");
     }
     
-    // (AR) التحقق من عدم وجود دالة بنفس الاسم وعدد المعاملات
-    // (EN) Check for existing function with same name and parameter count
+    // (AR) التحقق من عدم وجود دالة مستخدمة بنفس الاسم وعدد المعاملات بالضبط
+    // (EN) Check for exact function signature (same name and exact parameter count - user-defined only)
     size_t paramCount = params.size();
-    if (hasFunction(name, paramCount)) {
-        std::ostringstream ossAr, ossEn;
-        ossAr << "دالة بالاسم '" << name << "' وعدد معاملات " << paramCount 
-              << " معرفة مسبقاً";
-        ossEn << "Function '" << name << "' with " << paramCount 
-              << " parameters already defined";
-        throwError(ossAr.str(), ossEn.str());
+    auto it = functions_.find(name);
+    if (it != functions_.end()) {
+        for (const auto& existingFunc : it->second) {
+            // (AR) السماح بإعادة تعريف الدوال المضمنة من قبل المستخدم
+            // (EN) Allow user to override built-in functions
+            if (existingFunc->getParameterCount() == paramCount && existingFunc->getType() == FunctionType::USER_DEFINED) {
+                std::ostringstream ossAr, ossEn;
+                ossAr << "دالة بالاسم '" << name << "' وعدد معاملات " << paramCount 
+                      << " معرفة مسبقاً";
+                ossEn << "Function '" << name << "' with " << paramCount 
+                      << " parameters already defined";
+                throwError(ossAr.str(), ossEn.str());
+            }
+        }
+    }
+    
+    // (AR) إزالة الدوال المضمنة القديمة بنفس الاسم (تسمح بإعادة التعريف)
+    // (EN) Remove old built-in functions with same name (allow redefinition)
+    if (it != functions_.end()) {
+        it->second.erase(
+            std::remove_if(it->second.begin(), it->second.end(),
+                          [paramCount](const auto& func) {
+                              return func->getType() == FunctionType::BUILT_IN && 
+                                     func->getParameterCount() == paramCount;
+                          }),
+            it->second.end()
+        );
     }
     
     // (AR) إنشاء تعريف الدالة
@@ -196,16 +216,36 @@ void FunctionManager::defineFunction(const std::string& name,
                   "Cannot define function without name");
     }
     
-    // (AR) التحقق من عدم وجود دالة بنفس الاسم وعدد المعاملات
-    // (EN) Check for existing function with same name and parameter count
+    // (AR) التحقق من عدم وجود دالة مستخدمة بنفس الاسم وعدد المعاملات بالضبط
+    // (EN) Check for exact function signature (same name and exact parameter count - user-defined only)
     size_t paramCount = params.size();
-    if (hasFunction(name, paramCount)) {
-        std::ostringstream ossAr, ossEn;
-        ossAr << "دالة بالاسم '" << name << "' وعدد معاملات " << paramCount 
-              << " معرفة مسبقاً";
-        ossEn << "Function '" << name << "' with " << paramCount 
-              << " parameters already defined";
-        throwError(ossAr.str(), ossEn.str());
+    auto it = functions_.find(name);
+    if (it != functions_.end()) {
+        for (const auto& existingFunc : it->second) {
+            // (AR) السماح بإعادة تعريف الدوال المضمنة من قبل المستخدم
+            // (EN) Allow user to override built-in functions
+            if (existingFunc->getParameterCount() == paramCount && existingFunc->getType() == FunctionType::USER_DEFINED) {
+                std::ostringstream ossAr, ossEn;
+                ossAr << "دالة بالاسم '" << name << "' وعدد معاملات " << paramCount 
+                      << " معرفة مسبقاً";
+                ossEn << "Function '" << name << "' with " << paramCount 
+                      << " parameters already defined";
+                throwError(ossAr.str(), ossEn.str());
+            }
+        }
+    }
+    
+    // (AR) إزالة الدوال المضمنة القديمة بنفس الاسم (تسمح بإعادة التعريف)
+    // (EN) Remove old built-in functions with same name (allow redefinition)
+    if (it != functions_.end()) {
+        it->second.erase(
+            std::remove_if(it->second.begin(), it->second.end(),
+                          [paramCount](const auto& func) {
+                              return func->getType() == FunctionType::BUILT_IN && 
+                                     func->getParameterCount() == paramCount;
+                          }),
+            it->second.end()
+        );
     }
     
     // (AR) إنشاء تعريف الدالة

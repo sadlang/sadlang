@@ -330,11 +330,9 @@ Token ParserCore::consume(TokenType type, const std::string& message) {
         // (AR) إنشاء رسالة تلقائية
         // (EN) Create automatic message
         std::string msg_ar = "خطأ نحوي: توقعت " + expected_ar + 
-                            "، لكن وجدت '" + current_.getValue() + "' في السطر " +
-                            std::to_string(current_.getPosition().line);
+                            "، لكن وجدت '" + current_.getValue() + "'";
         std::string msg_en = "Syntax error: expected " + expected_en + 
-                            ", but found '" + current_.getValue() + "' at line " +
-                            std::to_string(current_.getPosition().line);
+                            ", but found '" + current_.getValue() + "'";
         
         if (addFixIt) {
             errorWithFixIt(msg_ar, fixText, fixDesc_ar, fixDesc_en);
@@ -438,7 +436,9 @@ void ParserCore::errorWithFixIt(const std::string& message,
 }
 
 void ParserCore::error(const std::string& message) {
-    if (panicMode_) return;  // Avoid error cascades
+    // (AR) لا نتجاهل الأخطاء حتى في panic mode - نعرضها دائماً
+    // (EN) Don't ignore errors even in panic mode - always display them
+    // if (panicMode_) return;  // REMOVED: We want to see ALL errors
     
     panicMode_ = true;
     
@@ -452,15 +452,37 @@ void ParserCore::error(const std::string& message) {
         current_.getPosition().length
     );
     
+    // (AR) إضافة معلومات السياق لرسالة الخطأ
+    // (EN) Add context information to error message
+    std::string enhanced_ar = "⛔ " + message;
+    std::string enhanced_en = "⛔ " + message;
+    
+    // إضافة معلومات عن الرمز الحالي
+    enhanced_ar += "\n   📍 الموقع: السطر " + std::to_string(loc.line) + 
+                   "، العمود " + std::to_string(loc.column);
+    enhanced_en += "\n   📍 Location: line " + std::to_string(loc.line) + 
+                   ", column " + std::to_string(loc.column);
+    
+    if (current_.getType() != TokenType::END_OF_FILE) {
+        enhanced_ar += "\n   🔎 الرمز الحالي: '" + current_.getValue() + "'";
+        enhanced_en += "\n   🔎 Current token: '" + current_.getValue() + "'";
+    } else {
+        enhanced_ar += "\n   🔎 الرمز الحالي: <نهاية الملف>";
+        enhanced_en += "\n   🔎 Current token: <end of file>";
+    }
+    
     // (AR) استخدام ErrorManager لتسجيل الخطأ
     // (EN) Use ErrorManager to report error
-    // الترتيب الصحيح: code, location, message_ar, message_en
     Errors::ErrorManager::getInstance().reportError(
         Errors::ErrorCode::SYN_UNEXPECTED_TOKEN,
         loc,
-        message,  // Arabic message
-        message   // English message (same for now)
+        enhanced_ar,
+        enhanced_en
     );
+    
+    // (AR) طباعة الخطأ فوراً للمستخدم
+    // (EN) Print error immediately for user
+    std::cerr << "\n" << enhanced_ar << "\n" << enhanced_en << "\n" << std::endl;
 }
 
 /**
@@ -468,9 +490,11 @@ void ParserCore::error(const std::string& message) {
  *        (EN) Records error with bilingual message and prints source code.
  */
 void ParserCore::errorBilingual(const std::string& message_ar,
-                                const std::string& message_en,
-                                bool showCode) {
-    if (panicMode_) return;
+                                const std::string& message_en) {
+    // (AR) لا نتجاهل الأخطاء حتى في panic mode - نعرضها دائماً
+    // (EN) Don't ignore errors even in panic mode - always display them
+    // if (panicMode_) return;  // REMOVED: We want to see ALL errors
+    
     panicMode_ = true;
     
     Errors::SourceLocation loc(
@@ -481,12 +505,35 @@ void ParserCore::errorBilingual(const std::string& message_ar,
         current_.getPosition().length
     );
     
+    // (AR) إضافة معلومات السياق لرسالة الخطأ
+    // (EN) Add context information to error message
+    std::string enhanced_ar = "⛔ " + message_ar;
+    std::string enhanced_en = "⛔ " + message_en;
+    
+    // إضافة معلومات عن الرمز الحالي والموقع
+    enhanced_ar += "\n   📍 الموقع: السطر " + std::to_string(loc.line) + 
+                   "، العمود " + std::to_string(loc.column);
+    enhanced_en += "\n   📍 Location: line " + std::to_string(loc.line) + 
+                   ", column " + std::to_string(loc.column);
+    
+    if (current_.getType() != TokenType::END_OF_FILE) {
+        enhanced_ar += "\n   🔎 الرمز الحالي: '" + current_.getValue() + "'";
+        enhanced_en += "\n   🔎 Current token: '" + current_.getValue() + "'";
+    } else {
+        enhanced_ar += "\n   🔎 الرمز الحالي: <نهاية الملف>";
+        enhanced_en += "\n   🔎 Current token: <end of file>";
+    }
+    
     Errors::ErrorManager::getInstance().reportError(
         Errors::ErrorCode::SYN_UNEXPECTED_TOKEN,
         loc,
         message_ar,
         message_en
     );
+    
+    // (AR) طباعة الخطأ فوراً للمستخدم مع التفاصيل
+    // (EN) Print error immediately for user with details
+    std::cerr << "\n" << enhanced_ar << "\n" << enhanced_en << "\n" << std::endl;
 }
 
 /**
@@ -574,37 +621,58 @@ void ParserCore::errorIncompleteStatement(const std::string& statement_ar,
  *        (EN) Attempts error recovery by advancing to next statement.
  */
 void ParserCore::synchronize() {
+    // (AR) عرض رسالة التعافي
+    // (EN) Display recovery message
+    std::cerr << "\n🔧 (AR) محاولة التعافي من الخطأ...\n";
+    std::cerr << "🔧 (EN) Attempting error recovery...\n" << std::endl;
+    
     panicMode_ = false;
     
     advance();
     
+    int tokens_skipped = 0;
+    
     // Skip until statement boundary
     // (AR) التجاوز حتى حدود الجملة
     while (!isAtEnd()) {
-        if (previous().getType() == TT::SEMICOLON) return;
+        if (previous().getType() == TT::SEMICOLON) {
+            std::cerr << "✓ (AR) تم التعافي عند نهاية الجملة (تجاوز " << tokens_skipped << " رمز)\n";
+            std::cerr << "✓ (EN) Recovered at statement end (skipped " << tokens_skipped << " tokens)\n\n";
+            return;
+        }
         
         // Stop at statement keywords
         // (AR) التوقف عند كلمات الجمل المفتاحية
         switch (current_.getType()) {
             case TT::KEYWORD_CLASS:
             case TT::KEYWORD_FUNCTION:
-            case TT::KEYWORD_CONST:  // (AR) استخدام const بدلاً من var
+            case TT::KEYWORD_CONST:
             case TT::KEYWORD_FOR:
             case TT::KEYWORD_IF:
             case TT::KEYWORD_WHILE:
             case TT::KEYWORD_RETURN:
+            case TT::TYPE_INTEGER:
+            case TT::TYPE_DOUBLE:
+            case TT::TYPE_STRING:
+            case TT::TYPE_BOOLEAN:
+                std::cerr << "✓ (AR) تم التعافي عند بداية تصريح/جملة جديدة (تجاوز " << tokens_skipped << " رمز)\n";
+                std::cerr << "✓ (EN) Recovered at new declaration/statement (skipped " << tokens_skipped << " tokens)\n\n";
                 return;
             default:
                 break;
         }
         
+        tokens_skipped++;
         advance();
     }
+    
+    std::cerr << "⚠ (AR) وصلنا لنهاية الملف أثناء التعافي\n";
+    std::cerr << "⚠ (EN) Reached end of file during recovery\n\n";
 }
 
 /**
- * @brief (AR) يحلل قائمة معاملات دالة: (x, y, z).
- *        (EN) Parses function parameter list: (x, y, z).
+ * @brief (AR) يحلل قائمة معاملات الدالة: (x, y, z) أو (x، y، z).
+ *        (EN) Parses function parameter list: (x, y, z) or (x، y، z).
  */
 std::vector<std::string> ParserCore::parseParameterList() {
     std::vector<std::string> parameters;
@@ -616,15 +684,15 @@ std::vector<std::string> ParserCore::parseParameterList() {
             Token param = consume(TT::IDENTIFIER, 
                 "(AR) توقع اسم معامل. (EN) Expected parameter name.");
             parameters.push_back(param.getValue());
-        } while (match(TT::COMMA));
+        } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));  // (AR) دعم الفاصلة العربية (،)
     }
     
     return parameters;
 }
 
 /**
- * @brief (AR) يحلل قائمة معاملات مكتوبة: (x: int, y: float = 10).
- *        (EN) Parses typed parameter list: (x: int, y: float = 10).
+ * @brief (AR) يحلل قائمة معاملات مكتوبة: (x: int, y: float = 10) أو (int x, float y = 10).
+ *        (EN) Parses typed parameter list: (x: int, y: float = 10) or (int x, float y = 10).
  */
 std::vector<Parameter> ParserCore::parseTypedParameterList() {
     std::vector<Parameter> parameters;
@@ -633,42 +701,68 @@ std::vector<Parameter> ParserCore::parseTypedParameterList() {
     // (AR) تحليل المعاملات
     if (!check(TT::PAREN_RIGHT)) {
         do {
-            // Parse parameter name
-            // (AR) تحليل اسم المعامل
-            Token paramName = consume(TT::IDENTIFIER, 
-                "(AR) توقع اسم معامل. (EN) Expected parameter name.");
-            
-            // Optional type annotation: name : type
-            // (AR) تصريح النوع الاختياري: اسم : نوع
+            // (AR) دعم صيغتين: "نوع اسم" أو "اسم: نوع"
+            // (EN) Support two syntaxes: "type name" or "name: type"
             Data::DataType paramType = Data::DataType::UNKNOWN;
-            if (match(TT::COLON)) {
+            
+            // Check if next token is a type keyword (type-first syntax: "رقم س")
+            // (AR) تحقق إذا كان الرمز التالي كلمة مفتاحية لنوع (صيغة النوع أولاً: "رقم س")
+            if (check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || check(TT::TYPE_STRING) || 
+                check(TT::TYPE_BOOLEAN) || check(TT::TYPE_VOID) || check(TT::TYPE_NULL) ||
+                check(TT::TYPE_ARRAY) || check(TT::TYPE_MAP)) {
+                // Type-first syntax: "int x"
+                // (AR) صيغة النوع أولاً: "رقم س"
                 paramType = parseType();
+                Token paramName = consume(TT::IDENTIFIER, 
+                    "(AR) توقع اسم معامل بعد النوع. (EN) Expected parameter name after type.");
+                
+                // Optional default value: type name = value
+                // (AR) القيمة الافتراضية الاختيارية: نوع اسم = قيمة
+                ExprPtr defaultValue = nullptr;
+                if (match(TT::OP_ASSIGN)) {
+                    defaultValue = parseExpression();
+                }
+                
+                parameters.emplace_back(
+                    paramName.getValue(),
+                    paramType,
+                    std::move(defaultValue)
+                );
+            } else {
+                // Name-first syntax: "x: int"
+                // (AR) صيغة الاسم أولاً: "س: رقم"
+                Token paramName = consume(TT::IDENTIFIER, 
+                    "(AR) توقع اسم معامل. (EN) Expected parameter name.");
+                
+                // Optional type annotation: name : type
+                // (AR) تصريح النوع الاختياري: اسم : نوع
+                if (match(TT::COLON)) {
+                    paramType = parseType();
+                }
+                
+                // Optional default value: name : type = value
+                // (AR) القيمة الافتراضية الاختيارية: اسم : نوع = قيمة
+                ExprPtr defaultValue = nullptr;
+                if (match(TT::OP_ASSIGN)) {
+                    defaultValue = parseExpression();
+                }
+                
+                parameters.emplace_back(
+                    paramName.getValue(),
+                    paramType,
+                    std::move(defaultValue)
+                );
             }
             
-            // Optional default value: name : type = value
-            // (AR) القيمة الافتراضية الاختيارية: اسم : نوع = قيمة
-            ExprPtr defaultValue = nullptr;
-            if (match(TT::OP_ASSIGN)) {
-                defaultValue = parseExpression();
-            }
-            
-            // Create parameter object
-            // (AR) إنشاء كائن المعامل
-            parameters.emplace_back(
-                paramName.getValue(),
-                paramType,
-                std::move(defaultValue)
-            );
-            
-        } while (match(TT::COMMA));
+        } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));  // (AR) دعم الفاصلة العربية (،)
     }
     
     return parameters;
 }
 
 /**
- * @brief (AR) يحلل قائمة وسائط استدعاء: f(1, 2, 3).
- *        (EN) Parses function call argument list: f(1, 2, 3).
+ * @brief (AR) يحلل قائمة وسائط استدعاء: f(1, 2, 3) أو f(1، 2، 3).
+ *        (EN) Parses function call argument list: f(1, 2, 3) or f(1، 2، 3).
  */
 ExprList ParserCore::parseArgumentList() {
     ExprList arguments;
@@ -678,7 +772,7 @@ ExprList ParserCore::parseArgumentList() {
     if (!check(TT::PAREN_RIGHT)) {
         do {
             arguments.push_back(parseExpression());
-        } while (match(TT::COMMA));
+        } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));  // (AR) دعم الفاصلة العربية (،)
     }
     
     return arguments;

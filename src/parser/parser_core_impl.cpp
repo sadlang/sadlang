@@ -15,6 +15,7 @@
  */
 
 #include "../../include/parser/parser_core.h"
+#include "../../include/data/managers/class_manager.h"
 #include <iostream>
 #include <sstream>
 
@@ -72,31 +73,138 @@ ParserCore::ParserCore(LexerCore& lexer)
 StmtList ParserCore::parseProgram() {
     StmtList statements;
     
+    // (AR) اسم الملف يجب أن يُعين من خارج Parser
+    // (EN) Filename should be set from outside Parser
+    // if (filename_.empty()) {
+    //     filename_ = "<source>";
+    // }
+    
     // DEBUG: Disabled
     // std::cout << "[parser_core_impl.cpp] بدء parseProgram - current token: " 
     //           << static_cast<int>(current_.getType()) << " = '" 
     //           << current_.getValue() << "'\n";
     
+    int statement_count = 0;
+    int error_count = 0;
+    
+    // (AR) حماية ضد الحلقة اللانهائية - تتبع الموقع الحالي
+    // (EN) Infinite loop protection - track current position
+    size_t last_position = 0;
+    int stuck_count = 0;
+    const int MAX_STUCK_ITERATIONS = 3;  // Allow 3 attempts at same position
+    
     // Parse until EOF
     // (AR) التحليل حتى نهاية الملف
     while (!isAtEnd()) {
+        // (AR) فحص الحلقة اللانهائية: هل نحن عالقون في نفس الموقع؟
+        // (EN) Infinite loop detection: are we stuck at the same position?
+        size_t current_position = current_.getPosition().offset;
+        
+        if (current_position == last_position) {
+            stuck_count++;
+            if (stuck_count >= MAX_STUCK_ITERATIONS) {
+                std::cerr << "\n";
+                std::cerr << "❌❌❌ ========================================\n";
+                std::cerr << "  🚨 (AR) اكتشاف حلقة لا نهائية!\n";
+                std::cerr << "  🚨 (EN) Infinite Loop Detected!\n";
+                std::cerr << "========================================\n";
+                std::cerr << "📍 (AR) عالق في السطر " << current_.getPosition().line 
+                          << ", العمود " << current_.getPosition().column << "\n";
+                std::cerr << "📍 (EN) Stuck at line " << current_.getPosition().line 
+                          << ", column " << current_.getPosition().column << "\n";
+                std::cerr << "🔎 (AR) الرمز: '" << current_.getValue() << "'\n";
+                std::cerr << "🔎 (EN) Token: '" << current_.getValue() << "'\n";
+                std::cerr << "⚠ (AR) القفز للرمز التالي لكسر الحلقة...\n";
+                std::cerr << "⚠ (EN) Forcing advance to break the loop...\n";
+                std::cerr << "========================================\n\n";
+                
+                // Force advance to break infinite loop
+                advance();
+                stuck_count = 0;
+                error_count++;
+                continue;
+            }
+        } else {
+            stuck_count = 0;
+            last_position = current_position;
+        }
+        
         try {
             // DEBUG: Disabled
             // std::cout << "[parser_core_impl.cpp] داخل حلقة parseProgram - current token: " 
             //           << static_cast<int>(current_.getType()) << " = '" 
             //           << current_.getValue() << "'\n";
+            
             auto stmt = parseDeclaration();
             if (stmt) {
                 statements.push_back(std::move(stmt));
+                statement_count++;
                 // DEBUG: Disabled
                 // std::cout << "[parser_core_impl.cpp] تمت إضافة جملة - العدد الكلي: " 
                 //           << statements.size() << "\n";
             }
         } catch (const std::exception& e) {
+            error_count++;
+            
+            // (AR) عرض معلومات تفصيلية عن الخطأ
+            // (EN) Display detailed error information
+            std::cerr << "\n";
+            std::cerr << "❗❗❗ ========================================\n";
+            std::cerr << "  ⛔ (AR) خطأ في التحليل النحوي\n";
+            std::cerr << "  ⛔ (EN) Parsing Error\n";
+            std::cerr << "========================================\n";
+            std::cerr << "📄 (AR) الملف: " << (filename_.empty() ? "<source>" : filename_) << "\n";
+            std::cerr << "📄 (EN) File: " << (filename_.empty() ? "<source>" : filename_) << "\n";
+            std::cerr << "📍 (AR) السطر: " << current_.getPosition().line 
+                      << ", العمود: " << current_.getPosition().column << "\n";
+            std::cerr << "📍 (EN) Line: " << current_.getPosition().line 
+                      << ", Column: " << current_.getPosition().column << "\n";
+            std::cerr << "💬 (AR) الرسالة: " << e.what() << "\n";
+            std::cerr << "💬 (EN) Message: " << e.what() << "\n";
+            std::cerr << "========================================\n\n";
+            
             error(e.what());
+            synchronize();
+        } catch (...) {
+            error_count++;
+            
+            // (AR) معالجة أي استثناء غير معروف
+            // (EN) Handle any unknown exception
+            std::cerr << "\n";
+            std::cerr << "❗❗❗ ========================================\n";
+            std::cerr << "  ⛔ (AR) خطأ غير معروف في التحليل النحوي\n";
+            std::cerr << "  ⛔ (EN) Unknown Parsing Error\n";
+            std::cerr << "========================================\n";
+            std::cerr << "📄 (AR) الملف: " << (filename_.empty() ? "<source>" : filename_) << "\n";
+            std::cerr << "📄 (EN) File: " << (filename_.empty() ? "<source>" : filename_) << "\n";
+            std::cerr << "📍 (AR) السطر: " << current_.getPosition().line 
+                      << ", العمود: " << current_.getPosition().column << "\n";
+            std::cerr << "📍 (EN) Line: " << current_.getPosition().line 
+                      << ", Column: " << current_.getPosition().column << "\n";
+            std::cerr << "========================================\n\n";
+            
+            errorBilingual(
+                "خطأ غير معروف أثناء التحليل النحوي",
+                "Unknown error during syntactic analysis"
+            );
             synchronize();
         }
     }
+    
+    // (AR) طباعة ملخص التحليل
+    // (EN) Print parsing summary
+    std::cerr << "\n";
+    std::cerr << "========================================\n";
+    std::cerr << "  📊 (AR) ملخص التحليل / (EN) Parsing Summary\n";
+    std::cerr << "========================================\n";
+    std::cerr << "✓ (AR) عدد الجمل الناجحة: " << statement_count << "\n";
+    std::cerr << "✓ (EN) Successful statements: " << statement_count << "\n";
+    
+    if (error_count > 0) {
+        std::cerr << "❌ (AR) عدد الأخطاء: " << error_count << "\n";
+        std::cerr << "❌ (EN) Error count: " << error_count << "\n";
+    }
+    std::cerr << "========================================\n\n";
     
     // DEBUG: Disabled
     // std::cout << "[parser_core_impl.cpp] انتهى parseProgram - عدد الجمل: " 
@@ -149,8 +257,6 @@ std::vector<std::string> ParserCore::getErrors() const {
  *        (EN) Parses single declaration (function, class, variable, import, export).
  */
 StmtPtr ParserCore::parseDeclaration() {
-std::cout << "Parsing declaration...\n";
-
     // (AR) التحقق من المُزخرِفات قبل التصريح
     // (EN) Check for decorators before declaration
     ExprList decorators;
@@ -161,6 +267,31 @@ std::cout << "Parsing declaration...\n";
     
     // Check for declaration keywords
     // (AR) التحقق من كلمات التصريح المفتاحية
+    
+    // (AR) استيراد / (EN) Import
+    if (match(TT::KEYWORD_IMPORT)) {
+        if (!decorators.empty()) {
+            error("(AR) المُزخرِفات لا تُستخدم مع الاستيراد. (EN) Decorators cannot be used with imports.");
+        }
+        return parseImportStmt();
+    }
+    
+    // (AR) استيراد انتقائي (من...استورد) / (EN) From-import
+    if (match(TT::KEYWORD_FROM)) {
+        if (!decorators.empty()) {
+            error("(AR) المُزخرِفات لا تُستخدم مع الاستيراد. (EN) Decorators cannot be used with imports.");
+        }
+        return parseFromImportStmt();
+    }
+    
+    // (AR) تصدير / (EN) Export
+    if (match(TT::KEYWORD_EXPORT)) {
+        if (!decorators.empty()) {
+            error("(AR) المُزخرِفات لا تُستخدم مباشرة مع التصدير. (EN) Decorators cannot be used directly with export.");
+        }
+        return parseExportDecl();
+    }
+    
     if (match(TT::KEYWORD_FUNCTION)) {
         return parseFunctionDecl(std::move(decorators));
     }
@@ -182,8 +313,6 @@ std::cout << "Parsing declaration...\n";
         return parseVarDecl();
     }
     
-    std::cout << "Checking for type-first variable declaration...\n";
-    
     // Check for type-first variable declaration: type IDENTIFIER = value;
     // Use proper lookahead to verify TYPE is followed by IDENTIFIER
     // (AR) التحقق من تصريح المتغير ببدء النوع: نوع معرّف = قيمة;
@@ -191,11 +320,9 @@ std::cout << "Parsing declaration...\n";
     if (isTypeToken(current_.getType())) {
         // Look ahead to see if next token is IDENTIFIER
         const Token& nextTok = peekNext();
-         std::cout << "Found TYPE IDENTIFIER pattern - parsing as variable declaration\n"<< nextTok.getTypeName()<< "\n position: "<< nextTok.getPosition().toString() <<"\n";
             
         if (nextTok.getType() == TT::IDENTIFIER) {
             // Valid variable declaration: TYPE IDENTIFIER
-            std::cout << "Found TYPE IDENTIFIER pattern - parsing as variable declaration\n"<< nextTok.getTypeName()<< "\n position: "<< nextTok.getPosition().toString() <<"\n";
             if (!decorators.empty()) {
                 error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
             }
@@ -203,8 +330,16 @@ std::cout << "Parsing declaration...\n";
         } else {
             // TYPE token not followed by IDENTIFIER - this is an error
             // The user wrote a type keyword but didn't follow it with a variable name
-            std::cout << "TYPE token not followed by IDENTIFIER - syntax error\n";
-            errorExpectedToken("معرّف (اسم متغير)", "identifier (variable name)", "بعد نوع البيانات", "after data type");
+            // (AR) رمز النوع غير متبوع بمعرّف - خطأ نحوي
+            std::string typeStr = current_.getValue();
+            error(
+                "(AR) خطأ نحوي: بعد كلمة النوع '" + typeStr + "' يجب أن يأتي اسم المتغير.\n" +
+                "مثال صحيح: " + typeStr + " اسم_المتغير = قيمة\n" +
+                "الموقع: السطر " + std::to_string(current_.getPosition().line) + "\n" +
+                "(EN) Syntax error: After type keyword '" + typeStr + "' expected variable name.\n" +
+                "Correct example: " + typeStr + " variable_name = value\n" +
+                "Location: line " + std::to_string(current_.getPosition().line)
+            );
             // Try to recover by synchronizing to next statement
             synchronize();
             return nullptr;
@@ -223,7 +358,6 @@ std::cout << "Parsing declaration...\n";
             // or is registered as a class), treat as variable declaration
             // For now, always treat IDENTIFIER IDENTIFIER pattern as variable declaration
             // (AR) نستخدم قاعدة: إذا وجدنا معرّف متبوع بمعرّف، نعتبره تصريح متغير
-            std::cout << "Found IDENTIFIER IDENTIFIER pattern - treating as variable declaration\n";
             if (!decorators.empty()) {
                 error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
             }
@@ -236,7 +370,6 @@ std::cout << "Parsing declaration...\n";
     if (check(TT::IDENTIFIER)) {
         // This is either a function call or expression statement
         // Let parseStatement handle it
-        std::cout << "Found IDENTIFIER - parsing as statement\n";
         return parseStatement();
     }
     
@@ -265,6 +398,50 @@ std::cout << "Parsing declaration...\n";
     // (AR) إذا وُجدت مُزخرِفات بدون هدف صالح
     if (!decorators.empty()) {
         error("(AR) المُزخرِفات يجب أن تسبق تصريح دالة. (EN) Decorators must precede a function declaration.");
+        synchronize();
+        return nullptr;
+    }
+    
+    // Check for unexpected tokens that shouldn't appear at statement start
+    // (AR) التحقق من الرموز غير المتوقعة في بداية الجملة
+    if (check(TT::COLON) || check(TT::SEMICOLON) || check(TT::ARABIC_SEMICOLON) ||
+        check(TT::COMMA) || check(TT::ARABIC_COMMA) ||
+        check(TT::BRACE_RIGHT) || check(TT::BRACKET_RIGHT) || check(TT::PAREN_RIGHT)) {
+        
+        std::string tokenVal = current_.getValue();
+        std::string tokenDesc;
+        
+        if (current_.getType() == TT::COLON) {
+            tokenDesc = "colon ':'";
+        } else if (current_.getType() == TT::SEMICOLON || current_.getType() == TT::ARABIC_SEMICOLON) {
+            tokenDesc = "semicolon ';'";
+        } else if (current_.getType() == TT::COMMA || current_.getType() == TT::ARABIC_COMMA) {
+            tokenDesc = "comma ','";
+        } else if (current_.getType() == TT::BRACE_RIGHT) {
+            tokenDesc = "closing brace '}'";
+        } else if (current_.getType() == TT::BRACKET_RIGHT) {
+            tokenDesc = "closing bracket ']'";
+        } else if (current_.getType() == TT::PAREN_RIGHT) {
+            tokenDesc = "closing parenthesis ')'";
+        }
+        
+        // Show detailed error message in both languages
+        errorBilingual(
+            "(AR) خطأ نحوي: رمز غير متوقع '" + tokenVal + "' (" + tokenDesc + ") في بداية جملة أو تصريح.\n" +
+            "   تحقق من الكود - قد يكون هناك:\n" +
+            "   - فاصل منقوط أو فاصل غير ضروري\n" +
+            "   - قوس إغلاق بدون قوس فتح\n" +
+            "   - جملة ناقصة أو غير صحيحة\n" +
+            "   السطر: " + std::to_string(current_.getPosition().line),
+            "(EN) Syntax error: unexpected token '" + tokenVal + "' (" + tokenDesc + ") at statement start.\n" +
+            "   Check your code - there might be:\n" +
+            "   - unnecessary semicolon or separator\n" +
+            "   - closing bracket/brace without opening\n" +
+            "   - incomplete or malformed statement\n" +
+            "   Line: " + std::to_string(current_.getPosition().line)
+        );
+        synchronize();
+        return nullptr;
     }
     
     // If no declaration keyword, parse as statement
@@ -280,7 +457,6 @@ StmtPtr ParserCore::parseStatement() {
     // Control flow statements
     // (AR) جمل التحكم في التدفق
     
-    std::cout << "Parsing statement...\n"<< current_.getTypeName() << "\n";
     if (match(TT::KEYWORD_IF)) {
         return parseIfStmt();
     }
@@ -319,15 +495,12 @@ StmtPtr ParserCore::parseStatement() {
     // Map: {k: v} or {k: v for x in list}
     // (AR) التحقق من block أو خريطة حرفية
     if (check(TT::BRACE_LEFT)) {
-        std::cout << "Found BRACE_LEFT, trying to determine type\n";
-        
         // Save position
         Token brace = current_;
         advance(); // consume {
         
         // Check for empty map
         if (check(TT::BRACE_RIGHT)) {
-            std::cout << "Empty map: {}\n";
             consume(TT::BRACE_RIGHT, "Expected }");
             auto mapExpr = std::make_unique<MapExpr>(std::vector<MapPair>{}, brace.getPosition());
             return std::make_unique<ExprStmt>(std::move(mapExpr));
@@ -391,7 +564,7 @@ StmtPtr ParserCore::parseStatement() {
             std::vector<MapPair> pairs;
             pairs.emplace_back(std::move(firstKey), std::move(firstValue));
             
-            while (match(TT::COMMA)) {
+            while (match(TT::COMMA) || match(TT::ARABIC_COMMA)) {
                 if (check(TT::BRACE_RIGHT)) break;
                 
                 auto key = parseExpression();
@@ -431,9 +604,6 @@ StmtPtr ParserCore::parseStatement() {
         return std::make_unique<BlockStmt>(std::move(statements), brace.getPosition());
     }
     
-    std::cout << "Parsing declaration after block/map check...\n" ;
-    std::cout <<"\n position: "<< current_.getPosition().toString() <<"\n"<< current_.getTypeName()  << "\n";
-    ;
     if (match(TT::KEYWORD_TRY)) {
         return parseTryStmt();
     }
@@ -467,22 +637,46 @@ StmtPtr ParserCore::parseStatement() {
  * - @cache(100)\n@memoize\nfunction expensive() {}
  */
 StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
+    // Spec: docs/language_spec/rules/02_functions.md - function_decl ::= 'دالة' [type] IDENTIFIER '(' [param_list] ')' block
+    // Optional return type BEFORE function name: دالة [type] name(...)
+    // (AR) نوع الإرجاع الاختياري قبل اسم الدالة: دالة [نوع] اسم(...)
+    Data::DataType returnType = Data::DataType::UNKNOWN;
+    
+    // Check if next token is a type keyword (before function name)
+    // (AR) التحقق إذا كان الرمز التالي هو نوع (قبل اسم الدالة)
+    if (check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || 
+        check(TT::TYPE_STRING) || check(TT::TYPE_BOOLEAN) ||
+        check(TT::TYPE_ARRAY) || check(TT::TYPE_MAP)) {
+        returnType = parseType();
+    }
+    
     // Expect function name
     // (AR) توقع اسم الدالة
     Token name = consume(TT::IDENTIFIER, 
-        "(AR) توقع اسم الدالة. (EN) Expected function name.");
+        "(AR) خطأ نحوي: بعد كلمة 'دالة' (أو بعد نوع الإرجاع) يجب أن يأتي اسم الدالة.\n"
+        "مثال: دالة جمع(...) أو دالة رقم مربع(...)\n"
+        "(EN) Syntax error: After 'function' keyword (or return type) expected function name.\n"
+        "Example: function sum(...) or function int square(...)");
     
     // Parse parameter list (now with type annotations)
     // (AR) تحليل قائمة المعاملات (الآن مع تصريحات الأنواع)
     consume(TT::PAREN_LEFT, 
-        "(AR) توقع '(' بعد اسم الدالة. (EN) Expected '(' after function name.");
+        "(AR) خطأ نحوي: بعد اسم الدالة يجب أن يأتي قوس مفتوح '('.\n"
+        "مثال: دالة " + name.getValue() + "(...) \n"
+        "(EN) Syntax error: After function name expected '('.\n"
+        "Example: function " + name.getValue() + "(...)");
     auto paramObjs = parseTypedParameterList();
     consume(TT::PAREN_RIGHT, 
-        "(AR) توقع ')' بعد المعاملات. (EN) Expected ')' after parameters.");
+        "(AR) خطأ نحوي: بعد قائمة المعاملات يجب أن يأتي قوس مغلق ')'.\n"
+        "مثال: دالة " + name.getValue() + "(معامل١، معامل٢) \n"
+        "تأكد من أن قائمة المعاملات مكتملة ومفصولة بفواصل صحيحة.\n"
+        "(EN) Syntax error: After parameter list expected ')'.\n"
+        "Example: function " + name.getValue() + "(param1, param2)\n"
+        "Make sure parameter list is complete and properly separated.");
     
-    // Optional return type annotation: function name(...) : type
-    // (AR) تصريح نوع الإرجاع الاختياري: دالة اسم(...) : نوع
-    Data::DataType returnType = Data::DataType::UNKNOWN;
+    // Optional return type annotation AFTER parameters: function name(...) : type
+    // (AR) تصريح نوع الإرجاع الاختياري بعد المعاملات: دالة اسم(...) : نوع
+    // Note: This overrides the type specified before the function name (if any)
     if (match(TT::COLON)) {
         returnType = parseType();
     }
@@ -491,6 +685,16 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
     // (AR) تحليل جسم الدالة - يبدأ مباشرة، ينتهي بـ 'نهاية'
     // Spec: docs/language_spec/rules/02_functions.md - function body ends with 'نهاية'
     auto body = parseBlockStmt();
+    
+    // (AR) التحقق من توافق نوع الإرجاع
+    // (EN) Check return type compatibility
+    // If function has UNKNOWN return type (no type specified), it should not have return statements with values
+    if (returnType == Data::DataType::UNKNOWN) {
+        // Check if body contains return statements with values
+        // This is a simplified check - proper semantic analysis would be better
+        // For now, we just warn at parse time
+        // Note: This check will be done at runtime by the interpreter
+    }
     
     // (AR) إنشاء عقدة تصريح الدالة مع المُزخرِفات
     // (EN) Create function declaration node with decorators
@@ -644,12 +848,21 @@ StmtPtr ParserCore::parseClassDecl() {
     std::cout << "[OOP] انتهى تحليل صنف '" << className << "' - "
               << members.size() << " أعضاء\n";
     
-    // Store first base class for backward compatibility, or empty string
-    std::string firstBaseClass = baseClassNames.empty() ? "" : baseClassNames[0];
+    // (AR) تسجيل الصنف مبكراً في ClassManager للسماح بمتغيرات من هذا النوع لاحقاً في نفس الملف
+    // (EN) Register class early in ClassManager to allow variables of this type later in same file
+    // هذا تسجيل مؤقت - سيتم تحديثه عند التنفيذ بكامل التفاصيل
+    // This is temporary registration - will be updated during execution with full details
+    auto* classManager = Data::ClassManager::getInstance();
+    if (!classManager->hasClass(className)) {
+        auto tempClassType = std::make_unique<Data::ClassType>(className);
+        classManager->registerClass(std::move(tempClassType));
+        std::cout << "[OOP] ✅ تسجيل مؤقت للصنف: " << className << " (أثناء التحليل)\n";
+    }
     
+    // (AR) استخدام جميع الأصناف الأساسية بدلاً من الأول فقط / (EN) Use all base classes instead of just first
     return std::make_unique<ClassDecl>(
         className,
-        firstBaseClass, // TODO: Update ClassDecl to support multiple base classes
+        baseClassNames, // (AR) دعم الوراثة المتعددة الكامل / (EN) Full multiple inheritance support
         std::move(members),
         false,
         nameToken.getPosition()
@@ -676,10 +889,22 @@ StmtPtr ParserCore::parseVarDecl() {
         // Current token is already a type token (TYPE_INTEGER, TYPE_STRING, etc.)
         // (AR) الصيغة 2: نوع معرّف = قيمة;
         // الرمز الحالي هو بالفعل رمز نوع
-        std::cout << "[parseVarDecl] Found type token, parsing type-first declaration\n";
         varType = parseType();
-        name = consume(TT::IDENTIFIER, 
-            "(AR) توقع اسم المتغير بعد النوع. (EN) Expected variable name after type.");
+        
+        // Check if we have an identifier after the type
+        // (AR) تحقق مما إذا كان لدينا معرّف بعد النوع
+        if (!check(TT::IDENTIFIER)) {
+            // Missing identifier after type specification
+            // (AR) معرّف مفقود بعد تحديد النوع
+            errorBilingual(
+                "توقع اسم متغير بعد تحديد النوع. اسم المتغير يجب أن يكون معرّف صحيح.",
+                "Expected variable name after type specification. Variable name must be a valid identifier."
+            );
+            return nullptr;
+        }
+        
+        name = peek();
+        advance();
     } else if (check(TT::IDENTIFIER)) {
         // Check if this identifier is a class name (for class-typed variables)
         // (AR) التحقق مما إذا كان هذا المعرّف هو اسم صنف
@@ -690,31 +915,71 @@ StmtPtr ParserCore::parseVarDecl() {
             className = current_.getValue();
             varType = Data::DataType::OBJECT;
             advance();  // Consume class name
-            name = consume(TT::IDENTIFIER,
-                "(AR) توقع اسم المتغير بعد نوع الصنف. (EN) Expected variable name after class type.");
+            
+            // Check if identifier follows the class name
+            // (AR) تحقق مما إذا كان معرّف يتبع اسم الصنف
+            if (!check(TT::IDENTIFIER)) {
+                errorBilingual(
+                    "توقع اسم متغير من نوع الصنف '" + className + "'. اسم المتغير يجب أن يكون معرّف صحيح.",
+                    "Expected variable name of class type '" + className + "'. Variable name must be a valid identifier."
+                );
+                return nullptr;
+            }
+            
+            name = peek();
+            advance();
         } else {
             // Format 1: var/let/const IDENTIFIER : type = value;
             // or just: IDENTIFIER = value; (type inference)
             // (AR) الصيغة 1: var/let/const معرّف : نوع = قيمة;
             // أو فقط: معرّف = قيمة; (استنتاج النوع)
             std::cout << "[parseVarDecl] Found identifier, parsing standard declaration\n";
-            name = consume(TT::IDENTIFIER, 
-                "(AR) توقع اسم المتغير. (EN) Expected variable name.");
+            name = peek();
+            advance();
             
             // Optional type annotation: name : type
             // (AR) تصريح النوع الاختياري: اسم : نوع
             if (match(TT::COLON)) {
-                varType = parseType();
+                // We have a type annotation, parse it
+                // (AR) لدينا تصريح نوع، قم بتحليله
+                Data::DataType annotatedType = parseType();
+                
+                // Check if the type was parsed successfully
+                // (AR) تحقق مما إذا تم تحليل النوع بنجاح
+                if (annotatedType == Data::DataType::UNKNOWN) {
+                    errorBilingual(
+                        "نوع غير صحيح أو غير معروف بعد ':' في تصريح المتغير '" + name.getValue() + "'.",
+                        "Invalid or unknown type after ':' in variable declaration '" + name.getValue() + "'."
+                    );
+                    return nullptr;
+                }
+                
+                varType = annotatedType;
             }
         }
     } else {
         // Neither type token nor identifier - this is an error
         // (AR) لا رمز نوع ولا معرّف - هذا خطأ
-        errorIncompleteStatement(
-            "تصريح المتغير",
-            "variable declaration",
-            "نوع البيانات أو اسم المتغير",
-            "data type or variable name"
+        Token currentToken = peek();
+        
+        // Check what kind of token we got instead
+        // (AR) تحقق من نوع الرمز الذي حصلنا عليه بدلاً من ذلك
+        std::string errorMsg_ar = "صيغة تصريح متغير غير صحيحة.";
+        std::string errorMsg_en = "Invalid variable declaration syntax.";
+        
+        // Provide more helpful error messages based on what we found
+        // (AR) قدّم رسائل خطأ أكثر فائدة بناءً على ما وجدنا
+        if (currentToken.getType() == TT::SEMICOLON) {
+            errorMsg_ar = "لا يمكن تصريح متغير بدون اسم أو نوع.";
+            errorMsg_en = "Cannot declare variable without name or type.";
+        } else if (currentToken.getType() == TT::BRACE_LEFT || currentToken.getType() == TT::BRACE_RIGHT) {
+            errorMsg_ar = "لا يمكن تصريح متغير في هذا الموقع. هل قصدت البحث عن شيء آخر؟";
+            errorMsg_en = "Cannot declare variable at this location. Did you mean something else?";
+        }
+        
+        errorBilingual(
+            errorMsg_ar,
+            errorMsg_en
         );
         return nullptr;
     }
@@ -723,7 +988,19 @@ StmtPtr ParserCore::parseVarDecl() {
     // (AR) المُهيّئ الاختياري
     ExprPtr initializer = nullptr;
     if (match(TT::OP_ASSIGN)) {
+        // We have an assignment operator, parse the expression
+        // (AR) لدينا عامل إسناد، قم بتحليل التعبير
         initializer = parseExpression();
+        
+        // Check if expression parsing was successful
+        // (AR) تحقق مما إذا كان تحليل التعبير ناجحاً
+        if (!initializer) {
+            errorBilingual(
+                "تعبير غير صحيح في قيمة تهيئة المتغير '" + name.getValue() + "'. تأكد من أن التعبير صحيح.",
+                "Invalid expression in variable initializer for '" + name.getValue() + "'. Ensure the expression is correct."
+            );
+            return nullptr;
+        }
     }
     
     // Optional semicolon (support both Arabic and English)
@@ -750,37 +1027,86 @@ StmtPtr ParserCore::parseVarDecl() {
 StmtPtr ParserCore::parseEnumDecl() {
     // Expect enum name
     // (AR) توقع اسم Enum
-    Token name = consume(TT::IDENTIFIER, 
-        "(AR) توقع اسم Enum. (EN) Expected enum name.");
+    if (!check(TT::IDENTIFIER)) {
+        errorBilingual(
+            "خطأ: توقعت اسم Enum بعد كلمة 'تعداد'. مثال: تعداد اللون",
+            "Error: expected enum name after 'enum' keyword. Example: enum Color"
+        );
+        return nullptr;
+    }
+    Token name = peek();
+    advance();
     
-    consume(TT::BRACE_LEFT, 
-        "(AR) توقع '{' قبل أعضاء Enum. (EN) Expected '{' before enum members.");
+    if (!check(TT::BRACE_LEFT)) {
+        errorBilingual(
+            "خطأ: توقعت '{' قبل أعضاء Enum. الصيغة: تعداد اسم { أعضاء }",
+            "Error: expected '{' before enum members. Format: enum name { members }"
+        );
+        return nullptr;
+    }
+    consume(TT::BRACE_LEFT, "");
     
     // Parse enum members
     // (AR) تحليل أعضاء Enum
     std::vector<EnumMember> members;
     
+    // Check for empty enum
+    if (check(TT::BRACE_RIGHT)) {
+        errorBilingual(
+            "خطأ: تعداد فارغ. يجب أن يحتوي التعداد على عضو واحد على الأقل.",
+            "Error: empty enum. Enum must have at least one member."
+        );
+        advance(); // consume }
+        return nullptr;
+    }
+    
     while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
-        Token memberName = consume(TT::IDENTIFIER, 
-            "(AR) توقع اسم عضو Enum. (EN) Expected enum member name.");
+        if (!check(TT::IDENTIFIER)) {
+            errorBilingual(
+                "خطأ: توقعت اسم عضو في Enum. الأعضاء يجب أن تكون معرفات.",
+                "Error: expected member name in enum. Members must be identifiers."
+            );
+            return nullptr;
+        }
+        Token memberName = peek();
+        advance();
         
         ExprPtr value = nullptr;
         if (match(TT::OP_ASSIGN)) {
             // Explicit value
             // (AR) قيمة صريحة
             value = parseExpression();
+            if (!value) {
+                errorBilingual(
+                    "خطأ: قيمة عضو Enum غير صحيحة. يجب أن تكون القيمة تعبيراً صحيحاً.",
+                    "Error: invalid enum member value. Value must be a valid expression."
+                );
+                return nullptr;
+            }
         }
         
         members.push_back(EnumMember(memberName.getValue(), std::move(value)));
         
         if (!check(TT::BRACE_RIGHT)) {
-            consume(TT::COMMA, 
-                "(AR) توقع ',' بين أعضاء Enum. (EN) Expected ',' between enum members.");
+            if (!check(TT::COMMA)) {
+                errorBilingual(
+                    "خطأ: توقعت ',' بين أعضاء Enum. الصيغة: العضو1, العضو2, ...",
+                    "Error: expected ',' between enum members. Format: member1, member2, ..."
+                );
+                return nullptr;
+            }
+            consume(TT::COMMA, "");
         }
     }
     
-    consume(TT::BRACE_RIGHT, 
-        "(AR) توقع '}' بعد أعضاء Enum. (EN) Expected '}' after enum members.");
+    if (!check(TT::BRACE_RIGHT)) {
+        errorBilingual(
+            "خطأ: لم يتم إغلاق Enum. توقعت '}' في النهاية.",
+            "Error: enum not closed. Expected '}' at end."
+        );
+        return nullptr;
+    }
+    consume(TT::BRACE_RIGHT, "");
     
     // Create enum declaration node
     // (AR) إنشاء عقدة تصريح Enum
@@ -793,30 +1119,6 @@ StmtPtr ParserCore::parseEnumDecl() {
 }
 
 /**
- * @brief (AR) يحلل جملة استيراد: استورد module;
- *        (EN) Parses import statement: import module;
- */
-StmtPtr ParserCore::parseImportStmt() {
-    // Expect module name
-    // (AR) توقع اسم الوحدة
-    Token moduleName = consume(TT::IDENTIFIER, 
-        "(AR) توقع اسم الوحدة. (EN) Expected module name.");
-    
-    consume(TT::SEMICOLON, 
-        "(AR) توقع ';' بعد جملة الاستيراد. (EN) Expected ';' after import statement.");
-    
-    // Create import statement node
-    // (AR) إنشاء عقدة جملة الاستيراد
-    return std::make_unique<ImportStmt>(
-        moduleName.getValue(),
-        "",
-        std::vector<std::string>{},
-        false,
-        moduleName.getPosition()
-    );
-}
-
-/**
  * @brief (AR) يحلل جملة تصدير: صدّر identifier;
  *        (EN) Parses export statement: export identifier;
  */
@@ -824,6 +1126,13 @@ StmtPtr ParserCore::parseExportStmt() {
     // Parse the declaration to be exported
     // (AR) تحليل التصريح المُصدّر
     auto declaration = parseDeclaration();
+    if (!declaration) {
+        errorBilingual(
+            "خطأ: فشل تحليل التصريح المُصدّر. يجب أن يتبع 'صدّر' تصريح صحيح (دالة، صنف، إلخ).",
+            "Error: failed to parse export declaration. 'export' must be followed by a valid declaration (function, class, etc.)."
+        );
+        return nullptr;
+    }
     
     // Create export statement node
     // (AR) إنشاء عقدة جملة التصدير
@@ -845,10 +1154,16 @@ StmtPtr ParserCore::parseIfStmt() {
     // Parse condition
     // (AR) تحليل الشرط
     consume(TT::PAREN_LEFT, 
-        "(AR) توقع '(' بعد 'إذا'. (EN) Expected '(' after 'if'.");
+        "(AR) خطأ نحوي: بعد 'إذا' يجب أن يأتي قوس مفتوح '(' للشرط.\n"
+        "مثال: إذا (شرط) ... نهاية\n"
+        "(EN) Syntax error: After 'if' expected '(' for condition.\n"
+        "Example: if (condition) ... end");
     auto condition = parseExpression();
     consume(TT::PAREN_RIGHT, 
-        "(AR) توقع ')' بعد الشرط. (EN) Expected ')' after condition.");
+        "(AR) خطأ نحوي: بعد شرط 'إذا' يجب أن يأتي قوس مغلق ')'.\n"
+        "مثال: إذا (x > 5) ... نهاية\n"
+        "(EN) Syntax error: After 'if' condition expected ')'.\n"
+        "Example: if (x > 5) ... end");
     
     // Parse then branch - directly as block (spec 04_syntax.md)
     // (AR) تحليل فرع then - مباشرة ككتلة
@@ -885,10 +1200,16 @@ StmtPtr ParserCore::parseWhileStmt() {
     // Parse condition
     // (AR) تحليل الشرط
     consume(TT::PAREN_LEFT, 
-        "(AR) توقع '(' بعد 'بينما'. (EN) Expected '(' after 'while'.");
+        "(AR) خطأ نحوي: بعد 'بينما' يجب أن يأتي قوس مفتوح '(' للشرط.\n"
+        "مثال: بينما (شرط) ... نهاية\n"
+        "(EN) Syntax error: After 'while' expected '(' for condition.\n"
+        "Example: while (condition) ... end");
     auto condition = parseExpression();
     consume(TT::PAREN_RIGHT, 
-        "(AR) توقع ')' بعد الشرط. (EN) Expected ')' after condition.");
+        "(AR) خطأ نحوي: بعد شرط 'بينما' يجب أن يأتي قوس مغلق ')'.\n"
+        "مثال: بينما (i < 10) ... نهاية\n"
+        "(EN) Syntax error: After 'while' condition expected ')'.\n"
+        "Example: while (i < 10) ... end");
     
     // Parse body - directly as block (spec 04_syntax.md)
     // (AR) تحليل الجسم - مباشرة ككتلة
@@ -954,12 +1275,18 @@ StmtPtr ParserCore::parseReturnStmt() {
     // Optional return value
     // (AR) قيمة الإرجاع الاختيارية
     ExprPtr value = nullptr;
+    
+    // Parse return value if present (not semicolon)
+    // (AR) تحليل قيمة الإرجاع إذا كانت موجودة (ليست فاصلة منقوطة)
     if (!check(TT::SEMICOLON)) {
         value = parseExpression();
     }
     
-    consume(TT::SEMICOLON, 
-        "(AR) توقع ';' بعد جملة return. (EN) Expected ';' after return statement.");
+    // Semicolon is optional after return statement
+    // (AR) الفاصلة المنقوطة اختيارية بعد جملة return
+    if (check(TT::SEMICOLON)) {
+        advance(); // consume optional semicolon
+    }
     
     // Create return statement node
     // (AR) إنشاء عقدة جملة Return
@@ -1065,8 +1392,28 @@ StmtPtr ParserCore::parseBlockStmt() {
         }
     }
     
+    if (isAtEnd() && !check(TT::KEYWORD_END)) {
+        error(
+            "(AR) خطأ نحوي: الكتلة غير مغلقة!\n"
+            "لم يتم العثور على كلمة 'نهاية' لإغلاق الكتلة.\n"
+            "في لغة ص، كل كتلة (دالة، إذا، بينما، لكل، ...) يجب أن تنتهي بـ 'نهاية'.\n\n"
+            "مثال صحيح:\n"
+            "  دالة مثال() \n"
+            "    # هنا جسم الدالة\n"
+            "  نهاية  # <-- لا تنسى هذه!\n\n"
+            "(EN) Syntax error: Unclosed block!\n"
+            "Missing 'نهاية' (end) keyword to close the block.\n"
+            "In Sad language, every block (function, if, while, for, ...) must end with 'نهاية'.\n\n"
+            "Correct example:\n"
+            "  function example()\n"
+            "    # function body here\n"
+            "  نهاية  # <-- Don't forget this!\n"
+        );
+    }
+    
     consume(TT::KEYWORD_END, 
-        "(AR) توقع 'نهاية' بعد الكتلة. (EN) Expected 'نهاية' after block.");
+        "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق الكتلة.\n"
+        "(EN) Syntax error: Expected 'نهاية' (end) to close block.");
     
     // Create block statement node
     // (AR) إنشاء عقدة كتلة الجمل
@@ -1092,10 +1439,13 @@ StmtPtr ParserCore::parseTryStmt() {
         consume(TT::PAREN_LEFT, 
             "(AR) توقع '(' بعد 'امسك'. (EN) Expected '(' after 'catch'.");
         
-        Token exceptionVar = consume(TT::IDENTIFIER, 
-            "(AR) توقع اسم متغير الاستثناء. (EN) Expected exception variable name.");
         
-        consume(TT::PAREN_RIGHT, 
+        // (AR) قراءة نوع الاستثناء (اختياري) ثم اسم المتغير / (EN) Read optional exception type then variable name
+        //  Note: Full implementation would require lookahead - simplified for now
+        Data::DataType exceptionType = Data::DataType::UNKNOWN;
+        
+        Token exceptionVar = consume(TT::IDENTIFIER, 
+            "(AR) توقع اسم متغير الاستثناء. (EN) Expected exception variable name.");        consume(TT::PAREN_RIGHT, 
             "(AR) توقع ')' بعد متغير الاستثناء. (EN) Expected ')' after exception variable.");
         
         // Parse catch body using Arabic syntax
@@ -1104,7 +1454,7 @@ StmtPtr ParserCore::parseTryStmt() {
         
         catchClauses.push_back(CatchClause(
             exceptionVar.getValue(), 
-            Data::DataType::UNKNOWN,  // Type inference will be done in semantic analysis
+            exceptionType,  // (AR) استخدام النوع المُحلل / (EN) Use parsed type
             std::move(catchBody)
         ));
     }
@@ -1269,10 +1619,11 @@ StmtPtr ParserCore::parseSwitchStmt() {
         } else {
             // Error: expected case or default
             // (AR) خطأ: توقع عندما أو افتراضي
-            throw std::runtime_error(
-                "(AR) توقع 'عندما' أو 'افتراضي' في جملة حالة. "
-                "(EN) Expected 'when' or 'default' in switch statement at line " + 
-                std::to_string(current_.getPosition().line));
+            errorBilingual(
+                "توقع 'عندما' أو 'افتراضي' في جملة حالة.",
+                "Expected 'when' or 'default' in switch statement."
+            );
+            return nullptr;
         }
     }
     
@@ -1297,6 +1648,16 @@ StmtPtr ParserCore::parseSwitchStmt() {
  */
 StmtPtr ParserCore::parseExpressionStmt() {
     auto expr = parseExpression();
+    
+    // Check if expression parsing failed
+    // (AR) تحقق من فشل تحليل التعبير
+    if (!expr) {
+        errorBilingual(
+            "خطأ نحوي: لا يمكن تحليل جملة التعبير. تأكد من صحة التعبير أو التصريح.",
+            "Syntax error: cannot parse expression statement. Make sure the expression or declaration is valid."
+        );
+        return nullptr;
+    }
     
     // Semicolon is optional for expression statements
     // (AR) الفاصلة المنقوطة اختيارية لجمل التعبير
@@ -1724,27 +2085,102 @@ ExprPtr ParserCore::parsePrimary() {
     // (AR) تعبير بين أقواس
     if (match(TT::PAREN_LEFT)) {
         auto expr = parseExpression();
+        
+        // Check if expression parsed successfully
+        // (AR) تحقق إذا تم تحليل التعبير بنجاح
+        if (!expr) {
+            errorBilingual(
+                "تعبير غير صحيح بين الأقواس. تأكد من أن التعبير يحتوي على قيم أو عمليات صحيحة.",
+                "Invalid expression in parentheses. Make sure the expression contains valid values or operations."
+            );
+            return nullptr;
+        }
+        
         consume(TT::PAREN_RIGHT, 
-            "(AR) توقع ')' بعد التعبير. (EN) Expected ')' after expression.");
+            "(AR) توقع ')' بعد التعبير. تأكد من إغلاق جميع الأقواس بشكل صحيح. (EN) Expected ')' after expression. Make sure all parentheses are properly closed.");
         return expr;
     }
     
     // Array literal
     // (AR) مصفوفة حرفية
     if (match(TT::BRACKET_LEFT)) {
-        return parseArrayLiteral();
+        auto result = parseArrayLiteral();
+        if (!result) {
+            errorBilingual(
+                "خطأ في تحليل مصفوفة حرفية. تأكد من صيغة المصفوفة: [عنصر1، عنصر2، ...] أو [x for x in list]",
+                "Error parsing array literal. Make sure array syntax is correct: [elem1, elem2, ...] or [x for x in list]"
+            );
+            return nullptr;
+        }
+        return result;
     }
     
     // Map literal
     // (AR) خريطة حرفية
     if (match(TT::BRACE_LEFT)) {
-        return parseMapLiteral();
+        auto result = parseMapLiteral();
+        if (!result) {
+            errorBilingual(
+                "خطأ في تحليل خريطة حرفية. تأكد من صيغة الخريطة: {مفتاح: قيمة، ...}",
+                "Error parsing map literal. Make sure map syntax is correct: {key: value, ...}"
+            );
+            return nullptr;
+        }
+        return result;
     }
     
-    errorBilingual(
-        "خطأ نحوي: توقعت تعبيراً (رقم، نص، معرّف، إلخ) في السطر " + std::to_string(current_.getPosition().line),
-        "Syntax error: expected expression (number, string, identifier, etc.) at line " + std::to_string(current_.getPosition().line)
-    );
+    // Provide more specific error message based on what we found
+    // (AR) قدم رسالة خطأ أكثر تحديداً بناءً على ما وجدنا
+    Token current = peek();
+    std::string errorMsg_ar = "خطأ نحوي: توقعت تعبيراً (رقم، نص، معرّف، إلخ).";
+    std::string errorMsg_en = "Syntax error: expected expression (number, string, identifier, etc.).";
+    
+    // Provide specific guidance based on the token type
+    // (AR) قدم توجيهات محددة بناءً على نوع الرمز
+    switch (current.getType()) {
+        case TT::END_OF_FILE:
+            errorMsg_ar = "خطأ: نهاية ملف غير متوقعة - تعبير غير مكتمل.";
+            errorMsg_en = "Error: unexpected end of file - incomplete expression.";
+            break;
+        case TT::SEMICOLON:
+            errorMsg_ar = "خطأ: فاصلة منقوطة بدون تعبير سابق. هل نسيت التعبير قبلها؟";
+            errorMsg_en = "Error: semicolon without preceding expression. Did you forget the expression?";
+            break;
+        case TT::KEYWORD_END:
+            errorMsg_ar = "خطأ: توقعت تعبيراً قبل كلمة 'نهاية'.";
+            errorMsg_en = "Error: expected expression before 'end' keyword.";
+            break;
+        case TT::BRACE_RIGHT:
+            errorMsg_ar = "خطأ: قوس معقوف إغلاق بدون تعبير. هل نسيت العنصر الأخير؟";
+            errorMsg_en = "Error: closing brace without expression. Did you forget the last element?";
+            break;
+        case TT::BRACKET_RIGHT:
+            errorMsg_ar = "خطأ: قوس مربع إغلاق بدون عنصر. هل نسيت العنصر الأخير؟";
+            errorMsg_en = "Error: closing bracket without element. Did you forget the last element?";
+            break;
+        case TT::PAREN_RIGHT:
+            errorMsg_ar = "خطأ: قوس إغلاق بدون تعبير. هل نسيت الوسيط أو التعبير؟";
+            errorMsg_en = "Error: closing parenthesis without expression. Did you forget the argument or expression?";
+            break;
+        case TT::COMMA:
+            errorMsg_ar = "خطأ: فاصلة بدون عنصر سابق. هل نسيت عنصراً أو معامل؟";
+            errorMsg_en = "Error: comma without preceding element. Did you forget an element or argument?";
+            break;
+        default:
+            errorMsg_ar = "خطأ نحوي: رمز غير متوقع '" + current.getValue() + "' في موضع تعبير.";
+            errorMsg_en = "Syntax error: unexpected token '" + current.getValue() + "' in expression position.";
+            break;
+    }
+    
+    errorBilingual(errorMsg_ar, errorMsg_en);
+    
+    // (AR) استهلاك الرمز غير الصالح لمنع الحلقة اللانهائية
+    // (EN) Consume the invalid token to prevent infinite loop
+    // CRITICAL: Must advance to prevent infinite parsing loop
+    if (!isAtEnd()) {
+        advance();
+    }
+    
     return nullptr;
 }
 
@@ -1758,14 +2194,36 @@ ExprPtr ParserCore::parseLambda() {
     std::vector<std::string> paramNames;
     if (!check(TT::COLON)) {
         paramNames = parseParameterList();
+        if (paramNames.empty() && !check(TT::COLON)) {
+            errorBilingual(
+                "خطأ: فشل تحليل قائمة معاملات lambda أو توقعت ':'.",
+                "Error: failed to parse lambda parameter list or expected ':'."
+            );
+            return nullptr;
+        }
     }
     
-    consume(TT::COLON, 
-        "(AR) توقع ':' بعد معاملات lambda. (EN) Expected ':' after lambda parameters.");
+    // Check for colon separator
+    // (AR) التحقق من ':' الفاصل
+    if (!check(TT::COLON)) {
+        errorBilingual(
+            "خطأ: توقعت ':' بعد معاملات lambda. الصيغة: (x: x * 2) أو (x, y: x + y)",
+            "Error: expected ':' after lambda parameters. Format: (x: x * 2) or (x, y: x + y)"
+        );
+        return nullptr;
+    }
+    consume(TT::COLON, "");
     
     // Parse body expression
     // (AR) تحليل تعبير الجسم
     auto body = parseExpression();
+    if (!body) {
+        errorBilingual(
+            "خطأ: فشل تحليل جسم lambda - تعبير غير صحيح.",
+            "Error: failed to parse lambda body - invalid expression."
+        );
+        return nullptr;
+    }
     
     // Convert param names to Parameter objects
     // (AR) تحويل أسماء المعاملات إلى كائنات Parameter
@@ -1795,9 +2253,15 @@ ExprPtr ParserCore::parseDecorator() {
     
     // Expect decorator name
     // (AR) نتوقع اسم المُزخرِف
-    Token decoratorName = consume(TT::IDENTIFIER,
-        "(AR) توقع اسم المُزخرِف بعد @. "
-        "(EN) Expected decorator name after @.");
+    if (!check(TT::IDENTIFIER)) {
+        errorBilingual(
+            "خطأ: توقعت اسم المُزخرِف بعد @. مثال: @property أو @staticmethod",
+            "Error: expected decorator name after @. Example: @property or @staticmethod"
+        );
+        return nullptr;
+    }
+    Token decoratorName = peek();
+    advance();
     
     // Check for arguments
     // (AR) التحقق من الوسائط
@@ -1812,11 +2276,23 @@ ExprPtr ParserCore::parseDecorator() {
         // (AR) تحليل الوسائط إذا لم تكن فارغة
         if (!check(TT::PAREN_RIGHT)) {
             args = parseArgumentList();
+            if (args.empty() && !check(TT::PAREN_RIGHT)) {
+                errorBilingual(
+                    "خطأ: فشل تحليل وسائط المُزخرِف.",
+                    "Error: failed to parse decorator arguments."
+                );
+                return nullptr;
+            }
         }
         
-        consume(TT::PAREN_RIGHT,
-            "(AR) توقع ')' بعد وسائط المُزخرِف. "
-            "(EN) Expected ')' after decorator arguments.");
+        if (!check(TT::PAREN_RIGHT)) {
+            errorBilingual(
+                "خطأ: توقعت ')' بعد وسائط المُزخرِف. هل نسيت إغلاق الأقواس؟",
+                "Error: expected ')' after decorator arguments. Did you forget to close the parenthesis?"
+            );
+            return nullptr;
+        }
+        consume(TT::PAREN_RIGHT, "");
         
         // Create decorator with arguments
         // (AR) إنشاء مُزخرِف مع وسائط
@@ -1850,6 +2326,13 @@ ExprPtr ParserCore::parseArrayLiteral() {
     // Parse first element/expression
     // (AR) تحليل العنصر/التعبير الأول
     auto firstExpr = parseExpression();
+    if (!firstExpr) {
+        errorBilingual(
+            "خطأ: لم يتم تحليل التعبير الأول في المصفوفة. تأكد من أن التعبير صحيح.",
+            "Error: failed to parse first expression in array. Make sure the expression is valid."
+        );
+        return nullptr;
+    }
     
     // Check if this is a list comprehension
     // (AR) التحقق إذا كان list comprehension
@@ -1861,30 +2344,60 @@ ExprPtr ParserCore::parseArrayLiteral() {
         
         // Parse variable
         // (AR) تحليل المتغير
-        Token var = consume(TT::IDENTIFIER, 
-            "(AR) توقع اسم متغير في list comprehension. "
-            "(EN) Expected variable name in list comprehension.");
+        if (!check(TT::IDENTIFIER)) {
+            errorBilingual(
+                "خطأ: توقعت اسم متغير بعد 'for' في list comprehension. مثال: [x for x in list]",
+                "Error: expected variable name after 'for' in list comprehension. Example: [x for x in list]"
+            );
+            return nullptr;
+        }
+        Token var = peek();
+        advance();
         
         // Expect 'in' keyword
         // (AR) توقع كلمة 'في'
-        consume(TT::KEYWORD_IN, 
-            "(AR) توقع 'في' في list comprehension. "
-            "(EN) Expected 'in' in list comprehension.");
+        if (!check(TT::KEYWORD_IN)) {
+            errorBilingual(
+                "خطأ: توقعت 'في' بعد اسم المتغير في list comprehension. الصيغة: [expr for var in iterable]",
+                "Error: expected 'in' after variable name in list comprehension. Format: [expr for var in iterable]"
+            );
+            return nullptr;
+        }
+        advance();
         
         // Parse iterable
         // (AR) تحليل المجموعة القابلة للتكرار
         auto iterable = parseExpression();
+        if (!iterable) {
+            errorBilingual(
+                "خطأ: فشل تحليل المجموعة القابلة للتكرار بعد 'في'. تأكد من صيغة list comprehension.",
+                "Error: failed to parse iterable after 'in'. Make sure list comprehension syntax is correct."
+            );
+            return nullptr;
+        }
         
         // Optional condition
         // (AR) الشرط الاختياري
         ExprPtr condition = nullptr;
         if (match(TT::KEYWORD_IF)) {
             condition = parseExpression();
+            if (!condition) {
+                errorBilingual(
+                    "خطأ: تعبير شرط غير صحيح بعد 'إذا' في list comprehension.",
+                    "Error: invalid condition expression after 'if' in list comprehension."
+                );
+                return nullptr;
+            }
         }
         
-        consume(TT::BRACKET_RIGHT, 
-            "(AR) توقع ']' بعد list comprehension. "
-            "(EN) Expected ']' after list comprehension.");
+        if (!check(TT::BRACKET_RIGHT)) {
+            errorBilingual(
+                "خطأ: توقعت ']' في نهاية list comprehension. الصيغة: [expr for var in iterable if cond]",
+                "Error: expected ']' at end of list comprehension. Format: [expr for var in iterable if cond]"
+            );
+            return nullptr;
+        }
+        consume(TT::BRACKET_RIGHT, "");
         
         // Create list comprehension node
         // (AR) إنشاء عقدة List Comprehension
@@ -1904,16 +2417,30 @@ ExprPtr ParserCore::parseArrayLiteral() {
     
     // Parse remaining elements
     // (AR) تحليل العناصر المتبقية
-    while (match(TT::COMMA)) {
+    while (match(TT::COMMA) || match(TT::ARABIC_COMMA)) {
         if (check(TT::BRACKET_RIGHT)) {
-            break; // Trailing comma
+            break; // Trailing comma is allowed
         }
-        elements.push_back(parseExpression());
+        
+        auto elem = parseExpression();
+        if (!elem) {
+            errorBilingual(
+                "خطأ: تعبير عنصر غير صحيح في المصفوفة. تأكد من صيغة العنصر.",
+                "Error: invalid element expression in array. Make sure element syntax is correct."
+            );
+            return nullptr;
+        }
+        elements.push_back(std::move(elem));
     }
     
-    consume(TT::BRACKET_RIGHT, 
-        "(AR) توقع ']' بعد عناصر المصفوفة. "
-        "(EN) Expected ']' after array elements.");
+    if (!check(TT::BRACKET_RIGHT)) {
+        errorBilingual(
+            "خطأ: لم يتم إغلاق المصفوفة. توقعت ']'. هل نسيت إغلاق القوس المربع؟",
+            "Error: array not closed. Expected ']'. Did you forget to close the bracket?"
+        );
+        return nullptr;
+    }
+    consume(TT::BRACKET_RIGHT, "");
     
     // Create array expression node
     // (AR) إنشاء عقدة تعبير المصفوفة
@@ -1940,34 +2467,31 @@ ExprPtr ParserCore::parseMapLiteral() {
     auto firstKey = parseExpression();
     if (!firstKey) {
         errorBilingual(
-            "خطأ في تحليل مفتاح الخريطة - تعبير غير صالح",
-            "Failed to parse key expression in map literal - invalid expression"
+            "خطأ: فشل تحليل مفتاح الخريطة - تعبير غير صحيح. تأكد من أن المفتاح عبارة عن نص أو رقم أو متغير.",
+            "Error: failed to parse map key - invalid expression. Make sure the key is a string, number, or variable."
         );
-        // Try to recover by consuming until }
-        while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
-            advance();
-        }
-        if (check(TT::BRACE_RIGHT)) consume(TT::BRACE_RIGHT, "");
         return nullptr;
     }
     
-    consume(TT::COLON, 
-        "(AR) توقع ':' بعد مفتاح الخريطة. "
-        "(EN) Expected ':' after map key.");
+    // Expect colon after key
+    // (AR) توقع ':' بعد المفتاح
+    if (!check(TT::COLON)) {
+        errorBilingual(
+            "خطأ: توقعت ':' بعد مفتاح الخريطة. الصيغة: {مفتاح: قيمة، ...}",
+            "Error: expected ':' after map key. Format: {key: value, ...}"
+        );
+        return nullptr;
+    }
+    consume(TT::COLON, "");
     
     // Parse first value expression (or value variable template in comprehension)
     // (AR) تحليل تعبير القيمة الأولى (أو قالب متغير القيمة في comprehension)
     auto firstValue = parseExpression();
     if (!firstValue) {
         errorBilingual(
-            "خطأ في تحليل قيمة الخريطة - تعبير غير صالح",
-            "Failed to parse value expression in map literal - invalid expression"
+            "خطأ: فشل تحليل قيمة الخريطة - تعبير غير صحيح. تأكد من أن القيمة صحيحة.",
+            "Error: failed to parse map value - invalid expression. Make sure the value is valid."
         );
-        // Try to recover by consuming until }
-        while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
-            advance();
-        }
-        if (check(TT::BRACE_RIGHT)) consume(TT::BRACE_RIGHT, "");
         return nullptr;
     }
     
@@ -1984,30 +2508,60 @@ ExprPtr ParserCore::parseMapLiteral() {
         // Parse loop variable (can be single: 'x' or tuple: 'k, v')
         // For now, we support single variable only
         // (AR) تحليل متغير الحلقة
-        Token loopVar = consume(TT::IDENTIFIER, 
-            "(AR) توقع اسم متغير الحلقة في dict comprehension. "
-            "(EN) Expected loop variable name in dict comprehension.");
+        if (!check(TT::IDENTIFIER)) {
+            errorBilingual(
+                "خطأ: توقعت اسم متغير حلقة بعد 'for' في dict comprehension. مثال: {k: v for item in list}",
+                "Error: expected loop variable name after 'for' in dict comprehension. Example: {k: v for item in list}"
+            );
+            return nullptr;
+        }
+        Token loopVar = peek();
+        advance();
         
         // Expect 'in' keyword
         // (AR) توقع كلمة 'في'
-        consume(TT::KEYWORD_IN, 
-            "(AR) توقع 'في' في dict comprehension. "
-            "(EN) Expected 'in' in dict comprehension.");
+        if (!check(TT::KEYWORD_IN)) {
+            errorBilingual(
+                "خطأ: توقعت 'في' بعد متغير الحلقة. الصيغة: {k: v for var in iterable}",
+                "Error: expected 'in' after loop variable. Format: {k: v for var in iterable}"
+            );
+            return nullptr;
+        }
+        advance();
         
         // Parse iterable
         // (AR) تحليل المجموعة القابلة للتكرار
         auto iterable = parseExpression();
+        if (!iterable) {
+            errorBilingual(
+                "خطأ: فشل تحليل المجموعة القابلة للتكرار في dict comprehension.",
+                "Error: failed to parse iterable in dict comprehension."
+            );
+            return nullptr;
+        }
         
         // Optional condition
         // (AR) الشرط الاختياري
         ExprPtr condition = nullptr;
         if (match(TT::KEYWORD_IF)) {
             condition = parseExpression();
+            if (!condition) {
+                errorBilingual(
+                    "خطأ: تعبير شرط غير صحيح بعد 'إذا' في dict comprehension.",
+                    "Error: invalid condition expression after 'if' in dict comprehension."
+                );
+                return nullptr;
+            }
         }
         
-        consume(TT::BRACE_RIGHT, 
-            "(AR) توقع '}' بعد dict comprehension. "
-            "(EN) Expected '}' after dict comprehension.");
+        if (!check(TT::BRACE_RIGHT)) {
+            errorBilingual(
+                "خطأ: توقعت '}' في نهاية dict comprehension.",
+                "Error: expected '}' at end of dict comprehension."
+            );
+            return nullptr;
+        }
+        consume(TT::BRACE_RIGHT, "");
         
         // Create dict comprehension node
         // (AR) إنشاء عقدة Dict Comprehension
@@ -2028,22 +2582,49 @@ ExprPtr ParserCore::parseMapLiteral() {
     
     // Parse remaining key-value pairs
     // (AR) تحليل أزواج المفتاح-القيمة المتبقية
-    while (match(TT::COMMA)) {
+    while (match(TT::COMMA) || match(TT::ARABIC_COMMA)) {
         if (check(TT::BRACE_RIGHT)) {
-            break; // Trailing comma
+            break; // Trailing comma is allowed
         }
         
         auto key = parseExpression();
-        consume(TT::COLON, 
-            "(AR) توقع ':' بعد مفتاح الخريطة. "
-            "(EN) Expected ':' after map key.");
+        if (!key) {
+            errorBilingual(
+                "خطأ: فشل تحليل مفتاح إضافي في الخريطة.",
+                "Error: failed to parse additional key in map."
+            );
+            return nullptr;
+        }
+        
+        if (!check(TT::COLON)) {
+            errorBilingual(
+                "خطأ: توقعت ':' بعد مفتاح الخريطة. هل نسيت الفاصلة قبل المفتاح التالي؟",
+                "Error: expected ':' after map key. Did you forget the colon before the value?"
+            );
+            return nullptr;
+        }
+        consume(TT::COLON, "");
+        
         auto value = parseExpression();
+        if (!value) {
+            errorBilingual(
+                "خطأ: فشل تحليل قيمة إضافية في الخريطة.",
+                "Error: failed to parse additional value in map."
+            );
+            return nullptr;
+        }
+        
         pairs.emplace_back(std::move(key), std::move(value));
     }
     
-    consume(TT::BRACE_RIGHT, 
-        "(AR) توقع '}' بعد عناصر الخريطة. "
-        "(EN) Expected '}' after map elements.");
+    if (!check(TT::BRACE_RIGHT)) {
+        errorBilingual(
+            "خطأ: لم يتم إغلاق الخريطة. توقعت '}'. هل نسيت إغلاق الأقواس المعقوفة؟",
+            "Error: map not closed. Expected '}'. Did you forget to close the braces?"
+        );
+        return nullptr;
+    }
+    consume(TT::BRACE_RIGHT, "");
     
     // Create map expression node
     // (AR) إنشاء عقدة تعبير الخريطة

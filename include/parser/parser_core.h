@@ -2,6 +2,7 @@
  * @file parser_core.h
  * @brief (AR) المحلل النحوي الأساسي - يحول الرموز (Tokens) إلى شجرة التركيب المجرد (AST).
  *        (EN) Core Parser - Converts tokens into Abstract Syntax Tree (AST).
+ * @note Updated: 2025-12-09 - Module system integration complete
  * 
  * (AR) هذا الملف يحتوي على المحلل النحوي الرئيسي للغة "ص" (Sad).
  *      يقوم المحلل بقراءة تدفق الرموز من المحلل المعجمي (Lexer)
@@ -183,6 +184,84 @@ private:
      *         (EN) Pointer to class declaration node.
      */
     AST::StmtPtr parseClassDecl();
+    
+    /**
+     * @brief (AR) يحلل جملة استيراد - استورد [وحدة] [كـ اسم]
+     *        (EN) Parses import statement - import [module] [as name]
+     * 
+     * @details
+     * (AR) يدعم الأنماط التالية:
+     *      - استورد رياضيات
+     *      - استورد رياضيات كـ م
+     *      - استورد مكتبتي.أدوات.رياضية
+     * 
+     * (EN) Supports the following patterns:
+     *      - import math
+     *      - import math as m
+     *      - import mylib.utils.math
+     * 
+     * @return (AR) مؤشر لعقدة ImportStmt
+     *         (EN) Pointer to ImportStmt node
+     * 
+     * @example
+     * @code{.sad}
+     * استورد رياضيات
+     * استورد رياضيات كـ م
+     * @endcode
+     */
+    AST::StmtPtr parseImportStmt();
+    
+    /**
+     * @brief (AR) يحلل جملة استيراد انتقائي - من [وحدة] استورد [عناصر]
+     *        (EN) Parses from-import statement - from [module] import [items]
+     * 
+     * @details
+     * (AR) يدعم الأنماط التالية:
+     *      - من رياضيات استورد جذر، قوة
+     *      - من رياضيات استورد جذر كـ ج
+     *      - من رياضيات استورد *
+     * 
+     * (EN) Supports the following patterns:
+     *      - from math import sqrt, pow
+     *      - from math import sqrt as s
+     *      - from math import *
+     * 
+     * @return (AR) مؤشر لعقدة FromImportStmt
+     *         (EN) Pointer to FromImportStmt node
+     * 
+     * @example
+     * @code{.sad}
+     * من رياضيات استورد جذر، قوة
+     * من رياضيات استورد *
+     * @endcode
+     */
+    AST::StmtPtr parseFromImportStmt();
+    
+    /**
+     * @brief (AR) يحلل تصريح تصدير - صدّر [تصريح]
+     *        (EN) Parses export declaration - export [declaration]
+     * 
+     * @details
+     * (AR) يدعم تصدير:
+     *      - الدوال: صدّر دالة حساب() { ... }
+     *      - الأصناف: صدّر صنف شكل { ... }
+     *      - المتغيرات: صدّر ثابت PI = 3.14
+     * 
+     * (EN) Supports exporting:
+     *      - Functions: export function calc() { ... }
+     *      - Classes: export class Shape { ... }
+     *      - Variables: export const PI = 3.14
+     * 
+     * @return (AR) مؤشر لعقدة ExportDecl
+     *         (EN) Pointer to ExportDecl node
+     * 
+     * @example
+     * @code{.sad}
+     * صدّر دالة مضاعفة(رقم س) { إرجاع س * 2 }
+     * صدّر ثابت PI = 3.14
+     * @endcode
+     */
+    AST::StmtPtr parseExportDecl();
 
     // ======================================================================
     // (AR) دوال تحليل البرمجة الكائنية / (EN) OOP Parsing Functions
@@ -279,7 +358,6 @@ private:
      * @return (AR) مؤشر لعقدة جملة الاستيراد.
      *         (EN) Pointer to import statement node.
      */
-    AST::StmtPtr parseImportStmt();
 
     /**
      * @brief (AR) يحلل جملة تصدير (صدّر function/class).
@@ -802,8 +880,7 @@ private:
      *                 (EN) Show source code (default: true).
      */
     void errorBilingual(const std::string& message_ar, 
-                        const std::string& message_en,
-                        bool showCode = true);
+                        const std::string& message_en);
 
     /**
      * @brief (AR) يُنشئ رسالة خطأ لرمز غير متوقع مع التوقع.

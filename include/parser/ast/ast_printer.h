@@ -373,11 +373,71 @@ public:
     void visitImportStmt(ImportStmt& stmt) override;
     
     /**
-     * @brief (AR) يزور جملة التصدير.
-     *        (EN) Visits export statement.
+     * @brief (AR) يزور جملة الاستيراد الانتقائي (من...استورد).
+     *        (EN) Visits from-import statement.
+     * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitFromImportStmt(FromImportStmt& stmt) override;
+    
+    /**
+     * @brief (AR) يزور جملة التصدير (قديم).
+     *        (EN) Visits export statement (legacy).
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
     void visitExportStmt(ExportStmt& stmt) override;
+    
+    /**
+     * @brief (AR) يزور تصريح التصدير.
+     *        (EN) Visits export declaration.
+     * @param decl (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitExportDecl(ExportDecl& decl) override;
+
+    // =====================================================================
+    // (AR) دوال الـ Visitor المفقودة / (EN) Missing Visitor Methods
+    // =====================================================================
+    
+    /**
+     * @brief (AR) يزور تعبير decorator.
+     *        (EN) Visits decorator expression.
+     * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitDecoratorExpr(DecoratorExpr& expr) override;
+    
+    /**
+     * @brief (AR) يزور تعبير new.
+     *        (EN) Visits new expression.
+     * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitNewExpr(NewExpr& expr) override;
+    
+    /**
+     * @brief (AR) يزور تعبير الوصول للعضو.
+     *        (EN) Visits member access expression.
+     * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitMemberAccessExpr(MemberAccessExpr& expr) override;
+    
+    /**
+     * @brief (AR) يزور تعبير استدعاء method.
+     *        (EN) Visits method call expression.
+     * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitMethodCallExpr(MethodCallExpr& expr) override;
+    
+    /**
+     * @brief (AR) يزور جملة yield.
+     *        (EN) Visits yield statement.
+     * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitYieldStmt(YieldStmt& stmt) override;
+    
+    /**
+     * @brief (AR) يزور جملة تصريح الصنف.
+     *        (EN) Visits class declaration statement.
+     * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitClassDeclStmt(ClassDeclStmt& stmt) override;
 
 private:
     std::string result_;        ///< (AR) النتيجة المُخزنة. (EN) Stored result.

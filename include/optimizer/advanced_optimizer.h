@@ -80,6 +80,10 @@ private:
     
     // التحقق من صحة الـ AST بعد التحسين
     bool validateAST(std::shared_ptr<ASTNode> ast);
+    
+    // Helper: التحقق من عقدة بشكل recursive
+    bool validateNodeRecursive(std::shared_ptr<ASTNode> node, int& nodeCount, 
+                              int& expressionCount, int& statementCount, int& errorCount);
 };
 
 } // namespace sad

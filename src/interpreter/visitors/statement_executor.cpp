@@ -12,6 +12,7 @@
 #include "../../../include/errors/error_manager.h"
 #include "../../../include/interpreter/exception.h"
 #include <iostream>
+#include <sstream>
 
 namespace Sad {
 namespace Interpreter {
@@ -29,6 +30,8 @@ StatementExecutor::StatementExecutor(Data::VariableManager& varMgr,
     , flowControl_(FlowControl::NONE)
     , returnValue_()
     , loopDepth_(0)
+    , currentFunctionReturnType_(Data::DataType::UNKNOWN)
+    , currentFunctionName_("")
 {
     // (AR) إنشاء مُقيِّم التعابير / (EN) Create expression evaluator
     // Note: Pass *this to allow ExpressionEvaluator to call back for function execution
@@ -90,7 +93,17 @@ void StatementExecutor::visitVarDeclStmt(AST::VarDeclStmt& node) {
     }
     
     // (AR) تعريف المتغير / (EN) Define variable
-    variableManager_.define(node.name, value);
+    try {
+        variableManager_.define(node.name, value);
+    }
+    catch (const std::runtime_error& e) {
+        // (AR) إضافة معلومات الموقع للخطأ / (EN) Add position info to error
+        std::ostringstream oss;
+        oss << e.what() << "\n"
+            << "📍 (AR) الموقع / (EN) Location: السطر / Line " << node.position.line 
+            << "، العمود / Column " << node.position.column;
+        throw SadException(oss.str(), "RuntimeError", node.position);
+    }
 }
 
 void StatementExecutor::visitBlockStmt(AST::BlockStmt& node) {
@@ -298,7 +311,7 @@ void StatementExecutor::visitForRangeStmt(AST::ForRangeStmt& node) {
     else {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            Sad::Errors::SourceLocation("<input>", 1, 1),
             "نوع غير قابل للتكرار",
             "Non-iterable type"
         );
@@ -377,6 +390,22 @@ void StatementExecutor::visitReturnStmt(AST::ReturnStmt& node) {
     // (AR) تقييم قيمة الإرجاع إن وُجدت / (EN) Evaluate return value if present
     if (node.value) {
         returnValue_ = evaluateExpression(*node.value);
+        
+        // (AR) التحقق من توافق نوع الإرجاع / (EN) Check return type compatibility
+        // If current function has UNKNOWN return type, it should not return a value
+        if (currentFunctionReturnType_ == Data::DataType::UNKNOWN) {
+            Sad::Errors::ErrorManager::getInstance().reportError(
+                Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH,
+                Sad::Errors::SourceLocation("<input>", 1, 1),
+                "(AR) خطأ: الدالة '" + currentFunctionName_ + "' لا تحتوي على نوع إرجاع محدد، لكنها تحاول إرجاع قيمة.\n"
+                "الحل: أضف نوع الإرجاع في تعريف الدالة.\n"
+                "مثال: دالة رقم " + currentFunctionName_ + "() بدلاً من: دالة " + currentFunctionName_ + "()",
+                "(EN) Error: Function '" + currentFunctionName_ + "' has no return type specified, but it's trying to return a value.\n"
+                "Solution: Add return type in function definition.\n"
+                "Example: function int " + currentFunctionName_ + "() instead of: function " + currentFunctionName_ + "()"
+            );
+            // Don't throw, just report error and continue
+        }
     } else {
         returnValue_ = Data::Value(); // VOID
     }
@@ -390,7 +419,7 @@ void StatementExecutor::visitBreakStmt(AST::BreakStmt& node) {
     if (!isInLoop()) {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::RUN_STACK_OVERFLOW,
-            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            Sad::Errors::SourceLocation("<input>", 1, 1),
             "'break' خارج حلقة",
             "'break' outside loop"
         );
@@ -406,7 +435,7 @@ void StatementExecutor::visitContinueStmt(AST::ContinueStmt& node) {
     if (!isInLoop()) {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::RUN_STACK_OVERFLOW,
-            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            Sad::Errors::SourceLocation("<input>", 1, 1),
             "'continue' خارج حلقة",
             "'continue' outside loop"
         );
@@ -431,8 +460,25 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
         bool caught = false;
         
         for (auto& catchClause : node.catchClauses) {
-            // (AR) حاليًا نلتقط جميع الأخطاء / (EN) Currently catch all errors
-            // TODO: تطبيق مطابقة الأنواع / Implement type matching
+            // (AR) مطابقة نوع الاستثناء / (EN) Match exception type
+            bool typeMatches = false;
+            
+            if (catchClause.exceptionType == Data::DataType::UNKNOWN) {
+                // (AR) catch بدون نوع يلتقط كل شيء / (EN) catch without type catches everything
+                typeMatches = true;
+            } else if (catchClause.exceptionType == Data::DataType::ERROR) {
+                // (AR) catch(خطأ e) يلتقط جميع أنواع الأخطاء / (EN) catch(Error e) catches all error types
+                typeMatches = true;
+            } else if (catchClause.exceptionType == Data::DataType::OBJECT) {
+                // (AR) catch مع نوع مخصص (صنف) / (EN) catch with custom type (class)
+                // Future: Check if exception matches custom exception class
+                typeMatches = true; // Currently catch all
+            }
+            
+            if (!typeMatches) {
+                // (AR) النوع لا يطابق، جرب البند التالي / (EN) Type doesn't match, try next clause
+                continue;
+            }
             
             // (AR) دخول نطاق جديد / (EN) Enter new scope
             scopeManager_.pushScope(Data::ScopeType::BLOCK);
@@ -545,9 +591,23 @@ void StatementExecutor::visitFunctionDecl(AST::FunctionDecl& node) {
     // (AR) تحويل المعاملات إلى تنسيق FunctionManager / (EN) Convert parameters to FunctionManager format
     std::vector<Data::FunctionParameter> params;
     for (const auto& param : node.parameters) {
+        bool hasDefault = (param.defaultValue != nullptr);
+        std::string defaultValStr = "";
+        
+        // (AR) إذا كان هناك قيمة افتراضية، نحولها إلى string للتخزين
+        // (EN) If there's a default value, convert it to string for storage
+        if (hasDefault) {
+            // (AR) القيمة الافتراضية موجودة في AST، نضع علامة فقط
+            // (EN) Default value exists in AST, just mark it
+            // The actual evaluation will happen in ExpressionEvaluator using the AST
+            defaultValStr = "<from_ast>";  // Placeholder
+        }
+        
         params.push_back(Data::FunctionParameter(
             param.name,
-            dataTypeToString(param.type)
+            dataTypeToString(param.type),
+            hasDefault,
+            defaultValStr
         ));
     }
     
@@ -560,10 +620,30 @@ void StatementExecutor::visitFunctionDecl(AST::FunctionDecl& node) {
         [](Parser::ASTNode*) {} // Empty deleter - AST owns the memory
     );
     
-    functionManager_.defineFunction(node.name, params, bodyNode);
+    // (AR) إنشاء shared_ptr للـ FunctionDecl لتمريره لـ FunctionManager
+    // (EN) Create shared_ptr for FunctionDecl to pass to FunctionManager
+    // This allows ExpressionEvaluator to access default parameter expressions
+    std::shared_ptr<Parser::ASTNode> declNode(
+        reinterpret_cast<Parser::ASTNode*>(&node),
+        [](Parser::ASTNode*) {} // Empty deleter - AST owns the memory
+    );
+    
+    // (AR) استخدام النسخة الموسعة من defineFunction التي تحفظ FunctionDecl
+    // (EN) Use the extended version of defineFunction that saves FunctionDecl
+    functionManager_.defineFunction(node.name, params, bodyNode, declNode);
+    
+    // (AR) حفظ نوع الإرجاع مع اسم الدالة في map داخلي
+    // (EN) Save return type with function name in internal map
+    // Store the node pointer with the function definition for later access to returnType
+    // We'll use this in executeFunctionBody to check return types
+    functionReturnTypes_[node.name] = node.returnType;
 }
 
 Data::Value StatementExecutor::executeFunctionBody(AST::Statement& body) {
+    // (AR) هذه الدالة تستخدم للدوال التي لا نعرف نوع إرجاعها
+    // (EN) This function is used for functions where we don't know return type
+    // We'll just execute without return type checking
+    
     // (AR) حفظ الحالة الحالية / (EN) Save current state
     FlowControl previousFlowControl = flowControl_;
     Data::Value previousReturnValue = returnValue_;
@@ -573,14 +653,108 @@ Data::Value StatementExecutor::executeFunctionBody(AST::Statement& body) {
     returnValue_ = Data::Value();
     
     // (AR) تنفيذ جسم الدالة / (EN) Execute function body
-    body.accept(*this);
+    // IMPORTANT: إذا كان الـ body هو BlockStmt، نُنفّذ statements مباشرةً
+    // بدون pushScope إضافي لأن ScopeGuard في expression_evaluator
+    // بالفعل أنشأ FUNCTION scope
+    // (EN) If body is BlockStmt, execute statements directly without extra pushScope
+    // because ScopeGuard in expression_evaluator already created FUNCTION scope
+    auto blockStmt = dynamic_cast<AST::BlockStmt*>(&body);
+    if (blockStmt) {
+        // (AR) تنفيذ جُمل البلوك مباشرةً بدون scope إضافي
+        // (EN) Execute block statements directly without extra scope
+        for (auto& stmt : blockStmt->statements) {
+            stmt->accept(*this);
+            if (shouldStopExecution()) {
+                break;
+            }
+        }
+    } else {
+        // (AR) ليس BlockStmt - نُنفّذه مباشرةً
+        // (EN) Not BlockStmt - execute directly
+        body.accept(*this);
+    }
     
     // (AR) الحصول على قيمة الإرجاع / (EN) Get return value
-    Data::Value result = returnValue_;
+    // Clone arrays/maps to avoid aliasing
+    Data::Value result = returnValue_.isArray() || returnValue_.isMap() 
+        ? returnValue_.clone() 
+        : returnValue_;
     
     // (AR) استعادة الحالة السابقة / (EN) Restore previous state
     flowControl_ = previousFlowControl;
     returnValue_ = previousReturnValue;
+    
+    return result;
+}
+
+Data::Value StatementExecutor::executeFunctionBodyWithFuncName(AST::Statement& body, const std::string& functionName) {
+    // (AR) البحث عن نوع الإرجاع في الـ map
+    // (EN) Look up return type in map
+    Data::DataType returnType = Data::DataType::UNKNOWN;
+    auto it = functionReturnTypes_.find(functionName);
+    if (it != functionReturnTypes_.end()) {
+        returnType = it->second;
+    }
+    
+    // (AR) استدعاء الدالة المحسّنة مع نوع الإرجاع
+    // (EN) Call enhanced function with return type
+    return executeFunctionBodyWithReturnType(body, returnType, functionName);
+}
+
+// (AR) دالة مساعدة جديدة لتنفيذ جسم دالة مع تتبع نوع الإرجاع
+// (EN) New helper function to execute function body with return type tracking
+Data::Value StatementExecutor::executeFunctionBodyWithReturnType(
+    AST::Statement& body, 
+    Data::DataType returnType, 
+    const std::string& functionName) 
+{
+    // (AR) حفظ الحالة الحالية / (EN) Save current state
+    FlowControl previousFlowControl = flowControl_;
+    Data::Value previousReturnValue = returnValue_;
+    Data::DataType previousReturnType = currentFunctionReturnType_;
+    std::string previousFunctionName = currentFunctionName_;
+    
+    // (AR) تعيين سياق الدالة الحالية / (EN) Set current function context
+    currentFunctionReturnType_ = returnType;
+    currentFunctionName_ = functionName;
+    
+    // (AR) إعادة تعيين الحالة / (EN) Reset state
+    flowControl_ = FlowControl::NONE;
+    returnValue_ = Data::Value();
+    
+    // (AR) تنفيذ جسم الدالة / (EN) Execute function body
+    // IMPORTANT: إذا كان الـ body هو BlockStmt، نُنفّذ statements مباشرةً
+    // بدون pushScope إضافي لأن ScopeGuard في expression_evaluator
+    // بالفعل أنشأ FUNCTION scope
+    // (EN) If body is BlockStmt, execute statements directly without extra pushScope
+    // because ScopeGuard in expression_evaluator already created FUNCTION scope
+    auto blockStmt = dynamic_cast<AST::BlockStmt*>(&body);
+    if (blockStmt) {
+        // (AR) تنفيذ جُمل البلوك مباشرةً بدون scope إضافي
+        // (EN) Execute block statements directly without extra scope
+        for (auto& stmt : blockStmt->statements) {
+            stmt->accept(*this);
+            if (shouldStopExecution()) {
+                break;
+            }
+        }
+    } else {
+        // (AR) ليس BlockStmt - نُنفّذه مباشرةً
+        // (EN) Not BlockStmt - execute directly
+        body.accept(*this);
+    }
+    
+    // (AR) الحصول على قيمة الإرجاع / (EN) Get return value
+    // Clone arrays/maps to avoid aliasing between function calls
+    Data::Value result = returnValue_.isArray() || returnValue_.isMap() 
+        ? returnValue_.clone() 
+        : returnValue_;
+    
+    // (AR) استعادة الحالة السابقة / (EN) Restore previous state
+    flowControl_ = previousFlowControl;
+    returnValue_ = previousReturnValue;
+    currentFunctionReturnType_ = previousReturnType;
+    currentFunctionName_ = previousFunctionName;
     
     return result;
 }

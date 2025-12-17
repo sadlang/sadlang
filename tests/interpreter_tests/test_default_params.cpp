@@ -109,7 +109,8 @@ bool test_integer_default_simple() {
         std::cout << "(AR) اختبار: func greet(name, msg = \"Hello\")\n";
         std::cout << "(EN) Testing: func greet(name, msg = \"Hello\")\n\n";
         
-        VariableManager varMgr;
+        ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
         FunctionManager funcMgr;
         ScopeManager scopeMgr;
         StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -237,7 +238,8 @@ bool test_multiple_defaults() {
         std::cout << "(AR) اختبار: func sum(a, b = 1, c = 2)\n";
         std::cout << "(EN) Testing: func sum(a, b = 1, c = 2)\n\n";
         
-        VariableManager varMgr;
+        ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
         FunctionManager funcMgr;
         ScopeManager scopeMgr;
         StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -397,7 +399,8 @@ bool test_integer_defaults() {
         std::cout << "(AR) اختبار: func calculate(x, y = 10)\n";
         std::cout << "(EN) Testing: func calculate(x, y = 10)\n\n";
         
-        VariableManager varMgr;
+        ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
         FunctionManager funcMgr;
         ScopeManager scopeMgr;
         StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -491,7 +494,8 @@ bool test_missing_required_param() {
         std::cout << "(AR) اختبار: func need(a, b) - استدعاء need(5)\n";
         std::cout << "(EN) Testing: func need(a, b) - calling need(5)\n\n";
         
-        VariableManager varMgr;
+        ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
         FunctionManager funcMgr;
         ScopeManager scopeMgr;
         StatementExecutor executor(varMgr, funcMgr, scopeMgr);

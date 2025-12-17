@@ -627,8 +627,12 @@ void ASTPrinter::visitFunctionDecl(FunctionDecl& decl) {
 void ASTPrinter::visitClassDecl(ClassDecl& decl) {
     result_ += indent() + "class " + decl.name;
     
-    if (!decl.superclass.empty()) {
-        result_ += " extends " + decl.superclass;
+    if (!decl.superclasses.empty()) {
+        result_ += " extends ";
+        for (size_t i = 0; i < decl.superclasses.size(); ++i) {
+            if (i > 0) result_ += ", ";
+            result_ += decl.superclasses[i];
+        }
     }
     
     result_ += "\n" + indent() + "{\n";
@@ -770,30 +774,181 @@ void ASTPrinter::visitEnumDecl(EnumDecl& decl) {
 }
 
 /**
- * @brief (AR) يزور جملة الاستيراد - يطبع مسار الوحدة والرموز.
- *        (EN) Visits import statement - prints module path and symbols.
+ * @brief (AR) يزور جملة الاستيراد - يطبع مسار الوحدة والاسم المستعار.
+ *        (EN) Visits import statement - prints module path and alias.
  * 
  * @param stmt (AR) مؤشر لجملة الاستيراد. (EN) Pointer to import statement.
  */
 void ASTPrinter::visitImportStmt(ImportStmt& stmt) {
-    result_ += indent() + "import \"" + stmt.modulePath + "\"";
+    result_ += indent() + "استورد ";
     
-    if (!stmt.alias.empty()) {
-        result_ += " as " + stmt.alias;
+    // طباعة مسار الوحدة / Print module path
+    for (size_t i = 0; i < stmt.modulePath.size(); ++i) {
+        if (i > 0) result_ += ".";
+        result_ += stmt.modulePath[i];
     }
     
-    result_ += ";\n";
+    // طباعة الاسم المستعار / Print alias
+    if (stmt.alias.has_value()) {
+        result_ += " كـ " + stmt.alias.value();
+    }
+    
+    result_ += "\n";
 }
 
 /**
- * @brief (AR) يزور جملة التصدير - يطبع التصريح المصدَّر.
- *        (EN) Visits export statement - prints exported declaration.
+ * @brief (AR) يزور جملة الاستيراد الانتقائي - يطبع الوحدة والعناصر المستوردة.
+ *        (EN) Visits from-import statement - prints module and imported items.
+ * 
+ * @param stmt (AR) مؤشر لجملة الاستيراد الانتقائي. (EN) Pointer to from-import statement.
+ */
+void ASTPrinter::visitFromImportStmt(FromImportStmt& stmt) {
+    result_ += indent() + "من ";
+    
+    // طباعة مسار الوحدة / Print module path
+    for (size_t i = 0; i < stmt.modulePath.size(); ++i) {
+        if (i > 0) result_ += ".";
+        result_ += stmt.modulePath[i];
+    }
+    
+    result_ += " استورد ";
+    
+    // طباعة العناصر أو * / Print items or *
+    if (stmt.isWildcard) {
+        result_ += "*";
+    } else {
+        for (size_t i = 0; i < stmt.items.size(); ++i) {
+            if (i > 0) result_ += "، ";
+            result_ += stmt.items[i].name;
+            if (stmt.items[i].alias.has_value()) {
+                result_ += " كـ " + stmt.items[i].alias.value();
+            }
+        }
+    }
+    
+    result_ += "\n";
+}
+
+/**
+ * @brief (AR) يزور جملة التصدير (قديم) - يطبع التصريح المصدَّر.
+ *        (EN) Visits export statement (legacy) - prints exported declaration.
  * 
  * @param stmt (AR) مؤشر لجملة التصدير. (EN) Pointer to export statement.
  */
 void ASTPrinter::visitExportStmt(ExportStmt& stmt) {
     result_ += indent() + "export ";
-    stmt.declaration->accept(*this);
+    if (stmt.declaration) {
+        stmt.declaration->accept(*this);
+    }
+}
+
+/**
+ * @brief (AR) يزور تصريح التصدير - يطبع التصريح المصدَّر.
+ *        (EN) Visits export declaration - prints exported declaration.
+ * 
+ * @param decl (AR) مؤشر لتصريح التصدير. (EN) Pointer to export declaration.
+ */
+void ASTPrinter::visitExportDecl(ExportDecl& decl) {
+    result_ += indent() + "صدّر ";
+    if (decl.declaration) {
+        decl.declaration->accept(*this);
+    }
+}
+
+// =========================================================================
+// (AR) دوال الـ Visitor المفقودة / (EN) Missing Visitor Methods
+// =========================================================================
+
+/**
+ * @brief (AR) يزور تعبير decorator / (EN) Visits decorator expression
+ */
+void ASTPrinter::visitDecoratorExpr(DecoratorExpr& expr) {
+    result_ += indent() + "@decorator\n";
+}
+
+/**
+ * @brief (AR) يزور تعبير new / (EN) Visits new expression
+ */
+void ASTPrinter::visitNewExpr(NewExpr& expr) {
+    result_ += indent() + "new " + expr.className + "()";
+}
+
+/**
+ * @brief (AR) يزور تعبير الوصول للعضو / (EN) Visits member access expression
+ */
+void ASTPrinter::visitMemberAccessExpr(MemberAccessExpr& expr) {
+    if (expr.object) {
+        expr.object->accept(*this);
+    }
+    result_ += "." + expr.memberName;
+}
+
+/**
+ * @brief (AR) يزور تعبير استدعاء method / (EN) Visits method call expression
+ */
+void ASTPrinter::visitMethodCallExpr(MethodCallExpr& expr) {
+    if (expr.object) {
+        expr.object->accept(*this);
+    }
+    result_ += "." + expr.methodName + "()";
+}
+
+/**
+ * @brief (AR) يزور جملة yield / (EN) Visits yield statement
+ */
+void ASTPrinter::visitYieldStmt(YieldStmt& stmt) {
+    result_ += indent() + "yield";
+    if (stmt.value) {
+        result_ += " ";
+        stmt.value->accept(*this);
+    }
+    result_ += "\n";
+}
+
+/**
+ * @brief (AR) يزور جملة تصريح الصنف / (EN) Visits class declaration statement
+ */
+void ASTPrinter::visitClassDeclStmt(ClassDeclStmt& stmt) {
+    result_ += indent() + "class " + stmt.name;
+    
+    // طباعة الأصناف الأساسية / Print base classes
+    if (!stmt.baseClasses.empty()) {
+        result_ += " : ";
+        for (size_t i = 0; i < stmt.baseClasses.size(); ++i) {
+            if (i > 0) result_ += ", ";
+            result_ += stmt.baseClasses[i];
+        }
+    }
+    
+    result_ += " {\n";
+    indentLevel_++;
+    
+    // طباعة الخصائص / Print fields
+    for (const auto& field : stmt.fields) {
+        if (field) {
+            field->accept(*this);
+        }
+    }
+    
+    // طباعة الباني / Print constructor
+    if (stmt.constructor) {
+        stmt.constructor->accept(*this);
+    }
+    
+    // طباعة الطرق / Print methods
+    for (const auto& method : stmt.methods) {
+        if (method) {
+            method->accept(*this);
+        }
+    }
+    
+    // طباعة الهدام / Print destructor
+    if (stmt.destructor) {
+        stmt.destructor->accept(*this);
+    }
+    
+    indentLevel_--;
+    result_ += indent() + "}\n";
 }
 
 } // namespace AST

@@ -1,0 +1,58 @@
+{
+  "projects": {
+    "default": "slangserver-f3fd0"
+  },
+  "targets": {
+    "slangserver-f3fd0": {
+      "hosting": {
+        "packages": [
+          "dist"
+        ]
+      }
+    }
+  },
+  "hosting": [
+    {
+      "target": "packages",
+      "public": "dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "cleanUrls": true,
+      "trailingSlash": false
+    }
+  ],
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": [
+    {
+      "bucket": "slangserver-f3fd0.appspot.com",
+      "rules": "storage.rules"
+    }
+  ],
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "functions": {
+      "port": 5001
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "pubsub": {
+      "port": 8085
+    },
+    "storage": {
+      "port": 9199
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
+  }
+}

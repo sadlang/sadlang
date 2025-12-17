@@ -60,6 +60,9 @@ public:
     explicit Value(const ArrayType& val);       // ARRAY
     explicit Value(const MapType& val);         // MAP
     
+    // Clone method (deep copy)
+    Value clone() const;
+    
     // Type checking
     ValueType getType() const { return type_; }
     bool isVoid() const { return type_ == ValueType::VOID; }

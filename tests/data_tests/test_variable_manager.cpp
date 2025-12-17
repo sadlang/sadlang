@@ -63,17 +63,19 @@ int tests_failed = 0;
 TEST(test_create_variable_manager) {
     // (AR) إنشاء مدير متغيرات
     // (EN) Create variable manager
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
-    assert(varMgr.getScopeManager() != nullptr);
-    assert(varMgr.getScopeManager()->isGlobalScope());
+    // assert(varMgr.getScopeManager() != nullptr);  // getScopeManager() now returns reference
+    assert(varMgr.getScopeManager().isGlobalScope());
     assert(varMgr.getVariableCount() == 0);
 }
 
 TEST(test_define_integer_variable) {
     // (AR) تعريف متغير عدد صحيح
     // (EN) Define integer variable
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("x", Value(42));
     
@@ -84,7 +86,8 @@ TEST(test_define_integer_variable) {
 TEST(test_define_double_variable) {
     // (AR) تعريف متغير عدد عشري
     // (EN) Define double variable
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("pi", Value(3.14159));
     
@@ -95,7 +98,8 @@ TEST(test_define_double_variable) {
 TEST(test_define_string_variable) {
     // (AR) تعريف متغير نصي
     // (EN) Define string variable
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("name", Value("أحمد"));
     
@@ -106,7 +110,8 @@ TEST(test_define_string_variable) {
 TEST(test_define_boolean_variable) {
     // (AR) تعريف متغير منطقي
     // (EN) Define boolean variable
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("flag", Value(true));
     
@@ -117,7 +122,8 @@ TEST(test_define_boolean_variable) {
 TEST(test_assign_to_existing_variable) {
     // (AR) تعيين قيمة لمتغير موجود
     // (EN) Assign to existing variable
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("x", Value(10));
     assert(varMgr.get("x").toInt() == 10);
@@ -129,7 +135,8 @@ TEST(test_assign_to_existing_variable) {
 TEST(test_assign_different_types) {
     // (AR) تعيين أنواع مختلفة لنفس المتغير
     // (EN) Assign different types to same variable
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("var", Value(42));
     assert(varMgr.get("var").isInteger());
@@ -149,7 +156,8 @@ TEST(test_assign_different_types) {
 TEST(test_exists_returns_false_for_undefined) {
     // (AR) exists يرجع false للمتغيرات غير المعرفة
     // (EN) exists returns false for undefined variables
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     assert(!varMgr.exists("undefined_var"));
 }
@@ -157,7 +165,8 @@ TEST(test_exists_returns_false_for_undefined) {
 TEST(test_exists_returns_true_for_defined) {
     // (AR) exists يرجع true للمتغيرات المعرفة
     // (EN) exists returns true for defined variables
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("x", Value(10));
     assert(varMgr.exists("x"));
@@ -166,7 +175,8 @@ TEST(test_exists_returns_true_for_defined) {
 TEST(test_remove_variable) {
     // (AR) حذف متغير
     // (EN) Remove variable
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("temp", Value(99));
     assert(varMgr.exists("temp"));
@@ -179,7 +189,8 @@ TEST(test_remove_variable) {
 TEST(test_remove_nonexistent_returns_false) {
     // (AR) حذف متغير غير موجود يرجع false
     // (EN) Removing nonexistent variable returns false
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     bool removed = varMgr.remove("nonexistent");
     assert(!removed);
@@ -193,7 +204,8 @@ TEST(test_remove_nonexistent_returns_false) {
 TEST(test_cannot_redefine_in_same_scope) {
     // (AR) لا يمكن إعادة تعريف متغير في نفس النطاق
     // (EN) Cannot redefine variable in same scope
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("x", Value(10));
     
@@ -213,7 +225,8 @@ TEST(test_cannot_redefine_in_same_scope) {
 TEST(test_cannot_assign_to_undefined) {
     // (AR) لا يمكن التعيين لمتغير غير معرف
     // (EN) Cannot assign to undefined variable
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     bool caught = false;
     try {
@@ -231,7 +244,8 @@ TEST(test_cannot_assign_to_undefined) {
 TEST(test_cannot_get_undefined) {
     // (AR) لا يمكن قراءة متغير غير معرف
     // (EN) Cannot get undefined variable
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     bool caught = false;
     try {
@@ -251,21 +265,23 @@ TEST(test_cannot_get_undefined) {
 TEST(test_enter_and_exit_scope) {
     // (AR) دخول والخروج من نطاق
     // (EN) Enter and exit scope
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
-    assert(varMgr.getScopeManager()->isGlobalScope());
+    assert(varMgr.getScopeManager().isGlobalScope());
     
     varMgr.enterScope(ScopeType::FUNCTION, "test");
-    assert(!varMgr.getScopeManager()->isGlobalScope());
+    assert(!varMgr.getScopeManager().isGlobalScope());
     
     varMgr.exitScope();
-    assert(varMgr.getScopeManager()->isGlobalScope());
+    assert(varMgr.getScopeManager().isGlobalScope());
 }
 
 TEST(test_variables_in_different_scopes) {
     // (AR) متغيرات في نطاقات مختلفة
     // (EN) Variables in different scopes
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     // (AR) متغير عام
     // (EN) Global variable
@@ -294,7 +310,8 @@ TEST(test_variables_in_different_scopes) {
 TEST(test_scope_cleanup_on_exit) {
     // (AR) تنظيف النطاق عند الخروج
     // (EN) Scope cleanup on exit
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     assert(varMgr.getVariableCount() == 0);
     
@@ -318,7 +335,8 @@ TEST(test_scope_cleanup_on_exit) {
 TEST(test_variable_shadowing) {
     // (AR) تظليل المتغيرات
     // (EN) Variable shadowing
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     // (AR) تعريف x في النطاق العام
     // (EN) Define x in global scope
@@ -346,7 +364,8 @@ TEST(test_variable_shadowing) {
 TEST(test_assign_updates_nearest_scope) {
     // (AR) assign يحدّث أقرب نطاق
     // (EN) assign updates nearest scope
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("x", Value(10));
     
@@ -368,7 +387,8 @@ TEST(test_assign_updates_nearest_scope) {
 TEST(test_nested_shadowing) {
     // (AR) تظليل متداخل
     // (EN) Nested shadowing
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("x", Value(1));  // (AR) عام / (EN) Global
     
@@ -394,7 +414,8 @@ TEST(test_nested_shadowing) {
 TEST(test_get_variable_count) {
     // (AR) الحصول على عدد المتغيرات
     // (EN) Get variable count
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     assert(varMgr.getVariableCount() == 0);
     
@@ -411,7 +432,8 @@ TEST(test_get_variable_count) {
 TEST(test_get_total_variable_count) {
     // (AR) الحصول على العدد الكلي للمتغيرات
     // (EN) Get total variable count
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("global1", Value(1));
     varMgr.define("global2", Value(2));
@@ -428,7 +450,8 @@ TEST(test_get_total_variable_count) {
 TEST(test_get_variable_names) {
     // (AR) الحصول على أسماء المتغيرات
     // (EN) Get variable names
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("x", Value(1));
     varMgr.define("y", Value(2));
@@ -447,7 +470,8 @@ TEST(test_get_variable_names) {
 TEST(test_clear_all_variables) {
     // (AR) مسح جميع المتغيرات
     // (EN) Clear all variables
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("a", Value(1));
     varMgr.define("b", Value(2));
@@ -460,7 +484,7 @@ TEST(test_clear_all_variables) {
     varMgr.clear();
     
     assert(varMgr.getTotalVariableCount() == 0);
-    assert(varMgr.getScopeManager()->isGlobalScope());
+    assert(varMgr.getScopeManager().isGlobalScope());
 }
 
 // ========================================
@@ -471,7 +495,8 @@ TEST(test_clear_all_variables) {
 TEST(test_realistic_function_scenario) {
     // (AR) سيناريو دالة واقعي
     // (EN) Realistic function scenario
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     // (AR) متغيرات عامة
     // (EN) Global variables
@@ -522,7 +547,8 @@ TEST(test_realistic_function_scenario) {
 TEST(test_multiple_functions_with_same_variable_names) {
     // (AR) دوال متعددة بنفس أسماء المتغيرات
     // (EN) Multiple functions with same variable names
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     // (AR) دالة 1
     // (EN) Function 1
@@ -547,7 +573,8 @@ TEST(test_multiple_functions_with_same_variable_names) {
 TEST(test_lambda_scope) {
     // (AR) نطاق لامدا
     // (EN) Lambda scope
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     
     varMgr.define("outer", Value(100));
     

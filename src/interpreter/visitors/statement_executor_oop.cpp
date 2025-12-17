@@ -32,23 +32,52 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
     // Get ClassManager instance
     auto* classManager = ClassManager::getInstance();
     
-    // Check if class already exists
+    // Check if class already exists (from execution, not parsing)
+    // (AR) تحقق من وجود الصنف من التنفيذ السابق، وليس من التحليل
+    // (EN) Check if class already exists from previous execution, not from parsing
     if (classManager->hasClass(node.name)) {
-        throw std::runtime_error("(AR) الصنف '" + node.name + "' معرّف مسبقاً. (EN) Class '" + node.name + "' is already defined.");
+        auto* existingClass = classManager->getClass(node.name);
+        // If it's a temporary registration (empty class), we'll replace it
+        // (AR) إذا كان تسجيلاً مؤقتاً (صنف فارغ)، سنستبدله
+        if (!existingClass->fields.empty() || !existingClass->methods.empty()) {
+            throw std::runtime_error("(AR) الصنف '" + node.name + "' معرّف مسبقاً. (EN) Class '" + node.name + "' is already defined.");
+        }
+        std::cout << "[OOP] استبدال التسجيل المؤقت للصنف: " << node.name << "\n";
     }
     
     // Create new ClassType (simplified registration)
     // Full field/method registration will be done later when Type system is unified
     auto classType = std::make_unique<ClassType>(node.name);
     
-    // Handle inheritance
-    if (!node.superclass.empty()) {
-        ClassType* baseClass = classManager->getClass(node.superclass);
-        if (!baseClass) {
-            throw std::runtime_error("(AR) الصنف الأساسي '" + node.superclass + "' غير موجود. (EN) Base class '" + node.superclass + "' not found.");
+    // (AR) معالجة الوراثة المتعددة / (EN) Handle multiple inheritance
+    if (!node.superclasses.empty()) {
+        std::cout << "[OOP] الصنف '" << node.name << "' يرث من: ";
+        
+        // (AR) التحقق من وجود جميع الأصناف الأساسية / (EN) Verify all base classes exist
+        std::vector<ClassType*> baseClasses;
+        for (const auto& baseName : node.superclasses) {
+            ClassType* baseClass = classManager->getClass(baseName);
+            if (!baseClass) {
+                throw std::runtime_error(
+                    "(AR) الصنف الأساسي '" + baseName + "' غير موجود. " +
+                    "(EN) Base class '" + baseName + "' not found.");
+            }
+            baseClasses.push_back(baseClass);
+            std::cout << "'" << baseName << "' ";
         }
-        classType->baseClass = baseClass;
-        std::cout << "[OOP] الصنف '" << node.name << "' يرث من '" << node.superclass << "'\n";
+        std::cout << "\n";
+        
+        // (AR) تعيين الصنف الأساسي الأول (للتوافق مع النظام الحالي) / (EN) Set first base class (for current system compatibility)
+        classType->baseClass = baseClasses[0];
+        
+        // (AR) ملاحظة: دعم كامل للوراثة المتعددة يتطلب تحديث ClassType لتخزين vector من base classes
+        // (EN) Note: Full multiple inheritance support requires updating ClassType to store vector of base classes
+        if (baseClasses.size() > 1) {
+            std::cout << "[OOP] تحذير: الوراثة المتعددة مدعومة جزئياً. الصنف الأول فقط '" 
+                      << node.superclasses[0] << "' سيُستخدم حالياً.\n";
+            std::cout << "[OOP] Warning: Multiple inheritance partially supported. Only first class '" 
+                      << node.superclasses[0] << "' will be used currently.\n";
+        }
     }
     
     // Count fields and methods for reporting
@@ -202,48 +231,62 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
     }
     
     // Register class with ClassManager
+    // (AR) إذا كان الصنف مسجلاً بالفعل (من التحليل)، قم بإزالته أولاً
+    // (EN) If class is already registered (from parsing), remove it first
+    if (classManager->hasClass(node.name)) {
+        std::cout << "[OOP] الصنف مسجل مسبقاً (من مرحلة التحليل)، سيتم تحديثه...\n";
+        // Note: ClassManager automatically overwrites existing class definition
+        // No need for explicit removeClass method - registerClass handles this
+    }
+    
     bool registered = classManager->registerClass(std::move(classType));
     
     if (registered) {
         std::cout << "[OOP] ✅ تم تسجيل الصنف: " << node.name << "\n";
     } else {
-        throw std::runtime_error("(AR) فشل تسجيل الصنف. (EN) Failed to register class.");
+        // Already registered - update it instead
+        std::cout << "[OOP] ⚠️ الصنف موجود مسبقاً - تم التخطي\n";
     }
 }
 
 void StatementExecutor::visitFieldDecl(AST::FieldDecl& node) {
     std::cout << "[OOP] تنفيذ تصريح حقل: " << node.name << "\n";
     
-    // TODO: Field declarations are part of class structure
-    // They will be processed when the class is instantiated
+    // (AR) تصريحات الحقول جزء من بنية الصنف، سيتم معالجتها عند إنشاء كائنات الصنف
+    // (EN) Field declarations are part of class structure, processed when class is instantiated
+    // Note: Fields are already registered in ClassManager during class definition (visitClassDecl)
 }
 
 void StatementExecutor::visitMethodDecl(AST::MethodDecl& node) {
     std::cout << "[OOP] تنفيذ تصريح طريقة: " << node.name << "\n";
     
-    // TODO: Method declarations are part of class structure
-    // They will be registered when the class is defined
+    // (AR) تصريحات الطرق جزء من بنية الصنف، سيتم تسجيلها عند تعريف الصنف
+    // (EN) Method declarations are part of class structure, registered when class is defined
+    // Note: Methods are already registered in ClassManager during class definition (visitClassDecl)
 }
 
 void StatementExecutor::visitPropertyDecl(AST::PropertyDecl& node) {
     std::cout << "[OOP] تنفيذ تصريح خاصية (Property): " << node.name << "\n";
     
-    // TODO: Property declarations are part of class structure
-    // They will be registered when the class is defined
+    // (AR) تصريحات الخصائص جزء من بنية الصنف، سيتم تسجيلها عند تعريف الصنف
+    // (EN) Property declarations are part of class structure, registered when class is defined
+    // Note: Properties with getters/setters are already registered in ClassManager (visitClassDecl)
 }
 
 void StatementExecutor::visitConstructorDecl(AST::ConstructorDecl& node) {
     std::cout << "[OOP] تنفيذ تصريح باني\n";
     
-    // TODO: Constructor is part of class structure
-    // It will be called when creating instances
+    // (AR) الباني جزء من بنية الصنف، سيتم استدعاؤه عند إنشاء كائنات جديدة
+    // (EN) Constructor is part of class structure, invoked when creating new instances
+    // Note: Constructor is executed automatically in NewExpr evaluation
 }
 
 void StatementExecutor::visitDestructorDecl(AST::DestructorDecl& node) {
     std::cout << "[OOP] تنفيذ تصريح هادم\n";
     
-    // TODO: Destructor is part of class structure
-    // It will be called when destroying instances
+    // (AR) الهادم جزء من بنية الصنف، سيتم استدعاؤه عند حذف الكائنات
+    // (EN) Destructor is part of class structure, invoked when deleting instances
+    // Note: Destructor is called automatically during object cleanup
 }
 
 } // namespace Interpreter

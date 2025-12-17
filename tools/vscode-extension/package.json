@@ -1,0 +1,138 @@
+{
+  "name": "sad-language",
+  "displayName": "Sad Language Support (لغة ص)",
+  "description": "دعم كامل للغة ص - Full Language Support for Sad Programming Language",
+  "version": "1.0.0",
+  "publisher": "sad-language",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sad-lang/sad-language"
+  },
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Formatters"
+  ],
+  "keywords": [
+    "sad",
+    "arabic",
+    "عربي",
+    "لغة ص"
+  ],
+  "activationEvents": [
+    "onLanguage:sad"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "sad",
+        "aliases": [
+          "Sad",
+          "لغة ص",
+          "ص"
+        ],
+        "extensions": [
+          ".s",
+          ".sad"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./images/file-icon.png",
+          "dark": "./images/file-icon.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "sad",
+        "scopeName": "source.sad",
+        "path": "./syntaxes/sad.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "sad",
+        "path": "./snippets/sad.json"
+      }
+    ],
+    "configuration": {
+      "title": "Sad Language",
+      "properties": {
+        "sad.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "مسار خادم اللغة / Path to the language server executable"
+        },
+        "sad.server.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "تفعيل خادم اللغة / Enable language server"
+        },
+        "sad.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "تتبع اتصالات الخادم / Trace server communications"
+        },
+        "sad.formatting.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "تفعيل التنسيق التلقائي / Enable automatic formatting"
+        },
+        "sad.formatting.tabSize": {
+          "type": "number",
+          "default": 4,
+          "description": "حجم التاب / Tab size"
+        },
+        "sad.formatting.insertSpaces": {
+          "type": "boolean",
+          "default": true,
+          "description": "استخدام المسافات بدلاً من التاب / Use spaces instead of tabs"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "sad.restartServer",
+        "title": "إعادة تشغيل خادم اللغة / Restart Language Server",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.showOutputChannel",
+        "title": "عرض سجل الخادم / Show Server Log",
+        "category": "Sad"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.70.0",
+    "@typescript-eslint/eslint-plugin": "^5.30.0",
+    "@typescript-eslint/parser": "^5.30.0",
+    "eslint": "^8.18.0",
+    "typescript": "^4.7.4",
+    "vsce": "^2.10.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.0.2"
+  }
+}

@@ -30,7 +30,8 @@ enum class DataType {
     FUNCTION,     ///< دالة / Function
     OBJECT,       ///< كائن / Object (class instance)
     ENUM,         ///< تعداد / Enum
-    BYTE          ///< بايت / Byte
+    BYTE,         ///< بايت / Byte
+    ERROR         ///< خطأ / Error/Exception type
 };
 
 } // namespace Data

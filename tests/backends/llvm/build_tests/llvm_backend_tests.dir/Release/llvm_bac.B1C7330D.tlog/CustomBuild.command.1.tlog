@@ -1,0 +1,10 @@
+^C:\S\S_LANGUAGE\TESTS\BACKENDS\LLVM\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/s/s_language/tests/backends/llvm -BC:/s/s_language/tests/backends/llvm/build_tests --check-stamp-file C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

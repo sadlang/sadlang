@@ -1,0 +1,8 @@
+[package]
+name = "التاريخ"
+version = "1.0.0"
+description = "مكتبة التاريخ والوقت - Date and Time Library for Sad"
+author = "Sad Team"
+license = "MIT"
+
+[dependencies]

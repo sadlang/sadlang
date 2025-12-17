@@ -1,0 +1,128 @@
+# CMakeLists.txt لاختبارات LLVM Backend مع vcpkg
+# CMakeLists.txt for LLVM Backend Tests with vcpkg
+
+cmake_minimum_required(VERSION 3.15)
+project(SadLanguage_LLVM_Tests)
+
+# تحديد معيار C++ / Set C++ standard
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# البحث عن LLVM عبر vcpkg / Find LLVM via vcpkg
+find_package(LLVM REQUIRED CONFIG)
+
+message(STATUS "==============================================")
+message(STATUS "الحمد لله! تم العثور على LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+message(STATUS "==============================================")
+
+# إضافة تعريفات LLVM / Add LLVM definitions
+add_definitions(${LLVM_DEFINITIONS})
+
+# تضمين دلائل LLVM / Include LLVM directories
+include_directories(${LLVM_INCLUDE_DIRS})
+
+# ربط دلائل LLVM / Link LLVM directories
+link_directories(${LLVM_LIBRARY_DIRS})
+
+# تضمين دليل المصدر / Include source directory
+get_filename_component(PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
+include_directories(${PROJECT_ROOT})
+include_directories(${PROJECT_ROOT}/include)
+include_directories(${PROJECT_ROOT}/compiler/backends/llvm)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+# مكونات LLVM المطلوبة / Required LLVM components
+llvm_map_components_to_libnames(llvm_libs
+    Core
+    Support
+    Target
+    Analysis
+    TransformUtils
+    Scalar
+    InstCombine
+    Passes
+    IPO
+    Vectorize
+    X86
+)
+
+message(STATUS "مكتبات LLVM: ${llvm_libs}")
+message(STATUS "LLVM libraries: ${llvm_libs}")
+
+# ملفات المصدر للاختبارات / Test source files
+set(TEST_SOURCES
+    test_runner.cpp
+    test_llvm_linker.cpp
+    test_llvm_optimizer.cpp
+    test_llvm_target.cpp
+    test_llvm_debug.cpp
+    test_llvm_runtime.cpp
+    test_llvm_codegen.cpp
+    test_integration.cpp
+)
+
+# ملفات المصدر للمكونات المُختبرة / Source files for tested components
+set(COMPONENT_SOURCES
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_linker.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_optimizer.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_target.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_debug.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_runtime.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_codegen.cpp
+)
+
+# إنشاء برنامج الاختبار / Create test executable
+add_executable(llvm_backend_tests
+    ${TEST_SOURCES}
+    ${COMPONENT_SOURCES}
+)
+
+# ربط المكتبات / Link libraries
+target_link_libraries(llvm_backend_tests PRIVATE
+    ${llvm_libs}
+)
+
+# إضافة الاختبارات إلى CTest / Add tests to CTest
+enable_testing()
+
+# اختبار جميع المكونات / Test all components
+add_test(NAME AllTests COMMAND llvm_backend_tests)
+set_tests_properties(AllTests PROPERTIES TIMEOUT 300 LABELS "LLVM;All")
+
+# اختبار كل مكون على حدة / Test each component separately
+add_test(NAME LinkerTests COMMAND llvm_backend_tests --suite LLVMLinker)
+set_tests_properties(LinkerTests PROPERTIES TIMEOUT 120 LABELS "LLVM;Linker")
+
+add_test(NAME OptimizerTests COMMAND llvm_backend_tests --suite LLVMOptimizer)
+set_tests_properties(OptimizerTests PROPERTIES TIMEOUT 120 LABELS "LLVM;Optimizer")
+
+add_test(NAME TargetTests COMMAND llvm_backend_tests --suite LLVMTarget)
+set_tests_properties(TargetTests PROPERTIES TIMEOUT 120 LABELS "LLVM;Target")
+
+add_test(NAME DebugTests COMMAND llvm_backend_tests --suite LLVMDebug)
+set_tests_properties(DebugTests PROPERTIES TIMEOUT 120 LABELS "LLVM;Debug")
+
+add_test(NAME RuntimeTests COMMAND llvm_backend_tests --suite LLVMRuntime)
+set_tests_properties(RuntimeTests PROPERTIES TIMEOUT 120 LABELS "LLVM;Runtime")
+
+add_test(NAME CodeGenTests COMMAND llvm_backend_tests --suite LLVMCodeGen)
+set_tests_properties(CodeGenTests PROPERTIES TIMEOUT 120 LABELS "LLVM;CodeGen")
+
+add_test(NAME IntegrationTests COMMAND llvm_backend_tests --suite Integration)
+set_tests_properties(IntegrationTests PROPERTIES TIMEOUT 180 LABELS "LLVM;Integration")
+
+message(STATUS "==============================================")
+message(STATUS "تم تكوين اختبارات LLVM Backend بنجاح")
+message(STATUS "LLVM Backend Tests configured successfully")
+message(STATUS "==============================================")
+message(STATUS "")
+message(STATUS "لتشغيل الاختبارات / To run tests:")
+message(STATUS "  cd build_tests")
+message(STATUS "  ctest --output-on-failure")
+message(STATUS "")
+message(STATUS "أو / Or:")
+message(STATUS "  cmake --build . --config Release")
+message(STATUS "  ./Release/llvm_backend_tests")
+message(STATUS "==============================================")

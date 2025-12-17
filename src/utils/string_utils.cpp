@@ -380,5 +380,101 @@ bool StringUtils::isWhitespace(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
 
+// ======================================================================
+// تنفيذ دوال دعم الأرقام العربية
+// Implementation of Arabic Digit Support Functions
+// ======================================================================
+
+/**
+ * الوصف: التحقق من أن الحرف رقم عربي-هندي (٠-٩)
+ * Description: Check if character is an Arabic-Indic digit (٠-٩)
+ * 
+ * ملاحظة: الأرقام العربية في UTF-8:
+ *   ٠ = 0xD9 0xA0 (U+0660)
+ *   ١ = 0xD9 0xA1 (U+0661)
+ *   ...
+ *   ٩ = 0xD9 0xA9 (U+0669)
+ */
+bool StringUtils::isArabicDigit(unsigned char c) {
+    // في UTF-8، الأرقام العربية تبدأ بـ 0xD9
+    // البايت الثاني يكون من 0xA0 إلى 0xA9
+    // In UTF-8, Arabic digits start with 0xD9
+    // Second byte ranges from 0xA0 to 0xA9
+    return (c >= 0xA0 && c <= 0xA9);
+}
+
+/**
+ * الوصف: التحقق من أن الحرف رقم (عربي أو إنجليزي)
+ * Description: Check if character is a digit (Arabic or English)
+ */
+bool StringUtils::isDigit(unsigned char c) {
+    // فحص الأرقام الإنجليزية (0-9)
+    if (c >= '0' && c <= '9') {
+        return true;
+    }
+    
+    // فحص الأرقام العربية (٠-٩)
+    return isArabicDigit(c);
+}
+
+/**
+ * الوصف: تحويل رقم عربي إلى رقم إنجليزي
+ * Description: Convert Arabic digit to English digit
+ * 
+ * @example ٠ -> '0', ٥ -> '5', ٩ -> '9'
+ */
+char StringUtils::arabicDigitToEnglish(unsigned char c) {
+    // التحقق من أن الحرف رقم عربي
+    if (!isArabicDigit(c)) {
+        return c; // إرجاع الحرف كما هو إذا لم يكن رقماً عربياً
+    }
+    
+    // الأرقام العربية تبدأ من 0xA0 (٠) إلى 0xA9 (٩)
+    // نطرح 0xA0 ونضيف '0' للحصول على الرقم الإنجليزي
+    // Arabic digits start from 0xA0 (٠) to 0xA9 (٩)
+    // Subtract 0xA0 and add '0' to get English digit
+    return '0' + (c - 0xA0);
+}
+
+/**
+ * الوصف: تحويل نص يحتوي على أرقام عربية إلى أرقام إنجليزية
+ * Description: Convert string with Arabic digits to English digits
+ */
+std::string StringUtils::convertArabicDigitsToEnglish(const std::string& str) {
+    DEBUG_PRINT("تحويل الأرقام العربية في النص: " + str);
+    
+    std::string result;
+    result.reserve(str.length());
+    
+    for (size_t i = 0; i < str.length(); ++i) {
+        unsigned char c = static_cast<unsigned char>(str[i]);
+        
+        // فحص إذا كان هذا بداية رقم عربي UTF-8 (0xD9)
+        // Check if this is the start of an Arabic digit UTF-8 sequence (0xD9)
+        if (c == 0xD9 && i + 1 < str.length()) {
+            unsigned char next = static_cast<unsigned char>(str[i + 1]);
+            
+            // فحص إذا كان البايت التالي رقم عربي (0xA0-0xA9)
+            if (isArabicDigit(next)) {
+                // تحويل إلى رقم إنجليزي
+                char englishDigit = arabicDigitToEnglish(next);
+                result += englishDigit;
+                
+                // تخطي البايت التالي (تم معالجته)
+                ++i;
+                
+                DEBUG_PRINT(std::string("تم تحويل رقم عربي إلى: ") + englishDigit);
+                continue;
+            }
+        }
+        
+        // إذا لم يكن رقماً عربياً، أضف الحرف كما هو
+        result += str[i];
+    }
+    
+    DEBUG_PRINT("النتيجة بعد التحويل: " + result);
+    return result;
+}
+
 } // namespace Utils
 } // namespace Sad

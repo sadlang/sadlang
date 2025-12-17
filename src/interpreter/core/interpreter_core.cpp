@@ -28,7 +28,7 @@ Interpreter::Interpreter(const InterpreterOptions& options)
 void Interpreter::initializeComponents() {
     // (AR) إنشاء المديرين بالترتيب الصحيح / (EN) Create managers in correct order
     scopeManager_ = std::make_shared<Data::ScopeManager>();
-    variableManager_ = std::make_shared<Data::VariableManager>();
+    variableManager_ = std::make_shared<Data::VariableManager>(*scopeManager_);
     functionManager_ = std::make_shared<Data::FunctionManager>();
     
     // (AR) إنشاء المنفذين / (EN) Create executors

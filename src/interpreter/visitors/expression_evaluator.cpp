@@ -75,7 +75,7 @@ Value ExpressionEvaluator::tokenToValue(const Token& token) {
         default:
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation("<runtime>", 0, 0),
+                Sad::Errors::SourceLocation("<input>", 1, 1),
                 "نوع رمز غير مدعوم: " + token.getValue(),
                 "Unsupported token type: " + token.getValue()
             );
@@ -106,7 +106,7 @@ void ExpressionEvaluator::visitVariableExpr(VariableExpr& node) {
         // متغير غير معرّف
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "متغير غير معرّف: " + node.name,
             "Undefined variable: " + node.name
         );
@@ -126,7 +126,7 @@ void ExpressionEvaluator::visitThisExpr(ThisExpr& node) {
     } else {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "(AR) 'هذا' غير متاح في هذا السياق. (EN) 'this' is not available in this context.",
             "'this' keyword used outside of class context"
         );
@@ -144,7 +144,7 @@ void ExpressionEvaluator::visitSuperExpr(SuperExpr& node) {
     } else {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "(AR) 'الأساس' غير متاح في هذا السياق. (EN) 'super' is not available in this context.",
             "'super' keyword used outside of class context or class without base"
         );
@@ -212,7 +212,7 @@ void ExpressionEvaluator::visitBinaryExpr(BinaryExpr& node) {
         default:
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation("<runtime>", 0, 0),
+                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                 "عملية ثنائية غير مدعومة",
                 "Unsupported binary operation"
             );
@@ -417,7 +417,7 @@ void ExpressionEvaluator::visitUnaryExpr(UnaryExpr& node) {
             } else {
                 Sad::Errors::ErrorManager::getInstance().reportError(
                     Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation("<runtime>", 0, 0),
+                    Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                     "السالب يتطلب قيمة رقمية",
                     "Negation requires numeric value"
                 );
@@ -433,7 +433,7 @@ void ExpressionEvaluator::visitUnaryExpr(UnaryExpr& node) {
             if (!operand.isNumeric()) {
                 Sad::Errors::ErrorManager::getInstance().reportError(
                     Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation("<runtime>", 0, 0),
+                    Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                     "الموجب يتطلب قيمة رقمية",
                     "Positive requires numeric value"
                 );
@@ -446,7 +446,7 @@ void ExpressionEvaluator::visitUnaryExpr(UnaryExpr& node) {
         default:
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation("<runtime>", 0, 0),
+                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                 "عملية أحادية غير مدعومة",
                 "Unsupported unary operation"
             );
@@ -550,7 +550,7 @@ void ExpressionEvaluator::visitIndexExpr(IndexExpr& node) {
         if (!index.isInteger()) {
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                Sad::Errors::SourceLocation("<runtime>", 0, 0),
+                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                 "فهرس المصفوفة يجب أن يكون رقم صحيح",
                 "Array index must be integer"
             );
@@ -588,7 +588,7 @@ void ExpressionEvaluator::visitIndexExpr(IndexExpr& node) {
     } else {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "الفهرسة تعمل فقط على المصفوفات والقواميس",
             "Indexing works only on arrays and maps"
         );
@@ -632,7 +632,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
         if (!calleeValue.isString()) {
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation("<runtime>", 0, 0),
+                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                 "استدعاء دالة معقد غير مدعوم حالياً",
                 "Complex function calls not supported yet"
             );
@@ -681,7 +681,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
         if (!func) {
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
-                Sad::Errors::SourceLocation("<runtime>", 0, 0),
+                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                 "الدالة '" + funcName + "' غير معرفة بعدد معاملات " + std::to_string(arguments.size()),
                 "Function '" + funcName + "' not defined with " + std::to_string(arguments.size()) + " parameters"
             );
@@ -714,7 +714,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
     if (!func->hasBody()) {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
-            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "الدالة '" + funcName + "' ليس لها جسم",
             "Function '" + funcName + "' has no body"
         );
@@ -749,7 +749,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
             scopeManager_.popScope();
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT,
-                Sad::Errors::SourceLocation("<runtime>", 0, 0),
+                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                 "معامل إلزامي مفقود: " + param.name,
                 "Required parameter missing: " + param.name
             );
@@ -843,7 +843,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
             scopeManager_.popScope();
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
-                Sad::Errors::SourceLocation("<runtime>", 0, 0),
+                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                 "جسم الدالة فارغ",
                 "Function body is null"
             );
@@ -873,7 +873,7 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
     if (!classType) {
         std::string errMsg = "(AR) الصنف '" + node.className + "' غير موجود. ";
         errMsg += "(EN) Class '" + node.className + "' not found.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
     
     // إنشاء كائن كـ MAP مؤقتًا (حتى يتم توسيع نظام Value)
@@ -926,7 +926,7 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
             errMsg += "(EN) Argument count mismatch. Expected " + 
                 std::to_string(constructor->parameters.size()) + " but got " + 
                 std::to_string(node.arguments.size()) + ".";
-            throw RuntimeError(errMsg);
+            throw RuntimeError(errMsg, node.position);
         }
         
         // تقييم المعاملات
@@ -1033,14 +1033,14 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
         if (!objectValue.isMap()) {
             std::string errMsg = "(AR) لا يمكن استدعاء طريقة على قيمة ليست كائن. ";
             errMsg += "(EN) Cannot call method on non-object value.";
-            throw RuntimeError(errMsg);
+            throw RuntimeError(errMsg, node.position);
         }
         
         // الحصول على اسم الصنف من الكائن
         fields = objectValue.toMap();
         auto classNameIt = fields.find("__class__");
         if (classNameIt == fields.end()) {
-            throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.");
+            throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.", node.position);
         }
         
         className = classNameIt->second.toString();
@@ -1050,7 +1050,7 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     }
     
     if (!classType) {
-        throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.");
+        throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.", node.position);
     }
     
     // البحث عن الطريقة (في السلسلة الهرمية)
@@ -1058,7 +1058,7 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     if (!method) {
         std::string errMsg = "(AR) الطريقة '" + node.methodName + "' غير موجودة في الصنف '" + className + "'. ";
         errMsg += "(EN) Method '" + node.methodName + "' not found in class '" + className + "'.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
     
     // التحقق من التطابق بين نوع الاستدعاء ونوع الطريقة
@@ -1066,12 +1066,12 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     if (isStaticCall && !method->isStatic) {
         std::string errMsg = "(AR) لا يمكن استدعاء طريقة غير ثابتة '" + node.methodName + "' من خلال اسم الصنف. ";
         errMsg += "(EN) Cannot call non-static method '" + node.methodName + "' through class name.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
     if (!isStaticCall && method->isStatic) {
         std::string errMsg = "(AR) يجب استدعاء الطريقة الثابتة '" + node.methodName + "' من خلال اسم الصنف. ";
         errMsg += "(EN) Static method '" + node.methodName + "' should be called through class name.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
     
     // فحص الوصول (Phase 6.1: Access Modifiers)
@@ -1083,7 +1083,7 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
             std::to_string(method->parameters.size()) + " لكن حصل على " + 
             std::to_string(node.arguments.size()) + ". ";
         errMsg += "(EN) Argument count mismatch.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
     
     // تقييم المعاملات
@@ -1208,14 +1208,14 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
             if (!field) {
                 std::string errMsg = "(AR) الحقل '" + node.member + "' غير موجود في الصنف '" + possibleClassName + "'. ";
                 errMsg += "(EN) Field '" + node.member + "' not found in class '" + possibleClassName + "'.";
-                throw RuntimeError(errMsg);
+                throw RuntimeError(errMsg, node.position);
             }
             
             // التحقق من أن الحقل ثابت
             if (!field->isStatic) {
                 std::string errMsg = "(AR) لا يمكن الوصول للحقل غير الثابت '" + node.member + "' من خلال اسم الصنف. ";
                 errMsg += "(EN) Cannot access non-static field '" + node.member + "' through class name.";
-                throw RuntimeError(errMsg);
+                throw RuntimeError(errMsg, node.position);
             }
             
             // فحص الوصول
@@ -1226,7 +1226,7 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
             if (!staticValue) {
                 std::string errMsg = "(AR) الحقل الثابت '" + node.member + "' غير مهيأ. ";
                 errMsg += "(EN) Static field '" + node.member + "' not initialized.";
-                throw RuntimeError(errMsg);
+                throw RuntimeError(errMsg, node.position);
             }
             
             lastResult_ = *staticValue;
@@ -1242,7 +1242,7 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
     if (!objectValue.isMap()) {
         std::string errMsg = "(AR) لا يمكن الوصول لعضو من قيمة ليست كائن. ";
         errMsg += "(EN) Cannot access member of non-object value.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
     
     std::cout << "[OOP] الوصول لحقل: " << node.member << "\n";
@@ -1253,7 +1253,7 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
     // الحصول على اسم الصنف
     auto classNameIt = fields.find("__class__");
     if (classNameIt == fields.end()) {
-        throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.");
+        throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.", node.position);
     }
     
     std::string className = classNameIt->second.toString();
@@ -1262,7 +1262,7 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
     ClassType* classType = classManager->getClass(className);
     
     if (!classType) {
-        throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.");
+        throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.", node.position);
     }
     
     // البحث عن الحقل في السلسلة الهرمية
@@ -1277,7 +1277,7 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
     if (!field && !property) {
         std::string errMsg = "(AR) الحقل أو الخاصية '" + node.member + "' غير موجود في الكائن. ";
         errMsg += "(EN) Field or property '" + node.member + "' not found in object.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
     
     // إذا كانت خاصية، نفذ الـ getter
@@ -1291,7 +1291,7 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
         if (!property->getterBody) {
             std::string errMsg = "(AR) الخاصية '" + node.member + "' للكتابة فقط (لا يوجد getter). ";
             errMsg += "(EN) Property '" + node.member + "' is write-only (no getter).";
-            throw RuntimeError(errMsg);
+            throw RuntimeError(errMsg, node.position);
         }
         
         // تنفيذ getter body في نطاق جديد
@@ -1315,7 +1315,7 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
     if (it == fields.end()) {
         std::string errMsg = "(AR) الحقل '" + node.member + "' غير موجود في الكائن. ";
         errMsg += "(EN) Field '" + node.member + "' not found in object.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
     
     // إرجاع قيمة الحقل
@@ -1336,7 +1336,7 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
     if (!objectValue.isMap()) {
         std::string errMsg = "(AR) لا يمكن تعيين قيمة لعضو من قيمة ليست كائن. ";
         errMsg += "(EN) Cannot assign to member of non-object value.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
     
     // تقييم القيمة الجديدة
@@ -1349,7 +1349,7 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
     // الحصول على اسم الصنف
     auto classNameIt = fields.find("__class__");
     if (classNameIt == fields.end()) {
-        throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.");
+        throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.", node.position);
     }
     
     std::string className = classNameIt->second.toString();
@@ -1359,7 +1359,7 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
     ClassType* classType = classManager->getClass(className);
     
     if (!classType) {
-        throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.");
+        throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.", node.position);
     }
     
     // البحث عن الحقل
@@ -1374,7 +1374,7 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
     if (!field && !property) {
         std::string errMsg = "(AR) الحقل أو الخاصية '" + node.member + "' غير موجود في الكائن. ";
         errMsg += "(EN) Field or property '" + node.member + "' not found in object.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
     
     // إذا كانت خاصية، نفذ الـ setter
@@ -1388,7 +1388,7 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
         if (!property->setterBody) {
             std::string errMsg = "(AR) الخاصية '" + node.member + "' للقراءة فقط (لا يوجد setter). ";
             errMsg += "(EN) Property '" + node.member + "' is read-only (no setter).";
-            throw RuntimeError(errMsg);
+            throw RuntimeError(errMsg, node.position);
         }
         
         // إنشاء نطاق جديد لمعامل setter
@@ -1413,7 +1413,7 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
     if (fields.find(node.member) == fields.end()) {
         std::string errMsg = "(AR) الحقل '" + node.member + "' غير موجود في الكائن. ";
         errMsg += "(EN) Field '" + node.member + "' not found in object.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
     
     // تحديث قيمة الحقل
@@ -1435,7 +1435,7 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
         // Complex expression - not supported yet
         std::string errMsg = "(AR) تعيين قيمة لحقل في تعبير معقد غير مدعوم حاليًا. ";
         errMsg += "(EN) Assignment to field in complex expression not yet supported.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, node.position);
     }
 }
 
@@ -1504,7 +1504,7 @@ void ExpressionEvaluator::visitListComprehensionExpr(ListComprehensionExpr& node
     if (!iterableValue.isArray()) {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-            Sad::Errors::SourceLocation("<runtime>", 0, 0),
+            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "الاستيعاب القائمي يتطلب مصفوفة",
             "List comprehension requires an array"
         );
@@ -1564,7 +1564,8 @@ void ExpressionEvaluator::visitDictComprehensionExpr(DictComprehensionExpr& node
     if (!iterableValue.isArray()) {
         throw RuntimeError(
             "(AR) الاستيعاب القاموسي يتطلب مصفوفة / "
-            "(EN) Dict comprehension requires an array"
+            "(EN) Dict comprehension requires an array",
+            node.position
         );
     }
     
@@ -1676,7 +1677,7 @@ void ExpressionEvaluator::checkMemberAccess(
                            "' من خارج الصنف '" + targetClass->name + "'. ";
         errMsg += "(EN) Cannot access private member '" + memberName + 
                  "' from outside class '" + targetClass->name + "'.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, Lexer::Position());
     }
     
     if (visibility == AST::Visibility::PROTECTED) {
@@ -1684,7 +1685,7 @@ void ExpressionEvaluator::checkMemberAccess(
                            "' من خارج الصنف '" + targetClass->name + "' أو الأصناف المشتقة. ";
         errMsg += "(EN) Cannot access protected member '" + memberName + 
                  "' from outside class '" + targetClass->name + "' or derived classes.";
-        throw RuntimeError(errMsg);
+        throw RuntimeError(errMsg, Lexer::Position());
     }
 }
 

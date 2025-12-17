@@ -119,10 +119,12 @@ namespace Data {
 class VariableManager {
 public:
     /**
-     * @brief (AR) إنشاء مدير المتغيرات مع نطاق عام فارغ
-     * @brief (EN) Create variable manager with empty global scope
+     * @brief (AR) إنشاء مدير المتغيرات مع مرجع لمدير النطاقات
+     * @brief (EN) Create variable manager with reference to scope manager
+     * 
+     * @param scopeManager (AR) مرجع لمدير النطاقات / (EN) Reference to scope manager
      */
-    VariableManager();
+    explicit VariableManager(ScopeManager& scopeManager);
     
     /**
      * @brief (AR) المُدمر - تنظيف جميع المتغيرات
@@ -291,10 +293,10 @@ public:
      * @brief (AR) الحصول على مدير النطاقات
      * @brief (EN) Get scope manager
      * 
-     * @return (AR) مؤشر لمدير النطاقات / (EN) Pointer to scope manager
+     * @return (AR) مرجع لمدير النطاقات / (EN) Reference to scope manager
      */
-    ScopeManager* getScopeManager() { return scopeManager_.get(); }
-    const ScopeManager* getScopeManager() const { return scopeManager_.get(); }
+    ScopeManager& getScopeManager() { return scopeManager_; }
+    const ScopeManager& getScopeManager() const { return scopeManager_; }
     
     // ========================================
     // (AR) استعلامات ومعلومات
@@ -354,10 +356,21 @@ public:
      */
     std::string debugString() const;
     
+    /**
+     * @brief (AR) تنظيف المتغيرات المرتبطة بنطاق معين
+     * @brief (EN) Cleanup variables associated with a specific scope
+     * 
+     * يُستدعى عند إغلاق نطاق لحذف جميع المتغيرات المرتبطة به
+     * Called when closing a scope to delete all associated variables
+     * 
+     * @param scope (AR) مؤشر للنطاق المراد تنظيفه / (EN) Pointer to scope to cleanup
+     */
+    void cleanupScope(Scope* scope);
+    
 private:
-    // (AR) مدير النطاقات للتحكم في سلسلة النطاقات
-    // (EN) Scope manager for controlling scope chain
-    std::unique_ptr<ScopeManager> scopeManager_;
+    // (AR) مرجع لمدير النطاقات (يُدار من الخارج)
+    // (EN) Reference to scope manager (managed externally)
+    ScopeManager& scopeManager_;
     
     // (AR) خريطة لتخزين القيم: المفتاح = (نطاق، اسم المتغير)، القيمة = قيمة المتغير
     // (EN) Map for storing values: key = (scope, variable name), value = variable value

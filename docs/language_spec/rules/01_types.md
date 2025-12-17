@@ -50,9 +50,9 @@ This file documents the **complete type system** for Sad language, including all
 integer_literal ::= decimal_literal | binary_literal | octal_literal | hex_literal
 
 decimal_literal ::= ['+' | '-'] digit+
-binary_literal  ::= '0b' ('0' | '1')+
-octal_literal   ::= '0o' [0-7]+
-hex_literal     ::= '0x' [0-9a-fA-F]+
+binary_literal  ::= ('0b'|'0ثن') ('0' | '1')+
+octal_literal   ::= ('0o'|'0ث') [0-7]+
+hex_literal     ::= ('0x'|'0س') [0-9a-fA-Fابجدهو]+
 
 digit ::= [0-9]
 ```
@@ -211,7 +211,7 @@ DEBUG_PRINT("Integer arithmetic: %lld %s %lld = %lld",
 float_literal ::= ['+' | '-'] digit+ '.' digit+ [exponent]
                 | ['+' | '-'] digit+ exponent
 
-exponent ::= ('e' | 'E') ['+' | '-'] digit+
+exponent ::= ('e' | 'E'|'أ') ['+' | '-'] digit+
 ```
 
 ### Semantics
@@ -435,7 +435,7 @@ string_literal ::= '"' string_char* '"'
                  
 
 string_char    ::= any_unicode_char | escape_sequence
-escape_sequence ::= '\n' | '\t' | '\r' | '\\' | '\"' | '\''
+escape_sequence ::= '\n' | '\t' | '\r' | '\س' | '\ت' | '\ع'| '\\' | '\"' | '\''
 ```
 
 ### Semantics

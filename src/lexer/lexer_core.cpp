@@ -378,26 +378,63 @@ Token LexerCore::scanNumber() {
         }
     }
     
-    // معالجة الأرقام العادية (عشرية وعشرية عائمة)
-    // Handle regular numbers (decimal and floating point)
-    while (!isAtEnd() && (isDigit(peek()) || peek() == '.')) {
-        if (peek() == '.') {
+    // معالجة الأرقام العادية (عشرية وعشرية عائمة) - مع دعم الأرقام العربية
+    // Handle regular numbers (decimal and floating point) - with Arabic digit support
+    while (!isAtEnd()) {
+        char currentChar = peek();
+        unsigned char currentByte = static_cast<unsigned char>(currentChar);
+        
+        // فحص إذا كان رقماً إنجليزياً (0-9)
+        if (isDigit(currentChar)) {
+            numStr += advance();
+            continue;
+        }
+        
+        // فحص إذا كان رقماً عربياً (UTF-8: 0xD9 متبوعاً بـ 0xA0-0xA9)
+        if (currentByte == 0xD9 && current_ + 1 < source_.length()) {
+            unsigned char nextByte = static_cast<unsigned char>(source_[current_ + 1]);
+            if (StringUtils::isArabicDigit(nextByte)) {
+                // تحويل الرقم العربي إلى إنجليزي
+                char englishDigit = StringUtils::arabicDigitToEnglish(nextByte);
+                numStr += englishDigit;
+                
+                // تقدم بايتين (UTF-8 للرقم العربي)
+                advance(); // 0xD9
+                advance(); // 0xA0-0xA9
+                continue;
+            }
+        }
+        
+        // فحص النقطة العشرية
+        if (currentChar == '.') {
             // تحقق من عدم وجود نقطة عشرية مسبقاً
             if (hasDecimalPoint) {
                 return makeError("رقم بصيغة خاطئة - نقطة عشرية متكررة / Invalid number format - duplicate decimal point");
             }
             
-            // تحقق من وجود رقم بعد النقطة
-            if (!isDigit(peekNext())) {
+            // تحقق من وجود رقم بعد النقطة (إنجليزي أو عربي)
+            char nextChar = peekNext();
+            unsigned char nextByte = static_cast<unsigned char>(nextChar);
+            bool hasDigitAfter = isDigit(nextChar);
+            
+            // فحص إذا كان الرقم التالي عربياً
+            if (!hasDigitAfter && nextByte == 0xD9 && current_ + 2 < source_.length()) {
+                unsigned char secondNextByte = static_cast<unsigned char>(source_[current_ + 2]);
+                hasDigitAfter = StringUtils::isArabicDigit(secondNextByte);
+            }
+            
+            if (!hasDigitAfter) {
                 return makeError("رقم بصيغة خاطئة - لا يوجد أرقام بعد النقطة / Invalid number - no digits after decimal point");
             }
             
             hasDecimalPoint = true;
             isDouble = true;
             numStr += advance();
-        } else {
-            numStr += advance();
+            continue;
         }
+        
+        // إذا لم يكن رقماً أو نقطة، نتوقف
+        break;
     }
     
     // فحص الصيغة العلمية (Scientific notation): 1.5e10, 2e-5
@@ -730,8 +767,19 @@ Token LexerCore::nextToken() {
     }
     
     char c = peek();
+    unsigned char current_byte = static_cast<unsigned char>(c);
     
-    // أرقام
+    // فحص الأرقام العربية (UTF-8: 0xD9 متبوعاً بـ 0xA0-0xA9)
+    // Check for Arabic digits (UTF-8: 0xD9 followed by 0xA0-0xA9)
+    if (current_byte == 0xD9 && !isAtEnd() && current_ + 1 < source_.length()) {
+        unsigned char next_byte = static_cast<unsigned char>(source_[current_ + 1]);
+        if (StringUtils::isArabicDigit(next_byte)) {
+            return scanNumber();
+        }
+    }
+    
+    // أرقام إنجليزية (0-9)
+    // English digits (0-9)
     if (isDigit(c)) {
         return scanNumber();
     }

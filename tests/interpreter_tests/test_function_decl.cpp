@@ -48,7 +48,8 @@ using namespace Sad::Lexer;
 void test_simple_function_declaration() {
     TEST_START("test_simple_function_declaration");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -75,7 +76,8 @@ void test_simple_function_declaration() {
 void test_function_with_parameters() {
     TEST_START("test_function_with_parameters");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -110,7 +112,8 @@ void test_function_with_parameters() {
 void test_multiple_functions() {
     TEST_START("test_multiple_functions");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -170,7 +173,8 @@ void test_multiple_functions() {
 void test_function_with_body() {
     TEST_START("test_function_with_body");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);

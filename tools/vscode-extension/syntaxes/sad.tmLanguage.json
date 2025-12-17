@@ -1,0 +1,160 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sad",
+  "scopeName": "source.sad",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#constants" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#functions" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.sad",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.block.sad",
+          "begin": "#\\*",
+          "end": "\\*#"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.sad",
+          "match": "\\b(إذا|وإلا|بينما|لـ|من|إلى|أعمل|نهاية|إرجاع|استمرار|توقف|في)\\b"
+        },
+        {
+          "name": "keyword.control.sad",
+          "match": "\\b(if|else|while|for|from|to|do|end|return|continue|break|in)\\b"
+        },
+        {
+          "name": "keyword.other.sad",
+          "match": "\\b(دالة|صنف|جديد|هذا|ثابت|متغير)\\b"
+        },
+        {
+          "name": "keyword.other.sad",
+          "match": "\\b(function|class|new|this|const|var)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.sad",
+          "match": "\\b(رقم|عشري|نص|منطقي|مصفوفة|قاموس|فارغ)\\b"
+        },
+        {
+          "name": "storage.type.sad",
+          "match": "\\b(number|float|string|boolean|array|dict|void)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.sad",
+          "match": "\\b(صحيح|خطأ|لاشيء)\\b"
+        },
+        {
+          "name": "constant.language.sad",
+          "match": "\\b(true|false|null|none)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.sad",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.sad",
+              "match": "\\\\(n|t|r|\\\\|\")"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.sad",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.sad",
+              "match": "\\\\(n|t|r|\\\\|')"
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.sad",
+          "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.sad",
+          "match": "\\b\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.hex.sad",
+          "match": "\\b0[xX][0-9a-fA-F]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.sad",
+          "match": "\\b0[bB][01]+\\b"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.sad",
+          "match": "\\b[\\u0600-\\u06FF\\w]+(?=\\s*\\()"
+        },
+        {
+          "name": "support.function.builtin.sad",
+          "match": "\\b(اطبع|أدخل|طول|نوع|نطاق|خريطة|فلتر|جمع|فرز)\\b"
+        },
+        {
+          "name": "support.function.builtin.sad",
+          "match": "\\b(print|input|len|type|range|map|filter|sum|sort)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arithmetic.sad",
+          "match": "\\+|\\-|\\*|\\/|%|\\^"
+        },
+        {
+          "name": "keyword.operator.comparison.sad",
+          "match": "==|!=|<|>|<=|>="
+        },
+        {
+          "name": "keyword.operator.logical.sad",
+          "match": "\\b(و|أو|ليس)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.sad",
+          "match": "\\b(and|or|not)\\b"
+        },
+        {
+          "name": "keyword.operator.assignment.sad",
+          "match": "=|\\+=|\\-=|\\*=|\\/="
+        }
+      ]
+    }
+  }
+}

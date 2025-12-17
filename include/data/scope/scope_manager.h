@@ -28,6 +28,8 @@
 #include <unordered_map>
 #include <vector>
 #include <stdexcept>
+#include <iostream>
+#include <functional>
 #include "../types/value.h"
 
 namespace Sad {
@@ -256,6 +258,77 @@ private:
      * @brief (EN) Throw bilingual error
      */
     void throwError(const std::string& messageAr, const std::string& messageEn) const;
+};
+
+/**
+ * @brief (AR) حارس النطاق - تنظيف تلقائي للنطاق عند الخروج
+ * @brief (EN) Scope Guard - Automatic scope cleanup on exit
+ * 
+ * استخدام RAII لضمان تنظيف النطاق حتى في حالة حدوث استثناء
+ * Uses RAII to ensure scope cleanup even when exceptions occur
+ * 
+ * @example
+ * ```cpp
+ * {
+     *     ScopeGuard guard(scopeManager, ScopeType::FUNCTION, "myFunc");
+ *     // ... code that might throw ...
+ * } // popScope() called automatically here
+ * ```
+ */
+class ScopeGuard {
+public:
+    /**
+     * @brief (AR) إنشاء حارس نطاق وفتح نطاق جديد
+     * @brief (EN) Create scope guard and push new scope
+     */
+    ScopeGuard(ScopeManager& manager, ScopeType type, const std::string& name = "")
+        : manager_(manager), scopeToCleanup_(nullptr), active_(true) {
+        manager_.pushScope(type, name);
+        scopeToCleanup_ = manager_.getCurrentScope();
+    }
+    
+    /**
+     * @brief (AR) المدمر - إغلاق النطاق تلقائياً
+     * @brief (EN) Destructor - pop scope automatically
+     */
+    ~ScopeGuard() {
+        if (active_ && scopeToCleanup_) {
+            if (cleanupCallback_) {
+                cleanupCallback_(scopeToCleanup_);
+            }
+            manager_.popScope();
+        }
+    }
+    
+    /**
+     * @brief (AR) تعيين دالة callback للتنظيف
+     * @brief (EN) Set cleanup callback function
+     */
+    void setCleanupCallback(std::function<void(Scope*)> callback) {
+        cleanupCallback_ = callback;
+    }
+    
+    /**
+     * @brief (AR) إلغاء تفعيل الحارس (عدم إغلاق النطاق)
+     * @brief (EN) Deactivate guard (don't pop scope)
+     */
+    void dismiss() {
+        active_ = false;
+    }
+    
+    // منع النسخ / Prevent copying
+    ScopeGuard(const ScopeGuard&) = delete;
+    ScopeGuard& operator=(const ScopeGuard&) = delete;
+    
+    // منع النقل / Prevent moving
+    ScopeGuard(ScopeGuard&&) = delete;
+    ScopeGuard& operator=(ScopeGuard&&) = delete;
+    
+private:
+    ScopeManager& manager_;
+    Scope* scopeToCleanup_;
+    bool active_;
+    std::function<void(Scope*)> cleanupCallback_;
 };
 
 } // namespace Data

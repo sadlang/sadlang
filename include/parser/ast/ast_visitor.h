@@ -70,7 +70,9 @@ class ConstructorDecl;
 class DestructorDecl;
 class EnumDecl;
 class ImportStmt;
+class FromImportStmt;  // (AR) جملة الاستيراد الانتقائي / (EN) Selective import statement
 class ExportStmt;
+class ExportDecl;      // (AR) تصريح التصدير / (EN) Export declaration
 
 /**
  * @brief Abstract visitor interface for AST traversal / واجهة الزائر المجردة لاجتياز AST
@@ -553,17 +555,52 @@ public:
      * @brief Visit import statement node / زيارة عقدة عبارة الاستيراد
      * @param stmt Import statement node
      * 
-     * Examples: import math;, استورد رياضيات;
+     * Examples: import math;, استورد رياضيات;, استورد رياضيات كـ م;
+     * 
+     * Syntax / النحو:
+     *   import [module] [as alias]
+     *   استورد [وحدة] [كـ اسم_مستعار]
      */
     virtual void visitImportStmt(ImportStmt& stmt) = 0;
     
     /**
-     * @brief Visit export statement node / زيارة عقدة عبارة التصدير
-     * @param stmt Export statement node
+     * @brief Visit from-import statement node / زيارة عقدة عبارة الاستيراد الانتقائي
+     * @param stmt From-import statement node
      * 
-     * Examples: export function add() {...}, صدر دالة جمع() {...}
+     * Examples: from math import sqrt;, من رياضيات استورد جذر;
+     * 
+     * Syntax / النحو:
+     *   from [module] import [items]
+     *   من [وحدة] استورد [عناصر]
+     * 
+     * (AR) يُستخدم لاستيراد رموز محددة من وحدة بدلاً من استيراد الوحدة كاملة
+     * (EN) Used to import specific symbols from a module instead of importing the whole module
+     */
+    virtual void visitFromImportStmt(FromImportStmt& stmt) = 0;
+    
+    /**
+     * @brief Visit export statement node / زيارة عقدة عبارة التصدير (قديم)
+     * @param stmt Export statement node (deprecated)
+     * 
+     * Note: This is kept for backward compatibility. Use ExportDecl instead.
+     * ملاحظة: هذا محفوظ للتوافق مع الإصدارات القديمة. استخدم ExportDecl بدلاً منه.
      */
     virtual void visitExportStmt(ExportStmt& stmt) = 0;
+    
+    /**
+     * @brief Visit export declaration node / زيارة عقدة تصريح التصدير
+     * @param decl Export declaration node
+     * 
+     * Examples: export function add() {...}, صدّر دالة جمع() {...}
+     * 
+     * Syntax / النحو:
+     *   export [declaration]
+     *   صدّر [تصريح]
+     * 
+     * (AR) يُستخدم لجعل رمز (دالة/صنف/متغير) متاحاً للوحدات الأخرى
+     * (EN) Used to make a symbol (function/class/variable) available to other modules
+     */
+    virtual void visitExportDecl(ExportDecl& decl) = 0;
 };
 
 /**
@@ -631,7 +668,9 @@ public:
     void visitDestructorDecl(DestructorDecl& decl) override {}
     void visitEnumDecl(EnumDecl& decl) override {}
     void visitImportStmt(ImportStmt& stmt) override {}
+    void visitFromImportStmt(FromImportStmt& stmt) override {}
     void visitExportStmt(ExportStmt& stmt) override {}
+    void visitExportDecl(ExportDecl& decl) override {}
 };
 
 } // namespace AST

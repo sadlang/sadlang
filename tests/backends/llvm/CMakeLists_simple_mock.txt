@@ -1,0 +1,35 @@
+# CMakeLists.txt مبسط لاختبار البنية بدون LLVM الكامل
+# Simplified CMakeLists.txt for testing structure without full LLVM
+
+cmake_minimum_required(VERSION 3.15)
+project(SadLanguage_LLVM_Tests_Mock)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# تضمين دلائل المصدر / Include source directories
+get_filename_component(PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
+include_directories(${PROJECT_ROOT})
+include_directories(${PROJECT_ROOT}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+# ملفات الاختبار فقط (بدون مكونات LLVM الفعلية)
+# Test files only (without actual LLVM components)
+set(TEST_SOURCES
+    test_runner.cpp
+)
+
+# إنشاء برنامج اختبار مبسط
+# Create simplified test executable
+add_executable(llvm_backend_tests_mock ${TEST_SOURCES})
+
+# رسالة معلومات
+message(STATUS "==============================================")
+message(STATUS "Mock Tests Configuration")
+message(STATUS "==============================================")
+message(STATUS "This is a simplified build for testing the test framework")
+message(STATUS "Full LLVM integration requires vcpkg LLVM installation")
+message(STATUS "==============================================")
+
+enable_testing()
+add_test(NAME MockTests COMMAND llvm_backend_tests_mock)

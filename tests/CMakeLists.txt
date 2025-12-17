@@ -1,0 +1,140 @@
+# ========================================
+# SadLanguage Tests Build Configuration
+# إعدادات بناء اختبارات لغة سد
+# ========================================
+
+cmake_minimum_required(VERSION 3.15)
+
+project(sad_tests
+    VERSION 1.0.0
+    LANGUAGES CXX
+    DESCRIPTION "SadLanguage Test Suite"
+)
+
+# معايير C++17 / C++17 Standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# ========================================
+# Test Suite - مجموعة الاختبارات
+# ========================================
+
+add_executable(test_suite
+    test_suite.cpp
+)
+
+# ========================================
+# Module Parsing Tests - اختبارات تحليل الوحدات
+# ========================================
+
+add_executable(test_module_parsing
+    parser/test_module_parsing.cpp
+)
+
+target_link_libraries(test_module_parsing
+    PRIVATE
+        sad_parser
+        sad_lexer
+)
+
+target_include_directories(test_module_parsing
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../parser/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lexer/include
+)
+
+target_link_libraries(test_suite
+    PRIVATE
+        sad_compiler
+        sad_vm
+        sad_runtime
+        sad_bytecode
+        sad_parser
+        sad_lexer
+        sad_optimizer
+)
+
+target_include_directories(test_suite
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compiler/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../vm/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../runtime/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../bytecode/include
+)
+
+# ========================================
+# Benchmark - قياس الأداء
+# ========================================
+
+add_executable(benchmark
+    benchmark.cpp
+)
+
+target_link_libraries(benchmark
+    PRIVATE
+        sad_compiler
+        sad_vm
+        sad_runtime
+        sad_bytecode
+        sad_parser
+        sad_lexer
+        sad_optimizer
+)
+
+target_include_directories(benchmark
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compiler/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../vm/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../runtime/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../bytecode/include
+)
+
+# ========================================
+# Compiler Options - خيارات التحويل
+# ========================================
+
+if(MSVC)
+    target_compile_options(test_suite PRIVATE /W4)
+    target_compile_options(test_module_parsing PRIVATE /W4)
+    target_compile_options(benchmark PRIVATE /W4)
+else()
+    target_compile_options(test_suite PRIVATE -Wall -Wextra -pedantic)
+    target_compile_options(test_module_parsing PRIVATE -Wall -Wextra -pedantic)
+    target_compile_options(benchmark PRIVATE -Wall -Wextra -pedantic)
+endif()
+
+# ========================================
+# CTest Integration - تكامل CTest
+# ========================================
+
+enable_testing()
+
+add_test(
+    NAME "CompilerTests"
+    COMMAND test_suite
+)
+
+add_test(
+    NAME "ModuleParsingTests"
+    COMMAND test_module_parsing
+)
+
+add_test(
+    NAME "PerformanceBenchmark"
+    COMMAND benchmark
+)
+
+# ========================================
+# Summary - الملخص
+# ========================================
+
+message(STATUS "========================================")
+message(STATUS "SadLanguage Test Suite")
+message(STATUS "مجموعة اختبارات لغة سد")
+message(STATUS "========================================")
+message(STATUS "Test Executables:")
+message(STATUS "  - test_suite  (مجموعة الاختبارات)")
+message(STATUS "  - benchmark   (قياس الأداء)")
+message(STATUS "========================================")

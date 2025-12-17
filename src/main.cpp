@@ -29,6 +29,7 @@
 #include "../include/utils/string_utils.h"
 #include "../include/lexer/lexer_core.h"
 #include "../include/parser/parser_core.h"
+#include "../include/parser/ast/ast_node.h"
 #include "../include/interpreter/core/interpreter_core.h"
 #include "../include/errors/error_manager.h"  // (AR) نظام إدارة الأخطاء / (EN) Error management system
 
@@ -42,6 +43,8 @@
 // النطاق / Namespace
 // ======================================================================
 using namespace Sad::Utils;
+using namespace Sad::Parser;
+using namespace Sad::AST;
 
 // ======================================================================
 // دالة عرض معلومات الإصدار / Show Version Info
@@ -264,34 +267,55 @@ int executeProgram(const std::string& filename, const std::string& code) {
         
         // الخطوة 2: التحليل النحوي / Step 2: Syntactic Analysis
         std::cout << "[2/4] التحليل النحوي / Syntactic Analysis..." << std::endl;
-        Sad::Parser::ParserCore parser(lexer);
-        auto ast = parser.parseProgram();
-        
-        // (AR) فحص الأخطاء بعد التحليل النحوي / (EN) Check for parsing errors
-        if (Sad::Errors::ErrorManager::getInstance().hasErrors()) {
-            std::cout << std::endl;
-            std::cout << "========================================" << std::endl;
-            std::cout << "❌ فشل التحليل النحوي / Parsing Failed" << std::endl;
-            std::cout << "========================================" << std::endl;
-            std::cout << std::endl;
+        StmtList ast;
+        try {
+            Sad::Parser::ParserCore parser(lexer);
+            ast = parser.parseProgram();
             
-            // (AR) طباعة جميع الأخطاء بشكل جميل / (EN) Print all errors beautifully
-            Sad::Errors::ErrorManager::getInstance().printAll();
+            // (AR) فحص الأخطاء بعد التحليل النحوي / (EN) Check for parsing errors
+            if (Sad::Errors::ErrorManager::getInstance().hasErrors()) {
+                std::cout << std::endl;
+                std::cout << "========================================" << std::endl;
+                std::cout << "❌ فشل التحليل النحوي / Parsing Failed" << std::endl;
+                std::cout << "========================================" << std::endl;
+                std::cout << std::endl;
+                
+                // (AR) طباعة جميع الأخطاء بشكل جميل / (EN) Print all errors beautifully
+                Sad::Errors::ErrorManager::getInstance().printAll();
+                
+                return 1;
+            }
             
+            std::cout << "      تم بناء شجرة AST" << std::endl;
+            std::cout << "      AST built" << std::endl;
+            std::cout << std::endl;
+            std::cout << "      عدد العقد في شجرة AST: " << ast.size() << std::endl;
+            std::cout << "      عدد جمل البرنامج: " << ast.size() << std::endl;
+           
+            std::cout <<"ast print content :"<<std::endl;
+            for (const auto& stmt : ast) {
+                std::cout << stmt->toString() << std::endl;
+            }
+        } catch (const std::exception& parseEx) {
+            std::cerr << std::endl;
+            std::cerr << "========================================" << std::endl;
+            std::cerr << "❌ خطأ حرج في التحليل النحوي" << std::endl;
+            std::cerr << "❌ Critical parsing error" << std::endl;
+            std::cerr << "========================================" << std::endl;
+            std::cerr << "الرسالة: " << parseEx.what() << std::endl;
+            std::cerr << "Message: " << parseEx.what() << std::endl;
+            std::cerr << "========================================" << std::endl;
+            std::cerr << std::endl;
+            return 1;
+        } catch (...) {
+            std::cerr << std::endl;
+            std::cerr << "========================================" << std::endl;
+            std::cerr << "❌ خطأ غير معروف في التحليل النحوي" << std::endl;
+            std::cerr << "❌ Unknown parsing error" << std::endl;
+            std::cerr << "========================================" << std::endl;
+            std::cerr << std::endl;
             return 1;
         }
-        
-        std::cout << "      تم بناء شجرة AST" << std::endl;
-        std::cout << "      AST built" << std::endl;
-        std::cout << std::endl;
-        std::cout << "      عدد العقد في شجرة AST: " << ast.size() << std::endl;
-        std::cout << "      عدد جمل البرنامج: " << ast.size() << std::endl;
-       
-        std::cout <<"ast print content :"<<std::endl;
-        for (const auto& stmt : ast) {
-            std::cout << stmt->toString() << std::endl;
-        }
-        // الخطوة 3: إعداد المفسر / Step 3: Interpreter Setup
         std::cout << "[3/4] إعداد المفسر / Interpreter Setup..." << std::endl;
         Sad::Interpreter::Interpreter interpreter;
         std::cout << "      تم إنشاء المفسر" << std::endl;
@@ -436,10 +460,18 @@ int main(int argc, char* argv[]) {
         return exitCode;
     }
     catch (const std::exception& e) {
+        std::cerr << std::endl;
         std::cerr << "========================================" << std::endl;
-        std::cerr << "خطأ في التنفيذ / Execution Error" << std::endl;
+        std::cerr << "❌ خطأ حرج في التنفيذ / Critical Execution Error" << std::endl;
         std::cerr << "========================================" << std::endl;
-        std::cerr << e.what() << std::endl;
+        std::cerr << "الرسالة / Message: " << e.what() << std::endl;
+        std::cerr << "========================================" << std::endl;
+        return 1;
+    }
+    catch (...) {
+        std::cerr << std::endl;
+        std::cerr << "========================================" << std::endl;
+        std::cerr << "❌ خطأ غير معروف / Unknown Error" << std::endl;
         std::cerr << "========================================" << std::endl;
         return 1;
     }

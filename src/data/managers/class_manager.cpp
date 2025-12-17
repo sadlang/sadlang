@@ -56,9 +56,18 @@ bool ClassManager::registerClass(std::unique_ptr<ClassType> classType) {
     
     const std::string& className = classType->name;
     
-    // (AR) فحص عدم وجود اسم مكرر
-    // (EN) Check for duplicate name
-    if (classes_.find(className) != classes_.end()) {
+    // (AR) فحص عدم وجود اسم مكرر - أو تحديث الموجود
+    // (EN) Check for duplicate name - or update existing
+    auto it = classes_.find(className);
+    if (it != classes_.end()) {
+        // (AR) إذا كان الصنف الموجود فارغاً (تسجيل مؤقت)، استبدله
+        // (EN) If existing class is empty (temporary registration), replace it
+        if (it->second->fields.empty() && it->second->methods.empty()) {
+            std::cout << "[ClassManager] تحديث التسجيل المؤقت للصنف: " << className << "\n";
+            classes_[className] = std::move(classType);
+            return true;
+        }
+        
         std::cerr << "خطأ: الصنف '" << className << "' مسجل مسبقاً\n";
         std::cerr << "Error: Class '" << className << "' already registered\n";
         return false;

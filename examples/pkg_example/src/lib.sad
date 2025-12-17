@@ -1,0 +1,286 @@
+// بسم الله الرحمن الرحيم
+/**
+ * @module math-utils
+ * @description أدوات رياضية مساعدة - Mathematical utility functions
+ * @author Sad Language Team
+ * @version 1.0.0
+ */
+
+// الحمد لله رب العالمين
+
+// ============================================================================
+// دوال القوى والجذور - Power & Root Functions
+// ============================================================================
+
+/**
+ * رفع عدد لقوة معينة
+ * Raise a number to a power
+ * @param base الأساس - the base number
+ * @param exponent الأس - the exponent
+ * @return النتيجة - the result
+ */
+تصدير دالة power(base: رقم، exponent: رقم) -> رقم {
+    اذا (exponent == 0) {
+        ارجع 1؛
+    }
+    
+    اذا (exponent < 0) {
+        ارجع 1 / power(base، -exponent)؛
+    }
+    
+    متغير result = 1؛
+    لكل (متغير i = 0؛ i < exponent؛ i++) {
+        result = result * base؛
+    }
+    
+    ارجع result؛
+}
+
+/**
+ * حساب الجذر التربيعي
+ * Calculate square root
+ * @param number العدد - the number
+ * @return الجذر التربيعي - square root
+ */
+تصدير دالة sqrt(number: رقم) -> رقم {
+    اذا (number < 0) {
+        اطبع("خطأ: لا يمكن حساب الجذر التربيعي لعدد سالب")؛
+        ارجع 0؛
+    }
+    
+    اذا (number == 0 او number == 1) {
+        ارجع number؛
+    }
+    
+    // استخدام طريقة نيوتن - Using Newton's method
+    متغير x = number؛
+    متغير y = 1؛
+    متغير precision = 0.000001؛
+    
+    بينما (x - y > precision) {
+        x = (x + y) / 2؛
+        y = number / x؛
+    }
+    
+    ارجع x؛
+}
+
+/**
+ * حساب الجذر التكعيبي
+ * Calculate cube root
+ * @param number العدد - the number
+ * @return الجذر التكعيبي - cube root
+ */
+تصدير دالة cbrt(number: رقم) -> رقم {
+    اذا (number == 0) {
+        ارجع 0؛
+    }
+    
+    متغير is_negative = number < 0؛
+    متغير abs_number = is_negative ? -number : number؛
+    
+    // استخدام طريقة نيوتن
+    متغير x = abs_number / 3؛
+    متغير precision = 0.000001؛
+    
+    لكل (متغير i = 0؛ i < 20؛ i++) {
+        متغير x_cubed = x * x * x؛
+        اذا (abs(x_cubed - abs_number) < precision) {
+            كسر؛
+        }
+        x = x - (x_cubed - abs_number) / (3 * x * x)؛
+    }
+    
+    ارجع is_negative ? -x : x؛
+}
+
+// ============================================================================
+// دوال هندسية - Geometric Functions
+// ============================================================================
+
+/**
+ * ثابت باي π
+ * Pi constant
+ */
+ثابت PI = 3.14159265358979323846؛
+
+/**
+ * حساب مساحة الدائرة
+ * Calculate circle area
+ * @param radius نصف القطر - the radius
+ * @return المساحة - the area
+ */
+تصدير دالة circle_area(radius: رقم) -> رقم {
+    ارجع PI * radius * radius؛
+}
+
+/**
+ * حساب محيط الدائرة
+ * Calculate circle circumference
+ * @param radius نصف القطر - the radius
+ * @return المحيط - the circumference
+ */
+تصدير دالة circle_circumference(radius: رقم) -> رقم {
+    ارجع 2 * PI * radius؛
+}
+
+/**
+ * حساب مساحة المستطيل
+ * Calculate rectangle area
+ * @param width العرض - the width
+ * @param height الارتفاع - the height
+ * @return المساحة - the area
+ */
+تصدير دالة rectangle_area(width: رقم، height: رقم) -> رقم {
+    ارجع width * height؛
+}
+
+/**
+ * حساب مساحة المثلث
+ * Calculate triangle area
+ * @param base القاعدة - the base
+ * @param height الارتفاع - the height
+ * @return المساحة - the area
+ */
+تصدير دالة triangle_area(base: رقم، height: رقم) -> رقم {
+    ارجع (base * height) / 2؛
+}
+
+// ============================================================================
+// دوال إحصائية - Statistical Functions
+// ============================================================================
+
+/**
+ * حساب مجموع الأرقام
+ * Calculate sum of numbers
+ * @param numbers قائمة الأرقام - list of numbers
+ * @return المجموع - the sum
+ */
+تصدير دالة sum(numbers: قائمة<رقم>) -> رقم {
+    متغير total = 0؛
+    لكل_من (متغير num في numbers) {
+        total = total + num؛
+    }
+    ارجع total؛
+}
+
+/**
+ * حساب المتوسط الحسابي
+ * Calculate average
+ * @param numbers قائمة الأرقام - list of numbers
+ * @return المتوسط - the average
+ */
+تصدير دالة average(numbers: قائمة<رقم>) -> رقم {
+    اذا (numbers.length() == 0) {
+        ارجع 0؛
+    }
+    ارجع sum(numbers) / numbers.length()؛
+}
+
+/**
+ * إيجاد أصغر رقم
+ * Find minimum number
+ * @param numbers قائمة الأرقام - list of numbers
+ * @return أصغر رقم - minimum number
+ */
+تصدير دالة min(numbers: قائمة<رقم>) -> رقم {
+    اذا (numbers.length() == 0) {
+        اطبع("خطأ: القائمة فارغة")؛
+        ارجع 0؛
+    }
+    
+    متغير minimum = numbers[0]؛
+    لكل_من (متغير num في numbers) {
+        اذا (num < minimum) {
+            minimum = num؛
+        }
+    }
+    ارجع minimum؛
+}
+
+/**
+ * إيجاد أكبر رقم
+ * Find maximum number
+ * @param numbers قائمة الأرقام - list of numbers
+ * @return أكبر رقم - maximum number
+ */
+تصدير دالة max(numbers: قائمة<رقم>) -> رقم {
+    اذا (numbers.length() == 0) {
+        اطبع("خطأ: القائمة فارغة")؛
+        ارجع 0؛
+    }
+    
+    متغير maximum = numbers[0]؛
+    لكل_من (متغير num في numbers) {
+        اذا (num > maximum) {
+            maximum = num؛
+        }
+    }
+    ارجع maximum؛
+}
+
+/**
+ * حساب القيمة المطلقة
+ * Calculate absolute value
+ * @param number العدد - the number
+ * @return القيمة المطلقة - absolute value
+ */
+تصدير دالة abs(number: رقم) -> رقم {
+    ارجع number < 0 ? -number : number؛
+}
+
+/**
+ * حساب المضروب (factorial)
+ * Calculate factorial
+ * @param n العدد - the number
+ * @return المضروب - factorial
+ */
+تصدير دالة factorial(n: رقم) -> رقم {
+    اذا (n < 0) {
+        اطبع("خطأ: لا يمكن حساب مضروب عدد سالب")؛
+        ارجع 0؛
+    }
+    
+    اذا (n == 0 او n == 1) {
+        ارجع 1؛
+    }
+    
+    متغير result = 1؛
+    لكل (متغير i = 2؛ i <= n؛ i++) {
+        result = result * i؛
+    }
+    
+    ارجع result؛
+}
+
+/**
+ * التحقق من أن العدد أولي
+ * Check if number is prime
+ * @param n العدد - the number
+ * @return هل هو أولي - is it prime
+ */
+تصدير دالة is_prime(n: رقم) -> منطقي {
+    اذا (n <= 1) {
+        ارجع خطأ؛
+    }
+    
+    اذا (n <= 3) {
+        ارجع صح؛
+    }
+    
+    اذا (n % 2 == 0 او n % 3 == 0) {
+        ارجع خطأ؛
+    }
+    
+    متغير i = 5؛
+    بينما (i * i <= n) {
+        اذا (n % i == 0 او n % (i + 2) == 0) {
+            ارجع خطأ؛
+        }
+        i = i + 6؛
+    }
+    
+    ارجع صح؛
+}
+
+// الحمد لله رب العالمين

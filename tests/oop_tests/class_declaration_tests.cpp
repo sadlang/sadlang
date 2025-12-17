@@ -20,7 +20,7 @@
 #include "../../include/data/types/object_instance.h"
 #include "../../include/data/managers/class_manager.h"
 #include "../../include/data/managers/object_manager.h"
-#include "../../include/ast/oop/class_nodes.h"
+#include "../../include/parser/ast/class_nodes.h"
 
 using namespace Sad::Data;
 using namespace Sad::AST;

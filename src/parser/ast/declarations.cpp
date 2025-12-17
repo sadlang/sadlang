@@ -145,8 +145,13 @@ std::string ClassDecl::toString() const {
     
     oss << "class " << name;
     
-    if (!superclass.empty()) {
-        oss << " extends " << superclass;
+    // (AR) طباعة جميع الأصناف الأساسية / (EN) Print all base classes
+    if (!superclasses.empty()) {
+        oss << " extends ";
+        for (size_t i = 0; i < superclasses.size(); ++i) {
+            if (i > 0) oss << ", ";
+            oss << superclasses[i];
+        }
     }
     
     oss << " {\n";
@@ -334,40 +339,9 @@ std::string EnumDecl::toString() const {
 }
 
 // =========================================================================
-// ImportStmt Implementation / تنفيذ جملة الاستيراد
+// (AR) ملاحظة: تم نقل ImportStmt إلى module_nodes.h/cpp
+// (EN) Note: ImportStmt moved to module_nodes.h/cpp
 // =========================================================================
-
-/**
- * @brief (AR) يحول جملة الاستيراد إلى تمثيل نصي.
- *        (EN) Converts import statement to string representation.
- * 
- * @return (AR) نص يمثل جملة الاستيراد (مسار الوحدة، الاسم البديل، الرموز المحددة).
- *         (EN) String representing import statement (module path, alias, specific symbols).
- * 
- * @note (AR) يدعم أنماط الاستيراد المختلفة: الكل، محدد، مع اسم بديل.
- *       (EN) Supports different import patterns: all, specific, with alias.
- */
-std::string ImportStmt::toString() const {
-    std::ostringstream oss;
-    
-    if (importAll) {
-        oss << "import * from \"" << modulePath << "\"";
-    } else if (!symbols.empty()) {
-        oss << "from \"" << modulePath << "\" import ";
-        for (size_t i = 0; i < symbols.size(); ++i) {
-            if (i > 0) oss << ", ";
-            oss << symbols[i];
-        }
-    } else {
-        oss << "import \"" << modulePath << "\"";
-        if (!alias.empty()) {
-            oss << " as " << alias;
-        }
-    }
-    
-    oss << ";";
-    return oss.str();
-}
 
 } // namespace AST
 } // namespace Sad

@@ -38,6 +38,25 @@ Value::Value(const MapType& val)
     : type_(ValueType::MAP), data_(std::make_shared<MapType>(val)) {}
 
 // ========================================
+// Clone / النسخ العميق
+// ========================================
+
+Value Value::clone() const {
+    switch (type_) {
+        case ValueType::ARRAY: {
+            const auto& arr = *std::get<std::shared_ptr<ArrayType>>(data_);
+            return Value(arr);  // Creates new shared_ptr with copy
+        }
+        case ValueType::MAP: {
+            const auto& map = *std::get<std::shared_ptr<MapType>>(data_);
+            return Value(map);  // Creates new shared_ptr with copy
+        }
+        default:
+            return *this;  // Shallow copy for primitives
+    }
+}
+
+// ========================================
 // Type Conversion / تحويل النوع
 // ========================================
 

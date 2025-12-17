@@ -1,0 +1,8 @@
+[package]
+name = "رياضيات"
+version = "1.0.0"
+description = "مكتبة العمليات الرياضية - Mathematical Operations Library for Sad"
+author = "Sad Team"
+license = "MIT"
+
+[dependencies]

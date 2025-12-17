@@ -58,7 +58,8 @@ using namespace Sad::Lexer;
 void test_simple_function_call() {
     TEST_START("test_simple_function_call");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -116,7 +117,8 @@ void test_simple_function_call() {
 void test_function_call_with_parameter() {
     TEST_START("test_function_call_with_parameter");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -181,7 +183,8 @@ void test_function_call_with_parameter() {
 void test_function_call_with_two_parameters() {
     TEST_START("test_function_call_with_two_parameters");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -244,7 +247,8 @@ void test_function_call_with_two_parameters() {
 void test_function_with_local_variables() {
     TEST_START("test_function_with_local_variables");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -323,7 +327,8 @@ void test_function_with_local_variables() {
 void test_nested_function_call() {
     TEST_START("test_nested_function_call");
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);

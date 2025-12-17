@@ -107,7 +107,8 @@ bool test_integer_default() {
         std::cout << "(AR) اختبار: func add(x, y = 10) { return x + y; }\n";
         std::cout << "(EN) Testing: func add(x, y = 10) { return x + y; }\n\n";
         
-        VariableManager varMgr;
+        ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
         FunctionManager funcMgr;
         ScopeManager scopeMgr;
         StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -179,7 +180,8 @@ bool test_multiple_defaults() {
         std::cout << "(AR) اختبار: func sum(a, b = 1, c = 2)\n";
         std::cout << "(EN) Testing: func sum(a, b = 1, c = 2)\n\n";
         
-        VariableManager varMgr;
+        ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
         FunctionManager funcMgr;
         ScopeManager scopeMgr;
         StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -236,7 +238,8 @@ bool test_multiple_defaults() {
         
         // Test 2: sum(10, 5) → 10 + 5 + 2 = 17
         // Create fresh evaluator with new StatementExecutor for test 2
-        VariableManager varMgr2;
+        ScopeManager scopeMgr;
+    VariableManager varMgr2(scopeMgr);
         ScopeManager scopeMgr2;  // NEW: Fresh scope manager
         StatementExecutor executor2(varMgr2, funcMgr, scopeMgr2);  // NEW: Fresh executor
         ExpressionEvaluator evaluator2(varMgr2, funcMgr, scopeMgr2, executor2);
@@ -289,7 +292,8 @@ bool test_override_default() {
         std::cout << "(AR) اختبار: func multiply(x, factor = 2)\n";
         std::cout << "(EN) Testing: func multiply(x, factor = 2)\n\n";
         
-        VariableManager varMgr;
+        ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
         FunctionManager funcMgr;
         ScopeManager scopeMgr;
         StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -340,7 +344,8 @@ bool test_override_default() {
         
         // Test 2: multiply(5, 3) → 5 * 3 = 15 (override default)
         // Create fresh evaluator with new StatementExecutor for test 2
-        VariableManager varMgr2;
+        ScopeManager scopeMgr;
+    VariableManager varMgr2(scopeMgr);
         ScopeManager scopeMgr2;  // NEW: Fresh scope manager
         StatementExecutor executor2(varMgr2, funcMgr, scopeMgr2);  // NEW: Fresh executor
         ExpressionEvaluator evaluator2(varMgr2, funcMgr, scopeMgr2, executor2);
@@ -393,7 +398,8 @@ bool test_missing_required() {
         std::cout << "(AR) اختبار: func need(a, b) - استدعاء need(5)\n";
         std::cout << "(EN) Testing: func need(a, b) - calling need(5)\n\n";
         
-        VariableManager varMgr;
+        ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
         FunctionManager funcMgr;
         ScopeManager scopeMgr;
         StatementExecutor executor(varMgr, funcMgr, scopeMgr);

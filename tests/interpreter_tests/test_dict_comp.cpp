@@ -42,7 +42,8 @@ void test_simple_dict_comp() {
     // var squares = {x: x * x for x in numbers};
     // assert squares == {1: 1, 2: 4, 3: 9}
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -119,7 +120,8 @@ void test_dict_comp_with_filter() {
     // var evens = {x: x * 10 for x in numbers if x % 2 == 0};
     // assert evens == {2: 20, 4: 40, 6: 60}
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);
@@ -214,7 +216,8 @@ void test_dict_comp_complex() {
     // var result = {x * 2: (x + 1) * 10 for x in numbers};
     // assert result == {2: 20, 4: 30, 6: 40}
     
-    VariableManager varMgr;
+    ScopeManager scopeMgr;
+    VariableManager varMgr(scopeMgr);
     FunctionManager funcMgr;
     ScopeManager scopeMgr;
     StatementExecutor executor(varMgr, funcMgr, scopeMgr);

@@ -46,6 +46,7 @@
 #include <stdexcept>
 #include <string>
 #include <memory>
+#include <unordered_map>
 
 namespace Sad {
 namespace Interpreter {
@@ -267,6 +268,15 @@ private:
     // (AR) عداد مستوى الحلقات (للتحقق من break/continue) / (EN) Loop depth counter
     int loopDepth_;
     
+    // (AR) نوع إرجاع الدالة الحالية / (EN) Current function return type
+    Data::DataType currentFunctionReturnType_;
+    
+    // (AR) اسم الدالة الحالية / (EN) Current function name
+    std::string currentFunctionName_;
+    
+    // (AR) خريطة أنواع إرجاع الدوال / (EN) Map of function return types
+    std::unordered_map<std::string, Data::DataType> functionReturnTypes_;
+    
     /**
      * @brief (AR) تقييم تعبير وإرجاع قيمته
      * @brief (EN) Evaluate expression and return its value
@@ -287,6 +297,28 @@ public:
      * @return (AR) قيمة الإرجاع / (EN) Return value
      */
     Data::Value executeFunctionBody(AST::Statement& body);
+    
+    /**
+     * @brief (AR) تنفيذ جسم دالة مع اسم الدالة (للتحقق من نوع الإرجاع)
+     * @brief (EN) Execute function body with function name (for return type checking)
+     * @param body (AR) جسم الدالة / (EN) Function body
+     * @param functionName (AR) اسم الدالة / (EN) Function name
+     * @return (AR) قيمة الإرجاع / (EN) Return value
+     */
+    Data::Value executeFunctionBodyWithFuncName(AST::Statement& body, const std::string& functionName);
+    
+    /**
+     * @brief (AR) تنفيذ جسم دالة مع تتبع نوع الإرجاع
+     * @brief (EN) Execute function body with return type tracking
+     * @param body (AR) جسم الدالة / (EN) Function body
+     * @param returnType (AR) نوع الإرجاع المتوقع / (EN) Expected return type
+     * @param functionName (AR) اسم الدالة / (EN) Function name
+     * @return (AR) قيمة الإرجاع / (EN) Return value
+     */
+    Data::Value executeFunctionBodyWithReturnType(
+        AST::Statement& body, 
+        Data::DataType returnType, 
+        const std::string& functionName);
     
     /**
      * @brief (AR) التحقق إذا يجب التوقف عن التنفيذ

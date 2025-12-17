@@ -1,0 +1,53 @@
+# CMakeLists.txt للاختبارات البسيطة (بدون LLVM)
+# Simple Tests CMakeLists.txt (Without LLVM dependency)
+
+cmake_minimum_required(VERSION 3.15)
+
+# إعداد المشروع / Setup project
+project(SadLanguage_LLVM_Tests_Simple)
+
+# تحديد معيار C++ / Set C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# تضمين دليل المصدر / Include source directory
+include_directories(${CMAKE_SOURCE_DIR})
+
+# ملفات الاختبارات البسيطة / Simple test files
+set(TEST_SOURCES
+    test_runner.cpp
+    test_simple.cpp
+)
+
+# إنشاء برنامج الاختبار / Create test executable
+add_executable(llvm_backend_tests_simple
+    ${TEST_SOURCES}
+)
+
+# إضافة الاختبارات إلى CTest / Add tests to CTest
+enable_testing()
+
+# اختبار جميع المكونات / Test all components
+add_test(
+    NAME SimpleTests
+    COMMAND llvm_backend_tests_simple
+)
+
+# تعيين خصائص الاختبار / Set test properties
+set_tests_properties(SimpleTests PROPERTIES
+    TIMEOUT 60
+    LABELS "LLVM;Backend;Simple"
+)
+
+# طباعة معلومات / Print information
+message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+message(STATUS "تم تكوين الاختبارات البسيطة بنجاح")
+message(STATUS "Simple Tests configured successfully")
+message(STATUS "")
+message(STATUS "ملاحظة: هذه نسخة مبسطة بدون LLVM")
+message(STATUS "Note: This is a simplified version without LLVM")
+message(STATUS "")
+message(STATUS "لتشغيل الاختبارات / To run tests:")
+message(STATUS "  cd build_tests")
+message(STATUS "  ctest --output-on-failure")
+message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
