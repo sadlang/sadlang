@@ -226,8 +226,8 @@ void LexerCore::skipWhitespace() {
 }
 
 /**
- * @brief (AR) تخطي التعليقات في الكود (# للسطر الواحد، #* *# للمتعدد)
- * @brief (EN) Skip comments in code (# for single line, #* *# for multi-line)
+ * @brief (AR) تخطي التعليقات في الكود (# للسطر الواحد، #* *# للمتعدد، ## و #** **# للتوثيق)
+ * @brief (EN) Skip comments in code (# for single line, #* *# for multi-line, ## and #** **# for doc)
  *
  * @throws (std::runtime_error) — (AR) إذا كان تعليق متعدد الأسطر غير مغلق
  *                                 (EN) if multi-line comment is not closed
@@ -238,9 +238,14 @@ void LexerCore::skipWhitespace() {
  * # هذا تعليق سطر واحد
  * #* هذا تعليق
  *    متعدد الأسطر *#
+ * ## تعليق توثيقي سطر واحد
+ * #** تعليق توثيقي
+ *     متعدد الأسطر **#
  * @endcode
  *
  * ملاحظات إضافية / Additional notes:
+ * - AR: التعليقات التوثيقية لا يتم تخطيها - تُعامل كـ tokens
+ * - EN: Doc comments are not skipped - treated as tokens
  * - AR: تعليق السطر الواحد ينتهي بنهاية السطر
  * - EN: Single-line comment ends at line end
  * - AR: التعليق المتعدد يجب أن يُغلق بـ *#
@@ -251,34 +256,8 @@ void LexerCore::skipComment() {
         return;
     }
     
-    advance(); // تخطي #
-    
-    // تحقق من نوع التعليق
-    if (peek() == '*') {
-        // تعليق متعدد الأسطر #* ... *#
-        DEBUG_PRINT("بدء تعليق متعدد الأسطر");
-        advance(); // تخطي *
-        
-        while (!isAtEnd()) {
-            if (peek() == '*' && peekNext() == '#') {
-                advance(); // تخطي *
-                advance(); // تخطي #
-                DEBUG_PRINT("نهاية تعليق متعدد الأسطر");
-                return;
-            }
-            advance();
-        }
-        
-        // إذا وصلنا هنا، التعليق لم يُغلق
-        throw std::runtime_error("تعليق متعدد الأسطر غير مغلق - Multi-line comment not closed at " 
-                               + getCurrentPosition().toString());
-    } else {
-        // تعليق سطر واحد # ... \n
-        DEBUG_PRINT("تخطي تعليق سطر واحد");
-        while (!isAtEnd() && peek() != '\n') {
-            advance();
-        }
-    }
+    // لا نستهلك # هنا - nextToken سيتعامل معها
+    // Don't consume # here - nextToken will handle it
 }
 
 // ======================================================================
@@ -501,25 +480,130 @@ Token LexerCore::scanString() {
     
     while (!isAtEnd() && peek() != '"') {
         if (peek() == '\\') {
-            // معالجة الحروف الخاصة
+            // معالجة الحروف الخاصة / Handle escape sequences
             advance(); // تخطي \
             
             if (isAtEnd()) {
                 return makeError("نص غير مغلق - انتهى الملف / Unterminated string - EOF reached");
             }
             
-            char escaped = advance();
+            char escaped = peek();
             switch (escaped) {
-                case 'n':  strValue += '\n'; break;
-                case 't':  strValue += '\t'; break;
-                case '\\': strValue += '\\'; break;
-                case '"':  strValue += '"';  break;
-                case 'r':  strValue += '\r'; break;
-                default:
-                    // حرف خاص غير معروف - نبقيه كما هو
-                    strValue += '\\';
-                    strValue += escaped;
-                    DEBUG_PRINT("حرف خاص غير معروف: \\" + std::string(1, escaped));
+                case 'n':  advance(); strValue += '\n'; break;
+                case 't':  advance(); strValue += '\t'; break;
+                case '\\': advance(); strValue += '\\'; break;
+                case '"':  advance(); strValue += '"';  break;
+                case 'r':  advance(); strValue += '\r'; break;
+                case 'b':  advance(); strValue += '\b'; break; // Backspace
+                case 'f':  advance(); strValue += '\f'; break; // Form feed
+                case 'v':  advance(); strValue += '\v'; break; // Vertical tab
+                case '0':  advance(); strValue += '\0'; break; // Null character
+                
+                // (AR) Unicode 16-bit: \uXXXX (4 digits hex)
+                // (EN) Unicode 16-bit: \uXXXX (4 hex digits)
+                case 'u': {
+                    advance(); // skip 'u'
+                    std::string hexCode;
+                    for (int i = 0; i < 4; i++) {
+                        if (isAtEnd() || !isHexDigit(peek())) {
+                            return makeError("Unicode escape sequence غير صحيح / Invalid unicode escape \\u");
+                        }
+                        hexCode += advance();
+                    }
+                    // تحويل hex إلى رقم / Convert hex to number
+                    int codepoint = std::stoi(hexCode, nullptr, 16);
+                    // تحويل إلى UTF-8 / Convert to UTF-8
+                    if (codepoint < 0x80) {
+                        strValue += static_cast<char>(codepoint);
+                    } else if (codepoint < 0x800) {
+                        strValue += static_cast<char>(0xC0 | (codepoint >> 6));
+                        strValue += static_cast<char>(0x80 | (codepoint & 0x3F));
+                    } else {
+                        strValue += static_cast<char>(0xE0 | (codepoint >> 12));
+                        strValue += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+                        strValue += static_cast<char>(0x80 | (codepoint & 0x3F));
+                    }
+                    DEBUG_PRINT("Unicode escape: \\u" + hexCode + " -> codepoint " + std::to_string(codepoint));
+                    break;
+                }
+                
+                // (AR) Unicode 32-bit: \UXXXXXXXX (8 digits hex)
+                // (EN) Unicode 32-bit: \UXXXXXXXX (8 hex digits)
+                case 'U': {
+                    advance(); // skip 'U'
+                    std::string hexCode;
+                    for (int i = 0; i < 8; i++) {
+                        if (isAtEnd() || !isHexDigit(peek())) {
+                            return makeError("Unicode escape sequence غير صحيح / Invalid unicode escape \\U");
+                        }
+                        hexCode += advance();
+                    }
+                    // تحويل hex إلى رقم / Convert hex to number
+                    long codepoint = std::stol(hexCode, nullptr, 16);
+                    // تحويل إلى UTF-8 (full range) / Convert to UTF-8 (full range)
+                    if (codepoint < 0x80) {
+                        strValue += static_cast<char>(codepoint);
+                    } else if (codepoint < 0x800) {
+                        strValue += static_cast<char>(0xC0 | (codepoint >> 6));
+                        strValue += static_cast<char>(0x80 | (codepoint & 0x3F));
+                    } else if (codepoint < 0x10000) {
+                        strValue += static_cast<char>(0xE0 | (codepoint >> 12));
+                        strValue += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+                        strValue += static_cast<char>(0x80 | (codepoint & 0x3F));
+                    } else {
+                        strValue += static_cast<char>(0xF0 | (codepoint >> 18));
+                        strValue += static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F));
+                        strValue += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+                        strValue += static_cast<char>(0x80 | (codepoint & 0x3F));
+                    }
+                    DEBUG_PRINT("Unicode escape: \\U" + hexCode + " -> codepoint " + std::to_string(codepoint));
+                    break;
+                }
+                
+                // (AR) Hex escape: \xHH (1-2 digits hex)
+                // (EN) Hex escape: \xHH (1-2 hex digits)
+                case 'x': {
+                    advance(); // skip 'x'
+                    std::string hexCode;
+                    // قراءة 1-2 أرقام hex / Read 1-2 hex digits
+                    for (int i = 0; i < 2 && !isAtEnd() && isHexDigit(peek()); i++) {
+                        hexCode += advance();
+                    }
+                    if (hexCode.empty()) {
+                        return makeError("Hex escape sequence غير صحيح / Invalid hex escape \\x");
+                    }
+                    int value = std::stoi(hexCode, nullptr, 16);
+                    strValue += static_cast<char>(value);
+                    DEBUG_PRINT("Hex escape: \\x" + hexCode + " -> " + std::to_string(value));
+                    break;
+                }
+                
+                // (AR) Octal escape: \0-377 (1-3 digits octal)
+                // (EN) Octal escape: \0-377 (1-3 octal digits)
+                default: {
+                    if (escaped >= '0' && escaped <= '7') {
+                        std::string octalCode;
+                        octalCode += advance();
+                        // قراءة حتى 2 أرقام إضافية / Read up to 2 more digits
+                        for (int i = 0; i < 2 && !isAtEnd() && peek() >= '0' && peek() <= '7'; i++) {
+                            octalCode += advance();
+                        }
+                        int value = std::stoi(octalCode, nullptr, 8);
+                        if (value > 255) {
+                            return makeError("Octal escape قيمته أكبر من 255 / Octal escape value > 255");
+                        }
+                        strValue += static_cast<char>(value);
+                        DEBUG_PRINT("Octal escape: \\" + octalCode + " -> " + std::to_string(value));
+                    } else {
+                        // حرف خاص غير معروف - نبقيه كما هو
+                        // Unknown escape - keep as is
+                        advance();
+                        strValue += '\\';
+                        strValue += escaped;
+                        DEBUG_PRINT("حرف خاص غير معروف: \\" + std::string(1, escaped));
+                    }
+                    break;
+                }
             }
         } else {
             strValue += advance();
@@ -534,6 +618,226 @@ Token LexerCore::scanString() {
     
     DEBUG_PRINT("تم معالجة نص: \"" + strValue + "\"");
     return Token(TokenType::STRING_LITERAL, strValue, start_position_);
+}
+
+/**
+ * @brief (AR) معالجة نص خام r"..." - بدون تفسير حروف الهروب
+ * @brief (EN) Process raw string r"..." - no escape sequence interpretation
+ *
+ * @return (Token) — (AR) رمز من نوع STRING_RAW
+ *                   (EN) token of type STRING_RAW
+ *
+ * @throws (std::runtime_error) — (AR) إذا كان النص غير مغلق
+ *                                 (EN) if string is not closed
+ *
+ * مثال الاستخدام / Usage example:
+ * @code
+ * // الأمثلة المدعومة:
+ * r"\n\t" → STRING_RAW (القيمة: "\\n\\t" حرفياً)
+ * r"C:\Users\name" → STRING_RAW (بدون تفسير \U و \n)
+ * @endcode
+ *
+ * ملاحظات إضافية / Additional notes:
+ * - AR: لا يفسر حروف الهروب - كل شيء حرفي
+ * - EN: No escape sequence interpretation - everything is literal
+ * - AR: مفيد لأسماء الملفات في Windows و regex patterns
+ * - EN: Useful for Windows file paths and regex patterns
+ */
+Token LexerCore::scanRawString() {
+    DEBUG_PRINT("بدء معالجة نص خام عند الموقع: " + start_position_.toString());
+    
+    advance(); // تخطي 'r'
+    advance(); // تخطي علامة التنصيص الافتتاحية "
+    
+    std::string strValue;
+    
+    while (!isAtEnd() && peek() != '"') {
+        // (AR) في النصوص الخام، نأخذ كل شيء حرفياً - حتى \ لا يُعامل معاملة خاصة
+        // (EN) In raw strings, we take everything literally - even \ is not special
+        strValue += advance();
+    }
+    
+    if (isAtEnd()) {
+        return makeError("نص خام غير مغلق - انتهى الملف / Unterminated raw string - EOF reached");
+    }
+    
+    advance(); // تخطي علامة التنصيص الختامية "
+    
+    DEBUG_PRINT("تم معالجة نص خام: r\"" + strValue + "\"");
+    return Token(TokenType::STRING_RAW, strValue, start_position_);
+}
+
+/**
+ * @brief (AR) معالجة نص منسق f"{expr}" - يحتوي على تعبيرات داخل {}
+ * @brief (EN) Process formatted string f"{expr}" - contains expressions inside {}
+ *
+ * @return (Token) — (AR) رمز من نوع STRING_FSTRING
+ *                   (EN) token of type STRING_FSTRING
+ *
+ * @throws (std::runtime_error) — (AR) إذا كان النص غير مغلق أو التعبير غير صحيح
+ *                                 (EN) if string is not closed or expression is invalid
+ *
+ * مثال الاستخدام / Usage example:
+ * @code
+ * // الأمثلة المدعومة:
+ * f"Hello {name}" → STRING_FSTRING
+ * f"Result: {x + y}" → STRING_FSTRING
+ * f"Multiple {a} and {b}" → STRING_FSTRING
+ * @endcode
+ *
+ * ملاحظات إضافية / Additional notes:
+ * - AR: يدعم التعبيرات داخل {} لتنسيق النصوص
+ * - EN: Supports expressions inside {} for string formatting
+ * - AR: يحفظ النص كاملاً مع التعبيرات - Parser سيحللها لاحقاً
+ * - EN: Stores entire string with expressions - Parser will analyze later
+ * - AR: يدعم escape sequences عادية خارج التعبيرات
+ * - EN: Supports normal escape sequences outside expressions
+ */
+Token LexerCore::scanFString() {
+    DEBUG_PRINT("بدء معالجة نص منسق عند الموقع: " + start_position_.toString());
+    
+    advance(); // تخطي 'f'
+    advance(); // تخطي علامة التنصيص الافتتاحية "
+    
+    std::string fullString;
+    int braceDepth = 0;
+    
+    while (!isAtEnd() && (peek() != '"' || braceDepth > 0)) {
+        char c = peek();
+        
+        // (AR) تتبع الأقواس المعقوفة { } لمعرفة متى نكون داخل تعبير
+        // (EN) Track curly braces { } to know when we're inside an expression
+        if (c == '{') {
+            if (peekNext() == '{') {
+                // (AR) {{ تعني حرف { حرفي
+                // (EN) {{ means literal { character
+                fullString += advance(); // first {
+                fullString += advance(); // second {
+                continue;
+            }
+            braceDepth++;
+            fullString += advance();
+            continue;
+        }
+        
+        if (c == '}') {
+            if (peekNext() == '}') {
+                // (AR) }} تعني حرف } حرفي
+                // (EN) }} means literal } character
+                fullString += advance(); // first }
+                fullString += advance(); // second }
+                continue;
+            }
+            braceDepth--;
+            if (braceDepth < 0) {
+                return makeError("نص منسق - قوس } بدون قوس { مطابق / F-string - } without matching {");
+            }
+            fullString += advance();
+            continue;
+        }
+        
+        // (AR) معالجة escape sequences خارج التعبيرات فقط
+        // (EN) Handle escape sequences outside expressions only
+        if (c == '\\' && braceDepth == 0) {
+            fullString += advance(); // backslash
+            if (!isAtEnd()) {
+                fullString += advance(); // الحرف التالي
+            }
+            continue;
+        }
+        
+        fullString += advance();
+    }
+    
+    if (braceDepth != 0) {
+        return makeError("نص منسق - قوس { غير مغلق / F-string - unclosed {");
+    }
+    
+    if (isAtEnd()) {
+        return makeError("نص منسق غير مغلق - انتهى الملف / Unterminated f-string - EOF reached");
+    }
+    
+    advance(); // تخطي علامة التنصيص الختامية "
+    
+    DEBUG_PRINT("تم معالجة نص منسق: f\"" + fullString + "\"");
+    return Token(TokenType::STRING_FSTRING, fullString, start_position_);
+}
+
+// ======================================================================
+// دوال المسح - التعليقات التوثيقية / Scan Functions - Documentation Comments
+// ======================================================================
+
+/**
+ * @brief (AR) معالجة تعليق توثيقي ## أو #** **#
+ * @brief (EN) Process documentation comment ## or #** **#
+ *
+ * @return (Token) — (AR) رمز من نوع DOC_COMMENT
+ *                   (EN) token of type DOC_COMMENT
+ *
+ * @throws (std::runtime_error) — (AR) إذا كان التعليق التوثيقي متعدد الأسطر غير مغلق
+ *                                 (EN) if multi-line doc comment is not closed
+ *
+ * مثال الاستخدام / Usage example:
+ * @code
+ * // الأمثلة المدعومة:
+ * ## تعليق توثيقي سطر واحد
+ * #** تعليق توثيقي
+ *     متعدد الأسطر
+ *     مع شرح مفصل **#
+ * @endcode
+ *
+ * ملاحظات إضافية / Additional notes:
+ * - AR: يُستخدم لتوليد الوثائق تلقائياً
+ * - EN: Used for automatic documentation generation
+ * - AR: يحفظ المحتوى كاملاً مع المسافات
+ * - EN: Preserves full content with whitespace
+ */
+Token LexerCore::scanDocComment() {
+    DEBUG_PRINT("بدء معالجة تعليق توثيقي عند الموقع: " + start_position_.toString());
+    
+    advance(); // skip first #
+    char second = advance(); // should be # or *
+    
+    std::string docContent;
+    
+    if (second == '#') {
+        // ## (single-line doc comment)
+        // (AR) قراءة باقي السطر
+        // (EN) Read rest of line
+        while (!isAtEnd() && peek() != '\n') {
+            docContent += advance();
+        }
+        
+        DEBUG_PRINT("تم معالجة تعليق توثيقي سطر واحد: " + docContent);
+        return Token(TokenType::DOC_COMMENT, docContent, start_position_);
+    }
+    
+    // #** **# (multi-line doc comment)
+    if (second == '*') {
+        if (isAtEnd() || peek() != '*') {
+            return makeError("تعليق توثيقي بصيغة خاطئة - يجب أن يبدأ بـ #** / Invalid doc comment - must start with #**");
+        }
+        advance(); // skip third *
+        
+        // (AR) قراءة حتى نجد **#
+        // (EN) Read until we find **#
+        while (!isAtEnd()) {
+            if (peek() == '*' && peekNext() == '*' && 
+                current_ + 2 < source_.length() && source_[current_ + 2] == '#') {
+                // وجدنا النهاية **#
+                advance(); // skip first *
+                advance(); // skip second *
+                advance(); // skip #
+                DEBUG_PRINT("تم معالجة تعليق توثيقي متعدد الأسطر");
+                return Token(TokenType::DOC_COMMENT, docContent, start_position_);
+            }
+            docContent += advance();
+        }
+        
+        return makeError("تعليق توثيقي متعدد الأسطر غير مغلق / Unterminated multi-line doc comment");
+    }
+    
+    return makeError("تعليق توثيقي بصيغة خاطئة / Invalid doc comment format");
 }
 
 // ======================================================================
@@ -746,19 +1050,56 @@ Token LexerCore::scanOperator() {
  * - EN: Stores precise position for each token
  */
 Token LexerCore::nextToken() {
-    // تخطي المسافات والتعليقات
-    while (!isAtEnd()) {
-        skipWhitespace();
-        
-        if (peek() == '#') {
-            skipComment();
-        } else {
-            break;
-        }
-    }
+    // تخطي المسافات
+    skipWhitespace();
     
     // حفظ موقع بداية الرمز
     start_position_ = getCurrentPosition();
+    
+    // (AR) معالجة التعليقات والتعليقات التوثيقية
+    // (EN) Handle comments and doc comments
+    if (peek() == '#') {
+        // (AR) فحص التعليقات التوثيقية أولاً
+        // (EN) Check doc comments first
+        char next = peekNext();
+        
+        // ## (doc comment single line)
+        if (next == '#') {
+            return scanDocComment();
+        }
+        
+        // #** **# (doc comment multi-line)
+        if (next == '*' && current_ + 2 < source_.length() && source_[current_ + 2] == '*') {
+            return scanDocComment();
+        }
+        
+        // #* *# (regular multi-line comment)
+        if (next == '*') {
+            advance(); // skip #
+            advance(); // skip *
+            
+            while (!isAtEnd()) {
+                if (peek() == '*' && peekNext() == '#') {
+                    advance(); // skip *
+                    advance(); // skip #
+                    DEBUG_PRINT("نهاية تعليق متعدد الأسطر");
+                    return nextToken(); // recurse to get next real token
+                }
+                advance();
+            }
+            
+            throw std::runtime_error("تعليق متعدد الأسطر غير مغلق - Multi-line comment not closed at " 
+                                   + getCurrentPosition().toString());
+        }
+        
+        // # (regular single-line comment)
+        advance(); // skip #
+        while (!isAtEnd() && peek() != '\n') {
+            advance();
+        }
+        DEBUG_PRINT("تخطي تعليق سطر واحد");
+        return nextToken(); // recurse to get next real token
+    }
     
     // نهاية الملف
     if (isAtEnd()) {
@@ -784,7 +1125,15 @@ Token LexerCore::nextToken() {
         return scanNumber();
     }
     
-    // نصوص
+    // نصوص / Strings
+    // (AR) فحص النصوص الخاصة قبل النصوص العادية: r"..." (raw), f"..." (f-string)
+    // (EN) Check special strings before regular strings: r"..." (raw), f"..." (f-string)
+    if (c == 'r' && peekNext() == '"') {
+        return scanRawString();
+    }
+    if (c == 'f' && peekNext() == '"') {
+        return scanFString();
+    }
     if (c == '"') {
         return scanString();
     }

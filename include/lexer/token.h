@@ -190,6 +190,10 @@ enum class TokenType {
     NUMBER_INTEGER,         ///< رقم صحيح / integer literal (123)
     NUMBER_DOUBLE,          ///< رقم عشري / double literal (3.14)
     STRING_LITERAL,         ///< نص حرفي / string literal ("text")
+    STRING_RAW,             ///< نص خام / raw string (r"text\n" - backslashes are literal)
+    STRING_FSTRING,         ///< نص منسق / formatted string (f"Hello {name}")
+    STRING_FSTRING_PART,    ///< جزء من نص منسق / part of f-string (between expressions)
+    DOC_COMMENT,            ///< تعليق توثيقي / documentation comment (## or #** **#)
     
     // ========== العوامل الحسابية / Arithmetic Operators ==========
     OP_PLUS,                ///< + جمع / addition

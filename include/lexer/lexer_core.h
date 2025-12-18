@@ -117,6 +117,24 @@ public:
     Token scanString();
     
     /**
+     * @brief (AR) معالجة نص خام r"..."
+     * @brief (EN) Process raw string r"..."
+     */
+    Token scanRawString();
+    
+    /**
+     * @brief (AR) معالجة نص منسق f"{expr}"
+     * @brief (EN) Process formatted string f"{expr}"
+     */
+    Token scanFString();
+    
+    /**
+     * @brief (AR) معالجة تعليق توثيقي ## أو #** **#
+     * @brief (EN) Process documentation comment ## or #** **#
+     */
+    Token scanDocComment();
+    
+    /**
      * @brief (AR) معالجة معرف أو كلمة مفتاحية
      * @brief (EN) Process identifier or keyword
      */
