@@ -117,16 +117,20 @@ public:
     Token scanString();
     
     /**
-     * @brief (AR) معالجة نص خام r"..."
-     * @brief (EN) Process raw string r"..."
+     * @brief (AR) معالجة نص خام r"..." أو ح"..."
+     * @brief (EN) Process raw string r"..." or ح"..."
+     * @param skipPrefix (AR) تخطي البادئة إذا كانت محذوفة بالفعل (للبادئات العربية)
+     *                   (EN) skip prefix if already consumed (for Arabic prefixes)
      */
-    Token scanRawString();
+    Token scanRawString(bool skipPrefix = false);
     
     /**
-     * @brief (AR) معالجة نص منسق f"{expr}"
-     * @brief (EN) Process formatted string f"{expr}"
+     * @brief (AR) معالجة نص منسق f"{expr}" أو م"{expr}"
+     * @brief (EN) Process formatted string f"{expr}" or م"{expr}"
+     * @param skipPrefix (AR) تخطي البادئة إذا كانت محذوفة بالفعل (للبادئات العربية)
+     *                   (EN) skip prefix if already consumed (for Arabic prefixes)
      */
-    Token scanFString();
+    Token scanFString(bool skipPrefix = false);
     
     /**
      * @brief (AR) معالجة تعليق توثيقي ## أو #** **#

@@ -678,6 +678,23 @@ private:
     AST::ExprPtr parseLambda();
     
     /**
+     * @brief (AR) يحلل f-string ويحوله إلى تسلسل نصوص.
+     *        (EN) Parses f-string and converts to string concatenation.
+     * 
+     * F-strings like f"Hello {name}!" are converted to:
+     * "Hello " + str(name) + "!"
+     * 
+     * النصوص المنسقة مثل f"مرحبا {الاسم}!" تُحول إلى:
+     * "مرحبا " + str(الاسم) + "!"
+     * 
+     * @param fstring The f-string content / محتوى f-string
+     * @param pos Source position / الموقع في الكود
+     * @return (AR) مؤشر لعقدة تعبير التسلسل.
+     *         (EN) Pointer to concatenation expression node.
+     */
+    AST::ExprPtr parseFStringExpr(const std::string& fstring, const Lexer::Position& pos);
+    
+    /**
      * @brief (AR) يحلل مُزخرِف (decorator): @decorator أو @decorator(args).
      *        (EN) Parses decorator: @decorator or @decorator(args).
      * 

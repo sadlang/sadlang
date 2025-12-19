@@ -2068,8 +2068,49 @@ ExprPtr ParserCore::parsePrimary() {
         return std::make_unique<LiteralExpr>(previous());
     }
     
+    // STRING_LITERAL: Regular strings / النصوص العادية
+    // (AR) معالجة النص الحرفي العادي
     if (match(TT::STRING_LITERAL)) {
         return std::make_unique<LiteralExpr>(previous());
+    }
+    
+    // STRING_RAW: Raw strings r"..." treat as regular string
+    // (AR) النصوص الخام r"..." تُعامل كنص عادي (لا معالجة للـ escape)
+    // Lexer already processed escapes (or didn't), just use as-is
+    // المحلل المعجمي بالفعل عالج (أو لم يعالج) الـ escapes، استخدمها كما هي
+    if (match(TT::STRING_RAW)) {
+        auto rawToken = previous();
+        // Convert STRING_RAW token to STRING_LITERAL for interpreter
+        // تحويل رمز STRING_RAW إلى STRING_LITERAL للمفسر
+        Lexer::Token stringToken(TT::STRING_LITERAL, rawToken.getValue(), rawToken.getPosition());
+        return std::make_unique<LiteralExpr>(stringToken);
+    }
+    
+    // STRING_FSTRING: F-strings f"{expr}" - convert to string concatenation
+    // (AR) النصوص المنسقة f"{expr}" - تحويل إلى تسلسل نصوص
+    // This is a simplified implementation - full implementation would parse expressions
+    // هذا تنفيذ مبسط - التنفيذ الكامل يحلل التعبيرات داخل الأقواس
+    if (match(TT::STRING_FSTRING)) {
+        auto fstringToken = previous();
+        std::string fstring = fstringToken.getValue();
+        
+        // For now, treat f-string as regular string (simplified)
+        // حالياً، نعامل f-string كنص عادي (مبسط)
+        // TODO Phase 2: Implement full f-string expression parsing
+        // TODO المرحلة 2: تنفيذ تحليل كامل لتعبيرات f-string
+        
+        // Check if f-string contains expressions {...}
+        // تحقق إذا كان f-string يحتوي على تعبيرات {...}
+        if (fstring.find('{') != std::string::npos) {
+            // Parse and expand f-string expressions
+            // تحليل وتوسيع تعبيرات f-string
+            return parseFStringExpr(fstring, fstringToken.getPosition());
+        } else {
+            // No expressions, treat as regular string
+            // لا يوجد تعبيرات، عامله كنص عادي
+            Lexer::Token stringToken(TT::STRING_LITERAL, fstring, fstringToken.getPosition());
+            return std::make_unique<LiteralExpr>(stringToken);
+        }
     }
     
     // Variable reference
@@ -2239,6 +2280,144 @@ ExprPtr ParserCore::parseLambda() {
         std::move(params),
         std::move(body),
         previous().getPosition()
+    );
+}
+
+/**
+ * @brief (AR) يحلل f-string ويحوله إلى تسلسل نصوص.
+ *        (EN) Parses f-string and converts to string concatenation.
+ * 
+ * Converts f"Hello {name}!" to: "Hello " + str(name) + "!"
+ * يحول f"مرحبا {الاسم}!" إلى: "مرحبا " + str(الاسم) + "!"
+ */
+ExprPtr ParserCore::parseFStringExpr(const std::string& fstring, const Lexer::Position& pos) {
+    // Build concatenation of string parts and expressions
+    // بناء تسلسل من أجزاء النصوص والتعبيرات
+    
+    ExprPtr result = nullptr;
+    size_t i = 0;
+    std::string currentText;
+    
+    while (i < fstring.length()) {
+        if (fstring[i] == '{' && (i + 1 < fstring.length() && fstring[i + 1] != '{')) {
+            // Found expression start
+            // وجدنا بداية تعبير
+            
+            // Add accumulated text as string literal
+            // أضف النص المتراكم كنص حرفي
+            if (!currentText.empty()) {
+                auto textLiteral = std::make_unique<LiteralExpr>(
+                    Lexer::Token(TT::STRING_LITERAL, currentText, pos)
+                );
+                if (result) {
+                    // Concatenate with previous parts
+                    // تسلسل مع الأجزاء السابقة
+                    result = std::make_unique<BinaryExpr>(
+                        std::move(result),
+                        TT::OP_PLUS,
+                        std::move(textLiteral),
+                        pos
+                    );
+                } else {
+                    result = std::move(textLiteral);
+                }
+                currentText.clear();
+            }
+            
+            // Find closing brace
+            // ابحث عن القوس الإغلاق
+            size_t exprStart = i + 1;
+            size_t braceDepth = 1;
+            i++;
+            while (i < fstring.length() && braceDepth > 0) {
+                if (fstring[i] == '{') braceDepth++;
+                else if (fstring[i] == '}') braceDepth--;
+                if (braceDepth > 0) i++;
+            }
+            
+            if (braceDepth != 0) {
+                errorBilingual(
+                    "خطأ: قوس غير مُغلق في f-string. تأكد من إغلاق جميع الأقواس {...}",
+                    "Error: unclosed brace in f-string. Make sure all braces {...} are closed."
+                );
+                return nullptr;
+            }
+            
+            // Extract expression text
+            // استخراج نص التعبير
+            std::string exprText = fstring.substr(exprStart, i - exprStart);
+            
+            // For now, treat expression as variable name (simplified)
+            // حالياً، نعامل التعبير كاسم متغير (مبسط)
+            // TODO Phase 2: Parse full expression from text
+            // TODO المرحلة 2: تحليل التعبير الكامل من النص
+            
+            auto exprNode = std::make_unique<VariableExpr>(exprText, pos);
+            
+            // Wrap in str() call to convert to string
+            // لف في استدعاء str() للتحويل إلى نص
+            std::vector<ExprPtr> strArgs;
+            strArgs.push_back(std::move(exprNode));
+            auto strCall = std::make_unique<CallExpr>(
+                std::make_unique<VariableExpr>("str", pos),
+                std::move(strArgs)
+            );
+            
+            if (result) {
+                // Concatenate with previous parts
+                // تسلسل مع الأجزاء السابقة
+                result = std::make_unique<BinaryExpr>(
+                    std::move(result),
+                    TT::OP_PLUS,
+                    std::move(strCall),
+                    pos
+                );
+            } else {
+                result = std::move(strCall);
+            }
+            
+            i++; // Move past closing brace
+        }
+        else if (fstring[i] == '{' && i + 1 < fstring.length() && fstring[i + 1] == '{') {
+            // Escaped brace {{
+            // قوس مُتجاوز {{
+            currentText += '{';
+            i += 2;
+        }
+        else if (fstring[i] == '}' && i + 1 < fstring.length() && fstring[i + 1] == '}') {
+            // Escaped brace }}
+            // قوس مُتجاوز }}
+            currentText += '}';
+            i += 2;
+        }
+        else {
+            // Regular character
+            // حرف عادي
+            currentText += fstring[i];
+            i++;
+        }
+    }
+    
+    // Add any remaining text
+    // أضف أي نص متبقي
+    if (!currentText.empty()) {
+        auto textLiteral = std::make_unique<LiteralExpr>(
+            Lexer::Token(TT::STRING_LITERAL, currentText, pos)
+        );
+        if (result) {
+            result = std::make_unique<BinaryExpr>(
+                std::move(result),
+                TT::OP_PLUS,
+                std::move(textLiteral),
+                pos
+            );
+        } else {
+            result = std::move(textLiteral);
+        }
+    }
+    
+    return result ? std::move(result) : std::make_unique<LiteralExpr>(
+        Lexer::Token(TT::STRING_LITERAL, "", pos)
     );
 }
 

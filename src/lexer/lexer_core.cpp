@@ -643,10 +643,12 @@ Token LexerCore::scanString() {
  * - AR: مفيد لأسماء الملفات في Windows و regex patterns
  * - EN: Useful for Windows file paths and regex patterns
  */
-Token LexerCore::scanRawString() {
+Token LexerCore::scanRawString(bool skipPrefix) {
     DEBUG_PRINT("بدء معالجة نص خام عند الموقع: " + start_position_.toString());
     
-    advance(); // تخطي 'r'
+    if (!skipPrefix) {
+        advance(); // تخطي 'r' (if not already consumed for Arabic prefix)
+    }
     advance(); // تخطي علامة التنصيص الافتتاحية "
     
     std::string strValue;
@@ -693,10 +695,12 @@ Token LexerCore::scanRawString() {
  * - AR: يدعم escape sequences عادية خارج التعبيرات
  * - EN: Supports normal escape sequences outside expressions
  */
-Token LexerCore::scanFString() {
+Token LexerCore::scanFString(bool skipPrefix) {
     DEBUG_PRINT("بدء معالجة نص منسق عند الموقع: " + start_position_.toString());
     
-    advance(); // تخطي 'f'
+    if (!skipPrefix) {
+        advance(); // تخطي 'f' (if not already consumed for Arabic prefix)
+    }
     advance(); // تخطي علامة التنصيص الافتتاحية "
     
     std::string fullString;
@@ -1128,12 +1132,42 @@ Token LexerCore::nextToken() {
     // نصوص / Strings
     // (AR) فحص النصوص الخاصة قبل النصوص العادية: r"..." (raw), f"..." (f-string)
     // (EN) Check special strings before regular strings: r"..." (raw), f"..." (f-string)
+    // (AR) دعم البادئات العربية: ح"..." (raw), م"..." (f-string)
+    // (EN) Support Arabic prefixes: ح"..." (raw), م"..." (f-string)
+    
+    // Raw strings: r"..." or ح"..."
+    // (AR) النصوص الخام: r أو ح
     if (c == 'r' && peekNext() == '"') {
         return scanRawString();
     }
+    // ح (U+062D) = 0xD8 0xAD in UTF-8 (حاء - raw string prefix)
+    if (static_cast<unsigned char>(c) == 0xD8 && (current_ + 1) < source_.length()) {
+        unsigned char next = static_cast<unsigned char>(source_[current_ + 1]);
+        if (next == 0xAD && (current_ + 2) < source_.length() && source_[current_ + 2] == '"') {
+            // Found ح"
+            advance(); // consume 0xD8
+            advance(); // consume 0xAD
+            return scanRawString(true); // skipPrefix = true (already consumed)
+        }
+    }
+    
+    // F-strings: f"..." or م"..."
+    // (AR) النصوص المنسقة: f أو م
     if (c == 'f' && peekNext() == '"') {
         return scanFString();
     }
+    // م (U+0645) = 0xD9 0x85 in UTF-8 (ميم - f-string prefix)
+    if (static_cast<unsigned char>(c) == 0xD9 && (current_ + 1) < source_.length()) {
+        unsigned char next = static_cast<unsigned char>(source_[current_ + 1]);
+        if (next == 0x85 && (current_ + 2) < source_.length() && source_[current_ + 2] == '"') {
+            // Found م"
+            advance(); // consume 0xD9
+            advance(); // consume 0x85
+            return scanFString(true); // skipPrefix = true (already consumed)
+        }
+    }
+    
+    // Regular strings
     if (c == '"') {
         return scanString();
     }
