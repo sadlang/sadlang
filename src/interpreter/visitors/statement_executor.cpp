@@ -9,10 +9,12 @@
 
 #include "../../../include/interpreter/visitors/statement_executor.h"
 #include "../../../include/parser/ast/declarations.h"
+#include "../../../include/parser/ast/pattern_nodes.h"
 #include "../../../include/errors/error_manager.h"
 #include "../../../include/interpreter/exception.h"
 #include <iostream>
 #include <sstream>
+#include <map>
 
 namespace Sad {
 namespace Interpreter {
@@ -564,6 +566,68 @@ void StatementExecutor::visitRaiseStmt(AST::RaiseStmt& node) {
     // (AR) رفع الاستثناء / (EN) Raise exception
     throw Interpreter::RuntimeError(
         exceptionValue.toString(),
+        node.position
+    );
+}
+
+// =========================================================================
+// (AR) Pattern Matching Implementation / (EN) تنفيذ مطابقة الأنماط
+// =========================================================================
+
+void StatementExecutor::visitMatchStmt(AST::MatchStmt& node) {
+    // (AR) تقييم القيمة المراد مطابقتها / (EN) Evaluate value to match
+    Data::Value testValue = evaluateExpression(*node.value);
+    
+    // (AR) المرور على كل حالة بالترتيب / (EN) Try each case in order
+    for (auto& caseClause : node.cases) {
+        // (AR) خريطة لربط المتغيرات من النمط / (EN) Map to bind variables from pattern
+        std::map<std::string, Data::Value> bindings;
+        
+        // (AR) محاولة مطابقة النمط / (EN) Try to match pattern
+        if (caseClause.pattern->matches(testValue, bindings)) {
+            // (AR) النمط تطابق - الآن نتحقق من الحارس (guard) إن وجد
+            // (EN) Pattern matched - now check guard if present
+            if (caseClause.guard) {
+                Data::Value guardResult = evaluateExpression(*caseClause.guard);
+                if (!guardResult.toBool()) {
+                    // (AR) الحارس فشل، جرّب الحالة التالية / (EN) Guard failed, try next case
+                    continue;
+                }
+            }
+            
+            // (AR) النمط والحارس نجحا - ننفذ الجسم / (EN) Pattern and guard succeeded - execute body
+            // (AR) ندفع نطاق جديد لربط متغيرات النمط / (EN) Push new scope to bind pattern variables
+            scopeManager_.pushScope(Data::ScopeType::BLOCK);
+            
+            // (AR) ربط جميع المتغيرات من النمط / (EN) Bind all variables from pattern
+            for (const auto& [name, value] : bindings) {
+                variableManager_.define(name, value);
+            }
+            
+            // (AR) تنفيذ جسم الحالة / (EN) Execute case body
+            for (auto& stmt : caseClause.body) {
+                stmt->accept(*this);
+                
+                // (AR) إذا حدث تحكم في التدفق (return, break, continue)، نتوقف
+                // (EN) If flow control occurred (return, break, continue), stop
+                if (flowControl_ != FlowControl::NONE) {
+                    scopeManager_.popScope();
+                    return;
+                }
+            }
+            
+            // (AR) إزالة النطاق / (EN) Pop scope
+            scopeManager_.popScope();
+            
+            // (AR) وجدنا تطابق، ننهي / (EN) Found match, exit
+            return;
+        }
+    }
+    
+    // (AR) لم يتطابق أي نمط - خطأ في وقت التشغيل / (EN) No pattern matched - runtime error
+    throw Interpreter::RuntimeError(
+        "(AR) لم يتطابق أي نمط في جملة match\n"
+        "(EN) No pattern matched in match statement",
         node.position
     );
 }

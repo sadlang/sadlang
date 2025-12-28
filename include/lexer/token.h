@@ -132,6 +132,13 @@ enum class TokenType {
     KEYWORD_WHEN,           ///< عندما / when (alternative for case)
     KEYWORD_DEFAULT,        ///< افتراضي / default (switch default case)
     
+    // ========== الكلمات المفتاحية - Pattern Matching (Phase 2) ==========
+    KEYWORD_MATCH,          ///< طابق / match (pattern matching)
+    
+    // ========== الكلمات المفتاحية - Async/Await (Phase 2) ==========
+    KEYWORD_ASYNC,          ///< غير_متزامن / async
+    KEYWORD_AWAIT,          ///< انتظر / await
+    
     // ========== الكلمات المفتاحية - التعامل مع الأخطاء / Keywords - Error Handling ==========
     KEYWORD_TRY,            ///< حاول / try (spec 05_python_features.md)
     KEYWORD_CATCH,          ///< امسك / catch (spec 05_python_features.md)
@@ -205,6 +212,7 @@ enum class TokenType {
     
     // ========== عوامل التعيين / Assignment Operators ==========
     OP_ASSIGN,              ///< = تعيين / assignment
+    OP_WALRUS,              ///< := Walrus operator (assignment expression - Phase 2)
     OP_PLUS_ASSIGN,         ///< += جمع وتعيين / add and assign
     OP_MINUS_ASSIGN,        ///< -= طرح وتعيين / subtract and assign
     OP_MULTIPLY_ASSIGN,     ///< *= ضرب وتعيين / multiply and assign

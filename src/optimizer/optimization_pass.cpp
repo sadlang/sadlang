@@ -2,6 +2,7 @@
 #include "parser/ast/expressions.h"
 #include "parser/ast/statements.h"
 #include "parser/ast/declarations.h"
+#include "parser/ast/pattern_nodes.h"
 #include "parser/ast/ast_visitor.h"
 #include "lexer/token.h"
 #include <iostream>
@@ -144,8 +145,17 @@ public:
     void visitSuperExpr(Sad::AST::SuperExpr&) override {}
     void visitMemberExpr(Sad::AST::MemberExpr&) override {}
     void visitMemberAssignExpr(Sad::AST::MemberAssignExpr&) override {}
+    void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
+        defineVar(node.variable);
+        if (node.value) node.value->accept(*this);
+    }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}
+    void visitSetComprehensionExpr(Sad::AST::SetComprehensionExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
+        if (node.iterable) node.iterable->accept(*this);
+        if (node.condition) node.condition->accept(*this);
+    }
     void visitGeneratorExpr(Sad::AST::GeneratorExpr&) override {}
     void visitDecoratorExpr(Sad::AST::DecoratorExpr&) override {}
     
@@ -197,6 +207,16 @@ public:
         for (auto& c : stmt.cases) {
             if (c.value) c.value->accept(*this);
             if (c.body) c.body->accept(*this);
+        }
+    }
+    
+    void visitMatchStmt(Sad::AST::MatchStmt& stmt) override {
+        if (stmt.value) stmt.value->accept(*this);
+        for (auto& c : stmt.cases) {
+            if (c.guard) c.guard->accept(*this);
+            for (auto& s : c.body) {
+                if (s) s->accept(*this);
+            }
         }
     }
     
@@ -462,8 +482,16 @@ public:
     void visitSuperExpr(Sad::AST::SuperExpr&) override {}
     void visitMemberExpr(Sad::AST::MemberExpr&) override {}
     void visitMemberAssignExpr(Sad::AST::MemberAssignExpr&) override {}
+    void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
+        if (node.value) node.value->accept(*this);
+    }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}
+    void visitSetComprehensionExpr(Sad::AST::SetComprehensionExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
+        if (node.iterable) node.iterable->accept(*this);
+        if (node.condition) node.condition->accept(*this);
+    }
     void visitGeneratorExpr(Sad::AST::GeneratorExpr&) override {}
     void visitDecoratorExpr(Sad::AST::DecoratorExpr&) override {}
     
@@ -508,6 +536,16 @@ public:
         for (auto& c : stmt.cases) {
             if (c.value) c.value->accept(*this);
             if (c.body) c.body->accept(*this);
+        }
+    }
+    
+    void visitMatchStmt(Sad::AST::MatchStmt& stmt) override {
+        if (stmt.value) stmt.value->accept(*this);
+        for (auto& c : stmt.cases) {
+            if (c.guard) c.guard->accept(*this);
+            for (auto& s : c.body) {
+                if (s) s->accept(*this);
+            }
         }
     }
     
@@ -770,8 +808,16 @@ public:
     }
     
     void visitLambdaExpr(Sad::AST::LambdaExpr&) override {}
+    void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
+        if (node.value) node.value->accept(*this);
+    }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}
+    void visitSetComprehensionExpr(Sad::AST::SetComprehensionExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
+        if (node.iterable) node.iterable->accept(*this);
+        if (node.condition) node.condition->accept(*this);
+    }
     void visitGeneratorExpr(Sad::AST::GeneratorExpr&) override {}
     void visitDecoratorExpr(Sad::AST::DecoratorExpr&) override {}
     
@@ -818,6 +864,16 @@ public:
             if (caseClause.body) caseClause.body->accept(*this);
         }
         if (node.defaultCase) node.defaultCase->accept(*this);
+    }
+    
+    void visitMatchStmt(Sad::AST::MatchStmt& stmt) override {
+        if (stmt.value) stmt.value->accept(*this);
+        for (auto& c : stmt.cases) {
+            if (c.guard) c.guard->accept(*this);
+            for (auto& s : c.body) {
+                if (s) s->accept(*this);
+            }
+        }
     }
     
     void visitImportStmt(Sad::AST::ImportStmt&) override {}
@@ -1006,8 +1062,16 @@ public:
     void visitSuperExpr(Sad::AST::SuperExpr&) override {}
     void visitMemberExpr(Sad::AST::MemberExpr&) override {}
     void visitMemberAssignExpr(Sad::AST::MemberAssignExpr&) override {}
+    void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
+        if (node.value) node.value->accept(*this);
+    }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}
+    void visitSetComprehensionExpr(Sad::AST::SetComprehensionExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
+        if (node.iterable) node.iterable->accept(*this);
+        if (node.condition) node.condition->accept(*this);
+    }
     void visitGeneratorExpr(Sad::AST::GeneratorExpr&) override {}
     void visitDecoratorExpr(Sad::AST::DecoratorExpr&) override {}
     
@@ -1034,6 +1098,15 @@ public:
         for (auto& c : stmt.cases) {
             if (c.value) c.value->accept(*this);
             if (c.body) c.body->accept(*this);
+        }
+    }
+    void visitMatchStmt(Sad::AST::MatchStmt& stmt) override {
+        if (stmt.value) stmt.value->accept(*this);
+        for (auto& c : stmt.cases) {
+            if (c.guard) c.guard->accept(*this);
+            for (auto& s : c.body) {
+                if (s) s->accept(*this);
+            }
         }
     }
     void visitVarDeclStmt(Sad::AST::VarDeclStmt& stmt) override {
@@ -1204,8 +1277,16 @@ public:
     void visitSuperExpr(Sad::AST::SuperExpr&) override {}
     void visitMemberExpr(Sad::AST::MemberExpr&) override {}
     void visitMemberAssignExpr(Sad::AST::MemberAssignExpr&) override {}
+    void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
+        if (node.value) node.value->accept(*this);
+    }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}
+    void visitSetComprehensionExpr(Sad::AST::SetComprehensionExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
+        if (node.iterable) node.iterable->accept(*this);
+        if (node.condition) node.condition->accept(*this);
+    }
     void visitGeneratorExpr(Sad::AST::GeneratorExpr&) override {}
     void visitDecoratorExpr(Sad::AST::DecoratorExpr&) override {}
     
@@ -1242,6 +1323,15 @@ public:
         for (auto& c : stmt.cases) {
             if (c.value) c.value->accept(*this);
             if (c.body) c.body->accept(*this);
+        }
+    }
+    void visitMatchStmt(Sad::AST::MatchStmt& stmt) override {
+        if (stmt.value) stmt.value->accept(*this);
+        for (auto& c : stmt.cases) {
+            if (c.guard) c.guard->accept(*this);
+            for (auto& s : c.body) {
+                if (s) s->accept(*this);
+            }
         }
     }
     void visitVarDeclStmt(Sad::AST::VarDeclStmt& stmt) override {
@@ -1402,8 +1492,16 @@ public:
     void visitSuperExpr(Sad::AST::SuperExpr&) override {}
     void visitMemberExpr(Sad::AST::MemberExpr&) override {}
     void visitMemberAssignExpr(Sad::AST::MemberAssignExpr&) override {}
+    void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
+        if (node.value) node.value->accept(*this);
+    }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}
+    void visitSetComprehensionExpr(Sad::AST::SetComprehensionExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
+        if (node.iterable) node.iterable->accept(*this);
+        if (node.condition) node.condition->accept(*this);
+    }
     void visitGeneratorExpr(Sad::AST::GeneratorExpr&) override {}
     void visitDecoratorExpr(Sad::AST::DecoratorExpr&) override {}
     
@@ -1444,6 +1542,15 @@ public:
         for (auto& c : stmt.cases) {
             if (c.value) c.value->accept(*this);
             if (c.body) c.body->accept(*this);
+        }
+    }
+    void visitMatchStmt(Sad::AST::MatchStmt& stmt) override {
+        if (stmt.value) stmt.value->accept(*this);
+        for (auto& c : stmt.cases) {
+            if (c.guard) c.guard->accept(*this);
+            for (auto& s : c.body) {
+                if (s) s->accept(*this);
+            }
         }
     }
     void visitVarDeclStmt(Sad::AST::VarDeclStmt& stmt) override {

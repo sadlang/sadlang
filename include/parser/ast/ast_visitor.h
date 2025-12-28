@@ -26,9 +26,11 @@ class IndexExpr;
 class MemberExpr;
 class ArrayExpr;
 class MapExpr;
+class WalrusExpr;         // (AR) تعبير Walrus / (EN) Walrus expression
 class LambdaExpr;
 class ListComprehensionExpr;
 class DictComprehensionExpr;
+class SetComprehensionExpr;
 class GeneratorExpr;
 class DecoratorExpr;
 
@@ -56,6 +58,7 @@ class BlockStmt;
 class TryStmt;
 class RaiseStmt;
 class WithStmt;
+class MatchStmt;      // (AR) جملة match لمطابقة الأنماط / (EN) Match statement for pattern matching
 
 // OOP Statement nodes / عُقد عبارات OOP
 class ClassDeclStmt;
@@ -223,6 +226,18 @@ public:
     virtual void visitMapExpr(MapExpr& expr) = 0;
     
     /**
+     * @brief Visit walrus (assignment expression) node / زيارة عقدة تعبير Walrus (التعيين في التعبير)
+     * @param expr Walrus operator expression node (:= operator)
+     * 
+     * Examples: if (n := len(items)) > 10, إذا (ع := طول(عناصر)) > 10
+     * أمثلة: while (line := file.read()), بينما (سطر := ملف.قراءة())
+     * 
+     * (AR) عامل Walrus (:=) يسمح بالتعيين داخل التعبير ويُرجع القيمة المُعيّنة
+     * (EN) Walrus operator (:=) allows assignment within expression and returns assigned value
+     */
+    virtual void visitWalrusExpr(WalrusExpr& expr) = 0;
+    
+    /**
      * @brief Visit lambda expression node / زيارة عقدة تعبير Lambda
      * @param expr Lambda expression node (e.g., (x) => x * 2)
      * 
@@ -246,6 +261,14 @@ public:
      * Examples: {x: x**2 for x in range(10)}, {س: س**2 لكل س في مدى(10)}
      */
     virtual void visitDictComprehensionExpr(DictComprehensionExpr& expr) = 0;
+    
+    /**
+     * @brief Visit set comprehension expression node / زيارة عقدة تعبير الاستيعاب المجموعة
+     * @param expr Set comprehension node
+     * 
+     * Examples: {x for x in range(10) if x > 5}, {س لكل س في مدى(10) إذا س > 5}
+     */
+    virtual void visitSetComprehensionExpr(SetComprehensionExpr& expr) = 0;
     
     /**
      * @brief Visit generator expression node / زيارة عقدة تعبير المولد
@@ -473,6 +496,17 @@ public:
     virtual void visitWithStmt(WithStmt& stmt) = 0;
     
     /**
+     * @brief Visit match statement node / زيارة عقدة عبارة match
+     * @param stmt Match statement node (pattern matching)
+     * 
+     * Examples: match x { case 0: ... }, طابق س { في_حالة 0: ... }
+     * 
+     * (AR) تستخدم لمطابقة الأنماط - مشابهة لـ switch لكن أقوى
+     * (EN) Used for pattern matching - similar to switch but more powerful
+     */
+    virtual void visitMatchStmt(MatchStmt& stmt) = 0;
+    
+    /**
      * @brief Visit class declaration statement node / زيارة عقدة عبارة تصريح الصنف
      * @param stmt Class declaration statement node
      * 
@@ -628,8 +662,10 @@ public:
     void visitArrayExpr(ArrayExpr& expr) override {}
     void visitMapExpr(MapExpr& expr) override {}
     void visitLambdaExpr(LambdaExpr& expr) override {}
+    void visitWalrusExpr(WalrusExpr& expr) override {}
     void visitListComprehensionExpr(ListComprehensionExpr& expr) override {}
     void visitDictComprehensionExpr(DictComprehensionExpr& expr) override {}
+    void visitSetComprehensionExpr(SetComprehensionExpr& expr) override {}
     void visitGeneratorExpr(GeneratorExpr& expr) override {}
     void visitDecoratorExpr(DecoratorExpr& expr) override {}
     
@@ -656,6 +692,7 @@ public:
     void visitTryStmt(TryStmt& stmt) override {}
     void visitRaiseStmt(RaiseStmt& stmt) override {}
     void visitWithStmt(WithStmt& stmt) override {}
+    void visitMatchStmt(MatchStmt& stmt) override {}  // (AR) مطابقة الأنماط / (EN) Pattern matching
     void visitClassDeclStmt(ClassDeclStmt& stmt) override {}
     
     // Declaration visitors / زوار التصريحات

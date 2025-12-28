@@ -203,6 +203,14 @@ public:
     void visitMapExpr(AST::MapExpr& node) override;
     
     /**
+     * @brief (AR) تقييم تعبير Walrus (:= variable value)
+     * @brief (EN) Evaluate Walrus expression (:= variable value)
+     * @details (AR) يُعيّن القيمة للمتغير ويُرجعها
+     * @details (EN) Assigns value to variable and returns it
+     */
+    void visitWalrusExpr(AST::WalrusExpr& node) override;
+    
+    /**
      * @brief (AR) تقييم دالة Lambda (lambda(x) { return x * 2; })
      * @brief (EN) Evaluate Lambda function (lambda(x) { return x * 2; })
      */
@@ -219,6 +227,12 @@ public:
      * @brief (EN) Evaluate dict comprehension ({k: v for item in arr})
      */
     void visitDictComprehensionExpr(AST::DictComprehensionExpr& node) override;
+    
+    /**
+     * @brief (AR) تقييم استيعاب مجموعة ({x for x in arr})
+     * @brief (EN) Evaluate set comprehension ({x for x in arr})
+     */
+    void visitSetComprehensionExpr(AST::SetComprehensionExpr& node) override;
     
     /**
      * @brief (AR) تقييم إنشاء كائن جديد (جديد صنف())

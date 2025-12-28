@@ -205,6 +205,12 @@ public:
     void visitRaiseStmt(AST::RaiseStmt& node) override;
     
     /**
+     * @brief (AR) زيارة جملة مطابقة أنماط / (EN) Visit pattern matching statement
+     * @details تطابق قيمة مع أنماط وتنفذ الفرع المناسب / Matches value against patterns and executes matching branch
+     */
+    void visitMatchStmt(AST::MatchStmt& node) override;
+    
+    /**
      * @brief (AR) زيارة تصريح دالة / (EN) Visit function declaration
      * @details تسجل الدالة في FunctionManager / Registers function in FunctionManager
      */

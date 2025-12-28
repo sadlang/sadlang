@@ -194,6 +194,11 @@ public:
         decreaseIndent();
     }
     
+    void visitWalrusExpr(AST::WalrusExpr& node) override {
+        printIndent();
+        output_ << "WalrusExpr (:=) -> " << node.variable << "\n";
+    }
+    
     void visitListComprehensionExpr(AST::ListComprehensionExpr& node) override {
         printIndent();
         output_ << "ListComprehension\n";
@@ -202,6 +207,11 @@ public:
     void visitDictComprehensionExpr(AST::DictComprehensionExpr& node) override {
         printIndent();
         output_ << "DictComprehension\n";
+    }
+    
+    void visitSetComprehensionExpr(AST::SetComprehensionExpr& node) override {
+        printIndent();
+        output_ << "SetComprehension\n";
     }
     
     void visitGeneratorExpr(AST::GeneratorExpr& node) override {

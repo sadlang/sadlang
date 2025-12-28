@@ -15,6 +15,7 @@
 #include "../../../include/parser/ast/ast_printer.h"
 #include "../../../include/parser/ast/property_nodes.h"
 #include "../../../include/parser/ast/class_nodes.h"
+#include "../../../include/parser/ast/expressions.h"
 #include <sstream>
 
 namespace Sad {
@@ -251,6 +252,7 @@ void ASTPrinter::visitMapExpr(MapExpr& expr) {
 }
 
 /**
+
  * @brief (AR) يزور عقدة تعبير Lambda - يطبع المعاملات والجسم.
  *        (EN) Visits lambda expression node - prints parameters and body.
  * 
@@ -266,6 +268,20 @@ void ASTPrinter::visitLambdaExpr(LambdaExpr& expr) {
     
     result_ += ") => ";
     expr.body->accept(*this);
+}
+
+/**
+ * @brief (AR) يزور عقدة تعبير Walrus - يطبع التعيين بالإرجاع.
+ *        (EN) Visits Walrus expression node - prints assignment with return.
+ * 
+ * @param expr (AR) مؤشر لعقدة تعبير Walrus. (EN) Pointer to Walrus expression node.
+ */
+void ASTPrinter::visitWalrusExpr(WalrusExpr& expr) {
+    result_ += "(";
+    result_ += expr.variable;
+    result_ += " := ";
+    expr.value->accept(*this);
+    result_ += ")";
 }
 
 /**
@@ -299,6 +315,26 @@ void ASTPrinter::visitDictComprehensionExpr(DictComprehensionExpr& expr) {
     expr.key->accept(*this);
     result_ += ": ";
     expr.value->accept(*this);
+    result_ += " for " + expr.variable + " in ";
+    expr.iterable->accept(*this);
+    
+    if (expr.condition) {
+        result_ += " if ";
+        expr.condition->accept(*this);
+    }
+    
+    result_ += "}";
+}
+
+/**
+ * @brief (AR) يزور عقدة الاستيعاب المجموعة - يطبع التعبير والحلقة.
+ *        (EN) Visits set comprehension node - prints expression and loop.
+ * 
+ * @param expr (AR) مؤشر لعقدة الاستيعاب المجموعة. (EN) Pointer to set comprehension node.
+ */
+void ASTPrinter::visitSetComprehensionExpr(SetComprehensionExpr& expr) {
+    result_ += "{";
+    expr.expression->accept(*this);
     result_ += " for " + expr.variable + " in ";
     expr.iterable->accept(*this);
     

@@ -473,6 +473,10 @@ StmtPtr ParserCore::parseStatement() {
         return parseSwitchStmt();
     }
     
+    if (match(TT::KEYWORD_MATCH)) {
+        return parseMatchStmt();
+    }
+    
     if (match(TT::KEYWORD_RETURN)) {
         return parseReturnStmt();
     }
@@ -1687,14 +1691,34 @@ ExprPtr ParserCore::parseExpression() {
 }
 
 /**
- * @brief (AR) يحلل تعيين: اسم = قيمة.
- *        (EN) Parses assignment: name = value.
+ * @brief (AR) يحلل تعيين: اسم = قيمة، أو Walrus: اسم := قيمة.
+ *        (EN) Parses assignment: name = value, or Walrus: name := value.
  */
 ExprPtr ParserCore::parseAssignment() {
     auto expr = parseTernary();
     
+    // (AR) فحص عامل Walrus := (إسناد داخل تعبير) / (EN) Check for Walrus operator := (assignment expression)
+    if (match(TT::OP_WALRUS)) {
+        Token walrus = previous();
+        auto value = parseAssignment();
+        
+        // (AR) Walrus يتطلب متغيراً على اليسار / (EN) Walrus requires variable on left
+        if (auto* var = dynamic_cast<VariableExpr*>(expr.get())) {
+            return std::make_unique<WalrusExpr>(
+                var->name,
+                std::move(value),
+                walrus.getPosition()
+            );
+        }
+        
+        errorBilingual(
+            "خطأ: عامل Walrus (:=) يتطلب اسم متغير على اليسار",
+            "Error: Walrus operator (:=) requires variable name on left"
+        );
+    }
+    
     // Check for assignment operator
-    // (AR) التحقق من عامل التعيين
+    // (AR) التحقق من عامل التعيين العادي
     if (match(TT::OP_ASSIGN)) {
         Token equals = previous();
         auto value = parseAssignment();
@@ -2634,38 +2658,115 @@ ExprPtr ParserCore::parseArrayLiteral() {
  *        (EN) Parses map literal or dict comprehension: {k: v} or {k: v for k, v in items}.
  */
 ExprPtr ParserCore::parseMapLiteral() {
-    // Check for empty map
-    // (AR) التحقق من خريطة فارغة
+    // Check for empty map/set
+    // (AR) التحقق من خريطة/مجموعة فارغة
     if (check(TT::BRACE_RIGHT)) {
         consume(TT::BRACE_RIGHT, "");
+        // Empty {} defaults to empty map (like Python)
+        // (AR) {} فارغة تُعتبر خريطة فارغة (مثل Python)
         return std::make_unique<MapExpr>(std::vector<MapPair>{}, previous().getPosition());
     }
     
-    // Parse first key expression (or key variable template in comprehension)
-    // (AR) تحليل تعبير المفتاح الأول (أو قالب متغير المفتاح في comprehension)
-    auto firstKey = parseExpression();
+    // Parse first expression using parseTernary to avoid consuming 'for' keyword
+    // (AR) تحليل التعبير الأول باستخدام parseTernary لتجنب استهلاك 'for'
+    auto firstKey = parseTernary();
     if (!firstKey) {
         errorBilingual(
-            "خطأ: فشل تحليل مفتاح الخريطة - تعبير غير صحيح. تأكد من أن المفتاح عبارة عن نص أو رقم أو متغير.",
-            "Error: failed to parse map key - invalid expression. Make sure the key is a string, number, or variable."
+            "خطأ: فشل تحليل التعبير - تعبير غير صحيح.",
+            "Error: failed to parse expression - invalid expression."
         );
         return nullptr;
     }
     
-    // Expect colon after key
-    // (AR) توقع ':' بعد المفتاح
+    // Check if this is a set comprehension: {expr for var in iterable}
+    // (AR) التحقق إذا كان set comprehension
+    if (check(TT::KEYWORD_FOR)) {
+        // This is a set comprehension: {expr for var in iterable if cond}
+        // (AR) هذا set comprehension
+        
+        advance(); // consume 'for'
+        
+        // Parse loop variable
+        // (AR) تحليل متغير الحلقة
+        if (!check(TT::IDENTIFIER)) {
+            errorBilingual(
+                "خطأ: توقعت اسم متغير حلقة بعد 'for' في set comprehension. مثال: {x for x in list}",
+                "Error: expected loop variable name after 'for' in set comprehension. Example: {x for x in list}"
+            );
+            return nullptr;
+        }
+        Token loopVar = peek();
+        advance();
+        
+        // Expect 'in' keyword
+        // (AR) توقع كلمة 'في'
+        if (!check(TT::KEYWORD_IN)) {
+            errorBilingual(
+                "خطأ: توقعت 'في' بعد متغير الحلقة. الصيغة: {expr for var in iterable}",
+                "Error: expected 'in' after loop variable. Format: {expr for var in iterable}"
+            );
+            return nullptr;
+        }
+        advance();
+        
+        // Parse iterable
+        // (AR) تحليل المجموعة القابلة للتكرار
+        auto iterable = parseExpression();
+        if (!iterable) {
+            errorBilingual(
+                "خطأ: فشل تحليل المجموعة القابلة للتكرار في set comprehension.",
+                "Error: failed to parse iterable in set comprehension."
+            );
+            return nullptr;
+        }
+        
+        // Optional condition
+        // (AR) الشرط الاختياري
+        ExprPtr condition = nullptr;
+        if (match(TT::KEYWORD_IF)) {
+            condition = parseExpression();
+            if (!condition) {
+                errorBilingual(
+                    "خطأ: تعبير شرط غير صحيح بعد 'إذا' في set comprehension.",
+                    "Error: invalid condition expression after 'if' in set comprehension."
+                );
+                return nullptr;
+            }
+        }
+        
+        if (!check(TT::BRACE_RIGHT)) {
+            errorBilingual(
+                "خطأ: توقعت '}' في نهاية set comprehension.",
+                "Error: expected '}' at end of set comprehension."
+            );
+            return nullptr;
+        }
+        consume(TT::BRACE_RIGHT, "");
+        
+        // Create set comprehension node
+        // (AR) إنشاء عقدة Set Comprehension
+        return std::make_unique<SetComprehensionExpr>(
+            std::move(firstKey),
+            loopVar.getValue(),
+            std::move(iterable),
+            std::move(condition)
+        );
+    }
+    
+    // Check if this is a dict (has colon) or set (no colon)
+    // (AR) التحقق إذا كان dict (له :) أو set (بدون :)
     if (!check(TT::COLON)) {
         errorBilingual(
-            "خطأ: توقعت ':' بعد مفتاح الخريطة. الصيغة: {مفتاح: قيمة، ...}",
-            "Error: expected ':' after map key. Format: {key: value, ...}"
+            "خطأ: توقعت ':' بعد مفتاح الخريطة. الصيغة: {مفتاح: قيمة، ...}. لـ Set Comprehension استخدم: {expr for x in list}",
+            "Error: expected ':' after map key. Format: {key: value, ...}. For Set Comprehension use: {expr for x in list}"
         );
         return nullptr;
     }
     consume(TT::COLON, "");
     
-    // Parse first value expression (or value variable template in comprehension)
-    // (AR) تحليل تعبير القيمة الأولى (أو قالب متغير القيمة في comprehension)
-    auto firstValue = parseExpression();
+    // Parse first value expression using parseTernary to avoid consuming 'for'
+    // (AR) تحليل تعبير القيمة باستخدام parseTernary لتجنب استهلاك 'for'
+    auto firstValue = parseTernary();
     if (!firstValue) {
         errorBilingual(
             "خطأ: فشل تحليل قيمة الخريطة - تعبير غير صحيح. تأكد من أن القيمة صحيحة.",
@@ -2810,6 +2911,364 @@ ExprPtr ParserCore::parseMapLiteral() {
     return std::make_unique<MapExpr>(
         std::move(pairs),
         previous().getPosition()
+    );
+}
+
+// ============================================================================
+// (AR) تحليل Pattern Matching / (EN) Pattern Matching Parsing
+// ============================================================================
+
+/**
+ * @brief (AR) يحلل جملة match لمطابقة الأنماط
+ *        (EN) Parses match statement for pattern matching
+ */
+StmtPtr ParserCore::parseMatchStmt() {
+    // Already consumed 'match'
+    // (AR) تم استهلاك 'match' بالفعل
+    
+    // Parse value to match against
+    // (AR) تحليل القيمة المُختبرة
+    auto value = parseExpression();
+    
+    if (!value) {
+        errorBilingual(
+            "خطأ: توقعت تعبير بعد 'match'",
+            "Error: Expected expression after 'match'"
+        );
+        return nullptr;
+    }
+    
+    // Expect opening brace
+    // (AR) توقع قوس معقوف يسار
+    if (!match(TT::BRACE_LEFT)) {
+        errorBilingual(
+            "خطأ: توقعت '{' بعد تعبير match",
+            "Error: Expected '{' after match expression"
+        );
+        return nullptr;
+    }
+    
+    // Parse case clauses
+    // (AR) تحليل فروع case
+    std::vector<AST::CaseClause> cases;
+    
+    while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
+        if (check(TT::KEYWORD_CASE)) {
+            cases.push_back(parseCaseClause());
+        } else {
+            errorBilingual(
+                "خطأ: توقعت 'case' أو '}'",
+                "Error: Expected 'case' or '}'"
+            );
+            return nullptr;
+        }
+    }
+    
+    if (cases.empty()) {
+        errorBilingual(
+            "خطأ: جملة match يجب أن تحتوي على فرع case واحد على الأقل",
+            "Error: Match statement must have at least one case clause"
+        );
+        return nullptr;
+    }
+    
+    // Expect closing brace
+    // (AR) توقع قوس معقوف يمين
+    if (!match(TT::BRACE_RIGHT)) {
+        errorBilingual(
+            "خطأ: توقعت '}' في نهاية جملة match",
+            "Error: Expected '}' at end of match statement"
+        );
+        return nullptr;
+    }
+    
+    return std::make_unique<AST::MatchStmt>(
+        std::move(value),
+        std::move(cases),
+        previous().getPosition()
+    );
+}
+
+/**
+ * @brief (AR) يحلل فرع case واحد
+ *        (EN) Parses one case clause
+ */
+AST::CaseClause ParserCore::parseCaseClause() {
+    // Consume 'case'
+    // (AR) استهلاك 'case'
+    if (!match(TT::KEYWORD_CASE)) {
+        errorBilingual(
+            "خطأ: توقعت 'case'",
+            "Error: Expected 'case'"
+        );
+        return AST::CaseClause(nullptr, nullptr, {});
+    }
+    
+    // Parse pattern
+    // (AR) تحليل النمط
+    auto pattern = parsePattern();
+    
+    if (!pattern) {
+        errorBilingual(
+            "خطأ: توقعت نمط بعد 'case'",
+            "Error: Expected pattern after 'case'"
+        );
+        return AST::CaseClause(nullptr, nullptr, {});
+    }
+    
+    // Parse optional guard (if condition)
+    // (AR) تحليل guard اختياري (شرط if)
+    ExprPtr guard = nullptr;
+    if (match(TT::KEYWORD_IF)) {
+        guard = parseExpression();
+        
+        if (!guard) {
+            errorBilingual(
+                "خطأ: توقعت تعبير بعد 'if' في guard",
+                "Error: Expected expression after 'if' in guard"
+            );
+        }
+    }
+    
+    // Expect colon
+    // (AR) توقع نقطتين رأسيتين
+    if (!match(TT::COLON)) {
+        errorBilingual(
+            "خطأ: توقعت ':' بعد نمط case",
+            "Error: Expected ':' after case pattern"
+        );
+        return AST::CaseClause(nullptr, nullptr, {});
+    }
+    
+    // Parse body - can be brace block or single statement
+    // (AR) تحليل الجسم - يمكن أن يكون block بأقواس أو جملة واحدة
+    std::vector<StmtPtr> body;
+    
+    if (check(TT::BRACE_LEFT)) {
+        // Block with multiple statements
+        // (AR) block بجمل متعددة
+        advance(); // consume {
+        
+        while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
+            auto stmt = parseStatement();
+            if (stmt) {
+                body.push_back(std::move(stmt));
+            } else {
+                synchronize();
+            }
+        }
+        
+        if (!match(TT::BRACE_RIGHT)) {
+            errorBilingual(
+                "خطأ: توقعت '}' في نهاية جسم case",
+                "Error: Expected '}' at end of case body"
+            );
+        }
+    } else {
+        // Single statement
+        // (AR) جملة واحدة
+        auto stmt = parseStatement();
+        if (stmt) {
+            body.push_back(std::move(stmt));
+        }
+    }
+    
+    return AST::CaseClause(
+        std::move(pattern),
+        std::move(guard),
+        std::move(body)
+    );
+}
+
+/**
+ * @brief (AR) يحلل نمط
+ *        (EN) Parses a pattern
+ */
+std::unique_ptr<AST::Pattern> ParserCore::parsePattern() {
+    // Wildcard: _ (using IDENTIFIER)
+    // (AR) النمط الشامل: _ (باستخدام IDENTIFIER)
+    if (check(TT::IDENTIFIER) && current_.getValue() == "_") {
+        advance();
+        return std::make_unique<AST::WildcardPattern>();
+    }
+    
+    // List pattern: [...]
+    // (AR) نمط قائمة: [...]
+    if (check(TT::BRACKET_LEFT)) {
+        return parseListPattern();
+    }
+    
+    // Parse primary pattern (literal or variable)
+    // (AR) تحليل نمط أساسي (قيمة حرفية أو متغير)
+    auto primary = parsePrimaryPattern();
+    
+    if (!primary) {
+        return nullptr;
+    }
+    
+    // Check for OR pattern: a | b | c (using OP_OR)
+    // (AR) التحقق من نمط OR: a | b | c
+    if (check(TT::OP_OR)) {
+        std::vector<std::unique_ptr<AST::Pattern>> alternatives;
+        alternatives.push_back(std::move(primary));
+        
+        while (match(TT::OP_OR)) {
+            auto alt = parsePrimaryPattern();
+            if (alt) {
+                alternatives.push_back(std::move(alt));
+            } else {
+                errorBilingual(
+                    "خطأ: توقعت نمط بعد '||'",
+                    "Error: Expected pattern after '||'"
+                );
+                break;
+            }
+        }
+        
+        return std::make_unique<AST::OrPattern>(std::move(alternatives));
+    }
+    
+    return primary;
+}
+
+/**
+ * @brief (AR) يحلل نمط أساسي (literal, variable, wildcard)
+ *        (EN) Parses primary pattern (literal, variable, wildcard)
+ */
+std::unique_ptr<AST::Pattern> ParserCore::parsePrimaryPattern() {
+    // Number literal (INTEGER or DOUBLE)
+    // (AR) قيمة رقمية حرفية
+    if (check(TT::NUMBER_INTEGER)) {
+        Token token = current_;
+        advance();
+        double value = std::stod(token.getValue());
+        return std::make_unique<AST::LiteralPattern>(Data::Value(value));
+    }
+    
+    if (check(TT::NUMBER_DOUBLE)) {
+        Token token = current_;
+        advance();
+        double value = std::stod(token.getValue());
+        return std::make_unique<AST::LiteralPattern>(Data::Value(value));
+    }
+    
+    // String literal
+    // (AR) قيمة نصية حرفية
+    if (check(TT::STRING_LITERAL)) {
+        Token token = current_;
+        advance();
+        return std::make_unique<AST::LiteralPattern>(Data::Value(token.getValue()));
+    }
+    
+    // Boolean literal: true/false
+    // (AR) قيمة منطقية حرفية
+    if (check(TT::LITERAL_TRUE)) {
+        advance();
+        return std::make_unique<AST::LiteralPattern>(Data::Value(true));
+    }
+    
+    if (check(TT::LITERAL_FALSE)) {
+        advance();
+        return std::make_unique<AST::LiteralPattern>(Data::Value(false));
+    }
+    
+    // null
+    // (AR) قيمة null
+    if (check(TT::LITERAL_NULL)) {
+        advance();
+        return std::make_unique<AST::LiteralPattern>(Data::Value());
+    }
+    
+    // Variable pattern (identifier)
+    // (AR) نمط متغير (معرّف)
+    if (check(TT::IDENTIFIER)) {
+        Token token = current_;
+        advance();
+        return std::make_unique<AST::VariablePattern>(token.getValue());
+    }
+    
+    errorBilingual(
+        "خطأ: توقعت نمط (رقم، نص، متغير، أو '_')",
+        "Error: Expected pattern (number, string, variable, or '_')"
+    );
+    return nullptr;
+}
+
+/**
+ * @brief (AR) يحلل نمط قائمة [...]
+ *        (EN) Parses list pattern [...]
+ */
+std::unique_ptr<AST::Pattern> ParserCore::parseListPattern() {
+    if (!match(TT::BRACKET_LEFT)) {
+        errorBilingual(
+            "خطأ: توقعت '[' لبداية نمط القائمة",
+            "Error: Expected '[' for list pattern"
+        );
+        return nullptr;
+    }
+    
+    std::vector<std::unique_ptr<AST::Pattern>> elements;
+    bool has_rest = false;
+    std::string rest_name;
+    
+    // Empty list: []
+    // (AR) قائمة فارغة: []
+    if (check(TT::BRACKET_RIGHT)) {
+        advance();
+        return std::make_unique<AST::ListPattern>(std::move(elements), false, "");
+    }
+    
+    // Parse elements
+    // (AR) تحليل العناصر
+    do {
+        // Rest pattern: *rest (using OP_MULTIPLY)
+        // (AR) نمط الباقي: *rest
+        if (check(TT::OP_MULTIPLY)) {
+            advance();
+            
+            if (!check(TT::IDENTIFIER)) {
+                errorBilingual(
+                    "خطأ: توقعت اسم متغير بعد '*' في نمط القائمة",
+                    "Error: Expected variable name after '*' in list pattern"
+                );
+                return nullptr;
+            }
+            
+            Token idToken = current_;
+            advance();
+            rest_name = idToken.getValue();
+            has_rest = true;
+            
+            // Can't have elements after *rest
+            // (AR) لا يمكن أن يكون هناك عناصر بعد *rest
+            break;
+        }
+        
+        // Parse regular pattern
+        // (AR) تحليل نمط عادي
+        auto pattern = parsePattern();
+        if (pattern) {
+            elements.push_back(std::move(pattern));
+        } else {
+            // Error in pattern
+            // (AR) خطأ في النمط
+            return nullptr;
+        }
+        
+    } while (match(TT::COMMA));
+    
+    if (!match(TT::BRACKET_RIGHT)) {
+        errorBilingual(
+            "خطأ: توقعت ']' في نهاية نمط القائمة",
+            "Error: Expected ']' at end of list pattern"
+        );
+        return nullptr;
+    }
+    
+    return std::make_unique<AST::ListPattern>(
+        std::move(elements),
+        has_rest,
+        rest_name
     );
 }
 

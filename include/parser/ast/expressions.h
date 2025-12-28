@@ -583,6 +583,45 @@ struct Parameter {
 };
 
 /**
+ * @brief Walrus operator expression (:=) / تعبير عامل Walrus (:=)
+ * 
+ * Represents assignment within an expression that returns the assigned value.
+ * يمثل التعيين داخل تعبير يُرجع القيمة المُعيّنة.
+ * 
+ * @example Examples / أمثلة:
+ * - if (n := len(items)) > 10
+ * - while (line := file.read())
+ * - إذا (ع := طول(عناصر)) > 10
+ */
+class WalrusExpr : public Expression {
+public:
+    std::string variable;  ///< Variable name / اسم المتغير
+    ExprPtr value;         ///< Value to assign / القيمة المراد تعيينها
+    
+    /**
+     * @brief Constructor / البناء
+     * @param var Variable name / اسم المتغير
+     * @param val Value expression / تعبير القيمة
+     * @param pos Source position / الموقع في الكود
+     */
+    WalrusExpr(std::string var, ExprPtr val, 
+               const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), variable(std::move(var)), value(std::move(val)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitWalrusExpr(*this);
+    }
+    
+    std::string toString() const override {
+        return "(:= " + variable + " " + value->toString() + ")";
+    }
+    
+    Data::DataType getType() const override {
+        return value->getType();
+    }
+};
+
+/**
  * @brief Lambda expression node (e.g., (x) => x * 2) / عقدة تعبير Lambda
  * 
  * Represents an anonymous function (lambda).
@@ -746,6 +785,50 @@ public:
     
     Data::DataType getType() const override {
         return Data::DataType::FUNCTION; // Generator is a special function
+    }
+};
+
+// =========================================================================
+// Set Comprehension Expression / تعبير Set Comprehension
+// =========================================================================
+
+/**
+ * @brief Set comprehension expression node / عقدة تعبير Set Comprehension
+ * 
+ * Represents set building using comprehension syntax.
+ * يمثل بناء مجموعة (set) باستخدام comprehension syntax.
+ * 
+ * @example Examples / أمثلة:
+ * - {x for x in numbers if x > 0}
+ * - {x*2 for x in range(10)}
+ * - {س*٢ لكل س في قائمة إذا س > ٥}
+ */
+class SetComprehensionExpr : public Expression {
+public:
+    ExprPtr expression;     ///< Output expression / التعبير المُنتَج
+    std::string variable;   ///< Loop variable / متغير الحلقة
+    ExprPtr iterable;       ///< Iterable expression / التعبير القابل للتكرار
+    ExprPtr condition;      ///< Filter condition (optional) / شرط التصفية
+    
+    /**
+     * @brief Constructor / البناء
+     */
+    SetComprehensionExpr(ExprPtr expr, const std::string& var,
+                        ExprPtr iter, ExprPtr cond = nullptr,
+                        const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), expression(std::move(expr)), variable(var),
+          iterable(std::move(iter)), condition(std::move(cond)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitSetComprehensionExpr(*this);
+    }
+    
+    std::string toString() const override {
+        return "{set comprehension}";
+    }
+    
+    Data::DataType getType() const override {
+        return Data::DataType::ARRAY; // Set is represented as array with unique elements
     }
 };
 

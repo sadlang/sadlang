@@ -81,7 +81,11 @@ std::string IOFunctions::valueToString(const Data::Value& value) {
         }
         
         case VT::STRING:
-            return processEscapeSequences(value.toString());
+            // (AR) لا نعالج escape sequences هنا لأن المحلل المعجمي قام بذلك بالفعل
+            // (EN) Don't process escape sequences here - Lexer already handled them
+            // Regular strings: Lexer converted \n → newline character
+            // Raw strings: Lexer kept backslashes literally (r"\n" stays as '\' + 'n')
+            return value.toString();
         
         case VT::BOOLEAN:
             return value.toBool() ? "صحيح" : "خطأ";  // Arabic: "true" : "false"

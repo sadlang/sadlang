@@ -12,11 +12,13 @@
 #include "../../../include/parser/ast/statements.h"
 #include "../../../include/parser/ast/declarations.h"
 #include "../../../include/parser/ast/class_nodes.h"
+#include "../../../include/parser/ast/expressions.h"
 #include "../../../include/data/managers/class_manager.h"
 #include "../../../include/data/types/object_instance.h"
 #include "../../../include/errors/error_manager.h"
 #include <cmath>
 #include <iostream>
+#include <unordered_map>
 
 namespace Sad {
 namespace Interpreter {
@@ -1440,6 +1442,43 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
 }
 
 // =========================================================================
+// (AR) تقييم تعبير Walrus / (EN) Walrus Expression Evaluation
+// =========================================================================
+
+/**
+ * @brief (AR) تقييم عامل Walrus - التعيين داخل التعبير
+ *        (EN) Evaluate walrus operator - assignment within expression
+ * 
+ * @param node (AR) عقدة تعبير Walrus / (EN) Walrus expression node
+ * 
+ * @details
+ *   (AR) عامل Walrus (:=) يسمح بالتعيين داخل التعبير ويُرجع القيمة المُعيّنة
+ *   (EN) Walrus operator (:=) allows assignment within expression and returns assigned value
+ * 
+ *   Examples / أمثلة:
+ *   - if (n := len(items)) > 10: print(n)
+ *   - while (line := file.read()): process(line)
+ */
+void ExpressionEvaluator::visitWalrusExpr(WalrusExpr& node) {
+    // (AR) تقييم القيمة المراد تعيينها / (EN) Evaluate the value to assign
+    node.value->accept(*this);
+    Value assignedValue = lastResult_;
+    
+    // (AR) محاولة تعيين القيمة للمتغير
+    // (EN) Try to assign value to variable
+    try {
+        variableManager_.assign(node.variable, assignedValue);
+    } catch (...) {
+        // If variable doesn't exist, define it / إذا لم يكن المتغير موجوداً، نُعرّفه
+        variableManager_.define(node.variable, assignedValue);
+    }
+    
+    // (AR) إرجاع القيمة المُعيّنة (هذا هو سلوك Walrus)
+    // (EN) Return the assigned value (this is walrus behavior)
+    lastResult_ = assignedValue;
+}
+
+// =========================================================================
 // (AR) تقييم دالة Lambda / (EN) Lambda Function Evaluation
 // =========================================================================
 
@@ -1562,14 +1601,17 @@ void ExpressionEvaluator::visitDictComprehensionExpr(DictComprehensionExpr& node
     Value iterableValue = lastResult_;
     
     if (!iterableValue.isArray()) {
-        throw RuntimeError(
-            "(AR) الاستيعاب القاموسي يتطلب مصفوفة / "
-            "(EN) Dict comprehension requires an array",
-            node.position
+        Sad::Errors::ErrorManager::getInstance().reportError(
+            Sad::Errors::ErrorCode::RUN_INVALID_CAST,
+            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            "الاستيعاب القاموسي يتطلب مصفوفة",
+            "Dictionary comprehension requires an array"
         );
+        lastResult_ = Value(std::unordered_map<std::string, Value>());
+        return;
     }
     
-    // (AR) إنشاء قاموس النتيجة / (EN) Create result map
+    // (AR) إنشاء قاموس النتيجة / (EN) Create result dictionary
     std::unordered_map<std::string, Value> result;
     
     // (AR) إنشاء نطاق جديد للـ comprehension / (EN) Create new scope for comprehension
@@ -1595,25 +1637,104 @@ void ExpressionEvaluator::visitDictComprehensionExpr(DictComprehensionExpr& node
             includeItem = lastResult_.toBool();
         }
         
-        // (AR) تقييم key و value وإضافة للنتيجة / (EN) Evaluate key and value and add to result
+        // (AR) تقييم Key و Value وإضافة النتيجة / (EN) Evaluate key & value expressions and add result
         if (includeItem) {
-            // تقييم المفتاح
+            // تقييم تعبير المفتاح / Evaluate key expression
             node.key->accept(*this);
-            std::string keyStr = lastResult_.toString();
+            Value keyValue = lastResult_;
             
-            // تقييم القيمة
+            // تقييم تعبير القيمة / Evaluate value expression
             node.value->accept(*this);
-            Value valueResult = lastResult_;
+            Value valueValue = lastResult_;
             
-            // إضافة إلى القاموس
-            result[keyStr] = valueResult;
+            // تحويل المفتاح إلى نص / Convert key to string
+            std::string keyStr = keyValue.toString();
+            
+            // إضافة إلى القاموس / Add to dictionary
+            result[keyStr] = valueValue;
         }
     }
     
     // (AR) الخروج من نطاق الـ comprehension / (EN) Exit comprehension scope
     scopeManager_.popScope();
     
-    // (AR) إرجاع القاموس الناتج / (EN) Return result map
+    // (AR) إرجاع القاموس الناتج / (EN) Return result dictionary
+    lastResult_ = Value(result);
+}
+
+// =========================================================================
+// (AR) تقييم استيعاب مجموعة / (EN) Set Comprehension Evaluation
+// =========================================================================
+
+void ExpressionEvaluator::visitSetComprehensionExpr(SetComprehensionExpr& node) {
+    // (AR) تقييم iterable / (EN) Evaluate iterable
+    node.iterable->accept(*this);
+    Value iterableValue = lastResult_;
+    
+    if (!iterableValue.isArray()) {
+        Sad::Errors::ErrorManager::getInstance().reportError(
+            Sad::Errors::ErrorCode::RUN_INVALID_CAST,
+            Sad::Errors::SourceLocation("<input>", 0, 0),
+            "الاستيعاب المجموعة يتطلب مصفوفة",
+            "Set comprehension requires an array"
+        );
+        lastResult_ = Value(std::vector<Value>());
+        return;
+    }
+    
+    // (AR) إنشاء set النتيجة (نستخدم vector مع فحص التكرار) / (EN) Create result set (using vector with uniqueness check)
+    std::vector<Value> result;
+    
+    // (AR) إنشاء نطاق جديد للـ comprehension / (EN) Create new scope for comprehension
+    scopeManager_.pushScope(Data::ScopeType::BLOCK, "set_comprehension");
+    
+    // (AR) المرور على كل عنصر / (EN) Iterate over each element
+    for (size_t i = 0; i < iterableValue.size(); ++i) {
+        Value item = iterableValue[i];
+        
+        // (AR) تحديث متغير الحلقة / (EN) Update loop variable
+        if (i == 0) {
+            // أول iteration - نعرّف المتغير
+            variableManager_.define(node.variable, item);
+        } else {
+            // iterations تالية - نحدّث باستخدام assign
+            variableManager_.assign(node.variable, item);
+        }
+        
+        // (AR) التحقق من الشرط إن وُجد / (EN) Check condition if exists
+        bool includeItem = true;
+        if (node.condition) {
+            node.condition->accept(*this);
+            includeItem = lastResult_.toBool();
+        }
+        
+        // (AR) تقييم Expression وإضافة النتيجة (بدون تكرار) / (EN) Evaluate expression and add result (without duplicates)
+        if (includeItem) {
+            node.expression->accept(*this);
+            Value itemValue = lastResult_;
+            
+            // (AR) فحص إذا كان العنصر موجود مسبقاً / (EN) Check if item already exists
+            bool exists = false;
+            for (const auto& existingItem : result) {
+                // Simple equality check - compare toString() representations
+                // (AR) فحص بسيط للمساواة - مقارنة التمثيلات النصية
+                if (existingItem.toString() == itemValue.toString()) {
+                    exists = true;
+                    break;
+                }
+            }
+            
+            // (AR) إضافة العنصر إذا لم يكن موجوداً / (EN) Add item if not exists
+            if (!exists) {
+                result.push_back(itemValue);
+            }
+        }
+    }
+    
+    // (AR) الخروج من نطاق الـ comprehension / (EN) Exit comprehension scope
+    scopeManager_.popScope();
+    
+    // (AR) إرجاع المجموعة الناتجة (كمصفوفة) / (EN) Return result set (as array)
     lastResult_ = Value(result);
 }
 

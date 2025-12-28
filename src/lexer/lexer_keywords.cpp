@@ -106,6 +106,22 @@ void KeywordTable::initialize() {
     
     DEBUG_PRINT("تمت إضافة 6 كلمات: Switch/Case");
     
+    // ========== الكلمات المفتاحية - Pattern Matching (Phase 2) ==========
+    // Keywords - Pattern Matching
+    keywords_["طابق"] = TokenType::KEYWORD_MATCH;  // (AR) مطابقة الأنماط / (EN) Pattern matching
+    keywords_["match"] = TokenType::KEYWORD_MATCH;
+    
+    DEBUG_PRINT("تمت إضافة 2 كلمة: Pattern Matching");
+    
+    // ========== الكلمات المفتاحية - Async/Await (Phase 2) ==========
+    // Keywords - Async/Await
+    keywords_["غير_متزامن"] = TokenType::KEYWORD_ASYNC;  // (AR) دالة غير متزامنة / (EN) Async function
+    keywords_["async"] = TokenType::KEYWORD_ASYNC;
+    keywords_["انتظر"] = TokenType::KEYWORD_AWAIT;        // (AR) انتظار نتيجة / (EN) Await result
+    keywords_["await"] = TokenType::KEYWORD_AWAIT;
+    
+    DEBUG_PRINT("تمت إضافة 4 كلمات: Async/Await");
+    
     // ========== الكلمات المفتاحية الإضافية ==========
     // Additional Keywords
     keywords_["في"] = TokenType::KEYWORD_IN;

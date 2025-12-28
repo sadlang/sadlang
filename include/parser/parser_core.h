@@ -52,6 +52,7 @@
 #include "ast/declarations.h"
 #include "ast/property_nodes.h"
 #include "ast/class_nodes.h"
+#include "ast/pattern_nodes.h"
 #include "../errors/error_manager.h"
 
 #include <vector>
@@ -524,6 +525,33 @@ private:
     AST::StmtPtr parseSwitchStmt();
 
     /**
+     * @brief (AR) يحلل جملة match لمطابقة الأنماط.
+     *        (EN) Parses match statement for pattern matching.
+     * 
+     * Grammar / القواعد:
+     *   match_stmt → KEYWORD_MATCH expr ":"
+     *                (case_clause)+
+     * 
+     * Syntax / النحو:
+     *   match <expression>:
+     *       case <pattern> [if <guard>]:
+     *           <statements>
+     * 
+     * @example Examples / أمثلة:
+     * match x:
+     *     case 0:
+     *         print("صفر")
+     *     case n if n > 0:
+     *         print("موجب")
+     *     case _:
+     *         print("آخر")
+     * 
+     * @return (AR) مؤشر لعقدة جملة Match.
+     *         (EN) Pointer to match statement node.
+     */
+    AST::StmtPtr parseMatchStmt();
+
+    /**
      * @brief (AR) يحلل جملة تعبير (تعبير ينتهي بفاصلة منقوطة).
      *        (EN) Parses expression statement (expression followed by semicolon).
      * 
@@ -785,6 +813,46 @@ private:
      *         (EN) Pointer to map expression node.
      */
     AST::ExprPtr parseMapLiteral();
+
+    // ======================================================================
+    // (AR) تحليل الأنماط / (EN) Pattern Parsing
+    // ======================================================================
+
+    /**
+     * @brief (AR) يحلل نمط في match statement
+     *        (EN) Parses a pattern in match statement
+     * 
+     * @return (AR) مؤشر فريد للنمط
+     *         (EN) Unique pointer to pattern
+     */
+    std::unique_ptr<AST::Pattern> parsePattern();
+
+    /**
+     * @brief (AR) يحلل نمط أساسي (literal, variable, wildcard)
+     *        (EN) Parses primary pattern (literal, variable, wildcard)
+     * 
+     * @return (AR) مؤشر فريد للنمط الأساسي
+     *         (EN) Unique pointer to primary pattern
+     */
+    std::unique_ptr<AST::Pattern> parsePrimaryPattern();
+
+    /**
+     * @brief (AR) يحلل نمط قائمة [...]
+     *        (EN) Parses list pattern [...]
+     * 
+     * @return (AR) مؤشر فريد لنمط القائمة
+     *         (EN) Unique pointer to list pattern
+     */
+    std::unique_ptr<AST::Pattern> parseListPattern();
+
+    /**
+     * @brief (AR) يحلل فرع case واحد
+     *        (EN) Parses one case clause
+     * 
+     * @return (AR) CaseClause structure
+     *         (EN) CaseClause structure
+     */
+    AST::CaseClause parseCaseClause();
 
     // ======================================================================
     // (AR) دوال مساعدة / (EN) Helper Functions

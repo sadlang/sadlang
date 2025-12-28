@@ -176,8 +176,13 @@ public:
      */
     void visitLambdaExpr(LambdaExpr& expr) override;
     
-    /**
-     * @brief (AR) يزور عقدة الاستيعاب القائمي.
+    /**     * @brief (AR) يزور عقدة تعبير Walrus (:=).
+     *        (EN) Visits walrus expression node (:=).
+     * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitWalrusExpr(WalrusExpr& expr) override;
+    
+    /**     * @brief (AR) يزور عقدة الاستيعاب القائمي.
      *        (EN) Visits list comprehension node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
@@ -189,6 +194,13 @@ public:
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
     void visitDictComprehensionExpr(DictComprehensionExpr& expr) override;
+    
+    /**
+     * @brief (AR) يزور عقدة الاستيعاب المجموعة.
+     *        (EN) Visits set comprehension node.
+     * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
+     */
+    void visitSetComprehensionExpr(SetComprehensionExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة تعبير المولد.

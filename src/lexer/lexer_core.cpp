@@ -1208,7 +1208,14 @@ Token LexerCore::nextToken() {
         case ']': return Token(TokenType::BRACKET_RIGHT, "]", start_position_);
         case ',': return Token(TokenType::COMMA, ",", start_position_);
         case ';': return Token(TokenType::SEMICOLON, ";", start_position_);
-        case ':': return Token(TokenType::COLON, ":", start_position_);
+        case ':': {
+            // (AR) فحص Walrus operator := / (EN) Check for Walrus operator :=
+            if (peek() == '=') {
+                advance();
+                return Token(TokenType::OP_WALRUS, ":=", start_position_);
+            }
+            return Token(TokenType::COLON, ":", start_position_);
+        }
         case '?': return Token(TokenType::QUESTION, "?", start_position_); // (AR) للعامل الثلاثي / (EN) for ternary operator
         case '@': return Token(TokenType::AT_SIGN, "@", start_position_); // (AR) للمُزخرِفات / (EN) for decorators
     }

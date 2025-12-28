@@ -1,0 +1,235 @@
+/**
+ * @file pattern_matching_nodes.h
+ * @brief (AR) عقد AST لـ Pattern Matching / (EN) AST Nodes for Pattern Matching
+ * 
+ * (AR) هذا الملف يحتوي على تعريفات عقد AST لـ Pattern Matching (match/case)
+ * (EN) This file contains AST node definitions for Pattern Matching (match/case)
+ * 
+ * @author Sad Language Team
+ * @date December 19, 2025
+ * @version 2.0.0
+ */
+
+#pragma once
+
+#include "ast_node.h"
+#include "ast_visitor.h"
+#include <memory>
+#include <string>
+#include <vector>
+#include <variant>
+
+namespace Sad {
+namespace AST {
+
+// ============================================================================
+// (AR) أنواع الأنماط / (EN) Pattern Types
+// ============================================================================
+
+/**
+ * @brief (AR) نوع النمط / (EN) Pattern Type
+ */
+enum class PatternType {
+    LITERAL,        // (AR) قيمة حرفية / (EN) Literal value: 1, "hello", true
+    WILDCARD,       // (AR) نمط عام / (EN) Wildcard: _
+    VARIABLE,       // (AR) متغير / (EN) Variable binding: x, name
+    ARRAY,          // (AR) مصفوفة / (EN) Array pattern: [x, y, z]
+    OBJECT,         // (AR) كائن / (EN) Object pattern: {x, y}
+    TYPE,           // (AR) نوع / (EN) Type pattern: رقم, نص
+    OR              // (AR) أو / (EN) Or pattern: 1 | 2 | 3
+};
+
+// ============================================================================
+// (AR) نمط / (EN) Pattern
+// ============================================================================
+
+/**
+ * @brief (AR) نمط في جملة case / (EN) Pattern in case statement
+ * 
+ * (AR) يمثل نمط يُطابق ضده قيمة في match statement
+ * (EN) Represents a pattern to match against a value in match statement
+ */
+class Pattern {
+public:
+    PatternType type;                       // (AR) نوع النمط / (EN) Pattern type
+    std::unique_ptr<Expr> value;           // (AR) القيمة (للحرفي) / (EN) Value (for LITERAL)
+    std::string variable_name;              // (AR) اسم المتغير / (EN) Variable name (for VARIABLE)
+    std::vector<std::unique_ptr<Pattern>> sub_patterns;  // (AR) أنماط فرعية / (EN) Sub-patterns (for ARRAY/OBJECT)
+    std::unique_ptr<Expr> guard;           // (AR) حارس (شرط) / (EN) Guard condition
+    
+    /**
+     * @brief (AR) إنشاء نمط حرفي / (EN) Create literal pattern
+     */
+    static std::unique_ptr<Pattern> makeLiteral(std::unique_ptr<Expr> val) {
+        auto pattern = std::make_unique<Pattern>();
+        pattern->type = PatternType::LITERAL;
+        pattern->value = std::move(val);
+        return pattern;
+    }
+    
+    /**
+     * @brief (AR) إنشاء نمط عام (wildcard) / (EN) Create wildcard pattern
+     */
+    static std::unique_ptr<Pattern> makeWildcard() {
+        auto pattern = std::make_unique<Pattern>();
+        pattern->type = PatternType::WILDCARD;
+        return pattern;
+    }
+    
+    /**
+     * @brief (AR) إنشاء نمط متغير / (EN) Create variable pattern
+     */
+    static std::unique_ptr<Pattern> makeVariable(std::string name) {
+        auto pattern = std::make_unique<Pattern>();
+        pattern->type = PatternType::VARIABLE;
+        pattern->variable_name = std::move(name);
+        return pattern;
+    }
+    
+    /**
+     * @brief (AR) إنشاء نمط مصفوفة / (EN) Create array pattern
+     */
+    static std::unique_ptr<Pattern> makeArray(std::vector<std::unique_ptr<Pattern>> patterns) {
+        auto pattern = std::make_unique<Pattern>();
+        pattern->type = PatternType::ARRAY;
+        pattern->sub_patterns = std::move(patterns);
+        return pattern;
+    }
+};
+
+// ============================================================================
+// (AR) حالة (Case) / (EN) Case Statement
+// ============================================================================
+
+/**
+ * @brief (AR) بند case في match statement / (EN) Case clause in match statement
+ * 
+ * أمثلة / Examples:
+ * @code
+ * case 1: print("one")
+ * case [x, y]: print(x, y)
+ * case n if n > 0: print("positive")
+ * @endcode
+ */
+class CaseClause {
+public:
+    std::unique_ptr<Pattern> pattern;       // (AR) النمط / (EN) Pattern to match
+    std::unique_ptr<Expr> guard;           // (AR) حارس (شرط إضافي) / (EN) Guard (additional condition)
+    std::vector<std::unique_ptr<Stmt>> body;  // (AR) جسم الحالة / (EN) Case body
+    
+    /**
+     * @brief (AR) المُنشئ / (EN) Constructor
+     */
+    CaseClause(std::unique_ptr<Pattern> pat,
+               std::vector<std::unique_ptr<Stmt>> stmts,
+               std::unique_ptr<Expr> grd = nullptr)
+        : pattern(std::move(pat)),
+          guard(std::move(grd)),
+          body(std::move(stmts)) {}
+};
+
+// ============================================================================
+// (AR) جملة Match / (EN) Match Statement
+// ============================================================================
+
+/**
+ * @brief (AR) جملة Match (Pattern Matching) / (EN) Match Statement (Pattern Matching)
+ * 
+ * (AR) يمثل جملة pattern matching - مطابقة قيمة ضد عدة أنماط
+ * (EN) Represents pattern matching statement - match a value against multiple patterns
+ * 
+ * أمثلة / Examples:
+ * @code
+ * match value {
+ *     case 1: print("one")
+ *     case 2: print("two")
+ *     case _: print("other")
+ * }
+ * 
+ * طابق القيمة {
+ *     حالة 1: اطبع("واحد")
+ *     حالة 2: اطبع("اثنان")
+ *     حالة _: اطبع("غير ذلك")
+ * }
+ * 
+ * match point {
+ *     case [0, 0]: print("origin")
+ *     case [x, 0]: print("x-axis")
+ *     case [0, y]: print("y-axis")
+ *     case [x, y]: print("point")
+ * }
+ * 
+ * match x {
+ *     case n if n > 0: print("positive")
+ *     case n if n < 0: print("negative")
+ *     case _: print("zero")
+ * }
+ * @endcode
+ * 
+ * القواعد / Grammar:
+ * @code
+ * match_stmt := 'match' expr '{' case_clause+ '}'
+ * case_clause := 'case' pattern ['if' expr] ':' stmt_list
+ * pattern := literal | '_' | identifier | '[' pattern_list ']' | ...
+ * @endcode
+ */
+class MatchStmt : public Stmt {
+public:
+    std::unique_ptr<Expr> value;            // (AR) القيمة المُطابَقة / (EN) Value to match
+    std::vector<CaseClause> cases;          // (AR) حالات المطابقة / (EN) Match cases
+    
+    /**
+     * @brief (AR) المُنشئ / (EN) Constructor
+     * 
+     * @param val (AR) القيمة المُطابَقة / (EN) Value to match
+     * @param case_list (AR) قائمة الحالات / (EN) List of cases
+     */
+    MatchStmt(std::unique_ptr<Expr> val,
+              std::vector<CaseClause> case_list)
+        : value(std::move(val)),
+          cases(std::move(case_list)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visit(*this);
+    }
+};
+
+// ============================================================================
+// (AR) تعبير Match / (EN) Match Expression
+// ============================================================================
+
+/**
+ * @brief (AR) تعبير Match (يُرجع قيمة) / (EN) Match Expression (returns value)
+ * 
+ * (AR) مثل MatchStmt لكن يُستخدم كتعبير ويُرجع قيمة
+ * (EN) Like MatchStmt but used as expression and returns a value
+ * 
+ * أمثلة / Examples:
+ * @code
+ * var result = match x {
+ *     case 1: "one"
+ *     case 2: "two"
+ *     case _: "other"
+ * }
+ * @endcode
+ */
+class MatchExpr : public Expr {
+public:
+    std::unique_ptr<Expr> value;            // (AR) القيمة المُطابَقة / (EN) Value to match
+    std::vector<CaseClause> cases;          // (AR) حالات المطابقة / (EN) Match cases
+    
+    /**
+     * @brief (AR) المُنشئ / (EN) Constructor
+     */
+    MatchExpr(std::unique_ptr<Expr> val,
+              std::vector<CaseClause> case_list)
+        : value(std::move(val)),
+          cases(std::move(case_list)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visit(*this);
+    }
+};
+
+} // namespace AST
+} // namespace Sad

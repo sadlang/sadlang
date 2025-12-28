@@ -31,13 +31,14 @@ void Interpreter::initializeComponents() {
     variableManager_ = std::make_shared<Data::VariableManager>(*scopeManager_);
     functionManager_ = std::make_shared<Data::FunctionManager>();
     
-    // (AR) إنشاء المنفذين / (EN) Create executors
+    // (AR) إنشاء منفذ العبارات أولاً / (EN) Create statement executor first
     statementExecutor_ = std::make_unique<StatementExecutor>(
         *variableManager_,
         *functionManager_,
         *scopeManager_
     );
     
+    // (AR) ثم إنشاء مقيّم التعابير مع مرجع لمنفذ العبارات / (EN) Then create expression evaluator with statement executor reference
     expressionEvaluator_ = std::make_unique<ExpressionEvaluator>(
         *variableManager_,
         *functionManager_,
