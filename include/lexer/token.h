@@ -106,6 +106,7 @@ struct Position {
 enum class TokenType {
     // ========== الكلمات المفتاحية - تعريف الدوال والبنيات / Keywords - Functions & Structures ==========
     KEYWORD_FUNCTION,       ///< دالة / function
+    KEYWORD_MAIN,           ///< رئيسية / main (نقطة الدخول الرئيسية للبرنامج / program entry point)
     KEYWORD_RETURN,         ///< إرجاع / return
     KEYWORD_CLASS,          ///< صنف / class
     KEYWORD_INHERITS,       ///< يرث / inherits (NEW: spec 03_oop.md §1,2 - inheritance keyword)

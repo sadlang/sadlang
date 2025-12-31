@@ -99,7 +99,13 @@ std::string FunctionDecl::toString() const {
         oss << "export ";
     }
     
-    oss << "func " << name << "(";
+    // (AR) إذا كانت الدالة الرئيسية، استخدام "main" بدلاً من اسم الدالة
+    // (EN) If this is main function, use "main" instead of function name
+    if (isMainFunction) {
+        oss << "func main(";
+    } else {
+        oss << "func " << name << "(";
+    }
     
     for (size_t i = 0; i < parameters.size(); ++i) {
         if (i > 0) oss << ", ";

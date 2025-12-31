@@ -23,6 +23,7 @@
 #include "../../../include/stdlib/string/string_functions.h"
 #include "../../../include/stdlib/math/math_functions.h"
 #include "../../../include/stdlib/filesystem_module.h"
+#include "../../stdlib/graphics/graphics_module.h"
 #include <memory>
 #include <iostream>
 #include <fstream>
@@ -1021,6 +1022,511 @@ void registerBuiltinFunctions(Interpreter& interpreter) {
     
     interpreter.getFunctionManager().registerBuiltinFunction("هل_موجود", file_exists_func);
     interpreter.getFunctionManager().registerBuiltinFunction("exists", file_exists_func);
+    
+    // ===================================================================
+    // (AR) دوال الرسومات / (EN) Graphics Functions
+    // ===================================================================
+    
+    // ===== Window Management / إدارة النوافذ =====
+    
+    // Create window / إنشاء نافذة
+    auto window_create_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 3) {
+            throw std::runtime_error("(AR) نافذة_جديد: 3 معاملات مطلوبة (عنوان، عرض، ارتفاع) / (EN) window_new: 3 arguments required (title, width, height)");
+        }
+        
+        std::string title = args[0]->toString();
+        int width = args[1]->toInt();
+        int height = args[2]->toInt();
+        
+        int windowId = sad::stdlib::graphics::window_create_impl(title, width, height);
+        return std::make_shared<Data::Value>(windowId);
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("نافذة_جديد", window_create_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("window_new", window_create_func);
+    
+    // Show window / عرض النافذة
+    auto window_show_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) نافذة_عرض: معامل النافذة مطلوب / (EN) window_show: Window argument required");
+        }
+        
+        int windowId = args[0]->toInt();
+        sad::stdlib::graphics::window_show_impl(windowId);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("نافذة_عرض", window_show_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("window_show", window_show_func);
+    
+    // Hide window / إخفاء النافذة
+    auto window_hide_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) نافذة_إخفاء: معامل النافذة مطلوب / (EN) window_hide: Window argument required");
+        }
+        
+        int windowId = args[0]->toInt();
+        sad::stdlib::graphics::window_hide_impl(windowId);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("نافذة_إخفاء", window_hide_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("window_hide", window_hide_func);
+    
+    // Close window / إغلاق النافذة
+    auto window_close_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) نافذة_إغلاق: معامل النافذة مطلوب / (EN) window_close: Window argument required");
+        }
+        
+        int windowId = args[0]->toInt();
+        sad::stdlib::graphics::window_close_impl(windowId);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("نافذة_إغلاق", window_close_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("window_close", window_close_func);
+    
+    // Should close window / هل يجب إغلاق النافذة
+    auto window_should_close_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) نافذة_يجب_الإغلاق: معامل النافذة مطلوب / (EN) window_should_close: Window argument required");
+        }
+        
+        int windowId = args[0]->toInt();
+        bool shouldClose = sad::stdlib::graphics::window_should_close_impl(windowId);
+        return std::make_shared<Data::Value>(shouldClose);
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("نافذة_يجب_الإغلاق", window_should_close_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("window_should_close", window_should_close_func);
+    
+    // Poll events / استقبال الأحداث
+    auto window_poll_events_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) نافذة_استقبال_أحداث: معامل النافذة مطلوب / (EN) window_poll_events: Window argument required");
+        }
+        
+        int windowId = args[0]->toInt();
+        sad::stdlib::graphics::window_poll_events_impl(windowId);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("نافذة_استقبال_أحداث", window_poll_events_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("window_poll_events", window_poll_events_func);
+    
+    // Swap buffers / تبديل buffers
+    auto window_swap_buffers_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) نافذة_تبديل_buffers: معامل النافذة مطلوب / (EN) window_swap_buffers: Window argument required");
+        }
+        
+        int windowId = args[0]->toInt();
+        sad::stdlib::graphics::window_swap_buffers_impl(windowId);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("نافذة_تبديل_buffers", window_swap_buffers_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("window_swap_buffers", window_swap_buffers_func);
+    
+    // ===== Renderer Management / إدارة الرسام =====
+    
+    // Create renderer / إنشاء رسام
+    auto renderer_create_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) رسام_ثنائي_جديد: معامل النافذة مطلوب / (EN) renderer_new: Window argument required");
+        }
+        
+        int windowId = args[0]->toInt();
+        int rendererId = sad::stdlib::graphics::renderer_create_impl(windowId);
+        return std::make_shared<Data::Value>(rendererId);
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("رسام_ثنائي_جديد", renderer_create_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("renderer_new", renderer_create_func);
+    
+    // Begin frame / بدء إطار
+    auto renderer_begin_frame_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) رسام_بدء_إطار: معامل الرسام مطلوب / (EN) renderer_begin_frame: Renderer argument required");
+        }
+        
+        int rendererId = args[0]->toInt();
+        sad::stdlib::graphics::renderer_begin_frame_impl(rendererId);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("رسام_بدء_إطار", renderer_begin_frame_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("renderer_begin_frame", renderer_begin_frame_func);
+    
+    // End frame / إنهاء إطار
+    auto renderer_end_frame_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) رسام_إنهاء_إطار: معامل الرسام مطلوب / (EN) renderer_end_frame: Renderer argument required");
+        }
+        
+        int rendererId = args[0]->toInt();
+        sad::stdlib::graphics::renderer_end_frame_impl(rendererId);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("رسام_إنهاء_إطار", renderer_end_frame_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("renderer_end_frame", renderer_end_frame_func);
+    
+    // Clear screen / مسح الشاشة
+    auto renderer_clear_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 5) {
+            throw std::runtime_error("(AR) رسام_مسح: 5 معاملات مطلوبة (رسام، أحمر، أخضر، أزرق، شفاف) / (EN) renderer_clear: 5 arguments required (renderer, r, g, b, a)");
+        }
+        
+        int rendererId = args[0]->toInt();
+        int r = args[1]->toInt();
+        int g = args[2]->toInt();
+        int b = args[3]->toInt();
+        int a = args[4]->toInt();
+        
+        sad::stdlib::graphics::renderer_clear_impl(rendererId, r, g, b, a);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("رسام_مسح", renderer_clear_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("renderer_clear", renderer_clear_func);
+    
+    // Draw line / رسم خط
+    auto renderer_draw_line_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 9) {
+            throw std::runtime_error("(AR) رسام_خط: 9 معاملات مطلوبة / (EN) renderer_draw_line: 9 arguments required");
+        }
+        
+        int rendererId = args[0]->toInt();
+        float x1 = static_cast<float>(args[1]->toDouble());
+        float y1 = static_cast<float>(args[2]->toDouble());
+        float x2 = static_cast<float>(args[3]->toDouble());
+        float y2 = static_cast<float>(args[4]->toDouble());
+        int r = args[5]->toInt();
+        int g = args[6]->toInt();
+        int b = args[7]->toInt();
+        int a = args[8]->toInt();
+        
+        sad::stdlib::graphics::renderer_draw_line_impl(rendererId, x1, y1, x2, y2, r, g, b, a);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("رسام_خط", renderer_draw_line_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("renderer_draw_line", renderer_draw_line_func);
+    
+    // Draw rectangle / رسم مستطيل
+    auto renderer_draw_rect_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 10) {
+            throw std::runtime_error("(AR) رسام_مستطيل: 10 معاملات مطلوبة / (EN) renderer_draw_rect: 10 arguments required");
+        }
+        
+        int rendererId = args[0]->toInt();
+        float x = static_cast<float>(args[1]->toDouble());
+        float y = static_cast<float>(args[2]->toDouble());
+        float width = static_cast<float>(args[3]->toDouble());
+        float height = static_cast<float>(args[4]->toDouble());
+        int r = args[5]->toInt();
+        int g = args[6]->toInt();
+        int b = args[7]->toInt();
+        int a = args[8]->toInt();
+        bool filled = args[9]->toBool();
+        
+        sad::stdlib::graphics::renderer_draw_rect_impl(rendererId, x, y, width, height, r, g, b, a, filled);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("رسام_مستطيل", renderer_draw_rect_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("renderer_draw_rect", renderer_draw_rect_func);
+    
+    // Draw circle / رسم دائرة
+    auto renderer_draw_circle_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 9) {
+            throw std::runtime_error("(AR) رسام_دائرة: 9 معاملات مطلوبة / (EN) renderer_draw_circle: 9 arguments required");
+        }
+        
+        int rendererId = args[0]->toInt();
+        float x = static_cast<float>(args[1]->toDouble());
+        float y = static_cast<float>(args[2]->toDouble());
+        float radius = static_cast<float>(args[3]->toDouble());
+        int r = args[4]->toInt();
+        int g = args[5]->toInt();
+        int b = args[6]->toInt();
+        int a = args[7]->toInt();
+        bool filled = args[8]->toBool();
+        
+        sad::stdlib::graphics::renderer_draw_circle_impl(rendererId, x, y, radius, r, g, b, a, filled);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("رسام_دائرة", renderer_draw_circle_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("renderer_draw_circle", renderer_draw_circle_func);
+    
+    // Draw text / رسم نص
+    auto renderer_draw_text_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 9) {
+            throw std::runtime_error("(AR) رسام_نص: 9 معاملات مطلوبة / (EN) renderer_draw_text: 9 arguments required");
+        }
+        
+        int rendererId = args[0]->toInt();
+        std::string text = args[1]->toString();
+        float x = static_cast<float>(args[2]->toDouble());
+        float y = static_cast<float>(args[3]->toDouble());
+        float size = static_cast<float>(args[4]->toDouble());
+        int r = args[5]->toInt();
+        int g = args[6]->toInt();
+        int b = args[7]->toInt();
+        int a = args[8]->toInt();
+        
+        sad::stdlib::graphics::renderer_draw_text_impl(rendererId, text, x, y, size, r, g, b, a);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("رسام_نص", renderer_draw_text_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("renderer_draw_text", renderer_draw_text_func);
+    
+    // ===== UI Widgets / عناصر الواجهة =====
+    
+    // Create label / إنشاء تسمية
+    auto label_create_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 5) {
+            throw std::runtime_error("(AR) تسمية_جديدة: 5 معاملات مطلوبة (نص، x، y، عرض، ارتفاع) / (EN) label_new: 5 arguments required (text, x, y, width, height)");
+        }
+        
+        std::string text = args[0]->toString();
+        float x = static_cast<float>(args[1]->toDouble());
+        float y = static_cast<float>(args[2]->toDouble());
+        float width = static_cast<float>(args[3]->toDouble());
+        float height = static_cast<float>(args[4]->toDouble());
+        
+        int labelId = sad::stdlib::graphics::label_create_impl(text, x, y, width, height);
+        return std::make_shared<Data::Value>(labelId);
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("تسمية_جديدة", label_create_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("label_new", label_create_func);
+    
+    // Set label text / تعيين نص التسمية
+    auto label_set_text_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 2) {
+            throw std::runtime_error("(AR) تسمية_تعيين_نص: معاملان مطلوبان / (EN) label_set_text: 2 arguments required");
+        }
+        
+        int labelId = args[0]->toInt();
+        std::string text = args[1]->toString();
+        sad::stdlib::graphics::label_set_text_impl(labelId, text);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("تسمية_تعيين_نص", label_set_text_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("label_set_text", label_set_text_func);
+    
+    // Get label text / الحصول على نص التسمية
+    auto label_get_text_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) تسمية_الحصول_على_نص: معامل التسمية مطلوب / (EN) label_get_text: Label argument required");
+        }
+        
+        int labelId = args[0]->toInt();
+        std::string text = sad::stdlib::graphics::label_get_text_impl(labelId);
+        return std::make_shared<Data::Value>(text);
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("تسمية_الحصول_على_نص", label_get_text_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("label_get_text", label_get_text_func);
+    
+    // Create button / إنشاء زر
+    auto button_create_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 5) {
+            throw std::runtime_error("(AR) زر_جديد: 5 معاملات مطلوبة / (EN) button_new: 5 arguments required");
+        }
+        
+        std::string text = args[0]->toString();
+        float x = static_cast<float>(args[1]->toDouble());
+        float y = static_cast<float>(args[2]->toDouble());
+        float width = static_cast<float>(args[3]->toDouble());
+        float height = static_cast<float>(args[4]->toDouble());
+        
+        int buttonId = sad::stdlib::graphics::button_create_impl(text, x, y, width, height);
+        return std::make_shared<Data::Value>(buttonId);
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("زر_جديد", button_create_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("button_new", button_create_func);
+    
+    // Check button clicked / فحص النقر على الزر
+    auto button_is_clicked_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) زر_تم_النقر: معامل الزر مطلوب / (EN) button_is_clicked: Button argument required");
+        }
+        
+        int buttonId = args[0]->toInt();
+        bool clicked = sad::stdlib::graphics::button_is_clicked_impl(buttonId);
+        return std::make_shared<Data::Value>(clicked);
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("زر_تم_النقر", button_is_clicked_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("button_is_clicked", button_is_clicked_func);
+    
+    // Set button text / تعيين نص الزر
+    auto button_set_text_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 2) {
+            throw std::runtime_error("(AR) زر_تعيين_نص: معاملان مطلوبان / (EN) button_set_text: 2 arguments required");
+        }
+        
+        int buttonId = args[0]->toInt();
+        std::string text = args[1]->toString();
+        sad::stdlib::graphics::button_set_text_impl(buttonId, text);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("زر_تعيين_نص", button_set_text_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("button_set_text", button_set_text_func);
+    
+    // Create text input / إنشاء حقل نص
+    auto textinput_create_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 5) {
+            throw std::runtime_error("(AR) حقل_نص_جديد: 5 معاملات مطلوبة / (EN) textinput_new: 5 arguments required");
+        }
+        
+        std::string placeholder = args[0]->toString();
+        float x = static_cast<float>(args[1]->toDouble());
+        float y = static_cast<float>(args[2]->toDouble());
+        float width = static_cast<float>(args[3]->toDouble());
+        float height = static_cast<float>(args[4]->toDouble());
+        
+        int inputId = sad::stdlib::graphics::textinput_create_impl(placeholder, x, y, width, height);
+        return std::make_shared<Data::Value>(inputId);
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("حقل_نص_جديد", textinput_create_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("textinput_new", textinput_create_func);
+    
+    // Get text input value / الحصول على قيمة حقل النص
+    auto textinput_get_value_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) حقل_نص_الحصول_على_قيمة: معامل حقل النص مطلوب / (EN) textinput_get_value: TextInput argument required");
+        }
+        
+        int inputId = args[0]->toInt();
+        std::string value = sad::stdlib::graphics::textinput_get_value_impl(inputId);
+        return std::make_shared<Data::Value>(value);
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("حقل_نص_الحصول_على_قيمة", textinput_get_value_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("textinput_get_value", textinput_get_value_func);
+    
+    // Set text input value / تعيين قيمة حقل النص
+    auto textinput_set_value_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 2) {
+            throw std::runtime_error("(AR) حقل_نص_تعيين_قيمة: معاملان مطلوبان / (EN) textinput_set_value: 2 arguments required");
+        }
+        
+        int inputId = args[0]->toInt();
+        std::string value = args[1]->toString();
+        sad::stdlib::graphics::textinput_set_value_impl(inputId, value);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("حقل_نص_تعيين_قيمة", textinput_set_value_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("textinput_set_value", textinput_set_value_func);
+    
+    // Create checkbox / إنشاء مربع اختيار
+    auto checkbox_create_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 5) {
+            throw std::runtime_error("(AR) مربع_اختيار_جديد: 5 معاملات مطلوبة / (EN) checkbox_new: 5 arguments required");
+        }
+        
+        std::string label = args[0]->toString();
+        float x = static_cast<float>(args[1]->toDouble());
+        float y = static_cast<float>(args[2]->toDouble());
+        float width = static_cast<float>(args[3]->toDouble());
+        float height = static_cast<float>(args[4]->toDouble());
+        
+        int checkboxId = sad::stdlib::graphics::checkbox_create_impl(label, x, y, width, height);
+        return std::make_shared<Data::Value>(checkboxId);
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("مربع_اختيار_جديد", checkbox_create_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("checkbox_new", checkbox_create_func);
+    
+    // Check checkbox state / فحص حالة مربع الاختيار
+    auto checkbox_is_checked_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.empty()) {
+            throw std::runtime_error("(AR) مربع_اختيار_محدد: معامل مربع الاختيار مطلوب / (EN) checkbox_is_checked: Checkbox argument required");
+        }
+        
+        int checkboxId = args[0]->toInt();
+        bool checked = sad::stdlib::graphics::checkbox_is_checked_impl(checkboxId);
+        return std::make_shared<Data::Value>(checked);
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("مربع_اختيار_محدد", checkbox_is_checked_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("checkbox_is_checked", checkbox_is_checked_func);
+    
+    // Set checkbox state / تعيين حالة مربع الاختيار
+    auto checkbox_set_checked_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 2) {
+            throw std::runtime_error("(AR) مربع_اختيار_تعيين_حالة: معاملان مطلوبان / (EN) checkbox_set_checked: 2 arguments required");
+        }
+        
+        int checkboxId = args[0]->toInt();
+        bool checked = args[1]->toBool();
+        sad::stdlib::graphics::checkbox_set_checked_impl(checkboxId, checked);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("مربع_اختيار_تعيين_حالة", checkbox_set_checked_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("checkbox_set_checked", checkbox_set_checked_func);
+    
+    // Draw widget / رسم عنصر
+    auto widget_draw_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 2) {
+            throw std::runtime_error("(AR) عنصر_رسم: معاملان مطلوبان (عنصر، رسام) / (EN) widget_draw: 2 arguments required (widget, renderer)");
+        }
+        
+        int widgetId = args[0]->toInt();
+        int rendererId = args[1]->toInt();
+        sad::stdlib::graphics::widget_draw_impl(widgetId, rendererId);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("عنصر_رسم", widget_draw_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("widget_draw", widget_draw_func);
+    
+    // Update widget / تحديث عنصر
+    auto widget_update_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 2) {
+            throw std::runtime_error("(AR) عنصر_تحديث: معاملان مطلوبان (عنصر، زمن) / (EN) widget_update: 2 arguments required (widget, deltaTime)");
+        }
+        
+        int widgetId = args[0]->toInt();
+        float deltaTime = static_cast<float>(args[1]->toDouble());
+        sad::stdlib::graphics::widget_update_impl(widgetId, deltaTime);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("عنصر_تحديث", widget_update_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("widget_update", widget_update_func);
+    
+    // Handle mouse event / معالجة حدث الفأرة
+    auto widget_mouse_event_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        if (args.size() < 4) {
+            throw std::runtime_error("(AR) عنصر_حدث_فأرة: 4 معاملات مطلوبة (عنصر، x، y، مضغوط) / (EN) widget_mouse_event: 4 arguments required (widget, x, y, pressed)");
+        }
+        
+        int widgetId = args[0]->toInt();
+        int x = args[1]->toInt();
+        int y = args[2]->toInt();
+        bool pressed = args[3]->toBool();
+        
+        sad::stdlib::graphics::widget_mouse_event_impl(widgetId, x, y, pressed);
+        return std::make_shared<Data::Value>();
+    };
+    
+    interpreter.getFunctionManager().registerBuiltinFunction("عنصر_حدث_فأرة", widget_mouse_event_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("widget_mouse_event", widget_mouse_event_func);
 }
 
 } // namespace Interpreter

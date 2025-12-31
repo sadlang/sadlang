@@ -358,7 +358,19 @@ int executeProgram(const std::string& filename, const std::string& code) {
         
         DEBUG_PRINT("انتهى تنفيذ البرنامج بنجاح");
         
-        return 0;
+        // (AR) استخراج exit code من قيمة الإرجاع (إذا كانت من main)
+        // (EN) Extract exit code from return value (if from main)
+        int exitCode = 0;
+        if (!result.result.isVoid() && result.result.isInteger()) {
+            exitCode = result.result.toInt();
+            
+            if (exitCode != 0) {
+                std::cout << "(AR) رمز الخروج من main: " << exitCode
+                         << " / (EN) Exit code from main: " << exitCode << std::endl;
+            }
+        }
+        
+        return exitCode;
     } catch (const std::exception& e) {
         std::cerr << std::endl;
         std::cerr << "========================================" << std::endl;

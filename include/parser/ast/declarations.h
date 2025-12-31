@@ -42,6 +42,7 @@ public:
     Data::DataType returnType;      ///< Return type / نوع الإرجاع
     StmtPtr body;                   ///< Function body / جسم الدالة
     bool isExported;                ///< Is exported? / مصدّر؟
+    bool isMainFunction;            ///< Is main function? / هل هي الدالة الرئيسية؟
     ExprList decorators;            ///< Decorators (@decorator) / المُزخرِفات
     
     /**
@@ -57,8 +58,8 @@ public:
                  Data::DataType retType, StmtPtr body, bool exported = false,
                  const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
-          returnType(retType), body(std::move(body)), isExported(exported), 
-          decorators() {}
+          returnType(retType), body(std::move(body)), isExported(exported),
+          isMainFunction(false), decorators() {}
     
     /**
      * @brief Constructor with decorators / البناء مع مُزخرِفات
@@ -76,7 +77,7 @@ public:
                  const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
           returnType(retType), body(std::move(body)), isExported(exported),
-          decorators(std::move(decs)) {}
+          isMainFunction(false), decorators(std::move(decs)) {}
     
     void accept(ASTVisitor& visitor) override {
         visitor.visitFunctionDecl(*this);

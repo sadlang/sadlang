@@ -46,9 +46,20 @@ void KeywordTable::initialize() {
     
     // ========== الكلمات المفتاحية - الدوال والبنيات ==========
     // Keywords - Functions & Structures (Arabic + English)
+    
+    // (AR) كلمة 'دالة' لتعريف الدوال - الأساس في اللغة
+    // (EN) 'function' keyword for function definitions - language foundation
     keywords_["دالة"] = TokenType::KEYWORD_FUNCTION;
     keywords_["function"] = TokenType::KEYWORD_FUNCTION;
     keywords_["func"] = TokenType::KEYWORD_FUNCTION;
+    
+    // (AR) كلمة 'رئيسية' للدالة الرئيسية - نقطة الدخول للبرنامج
+    // (EN) 'main' keyword for main function - program entry point
+    keywords_["رئيسية"] = TokenType::KEYWORD_MAIN;
+    keywords_["main"] = TokenType::KEYWORD_MAIN;
+    
+    // (AR) كلمة 'إرجاع' لإرجاع القيم من الدوال
+    // (EN) 'return' keyword for returning values from functions
     keywords_["إرجاع"] = TokenType::KEYWORD_RETURN;
     keywords_["ارجع"] = TokenType::KEYWORD_RETURN;
     keywords_["return"] = TokenType::KEYWORD_RETURN;

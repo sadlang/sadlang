@@ -79,6 +79,10 @@ StmtList ParserCore::parseProgram() {
     //     filename_ = "<source>";
     // }
     
+    // (AR) عداد للدوال الرئيسية - للتأكد من وجود واحدة فقط
+    // (EN) Counter for main functions - to ensure only one exists
+    int mainFunctionCount = 0;
+    
     // DEBUG: Disabled
     // std::cout << "[parser_core_impl.cpp] بدء parseProgram - current token: " 
     //           << static_cast<int>(current_.getType()) << " = '" 
@@ -137,6 +141,31 @@ StmtList ParserCore::parseProgram() {
             
             auto stmt = parseDeclaration();
             if (stmt) {
+                // (AR) التحقق إذا كانت الجملة دالة رئيسية
+                // (EN) Check if statement is a main function
+                if (auto* funcDecl = dynamic_cast<FunctionDecl*>(stmt.get())) {
+                    if (funcDecl->isMainFunction) {
+                        mainFunctionCount++;
+                        // (AR) التحقق من عدم تكرار الدالة الرئيسية
+                        // (EN) Check for duplicate main function
+                        if (mainFunctionCount > 1) {
+                            std::cerr << "\n";
+                            std::cerr << "❌ ========================================\n";
+                            std::cerr << "  ⛔ (AR) خطأ: تم تعريف الدالة الرئيسية أكثر من مرة!\n";
+                            std::cerr << "  ⛔ (EN) Error: Main function defined more than once!\n";
+                            std::cerr << "========================================\n";
+                            std::cerr << "📍 (AR) السطر: " << current_.getPosition().line << "\n";
+                            std::cerr << "📍 (EN) Line: " << current_.getPosition().line << "\n";
+                            std::cerr << "💬 (AR) يجب أن يكون هناك دالة رئيسية واحدة فقط في البرنامج\n";
+                            std::cerr << "💬 (EN) There can only be one main function in a program\n";
+                            std::cerr << "========================================\n\n";
+                            
+                            error("(AR) تم تعريف الدالة الرئيسية أكثر من مرة. "
+                                  "(EN) Main function defined more than once.");
+                        }
+                    }
+                }
+                
                 statements.push_back(std::move(stmt));
                 statement_count++;
                 // DEBUG: Disabled
@@ -646,6 +675,11 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
     // (AR) نوع الإرجاع الاختياري قبل اسم الدالة: دالة [نوع] اسم(...)
     Data::DataType returnType = Data::DataType::UNKNOWN;
     
+    // (AR) راية للإشارة إذا كانت هذه هي الدالة الرئيسية
+    // (EN) Flag to indicate if this is the main function
+    bool isMain = false;
+    Token name(TT::IDENTIFIER, "", Lexer::Position());  // (AR) تعريف name مسبقاً / (EN) Define name upfront
+    
     // Check if next token is a type keyword (before function name)
     // (AR) التحقق إذا كان الرمز التالي هو نوع (قبل اسم الدالة)
     if (check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || 
@@ -654,13 +688,33 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
         returnType = parseType();
     }
     
-    // Expect function name
-    // (AR) توقع اسم الدالة
-    Token name = consume(TT::IDENTIFIER, 
-        "(AR) خطأ نحوي: بعد كلمة 'دالة' (أو بعد نوع الإرجاع) يجب أن يأتي اسم الدالة.\n"
-        "مثال: دالة جمع(...) أو دالة رقم مربع(...)\n"
-        "(EN) Syntax error: After 'function' keyword (or return type) expected function name.\n"
-        "Example: function sum(...) or function int square(...)");
+    // (AR) التحقق إذا كانت الدالة الرئيسية (قبل توقع اسم الدالة)
+    // (EN) Check if this is the main function (before expecting function name)
+    if (check(TT::KEYWORD_MAIN)) {
+        // (AR) هذه هي الدالة الرئيسية - استخدام رمز KEYWORD_MAIN
+        // (EN) This is the main function - consume KEYWORD_MAIN token
+        Token mainToken = current_;  // (AR) حفظ الرمز قبل advance / (EN) Save token before advance
+        advance();  // (AR) استهلاك الرمز / (EN) Consume token
+        isMain = true;
+        
+        // (AR) إذا لم يتم تحديد نوع الإرجاع، استخدام صحيح (int) كإعداد افتراضي للدالة الرئيسية
+        // (EN) If return type not specified, use INTEGER as default for main function
+        if (returnType == Data::DataType::UNKNOWN) {
+            returnType = Data::DataType::INTEGER;
+        }
+        
+        // (AR) استخدام "رئيسية" كاسم للدالة
+        // (EN) Use "main" as the function name
+        name = Token(TT::IDENTIFIER, "رئيسية", mainToken.getPosition());
+    } else {
+        // Expect function name (for regular functions)
+        // (AR) توقع اسم الدالة (للدوال العادية)
+        name = consume(TT::IDENTIFIER, 
+            "(AR) خطأ نحوي: بعد كلمة 'دالة' (أو بعد نوع الإرجاع) يجب أن يأتي اسم الدالة.\n"
+            "مثال: دالة جمع(...) أو دالة رقم مربع(...)\n"
+            "(EN) Syntax error: After 'function' keyword (or return type) expected function name.\n"
+            "Example: function sum(...) or function int square(...)");
+    }
     
     // Parse parameter list (now with type annotations)
     // (AR) تحليل قائمة المعاملات (الآن مع تصريحات الأنواع)
@@ -685,6 +739,64 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
         returnType = parseType();
     }
     
+    // (AR) التحقق من صحة توقيع الدالة الرئيسية
+    // (EN) Validate main function signature
+    if (isMain) {
+        // (AR) التحقق من نوع الإرجاع - يجب أن يكون صحيح (int)
+        // (EN) Check return type - must be INTEGER
+        if (returnType != Data::DataType::INTEGER && returnType != Data::DataType::UNKNOWN) {
+            std::cerr << "\n";
+            std::cerr << "⚠️ ========================================\n";
+            std::cerr << "  ⛔ (AR) تحذير: نوع إرجاع الدالة الرئيسية يجب أن يكون 'صحيح'\n";
+            std::cerr << "  ⛔ (EN) Warning: Main function return type must be 'int'\n";
+            std::cerr << "========================================\n";
+            std::cerr << "📍 (AR) السطر: " << name.getPosition().line << "\n";
+            std::cerr << "📍 (EN) Line: " << name.getPosition().line << "\n";
+            std::cerr << "💬 (AR) نوع الإرجاع الحالي غير صحيح\n";
+            std::cerr << "💬 (EN) Current return type is invalid\n";
+            std::cerr << "✓ (AR) التوقيع الصحيح: دالة صحيح رئيسية() أو دالة صحيح رئيسية(نص[] الوسائط)\n";
+            std::cerr << "✓ (EN) Correct signature: function int main() or function int main(string[] args)\n";
+            std::cerr << "========================================\n\n";
+        }
+        
+        // (AR) التحقق من المعاملات - يجب أن تكون () أو (نص[] الوسائط)
+        // (EN) Check parameters - must be () or (string[] args)
+        if (paramObjs.size() > 1) {
+            std::cerr << "\n";
+            std::cerr << "⚠️ ========================================\n";
+            std::cerr << "  ⛔ (AR) خطأ: الدالة الرئيسية تقبل معامل واحد فقط أو لا شيء\n";
+            std::cerr << "  ⛔ (EN) Error: Main function accepts zero or one parameter only\n";
+            std::cerr << "========================================\n";
+            std::cerr << "📍 (AR) السطر: " << name.getPosition().line << "\n";
+            std::cerr << "📍 (EN) Line: " << name.getPosition().line << "\n";
+            std::cerr << "💬 (AR) عدد المعاملات الحالي: " << paramObjs.size() << "\n";
+            std::cerr << "💬 (EN) Current parameter count: " << paramObjs.size() << "\n";
+            std::cerr << "✓ (AR) التوقيع الصحيح: دالة صحيح رئيسية() أو دالة صحيح رئيسية(نص[] الوسائط)\n";
+            std::cerr << "✓ (EN) Correct signature: function int main() or function int main(string[] args)\n";
+            std::cerr << "========================================\n\n";
+            
+            error("(AR) الدالة الرئيسية تقبل معامل واحد فقط (نص[] الوسائط) أو لا شيء. "
+                  "(EN) Main function accepts zero or one parameter (string[] args) only.");
+        } else if (paramObjs.size() == 1) {
+            // (AR) التحقق من أن المعامل من نوع نص[] (string array)
+            // (EN) Check that parameter is of type string[] (string array)
+            if (paramObjs[0].type != Data::DataType::ARRAY) {
+                std::cerr << "\n";
+                std::cerr << "⚠️ ========================================\n";
+                std::cerr << "  ⛔ (AR) تحذير: معامل الدالة الرئيسية يجب أن يكون من نوع نص[]\n";
+                std::cerr << "  ⛔ (EN) Warning: Main function parameter must be of type string[]\n";
+                std::cerr << "========================================\n";
+                std::cerr << "📍 (AR) السطر: " << name.getPosition().line << "\n";
+                std::cerr << "📍 (EN) Line: " << name.getPosition().line << "\n";
+                std::cerr << "💬 (AR) نوع المعامل الحالي غير صحيح\n";
+                std::cerr << "💬 (EN) Current parameter type is invalid\n";
+                std::cerr << "✓ (AR) التوقيع الصحيح: دالة صحيح رئيسية(نص[] الوسائط)\n";
+                std::cerr << "✓ (EN) Correct signature: function int main(string[] args)\n";
+                std::cerr << "========================================\n\n";
+            }
+        }
+    }
+    
     // Parse function body - starts directly, ends with 'نهاية'
     // (AR) تحليل جسم الدالة - يبدأ مباشرة، ينتهي بـ 'نهاية'
     // Spec: docs/language_spec/rules/02_functions.md - function body ends with 'نهاية'
@@ -703,7 +815,7 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
     // (AR) إنشاء عقدة تصريح الدالة مع المُزخرِفات
     // (EN) Create function declaration node with decorators
     if (!decorators.empty()) {
-        return std::make_unique<FunctionDecl>(
+        auto funcDecl = std::make_unique<FunctionDecl>(
             name.getValue(),
             std::move(paramObjs),
             returnType,
@@ -712,11 +824,15 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
             false,
             name.getPosition()
         );
+        // (AR) تعيين راية الدالة الرئيسية
+        // (EN) Set main function flag
+        funcDecl->isMainFunction = isMain;
+        return funcDecl;
     }
     
     // (AR) إنشاء عقدة تصريح الدالة بدون مُزخرِفات
     // (EN) Create function declaration node without decorators
-    return std::make_unique<FunctionDecl>(
+    auto funcDecl = std::make_unique<FunctionDecl>(
         name.getValue(),
         std::move(paramObjs),
         returnType,
@@ -724,6 +840,10 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
         false,
         name.getPosition()
     );
+    // (AR) تعيين راية الدالة الرئيسية
+    // (EN) Set main function flag
+    funcDecl->isMainFunction = isMain;
+    return funcDecl;
 }
 
 /**
