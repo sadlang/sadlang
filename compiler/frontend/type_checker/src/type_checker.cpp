@@ -46,7 +46,7 @@ bool TypeChecker::checkProgram(const std::vector<AST::StmtPtr>& program) {
 /**
  * التحقق من تعبير / Check expression
  */
-std::shared_ptr<Type> TypeChecker::checkExpr(AST::Expr* expr) {
+std::shared_ptr<Type> TypeChecker::checkExpr(AST::Expression* expr) {
     if (!expr) {
         return TypeFactory::getVoidType(); // تعبير null / null expression
     }
@@ -59,52 +59,38 @@ std::shared_ptr<Type> TypeChecker::checkExpr(AST::Expr* expr) {
     
     std::shared_ptr<Type> type;
     
-    // حسب نوع التعبير / Based on expression type
-    switch (expr->getKind()) {
-        case AST::ASTNode::Kind::IntegerLiteral:
-        case AST::ASTNode::Kind::FloatLiteral:
-        case AST::ASTNode::Kind::StringLiteral:
-        case AST::ASTNode::Kind::BoolLiteral:
-            type = checkLiteral(expr);
-            break;
-            
-        case AST::ASTNode::Kind::Identifier:
-            type = checkVariable(static_cast<AST::IdentifierExpr*>(expr));
-            break;
-            
-        case AST::ASTNode::Kind::BinaryExpr:
-            type = checkBinaryOp(static_cast<AST::BinaryExpr*>(expr));
-            break;
-            
-        case AST::ASTNode::Kind::UnaryExpr:
-            type = checkUnaryOp(static_cast<AST::UnaryExpr*>(expr));
-            break;
-            
-        case AST::ASTNode::Kind::CallExpr:
-            type = checkFunctionCall(static_cast<AST::CallExpr*>(expr));
-            break;
-            
-        case AST::ASTNode::Kind::MemberExpr:
-            type = checkMemberAccess(static_cast<AST::MemberExpr*>(expr));
-            break;
-            
-        case AST::ASTNode::Kind::IndexExpr:
-            type = checkIndexAccess(static_cast<AST::IndexExpr*>(expr));
-            break;
-            
-        case AST::ASTNode::Kind::LambdaExpr:
-            type = checkLambda(static_cast<AST::LambdaExpr*>(expr));
-            break;
-            
-        case AST::ASTNode::Kind::AssignmentExpr:
-            type = checkAssignment(static_cast<AST::AssignmentExpr*>(expr));
-            break;
-            
-        default:
-            // استخدام Type Inference للأنواع غير المدعومة / Use Type Inference for unsupported types
-            addWarning("استخدام Type Inference لتعبير غير مدعوم", expr);
-            type = inference_->inferExpr(expr);
-            break;
+    // استخدام dynamic_cast للتحقق من نوع التعبير / Use dynamic_cast to check expression type
+    if (dynamic_cast<AST::LiteralExpr*>(expr)) {
+        type = checkLiteral(expr);
+    }
+    else if (auto varExpr = dynamic_cast<AST::VariableExpr*>(expr)) {
+        type = checkVariable(varExpr);
+    }
+    else if (auto binExpr = dynamic_cast<AST::BinaryExpr*>(expr)) {
+        type = checkBinaryOp(binExpr);
+    }
+    else if (auto unExpr = dynamic_cast<AST::UnaryExpr*>(expr)) {
+        type = checkUnaryOp(unExpr);
+    }
+    else if (auto callExpr = dynamic_cast<AST::CallExpr*>(expr)) {
+        type = checkFunctionCall(callExpr);
+    }
+    else if (auto memExpr = dynamic_cast<AST::MemberExpr*>(expr)) {
+        type = checkMemberAccess(memExpr);
+    }
+    else if (auto idxExpr = dynamic_cast<AST::IndexExpr*>(expr)) {
+        type = checkIndexAccess(idxExpr);
+    }
+    else if (auto lambdaExpr = dynamic_cast<AST::LambdaExpr*>(expr)) {
+        type = checkLambda(lambdaExpr);
+    }
+    else if (auto assignExpr = dynamic_cast<AST::AssignExpr*>(expr)) {
+        type = checkAssignment(assignExpr);
+    }
+    else {
+        // استخدام Type Inference للأنواع غير المدعومة / Use Type Inference for unsupported types
+        addWarning("استخدام Type Inference لتعبير غير مدعوم", expr);
+        type = inference_->inferExpr(expr);
     }
     
     // حفظ النوع في التخزين المؤقت / Cache the type
@@ -118,49 +104,48 @@ std::shared_ptr<Type> TypeChecker::checkExpr(AST::Expr* expr) {
 /**
  * التحقق من جملة / Check statement
  */
-bool TypeChecker::checkStmt(AST::Stmt* stmt) {
+bool TypeChecker::checkStmt(AST::Statement* stmt) {
     if (!stmt) {
         return true; // جملة null / null statement
     }
     
-    // حسب نوع الجملة / Based on statement type
-    switch (stmt->getKind()) {
-        case AST::ASTNode::Kind::ExprStmt:
-            return checkExprStmt(static_cast<AST::ExprStmt*>(stmt));
-            
-        case AST::ASTNode::Kind::VarDeclStmt:
-            return checkVarDecl(static_cast<AST::VarDeclStmt*>(stmt));
-            
-        case AST::ASTNode::Kind::IfStmt:
-            return checkIfStmt(static_cast<AST::IfStmt*>(stmt));
-            
-        case AST::ASTNode::Kind::WhileStmt:
-            return checkWhileStmt(static_cast<AST::WhileStmt*>(stmt));
-            
-        case AST::ASTNode::Kind::ForStmt:
-            return checkForStmt(static_cast<AST::ForStmt*>(stmt));
-            
-        case AST::ASTNode::Kind::ReturnStmt:
-            return checkReturnStmt(static_cast<AST::ReturnStmt*>(stmt));
-            
-        case AST::ASTNode::Kind::BreakStmt:
-            return checkBreakStmt(static_cast<AST::BreakStmt*>(stmt));
-            
-        case AST::ASTNode::Kind::ContinueStmt:
-            return checkContinueStmt(static_cast<AST::ContinueStmt*>(stmt));
-            
-        case AST::ASTNode::Kind::BlockStmt:
-            return checkBlock(static_cast<AST::BlockStmt*>(stmt));
-            
-        case AST::ASTNode::Kind::FunctionDecl:
-            return checkFunctionDecl(static_cast<AST::FunctionDecl*>(stmt));
-            
-        case AST::ASTNode::Kind::ClassDecl:
-            return checkClassDecl(static_cast<AST::ClassDecl*>(stmt));
-            
-        default:
-            addWarning("نوع جملة غير مدعوم في Type Checker", stmt);
-            return true;
+    // استخدام dynamic_cast للتحقق من نوع الجملة / Use dynamic_cast to check statement type
+    if (auto exprStmt = dynamic_cast<AST::ExprStmt*>(stmt)) {
+        return checkExprStmt(exprStmt);
+    }
+    else if (auto varDecl = dynamic_cast<AST::VarDeclStmt*>(stmt)) {
+        return checkVarDecl(varDecl);
+    }
+    else if (auto ifStmt = dynamic_cast<AST::IfStmt*>(stmt)) {
+        return checkIfStmt(ifStmt);
+    }
+    else if (auto whileStmt = dynamic_cast<AST::WhileStmt*>(stmt)) {
+        return checkWhileStmt(whileStmt);
+    }
+    else if (auto forStmt = dynamic_cast<AST::ForStmt*>(stmt)) {
+        return checkForStmt(forStmt);
+    }
+    else if (auto retStmt = dynamic_cast<AST::ReturnStmt*>(stmt)) {
+        return checkReturnStmt(retStmt);
+    }
+    else if (auto breakStmt = dynamic_cast<AST::BreakStmt*>(stmt)) {
+        return checkBreakStmt(breakStmt);
+    }
+    else if (auto contStmt = dynamic_cast<AST::ContinueStmt*>(stmt)) {
+        return checkContinueStmt(contStmt);
+    }
+    else if (auto blockStmt = dynamic_cast<AST::BlockStmt*>(stmt)) {
+        return checkBlock(blockStmt);
+    }
+    else if (auto funcDecl = dynamic_cast<AST::FunctionDecl*>(stmt)) {
+        return checkFunctionDecl(funcDecl);
+    }
+    else if (auto classDecl = dynamic_cast<AST::ClassDecl*>(stmt)) {
+        return checkClassDecl(classDecl);
+    }
+    else {
+        addWarning("نوع جملة غير مدعوم في Type Checker", stmt);
+        return true;
     }
 }
 
@@ -171,46 +156,65 @@ bool TypeChecker::checkStmt(AST::Stmt* stmt) {
 /**
  * التحقق من حرفي / Check literal
  */
-std::shared_ptr<Type> TypeChecker::checkLiteral(AST::Expr* expr) {
-    // الحرفيات لها أنواع مباشرة / Literals have direct types
-    switch (expr->getKind()) {
-        case AST::ASTNode::Kind::IntegerLiteral:
+std::shared_ptr<Type> TypeChecker::checkLiteral(AST::Expression* expr) {
+    // استخدام dynamic_cast للتحقق من نوع الحرفي / Use dynamic_cast to check literal type
+    if (dynamic_cast<AST::LiteralExpr*>(expr)) {
+        auto litExpr = static_cast<AST::LiteralExpr*>(expr);
+        auto tokenType = litExpr->token.getType();
+        
+        if (tokenType == Lexer::TokenType::NUMBER_INTEGER) {
             return TypeFactory::getIntType();
-            
-        case AST::ASTNode::Kind::FloatLiteral:
+        }
+        else if (tokenType == Lexer::TokenType::NUMBER_DOUBLE) {
             return TypeFactory::getFloatType();
-            
-        case AST::ASTNode::Kind::StringLiteral:
+        }
+        else if (tokenType == Lexer::TokenType::STRING_LITERAL || 
+                 tokenType == Lexer::TokenType::STRING_RAW ||
+                 tokenType == Lexer::TokenType::STRING_FSTRING) {
             return TypeFactory::getStringType();
-            
-        case AST::ASTNode::Kind::BoolLiteral:
+        }
+        else if (tokenType == Lexer::TokenType::LITERAL_TRUE || 
+                 tokenType == Lexer::TokenType::LITERAL_FALSE) {
             return TypeFactory::getBoolType();
-            
-        default:
-            return TypeFactory::getVoidType();
+        }
     }
+    
+    return TypeFactory::getVoidType();
 }
 
 /**
  * التحقق من متغير / Check variable
  */
-std::shared_ptr<Type> TypeChecker::checkVariable(AST::IdentifierExpr* expr) {
+std::shared_ptr<Type> TypeChecker::checkVariable(AST::VariableExpr* expr) {
     if (!expr) {
         return TypeFactory::getVoidType();
     }
     
-    auto varName = expr->getName();
+    auto varName = expr->name;
     
     // البحث عن المتغير في البيئة / Look up variable in environment
     auto symbol = context_->getEnvironment()->lookupSymbol(varName);
     if (!symbol) {
-        addError("متغير غير معرّف: " + varName, expr);
+        auto error = TypeErrorBuilder::error("E001")
+            .messageAr("متؾير غير معرَّف: " + varName)
+            .messageEn("Undefined variable: " + varName)
+            .location(expr->position)
+            .addSuggestion("تحقق من اسم المتغير أو صرّح عنه أولاً", expr->position)
+            .build();
+        reporter_->addError(error);
+        hasErrors_ = true;
         return TypeFactory::getVoidType();
     }
     
     // التحقق من أن المتغير مُهيأ / Check if variable is initialized
     if (!symbol->isInitialized()) {
-        addWarning("استخدام متغير قبل تهيئته: " + varName, expr);
+        auto warning = TypeErrorBuilder::warning("W001")
+            .messageAr("استخدام متغير قبل تهيئته: " + varName)
+            .messageEn("Using uninitialized variable: " + varName)
+            .location(expr->position)
+            .addSuggestion("هيِّئ المتغير بقيمة قبل استخدامه", expr->position)
+            .build();
+        reporter_->addWarning(warning);
     }
     
     return symbol->getType();
@@ -225,10 +229,10 @@ std::shared_ptr<Type> TypeChecker::checkBinaryOp(AST::BinaryExpr* expr) {
     }
     
     // التحقق من نوع اليمين واليسار / Check left and right types
-    auto leftType = checkExpr(expr->getLeft());
-    auto rightType = checkExpr(expr->getRight());
+    auto leftType = checkExpr(expr->left.get());
+    auto rightType = checkExpr(expr->right.get());
     
-    auto op = expr->getOperator();
+    auto op = expr->op;
     
     // عمليات حسابية: +, -, *, /, % / Arithmetic operations
     if (op == Lexer::TokenType::OP_PLUS || 
@@ -238,12 +242,30 @@ std::shared_ptr<Type> TypeChecker::checkBinaryOp(AST::BinaryExpr* expr) {
         op == Lexer::TokenType::OP_MODULO) {
         
         // كلا الطرفين يجب أن يكونا رقميين / Both sides must be numeric
-        if (!requireNumericType(leftType, expr->getLeft())) {
-            addError("الطرف الأيسر يجب أن يكون رقمياً", expr);
+        if (!requireNumericType(leftType, expr->left.get())) {
+            auto error = TypeErrorBuilder::error("E002")
+                .messageAr("الطرف الأيسر يجب أن يكون رقمياً")
+                .messageEn("Left operand must be numeric")
+                .location(expr->left->position)
+                .expectedType(TypeFactory::getIntType())
+                .actualType(leftType)
+                .addSuggestion("تحقق من نوع البيانات", expr->left->position)
+                .build();
+            reporter_->addError(error);
+            hasErrors_ = true;
         }
         
-        if (!requireNumericType(rightType, expr->getRight())) {
-            addError("الطرف الأيمن يجب أن يكون رقمياً", expr);
+        if (!requireNumericType(rightType, expr->right.get())) {
+            auto error = TypeErrorBuilder::error("E003")
+                .messageAr("الطرف الأيمن يجب أن يكون رقمياً")
+                .messageEn("Right operand must be numeric")
+                .location(expr->right->position)
+                .expectedType(TypeFactory::getIntType())
+                .actualType(rightType)
+                .addSuggestion("تحقق من نوع البيانات", expr->right->position)
+                .build();
+            reporter_->addError(error);
+            hasErrors_ = true;
         }
         
         // إذا كان أحدهما float، النتيجة float / If either is float, result is float
@@ -265,7 +287,16 @@ std::shared_ptr<Type> TypeChecker::checkBinaryOp(AST::BinaryExpr* expr) {
         
         // الطرفان يجب أن يكونا متوافقين / Both sides must be compatible
         if (!checkTypeCompatibility(leftType, rightType, expr)) {
-            addError("تعارض في الأنواع: " + leftType->toString() + " ≠ " + rightType->toString(), expr);
+            auto error = TypeErrorBuilder::error("E004")
+                .messageAr("تعارض في الأنواع")
+                .messageEn("Type mismatch in comparison")
+                .location(expr->position)
+                .expectedType(leftType)
+                .actualType(rightType)
+                .addSuggestion("تحويل أحد الطرفين لنفس النوع", expr->position)
+                .build();
+            reporter_->addError(error);
+            hasErrors_ = true;
         }
         
         // النتيجة دائماً bool / Result is always bool
@@ -273,23 +304,45 @@ std::shared_ptr<Type> TypeChecker::checkBinaryOp(AST::BinaryExpr* expr) {
     }
     
     // عمليات منطقية: &&, ||, and, or / Logical operations
-    if (op == Lexer::TokenType::KW_AND || 
-        op == Lexer::TokenType::KW_OR) {
+    if (op == Lexer::TokenType::OP_AND || 
+        op == Lexer::TokenType::OP_OR) {
         
         // كلا الطرفين يجب أن يكونا bool / Both sides must be bool
-        if (!requireBoolType(leftType, expr->getLeft())) {
-            addError("الطرف الأيسر يجب أن يكون منطقياً (bool)", expr);
+        if (!requireBoolType(leftType, expr->left.get())) {
+            auto error = TypeErrorBuilder::error("E005")
+                .messageAr("الطرف الأيسر يجب أن يكون منطقياً (bool)")
+                .messageEn("Left operand must be boolean")
+                .location(expr->left->position)
+                .expectedType(TypeFactory::getBoolType())
+                .actualType(leftType)
+                .build();
+            reporter_->addError(error);
+            hasErrors_ = true;
         }
         
-        if (!requireBoolType(rightType, expr->getRight())) {
-            addError("الطرف الأيمن يجب أن يكون منطقياً (bool)", expr);
+        if (!requireBoolType(rightType, expr->right.get())) {
+            auto error = TypeErrorBuilder::error("E006")
+                .messageAr("الطرف الأيمن يجب أن يكون منطقياً (bool)")
+                .messageEn("Right operand must be boolean")
+                .location(expr->right->position)
+                .expectedType(TypeFactory::getBoolType())
+                .actualType(rightType)
+                .build();
+            reporter_->addError(error);
+            hasErrors_ = true;
         }
         
         return TypeFactory::getBoolType();
     }
     
     // عملية غير معروفة / Unknown operation
-    addError("عملية ثنائية غير مدعومة", expr);
+    auto error = TypeErrorBuilder::error("E007")
+        .messageAr("عملية ثنائية غير مدعومة")
+        .messageEn("Unsupported binary operation")
+        .location(expr->position)
+        .build();
+    reporter_->addError(error);
+    hasErrors_ = true;
     return TypeFactory::getVoidType();
 }
 
@@ -302,16 +355,23 @@ std::shared_ptr<Type> TypeChecker::checkUnaryOp(AST::UnaryExpr* expr) {
     }
     
     // التحقق من نوع المعامل / Check operand type
-    auto operandType = checkExpr(expr->getOperand());
+    auto operandType = checkExpr(expr->operand.get());
     
-    auto op = expr->getOperator();
+    auto op = expr->op;
     
     // عملية النفي المنطقي: !, not / Logical negation
-    if (op == Lexer::TokenType::OP_NOT || 
-        op == Lexer::TokenType::KW_NOT) {
+    if (op == Lexer::TokenType::OP_NOT) {
         
-        if (!requireBoolType(operandType, expr->getOperand())) {
-            addError("المعامل يجب أن يكون منطقياً (bool)", expr);
+        if (!requireBoolType(operandType, expr->operand.get())) {
+            auto error = TypeErrorBuilder::error("E008")
+                .messageAr("المعامل يجب أن يكون منطقياً (bool)")
+                .messageEn("Operand must be boolean")
+                .location(expr->operand->position)
+                .expectedType(TypeFactory::getBoolType())
+                .actualType(operandType)
+                .build();
+            reporter_->addError(error);
+            hasErrors_ = true;
         }
         
         return TypeFactory::getBoolType();
@@ -321,8 +381,16 @@ std::shared_ptr<Type> TypeChecker::checkUnaryOp(AST::UnaryExpr* expr) {
     if (op == Lexer::TokenType::OP_MINUS || 
         op == Lexer::TokenType::OP_PLUS) {
         
-        if (!requireNumericType(operandType, expr->getOperand())) {
-            addError("المعامل يجب أن يكون رقمياً", expr);
+        if (!requireNumericType(operandType, expr->operand.get())) {
+            auto error = TypeErrorBuilder::error("E009")
+                .messageAr("المعامل يجب أن يكون رقمياً")
+                .messageEn("Operand must be numeric")
+                .location(expr->operand->position)
+                .expectedType(TypeFactory::getIntType())
+                .actualType(operandType)
+                .build();
+            reporter_->addError(error);
+            hasErrors_ = true;
         }
         
         return operandType; // النتيجة نفس نوع المعامل / Result is same as operand type
@@ -332,16 +400,31 @@ std::shared_ptr<Type> TypeChecker::checkUnaryOp(AST::UnaryExpr* expr) {
     if (op == Lexer::TokenType::OP_INCREMENT || 
         op == Lexer::TokenType::OP_DECREMENT) {
         
-        if (!requireNumericType(operandType, expr->getOperand())) {
-            addError("المعامل يجب أن يكون رقمياً", expr);
+        if (!requireNumericType(operandType, expr->operand.get())) {
+            auto error = TypeErrorBuilder::error("E010")
+                .messageAr("المعامل يجب أن يكون رقمياً")
+                .messageEn("Operand must be numeric")
+                .location(expr->operand->position)
+                .expectedType(TypeFactory::getIntType())
+                .actualType(operandType)
+                .build();
+            reporter_->addError(error);
+            hasErrors_ = true;
         }
         
         // التحقق من أن المعامل متغير قابل للتعديل / Check operand is mutable variable
-        auto varExpr = dynamic_cast<AST::IdentifierExpr*>(expr->getOperand());
+        auto varExpr = dynamic_cast<AST::VariableExpr*>(expr->operand.get());
         if (varExpr) {
-            auto symbol = context_->getEnvironment()->lookupSymbol(varExpr->getName());
+            auto symbol = context_->getEnvironment()->lookupSymbol(varExpr->name);
             if (symbol && !symbol->isMutable()) {
-                addError("لا يمكن تعديل متغير ثابت", expr);
+                auto error = TypeErrorBuilder::error("E011")
+                    .messageAr("لا يمكن تعديل متغير ثابت")
+                    .messageEn("Cannot modify constant variable")
+                    .location(expr->position)
+                    .addSuggestion("استخدم متغير قابل للتعديل", expr->position)
+                    .build();
+                reporter_->addError(error);
+                hasErrors_ = true;
             }
         }
         
@@ -349,7 +432,13 @@ std::shared_ptr<Type> TypeChecker::checkUnaryOp(AST::UnaryExpr* expr) {
     }
     
     // عملية غير معروفة / Unknown operation
-    addError("عملية أحادية غير مدعومة", expr);
+    auto error = TypeErrorBuilder::error("E012")
+        .messageAr("عملية أحادية غير مدعومة")
+        .messageEn("Unsupported unary operation")
+        .location(expr->position)
+        .build();
+    reporter_->addError(error);
+    hasErrors_ = true;
     return TypeFactory::getVoidType();
 }
 
@@ -362,18 +451,26 @@ std::shared_ptr<Type> TypeChecker::checkFunctionCall(AST::CallExpr* expr) {
     }
     
     // التحقق من نوع الدالة / Check function type
-    auto funcType = checkExpr(expr->getCallee());
+    auto funcType = checkExpr(expr->callee.get());
     
     // التحقق من أنه نوع دالة / Check it's a function type
     auto functionType = std::dynamic_pointer_cast<FunctionType>(funcType);
     if (!functionType) {
-        addError("التعبير ليس دالة", expr->getCallee());
+        auto error = TypeErrorBuilder::error("E013")
+            .messageAr("التعبير ليس دالة")
+            .messageEn("Expression is not callable")
+            .location(expr->callee->position)
+            .actualType(funcType)
+            .addSuggestion("تحقق من أن هذا اسم دالة صحيح", expr->callee->position)
+            .build();
+        reporter_->addError(error);
+        hasErrors_ = true;
         return TypeFactory::getVoidType();
     }
     
     // التحقق من عدد المعاملات / Check argument count
     auto expectedParams = functionType->getParamTypes();
-    auto actualArgs = expr->getArguments();
+    auto actualArgs = expr->arguments;
     
     if (!functionType->isVariadic() && actualArgs.size() != expectedParams.size()) {
         std::stringstream ss;
@@ -409,9 +506,9 @@ std::shared_ptr<Type> TypeChecker::checkMemberAccess(AST::MemberExpr* expr) {
     }
     
     // التحقق من نوع الكائن / Check object type
-    auto objectType = checkExpr(expr->getObject());
+    auto objectType = checkExpr(expr->object.get());
     
-    auto memberName = expr->getMemberName();
+    auto memberName = expr->member;
     
     // إذا كان الكائن من نوع ClassType / If object is ClassType
     auto classType = std::dynamic_pointer_cast<ClassType>(objectType);
@@ -441,17 +538,17 @@ std::shared_ptr<Type> TypeChecker::checkIndexAccess(AST::IndexExpr* expr) {
     }
     
     // التحقق من نوع المصفوفة/القاموس / Check array/dict type
-    auto containerType = checkExpr(expr->getObject());
+    auto containerType = checkExpr(expr->object.get());
     
     // التحقق من نوع الفهرس / Check index type
-    auto indexType = checkExpr(expr->getIndex());
+    auto indexType = checkExpr(expr->index.get());
     
     // إذا كان مصفوفة / If array
     auto arrayType = std::dynamic_pointer_cast<ArrayType>(containerType);
     if (arrayType) {
         // الفهرس يجب أن يكون int / Index must be int
-        if (!checkTypeCompatibility(TypeFactory::getIntType(), indexType, expr->getIndex())) {
-            addError("فهرس المصفوفة يجب أن يكون عدد صحيح", expr->getIndex());
+        if (!checkTypeCompatibility(TypeFactory::getIntType(), indexType, expr->index.get())) {
+            addError("فهرس المصفوفة يجب أن يكون عدد صحيح", expr->index.get());
         }
         
         return arrayType->getElementType();
@@ -461,8 +558,8 @@ std::shared_ptr<Type> TypeChecker::checkIndexAccess(AST::IndexExpr* expr) {
     auto dictType = std::dynamic_pointer_cast<DictType>(containerType);
     if (dictType) {
         // الفهرس يجب أن يكون من نوع المفتاح / Index must be key type
-        if (!checkTypeCompatibility(dictType->getKeyType(), indexType, expr->getIndex())) {
-            addError("نوع المفتاح غير متوافق. متوقع: " + dictType->getKeyType()->toString(), expr->getIndex());
+        if (!checkTypeCompatibility(dictType->getKeyType(), indexType, expr->index.get())) {
+            addError("نوع المفتاح غير متوافق. متوقع: " + dictType->getKeyType()->toString(), expr->index.get());
         }
         
         return dictType->getValueType();
@@ -488,7 +585,7 @@ std::shared_ptr<Type> TypeChecker::checkLambda(AST::LambdaExpr* expr) {
     context_->getEnvironment()->pushScope(Scope::Type::FUNCTION, "lambda");
     
     // إضافة المعاملات للنطاق / Add parameters to scope
-    for (const auto& param : expr->getParameters()) {
+    for (const auto& param : expr->parameters) {
         auto paramType = dataTypeToType(param.type);
         paramTypes.push_back(paramType);
         
@@ -505,8 +602,8 @@ std::shared_ptr<Type> TypeChecker::checkLambda(AST::LambdaExpr* expr) {
     
     // التحقق من جسم الدالة / Check function body
     std::shared_ptr<Type> returnType;
-    if (expr->getBody()) {
-        returnType = checkExpr(expr->getBody());
+    if (expr->body) {
+        returnType = checkExpr(expr->body.get());
     } else {
         returnType = TypeFactory::getVoidType();
     }
@@ -521,31 +618,31 @@ std::shared_ptr<Type> TypeChecker::checkLambda(AST::LambdaExpr* expr) {
 /**
  * التحقق من إسناد / Check assignment
  */
-std::shared_ptr<Type> TypeChecker::checkAssignment(AST::AssignmentExpr* expr) {
+std::shared_ptr<Type> TypeChecker::checkAssignment(AST::AssignExpr* expr) {
     if (!expr) {
         return TypeFactory::getVoidType();
     }
     
     // التحقق من نوع اليمين (القيمة) / Check right side (value) type
-    auto valueType = checkExpr(expr->getValue());
+    auto valueType = checkExpr(expr->value.get());
     
     // التحقق من نوع اليسار (الهدف) / Check left side (target) type
-    auto targetType = checkExpr(expr->getTarget());
-    
-    // التحقق من أن الهدف متغير / Check target is variable
-    auto varExpr = dynamic_cast<AST::IdentifierExpr*>(expr->getTarget());
-    if (varExpr) {
-        auto symbol = context_->getEnvironment()->lookupSymbol(varExpr->getName());
-        if (symbol) {
-            // التحقق من أن المتغير قابل للتعديل / Check variable is mutable
-            if (!symbol->isMutable()) {
-                addError("لا يمكن تعديل متغير ثابت: " + varExpr->getName(), expr);
-            }
-            
-            // تحديد المتغير كمُهيأ / Mark variable as initialized
-            symbol->setInitialized(true);
-        }
+    // في AssignExpr، الهدف هو اسم المتغير مباشرة
+    auto symbol = context_->getEnvironment()->lookupSymbol(expr->name);
+    if (!symbol) {
+        addError("متغير غير معرّف: " + expr->name, expr);
+        return TypeFactory::getVoidType();
     }
+    
+    auto targetType = symbol->getType();
+    
+    // التحقق من أن المتغير قابل للتعديل / Check variable is mutable
+    if (!symbol->isMutable()) {
+        addError("لا يمكن تعديل متغير ثابت: " + expr->name, expr);
+    }
+    
+    // تحديد المتغير كمُهيأ / Mark variable as initialized
+    symbol->setInitialized(true);
     
     // التحقق من توافق الأنواع / Check type compatibility
     if (!checkTypeCompatibility(targetType, valueType, expr)) {
@@ -563,12 +660,12 @@ std::shared_ptr<Type> TypeChecker::checkAssignment(AST::AssignmentExpr* expr) {
  * التحقق من جملة تعبير / Check expression statement
  */
 bool TypeChecker::checkExprStmt(AST::ExprStmt* stmt) {
-    if (!stmt || !stmt->getExpression()) {
+    if (!stmt || !stmt->expression) {
         return true;
     }
     
     // التحقق من التعبير / Check expression
-    checkExpr(stmt->getExpression());
+    checkExpr(stmt->expression.get());
     
     return true;
 }
@@ -582,39 +679,39 @@ bool TypeChecker::checkVarDecl(AST::VarDeclStmt* decl) {
     }
     
     // تحويل نوع البيانات / Convert data type
-    auto varType = dataTypeToType(decl->getType());
+    auto varType = dataTypeToType(decl->type);
     
     // التحقق من القيمة الأولية / Check initializer
     std::shared_ptr<Type> initType;
-    if (decl->getInitializer()) {
-        initType = checkExpr(decl->getInitializer());
+    if (decl->initializer) {
+        initType = checkExpr(decl->initializer.get());
         
         // التحقق من توافق الأنواع / Check type compatibility
-        if (!checkTypeCompatibility(varType, initType, decl->getInitializer())) {
+        if (!checkTypeCompatibility(varType, initType, decl->initializer.get())) {
             addError("تعارض في نوع المتغير. متوقع: " + varType->toString() + "، فعلي: " + initType->toString(), decl);
             return false;
         }
-    } else if (decl->isConst()) {
+    } else if (decl->isConst) {
         // الثوابت يجب أن تُهيأ / Constants must be initialized
-        addError("يجب تهيئة المتغير الثابت: " + decl->getName(), decl);
+        addError("يجب تهيئة المتغير الثابت: " + decl->name, decl);
         return false;
     }
     
     // إضافة المتغير للنطاق / Add variable to scope
     auto symbol = context_->getEnvironment()->addSymbol(
-        decl->getName(),
+        decl->name,
         varType,
-        decl->isConst() ? Symbol::Kind::CONSTANT : Symbol::Kind::VARIABLE
+        decl->isConst ? Symbol::Kind::CONSTANT : Symbol::Kind::VARIABLE
     );
     
     if (!symbol) {
-        addError("المتغير معرّف مسبقاً: " + decl->getName(), decl);
+        addError("المتغير معرّف مسبقاً: " + decl->name, decl);
         return false;
     }
     
     // تحديد حالة التهيئة / Set initialization state
-    symbol->setInitialized(decl->getInitializer() != nullptr);
-    symbol->setMutable(!decl->isConst());
+    symbol->setInitialized(decl->initializer != nullptr);
+    symbol->setMutable(!decl->isConst);
     
     return true;
 }
@@ -628,22 +725,22 @@ bool TypeChecker::checkIfStmt(AST::IfStmt* stmt) {
     }
     
     // التحقق من الشرط / Check condition
-    auto condType = checkExpr(stmt->getCondition());
-    if (!requireBoolType(condType, stmt->getCondition())) {
+    auto condType = checkExpr(stmt->condition.get());
+    if (!requireBoolType(condType, stmt->condition.get())) {
         addError("شرط if يجب أن يكون منطقياً (bool)", stmt);
     }
     
     // التحقق من الفرع الإيجابي / Check then branch
-    if (stmt->getThenBranch()) {
+    if (stmt->thenBranch) {
         context_->getEnvironment()->pushScope(Scope::Type::BLOCK, "if-then");
-        checkStmt(stmt->getThenBranch());
+        checkStmt(stmt->thenBranch.get());
         context_->getEnvironment()->popScope();
     }
     
     // التحقق من الفرع السلبي / Check else branch
-    if (stmt->getElseBranch()) {
+    if (stmt->elseBranch) {
         context_->getEnvironment()->pushScope(Scope::Type::BLOCK, "if-else");
-        checkStmt(stmt->getElseBranch());
+        checkStmt(stmt->elseBranch.get());
         context_->getEnvironment()->popScope();
     }
     
@@ -659,15 +756,15 @@ bool TypeChecker::checkWhileStmt(AST::WhileStmt* stmt) {
     }
     
     // التحقق من الشرط / Check condition
-    auto condType = checkExpr(stmt->getCondition());
-    if (!requireBoolType(condType, stmt->getCondition())) {
+    auto condType = checkExpr(stmt->condition.get());
+    if (!requireBoolType(condType, stmt->condition.get())) {
         addError("شرط while يجب أن يكون منطقياً (bool)", stmt);
     }
     
     // التحقق من الجسم / Check body
-    if (stmt->getBody()) {
+    if (stmt->body) {
         context_->getEnvironment()->pushScope(Scope::Type::BLOCK, "while");
-        checkStmt(stmt->getBody());
+        checkStmt(stmt->body.get());
         context_->getEnvironment()->popScope();
     }
     
@@ -686,26 +783,26 @@ bool TypeChecker::checkForStmt(AST::ForStmt* stmt) {
     context_->getEnvironment()->pushScope(Scope::Type::BLOCK, "for");
     
     // التحقق من التهيئة / Check initializer
-    if (stmt->getInitializer()) {
-        checkStmt(stmt->getInitializer());
+    if (stmt->initializer) {
+        checkStmt(stmt->initializer.get());
     }
     
     // التحقق من الشرط / Check condition
-    if (stmt->getCondition()) {
-        auto condType = checkExpr(stmt->getCondition());
-        if (!requireBoolType(condType, stmt->getCondition())) {
+    if (stmt->condition) {
+        auto condType = checkExpr(stmt->condition.get());
+        if (!requireBoolType(condType, stmt->condition.get())) {
             addError("شرط for يجب أن يكون منطقياً (bool)", stmt);
         }
     }
     
     // التحقق من التحديث / Check increment
-    if (stmt->getIncrement()) {
-        checkExpr(stmt->getIncrement());
+    if (stmt->increment) {
+        checkExpr(stmt->increment.get());
     }
     
     // التحقق من الجسم / Check body
-    if (stmt->getBody()) {
-        checkStmt(stmt->getBody());
+    if (stmt->body) {
+        checkStmt(stmt->body.get());
     }
     
     // سحب النطاق / Pop scope
@@ -731,8 +828,8 @@ bool TypeChecker::checkReturnStmt(AST::ReturnStmt* stmt) {
     
     // التحقق من قيمة الإرجاع / Check return value
     std::shared_ptr<Type> actualReturnType;
-    if (stmt->getValue()) {
-        actualReturnType = checkExpr(stmt->getValue());
+    if (stmt->value) {
+        actualReturnType = checkExpr(stmt->value.get());
     } else {
         actualReturnType = TypeFactory::getVoidType();
     }
@@ -774,7 +871,7 @@ bool TypeChecker::checkBlock(AST::BlockStmt* stmt) {
     context_->getEnvironment()->pushScope(Scope::Type::BLOCK, "block");
     
     // التحقق من كل جملة / Check each statement
-    for (const auto& statement : stmt->getStatements()) {
+    for (const auto& statement : stmt->statements) {
         checkStmt(statement.get());
     }
     
@@ -794,40 +891,40 @@ bool TypeChecker::checkFunctionDecl(AST::FunctionDecl* decl) {
     
     // إنشاء أنواع المعاملات / Create parameter types
     std::vector<std::shared_ptr<Type>> paramTypes;
-    for (const auto& param : decl->getParameters()) {
+    for (const auto& param : decl->parameters) {
         paramTypes.push_back(dataTypeToType(param.type));
     }
     
     // إنشاء نوع الإرجاع / Create return type
-    auto returnType = dataTypeToType(decl->getReturnType());
+    auto returnType = dataTypeToType(decl->returnType);
     
     // إنشاء نوع الدالة / Create function type
     auto funcType = TypeFactory::createFunctionType(paramTypes, returnType, false);
     
     // إضافة الدالة للنطاق / Add function to scope
     auto symbol = context_->getEnvironment()->addSymbol(
-        decl->getName(),
+        decl->name,
         funcType,
         Symbol::Kind::FUNCTION
     );
     
     if (!symbol) {
-        addError("الدالة معرّفة مسبقاً: " + decl->getName(), decl);
+        addError("الدالة معرّفة مسبقاً: " + decl->name, decl);
         return false;
     }
     
     symbol->setInitialized(true);
     
     // دفع نطاق جديد للدالة / Push new scope for function
-    context_->getEnvironment()->pushScope(Scope::Type::FUNCTION, decl->getName());
+    context_->getEnvironment()->pushScope(Scope::Type::FUNCTION, decl->name);
     
     // حفظ نوع الإرجاع المتوقع / Save expected return type
     auto prevReturnType = context_->getExpectedReturnType();
     context_->setExpectedReturnType(returnType);
     
     // إضافة المعاملات للنطاق / Add parameters to scope
-    for (size_t i = 0; i < decl->getParameters().size(); ++i) {
-        const auto& param = decl->getParameters()[i];
+    for (size_t i = 0; i < decl->parameters.size(); ++i) {
+        const auto& param = decl->parameters[i];
         auto paramSymbol = context_->getEnvironment()->addSymbol(
             param.name,
             paramTypes[i],
@@ -840,8 +937,8 @@ bool TypeChecker::checkFunctionDecl(AST::FunctionDecl* decl) {
     }
     
     // التحقق من جسم الدالة / Check function body
-    if (decl->getBody()) {
-        checkStmt(decl->getBody());
+    if (decl->body) {
+        checkStmt(decl->body.get());
     }
     
     // استرجاع نوع الإرجاع المتوقع / Restore expected return type
@@ -862,23 +959,22 @@ bool TypeChecker::checkClassDecl(AST::ClassDecl* decl) {
     }
     
     // إنشاء نوع الصنف / Create class type
-    auto classType = std::make_shared<ClassType>(decl->getName());
+    auto classType = std::make_shared<ClassType>(decl->name);
     
     // إضافة الأعضاء / Add members
-    for (const auto& member : decl->getMembers()) {
-        auto memberType = dataTypeToType(member.type);
-        classType->addMember(member.name, memberType);
+    for (const auto& member : decl->members) {
+        // TODO: تحديد نوع العضو
     }
     
     // إضافة الصنف للنطاق / Add class to scope
     auto symbol = context_->getEnvironment()->addSymbol(
-        decl->getName(),
+        decl->name,
         classType,
         Symbol::Kind::CLASS
     );
     
     if (!symbol) {
-        addError("الصنف معرّف مسبقاً: " + decl->getName(), decl);
+        addError("الصنف معرّف مسبقاً: " + decl->name, decl);
         return false;
     }
     
@@ -922,13 +1018,12 @@ bool TypeChecker::checkTypeCompatibility(
  * إضافة خطأ / Add error
  */
 void TypeChecker::addError(const std::string& message, AST::ASTNode* node) {
-    std::string fullMessage = "خطأ في الأنواع: " + message;
+    // استخدام TypeErrorReporter الجديد / Use new TypeErrorReporter
+    Lexer::Position pos = node ? node->position : Lexer::Position{0, 0};
     
-    if (node) {
-        fullMessage += " [السطر " + std::to_string(node->position.line) + "]";
-    }
+    // إنشاء خطأ بسيط / Create simple error
+    reporter_->addError("E000", message, message, pos);
     
-    context_->addError(fullMessage);
     hasErrors_ = true;
 }
 
@@ -936,13 +1031,11 @@ void TypeChecker::addError(const std::string& message, AST::ASTNode* node) {
  * إضافة تحذير / Add warning
  */
 void TypeChecker::addWarning(const std::string& message, AST::ASTNode* node) {
-    std::string fullMessage = "تحذير: " + message;
+    // استخدام TypeErrorReporter الجديد / Use new TypeErrorReporter
+    Lexer::Position pos = node ? node->position : Lexer::Position{0, 0};
     
-    if (node) {
-        fullMessage += " [السطر " + std::to_string(node->position.line) + "]";
-    }
-    
-    context_->addWarning(fullMessage);
+    // إنشاء تحذير بسيط / Create simple warning
+    reporter_->addWarning("W000", message, message, pos);
 }
 
 /**
@@ -976,7 +1069,7 @@ std::shared_ptr<Type> TypeChecker::dataTypeToType(Data::DataType dataType) {
             return TypeFactory::getStringType();
         case Data::DataType::BOOLEAN:
             return TypeFactory::getBoolType();
-        case Data::DataType::VOID:
+        case Data::DataType::NONE:
             return TypeFactory::getVoidType();
         default:
             return TypeFactory::getVoidType();

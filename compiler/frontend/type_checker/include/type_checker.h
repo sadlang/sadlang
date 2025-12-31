@@ -39,9 +39,11 @@
 #include "typed_ast.h"
 #include "type_context.h"
 #include "type_inference.h"
+#include "type_errors.h"
 #include "../../../../include/parser/ast/ast_node.h"
 #include "../../../../include/parser/ast/expressions.h"
 #include "../../../../include/parser/ast/statements.h"
+#include "../../../../include/parser/ast/declarations.h"
 
 namespace Sad {
 namespace TypeChecker {
@@ -66,7 +68,9 @@ class TypeChecker {
 private:
     std::shared_ptr<TypeContext> context_;       // سياق Type Checking / Type checking context
     std::shared_ptr<TypeInference> inference_;   // محرك Type Inference / Type inference engine
+    std::shared_ptr<TypeErrorReporter> reporter_; // مُبلِّغ الأخطاء / Error reporter
     bool hasErrors_;                             // هل توجد أخطاء / Has errors
+    std::string currentFile_;                    // الملف الحالي / Current file
     
     // خرائط للتخزين المؤقت / Caching maps
     std::unordered_map<AST::ASTNode*, std::shared_ptr<Type>> typeCache_; // تخزين الأنواع / Type cache
@@ -80,7 +84,9 @@ public:
     explicit TypeChecker(std::shared_ptr<TypeContext> context)
         : context_(context)
         , inference_(std::make_shared<TypeInference>(context))
+        , reporter_(std::make_shared<TypeErrorReporter>())
         , hasErrors_(false)
+        , currentFile_("")
     {}
     
     /**
@@ -97,7 +103,7 @@ public:
      * @param expr التعبير / Expression
      * @return نوع التعبير / Expression type
      */
-    std::shared_ptr<Type> checkExpr(AST::Expr* expr);
+    std::shared_ptr<Type> checkExpr(AST::Expression* expr);
     
     /**
      * التحقق من جملة / Check statement
@@ -105,7 +111,7 @@ public:
      * @param stmt الجملة / Statement
      * @return true إذا صحيحة / true if valid
      */
-    bool checkStmt(AST::Stmt* stmt);
+    bool checkStmt(AST::Statement* stmt);
     
     /**
      * التحقق من تصريح متغير / Check variable declaration
@@ -137,7 +143,7 @@ public:
      * @return true إذا كانت هناك أخطاء / true if errors exist
      */
     bool hasErrors() const {
-        return hasErrors_ || context_->hasErrors();
+        return hasErrors_ || reporter_->hasErrors();
     }
     
     /**
@@ -146,21 +152,21 @@ public:
      * @return عدد الأخطاء / Number of errors
      */
     size_t getErrorCount() const {
-        return context_->getErrors().size();
+        return reporter_->getErrorCount();
     }
     
     /**
      * طباعة الأخطاء / Print errors
      */
     void printErrors() const {
-        context_->printErrors();
+        reporter_->printAllErrors();
     }
     
     /**
      * طباعة التحذيرات / Print warnings
      */
     void printWarnings() const {
-        context_->printWarnings();
+        reporter_->printAllWarnings();
     }
     
     /**
@@ -169,6 +175,7 @@ public:
     void reset() {
         context_->reset();
         inference_->reset();
+        reporter_->clear();
         typeCache_.clear();
         hasErrors_ = false;
     }
@@ -181,12 +188,12 @@ private:
     /**
      * التحقق من حرفي (literal) / Check literal
      */
-    std::shared_ptr<Type> checkLiteral(AST::Expr* expr);
+    std::shared_ptr<Type> checkLiteral(AST::Expression* expr);
     
     /**
      * التحقق من متغير / Check variable
      */
-    std::shared_ptr<Type> checkVariable(AST::IdentifierExpr* expr);
+    std::shared_ptr<Type> checkVariable(AST::VariableExpr* expr);
     
     /**
      * التحقق من عملية ثنائية / Check binary operation
@@ -221,7 +228,7 @@ private:
     /**
      * التحقق من إسناد / Check assignment
      */
-    std::shared_ptr<Type> checkAssignment(AST::AssignmentExpr* expr);
+    std::shared_ptr<Type> checkAssignment(AST::AssignExpr* expr);
     
     // ========================================================================
     // دوال مساعدة للتحقق من الجمل / Helper functions for checking statements
