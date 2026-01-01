@@ -4,6 +4,7 @@
  */
 
 #include "llvm_optimizer.h"
+#include "arabic_optimizer.h"
 #include <llvm/IR/Verifier.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
@@ -74,6 +75,9 @@ bool LLVMOptimizer::initialize(llvm::TargetMachine* targetMachine) {
     
     // ربط مديري التحليل / Cross-register analysis managers
     pass_builder_->crossRegisterProxies(*loop_am_, *function_am_, *cgscc_am_, *module_am_);
+    
+    // إنشاء محسّن اللغة العربية / Create Arabic language optimizer
+    arabic_optimizer_ = std::make_unique<ArabicOptimizationPass>();
     
     return true;
 }
@@ -234,6 +238,12 @@ void LLVMOptimizer::printStats() const {
               << stats_.optimization_time_ms << " ms" << std::endl;
     
     std::cout << "========================================\n" << std::endl;
+    
+    // طباعة إحصائيات التحسين العربي / Print Arabic optimization statistics
+    if (arabic_optimizer_ && optimization_level_ >= OptimizationLevel::O2) {
+        std::cout << "\n";
+        arabic_optimizer_->printStats();
+    }
 }
 
 /**
@@ -433,6 +443,12 @@ void LLVMOptimizer::addAggressiveOptimizations() {
     if (isPassEnabled("instcombine")) {
         function_pm_->addPass(llvm::InstCombinePass());
     }
+    
+    // تحسينات مخصصة للغة العربية / Custom Arabic optimizations
+    // يتم تشغيله في نهاية O3 للحصول على أفضل النتائج / Run at end of O3 for best results
+    if (arabic_optimizer_) {
+        // سيتم إضافته في runModulePasses / Will be added in runModulePasses
+    }
 }
 
 /**
@@ -473,6 +489,12 @@ void LLVMOptimizer::runModulePasses(llvm::Module* module) {
     
     // تشغيل تمريرات الوحدة / Run module passes
     module_pm_->run(*module, *module_am_);
+    
+    // تشغيل تحسينات اللغة العربية / Run Arabic optimizations
+    // يتم تشغيله بعد التحسينات الأساسية / Run after basic optimizations
+    if (arabic_optimizer_ && optimization_level_ >= OptimizationLevel::O2) {
+        arabic_optimizer_->run(*module, *module_am_);
+    }
     
     if (verify_each_pass_) {
         verifyModule(module);

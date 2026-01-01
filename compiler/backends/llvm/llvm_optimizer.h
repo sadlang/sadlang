@@ -42,6 +42,11 @@
 #include <string>
 #include <vector>
 
+// Forward declarations
+namespace sad {
+class ArabicOptimizationPass;
+}
+
 namespace sad {
 
 /**
@@ -238,6 +243,8 @@ private:
     
     std::unique_ptr<llvm::ModulePassManager> module_pm_;           // مدير تمريرات الوحدة / Module pass manager
     std::unique_ptr<llvm::FunctionPassManager> function_pm_;       // مدير تمريرات الدالة / Function pass manager
+    
+    std::unique_ptr<ArabicOptimizationPass> arabic_optimizer_;     // محسّن اللغة العربية / Arabic language optimizer
     
     OptimizationStats stats_;                        // إحصائيات التحسين / Optimization statistics
     
