@@ -136,17 +136,13 @@ void testAddMethods() {
         
         // (AR) إنشاء دالة "عرف"
         // (EN) Create "introduce" method
-        ClassMethod method;
-        method.name = "عرف";
-        method.visibility = Visibility::PUBLIC;
-        method.isStatic = false;
-        method.isVirtual = false;
-        method.isAbstract = false;
-        
         static Type stringType("string");
-        method.returnType = &stringType;
+        std::vector<Sad::AST::Parameter> params;
+        std::unique_ptr<Sad::AST::BlockStmt> body = nullptr;
         
-        bool added = personClass->addMethod(method);
+        bool added = personClass->addMethod("عرف", Visibility::PUBLIC, 
+                                            &stringType, params, std::move(body),
+                                            false, false);
         
         assert(added == true);
         assert(personClass->methods.size() == 1);
@@ -348,10 +344,12 @@ void testInheritance() {
         // (AR) التحقق من الوراثة
         // (EN) Verify inheritance
         ClassType* human = mgr->getClass("إنسان");
+        ClassType* creature = mgr->getClass("مخلوق");
         assert(human != nullptr);
+        assert(creature != nullptr);
         assert(human->baseClass != nullptr);
         assert(human->baseClass->name == "مخلوق");
-        assert(human->inheritsFrom("مخلوق") == true);
+        assert(human->inheritsFrom(creature) == true);
         
         // (AR) التحقق من سلسلة الوراثة
         // (EN) Verify inheritance chain

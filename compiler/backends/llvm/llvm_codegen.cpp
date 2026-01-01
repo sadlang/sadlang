@@ -42,6 +42,9 @@ LLVMCodeGen::LLVMCodeGen()
     , targetMachine_(nullptr)
     , typeMapper_(nullptr)           // تهيئة محول الأنواع / Initialize type mapper
     , controlFlow_(nullptr)          // تهيئة مدير التحكم / Initialize control flow
+    , optimizer_(nullptr)            // تهيئة المحسّن / Initialize optimizer
+    , optimizationLevel_(sad::OptimizationLevel::O0)  // مستوى التحسين الافتراضي / Default optimization level
+    , autoOptimize_(false)           // تحسين تلقائي معطل افتراضياً / Auto optimize disabled by default
     , hasErrors_(false)
 {
     // تهيئة أهداف LLVM / Initialize LLVM targets
@@ -122,6 +125,15 @@ bool LLVMCodeGen::initialize(const std::string& moduleName, const std::string& t
         // سيتم إنشاؤه عند توليد كل دالة / Will be created per function
         controlFlow_ = nullptr;
         
+        // إنشاء المحسّن / Create optimizer
+        optimizer_ = std::make_unique<sad::LLVMOptimizer>();
+        
+        // تهيئة المحسّن مع الآلة الهدف / Initialize optimizer with target machine
+        if (!optimizer_->initialize(targetMachine_)) {
+            reportError("Failed to initialize LLVM optimizer");
+            return false;
+        }
+        
         return true;
     }
     catch (const std::exception& e) {
@@ -163,6 +175,14 @@ std::unique_ptr<llvm::Module> LLVMCodeGen::generate(std::shared_ptr<SIRModule> s
         return nullptr;
     }
     
+    // تطبيق التحسينات إذا كان التحسين التلقائي مفعلاً / Apply optimizations if auto-optimize enabled
+    if (autoOptimize_ && optimizationLevel_ != sad::OptimizationLevel::O0) {
+        if (!optimize()) {
+            // التحسين فشل لكن نواصل بدون تحسين / Optimization failed but continue without it
+            std::cerr << "تحذير: فشل التحسين، الاستمرار بدون تحسين / Warning: Optimization failed, continuing without optimization\n";
+        }
+    }
+    
     // إرجاع الوحدة / Return module
     return std::move(module_);
 }
@@ -186,6 +206,104 @@ bool LLVMCodeGen::verify() const {
     }
     
     return true;
+}
+
+// ============================================================================
+// Optimization / التحسين
+// ============================================================================
+
+/**
+ * تعيين مستوى التحسين
+ * Set optimization level
+ */
+void LLVMCodeGen::setOptimizationLevel(sad::OptimizationLevel level) {
+    // حفظ مستوى التحسين / Save optimization level
+    optimizationLevel_ = level;
+    
+    // تطبيق المستوى على المحسّن إذا كان متاحاً / Apply level to optimizer if available
+    if (optimizer_) {
+        optimizer_->setOptimizationLevel(level);
+    }
+}
+
+/**
+ * الحصول على مستوى التحسين الحالي
+ * Get current optimization level
+ */
+sad::OptimizationLevel LLVMCodeGen::getOptimizationLevel() const {
+    return optimizationLevel_;
+}
+
+/**
+ * تحسين الوحدة الحالية
+ * Optimize current module
+ * 
+ * @details
+ * (AR) يطبق تحسينات LLVM على الوحدة حسب مستوى التحسين المحدد.
+ *      يتم تطبيق تمريرات مختلفة حسب المستوى (O0-O3, Os, Oz).
+ * 
+ * (EN) Applies LLVM optimizations to module based on optimization level.
+ *      Different passes are applied based on level (O0-O3, Os, Oz).
+ */
+bool LLVMCodeGen::optimize() {
+    // التحقق من وجود الوحدة / Check module exists
+    if (!module_) {
+        reportError("Cannot optimize: module is null");
+        return false;
+    }
+    
+    // التحقق من وجود المحسّن / Check optimizer exists
+    if (!optimizer_) {
+        reportError("Cannot optimize: optimizer not initialized");
+        return false;
+    }
+    
+    // إذا كان المستوى O0، لا تحسين / If level is O0, no optimization
+    if (optimizationLevel_ == sad::OptimizationLevel::O0) {
+        return true;  // نجاح بدون تحسين / Success without optimization
+    }
+    
+    // تطبيق التحسينات / Apply optimizations
+    bool success = optimizer_->optimize(module_.get());
+    
+    if (!success) {
+        reportError("Optimization failed");
+        return false;
+    }
+    
+    // التحقق من الوحدة بعد التحسين / Verify module after optimization
+    if (!verify()) {
+        reportError("Module verification failed after optimization");
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * الحصول على إحصائيات التحسين
+ * Get optimization statistics
+ */
+const sad::OptimizationStats& LLVMCodeGen::getOptimizationStats() const {
+    // إرجاع الإحصائيات من المحسّن / Return statistics from optimizer
+    static sad::OptimizationStats emptyStats;  // إحصائيات فارغة للحالة الخطأ / Empty stats for error case
+    
+    if (!optimizer_) {
+        return emptyStats;
+    }
+    
+    return optimizer_->getStats();
+}
+
+/**
+ * طباعة إحصائيات التحسين
+ * Print optimization statistics
+ */
+void LLVMCodeGen::printOptimizationStats() const {
+    // طباعة الإحصائيات من المحسّن / Print statistics from optimizer
+    if (optimizer_) {
+        optimizer_->printStats();
+    }
 }
 
 // ============================================================================

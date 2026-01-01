@@ -220,7 +220,8 @@ set(STDLIB_SOURCES
     src/stdlib/json/json_module.cpp
     src/stdlib/xml/xml_module.cpp
     src/stdlib/crypto/crypto_module.cpp
-    src/stdlib/graphics/graphics_module_raylib.cpp
+    src/stdlib/graphics/graphics_module_stub.cpp # Stub implementation without raylib
+    # src/stdlib/graphics/graphics_module_raylib.cpp # Disabled - raylib not available
 )
 
 # المحسن المتقدم / Advanced Optimizer (Phase 10)
@@ -320,12 +321,12 @@ message(STATUS "═════════════════════�
 message(STATUS "  تكامل نظام الرسومات / Integrating Graphics System")
 message(STATUS "════════════════════════════════════════════════════════")
 
-# دوال الرسومات جاهزة في الكود / Graphics functions ready in code
+# دوال الرسومات معطلة مؤقتاً - raylib غير متوفر / Graphics functions disabled - raylib not available
 # الكود يعمل بدون مكتبات خارجية (stub implementation) / Code works without external libraries
 
-message(STATUS "✓ نظام رسومات متكامل / Graphics system integrated")
-message(STATUS "  - كود التكامل: stdlib/graphics/graphics_module_raylib.cpp")
-message(STATUS "  - 50+ دالة رسومات متاحة / 50+ graphics functions available")
+message(STATUS "⊘ نظام رسومات معطل مؤقتاً (raylib غير متوفر) / Graphics system disabled (raylib not available)")
+message(STATUS "  - ملف مستبعد: stdlib/graphics/graphics_module_raylib.cpp / Excluded file")
+message(STATUS "  - لتفعيل الرسومات: vcpkg install raylib / To enable graphics: vcpkg install raylib")
 message(STATUS "════════════════════════════════════════════════════════")
 # ======================================================================
 
@@ -1265,6 +1266,14 @@ message(STATUS "نوع البناء / Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "المترجم / Compiler: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "سجلات التنقيح / Debug Logging: ${ENABLE_DEBUG_LOGGING}")
 message(STATUS "==============================================")
+
+# ======================================================================
+# Type Checker Tests / اختبارات مدقق الأنواع
+# ======================================================================
+if(BUILD_TESTS)
+    message(STATUS "إضافة اختبارات Type Checker / Adding Type Checker tests")
+    add_subdirectory(compiler/frontend/type_checker/tests)
+endif()
 
 # Package Manager block ends here
 endif()

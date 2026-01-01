@@ -21,6 +21,7 @@
 
 #include <gtest/gtest.h>
 #include "type_context.h"
+#include "typed_ast.h"
 
 using namespace Sad::TypeChecker;
 
@@ -145,7 +146,7 @@ TEST(ScopeTest, MultipleSymbols) {
 TEST(EnvironmentTest, CreateEnvironment) {
     Environment env;
     
-    EXPECT_EQ(env.getCurrentScopeDepth(), 0);
+    EXPECT_EQ(env.getScopeCount(), 0);
 }
 
 /**
@@ -155,19 +156,19 @@ TEST(EnvironmentTest, PushPopScopes) {
     Environment env;
     
     env.pushScope(Scope::Type::GLOBAL, "global");
-    EXPECT_EQ(env.getCurrentScopeDepth(), 1);
+    EXPECT_EQ(env.getScopeCount(), 1);
     
     env.pushScope(Scope::Type::FUNCTION, "main");
-    EXPECT_EQ(env.getCurrentScopeDepth(), 2);
+    EXPECT_EQ(env.getScopeCount(), 2);
     
     env.pushScope(Scope::Type::BLOCK, "block1");
-    EXPECT_EQ(env.getCurrentScopeDepth(), 3);
+    EXPECT_EQ(env.getScopeCount(), 3);
     
     env.popScope();
-    EXPECT_EQ(env.getCurrentScopeDepth(), 2);
+    EXPECT_EQ(env.getScopeCount(), 2);
     
     env.popScope();
-    EXPECT_EQ(env.getCurrentScopeDepth(), 1);
+    EXPECT_EQ(env.getScopeCount(), 1);
 }
 
 /**
@@ -178,9 +179,8 @@ TEST(EnvironmentTest, AddSymbolToCurrentScope) {
     env.pushScope(Scope::Type::GLOBAL, "global");
     
     auto intType = TypeFactory::getIntType();
-    auto symbol = std::make_shared<Symbol>("x", intType, Symbol::Kind::VARIABLE);
     
-    env.addSymbol("x", symbol);
+    env.addSymbol("x", intType, Symbol::Kind::VARIABLE);
     
     auto found = env.lookupSymbol("x");
     EXPECT_NE(found, nullptr);
@@ -198,13 +198,11 @@ TEST(EnvironmentTest, LookupInMultipleScopes) {
     
     // نطاق عام / Global scope
     env.pushScope(Scope::Type::GLOBAL, "global");
-    env.addSymbol("globalVar", 
-        std::make_shared<Symbol>("globalVar", intType, Symbol::Kind::VARIABLE));
+    env.addSymbol("globalVar", intType, Symbol::Kind::VARIABLE);
     
     // نطاق دالة / Function scope
     env.pushScope(Scope::Type::FUNCTION, "main");
-    env.addSymbol("localVar", 
-        std::make_shared<Symbol>("localVar", stringType, Symbol::Kind::VARIABLE));
+    env.addSymbol("localVar", stringType, Symbol::Kind::VARIABLE);
     
     // يجب أن نجد كلاهما / Should find both
     EXPECT_NE(env.lookupSymbol("globalVar"), nullptr);
@@ -228,13 +226,11 @@ TEST(EnvironmentTest, VariableShadowing) {
     
     // نطاق خارجي / Outer scope
     env.pushScope(Scope::Type::GLOBAL, "global");
-    env.addSymbol("x", 
-        std::make_shared<Symbol>("x", intType, Symbol::Kind::VARIABLE));
+    env.addSymbol("x", intType, Symbol::Kind::VARIABLE);
     
     // نطاق داخلي مع متغير بنفس الاسم / Inner scope with same name
     env.pushScope(Scope::Type::BLOCK, "block1");
-    env.addSymbol("x", 
-        std::make_shared<Symbol>("x", stringType, Symbol::Kind::VARIABLE));
+    env.addSymbol("x", stringType, Symbol::Kind::VARIABLE);
     
     // يجب أن نجد النوع الداخلي / Should find inner type
     auto found = env.lookupSymbol("x");
@@ -316,20 +312,16 @@ TEST(TypeContextIntegrationTest, CompleteScenario) {
     
     // نطاق عام / Global scope
     env->pushScope(Scope::Type::GLOBAL, "global");
-    env->addSymbol("PI", 
-        std::make_shared<Symbol>("PI", floatType, Symbol::Kind::VARIABLE, false));
+    env->addSymbol("PI", floatType, Symbol::Kind::VARIABLE);
     
     // نطاق دالة / Function scope
     env->pushScope(Scope::Type::FUNCTION, "calculate");
-    env->addSymbol("x", 
-        std::make_shared<Symbol>("x", intType, Symbol::Kind::PARAMETER));
-    env->addSymbol("y", 
-        std::make_shared<Symbol>("y", intType, Symbol::Kind::PARAMETER));
+    env->addSymbol("x", intType, Symbol::Kind::PARAMETER);
+    env->addSymbol("y", intType, Symbol::Kind::PARAMETER);
     
     // نطاق كتلة / Block scope
     env->pushScope(Scope::Type::BLOCK, "if_block");
-    env->addSymbol("result", 
-        std::make_shared<Symbol>("result", stringType, Symbol::Kind::VARIABLE));
+    env->addSymbol("result", stringType, Symbol::Kind::VARIABLE);
     
     // التحقق من البحث / Verify lookups
     EXPECT_NE(env->lookupSymbol("PI"), nullptr);
@@ -337,7 +329,7 @@ TEST(TypeContextIntegrationTest, CompleteScenario) {
     EXPECT_NE(env->lookupSymbol("y"), nullptr);
     EXPECT_NE(env->lookupSymbol("result"), nullptr);
     
-    EXPECT_EQ(env->getCurrentScopeDepth(), 3);
+    EXPECT_EQ(env->getScopeCount(), 3);
     
     // سحب النطاقات / Pop scopes
     env->popScope(); // block
@@ -360,24 +352,19 @@ TEST(TypeContextIntegrationTest, ComplexNestedScopes) {
     
     // Global → Function → Block → Block → Block
     env->pushScope(Scope::Type::GLOBAL, "global");
-    env->addSymbol("level0", 
-        std::make_shared<Symbol>("level0", intType, Symbol::Kind::VARIABLE));
+    env->addSymbol("level0", intType, Symbol::Kind::VARIABLE);
     
     env->pushScope(Scope::Type::FUNCTION, "func");
-    env->addSymbol("level1", 
-        std::make_shared<Symbol>("level1", intType, Symbol::Kind::VARIABLE));
+    env->addSymbol("level1", intType, Symbol::Kind::VARIABLE);
     
     env->pushScope(Scope::Type::BLOCK, "block1");
-    env->addSymbol("level2", 
-        std::make_shared<Symbol>("level2", intType, Symbol::Kind::VARIABLE));
+    env->addSymbol("level2", intType, Symbol::Kind::VARIABLE);
     
     env->pushScope(Scope::Type::BLOCK, "block2");
-    env->addSymbol("level3", 
-        std::make_shared<Symbol>("level3", intType, Symbol::Kind::VARIABLE));
+    env->addSymbol("level3", intType, Symbol::Kind::VARIABLE);
     
     env->pushScope(Scope::Type::BLOCK, "block3");
-    env->addSymbol("level4", 
-        std::make_shared<Symbol>("level4", intType, Symbol::Kind::VARIABLE));
+    env->addSymbol("level4", intType, Symbol::Kind::VARIABLE);
     
     // يجب أن نجد جميع المستويات / Should find all levels
     EXPECT_NE(env->lookupSymbol("level0"), nullptr);
@@ -386,7 +373,7 @@ TEST(TypeContextIntegrationTest, ComplexNestedScopes) {
     EXPECT_NE(env->lookupSymbol("level3"), nullptr);
     EXPECT_NE(env->lookupSymbol("level4"), nullptr);
     
-    EXPECT_EQ(env->getCurrentScopeDepth(), 5);
+    EXPECT_EQ(env->getScopeCount(), 5);
 }
 
 // ============================================================================

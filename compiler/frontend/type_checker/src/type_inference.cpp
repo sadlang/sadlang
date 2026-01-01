@@ -131,67 +131,83 @@ std::string TypeSubstitution::toString() const {
 /**
  * استنتاج نوع تعبير / Infer expression type
  */
-std::shared_ptr<Type> TypeInference::inferExpr(AST::Expr* expr) {
+std::shared_ptr<Type> TypeInference::inferExpr(AST::Expression* expr) {
     if (!expr) {
         return TypeFactory::getVoidType(); // تعبير null / null expression
     }
     
-    // حسب نوع التعبير / Based on expression type
-    switch (expr->getKind()) {
-        case AST::ASTNode::Kind::IntegerLiteral:
-        case AST::ASTNode::Kind::FloatLiteral:
-        case AST::ASTNode::Kind::StringLiteral:
-        case AST::ASTNode::Kind::BoolLiteral:
-            return inferLiteral(expr);
-            
-        case AST::ASTNode::Kind::BinaryExpr:
-            return inferBinaryOp(static_cast<AST::BinaryExpr*>(expr));
-            
-        case AST::ASTNode::Kind::UnaryExpr:
-            return inferUnaryOp(static_cast<AST::UnaryExpr*>(expr));
-            
-        case AST::ASTNode::Kind::Identifier:
-            return inferVariable(static_cast<AST::IdentifierExpr*>(expr));
-            
-        case AST::ASTNode::Kind::CallExpr:
-            return inferFunctionCall(static_cast<AST::CallExpr*>(expr));
-            
-        case AST::ASTNode::Kind::MemberExpr:
-            return inferMemberAccess(static_cast<AST::MemberExpr*>(expr));
-            
-        case AST::ASTNode::Kind::IndexExpr:
-            return inferArrayAccess(static_cast<AST::IndexExpr*>(expr));
-            
-        case AST::ASTNode::Kind::LambdaExpr:
-            return inferLambda(static_cast<AST::LambdaExpr*>(expr));
-            
-        default:
-            // نوع غير معروف / Unknown type
-            context_->addWarning("نوع تعبير غير مدعوم في Type Inference: " + std::to_string((int)expr->getKind()));
-            return freshTypeVariable();
+    // حسب نوع التعبير / Based on expression type using dynamic_cast
+    
+    // Check for literals
+    if (auto* litExpr = dynamic_cast<AST::LiteralExpr*>(expr)) {
+        return inferLiteral(expr);
     }
+    
+    // Binary expressions
+    if (auto* binExpr = dynamic_cast<AST::BinaryExpr*>(expr)) {
+        return inferBinaryOp(binExpr);
+    }
+    
+    // Unary expressions
+    if (auto* unaryExpr = dynamic_cast<AST::UnaryExpr*>(expr)) {
+        return inferUnaryOp(unaryExpr);
+    }
+    
+    // Variable references
+    if (auto* varExpr = dynamic_cast<AST::VariableExpr*>(expr)) {
+        return inferVariable(varExpr);
+    }
+    
+    // Function calls
+    if (auto* callExpr = dynamic_cast<AST::CallExpr*>(expr)) {
+        return inferFunctionCall(callExpr);
+    }
+    
+    // Member access
+    if (auto* memberExpr = dynamic_cast<AST::MemberExpr*>(expr)) {
+        return inferMemberAccess(memberExpr);
+    }
+    
+    // Array/index access
+    if (auto* indexExpr = dynamic_cast<AST::IndexExpr*>(expr)) {
+        return inferArrayAccess(indexExpr);
+    }
+    
+    // Lambda expressions
+    if (auto* lambdaExpr = dynamic_cast<AST::LambdaExpr*>(expr)) {
+        return inferLambda(lambdaExpr);
+    }
+    
+    // نوع غير معروف / Unknown type
+    context_->addWarning("نوع تعبير غير مدعوم في Type Inference");
+    return freshTypeVariable();
 }
 
 /**
  * استنتاج نوع حرفي / Infer literal type
  */
-std::shared_ptr<Type> TypeInference::inferLiteral(AST::Expr* expr) {
+std::shared_ptr<Type> TypeInference::inferLiteral(AST::Expression* expr) {
     // الحرفيات لها أنواع مباشرة / Literals have direct types
-    switch (expr->getKind()) {
-        case AST::ASTNode::Kind::IntegerLiteral:
-            return TypeFactory::getIntType();
-            
-        case AST::ASTNode::Kind::FloatLiteral:
-            return TypeFactory::getFloatType();
-            
-        case AST::ASTNode::Kind::StringLiteral:
-            return TypeFactory::getStringType();
-            
-        case AST::ASTNode::Kind::BoolLiteral:
-            return TypeFactory::getBoolType();
-            
-        default:
-            return TypeFactory::getVoidType();
+    auto* litExpr = dynamic_cast<AST::LiteralExpr*>(expr);
+    if (!litExpr) {
+        return TypeFactory::getVoidType();
+    }
+    
+    // Check token type
+    auto tokenType = litExpr->token.getType();
+    if (tokenType == TokenType::INTEGER) {
+        return TypeFactory::getIntType();
+    } else if (tokenType == TokenType::FLOAT) {
+        return TypeFactory::getFloatType();
+    } else if (tokenType == TokenType::STRING_LITERAL ||
+               tokenType == TokenType::STRING_RAW ||
+               tokenType == TokenType::STRING_FSTRING) {
+        return TypeFactory::getStringType();
+    } else if (tokenType == TokenType::LITERAL_TRUE ||
+               tokenType == TokenType::LITERAL_FALSE) {
+        return TypeFactory::getBoolType();
+    } else {
+        return TypeFactory::getVoidType();
     }
 }
 
@@ -204,11 +220,11 @@ std::shared_ptr<Type> TypeInference::inferBinaryOp(AST::BinaryExpr* expr) {
     }
     
     // استنتاج نوع اليمين واليسار / Infer left and right types
-    auto leftType = inferExpr(expr->getLeft());
-    auto rightType = inferExpr(expr->getRight());
+    auto leftType = inferExpr(expr->left.get());
+    auto rightType = inferExpr(expr->right.get());
     
     // حسب نوع العملية / Based on operation type
-    auto op = expr->getOperator();
+    auto op = Lexer::Token::typeToString(expr->op);
     
     // عمليات حسابية: +, -, *, /, % / Arithmetic operations
     if (op == "+" || op == "-" || op == "*" || op == "/" || op == "%") {
@@ -284,9 +300,9 @@ std::shared_ptr<Type> TypeInference::inferUnaryOp(AST::UnaryExpr* expr) {
     }
     
     // استنتاج نوع المعامل / Infer operand type
-    auto operandType = inferExpr(expr->getOperand());
+    auto operandType = inferExpr(expr->operand.get());
     
-    auto op = expr->getOperator();
+    auto op = Lexer::Token::typeToString(expr->op);
     
     // عملية النفي المنطقي: !, not / Logical negation
     if (op == "!" || op == "not") {
@@ -341,12 +357,12 @@ std::shared_ptr<Type> TypeInference::inferUnaryOp(AST::UnaryExpr* expr) {
 /**
  * استنتاج نوع متغير / Infer variable type
  */
-std::shared_ptr<Type> TypeInference::inferVariable(AST::IdentifierExpr* expr) {
+std::shared_ptr<Type> TypeInference::inferVariable(AST::VariableExpr* expr) {
     if (!expr) {
         return freshTypeVariable();
     }
     
-    auto varName = expr->getName();
+    auto varName = expr->name;
     
     // البحث عن المتغير في البيئة / Look up variable in environment
     auto symbol = context_->getEnvironment()->lookupSymbol(varName);
@@ -368,12 +384,12 @@ std::shared_ptr<Type> TypeInference::inferFunctionCall(AST::CallExpr* expr) {
     }
     
     // استنتاج نوع الدالة / Infer function type
-    auto funcType = inferExpr(expr->getCallee());
+    auto funcType = inferExpr(expr->callee.get());
     
     // استنتاج أنواع المعاملات / Infer argument types
     std::vector<std::shared_ptr<Type>> argTypes;
-    for (auto& arg : expr->getArguments()) {
-        argTypes.push_back(inferExpr(arg));
+    for (auto& arg : expr->arguments) {
+        argTypes.push_back(inferExpr(arg.get()));
     }
     
     // إنشاء متغير نوع للنتيجة / Create type variable for result
@@ -402,9 +418,9 @@ std::shared_ptr<Type> TypeInference::inferMemberAccess(AST::MemberExpr* expr) {
     }
     
     // استنتاج نوع الكائن / Infer object type
-    auto objectType = inferExpr(expr->getObject());
+    auto objectType = inferExpr(expr->object.get());
     
-    auto memberName = expr->getMemberName();
+    auto memberName = expr->member;
     
     // إذا كان الكائن من نوع ClassType / If object is ClassType
     auto classType = std::dynamic_pointer_cast<ClassType>(objectType);
@@ -444,10 +460,10 @@ std::shared_ptr<Type> TypeInference::inferArrayAccess(AST::IndexExpr* expr) {
     }
     
     // استنتاج نوع المصفوفة / Infer array type
-    auto arrayType = inferExpr(expr->getObject());
+    auto arrayType = inferExpr(expr->object.get());
     
     // استنتاج نوع الفهرس / Infer index type
-    auto indexType = inferExpr(expr->getIndex());
+    auto indexType = inferExpr(expr->index.get());
     
     // الفهرس يجب أن يكون int / Index must be int
     constraints_.push_back(Constraint(
@@ -502,7 +518,7 @@ std::shared_ptr<Type> TypeInference::inferLambda(AST::LambdaExpr* expr) {
     
     // إنشاء متغيرات أنواع للمعاملات / Create type variables for parameters
     std::vector<std::shared_ptr<Type>> paramTypes;
-    for (const auto& param : expr->getParameters()) {
+    for (const auto& param : expr->parameters) {
         auto paramType = freshTypeVariable();
         paramTypes.push_back(paramType);
         
@@ -519,8 +535,8 @@ std::shared_ptr<Type> TypeInference::inferLambda(AST::LambdaExpr* expr) {
     
     // استنتاج نوع جسم الدالة / Infer body type
     std::shared_ptr<Type> returnType;
-    if (expr->getBody()) {
-        returnType = inferExpr(expr->getBody());
+    if (expr->body) {
+        returnType = inferExpr(expr->body.get());
     } else {
         returnType = TypeFactory::getVoidType();
     }

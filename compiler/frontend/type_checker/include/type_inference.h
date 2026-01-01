@@ -43,6 +43,8 @@
 #include "typed_ast.h"
 #include "type_context.h"
 #include "../../../../include/parser/ast/ast_node.h"
+#include "../../../../include/parser/ast/expressions.h"
+#include "../../../../include/parser/ast/statements.h"
 
 namespace Sad {
 namespace TypeChecker {
@@ -424,7 +426,7 @@ public:
      * @param expr التعبير / Expression
      * @return النوع المُستنتج / Inferred type
      */
-    std::shared_ptr<Type> inferExpr(AST::Expr* expr);
+    std::shared_ptr<Type> inferExpr(AST::Expression* expr);
     
     /**
      * استنتاج نوع جملة / Infer statement type
@@ -432,15 +434,15 @@ public:
      * @param stmt الجملة / Statement
      * @return النوع المُستنتج / Inferred type
      */
-    std::shared_ptr<Type> inferStmt(AST::Stmt* stmt);
+    std::shared_ptr<Type> inferStmt(AST::Statement* stmt);
     
     /**
      * استنتاج نوع تصريح / Infer declaration type
      * 
-     * @param decl التصريح / Declaration
+     * @param stmt التصريح / Declaration statement
      * @return النوع المُستنتج / Inferred type
      */
-    std::shared_ptr<Type> inferDecl(AST::Decl* decl);
+    std::shared_ptr<Type> inferDecl(AST::Statement* stmt);
     
     /**
      * إنشاء متغير نوع جديد / Create fresh type variable
@@ -455,7 +457,7 @@ public:
      * @param expr التعبير / Expression
      * @param expectedType النوع المتوقع / Expected type
      */
-    void generateConstraints(AST::Expr* expr, std::shared_ptr<Type> expectedType);
+    void generateConstraints(AST::Expression* expr, std::shared_ptr<Type> expectedType);
     
     /**
      * حل القيود (Unification) / Solve constraints (Unification)
@@ -506,10 +508,10 @@ public:
 
 private:
     // دوال مساعدة للأنواع المختلفة من التعابير / Helper functions for different expression types
-    std::shared_ptr<Type> inferLiteral(AST::Expr* expr);
+    std::shared_ptr<Type> inferLiteral(AST::Expression* expr);
     std::shared_ptr<Type> inferBinaryOp(AST::BinaryExpr* expr);
     std::shared_ptr<Type> inferUnaryOp(AST::UnaryExpr* expr);
-    std::shared_ptr<Type> inferVariable(AST::IdentifierExpr* expr);
+    std::shared_ptr<Type> inferVariable(AST::VariableExpr* expr);
     std::shared_ptr<Type> inferFunctionCall(AST::CallExpr* expr);
     std::shared_ptr<Type> inferMemberAccess(AST::MemberExpr* expr);
     std::shared_ptr<Type> inferArrayAccess(AST::IndexExpr* expr);

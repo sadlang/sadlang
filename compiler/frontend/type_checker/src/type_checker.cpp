@@ -214,7 +214,7 @@ std::shared_ptr<Type> TypeChecker::checkVariable(AST::VariableExpr* expr) {
             .location(expr->position)
             .addSuggestion("هيِّئ المتغير بقيمة قبل استخدامه", expr->position)
             .build();
-        reporter_->addWarning(warning);
+        reporter_->addWarning(warning.code, warning.messageAr, warning.messageEn, warning.primaryLocation);
     }
     
     return symbol->getType();
@@ -470,7 +470,7 @@ std::shared_ptr<Type> TypeChecker::checkFunctionCall(AST::CallExpr* expr) {
     
     // التحقق من عدد المعاملات / Check argument count
     auto expectedParams = functionType->getParamTypes();
-    auto actualArgs = expr->arguments;
+    const auto& actualArgs = expr->arguments;  // استخدام reference لتجنب نسخ unique_ptr
     
     if (!functionType->isVariadic() && actualArgs.size() != expectedParams.size()) {
         std::stringstream ss;

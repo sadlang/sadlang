@@ -70,6 +70,13 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
 
+// Sad LLVM Components (مكونات Sad LLVM)
+#include "llvm_type_mapper.h"
+#include "llvm_control_flow.h"
+#include "llvm_expression_builder.h"
+#include "llvm_memory_manager.h"
+#include "llvm_optimizer.h"  // إضافة محسّن LLVM / Add LLVM optimizer
+
 namespace Sad {
 namespace LLVM {
 
@@ -203,6 +210,71 @@ public:
      * @return true إذا كانت الوحدة صحيحة / true if module is valid
      */
     bool verify() const;
+    
+    // ========================================================================
+    // Optimization / التحسين
+    // ========================================================================
+    
+    /**
+     * تعيين مستوى التحسين
+     * Set optimization level
+     * 
+     * @param level مستوى التحسين (O0, O1, O2, O3, Os, Oz)
+     */
+    void setOptimizationLevel(sad::OptimizationLevel level);
+    
+    /**
+     * الحصول على مستوى التحسين الحالي
+     * Get current optimization level
+     * 
+     * @return مستوى التحسين / Optimization level
+     */
+    sad::OptimizationLevel getOptimizationLevel() const;
+    
+    /**
+     * تحسين الوحدة الحالية
+     * Optimize current module
+     * 
+     * @return true إذا نجح التحسين / true if optimization succeeded
+     * 
+     * @details
+     * (AR) يطبق تحسينات LLVM حسب المستوى المحدد:
+     *      - O0: بدون تحسين (للتنقيح)
+     *      - O1: تحسينات أساسية
+     *      - O2: تحسينات قياسية (موصى به)
+     *      - O3: تحسينات عدوانية (أقصى أداء)
+     *      - Os/Oz: تحسين للحجم
+     * 
+     * (EN) Applies LLVM optimizations based on level:
+     *      - O0: No optimization (debug)
+     *      - O1: Basic optimizations
+     *      - O2: Standard optimizations (recommended)
+     *      - O3: Aggressive optimizations (max performance)
+     *      - Os/Oz: Size optimizations
+     */
+    bool optimize();
+    
+    /**
+     * تمكين/تعطيل التحسين التلقائي بعد التوليد
+     * Enable/disable automatic optimization after generation
+     * 
+     * @param enable true للتمكين / true to enable
+     */
+    void setAutoOptimize(bool enable) { autoOptimize_ = enable; }
+    
+    /**
+     * الحصول على إحصائيات التحسين
+     * Get optimization statistics
+     * 
+     * @return إحصائيات التحسين / Optimization statistics
+     */
+    const sad::OptimizationStats& getOptimizationStats() const;
+    
+    /**
+     * طباعة إحصائيات التحسين
+     * Print optimization statistics
+     */
+    void printOptimizationStats() const;
     
     // ========================================================================
     // Module Emission / إصدار الوحدة
@@ -521,6 +593,25 @@ private:
     
     // Code Generation Context (سياق التوليد)
     CodeGenContext context_info_;
+    
+    // Type Mapper (محول الأنواع) - NEW
+    std::unique_ptr<LLVMTypeMapper> typeMapper_;
+    
+    // Control Flow Manager (مدير تدفق التحكم) - NEW
+    std::unique_ptr<LLVMControlFlow> controlFlow_;
+    
+    // Expression Builder (بناء التعابير) - NEW
+    std::unique_ptr<LLVMExpressionBuilder> expressionBuilder_;
+    
+    // Memory Manager (مدير الذاكرة) - NEW
+    std::unique_ptr<LLVMMemoryManager> memoryManager_;
+    
+    // Optimizer (محسّن LLVM) - NEW Phase 1.1.3
+    std::unique_ptr<sad::LLVMOptimizer> optimizer_;
+    
+    // Optimization settings (إعدادات التحسين)
+    sad::OptimizationLevel optimizationLevel_;  // مستوى التحسين / Optimization level
+    bool autoOptimize_;                         // تحسين تلقائي / Auto optimize
     
     // Error tracking (تتبع الأخطاء)
     bool hasErrors_;

@@ -1,10 +1,11 @@
 #include <gtest/gtest.h>
 #include "optimizer/advanced_optimizer.h"
-#include "parser/parser.h"
-#include "lexer/lexer.h"
+#include "parser/parser_core.h"
+#include "lexer/lexer_core.h"
 #include <memory>
 
-using namespace sad;
+using namespace Sad::Lexer;
+using namespace Sad::Parser;
 
 class AdvancedOptimizerTest : public ::testing::Test {
 protected:
@@ -13,9 +14,9 @@ protected:
     }
 
     std::shared_ptr<ASTNode> parseCode(const std::string& code) {
-        Lexer lexer(code);
+        LexerCore lexer(code);
         auto tokens = lexer.tokenize();
-        Parser parser(tokens);
+        ParserCore parser(tokens);
         return parser.parse();
     }
 

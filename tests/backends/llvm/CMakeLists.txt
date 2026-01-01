@@ -73,6 +73,13 @@ set(COMPONENT_SOURCES
     ${PROJECT_ROOT}/compiler/backends/llvm/llvm_debug.cpp
     ${PROJECT_ROOT}/compiler/backends/llvm/llvm_runtime.cpp
     ${PROJECT_ROOT}/compiler/backends/llvm/llvm_codegen.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_type_mapper.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_control_flow.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_expression_builder.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_array_support.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_dict_support.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_class_support.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_memory_manager.cpp
 )
 
 # إنشاء برنامج الاختبار / Create test executable

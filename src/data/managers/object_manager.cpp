@@ -25,6 +25,11 @@ namespace Data {
 
 ObjectManager* ObjectManager::instance_ = nullptr;
 
+ObjectManager::ObjectManager() {
+    // (AR) المنشئ الخاص للنمط المفرد
+    // (EN) Private constructor for singleton pattern
+}
+
 ObjectManager* ObjectManager::getInstance() {
     // (AR) الحصول على النسخة الوحيدة من المدير
     // (EN) Get singleton instance of manager
