@@ -57,12 +57,14 @@ public:
     
     // زيادة (للعداد) / Increment (for counter)
     void increment(double delta = 1.0) {
-        value_.fetch_add(delta, std::memory_order_relaxed);
+        std::lock_guard<std::mutex> lock(mutex_);
+        value_ += delta;
     }
     
     // تعيين (للقياس) / Set (for gauge)
     void set(double value) {
-        value_.store(value, std::memory_order_relaxed);
+        std::lock_guard<std::mutex> lock(mutex_);
+        value_ = value;
     }
     
     // تسجيل (للرسم البياني والمؤقت) / Record (for histogram/timer)
@@ -87,7 +89,8 @@ public:
     
     // الحصول على القيمة الحالية / Get current value
     double getValue() const {
-        return value_.load(std::memory_order_relaxed);
+        std::lock_guard<std::mutex> lock(mutex_);
+        return value_;
     }
     
     // الحصول على العدد / Get count
@@ -162,7 +165,7 @@ private:
     MetricType type_;                // نوع المقياس / Metric type
     std::string description_;        // الوصف / Description
     
-    std::atomic<double> value_;      // القيمة الحالية / Current value
+    double value_;                   // القيمة الحالية / Current value
     
     // إحصائيات (محمية بـ mutex) / Statistics (protected by mutex)
     mutable std::mutex mutex_;

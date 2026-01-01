@@ -10,6 +10,9 @@ add_library(sad_jit STATIC
     src/hot_path_detector.cpp
     src/jit_engine.cpp
     src/jit_bridge.cpp
+    src/jit_profiler.cpp
+    src/jit_metrics.cpp
+    src/jit_hash.cpp
 )
 
 target_include_directories(sad_jit PUBLIC
@@ -37,4 +40,25 @@ if(BUILD_TESTS)
     )
     target_link_libraries(test_jit_bridge PRIVATE sad_jit)
     add_test(NAME JITBridgeTests COMMAND test_jit_bridge)
+    
+    # JIT Profiler Tests
+    add_executable(test_jit_profiler
+        tests/test_jit_profiler.cpp
+    )
+    target_link_libraries(test_jit_profiler PRIVATE sad_jit)
+    add_test(NAME JITProfilerTests COMMAND test_jit_profiler)
+    
+    # JIT Metrics Tests
+    add_executable(test_jit_metrics
+        tests/test_jit_metrics.cpp
+    )
+    target_link_libraries(test_jit_metrics PRIVATE sad_jit)
+    add_test(NAME JITMetricsTests COMMAND test_jit_metrics)
+    
+    # JIT Hash Tests
+    add_executable(test_jit_hash
+        tests/test_jit_hash.cpp
+    )
+    target_link_libraries(test_jit_hash PRIVATE sad_jit)
+    add_test(NAME JITHashTests COMMAND test_jit_hash)
 endif()

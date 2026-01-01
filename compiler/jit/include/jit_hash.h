@@ -157,16 +157,19 @@ public:
         explicit Hasher(Hash64 seed = 0);
         
         void update(const void* data, size_t length);
-        void update(const std::string& str);
+        void update(const std::string& str) {
+            update(str.data(), str.size());
+        }
         
-        Hash64 finalize();
-        void reset(Hash64 seed = 0);
+        Hash64 finalize() const;
+        void reset();
         
     private:
+        size_t total_length_;
         Hash64 seed_;
         Hash64 v1_, v2_, v3_, v4_;
-        std::vector<uint8_t> buffer_;
-        size_t total_length_;
+        std::array<uint8_t, 32> buffer_;
+        size_t buffer_size_;
     };
 
 private:
@@ -270,9 +273,10 @@ public:
     private:
         uint32_t state_[8];
         uint64_t count_;
-        uint8_t buffer_[64];
+        std::array<uint8_t, 64> buffer_;
+        size_t buffer_size_;
         
-        void transform(const uint8_t block[64]);
+        void processBlock(const uint8_t* block);
     };
     
     // ========================================
