@@ -18,6 +18,7 @@
 #include <llvm/Transforms/Scalar/LICM.h>
 #include <llvm/Transforms/Scalar/LoopUnrollPass.h>
 #include <llvm/Transforms/Scalar/TailRecursionElimination.h>
+#include <llvm/Transforms/Utils/LoopUtils.h>  // لـ createFunctionToLoopPassAdaptor / For createFunctionToLoopPassAdaptor
 #include <llvm/Transforms/IPO/Inliner.h>
 #include <llvm/Transforms/IPO/GlobalDCE.h>
 #include <llvm/Transforms/IPO/DeadArgumentElimination.h>
@@ -328,6 +329,14 @@ void LLVMOptimizer::addBasicOptimizations() {
     if (isPassEnabled("dce")) {
         function_pm_->addPass(llvm::DCEPass());
     }
+    
+    // Mem2Reg: ترقية الذاكرة إلى سجلات / Promote memory to registers
+    // هذا Pass مهم جداً لتحسين الأداء / This pass is critical for performance
+    if (isPassEnabled("mem2reg")) {
+        // Mem2Reg مُضمّن في SROA بشكل أساسي / Mem2Reg is essentially included in SROA
+        // لكن نضيف SimplifyCFG مرة أخرى للتنظيف / But we add SimplifyCFG again for cleanup
+        function_pm_->addPass(llvm::SimplifyCFGPass());
+    }
 }
 
 /**
@@ -352,8 +361,17 @@ void LLVMOptimizer::addStandardOptimizations() {
     
     // LICM: نقل الكود الثابت خارج الحلقات / Loop invariant code motion
     if (isPassEnabled("licm")) {
-        // LICM requires loop analysis, added through pass builder
-        // function_pm_->addPass(llvm::LICMPass());
+        // LICM يحتاج loop analysis manager - نستخدم LoopPassManager / LICM needs loop analysis manager
+        // يتم إضافته عبر pass builder الذي يربط التحليلات تلقائياً / Added via pass builder with automatic analysis linking
+        
+        // إنشاء LoopPassManager للحلقات / Create LoopPassManager for loops
+        llvm::LoopPassManager loop_pm;
+        
+        // إضافة LICM للحلقات / Add LICM for loops
+        loop_pm.addPass(llvm::LICMPass(llvm::LICMOptions()));
+        
+        // إضافة LoopPassManager إلى FunctionPassManager / Add LoopPassManager to FunctionPassManager
+        function_pm_->addPass(llvm::createFunctionToLoopPassAdaptor(std::move(loop_pm)));
     }
     
     // إعادة تشغيل InstCombine بعد GVN / Re-run InstCombine after GVN
@@ -380,8 +398,22 @@ void LLVMOptimizer::addAggressiveOptimizations() {
     
     // Loop Unroll: فك الحلقات / Unroll loops
     if (isPassEnabled("loop-unroll")) {
-        // Loop unrolling with full unrolling enabled
-        // function_pm_->addPass(llvm::LoopUnrollPass());
+        // فك الحلقات مع تفعيل الفك الكامل / Loop unrolling with full unrolling enabled
+        
+        // تكوين خيارات فك الحلقات / Configure loop unroll options
+        llvm::LoopUnrollOptions unroll_opts;
+        unroll_opts.setPartial(true);        // السماح بالفك الجزئي / Allow partial unrolling
+        unroll_opts.setRuntime(true);        // فك الحلقات runtime / Runtime unrolling
+        unroll_opts.setUpperBound(false);    // بدون حد أعلى صارم / No strict upper bound
+        
+        // إنشاء LoopPassManager / Create LoopPassManager
+        llvm::LoopPassManager loop_pm;
+        
+        // إضافة LoopUnroll / Add LoopUnroll
+        loop_pm.addPass(llvm::LoopUnrollPass(unroll_opts));
+        
+        // إضافة إلى FunctionPassManager / Add to FunctionPassManager
+        function_pm_->addPass(llvm::createFunctionToLoopPassAdaptor(std::move(loop_pm)));
     }
     
     // TailCallElim: تحسين استدعاء الذيل / Tail call elimination
