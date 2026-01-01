@@ -2,14 +2,12 @@
 // jit_hash.cpp - تنفيذ خوارزميات Hash لـ JIT (Hash Algorithms Implementation)
 // Fast and Secure Hash Functions for Code Caching - Implementation
 // ============================================================================
-// الغرض: تنفيذ خوارزميات hash سريعة وآمنة
-// Purpose: Implement fast and secure hash algorithms
-// ============================================================================
 
 #include "jit_hash.h"
-#include <cstring>       // لنسخ الذاكرة / For memory copy
-#include <sstream>       // للنصوص / For strings
-#include <iomanip>       // للتنسيق / For formatting
+#include <cstring>       // memcpy
+#include <algorithm>     // min
+#include <sstream>       // ostringstream
+#include <iomanip>       // setw, setfill
 
 namespace Sad {
 namespace JIT {
@@ -18,67 +16,28 @@ namespace JIT {
 // دوال مساعدة عامة / General Helper Functions
 // ============================================================================
 
-// قراءة 64-bit little-endian / Read 64-bit little-endian
-static inline Hash64 read64le(const void* ptr) {
-    Hash64 value;
+static inline uint64_t read64le(const void* ptr) {
+    uint64_t value;
     std::memcpy(&value, ptr, sizeof(value));
-#ifdef _WIN32
     return value;  // Windows is little-endian
-#else
-    uint32_t test = 1;
-    if (*(uint8_t*)&test == 1) {
-        return value;  // Little-endian
-    } else {
-        // Big-endian, need to swap
-        return ((value & 0x00000000000000FFULL) << 56) |
-               ((value & 0x000000000000FF00ULL) << 40) |
-               ((value & 0x0000000000FF0000ULL) << 24) |
-               ((value & 0x00000000FF000000ULL) <<  8) |
-               ((value & 0x000000FF00000000ULL) >>  8) |
-               ((value & 0x0000FF0000000000ULL) >> 24) |
-               ((value & 0x00FF000000000000ULL) >> 40) |
-               ((value & 0xFF00000000000000ULL) >> 56);
-    }
-#endif
 }
 
-// قراءة 32-bit little-endian / Read 32-bit little-endian
-static inline Hash32 read32le(const void* ptr) {
-    Hash32 value;
+static inline uint32_t read32le(const void* ptr) {
+    uint32_t value;
     std::memcpy(&value, ptr, sizeof(value));
-#ifdef _WIN32
     return value;
-#else
-    uint32_t test = 1;
-    if (*(uint8_t*)&test == 1) {
-        return value;
-    } else {
-        return ((value & 0x000000FF) << 24) |
-               ((value & 0x0000FF00) <<  8) |
-               ((value & 0x00FF0000) >>  8) |
-               ((value & 0xFF000000) >> 24);
-    }
-#endif
 }
 
-// دوران لليسار 64-bit / Rotate left 64-bit
-static inline Hash64 rotl64(Hash64 x, int r) {
+static inline uint64_t rotl64(uint64_t x, int r) {
     return (x << r) | (x >> (64 - r));
 }
 
-// دوران لليمين 32-bit / Rotate right 32-bit
-static inline uint32_t rotr32(uint32_t x, int n) {
-    return (x >> n) | (x << (32 - n));
-}
-
-// دوران لليمين 32-bit / Rotate right 32-bit
 static inline uint32_t rotr32(uint32_t x, int n) {
     return (x >> n) | (x << (32 - n));
 }
 
 // ============================================================================
 // XXHash64 - Implementation
-// توقيع من jit_hash.h: static Hash64 hash64(const void*, size_t, Hash64 seed)
 // ============================================================================
 
 Hash64 XXHash64::hash64(const void* data, size_t length, Hash64 seed) {
@@ -90,7 +49,7 @@ Hash64 XXHash64::hash64(const void* data, size_t length, Hash64 seed) {
         const uint8_t* const limit = end - 32;
         Hash64 v1 = seed + PRIME64_1 + PRIME64_2;
         Hash64 v2 = seed + PRIME64_2;
-        Hash64 v3 = seed + 0;
+        Hash64 v3 = seed;
         Hash64 v4 = seed - PRIME64_1;
         
         do {
@@ -144,8 +103,6 @@ Hash64 XXHash64::hash64(const void* data, size_t length, Hash64 seed) {
 
 // ============================================================================
 // XXHash64::Hasher - Incremental Hashing
-// من jit_hash.h lines 162-174: class Hasher with members
-// - total_length_, seed_, v1_, v2_, v3_, v4_, buffer_, buffer_size_
 // ============================================================================
 
 XXHash64::Hasher::Hasher(Hash64 seed)
@@ -159,19 +116,7 @@ XXHash64::Hasher::Hasher(Hash64 seed)
 {
     buffer_.fill(0);
 }
-XXHash64::Hasher::Hasher(Hash64 seed)
-    : total_length_(0)
-    , seed_(seed)
-    , v1_(seed + PRIME64_1 + PRIME64_2)
-    , v2_(seed + PRIME64_2)
-    , v3_(seed)
-    , v4_(seed - PRIME64_1)
-    , buffer_size_(0)
-{
-    buffer_.fill(0);
-}
 
-// من jit_hash.h line 166: void update(const void*, size_t)
 void XXHash64::Hasher::update(const void* data, size_t length) {
     const uint8_t* p = static_cast<const uint8_t*>(data);
     total_length_ += length;
@@ -216,7 +161,6 @@ void XXHash64::Hasher::update(const void* data, size_t length) {
     }
 }
 
-// من jit_hash.h line 171: Hash64 finalize() const
 Hash64 XXHash64::Hasher::finalize() const {
     Hash64 h64;
     
@@ -265,7 +209,6 @@ Hash64 XXHash64::Hasher::finalize() const {
     return h64;
 }
 
-// من jit_hash.h line 172: void reset()
 void XXHash64::Hasher::reset() {
     total_length_ = 0;
     v1_ = seed_ + PRIME64_1 + PRIME64_2;
@@ -278,15 +221,12 @@ void XXHash64::Hasher::reset() {
 
 // ============================================================================
 // CityHash64 - Implementation
-// من jit_hash.h lines 196-240: static methods
 // ============================================================================
 
-// ثوابت CityHash / CityHash constants
 static constexpr Hash64 k0 = 0xc3a5c85c97cb3127ULL;
 static constexpr Hash64 k1 = 0xb492b66fbe98f273ULL;
 static constexpr Hash64 k2 = 0x9ae16a3b2f90404fULL;
 
-// دوال مساعدة CityHash / CityHash helper functions
 static inline Hash64 cityRotate(Hash64 val, int shift) {
     return shift == 0 ? val : ((val >> shift) | (val << (64 - shift)));
 }
@@ -295,7 +235,14 @@ static inline Hash64 cityShiftMix(Hash64 val) {
     return val ^ (val >> 47);
 }
 
-// من jit_hash.h line 237: static inline Hash64 hashLen16(Hash64, Hash64)
+Hash64 CityHash64::fetch64(const uint8_t* p) {
+    return read64le(p);
+}
+
+Hash64 CityHash64::rotate(Hash64 val, int shift) {
+    return cityRotate(val, shift);
+}
+
 Hash64 CityHash64::hashLen16(Hash64 u, Hash64 v) {
     constexpr Hash64 kMul = 0x9ddfea08eb382d69ULL;
     Hash64 a = (u ^ v) * kMul;
@@ -306,7 +253,6 @@ Hash64 CityHash64::hashLen16(Hash64 u, Hash64 v) {
     return b;
 }
 
-// من jit_hash.h line 239: static inline Hash64 hashLen0to16(...)
 Hash64 CityHash64::hashLen0to16(const uint8_t* s, size_t len) {
     if (len >= 8) {
         Hash64 mul = k2 + len * 2;
@@ -335,7 +281,6 @@ Hash64 CityHash64::hashLen0to16(const uint8_t* s, size_t len) {
     return k2;
 }
 
-// من jit_hash.h line 240: static inline Hash64 hashLen17to32(...)
 Hash64 CityHash64::hashLen17to32(const uint8_t* s, size_t len) {
     Hash64 mul = k2 + len * 2;
     Hash64 a = read64le(s) * k1;
@@ -348,7 +293,6 @@ Hash64 CityHash64::hashLen17to32(const uint8_t* s, size_t len) {
     );
 }
 
-// من jit_hash.h line 241: static inline Hash64 hashLen33to64(...)
 Hash64 CityHash64::hashLen33to64(const uint8_t* s, size_t len) {
     Hash64 mul = k2 + len * 2;
     Hash64 a = read64le(s) * k2;
@@ -367,17 +311,6 @@ Hash64 CityHash64::hashLen33to64(const uint8_t* s, size_t len) {
     );
 }
 
-// من jit_hash.h line 236: static inline Hash64 fetch64(const uint8_t*)
-Hash64 CityHash64::fetch64(const uint8_t* p) {
-    return read64le(p);
-}
-
-// من jit_hash.h line 237: static inline Hash64 rotate(Hash64, int)
-Hash64 CityHash64::rotate(Hash64 val, int shift) {
-    return cityRotate(val, shift);
-}
-
-// من jit_hash.h line 200: static Hash64 hash64(const void*, size_t)
 Hash64 CityHash64::hash64(const void* data, size_t len) {
     const uint8_t* s = static_cast<const uint8_t*>(data);
     
@@ -430,7 +363,6 @@ Hash64 CityHash64::hash64(const void* data, size_t len) {
     );
 }
 
-// من jit_hash.h lines 210-218: hash64WithSeed methods
 Hash64 CityHash64::hash64WithSeed(const void* data, size_t len, Hash64 seed) {
     return hashLen16(hash64(data, len) - seed, seed);
 }
@@ -439,7 +371,6 @@ Hash64 CityHash64::hash64WithSeeds(const void* data, size_t len, Hash64 seed0, H
     return hashLen16(hash64(data, len) - seed0, seed1);
 }
 
-// من jit_hash.h lines 223-227: hash128 methods
 Hash128 CityHash64::hash128(const void* data, size_t len) {
     const uint8_t* s = static_cast<const uint8_t*>(data);
     if (len < 128) {
@@ -458,11 +389,9 @@ Hash128 CityHash64::hash128WithSeed(const void* data, size_t len, Hash128 seed) 
 }
 
 // ============================================================================
-// SHA256 - Implementation  
-// من jit_hash.h lines 248-304: class SHA256
+// SHA256 - Implementation
 // ============================================================================
 
-// ثوابت SHA-256 / SHA-256 K constants
 const uint32_t SHA256::K[64] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -474,48 +403,24 @@ const uint32_t SHA256::K[64] = {
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-// من jit_hash.h lines 297-304: inline helper functions
-inline uint32_t SHA256::rotr(uint32_t x, int n) {
-    return rotr32(x, n);
-}
+inline uint32_t SHA256::rotr(uint32_t x, int n) { return rotr32(x, n); }
+inline uint32_t SHA256::ch(uint32_t x, uint32_t y, uint32_t z) { return (x & y) ^ ((~x) & z); }
+inline uint32_t SHA256::maj(uint32_t x, uint32_t y, uint32_t z) { return (x & y) ^ (x & z) ^ (y & z); }
+inline uint32_t SHA256::sigma0(uint32_t x) { return rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22); }
+inline uint32_t SHA256::sigma1(uint32_t x) { return rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25); }
+inline uint32_t SHA256::gamma0(uint32_t x) { return rotr(x, 7) ^ rotr(x, 18) ^ (x >> 3); }
+inline uint32_t SHA256::gamma1(uint32_t x) { return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10); }
 
-inline uint32_t SHA256::ch(uint32_t x, uint32_t y, uint32_t z) {
-    return (x & y) ^ ((~x) & z);
-}
-
-inline uint32_t SHA256::maj(uint32_t x, uint32_t y, uint32_t z) {
-    return (x & y) ^ (x & z) ^ (y & z);
-}
-
-inline uint32_t SHA256::sigma0(uint32_t x) {
-    return rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22);
-}
-
-inline uint32_t SHA256::sigma1(uint32_t x) {
-    return rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25);
-}
-
-inline uint32_t SHA256::gamma0(uint32_t x) {
-    return rotr(x, 7) ^ rotr(x, 18) ^ (x >> 3);
-}
-
-inline uint32_t SHA256::gamma1(uint32_t x) {
-    return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10);
-}
-
-// من jit_hash.h line 254: static Hash256 hash(const void*, size_t)
 Hash256 SHA256::hash(const void* data, size_t length) {
     Hasher hasher;
     hasher.update(data, length);
     return hasher.finalize();
 }
 
-// من jit_hash.h line 266: Hasher()
 SHA256::Hasher::Hasher() {
     reset();
 }
 
-// من jit_hash.h line 271: void reset()
 void SHA256::Hasher::reset() {
     state_[0] = 0x6a09e667;
     state_[1] = 0xbb67ae85;
@@ -531,13 +436,12 @@ void SHA256::Hasher::reset() {
     buffer_.fill(0);
 }
 
-// من jit_hash.h line 268: void update(const void*, size_t)
 void SHA256::Hasher::update(const void* data, size_t length) {
     const uint8_t* p = static_cast<const uint8_t*>(data);
-    count_ += length * 8;  // Count in bits
+    count_ += length * 8;
     
     if (buffer_size_ > 0) {
-        size_t to_copy = std::min(64 - buffer_size_, length);
+        size_t to_copy = std::min<size_t>(64 - buffer_size_, length);
         std::memcpy(buffer_.data() + buffer_size_, p, to_copy);
         buffer_size_ += to_copy;
         p += to_copy;
@@ -561,12 +465,10 @@ void SHA256::Hasher::update(const void* data, size_t length) {
     }
 }
 
-// من jit_hash.h line 269: void update(const std::string&)
 void SHA256::Hasher::update(const std::string& str) {
     update(str.data(), str.size());
 }
 
-// من jit_hash.h line 270: Hash256 finalize()
 Hash256 SHA256::Hasher::finalize() {
     buffer_[buffer_size_++] = 0x80;
     
@@ -600,7 +502,6 @@ Hash256 SHA256::Hasher::finalize() {
     return result;
 }
 
-// من jit_hash.h line 276: void processBlock(const uint8_t*)
 void SHA256::Hasher::processBlock(const uint8_t* block) {
     uint32_t w[64];
     
@@ -648,7 +549,6 @@ void SHA256::Hasher::processBlock(const uint8_t* block) {
     state_[7] += h;
 }
 
-// من jit_hash.h line 283: static std::string toString(const Hash256&)
 std::string SHA256::toString(const Hash256& hash) {
     std::ostringstream oss;
     oss << std::hex << std::setfill('0');
@@ -658,7 +558,6 @@ std::string SHA256::toString(const Hash256& hash) {
     return oss.str();
 }
 
-// من jit_hash.h line 284: static Hash256 fromString(const std::string&)
 Hash256 SHA256::fromString(const std::string& str) {
     Hash256 hash;
     hash.fill(0);
@@ -677,11 +576,8 @@ Hash256 SHA256::fromString(const std::string& str) {
 
 // ============================================================================
 // CodeHasher - Implementation
-// من jit_hash.h lines 312-359: class CodeHasher  
-// Constructor inline at line 331
 // ============================================================================
 
-// من jit_hash.h line 338: std::string hashCode(const std::string&) const
 std::string CodeHasher::hashCode(const std::string& source_code) const {
     Hash64 h = 0;
     
@@ -699,7 +595,7 @@ std::string CodeHasher::hashCode(const std::string& source_code) const {
             break;
             
         case HashAlgorithm::SHA256:
-            return secureHashCode(source_code);  // Return hex string directly
+            return secureHashCode(source_code);
         
         default:
             h = FNV1aHash::hash64(source_code);
@@ -711,13 +607,11 @@ std::string CodeHasher::hashCode(const std::string& source_code) const {
     return oss.str();
 }
 
-// من jit_hash.h line 343: std::string secureHashCode(const std::string&) const
 std::string CodeHasher::secureHashCode(const std::string& source_code) const {
     Hash256 hash = SHA256::hash(source_code);
     return SHA256::toString(hash);
 }
 
-// من jit_hash.h line 348: std::string hashWithMetadata(...) const
 std::string CodeHasher::hashWithMetadata(
     const std::string& source_code,
     const std::string& function_name,
@@ -726,8 +620,6 @@ std::string CodeHasher::hashWithMetadata(
     std::string combined = source_code + "|" + function_name + "|" + std::to_string(optimization_level);
     return hashCode(combined);
 }
-
-// setAlgorithm and getAlgorithm are inline in header (lines 352-358)
 
 } // namespace JIT
 } // namespace Sad
