@@ -1,0 +1,46 @@
+========================================
+Arabic Optimizer Benchmark Results
+========================================
+
+Test: String Operations
+  Iterations: 1000
+  Total time: 14.36 ms
+  Per iteration: 14.36 μs
+  Code size: 435 bytes
+
+Test: Pattern Matching
+  Iterations: 1000
+  Total time: 16.089 ms
+  Per iteration: 16.089 μs
+  Code size: 731 bytes
+
+Test: UTF-8 Text Processing
+  Iterations: 1000
+  Total time: 12.383 ms
+  Per iteration: 12.383 μs
+  Code size: 498 bytes
+
+Test: Complex Application
+  Iterations: 1000
+  Total time: 18.643 ms
+  Per iteration: 18.643 μs
+  Code size: 856 bytes
+
+Test: Graphics Application
+  Iterations: 1000
+  Total time: 15.963 ms
+  Per iteration: 15.963 μs
+  Code size: 871 bytes
+
+Test: Data Processing
+  Iterations: 1000
+  Total time: 17.255 ms
+  Per iteration: 17.255 μs
+  Code size: 1044 bytes
+
+
+Statistics:
+  Mean: 15.7822 μs
+  Min: 12.383 μs
+  Max: 18.643 μs
+  Total: 94.693 μs

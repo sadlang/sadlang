@@ -733,6 +733,33 @@ if(BUILD_TESTS)
     message(STATUS "✓ اختبارات محسّن اللغة العربية مفعلة (standalone) / Arabic Optimizer tests enabled (standalone)")
     
     # ======================================================================
+    # قياسات أداء التحسينات / Optimization Benchmarks
+    # ======================================================================
+    
+    # Arabic Optimizer Benchmarks (Real-world performance testing)
+    add_executable(benchmark_arabic_opt
+        tests/benchmark_arabic_opt.cpp
+    )
+    
+    # Standalone - no dependencies
+    target_link_libraries(benchmark_arabic_opt PRIVATE
+        # No dependencies - pure C++ benchmark
+    )
+    
+    # Include paths
+    target_include_directories(benchmark_arabic_opt PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+    )
+    
+    # Properties
+    set_target_properties(benchmark_arabic_opt PROPERTIES
+        OUTPUT_NAME "benchmark_arabic_opt"
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    )
+    
+    message(STATUS "✓ قياسات أداء محسّن اللغة العربية مفعلة / Arabic Optimizer benchmarks enabled")
+    
+    # ======================================================================
     # اختبارات المحسن المتقدم (Phase 10) / Advanced Optimizer Tests (Phase 10)
     # ======================================================================
     
