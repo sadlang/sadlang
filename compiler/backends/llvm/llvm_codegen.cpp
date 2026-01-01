@@ -40,6 +40,8 @@ LLVMCodeGen::LLVMCodeGen()
     , module_(nullptr)
     , builder_(nullptr)
     , targetMachine_(nullptr)
+    , typeMapper_(nullptr)           // تهيئة محول الأنواع / Initialize type mapper
+    , controlFlow_(nullptr)          // تهيئة مدير التحكم / Initialize control flow
     , hasErrors_(false)
 {
     // تهيئة أهداف LLVM / Initialize LLVM targets
@@ -106,6 +108,19 @@ bool LLVMCodeGen::initialize(const std::string& moduleName, const std::string& t
         
         // تعيين data layout
         module_->setDataLayout(targetMachine_->createDataLayout());
+        
+        // إنشاء محول الأنواع / Create type mapper
+        typeMapper_ = std::make_unique<LLVMTypeMapper>(*context_);
+        
+        // إنشاء مدير الذاكرة / Create memory manager
+        memoryManager_ = std::make_unique<LLVMMemoryManager>(*context_, *builder_, typeMapper_.get());
+        
+        // إنشاء بناء التعابير مع مدير الذاكرة / Create expression builder with memory manager
+        expressionBuilder_ = std::make_unique<LLVMExpressionBuilder>(*context_, *builder_, typeMapper_.get(), memoryManager_.get());
+        
+        // إنشاء مدير تدفق التحكم / Create control flow manager
+        // سيتم إنشاؤه عند توليد كل دالة / Will be created per function
+        controlFlow_ = nullptr;
         
         return true;
     }
@@ -389,16 +404,19 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
         llvmFunc
     );
     
-    builder_->SetInsertPoint(entryBlock);
-    context_info_.currentFunction = llvmFunc;
-    context_info_.currentBlock = entryBlock;
+    builder_->SetInsertPoint(entryBlock);  // تعيين نقطة الإدراج / Set insert point
+    context_info_.currentFunction = llvmFunc;  // تعيين الدالة الحالية / Set current function
+    context_info_.currentBlock = entryBlock;   // تعيين الكتلة الحالية / Set current block
+    
+    // إنشاء مدير تدفق التحكم للدالة / Create control flow manager for function
+    controlFlow_ = std::make_unique<LLVMControlFlow>(*context_, *builder_, llvmFunc);
     
     // تخصيص معاملات الدالة / Allocate function parameters
     emitFunctionParameters(sirFunc, llvmFunc);
     
     // إصدار الكتل الأساسية / Emit basic blocks
     for (const auto& bb : sirFunc->getBasicBlocks()) {
-        if (bb->getName() != "entry") { // تخطي entry لأنه موجود
+        if (bb->getName() != "entry") { // تخطي entry لأنه موجود / Skip entry as it exists
             emitBasicBlock(bb, llvmFunc);
         }
     }
@@ -408,25 +426,28 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
         // الحصول على الكتلة المقابلة / Get corresponding block
         llvm::BasicBlock* llvmBlock;
         if (bb->getName() == "entry") {
-            llvmBlock = entryBlock;
+            llvmBlock = entryBlock;  // استخدام كتلة entry الموجودة / Use existing entry block
         } else {
-            llvmBlock = context_info_.basicBlocks[bb->getName()];
+            llvmBlock = context_info_.basicBlocks[bb->getName()];  // الحصول من الجدول / Get from table
         }
         
-        builder_->SetInsertPoint(llvmBlock);
-        context_info_.currentBlock = llvmBlock;
+        builder_->SetInsertPoint(llvmBlock);  // الانتقال إلى الكتلة / Move to block
+        context_info_.currentBlock = llvmBlock;  // تحديث السياق / Update context
         
         // إصدار كل تعليمة / Emit each instruction
         for (const auto& inst : bb->getInstructions()) {
-            emitInstruction(inst);
+            emitInstruction(inst);  // توليد التعليمة / Generate instruction
         }
     }
     
     // تنظيف السياق / Clean up context
     context_info_.currentFunction = nullptr;
     context_info_.currentBlock = nullptr;
-    context_info_.namedValues.clear();
-    context_info_.allocas.clear();
+    context_info_.namedValues.clear();  // مسح جدول المتغيرات / Clear variables table
+    context_info_.allocas.clear();      // مسح جدول التخصيصات / Clear allocations table
+    
+    // تنظيف مدير تدفق التحكم / Clean up control flow manager
+    controlFlow_.reset();  // حذف مدير التحكم / Delete control flow manager
 }
 
 /**
@@ -1066,6 +1087,12 @@ llvm::Value* LLVMCodeGen::emitSelect(std::shared_ptr<SIRInstruction> inst) {
  * Convert Sad type to LLVM type
  */
 llvm::Type* LLVMCodeGen::convertType(std::shared_ptr<Type> sadType) {
+    // استخدام محول الأنواع المتقدم / Use advanced type mapper
+    if (typeMapper_) {
+        return typeMapper_->mapSadType(sadType);  // تحويل بواسطة TypeMapper / Convert via TypeMapper
+    }
+    
+    // إذا لم يكن TypeMapper متاحاً، استخدام التحويل الأساسي / If TypeMapper not available, use basic conversion
     // ✅ TODO 4: تنفيذ كامل لتحويل الأنواع / Complete type conversion implementation
     
     // الأنواع الأساسية / Basic types
@@ -1108,14 +1135,20 @@ llvm::FunctionType* LLVMCodeGen::convertFunctionType(
     const std::vector<std::shared_ptr<Type>>& paramTypes,
     bool isVarArg)
 {
-    llvm::Type* retType = convertType(returnType);
-    
-    std::vector<llvm::Type*> params;
-    for (const auto& paramType : paramTypes) {
-        params.push_back(convertType(paramType));
+    // استخدام محول الأنواع المتقدم / Use advanced type mapper
+    if (typeMapper_) {
+        return typeMapper_->mapFunctionType(returnType, paramTypes, isVarArg);  // تحويل بواسطة TypeMapper
     }
     
-    return llvm::FunctionType::get(retType, params, isVarArg);
+    // إذا لم يكن TypeMapper متاحاً، استخدام التحويل الأساسي / If TypeMapper not available, use basic conversion
+    llvm::Type* retType = convertType(returnType);  // تحويل نوع الرجوع / Convert return type
+    
+    std::vector<llvm::Type*> params;  // قائمة أنواع المعاملات / Parameter types list
+    for (const auto& paramType : paramTypes) {
+        params.push_back(convertType(paramType));  // تحويل كل نوع معامل / Convert each parameter type
+    }
+    
+    return llvm::FunctionType::get(retType, params, isVarArg);  // إنشاء نوع الدالة / Create function type
 }
 
 // ============================================================================
