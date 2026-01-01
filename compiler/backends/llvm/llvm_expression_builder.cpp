@@ -87,6 +87,12 @@ llvm::Value* LLVMExpressionBuilder::buildArrayCreate(
         builder_.CreateStore(elements[i], elementPtr);
     }
     
+    // إذا كان مدير الذاكرة متوفراً، تسجيل للتحرير التلقائي / If memory manager available, register for auto-release
+    if (memoryManager_) {
+        // تسجيل المصفوفة للتحرير عند نهاية scope / Register array for release at scope end
+        memoryManager_->registerForAutoRelease(arrayAlloca);
+    }
+    
     return arrayAlloca;  // إرجاع المصفوفة / Return array
 }
 
@@ -166,7 +172,16 @@ llvm::Value* LLVMExpressionBuilder::buildDictCreate(llvm::Type* keyType, llvm::T
         llvm::ConstantInt::get(builder_.getInt32Ty(), 16)  // الحجم الابتدائي / Initial capacity
     };
     
-    return callRuntimeFunction("sad_dict_create", args);
+    // إنشاء القاموس / Create dictionary
+    llvm::Value* dict = callRuntimeFunction("sad_dict_create", args);
+    
+    // إذا كان مدير الذاكرة متوفراً، تسجيل للتحرير التلقائي / If memory manager available, register for auto-release
+    if (memoryManager_) {
+        // تسجيل القاموس للتحرير عند نهاية scope / Register dictionary for release at scope end
+        memoryManager_->registerForAutoRelease(dict);
+    }
+    
+    return dict;  // إرجاع القاموس / Return dictionary
 }
 
 /**
