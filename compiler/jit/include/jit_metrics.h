@@ -138,7 +138,7 @@ public:
     // إعادة تعيين / Reset
     void reset() {
         std::lock_guard<std::mutex> lock(mutex_);
-        value_.store(0, std::memory_order_relaxed);
+        value_ = 0.0;
         count_ = 0;
         sum_ = 0;
         min_ = std::numeric_limits<double>::max();
