@@ -67,9 +67,9 @@ bool JITBridge::initialize() {
         // إنشاء محرك JIT / Create JIT engine
         JITConfig jit_config;
         jit_config.optimization_level = 2;              // O2 افتراضياً / O2 by default
-        jit_config.enable_caching = true;               // تفعيل الذاكرة المؤقتة / Enable caching
+        jit_config.enable_cache = true;                 // تفعيل الذاكرة المؤقتة / Enable caching
         jit_config.enable_tiered_compilation = true;    // تفعيل التجميع المُدرّج / Enable tiering
-        jit_config.cache_size_mb = 256;                 // 256 MB للذاكرة المؤقتة / 256 MB for cache
+        jit_config.max_cache_size_mb = 256;             // 256 MB للذاكرة المؤقتة / 256 MB for cache
         
         pimpl_->jit_engine_ = std::make_unique<JITEngine>(jit_config);
         

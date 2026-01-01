@@ -33,6 +33,9 @@ using CompiledFunction = void*;
 // معلومات إحصائية / Statistical information
 struct JITStatistics;
 
+// معلومات المسار الساخن / Hot path information
+struct HotPathInfo;
+
 // ============================================================================
 // JITCompilationResult - نتيجة التجميع / Compilation Result
 // ============================================================================
@@ -44,12 +47,21 @@ struct JITCompilationResult {
     double compilation_time_ms;      // وقت التجميع بالميلي ثانية / Compilation time in ms
     size_t code_size_bytes;          // حجم الكود المولد / Generated code size
     
+    // حقول إضافية / Additional fields
+    std::string function_name;       // اسم الدالة / Function name
+    CompiledFunction compiled_function; // نفس function لكن الكود يستخدم هذا الاسم
+    int optimization_level;          // مستوى التحسين المستخدم / Optimization level used
+    bool was_cached;                 // هل كانت من الذاكرة المؤقتة؟ / Was from cache?
+    
     // المُنشئ الافتراضي / Default constructor
     JITCompilationResult() 
         : success(false)
         , function(nullptr)
         , compilation_time_ms(0.0)
-        , code_size_bytes(0) 
+        , code_size_bytes(0)
+        , compiled_function(nullptr)
+        , optimization_level(0)
+        , was_cached(false)
     {}
 };
 
@@ -142,6 +154,8 @@ struct JITStatistics {
     size_t cache_hits;               // عدد الإصابات في الذاكرة المؤقتة / Cache hits
     size_t cache_misses;             // عدد الإخفاقات في الذاكرة المؤقتة / Cache misses
     size_t cache_size_bytes;         // حجم الذاكرة المؤقتة الحالي (bytes) / Current cache size (bytes)
+    size_t cached_functions;         // عدد الدوال المخزنة في الذاكرة المؤقتة / Number of cached functions
+    double cache_hit_rate_percent;   // نسبة الإصابة في الذاكرة المؤقتة / Cache hit rate percentage
     
     // ========================================
     // إحصائيات الأداء / Performance Statistics
@@ -149,6 +163,7 @@ struct JITStatistics {
     
     double speedup_factor;           // عامل التسريع مقارنة بالمفسر / Speedup factor vs interpreter
     size_t hot_functions_detected;   // عدد الدوال الساخنة المكتشفة / Hot functions detected
+    size_t hot_functions;            // نفس hot_functions_detected / Same as hot_functions_detected
     
     // ========================================
     // المُنشئ الافتراضي / Default Constructor
@@ -166,8 +181,11 @@ struct JITStatistics {
         , cache_hits(0)
         , cache_misses(0)
         , cache_size_bytes(0)
+        , cached_functions(0)
+        , cache_hit_rate_percent(0.0)
         , speedup_factor(1.0)
         , hot_functions_detected(0)
+        , hot_functions(0)
     {}
     
     // ========================================
@@ -243,6 +261,12 @@ public:
         const std::string& source_code
     );
     
+    // تجميع وحدة كاملة / Compile entire module
+    JITCompilationResult compileModule(
+        const std::string& module_name,
+        const std::string& source_code
+    );
+    
     // تجميع دالة من LLVM IR / Compile function from LLVM IR
     // function_name: اسم الدالة / Function name
     // ir_code: كود LLVM IR / LLVM IR code
@@ -284,6 +308,9 @@ public:
     // مسح الذاكرة المؤقتة بالكامل / Clear entire cache
     void clearCache();
     
+    // حذف دالة مُجمّعة / Remove a compiled function
+    bool removeFunction(const std::string& function_name);
+    
     // ========================================
     // إدارة المسارات الساخنة / Hot Path Management
     // ========================================
@@ -309,6 +336,9 @@ public:
     
     // طباعة الإحصائيات / Print statistics
     void printStatistics() const;
+    
+    // تحويل الإحصائيات إلى JSON / Convert statistics to JSON
+    std::string statisticsToJSON() const;
     
     // ========================================
     // الإعدادات / Configuration
@@ -338,8 +368,8 @@ private:
     // البيانات الداخلية / Internal Data
     // ========================================
     
-    class Impl;                      // التنفيذ الداخلي (Pimpl idiom) / Internal implementation
-    std::unique_ptr<Impl> pImpl;     // مؤشر ذكي للتنفيذ / Smart pointer to implementation
+    struct Impl;                     // التنفيذ الداخلي (Pimpl idiom) / Internal implementation
+    std::unique_ptr<Impl> pimpl_;    // مؤشر ذكي للتنفيذ / Smart pointer to implementation
     
     JITConfig config_;               // إعدادات المحرك / Engine configuration
     JITStatistics statistics_;       // الإحصائيات / Statistics
@@ -361,6 +391,34 @@ private:
     
     // التحقق من حد الذاكرة المؤقتة / Check cache size limit
     void enforceCacheLimit();
+    
+    // معالجة مسار ساخن / Handle hot path
+    void handleHotPath(const HotPathInfo& info);
+    
+    // اكتشاف معمارية النظام / Detect native target
+    std::string detectNativeTarget() const;
+    
+    // اكتشاف اسم المعالج / Detect CPU name
+    std::string detectCPUName() const;
+    
+    // اكتشاف خصائص المعالج / Detect CPU features
+    std::string detectCPUFeatures() const;
+    
+    // تحديد مستوى التحسين / Determine optimization level
+    int determineOptimizationLevel(const std::string& function_name) const;
+    
+    // حساب hash للكود / Calculate code hash
+    std::string calculateHash(const std::string& source_code) const;
+    
+    // محاكاة التجميع (للتطوير) / Simulate compilation (for development)
+    void* simulateCompilation(
+        const std::string& function_name,
+        const std::string& source_code,
+        int optimization_level
+    ) const;
+    
+    // الحصول على مؤشر دالة / Get function pointer
+    void* getFunctionPointer(const std::string& function_name);
 };
 
 } // namespace JIT

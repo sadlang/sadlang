@@ -428,13 +428,18 @@ void JITCache::printInfo() const {
 std::string JITCache::toJSON() const {
     std::lock_guard<std::mutex> lock(mutex_); // قفل للتزامن / Lock for thread safety
     
+    // حساب النسب محلياً بدون استدعاء الدوال (تجنب deadlock) / Calculate percentages locally without calling functions (avoid deadlock)
+    double usage_percent = max_size_bytes_ > 0 ? (static_cast<double>(current_size_bytes_) / max_size_bytes_) * 100.0 : 0.0;
+    size_t total_accesses = hit_count_ + miss_count_;
+    double hit_rate_percent = total_accesses > 0 ? (static_cast<double>(hit_count_) / total_accesses) * 100.0 : 0.0;
+    
     std::ostringstream json;
     json << "{\n";
     json << "  \"entries\": " << cache_.size() << ",\n";
     json << "  \"size_mb\": " << (current_size_bytes_ / 1024.0 / 1024.0) << ",\n";
     json << "  \"max_size_mb\": " << (max_size_bytes_ / 1024.0 / 1024.0) << ",\n";
-    json << "  \"usage_percent\": " << getUsagePercentage() << ",\n";
-    json << "  \"hit_rate_percent\": " << getHitRate() << ",\n";
+    json << "  \"usage_percent\": " << usage_percent << ",\n";
+    json << "  \"hit_rate_percent\": " << hit_rate_percent << ",\n";
     json << "  \"hits\": " << hit_count_ << ",\n";
     json << "  \"misses\": " << miss_count_ << ",\n";
     json << "  \"evictions\": " << eviction_count_ << "\n";

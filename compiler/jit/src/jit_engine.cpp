@@ -58,10 +58,10 @@ JITEngine::JITEngine(const JITConfig& config)
     pimpl_->config_ = config;           // حفظ الإعدادات / Store configuration
     
     // إنشاء الذاكرة المؤقتة / Create cache
-    if (config.enable_caching) {
+    if (config.enable_cache) {
         pimpl_->cache_ = std::make_unique<JITCache>(
-            config.cache_size_mb,
-            config.cache_eviction_policy
+            config.max_cache_size_mb,
+            CacheEvictionPolicy::LRU
         );
     }
     
@@ -240,11 +240,11 @@ JITCompilationResult JITEngine::compileFunction(
     
     // حساب وقت التجميع / Calculate compilation time
     auto end_time = std::chrono::steady_clock::now();
-    result.compilation_time_us = std::chrono::duration_cast<std::chrono::microseconds>(
+    result.compilation_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         end_time - start_time
     ).count();
     
-    pimpl_->stats_.total_compilation_time_us += result.compilation_time_us;
+    pimpl_->stats_.total_compilation_time_ms += result.compilation_time_ms;
     
     return result;
 }
@@ -446,8 +446,8 @@ const JITStatistics& JITEngine::getStatistics() const {
     
     // حساب متوسط وقت التجميع / Calculate average compilation time
     if (pimpl_->stats_.total_compilations > 0) {
-        pimpl_->stats_.avg_compilation_time_us = 
-            pimpl_->stats_.total_compilation_time_us / pimpl_->stats_.total_compilations;
+        pimpl_->stats_.avg_compilation_time_ms = 
+            pimpl_->stats_.total_compilation_time_ms / pimpl_->stats_.total_compilations;
     }
     
     return pimpl_->stats_;
@@ -496,7 +496,7 @@ void JITEngine::printStatistics() const {
               << stats.cache_hit_rate_percent << "%\n";
     std::cout << "Cached Functions:  " << stats.cached_functions << "\n";
     std::cout << "Hot Functions:     " << stats.hot_functions << "\n";
-    std::cout << "Avg Compile Time:  " << stats.avg_compilation_time_us << " μs\n";
+    std::cout << "Avg Compile Time:  " << stats.avg_compilation_time_ms << " ms\n";
     std::cout << "========================================\n\n";
 }
 
@@ -521,8 +521,8 @@ std::string JITEngine::statisticsToJSON() const {
     json << "  \"cache_size_bytes\": " << stats.cache_size_bytes << ",\n";
     json << "  \"cached_functions\": " << stats.cached_functions << ",\n";
     json << "  \"hot_functions\": " << stats.hot_functions << ",\n";
-    json << "  \"avg_compilation_time_us\": " << stats.avg_compilation_time_us << ",\n";
-    json << "  \"total_compilation_time_us\": " << stats.total_compilation_time_us << ",\n";
+    json << "  \"avg_compilation_time_ms\": " << stats.avg_compilation_time_ms << ",\n";
+    json << "  \"total_compilation_time_ms\": " << stats.total_compilation_time_ms << ",\n";
     json << "  \"speedup_factor\": " << stats.speedup_factor << "\n";
     json << "}";
     
@@ -611,13 +611,23 @@ int JITEngine::determineOptimizationLevel(const std::string& function_name) cons
 
 // حساب hash للكود / Calculate Code Hash
 std::string JITEngine::calculateHash(const std::string& source_code) const {
-    // TODO: استخدام خوارزمية hash حقيقية (SHA256, MD5, etc.) / Use real hash algorithm
+    // استخدام FNV-1a hash (سريع جداً ومناسب للـ caching)
+    // Using FNV-1a hash (very fast and suitable for caching)
     
-    // hash بسيط جداً للتوضيح / Very simple hash for demonstration
-    size_t hash = std::hash<std::string>{}(source_code);
+    // ثوابت FNV-1a / FNV-1a constants
+    const uint64_t FNV_64_PRIME = 0x100000001b3ULL;
+    const uint64_t FNV_64_OFFSET = 0xcbf29ce484222325ULL;
     
+    // حساب hash / Calculate hash
+    uint64_t hash = FNV_64_OFFSET;
+    for (char c : source_code) {
+        hash ^= static_cast<uint8_t>(c); // XOR مع البايت / XOR with byte
+        hash *= FNV_64_PRIME;            // ضرب في الثابت / Multiply by prime
+    }
+    
+    // تحويل إلى hex string / Convert to hex string
     std::ostringstream oss;
-    oss << std::hex << hash;
+    oss << std::hex << std::setw(16) << std::setfill('0') << hash;
     
     return oss.str();
 }
