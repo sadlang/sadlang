@@ -698,6 +698,41 @@ if(BUILD_TESTS)
     )
     
     # ======================================================================
+    # اختبارات محسّن اللغة العربية / Arabic Optimizer Tests
+    # ======================================================================
+    
+    # Arabic Optimizer Test (Standalone - no LLVM dependency for now)
+    add_executable(test_arabic_optimizer
+        tests/test_arabic_optimizer.cpp
+    )
+    
+    # Link only standard libraries
+    target_link_libraries(test_arabic_optimizer PRIVATE
+        # No LLVM libraries needed for standalone tests
+    )
+    
+    # Add include paths
+    target_include_directories(test_arabic_optimizer PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/compiler/backends/llvm
+    )
+    
+    # Set executable properties
+    set_target_properties(test_arabic_optimizer PROPERTIES
+        OUTPUT_NAME "test_arabic_optimizer"
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    )
+    
+    # Add CTest test
+    add_test(
+        NAME ArabicOptimizerTests
+        COMMAND test_arabic_optimizer
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    
+    message(STATUS "✓ اختبارات محسّن اللغة العربية مفعلة (standalone) / Arabic Optimizer tests enabled (standalone)")
+    
+    # ======================================================================
     # اختبارات المحسن المتقدم (Phase 10) / Advanced Optimizer Tests (Phase 10)
     # ======================================================================
     
