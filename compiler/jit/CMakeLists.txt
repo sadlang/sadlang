@@ -10,13 +10,41 @@ add_library(sad_jit STATIC
     src/hot_path_detector.cpp
     src/jit_engine.cpp
     src/jit_bridge.cpp
-    src/jit_profiler.cpp
-    src/jit_metrics.cpp
+    # TODO: إضافة هذه الملفات عند إكمالها
+    # TODO: Add these files when completed
+    # src/jit_profiler.cpp
+    # src/jit_metrics.cpp
     src/jit_hash.cpp
 )
 
+# LLVM Backend Integration (Phase 1.2)
+if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
+    target_sources(sad_jit PRIVATE
+        ../backend/llvm/src/llvm_generator.cpp
+        ../backend/llvm/src/llvm_context.cpp
+    )
+    
+    target_include_directories(sad_jit PRIVATE
+        ../backend/llvm/include
+        ${LLVM_INCLUDE_DIRS}
+    )
+    
+    target_link_libraries(sad_jit PRIVATE
+        ${LLVM_LIBS}
+    )
+    
+    target_compile_definitions(sad_jit PRIVATE
+        ENABLE_LLVM_BACKEND
+    )
+    
+    message(STATUS "✅ JIT Engine: LLVM Backend enabled")
+else()
+    message(STATUS "⚠️  JIT Engine: LLVM Backend disabled (using simulation)")
+endif()
+
 target_include_directories(sad_jit PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/include
 )
 
 target_compile_features(sad_jit PUBLIC cxx_std_17)

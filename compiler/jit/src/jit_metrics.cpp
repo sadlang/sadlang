@@ -204,20 +204,20 @@ void MetricsCollector::recordTimer(const std::string& name, double duration_us) 
     }
 }
 
-std::vector<std::shared_ptr<Metric>> MetricsCollector::getAllMetrics() const {
+std::vector<const Metric*> MetricsCollector::getAllMetrics() const {
     std::lock_guard<std::mutex> lock(mutex_);
     
-    std::vector<std::shared_ptr<Metric>> result;
+    std::vector<const Metric*> result;
     result.reserve(metrics_.size());
     
     for (const auto& [name, metric] : metrics_) {
-        result.push_back(metric);
+        result.push_back(metric.get());
     }
     
     return result;
 }
 
-void MetricsCollector::reset() {
+void MetricsCollector::resetAll() {
     std::lock_guard<std::mutex> lock(mutex_);
     
     for (auto& [name, metric] : metrics_) {
@@ -225,19 +225,17 @@ void MetricsCollector::reset() {
     }
 }
 
-void MetricsCollector::resetMetric(const std::string& name) {
-    auto metric = getMetric(name);
-    if (metric) {
-        metric->reset();
-    }
+void MetricsCollector::clearAll() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    metrics_.clear();
 }
 
-void MetricsCollector::exportToFile(const std::string& filename) const {
+bool MetricsCollector::saveToFile(const std::string& filename) const {
     std::lock_guard<std::mutex> lock(mutex_);
     
     std::ofstream file(filename);
     if (!file.is_open()) {
-        return;
+        return false;
     }
     
     file << "{\n";
@@ -284,9 +282,60 @@ void MetricsCollector::exportToFile(const std::string& filename) const {
     file << "}\n";
     
     file.close();
+    return true;
 }
 
-std::string MetricsCollector::generateReport() const {
+std::string MetricsCollector::toJSON() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    std::ostringstream json;
+    json << "{\n";
+    json << "  \"metrics_version\": \"1.0\",\n";
+    json << "  \"total_metrics\": " << metrics_.size() << ",\n";
+    json << "  \"timestamp\": " << std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count() << ",\n";
+    
+    json << "  \"metrics\": {\n";
+    
+    size_t count = 0;
+    for (const auto& [name, metric] : metrics_) {
+        json << "    \"" << name << "\": {\n";
+        json << "      \"type\": \"" << Metric::typeToString(metric->getType()) << "\",\n";
+        json << "      \"description\": \"" << metric->getDescription() << "\",\n";
+        
+        switch (metric->getType()) {
+            case MetricType::COUNTER:
+                json << "      \"value\": " << metric->getValue() << "\n";
+                break;
+                
+            case MetricType::GAUGE:
+                json << "      \"value\": " << metric->getValue() << "\n";
+                break;
+                
+            case MetricType::HISTOGRAM:
+            case MetricType::TIMER:
+                json << "      \"count\": " << metric->getCount() << ",\n";
+                json << "      \"sum\": " << metric->getSum() << ",\n";
+                json << "      \"average\": " << metric->getAverage() << ",\n";
+                json << "      \"min\": " << metric->getMin() << ",\n";
+                json << "      \"max\": " << metric->getMax() << "\n";
+                break;
+        }
+        
+        json << "    }";
+        if (++count < metrics_.size()) {
+            json << ",";
+        }
+        json << "\n";
+    }
+    
+    json << "  }\n";
+    json << "}\n";
+    
+    return json.str();
+}
+
+void MetricsCollector::printSummary() const {
     std::lock_guard<std::mutex> lock(mutex_);
     
     std::ostringstream report;
@@ -297,17 +346,17 @@ std::string MetricsCollector::generateReport() const {
     report << "========================================\n\n";
     
     // تصنيف المقاييس حسب النوع / Categorize metrics by type
-    std::vector<std::shared_ptr<Metric>> counters;
-    std::vector<std::shared_ptr<Metric>> gauges;
-    std::vector<std::shared_ptr<Metric>> histograms;
-    std::vector<std::shared_ptr<Metric>> timers;
+    std::vector<const Metric*> counters;
+    std::vector<const Metric*> gauges;
+    std::vector<const Metric*> histograms;
+    std::vector<const Metric*> timers;
     
     for (const auto& [name, metric] : metrics_) {
         switch (metric->getType()) {
-            case MetricType::COUNTER:   counters.push_back(metric); break;
-            case MetricType::GAUGE:     gauges.push_back(metric); break;
-            case MetricType::HISTOGRAM: histograms.push_back(metric); break;
-            case MetricType::TIMER:     timers.push_back(metric); break;
+            case MetricType::COUNTER:   counters.push_back(metric.get()); break;
+            case MetricType::GAUGE:     gauges.push_back(metric.get()); break;
+            case MetricType::HISTOGRAM: histograms.push_back(metric.get()); break;
+            case MetricType::TIMER:     timers.push_back(metric.get()); break;
         }
     }
     

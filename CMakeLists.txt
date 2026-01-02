@@ -49,6 +49,56 @@ option(BUILD_TESTS "بناء الاختبارات / Build tests" OFF)
 option(BUILD_EXAMPLES "بناء الأمثلة / Build examples" ON)
 option(ENABLE_DEBUG_LOGGING "تفعيل سجلات التنقيح / Enable debug logging" OFF)
 option(BUILD_PKG_MANAGER "بناء مدير الحزم / Build package manager" ON)
+option(ENABLE_LLVM_BACKEND "تفعيل LLVM Backend / Enable LLVM Backend" ON)
+
+# ======================================================================
+# إعدادات LLVM / LLVM Configuration
+# ======================================================================
+if(ENABLE_LLVM_BACKEND)
+    # تحديد مسار LLVM / Set LLVM path
+    set(LLVM_DIR "C:/LLVM/lib/cmake/llvm" CACHE PATH "LLVM CMake directory")
+    
+    # البحث عن LLVM / Find LLVM
+    find_package(LLVM QUIET CONFIG)
+    
+    if(LLVM_FOUND)
+        message(STATUS "✅ Found LLVM ${LLVM_PACKAGE_VERSION}")
+        message(STATUS "   LLVM Directory: ${LLVM_DIR}")
+        message(STATUS "   LLVM Include: ${LLVM_INCLUDE_DIRS}")
+        message(STATUS "   LLVM Libraries: ${LLVM_LIBRARY_DIRS}")
+        
+        # إضافة تعريفات LLVM / Add LLVM definitions
+        add_definitions(${LLVM_DEFINITIONS})
+        
+        # تضمين مجلدات LLVM / Include LLVM directories
+        include_directories(${LLVM_INCLUDE_DIRS})
+        link_directories(${LLVM_LIBRARY_DIRS})
+        
+        # تفعيل LLVM في الكود / Enable LLVM in code
+        add_compile_definitions(ENABLE_LLVM_BACKEND)
+        
+        # مكتبات LLVM المطلوبة / Required LLVM libraries
+        set(LLVM_LINK_COMPONENTS
+            Core
+            Support
+            ExecutionEngine
+            MCJIT
+            OrcJIT
+            RuntimeDyld
+            Target
+            X86
+            native
+        )
+        
+        llvm_map_components_to_libnames(LLVM_LIBS ${LLVM_LINK_COMPONENTS})
+        message(STATUS "   LLVM Components: ${LLVM_LINK_COMPONENTS}")
+    else()
+        message(WARNING "⚠️  LLVM not found. LLVM Backend disabled.")
+        message(WARNING "   Set LLVM_DIR to point to LLVMConfig.cmake")
+        message(WARNING "   Example: cmake -DLLVM_DIR=C:/LLVM/lib/cmake/llvm ..")
+        set(ENABLE_LLVM_BACKEND OFF)
+    endif()
+endif()
 
 # ======================================================================
 # تعريفات المعالج المسبق / Preprocessor Definitions
@@ -1336,12 +1386,182 @@ message(STATUS "إضافة JIT Engine / Adding JIT Engine")
 add_subdirectory(compiler/jit)
 
 # ======================================================================
+# Type System / نظام الأنواع (Phase 1.3.0)
+# ======================================================================
+message(STATUS "إضافة Type System / Adding Type System")
+add_subdirectory(compiler/type_system)
+
+# ======================================================================
+# LLVM Integration Test / اختبار تكامل LLVM (Phase 1.2.1)
+# ======================================================================
+if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
+    message(STATUS "إضافة اختبار LLVM Integration / Adding LLVM Integration Test")
+    
+    # إنشاء executable للاختبار / Create test executable
+    add_executable(test_llvm_integration_simple
+        tests/jit/test_llvm_integration_simple.cpp
+    )
+    
+    # ربط المكتبات / Link libraries
+    target_link_libraries(test_llvm_integration_simple
+        PRIVATE
+            sad_jit
+    )
+    
+    # تحديد المجلدات / Include directories
+    target_include_directories(test_llvm_integration_simple
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/compiler/jit/include
+    )
+    
+    # تعريف ENABLE_LLVM_BACKEND / Define ENABLE_LLVM_BACKEND
+    target_compile_definitions(test_llvm_integration_simple
+        PRIVATE
+            ENABLE_LLVM_BACKEND
+    )
+    
+    # تحديد مجلد الإخراج / Set output directory
+    set_target_properties(test_llvm_integration_simple PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+    
+    message(STATUS "✅ اختبار LLVM Integration مُفعّل / LLVM Integration test enabled")
+    
+    # ======================================================================
+    # اختبار شامل للمولد LLVM / Comprehensive LLVM Generator Test
+    # ======================================================================
+    message(STATUS "إضافة اختبار شامل LLVM Generator / Adding Comprehensive LLVM Generator Test")
+    
+    # إنشاء executable للاختبار الشامل / Create comprehensive test executable
+    add_executable(test_llvm_generator_comprehensive
+        tests/jit/test_llvm_generator_comprehensive.cpp
+    )
+    
+    # ربط المكتبات / Link libraries
+    target_link_libraries(test_llvm_generator_comprehensive
+        PRIVATE
+            sad_jit
+            sad_core
+    )
+    
+    # إضافة مسار DIA SDK للمكتبات / Add DIA SDK library path
+    if(MSVC)
+        target_link_directories(test_llvm_generator_comprehensive
+            PRIVATE
+                "C:/Program Files/Microsoft Visual Studio/2022/Community/DIA SDK/lib"
+        )
+    endif()
+    
+    # تحديد المجلدات / Include directories
+    target_include_directories(test_llvm_generator_comprehensive
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/compiler/jit/include
+            ${CMAKE_SOURCE_DIR}/compiler/backend/llvm/include
+    )
+    
+    # تعريف ENABLE_LLVM_BACKEND / Define ENABLE_LLVM_BACKEND
+    target_compile_definitions(test_llvm_generator_comprehensive
+        PRIVATE
+            ENABLE_LLVM_BACKEND
+    )
+    
+    # إصلاح مشكلة diaguids.lib / Fix diaguids.lib issue
+    if(MSVC)
+        set_target_properties(test_llvm_generator_comprehensive PROPERTIES
+            LINK_FLAGS "/NODEFAULTLIB:diaguids.lib /IGNORE:4099"
+        )
+    endif()
+    
+    # ======================================================================
+    # قياسات أداء LLVM Generator / LLVM Generator Performance Benchmarks
+    # ======================================================================
+    message(STATUS "إضافة قياسات أداء LLVM Generator / Adding LLVM Generator Performance Benchmarks")
+    
+    # إنشاء executable لقياسات الأداء / Create performance benchmark executable
+    add_executable(test_llvm_generator_benchmark
+        tests/jit/test_llvm_generator_benchmark.cpp
+    )
+    
+    # ربط المكتبات / Link libraries
+    target_link_libraries(test_llvm_generator_benchmark
+        PRIVATE
+            sad_jit
+            sad_core
+    )
+    
+    # إضافة مسار DIA SDK للمكتبات / Add DIA SDK library path
+    if(MSVC)
+        target_link_directories(test_llvm_generator_benchmark
+            PRIVATE
+                "C:/Program Files/Microsoft Visual Studio/2022/Community/DIA SDK/lib"
+        )
+    endif()
+    
+    # تحديد المجلدات / Include directories
+    target_include_directories(test_llvm_generator_benchmark
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/compiler/jit/include
+            ${CMAKE_SOURCE_DIR}/compiler/backend/llvm/include
+    )
+    
+    # تعريف ENABLE_LLVM_BACKEND / Define ENABLE_LLVM_BACKEND
+    target_compile_definitions(test_llvm_generator_benchmark
+        PRIVATE
+            ENABLE_LLVM_BACKEND
+    )
+    
+    # إصلاح مشكلة diaguids.lib / Fix diaguids.lib issue
+    if(MSVC)
+        set_target_properties(test_llvm_generator_benchmark PROPERTIES
+            LINK_FLAGS "/NODEFAULTLIB:diaguids.lib /IGNORE:4099"
+        )
+    endif()
+    
+    message(STATUS "✅ قياسات أداء LLVM Generator مُفعّلة / LLVM Generator Benchmarks enabled")
+    
+    # تحديد مجلد الإخراج / Set output directory
+    set_target_properties(test_llvm_generator_comprehensive PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+    
+    message(STATUS "✅ اختبار شامل LLVM Generator مُفعّل / Comprehensive LLVM Generator test enabled")
+else()
+    message(STATUS "⚠️  اختبار LLVM Integration معطل (LLVM غير متوفر) / LLVM Integration test disabled (LLVM not available)")
+endif()
+
+# ======================================================================
 # Type Checker Tests / اختبارات مدقق الأنواع
 # ======================================================================
 if(BUILD_TESTS)
     message(STATUS "إضافة اختبارات Type Checker / Adding Type Checker tests")
     add_subdirectory(compiler/frontend/type_checker/tests)
 endif()
+
+# ======================================================================
+# Type System Core Tests / اختبارات نواة نظام الأنواع (Phase 1.3.0)
+# ======================================================================
+message(STATUS "إضافة اختبار Type System Core / Adding Type System Core Test")
+
+# إنشاء executable للاختبار / Create test executable
+add_executable(test_type_system_core
+    compiler/type_system/tests/test_type_system_core.cpp
+)
+
+# ربط المكتبات / Link libraries
+target_link_libraries(test_type_system_core
+    PRIVATE sad_type_system
+)
+
+# مسارات Include / Include paths
+target_include_directories(test_type_system_core
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/compiler/type_system/include
+)
+
+message(STATUS "✅ اختبار نواة نظام الأنواع مُفعّل / Type System Core test enabled")
 
 # Package Manager block ends here
 endif()

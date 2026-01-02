@@ -12,6 +12,13 @@
 #include <iostream>     // للإخراج القياسي / For standard output
 #include <cstring>      // لدوال C للنصوص / For C string functions
 
+// تضمين LLVM Backend (Phase 1.2.1) / Include LLVM Backend (Phase 1.2.1)
+// المصدر: compiler/backend/llvm/include/ / Source: compiler/backend/llvm/include/
+#ifdef ENABLE_LLVM_BACKEND
+#include "../../backend/llvm/include/llvm_generator.h"
+#include "../../backend/llvm/include/llvm_context.h"
+#endif
+
 namespace Sad {
 namespace JIT {
 
@@ -21,10 +28,25 @@ namespace JIT {
 
 // هيكل داخلي لإخفاء تفاصيل LLVM / Internal structure to hide LLVM details
 struct JITEngine::Impl {
-    // LLVM Components (سنضيفها لاحقاً عند توفر LLVM) / LLVM Components (will add later)
-    // std::unique_ptr<llvm::orc::ExecutionSession> execution_session_;
-    // std::unique_ptr<llvm::orc::RTDyldObjectLinkingLayer> object_layer_;
-    // std::unique_ptr<llvm::orc::IRCompileLayer> compile_layer_;
+#ifdef ENABLE_LLVM_BACKEND
+    // ============================================================================
+    // LLVM Components (Phase 1.2.1) / مكونات LLVM
+    // المصدر: compiler/backend/llvm/include/ / Source: compiler/backend/llvm/include/
+    // ============================================================================
+    
+    // مدير سياق LLVM / LLVM context manager
+    // المصدر: llvm_context.h / Source: llvm_context.h
+    std::unique_ptr<LLVMContextManager> llvm_context_mgr_;
+    
+    // مولد LLVM IR / LLVM IR generator
+    // المصدر: llvm_generator.h / Source: llvm_generator.h
+    std::unique_ptr<LLVMGenerator> llvm_generator_;
+    
+    // خريطة الدوال المُجمّعة / Compiled functions map
+    // key: اسم الدالة / function name
+    // value: مؤشر الدالة المُجمّعة / compiled function pointer
+    std::unordered_map<std::string, void*> compiled_functions_;
+#endif
     
     // Sad Components
     std::unique_ptr<JITCache> cache_;              // الذاكرة المؤقتة / Cache
@@ -108,11 +130,52 @@ bool JITEngine::initialize(const std::string& target_triple) {
         pimpl_->cpu_name_ = detectCPUName();
         pimpl_->cpu_features_ = detectCPUFeatures();
         
+#ifdef ENABLE_LLVM_BACKEND
+        // ============================================================================
+        // تهيئة LLVM ORC JIT (Phase 1.2.1) / Initialize LLVM ORC JIT
+        // ============================================================================
+        
+        // 1. إنشاء مدير سياق LLVM / Create LLVM context manager
+        // المصدر: llvm_context.h:LLVMContextManager / Source: llvm_context.h:LLVMContextManager
+        pimpl_->llvm_context_mgr_ = std::make_unique<LLVMContextManager>();
+        
+        // 2. تهيئة مدير السياق / Initialize context manager
+        // المصدر: llvm_context.h:initialize() / Source: llvm_context.h:initialize()
+        if (!pimpl_->llvm_context_mgr_->initialize(pimpl_->target_triple_)) {
+            std::cerr << "❌ فشل تهيئة LLVM Context Manager\n";
+            std::cerr << "❌ Failed to initialize LLVM Context Manager\n";
+            std::cerr << "Error: " << pimpl_->llvm_context_mgr_->getLastError() << "\n";
+            return false;
+        }
+        
+        // 3. إنشاء مولد LLVM IR / Create LLVM IR generator
+        // المصدر: llvm_generator.h:LLVMGenerator / Source: llvm_generator.h:LLVMGenerator
+        pimpl_->llvm_generator_ = std::make_unique<LLVMGenerator>();
+        
+        // 4. تهيئة المولد مع السياق / Initialize generator with context
+        // المصدر: llvm_generator.h:initialize() / Source: llvm_generator.h:initialize()
+        if (!pimpl_->llvm_generator_->initialize(
+            pimpl_->llvm_context_mgr_->getContext(),
+            "sad_jit_module"
+        )) {
+            std::cerr << "❌ فشل تهيئة LLVM Generator\n";
+            std::cerr << "❌ Failed to initialize LLVM Generator\n";
+            std::cerr << "Error: " << pimpl_->llvm_generator_->getLastError() << "\n";
+            return false;
+        }
+        
+        std::cout << "✅ LLVM Backend initialized successfully\n";
+        std::cout << "   Target: " << pimpl_->target_triple_ << "\n";
+        std::cout << "   CPU: " << pimpl_->cpu_name_ << "\n";
+#else
         // TODO: تهيئة LLVM ORC JIT / Initialize LLVM ORC JIT
         // - إنشاء ExecutionSession
         // - إنشاء ObjectLinkingLayer
         // - إنشاء IRCompileLayer
         // - تسجيل الدوال المضمنة (built-in functions)
+        
+        std::cout << "⚠️  LLVM Backend disabled - using simulation mode\n";
+#endif
         
         // وضع علامة التهيئة / Mark as initialized
         pimpl_->is_initialized_ = true;
@@ -197,6 +260,84 @@ JITCompilationResult JITEngine::compileFunction(
         int opt_level = determineOptimizationLevel(function_name);
         result.optimization_level = opt_level;
         
+#ifdef ENABLE_LLVM_BACKEND
+        // ============================================================================
+        // التجميع الفعلي باستخدام LLVM (Phase 1.2.1) / Actual compilation using LLVM
+        // ============================================================================
+        
+        // 1. توليد LLVM IR من الكود المصدري / Generate LLVM IR from source code
+        // المصدر: llvm_generator.h:generateFromSource() / Source: llvm_generator.h:generateFromSource()
+        auto module = pimpl_->llvm_generator_->generateFromSource(source_code);
+        
+        // 2. التحقق من نجاح التوليد / Verify generation succeeded
+        if (!module) {
+            result.error_message = "Failed to generate LLVM IR: " + 
+                                  pimpl_->llvm_generator_->getLastError();
+            pimpl_->stats_.failed_compilations++;
+            return result;
+        }
+        
+        // 3. التحقق من صحة الوحدة / Verify module correctness
+        // المصدر: llvm_generator.h:verify() / Source: llvm_generator.h:verify()
+        std::string verify_error;
+        if (!pimpl_->llvm_generator_->verify(&verify_error)) {
+            result.error_message = "LLVM IR verification failed: " + verify_error;
+            pimpl_->stats_.failed_compilations++;
+            return result;
+        }
+        
+        // 4. تطبيق التحسينات / Apply optimizations
+        // المصدر: llvm_generator.h:optimize() / Source: llvm_generator.h:optimize()
+        if (opt_level > 0) {
+            pimpl_->llvm_generator_->optimize(opt_level);
+        }
+        
+        // 5. إنشاء وحدة آمنة للخيوط / Create thread-safe module
+        // المصدر: llvm_context.h:createThreadSafeModule() / Source: llvm_context.h:createThreadSafeModule()
+        // ملاحظة: نحتاج نقل ملكية module إلى ThreadSafeModule
+        // Note: Need to transfer module ownership to ThreadSafeModule
+        
+        // استخدام getContext و createThreadSafeModule بشكل صحيح
+        // Use getContext and createThreadSafeModule correctly
+        auto& ts_context = pimpl_->llvm_context_mgr_->getThreadSafeContext();
+        
+        // نقل ملكية module إلى ThreadSafeModule
+        // Transfer module ownership to ThreadSafeModule
+        llvm::orc::ThreadSafeModule ts_module(
+            std::move(module),
+            ts_context
+        );
+        
+        // 6. إضافة الوحدة إلى JIT / Add module to JIT
+        // المصدر: llvm_context.h:addModule() / Source: llvm_context.h:addModule()
+        if (!pimpl_->llvm_context_mgr_->addModule(std::move(ts_module))) {
+            result.error_message = "Failed to add module to JIT: " + 
+                                  pimpl_->llvm_context_mgr_->getLastError();
+            pimpl_->stats_.failed_compilations++;
+            return result;
+        }
+        
+        // 7. البحث عن الدالة المُجمّعة / Lookup compiled function
+        // المصدر: llvm_context.h:lookupFunction() / Source: llvm_context.h:lookupFunction()
+        void* compiled_ptr = pimpl_->llvm_context_mgr_->lookupFunction(function_name);
+        
+        if (!compiled_ptr) {
+            result.error_message = "Failed to find function after compilation: " + function_name;
+            pimpl_->stats_.failed_compilations++;
+            return result;
+        }
+        
+        // 8. حفظ مؤشر الدالة / Store function pointer
+        // المصدر: pimpl_->compiled_functions_ / Source: pimpl_->compiled_functions_
+        pimpl_->compiled_functions_[function_name] = compiled_ptr;
+        
+        // 9. تحديث النتيجة / Update result
+        result.success = true;
+        result.compiled_function = compiled_ptr;
+        result.code_size_bytes = source_code.size() * 2; // تقدير / Estimate
+        result.was_cached = false;
+        
+#else
         // TODO: التجميع الفعلي باستخدام LLVM / Actual compilation using LLVM
         // 1. تحويل source_code إلى LLVM IR
         // 2. تطبيق التحسينات بناءً على opt_level
@@ -212,12 +353,17 @@ JITCompilationResult JITEngine::compileFunction(
             result.compiled_function = compiled_ptr;
             result.code_size_bytes = source_code.size() * 2; // تقدير / Estimate
             result.was_cached = false;
+#endif
             
             // إضافة إلى الذاكرة المؤقتة / Add to cache
             if (pimpl_->cache_) {
                 CacheEntry entry;
                 entry.function_name = function_name;
+#ifdef ENABLE_LLVM_BACKEND
                 entry.compiled_code = compiled_ptr;
+#else
+                entry.compiled_code = compiled_ptr;
+#endif
                 entry.code_size_bytes = result.code_size_bytes;
                 entry.optimization_level = opt_level;
                 entry.source_hash = calculateHash(source_code);
@@ -229,9 +375,11 @@ JITCompilationResult JITEngine::compileFunction(
             pimpl_->stats_.total_compilations++;
             pimpl_->stats_.successful_compilations++;
             
+#ifndef ENABLE_LLVM_BACKEND
         } else {
             result.error_message = "Compilation failed / فشل التجميع";
         }
+#endif
         
     } catch (const std::exception& e) {
         result.error_message = std::string("Exception: ") + e.what();
@@ -329,6 +477,30 @@ void* JITEngine::executeFunction(
 
 void* JITEngine::getFunctionPointer(const std::string& function_name) {
     // ملاحظة: لا قفل هنا - يُفترض أن المُستدعي قد قفل / Note: No lock here - caller assumed to have locked
+    
+#ifdef ENABLE_LLVM_BACKEND
+    // ============================================================================
+    // البحث في الدوال المُجمّعة (Phase 1.2.1) / Search in compiled functions
+    // ============================================================================
+    
+    // 1. البحث في خريطة الدوال المُجمّعة / Search in compiled functions map
+    // المصدر: pimpl_->compiled_functions_ / Source: pimpl_->compiled_functions_
+    auto it = pimpl_->compiled_functions_.find(function_name);
+    if (it != pimpl_->compiled_functions_.end()) {
+        return it->second; // وُجدت الدالة! / Function found!
+    }
+    
+    // 2. محاولة البحث في LLVM JIT / Try to lookup in LLVM JIT
+    // المصدر: llvm_context.h:lookupFunction() / Source: llvm_context.h:lookupFunction()
+    if (pimpl_->llvm_context_mgr_ && pimpl_->llvm_context_mgr_->isInitialized()) {
+        void* func_ptr = pimpl_->llvm_context_mgr_->lookupFunction(function_name);
+        if (func_ptr) {
+            // حفظ في الخريطة للوصول السريع / Cache in map for fast access
+            pimpl_->compiled_functions_[function_name] = func_ptr;
+            return func_ptr;
+        }
+    }
+#endif
     
     // البحث في الذاكرة المؤقتة / Search in cache
     if (pimpl_->cache_) {

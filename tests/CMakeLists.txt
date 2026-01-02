@@ -25,6 +25,36 @@ add_executable(test_suite
 )
 
 # ========================================
+# LLVM Integration Test - اختبار تكامل LLVM (Phase 1.2.1)
+# ========================================
+
+if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
+    add_executable(test_llvm_integration_simple
+        jit/test_llvm_integration_simple.cpp
+    )
+    
+    target_link_libraries(test_llvm_integration_simple
+        PRIVATE
+            sad_jit
+    )
+    
+    target_include_directories(test_llvm_integration_simple
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../compiler/jit/include
+    )
+    
+    target_compile_definitions(test_llvm_integration_simple
+        PRIVATE
+            ENABLE_LLVM_BACKEND
+    )
+    
+    message(STATUS "✅ Test: LLVM Integration test enabled")
+else()
+    message(STATUS "⚠️  Test: LLVM Integration test disabled (LLVM not found)")
+endif()
+
+# ========================================
 # Module Parsing Tests - اختبارات تحليل الوحدات
 # ========================================
 
