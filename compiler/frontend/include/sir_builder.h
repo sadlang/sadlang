@@ -42,6 +42,40 @@ namespace Compiler {
 namespace SIR {
 
 // ======================================================================
+// AST Type Aliases - توافق مع الأسماء القديمة
+// AST Type Compatibility Aliases
+// ======================================================================
+
+// Map old AST node names to new ones for backward compatibility
+// ربط أسماء AST القديمة بالجديدة للتوافق
+namespace AST {
+    using ProgramNode = Sad::AST::StmtList;
+    using StatementNode = Sad::AST::Statement;
+    using ExpressionNode = Sad::AST::Expression;
+    using FunctionDeclNode = Sad::AST::FunctionDecl;
+    using VariableDeclNode = Sad::AST::VarDeclStmt;
+    using ClassDeclNode = Sad::AST::ClassDecl;
+    using IfStatementNode = Sad::AST::IfStmt;
+    using WhileLoopNode = Sad::AST::WhileStmt;
+    using ForLoopNode = Sad::AST::ForStmt;
+    using ReturnStatementNode = Sad::AST::ReturnStmt;
+    using AssignmentNode = Sad::AST::AssignExpr;
+    using BinaryOpNode = Sad::AST::BinaryExpr;
+    using UnaryOpNode = Sad::AST::UnaryExpr;
+    using FunctionCallNode = Sad::AST::CallExpr;
+    using MethodCallNode = Sad::AST::MemberExpr;
+    using VariableNode = Sad::AST::VariableExpr;
+    using LiteralNode = Sad::AST::LiteralExpr;
+    
+    // Operator types - enums not classes
+    using BinaryOperator = Sad::Lexer::TokenType;
+    using UnaryOperator = Sad::Lexer::TokenType;
+    
+    // Type alias
+    using Type = Sad::Data::Type;
+}
+
+// ======================================================================
 // تعريفات مساعدة / Helper Definitions
 // ======================================================================
 

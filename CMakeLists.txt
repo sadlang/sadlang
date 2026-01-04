@@ -189,6 +189,7 @@ set(AST_SOURCES
     src/parser/ast/property_nodes.cpp
     src/parser/ast/module_nodes.cpp
     src/parser/ast/ast_printer.cpp
+    src/parser/ast/type_nodes.cpp
 )
 
 # المفسر / Interpreter
@@ -483,6 +484,42 @@ if(BUILD_TESTS)
         message(STATUS "✓ اختبارات تحليل الوحدات مفعلة / Module parsing tests enabled")
     else()
         message(STATUS "⚠ اختبارات تحليل الوحدات غير متاحة / Module parsing tests not available")
+    endif()
+    
+    # ======================================================================
+    # اختبارات عُقد الأنواع المتقدمة (Type Nodes) / Type Nodes Tests - Phase 1.3.1
+    # ======================================================================
+    
+    if(EXISTS "${CMAKE_SOURCE_DIR}/tests/parser_tests/test_type_nodes.cpp")
+        add_executable(test_type_nodes
+            tests/parser_tests/test_type_nodes.cpp
+        )
+        
+        # Link required libraries
+        target_link_libraries(test_type_nodes PRIVATE sad_core)
+        
+        # Add include directories
+        target_include_directories(test_type_nodes PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/tests/parser_tests
+        )
+        
+        # Set executable properties
+        set_target_properties(test_type_nodes PROPERTIES
+            OUTPUT_NAME "test_type_nodes"
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        )
+        
+        # Add CTest test
+        add_test(
+            NAME TypeNodesTests
+            COMMAND test_type_nodes
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        )
+        
+        message(STATUS "✓ اختبارات عُقد الأنواع مفعلة / Type nodes tests enabled")
+    else()
+        message(STATUS "⚠ اختبارات عُقد الأنواع غير متاحة / Type nodes tests not available")
     endif()
     
     # ======================================================================
@@ -1392,6 +1429,14 @@ message(STATUS "إضافة Type System / Adding Type System")
 add_subdirectory(compiler/type_system)
 
 # ======================================================================
+# LLVM Compiler Pipeline / خط إنتاج المترجم LLVM (Phase 1.1.4)
+# ======================================================================
+if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
+    message(STATUS "إضافة LLVM Compiler Pipeline / Adding LLVM Compiler Pipeline")
+    add_subdirectory(compiler/pipeline/llvm)
+endif()
+
+# ======================================================================
 # LLVM Integration Test / اختبار تكامل LLVM (Phase 1.2.1)
 # ======================================================================
 if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
@@ -1562,6 +1607,74 @@ target_include_directories(test_type_system_core
 )
 
 message(STATUS "✅ اختبار نواة نظام الأنواع مُفعّل / Type System Core test enabled")
+
+# ======================================================================
+# Union & Optional Types Tests / اختبارات Union & Optional Types (Phase 1.3.5.0)
+# ======================================================================
+message(STATUS "إضافة اختبار Union & Optional Types / Adding Union & Optional Types Test")
+
+# إنشاء executable للاختبار / Create test executable
+add_executable(test_union_optional
+    compiler/type_system/tests/test_union_optional.cpp
+)
+
+# ربط المكتبات / Link libraries
+target_link_libraries(test_union_optional
+    PRIVATE sad_type_system
+)
+
+# مسارات Include / Include paths
+target_include_directories(test_union_optional
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/compiler/type_system/include
+)
+
+message(STATUS "✅ اختبار Union & Optional Types مُفعّل / Union & Optional Types test enabled")
+
+# ======================================================================
+# Type Guards Tests / اختبارات Type Guards (Phase 1.3.5.1)
+# ======================================================================
+message(STATUS "إضافة اختبار Type Guards / Adding Type Guards Test")
+
+# إنشاء executable للاختبار / Create test executable
+add_executable(test_type_guard
+    compiler/type_system/tests/test_type_guard.cpp
+)
+
+# ربط المكتبات / Link libraries
+target_link_libraries(test_type_guard
+    PRIVATE sad_type_system
+)
+
+# مسارات Include / Include paths
+target_include_directories(test_type_guard
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/compiler/type_system/include
+)
+
+message(STATUS "✅ اختبار Type Guards مُفعّل / Type Guards test enabled")
+
+# ----------------------------------------------------------------------
+# اختبار Type Narrowing / Type Narrowing Test
+# ----------------------------------------------------------------------
+
+# إنشاء executable للاختبار / Create test executable
+add_executable(test_type_narrowing
+    compiler/type_system/tests/test_type_narrowing.cpp
+)
+
+# ربط المكتبات / Link libraries
+target_link_libraries(test_type_narrowing
+    PRIVATE sad_type_system
+)
+
+# مسارات Include / Include paths
+target_include_directories(test_type_narrowing
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/compiler/type_system/include
+)
+
+message(STATUS "✅ اختبار Type Narrowing مُفعّل / Type Narrowing test enabled")
 
 # Package Manager block ends here
 endif()

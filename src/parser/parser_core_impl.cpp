@@ -15,6 +15,7 @@
  */
 
 #include "../../include/parser/parser_core.h"
+#include "../../include/parser/ast/advanced_expr_nodes.h"
 #include "../../include/data/managers/class_manager.h"
 #include <iostream>
 #include <sstream>
@@ -319,6 +320,16 @@ StmtPtr ParserCore::parseDeclaration() {
             error("(AR) المُزخرِفات لا تُستخدم مباشرة مع التصدير. (EN) Decorators cannot be used directly with export.");
         }
         return parseExportDecl();
+    }
+    
+    // (AR) دالة غير متزامنة / (EN) Async function
+    if (match(TT::KEYWORD_ASYNC)) {
+        if (!check(TT::KEYWORD_FUNCTION)) {
+            error("(AR) خطأ نحوي: يجب أن تتبع 'غير_متزامن' بـ 'دالة'. (EN) Syntax error: 'async' must be followed by 'function'.");
+            return nullptr;
+        }
+        advance(); // (AR) استهلاك 'دالة' / (EN) consume 'function'
+        return parseFunctionDecl(std::move(decorators), true); // (AR) تمرير is_async=true / (EN) pass is_async=true
     }
     
     if (match(TT::KEYWORD_FUNCTION)) {
@@ -669,7 +680,7 @@ StmtPtr ParserCore::parseStatement() {
  * - @staticmethod\nfunction test() {}
  * - @cache(100)\n@memoize\nfunction expensive() {}
  */
-StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
+StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async) {
     // Spec: docs/language_spec/rules/02_functions.md - function_decl ::= 'دالة' [type] IDENTIFIER '(' [param_list] ')' block
     // Optional return type BEFORE function name: دالة [type] name(...)
     // (AR) نوع الإرجاع الاختياري قبل اسم الدالة: دالة [نوع] اسم(...)
@@ -821,7 +832,8 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
             returnType,
             std::move(body),
             std::move(decorators),
-            false,
+            false,  // (AR) مُصدَّرة / (EN) exported
+            is_async,  // (AR) غير متزامنة / (EN) async
             name.getPosition()
         );
         // (AR) تعيين راية الدالة الرئيسية
@@ -837,7 +849,8 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators) {
         std::move(paramObjs),
         returnType,
         std::move(body),
-        false,
+        false,  // (AR) مُصدَّرة / (EN) exported
+        is_async,  // (AR) غير متزامنة / (EN) async
         name.getPosition()
     );
     // (AR) تعيين راية الدالة الرئيسية
@@ -1296,8 +1309,13 @@ StmtPtr ParserCore::parseIfStmt() {
     // Parse optional else branch
     // (AR) تحليل فرع else الاختياري
     StmtPtr elseBranch = nullptr;
-    if (match(TT::KEYWORD_ELSE)) {
-        // Check for else-if
+    if (match(TT::KEYWORD_ELSE_IF)) {
+        // else-if as single keyword (وإلا_إذا)
+        // (AR) والا_اذا ككلمة واحدة
+        elseBranch = parseIfStmt(); // Recursive for else-if
+    } else if (match(TT::KEYWORD_ELSE)) {
+        // Check for else-if as two separate keywords (وإلا إذا)
+        // (AR) التحقق من والا اذا ككلمتين منفصلتين
         if (check(TT::KEYWORD_IF)) {
             advance(); // consume 'if'
             elseBranch = parseIfStmt(); // Recursive for else-if
@@ -1509,11 +1527,27 @@ StmtPtr ParserCore::parseBlockStmt() {
     
     // Parse statements until 'نهاية' keyword (spec 04_syntax.md)
     // (AR) تحليل الجمل حتى كلمة 'نهاية'
-    while (!check(TT::KEYWORD_END) && !isAtEnd()) {
+    // Also stop at else/else-if keywords (for if statements)
+    // (AR) أيضاً التوقف عند كلمات والا/والا_اذا (لجمل if)
+    while (!check(TT::KEYWORD_END) && 
+           !check(TT::KEYWORD_ELSE) && 
+           !check(TT::KEYWORD_ELSE_IF) && 
+           !isAtEnd()) {
         auto stmt = parseDeclaration();
         if (stmt) {
             statements.push_back(std::move(stmt));
         }
+    }
+    
+    // Don't require 'نهاية' if we stopped at else/else-if
+    // (AR) لا نطلب 'نهاية' إذا توقفنا عند والا/والا_اذا
+    if (check(TT::KEYWORD_ELSE) || check(TT::KEYWORD_ELSE_IF)) {
+        // This is the then-branch of an if statement, don't consume 'نهاية'
+        // (AR) هذا هو فرع then لجملة if، لا نستهلك 'نهاية'
+        return std::make_unique<BlockStmt>(
+            std::move(statements),
+            current_.getPosition()
+        );
     }
     
     if (isAtEnd() && !check(TT::KEYWORD_END)) {
@@ -2162,6 +2196,21 @@ ExprPtr ParserCore::parsePostfix() {
  *        (EN) Parses primary expressions: numbers, strings, variables.
  */
 ExprPtr ParserCore::parsePrimary() {
+    // Await expression: await expr
+    // (AR) تعبير الانتظار: انتظر تعبير
+    if (match(TT::KEYWORD_AWAIT)) {
+        Token awaitToken = previous();
+        auto expr = parseTernary();  // (AR) تحليل تعبير ذو أولوية أعلى / (EN) Parse higher precedence expression
+        if (!expr) {
+            errorBilingual(
+                "خطأ نحوي: يجب أن يتبع 'انتظر' بتعبير.",
+                "Syntax error: 'await' must be followed by an expression."
+            );
+            return nullptr;
+        }
+        return std::make_unique<AwaitExpr>(std::move(expr), awaitToken.getPosition());
+    }
+    
     // OOP: new expression for object instantiation
     // (AR) تعبير جديد لإنشاء كائن
     if (match(TT::KEYWORD_NEW)) {

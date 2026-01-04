@@ -27,6 +27,7 @@ class MemberExpr;
 class ArrayExpr;
 class MapExpr;
 class WalrusExpr;         // (AR) تعبير Walrus / (EN) Walrus expression
+class AwaitExpr;          // (AR) تعبير Await (async/await) / (EN) Await expression
 class LambdaExpr;
 class ListComprehensionExpr;
 class DictComprehensionExpr;
@@ -236,6 +237,26 @@ public:
      * (EN) Walrus operator (:=) allows assignment within expression and returns assigned value
      */
     virtual void visitWalrusExpr(WalrusExpr& expr) = 0;
+    
+    /**
+     * @brief Visit await expression node / زيارة عقدة تعبير Await
+     * @param expr Await expression node (e.g., await fetchData())
+     * 
+     * Examples: await fetchData(), await readFile("data.txt")
+     * أمثلة: انتظر جلب_البيانات()، انتظر قراءة_ملف("بيانات.txt")
+     * 
+     * (AR) await يُستخدم لانتظار نتيجة دالة async - يمكن استخدامه فقط داخل دالة async
+     * (EN) await is used to wait for async function result - can only be used inside async function
+     * 
+     * Syntax / النحو:
+     *   await expression
+     *   انتظر تعبير
+     * 
+     * Note / ملاحظة:
+     * (AR) await يُوقف تنفيذ الدالة الحالية حتى يكتمل التعبير المنتظر
+     * (EN) await suspends current function execution until awaited expression completes
+     */
+    virtual void visitAwaitExpr(AwaitExpr& expr) = 0;
     
     /**
      * @brief Visit lambda expression node / زيارة عقدة تعبير Lambda
@@ -663,6 +684,7 @@ public:
     void visitMapExpr(MapExpr& expr) override {}
     void visitLambdaExpr(LambdaExpr& expr) override {}
     void visitWalrusExpr(WalrusExpr& expr) override {}
+    void visitAwaitExpr(AwaitExpr& expr) override {}  // (AR) تعبير await للـ async/await / (EN) await expression for async/await
     void visitListComprehensionExpr(ListComprehensionExpr& expr) override {}
     void visitDictComprehensionExpr(DictComprehensionExpr& expr) override {}
     void visitSetComprehensionExpr(SetComprehensionExpr& expr) override {}

@@ -3,6 +3,7 @@
 #include "parser/ast/statements.h"
 #include "parser/ast/declarations.h"
 #include "parser/ast/pattern_nodes.h"
+#include "parser/ast/advanced_expr_nodes.h"  // (AR) لتعريف AwaitExpr / (EN) For AwaitExpr definition
 #include "parser/ast/ast_visitor.h"
 #include "lexer/token.h"
 #include <iostream>
@@ -148,6 +149,9 @@ public:
     void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
         defineVar(node.variable);
         if (node.value) node.value->accept(*this);
+    }
+    void visitAwaitExpr(Sad::AST::AwaitExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
     }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}
@@ -485,6 +489,9 @@ public:
     void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
         if (node.value) node.value->accept(*this);
     }
+    void visitAwaitExpr(Sad::AST::AwaitExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
+    }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}
     void visitSetComprehensionExpr(Sad::AST::SetComprehensionExpr& node) override {
@@ -811,6 +818,9 @@ public:
     void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
         if (node.value) node.value->accept(*this);
     }
+    void visitAwaitExpr(Sad::AST::AwaitExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
+    }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}
     void visitSetComprehensionExpr(Sad::AST::SetComprehensionExpr& node) override {
@@ -1065,6 +1075,9 @@ public:
     void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
         if (node.value) node.value->accept(*this);
     }
+    void visitAwaitExpr(Sad::AST::AwaitExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
+    }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}
     void visitSetComprehensionExpr(Sad::AST::SetComprehensionExpr& node) override {
@@ -1280,6 +1293,9 @@ public:
     void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
         if (node.value) node.value->accept(*this);
     }
+    void visitAwaitExpr(Sad::AST::AwaitExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
+    }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}
     void visitSetComprehensionExpr(Sad::AST::SetComprehensionExpr& node) override {
@@ -1494,6 +1510,9 @@ public:
     void visitMemberAssignExpr(Sad::AST::MemberAssignExpr&) override {}
     void visitWalrusExpr(Sad::AST::WalrusExpr& node) override {
         if (node.value) node.value->accept(*this);
+    }
+    void visitAwaitExpr(Sad::AST::AwaitExpr& node) override {
+        if (node.expression) node.expression->accept(*this);
     }
     void visitListComprehensionExpr(Sad::AST::ListComprehensionExpr&) override {}
     void visitDictComprehensionExpr(Sad::AST::DictComprehensionExpr&) override {}

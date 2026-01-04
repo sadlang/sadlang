@@ -162,6 +162,46 @@ public:
      */
     std::string toString() const;
     
+    /**
+     * @brief (AR) طباعة الوحدة للـ console
+     * @brief (EN) Print module to console
+     */
+    void print() const;
+    
+    /**
+     * @brief (AR) الحصول على عدد الدوال
+     * @brief (EN) Get function count
+     */
+    size_t getFunctionCount() const { return functions_.size(); }
+    
+    /**
+     * @brief (AR) الحصول على عدد المتغيرات العامة
+     * @brief (EN) Get global variable count
+     */
+    size_t getGlobalCount() const { return globalVariables_.size(); }
+    
+    /**
+     * @brief (AR) الحصول على إجمالي عدد التعليمات
+     * @brief (EN) Get total instruction count
+     */
+    size_t getTotalInstructions() const;
+    
+    /**
+     * @brief (AR) الحصول على قائمة المتغيرات العامة
+     * @brief (EN) Get global variables list
+     */
+    const std::vector<std::shared_ptr<SIRGlobalVariable>>& getGlobalVariables() const {
+        return globalVariables_;
+    }
+    
+    /**
+     * @brief (AR) الحصول على قائمة الثوابت
+     * @brief (EN) Get constants list
+     */
+    const std::vector<std::string>& getConstants() const {
+        return stringConstants_;
+    }
+    
 private:
     std::vector<std::shared_ptr<SIRFunction>> functions_;
     std::unordered_map<std::string, std::shared_ptr<SIRFunction>> functionMap_;

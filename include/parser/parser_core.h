@@ -175,7 +175,7 @@ private:
      * @return (AR) مؤشر لعقدة تصريح الدالة.
      *         (EN) Pointer to function declaration node.
      */
-    AST::StmtPtr parseFunctionDecl(AST::ExprList decorators = AST::ExprList());
+    AST::StmtPtr parseFunctionDecl(AST::ExprList decorators = AST::ExprList(), bool is_async = false);
 
     /**
      * @brief (AR) يحلل تصريح صنف (class) مع الحقول والطرق.

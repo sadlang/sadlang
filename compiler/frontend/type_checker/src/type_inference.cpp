@@ -11,6 +11,7 @@
  */
 
 #include "../include/type_inference.h"
+#include "../../../../include/lexer/token.h"
 #include <sstream>
 #include <algorithm>
 
@@ -195,16 +196,16 @@ std::shared_ptr<Type> TypeInference::inferLiteral(AST::Expression* expr) {
     
     // Check token type
     auto tokenType = litExpr->token.getType();
-    if (tokenType == TokenType::INTEGER) {
+    if (tokenType == Sad::Lexer::TokenType::NUMBER_INTEGER) {
         return TypeFactory::getIntType();
-    } else if (tokenType == TokenType::FLOAT) {
+    } else if (tokenType == Sad::Lexer::TokenType::NUMBER_DOUBLE) {
         return TypeFactory::getFloatType();
-    } else if (tokenType == TokenType::STRING_LITERAL ||
-               tokenType == TokenType::STRING_RAW ||
-               tokenType == TokenType::STRING_FSTRING) {
+    } else if (tokenType == Sad::Lexer::TokenType::STRING_LITERAL ||
+               tokenType == Sad::Lexer::TokenType::STRING_RAW ||
+               tokenType == Sad::Lexer::TokenType::STRING_FSTRING) {
         return TypeFactory::getStringType();
-    } else if (tokenType == TokenType::LITERAL_TRUE ||
-               tokenType == TokenType::LITERAL_FALSE) {
+    } else if (tokenType == Sad::Lexer::TokenType::LITERAL_TRUE ||
+               tokenType == Sad::Lexer::TokenType::LITERAL_FALSE) {
         return TypeFactory::getBoolType();
     } else {
         return TypeFactory::getVoidType();

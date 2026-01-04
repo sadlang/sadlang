@@ -162,6 +162,7 @@ public:
     static SIRInstruction Alloc(const SIROperand& result,
                                SIRType type,
                                const SIROperand& size) {
+        (void)type; // Suppress unused parameter warning - type information preserved in result operand
         SIRInstruction inst(SIROpcode::ALLOC);
         inst.result = result;
         inst.operands = {size};

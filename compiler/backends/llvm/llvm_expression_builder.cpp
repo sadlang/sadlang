@@ -37,9 +37,8 @@ LLVMExpressionBuilder::LLVMExpressionBuilder(llvm::LLVMContext& context,
                                              llvm::IRBuilder<>& builder,
                                              LLVMTypeMapper* typeMapper,
                                              LLVMMemoryManager* memoryManager)
-    : context_(context)
-    , builder_(builder)
-    , typeMapper_(typeMapper)
+    : builder_(builder)
+    , typeMapper_(*typeMapper)
     , memoryManager_(memoryManager)  // حفظ مؤشر مدير الذاكرة / Store memory manager pointer
 {
     // تهيئة دعم المصفوفات والقواميس / Initialize array and dict support
@@ -93,6 +92,10 @@ llvm::Value* LLVMExpressionBuilder::buildArrayCreate(
         memoryManager_->registerForAutoRelease(arrayAlloca);
     }
     
+    // Register array type for opaque pointer support
+    // تسجيل نوع المصفوفة لدعم المؤشرات الشفافة
+    registerPointeeType(arrayAlloca, arrayType);
+    
     return arrayAlloca;  // إرجاع المصفوفة / Return array
 }
 
@@ -102,7 +105,12 @@ llvm::Value* LLVMExpressionBuilder::buildArrayCreate(
  */
 llvm::Value* LLVMExpressionBuilder::buildArrayAccess(llvm::Value* array, llvm::Value* index) {
     // الحصول على نوع المصفوفة / Get array type
-    llvm::Type* arrayType = array->getType()->getPointerElementType();
+    llvm::Type* arrayType = getPointeeType(array);
+    
+    if (!arrayType) {
+        // Fallback: assume it's an array of i64
+        arrayType = llvm::ArrayType::get(builder_.getInt64Ty(), 0);
+    }
     
     // إنشاء فهارس GEP / Create GEP indices
     std::vector<llvm::Value*> indices = {
@@ -114,7 +122,14 @@ llvm::Value* LLVMExpressionBuilder::buildArrayAccess(llvm::Value* array, llvm::V
     llvm::Value* elementPtr = builder_.CreateGEP(arrayType, array, indices, "array_access");
     
     // تحميل العنصر / Load element
-    return builder_.CreateLoad(elementPtr->getType()->getPointerElementType(), elementPtr, "element");
+    llvm::Type* elemType = nullptr;
+    if (auto* arrType = llvm::dyn_cast<llvm::ArrayType>(arrayType)) {
+        elemType = arrType->getElementType();
+    } else {
+        elemType = builder_.getInt64Ty(); // Fallback
+    }
+    
+    return builder_.CreateLoad(elemType, elementPtr, "element");
 }
 
 /**
@@ -123,7 +138,12 @@ llvm::Value* LLVMExpressionBuilder::buildArrayAccess(llvm::Value* array, llvm::V
  */
 void LLVMExpressionBuilder::buildArraySet(llvm::Value* array, llvm::Value* index, llvm::Value* value) {
     // الحصول على نوع المصفوفة / Get array type
-    llvm::Type* arrayType = array->getType()->getPointerElementType();
+    llvm::Type* arrayType = getPointeeType(array);
+    
+    if (!arrayType) {
+        // Fallback: create array type from value type
+        arrayType = llvm::ArrayType::get(value->getType(), 0);
+    }
     
     // إنشاء فهارس GEP / Create GEP indices
     std::vector<llvm::Value*> indices = {
@@ -144,9 +164,8 @@ void LLVMExpressionBuilder::buildArraySet(llvm::Value* array, llvm::Value* index
  */
 llvm::Value* LLVMExpressionBuilder::buildArrayLength(llvm::Value* array) {
     // الحصول على نوع المصفوفة / Get array type
-    llvm::ArrayType* arrayType = llvm::dyn_cast<llvm::ArrayType>(
-        array->getType()->getPointerElementType()
-    );
+    llvm::Type* arrType = getPointeeType(array);
+    llvm::ArrayType* arrayType = arrType ? llvm::dyn_cast<llvm::ArrayType>(arrType) : nullptr;
     
     if (arrayType) {
         // إرجاع الحجم كثابت / Return size as constant
@@ -241,9 +260,17 @@ llvm::Value* LLVMExpressionBuilder::buildObjectCreate(
     // استدعاء المنشئ إذا وُجد / Call constructor if exists
     // TODO: تنفيذ استدعاء المنشئ مع المعاملات / TODO: Implement constructor call with args
     
+    // Register object type for opaque pointer support
+    // تسجيل نوع الكائن لدعم المؤشرات الشفافة
+    registerPointeeType(objectPtr, classType);
+    
     return objectPtr;  // إرجاع الكائن / Return object
 }
 
+/**
+ * بناء الوصول لحقل
+ * Build field access
+ */
 /**
  * بناء الوصول لحقل
  * Build field access
@@ -253,14 +280,30 @@ llvm::Value* LLVMExpressionBuilder::buildFieldAccess(llvm::Value* object, const 
     // TODO: Implement field access based on class metadata
     
     // حالياً: استخدام GEP بفهرس 0 كمثال / Currently: Use GEP with index 0 as example
-    llvm::Type* objectType = object->getType()->getPointerElementType();
+    llvm::Type* objectType = getPointeeType(object);
+    
+    if (!objectType) {
+        // Fallback: assume struct with i64 fields
+        std::vector<llvm::Type*> fieldTypes = {builder_.getInt64Ty()};
+        objectType = llvm::StructType::get(builder_.getContext(), fieldTypes);
+    }
+    
     std::vector<llvm::Value*> indices = {
         llvm::ConstantInt::get(builder_.getInt32Ty(), 0),
         llvm::ConstantInt::get(builder_.getInt32Ty(), 0)  // TODO: استخدام فهرس الحقل الحقيقي
     };
     
     llvm::Value* fieldPtr = builder_.CreateGEP(objectType, object, indices, fieldName + "_ptr");
-    return builder_.CreateLoad(fieldPtr->getType()->getPointerElementType(), fieldPtr, fieldName);
+    
+    // Get field type
+    llvm::Type* fieldType = builder_.getInt64Ty(); // Default fallback
+    if (auto* structType = llvm::dyn_cast<llvm::StructType>(objectType)) {
+        if (structType->getNumElements() > 0) {
+            fieldType = structType->getElementType(0);
+        }
+    }
+    
+    return builder_.CreateLoad(fieldType, fieldPtr, fieldName);
 }
 
 /**
@@ -271,7 +314,14 @@ void LLVMExpressionBuilder::buildFieldSet(llvm::Value* object, const std::string
     // TODO: تنفيذ تعيين الحقل بناءً على البيانات الوصفية للصنف
     // TODO: Implement field assignment based on class metadata
     
-    llvm::Type* objectType = object->getType()->getPointerElementType();
+    llvm::Type* objectType = getPointeeType(object);
+    
+    if (!objectType) {
+        // Fallback: create struct type from value type
+        std::vector<llvm::Type*> fieldTypes = {value->getType()};
+        objectType = llvm::StructType::get(builder_.getContext(), fieldTypes);
+    }
+    
     std::vector<llvm::Value*> indices = {
         llvm::ConstantInt::get(builder_.getInt32Ty(), 0),
         llvm::ConstantInt::get(builder_.getInt32Ty(), 0)  // TODO: استخدام فهرس الحقل الحقيقي
@@ -318,6 +368,8 @@ llvm::Value* LLVMExpressionBuilder::buildFunctionCall(
 
 /**
  * بناء استدعاء دالة غير مباشر (مؤشر دالة)
+/**
+ * بناء استدعاء دالة غير مباشر (مؤشر دالة)
  * Build indirect function call (function pointer)
  */
 llvm::Value* LLVMExpressionBuilder::buildIndirectCall(
@@ -325,9 +377,22 @@ llvm::Value* LLVMExpressionBuilder::buildIndirectCall(
     const std::vector<llvm::Value*>& args)
 {
     // الحصول على نوع الدالة / Get function type
-    llvm::FunctionType* funcType = llvm::cast<llvm::FunctionType>(
-        functionPtr->getType()->getPointerElementType()
-    );
+    llvm::FunctionType* funcType = nullptr;
+    
+    // Try to get tracked function type
+    llvm::Type* pointeeType = getPointeeType(functionPtr);
+    if (pointeeType) {
+        funcType = llvm::dyn_cast<llvm::FunctionType>(pointeeType);
+    }
+    
+    // Fallback: construct function type from arguments
+    if (!funcType) {
+        std::vector<llvm::Type*> paramTypes;
+        for (const auto& arg : args) {
+            paramTypes.push_back(arg->getType());
+        }
+        funcType = llvm::FunctionType::get(builder_.getInt64Ty(), paramTypes, false);
+    }
     
     // إنشاء استدعاء غير مباشر / Create indirect call
     return builder_.CreateCall(funcType, functionPtr, args, "indirect_call");
@@ -468,7 +533,11 @@ llvm::Value* LLVMExpressionBuilder::callRuntimeFunction(
         }
         
         // نوع الرجوع الافتراضي: i8* (مؤشر عام) / Default return type: i8* (generic pointer)
+        #if LLVM_VERSION_MAJOR >= 15
+        llvm::Type* returnType = builder_.getPtrTy();
+        #else
         llvm::Type* returnType = builder_.getInt8PtrTy();
+        #endif
         
         llvm::FunctionType* funcType = llvm::FunctionType::get(returnType, paramTypes, false);
         function = llvm::Function::Create(

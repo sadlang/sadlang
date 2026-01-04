@@ -337,21 +337,58 @@ public:
 private:
     // ========================================================================
     // البيانات الخاصة / Private Data
-    // ===============================  ///< سياق LLVM / LLVM context
+    // ========================================================================
     llvm::IRBuilder<>& builder_;        ///< بناء IR / IR builder
-    LLVMTypeMapper* typeMapper_;        ///< محول الأنواع / Type mapper
-    LLVMMemoryManager* memoryManager_;  ///< مدير الذاكرة والـ ARC / Memory & ARC manag
-    llvm::IRBuilder<>& builder_;      ///< بناء IR / IR builder
-    LLVMTypeMapper* typeMapper_;      ///< محول الأنواع / Type mapper
+    LLVMTypeMapper& typeMapper_;        ///< محول الأنواع / Type mapper
+    LLVMMemoryManager* memoryManager_;  ///< مدير الذاكرة والـ ARC / Memory & ARC manager
     
     std::unique_ptr<LLVMArraySupport> arraySupport_;      ///< دعم المصفوفات / Array support
     std::unique_ptr<LLVMDictSupport> dictSupport_;        ///< دعم القواميس / Dict support
     std::unique_ptr<LLVMClassSupport> classSupport_;      ///< دعم الأصناف / Class support
     std::unique_ptr<LLVMClosureSupport> closureSupport_;  ///< دعم Closures / Closure support
     
+    // Type tracking for opaque pointers (LLVM 15+)
+    // تتبع الأنواع للمؤشرات الشفافة (LLVM 15+)
+    std::unordered_map<llvm::Value*, llvm::Type*> valuePointeeTypes_;
+    
     // ========================================================================
     // دوال مساعدة / Helper Functions
     // ========================================================================
+    
+    /**
+     * تسجيل نوع المؤشر (للدعم الأمثل مع Opaque Pointers)
+     * Register pointer pointee type (for optimal Opaque Pointers support)
+     * 
+     * @param pointer المؤشر / Pointer value
+     * @param pointeeType نوع العنصر المشار إليه / Pointee type
+     */
+    void registerPointeeType(llvm::Value* pointer, llvm::Type* pointeeType) {
+        valuePointeeTypes_[pointer] = pointeeType;
+    }
+    
+    /**
+     * الحصول على نوع العنصر المشار إليه من المؤشر
+     * Get pointee type from pointer
+     * 
+     * @param pointer المؤشر / Pointer value
+     * @return نوع العنصر أو nullptr / Pointee type or nullptr
+     */
+    llvm::Type* getPointeeType(llvm::Value* pointer) {
+        #if LLVM_VERSION_MAJOR >= 15
+        // With opaque pointers, use tracked type
+        auto it = valuePointeeTypes_.find(pointer);
+        if (it != valuePointeeTypes_.end()) {
+            return it->second;
+        }
+        return nullptr;
+        #else
+        // With typed pointers, extract from pointer type
+        if (auto* ptrType = llvm::dyn_cast<llvm::PointerType>(pointer->getType())) {
+            return ptrType->getPointerElementType();
+        }
+        return nullptr;
+        #endif
+    }
     
     /**
      * إنشاء runtime call لدالة مساعدة

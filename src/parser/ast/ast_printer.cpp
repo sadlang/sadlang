@@ -16,6 +16,7 @@
 #include "../../../include/parser/ast/property_nodes.h"
 #include "../../../include/parser/ast/class_nodes.h"
 #include "../../../include/parser/ast/expressions.h"
+#include "../../../include/parser/ast/advanced_expr_nodes.h"  // (AR) لتعريف AwaitExpr / (EN) For AwaitExpr definition
 #include <sstream>
 
 namespace Sad {
@@ -281,6 +282,29 @@ void ASTPrinter::visitWalrusExpr(WalrusExpr& expr) {
     result_ += expr.variable;
     result_ += " := ";
     expr.value->accept(*this);
+    result_ += ")";
+}
+
+/**
+ * @brief (AR) يزور عقدة تعبير Await - يطبع انتظار تعبير async.
+ *        (EN) Visits Await expression node - prints await for async expression.
+ * 
+ * مصدر التعريف / Source Definition: advanced_expr_nodes.h:85-120
+ * 
+ * @param expr (AR) مؤشر لعقدة تعبير Await. (EN) Pointer to Await expression node.
+ * 
+ * أمثلة / Examples:
+ *   await fetchData()       -> "(await fetchData())"
+ *   انتظر جلب_البيانات()   -> "(انتظر جلب_البيانات())"
+ */
+void ASTPrinter::visitAwaitExpr(AwaitExpr& expr) {
+    // (AR) طباعة كلمة await / (EN) Print await keyword
+    result_ += "(await ";
+    
+    // (AR) زيارة التعبير المُنتظَر / (EN) Visit awaited expression
+    expr.expression->accept(*this);
+    
+    // (AR) إغلاق القوس / (EN) Close parenthesis
     result_ += ")";
 }
 

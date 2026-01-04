@@ -14,6 +14,7 @@
 
 #include "sir_module.h"
 #include <sstream>
+#include <iostream>
 #include <algorithm>
 #include <set>
 
@@ -368,6 +369,28 @@ std::string SIRModule::toString() const {
     }
     
     return oss.str();
+}
+
+/**
+ * طباعة الوحدة للـ console
+ * Print module to console
+ */
+void SIRModule::print() const {
+    std::cout << toString() << std::endl;
+}
+
+/**
+ * الحصول على إجمالي عدد التعليمات
+ * Get total instruction count
+ */
+size_t SIRModule::getTotalInstructions() const {
+    size_t count = 0;
+    for (const auto& func : functions_) {
+        for (const auto& bb : func->getBasicBlocks()) {
+            count += bb->getInstructions().size();
+        }
+    }
+    return count;
 }
 
 } // namespace SIR

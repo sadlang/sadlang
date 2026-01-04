@@ -13,6 +13,7 @@
 #include "../../../include/parser/ast/declarations.h"
 #include "../../../include/parser/ast/class_nodes.h"
 #include "../../../include/parser/ast/expressions.h"
+#include "../../../include/parser/ast/advanced_expr_nodes.h" // For AwaitExpr
 #include "../../../include/data/managers/class_manager.h"
 #include "../../../include/data/types/object_instance.h"
 #include "../../../include/errors/error_manager.h"
@@ -304,6 +305,25 @@ Value ExpressionEvaluator::evaluateArithmeticOp(const Value& left, TokenType op,
 
 Value ExpressionEvaluator::evaluateComparisonOp(const Value& left, TokenType op, const Value& right, const Lexer::Position& pos) {
     // المقارنة تعمل على أي نوعين / Comparison works on any two types
+    
+    // معالجة خاصة لـ null (VOID) / Special handling for null (VOID)
+    // null يمكن مقارنته بأي نوع / null can be compared with any type
+    if (left.isVoid() || right.isVoid()) {
+        switch (op) {
+            case TokenType::OP_EQUAL:
+                return Value(left.isVoid() && right.isVoid());
+            case TokenType::OP_NOT_EQUAL:
+                return Value(!left.isVoid() || !right.isVoid());
+            default:
+                Sad::Errors::ErrorManager::getInstance().reportError(
+                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
+                    Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+                    "لا يمكن استخدام عمليات المقارنة (<، >، <=، >=) مع null. استخدم == أو != فقط",
+                    "Cannot use comparison operators (<, >, <=, >=) with null. Use == or != only"
+                );
+                return Value(false);
+        }
+    }
     
     // مقارنة الأنواع المختلفة / Different types comparison
     if (left.getType() != right.getType()) {
@@ -1808,6 +1828,21 @@ void ExpressionEvaluator::checkMemberAccess(
                  "' from outside class '" + targetClass->name + "' or derived classes.";
         throw RuntimeError(errMsg, Lexer::Position());
     }
+}
+
+// =========================================================================
+// (AR) تقييم تعبير Await / (EN) Await Expression Evaluation
+// =========================================================================
+
+void ExpressionEvaluator::visitAwaitExpr(AwaitExpr& node) {
+    // (AR) تقييم التعبير المُنتظَر / (EN) Evaluate awaited expression
+    // (AR) في التنفيذ الحالي، await يعمل بشكل متزامن (synchronous)
+    // (EN) In current implementation, await works synchronously
+    // TODO Phase 1.4.4: Implement async runtime with Future/Promise
+    
+    node.expression->accept(*this);
+    // (AR) النتيجة موجودة في lastResult_ / (EN) Result is in lastResult_
+    // (AR) await يُرجع نفس القيمة حالياً / (EN) await returns same value for now
 }
 
 } // namespace Interpreter

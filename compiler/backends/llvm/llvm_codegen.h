@@ -77,6 +77,11 @@
 #include "llvm_memory_manager.h"
 #include "llvm_optimizer.h"  // إضافة محسّن LLVM / Add LLVM optimizer
 
+// Sad SIR Components (مكونات Sad SIR)
+#include "sir_module.h"
+#include "sir_instruction.h"
+#include "sir_types.h"
+
 namespace Sad {
 namespace LLVM {
 
@@ -84,11 +89,13 @@ namespace LLVM {
 // Forward Declarations / التصريحات المسبقة
 // ============================================================================
 
-class SIRModule;
-class SIRFunction;
-class SIRBasicBlock;
-class SIRInstruction;
-class Type;
+// Use SIR types from Compiler namespace
+// استخدام أنواع SIR من namespace Compiler
+using SIRModule = Compiler::SIR::SIRModule;
+using SIRFunction = Compiler::SIR::SIRFunction;
+using SIRBasicBlock = Compiler::SIR::SIRBasicBlock;
+using SIRInstruction = Compiler::SIR::SIRInstruction;
+using SIRType = Compiler::SIR::SIRType;
 
 // ============================================================================
 // CodeGenContext - سياق توليد الكود
@@ -539,6 +546,24 @@ public:
      * @return نص LLVM IR / LLVM IR text
      */
     std::string emitToString() const;
+    
+    /**
+     * إصدار ملف assembly
+     * Emit assembly file
+     * 
+     * @param filename اسم الملف / File name
+     * @return true if successful
+     */
+    bool emitAssembly(const std::string& filename);
+    
+    /**
+     * إصدار ملف object
+     * Emit object file
+     * 
+     * @param filename اسم الملف / File name
+     * @return true if successful
+     */
+    bool emitObjectFile(const std::string& filename);
     
     /**
      * طباعة LLVM IR إلى stderr

@@ -94,7 +94,7 @@ llvm::Type* LLVMTypeMapper::mapSadType(std::shared_ptr<Type> sadType) {
     else if (sadType->isFunction()) {
         // نوع دالة - يحتاج معالجة خاصة / Function type - needs special handling
         // لا يمكن تحويله مباشرة، استخدم mapFunctionType / Cannot convert directly, use mapFunctionType
-        result = getInt8PtrType(); // مؤقت: مؤشر عام / Temporary: generic pointer
+        result = getStringPtrType(); // مؤقت: مؤشر عام / Temporary: generic pointer
     }
     else if (sadType->isClass()) {
         // نوع صنف / Class type
@@ -268,7 +268,11 @@ llvm::Type* LLVMTypeMapper::getDoubleType() const {
  * الحصول على نوع مؤشر i8* (للنصوص) / Get i8* pointer type (for strings)
  */
 llvm::PointerType* LLVMTypeMapper::getStringPtrType() const {
+    #if LLVM_VERSION_MAJOR >= 15
+    return llvm::PointerType::get(context_, 0); // opaque pointer
+    #else
     return llvm::Type::getInt8PtrTy(context_); // i8* للنصوص / i8* for strings
+    #endif
 }
 
 /**

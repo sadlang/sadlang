@@ -211,6 +211,14 @@ public:
     void visitWalrusExpr(AST::WalrusExpr& node) override;
     
     /**
+     * @brief (AR) تقييم تعبير Await (await expr)
+     * @brief (EN) Evaluate Await expression (await expr)
+     * @details (AR) ينتظر نتيجة تعبير غير متزامن
+     * @details (EN) Waits for result of async expression
+     */
+    void visitAwaitExpr(AST::AwaitExpr& node) override;
+    
+    /**
      * @brief (AR) تقييم دالة Lambda (lambda(x) { return x * 2; })
      * @brief (EN) Evaluate Lambda function (lambda(x) { return x * 2; })
      */

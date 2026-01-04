@@ -54,16 +54,16 @@ std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode* program) {
     
     // (AR) معالجة جميع التصريحات في البرنامج (دوال، متغيرات عامة، أصناف)
     // (EN) Process all declarations in program (functions, global variables, classes)
-    // Note: التصريحات العامة تُعالج بالأسفل - buildGlobalVariable, buildFunction, buildClass
-    // Note: Global declarations are processed below - buildGlobalVariable, buildFunction, buildClass
-    for (auto& decl : program->declarations) {
-        if (auto funcDecl = dynamic_cast<AST::FunctionDeclNode*>(decl.get())) {
+    // Note: program is StmtList* (vector<StmtPtr>*) - iterate directly
+    // ملاحظة: program هو StmtList* (vector<StmtPtr>*) - نتكرر مباشرة
+    for (auto& stmt : *program) {
+        if (auto funcDecl = dynamic_cast<AST::FunctionDeclNode*>(stmt.get())) {
             buildFunction(funcDecl);
         }
-        else if (auto varDecl = dynamic_cast<AST::VariableDeclNode*>(decl.get())) {
+        else if (auto varDecl = dynamic_cast<AST::VariableDeclNode*>(stmt.get())) {
             buildGlobalVariable(varDecl);
         }
-        else if (auto classDecl = dynamic_cast<AST::ClassDeclNode*>(decl.get())) {
+        else if (auto classDecl = dynamic_cast<AST::ClassDeclNode*>(stmt.get())) {
             buildClass(classDecl);
         }
     }

@@ -44,6 +44,7 @@
 #include "../../../../include/parser/ast/expressions.h"
 #include "../../../../include/parser/ast/statements.h"
 #include "../../../../include/parser/ast/declarations.h"
+#include "../../../../compiler/type_system/include/type_narrowing.h"
 
 namespace Sad {
 namespace TypeChecker {
@@ -75,6 +76,10 @@ private:
     // خرائط للتخزين المؤقت / Caching maps
     std::unordered_map<AST::ASTNode*, std::shared_ptr<Type>> typeCache_; // تخزين الأنواع / Type cache
     
+    // Phase 1.3.5.3: Type Narrowing Integration / تكامل تضييق الأنواع
+    TypeSystem::TypeNarrowingAnalyzer narrowingAnalyzer_; // محلل تضييق الأنواع / Type narrowing analyzer
+    bool enableTypeNarrowing_;                            // تفعيل تضييق الأنواع / Enable type narrowing
+    
 public:
     /**
      * المنشئ / Constructor
@@ -87,6 +92,7 @@ public:
         , reporter_(std::make_shared<TypeErrorReporter>())
         , hasErrors_(false)
         , currentFile_("")
+        , enableTypeNarrowing_(true)  // مفعّل افتراضياً / Enabled by default
     {}
     
     /**
@@ -178,6 +184,25 @@ public:
         reporter_->clear();
         typeCache_.clear();
         hasErrors_ = false;
+        narrowingAnalyzer_.resetContext();
+    }
+    
+    /**
+     * تفعيل أو تعطيل Type Narrowing / Enable or disable Type Narrowing
+     * 
+     * @param enable true لتفعيل / true to enable
+     */
+    void setTypeNarrowingEnabled(bool enable) {
+        enableTypeNarrowing_ = enable;
+    }
+    
+    /**
+     * هل Type Narrowing مفعّل / Is Type Narrowing enabled
+     * 
+     * @return true إذا كان مفعّلاً / true if enabled
+     */
+    bool isTypeNarrowingEnabled() const {
+        return enableTypeNarrowing_;
     }
 
 private:

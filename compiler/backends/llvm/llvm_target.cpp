@@ -7,13 +7,13 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/FileSystem.h>
-#include <llvm/Support/Host.h>
-#include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/TargetParser/Triple.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetOptions.h>
-#include <llvm/MC/TargetRegistry.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/TargetParser/Host.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -70,7 +70,7 @@ bool LLVMTargetManager::setTargetTriple(const std::string& triple) {
     
     // البحث عن الهدف / Look up target
     std::string error;
-    auto target = llvm::TargetRegistry::lookupTarget(target_triple_, error);
+    const llvm::Target* target = llvm::TargetRegistry::lookupTarget(target_triple_, error);
     
     if (!target) {
         std::cerr << "خطأ في البحث عن الهدف / Target lookup error: " << error << std::endl;
@@ -126,7 +126,7 @@ llvm::TargetMachine* LLVMTargetManager::getTargetMachine() const {
  */
 bool LLVMTargetManager::createTargetMachine(const CodeGenOptions& options) {
     std::string error;
-    auto target = llvm::TargetRegistry::lookupTarget(target_triple_, error);
+    const llvm::Target* target = llvm::TargetRegistry::lookupTarget(target_triple_, error);
     
     if (!target) {
         std::cerr << "خطأ / Error: " << error << std::endl;
@@ -134,22 +134,22 @@ bool LLVMTargetManager::createTargetMachine(const CodeGenOptions& options) {
     }
     
     // تحويل مستوى التحسين / Convert optimization level
-    llvm::CodeGenOpt::Level llvm_opt_level;
+    llvm::CodeGenOptLevel llvm_opt_level;
     switch (options.opt_level) {
         case CodeGenOptLevel::None:
-            llvm_opt_level = llvm::CodeGenOpt::None;
+            llvm_opt_level = llvm::CodeGenOptLevel::None;
             break;
         case CodeGenOptLevel::Less:
-            llvm_opt_level = llvm::CodeGenOpt::Less;
+            llvm_opt_level = llvm::CodeGenOptLevel::Less;
             break;
         case CodeGenOptLevel::Default:
-            llvm_opt_level = llvm::CodeGenOpt::Default;
+            llvm_opt_level = llvm::CodeGenOptLevel::Default;
             break;
         case CodeGenOptLevel::Aggressive:
-            llvm_opt_level = llvm::CodeGenOpt::Aggressive;
+            llvm_opt_level = llvm::CodeGenOptLevel::Aggressive;
             break;
         default:
-            llvm_opt_level = llvm::CodeGenOpt::Default;
+            llvm_opt_level = llvm::CodeGenOptLevel::Default;
     }
     
     // تحويل نموذج إعادة التوطين / Convert relocation model
@@ -318,7 +318,7 @@ std::string LLVMTargetManager::getDefaultTargetTriple() {
  * الحصول على المعالج الافتراضي / Get default CPU
  */
 std::string LLVMTargetManager::getDefaultCPU() {
-    return std::string(llvm::sys::getHostCPUName());
+    return "generic"; // Host CPU detection not available
 }
 
 /**
@@ -326,7 +326,7 @@ std::string LLVMTargetManager::getDefaultCPU() {
  */
 bool LLVMTargetManager::isTargetSupported(const std::string& triple) {
     std::string error;
-    auto target = llvm::TargetRegistry::lookupTarget(triple, error);
+    const llvm::Target* target = llvm::TargetRegistry::lookupTarget(triple, error);
     return target != nullptr;
 }
 

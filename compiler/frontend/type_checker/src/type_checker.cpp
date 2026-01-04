@@ -718,6 +718,27 @@ bool TypeChecker::checkVarDecl(AST::VarDeclStmt* decl) {
 
 /**
  * التحقق من جملة if / Check if statement
+ * 
+ * ============================================================================
+ * Phase 1.3.5.3: Type Narrowing Integration
+ * ============================================================================
+ * مصدر التعريف: type_checker.h:252
+ * التوقيع الكامل: bool checkIfStmt(AST::IfStmt* stmt);
+ * المتغيرات المستخدمة:
+ *   - enableTypeNarrowing_: defined at type_checker.h:80
+ *   - narrowingAnalyzer_: defined at type_checker.h:79
+ *   - context_: defined at type_checker.h:70
+ * الدوال المستدعاة:
+ *   - checkExpr(): defined at type_checker.h:106
+ *   - requireBoolType(): defined at type_checker.h:342
+ *   - checkStmt(): defined at type_checker.h:118
+ *   - TypeNarrowingAnalyzer::getCurrentContext(): defined at type_narrowing.h:255
+ *   - TypeNarrowingAnalyzer::extractGuardFromCondition(): defined at type_narrowing.h:295
+ *   - TypeNarrowingContext::pushScope(): defined at type_narrowing.h:73
+ *   - TypeNarrowingContext::popScope(): defined at type_narrowing.h:80
+ *   - TypeNarrowingContext::applyGuard(): defined at type_narrowing.h:137
+ *   - TypeNarrowingContext::applyElseGuard(): defined at type_narrowing.h:148
+ * ============================================================================
  */
 bool TypeChecker::checkIfStmt(AST::IfStmt* stmt) {
     if (!stmt) {
@@ -729,6 +750,65 @@ bool TypeChecker::checkIfStmt(AST::IfStmt* stmt) {
     if (!requireBoolType(condType, stmt->condition.get())) {
         addError("شرط if يجب أن يكون منطقياً (bool)", stmt);
     }
+    
+    // ════════════════════════════════════════════════════════════════════════════
+    // Phase 1.3.5.3: Apply Type Narrowing
+    // ════════════════════════════════════════════════════════════════════════════
+    
+    if (enableTypeNarrowing_) {
+        // استخراج Type Guard من الشرط / Extract Type Guard from condition
+        std::string varName;
+        auto guard = narrowingAnalyzer_.extractGuardFromCondition(stmt->condition.get(), varName);
+        
+        if (guard && !varName.empty()) {
+            // توجد حارس → طبّق تضييق / Guard exists → apply narrowing
+            auto* narrowCtx = narrowingAnalyzer_.getCurrentContext();
+            
+            // التحقق من الفرع الإيجابي (then) / Check then branch
+            if (stmt->thenBranch) {
+                context_->getEnvironment()->pushScope(Scope::Type::BLOCK, "if-then");
+                
+                // إنشاء نطاق تضييق جديد / Create new narrowing scope
+                narrowCtx->pushScope();
+                
+                // تطبيق الحارس في then branch / Apply guard in then branch
+                narrowCtx->applyGuard(varName, guard);
+                
+                // التحقق من الكود في then / Check code in then
+                checkStmt(stmt->thenBranch.get());
+                
+                // إغلاق نطاق التضييق / Close narrowing scope
+                narrowCtx->popScope();
+                
+                context_->getEnvironment()->popScope();
+            }
+            
+            // التحقق من الفرع السلبي (else) / Check else branch
+            if (stmt->elseBranch) {
+                context_->getEnvironment()->pushScope(Scope::Type::BLOCK, "if-else");
+                
+                // إنشاء نطاق تضييق جديد / Create new narrowing scope
+                narrowCtx->pushScope();
+                
+                // تطبيق الحارس المعكوس في else branch / Apply inverted guard in else branch
+                narrowCtx->applyElseGuard(varName, guard);
+                
+                // التحقق من الكود في else / Check code in else
+                checkStmt(stmt->elseBranch.get());
+                
+                // إغلاق نطاق التضييق / Close narrowing scope
+                narrowCtx->popScope();
+                
+                context_->getEnvironment()->popScope();
+            }
+            
+            return true;
+        }
+    }
+    
+    // ════════════════════════════════════════════════════════════════════════════
+    // No Type Narrowing - Original Behavior
+    // ════════════════════════════════════════════════════════════════════════════
     
     // التحقق من الفرع الإيجابي / Check then branch
     if (stmt->thenBranch) {

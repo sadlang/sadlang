@@ -29,7 +29,7 @@
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Value.h>
-#include <llvm/IR/PHINode.h>
+#include <llvm/IR/Instructions.h>
 #include <vector>
 #include <string>
 #include <memory>

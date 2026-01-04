@@ -182,6 +182,18 @@ public:
      */
     void visitWalrusExpr(WalrusExpr& expr) override;
     
+    /**
+     * @brief (AR) يزور عقدة تعبير Await (انتظار async).
+     *        (EN) Visits await expression node (async await).
+     * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
+     * 
+     * مصدر التعريف / Source: advanced_expr_nodes.h:85-120
+     * 
+     * (AR) يطبع تعبير await في صيغة: (await expression)
+     * (EN) Prints await expression in format: (await expression)
+     */
+    void visitAwaitExpr(AwaitExpr& expr) override;
+    
     /**     * @brief (AR) يزور عقدة الاستيعاب القائمي.
      *        (EN) Visits list comprehension node.
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.

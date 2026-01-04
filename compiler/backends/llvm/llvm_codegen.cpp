@@ -17,7 +17,7 @@
 #include "llvm_codegen.h"
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/FileSystem.h>
-#include <llvm/Support/Host.h>
+#include <llvm/TargetParser/Host.h>
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Verifier.h>
@@ -77,6 +77,13 @@ bool LLVMCodeGen::initialize(const std::string& moduleName, const std::string& t
         // إنشاء سياق LLVM جديد / Create new LLVM context
         context_ = std::make_unique<llvm::LLVMContext>();
         
+        // Note: LLVM 15+ always uses opaque pointers, setOpaquePointers() is deprecated
+        // ملاحظة: LLVM 15+ يستخدم المؤشرات المبهمة، setOpaquePointers() مهمل
+        #if defined(LLVM_VERSION_MAJOR) && LLVM_VERSION_MAJOR >= 15
+        // Suppress deprecation warning - opaque pointers are mandatory in LLVM 15+
+        (void)0; // setOpaquePointers() removed - opaque pointers always enabled
+        #endif
+        
         // إنشاء وحدة جديدة / Create new module
         module_ = std::make_unique<llvm::Module>(moduleName, *context_);
         
@@ -88,7 +95,7 @@ bool LLVMCodeGen::initialize(const std::string& moduleName, const std::string& t
         
         // تهيئة الآلة الهدف / Initialize target machine
         std::string error;
-        auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+        const llvm::Target* target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
         
         if (!target) {
             reportError("Failed to lookup target: " + error);
@@ -101,7 +108,7 @@ bool LLVMCodeGen::initialize(const std::string& moduleName, const std::string& t
             "generic",
             "",
             opt,
-            llvm::Optional<llvm::Reloc::Model>()
+            std::optional<llvm::Reloc::Model>()
         );
         
         if (!targetMachine_) {

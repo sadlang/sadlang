@@ -29,7 +29,8 @@
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/LLVMContext.h>
 #include "../frontend/include/sir_types.h"
-#include "../../include/parser/ast.h"
+#include "parser/ast/expressions.h"
+#include "parser/ast/statements.h"
 #include <memory>
 #include <string>
 #include <unordered_map>

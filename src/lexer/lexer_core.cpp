@@ -298,74 +298,226 @@ Token LexerCore::scanNumber() {
     bool hasDecimalPoint = false;
     
     // فحص الأرقام بصيغ خاصة (Binary, Octal, Hex)
-    // Check for special number formats (0b, 0o, 0x)
+    // Check for special number formats (0b, 0o, 0x, 0ثن, 0ع, 0س)
     if (peek() == '0' && !isAtEnd()) {
         char nextChar = peekNext();
+        unsigned char nextByte = static_cast<unsigned char>(nextChar);
         
-        // Binary: 0b1010
+        // Binary: 0b1010 or Arabic: 0ثن1010
         if (nextChar == 'b' || nextChar == 'B') {
             numStr += advance(); // consume '0'
             numStr += advance(); // consume 'b'
             
-            // قراءة الأرقام الثنائية (0,1)
-            if (isAtEnd() || (peek() != '0' && peek() != '1')) {
-                return makeError("رقم ثنائي بصيغة خاطئة / Invalid binary number format");
+            // قراءة الأرقام الثنائية (0,1) مع دعم underscores
+            int digitCount = 0;
+            while (!isAtEnd()) {
+                char c = peek();
+                if (c == '0' || c == '1') {
+                    numStr += advance();
+                    digitCount++;
+                } else if (c == '_') {
+                    advance(); // skip underscore, don't add to numStr
+                } else if (isAlphaNumeric(c)) {
+                    return makeError("رقم ثنائي غير صالح - حرف غير صحيح: '" + std::string(1, c) + "' / Invalid binary digit: '" + std::string(1, c) + "'");
+                } else {
+                    break;
+                }
             }
             
-            while (!isAtEnd() && (peek() == '0' || peek() == '1')) {
-                numStr += advance();
+            if (digitCount == 0) {
+                return makeError("رقم ثنائي فارغ / Empty binary number");
             }
             
-            DEBUG_PRINT("تم معالجة رقم ثنائي: " + numStr);
+            DEBUG_PRINT("تم معالجة رقم ثنائي: " + numStr + " (عدد الأرقام: " + std::to_string(digitCount) + ")");
             return Token(TokenType::NUMBER_INTEGER, numStr, start_position_);
         }
         
-        // Octal: 0o17
+        // Arabic Binary: 0ثن (UTF-8: 0xD8 0xAB 0xD9 0x86)
+        if (nextByte == 0xD8 && current_ + 3 < source_.length()) {
+            unsigned char byte2 = static_cast<unsigned char>(source_[current_ + 2]);
+            unsigned char byte3 = static_cast<unsigned char>(source_[current_ + 3]);
+            unsigned char byte4 = static_cast<unsigned char>(source_[current_ + 4]);
+            
+            // ث = 0xD8 0xAB, ن = 0xD9 0x86
+            if (byte2 == 0xAB && byte3 == 0xD9 && byte4 == 0x86) {
+                numStr += advance(); // consume '0'
+                advance(); // ث byte 1
+                advance(); // ث byte 2
+                advance(); // ن byte 1
+                advance(); // ن byte 2
+                numStr += 'b'; // store as 0b format
+                
+                // قراءة الأرقام الثنائية
+                int digitCount = 0;
+                while (!isAtEnd()) {
+                    char c = peek();
+                    if (c == '0' || c == '1') {
+                        numStr += advance();
+                        digitCount++;
+                    } else if (c == '_') {
+                        advance();
+                    } else {
+                        break;
+                    }
+                }
+                
+                if (digitCount == 0) {
+                    return makeError("رقم ثنائي فارغ / Empty binary number");
+                }
+                
+                DEBUG_PRINT("تم معالجة رقم ثنائي عربي: 0ثن -> " + numStr);
+                return Token(TokenType::NUMBER_INTEGER, numStr, start_position_);
+            }
+        }
+        
+        // Octal: 0o17 or Arabic: 0ع17
         if (nextChar == 'o' || nextChar == 'O') {
             numStr += advance(); // consume '0'
             numStr += advance(); // consume 'o'
             
-            // قراءة الأرقام الثمانية (0-7)
-            if (isAtEnd() || !isDigit(peek()) || peek() > '7') {
-                return makeError("رقم ثماني بصيغة خاطئة / Invalid octal number format");
+            // قراءة الأرقام الثمانية (0-7) مع دعم underscores
+            int digitCount = 0;
+            while (!isAtEnd()) {
+                char c = peek();
+                if (isDigit(c) && c <= '7') {
+                    numStr += advance();
+                    digitCount++;
+                } else if (c == '_') {
+                    advance();
+                } else if (isAlphaNumeric(c)) {
+                    return makeError("رقم ثماني غير صالح - حرف غير صحيح: '" + std::string(1, c) + "' / Invalid octal digit: '" + std::string(1, c) + "'");
+                } else {
+                    break;
+                }
             }
             
-            while (!isAtEnd() && isDigit(peek()) && peek() <= '7') {
-                numStr += advance();
+            if (digitCount == 0) {
+                return makeError("رقم ثماني فارغ / Empty octal number");
             }
             
             DEBUG_PRINT("تم معالجة رقم ثماني: " + numStr);
             return Token(TokenType::NUMBER_INTEGER, numStr, start_position_);
         }
         
-        // Hexadecimal: 0xFF
+        // Arabic Octal: 0ع (UTF-8: 0xD8 0xB9)
+        if (nextByte == 0xD8 && current_ + 2 < source_.length()) {
+            unsigned char byte2 = static_cast<unsigned char>(source_[current_ + 2]);
+            
+            // ع = 0xD8 0xB9
+            if (byte2 == 0xB9) {
+                numStr += advance(); // consume '0'
+                advance(); // ع byte 1
+                advance(); // ع byte 2
+                numStr += 'o'; // store as 0o format
+                
+                // قراءة الأرقام الثمانية
+                int digitCount = 0;
+                while (!isAtEnd()) {
+                    char c = peek();
+                    if (isDigit(c) && c <= '7') {
+                        numStr += advance();
+                        digitCount++;
+                    } else if (c == '_') {
+                        advance();
+                    } else {
+                        break;
+                    }
+                }
+                
+                if (digitCount == 0) {
+                    return makeError("رقم ثماني فارغ / Empty octal number");
+                }
+                
+                DEBUG_PRINT("تم معالجة رقم ثماني عربي: 0ع -> " + numStr);
+                return Token(TokenType::NUMBER_INTEGER, numStr, start_position_);
+            }
+        }
+        
+        // Hexadecimal: 0xFF or Arabic: 0س15
         if (nextChar == 'x' || nextChar == 'X') {
             numStr += advance(); // consume '0'
             numStr += advance(); // consume 'x'
             
-            // قراءة الأرقام الست عشرية (0-9, A-F, a-f)
-            if (isAtEnd() || !isHexDigit(peek())) {
-                return makeError("رقم ست عشري بصيغة خاطئة / Invalid hexadecimal number format");
+            // قراءة الأرقام الست عشرية (0-9, A-F, a-f) مع دعم underscores
+            int digitCount = 0;
+            while (!isAtEnd()) {
+                char c = peek();
+                if (isHexDigit(c)) {
+                    numStr += advance();
+                    digitCount++;
+                } else if (c == '_') {
+                    advance();
+                } else if (isAlphaNumeric(c)) {
+                    return makeError("رقم ست عشري غير صالح - حرف غير صحيح: '" + std::string(1, c) + "' / Invalid hex digit: '" + std::string(1, c) + "'");
+                } else {
+                    break;
+                }
             }
             
-            while (!isAtEnd() && isHexDigit(peek())) {
-                numStr += advance();
+            if (digitCount == 0) {
+                return makeError("رقم ست عشري فارغ / Empty hexadecimal number");
             }
             
             DEBUG_PRINT("تم معالجة رقم ست عشري: " + numStr);
             return Token(TokenType::NUMBER_INTEGER, numStr, start_position_);
         }
+        
+        // Arabic Hexadecimal: 0س (UTF-8: 0xD8 0xB3)
+        if (nextByte == 0xD8 && current_ + 2 < source_.length()) {
+            unsigned char byte2 = static_cast<unsigned char>(source_[current_ + 2]);
+            
+            // س = 0xD8 0xB3
+            if (byte2 == 0xB3) {
+                numStr += advance(); // consume '0'
+                advance(); // س byte 1
+                advance(); // س byte 2
+                numStr += 'x'; // store as 0x format
+                
+                // قراءة الأرقام الست عشرية
+                int digitCount = 0;
+                while (!isAtEnd()) {
+                    char c = peek();
+                    if (isHexDigit(c)) {
+                        numStr += advance();
+                        digitCount++;
+                    } else if (c == '_') {
+                        advance();
+                    } else {
+                        break;
+                    }
+                }
+                
+                if (digitCount == 0) {
+                    return makeError("رقم ست عشري فارغ / Empty hexadecimal number");
+                }
+                
+                DEBUG_PRINT("تم معالجة رقم ست عشري عربي: 0س -> " + numStr);
+                return Token(TokenType::NUMBER_INTEGER, numStr, start_position_);
+            }
+        }
     }
     
-    // معالجة الأرقام العادية (عشرية وعشرية عائمة) - مع دعم الأرقام العربية
-    // Handle regular numbers (decimal and floating point) - with Arabic digit support
+    // معالجة الأرقام العادية (عشرية وعشرية عائمة) - مع دعم الأرقام العربية و underscores
+    // Handle regular numbers (decimal and floating point) - with Arabic digit support and underscores
+    int digitCount = 0;
     while (!isAtEnd()) {
         char currentChar = peek();
         unsigned char currentByte = static_cast<unsigned char>(currentChar);
         
+        // فحص underscore (تخطيها ولا تضيفها للرقم)
+        if (currentChar == '_') {
+            // يجب أن يكون هناك رقم قبل وبعد underscore
+            if (digitCount == 0) {
+                return makeError("رقم بصيغة خاطئة - لا يمكن أن يبدأ بـ _ / Invalid number - cannot start with _");
+            }
+            advance();
+            continue;
+        }
+        
         // فحص إذا كان رقماً إنجليزياً (0-9)
         if (isDigit(currentChar)) {
             numStr += advance();
+            digitCount++;
             continue;
         }
         
@@ -376,6 +528,7 @@ Token LexerCore::scanNumber() {
                 // تحويل الرقم العربي إلى إنجليزي
                 char englishDigit = StringUtils::arabicDigitToEnglish(nextByte);
                 numStr += englishDigit;
+                digitCount++;
                 
                 // تقدم بايتين (UTF-8 للرقم العربي)
                 advance(); // 0xD9
@@ -412,8 +565,13 @@ Token LexerCore::scanNumber() {
             continue;
         }
         
-        // إذا لم يكن رقماً أو نقطة، نتوقف
+        // إذا لم يكن رقماً أو نقطة أو underscore، نتوقف
         break;
+    }
+    
+    // التحقق من أن الرقم لا ينتهي بـ underscore
+    if (!numStr.empty() && numStr.back() == '_') {
+        return makeError("رقم بصيغة خاطئة - لا يمكن أن ينتهي بـ _ / Invalid number - cannot end with _");
     }
     
     // فحص الصيغة العلمية (Scientific notation): 1.5e10, 2e-5
@@ -437,7 +595,7 @@ Token LexerCore::scanNumber() {
     }
     
     TokenType type = isDouble ? TokenType::NUMBER_DOUBLE : TokenType::NUMBER_INTEGER;
-    DEBUG_PRINT("تم معالجة رقم: " + numStr + " - النوع: " + (isDouble ? "عشري" : "صحيح"));
+    DEBUG_PRINT("تم معالجة رقم: " + numStr + " - النوع: " + (isDouble ? "عشري" : "صحيح") + " - عدد الأرقام: " + std::to_string(digitCount));
     
     return Token(type, numStr, start_position_);
 }

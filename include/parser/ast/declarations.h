@@ -43,6 +43,7 @@ public:
     StmtPtr body;                   ///< Function body / جسم الدالة
     bool isExported;                ///< Is exported? / مصدّر؟
     bool isMainFunction;            ///< Is main function? / هل هي الدالة الرئيسية؟
+    bool is_async;                  ///< Is async function? / دالة غير متزامنة؟
     ExprList decorators;            ///< Decorators (@decorator) / المُزخرِفات
     
     /**
@@ -52,14 +53,16 @@ public:
      * @param retType Return type / نوع الإرجاع
      * @param body Function body / جسم الدالة
      * @param exported Is exported / مصدّر
+     * @param async_func Is async function / دالة async
      * @param pos Source position / الموقع في الكود
      */
     FunctionDecl(const std::string& name, std::vector<Parameter> params,
                  Data::DataType retType, StmtPtr body, bool exported = false,
+                 bool async_func = false,
                  const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
           returnType(retType), body(std::move(body)), isExported(exported),
-          isMainFunction(false), decorators() {}
+          isMainFunction(false), is_async(async_func), decorators() {}
     
     /**
      * @brief Constructor with decorators / البناء مع مُزخرِفات
@@ -69,15 +72,16 @@ public:
      * @param body Function body / جسم الدالة
      * @param decs Decorator list / قائمة المُزخرِفات
      * @param exported Is exported / مصدّر
+     * @param async_func Is async function / دالة async
      * @param pos Source position / الموقع في الكود
      */
     FunctionDecl(const std::string& name, std::vector<Parameter> params,
                  Data::DataType retType, StmtPtr body, ExprList decs,
-                 bool exported = false,
+                 bool exported = false, bool async_func = false,
                  const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
           returnType(retType), body(std::move(body)), isExported(exported),
-          isMainFunction(false), decorators(std::move(decs)) {}
+          isMainFunction(false), is_async(async_func), decorators(std::move(decs)) {}
     
     void accept(ASTVisitor& visitor) override {
         visitor.visitFunctionDecl(*this);

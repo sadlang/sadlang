@@ -90,10 +90,13 @@ void KeywordTable::initialize() {
     // ========== الكلمات المفتاحية - التحكم في التدفق ==========
     // Keywords - Control Flow (Arabic + English)
     keywords_["إذا"] = TokenType::KEYWORD_IF;
+     keywords_["اذا"] = TokenType::KEYWORD_IF;
     keywords_["if"] = TokenType::KEYWORD_IF;
     keywords_["وإلا"] = TokenType::KEYWORD_ELSE;
+     keywords_["والا"] = TokenType::KEYWORD_ELSE;
     keywords_["else"] = TokenType::KEYWORD_ELSE;
     keywords_["وإلا_إذا"] = TokenType::KEYWORD_ELSE_IF;
+     keywords_["والا_اذا"] = TokenType::KEYWORD_ELSE_IF;
     keywords_["elif"] = TokenType::KEYWORD_ELSE_IF;
     keywords_["بينما"] = TokenType::KEYWORD_WHILE;
     keywords_["while"] = TokenType::KEYWORD_WHILE;

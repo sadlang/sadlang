@@ -123,6 +123,40 @@ set(TYPE_CHECKER_SOURCES
 
 # ============================================================================
 
+# ============================================================================
+# Phase 1.3.5.3: Type Narrowing Integration Test
+# اختبار تكامل Type Narrowing
+# ============================================================================
+
+add_executable(test_type_narrowing_integration
+    test_type_narrowing_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/parser/ast/expressions.cpp
+    ${CMAKE_SOURCE_DIR}/src/parser/ast/statements.cpp
+    ${CMAKE_SOURCE_DIR}/src/lexer/token.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/type_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/type_errors.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/type_checker.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/type_inference.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/typed_ast.cpp
+)
+
+target_link_libraries(test_type_narrowing_integration
+    PRIVATE
+        sad_type_system
+)
+
+target_include_directories(test_type_narrowing_integration
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../compiler/type_system/include
+)
+
+# Add test
+add_test(NAME TypeNarrowingIntegration COMMAND test_type_narrowing_integration)
+
+# ============================================================================
+
 # DISABLED TEMPORARILY: test_error_reporting - C2280 error
 # اختبار Error Reporting / Error Reporting Tests
 # add_executable(test_error_reporting
