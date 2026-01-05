@@ -269,8 +269,15 @@ int compileLLVM(const std::string& filename) {
         Sad::Compiler::CompilerOptions options;
         options.optimization_level = sad::OptimizationLevel::O2;  // compiler_options.h:67
         options.emit_debug_info = false;  // compiler_options.h:124
+        options.verbose = false;  // إخفاء الرسائل التفصيلية
+        options.print_ir_before_opt = false;  // إخفاء IR للتنقيح
         
         Sad::Compiler::LLVM::LLVMCompilerPipeline pipeline(options);
+        
+        std::cout << "========================================" << std::endl;
+        std::cout << "ترجمة باستخدام LLVM / Compiling with LLVM" << std::endl;
+        std::cout << "الملف / File: " << filename << std::endl;
+        std::cout << "========================================" << std::endl;
         
         // ✅ STEP 2: Initialize Pipeline
         //    Source: llvm_compiler_pipeline.h:201 - initialize()
@@ -279,10 +286,15 @@ int compileLLVM(const std::string& filename) {
             return 1;
         }
         
+        
         // ✅ STEP 3: Compile File
         //    Source: llvm_compiler_pipeline.h:207 - compileFile()
         auto result = pipeline.compileFile(filename);
         
+        std::cout << std::endl;
+        std::cout << "========================================" << std::endl;
+        std::cout << std::endl;
+
         // ✅ STEP 4: Check Result
         //    Source: llvm_compiler_pipeline.h:114-141 - CompilationResult
         if (!result.success) {

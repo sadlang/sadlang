@@ -556,6 +556,16 @@ public:
      * @return true if successful
      */
     bool emitAssembly(const std::string& filename);
+
+    /**
+     * إصدار ملف assembly من وحدة خارجية
+     * Emit assembly file from external module
+     * 
+     * @param filename اسم الملف / File name
+     * @param module الوحدة / Module
+     * @return true if successful
+     */
+    bool emitAssembly(const std::string& filename, llvm::Module* module);
     
     /**
      * إصدار ملف object
@@ -565,6 +575,16 @@ public:
      * @return true if successful
      */
     bool emitObjectFile(const std::string& filename);
+
+    /**
+     * إصدار ملف object من وحدة خارجية
+     * Emit object file from external module
+     * 
+     * @param filename اسم الملف / File name
+     * @param module الوحدة / Module
+     * @return true if successful
+     */
+    bool emitObjectFile(const std::string& filename, llvm::Module* module);
     
     /**
      * طباعة LLVM IR إلى stderr

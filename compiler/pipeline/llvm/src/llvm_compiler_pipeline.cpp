@@ -346,8 +346,15 @@ bool LLVMCompilerPipeline::lexicalAnalysis(const std::string& source, const std:
         // Source: include/lexer/lexer_core.h:44 - LexerCore(const std::string& source)
         lexer_ = std::make_unique<Lexer::LexerCore>(source);
         
-        // استخراج جميع الرموز / Extract all tokens
-        tokens_ = lexer_->tokenize();
+        // ملاحظة: لا نستدعي tokenize() هنا لأن Parser يحتاج Lexer
+        // جديداً ليستخرج الرموز تدريجياً
+        // Note: We don't call tokenize() here because Parser needs
+        // fresh Lexer to extract tokens incrementally
+        
+        // لأغراض الإحصاء فقط، نحسب الرموز
+        // For statistics only, count tokens
+        Lexer::LexerCore tempLexer(source);
+        tokens_ = tempLexer.tokenize();
         
         if (options_.verbose) {
             std::cout << "[Pipeline] تم استخراج " << tokens_.size() << " رمز / Extracted " << tokens_.size() << " tokens\n";
@@ -483,6 +490,8 @@ bool LLVMCompilerPipeline::codeGeneration() {
         bool printBefore = options_.print_ir_before_opt;
         
         // توليد LLVM Module من SIR / Generate LLVM module from SIR
+        // ملاحظة: generate() تتحقق من الـ module داخلياً قبل إرجاعه
+        // Note: generate() verifies the module internally before returning
         llvmModule_ = codeGen_->generate(sirModule_);
         
         if (!llvmModule_) {
@@ -490,11 +499,12 @@ bool LLVMCompilerPipeline::codeGeneration() {
             return false;
         }
         
-        // التحقق من الوحدة / Verify module
-        if (options_.verify_ir && !codeGen_->verify()) {
-            logError("فشل التحقق من LLVM IR / LLVM IR verification failed");
-            return false;
-        }
+        // لا نستدعي verify() هنا لأن:
+        // 1. generate() تتحقق داخلياً
+        // 2. بعد generate()، module_ في codeGen_ يصبح null بسبب std::move
+        // We don't call verify() here because:
+        // 1. generate() verifies internally
+        // 2. After generate(), module_ in codeGen_ becomes null due to std::move
         
         if (options_.verbose) {
             std::cout << "[Pipeline] تم توليد LLVM IR بنجاح / LLVM IR generated successfully\n";
@@ -587,7 +597,9 @@ bool LLVMCompilerPipeline::emitAssembly(const std::string& filename) {
             return false;
         }
         
-        return codeGen_->emitAssembly(filename);
+        // استخدام الوحدة المحلية llvmModule_ بدلاً من codeGen_->module_
+        // Use local llvmModule_ instead of codeGen_->module_
+        return codeGen_->emitAssembly(filename, llvmModule_.get());
     }
     catch (const std::exception& e) {
         logError(std::string("خطأ في إصدار Assembly / Assembly emission error: ") + e.what());
@@ -609,7 +621,11 @@ bool LLVMCompilerPipeline::emitObjectFile(const std::string& filename) {
             return false;
         }
         
-        return codeGen_->emitObjectFile(filename);
+        // استخدام الوحدة المحلية llvmModule_ بدلاً من codeGen_->module_ 
+        // لأن generate() نقلت الملكية بـ std::move
+        // Use local llvmModule_ instead of codeGen_->module_
+        // because generate() moved ownership with std::move
+        return codeGen_->emitObjectFile(filename, llvmModule_.get());
     }
     catch (const std::exception& e) {
         logError(std::string("خطأ في إصدار Object file / Object file emission error: ") + e.what());

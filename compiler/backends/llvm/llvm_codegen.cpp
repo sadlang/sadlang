@@ -190,6 +190,13 @@ bool LLVMCodeGen::initialize(const std::string& moduleName, const std::string& t
         // Source: llvm_optimizer.h:92 - LLVMOptimizer() constructor takes no parameters
         optimizer_ = std::make_unique<sad::LLVMOptimizer>();
         
+        // تهيئة المحسن مع الـ target machine
+        // Source: llvm_optimizer.h:100 - initialize(llvm::TargetMachine*)
+        if (!optimizer_->initialize(targetMachine_)) {
+            reportError("Failed to initialize optimizer");
+            return false;
+        }
+        
         // تعيين مستوى التحسين
         // Set optimization level (Source: llvm_codegen.h:660)
         optimizer_->setOptimizationLevel(optimizationLevel_);
@@ -697,6 +704,7 @@ void LLVMCodeGen::emitGlobalFunctions(std::shared_ptr<SIRModule> sirModule) {
 bool LLVMCodeGen::verify() const {
     // Source: module_ is defined at llvm_codegen.h:634
     if (!module_) {
+        std::cerr << "LLVM CodeGen Error: Module is null in verify()\n";
         return false;
     }
     
@@ -704,7 +712,7 @@ bool LLVMCodeGen::verify() const {
     llvm::raw_string_ostream errorStream(errorMsg);
     
     if (llvm::verifyModule(*module_, &errorStream)) {
-        std::cerr << "Module verification failed:\n" << errorMsg << std::endl;
+        std::cerr << "Module verification failed:\n" << errorStream.str() << std::endl;
         return false;
     }
     
@@ -2043,7 +2051,41 @@ llvm::Value* LLVMCodeGen::emitReturn(std::shared_ptr<SIRInstruction> inst) {
         return nullptr;
     }
     
-    llvm::Value* retValue = context_info_.namedValues[inst->operands[0].name];
+    const SIROperand& operand = inst->operands[0];
+    llvm::Value* retValue = nullptr;
+    
+    // تحقق إذا كان المعامل ثابتاً / Check if operand is a constant
+    if (operand.type == SIROperandType::CONSTANT) {
+        // إنشاء ثابت LLVM / Create LLVM constant
+        switch (operand.dataType) {
+            case SIRType::I64:
+                retValue = llvm::ConstantInt::get(
+                    llvm::Type::getInt64Ty(*context_), 
+                    (uint64_t)operand.intValue, 
+                    true);
+                break;
+            case SIRType::F64:
+                retValue = llvm::ConstantFP::get(
+                    llvm::Type::getDoubleTy(*context_),
+                    operand.floatValue);
+                break;
+            case SIRType::BOOL:
+                retValue = llvm::ConstantInt::get(
+                    llvm::Type::getInt1Ty(*context_),
+                    operand.boolValue ? 1 : 0,
+                    false);
+                break;
+            default:
+                retValue = llvm::ConstantInt::get(
+                    llvm::Type::getInt64Ty(*context_),
+                    (uint64_t)0,
+                    true);
+                break;
+        }
+    } else {
+        // ابحث عن القيمة في السجلات المسماة / Look up value in named values
+        retValue = context_info_.namedValues[operand.name];
+    }
     
     if (!retValue) {
         reportError("Return value not found");
@@ -2132,6 +2174,21 @@ bool LLVMCodeGen::emitAssembly(const std::string& filename) {
         return false;
     }
     
+    return emitAssembly(filename, module_.get());
+}
+
+/**
+ * إصدار ملف assembly من وحدة خارجية
+ * Emit assembly file from external module
+ * 
+ * Source: llvm_codegen.h
+ */
+bool LLVMCodeGen::emitAssembly(const std::string& filename, llvm::Module* module) {
+    if (!module || !targetMachine_) {
+        reportError("Module or target machine not initialized for emitAssembly");
+        return false;
+    }
+    
     std::error_code EC;
     llvm::raw_fd_ostream dest(filename, EC, llvm::sys::fs::OF_None);
     
@@ -2148,7 +2205,7 @@ bool LLVMCodeGen::emitAssembly(const std::string& filename) {
         return false;
     }
     
-    pass.run(*module_);
+    pass.run(*module);
     dest.flush();
     
     return true;
@@ -2169,6 +2226,21 @@ bool LLVMCodeGen::emitObjectFile(const std::string& filename) {
         return false;
     }
     
+    return emitObjectFile(filename, module_.get());
+}
+
+/**
+ * إصدار ملف object من وحدة خارجية
+ * Emit object file from external module
+ * 
+ * Source: llvm_codegen.h
+ */
+bool LLVMCodeGen::emitObjectFile(const std::string& filename, llvm::Module* module) {
+    if (!module || !targetMachine_) {
+        reportError("Module or target machine not initialized for emitObjectFile");
+        return false;
+    }
+    
     std::error_code EC;
     llvm::raw_fd_ostream dest(filename, EC, llvm::sys::fs::OF_None);
     
@@ -2185,7 +2257,7 @@ bool LLVMCodeGen::emitObjectFile(const std::string& filename) {
         return false;
     }
     
-    pass.run(*module_);
+    pass.run(*module);
     dest.flush();
     
     return true;

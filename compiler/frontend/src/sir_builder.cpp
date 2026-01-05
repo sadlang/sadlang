@@ -203,6 +203,43 @@ void SIRBuilder::buildFunction(AST::FunctionDeclNode* funcDecl) {
         buildStatement(funcDecl->body.get());
     }
     
+    // (AR) التأكد من وجود terminator في نهاية الدالة
+    // (EN) Ensure function has a terminator at the end
+    // إذا كانت الدالة void ولا يوجد return صريح، نضيف RET_VOID
+    // If function is void and has no explicit return, add RET_VOID
+    if (currentBlock_ && !currentBlock_->instructions.empty()) {
+        const auto& lastInst = currentBlock_->instructions.back();
+        if (lastInst.opcode != SIROpcode::RET && lastInst.opcode != SIROpcode::RET_VOID) {
+            // (AR) لا يوجد return - نضيف واحداً
+            // (EN) No return - add one
+            if (returnType == SIRType::VOID) {
+                SIRInstruction retInst;
+                retInst.opcode = SIROpcode::RET_VOID;
+                currentBlock_->addInstruction(retInst);
+            } else {
+                // (AR) للدوال غير void، نضيف return بقيمة افتراضية (0)
+                // (EN) For non-void functions, add return with default value (0)
+                SIRInstruction retInst;
+                retInst.opcode = SIROpcode::RET;
+                retInst.operands.push_back(SIROperand::ConstantI64(0));
+                currentBlock_->addInstruction(retInst);
+            }
+        }
+    } else if (currentBlock_ && currentBlock_->instructions.empty()) {
+        // (AR) الدالة فارغة - نضيف return
+        // (EN) Empty function - add return
+        if (returnType == SIRType::VOID) {
+            SIRInstruction retInst;
+            retInst.opcode = SIROpcode::RET_VOID;
+            currentBlock_->addInstruction(retInst);
+        } else {
+            SIRInstruction retInst;
+            retInst.opcode = SIROpcode::RET;
+            retInst.operands.push_back(SIROperand::ConstantI64(0));
+            currentBlock_->addInstruction(retInst);
+        }
+    }
+    
     // (AR) إضافة الدالة للوحدة (sir_module.h:569 - addFunction)
     // (EN) Add function to module
     module_->addFunction(sirFunction);
@@ -416,18 +453,31 @@ void SIRBuilder::buildReturnStatement(AST::ReturnStmt* retStmt) {
         return;
     }
     
-    // (AR) TODO: بناء جملة return
-    // (EN) TODO: Build return statement
-    // ReturnStmt::value: ExprPtr (statements.h:268)
+    // (AR) ReturnStmt::value: ExprPtr (statements.h:268)
+    // (EN) Build return instruction
     if (retStmt->value) {
         // (AR) بناء تعبير القيمة المُرجعة
         // (EN) Build return value expression
-        auto valueResult = buildExpression(retStmt->value.get());
-        // (AR) TODO: توليد تعليمة RET مع القيمة
-        // (EN) TODO: Generate RET instruction with value
+        BuildResult valueResult = buildExpression(retStmt->value.get());
+        
+        // (AR) توليد تعليمة RET مع القيمة
+        // (EN) Generate RET instruction with value
+        SIRInstruction retInst;
+        retInst.opcode = SIROpcode::RET;
+        // تحويل BuildResult إلى SIROperand
+        SIROperand retOperand = SIROperand::Register(valueResult.registerName, valueResult.type);
+        retInst.operands.push_back(retOperand);
+        if (currentBlock_) {
+            currentBlock_->addInstruction(retInst);
+        }
     } else {
-        // (AR) TODO: توليد تعليمة RET_VOID
-        // (EN) TODO: Generate RET_VOID instruction
+        // (AR) توليد تعليمة RET_VOID
+        // (EN) Generate RET_VOID instruction
+        SIRInstruction retInst;
+        retInst.opcode = SIROpcode::RET_VOID;
+        if (currentBlock_) {
+            currentBlock_->addInstruction(retInst);
+        }
     }
 }
 
