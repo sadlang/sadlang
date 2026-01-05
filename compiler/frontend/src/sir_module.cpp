@@ -215,6 +215,18 @@ std::string SIRClass::toString() const {
 // SIRModule Implementation
 // ============================================================================
 
+// (AR) منشئ الوحدة / (EN) Module constructor
+// مصدر التعريف / Source: sir_module.h:78
+SIRModule::SIRModule(const std::string& moduleName)
+    : name(moduleName) {
+}
+
+// (AR) الحصول على جميع الدوال / (EN) Get all functions
+// مصدر التعريف / Source: sir_module.h:102
+const std::vector<std::shared_ptr<SIRFunction>>& SIRModule::getFunctions() const {
+    return functions_;
+}
+
 void SIRModule::addFunction(std::shared_ptr<SIRFunction> func) {
     if (!func) {
         throw std::runtime_error("Cannot add null function to module");
@@ -387,7 +399,8 @@ size_t SIRModule::getTotalInstructions() const {
     size_t count = 0;
     for (const auto& func : functions_) {
         for (const auto& bb : func->getBasicBlocks()) {
-            count += bb->getInstructions().size();
+            // Source: SIRBasicBlock::instructions is PUBLIC member at sir_instruction.h:356
+            count += bb->instructions.size();
         }
     }
     return count;

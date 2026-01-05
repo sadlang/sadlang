@@ -329,6 +329,19 @@ public:
      */
     void visitWithStmt(WithStmt& stmt) override;
     
+    /**
+     * @brief (AR) يزور جملة match (مطابقة الأنماط).
+     *        (EN) Visits match statement (pattern matching).
+     * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
+     * 
+     * Source: ast_visitor.h:528 - pure virtual declaration
+     * Source: pattern_nodes.h:375-400 - MatchStmt class definition
+     * 
+     * @note (AR) يجب تنفيذها لأنها دالة نقية افتراضية في ASTVisitor
+     *       (EN) Must be implemented as it's pure virtual in ASTVisitor
+     */
+    void visitMatchStmt(MatchStmt& stmt) override;
+    
     // =====================================================================
     // Declaration Visitors / زوار التصريحات
     // =====================================================================

@@ -299,7 +299,8 @@ int countInstructions(SIR::SIRFunction* func) {
     auto blocks = func->getBasicBlocks();
     for (const auto& block : blocks) {
         if (block) {
-            count += block->getInstructions().size();
+            // Source: SIRBasicBlock::instructions is PUBLIC member at sir_instruction.h:356
+            count += block->instructions.size();
         }
     }
     return count;
@@ -317,9 +318,11 @@ bool hasInstruction(SIR::SIRFunction* func, SIR::SIROpcode opcode) {
     for (const auto& block : blocks) {
         if (!block) continue;
         
-        auto instructions = block->getInstructions();
+        // Source: SIRBasicBlock::instructions is PUBLIC member at sir_instruction.h:356
+        auto& instructions = block->instructions;
         for (const auto& inst : instructions) {
-            if (inst && inst->getOpcode() == opcode) {
+            // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+            if (inst.opcode == opcode) {
                 return true;
             }
         }
@@ -342,15 +345,17 @@ void printFunction(SIR::SIRFunction* func) {
         const auto& block = blocks[i];
         if (!block) continue;
         
-        std::cout << "  Block " << i << ": " << block->getLabel() << std::endl;
+        // Source: SIRBasicBlock::name is PUBLIC member at sir_instruction.h:355
+        std::cout << "  Block " << i << ": " << block->name << std::endl;
         
-        auto instructions = block->getInstructions();
+        // Source: SIRBasicBlock::instructions is PUBLIC member at sir_instruction.h:356
+        auto& instructions = block->instructions;
         for (size_t j = 0; j < instructions.size(); j++) {
             const auto& inst = instructions[j];
-            if (!inst) continue;
             
+            // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
             std::cout << "    [" << j << "] " << "Opcode: " 
-                      << static_cast<int>(inst->getOpcode()) << std::endl;
+                      << static_cast<int>(inst.opcode) << std::endl;
         }
     }
 }

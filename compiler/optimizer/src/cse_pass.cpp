@@ -61,7 +61,8 @@ bool CSEPass::runOnFunction(SIR::SIRFunction* function) {
         auto& block = blocks[blockIdx];
         if (!block) continue;
         
-        auto& instructions = block->getInstructions();
+        // Source: SIRBasicBlock::instructions is PUBLIC member at sir_instruction.h:356
+        auto& instructions = block->instructions;
         
         // تكرار على كل التعليمات في الكتلة / Iterate over all instructions in block
         for (size_t instIdx = 0; instIdx < instructions.size(); ++instIdx) {
@@ -131,7 +132,8 @@ bool CSEPass::runOnFunction(SIR::SIRFunction* function) {
         for (auto& block : blocks) {
             if (!block) continue;
             
-            auto& instructions = block->getInstructions();
+            // Source: SIRBasicBlock::instructions is PUBLIC member at sir_instruction.h:356
+            auto& instructions = block->instructions;
             instructions.erase(
                 std::remove_if(
                     instructions.begin(),
@@ -160,7 +162,8 @@ std::unique_ptr<ExpressionKey> CSEPass::analyzeExpression(
         return nullptr;
     }
     
-    SIR::SIROpcode opcode = inst->getOpcode();
+    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+    SIR::SIROpcode opcode = inst->opcode;
     
     // فقط العمليات الحسابية والمنطقية قابلة للحذف
     // Only arithmetic and logical operations are eliminable
@@ -217,12 +220,14 @@ bool CSEPass::isEliminable(const SIR::SIRInstruction* inst) {
     }
     
     // التحقق من وجود نتيجة / Check for result
-    if (inst->getResult().empty()) {
+    // Source: SIRInstruction::result is PUBLIC member at sir_instruction.h:61
+    if (!inst->result.has_value()) {
         return false;
     }
     
     // التحقق من عدم وجود تأثيرات جانبية / Check for no side effects
-    if (hasSideEffects(inst->getOpcode())) {
+    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+    if (hasSideEffects(inst->opcode)) {
         return false;
     }
     
@@ -277,9 +282,10 @@ void CSEPass::replaceRegisterUses(
         auto& block = blocks[blockIdx];
         if (!block) continue;
         
-        auto& instructions = block->getInstructions();
+        // Source: SIRBasicBlock::instructions is PUBLIC member at sir_instruction.h:356
+        auto& instructions = block->instructions;
         for (auto& inst : instructions) {
-            if (!inst || removedInstructions_.count(inst.get()) > 0) {
+            if (removedInstructions_.count(&inst) > 0) {
                 continue;
             }
             

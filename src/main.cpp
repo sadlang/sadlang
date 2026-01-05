@@ -33,6 +33,12 @@
 #include "../include/interpreter/core/interpreter_core.h"
 #include "../include/errors/error_manager.h"  // (AR) نظام إدارة الأخطاء / (EN) Error management system
 
+// LLVM Pipeline Integration / تكامل خط أنابيب LLVM
+// ✅ ENABLED: LLVM Pipeline is now ready (Phase 1.1.4 complete - SIRBuilder fixed)
+// Source: compiler/pipeline/llvm/include/llvm_compiler_pipeline.h:32-36
+#include "../compiler/pipeline/llvm/include/llvm_compiler_pipeline.h"
+#include "../compiler/include/compiler_options.h"  // CompilerOptions definition
+
 // تعريف معلومات الإصدار / Version information
 #define SAD_VERSION_MAJOR 1
 #define SAD_VERSION_MINOR 0
@@ -118,6 +124,10 @@ void showHelp() {
     std::cout << "                                Show version information" << std::endl;
     std::cout << "  --help, -h                    عرض هذه المساعدة" << std::endl;
     std::cout << "                                Show this help message" << std::endl;
+    std::cout << "  --llvm, -c <file.s>           ترجمة باستخدام LLVM (سريع)" << std::endl;
+    std::cout << "                                Compile using LLVM (fast)" << std::endl;
+    std::cout << "  --interpret, -i <file.s>      تنفيذ باستخدام المفسر (افتراضي)" << std::endl;
+    std::cout << "                                Interpret using VM (default)" << std::endl;
     std::cout << std::endl;
     
     std::cout << "أمثلة / Examples:" << std::endl;
@@ -231,6 +241,73 @@ bool readProgramFile(const std::string& filename, std::string& content) {
     }
     
     return true;
+}
+
+// ======================================================================
+// دالة ترجمة البرنامج باستخدام LLVM / Compile Program using LLVM
+// ======================================================================
+/**
+ * @brief ترجمة البرنامج إلى executable باستخدام LLVM Pipeline
+ *        Compile program to executable using LLVM Pipeline
+ * 
+ * Source: llvm_compiler_pipeline.h:195-207
+ * - LLVMCompilerPipeline() constructor
+ * - compileFile(const std::string& sourceFile) method
+ * - CompilationResult structure (lines 114-141)
+ * 
+ * @param filename اسم الملف / Filename
+ * @return int كود الخروج (0 = نجاح، غير 0 = خطأ)
+ *             Exit code (0 = success, non-zero = error)
+ */
+int compileLLVM(const std::string& filename) {
+    DEBUG_PRINT("LLVM compilation started: " + filename);
+    
+    try {
+        // ✅ STEP 1: Create LLVM Compiler Pipeline
+        //    Source: llvm_compiler_pipeline.h:195 - LLVMCompilerPipeline()
+        //    Source: compiler_options.h:59-124 - CompilerOptions members
+        Sad::Compiler::CompilerOptions options;
+        options.optimization_level = sad::OptimizationLevel::O2;  // compiler_options.h:67
+        options.emit_debug_info = false;  // compiler_options.h:124
+        
+        Sad::Compiler::LLVM::LLVMCompilerPipeline pipeline(options);
+        
+        // ✅ STEP 2: Initialize Pipeline
+        //    Source: llvm_compiler_pipeline.h:201 - initialize()
+        if (!pipeline.initialize()) {
+            std::cerr << "❌ Error: Failed to initialize LLVM pipeline" << std::endl;
+            return 1;
+        }
+        
+        // ✅ STEP 3: Compile File
+        //    Source: llvm_compiler_pipeline.h:207 - compileFile()
+        auto result = pipeline.compileFile(filename);
+        
+        // ✅ STEP 4: Check Result
+        //    Source: llvm_compiler_pipeline.h:114-141 - CompilationResult
+        if (!result.success) {
+            std::cerr << "❌ Compilation Failed: " << result.errorMessage << std::endl;
+            for (const auto& error : result.errors) {
+                std::cerr << "  • " << error << std::endl;
+            }
+            return 1;
+        }
+        
+        // ✅ STEP 5: Emit Executable
+        //    Source: llvm_compiler_pipeline.h:230 - emitExecutable()
+        std::string outputFile = filename.substr(0, filename.find_last_of('.')) + ".exe";
+        if (!pipeline.emitExecutable(outputFile)) {
+            std::cerr << "❌ Error: Failed to emit executable" << std::endl;
+            return 1;
+        }
+        
+        std::cout << "✅ Compilation successful: " << outputFile << std::endl;
+        return 0;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "❌ Exception: " << e.what() << std::endl;
+        return 1;
+    }
 }
 
 // ======================================================================
@@ -430,20 +507,41 @@ int main(int argc, char* argv[]) {
     
     // خيار --version أو -v
     // Option --version or -v
-    if (arg == "--version" || arg == "-v") {
+    if (arg == "--version" || arg == "-v"|| arg == "إصدار"|| arg == "اصدار") {
         showVersion();
         return 0;
     }
     
     // خيار --help أو -h
     // Option --help or -h
-    if (arg == "--help" || arg == "-h") {
+    if (arg == "--help" || arg == "-h"|| arg == "مساعدة") {
         showHelp();
         return 0;
     }
     
-    // معالجة الملف
-    // Process file
+    // خيار --llvm أو -c (Compile with LLVM)
+    // Option --llvm or -c
+    if (arg == "--llvm" || arg == "-c" || arg == "--compile"|| arg == "--ترجم") {
+        if (argc < 3) {
+            std::cerr << "خطأ: يجب تحديد ملف للترجمة" << std::endl;
+            std::cerr << "Error: File must be specified for compilation" << std::endl;
+            return 1;
+        }
+        
+        std::string filename = argv[2];
+        
+        // التحقق من امتداد الملف
+        if (!checkFileExtension(filename)) {
+            return 1;
+        }
+        
+        // ترجمة باستخدام LLVM
+        // Source: compileLLVM() function defined above
+        return compileLLVM(filename);
+    }
+    
+    // معالجة الملف (الوضع الافتراضي: Interpreter)
+    // Process file (default mode: Interpreter)
     std::string filename = arg;
     // التحقق من امتداد الملف
     // Check file extension

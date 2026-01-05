@@ -285,12 +285,13 @@ llvm::StructType* LLVMDictSupport::getOrCreateDictStructType() {
     // إنشاء نوع الهيكل / Create struct type
     // هيكل القاموس: جدول تجزئة مع معالجة التصادمات
     // Dictionary structure: hash table with collision handling
+    // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
     std::vector<llvm::Type*> fields = {
-        builder_.getInt8PtrTy(),   // buckets pointer
+        llvm::PointerType::getUnqual(context_),   // buckets pointer
         builder_.getInt64Ty(),     // size (number of elements)
         builder_.getInt64Ty(),     // capacity (number of buckets)
-        builder_.getInt8PtrTy(),   // key type info
-        builder_.getInt8PtrTy()    // value type info
+        llvm::PointerType::getUnqual(context_),   // key type info
+        llvm::PointerType::getUnqual(context_)    // value type info
     };
     
     return llvm::StructType::create(context_, fields, "SadDict");
@@ -318,7 +319,8 @@ llvm::Value* LLVMDictSupport::callDictRuntime(
         }
         
         // نوع الرجوع الافتراضي / Default return type
-        llvm::Type* returnType = builder_.getInt8PtrTy();
+        // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
+        llvm::Type* returnType = llvm::PointerType::getUnqual(context_);
         
         llvm::FunctionType* funcType = llvm::FunctionType::get(returnType, paramTypes, false);
         function = llvm::Function::Create(

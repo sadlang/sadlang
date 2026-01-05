@@ -28,7 +28,9 @@
 #include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/LLVMContext.h>
-#include "../frontend/include/sir_types.h"
+// Source: compiler/frontend/include/sir_types.h - مضاف في CMake include_directories
+#include "sir_types.h"
+// Source: include/parser/ast/*.h - مضاف في CMake include_directories
 #include "parser/ast/expressions.h"
 #include "parser/ast/statements.h"
 #include <memory>

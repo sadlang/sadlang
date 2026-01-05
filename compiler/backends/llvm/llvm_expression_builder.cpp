@@ -47,8 +47,16 @@ LLVMExpressionBuilder::LLVMExpressionBuilder(llvm::LLVMContext& context,
     
     // تهيئة دعم الأصناف والـ closures / Initialize class and closure support
     classSupport_ = std::make_unique<LLVMClassSupport>(context, builder, typeMapper);
-    closureSupport_ = std::make_unique<LLVMClosureSupport>(context, builder, typeMapper);
+    // TODO: Implement LLVMClosureSupport class / تطبيق كلاس LLVMClosureSupport
+    // closureSupport_ = std::make_unique<LLVMClosureSupport>(context, builder, typeMapper);
 }
+
+/**
+ * المدمر / Destructor
+ * Defined here to support incomplete types in unique_ptr
+ */
+LLVMExpressionBuilder::~LLVMExpressionBuilder() = default;
+
 
 // ============================================================================
 // تعابير المصفوفات / Array Expressions
@@ -532,12 +540,9 @@ llvm::Value* LLVMExpressionBuilder::callRuntimeFunction(
             paramTypes.push_back(arg->getType());
         }
         
-        // نوع الرجوع الافتراضي: i8* (مؤشر عام) / Default return type: i8* (generic pointer)
-        #if LLVM_VERSION_MAJOR >= 15
-        llvm::Type* returnType = builder_.getPtrTy();
-        #else
-        llvm::Type* returnType = builder_.getInt8PtrTy();
-        #endif
+        // نوع الرجوع الافتراضي: ptr (مؤشر غير معنون) / Default return type: ptr (opaque pointer)
+        // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
+        llvm::Type* returnType = llvm::PointerType::getUnqual(builder_.getContext());
         
         llvm::FunctionType* funcType = llvm::FunctionType::get(returnType, paramTypes, false);
         function = llvm::Function::Create(

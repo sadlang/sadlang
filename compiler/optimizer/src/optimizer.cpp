@@ -347,7 +347,8 @@ void Optimizer::collectStats(std::shared_ptr<SIR::SIRModule> module) {
         for (const auto& block : blocks) {
             if (!block) continue;
             
-            auto instructions = block->getInstructions();
+            // Source: SIRBasicBlock::instructions is PUBLIC member at sir_instruction.h:356
+            auto instructions = block->instructions;
             instructionCount += instructions.size();
         }
     }

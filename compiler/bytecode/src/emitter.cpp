@@ -119,21 +119,25 @@ void BytecodeEmitter::emitFunction(SIR::SIRFunction* function) {
 void BytecodeEmitter::emitBlock(SIR::SIRBasicBlock* block) {
     // (AR) تعريف تسمية الكتلة
     // (EN) Define block label
-    defineLabel(block->getLabel());
+    // Source: SIRBasicBlock::name is PUBLIC member at sir_instruction.h:355
+    defineLabel(block->name);
     
     // (AR) إصدار التعليمات
     // (EN) Emit instructions
-    for (auto* inst : block->getInstructions()) {
-        if (inst->getSourceLine() > 0) {
-            module_->addLineInfo(inst->getSourceLine());
+    // Source: SIRBasicBlock::instructions is PUBLIC member at sir_instruction.h:356
+    for (const auto& inst : block->instructions) {
+        // Source: SIRInstruction::lineNumber is PUBLIC member at sir_instruction.h:67
+        if (inst.lineNumber > 0) {
+            module_->addLineInfo(inst.lineNumber);
         }
         
-        emitInstruction(inst);
+        emitInstruction(&inst);
     }
 }
 
 void BytecodeEmitter::emitInstruction(SIR::SIRInstruction* inst) {
-    SIR::SIROpcode op = inst->getOpcode();
+    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+    SIR::SIROpcode op = inst->opcode;
     
     if (isArithmeticOp(op)) {
         emitArithmetic(inst);
@@ -193,7 +197,8 @@ void BytecodeEmitter::emitArithmetic(SIR::SIRInstruction* inst) {
     
     // (AR) إصدار العملية
     // (EN) Emit operation
-    VM::Opcode bytecodeOp = sirToBytecodeOp(inst->getOpcode());
+    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+    VM::Opcode bytecodeOp = sirToBytecodeOp(inst->opcode);
     module_->emitByte(bytecodeOp);
     
     // (AR) خزّن النتيجة
@@ -204,7 +209,8 @@ void BytecodeEmitter::emitArithmetic(SIR::SIRInstruction* inst) {
 }
 
 void BytecodeEmitter::emitBitwise(SIR::SIRInstruction* inst) {
-    auto operands = inst->getOperands();
+    // Source: SIRInstruction::operands is PUBLIC member at sir_instruction.h:62
+    auto& operands = inst->operands;
     
     if (operands.size() < 2) {
         error("Bitwise operation requires at least 2 operands");
@@ -214,7 +220,8 @@ void BytecodeEmitter::emitBitwise(SIR::SIRInstruction* inst) {
     emitOperand(operands[0]);
     emitOperand(operands[1]);
     
-    VM::Opcode bytecodeOp = sirToBytecodeOp(inst->getOpcode());
+    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+    VM::Opcode bytecodeOp = sirToBytecodeOp(inst->opcode);
     module_->emitByte(bytecodeOp);
     
     if (inst->hasResult()) {
@@ -223,7 +230,8 @@ void BytecodeEmitter::emitBitwise(SIR::SIRInstruction* inst) {
 }
 
 void BytecodeEmitter::emitComparison(SIR::SIRInstruction* inst) {
-    auto operands = inst->getOperands();
+    // Source: SIRInstruction::operands is PUBLIC member at sir_instruction.h:62
+    auto& operands = inst->operands;
     
     if (operands.size() < 2) {
         error("Comparison requires 2 operands");
@@ -233,7 +241,8 @@ void BytecodeEmitter::emitComparison(SIR::SIRInstruction* inst) {
     emitOperand(operands[0]);
     emitOperand(operands[1]);
     
-    VM::Opcode bytecodeOp = sirToBytecodeOp(inst->getOpcode());
+    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+    VM::Opcode bytecodeOp = sirToBytecodeOp(inst->opcode);
     module_->emitByte(bytecodeOp);
     
     if (inst->hasResult()) {
@@ -255,7 +264,8 @@ void BytecodeEmitter::emitJump(SIR::SIRInstruction* inst) {
     
     std::string targetLabel = operands[0].getName();
     
-    switch (inst->getOpcode()) {
+    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+    switch (inst->opcode) {
         case SIR::SIR_JMP:
             emitJumpToLabel(VM::OP_JMP, targetLabel);
             break;
@@ -407,9 +417,11 @@ void BytecodeEmitter::emitStore(SIR::SIRInstruction* inst) {
 }
 
 void BytecodeEmitter::emitMemory(SIR::SIRInstruction* inst) {
-    auto operands = inst->getOperands();
+    // Source: SIRInstruction::operands is PUBLIC member at sir_instruction.h:62
+    auto& operands = inst->operands;
     
-    switch (inst->getOpcode()) {
+    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+    switch (inst->opcode) {
         case SIR::SIR_ALLOCA: {
             // (AR) تخصيص ذاكرة محلية
             // (EN) Allocate local memory
@@ -451,9 +463,11 @@ void BytecodeEmitter::emitMemory(SIR::SIRInstruction* inst) {
 }
 
 void BytecodeEmitter::emitArray(SIR::SIRInstruction* inst) {
-    auto operands = inst->getOperands();
+    // Source: SIRInstruction::operands is PUBLIC member at sir_instruction.h:62
+    auto& operands = inst->operands;
     
-    switch (inst->getOpcode()) {
+    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+    switch (inst->opcode) {
         case SIR::SIR_ARRAY_NEW: {
             // (AR) إنشاء مصفوفة جديدة
             // (EN) Create new array

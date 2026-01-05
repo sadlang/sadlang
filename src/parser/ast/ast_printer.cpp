@@ -17,6 +17,7 @@
 #include "../../../include/parser/ast/class_nodes.h"
 #include "../../../include/parser/ast/expressions.h"
 #include "../../../include/parser/ast/advanced_expr_nodes.h"  // (AR) لتعريف AwaitExpr / (EN) For AwaitExpr definition
+#include "../../../include/parser/ast/pattern_nodes.h"       // (AR) لتعريف MatchStmt / (EN) For MatchStmt definition - Source: pattern_nodes.h:375
 #include <sstream>
 
 namespace Sad {
@@ -963,6 +964,56 @@ void ASTPrinter::visitYieldStmt(YieldStmt& stmt) {
         stmt.value->accept(*this);
     }
     result_ += "\n";
+}
+
+/**
+ * @brief (AR) يزور جملة match (مطابقة الأنماط) / (EN) Visits match statement (pattern matching)
+ * 
+ * Source: pattern_nodes.h:375-400 - MatchStmt class definition
+ * Source: ast_visitor.h:528 - pure virtual visitMatchStmt declaration
+ */
+void ASTPrinter::visitMatchStmt(MatchStmt& stmt) {
+    result_ += indent() + "match ";
+    
+    // طباعة القيمة المُختبرة / Print value to test
+    if (stmt.value) {
+        stmt.value->accept(*this);
+    }
+    
+    result_ += " {\n";
+    indentLevel_++;
+    
+    // طباعة كل حالة / Print each case
+    for (const auto& caseClause : stmt.cases) {
+        result_ += indent() + "case ";
+        
+        // طباعة النمط باستخدام toString() (Pattern ليس لديه accept) / Print pattern using toString()
+        // Source: pattern_nodes.h:56 - Pattern::toString() is pure virtual
+        if (caseClause.pattern) {
+            result_ += caseClause.pattern->toString();
+        }
+        
+        // طباعة الحارس (guard) إن وُجد / Print guard if present
+        if (caseClause.guard) {
+            result_ += " if ";
+            caseClause.guard->accept(*this);
+        }
+        
+        result_ += ":\n";
+        indentLevel_++;
+        
+        // طباعة الجسم / Print body
+        for (const auto& stmt_in_body : caseClause.body) {
+            if (stmt_in_body) {
+                stmt_in_body->accept(*this);
+            }
+        }
+        
+        indentLevel_--;
+    }
+    
+    indentLevel_--;
+    result_ += indent() + "}\n";
 }
 
 /**

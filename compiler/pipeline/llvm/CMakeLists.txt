@@ -16,6 +16,12 @@ add_library(llvm_pipeline
     ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/llvm_control_flow.cpp
     ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/llvm_expression_builder.cpp
     ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/llvm_target.cpp
+    # Support classes - كلاسات الدعم
+    ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/llvm_memory_manager.cpp
+    ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/llvm_array_support.cpp
+    ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/llvm_dict_support.cpp
+    ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/llvm_class_support.cpp
+    ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/arabic_optimizer.cpp
 )
 
 target_include_directories(llvm_pipeline
@@ -32,11 +38,10 @@ target_include_directories(llvm_pipeline
 
 # Link with LLVM
 # الربط مع LLVM
+# Source: CMakeLists.txt (main) - sad_core contains lexer, parser, sir_builder
 target_link_libraries(llvm_pipeline
     PUBLIC
-        lexer
-        parser
-        sir_builder
+        sad_core  # Core library / المكتبة الأساسية
         ${LLVM_LIBS}
 )
 

@@ -329,7 +329,8 @@ std::optional<std::string> DeadCodeEliminationPass::getDefinedRegister(
 ) const {
     if (!inst) return std::nullopt;
     
-    auto opcode = inst->getOpcode();
+    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+    auto opcode = inst->opcode;
     
     // معظم التعليمات تعرّف سجلاً / Most instructions define a register
     switch (opcode) {

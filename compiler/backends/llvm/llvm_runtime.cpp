@@ -585,7 +585,10 @@ void* sad_llvm_string_split(void* str, void* delimiter) {
         // تقسيم كل حرف / Split each character
         for (uint64_t i = 0; i < s->length; i++) {
             void* char_str = sad_llvm_string_new(s->data + i, 1);
-            SadValue val = {SAD_TYPE_STRING, {.ptr = char_str}};
+            // Source: llvm_runtime.h:69 - SadValue initialization without designated initializers
+            SadValue val;
+            val.type = SAD_TYPE_STRING;
+            val.data.ptr = char_str;
             sad_llvm_array_push(result_arr, val);
         }
         return result_arr;
@@ -595,7 +598,10 @@ void* sad_llvm_string_split(void* str, void* delimiter) {
     for (uint64_t i = 0; i <= s->length - delim->length; i++) {
         if (memcmp(s->data + i, delim->data, delim->length) == 0) {
             void* substr = sad_llvm_string_new(s->data + start, i - start);
-            SadValue val = {SAD_TYPE_STRING, {.ptr = substr}};
+            // Source: llvm_runtime.h:69 - C++17 compatible initialization
+            SadValue val;
+            val.type = SAD_TYPE_STRING;
+            val.data.ptr = substr;
             sad_llvm_array_push(result_arr, val);
             
             i += delim->length - 1;
@@ -606,7 +612,10 @@ void* sad_llvm_string_split(void* str, void* delimiter) {
     // الجزء الأخير / Last part
     if (start < s->length) {
         void* substr = sad_llvm_string_new(s->data + start, s->length - start);
-        SadValue val = {SAD_TYPE_STRING, {.ptr = substr}};
+        // Source: llvm_runtime.h:69 - C++17 compatible initialization
+        SadValue val;
+        val.type = SAD_TYPE_STRING;
+        val.data.ptr = substr;
         sad_llvm_array_push(result_arr, val);
     }
     

@@ -30,12 +30,14 @@ int main(int argc, char** argv) {
     cout << "ملف المصدر / Source File: " << sourceFile << "\n\n";
     
     // إنشاء خيارات الترجمة / Create compilation options
+    // ⚠️ CRITICAL: Names MUST match compiler_options.h:47-356
+    // Source: C:\s\s_language\compiler\include\compiler_options.h
     CompilerOptions options;
-    options.optimizationLevel = 2;        // O2 optimization
-    options.enableDebugInfo = true;       // Include debug info
-    options.emitLLVMIR = true;           // Save LLVM IR
-    options.emitAssembly = true;         // Save assembly
-    options.verbose = true;               // Verbose output
+    options.optimization_level = sad::OptimizationLevel::O2;  // Line 65: sad::OptimizationLevel optimization_level
+    options.emit_debug_info = true;                           // Line 116: bool emit_debug_info
+    options.emit_llvm_ir = true;                              // Line 193: bool emit_llvm_ir
+    options.emit_assembly = true;                             // Line 199: bool emit_assembly
+    options.verbose = true;                                   // Line 212: bool verbose
     
     // إنشاء Pipeline / Create pipeline
     cout << "1. إنشاء Pipeline...\n";

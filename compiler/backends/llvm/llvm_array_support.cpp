@@ -48,10 +48,15 @@ LLVMArraySupport::LLVMArraySupport(llvm::LLVMContext& context,
  * Create empty dynamic array
  */
 llvm::Value* LLVMArraySupport::createDynamicArray(llvm::Type* elementType, size_t initialCapacity) {
+    // Source: LLVM DataLayout API - الحصول على DataLayout من Module
+    // Get module from current insert block
+    llvm::Module* module = builder_.GetInsertBlock()->getParent()->getParent();
+    const llvm::DataLayout& DL = module->getDataLayout();
+    
     // حساب حجم العنصر / Calculate element size
     llvm::Value* elementSize = llvm::ConstantInt::get(
         builder_.getInt32Ty(),
-        context_.getModule()->getDataLayout().getTypeAllocSize(elementType)
+        DL.getTypeAllocSize(elementType)
     );
     
     // السعة الابتدائية / Initial capacity
@@ -352,12 +357,13 @@ llvm::StructType* LLVMArraySupport::getOrCreateArrayStructType() {
     }
     
     // إنشاء نوع الهيكل / Create struct type
+    // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
     std::vector<llvm::Type*> fields = {
-        builder_.getInt8PtrTy(),   // data pointer (void*)
+        llvm::PointerType::getUnqual(context_),   // data pointer (void*)
         builder_.getInt64Ty(),     // length
         builder_.getInt64Ty(),     // capacity
         builder_.getInt32Ty(),     // element size
-        builder_.getInt8PtrTy()    // element type info
+        llvm::PointerType::getUnqual(context_)    // element type info
     };
     
     return llvm::StructType::create(context_, fields, "SadArray");
@@ -385,7 +391,8 @@ llvm::Value* LLVMArraySupport::callArrayRuntime(
         }
         
         // نوع الرجوع الافتراضي / Default return type
-        llvm::Type* returnType = builder_.getInt8PtrTy();
+        // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
+        llvm::Type* returnType = llvm::PointerType::getUnqual(context_);
         
         llvm::FunctionType* funcType = llvm::FunctionType::get(returnType, paramTypes, false);
         function = llvm::Function::Create(

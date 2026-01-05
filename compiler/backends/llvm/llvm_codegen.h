@@ -78,9 +78,10 @@
 #include "llvm_optimizer.h"  // إضافة محسّن LLVM / Add LLVM optimizer
 
 // Sad SIR Components (مكونات Sad SIR)
-#include "sir_module.h"
-#include "sir_instruction.h"
-#include "sir_types.h"
+// Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
+#include "sir_module.h"     // Source: compiler/frontend/include/sir_module.h
+#include "sir_instruction.h" // Source: compiler/frontend/include/sir_instruction.h
+#include "sir_types.h"       // Source: compiler/frontend/include/sir_types.h
 
 namespace Sad {
 namespace LLVM {

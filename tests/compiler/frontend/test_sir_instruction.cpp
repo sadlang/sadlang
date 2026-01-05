@@ -68,9 +68,11 @@ void testArithmeticInstructions() {
     addInst->addOperand(SIROperand::makeRegister("a"));
     addInst->addOperand(SIROperand::makeRegister("b"));
     
-    assert(addInst->getOpcode() == SIROpcode::ADD);
+    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
+    assert(addInst->opcode == SIROpcode::ADD);
     assert(addInst->hasResult());
-    assert(addInst->getOperands().size() == 2);
+    // Source: SIRInstruction::operands is PUBLIC member at sir_instruction.h:62
+    assert(addInst->operands.size() == 2);
     
     std::string expected = "%result = add %a, %b";
     assert(addInst->toString() == expected);

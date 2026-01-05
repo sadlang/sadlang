@@ -67,12 +67,24 @@ namespace AST {
     using VariableNode = Sad::AST::VariableExpr;
     using LiteralNode = Sad::AST::LiteralExpr;
     
+    // (AR) أسماء مباشرة للأصناف الجديدة بدون Node suffix
+    // (EN) Direct names for new classes without Node suffix
+    using Statement = Sad::AST::Statement;
+    using IfStmt = Sad::AST::IfStmt;
+    using WhileStmt = Sad::AST::WhileStmt;
+    using ForStmt = Sad::AST::ForStmt;
+    using ReturnStmt = Sad::AST::ReturnStmt;
+    using BreakStmt = Sad::AST::BreakStmt;
+    using ContinueStmt = Sad::AST::ContinueStmt;
+    using ExprStmt = Sad::AST::ExprStmt;
+    using VarDeclStmt = Sad::AST::VarDeclStmt;
+    using AssignExpr = Sad::AST::AssignExpr;
+    using FieldDecl = Sad::AST::FieldDecl;
+    using MethodDecl = Sad::AST::MethodDecl;
+    
     // Operator types - enums not classes
     using BinaryOperator = Sad::Lexer::TokenType;
     using UnaryOperator = Sad::Lexer::TokenType;
-    
-    // Type alias
-    using Type = Sad::Data::Type;
 }
 
 // ======================================================================
@@ -355,7 +367,7 @@ public:
      * 
      * @param stmt (AR) عقدة الجملة / (EN) Statement node
      */
-    void buildStatement(AST::StatementNode* stmt);
+    void buildStatement(AST::Statement* stmt);
     
     /**
      * @brief (AR) بناء جملة if مع else اختياري
@@ -367,7 +379,7 @@ public:
      * (AR) يبني CFG مع basic blocks للشرط وthen وelse
      * (EN) Builds CFG with basic blocks for condition, then, and else
      */
-    void buildIfStatement(AST::IfStatementNode* ifStmt);
+    void buildIfStatement(AST::IfStmt* ifStmt);
     
     /**
      * @brief (AR) بناء حلقة while
@@ -375,7 +387,7 @@ public:
      * 
      * @param whileLoop (AR) حلقة while / (EN) While loop
      */
-    void buildWhileLoop(AST::WhileLoopNode* whileLoop);
+    void buildWhileLoop(AST::WhileStmt* whileLoop);
     
     /**
      * @brief (AR) بناء حلقة for
@@ -383,7 +395,7 @@ public:
      * 
      * @param forLoop (AR) حلقة for / (EN) For loop
      */
-    void buildForLoop(AST::ForLoopNode* forLoop);
+    void buildForLoop(AST::ForStmt* forLoop);
     
     /**
      * @brief (AR) بناء جملة return
@@ -391,7 +403,23 @@ public:
      * 
      * @param retStmt (AR) جملة return / (EN) Return statement
      */
-    void buildReturnStatement(AST::ReturnStatementNode* retStmt);
+    void buildReturnStatement(AST::ReturnStmt* retStmt);
+    
+    /**
+     * @brief (AR) بناء جملة break
+     * @brief (EN) Build break statement
+     * 
+     * @param breakStmt (AR) جملة break / (EN) Break statement
+     */
+    void buildBreakStatement(AST::BreakStmt* breakStmt);
+    
+    /**
+     * @brief (AR) بناء جملة continue
+     * @brief (EN) Build continue statement
+     * 
+     * @param continueStmt (AR) جملة continue / (EN) Continue statement
+     */
+    void buildContinueStatement(AST::ContinueStmt* continueStmt);
     
     /**
      * @brief (AR) بناء إسناد متغير
@@ -399,7 +427,7 @@ public:
      * 
      * @param assignment (AR) جملة الإسناد / (EN) Assignment statement
      */
-    void buildAssignment(AST::AssignmentNode* assignment);
+    void buildAssignment(AST::AssignExpr* assignment);
     
     /**
      * @brief (AR) بناء تصريح متغير محلي
@@ -407,7 +435,7 @@ public:
      * 
      * @param varDecl (AR) تصريح المتغير / (EN) Variable declaration
      */
-    void buildLocalVariable(AST::VariableDeclNode* varDecl);
+    void buildLocalVariable(AST::VarDeclStmt* varDecl);
     
     // ==================================================================
     // بناء التعابير / Building Expressions
@@ -710,7 +738,7 @@ private:
      * @brief (AR) تحويل نوع AST إلى SIRType
      * @brief (EN) Convert AST Type to SIRType
      */
-    SIRType astTypeToSIRType(AST::Type* astType);
+    SIRType astTypeToSIRType(const Sad::Data::DataType& astType);
     
     /**
      * @brief (AR) تحويل عامل ثنائي AST إلى SIR opcode

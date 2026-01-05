@@ -84,8 +84,9 @@ public:
     /**
      * مدمر بناء التعابير
      * Expression builder destructor
+     * Note: Defined in .cpp to support incomplete types in unique_ptr
      */
-    ~LLVMExpressionBuilder() = default;
+    ~LLVMExpressionBuilder();
     
     // ========================================================================
     // تعابير المصفوفات / Array Expressions

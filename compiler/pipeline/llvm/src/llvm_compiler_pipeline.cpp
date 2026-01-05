@@ -343,7 +343,8 @@ bool LLVMCompilerPipeline::lexicalAnalysis(const std::string& source, const std:
         }
         
         // إنشاء Lexer / Create lexer
-        lexer_ = std::make_unique<Lexer::LexerCore>(source, filename);
+        // Source: include/lexer/lexer_core.h:44 - LexerCore(const std::string& source)
+        lexer_ = std::make_unique<Lexer::LexerCore>(source);
         
         // استخراج جميع الرموز / Extract all tokens
         tokens_ = lexer_->tokenize();

@@ -63,8 +63,9 @@ ClassInfo* LLVMClassSupport::defineClass(
     std::vector<llvm::Type*> structFields = fieldTypes;
     
     // إضافة vtable pointer إذا كان هناك صنف أساسي / Add vtable pointer if base class
+    // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
     if (baseClass || classInfo->hasVirtualMethods) {
-        structFields.insert(structFields.begin(), builder_.getInt8PtrTy());
+        structFields.insert(structFields.begin(), llvm::PointerType::getUnqual(context_));
     }
     
     classInfo->structType = llvm::StructType::create(context_, structFields, name);
@@ -249,8 +250,9 @@ llvm::Value* LLVMClassSupport::callVirtualMethod(llvm::Value* object,
                                                  const std::vector<llvm::Value*>& args)
 {
     // الحصول على vtable / Get vtable
+    // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
     llvm::Value* vtablePtr = getFieldPtr(object, classInfo, "__vtable");
-    llvm::Value* vtable = builder_.CreateLoad(builder_.getInt8PtrTy(), vtablePtr, "vtable");
+    llvm::Value* vtable = builder_.CreateLoad(llvm::PointerType::getUnqual(context_), vtablePtr, "vtable");
     
     // الحصول على فهرس الدالة في vtable / Get method index in vtable
     unsigned methodIndex = getVTableIndex(classInfo, methodName);
@@ -317,13 +319,14 @@ llvm::GlobalVariable* LLVMClassSupport::createVTable(ClassInfo* classInfo) {
     // إنشاء قائمة مؤشرات الدوال / Create function pointer list
     std::vector<llvm::Constant*> vtableEntries;
     
+    // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
     for (const auto& methodName : classInfo->methodNames) {
         llvm::Function* method = classInfo->methods[methodName];
-        vtableEntries.push_back(llvm::ConstantExpr::getBitCast(method, builder_.getInt8PtrTy()));
+        vtableEntries.push_back(llvm::ConstantExpr::getBitCast(method, llvm::PointerType::getUnqual(context_)));
     }
     
     // إنشاء نوع vtable / Create vtable type
-    llvm::ArrayType* vtableArrayType = llvm::ArrayType::get(builder_.getInt8PtrTy(), vtableEntries.size());
+    llvm::ArrayType* vtableArrayType = llvm::ArrayType::get(llvm::PointerType::getUnqual(context_), vtableEntries.size());
     
     // إنشاء قيمة vtable / Create vtable value
     llvm::Constant* vtableInit = llvm::ConstantArray::get(vtableArrayType, vtableEntries);
@@ -412,8 +415,9 @@ llvm::Value* LLVMClosureSupport::createClosure(llvm::Function* function,
     llvm::Value* closure = builder_.CreateAlloca(closureType_, nullptr, "closure");
     
     // تعيين مؤشر الدالة / Set function pointer
+    // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
     llvm::Value* funcPtrField = builder_.CreateStructGEP(closureType_, closure, 0);
-    llvm::Value* funcPtr = builder_.CreateBitCast(function, builder_.getInt8PtrTy());
+    llvm::Value* funcPtr = builder_.CreateBitCast(function, llvm::PointerType::getUnqual(context_));
     builder_.CreateStore(funcPtr, funcPtrField);
     
     // تعيين مؤشر البيئة / Set environment pointer
@@ -450,8 +454,9 @@ llvm::Value* LLVMClosureSupport::callClosure(llvm::Value* closure,
  */
 llvm::Function* LLVMClosureSupport::getFunctionFromClosure(llvm::Value* closure) {
     // الحصول على مؤشر الدالة / Get function pointer field
+    // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
     llvm::Value* funcPtrField = builder_.CreateStructGEP(closureType_, closure, 0);
-    llvm::Value* funcPtr = builder_.CreateLoad(builder_.getInt8PtrTy(), funcPtrField, "func_ptr");
+    llvm::Value* funcPtr = builder_.CreateLoad(llvm::PointerType::getUnqual(context_), funcPtrField, "func_ptr");
     
     // تحويل لنوع Function* / Cast to Function*
     // TODO: الحصول على النوع الصحيح / Get correct type
@@ -464,8 +469,9 @@ llvm::Function* LLVMClosureSupport::getFunctionFromClosure(llvm::Value* closure)
  */
 llvm::Value* LLVMClosureSupport::getEnvironmentFromClosure(llvm::Value* closure) {
     // الحصول على مؤشر البيئة / Get environment pointer field
+    // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
     llvm::Value* envPtrField = builder_.CreateStructGEP(closureType_, closure, 1);
-    return builder_.CreateLoad(builder_.getInt8PtrTy(), envPtrField, "environment");
+    return builder_.CreateLoad(llvm::PointerType::getUnqual(context_), envPtrField, "environment");
 }
 
 /**
@@ -521,10 +527,11 @@ llvm::StructType* LLVMClosureSupport::getOrCreateClosureType() {
     }
     
     // إنشاء نوع closure / Create closure type
-    // struct Closure { i8* func_ptr; i8* environment; }
+    // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
+    // struct Closure { ptr func_ptr; ptr environment; }
     std::vector<llvm::Type*> fields = {
-        builder_.getInt8PtrTy(),  // function pointer
-        builder_.getInt8PtrTy()   // environment pointer
+        llvm::PointerType::getUnqual(context_),  // function pointer
+        llvm::PointerType::getUnqual(context_)   // environment pointer
     };
     
     return llvm::StructType::create(context_, fields, "Closure");

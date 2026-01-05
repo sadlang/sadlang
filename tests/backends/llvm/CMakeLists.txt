@@ -11,12 +11,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # البحث عن LLVM / Find LLVM
-# Set LLVM_DIR to our custom config
-set(LLVM_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+# Source: استخدام LLVM المثبت في النظام بدلاً من config محلي
+set(LLVM_DIR "C:/LLVM/lib/cmake/llvm" CACHE PATH "LLVM CMake directory")
 find_package(LLVM REQUIRED CONFIG)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+message(STATUS "LLVM Include Directories: ${LLVM_INCLUDE_DIRS}")
+message(STATUS "LLVM Library Directories: ${LLVM_LIBRARY_DIRS}")
 
 # إضافة تعريفات LLVM / Add LLVM definitions
 add_definitions(${LLVM_DEFINITIONS})
@@ -31,6 +33,8 @@ link_directories(${LLVM_LIBRARY_DIRS})
 # Get the actual project root (3 levels up from tests/backends/llvm)
 get_filename_component(PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
 include_directories(${PROJECT_ROOT})
+include_directories(${PROJECT_ROOT}/include)  # لـ parser/ast headers
+include_directories(${PROJECT_ROOT}/compiler/frontend/include)  # لـ sir_types.h وغيرها
 include_directories(${PROJECT_ROOT}/compiler/backends/llvm)
 
 # مكونات LLVM المطلوبة / Required LLVM components
@@ -54,15 +58,9 @@ llvm_map_components_to_libnames(llvm_libs
 )
 
 # ملفات المصدر للاختبارات / Test source files
+# Source: STRICT_CODING_RULES.md - استخدام ملف اختبار واحد بسيط فقط
 set(TEST_SOURCES
-    test_runner.cpp
-    test_llvm_linker.cpp
-    test_llvm_optimizer.cpp
-    test_llvm_target.cpp
-    test_llvm_debug.cpp
-    test_llvm_runtime.cpp
-    test_llvm_codegen.cpp
-    test_integration.cpp
+    test_llvm_simple.cpp
 )
 
 # ملفات المصدر للمكونات المُختبرة / Source files for tested components

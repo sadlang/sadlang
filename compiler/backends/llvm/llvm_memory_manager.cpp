@@ -490,9 +490,10 @@ llvm::StructType* LLVMMemoryManager::getOrCreateRefCountedType() {
     
     // إنشاء نوع / Create type
     // struct RefCounted { i64 refCount; i8* data; }
+    // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
     std::vector<llvm::Type*> fields = {
         builder_.getInt64Ty(),   // ref count
-        builder_.getInt8PtrTy()  // data pointer
+        llvm::PointerType::getUnqual(context_)  // data pointer (opaque)
     };
     
     return llvm::StructType::create(context_, fields, "RefCounted");
@@ -520,7 +521,8 @@ llvm::Value* LLVMMemoryManager::callMemoryRuntime(
         }
         
         // نوع الرجوع الافتراضي / Default return type
-        llvm::Type* returnType = builder_.getInt8PtrTy();
+        // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
+        llvm::Type* returnType = llvm::PointerType::getUnqual(context_);
         
         llvm::FunctionType* funcType = llvm::FunctionType::get(returnType, paramTypes, false);
         function = llvm::Function::Create(
