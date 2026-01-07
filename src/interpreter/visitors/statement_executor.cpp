@@ -31,6 +31,8 @@ StatementExecutor::StatementExecutor(Data::VariableManager& varMgr,
     , scopeManager_(scopeMgr)
     , flowControl_(FlowControl::NONE)
     , returnValue_()
+    , yieldValue_()
+    , inGenerator_(false)
     , loopDepth_(0)
     , currentFunctionReturnType_(Data::DataType::UNKNOWN)
     , currentFunctionName_("")
@@ -449,6 +451,114 @@ void StatementExecutor::visitContinueStmt(AST::ContinueStmt& node) {
 }
 
 // =========================================================================
+// (AR) تنفيذ جملة yield (للمولّدات) / (EN) Yield Statement (for generators)
+// =========================================================================
+
+void StatementExecutor::visitYieldStmt(AST::YieldStmt& node) {
+    // (AR) التحقق من أننا داخل مولّد / (EN) Check that we're inside a generator
+    if (!inGenerator_) {
+        Sad::Errors::ErrorManager::getInstance().reportError(
+            Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
+            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            "(AR) 'أنتج' (yield) يستخدم فقط داخل الدوال المولّدة.\n"
+            "الحل: استخدم 'دالة مولّد' بدلاً من 'دالة' لتعريف المولّد.",
+            "(EN) 'yield' can only be used inside generator functions.\n"
+            "Solution: Use 'generator function' instead of 'function' to define a generator."
+        );
+        return;
+    }
+    
+    // (AR) التحقق من نوع yield / (EN) Check yield type
+    if (node.isYieldFrom) {
+        // (AR) yield from - تفويض إلى مولّد آخر
+        // (EN) yield from - delegate to another generator
+        if (node.value) {
+            Data::Value iterable = evaluateExpression(*node.value);
+            
+            if (!iterable.isArray()) {
+                Sad::Errors::ErrorManager::getInstance().reportError(
+                    Sad::Errors::ErrorCode::RUN_INVALID_CAST,
+                    Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                    "(AR) 'yield from' يتطلب قيمة قابلة للتكرار (مصفوفة).",
+                    "(EN) 'yield from' requires an iterable value (array)."
+                );
+                return;
+            }
+            
+            // (AR) yield from يُنتج كل عنصر من iterable
+            // (EN) yield from produces each element from iterable
+            // Note: في المستقبل، يمكن دعم generators متداخلة
+            // Note: In future, can support nested generators
+            yieldValue_ = iterable;
+        } else {
+            yieldValue_ = Data::Value(); // VOID
+        }
+    } else {
+        // (AR) yield عادي - إنتاج قيمة واحدة
+        // (EN) Regular yield - produce single value
+        if (node.value) {
+            yieldValue_ = evaluateExpression(*node.value);
+        } else {
+            yieldValue_ = Data::Value(); // VOID
+        }
+    }
+    
+    // (AR) تعيين حالة التحكم / (EN) Set flow control state
+    flowControl_ = FlowControl::YIELD;
+}
+
+// =========================================================================
+// (AR) تنفيذ مدير السياق (With Statement) / (EN) Context Manager (With Statement) Visitors
+// =========================================================================
+
+void StatementExecutor::visitWithStmt(AST::WithStmt& node) {
+    // (AR) تقييم تعبير المورد / (EN) Evaluate resource expression
+    Data::Value resource = evaluateExpression(*node.resource);
+    
+    // (AR) القيمة التي ستُعيّن للمتغير المستعار / (EN) Value to assign to alias variable
+    Data::Value contextValue = resource;
+    
+    // (AR) إذا كان المورد كائناً، نحاول استدعاء __دخول__()
+    // (EN) If resource is object, try to call __enter__()
+    // Note: في المستقبل، سيتم دعم استدعاء الطرق الخاصة
+    // Note: In future, will support calling special methods
+    
+    // (AR) دخول نطاق جديد لـ with / (EN) Enter new scope for with
+    scopeManager_.pushScope(Data::ScopeType::BLOCK);
+    
+    // (AR) تعريف المتغير المستعار إذا وُجد / (EN) Define alias variable if present
+    if (!node.alias.empty()) {
+        variableManager_.define(node.alias, contextValue);
+    }
+    
+    // (AR) تنفيذ جسم كتلة with / (EN) Execute with block body
+    bool exceptionOccurred = false;
+    std::string exceptionMessage;
+    
+    try {
+        node.body->accept(*this);
+    } catch (const Interpreter::SadException& e) {
+        exceptionOccurred = true;
+        exceptionMessage = e.getMessage();
+    } catch (...) {
+        exceptionOccurred = true;
+        exceptionMessage = "Unknown exception";
+    }
+    
+    // (AR) في المستقبل: استدعاء __خروج__() إذا كان كائناً
+    // (EN) Future: Call __exit__() if it's an object
+    // Note: Currently we just exit the scope
+    
+    // (AR) خروج من نطاق with / (EN) Exit with scope
+    scopeManager_.popScope();
+    
+    // (AR) إعادة رمي الاستثناء إذا لم يُعالج / (EN) Re-throw exception if not handled
+    if (exceptionOccurred && !exceptionMessage.empty()) {
+        throw Interpreter::SadException(exceptionMessage, "WithError");
+    }
+}
+
+// =========================================================================
 // (AR) تنفيذ معالجة الاستثناءات / (EN) Exception Handling Visitors
 // =========================================================================
 
@@ -696,6 +806,44 @@ void StatementExecutor::visitFunctionDecl(AST::FunctionDecl& node) {
     // (EN) Use the extended version of defineFunction that saves FunctionDecl
     functionManager_.defineFunction(node.name, params, bodyNode, declNode);
     
+    // (AR) إذا كانت دالة مولد، نحفظ علامة المولد
+    // (EN) If generator function, save generator flag
+    if (node.isGenerator) {
+        auto func = functionManager_.getFunction(node.name, params.size());
+        if (func) {
+            func->setIsGenerator(true);
+        }
+    }
+    
+    // (AR) معالجة المزخرفات (Decorators) - من الأسفل للأعلى
+    // (EN) Process decorators - bottom to top (like Python)
+    if (!node.decorators.empty()) {
+        // (AR) المزخرفات تُطبّق بترتيب عكسي (الأخير أولاً)
+        // (EN) Decorators apply in reverse order (last first)
+        // @dec1
+        // @dec2
+        // function f() {}
+        // becomes: f = dec1(dec2(f))
+        
+        // (AR) لكل مزخرف، نستدعيه مع اسم الدالة
+        // (EN) For each decorator, call it with function name
+        for (auto it = node.decorators.rbegin(); it != node.decorators.rend(); ++it) {
+            auto* decoratorExpr = dynamic_cast<AST::DecoratorExpr*>(it->get());
+            if (decoratorExpr) {
+                // (AR) البحث عن دالة المزخرف
+                // (EN) Find decorator function
+                auto decoratorFunc = functionManager_.getFunction(decoratorExpr->name, 1);
+                if (decoratorFunc && decoratorFunc->hasBody()) {
+                    // (AR) استدعاء المزخرف مع اسم الدالة كوسيط
+                    // (EN) Call decorator with function name as argument
+                    // Note: في المستقبل، يمكن تمرير كائن دالة فعلي
+                    // For now: just log that decorator was applied
+                    // Full implementation would require function objects
+                }
+            }
+        }
+    }
+    
     // (AR) حفظ نوع الإرجاع مع اسم الدالة في map داخلي
     // (EN) Save return type with function name in internal map
     // Store the node pointer with the function definition for later access to returnType
@@ -821,6 +969,170 @@ Data::Value StatementExecutor::executeFunctionBodyWithReturnType(
     currentFunctionName_ = previousFunctionName;
     
     return result;
+}
+
+void StatementExecutor::visitNamespaceDecl(AST::NamespaceDecl& node) {
+    // (AR) حفظ فضاء الأسماء السابق
+    // (EN) Save previous namespace
+    std::string previousNamespace = currentNamespace_;
+    
+    // (AR) تعيين فضاء الأسماء الحالي
+    // (EN) Set current namespace
+    if (currentNamespace_.empty()) {
+        currentNamespace_ = node.name;
+    } else {
+        currentNamespace_ = currentNamespace_ + "::" + node.name;
+    }
+    
+    // (AR) إنشاء نطاق جديد لفضاء الأسماء (نستخدم BLOCK لأنه أقرب)
+    // (EN) Create new scope for namespace (using BLOCK as closest match)
+    scopeManager_.pushScope(Data::ScopeType::BLOCK);
+    
+    // (AR) تنفيذ جميع التصريحات داخل فضاء الأسماء
+    // (EN) Execute all declarations inside namespace
+    for (auto& stmt : node.members) {
+        if (stmt) {
+            stmt->accept(*this);
+        }
+        if (shouldStopExecution()) {
+            break;
+        }
+    }
+    
+    // (AR) الخروج من النطاق
+    // (EN) Exit scope
+    scopeManager_.popScope();
+    
+    // (AR) استعادة فضاء الأسماء السابق
+    // (EN) Restore previous namespace
+    currentNamespace_ = previousNamespace;
+}
+
+void StatementExecutor::visitOperatorDecl(AST::OperatorDecl& node) {
+    // (AR) تسجيل حمل العامل الزائد
+    // (EN) Register operator overload
+    // هذا يحتاج سياق الصنف الحالي - سيُنفّذ عند تحليل الصنف
+    // This needs current class context - will be executed during class parsing
+    
+    // (AR) للتنفيذ المستقبلي: ربط العامل مع الصنف الحالي
+    // (EN) For future implementation: link operator with current class
+    
+    #ifdef DEBUG
+    std::cout << "[Operator] تسجيل عامل: " << node.operatorSymbol << std::endl;
+    #endif
+    
+    // (AR) حالياً لا نفعل شيئاً - العامل يُستخدم فقط عند تحليل الصنف
+    // (EN) Currently do nothing - operator is only used during class parsing
+}
+
+// =========================================================================
+// (AR) تنفيذ القوالب (Templates) / (EN) Templates Implementation
+// =========================================================================
+
+/**
+ * @brief (AR) يُنفذ تصريح دالة قالب
+ *        (EN) Executes template function declaration
+ * 
+ * @details
+ * يحفظ الدالة القالب في مدير القوالب للاستخدام لاحقاً عند الاستدعاء.
+ * Stores the template function in template manager for later instantiation.
+ */
+void StatementExecutor::visitTemplateFunctionDecl(AST::TemplateFunctionDecl& node) {
+    // (AR) حفظ دالة القالب في FunctionManager للاستدعاء لاحقاً
+    // (EN) Store template function for later instantiation
+    
+    #ifdef DEBUG
+    std::cout << "[Template] تسجيل دالة قالب: " << node.functionName << std::endl;
+    std::cout << "[Template] معاملات الأنواع: ";
+    for (const auto& typeParam : node.typeParameters) {
+        std::cout << typeParam.name << " ";
+    }
+    std::cout << std::endl;
+    #endif
+    
+    // (AR) Helper function لتحويل DataType إلى string
+    // (EN) Helper to convert DataType to string
+    auto dataTypeToString = [](Data::DataType type) -> std::string {
+        switch (type) {
+            case Data::DataType::INTEGER: return "integer";
+            case Data::DataType::FLOAT: return "float";
+            case Data::DataType::STRING: return "string";
+            case Data::DataType::BOOLEAN: return "boolean";
+            case Data::DataType::NONE: return "none";
+            case Data::DataType::ARRAY: return "array";
+            case Data::DataType::MAP: return "map";
+            case Data::DataType::TUPLE: return "tuple";
+            case Data::DataType::FUNCTION: return "function";
+            case Data::DataType::OBJECT: return "object";
+            case Data::DataType::ENUM: return "enum";
+            case Data::DataType::BYTE: return "byte";
+            default: return "unknown";
+        }
+    };
+    
+    // (AR) تحويل المعاملات إلى تنسيق FunctionManager
+    // (EN) Convert parameters to FunctionManager format
+    std::vector<Data::FunctionParameter> params;
+    for (const auto& param : node.parameters) {
+        bool hasDefault = (param.defaultValue != nullptr);
+        std::string defaultValStr = "";
+        
+        if (hasDefault) {
+            defaultValStr = "<from_ast>";
+        }
+        
+        params.push_back(Data::FunctionParameter(
+            param.name,
+            dataTypeToString(param.type),
+            hasDefault,
+            defaultValStr
+        ));
+    }
+    
+    // (AR) حفظ الدالة القالب - سنستخدم اسم خاص يحتوي على علامة قالب
+    // (EN) Save template function - use special name with template marker
+    // Format: __template_<name>_<type_params>
+    std::string templateKey = "__template_" + node.name;
+    
+    std::shared_ptr<Parser::ASTNode> bodyNode(
+        reinterpret_cast<Parser::ASTNode*>(node.body.get()),
+        [](Parser::ASTNode*) {}
+    );
+    
+    std::shared_ptr<Parser::ASTNode> declNode(
+        reinterpret_cast<Parser::ASTNode*>(&node),
+        [](Parser::ASTNode*) {}
+    );
+    
+    functionManager_.defineFunction(templateKey, params, bodyNode, declNode);
+    
+    // (AR) حفظ نوع الإرجاع
+    // (EN) Save return type
+    functionReturnTypes_[templateKey] = node.returnType;
+}
+
+/**
+ * @brief (AR) يُنفذ تصريح صنف قالب
+ *        (EN) Executes template class declaration
+ * 
+ * @details
+ * يحفظ الصنف القالب في مدير الأصناف للاستخدام لاحقاً عند الإنشاء.
+ * Stores the template class in class manager for later instantiation.
+ */
+void StatementExecutor::visitTemplateClassDecl(AST::TemplateClassDecl& node) {
+    // (AR) حفظ صنف القالب للإنشاء لاحقاً
+    // (EN) Store template class for later instantiation
+    
+    #ifdef DEBUG
+    std::cout << "[Template] تسجيل صنف قالب: " << node.name << std::endl;
+    std::cout << "[Template] معاملات الأنواع: ";
+    for (const auto& typeParam : node.typeParameters) {
+        std::cout << typeParam.name << " ";
+    }
+    std::cout << std::endl;
+    #endif
+    
+    // TODO: Implement template class instantiation
 }
 
 } // namespace Interpreter

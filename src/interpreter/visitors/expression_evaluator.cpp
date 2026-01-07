@@ -164,8 +164,17 @@ void ExpressionEvaluator::visitAssignExpr(AssignExpr& node) {
     node.value->accept(*this);
     Value value = lastResult_;
     
-    // إسناد للمتغير / Assign to variable
-    variableManager_.assign(node.name, value);
+    // (AR) التحقق إذا كان المتغير موجود / (EN) Check if variable exists
+    // إذا لم يكن موجوداً، قم بتعريفه (استدلال النوع)
+    // If not exists, define it (type inference)
+    if (!variableManager_.exists(node.name)) {
+        // (AR) المتغير غير موجود - قم بتعريفه تلقائياً
+        // (EN) Variable doesn't exist - auto-define it
+        variableManager_.define(node.name, value);
+    } else {
+        // إسناد للمتغير الموجود / Assign to existing variable
+        variableManager_.assign(node.name, value);
+    }
     
     // الإسناد يُرجع القيمة المُسندة / Assignment returns assigned value
     lastResult_ = value;
@@ -625,44 +634,64 @@ void ExpressionEvaluator::visitIndexExpr(IndexExpr& node) {
 void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
     // (AR) الحصول على اسم الدالة / (EN) Get function name
     std::string funcName;
+    bool isTemplateInstantiation = false;
     
-    // (AR) التحقق - هل callee هو VariableExpr (اسم دالة) أم شيء آخر؟
-    // (EN) Check - is callee a VariableExpr (function name) or something else?
-    auto calleeVar = dynamic_cast<VariableExpr*>(node.callee.get());
-    if (calleeVar) {
-        // (AR) نتحقق أولاً - هل المتغير موجود؟ / (EN) Check first - does variable exist?
-        if (variableManager_.exists(calleeVar->name)) {
-            // (AR) قد يكون lambda مخزّن في متغير / (EN) May be lambda stored in variable
-            Value varValue = variableManager_.get(calleeVar->name);
-            if (varValue.isString() && varValue.toString().find("__lambda_") == 0) {
-                // (AR) هذا lambda! / (EN) This is lambda!
-                funcName = varValue.toString();
+    // (AR) التحقق - هل callee هو TemplateInstantiation؟
+    // (EN) Check - is callee a TemplateInstantiation?
+    auto templateInst = dynamic_cast<TemplateInstantiation*>(node.callee.get());
+    if (templateInst) {
+        // (AR) هذا استدعاء دالة قالب!
+        // (EN) This is a template function call!
+        isTemplateInstantiation = true;
+        funcName = "__template_" + templateInst->templateName;
+        
+        #ifdef DEBUG
+        std::cout << "[Template] استدعاء دالة قالب: " << templateInst->templateName << "<";
+        for (size_t i = 0; i < templateInst->typeArguments.size(); i++) {
+            if (i > 0) std::cout << ", ";
+            std::cout << static_cast<int>(templateInst->typeArguments[i]);
+        }
+        std::cout << ">" << std::endl;
+        #endif
+    } else {
+        // (AR) التحقق - هل callee هو VariableExpr (اسم دالة) أم شيء آخر؟
+        // (EN) Check - is callee a VariableExpr (function name) or something else?
+        auto calleeVar = dynamic_cast<VariableExpr*>(node.callee.get());
+        if (calleeVar) {
+            // (AR) نتحقق أولاً - هل المتغير موجود؟ / (EN) Check first - does variable exist?
+            if (variableManager_.exists(calleeVar->name)) {
+                // (AR) قد يكون lambda مخزّن في متغير / (EN) May be lambda stored in variable
+                Value varValue = variableManager_.get(calleeVar->name);
+                if (varValue.isString() && varValue.toString().find("__lambda_") == 0) {
+                    // (AR) هذا lambda! / (EN) This is lambda!
+                    funcName = varValue.toString();
+                } else {
+                    // (AR) دالة عادية / (EN) Regular function
+                    funcName = calleeVar->name;
+                }
             } else {
-                // (AR) دالة عادية / (EN) Regular function
+                // (AR) دالة عادية غير مخزنة في متغير / (EN) Regular function not stored in variable
                 funcName = calleeVar->name;
             }
         } else {
-            // (AR) دالة عادية غير مخزنة في متغير / (EN) Regular function not stored in variable
-            funcName = calleeVar->name;
+            // (AR) ربما دالة lambda inline / (EN) Maybe inline lambda
+            // نقيّم الـ callee لنحصل على اسم الدالة
+            node.callee->accept(*this);
+            Value calleeValue = lastResult_;
+            
+            if (!calleeValue.isString()) {
+                Sad::Errors::ErrorManager::getInstance().reportError(
+                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
+                    Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                    "استدعاء دالة معقد غير مدعوم حالياً",
+                    "Complex function calls not supported yet"
+                );
+                lastResult_ = Value();
+                return;
+            }
+            
+            funcName = calleeValue.toString();
         }
-    } else {
-        // (AR) ربما دالة lambda inline / (EN) Maybe inline lambda
-        // نقيّم الـ callee لنحصل على اسم الدالة
-        node.callee->accept(*this);
-        Value calleeValue = lastResult_;
-        
-        if (!calleeValue.isString()) {
-            Sad::Errors::ErrorManager::getInstance().reportError(
-                Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                "استدعاء دالة معقد غير مدعوم حالياً",
-                "Complex function calls not supported yet"
-            );
-            lastResult_ = Value();
-            return;
-        }
-        
-        funcName = calleeValue.toString();
     }
     
     // (AR) تقييم المعاملات / (EN) Evaluate arguments
@@ -1843,6 +1872,54 @@ void ExpressionEvaluator::visitAwaitExpr(AwaitExpr& node) {
     node.expression->accept(*this);
     // (AR) النتيجة موجودة في lastResult_ / (EN) Result is in lastResult_
     // (AR) await يُرجع نفس القيمة حالياً / (EN) await returns same value for now
+}
+
+// =========================================================================
+// (AR) تقييم تنفيذ القوالب / (EN) Template Instantiation Evaluation
+// =========================================================================
+
+void ExpressionEvaluator::visitTemplateInstantiation(TemplateInstantiation& node) {
+    // (AR) إنشاء نسخة من القالب بالأنواع المحددة
+    // (EN) Instantiate template with specified types
+    
+    #ifdef DEBUG
+    std::cout << "[Template] تنفيذ قالب: " << node.templateName << "<";
+    for (size_t i = 0; i < node.typeArguments.size(); i++) {
+        if (i > 0) std::cout << ", ";
+        std::cout << static_cast<int>(node.typeArguments[i]);
+    }
+    std::cout << ">" << std::endl;
+    #endif
+    
+    // (AR) إنشاء مفتاح القالب
+    // (EN) Create template key
+    std::string templateKey = "__template_" + node.templateName;
+    
+    // (AR) البحث عن القالب في FunctionManager
+    // (EN) Look for template in FunctionManager
+    auto templateFunc = functionManager_.getFunction(templateKey, 0);
+    
+    if (!templateFunc) {
+        // (AR) القالب غير موجود
+        // (EN) Template not found
+        throw Interpreter::RuntimeError(
+            "(AR) القالب '" + node.templateName + "' غير معرّف. (EN) Template '" + node.templateName + "' is not defined.",
+            node.position
+        );
+    }
+    
+    // (AR) للتنفيذ الحالي: نحفظ معلومات القالب في قيمة خاصة
+    // (EN) For current implementation: Store template info in special value
+    // سنستخدم هذا عند استدعاء الدالة
+    // We'll use this when calling the function
+    
+    // (AR) إنشاء اسم دالة مؤقت للنسخة المُنشأة
+    // (EN) Create temporary function name for instantiated version
+    std::string instantiatedName = node.templateName;
+    
+    // (AR) حفظ اسم القالب في lastResult_
+    // (EN) Store template name in lastResult_
+    lastResult_ = Value(instantiatedName);
 }
 
 } // namespace Interpreter

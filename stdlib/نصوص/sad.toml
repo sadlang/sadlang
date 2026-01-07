@@ -1,8 +1,0 @@
-[package]
-name = "نصوص"
-version = "1.0.0"
-description = "مكتبة النصوص والسلاسل النصية - Text and String Library for Sad"
-author = "Sad Team"
-license = "MIT"
-
-[dependencies]

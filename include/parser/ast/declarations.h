@@ -44,6 +44,7 @@ public:
     bool isExported;                ///< Is exported? / مصدّر؟
     bool isMainFunction;            ///< Is main function? / هل هي الدالة الرئيسية؟
     bool is_async;                  ///< Is async function? / دالة غير متزامنة؟
+    bool isGenerator;               ///< Is generator function? / دالة مولد؟ (Phase 7)
     ExprList decorators;            ///< Decorators (@decorator) / المُزخرِفات
     
     /**
@@ -54,15 +55,16 @@ public:
      * @param body Function body / جسم الدالة
      * @param exported Is exported / مصدّر
      * @param async_func Is async function / دالة async
+     * @param generator Is generator function / دالة مولد
      * @param pos Source position / الموقع في الكود
      */
     FunctionDecl(const std::string& name, std::vector<Parameter> params,
                  Data::DataType retType, StmtPtr body, bool exported = false,
-                 bool async_func = false,
+                 bool async_func = false, bool generator = false,
                  const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
           returnType(retType), body(std::move(body)), isExported(exported),
-          isMainFunction(false), is_async(async_func), decorators() {}
+          isMainFunction(false), is_async(async_func), isGenerator(generator), decorators() {}
     
     /**
      * @brief Constructor with decorators / البناء مع مُزخرِفات
@@ -73,15 +75,16 @@ public:
      * @param decs Decorator list / قائمة المُزخرِفات
      * @param exported Is exported / مصدّر
      * @param async_func Is async function / دالة async
+     * @param generator Is generator function / دالة مولد
      * @param pos Source position / الموقع في الكود
      */
     FunctionDecl(const std::string& name, std::vector<Parameter> params,
                  Data::DataType retType, StmtPtr body, ExprList decs,
-                 bool exported = false, bool async_func = false,
+                 bool exported = false, bool async_func = false, bool generator = false,
                  const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
           returnType(retType), body(std::move(body)), isExported(exported),
-          isMainFunction(false), is_async(async_func), decorators(std::move(decs)) {}
+          isMainFunction(false), is_async(async_func), isGenerator(generator), decorators(std::move(decs)) {}
     
     void accept(ASTVisitor& visitor) override {
         visitor.visitFunctionDecl(*this);
@@ -413,6 +416,242 @@ public:
     std::string toString() const override {
         return "export " + (declaration ? declaration->toString() : "");
     }
+};
+
+// =========================================================================
+// Template Type Parameter / معامل نوع القالب
+// =========================================================================
+
+/**
+ * @brief Template type parameter / معامل نوع القالب
+ * 
+ * Represents a type parameter in template declarations.
+ * يمثل معامل نوع في تصريحات القوالب.
+ * 
+ * @example Examples / أمثلة:
+ * - T (simple type parameter)
+ * - T: Comparable (constrained type parameter)
+ * - نوع ت (معامل نوع بسيط)
+ * - ت: قابل_للمقارنة (معامل نوع مقيد)
+ */
+struct TypeParameter {
+    std::string name;               ///< Parameter name / اسم المعامل (e.g., "T", "ت")
+    std::string constraint;         ///< Type constraint (optional) / قيد النوع (اختياري)
+    ExprPtr defaultType;            ///< Default type (optional) / النوع الافتراضي
+    
+    TypeParameter(const std::string& n, const std::string& c = "",
+                  ExprPtr def = nullptr)
+        : name(n), constraint(c), defaultType(std::move(def)) {}
+    
+    // Move operations
+    TypeParameter(TypeParameter&&) = default;
+    TypeParameter& operator=(TypeParameter&&) = default;
+    
+    // Copy constructor
+    TypeParameter(const TypeParameter& other)
+        : name(other.name), constraint(other.constraint), defaultType(nullptr) {}
+};
+
+// =========================================================================
+// Template Function Declaration / تصريح دالة قالب
+// =========================================================================
+
+/**
+ * @brief Template function declaration / تصريح دالة قالب
+ * 
+ * Represents a generic/template function declaration.
+ * يمثل تصريح دالة عامة (قالب).
+ * 
+ * @example Examples / أمثلة:
+ * - قالب<نوع ت> دالة أكبر(ت أ، ت ب) ت { ... }
+ * - template<typename T> func max(a: T, b: T) -> T { ... }
+ * - قالب<نوع ت، نوع م> دالة تبديل(إشارة ت أ، إشارة م ب) { ... }
+ */
+class TemplateFunctionDecl : public Statement {
+public:
+    std::vector<TypeParameter> typeParameters;  ///< Type parameters / معاملات الأنواع
+    std::string name;                           ///< Function name / اسم الدالة
+    std::vector<Parameter> parameters;          ///< Function parameters / معاملات الدالة
+    Data::DataType returnType;                  ///< Return type / نوع الإرجاع
+    StmtPtr body;                               ///< Function body / جسم الدالة
+    bool isExported;                            ///< Is exported? / مصدّر؟
+    
+    /**
+     * @brief Constructor / البناء
+     */
+    TemplateFunctionDecl(std::vector<TypeParameter> typeParams,
+                         const std::string& name,
+                         std::vector<Parameter> params,
+                         Data::DataType retType,
+                         StmtPtr body,
+                         bool exported = false,
+                         const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), typeParameters(std::move(typeParams)),
+          name(name), parameters(std::move(params)),
+          returnType(retType), body(std::move(body)), isExported(exported) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitTemplateFunctionDecl(*this);
+    }
+    
+    std::string toString() const override;
+};
+
+// =========================================================================
+// Template Class Declaration / تصريح صنف قالب
+// =========================================================================
+
+/**
+ * @brief Template class declaration / تصريح صنف قالب
+ * 
+ * Represents a generic/template class declaration.
+ * يمثل تصريح صنف عام (قالب).
+ * 
+ * @example Examples / أمثلة:
+ * - قالب<نوع ت> صنف صندوق { ... نهاية }
+ * - template<typename T> class Box { ... }
+ * - قالب<نوع ك، نوع ق> صنف قاموس { ... نهاية }
+ */
+class TemplateClassDecl : public Statement {
+public:
+    std::vector<TypeParameter> typeParameters;  ///< Type parameters / معاملات الأنواع
+    std::string name;                           ///< Class name / اسم الصنف
+    std::vector<std::string> superclasses;      ///< Base class names / أسماء الأصناف الأساسية
+    StmtList members;                           ///< Class members / أعضاء الصنف
+    bool isExported;                            ///< Is exported? / مصدّر؟
+    
+    /**
+     * @brief Constructor / البناء
+     */
+    TemplateClassDecl(std::vector<TypeParameter> typeParams,
+                      const std::string& name,
+                      const std::vector<std::string>& bases,
+                      StmtList members,
+                      bool exported = false,
+                      const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), typeParameters(std::move(typeParams)),
+          name(name), superclasses(bases),
+          members(std::move(members)), isExported(exported) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitTemplateClassDecl(*this);
+    }
+    
+    std::string toString() const override;
+};
+
+// =========================================================================
+// Template Instantiation Expression / تعبير تنفيذ القالب
+// =========================================================================
+
+/**
+ * @brief Template instantiation expression / تعبير تنفيذ القالب
+ * 
+ * Represents instantiation of a template with concrete types.
+ * يمثل تنفيذ قالب بأنواع محددة.
+ * 
+ * @example Examples / أمثلة:
+ * - صندوق<رقم> ص = جديد صندوق<رقم>(42)
+ * - أكبر<نص>(أ، ب)
+ * - Box<int> b = new Box<int>(42)
+ * - max<string>(a, b)
+ */
+class TemplateInstantiation : public Expression {
+public:
+    std::string templateName;                   ///< Template name / اسم القالب
+    std::vector<Data::DataType> typeArguments;  ///< Type arguments / وسائط الأنواع
+    
+    /**
+     * @brief Constructor / البناء
+     */
+    TemplateInstantiation(const std::string& name,
+                          std::vector<Data::DataType> typeArgs,
+                          const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), templateName(name), typeArguments(std::move(typeArgs)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitTemplateInstantiation(*this);
+    }
+    
+    Data::DataType getType() const override {
+        // (AR) القالب يعيد نوع غير محدد حتى يتم instantiate
+        // (EN) Template returns unknown type until instantiated
+        return Data::DataType::UNKNOWN;
+    }
+    
+    std::string toString() const override;
+};
+
+// =========================================================================
+// Namespace Declaration / تصريح فضاء الأسماء
+// =========================================================================
+
+/**
+ * @brief Namespace declaration / تصريح فضاء الأسماء
+ * 
+ * Represents a namespace for organizing code.
+ * يمثل فضاء أسماء لتنظيم الكود.
+ * 
+ * @example Examples / أمثلة:
+ * - فضاء رياضيات ... نهاية_فضاء
+ * - namespace math { ... }
+ */
+class NamespaceDecl : public Statement {
+public:
+    std::string name;           ///< Namespace name / اسم الفضاء
+    StmtList members;           ///< Namespace members / أعضاء الفضاء
+    
+    /**
+     * @brief Constructor / البناء
+     */
+    NamespaceDecl(const std::string& name, StmtList members,
+                  const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), name(name), members(std::move(members)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitNamespaceDecl(*this);
+    }
+    
+    std::string toString() const override;
+};
+
+// =========================================================================
+// Operator Overload Declaration / تصريح تحميل العامل
+// =========================================================================
+
+/**
+ * @brief Operator overload declaration / تصريح تحميل العامل
+ * 
+ * Represents an operator overload in a class.
+ * يمثل تحميل عامل في صنف.
+ * 
+ * @example Examples / أمثلة:
+ * - عامل +(كسر آخر) كسر { ... }
+ * - operator +(other: Fraction) -> Fraction { ... }
+ */
+class OperatorDecl : public Statement {
+public:
+    std::string operatorSymbol;     ///< Operator symbol / رمز العامل (+, -, *, etc.)
+    std::vector<Parameter> parameters; ///< Parameters / المعاملات
+    Data::DataType returnType;      ///< Return type / نوع الإرجاع
+    StmtPtr body;                   ///< Operator body / جسم العامل
+    AccessModifier access;          ///< Access modifier / معدّل الوصول
+    
+    /**
+     * @brief Constructor / البناء
+     */
+    OperatorDecl(const std::string& op, std::vector<Parameter> params,
+                 Data::DataType retType, StmtPtr body,
+                 AccessModifier access = AccessModifier::PUBLIC,
+                 const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), operatorSymbol(op), parameters(std::move(params)),
+          returnType(retType), body(std::move(body)), access(access) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitOperatorDecl(*this);
+    }
+    
+    std::string toString() const override;
 };
 
 } // namespace AST

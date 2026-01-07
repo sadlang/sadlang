@@ -269,8 +269,9 @@ int compileLLVM(const std::string& filename) {
         Sad::Compiler::CompilerOptions options;
         options.optimization_level = sad::OptimizationLevel::O2;  // compiler_options.h:67
         options.emit_debug_info = false;  // compiler_options.h:124
-        options.verbose = false;  // إخفاء الرسائل التفصيلية
+        options.verbose = true;  // تفعيل الرسائل التفصيلية للتتبع
         options.print_ir_before_opt = false;  // إخفاء IR للتنقيح
+        options.print_sir = true;  // طباعة SIR للتتبع
         
         Sad::Compiler::LLVM::LLVMCompilerPipeline pipeline(options);
         

@@ -1,0 +1,27 @@
+[package]
+name = "{{PROJECT_NAME}}"
+version = "0.1.0"
+description = "A web application in Sad"
+authors = ["{{AUTHOR_NAME}} <{{AUTHOR_EMAIL}}>"]
+license = "MIT"
+
+[build]
+main = "src/main.s"
+sources = ["src/"]
+output = "build/"
+optimization = "full"
+type = "binary"
+
+[dependencies]
+http_server = "^3.0.0"
+router = "^1.2.0"
+json = "^2.0.0"
+logger = "^0.5.0"
+
+[dev-dependencies]
+test_framework = "^1.0.0"
+
+[scripts]
+dev = "sad run -- --port 3000 --reload"
+prod = "sad build --release && ./build/{{PROJECT_NAME}} --port 80"
+test = "sad test"

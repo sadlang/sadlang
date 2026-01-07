@@ -1,0 +1,23 @@
+[package]
+name = "{{PROJECT_NAME}}"
+version = "0.1.0"
+description = "A 2D game in Sad"
+authors = ["{{AUTHOR_NAME}} <{{AUTHOR_EMAIL}}>"]
+license = "MIT"
+
+[build]
+main = "src/main.s"
+sources = ["src/"]
+output = "build/"
+type = "application"
+
+[dependencies]
+raylib = "^4.5.0"
+game_engine = "^1.0.0"
+
+[dev-dependencies]
+test_framework = "^1.0.0"
+
+[scripts]
+dev = "sad run"
+build = "sad build --release"

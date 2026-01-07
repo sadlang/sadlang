@@ -692,6 +692,79 @@ void LLVMCodeGen::emitGlobalFunctions(std::shared_ptr<SIRModule> sirModule) {
             emitFunctionBody(sirFunc, it->second);
         }
     }
+    
+    // إضافة دالة main كـ wrapper للدالة الرئيسية العربية
+    // Add main function as wrapper for Arabic main function
+    emitMainWrapper(sirModule);
+}
+
+/**
+ * إضافة دالة main كـ wrapper
+ * Emit main wrapper function
+ */
+void LLVMCodeGen::emitMainWrapper(std::shared_ptr<SIRModule> sirModule) {
+    if (!sirModule || !module_) return;
+    
+    // البحث عن الدالة الرئيسية (رئيسية أو main)
+    // Find main function (رئيسية or main)
+    llvm::Function* mainFunc = nullptr;
+    std::string mainName;
+    
+    // أولاً: البحث عن "رئيسية"
+    auto it = context_info_.functions.find("رئيسية");
+    if (it != context_info_.functions.end()) {
+        mainFunc = it->second;
+        mainName = "رئيسية";
+    }
+    
+    // إذا لم توجد، نبحث عن "main"
+    if (!mainFunc) {
+        it = context_info_.functions.find("main");
+        if (it != context_info_.functions.end()) {
+            mainFunc = it->second;
+            mainName = "main";
+        }
+    }
+    
+    // إذا لم توجد دالة رئيسية، لا نحتاج wrapper
+    if (!mainFunc) return;
+    
+    // إذا كان اسم الدالة بالفعل "main"، لا نحتاج wrapper
+    if (mainName == "main") return;
+    
+    // إنشاء دالة main wrapper
+    // Create main wrapper function: int main() { return رئيسية(); }
+    llvm::FunctionType* mainType = llvm::FunctionType::get(
+        llvm::Type::getInt32Ty(*context_),  // int return type
+        {},                                  // no parameters
+        false                                // not vararg
+    );
+    
+    llvm::Function* wrapper = llvm::Function::Create(
+        mainType,
+        llvm::Function::ExternalLinkage,
+        "main",
+        module_.get()
+    );
+    
+    // إنشاء basic block
+    llvm::BasicBlock* entryBB = llvm::BasicBlock::Create(*context_, "entry", wrapper);
+    builder_->SetInsertPoint(entryBB);
+    
+    // استدعاء الدالة الرئيسية
+    // Call the main function
+    llvm::Value* result = builder_->CreateCall(mainFunc);
+    
+    // تحويل النتيجة إلى i32 إذا لزم الأمر
+    // Convert result to i32 if needed
+    if (result->getType()->isIntegerTy(64)) {
+        result = builder_->CreateTrunc(result, llvm::Type::getInt32Ty(*context_));
+    } else if (result->getType()->isVoidTy()) {
+        result = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0);
+    }
+    
+    // إرجاع النتيجة
+    builder_->CreateRet(result);
 }
 
 /**
@@ -1850,11 +1923,40 @@ llvm::Value* LLVMCodeGen::emitStore(std::shared_ptr<SIRInstruction> inst) {
         return nullptr;
     }
     
-    llvm::Value* value = context_info_.namedValues[inst->operands[0].name];
+    // (AR) الحصول على القيمة المراد تخزينها
+    // (EN) Get value to store
+    llvm::Value* value = nullptr;
+    const auto& valueOp = inst->operands[0];
+    
+    if (valueOp.type == SIROperandType::CONSTANT) {
+        // (AR) الثابت - إنشاء قيمة LLVM مباشرة
+        // (EN) Constant - create LLVM value directly
+        switch (valueOp.dataType) {
+            case SIRType::I64:
+                value = getConstantInt(valueOp.intValue, 64);
+                break;
+            case SIRType::F64:
+                value = getConstantFloat(valueOp.floatValue, true);
+                break;
+            case SIRType::BOOL:
+                value = llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context_), valueOp.boolValue);
+                break;
+            default:
+                reportError("Unsupported constant type in store");
+                return nullptr;
+        }
+    } else {
+        // (AR) سجل - البحث في namedValues
+        // (EN) Register - lookup in namedValues
+        value = context_info_.namedValues[valueOp.name];
+    }
+    
+    // (AR) الحصول على المؤشر للتخزين فيه
+    // (EN) Get pointer to store into
     llvm::Value* ptr = context_info_.namedValues[inst->operands[1].name];
     
     if (!value || !ptr) {
-        reportError("Operands not found for store");
+        reportError("Operands not found for store: value=" + valueOp.name + ", ptr=" + inst->operands[1].name);
         return nullptr;
     }
     
@@ -2084,11 +2186,39 @@ llvm::Value* LLVMCodeGen::emitReturn(std::shared_ptr<SIRInstruction> inst) {
         }
     } else {
         // ابحث عن القيمة في السجلات المسماة / Look up value in named values
-        retValue = context_info_.namedValues[operand.name];
+        llvm::Value* val = context_info_.namedValues[operand.name];
+        
+        if (val) {
+            // إذا كانت القيمة مؤشراً (alloca)، نحمّل القيمة منها
+            // If value is a pointer (alloca), load the value from it
+            if (val->getType()->isPointerTy()) {
+                // تحديد نوع القيمة للتحميل / Determine type for load
+                llvm::Type* loadType = nullptr;
+                switch (operand.dataType) {
+                    case SIRType::I64:
+                        loadType = llvm::Type::getInt64Ty(*context_);
+                        break;
+                    case SIRType::F64:
+                        loadType = llvm::Type::getDoubleTy(*context_);
+                        break;
+                    case SIRType::BOOL:
+                        loadType = llvm::Type::getInt1Ty(*context_);
+                        break;
+                    default:
+                        loadType = llvm::Type::getInt64Ty(*context_);
+                        break;
+                }
+                retValue = builder_->CreateLoad(loadType, val, "ret.load");
+            } else {
+                // القيمة ليست مؤشراً، استخدمها مباشرة
+                // Value is not a pointer, use directly
+                retValue = val;
+            }
+        }
     }
     
     if (!retValue) {
-        reportError("Return value not found");
+        reportError("Return value not found: " + operand.name);
         return nullptr;
     }
     

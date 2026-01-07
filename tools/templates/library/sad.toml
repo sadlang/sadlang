@@ -1,0 +1,26 @@
+[package]
+name = "{{PROJECT_NAME}}"
+version = "0.1.0"
+description = "A reusable library in Sad"
+authors = ["{{AUTHOR_NAME}} <{{AUTHOR_EMAIL}}>"]
+license = "MIT"
+repository = "https://github.com/{{AUTHOR_NAME}}/{{PROJECT_NAME}}"
+keywords = ["library", "utils"]
+
+[build]
+main = "src/lib.s"
+sources = ["src/"]
+output = "build/"
+type = "library"
+
+[dependencies]
+# Add your dependencies here
+
+[dev-dependencies]
+test_framework = "^1.0.0"
+benchmark = "^0.3.0"
+
+[scripts]
+test = "sad test"
+bench = "sad benchmark"
+docs = "sad doc"

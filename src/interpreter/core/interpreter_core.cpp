@@ -101,7 +101,10 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
                 bool isDeclaration = 
                     dynamic_cast<AST::FunctionDecl*>(stmt.get()) != nullptr ||
                     dynamic_cast<AST::ClassDecl*>(stmt.get()) != nullptr ||
-                    dynamic_cast<AST::EnumDecl*>(stmt.get()) != nullptr;
+                    dynamic_cast<AST::EnumDecl*>(stmt.get()) != nullptr ||
+                    dynamic_cast<AST::TemplateFunctionDecl*>(stmt.get()) != nullptr ||
+                    dynamic_cast<AST::TemplateClassDecl*>(stmt.get()) != nullptr ||
+                    dynamic_cast<AST::NamespaceDecl*>(stmt.get()) != nullptr;
                 
                 // (AR) السماح بـ VarDeclStmt للمتغيرات العامة
                 // (EN) Allow VarDeclStmt for global variables

@@ -210,6 +210,18 @@ public:
      */
     std::shared_ptr<Parser::ASTNode> getFunctionDecl() const { return functionDecl_; }
     
+    /**
+     * @brief (AR) التحقق إذا كانت الدالة مولد
+     * @brief (EN) Check if function is a generator
+     */
+    bool isGenerator() const { return isGenerator_; }
+    
+    /**
+     * @brief (AR) تعيين علامة المولد
+     * @brief (EN) Set generator flag
+     */
+    void setIsGenerator(bool isGen) { isGenerator_ = isGen; }
+    
 private:
     std::string name_;                              ///< (AR) اسم الدالة / (EN) Function name
     FunctionType type_;                             ///< (AR) نوع الدالة / (EN) Function type
@@ -219,6 +231,7 @@ private:
     std::shared_ptr<Parser::ASTNode> functionDecl_;  ///< (AR) FunctionDecl الأصلي (للوصول لـ Parameters) / (EN) Original FunctionDecl (for Parameters access)
     std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>>&)> nativeImplementation_;   ///< (AR) تنفيذ أصلي (للدوال المضمنة) / (EN) Native implementation (for built-in)
     std::string returnType_;                        ///< (AR) نوع الإرجاع / (EN) Return type
+    bool isGenerator_ = false;                      ///< (AR) هل هذه دالة مولد؟ / (EN) Is this a generator function?
 };
 
 /**

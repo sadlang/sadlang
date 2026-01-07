@@ -22,6 +22,9 @@ add_library(llvm_pipeline
     ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/llvm_dict_support.cpp
     ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/llvm_class_support.cpp
     ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/arabic_optimizer.cpp
+    # Linker and toolchain - الرابط وسلسلة الأدوات
+    ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/llvm_linker.cpp
+    ${CMAKE_SOURCE_DIR}/compiler/backends/llvm/toolchain_detection.cpp
 )
 
 target_include_directories(llvm_pipeline

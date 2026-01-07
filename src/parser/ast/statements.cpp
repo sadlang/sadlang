@@ -177,16 +177,5 @@ std::string TryStmt::toString() const {
     return oss.str();
 }
 
-// =========================================================================
-// WithStmt Implementation
-// =========================================================================
-
-std::string WithStmt::toString() const {
-    std::ostringstream oss;
-    oss << "with (" << variable << " = " << resource->toString() << ") ";
-    oss << body->toString();
-    return oss.str();
-}
-
 } // namespace AST
 } // namespace Sad

@@ -349,5 +349,161 @@ std::string EnumDecl::toString() const {
 // (EN) Note: ImportStmt moved to module_nodes.h/cpp
 // =========================================================================
 
+// =========================================================================
+// TemplateFunctionDecl Implementation / تنفيذ تصريح دالة القالب
+// =========================================================================
+
+/**
+ * @brief (AR) يحول تصريح دالة القالب إلى تمثيل نصي.
+ *        (EN) Converts template function declaration to string representation.
+ * 
+ * @return (AR) نص يمثل تصريح دالة القالب (معاملات الأنواع، الاسم، المعاملات، الجسم).
+ *         (EN) String representing template function declaration.
+ */
+std::string TemplateFunctionDecl::toString() const {
+    std::ostringstream oss;
+    
+    if (isExported) {
+        oss << "export ";
+    }
+    
+    // (AR) طباعة معاملات الأنواع / (EN) Print type parameters
+    oss << "template<";
+    for (size_t i = 0; i < typeParameters.size(); ++i) {
+        if (i > 0) oss << ", ";
+        oss << "typename " << typeParameters[i].name;
+        if (!typeParameters[i].constraint.empty()) {
+            oss << ": " << typeParameters[i].constraint;
+        }
+    }
+    oss << ">\n";
+    
+    // (AR) طباعة تصريح الدالة / (EN) Print function declaration
+    oss << "func " << name << "(";
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        if (i > 0) oss << ", ";
+        oss << parameters[i].name << ": " << typeToString(parameters[i].type);
+    }
+    oss << ") -> " << typeToString(returnType);
+    
+    if (body) {
+        oss << " " << body->toString();
+    }
+    
+    return oss.str();
+}
+
+// =========================================================================
+// TemplateClassDecl Implementation / تنفيذ تصريح صنف القالب
+// =========================================================================
+
+/**
+ * @brief (AR) يحول تصريح صنف القالب إلى تمثيل نصي.
+ *        (EN) Converts template class declaration to string representation.
+ */
+std::string TemplateClassDecl::toString() const {
+    std::ostringstream oss;
+    
+    if (isExported) {
+        oss << "export ";
+    }
+    
+    // (AR) طباعة معاملات الأنواع / (EN) Print type parameters
+    oss << "template<";
+    for (size_t i = 0; i < typeParameters.size(); ++i) {
+        if (i > 0) oss << ", ";
+        oss << "typename " << typeParameters[i].name;
+        if (!typeParameters[i].constraint.empty()) {
+            oss << ": " << typeParameters[i].constraint;
+        }
+    }
+    oss << ">\n";
+    
+    // (AR) طباعة تصريح الصنف / (EN) Print class declaration
+    oss << "class " << name;
+    
+    if (!superclasses.empty()) {
+        oss << " extends ";
+        for (size_t i = 0; i < superclasses.size(); ++i) {
+            if (i > 0) oss << ", ";
+            oss << superclasses[i];
+        }
+    }
+    
+    oss << " {\n";
+    for (const auto& member : members) {
+        oss << "  " << member->toString() << "\n";
+    }
+    oss << "}";
+    
+    return oss.str();
+}
+
+// =========================================================================
+// TemplateInstantiation Implementation / تنفيذ تنفيذ القالب
+// =========================================================================
+
+/**
+ * @brief (AR) يحول تنفيذ القالب إلى تمثيل نصي.
+ *        (EN) Converts template instantiation to string representation.
+ */
+std::string TemplateInstantiation::toString() const {
+    std::ostringstream oss;
+    
+    oss << templateName << "<";
+    for (size_t i = 0; i < typeArguments.size(); ++i) {
+        if (i > 0) oss << ", ";
+        oss << typeToString(typeArguments[i]);
+    }
+    oss << ">";
+    
+    return oss.str();
+}
+
+// =========================================================================
+// NamespaceDecl Implementation / تنفيذ تصريح فضاء الأسماء
+// =========================================================================
+
+/**
+ * @brief (AR) يحول تصريح فضاء الأسماء إلى تمثيل نصي.
+ *        (EN) Converts namespace declaration to string representation.
+ */
+std::string NamespaceDecl::toString() const {
+    std::ostringstream oss;
+    
+    oss << "namespace " << name << " {\n";
+    for (const auto& member : members) {
+        oss << "  " << member->toString() << "\n";
+    }
+    oss << "}";
+    
+    return oss.str();
+}
+
+// =========================================================================
+// OperatorDecl Implementation / تنفيذ تصريح تحميل العامل
+// =========================================================================
+
+/**
+ * @brief (AR) يحول تصريح تحميل العامل إلى تمثيل نصي.
+ *        (EN) Converts operator overload declaration to string representation.
+ */
+std::string OperatorDecl::toString() const {
+    std::ostringstream oss;
+    
+    oss << accessToString(access) << " operator" << operatorSymbol << "(";
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        if (i > 0) oss << ", ";
+        oss << parameters[i].name << ": " << typeToString(parameters[i].type);
+    }
+    oss << ") -> " << typeToString(returnType);
+    
+    if (body) {
+        oss << " " << body->toString();
+    }
+    
+    return oss.str();
+}
+
 } // namespace AST
 } // namespace Sad

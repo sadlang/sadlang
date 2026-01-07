@@ -78,6 +78,7 @@ set(COMPONENT_SOURCES
     ${PROJECT_ROOT}/compiler/backends/llvm/llvm_dict_support.cpp
     ${PROJECT_ROOT}/compiler/backends/llvm/llvm_class_support.cpp
     ${PROJECT_ROOT}/compiler/backends/llvm/llvm_memory_manager.cpp
+    ${PROJECT_ROOT}/compiler/backends/llvm/toolchain_detection.cpp
 )
 
 # إنشاء برنامج الاختبار / Create test executable

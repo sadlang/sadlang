@@ -63,6 +63,12 @@ void KeywordTable::initialize() {
     keywords_["إرجاع"] = TokenType::KEYWORD_RETURN;
     keywords_["ارجع"] = TokenType::KEYWORD_RETURN;
     keywords_["return"] = TokenType::KEYWORD_RETURN;
+    
+    // (AR) كلمة 'ترجع' لتحديد نوع الإرجاع (في القوالب والدوال)
+    // (EN) 'returns' keyword for return type specification (templates & functions)
+    keywords_["ترجع"] = TokenType::KEYWORD_RETURNS;
+    keywords_["returns"] = TokenType::KEYWORD_RETURNS;
+    
     keywords_["صنف"] = TokenType::KEYWORD_CLASS;
     keywords_["class"] = TokenType::KEYWORD_CLASS;
     // (AR) كلمة 'يرث' للوراثة - المواصفة 03_oop.md القسم 1 و 2
@@ -253,9 +259,37 @@ void KeywordTable::initialize() {
     keywords_["لامدا"] = TokenType::KEYWORD_LAMBDA;
     keywords_["lambda"] = TokenType::KEYWORD_LAMBDA;
     keywords_["اعطِ"] = TokenType::KEYWORD_YIELD;
+    keywords_["أنتج"] = TokenType::KEYWORD_YIELD;  // Alternative Arabic yield keyword
     keywords_["yield"] = TokenType::KEYWORD_YIELD;
+    keywords_["مولد"] = TokenType::KEYWORD_GENERATOR;  // Generator function keyword (Phase 7)
+    keywords_["generator"] = TokenType::KEYWORD_GENERATOR;
+    keywords_["باستخدام"] = TokenType::KEYWORD_WITH;  // Context manager keyword (Phase 7)
+    keywords_["with"] = TokenType::KEYWORD_WITH;
+    keywords_["نهاية_استخدام"] = TokenType::KEYWORD_END_WITH;  // End context manager (Phase 7)
+    keywords_["end_with"] = TokenType::KEYWORD_END_WITH;
     
-    DEBUG_PRINT("تمت إضافة 4 كلمات: ميزات Python");
+    DEBUG_PRINT("تمت إضافة 11 كلمات: ميزات Python");
+    
+    // ========== ميزات C++ المدعومة ==========
+    // Supported C++ Features (Phase 7B)
+    
+    // Templates (Phase 7B.1)
+    keywords_["قالب"] = TokenType::KEYWORD_TEMPLATE;      // (AR) لتعريف القوالب / (EN) template keyword
+    keywords_["template"] = TokenType::KEYWORD_TEMPLATE;
+    keywords_["نوع"] = TokenType::KEYWORD_TYPENAME;       // (AR) معامل النوع / (EN) typename
+    keywords_["typename"] = TokenType::KEYWORD_TYPENAME;
+    
+    // Namespaces (Phase 7B.5)
+    keywords_["فضاء"] = TokenType::KEYWORD_NAMESPACE;     // (AR) فضاء الأسماء / (EN) namespace
+    keywords_["namespace"] = TokenType::KEYWORD_NAMESPACE;
+    keywords_["نهاية_فضاء"] = TokenType::KEYWORD_END_NAMESPACE;  // (AR) نهاية فضاء الأسماء
+    keywords_["end_namespace"] = TokenType::KEYWORD_END_NAMESPACE;
+    
+    // Operator Overloading (Phase 7B.4)
+    keywords_["عامل"] = TokenType::KEYWORD_OPERATOR;      // (AR) تحميل العوامل / (EN) operator overloading
+    keywords_["operator"] = TokenType::KEYWORD_OPERATOR;
+    
+    DEBUG_PRINT("تمت إضافة 10 كلمات: ميزات C++");
     
     // ========== القيم الحرفية ==========
     // Literal Values (Arabic + English)

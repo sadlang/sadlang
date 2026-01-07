@@ -108,6 +108,7 @@ enum class TokenType {
     KEYWORD_FUNCTION,       ///< دالة / function
     KEYWORD_MAIN,           ///< رئيسية / main (نقطة الدخول الرئيسية للبرنامج / program entry point)
     KEYWORD_RETURN,         ///< إرجاع / return
+    KEYWORD_RETURNS,        ///< ترجع / returns (return type specifier)
     KEYWORD_CLASS,          ///< صنف / class
     KEYWORD_INHERITS,       ///< يرث / inherits (NEW: spec 03_oop.md §1,2 - inheritance keyword)
     KEYWORD_END,            ///< نهاية / end (NEW: spec 03_oop.md §1 - class/block terminator)
@@ -175,7 +176,17 @@ enum class TokenType {
     // ========== ميزات Python المدعومة / Supported Python Features (spec 05_python_features.md) ==========
     KEYWORD_LAMBDA,         ///< لامدا / lambda (anonymous functions)
     KEYWORD_YIELD,          ///< اعطِ / yield (generators)
+    KEYWORD_GENERATOR,      ///< مولد / generator (generator functions - Phase 7)
+    KEYWORD_WITH,           ///< باستخدام / with (context managers - Phase 7)
+    KEYWORD_END_WITH,       ///< نهاية_استخدام / end_with (context manager terminator - Phase 7)
     // NOTE: Decorators (@) are Phase 2 - not yet implemented
+    
+    // ========== ميزات C++ المدعومة / Supported C++ Features (Phase 7B) ==========
+    KEYWORD_TEMPLATE,       ///< قالب / template (generic types - Phase 7B.1)
+    KEYWORD_TYPENAME,       ///< نوع / typename (type parameter - Phase 7B.1)
+    KEYWORD_NAMESPACE,      ///< فضاء / namespace (namespaces - Phase 7B.5)
+    KEYWORD_END_NAMESPACE,  ///< نهاية_فضاء / end_namespace (namespace terminator - Phase 7B.5)
+    KEYWORD_OPERATOR,       ///< عامل / operator (operator overloading - Phase 7B.4)
     
     // ========== أنواع البيانات الأساسية / Basic Data Types ==========
     TYPE_INTEGER,           ///< رقم / integer

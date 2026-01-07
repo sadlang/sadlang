@@ -1,15 +1,19 @@
 /*
  * تنفيذ الرابط LLVM / LLVM Linker Implementation
  * ==============================================
+ * 
+ * تم التحسين بنظام كشف سلسلة الأدوات / Enhanced with Toolchain Detection System
  */
 
 #include "llvm_linker.h"
+#include "toolchain_detection.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <chrono>
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -20,12 +24,19 @@
 
 namespace sad {
 
+// الحصول على مرجع لمدير سلسلة الأدوات / Get reference to toolchain manager
+static ToolchainManager& getToolchainManager() {
+    return ToolchainManager::getInstance();
+}
+
 /**
  * المُنشئ / Constructor
  */
 LLVMLinker::LLVMLinker()
     : initialized_(false),
       use_lld_(false) {
+    // تهيئة مدير سلسلة الأدوات / Initialize toolchain manager
+    getToolchainManager().initialize();
 }
 
 /**
@@ -380,8 +391,19 @@ std::string LLVMLinker::buildLinkerCommandLine(const LinkingOptions& options) {
     bool is_msvc = target_triple_.find("msvc") != std::string::npos;
     
     if (is_windows && is_msvc) {
-        // MSVC linker
-        cmd << "link.exe";
+        // MSVC linker - استخدام سلسلة الأدوات المكتشفة / Using detected toolchain
+        std::string linker_path = "link.exe";
+        std::vector<std::string> lib_paths;
+        
+        auto& tcm = getToolchainManager();
+        const auto* tc = tcm.getActiveToolchain();
+        if (tc && tc->type == ToolchainType::MSVC && tc->linker.available) {
+            linker_path = tc->linker.path;
+            lib_paths = tc->library_paths;
+        }
+        
+        cmd << "\"" << linker_path << "\"";
+        cmd << " /NOLOGO";
         
         // نوع الإخراج / Output type
         if (options.type == LinkingType::SharedLibrary) {
@@ -390,22 +412,32 @@ std::string LLVMLinker::buildLinkerCommandLine(const LinkingOptions& options) {
         
         // ملف الإخراج / Output file
         if (!options.output_file.empty()) {
-            cmd << " /OUT:" << options.output_file;
+            cmd << " /OUT:\"" << options.output_file << "\"";
         }
         
         // ملفات الكائنات / Object files
         for (const auto& obj : options.object_files) {
-            cmd << " " << obj;
+            cmd << " \"" << obj << "\"";
+        }
+        
+        // مسارات المكتبات من سلسلة الأدوات / Library paths from toolchain
+        for (const auto& path : lib_paths) {
+            cmd << " /LIBPATH:\"" << path << "\"";
+        }
+        
+        // مسارات المكتبات المخصصة / Custom library paths
+        for (const auto& path : options.library_paths) {
+            cmd << " /LIBPATH:\"" << path << "\"";
         }
         
         // المكتبات / Libraries
         for (const auto& lib : options.libraries) {
-            cmd << " /DEFAULTLIB:" << lib << ".lib";
-        }
-        
-        // مسارات المكتبات / Library paths
-        for (const auto& path : options.library_paths) {
-            cmd << " /LIBPATH:" << path;
+            // إضافة .lib إذا لم تكن موجودة / Add .lib if not present
+            if (lib.find(".lib") == std::string::npos) {
+                cmd << " " << lib << ".lib";
+            } else {
+                cmd << " " << lib;
+            }
         }
         
         // إزالة الرموز / Strip symbols
@@ -415,7 +447,7 @@ std::string LLVMLinker::buildLinkerCommandLine(const LinkingOptions& options) {
         
         // ملف الخريطة / Map file
         if (options.generate_map) {
-            cmd << " /MAP:" << (options.map_file.empty() ? options.output_file + ".map" : options.map_file);
+            cmd << " /MAP:\"" << (options.map_file.empty() ? options.output_file + ".map" : options.map_file) << "\"";
         }
         
         // الأعلام الإضافية / Additional flags
@@ -508,6 +540,55 @@ bool LLVMLinker::executeLinker(const std::string& command) {
         std::cout << "تشغيل الرابط / Running linker: " << command << std::endl;
     }
     
+#ifdef _WIN32
+    // على Windows، نستخدم CreateProcess للتعامل بشكل أفضل مع المسارات
+    // On Windows, use CreateProcess for better path handling
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+    
+    // نسخ الأمر لأن CreateProcess يحتاج لمؤشر قابل للتعديل
+    // Copy command because CreateProcess needs modifiable pointer
+    std::string cmd_copy = command;
+    
+    if (!CreateProcessA(
+        NULL,                           // No module name (use command line)
+        &cmd_copy[0],                   // Command line
+        NULL,                           // Process handle not inheritable
+        NULL,                           // Thread handle not inheritable
+        FALSE,                          // Set handle inheritance to FALSE
+        0,                              // No creation flags
+        NULL,                           // Use parent's environment block
+        NULL,                           // Use parent's starting directory
+        &si,                            // Pointer to STARTUPINFO structure
+        &pi                             // Pointer to PROCESS_INFORMATION structure
+    )) {
+        DWORD error = GetLastError();
+        info_.errors.push_back("فشل تشغيل الرابط (CreateProcess error: " + std::to_string(error) + ") / Failed to start linker");
+        return false;
+    }
+    
+    // انتظار اكتمال العملية / Wait for process to complete
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    
+    // الحصول على كود الخروج / Get exit code
+    DWORD exitCode;
+    GetExitCodeProcess(pi.hProcess, &exitCode);
+    
+    // إغلاق المقابض / Close handles
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    
+    if (exitCode != 0) {
+        info_.errors.push_back("الرابط خرج بكود / Linker exited with code: " + std::to_string(exitCode));
+        return false;
+    }
+    
+    return true;
+#else
     int result = std::system(command.c_str());
     
     if (result != 0) {
@@ -516,6 +597,7 @@ bool LLVMLinker::executeLinker(const std::string& command) {
     }
     
     return true;
+#endif
 }
 
 /**

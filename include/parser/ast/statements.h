@@ -344,6 +344,69 @@ public:
 };
 
 // =========================================================================
+// With Statement (Context Manager) / جملة باستخدام (مدير السياق)
+// =========================================================================
+
+/**
+ * @brief With statement node for context managers / عقدة جملة باستخدام لمديري السياق
+ * 
+ * Represents a context manager statement that ensures proper resource management.
+ * يمثل جملة مدير السياق التي تضمن إدارة الموارد بشكل صحيح.
+ * 
+ * The context manager calls __دخول__() when entering the block and __خروج__() when leaving.
+ * يستدعي مدير السياق __دخول__() عند الدخول و__خروج__() عند الخروج.
+ * 
+ * Syntax / الصيغة:
+ * - باستخدام expr كـ var: body نهاية_استخدام
+ * - باستخدام resource = factory() كـ r: ... نهاية_استخدام
+ * 
+ * @example Examples / أمثلة:
+ * @code{.s}
+ * باستخدام ملف = افتح("data.txt") كـ م
+ *     محتوى = م.اقرأ()
+ * نهاية_استخدام
+ * 
+ * // With multiple resources / مع موارد متعددة
+ * باستخدام افتح("input.txt") كـ دخل
+ *     باستخدام افتح("output.txt", "w") كـ خرج
+ *         خرج.اكتب(دخل.اقرأ())
+ *     نهاية_استخدام
+ * نهاية_استخدام
+ * @endcode
+ */
+class WithStmt : public Statement {
+public:
+    ExprPtr resource;           ///< Resource expression / تعبير المورد
+    std::string alias;          ///< Alias name (after كـ) / الاسم المستعار (بعد كـ)
+    StmtPtr body;               ///< Body of the with block / جسم كتلة الاستخدام
+    
+    /**
+     * @brief Constructor / البناء
+     * @param res Resource expression / تعبير المورد
+     * @param aliasName Alias for the resource / اسم مستعار للمورد
+     * @param bodyStmt Body statements / جمل الجسم
+     * @param pos Source position / الموقع في الكود
+     */
+    WithStmt(ExprPtr res, const std::string& aliasName, StmtPtr bodyStmt,
+             const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), resource(std::move(res)), alias(aliasName),
+          body(std::move(bodyStmt)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitWithStmt(*this);
+    }
+    
+    std::string toString() const override {
+        std::string result = "باستخدام " + resource->toString();
+        if (!alias.empty()) {
+            result += " كـ " + alias;
+        }
+        result += "\n" + body->toString() + "\nنهاية_استخدام";
+        return result;
+    }
+};
+
+// =========================================================================
 // Break Statement / جملة خروج
 // =========================================================================
 
@@ -530,41 +593,6 @@ public:
     std::string toString() const override {
         return "raise " + exception->toString() + ";";
     }
-};
-
-// =========================================================================
-// With Statement / جملة مع
-// =========================================================================
-
-/**
- * @brief With statement node (context manager) / عقدة جملة مع
- * 
- * Represents a with statement for resource management (RAII-style).
- * يمثل جملة مع لإدارة الموارد (بأسلوب RAII).
- * 
- * @example Examples / أمثلة:
- * - with (file = open("data.txt")) { ... }
- * - مع (ملف = فتح("بيانات.txt")) { ... }
- */
-class WithStmt : public Statement {
-public:
-    std::string variable;       ///< Resource variable / متغير المورد
-    ExprPtr resource;           ///< Resource expression / تعبير المورد
-    StmtPtr body;               ///< Body statement / جملة الجسم
-    
-    /**
-     * @brief Constructor / البناء
-     */
-    WithStmt(const std::string& var, ExprPtr res, StmtPtr body,
-             const Lexer::Position& pos = Lexer::Position())
-        : Statement(pos), variable(var), resource(std::move(res)), 
-          body(std::move(body)) {}
-    
-    void accept(ASTVisitor& visitor) override {
-        visitor.visitWithStmt(*this);
-    }
-    
-    std::string toString() const override;
 };
 
 // =========================================================================

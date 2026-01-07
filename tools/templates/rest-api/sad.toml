@@ -1,0 +1,30 @@
+[package]
+name = "{{PROJECT_NAME}}"
+version = "0.1.0"
+description = "A REST API in Sad"
+authors = ["{{AUTHOR_NAME}} <{{AUTHOR_EMAIL}}>"]
+license = "MIT"
+
+[build]
+main = "src/main.s"
+sources = ["src/"]
+output = "build/"
+type = "binary"
+
+[dependencies]
+http_server = "^3.0.0"
+router = "^1.2.0"
+json = "^2.0.0"
+database = "^2.5.0"
+validator = "^0.8.0"
+logger = "^0.5.0"
+dotenv = "^1.0.0"
+
+[dev-dependencies]
+test_framework = "^1.0.0"
+
+[scripts]
+dev = "sad run -- --env development"
+prod = "sad build --release && ./build/{{PROJECT_NAME}} --env production"
+test = "sad test"
+migrate = "sad run scripts/migrate.s"

@@ -78,6 +78,12 @@ class FromImportStmt;  // (AR) جملة الاستيراد الانتقائي / 
 class ExportStmt;
 class ExportDecl;      // (AR) تصريح التصدير / (EN) Export declaration
 
+// Template/Generic nodes (Phase 7B) / عُقد القوالب
+class TemplateFunctionDecl;   // (AR) تصريح دالة قالب / (EN) Template function declaration
+class TemplateClassDecl;      // (AR) تصريح صنف قالب / (EN) Template class declaration
+class TemplateInstantiation;  // (AR) تنفيذ القالب / (EN) Template instantiation
+class NamespaceDecl;          // (AR) تصريح فضاء الأسماء / (EN) Namespace declaration
+class OperatorDecl;           // (AR) تصريح تحميل العامل / (EN) Operator overload declaration
 /**
  * @brief Abstract visitor interface for AST traversal / واجهة الزائر المجردة لاجتياز AST
  * 
@@ -656,6 +662,60 @@ public:
      * (EN) Used to make a symbol (function/class/variable) available to other modules
      */
     virtual void visitExportDecl(ExportDecl& decl) = 0;
+    
+    // =====================================================================
+    // Template/Generic Visitors (Phase 7B) / زوار القوالب
+    // =====================================================================
+    
+    /**
+     * @brief Visit template function declaration / زيارة تصريح دالة قالب
+     * @param decl Template function declaration node
+     * 
+     * Examples:
+     *   قالب<نوع ت> دالة أكبر(ت أ، ت ب) ت { ... }
+     *   template<typename T> func max(a: T, b: T) -> T { ... }
+     */
+    virtual void visitTemplateFunctionDecl(TemplateFunctionDecl& decl) = 0;
+    
+    /**
+     * @brief Visit template class declaration / زيارة تصريح صنف قالب
+     * @param decl Template class declaration node
+     * 
+     * Examples:
+     *   قالب<نوع ت> صنف صندوق { ... نهاية }
+     *   template<typename T> class Box { ... }
+     */
+    virtual void visitTemplateClassDecl(TemplateClassDecl& decl) = 0;
+    
+    /**
+     * @brief Visit template instantiation / زيارة تنفيذ القالب
+     * @param expr Template instantiation expression
+     * 
+     * Examples:
+     *   صندوق<رقم> ص = جديد صندوق<رقم>(42)
+     *   Box<int> b = new Box<int>(42)
+     */
+    virtual void visitTemplateInstantiation(TemplateInstantiation& expr) = 0;
+    
+    /**
+     * @brief Visit namespace declaration / زيارة تصريح فضاء الأسماء
+     * @param decl Namespace declaration node
+     * 
+     * Examples:
+     *   فضاء رياضيات ... نهاية_فضاء
+     *   namespace math { ... }
+     */
+    virtual void visitNamespaceDecl(NamespaceDecl& decl) = 0;
+    
+    /**
+     * @brief Visit operator overload declaration / زيارة تصريح تحميل العامل
+     * @param decl Operator declaration node
+     * 
+     * Examples:
+     *   عامل +(كسر آخر) كسر { ... }
+     *   operator +(other: Fraction) -> Fraction { ... }
+     */
+    virtual void visitOperatorDecl(OperatorDecl& decl) = 0;
 };
 
 /**
@@ -730,6 +790,13 @@ public:
     void visitFromImportStmt(FromImportStmt& stmt) override {}
     void visitExportStmt(ExportStmt& stmt) override {}
     void visitExportDecl(ExportDecl& decl) override {}
+    
+    // Template/Generic visitors (Phase 7B) / زوار القوالب
+    void visitTemplateFunctionDecl(TemplateFunctionDecl& decl) override {}
+    void visitTemplateClassDecl(TemplateClassDecl& decl) override {}
+    void visitTemplateInstantiation(TemplateInstantiation& expr) override {}
+    void visitNamespaceDecl(NamespaceDecl& decl) override {}
+    void visitOperatorDecl(OperatorDecl& decl) override {}
 };
 
 } // namespace AST

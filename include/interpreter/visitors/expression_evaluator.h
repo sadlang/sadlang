@@ -260,6 +260,12 @@ public:
      */
     void visitMethodCallExpr(AST::MethodCallExpr& node) override;
     
+    /**
+     * @brief (AR) تقييم تنفيذ قالب (max<int>(a, b))
+     * @brief (EN) Evaluate template instantiation (max<int>(a, b))
+     */
+    void visitTemplateInstantiation(AST::TemplateInstantiation& node) override;
+    
 private:
     Data::VariableManager& variableManager_;    ///< (AR) مدير المتغيرات / (EN) Variable manager
     Data::FunctionManager& functionManager_;    ///< (AR) مدير الدوال / (EN) Function manager

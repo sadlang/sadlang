@@ -642,19 +642,23 @@ void ASTPrinter::visitRaiseStmt(RaiseStmt& stmt) {
 }
 
 /**
- * @brief (AR) يزور جملة مع - يطبع المتغير والمورد والجسم.
- *        (EN) Visits with statement - prints variable, resource, and body.
+ * @brief (AR) يزور جملة باستخدام - يطبع المورد والاسم المستعار والجسم.
+ *        (EN) Visits with statement - prints resource, alias, and body.
  * 
  * @param stmt (AR) مؤشر لجملة مع. (EN) Pointer to with statement.
  */
 void ASTPrinter::visitWithStmt(WithStmt& stmt) {
-    result_ += indent() + "with (" + stmt.variable + " = ";
+    result_ += indent() + "باستخدام ";
     stmt.resource->accept(*this);
-    result_ += ")\n";
+    if (!stmt.alias.empty()) {
+        result_ += " كـ " + stmt.alias;
+    }
+    result_ += "\n";
     
     increaseIndent();
     stmt.body->accept(*this);
     decreaseIndent();
+    result_ += indent() + "نهاية_استخدام\n";
 }
 
 // =========================================================================

@@ -1,0 +1,19 @@
+[package]
+name = "{{PROJECT_NAME}}"
+version = "0.1.0"
+description = "A Sad project"
+authors = ["{{AUTHOR_NAME}} <{{AUTHOR_EMAIL}}>"]
+license = "MIT"
+
+[build]
+main = "src/main.s"
+sources = ["src/"]
+output = "build/"
+
+[dependencies]
+# Add your dependencies here
+
+[scripts]
+build = "sad build"
+run = "sad run"
+test = "sad test"

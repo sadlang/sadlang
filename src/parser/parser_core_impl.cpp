@@ -329,11 +329,34 @@ StmtPtr ParserCore::parseDeclaration() {
             return nullptr;
         }
         advance(); // (AR) استهلاك 'دالة' / (EN) consume 'function'
-        return parseFunctionDecl(std::move(decorators), true); // (AR) تمرير is_async=true / (EN) pass is_async=true
+        return parseFunctionDecl(std::move(decorators), true, false); // (AR) تمرير is_async=true / (EN) pass is_async=true
     }
     
     if (match(TT::KEYWORD_FUNCTION)) {
-        return parseFunctionDecl(std::move(decorators));
+        // (AR) التحقق إذا كانت دالة مولد: دالة مولد اسم()
+        // (EN) Check if generator function: function generator name()
+        bool isGenerator = match(TT::KEYWORD_GENERATOR);
+        return parseFunctionDecl(std::move(decorators), false, isGenerator);
+    }
+    
+    // ======================================================================
+    // (AR) دعم القوالب (Templates - Phase 7B)
+    // (EN) Template support (Phase 7B)
+    // ======================================================================
+    if (match(TT::KEYWORD_TEMPLATE)) {
+        if (!decorators.empty()) {
+            error("(AR) المُزخرِفات للقوالب غير مدعومة بعد. (EN) Template decorators not yet supported.");
+        }
+        return parseTemplateDecl();
+    }
+    
+    // (AR) دعم فضاء الأسماء (Namespaces - Phase 7B.5)
+    // (EN) Namespace support (Phase 7B.5)
+    if (match(TT::KEYWORD_NAMESPACE)) {
+        if (!decorators.empty()) {
+            error("(AR) المُزخرِفات لفضاء الأسماء غير مدعومة. (EN) Namespace decorators not supported.");
+        }
+        return parseNamespaceDecl();
     }
     
     if (match(TT::KEYWORD_CLASS)) {
@@ -525,6 +548,10 @@ StmtPtr ParserCore::parseStatement() {
         return parseYieldStmt();
     }
     
+    if (match(TT::KEYWORD_WITH)) {
+        return parseWithStmt();
+    }
+    
     if (match(TT::KEYWORD_BREAK)) {
         return parseBreakStmt();
     }
@@ -680,7 +707,7 @@ StmtPtr ParserCore::parseStatement() {
  * - @staticmethod\nfunction test() {}
  * - @cache(100)\n@memoize\nfunction expensive() {}
  */
-StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async) {
+StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async, bool is_generator) {
     // Spec: docs/language_spec/rules/02_functions.md - function_decl ::= 'دالة' [type] IDENTIFIER '(' [param_list] ')' block
     // Optional return type BEFORE function name: دالة [type] name(...)
     // (AR) نوع الإرجاع الاختياري قبل اسم الدالة: دالة [نوع] اسم(...)
@@ -744,10 +771,26 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async) {
         "Make sure parameter list is complete and properly separated.");
     
     // Optional return type annotation AFTER parameters: function name(...) : type
+    // OR with "ترجع" keyword: function name(...) ترجع type
     // (AR) تصريح نوع الإرجاع الاختياري بعد المعاملات: دالة اسم(...) : نوع
+    // (AR) أو مع كلمة "ترجع": دالة اسم(...) ترجع نوع
     // Note: This overrides the type specified before the function name (if any)
     if (match(TT::COLON)) {
         returnType = parseType();
+    } else if (match(TT::KEYWORD_RETURNS) || match(TT::ARROW)) {
+        // Support "ترجع" keyword or "->" for return type
+        if (isTypeToken(current_.getType())) {
+            returnType = mapTokenTypeToDataType(current_.getType());
+            advance();
+        } else if (check(TT::IDENTIFIER)) {
+            // Could be a custom type or class name
+            returnType = Data::DataType::OBJECT;
+            advance();
+        }
+    } else if (returnType == Data::DataType::UNKNOWN && isTypeToken(current_.getType())) {
+        // Type without "ترجع" keyword (for backward compatibility)
+        returnType = mapTokenTypeToDataType(current_.getType());
+        advance();
     }
     
     // (AR) التحقق من صحة توقيع الدالة الرئيسية
@@ -834,6 +877,7 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async) {
             std::move(decorators),
             false,  // (AR) مُصدَّرة / (EN) exported
             is_async,  // (AR) غير متزامنة / (EN) async
+            is_generator,  // (AR) مولد / (EN) generator
             name.getPosition()
         );
         // (AR) تعيين راية الدالة الرئيسية
@@ -851,6 +895,7 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async) {
         std::move(body),
         false,  // (AR) مُصدَّرة / (EN) exported
         is_async,  // (AR) غير متزامنة / (EN) async
+        is_generator,  // (AR) مولد / (EN) generator
         name.getPosition()
     );
     // (AR) تعيين راية الدالة الرئيسية
@@ -1142,7 +1187,7 @@ StmtPtr ParserCore::parseVarDecl() {
     
     // Optional semicolon (support both Arabic and English)
     // (AR) فاصلة منقوطة اختيارية (دعم العربية والإنجليزية)
-    if (check(TT::SEMICOLON)) {
+    if (check(TT::SEMICOLON) || check(TT::ARABIC_SEMICOLON)) {
         advance();
     }
     
@@ -1420,13 +1465,13 @@ StmtPtr ParserCore::parseReturnStmt() {
     
     // Parse return value if present (not semicolon)
     // (AR) تحليل قيمة الإرجاع إذا كانت موجودة (ليست فاصلة منقوطة)
-    if (!check(TT::SEMICOLON)) {
+    if (!check(TT::SEMICOLON) && !check(TT::ARABIC_SEMICOLON)) {
         value = parseExpression();
     }
     
     // Semicolon is optional after return statement
     // (AR) الفاصلة المنقوطة اختيارية بعد جملة return
-    if (check(TT::SEMICOLON)) {
+    if (check(TT::SEMICOLON) || check(TT::ARABIC_SEMICOLON)) {
         advance(); // consume optional semicolon
     }
     
@@ -1472,14 +1517,15 @@ StmtPtr ParserCore::parseYieldStmt() {
     // (AR) تحليل القيمة الاختيارية
     // (EN) Parse optional value
     ExprPtr value = nullptr;
-    if (!check(TT::SEMICOLON) && !check(TT::BRACE_RIGHT) && !isAtEnd()) {
+    if (!check(TT::SEMICOLON) && !check(TT::ARABIC_SEMICOLON) && !check(TT::BRACE_RIGHT) && !check(TT::NEWLINE) && !isAtEnd()) {
         value = parseExpression();
     }
     
-    // (AR) توقع الفاصلة المنقوطة
-    // (EN) Expect semicolon
-    consume(TT::SEMICOLON, 
-        "(AR) توقع ';' بعد جملة yield. (EN) Expected ';' after yield statement.");
+    // (AR) الفاصلة المنقوطة اختيارية (للتوافق مع النمط العربي)
+    // (EN) Semicolon is optional (for Arabic style compatibility)
+    if (check(TT::SEMICOLON) || check(TT::ARABIC_SEMICOLON)) {
+        advance();
+    }
     
     // (AR) إنشاء عقدة جملة Yield
     // (EN) Create yield statement node
@@ -1487,6 +1533,80 @@ StmtPtr ParserCore::parseYieldStmt() {
         std::move(value), 
         isYieldFrom, 
         yieldToken.getPosition()
+    );
+}
+
+/**
+ * @brief (AR) يحلل جملة باستخدام (مدير السياق).
+ *        (EN) Parses with statement (context manager).
+ * 
+ * Syntax:
+ *   باستخدام expr كـ alias
+ *       body
+ *   نهاية_استخدام
+ * 
+ * OR:
+ *   with expr as alias
+ *       body
+ *   end_with
+ */
+StmtPtr ParserCore::parseWithStmt() {
+    // (AR) توقع 'باستخدام' قد استُهلكت بالفعل
+    // (EN) Expect 'with' already consumed
+    Token withToken = previous();
+    
+    // (AR) تحليل تعبير المورد
+    // (EN) Parse resource expression
+    ExprPtr resource = parseExpression();
+    if (!resource) {
+        error("(AR) توقع تعبير بعد 'باستخدام'. (EN) Expected expression after 'with'.");
+        return nullptr;
+    }
+    
+    // (AR) تحليل الاسم المستعار (اختياري) بعد 'كـ'
+    // (EN) Parse optional alias after 'as'
+    std::string alias;
+    if (match(TT::KEYWORD_AS)) {
+        Token aliasToken = consume(TT::IDENTIFIER,
+            "(AR) توقع اسم متغير بعد 'كـ'. (EN) Expected variable name after 'as'.");
+        alias = aliasToken.getValue();
+    }
+    
+    // (AR) تحليل جسم كتلة الاستخدام
+    // (EN) Parse body of with block
+    std::vector<StmtPtr> bodyStatements;
+    
+    while (!check(TT::KEYWORD_END_WITH) && !check(TT::KEYWORD_END) && !isAtEnd()) {
+        StmtPtr stmt = parseStatement();
+        if (stmt) {
+            bodyStatements.push_back(std::move(stmt));
+        }
+    }
+    
+    // (AR) استهلاك 'نهاية_استخدام' أو 'نهاية'
+    // (EN) Consume 'end_with' or 'end'
+    if (!match(TT::KEYWORD_END_WITH)) {
+        if (!match(TT::KEYWORD_END)) {
+            error("(AR) توقع 'نهاية_استخدام' أو 'نهاية' لإنهاء كتلة الاستخدام. "
+                  "(EN) Expected 'end_with' or 'end' to close with block.");
+            return nullptr;
+        }
+    }
+    
+    // (AR) إنشاء كتلة الجسم
+    // (EN) Create body block
+    StmtPtr body = std::make_unique<BlockStmt>(
+        std::move(bodyStatements),
+        withToken.getPosition()
+    );
+    
+    // (AR) إنشاء عقدة جملة With
+    // (EN) Create with statement node
+    return std::make_unique<WithStmt>(
+        std::move(resource),
+        alias,
+        std::move(body),
+        withToken.getPosition()
     );
 }
 
@@ -1651,45 +1771,6 @@ StmtPtr ParserCore::parseRaiseStmt() {
     return std::make_unique<RaiseStmt>(
         std::move(exception),
         previous().getPosition()
-    );
-}
-
-/**
- * @brief (AR) يحلل جملة with: مع مورد { جسم }.
- *        (EN) Parses with statement: with resource { body }.
- */
-StmtPtr ParserCore::parseWithStmt() {
-    consume(TT::PAREN_LEFT,
-        "(AR) توقع '(' بعد with. (EN) Expected '(' after with.");
-    
-    // Parse variable name
-    // (AR) تحليل اسم المتغير
-    Token varName = consume(TT::IDENTIFIER,
-        "(AR) توقع اسم متغير. (EN) Expected variable name.");
-    
-    consume(TT::OP_ASSIGN,
-        "(AR) توقع '=' في with. (EN) Expected '=' in with.");
-    
-    // Parse resource expression
-    // (AR) تحليل تعبير المورد
-    auto resource = parseExpression();
-    
-    consume(TT::PAREN_RIGHT,
-        "(AR) توقع ')' بعد with. (EN) Expected ')' after with.");
-    
-    // Parse body
-    // (AR) تحليل الجسم
-    consume(TT::BRACE_LEFT, 
-        "(AR) توقع '{' قبل جسم with. (EN) Expected '{' before with body.");
-    auto body = parseBlockStmt();
-    
-    // Create with statement node
-    // (AR) إنشاء عقدة جملة With
-    return std::make_unique<WithStmt>(
-        varName.getValue(),
-        std::move(resource),
-        std::move(body),
-        varName.getPosition()
     );
 }
 
@@ -2306,12 +2387,28 @@ ExprPtr ParserCore::parsePrimary() {
         }
     }
     
-    // Variable reference
-    // (AR) مرجع متغير
+    // Variable reference or Template Instantiation
+    // (AR) مرجع متغير أو تنفيذ قالب
     if (match(TT::IDENTIFIER)) {
+        std::string identName = previous().getValue();
+        auto identPos = previous().getPosition();
+        
+        // (AR) تحقق إذا كان تنفيذ قالب: اسم<نوع>
+        // (EN) Check if template instantiation: name<type>
+        if (check(TT::OP_LESS)) {
+            // (AR) حاول تحليل كتنفيذ قالب
+            // (EN) Try to parse as template instantiation
+            auto templateExpr = parseTemplateInstantiation(identName, identPos);
+            if (templateExpr) {
+                return templateExpr;
+            }
+            // (AR) إذا فشل، اعتبره متغير عادي
+            // (EN) If failed, treat as regular variable
+        }
+        
         return std::make_unique<VariableExpr>(
-            previous().getValue(),
-            previous().getPosition()
+            identName,
+            identPos
         );
     }
     
@@ -3424,7 +3521,7 @@ std::unique_ptr<AST::Pattern> ParserCore::parseListPattern() {
             return nullptr;
         }
         
-    } while (match(TT::COMMA));
+    } while (matchAny({TT::COMMA, TT::ARABIC_COMMA}));
     
     if (!match(TT::BRACKET_RIGHT)) {
         errorBilingual(
@@ -3438,6 +3535,727 @@ std::unique_ptr<AST::Pattern> ParserCore::parseListPattern() {
         std::move(elements),
         has_rest,
         rest_name
+    );
+}
+
+// ======================================================================
+// (AR) تحليل القوالب (Templates - Phase 7B)
+// (EN) Template Parsing (Phase 7B)
+// ======================================================================
+
+/**
+ * @brief (AR) يحلل معاملات أنواع القالب.
+ *        (EN) Parses template type parameters.
+ * 
+ * @details
+ * Syntax / النحو:
+ *   <نوع ت> | <typename T>
+ *   <نوع ت، نوع م> | <typename T, typename U>
+ *   <نوع ت: قابل_للمقارنة> | <typename T: Comparable>
+ */
+std::vector<AST::TypeParameter> ParserCore::parseTemplateParameters() {
+    std::vector<AST::TypeParameter> params;
+    
+    // (AR) توقع '<' / (EN) Expect '<'
+    if (!match(TT::OP_LESS)) {
+        errorBilingual(
+            "خطأ نحوي: توقعت '<' بعد 'قالب'",
+            "Syntax error: Expected '<' after 'template'"
+        );
+        return params;
+    }
+    
+    // (AR) تحليل معاملات الأنواع
+    // (EN) Parse type parameters
+    do {
+        // (AR) توقع 'نوع' أو 'typename'
+        // (EN) Expect 'typename' keyword
+        if (!match(TT::KEYWORD_TYPENAME)) {
+            errorBilingual(
+                "خطأ نحوي: توقعت 'نوع' في معامل القالب",
+                "Syntax error: Expected 'typename' in template parameter"
+            );
+            break;
+        }
+        
+        // (AR) توقع اسم المعامل (مثل T أو ت)
+        // (EN) Expect parameter name (e.g., T)
+        if (!check(TT::IDENTIFIER)) {
+            errorBilingual(
+                "خطأ نحوي: توقعت اسم معامل النوع",
+                "Syntax error: Expected type parameter name"
+            );
+            break;
+        }
+        
+        std::string paramName = current_.getValue();
+        advance();
+        
+        // (AR) تحقق من وجود قيد (constraint)
+        // (EN) Check for constraint
+        std::string constraint;
+        if (match(TT::COLON)) {
+            if (!check(TT::IDENTIFIER)) {
+                errorBilingual(
+                    "خطأ نحوي: توقعت اسم القيد بعد ':'",
+                    "Syntax error: Expected constraint name after ':'"
+                );
+            } else {
+                constraint = current_.getValue();
+                advance();
+            }
+        }
+        
+        params.emplace_back(paramName, constraint);
+        
+    } while (matchAny({TT::COMMA, TT::ARABIC_COMMA}));
+    
+    // (AR) توقع '>' / (EN) Expect '>'
+    if (!match(TT::OP_GREATER)) {
+        errorBilingual(
+            "خطأ نحوي: توقعت '>' لإنهاء معاملات القالب",
+            "Syntax error: Expected '>' to close template parameters"
+        );
+    }
+    
+    return params;
+}
+
+/**
+ * @brief (AR) يحلل تصريح قالب (دالة أو صنف).
+ *        (EN) Parses template declaration (function or class).
+ * 
+ * @details
+ * Syntax / النحو:
+ *   قالب<نوع ت> دالة اسم(...) نوع_الإرجاع { ... }
+ *   قالب<نوع ت> صنف اسم { ... نهاية }
+ */
+StmtPtr ParserCore::parseTemplateDecl() {
+    auto startPos = previous_.getPosition();
+    
+    // (AR) تحليل معاملات الأنواع
+    // (EN) Parse type parameters
+    auto typeParams = parseTemplateParameters();
+    
+    if (typeParams.empty()) {
+        errorBilingual(
+            "خطأ نحوي: القالب يحتاج إلى معامل نوع واحد على الأقل",
+            "Syntax error: Template requires at least one type parameter"
+        );
+        return nullptr;
+    }
+    
+    // (AR) التحقق من نوع التصريح (دالة أو صنف)
+    // (EN) Check declaration type (function or class)
+    if (match(TT::KEYWORD_FUNCTION)) {
+        // (AR) تحليل دالة قالب
+        // (EN) Parse template function
+        
+        // (AR) توقع اسم الدالة
+        // (EN) Expect function name
+        if (!check(TT::IDENTIFIER)) {
+            errorBilingual(
+                "خطأ نحوي: توقعت اسم الدالة بعد 'دالة'",
+                "Syntax error: Expected function name after 'function'"
+            );
+            return nullptr;
+        }
+        
+        std::string funcName = current_.getValue();
+        advance();
+        
+        // (AR) تحليل المعاملات
+        // (EN) Parse parameters
+        if (!match(TT::PAREN_LEFT)) {
+            errorBilingual(
+                "خطأ نحوي: توقعت '(' بعد اسم الدالة",
+                "Syntax error: Expected '(' after function name"
+            );
+            return nullptr;
+        }
+        
+        std::vector<AST::Parameter> params;
+        if (!check(TT::PAREN_RIGHT)) {
+            do {
+                // (AR) تحليل معامل واحد: اسم: نوع
+                // (EN) Parse single parameter: name: type
+                if (!check(TT::IDENTIFIER) && !isTypeToken(current_.getType())) {
+                    errorBilingual(
+                        "خطأ نحوي: توقعت اسم أو نوع المعامل",
+                        "Syntax error: Expected parameter name or type"
+                    );
+                    break;
+                }
+                
+                std::string paramName;
+                Data::DataType paramType = Data::DataType::NONE;
+                std::string templateTypeName;  // (AR) لحفظ اسم نوع القالب / (EN) To store template type name
+                
+                // (AR) معامل يبدأ بالنوع أو الاسم
+                // (EN) Parameter starts with type or name
+                if (isTypeToken(current_.getType())) {
+                    // (AR) نوع مدمج مثل: رقم س
+                    // (EN) Built-in type like: int x
+                    paramType = mapTokenTypeToDataType(current_.getType());
+                    advance();
+                    if (check(TT::IDENTIFIER)) {
+                        paramName = current_.getValue();
+                        advance();
+                    }
+                } else if (check(TT::IDENTIFIER)) {
+                    // (AR) قد يكون: ت س (نوع قالب + اسم) أو س: ت (اسم + نوع)
+                    // (EN) Could be: T x (template type + name) or x: T (name + type)
+                    std::string firstIdent = current_.getValue();
+                    advance();
+                    
+                    if (check(TT::IDENTIFIER)) {
+                        // (AR) صيغة: ت س (نوع معرف + اسم)
+                        // (EN) Format: T x (identifier type + name)
+                        templateTypeName = firstIdent;
+                        paramName = current_.getValue();
+                        paramType = Data::DataType::OBJECT;  // Template type as OBJECT
+                        advance();
+                    } else if (match(TT::COLON)) {
+                        // (AR) صيغة: س: ت (اسم + نوع)
+                        // (EN) Format: x: T (name + type)
+                        paramName = firstIdent;
+                        if (isTypeToken(current_.getType())) {
+                            paramType = mapTokenTypeToDataType(current_.getType());
+                            advance();
+                        } else if (check(TT::IDENTIFIER)) {
+                            // (AR) قد يكون معامل نوع من القالب
+                            // (EN) Might be a template type parameter
+                            templateTypeName = current_.getValue();
+                            paramType = Data::DataType::OBJECT;
+                            advance();
+                        }
+                    } else {
+                        // (AR) فقط اسم بدون نوع
+                        // (EN) Just name without type
+                        paramName = firstIdent;
+                    }
+                }
+                
+                params.emplace_back(paramName, paramType);
+                
+            } while (matchAny({TT::COMMA, TT::ARABIC_COMMA}));
+        }
+        
+        if (!match(TT::PAREN_RIGHT)) {
+            errorBilingual(
+                "خطأ نحوي: توقعت ')' بعد معاملات الدالة",
+                "Syntax error: Expected ')' after function parameters"
+            );
+            return nullptr;
+        }
+        
+        // (AR) تحليل نوع الإرجاع
+        // (EN) Parse return type
+        Data::DataType returnType = Data::DataType::NONE;
+        std::string returnTypeName;
+        
+        // (AR) البحث عن نوع الإرجاع بعد المعاملات مع كلمة "ترجع" الاختيارية
+        // (EN) Look for return type after parameters with optional "ترجع" keyword
+        
+        // Check for "ترجع" keyword or arrow
+        if (match(TT::KEYWORD_RETURNS) || match(TT::ARROW)) {
+            if (isTypeToken(current_.getType())) {
+                returnType = mapTokenTypeToDataType(current_.getType());
+                advance();
+            } else if (check(TT::IDENTIFIER)) {
+                returnTypeName = current_.getValue();
+                returnType = Data::DataType::OBJECT;
+                advance();
+            }
+        } else if (isTypeToken(current_.getType())) {
+            // Built-in type without "ترجع"
+            returnType = mapTokenTypeToDataType(current_.getType());
+            advance();
+        } else if (check(TT::IDENTIFIER)) {
+            // Template type parameter as return type without "ترجع"
+            // Check if it looks like a type parameter from template
+            std::string possibleType = current_.getValue();
+            
+            // Check if this identifier is one of the template type parameters
+            bool isTemplateParam = false;
+            for (const auto& param : typeParams) {
+                if (param.name == possibleType) {
+                    isTemplateParam = true;
+                    break;
+                }
+            }
+            
+            // Accept it as return type if it's a template parameter
+            if (isTemplateParam) {
+                returnTypeName = possibleType;
+                returnType = Data::DataType::OBJECT;
+                advance();
+            }
+        }
+        
+        // (AR) تحليل جسم الدالة
+        // (EN) Parse function body
+        StmtPtr body = nullptr;
+        if (check(TT::BRACE_LEFT)) {
+            body = parseBlockStmt();
+        } else if (check(TT::KEYWORD_END)) {
+            // (AR) دالة فارغة / (EN) Empty function
+            advance();
+        } else {
+            // (AR) حاول قراءة الجسم
+            body = parseBlockStmt();
+        }
+        
+        return std::make_unique<AST::TemplateFunctionDecl>(
+            std::move(typeParams),
+            funcName,
+            std::move(params),
+            returnType,
+            std::move(body),
+            false,  // isExported
+            startPos
+        );
+    }
+    else if (match(TT::KEYWORD_CLASS)) {
+        // (AR) تحليل صنف قالب
+        // (EN) Parse template class
+        
+        // (AR) توقع اسم الصنف
+        // (EN) Expect class name
+        if (!check(TT::IDENTIFIER)) {
+            errorBilingual(
+                "خطأ نحوي: توقعت اسم الصنف بعد 'صنف'",
+                "Syntax error: Expected class name after 'class'"
+            );
+            return nullptr;
+        }
+        
+        std::string className = current_.getValue();
+        advance();
+        
+        // (AR) التحقق من الوراثة
+        // (EN) Check for inheritance
+        std::vector<std::string> baseClasses;
+        if (match(TT::KEYWORD_INHERITS) || match(TT::KEYWORD_EXTENDS)) {
+            do {
+                if (!check(TT::IDENTIFIER)) {
+                    errorBilingual(
+                        "خطأ نحوي: توقعت اسم الصنف الأب",
+                        "Syntax error: Expected base class name"
+                    );
+                    break;
+                }
+                baseClasses.push_back(current_.getValue());
+                advance();
+            } while (matchAny({TT::COMMA, TT::ARABIC_COMMA}));
+        }
+        
+        // (AR) تحليل أعضاء الصنف
+        // (EN) Parse class members
+        AST::StmtList members;
+        
+        // Lambda to parse class member
+        auto parseTemplateClassMember = [this, &className]() -> StmtPtr {
+            bool isStatic = false;
+            bool isVirtual = false;
+            bool isAbstract = false;
+            AccessModifier access = parseModifiers(isStatic, isVirtual, isAbstract);
+            
+            // Check if it's a method
+            if (check(TT::KEYWORD_FUNCTION)) {
+                advance();
+                return parseMethodDeclaration(access, isStatic, isVirtual, isAbstract);
+            }
+            
+            // Check for constructor
+            if (check(TT::KEYWORD_CONSTRUCTOR_ALT) ||
+                (check(TT::IDENTIFIER) && current_.getValue() == className && 
+                 peekNext().getType() == TT::PAREN_LEFT)) {
+                if (check(TT::KEYWORD_CONSTRUCTOR_ALT)) {
+                    advance();
+                } else {
+                    advance();
+                }
+                return parseConstructorDeclaration(className, access);
+            }
+            
+            // Check for destructor
+            if (check(TT::KEYWORD_DESTRUCTOR)) {
+                return parseDestructorDeclaration(className, access);
+            }
+            
+            // Otherwise, parse as field
+            if (isTypeToken(current_.getType()) || 
+                (check(TT::IDENTIFIER) && isClassName(current_.getValue()))) {
+                return parseFieldDeclaration(access, isStatic);
+            }
+            
+            error("(AR) عضو صنف غير معروف. (EN) Unknown class member.");
+            advance();
+            return nullptr;
+        };
+        
+        if (match(TT::BRACE_LEFT)) {
+            while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
+                auto member = parseTemplateClassMember();
+                if (member) {
+                    members.push_back(std::move(member));
+                }
+            }
+            if (!match(TT::BRACE_RIGHT)) {
+                errorBilingual(
+                    "خطأ نحوي: توقعت '}' لإنهاء الصنف",
+                    "Syntax error: Expected '}' to close class"
+                );
+            }
+        } else {
+            // (AR) صيغة بدون أقواس: صنف اسم ... نهاية
+            // (EN) No-brace syntax: class name ... end
+            while (!check(TT::KEYWORD_END) && !isAtEnd()) {
+                auto member = parseTemplateClassMember();
+                if (member) {
+                    members.push_back(std::move(member));
+                }
+            }
+            if (!match(TT::KEYWORD_END)) {
+                errorBilingual(
+                    "خطأ نحوي: توقعت 'نهاية' لإنهاء الصنف",
+                    "Syntax error: Expected 'end' to close class"
+                );
+            }
+        }
+        
+        return std::make_unique<AST::TemplateClassDecl>(
+            std::move(typeParams),
+            className,
+            baseClasses,
+            std::move(members),
+            false,  // isExported
+            startPos
+        );
+    }
+    else {
+        errorBilingual(
+            "خطأ نحوي: توقعت 'دالة' أو 'صنف' بعد معاملات القالب",
+            "Syntax error: Expected 'function' or 'class' after template parameters"
+        );
+        return nullptr;
+    }
+}
+
+/**
+ * @brief (AR) يحلل تصريح فضاء الأسماء.
+ *        (EN) Parses namespace declaration.
+ * 
+ * @details
+ * Syntax / النحو:
+ *   فضاء اسم ... نهاية_فضاء
+ *   namespace name { ... }
+ */
+StmtPtr ParserCore::parseNamespaceDecl() {
+    auto startPos = previous_.getPosition();
+    
+    // (AR) توقع اسم فضاء الأسماء
+    // (EN) Expect namespace name
+    if (!check(TT::IDENTIFIER)) {
+        errorBilingual(
+            "خطأ نحوي: توقعت اسم فضاء الأسماء",
+            "Syntax error: Expected namespace name"
+        );
+        return nullptr;
+    }
+    
+    std::string nsName = current_.getValue();
+    advance();
+    
+    // (AR) تحليل أعضاء فضاء الأسماء
+    // (EN) Parse namespace members
+    AST::StmtList members;
+    
+    if (match(TT::BRACE_LEFT)) {
+        // (AR) صيغة الأقواس: namespace name { ... }
+        // (EN) Brace syntax
+        while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
+            auto decl = parseDeclaration();
+            if (decl) {
+                members.push_back(std::move(decl));
+            }
+        }
+        if (!match(TT::BRACE_RIGHT)) {
+            errorBilingual(
+                "خطأ نحوي: توقعت '}' لإنهاء فضاء الأسماء",
+                "Syntax error: Expected '}' to close namespace"
+            );
+        }
+    } else {
+        // (AR) صيغة بدون أقواس: فضاء اسم ... نهاية_فضاء
+        // (EN) No-brace syntax
+        while (!check(TT::KEYWORD_END_NAMESPACE) && !check(TT::KEYWORD_END) && !isAtEnd()) {
+            auto decl = parseDeclaration();
+            if (decl) {
+                members.push_back(std::move(decl));
+            }
+        }
+        if (!match(TT::KEYWORD_END_NAMESPACE) && !match(TT::KEYWORD_END)) {
+            errorBilingual(
+                "خطأ نحوي: توقعت 'نهاية_فضاء' لإنهاء فضاء الأسماء",
+                "Syntax error: Expected 'end_namespace' to close namespace"
+            );
+        }
+    }
+    
+    return std::make_unique<AST::NamespaceDecl>(
+        nsName,
+        std::move(members),
+        startPos
+    );
+}
+
+/**
+ * @brief (AR) يحلل تصريح تحميل عامل.
+ *        (EN) Parses operator overload declaration.
+ * 
+ * @details
+ * Syntax / النحو:
+ *   عامل +(آخر: نوع) نوع { ... }
+ *   operator +(other: Type) -> Type { ... }
+ */
+StmtPtr ParserCore::parseOperatorDecl() {
+    auto startPos = previous_.getPosition();
+    
+    // (AR) توقع رمز العامل
+    // (EN) Expect operator symbol
+    std::string opSymbol;
+    
+    // (AR) التحقق من أنواع العوامل المختلفة
+    // (EN) Check for different operator types
+    switch (current_.getType()) {
+        case TT::OP_PLUS:
+            opSymbol = "+"; break;
+        case TT::OP_MINUS:
+            opSymbol = "-"; break;
+        case TT::OP_MULTIPLY:
+            opSymbol = "*"; break;
+        case TT::OP_DIVIDE:
+            opSymbol = "/"; break;
+        case TT::OP_MODULO:
+            opSymbol = "%"; break;
+        case TT::OP_EQUAL:
+            opSymbol = "=="; break;
+        case TT::OP_NOT_EQUAL:
+            opSymbol = "!="; break;
+        case TT::OP_LESS:
+            opSymbol = "<"; break;
+        case TT::OP_GREATER:
+            opSymbol = ">"; break;
+        case TT::OP_LESS_EQUAL:
+            opSymbol = "<="; break;
+        case TT::OP_GREATER_EQUAL:
+            opSymbol = ">="; break;
+        case TT::BRACKET_LEFT:
+            advance();
+            if (match(TT::BRACKET_RIGHT)) {
+                opSymbol = "[]";
+            } else {
+                errorBilingual(
+                    "خطأ نحوي: توقعت ']' بعد '['",
+                    "Syntax error: Expected ']' after '['"
+                );
+                return nullptr;
+            }
+            break;
+        case TT::PAREN_LEFT:
+            advance();
+            if (match(TT::PAREN_RIGHT)) {
+                opSymbol = "()";
+            } else {
+                errorBilingual(
+                    "خطأ نحوي: توقعت ')' بعد '('",
+                    "Syntax error: Expected ')' after '('"
+                );
+                return nullptr;
+            }
+            break;
+        default:
+            errorBilingual(
+                "خطأ نحوي: رمز عامل غير معروف",
+                "Syntax error: Unknown operator symbol"
+            );
+            return nullptr;
+    }
+    
+    if (opSymbol != "[]" && opSymbol != "()") {
+        advance();  // (AR) استهلاك رمز العامل
+    }
+    
+    // (AR) تحليل المعاملات
+    // (EN) Parse parameters
+    if (!match(TT::PAREN_LEFT)) {
+        errorBilingual(
+            "خطأ نحوي: توقعت '(' بعد رمز العامل",
+            "Syntax error: Expected '(' after operator symbol"
+        );
+        return nullptr;
+    }
+    
+    std::vector<AST::Parameter> params;
+    if (!check(TT::PAREN_RIGHT)) {
+        do {
+            if (!check(TT::IDENTIFIER)) {
+                errorBilingual(
+                    "خطأ نحوي: توقعت اسم المعامل",
+                    "Syntax error: Expected parameter name"
+                );
+                break;
+            }
+            
+            std::string paramName = current_.getValue();
+            advance();
+            
+            Data::DataType paramType = Data::DataType::NONE;
+            if (match(TT::COLON)) {
+                if (isTypeToken(current_.getType())) {
+                    paramType = mapTokenTypeToDataType(current_.getType());
+                    advance();
+                } else if (check(TT::IDENTIFIER)) {
+                    paramType = Data::DataType::OBJECT;
+                    advance();
+                }
+            }
+            
+            params.emplace_back(paramName, paramType);
+            
+        } while (matchAny({TT::COMMA, TT::ARABIC_COMMA}));
+    }
+    
+    if (!match(TT::PAREN_RIGHT)) {
+        errorBilingual(
+            "خطأ نحوي: توقعت ')' بعد معاملات العامل",
+            "Syntax error: Expected ')' after operator parameters"
+        );
+        return nullptr;
+    }
+    
+    // (AR) تحليل نوع الإرجاع
+    // (EN) Parse return type
+    Data::DataType returnType = Data::DataType::NONE;
+    if (isTypeToken(current_.getType())) {
+        returnType = mapTokenTypeToDataType(current_.getType());
+        advance();
+    } else if (match(TT::ARROW)) {
+        if (isTypeToken(current_.getType())) {
+            returnType = mapTokenTypeToDataType(current_.getType());
+            advance();
+        }
+    }
+    
+    // (AR) تحليل جسم العامل
+    // (EN) Parse operator body
+    StmtPtr body = nullptr;
+    if (check(TT::BRACE_LEFT)) {
+        body = parseBlockStmt();
+    }
+    
+    return std::make_unique<AST::OperatorDecl>(
+        opSymbol,
+        std::move(params),
+        returnType,
+        std::move(body),
+        AST::AccessModifier::PUBLIC,
+        startPos
+    );
+}
+
+// =========================================================================
+// (AR) تحليل تنفيذ القوالب / (EN) Template Instantiation Parsing
+// =========================================================================
+
+/**
+ * @brief (AR) يتحقق إذا كان الرمز الحالي بداية type argument
+ *        (EN) Checks if current token starts a type argument
+ */
+bool ParserCore::isTypeArgumentStart() {
+    // (AR) أنواع مدمجة / (EN) Built-in types
+    if (isTypeToken(current_.getType())) {
+        return true;
+    }
+    
+    // (AR) معرّف يمكن أن يكون اسم صنف أو معامل قالب
+    // (EN) Identifier could be class name or template parameter
+    if (check(TT::IDENTIFIER)) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * @brief (AR) يحلل تنفيذ قالب مثل: أكبر<رقم>(10, 20)
+ *        (EN) Parses template instantiation like: max<int>(10, 20)
+ */
+ExprPtr ParserCore::parseTemplateInstantiation(const std::string& templateName,
+                                                const Lexer::Position& pos) {
+    // (AR) حفظ الموقع الحالي للرجوع إذا لم يكن قالب
+    // (EN) Save current position to rollback if not a template
+    // Note: We'll use peek/advance pattern instead of manual index tracking
+    
+    // (AR) محاولة قراءة <
+    // (EN) Try to consume <
+    if (!match(TT::OP_LESS)) {
+        return nullptr;
+    }
+    
+    // (AR) تحليل وسائط الأنواع
+    // (EN) Parse type arguments
+    std::vector<Data::DataType> typeArgs;
+    
+    // (AR) التحقق من وجود نوع بعد <
+    // (EN) Check for type after <
+    if (!isTypeArgumentStart()) {
+        // (AR) ليس تنفيذ قالب
+        // (EN) Not template instantiation
+        return nullptr;
+    }
+    
+    do {
+        Data::DataType argType = Data::DataType::UNKNOWN;
+        std::string typeName;
+        
+        if (isTypeToken(current_.getType())) {
+            // (AR) نوع مدمج
+            // (EN) Built-in type
+            argType = mapTokenTypeToDataType(current_.getType());
+            advance();
+        } else if (check(TT::IDENTIFIER)) {
+            // (AR) قد يكون اسم صنف
+            // (EN) Could be class name
+            typeName = current_.getValue();
+            argType = Data::DataType::OBJECT;
+            advance();
+        } else {
+            // (AR) خطأ: توقعت نوع
+            // (EN) Error: expected type
+            return nullptr;
+        }
+        
+        typeArgs.push_back(argType);
+        
+    } while (matchAny({TT::COMMA, TT::ARABIC_COMMA}));
+    
+    // (AR) توقع >
+    // (EN) Expect >
+    if (!match(TT::OP_GREATER)) {
+        // (AR) ليس تنفيذ قالب صالح
+        // (EN) Not valid template instantiation
+        return nullptr;
+    }
+    
+    // (AR) إنشاء عقدة TemplateInstantiation
+    // (EN) Create TemplateInstantiation node
+    return std::make_unique<AST::TemplateInstantiation>(
+        templateName,
+        std::move(typeArgs),
+        pos
     );
 }
 

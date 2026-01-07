@@ -10,10 +10,14 @@
  */
 
 #include "../include/llvm_compiler_pipeline.h"
+#include "llvm_linker.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+
+// استخدام فضاء الأسماء sad للرابط / Using sad namespace for linker
+using sad::LLVMLinker;
 
 namespace Sad {
 namespace Compiler {
@@ -635,6 +639,7 @@ bool LLVMCompilerPipeline::emitObjectFile(const std::string& filename) {
 
 /**
  * إصدار Executable / Emit executable
+ * Enhanced with Toolchain Detection / محسّن بنظام كشف سلسلة الأدوات
  */
 bool LLVMCompilerPipeline::emitExecutable(const std::string& filename) {
     try {
@@ -648,11 +653,42 @@ bool LLVMCompilerPipeline::emitExecutable(const std::string& filename) {
             return false;
         }
         
-        // ثانياً: استدعاء Linker / Second: Invoke linker
-        // TODO: تنفيذ Linker / Implement linker
-        if (options_.verbose) {
-            std::cout << "[Pipeline] Linker قيد التطوير / Linker under development\n";
-            std::cout << "[Pipeline] Object file جاهز / Object file ready: " << objFile << "\n";
+        // ثانياً: استخدام LLVMLinker المحسّن / Second: Use enhanced LLVMLinker
+        LLVMLinker linker;
+        if (!linker.initialize(options_.target_triple)) {
+            logWarning("فشل تهيئة الرابط، محاولة الربط اليدوي / Linker initialization failed, trying manual link");
+        }
+        
+        linker.addObjectFile(objFile);
+        linker.setOutputFile(filename);
+        linker.setEntryPoint("main");
+        linker.setVerbose(options_.verbose);
+        
+        // إضافة المكتبات الافتراضية حسب النظام / Add default libraries based on system
+        #ifdef _WIN32
+        linker.addLinkerFlag("/SUBSYSTEM:CONSOLE");
+        linker.addLinkerFlag("/MACHINE:X64");
+        #else
+        linker.addLinkerFlag("-pie");
+        #endif
+        
+        bool linkSuccess = linker.link();
+        
+        if (!linkSuccess) {
+            logWarning("فشل الربط بـ LLVMLinker، Object file متاح / Linking with LLVMLinker failed, object file available: " + objFile);
+            
+            // طباعة معلومات المساعدة / Print help information
+            const auto& info = linker.getLinkingInfo();
+            for (const auto& err : info.errors) {
+                logWarning("Linker error: " + err);
+            }
+            
+            // لا نُرجع false لأن الـ object file متاح للاستخدام اليدوي
+            // Don't return false because object file is available for manual linking
+        } else {
+            if (options_.verbose) {
+                linker.printLinkingInfo();
+            }
         }
         
         return true;

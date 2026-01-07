@@ -175,7 +175,7 @@ private:
      * @return (AR) مؤشر لعقدة تصريح الدالة.
      *         (EN) Pointer to function declaration node.
      */
-    AST::StmtPtr parseFunctionDecl(AST::ExprList decorators = AST::ExprList(), bool is_async = false);
+    AST::StmtPtr parseFunctionDecl(AST::ExprList decorators = AST::ExprList(), bool is_async = false, bool is_generator = false);
 
     /**
      * @brief (AR) يحلل تصريح صنف (class) مع الحقول والطرق.
@@ -185,6 +185,68 @@ private:
      *         (EN) Pointer to class declaration node.
      */
     AST::StmtPtr parseClassDecl();
+    
+    // =====================================================================
+    // (AR) تحليل القوالب والميزات المتقدمة (Phase 7B)
+    // (EN) Template and Advanced Features Parsing (Phase 7B)
+    // =====================================================================
+    
+    /**
+     * @brief (AR) يحلل تصريح قالب (دالة أو صنف).
+     *        (EN) Parses template declaration (function or class).
+     * 
+     * @details
+     * (AR) يدعم الأنماط التالية:
+     *      - قالب<نوع ت> دالة اسم() { ... }
+     *      - قالب<نوع ت، نوع م> صنف اسم { ... }
+     *      - قالب<نوع ت: قابل_للمقارنة> ...
+     * 
+     * (EN) Supports the following patterns:
+     *      - template<typename T> func name() { ... }
+     *      - template<typename T, typename U> class name { ... }
+     *      - template<typename T: Comparable> ...
+     * 
+     * @return (AR) مؤشر لعقدة تصريح القالب (TemplateFunctionDecl أو TemplateClassDecl).
+     *         (EN) Pointer to template declaration node.
+     */
+    AST::StmtPtr parseTemplateDecl();
+    
+    /**
+     * @brief (AR) يحلل معاملات أنواع القالب <نوع ت، نوع م>.
+     *        (EN) Parses template type parameters <typename T, typename U>.
+     * 
+     * @return (AR) قائمة معاملات الأنواع.
+     *         (EN) List of type parameters.
+     */
+    std::vector<AST::TypeParameter> parseTemplateParameters();
+    
+    /**
+     * @brief (AR) يحلل تصريح فضاء الأسماء.
+     *        (EN) Parses namespace declaration.
+     * 
+     * @details
+     * (AR) يدعم الأنماط التالية:
+     *      - فضاء رياضيات ... نهاية_فضاء
+     *      - namespace math { ... }
+     * 
+     * @return (AR) مؤشر لعقدة تصريح فضاء الأسماء.
+     *         (EN) Pointer to namespace declaration node.
+     */
+    AST::StmtPtr parseNamespaceDecl();
+    
+    /**
+     * @brief (AR) يحلل تصريح تحميل عامل داخل صنف.
+     *        (EN) Parses operator overload declaration inside class.
+     * 
+     * @details
+     * (AR) يدعم الأنماط التالية:
+     *      - عامل +(آخر: نوع) نوع { ... }
+     *      - عامل [](فهرس: رقم) نوع { ... }
+     * 
+     * @return (AR) مؤشر لعقدة تصريح العامل.
+     *         (EN) Pointer to operator declaration node.
+     */
+    AST::StmtPtr parseOperatorDecl();
     
     /**
      * @brief (AR) يحلل جملة استيراد - استورد [وحدة] [كـ اسم]
@@ -436,6 +498,22 @@ private:
     AST::StmtPtr parseYieldStmt();
 
     /**
+     * @brief (AR) يحلل جملة باستخدام (مدير السياق).
+     *        (EN) Parses with statement (context manager).
+     * 
+     * Context managers ensure proper resource management by calling
+     * __دخول__() on entry and __خروج__() on exit.
+     * 
+     * Syntax:
+     * - باستخدام expr كـ alias: body نهاية_استخدام
+     * - with resource as name: ... end_with
+     * 
+     * @return (AR) مؤشر لعقدة جملة With.
+     *         (EN) Pointer to with statement node.
+     */
+    AST::StmtPtr parseWithStmt();
+
+    /**
      * @brief (AR) يحلل جملة break (للخروج من الحلقات).
      *        (EN) Parses break statement (exit loops).
      * 
@@ -479,15 +557,6 @@ private:
      *         (EN) Pointer to raise statement node.
      */
     AST::StmtPtr parseRaiseStmt();
-
-    /**
-     * @brief (AR) يحلل جملة with لإدارة الموارد.
-     *        (EN) Parses with statement for resource management.
-     * 
-     * @return (AR) مؤشر لعقدة جملة With.
-     *         (EN) Pointer to with statement node.
-     */
-    AST::StmtPtr parseWithStmt();
 
     /**
      * @brief (AR) يحلل جملة switch-case للتحكم متعدد الفروع.
@@ -695,6 +764,35 @@ private:
      *         (EN) Pointer to primary expression node.
      */
     AST::ExprPtr parsePrimary();
+    
+    /**
+     * @brief (AR) يحلل تنفيذ قالب مثل: أكبر<رقم>(10, 20) أو صندوق<نص>()
+     *        (EN) Parses template instantiation like: max<int>(10, 20) or Box<string>()
+     * 
+     * @details
+     * (AR) يُستدعى عندما يُكتشف معرّف متبوع بـ < وقد يكون تنفيذ قالب.
+     *      يُميز بين تنفيذ القالب وعامل المقارنة < بالتحقق مما يلي الـ <
+     * 
+     * (EN) Called when identifier followed by < is detected and might be template.
+     *      Distinguishes between template instantiation and < comparison operator
+     *      by checking what follows the <
+     * 
+     * @param templateName (AR) اسم القالب / (EN) Template name
+     * @param pos (AR) موقع في الكود / (EN) Position in code
+     * @return (AR) مؤشر لعقدة TemplateInstantiation أو nullptr إذا لم يكن قالب
+     *         (EN) Pointer to TemplateInstantiation node or nullptr if not template
+     */
+    AST::ExprPtr parseTemplateInstantiation(const std::string& templateName, 
+                                            const Lexer::Position& pos);
+    
+    /**
+     * @brief (AR) يتحقق إذا كان الرمز الحالي بداية type argument للقوالب
+     *        (EN) Checks if current token starts a template type argument
+     * 
+     * @return (AR) صحيح إذا كان نوع أو معرف يمكن أن يكون نوع قالب
+     *         (EN) True if type or identifier that could be template type
+     */
+    bool isTypeArgumentStart();
 
     /**
      * @brief (AR) يحلل دالة لامدا (lambda x: x + 1).

@@ -17,7 +17,7 @@ namespace sad {
 // Dead Code Elimination Pass
 // =====================================
 
-class DeadCodeEliminationVisitor : public Sad::AST::ASTVisitor {
+class DeadCodeEliminationVisitor : public Sad::AST::BaseASTVisitor {
 private:
     std::set<std::string> definedVars_;    // Variables that are defined
     std::set<std::string> usedVars_;       // Variables that are used
@@ -330,7 +330,7 @@ std::shared_ptr<ASTNode> DeadCodeEliminationPass::apply(std::shared_ptr<ASTNode>
 // Constant Folding Pass
 // =====================================
 
-class ConstantFoldingVisitor : public Sad::AST::ASTVisitor {
+class ConstantFoldingVisitor : public Sad::AST::BaseASTVisitor {
 private:
     bool modified_ = false;
     
@@ -645,7 +645,7 @@ std::shared_ptr<ASTNode> ConstantFoldingPass::apply(std::shared_ptr<ASTNode> ast
 // Expression Simplification Visitor
 // =====================================
 
-class ExpressionSimplificationVisitor : public Sad::AST::ASTVisitor {
+class ExpressionSimplificationVisitor : public Sad::AST::BaseASTVisitor {
 private:
     bool modified_ = false;
     
@@ -952,7 +952,7 @@ std::shared_ptr<ASTNode> ExpressionSimplificationPass::apply(std::shared_ptr<AST
 // Loop Optimization Pass
 // =====================================
 
-class LoopOptimizationVisitor : public Sad::AST::ASTVisitor {
+class LoopOptimizationVisitor : public Sad::AST::BaseASTVisitor {
 private:
     bool modified_ = false;
     int optimizationCount_ = 0;
@@ -1195,7 +1195,7 @@ std::shared_ptr<ASTNode> LoopOptimizationPass::apply(std::shared_ptr<ASTNode> as
 // Function Inlining Pass
 // =====================================
 
-class FunctionInliningVisitor : public Sad::AST::ASTVisitor {
+class FunctionInliningVisitor : public Sad::AST::BaseASTVisitor {
 private:
     std::map<std::string, int> functionSizes_;      // Function name -> line count
     std::map<std::string, int> functionCallCounts_; // Function name -> call count
@@ -1424,7 +1424,7 @@ std::shared_ptr<ASTNode> FunctionInliningPass::apply(std::shared_ptr<ASTNode> as
 // Redundant Assignment Elimination Pass
 // =====================================
 
-class RedundantAssignmentVisitor : public Sad::AST::ASTVisitor {
+class RedundantAssignmentVisitor : public Sad::AST::BaseASTVisitor {
 private:
     std::map<std::string, int> lastAssignmentLine_;  // Variable -> line of last assignment
     std::set<std::string> redundantAssignments_;     // Variables with redundant assignments

@@ -59,7 +59,8 @@ enum class FlowControl {
     NONE,       ///< (AR) تدفق عادي / (EN) Normal flow
     RETURN,     ///< (AR) إرجاع من دالة / (EN) Return from function
     BREAK,      ///< (AR) كسر حلقة / (EN) Break from loop
-    CONTINUE    ///< (AR) متابعة للتكرار التالي / (EN) Continue to next iteration
+    CONTINUE,   ///< (AR) متابعة للتكرار التالي / (EN) Continue to next iteration
+    YIELD       ///< (AR) إعطاء قيمة من مولّد / (EN) Yield value from generator
 };
 
 /**
@@ -121,6 +122,24 @@ public:
      * @brief (EN) Get return value (for functions)
      */
     Data::Value getReturnValue() const { return returnValue_; }
+    
+    /**
+     * @brief (AR) الحصول على قيمة yield (للمولّدات)
+     * @brief (EN) Get yield value (for generators)
+     */
+    Data::Value getYieldValue() const { return yieldValue_; }
+    
+    /**
+     * @brief (AR) تعيين وضع المولّد
+     * @brief (EN) Set generator mode
+     */
+    void setGeneratorMode(bool isGenerator) { inGenerator_ = isGenerator; }
+    
+    /**
+     * @brief (AR) هل نحن داخل مولّد؟
+     * @brief (EN) Are we inside a generator?
+     */
+    bool isInGenerator() const { return inGenerator_; }
     
     // =========================================================================
     // (AR) زيارة الجُمل / (EN) Statement Visitors
@@ -205,6 +224,18 @@ public:
     void visitRaiseStmt(AST::RaiseStmt& node) override;
     
     /**
+     * @brief (AR) زيارة جملة yield (للمولّدات) / (EN) Visit yield statement (for generators)
+     * @details تُنتج قيمة من دالة مولّدة / Yields value from generator function
+     */
+    void visitYieldStmt(AST::YieldStmt& node) override;
+    
+    /**
+     * @brief (AR) زيارة جملة باستخدام (مدير السياق) / (EN) Visit with statement (context manager)
+     * @details تستدعي __دخول__() عند الدخول و__خروج__() عند الخروج / Calls __enter__() on entry and __exit__() on exit
+     */
+    void visitWithStmt(AST::WithStmt& node) override;
+    
+    /**
      * @brief (AR) زيارة جملة مطابقة أنماط / (EN) Visit pattern matching statement
      * @details تطابق قيمة مع أنماط وتنفذ الفرع المناسب / Matches value against patterns and executes matching branch
      */
@@ -256,6 +287,34 @@ public:
      */
     void visitDestructorDecl(AST::DestructorDecl& node) override;
     
+    // =========================================================================
+    // (AR) زيارة تصريحات القوالب / (EN) Template Declaration Visitors
+    // =========================================================================
+    
+    /**
+     * @brief (AR) زيارة تصريح دالة قالب / (EN) Visit template function declaration
+     * @details تسجل دالة القالب لإنشائها لاحقاً / Registers template function for later instantiation
+     */
+    void visitTemplateFunctionDecl(AST::TemplateFunctionDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة تصريح صنف قالب / (EN) Visit template class declaration
+     * @details تسجل صنف القالب لإنشائه لاحقاً / Registers template class for later instantiation
+     */
+    void visitTemplateClassDecl(AST::TemplateClassDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة تصريح فضاء أسماء / (EN) Visit namespace declaration
+     * @details يسجل فضاء الأسماء ويُنفّذ محتواه / Registers namespace and executes its contents
+     */
+    void visitNamespaceDecl(AST::NamespaceDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة تصريح عامل محمّل زائداً / (EN) Visit operator overload declaration
+     * @details يسجل تحميل العامل الزائد للصنف / Registers operator overload for class
+     */
+    void visitOperatorDecl(AST::OperatorDecl& node) override;
+    
 private:
     // (AR) المراجع للمديرين / (EN) Manager references
     Data::VariableManager& variableManager_;
@@ -271,6 +330,12 @@ private:
     // (AR) قيمة الإرجاع / (EN) Return value
     Data::Value returnValue_;
     
+    // (AR) قيمة yield (للمولّدات) / (EN) Yield value (for generators)
+    Data::Value yieldValue_;
+    
+    // (AR) هل نحن داخل مولّد؟ / (EN) Are we inside a generator?
+    bool inGenerator_;
+    
     // (AR) عداد مستوى الحلقات (للتحقق من break/continue) / (EN) Loop depth counter
     int loopDepth_;
     
@@ -282,6 +347,21 @@ private:
     
     // (AR) خريطة أنواع إرجاع الدوال / (EN) Map of function return types
     std::unordered_map<std::string, Data::DataType> functionReturnTypes_;
+    
+    // =========================================================================
+    // (AR) تخزين القوالب / (EN) Template Storage
+    // =========================================================================
+    
+    // (AR) خريطة دوال القوالب / (EN) Template functions map
+    // Key: template function name, Value: pointer to AST node
+    std::unordered_map<std::string, AST::TemplateFunctionDecl*> templateFunctions_;
+    
+    // (AR) خريطة أصناف القوالب / (EN) Template classes map
+    // Key: template class name, Value: pointer to AST node
+    std::unordered_map<std::string, AST::TemplateClassDecl*> templateClasses_;
+    
+    // (AR) فضاء الأسماء الحالي / (EN) Current namespace
+    std::string currentNamespace_;
     
     /**
      * @brief (AR) تقييم تعبير وإرجاع قيمته

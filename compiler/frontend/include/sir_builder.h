@@ -31,6 +31,7 @@
 #include "parser/ast/expressions.h"
 #include "parser/ast/statements.h"
 #include "parser/ast/declarations.h"
+#include "parser/ast/class_nodes.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -73,6 +74,7 @@ namespace AST {
     using IfStmt = Sad::AST::IfStmt;
     using WhileStmt = Sad::AST::WhileStmt;
     using ForStmt = Sad::AST::ForStmt;
+    using ForRangeStmt = Sad::AST::ForRangeStmt;  // (AR) حلقة لكل في / (EN) for-each loop
     using ReturnStmt = Sad::AST::ReturnStmt;
     using BreakStmt = Sad::AST::BreakStmt;
     using ContinueStmt = Sad::AST::ContinueStmt;
@@ -81,6 +83,10 @@ namespace AST {
     using AssignExpr = Sad::AST::AssignExpr;
     using FieldDecl = Sad::AST::FieldDecl;
     using MethodDecl = Sad::AST::MethodDecl;
+    using FunctionDecl = Sad::AST::FunctionDecl;
+    using TemplateFunctionDecl = Sad::AST::TemplateFunctionDecl;  // (AR) دالة قالب / (EN) Template function
+    using NewExpr = Sad::AST::NewExpr;
+    using MemberAccessExpr = Sad::AST::MemberAccessExpr;
     
     // Operator types - enums not classes
     using BinaryOperator = Sad::Lexer::TokenType;
@@ -342,6 +348,37 @@ public:
     void buildFunction(AST::FunctionDeclNode* funcDecl);
     
     /**
+     * @brief (AR) بناء دالة قالب (حفظها للإنشاء لاحقاً)
+     * @brief (EN) Build template function (store for later instantiation)
+     * 
+     * @param templateDecl (AR) تصريح دالة قالب / (EN) Template function declaration
+     * 
+     * @details
+     * (AR) يحفظ الدالة القالب في جدول القوالب
+     * سيتم إنشاء نسخ منها عند الاستدعاء مع أنواع محددة
+     * (EN) Stores template function in template table
+     * Will instantiate copies when called with specific types
+     */
+    void buildTemplateFunction(AST::TemplateFunctionDecl* templateDecl);
+    
+    /**
+     * @brief (AR) إنشاء نسخة محددة من دالة قالب
+     * @brief (EN) Instantiate specific version of template function
+     * 
+     * @param templateName (AR) اسم القالب / (EN) Template name
+     * @param typeArguments (AR) الأنواع المحددة / (EN) Specified types
+     * @return (AR) اسم الدالة المُنشأة / (EN) Instantiated function name
+     * 
+     * @details
+     * (AR) ينشئ نسخة من دالة القالب باستبدال معاملات الأنواع بأنواع محددة
+     * مثل: أكبر<رقم> ينشئ أكبر_i64
+     * (EN) Creates copy of template function with type parameters substituted
+     * Example: max<int> creates max_i64
+     */
+    std::string instantiateTemplate(const std::string& templateName, 
+                                    const std::vector<SIRType>& typeArguments);
+    
+    /**
      * @brief (AR) بناء متغير عام
      * @brief (EN) Build global variable
      * 
@@ -396,6 +433,14 @@ public:
      * @param forLoop (AR) حلقة for / (EN) For loop
      */
     void buildForLoop(AST::ForStmt* forLoop);
+    
+    /**
+     * @brief (AR) بناء حلقة for-range (لكل في)
+     * @brief (EN) Build for-range loop (foreach)
+     * 
+     * @param forRange (AR) حلقة لكل في / (EN) For-range loop
+     */
+    void buildForRangeLoop(AST::ForRangeStmt* forRange);
     
     /**
      * @brief (AR) بناء جملة return
@@ -476,6 +521,24 @@ public:
      * @return (AR) قيمة الإرجاع / (EN) Return value
      */
     BuildResult buildFunctionCall(AST::FunctionCallNode* call);
+    
+    /**
+     * @brief (AR) بناء إنشاء كائن جديد
+     * @brief (EN) Build new object creation
+     * 
+     * @param newExpr (AR) تعبير جديد / (EN) New expression
+     * @return (AR) مؤشر للكائن / (EN) Pointer to object
+     */
+    BuildResult buildNewObject(AST::NewExpr* newExpr);
+    
+    /**
+     * @brief (AR) بناء الوصول لعضو في كائن
+     * @brief (EN) Build member access
+     * 
+     * @param memberExpr (AR) تعبير الوصول للعضو / (EN) Member access expression
+     * @return (AR) قيمة العضو / (EN) Member value
+     */
+    BuildResult buildMemberAccess(AST::MemberAccessExpr* memberExpr);
     
     /**
      * @brief (AR) بناء وصول لمتغير
@@ -726,6 +789,14 @@ private:
     
     // (AR) مكدس نطاقات الأنواع العامة / (EN) Generic scopes stack
     std::vector<GenericScope> genericScopeStack_;
+    
+    // (AR) خريطة قوالب الدوال - اسم القالب -> AST node
+    // (EN) Template function map - template name -> AST node
+    std::unordered_map<std::string, AST::TemplateFunctionDecl*> templateFunctions_;
+    
+    // (AR) خريطة الدوال المُنشأة من القوالب - اسم_مع_أنواع -> SIR function
+    // (EN) Instantiated template functions - name_with_types -> SIR function
+    std::unordered_map<std::string, std::shared_ptr<SIRFunction>> instantiatedTemplates_;
     
     // (AR) قائمة الأخطاء / (EN) Error list
     std::vector<std::string> errors_;

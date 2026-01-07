@@ -305,6 +305,14 @@ public:
     void emitGlobalFunctions(std::shared_ptr<SIRModule> sirModule);
     
     /**
+     * إضافة دالة main كـ wrapper للدالة الرئيسية العربية
+     * Add main wrapper for Arabic main function
+     * 
+     * @param sirModule وحدة SIR / SIR module
+     */
+    void emitMainWrapper(std::shared_ptr<SIRModule> sirModule);
+    
+    /**
      * إصدار المتغيرات العامة
      * Emit global variables
      * 
