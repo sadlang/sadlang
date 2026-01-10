@@ -9,7 +9,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "stdlib/database/database_module.h"
+#include "database/database_module.h"
 #include <filesystem>
 
 using namespace sad::stdlib::database;

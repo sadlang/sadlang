@@ -4,15 +4,15 @@
 // Phase 7.2: Compiler Driver
 
 #include "compiler_driver.h"
-#include "../../lexer/lexer.h"
-#include "../../parser/parser.h"
-#include "../../compiler/frontend/sir_builder.h"
-#include "../../compiler/middleend/sir_optimizer.h"
-#include "../../compiler/backend/bytecode/bytecode_emitter.h"
+#include "lexer_core.h"
+#include "parser_core.h"
+#include "sir_builder.h"
+// #include "sir_optimizer.h"  // DISABLED - not available
+// #include "bytecode_emitter.h"  // DISABLED - not available
 
 // LLVM headers (if available)
 #ifdef ENABLE_LLVM
-#include "../../compiler/backend/llvm/llvm_codegen.h"
+#include "llvm_codegen.h"
 #include <llvm/Support/TargetSelect.h>
 #endif
 
@@ -306,6 +306,9 @@ CompilerDriver::CompilerDriver() {
     llvm::InitializeAllAsmParsers();
     #endif
 }
+
+// Destructor - needs to be defined in cpp where LLVMCodeGen is complete
+CompilerDriver::~CompilerDriver() = default;
 
 int CompilerDriver::run(int argc, char* argv[]) {
     // Parse command line

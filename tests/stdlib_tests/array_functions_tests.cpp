@@ -10,7 +10,7 @@
  * @version 1.0
  */
 
-#include "stdlib/core/array_functions.h"
+#include "core/array_functions.h"
 #include <iostream>
 #include <cassert>
 #include <vector>

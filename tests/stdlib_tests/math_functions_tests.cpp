@@ -10,7 +10,7 @@
  * @version 1.0
  */
 
-#include "stdlib/math/math_functions.h"
+#include "math/math_functions.h"
 #include <iostream>
 #include <cassert>
 #include <cmath>

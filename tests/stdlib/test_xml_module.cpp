@@ -6,7 +6,7 @@
  * الحمد لله رب العالمين
  */
 
-#include "stdlib/xml/xml_module.h"
+#include "xml/xml_module.h"
 #include <gtest/gtest.h>
 
 using namespace sad::stdlib::xml;

@@ -67,7 +67,7 @@
 #include <vector>
 #include <cmath>
 #include "data/types/value.h"
-#include "stdlib/core/type_functions.h"
+#include "core/type_functions.h"
 
 using namespace Sad;
 using namespace Sad::StdLib::Core;

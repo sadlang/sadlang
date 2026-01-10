@@ -35,7 +35,7 @@ get_filename_component(PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOL
 include_directories(${PROJECT_ROOT})
 include_directories(${PROJECT_ROOT}/include)  # لـ parser/ast headers
 include_directories(${PROJECT_ROOT}/compiler/frontend/include)  # لـ sir_types.h وغيرها
-include_directories(${PROJECT_ROOT}/compiler/backends/llvm)
+include_directories(${PROJECT_ROOT}/src/compiler/llvm/include)  # LLVM headers الموحدة
 
 # مكونات LLVM المطلوبة / Required LLVM components
 llvm_map_components_to_libnames(llvm_libs
@@ -65,20 +65,20 @@ set(TEST_SOURCES
 
 # ملفات المصدر للمكونات المُختبرة / Source files for tested components
 set(COMPONENT_SOURCES
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_linker.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_optimizer.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_target.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_debug.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_runtime.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_codegen.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_type_mapper.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_control_flow.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_expression_builder.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_array_support.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_dict_support.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_class_support.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/llvm_memory_manager.cpp
-    ${PROJECT_ROOT}/compiler/backends/llvm/toolchain_detection.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_linker.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_optimizer.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_target.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_debug.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_runtime.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_codegen.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_type_mapper.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_control_flow.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_expression_builder.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_array_support.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_dict_support.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_class_support.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/llvm_memory_manager.cpp
+    ${PROJECT_ROOT}/src/compiler/llvm/src/toolchain_detection.cpp
 )
 
 # إنشاء برنامج الاختبار / Create test executable

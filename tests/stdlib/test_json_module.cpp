@@ -6,7 +6,7 @@
  * الحمد لله رب العالمين
  */
 
-#include "stdlib/json/json_module.h"
+#include "json/json_module.h"
 #include <gtest/gtest.h>
 #include <sstream>
 

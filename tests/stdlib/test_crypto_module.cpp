@@ -7,7 +7,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "stdlib/crypto/crypto_module.h"
+#include "crypto/crypto_module.h"
 #include <string>
 #include <vector>
 

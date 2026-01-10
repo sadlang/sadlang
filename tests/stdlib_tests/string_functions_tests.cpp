@@ -10,7 +10,7 @@
  * @version 1.0
  */
 
-#include "stdlib/string/string_functions.h"
+#include "string/string_functions.h"
 #include <iostream>
 #include <cassert>
 #include <vector>

@@ -246,7 +246,7 @@ private:
 class CompilerDriver {
 public:
     CompilerDriver();
-    ~CompilerDriver() = default;
+    ~CompilerDriver();  // Defined in cpp - needs complete LLVMCodeGen type
     
     // ========== Main Entry Point ==========
     /**

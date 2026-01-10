@@ -9,7 +9,7 @@
  */
 
 #include <gtest/gtest.h>
-#include "stdlib/http/http_module.h"
+#include "http/http_module.h"
 #include <thread>
 #include <chrono>
 
