@@ -8,10 +8,10 @@
  * @date 2026-01-03
  */
 
-#include "type_narrowing.h"
-#include "union_type.h"
-#include "type_registry.h"
-#include "optional_type.h"
+#include "types/type_narrowing.h"
+#include "types/union_type.h"
+#include "types/type_registry.h"
+#include "types/optional_type.h"
 #include "expressions.h"
 #include "statements.h"
 #include "token.h"

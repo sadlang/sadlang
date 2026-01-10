@@ -556,6 +556,53 @@ message(STATUS "  - Request/Response: Complete API")
 message(STATUS "  - URL Parsing: Enabled")
 message(STATUS "  - Cookie Management: Enabled")
 message(STATUS "════════════════════════════════════════════════════════")
+
+# ======================================================================
+# مكتبة WebSocket / WebSocket Library
+# ======================================================================
+message(STATUS "════════════════════════════════════════════════════════")
+message(STATUS "⚙️  تكوين مكتبة WebSocket / Configuring WebSocket Library")
+message(STATUS "════════════════════════════════════════════════════════")
+
+set(WEBSOCKET_SOURCES
+    stdlib/network/src/websocket/websocket_client.cpp
+    stdlib/network/src/websocket/websocket_server.cpp
+)
+
+# إنشاء مكتبة WebSocket / Create WebSocket library
+add_library(sad_websocket STATIC ${WEBSOCKET_SOURCES})
+
+# إضافة مسارات التضمين / Add include directories
+target_include_directories(sad_websocket PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/stdlib/network
+    ${CMAKE_SOURCE_DIR}/stdlib/network/include
+    ${CMAKE_SOURCE_DIR}/stdlib/network/include/websocket
+)
+
+# ربط مكتبة WebSocket مع مكتبة الشبكات / Link WebSocket with network library
+target_link_libraries(sad_websocket PUBLIC sad_network)
+
+# Windows: link ws2_32
+if(WIN32)
+    target_link_libraries(sad_websocket PUBLIC ws2_32)
+endif()
+
+# تعيين معيار C++17 / Set C++17 standard
+target_compile_features(sad_websocket PUBLIC cxx_std_17)
+
+# تعيين خصائص المكتبة / Set library properties
+set_target_properties(sad_websocket PROPERTIES
+    OUTPUT_NAME "sad_websocket"
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+)
+
+message(STATUS "✓ مكتبة WebSocket تم تكوينها بنجاح / WebSocket library configured successfully")
+message(STATUS "  - WebSocket Client: Enabled")
+message(STATUS "  - WebSocket Server: Enabled")
+message(STATUS "  - Room Management: Enabled")
+message(STATUS "  - Broadcasting: Enabled")
+message(STATUS "════════════════════════════════════════════════════════")
 # ======================================================================
 
 # تعيين خصائص المكتبة / Set library properties
@@ -580,6 +627,7 @@ target_link_libraries(sad PRIVATE
     sad_core
     sad_network   # Network Library / مكتبة الشبكات
     sad_http      # HTTP Library / مكتبة HTTP
+    sad_websocket # WebSocket Library / مكتبة WebSocket
     # llvm_pipeline  # LLVM Compiler Pipeline - DISABLED (library not found)
 )
 

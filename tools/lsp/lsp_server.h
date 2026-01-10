@@ -27,9 +27,9 @@
 #pragma once
 
 #include "lsp_types.h"
-#include "lexer/lexer_core.h"
-#include "parser/parser_core.h"
-#include "parser/ast/ast_node.h"
+#include "../../shared/lexer/include/lexer_core.h"
+#include "../../shared/parser/include/parser_core.h"
+#include "../../shared/ast/include/ast_node.h"
 // #include "semantic/type_checker.h" // TODO: سيتم إضافته لاحقاً
 #include <memory>
 #include <unordered_map>

@@ -150,6 +150,10 @@ target_include_directories(sad_new_type_system
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/include/types
         ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/shared/lexer/include
+        ${CMAKE_SOURCE_DIR}/shared/ast/include
+        ${CMAKE_SOURCE_DIR}/shared/types/include
+        ${CMAKE_SOURCE_DIR}/shared/errors/include
 )
 
 # ============================================================================
