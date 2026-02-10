@@ -612,6 +612,33 @@ public:
     llvm::Value* emitFFIAtof(std::shared_ptr<SIRInstruction> inst);         // نص_لعشري / atof
     llvm::Value* emitFFISnprintf(std::shared_ptr<SIRInstruction> inst);     // تنسيق_نص / snprintf
     
+    // ========================================================================
+    // Async/Await & Concurrency / تعليمات التزامن
+    // ========================================================================
+    llvm::Value* emitAsyncSpawn(std::shared_ptr<SIRInstruction> inst);        // أنشئ_مهمة
+    llvm::Value* emitAsyncAwait(std::shared_ptr<SIRInstruction> inst);        // انتظر_مهمة
+    llvm::Value* emitAsyncYield(std::shared_ptr<SIRInstruction> inst);        // أنتج
+    llvm::Value* emitAsyncSleep(std::shared_ptr<SIRInstruction> inst);        // نوم_غير_متزامن
+    llvm::Value* emitAsyncCreateFuture(std::shared_ptr<SIRInstruction> inst); // أنشئ_مستقبل
+    llvm::Value* emitAsyncResolveFuture(std::shared_ptr<SIRInstruction> inst);// أوفِ_مستقبل
+    llvm::Value* emitAsyncGetFuture(std::shared_ptr<SIRInstruction> inst);    // احصل_مستقبل
+    llvm::Value* emitAsyncCreateChannel(std::shared_ptr<SIRInstruction> inst);// أنشئ_قناة
+    llvm::Value* emitAsyncChannelSend(std::shared_ptr<SIRInstruction> inst);  // أرسل_قناة
+    llvm::Value* emitAsyncChannelRecv(std::shared_ptr<SIRInstruction> inst);  // استقبل_قناة
+    llvm::Value* emitAsyncChannelClose(std::shared_ptr<SIRInstruction> inst); // أغلق_قناة
+    llvm::Value* emitAsyncMutexCreate(std::shared_ptr<SIRInstruction> inst);  // أنشئ_قفل
+    llvm::Value* emitAsyncMutexLock(std::shared_ptr<SIRInstruction> inst);    // اقفل
+    llvm::Value* emitAsyncMutexUnlock(std::shared_ptr<SIRInstruction> inst);  // افتح_قفل
+    llvm::Value* emitAsyncThreadSpawn(std::shared_ptr<SIRInstruction> inst);  // أنشئ_خيط
+    llvm::Value* emitAsyncThreadJoin(std::shared_ptr<SIRInstruction> inst);   // انضم_خيط
+    llvm::Value* emitAsyncAtomicLoad(std::shared_ptr<SIRInstruction> inst);   // حمّل_ذري
+    llvm::Value* emitAsyncAtomicStore(std::shared_ptr<SIRInstruction> inst);  // خزّن_ذري
+    llvm::Value* emitAsyncAtomicAdd(std::shared_ptr<SIRInstruction> inst);    // أضف_ذري
+    llvm::Value* emitAsyncAtomicCAS(std::shared_ptr<SIRInstruction> inst);    // قارن_وبدّل
+    llvm::Value* emitAsyncWaitAll(std::shared_ptr<SIRInstruction> inst);      // انتظر_الكل
+    llvm::Value* emitAsyncWaitAny(std::shared_ptr<SIRInstruction> inst);      // انتظر_أي
+    llvm::Value* emitAsyncSelect(std::shared_ptr<SIRInstruction> inst);       // اختر_قناة
+    
     // Helper for declaring runtime functions
     llvm::Function* declareRuntimeFunction(const std::string& name, 
                                           llvm::Type* returnType,

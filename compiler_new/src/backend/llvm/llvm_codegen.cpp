@@ -1436,6 +1436,33 @@ llvm::Value* LLVMCodeGen::emitInstruction(std::shared_ptr<SIRInstruction> inst) 
         case SIROpcode::BUILTIN_RANDOM:
             return emitBuiltinRandom(inst);
 
+        
+        // ====================================================================
+        // Async/Await & Concurrency (23 opcodes)
+        // ====================================================================
+        case SIROpcode::ASYNC_SPAWN:          return emitAsyncSpawn(inst);
+        case SIROpcode::ASYNC_AWAIT:          return emitAsyncAwait(inst);
+        case SIROpcode::ASYNC_YIELD:          return emitAsyncYield(inst);
+        case SIROpcode::ASYNC_SLEEP:          return emitAsyncSleep(inst);
+        case SIROpcode::ASYNC_CREATE_FUTURE:  return emitAsyncCreateFuture(inst);
+        case SIROpcode::ASYNC_RESOLVE_FUTURE: return emitAsyncResolveFuture(inst);
+        case SIROpcode::ASYNC_GET_FUTURE:     return emitAsyncGetFuture(inst);
+        case SIROpcode::ASYNC_CREATE_CHANNEL: return emitAsyncCreateChannel(inst);
+        case SIROpcode::ASYNC_CHANNEL_SEND:   return emitAsyncChannelSend(inst);
+        case SIROpcode::ASYNC_CHANNEL_RECV:   return emitAsyncChannelRecv(inst);
+        case SIROpcode::ASYNC_CHANNEL_CLOSE:  return emitAsyncChannelClose(inst);
+        case SIROpcode::ASYNC_MUTEX_CREATE:   return emitAsyncMutexCreate(inst);
+        case SIROpcode::ASYNC_MUTEX_LOCK:     return emitAsyncMutexLock(inst);
+        case SIROpcode::ASYNC_MUTEX_UNLOCK:   return emitAsyncMutexUnlock(inst);
+        case SIROpcode::ASYNC_THREAD_SPAWN:   return emitAsyncThreadSpawn(inst);
+        case SIROpcode::ASYNC_THREAD_JOIN:    return emitAsyncThreadJoin(inst);
+        case SIROpcode::ASYNC_ATOMIC_LOAD:    return emitAsyncAtomicLoad(inst);
+        case SIROpcode::ASYNC_ATOMIC_STORE:   return emitAsyncAtomicStore(inst);
+        case SIROpcode::ASYNC_ATOMIC_ADD:     return emitAsyncAtomicAdd(inst);
+        case SIROpcode::ASYNC_ATOMIC_CAS:     return emitAsyncAtomicCAS(inst);
+        case SIROpcode::ASYNC_WAIT_ALL:       return emitAsyncWaitAll(inst);
+        case SIROpcode::ASYNC_WAIT_ANY:       return emitAsyncWaitAny(inst);
+        case SIROpcode::ASYNC_SELECT:         return emitAsyncSelect(inst);
         default:
             reportError("Unsupported opcode: " + std::to_string(static_cast<int>(inst->opcode)));
             return nullptr;
@@ -3737,6 +3764,526 @@ llvm::Value* LLVMCodeGen::emitBuiltinRandom(std::shared_ptr<SIRInstruction> inst
     llvm::Value* dval = builder_->CreateSIToFP(rval, llvm::Type::getDoubleTy(*context_));
     llvm::Value* result = builder_->CreateFDiv(dval, llvm::ConstantFP::get(llvm::Type::getDoubleTy(*context_), 2147483647.0));
     if (inst && inst->result.has_value()) context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
+
+// ============================================================================
+// Async/Await & Concurrency Implementations
+// Using Windows API: CreateThread, WaitForSingleObject, etc.
+// ============================================================================
+
+llvm::Value* LLVMCodeGen::emitAsyncSpawn(std::shared_ptr<SIRInstruction> inst) {
+    // _beginthread(func, 0, NULL) - spawn a thread running a function
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    
+    // Use CreateThread Windows API
+    // HANDLE CreateThread(NULL, 0, lpStartAddress, lpParameter, 0, NULL)
+    auto funcTy = llvm::FunctionType::get(i8PtrTy, {i8PtrTy, i64Ty, i8PtrTy, i8PtrTy, i32Ty, i8PtrTy}, false);
+    auto createThread = module_->getOrInsertFunction("CreateThread", funcTy);
+    
+    auto nullPtr = llvm::ConstantPointerNull::get(llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0));
+    auto zero64 = llvm::ConstantInt::get(i64Ty, 0);
+    auto zero32 = llvm::ConstantInt::get(i32Ty, 0);
+    
+    // For simplicity, we call CreateThread with a dummy (the function pointer from operand)
+    llvm::Value* funcPtr = nullptr;
+    if (!inst->operands.empty()) {
+        funcPtr = resolveOperand(inst->operands[0]);
+        funcPtr = builder_->CreateIntToPtr(funcPtr, i8PtrTy);
+    } else {
+        funcPtr = nullPtr;
+    }
+    
+    auto handle = builder_->CreateCall(createThread, {nullPtr, zero64, funcPtr, nullPtr, zero32, nullPtr});
+    auto result = builder_->CreatePtrToInt(handle, i64Ty);
+    
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncAwait(std::shared_ptr<SIRInstruction> inst) {
+    // WaitForSingleObject(handle, INFINITE=0xFFFFFFFF)
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    
+    auto funcTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
+    auto waitFunc = module_->getOrInsertFunction("WaitForSingleObject", funcTy);
+    
+    llvm::Value* taskId = resolveOperand(inst->operands[0]);
+    auto handle = builder_->CreateIntToPtr(taskId, i8PtrTy);
+    auto infinite = llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF);
+    
+    auto result32 = builder_->CreateCall(waitFunc, {handle, infinite});
+    auto result = builder_->CreateZExt(result32, i64Ty);
+    
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncYield(std::shared_ptr<SIRInstruction> inst) {
+    // SwitchToThread() or Sleep(0) - yield CPU time slice
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto funcTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*context_), {i32Ty}, false);
+    auto sleepFunc = module_->getOrInsertFunction("Sleep", funcTy);
+    builder_->CreateCall(sleepFunc, {llvm::ConstantInt::get(i32Ty, 0)});
+    auto result = llvm::ConstantInt::get(i64Ty, 0);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncSleep(std::shared_ptr<SIRInstruction> inst) {
+    // Sleep(ms)
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto funcTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*context_), {i32Ty}, false);
+    auto sleepFunc = module_->getOrInsertFunction("Sleep", funcTy);
+    
+    llvm::Value* ms = resolveOperand(inst->operands[0]);
+    ms = builder_->CreateTrunc(ms, i32Ty);
+    builder_->CreateCall(sleepFunc, {ms});
+    auto result = llvm::ConstantInt::get(i64Ty, 0);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncCreateFuture(std::shared_ptr<SIRInstruction> inst) {
+    // Allocate a future: {i64 state, i64 value, i8* event}
+    // state: 0=pending, 1=resolved
+    // Use CreateEventA for signaling
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    
+    // malloc(24) for {state, value, event_handle}
+    auto mallocTy = llvm::FunctionType::get(i8PtrTy, {i64Ty}, false);
+    auto mallocFn = module_->getOrInsertFunction("malloc", mallocTy);
+    auto futurePtr = builder_->CreateCall(mallocFn, {llvm::ConstantInt::get(i64Ty, 24)});
+    
+    // Initialize state=0 (pending)
+    auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
+    auto statePtr = builder_->CreateBitCast(futurePtr, i64PtrTy);
+    builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), statePtr);
+    
+    // CreateEventA(NULL, TRUE, FALSE, NULL) - manual reset event
+    auto eventFuncTy = llvm::FunctionType::get(i8PtrTy, {i8PtrTy, i32Ty, i32Ty, i8PtrTy}, false);
+    auto createEvent = module_->getOrInsertFunction("CreateEventA", eventFuncTy);
+    auto nullPtr = llvm::ConstantPointerNull::get(llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0));
+    auto eventHandle = builder_->CreateCall(createEvent, {nullPtr, llvm::ConstantInt::get(i32Ty, 1), llvm::ConstantInt::get(i32Ty, 0), nullPtr});
+    
+    // Store event handle at offset 16
+    auto eventSlot = builder_->CreateGEP(llvm::Type::getInt8Ty(*context_), futurePtr, {llvm::ConstantInt::get(i64Ty, 16)});
+    auto eventSlotPtr = builder_->CreateBitCast(eventSlot, llvm::PointerType::get(i8PtrTy, 0));
+    builder_->CreateStore(eventHandle, eventSlotPtr);
+    
+    auto result = builder_->CreatePtrToInt(futurePtr, i64Ty);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncResolveFuture(std::shared_ptr<SIRInstruction> inst) {
+    // Set future value and signal event
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
+    
+    llvm::Value* futureId = resolveOperand(inst->operands[0]);
+    llvm::Value* value = resolveOperand(inst->operands[1]);
+    auto futurePtr = builder_->CreateIntToPtr(futureId, i8PtrTy);
+    
+    // Store value at offset 8
+    auto valueSlot = builder_->CreateGEP(llvm::Type::getInt8Ty(*context_), futurePtr, {llvm::ConstantInt::get(i64Ty, 8)});
+    auto valueSlotPtr = builder_->CreateBitCast(valueSlot, i64PtrTy);
+    builder_->CreateStore(value, valueSlotPtr);
+    
+    // Set state=1 (resolved)
+    auto statePtr = builder_->CreateBitCast(futurePtr, i64PtrTy);
+    builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 1), statePtr);
+    
+    // SetEvent(event_handle)
+    auto setEventTy = llvm::FunctionType::get(llvm::Type::getInt32Ty(*context_), {i8PtrTy}, false);
+    auto setEvent = module_->getOrInsertFunction("SetEvent", setEventTy);
+    auto eventSlot = builder_->CreateGEP(llvm::Type::getInt8Ty(*context_), futurePtr, {llvm::ConstantInt::get(i64Ty, 16)});
+    auto eventSlotPtr = builder_->CreateBitCast(eventSlot, llvm::PointerType::get(i8PtrTy, 0));
+    auto eventHandle = builder_->CreateLoad(i8PtrTy, eventSlotPtr);
+    builder_->CreateCall(setEvent, {eventHandle});
+    
+    auto result = llvm::ConstantInt::get(i64Ty, 0);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncGetFuture(std::shared_ptr<SIRInstruction> inst) {
+    // Wait for future and get value
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
+    
+    llvm::Value* futureId = resolveOperand(inst->operands[0]);
+    auto futurePtr = builder_->CreateIntToPtr(futureId, i8PtrTy);
+    
+    // Load event handle from offset 16
+    auto eventSlot = builder_->CreateGEP(llvm::Type::getInt8Ty(*context_), futurePtr, {llvm::ConstantInt::get(i64Ty, 16)});
+    auto eventSlotPtr = builder_->CreateBitCast(eventSlot, llvm::PointerType::get(i8PtrTy, 0));
+    auto eventHandle = builder_->CreateLoad(i8PtrTy, eventSlotPtr);
+    
+    // WaitForSingleObject(event, INFINITE)
+    auto waitTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
+    auto waitFunc = module_->getOrInsertFunction("WaitForSingleObject", waitTy);
+    builder_->CreateCall(waitFunc, {eventHandle, llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF)});
+    
+    // Load value from offset 8
+    auto valueSlot = builder_->CreateGEP(llvm::Type::getInt8Ty(*context_), futurePtr, {llvm::ConstantInt::get(i64Ty, 8)});
+    auto valueSlotPtr = builder_->CreateBitCast(valueSlot, i64PtrTy);
+    auto result = builder_->CreateLoad(i64Ty, valueSlotPtr);
+    
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncCreateChannel(std::shared_ptr<SIRInstruction> inst) {
+    // Channel = {i64 buffer_ptr, i64 capacity, i64 head, i64 tail, i64 count, i8* mutex, i8* not_empty_event, i8* not_full_event}
+    // Simplified: malloc(64) for channel struct
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    
+    auto mallocTy = llvm::FunctionType::get(i8PtrTy, {i64Ty}, false);
+    auto mallocFn = module_->getOrInsertFunction("malloc", mallocTy);
+    auto chanPtr = builder_->CreateCall(mallocFn, {llvm::ConstantInt::get(i64Ty, 64)});
+    
+    // Zero-initialize using LLVM memset intrinsic
+    builder_->CreateMemSet(chanPtr, builder_->getInt8(0), 64, llvm::MaybeAlign(8));
+    
+    auto result = builder_->CreatePtrToInt(chanPtr, i64Ty);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncChannelSend(std::shared_ptr<SIRInstruction> inst) {
+    // Simple: store value at channel memory
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
+    
+    llvm::Value* chanId = resolveOperand(inst->operands[0]);
+    llvm::Value* value = resolveOperand(inst->operands[1]);
+    auto chanPtr = builder_->CreateIntToPtr(chanId, i8PtrTy);
+    
+    // Store value at offset 0 (simple single-value channel)
+    auto valSlot = builder_->CreateBitCast(chanPtr, i64PtrTy);
+    builder_->CreateStore(value, valSlot);
+    
+    // Set flag at offset 8 (has_data = 1)
+    auto flagSlot = builder_->CreateGEP(llvm::Type::getInt8Ty(*context_), chanPtr, {llvm::ConstantInt::get(i64Ty, 8)});
+    auto flagPtr = builder_->CreateBitCast(flagSlot, i64PtrTy);
+    builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 1), flagPtr);
+    
+    auto result = llvm::ConstantInt::get(i64Ty, 0);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncChannelRecv(std::shared_ptr<SIRInstruction> inst) {
+    // Simple: load value from channel memory
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
+    
+    llvm::Value* chanId = resolveOperand(inst->operands[0]);
+    auto chanPtr = builder_->CreateIntToPtr(chanId, i8PtrTy);
+    
+    // Load value from offset 0
+    auto valSlot = builder_->CreateBitCast(chanPtr, i64PtrTy);
+    auto result = builder_->CreateLoad(i64Ty, valSlot);
+    
+    // Clear flag at offset 8
+    auto flagSlot = builder_->CreateGEP(llvm::Type::getInt8Ty(*context_), chanPtr, {llvm::ConstantInt::get(i64Ty, 8)});
+    auto flagPtr = builder_->CreateBitCast(flagSlot, i64PtrTy);
+    builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), flagPtr);
+    
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncChannelClose(std::shared_ptr<SIRInstruction> inst) {
+    // Mark channel as closed (set flag at offset 16 to 1) instead of calling free
+    // to avoid CRT heap corruption issues with malloc/free pairings
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
+    
+    llvm::Value* chanId = resolveOperand(inst->operands[0]);
+    auto chanPtr = builder_->CreateIntToPtr(chanId, i8PtrTy);
+    
+    // Set closed flag at offset 16
+    auto closedSlot = builder_->CreateGEP(llvm::Type::getInt8Ty(*context_), chanPtr, {llvm::ConstantInt::get(i64Ty, 16)});
+    auto closedPtr = builder_->CreateBitCast(closedSlot, i64PtrTy);
+    builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 1), closedPtr);
+    
+    auto result = llvm::ConstantInt::get(i64Ty, 0);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncMutexCreate(std::shared_ptr<SIRInstruction> inst) {
+    // CreateMutexA(NULL, FALSE, NULL)
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    
+    auto funcTy = llvm::FunctionType::get(i8PtrTy, {i8PtrTy, i32Ty, i8PtrTy}, false);
+    auto createMutex = module_->getOrInsertFunction("CreateMutexA", funcTy);
+    auto nullPtr = llvm::ConstantPointerNull::get(llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0));
+    auto handle = builder_->CreateCall(createMutex, {nullPtr, llvm::ConstantInt::get(i32Ty, 0), nullPtr});
+    auto result = builder_->CreatePtrToInt(handle, i64Ty);
+    
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncMutexLock(std::shared_ptr<SIRInstruction> inst) {
+    // WaitForSingleObject(mutex, INFINITE)
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    
+    llvm::Value* mutexId = resolveOperand(inst->operands[0]);
+    auto handle = builder_->CreateIntToPtr(mutexId, i8PtrTy);
+    
+    auto funcTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
+    auto waitFunc = module_->getOrInsertFunction("WaitForSingleObject", funcTy);
+    builder_->CreateCall(waitFunc, {handle, llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF)});
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto result = llvm::ConstantInt::get(i64Ty, 0);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncMutexUnlock(std::shared_ptr<SIRInstruction> inst) {
+    // ReleaseMutex(mutex)
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    
+    llvm::Value* mutexId = resolveOperand(inst->operands[0]);
+    auto handle = builder_->CreateIntToPtr(mutexId, i8PtrTy);
+    
+    auto funcTy = llvm::FunctionType::get(i32Ty, {i8PtrTy}, false);
+    auto releaseMutex = module_->getOrInsertFunction("ReleaseMutex", funcTy);
+    builder_->CreateCall(releaseMutex, {handle});
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto result = llvm::ConstantInt::get(i64Ty, 0);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncThreadSpawn(std::shared_ptr<SIRInstruction> inst) {
+    // Same as spawn - CreateThread
+    return emitAsyncSpawn(inst);
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncThreadJoin(std::shared_ptr<SIRInstruction> inst) {
+    // WaitForSingleObject(thread_handle, INFINITE) then CloseHandle
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    
+    llvm::Value* threadId = resolveOperand(inst->operands[0]);
+    auto handle = builder_->CreateIntToPtr(threadId, i8PtrTy);
+    
+    // Wait
+    auto waitTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
+    auto waitFunc = module_->getOrInsertFunction("WaitForSingleObject", waitTy);
+    builder_->CreateCall(waitFunc, {handle, llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF)});
+    
+    // CloseHandle
+    auto closeTy = llvm::FunctionType::get(i32Ty, {i8PtrTy}, false);
+    auto closeFunc = module_->getOrInsertFunction("CloseHandle", closeTy);
+    builder_->CreateCall(closeFunc, {handle});
+    
+    auto result = llvm::ConstantInt::get(i64Ty, 0);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncAtomicLoad(std::shared_ptr<SIRInstruction> inst) {
+    // LLVM atomic load: load atomic i64, ptr %addr seq_cst
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
+    
+    llvm::Value* addr = resolveOperand(inst->operands[0]);
+    auto ptr = builder_->CreateIntToPtr(addr, i64PtrTy);
+    auto loadInst = builder_->CreateLoad(i64Ty, ptr);
+    loadInst->setAtomic(llvm::AtomicOrdering::SequentiallyConsistent);
+    loadInst->setAlignment(llvm::Align(8));
+    
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = loadInst;
+    }
+    return loadInst;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncAtomicStore(std::shared_ptr<SIRInstruction> inst) {
+    // LLVM atomic store: store atomic i64 %val, ptr %addr seq_cst
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
+    
+    llvm::Value* addr = resolveOperand(inst->operands[0]);
+    llvm::Value* value = resolveOperand(inst->operands[1]);
+    auto ptr = builder_->CreateIntToPtr(addr, i64PtrTy);
+    auto storeInst = builder_->CreateStore(value, ptr);
+    storeInst->setAtomic(llvm::AtomicOrdering::SequentiallyConsistent);
+    storeInst->setAlignment(llvm::Align(8));
+    auto result = llvm::ConstantInt::get(i64Ty, 0);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncAtomicAdd(std::shared_ptr<SIRInstruction> inst) {
+    // LLVM atomicrmw add
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
+    
+    llvm::Value* addr = resolveOperand(inst->operands[0]);
+    llvm::Value* value = resolveOperand(inst->operands[1]);
+    auto ptr = builder_->CreateIntToPtr(addr, i64PtrTy);
+    auto result = builder_->CreateAtomicRMW(llvm::AtomicRMWInst::Add, ptr, value,
+                                             llvm::Align(8), llvm::AtomicOrdering::SequentiallyConsistent);
+    
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncAtomicCAS(std::shared_ptr<SIRInstruction> inst) {
+    // LLVM cmpxchg
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
+    
+    llvm::Value* addr = resolveOperand(inst->operands[0]);
+    llvm::Value* expected = resolveOperand(inst->operands[1]);
+    llvm::Value* desired = resolveOperand(inst->operands[2]);
+    auto ptr = builder_->CreateIntToPtr(addr, i64PtrTy);
+    
+    auto casResult = builder_->CreateAtomicCmpXchg(ptr, expected, desired,
+                                                    llvm::Align(8),
+                                                    llvm::AtomicOrdering::SequentiallyConsistent,
+                                                    llvm::AtomicOrdering::SequentiallyConsistent);
+    // Extract the old value (first element of {i64, i1})
+    auto oldVal = builder_->CreateExtractValue(casResult, 0);
+    
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = oldVal;
+    }
+    return oldVal;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncWaitAll(std::shared_ptr<SIRInstruction> inst) {
+    // WaitForMultipleObjects(count, handles, TRUE, INFINITE)
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    
+    if (inst->operands.empty()) {
+        auto result = llvm::ConstantInt::get(i64Ty, 0);
+        if (inst->result.has_value()) {
+            context_info_.namedValues[inst->result->name] = result;
+        }
+        return result;
+    }
+    
+    // For each operand, wait individually (simpler than WaitForMultipleObjects)
+    for (auto& op : inst->operands) {
+        llvm::Value* taskId = resolveOperand(op);
+        auto handle = builder_->CreateIntToPtr(taskId, i8PtrTy);
+        auto waitTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
+        auto waitFunc = module_->getOrInsertFunction("WaitForSingleObject", waitTy);
+        builder_->CreateCall(waitFunc, {handle, llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF)});
+    }
+    
+    auto result = llvm::ConstantInt::get(i64Ty, 0);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncWaitAny(std::shared_ptr<SIRInstruction> inst) {
+    // WaitForSingleObject with timeout=0, loop through handles
+    auto i32Ty = llvm::Type::getInt32Ty(*context_);
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
+    
+    if (inst->operands.empty()) {
+        auto result = llvm::ConstantInt::get(i64Ty, -1);
+        if (inst->result.has_value()) {
+            context_info_.namedValues[inst->result->name] = result;
+        }
+        return result;
+    }
+    
+    // Simplified: just wait on first
+    llvm::Value* firstId = resolveOperand(inst->operands[0]);
+    auto handle = builder_->CreateIntToPtr(firstId, i8PtrTy);
+    auto waitTy = llvm::FunctionType::get(i32Ty, {i8PtrTy, i32Ty}, false);
+    auto waitFunc = module_->getOrInsertFunction("WaitForSingleObject", waitTy);
+    builder_->CreateCall(waitFunc, {handle, llvm::ConstantInt::get(i32Ty, 0xFFFFFFFF)});
+    
+    auto result = llvm::ConstantInt::get(i64Ty, 0);
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
+    return result;
+}
+
+llvm::Value* LLVMCodeGen::emitAsyncSelect(std::shared_ptr<SIRInstruction> inst) {
+    // Select on channels - simplified as checking first available
+    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+    llvm::Value* result = llvm::ConstantInt::get(i64Ty, 0);
+    
+    if (!inst->operands.empty()) {
+        result = resolveOperand(inst->operands[0]);
+    }
+    
+    if (inst->result.has_value()) {
+        context_info_.namedValues[inst->result->name] = result;
+    }
     return result;
 }
 

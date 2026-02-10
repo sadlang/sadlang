@@ -655,9 +655,25 @@ void SIRBuilder::buildReturnStatement(AST::ReturnStmt* retStmt) {
         SIRInstruction retInst;
         retInst.opcode = SIROpcode::RET;
         
-        // (AR) إذا كانت القيمة في متغير، نحتاج لتحميلها أولاً
-        // (EN) If value is in a variable, we need to load it first
-        if (!valueResult.registerName.empty() && valueResult.registerName[0] == '%') {
+        // (AR) إذا كانت القيمة ثابتة، أرجعها مباشرة (يجب أن يكون هذا قبل فحص %)
+        // (EN) If value is constant, return it directly (must check before % check)
+        if (valueResult.isConstant && !valueResult.constantValue.empty()) {
+            // (AR) القيمة ثابتة
+            // (EN) Value is constant
+            switch (valueResult.type) {
+                case SIRType::I64:
+                    retInst.operands.push_back(SIROperand::ConstantI64(std::stoll(valueResult.constantValue)));
+                    break;
+                case SIRType::F64:
+                    retInst.operands.push_back(SIROperand::ConstantF64(std::stod(valueResult.constantValue)));
+                    break;
+                case SIRType::BOOL:
+                    retInst.operands.push_back(SIROperand::ConstantBool(valueResult.constantValue == "true"));
+                    break;
+                default:
+                    retInst.operands.push_back(SIROperand::Register(valueResult.registerName, valueResult.type));
+            }
+        } else if (!valueResult.registerName.empty() && valueResult.registerName[0] == '%') {
             // (AR) القيمة في عنوان alloca، نحتاج لتحميلها
             // (EN) Value is in alloca address, need to load it
             std::string loadedReg = newTempRegister();
@@ -675,22 +691,6 @@ void SIRBuilder::buildReturnStatement(AST::ReturnStmt* retStmt) {
             // (EN) Use loaded register for return
             SIROperand retOperand = SIROperand::Register(loadedReg, valueResult.type);
             retInst.operands.push_back(retOperand);
-        } else if (valueResult.isConstant && !valueResult.constantValue.empty()) {
-            // (AR) القيمة ثابتة
-            // (EN) Value is constant
-            switch (valueResult.type) {
-                case SIRType::I64:
-                    retInst.operands.push_back(SIROperand::ConstantI64(std::stoll(valueResult.constantValue)));
-                    break;
-                case SIRType::F64:
-                    retInst.operands.push_back(SIROperand::ConstantF64(std::stod(valueResult.constantValue)));
-                    break;
-                case SIRType::BOOL:
-                    retInst.operands.push_back(SIROperand::ConstantBool(valueResult.constantValue == "true"));
-                    break;
-                default:
-                    retInst.operands.push_back(SIROperand::Register(valueResult.registerName, valueResult.type));
-            }
         } else {
             // (AR) قيمة في سجل مؤقت
             // (EN) Value in temporary register
@@ -4637,6 +4637,332 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             inst.operands.push_back(argOperands[i]);
         }
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+
+    // ========================================================================
+    // (AR) Async/Await - 23 functions
+    // (EN) Async/Await & Concurrency - 23 functions
+    // ========================================================================
+
+    // 1. spawn - async task
+    if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x85\xd9\x87\xd9\x85\xd8\xa9" || funcName == "spawn" || funcName == "async_spawn") {
+        if (argResults.empty()) {
+            std::cerr << "[ERROR] spawn requires at least 1 argument (function name)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_SPAWN);
+        inst.result = resultOp;
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] async spawn() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 2. await - wait for future/task
+    if (funcName == "\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1_\xd9\x85\xd9\x87\xd9\x85\xd8\xa9" || funcName == "await" || funcName == "async_await" || funcName == "\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1") {
+        if (argResults.empty()) {
+            std::cerr << "[ERROR] await requires 1 argument (task/future id)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_AWAIT);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] async await() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 3. yield
+    if (funcName == "\xd8\xa3\xd9\x86\xd8\xaa\xd8\xac" || funcName == "yield" || funcName == "async_yield") {
+        SIRInstruction inst(SIROpcode::ASYNC_YIELD);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] async yield()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // 4. async_sleep - non-blocking sleep
+    if (funcName == "\xd9\x86\xd9\x88\xd9\x85_\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xaa\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86" || funcName == "async_sleep" || funcName == "sleep_async") {
+        if (argResults.empty()) {
+            std::cerr << "[ERROR] async_sleep requires 1 argument (milliseconds)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::ASYNC_SLEEP);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] async_sleep()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // 5. create_future
+    if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84" || funcName == "create_future" || funcName == "\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_CREATE_FUTURE);
+        inst.result = resultOp;
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] create_future() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 6. resolve_future
+    if (funcName == "\xd8\xa3\xd9\x88\xd9\x81_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84" || funcName == "resolve_future" || funcName == "\xd8\xad\xd9\x82\xd9\x82_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84") {
+        if (argResults.size() < 2) {
+            std::cerr << "[ERROR] resolve_future requires 2 args (future_id, value)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::ASYNC_RESOLVE_FUTURE);
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] resolve_future()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // 7. get_future
+    if (funcName == "\xd8\xa7\xd8\xad\xd8\xb5\xd9\x84_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84" || funcName == "get_future") {
+        if (argResults.empty()) {
+            std::cerr << "[ERROR] get_future requires 1 argument (future_id)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_GET_FUTURE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] get_future() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 8. create_channel
+    if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "create_channel" || funcName == "\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_CREATE_CHANNEL);
+        inst.result = resultOp;
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] create_channel() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 9. channel_send
+    if (funcName == "\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "channel_send" || funcName == "\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84") {
+        if (argResults.size() < 2) {
+            std::cerr << "[ERROR] channel_send requires 2 args (channel_id, value)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_SEND);
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] channel_send()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // 10. channel_recv
+    if (funcName == "\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "channel_recv" || funcName == "\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84") {
+        if (argResults.empty()) {
+            std::cerr << "[ERROR] channel_recv requires 1 argument (channel_id)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_RECV);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] channel_recv() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 11. channel_close
+    if (funcName == "\xd8\xa3\xd8\xba\xd9\x84\xd9\x82_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "channel_close") {
+        if (argResults.empty()) {
+            std::cerr << "[ERROR] channel_close requires 1 argument (channel_id)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_CLOSE);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] channel_close()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // 12. create_mutex
+    if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x82\xd9\x81\xd9\x84" || funcName == "create_mutex" || funcName == "\xd9\x82\xd9\x81\xd9\x84") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_MUTEX_CREATE);
+        inst.result = resultOp;
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] create_mutex() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 13. mutex_lock
+    if (funcName == "\xd8\xa7\xd9\x82\xd9\x81\xd9\x84" || funcName == "mutex_lock" || funcName == "lock") {
+        if (argResults.empty()) {
+            std::cerr << "[ERROR] mutex_lock requires 1 argument (mutex_id)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::ASYNC_MUTEX_LOCK);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] mutex_lock()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // 14. mutex_unlock
+    if (funcName == "\xd8\xa7\xd9\x81\xd8\xaa\xd8\xad_\xd9\x82\xd9\x81\xd9\x84" || funcName == "mutex_unlock" || funcName == "unlock") {
+        if (argResults.empty()) {
+            std::cerr << "[ERROR] mutex_unlock requires 1 argument (mutex_id)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::ASYNC_MUTEX_UNLOCK);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] mutex_unlock()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // 15. thread_spawn
+    if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd8\xae\xd9\x8a\xd8\xb7" || funcName == "thread_spawn" || funcName == "\xd8\xae\xd9\x8a\xd8\xb7") {
+        if (argResults.empty()) {
+            std::cerr << "[ERROR] thread_spawn requires at least 1 argument" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_THREAD_SPAWN);
+        inst.result = resultOp;
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] thread_spawn() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 16. thread_join
+    if (funcName == "\xd8\xa7\xd9\x86\xd8\xb6\xd9\x85_\xd8\xae\xd9\x8a\xd8\xb7" || funcName == "thread_join") {
+        if (argResults.empty()) {
+            std::cerr << "[ERROR] thread_join requires 1 argument (thread_id)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_THREAD_JOIN);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] thread_join() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 17. atomic_load
+    if (funcName == "\xd8\xad\xd9\x85\xd9\x84_\xd8\xb0\xd8\xb1\xd9\x8a" || funcName == "atomic_load") {
+        if (argResults.empty()) {
+            std::cerr << "[ERROR] atomic_load requires 1 argument (address)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_LOAD);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] atomic_load() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 18. atomic_store
+    if (funcName == "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xb0\xd8\xb1\xd9\x8a" || funcName == "atomic_store") {
+        if (argResults.size() < 2) {
+            std::cerr << "[ERROR] atomic_store requires 2 args (address, value)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_STORE);
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] atomic_store()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // 19. atomic_add
+    if (funcName == "\xd8\xa3\xd8\xb6\xd9\x81_\xd8\xb0\xd8\xb1\xd9\x8a" || funcName == "atomic_add") {
+        if (argResults.size() < 2) {
+            std::cerr << "[ERROR] atomic_add requires 2 args (address, value)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_ADD);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] atomic_add() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 20. compare_and_swap / CAS
+    if (funcName == "\xd9\x82\xd8\xa7\xd8\xb1\xd9\x86_\xd9\x88\xd8\xa8\xd8\xaf\xd9\x84" || funcName == "compare_and_swap" || funcName == "cas") {
+        if (argResults.size() < 3) {
+            std::cerr << "[ERROR] CAS requires 3 args (addr, expected, desired)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_CAS);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        inst.operands.push_back(argOperands[2]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] compare_and_swap() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 21. wait_all
+    if (funcName == "\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1_\xd8\xa7\xd9\x84\xd9\x83\xd9\x84" || funcName == "wait_all") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_WAIT_ALL);
+        inst.result = resultOp;
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] wait_all() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 22. wait_any
+    if (funcName == "\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1_\xd8\xa3\xd9\x8a" || funcName == "wait_any") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_WAIT_ANY);
+        inst.result = resultOp;
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] wait_any() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // 23. select / channel_select
+    if (funcName == "\xd8\xa7\xd8\xae\xd8\xaa\xd8\xb1_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "select" || funcName == "channel_select") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::ASYNC_SELECT);
+        inst.result = resultOp;
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] select() -> " << resultReg << std::endl;
         return BuildResult(resultReg, SIRType::I64);
     }
 

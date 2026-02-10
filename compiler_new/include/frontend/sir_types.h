@@ -381,6 +381,33 @@ enum class SIROpcode {
     FFI_ATOI,            ///< نص_لعدد / atoi — string to integer
     FFI_ATOF,            ///< نص_لعشري / atof — string to float
     FFI_SNPRINTF,        ///< تنسيق_نص / snprintf — format to string buffer
+
+    // ========================================================================
+    // Section 14: Async/Await والتزامن / Async/Await & Concurrency
+    // ========================================================================
+    ASYNC_SPAWN,         ///< أنشئ_مهمة / spawn — spawn async task
+    ASYNC_AWAIT,         ///< انتظر_مهمة / await — await a future/task
+    ASYNC_YIELD,         ///< أنتج / yield — yield from generator/coroutine
+    ASYNC_SLEEP,         ///< نوم_غير_متزامن / async_sleep — non-blocking sleep
+    ASYNC_CREATE_FUTURE, ///< أنشئ_مستقبل / create_future — create a promise/future
+    ASYNC_RESOLVE_FUTURE,///< أوفِ_مستقبل / resolve_future — resolve a future with value
+    ASYNC_GET_FUTURE,    ///< احصل_مستقبل / get_future — get future result (blocking)
+    ASYNC_CREATE_CHANNEL,///< أنشئ_قناة / create_channel — create async channel
+    ASYNC_CHANNEL_SEND,  ///< أرسل_قناة / channel_send — send to channel
+    ASYNC_CHANNEL_RECV,  ///< استقبل_قناة / channel_recv — receive from channel
+    ASYNC_CHANNEL_CLOSE, ///< أغلق_قناة / channel_close — close channel
+    ASYNC_MUTEX_CREATE,  ///< أنشئ_قفل / create_mutex — create mutex
+    ASYNC_MUTEX_LOCK,    ///< اقفل / lock — acquire mutex
+    ASYNC_MUTEX_UNLOCK,  ///< افتح_قفل / unlock — release mutex
+    ASYNC_THREAD_SPAWN,  ///< أنشئ_خيط / thread_spawn — spawn OS thread
+    ASYNC_THREAD_JOIN,   ///< انضم_خيط / thread_join — join thread
+    ASYNC_ATOMIC_LOAD,   ///< حمّل_ذري / atomic_load — atomic read
+    ASYNC_ATOMIC_STORE,  ///< خزّن_ذري / atomic_store — atomic write
+    ASYNC_ATOMIC_ADD,    ///< أضف_ذري / atomic_add — atomic add
+    ASYNC_ATOMIC_CAS,    ///< قارن_وبدّل / compare_and_swap — CAS operation
+    ASYNC_WAIT_ALL,      ///< انتظر_الكل / wait_all — wait for all tasks
+    ASYNC_WAIT_ANY,      ///< انتظر_أي / wait_any — wait for any task
+    ASYNC_SELECT,        ///< اختر_قناة / select — select on multiple channels
 };
 
 /**
