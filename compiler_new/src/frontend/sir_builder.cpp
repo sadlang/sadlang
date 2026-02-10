@@ -17,8 +17,13 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "module_nodes.h"
+#include "module_resolver.h"
+#include "lexer_core.h"
+#include "parser_core.h"
 #include <stdexcept>
 #include <iostream>
+#include <filesystem>
 
 namespace Sad {
 namespace Compiler {
@@ -119,6 +124,61 @@ std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode* program) {
         // (EN) Template function declaration?
         if (auto templateDecl = dynamic_cast<Sad::AST::TemplateFunctionDecl*>(stmt.get())) {
             buildTemplateFunction(templateDecl);
+            continue;
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) نظام الاستيراد والتصدير في المترجم
+        // (EN) Import/Export system in compiler
+        // ═══════════════════════════════════════════════════════════════
+        
+        // (AR) تصدير (الإصدار الجديد): صدّر دالة|صنف|متغير ...
+        // (EN) Export declaration (new version): export function|class|var ...
+        if (auto exportDecl = dynamic_cast<Sad::AST::ExportDecl*>(stmt.get())) {
+            // (AR) استخراج التصريح الداخلي وترجمته مباشرة
+            // (EN) Extract inner declaration and compile it directly
+            if (exportDecl->declaration) {
+                auto* innerStmt = exportDecl->declaration.get();
+                
+                if (auto innerFunc = dynamic_cast<Sad::AST::FunctionDecl*>(innerStmt)) {
+                    buildFunction(innerFunc);
+                } else if (auto innerVar = dynamic_cast<Sad::AST::VarDeclStmt*>(innerStmt)) {
+                    buildGlobalVariable(innerVar);
+                } else if (auto innerClass = dynamic_cast<Sad::AST::ClassDecl*>(innerStmt)) {
+                    buildClass(innerClass);
+                }
+            }
+            continue;
+        }
+        
+        // (AR) تصدير (الإصدار القديم): صدّر ...
+        // (EN) Export statement (legacy): export ...
+        if (auto exportStmt = dynamic_cast<Sad::AST::ExportStmt*>(stmt.get())) {
+            if (exportStmt->declaration) {
+                auto* innerStmt = exportStmt->declaration.get();
+                
+                if (auto innerFunc = dynamic_cast<Sad::AST::FunctionDecl*>(innerStmt)) {
+                    buildFunction(innerFunc);
+                } else if (auto innerVar = dynamic_cast<Sad::AST::VarDeclStmt*>(innerStmt)) {
+                    buildGlobalVariable(innerVar);
+                } else if (auto innerClass = dynamic_cast<Sad::AST::ClassDecl*>(innerStmt)) {
+                    buildClass(innerClass);
+                }
+            }
+            continue;
+        }
+        
+        // (AR) استيراد انتقائي: من وحدة استورد ...
+        // (EN) Selective import: from module import ...
+        if (auto fromImport = dynamic_cast<Sad::AST::FromImportStmt*>(stmt.get())) {
+            buildFromImportStmt(fromImport);
+            continue;
+        }
+        
+        // (AR) استيراد كامل: استورد وحدة
+        // (EN) Full import: import module
+        if (auto importStmt = dynamic_cast<Sad::AST::ImportStmt*>(stmt.get())) {
+            buildImportStmt(importStmt);
             continue;
         }
         
@@ -736,9 +796,41 @@ void SIRBuilder::buildAssignment(AST::AssignExpr* assignment) {
     // (EN) Build value expression
     auto valueResult = buildExpression(assignment->value.get());
     
-    // (AR) TODO: توليد تعليمة STORE لإسناد القيمة
-    // (EN) TODO: Generate STORE instruction to assign value
-    // STORE valueResult.registerName -> varInfo->registerName
+    // (AR) توليد تعليمة STORE لإسناد القيمة
+    // (EN) Generate STORE instruction to assign value
+    if (currentBlock_ && !valueResult.registerName.empty()) {
+        SIRInstruction storeInst;
+        storeInst.opcode = SIROpcode::STORE;
+        
+        // (AR) المعامل الأول: القيمة المراد تخزينها
+        // (EN) First operand: value to store
+        SIROperand valueOp;
+        if (valueResult.isConstant) {
+            valueOp.type = SIROperandType::CONSTANT;
+            valueOp.dataType = valueResult.type;
+            valueOp.name = valueResult.constantValue;
+            if (valueResult.type == SIRType::I64) {
+                try { valueOp.intValue = std::stoll(valueResult.constantValue); } catch(...) { valueOp.intValue = 0; }
+            } else if (valueResult.type == SIRType::F64) {
+                try { valueOp.floatValue = std::stod(valueResult.constantValue); } catch(...) { valueOp.floatValue = 0.0; }
+            }
+        } else {
+            valueOp.type = SIROperandType::REGISTER;
+            valueOp.name = valueResult.registerName;
+            valueOp.dataType = valueResult.type;
+        }
+        storeInst.operands.push_back(valueOp);
+        
+        // (AR) المعامل الثاني: المؤشر (alloca) للمتغير
+        // (EN) Second operand: variable pointer (alloca)
+        SIROperand ptrOp;
+        ptrOp.type = SIROperandType::REGISTER;
+        ptrOp.name = varInfo->registerName;
+        ptrOp.dataType = varInfo->type;
+        storeInst.operands.push_back(ptrOp);
+        
+        currentBlock_->instructions.push_back(storeInst);
+    }
 }
 
 // ============================================================================
@@ -904,6 +996,14 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
     auto elseBlock = ifStmt->elseBranch ? createBasicBlock(elseLabel) : nullptr;
     auto mergeBlock = createBasicBlock(mergeLabel);
     
+    // (AR) إضافة الكتل إلى الدالة الحالية
+    // (EN) Add blocks to current function
+    if (currentFunction_) {
+        currentFunction_->addBasicBlock(thenBlock);
+        if (elseBlock) currentFunction_->addBasicBlock(elseBlock);
+        currentFunction_->addBasicBlock(mergeBlock);
+    }
+    
     std::cout << "[DEBUG] buildIfStatement: created blocks then=" << thenLabel 
               << ", else=" << elseLabel << ", merge=" << mergeLabel << std::endl;
     
@@ -1026,6 +1126,14 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
     auto condBlock = createBasicBlock(condLabel);
     auto bodyBlock = createBasicBlock(bodyLabel);
     auto exitBlock = createBasicBlock(exitLabel);
+    
+    // (AR) إضافة الكتل إلى الدالة الحالية
+    // (EN) Add blocks to current function
+    if (currentFunction_) {
+        currentFunction_->addBasicBlock(condBlock);
+        currentFunction_->addBasicBlock(bodyBlock);
+        currentFunction_->addBasicBlock(exitBlock);
+    }
     
     std::cout << "[DEBUG] buildWhileLoop: created blocks cond=" << condLabel 
               << ", body=" << bodyLabel << ", exit=" << exitLabel << std::endl;
@@ -1168,6 +1276,15 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
     auto bodyBlock = createBasicBlock(bodyLabel);
     auto incBlock = createBasicBlock(incLabel);
     auto exitBlock = createBasicBlock(exitLabel);
+    
+    // (AR) إضافة الكتل إلى الدالة الحالية
+    // (EN) Add blocks to current function
+    if (currentFunction_) {
+        currentFunction_->addBasicBlock(condBlock);
+        currentFunction_->addBasicBlock(bodyBlock);
+        currentFunction_->addBasicBlock(incBlock);
+        currentFunction_->addBasicBlock(exitBlock);
+    }
     
     std::cout << "[DEBUG] buildForLoop: created blocks cond=" << condLabel 
               << ", body=" << bodyLabel << ", inc=" << incLabel 
@@ -1332,6 +1449,15 @@ void SIRBuilder::buildForRangeLoop(AST::ForRangeStmt* forRange) {
     auto bodyBlock = createBasicBlock(bodyLabel);
     auto incBlock = createBasicBlock(incLabel);
     auto exitBlock = createBasicBlock(exitLabel);
+    
+    // (AR) إضافة الكتل إلى الدالة الحالية
+    // (EN) Add blocks to current function
+    if (currentFunction_) {
+        currentFunction_->addBasicBlock(condBlock);
+        currentFunction_->addBasicBlock(bodyBlock);
+        currentFunction_->addBasicBlock(incBlock);
+        currentFunction_->addBasicBlock(exitBlock);
+    }
     
     // ========================================================================
     // (AR) الخطوة 4: إنشاء متغير العداد (index)
@@ -1862,9 +1988,13 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
     // (EN) Variable assignment
     if (auto assignExpr = dynamic_cast<Sad::AST::AssignExpr*>(expr)) {
         buildAssignment(assignExpr);
-        // (AR) بعد الإسناد، نرجع المتغير المُسند إليه
-        // (EN) After assignment, return the assigned variable
-        return buildVariableAccess(dynamic_cast<Sad::AST::VariableExpr*>(expr));
+        // (AR) بعد الإسناد، نرجع معلومات المتغير المُسند إليه
+        // (EN) After assignment, return the assigned variable info
+        VariableInfo* varInfo = lookupVariable(assignExpr->name);
+        if (varInfo) {
+            return BuildResult(varInfo->registerName, varInfo->type);
+        }
+        return BuildResult();
     }
     
     // (AR) NewExpr - إنشاء كائن جديد (class_nodes.h:164)
@@ -2441,13 +2571,59 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         
         argResults.push_back(argResult);
         
-        // (AR) إنشاء SIROperand للمعامل (sir_types.h:355-362 - Register())
+        // (AR) إنشاء SIROperand للمعامل (sir_types.h:355-362 - Register() أو Constant*)
         // (EN) Create SIROperand for argument
-        SIROperand argOp = SIROperand::Register(argResult.registerName, argResult.type);
-        argOperands.push_back(argOp);
+        SIROperand argOp;
         
-        std::cout << "[DEBUG] buildFunctionCall: added argument reg='" 
-                  << argResult.registerName << "', type=" << static_cast<int>(argResult.type) << std::endl;
+        // (AR) إذا كان المعامل ثابتاً، استخدم Constant* factory methods
+        // (EN) If argument is constant, use Constant* factory methods
+        if (argResult.isConstant) {
+            switch (argResult.type) {
+                case SIRType::STRING:
+                    // استخدام ConstantString (sir_types.h:353-361)
+                    argOp = SIROperand::ConstantString(argResult.constantValue);
+                    std::cout << "[DEBUG] buildFunctionCall: added STRING constant='" 
+                              << argResult.constantValue << "'" << std::endl;
+                    break;
+                case SIRType::I64: {
+                    int64_t intVal = std::stoll(argResult.constantValue);
+                    argOp = SIROperand::ConstantI64(intVal);
+                    std::cout << "[DEBUG] buildFunctionCall: added I64 constant=" 
+                              << intVal << std::endl;
+                    break;
+                }
+                case SIRType::F64: {
+                    double floatVal = std::stod(argResult.constantValue);
+                    argOp = SIROperand::ConstantF64(floatVal);
+                    std::cout << "[DEBUG] buildFunctionCall: added F64 constant=" 
+                              << floatVal << std::endl;
+                    break;
+                }
+                case SIRType::BOOL: {
+                    bool boolVal = (argResult.constantValue == "true");
+                    argOp = SIROperand::ConstantBool(boolVal);
+                    std::cout << "[DEBUG] buildFunctionCall: added BOOL constant=" 
+                              << boolVal << std::endl;
+                    break;
+                }
+                default:
+                    // للأنواع الأخرى، استخدم Register كافتراضي
+                    argOp = SIROperand::Register(argResult.registerName, argResult.type);
+                    std::cout << "[DEBUG] buildFunctionCall: added register='" 
+                              << argResult.registerName << "', type=" 
+                              << static_cast<int>(argResult.type) << std::endl;
+                    break;
+            }
+        } else {
+            // (AR) للمتغيرات، استخدم Register
+            // (EN) For variables, use Register
+            argOp = SIROperand::Register(argResult.registerName, argResult.type);
+            std::cout << "[DEBUG] buildFunctionCall: added register='" 
+                      << argResult.registerName << "', type=" 
+                      << static_cast<int>(argResult.type) << std::endl;
+        }
+        
+        argOperands.push_back(argOp);
     }
     
     // ========================================================================
@@ -2486,8 +2662,8 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     
     // (AR) دالة لرقم() - STRING_TO_I64
     // (EN) to_int() function - STRING_TO_I64
-    // الأسماء المدعومة: لرقم, to_int, int, إلى_رقم
-    if (funcName == "لرقم" || funcName == "to_int" || funcName == "int" || funcName == "إلى_رقم") {
+    // الأسماء المدعومة: لرقم, حول_رقم, to_int, int, إلى_رقم
+    if (funcName == "لرقم" || funcName == "حول_رقم" || funcName == "to_int" || funcName == "int" || funcName == "إلى_رقم") {
         if (argResults.size() != 1) {
             errors_.push_back("Error: لرقم() requires exactly 1 argument");
             return BuildResult();
@@ -2576,6 +2752,30 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         return BuildResult("", SIRType::VOID);  // (AR) لا قيمة إرجاع
     }
     
+    // (AR) دالة اطبع_سطر() - BUILTIN_PRINTLN
+    // (EN) println() function - print with newline
+    // الأسماء المدعومة: اطبع_سطر, println, طبع_سطر
+    if (funcName == "اطبع_سطر" || funcName == "println" || funcName == "طبع_سطر") {
+        // طباعة المعاملات أولاً
+        SIRInstruction printInst(SIROpcode::BUILTIN_PRINT);
+        printInst.operands = argOperands;
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(printInst);
+        }
+        
+        // ثم إضافة سطر جديد
+        SIRInstruction newlineInst(SIROpcode::BUILTIN_PRINT);
+        newlineInst.operands.push_back(SIROperand::ConstantString("\n"));
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(newlineInst);
+        }
+        
+        std::cout << "[DEBUG] buildFunctionCall: builtin اطبع_سطر()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
     // (AR) دالة اقرأ() - BUILTIN_READ
     // (EN) input() function
     // الأسماء المدعومة: اقرأ, input
@@ -2595,6 +2795,1851 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         return BuildResult(resultReg, SIRType::STRING);
     }
     
+    // ========================================================================
+    // (AR) دوال رياضية - Math Functions
+    // (EN) Math functions
+    // ========================================================================
+    
+    // (AR) دالة جذر() - sqrt
+    // (EN) sqrt() function - Square root
+    // الأسماء المدعومة: جذر, sqrt, الجذر_التربيعي
+    if (funcName == "جذر" || funcName == "sqrt" || funcName == "الجذر_التربيعي") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة جذر تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::F64);
+        }
+        
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::F64);
+        
+        SIRInstruction sqrtInst(SIROpcode::BUILTIN_SQRT);
+        sqrtInst.result = resultOp;
+        sqrtInst.operands.push_back(argOperands[0]);
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(sqrtInst);
+        }
+        
+        std::cout << "[DEBUG] buildFunctionCall: builtin جذر() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::F64);
+    }
+    
+    // (AR) دالة أس() - power
+    // (EN) power() function - Base^Exponent
+    // الأسماء المدعومة: أس, power, pow
+    if (funcName == "أس" || funcName == "power" || funcName == "pow") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة أس تتطلب معاملين (الأساس والأس)" << std::endl;
+            return BuildResult("", SIRType::F64);
+        }
+        
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::F64);
+        
+        SIRInstruction powInst(SIROpcode::BUILTIN_POW);
+        powInst.result = resultOp;
+        powInst.operands.push_back(argOperands[0]); // base
+        powInst.operands.push_back(argOperands[1]); // exponent
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(powInst);
+        }
+        
+        std::cout << "[DEBUG] buildFunctionCall: builtin أس() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::F64);
+    }
+    
+    // (AR) دالة مطلق() - abs
+    // (EN) abs() function - Absolute value
+    // الأسماء المدعومة: مطلق, abs, القيمة_المطلقة, absolute
+    if (funcName == "مطلق" || funcName == "abs" || funcName == "القيمة_المطلقة" || funcName == "absolute") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة مطلق تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::F64);
+        }
+        
+        std::string resultReg = newTempRegister();
+        SIRType resultType = argResults[0].type; // preserve type (I64 or F64)
+        SIROperand resultOp = SIROperand::Register(resultReg, resultType);
+        
+        SIRInstruction absInst(SIROpcode::BUILTIN_ABS);
+        absInst.result = resultOp;
+        absInst.operands.push_back(argOperands[0]);
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(absInst);
+        }
+        
+        std::cout << "[DEBUG] buildFunctionCall: builtin مطلق() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, resultType);
+    }
+    
+    // (AR) دالة تقريب() - round
+    // (EN) round() function
+    // الأسماء المدعومة: تقريب, round
+    if (funcName == "تقريب" || funcName == "round") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة تقريب تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        
+        SIRInstruction roundInst(SIROpcode::BUILTIN_ROUND);
+        roundInst.result = resultOp;
+        roundInst.operands.push_back(argOperands[0]);
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(roundInst);
+        }
+        
+        std::cout << "[DEBUG] buildFunctionCall: builtin تقريب() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // (AR) دالة أرضية() - floor
+    // (EN) floor() function
+    // الأسماء المدعومة: أرضية, floor
+    if (funcName == "أرضية" || funcName == "floor") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة أرضية تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        
+        SIRInstruction floorInst(SIROpcode::BUILTIN_FLOOR);
+        floorInst.result = resultOp;
+        floorInst.operands.push_back(argOperands[0]);
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(floorInst);
+        }
+        
+        std::cout << "[DEBUG] buildFunctionCall: builtin أرضية() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // (AR) دالة سقف() - ceil
+    // (EN) ceil() function
+    // الأسماء المدعومة: سقف, ceil, ceiling
+    if (funcName == "سقف" || funcName == "ceil" || funcName == "ceiling") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة سقف تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        
+        SIRInstruction ceilInst(SIROpcode::BUILTIN_CEIL);
+        ceilInst.result = resultOp;
+        ceilInst.operands.push_back(argOperands[0]);
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(ceilInst);
+        }
+        
+        std::cout << "[DEBUG] buildFunctionCall: builtin سقف() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // (AR) دالة مربع() - square
+    // (EN) square() function - x^2
+    // الأسماء المدعومة: مربع, square
+    if (funcName == "مربع" || funcName == "square") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة مربع تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::F64);
+        }
+        
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::F64);
+        
+        SIRInstruction sqInst(SIROpcode::BUILTIN_POW);
+        sqInst.result = resultOp;
+        sqInst.operands.push_back(argOperands[0]);
+        sqInst.operands.push_back(SIROperand::ConstantF64(2.0));
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(sqInst);
+        }
+        
+        std::cout << "[DEBUG] buildFunctionCall: builtin مربع() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::F64);
+    }
+    
+    // (AR) دالة جيب() - sin
+    // (EN) sin() function - sine
+    // الأسماء المدعومة: جيب, sin, sine
+    if (funcName == "جيب" || funcName == "sin" || funcName == "sine") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة جيب تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::F64);
+        }
+        
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::F64);
+        
+        SIRInstruction sinInst(SIROpcode::BUILTIN_SIN);
+        sinInst.result = resultOp;
+        sinInst.operands.push_back(argOperands[0]);
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(sinInst);
+        }
+        
+        std::cout << "[DEBUG] buildFunctionCall: builtin جيب() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::F64);
+    }
+    
+    // (AR) دالة جيب_تمام() - cos
+    // (EN) cos() function - cosine
+    // الأسماء المدعومة: جيب_تمام, cos, cosine
+    if (funcName == "جيب_تمام" || funcName == "cos" || funcName == "cosine") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة جيب_تمام تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::F64);
+        }
+        
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::F64);
+        
+        SIRInstruction cosInst(SIROpcode::BUILTIN_COS);
+        cosInst.result = resultOp;
+        cosInst.operands.push_back(argOperands[0]);
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(cosInst);
+        }
+        
+        std::cout << "[DEBUG] buildFunctionCall: builtin جيب_تمام() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::F64);
+    }
+    
+    // (AR) دالة ظل() - tan
+    // (EN) tan() function - tangent
+    // الأسماء المدعومة: ظل, tan, tangent
+    if (funcName == "ظل" || funcName == "tan" || funcName == "tangent") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة ظل تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::F64);
+        }
+        
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::F64);
+        
+        SIRInstruction tanInst(SIROpcode::BUILTIN_TAN);
+        tanInst.result = resultOp;
+        tanInst.operands.push_back(argOperands[0]);
+        
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(tanInst);
+        }
+        
+        std::cout << "[DEBUG] buildFunctionCall: builtin ظل() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::F64);
+    }
+    
+    // ========================================================================
+    // String Functions (12 functions)
+    // ========================================================================
+    
+    // 1. طول_نص / string_length
+    if (funcName == "طول_نص" || funcName == "string_length" || funcName == "str_length" || 
+        funcName == "نص_طول" || funcName == "نص_الطول") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة طول_نص تتطلب معامل واحد (نص)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_LENGTH);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 2. تحويل_كبير / toUpper
+    if (funcName == "تحويل_كبير" || funcName == "toUpper" || funcName == "uppercase" || funcName == "لأكبر") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة تحويل_كبير تتطلب معامل واحد (نص)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_TO_UPPER);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // 3. تحويل_صغير / toLower
+    if (funcName == "تحويل_صغير" || funcName == "toLower" || funcName == "lowercase" || funcName == "لأصغر") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة تحويل_صغير تتطلب معامل واحد (نص)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_TO_LOWER);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // 4. بحث / find
+    if (funcName == "بحث" || funcName == "find" || funcName == "indexOf" || funcName == "ابحث") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة بحث تتطلب معاملين (نص, نص للبحث عنه)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_FIND);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 5. استبدل / replace
+    if (funcName == "استبدل" || funcName == "replace" || funcName == "بدل") {
+        if (argResults.size() < 3) {
+            std::cerr << "[Error] دالة استبدل تتطلب 3 معاملات (نص, قديم, جديد)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_REPLACE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        inst.operands.push_back(argOperands[2]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // 6. استخراج / substring
+    if (funcName == "استخراج" || funcName == "substring" || funcName == "substr" || funcName == "slice") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة استخراج تتطلب على الأقل معاملين (نص, بداية)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_SUBSTRING);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]); // string
+        inst.operands.push_back(argOperands[1]); // start
+        if (argResults.size() >= 3) {
+            inst.operands.push_back(argOperands[2]); // end (optional)
+        }
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // 7. قص_أطراف / trim
+    if (funcName == "قص_أطراف" || funcName == "trim" || funcName == "strip") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة قص_أطراف تتطلب معامل واحد (نص)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_TRIM);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // 8. تقسيم / split (returns array)
+    if (funcName == "تقسيم" || funcName == "split") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة تقسيم تتطلب معاملين (نص, فاصل)" << std::endl;
+            return BuildResult("", SIRType::ARRAY);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::ARRAY);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_SPLIT);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::ARRAY);
+    }
+    
+    // 9. دمج / join (array to string)
+    if (funcName == "دمج" || funcName == "join") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة دمج تتطلب معاملين (مصفوفة, فاصل)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_JOIN);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // 10. يبدأ_ب / startsWith
+    if (funcName == "يبدأ_ب" || funcName == "startsWith" || funcName == "starts_with") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة يبدأ_ب تتطلب معاملين (نص, بادئة)" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_STARTS_WITH);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+    
+    // 11. ينتهي_ب / endsWith
+    if (funcName == "ينتهي_ب" || funcName == "endsWith" || funcName == "ends_with") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة ينتهي_ب تتطلب معاملين (نص, لاحقة)" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_ENDS_WITH);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+    
+    // 12. يحتوي_على / contains
+    if (funcName == "يحتوي_على" || funcName == "contains" || funcName == "includes") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة يحتوي_على تتطلب معاملين (نص, نص للبحث عنه)" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_CONTAINS);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+
+    // ========================================================================
+    // Array Functions (10 functions)
+    // ========================================================================
+    
+    // 1. إضافة_عنصر / append
+    if (funcName == "إضافة_عنصر" || funcName == "append" || funcName == "push" || funcName == "add") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة إضافة_عنصر تتطلب معاملين (مصفوفة, عنصر)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_APPEND);
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // 2. إزالة_عنصر / remove
+    if (funcName == "إزالة_عنصر" || funcName == "remove" || funcName == "delete" || funcName == "pop") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة إزالة_عنصر تتطلب معاملين (مصفوفة, فهرس)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REMOVE);
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // 3. حجم_مصفوفة / array_size / length
+    if (funcName == "حجم_مصفوفة" || funcName == "array_size" || funcName == "حجم") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة حجم_مصفوفة تتطلب معامل واحد (مصفوفة)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SIZE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 4. فهرس / indexOf (array)
+    if (funcName == "فهرس_مصفوفة" || funcName == "array_indexOf" || funcName == "فهرس_عنصر") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة فهرس تتطلب معاملين (مصفوفة, عنصر)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_INDEX_OF);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 5. يحتوي_عنصر / contains (array)
+    if (funcName == "يحتوي_عنصر" || funcName == "array_contains" || funcName == "has") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة يحتوي_عنصر تتطلب معاملين (مصفوفة, عنصر)" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_CONTAINS);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+    
+    // 6. قلب / reverse
+    if (funcName == "قلب" || funcName == "reverse" || funcName == "اعكس") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة قلب تتطلب معامل واحد (مصفوفة)" << std::endl;
+            return BuildResult("", SIRType::ARRAY);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::ARRAY);
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REVERSE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::ARRAY);
+    }
+    
+    // 7. فرز / sort
+    if (funcName == "فرز" || funcName == "sort" || funcName == "رتب") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة فرز تتطلب معامل واحد (مصفوفة)" << std::endl;
+            return BuildResult("", SIRType::ARRAY);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::ARRAY);
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SORT);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::ARRAY);
+    }
+    
+    // 8. أول / first
+    if (funcName == "أول" || funcName == "first" || funcName == "العنصر_الأول") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة أول تتطلب معامل واحد (مصفوفة)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::VOID);
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_FIRST);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::VOID);
+    }
+    
+    // 9. آخر / last
+    if (funcName == "آخر" || funcName == "last" || funcName == "العنصر_الأخير") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة آخر تتطلب معامل واحد (مصفوفة)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::VOID);
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_LAST);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::VOID);
+    }
+    
+    // 10. شريحة / slice
+    if (funcName == "شريحة" || funcName == "array_slice" || funcName == "قطع") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة شريحة تتطلب على الأقل معاملين (مصفوفة, بداية)" << std::endl;
+            return BuildResult("", SIRType::ARRAY);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::ARRAY);
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SLICE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (argResults.size() >= 3) {
+            inst.operands.push_back(argOperands[2]); // end (optional)
+        }
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::ARRAY);
+    }
+
+    // ========================================================================
+    // File I/O Functions (8 functions)
+    // ========================================================================
+    
+    // 1. اقرأ_ملف / read_file
+    if (funcName == "اقرأ_ملف" || funcName == "read_file" || funcName == "readFile") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة اقرأ_ملف تتطلب معامل واحد (مسار الملف)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_FILE_READ);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // 2. اكتب_ملف / write_file
+    if (funcName == "اكتب_ملف" || funcName == "write_file" || funcName == "writeFile") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة اكتب_ملف تتطلب معاملين (مسار, محتوى)" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_FILE_WRITE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+    
+    // 3. أضف_إلى_ملف / append_to_file
+    if (funcName == "أضف_إلى_ملف" || funcName == "append_to_file" || funcName == "appendFile") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة أضف_إلى_ملف تتطلب معاملين (مسار, محتوى)" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_FILE_APPEND);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+    
+    // 4. احذف_ملف / delete_file
+    if (funcName == "احذف_ملف" || funcName == "delete_file" || funcName == "deleteFile") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة احذف_ملف تتطلب معامل واحد (مسار)" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_FILE_DELETE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+    
+    // 5. انسخ_ملف / copy_file
+    if (funcName == "انسخ_ملف" || funcName == "copy_file" || funcName == "copyFile") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة انسخ_ملف تتطلب معاملين (مصدر, وجهة)" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_FILE_COPY);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+    
+    // 6. انقل_ملف / move_file
+    if (funcName == "انقل_ملف" || funcName == "move_file" || funcName == "moveFile") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة انقل_ملف تتطلب معاملين (مصدر, وجهة)" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_FILE_MOVE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+    
+    // 7. أنشئ_مجلد / create_dir
+    if (funcName == "أنشئ_مجلد" || funcName == "create_dir" || funcName == "createDir" || funcName == "mkdir") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة أنشئ_مجلد تتطلب معامل واحد (مسار)" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_FILE_CREATE_DIR);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+    
+    // 8. اسرد_مجلد / list_dir
+    if (funcName == "اسرد_مجلد" || funcName == "list_dir" || funcName == "listDir" || funcName == "ls") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة اسرد_مجلد تتطلب معامل واحد (مسار)" << std::endl;
+            return BuildResult("", SIRType::ARRAY);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::ARRAY);
+        SIRInstruction inst(SIROpcode::BUILTIN_FILE_LIST_DIR);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::ARRAY);
+    }
+    
+    // ========================================================================
+    // Utility Functions (4 functions)
+    // ========================================================================
+    
+    // 1. عشوائي / random
+    if (funcName == "عشوائي" || funcName == "random" || funcName == "rand") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::F64);
+        SIRInstruction inst(SIROpcode::BUILTIN_RANDOM);
+        inst.result = resultOp;
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::F64);
+    }
+    
+    // 2. نم / sleep
+    if (funcName == "نم" || funcName == "sleep" || funcName == "wait") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة نم تتطلب معامل واحد (مدة بالثواني)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_SLEEP);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // 3. اخرج / exit
+    if (funcName == "اخرج" || funcName == "exit" || funcName == "quit") {
+        SIRInstruction inst(SIROpcode::BUILTIN_EXIT);
+        if (!argResults.empty()) {
+            inst.operands.push_back(argOperands[0]); // exit code (optional)
+        }
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // 4. النوع / type_of
+    if (funcName == "النوع" || funcName == "type_of" || funcName == "typeof" || funcName == "نوع") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة النوع تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_TYPE_OF);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+
+    // ========================================================================
+    // (AR) دوال برمجة أنظمة التشغيل — OS Development Builtin Functions
+    // (EN) OS Development Builtin Functions
+    // ========================================================================
+    // (AR) هذا القسم يضيف الدوال المضمنة اللازمة لبرمجة أنظمة التشغيل:
+    //      - منفذ_اكتب/منفذ_اقرأ: التعامل مع منافذ الإدخال/الإخراج (I/O ports)
+    //      - ذاكرة_اكتب/ذاكرة_اقرأ: الوصول المباشر للذاكرة (raw memory access)
+    //      - مقاطعة: إطلاق مقاطعة برمجية (software interrupt)
+    //      - توقف: إيقاف المعالج (halt CPU)
+    //      - تعطيل_مقاطعات/تفعيل_مقاطعات: التحكم بالمقاطعات (CLI/STI)
+    //      - شاشة_اكتب/شاشة_امسح: التعامل مع ذاكرة VGA
+    //      - انسخ_ذاكرة/املأ_ذاكرة: عمليات الذاكرة الجماعية
+    // ========================================================================
+    
+    // ──────────────────────────────────────────────
+    // (AR) منفذ_اكتب(منفذ، قيمة) — كتابة بايت على منفذ I/O
+    // (EN) port_write(port, value) — write byte to I/O port (outb)
+    // (AR) يستخدم في: التحكم بالعتاد مثل VGA، لوحة المفاتيح، القرص
+    // ──────────────────────────────────────────────
+    if (funcName == "منفذ_اكتب" || funcName == "port_write" || funcName == "outb") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة منفذ_اكتب تتطلب معاملين: رقم المنفذ والقيمة" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_PORT_WRITE);
+        inst.operands.push_back(argOperands[0]);  // (AR) رقم المنفذ / (EN) port number
+        inst.operands.push_back(argOperands[1]);  // (AR) القيمة المكتوبة / (EN) value to write
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin منفذ_اكتب()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // ──────────────────────────────────────────────
+    // (AR) منفذ_اقرأ(منفذ) — قراءة بايت من منفذ I/O
+    // (EN) port_read(port) — read byte from I/O port (inb)
+    // ──────────────────────────────────────────────
+    if (funcName == "منفذ_اقرأ" || funcName == "port_read" || funcName == "inb") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة منفذ_اقرأ تتطلب معامل واحد: رقم المنفذ" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_PORT_READ);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin منفذ_اقرأ() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // ──────────────────────────────────────────────
+    // (AR) ذاكرة_اكتب(عنوان، قيمة) — كتابة بايت في عنوان ذاكرة محدد
+    // (EN) mem_write(address, value) — write byte to memory address (poke)
+    // (AR) يستخدم في: الكتابة على ذاكرة VGA (0xB8000)، جداول المقاطعات
+    // ──────────────────────────────────────────────
+    if (funcName == "ذاكرة_اكتب" || funcName == "mem_write" || funcName == "poke") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة ذاكرة_اكتب تتطلب معاملين: العنوان والقيمة" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_MEM_WRITE_8);
+        inst.operands.push_back(argOperands[0]);  // (AR) عنوان الذاكرة / (EN) memory address
+        inst.operands.push_back(argOperands[1]);  // (AR) القيمة / (EN) value
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin ذاكرة_اكتب()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // ──────────────────────────────────────────────
+    // (AR) ذاكرة_اقرأ(عنوان) — قراءة بايت من عنوان ذاكرة محدد
+    // (EN) mem_read(address) — read byte from memory address (peek)
+    // ──────────────────────────────────────────────
+    if (funcName == "ذاكرة_اقرأ" || funcName == "mem_read" || funcName == "peek") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة ذاكرة_اقرأ تتطلب معامل واحد: العنوان" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_MEM_READ_8);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin ذاكرة_اقرأ() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // ──────────────────────────────────────────────
+    // (AR) مقاطعة(رقم) — إطلاق مقاطعة برمجية
+    // (EN) interrupt(number) — trigger software interrupt (int N)
+    // (AR) مثال: مقاطعة(0x80) لاستدعاء نظام Linux
+    // ──────────────────────────────────────────────
+    if (funcName == "مقاطعة" || funcName == "interrupt" || funcName == "int_call") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة مقاطعة تتطلب معامل واحد: رقم المقاطعة" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_INTERRUPT);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin مقاطعة()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // ──────────────────────────────────────────────
+    // (AR) توقف() — إيقاف المعالج حتى المقاطعة التالية
+    // (EN) halt() — halt CPU until next interrupt (hlt instruction)
+    // (AR) يستخدم في: حلقة الخمول الرئيسية للنواة
+    // ──────────────────────────────────────────────
+    if (funcName == "توقف" || funcName == "halt" || funcName == "hlt") {
+        SIRInstruction inst(SIROpcode::BUILTIN_HALT);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin توقف()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // ──────────────────────────────────────────────
+    // (AR) تعطيل_مقاطعات() — تعطيل جميع المقاطعات (cli)
+    // (EN) disable_interrupts() — disable all interrupts (cli instruction)
+    // (AR) ضروري عند تعديل جداول المقاطعات أو البيانات الحرجة
+    // ──────────────────────────────────────────────
+    if (funcName == "تعطيل_مقاطعات" || funcName == "disable_interrupts" || funcName == "cli") {
+        SIRInstruction inst(SIROpcode::BUILTIN_CLI);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin تعطيل_مقاطعات()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // ──────────────────────────────────────────────
+    // (AR) تفعيل_مقاطعات() — تفعيل جميع المقاطعات (sti)
+    // (EN) enable_interrupts() — enable all interrupts (sti instruction)
+    // ──────────────────────────────────────────────
+    if (funcName == "تفعيل_مقاطعات" || funcName == "enable_interrupts" || funcName == "sti") {
+        SIRInstruction inst(SIROpcode::BUILTIN_STI);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin تفعيل_مقاطعات()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // ──────────────────────────────────────────────
+    // (AR) شاشة_اكتب(صف، عمود، حرف، لون) — كتابة حرف في ذاكرة VGA
+    // (EN) vga_write(row, col, char, color) — write char to VGA text memory
+    // (AR) عنوان VGA النصي: 0xB8000 + (صف * 80 + عمود) * 2
+    // ──────────────────────────────────────────────
+    if (funcName == "شاشة_اكتب" || funcName == "vga_write") {
+        if (argResults.size() < 4) {
+            std::cerr << "[خطأ] دالة شاشة_اكتب تتطلب 4 معاملات: صف، عمود، حرف، لون" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_VGA_WRITE);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin شاشة_اكتب()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // ──────────────────────────────────────────────
+    // (AR) شاشة_امسح(لون) — مسح شاشة VGA بلون محدد
+    // (EN) vga_clear(color) — clear VGA screen with specified color
+    // ──────────────────────────────────────────────
+    if (funcName == "شاشة_امسح" || funcName == "vga_clear") {
+        SIRInstruction inst(SIROpcode::BUILTIN_VGA_CLEAR);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin شاشة_امسح()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // ──────────────────────────────────────────────
+    // (AR) انسخ_ذاكرة(وجهة، مصدر، حجم) — نسخ كتلة ذاكرة
+    // (EN) mem_copy(dest, src, size) — copy memory block
+    // ──────────────────────────────────────────────
+    if (funcName == "انسخ_ذاكرة" || funcName == "mem_copy" || funcName == "memcpy") {
+        if (argResults.size() < 3) {
+            std::cerr << "[خطأ] دالة انسخ_ذاكرة تتطلب 3 معاملات: وجهة، مصدر، حجم" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_MEM_COPY);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin انسخ_ذاكرة()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // ──────────────────────────────────────────────
+    // (AR) املأ_ذاكرة(وجهة، قيمة، حجم) — ملء كتلة ذاكرة بقيمة محددة
+    // (EN) mem_set(dest, value, size) — fill memory block with value
+    // ──────────────────────────────────────────────
+    if (funcName == "املأ_ذاكرة" || funcName == "mem_set" || funcName == "memset") {
+        if (argResults.size() < 3) {
+            std::cerr << "[خطأ] دالة املأ_ذاكرة تتطلب 3 معاملات: وجهة، قيمة، حجم" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_MEM_SET);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin املأ_ذاكرة()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ========================================================================
+    // (AR) دوال Embedded المتقدمة — Advanced Embedded Builtin Functions (18)
+    // (EN) Advanced Embedded Builtin Functions (18 functions)
+    // ========================================================================
+    // تسلسلي / Serial I/O — 4 دوال
+    // GPIO — 3 دوال
+    // مؤقت / Timer — 3 دوال
+    // تحكم بالنظام / System Control — 3 دوال
+    // حواجز ذاكرة / Memory Barriers — 3 دوال
+    // DMA — 2 دوال
+    // ========================================================================
+
+    // ──────────────────────────────────────────────
+    // 1. تسلسلي_هيئ(منفذ، سرعة) — تهيئة منفذ تسلسلي
+    //    serial_init(port, baud_rate) — initialize serial port
+    // ──────────────────────────────────────────────
+    if (funcName == "تسلسلي_هيئ" || funcName == "serial_init") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة تسلسلي_هيئ تتطلب 2 معاملات: منفذ، سرعة" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_INIT);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin تسلسلي_هيئ()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ──────────────────────────────────────────────
+    // 2. تسلسلي_ارسل(منفذ، بايت) — إرسال بايت عبر التسلسلي
+    //    serial_send(port, byte) — send byte via serial
+    // ──────────────────────────────────────────────
+    if (funcName == "تسلسلي_ارسل" || funcName == "serial_send" || funcName == "serial_write") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة تسلسلي_ارسل تتطلب 2 معاملات: منفذ، بايت" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_WRITE);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin تسلسلي_ارسل()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ──────────────────────────────────────────────
+    // 3. تسلسلي_استقبل(منفذ) — استقبال بايت من التسلسلي
+    //    serial_receive(port) — receive byte from serial
+    // ──────────────────────────────────────────────
+    if (funcName == "تسلسلي_استقبل" || funcName == "serial_receive" || funcName == "serial_read") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة تسلسلي_استقبل تتطلب معامل: منفذ" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_READ);
+        inst.operands.push_back(argOperands[0]);
+        inst.result = resultOp;
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin تسلسلي_استقبل()" << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // ──────────────────────────────────────────────
+    // 4. تسلسلي_جاهز(منفذ) — فحص جاهزية البيانات
+    //    serial_ready(port) — check if data available
+    // ──────────────────────────────────────────────
+    if (funcName == "تسلسلي_جاهز" || funcName == "serial_ready") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة تسلسلي_جاهز تتطلب معامل: منفذ" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_READY);
+        inst.operands.push_back(argOperands[0]);
+        inst.result = resultOp;
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin تسلسلي_جاهز()" << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+
+    // ──────────────────────────────────────────────
+    // 5. منفذ_رقمي_اكتب(رقم، قيمة) — كتابة GPIO
+    //    gpio_write(pin, value) — write to GPIO pin
+    // ──────────────────────────────────────────────
+    if (funcName == "منفذ_رقمي_اكتب" || funcName == "gpio_write" || funcName == "digital_write") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة منفذ_رقمي_اكتب تتطلب 2 معاملات: رقم_المنفذ، قيمة" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_GPIO_WRITE);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin منفذ_رقمي_اكتب()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ──────────────────────────────────────────────
+    // 6. منفذ_رقمي_اقرأ(رقم) — قراءة GPIO
+    //    gpio_read(pin) — read from GPIO pin
+    // ──────────────────────────────────────────────
+    if (funcName == "منفذ_رقمي_اقرأ" || funcName == "gpio_read" || funcName == "digital_read") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة منفذ_رقمي_اقرأ تتطلب معامل: رقم_المنفذ" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_GPIO_READ);
+        inst.operands.push_back(argOperands[0]);
+        inst.result = resultOp;
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin منفذ_رقمي_اقرأ()" << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // ──────────────────────────────────────────────
+    // 7. حدد_وضع_منفذ(رقم، وضع) — تحديد وضع GPIO
+    //    gpio_mode(pin, mode) — set GPIO pin mode (0=input, 1=output)
+    // ──────────────────────────────────────────────
+    if (funcName == "حدد_وضع_منفذ" || funcName == "gpio_mode" || funcName == "pin_mode") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة حدد_وضع_منفذ تتطلب 2 معاملات: رقم_المنفذ، الوضع" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_GPIO_MODE);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin حدد_وضع_منفذ()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ──────────────────────────────────────────────
+    // 8. مؤقت_هيئ(تردد) — تهيئة مؤقت العتاد
+    //    timer_init(freq) — initialize hardware timer
+    // ──────────────────────────────────────────────
+    if (funcName == "مؤقت_هيئ" || funcName == "timer_init") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة مؤقت_هيئ تتطلب معامل: التردد" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_TIMER_INIT);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin مؤقت_هيئ()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ──────────────────────────────────────────────
+    // 9. مؤقت_قراءة() — قراءة قيمة المؤقت الحالية
+    //    timer_read() — read current timer value
+    // ──────────────────────────────────────────────
+    if (funcName == "مؤقت_قراءة" || funcName == "timer_read") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_TIMER_READ);
+        inst.result = resultOp;
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin مؤقت_قراءة()" << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // ──────────────────────────────────────────────
+    // 10. مؤقت_انتظر(ميكروثانية) — انتظار عدد ميكروثوان
+    //     timer_wait(us) — wait for microseconds
+    // ──────────────────────────────────────────────
+    if (funcName == "مؤقت_انتظر" || funcName == "timer_wait" || funcName == "delay_us") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة مؤقت_انتظر تتطلب معامل: ميكروثوان" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_TIMER_WAIT);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin مؤقت_انتظر()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ──────────────────────────────────────────────
+    // 11. اعد_تشغيل() — إعادة تشغيل النظام
+    //     reset() / reboot() — system reset
+    // ──────────────────────────────────────────────
+    if (funcName == "اعد_تشغيل" || funcName == "reset" || funcName == "reboot") {
+        SIRInstruction inst(SIROpcode::BUILTIN_RESET);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin اعد_تشغيل()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ──────────────────────────────────────────────
+    // 12. معرف_المعالج() — الحصول على معرّف المعالج
+    //     cpu_id() / cpuid() — get CPU identification
+    // ──────────────────────────────────────────────
+    if (funcName == "معرف_المعالج" || funcName == "cpu_id" || funcName == "cpuid") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_CPUID);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        inst.result = resultOp;
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin معرف_المعالج()" << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // ──────────────────────────────────────────────
+    // 13. عداد_الدورات() — قراءة عداد الساعة (TSC)
+    //     rdtsc() / cycle_count() — read timestamp counter
+    // ──────────────────────────────────────────────
+    if (funcName == "عداد_الدورات" || funcName == "rdtsc" || funcName == "cycle_count") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_RDTSC);
+        inst.result = resultOp;
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin عداد_الدورات()" << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // ──────────────────────────────────────────────
+    // 14. حاجز_ذاكرة() — حاجز ذاكرة كامل (mfence)
+    //     memory_barrier() / mfence() — full memory fence
+    // ──────────────────────────────────────────────
+    if (funcName == "حاجز_ذاكرة" || funcName == "memory_barrier" || funcName == "mfence") {
+        SIRInstruction inst(SIROpcode::BUILTIN_MFENCE);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin حاجز_ذاكرة()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ──────────────────────────────────────────────
+    // 15. حاجز_قراءة() — حاجز قراءة ذاكرة (lfence)
+    //     read_barrier() / lfence() — load fence
+    // ──────────────────────────────────────────────
+    if (funcName == "حاجز_قراءة" || funcName == "read_barrier" || funcName == "lfence") {
+        SIRInstruction inst(SIROpcode::BUILTIN_LFENCE);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin حاجز_قراءة()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ──────────────────────────────────────────────
+    // 16. حاجز_كتابة() — حاجز كتابة ذاكرة (sfence)
+    //     write_barrier() / sfence() — store fence
+    // ──────────────────────────────────────────────
+    if (funcName == "حاجز_كتابة" || funcName == "write_barrier" || funcName == "sfence") {
+        SIRInstruction inst(SIROpcode::BUILTIN_SFENCE);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin حاجز_كتابة()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ──────────────────────────────────────────────
+    // 17. نقل_مباشر_هيئ(قناة، مصدر، وجهة، حجم) — تهيئة DMA
+    //     dma_init(channel, src, dest, size) — initialize DMA channel
+    // ──────────────────────────────────────────────
+    if (funcName == "نقل_مباشر_هيئ" || funcName == "dma_init") {
+        if (argResults.size() < 4) {
+            std::cerr << "[خطأ] دالة نقل_مباشر_هيئ تتطلب 4 معاملات: قناة، مصدر، وجهة، حجم" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_DMA_INIT);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin نقل_مباشر_هيئ()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ──────────────────────────────────────────────
+    // 18. نقل_مباشر_ابدأ(قناة) — بدء نقل DMA
+    //     dma_start(channel) — start DMA transfer
+    // ──────────────────────────────────────────────
+    if (funcName == "نقل_مباشر_ابدأ" || funcName == "dma_start") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة نقل_مباشر_ابدأ تتطلب معامل: رقم_القناة" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_DMA_START);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin نقل_مباشر_ابدأ()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // ========================================================================
+    // (AR) دوال الأمان — Security Builtin Functions (14 functions)
+    // (EN) Security Builtin Functions (14 functions)
+    // ========================================================================
+    // (AR) هذا القسم يضيف الدوال المضمنة لنظام الأمان:
+    //      - تأكد/تحقق/آمن: فحص الشروط والتحقق من الأمان
+    //      - ذعر: إيقاف طارئ مع رسالة
+    //      - هاش/شفّر/فك_تشفير: عمليات التشفير
+    //      - تأكد_نوع/تأكد_مساواة/تأكد_أكبر: تأكيدات متقدمة
+    //      - نظّف: تنظيف المدخلات من HTML
+    //      - وقت_الآن/عشوائي_آمن/ترميز_64: أدوات مساعدة
+    // ========================================================================
+    
+    // 1. تأكد / assert - يتحقق من شرط ويوقف البرنامج إذا كان خاطئاً
+    if (funcName == "تأكد" || funcName == "assert" || funcName == "تاكد") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة تأكد تتطلب معامل واحد على الأقل (الشرط)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT);
+        inst.operands.push_back(argOperands[0]); // condition
+        if (argOperands.size() > 1) {
+            inst.operands.push_back(argOperands[1]); // optional message
+        }
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // 2. تحقق / verify - يعيد صحيح أو خطأ دون إيقاف البرنامج
+    if (funcName == "تحقق" || funcName == "verify") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة تحقق تتطلب معامل واحد (الشرط)" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_VERIFY);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+    
+    // 3. آمن / is_safe - يتحقق من أمان القيمة
+    if (funcName == "آمن" || funcName == "is_safe" || funcName == "امن") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة آمن تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::BOOL);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_IS_SAFE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::BOOL);
+    }
+    
+    // 4. ذعر / panic - إيقاف طارئ مع رسالة خطأ
+    if (funcName == "ذعر" || funcName == "panic") {
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_PANIC);
+        if (!argOperands.empty()) {
+            inst.operands.push_back(argOperands[0]); // message
+        }
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // 5. هاش / hash - حساب هاش FNV-1a للنص
+    if (funcName == "هاش" || funcName == "hash") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة هاش تتطلب معامل واحد (النص)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_HASH);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 6. شفّر / encrypt - تشفير XOR
+    if (funcName == "شفّر" || funcName == "شفر" || funcName == "encrypt") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة شفّر تتطلب معاملين (النص، المفتاح)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ENCRYPT);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // 7. فك_تشفير / decrypt - فك تشفير XOR
+    if (funcName == "فك_تشفير" || funcName == "decrypt") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة فك_تشفير تتطلب معاملين (النص، المفتاح)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_DECRYPT);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // 8. تأكد_نوع / assert_type - التحقق من نوع القيمة
+    if (funcName == "تأكد_نوع" || funcName == "assert_type" || funcName == "تاكد_نوع") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة تأكد_نوع تتطلب معاملين (القيمة، النوع_المتوقع)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_TYPE);
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // 9. تأكد_مساواة / assert_equal - التحقق من تساوي قيمتين
+    if (funcName == "تأكد_مساواة" || funcName == "assert_equal" || funcName == "تاكد_مساواة") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة تأكد_مساواة تتطلب معاملين" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_EQUAL);
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // 10. تأكد_أكبر / assert_greater - التحقق من أن القيمة الأولى أكبر
+    if (funcName == "تأكد_أكبر" || funcName == "assert_greater" || funcName == "تاكد_اكبر") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة تأكد_أكبر تتطلب معاملين" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_GREATER);
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // 11. نظّف / sanitize - تنظيف نص من HTML
+    if (funcName == "نظّف" || funcName == "نظف" || funcName == "sanitize") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة نظّف تتطلب معامل واحد (النص)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_SANITIZE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // 12. وقت_الآن / timestamp - الحصول على الوقت الحالي
+    if (funcName == "وقت_الآن" || funcName == "وقت_الان" || funcName == "timestamp" || funcName == "now") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_TIMESTAMP);
+        inst.result = resultOp;
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 13. عشوائي_آمن / secure_random - رقم عشوائي آمن
+    if (funcName == "عشوائي_آمن" || funcName == "عشوائي_امن" || funcName == "secure_random") {
+        if (argResults.size() < 2) {
+            std::cerr << "[خطأ] دالة عشوائي_آمن تتطلب معاملين (الحد_الأدنى، الحد_الأقصى)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_SECURE_RANDOM);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 14. ترميز_64 / base64_encode - ترميز Base64
+    if (funcName == "ترميز_64" || funcName == "base64_encode" || funcName == "base64") {
+        if (argResults.empty()) {
+            std::cerr << "[خطأ] دالة ترميز_64 تتطلب معامل واحد (النص)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_BASE64_ENCODE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+
+    // ========================================================================
+    // (AR) التكامل مع C/C++ — FFI Functions (20 دالة)
+    // (EN) C/C++ Foreign Function Interface — 20 functions
+    // ========================================================================
+    
+    // 1. طباعة_تنسيق / printf — formatted print (variadic)
+    if (funcName == "\xd8\xb7\xd8\xa8\xd8\xa7\xd8\xb9\xd8\xa9_\xd8\xaa\xd9\x86\xd8\xb3\xd9\x8a\xd9\x82" || funcName == "printf" || funcName == "c_printf") {
+        if (argOperands.empty()) {
+            std::cerr << "[ERROR] printf requires at least 1 argument (format string)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::FFI_PRINTF);
+        inst.result = resultOp;
+        for (size_t i = 0; i < argOperands.size(); i++) {
+            inst.operands.push_back(argOperands[i]);
+        }
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin printf() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 2. حجز / malloc — allocate memory
+    if (funcName == "\xd8\xad\xd8\xac\xd8\xb2" || funcName == "malloc" || funcName == "c_malloc") {
+        if (argOperands.size() != 1) {
+            std::cerr << "[ERROR] malloc requires 1 argument (size)" << std::endl;
+            return BuildResult("", SIRType::PTR);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::PTR);
+        SIRInstruction inst(SIROpcode::FFI_MALLOC);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin malloc() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::PTR);
+    }
+    
+    // 3. حرر / free — free memory
+    if (funcName == "\xd8\xad\xd8\xb1\xd8\xb1" || funcName == "free" || funcName == "c_free") {
+        if (argOperands.size() != 1) {
+            std::cerr << "[ERROR] free requires 1 argument (pointer)" << std::endl;
+            return BuildResult("", SIRType::VOID);
+        }
+        SIRInstruction inst(SIROpcode::FFI_FREE);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin free()" << std::endl;
+        return BuildResult("", SIRType::VOID);
+    }
+    
+    // 4. اعد_حجز / realloc
+    if (funcName == "\xd8\xa7\xd8\xb9\xd8\xaf_\xd8\xad\xd8\xac\xd8\xb2" || funcName == "realloc" || funcName == "c_realloc") {
+        if (argOperands.size() != 2) {
+            std::cerr << "[ERROR] realloc requires 2 arguments (ptr, size)" << std::endl;
+            return BuildResult("", SIRType::PTR);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::PTR);
+        SIRInstruction inst(SIROpcode::FFI_REALLOC);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::PTR);
+    }
+    
+    // 5. حجز_صفري / calloc
+    if (funcName == "\xd8\xad\xd8\xac\xd8\xb2_\xd8\xb5\xd9\x81\xd8\xb1\xd9\x8a" || funcName == "calloc" || funcName == "c_calloc") {
+        if (argOperands.size() != 2) {
+            std::cerr << "[ERROR] calloc requires 2 arguments (count, size)" << std::endl;
+            return BuildResult("", SIRType::PTR);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::PTR);
+        SIRInstruction inst(SIROpcode::FFI_CALLOC);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::PTR);
+    }
+    
+    // 6. طول_نص_س / strlen
+    if (funcName == "\xd8\xb7\xd9\x88\xd9\x84_\xd9\x86\xd8\xb5_\xd8\xb3" || funcName == "strlen" || funcName == "c_strlen") {
+        if (argOperands.size() != 1) {
+            std::cerr << "[ERROR] strlen requires 1 argument (string)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::FFI_STRLEN);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 7. انسخ_نص_س / strcpy
+    if (funcName == "\xd8\xa7\xd9\x86\xd8\xb3\xd8\xae_\xd9\x86\xd8\xb5_\xd8\xb3" || funcName == "strcpy" || funcName == "c_strcpy") {
+        if (argOperands.size() != 2) {
+            std::cerr << "[ERROR] strcpy requires 2 arguments (dest, src)" << std::endl;
+            return BuildResult("", SIRType::PTR);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::PTR);
+        SIRInstruction inst(SIROpcode::FFI_STRCPY);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::PTR);
+    }
+    
+    // 8. قارن_نص_س / strcmp
+    if (funcName == "\xd9\x82\xd8\xa7\xd8\xb1\xd9\x86_\xd9\x86\xd8\xb5_\xd8\xb3" || funcName == "strcmp" || funcName == "c_strcmp") {
+        if (argOperands.size() != 2) {
+            std::cerr << "[ERROR] strcmp requires 2 arguments (s1, s2)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::FFI_STRCMP);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 9. الحق_نص_س / strcat
+    if (funcName == "\xd8\xa7\xd9\x84\xd8\xad\xd9\x82_\xd9\x86\xd8\xb5_\xd8\xb3" || funcName == "strcat" || funcName == "c_strcat") {
+        if (argOperands.size() != 2) {
+            std::cerr << "[ERROR] strcat requires 2 arguments (dest, src)" << std::endl;
+            return BuildResult("", SIRType::PTR);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::PTR);
+        SIRInstruction inst(SIROpcode::FFI_STRCAT);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::PTR);
+    }
+    
+    // 10. انسخ_ذاكرة_س / memcpy
+    if (funcName == "\xd8\xa7\xd9\x86\xd8\xb3\xd8\xae_\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xb3" || funcName == "memcpy" || funcName == "c_memcpy") {
+        if (argOperands.size() != 3) {
+            std::cerr << "[ERROR] memcpy requires 3 arguments (dest, src, size)" << std::endl;
+            return BuildResult("", SIRType::PTR);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::PTR);
+        SIRInstruction inst(SIROpcode::FFI_MEMCPY);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        inst.operands.push_back(argOperands[2]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::PTR);
+    }
+    
+    // 11. عبئ_ذاكرة_س / memset
+    if (funcName == "\xd8\xb9\xd8\xa8\xd8\xa6_\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xb3" || funcName == "memset" || funcName == "c_memset") {
+        if (argOperands.size() != 3) {
+            std::cerr << "[ERROR] memset requires 3 arguments (ptr, value, size)" << std::endl;
+            return BuildResult("", SIRType::PTR);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::PTR);
+        SIRInstruction inst(SIROpcode::FFI_MEMSET);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        inst.operands.push_back(argOperands[2]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::PTR);
+    }
+    
+    // 12. افتح_ملف_س / fopen
+    if (funcName == "\xd8\xa7\xd9\x81\xd8\xaa\xd8\xad_\xd9\x85\xd9\x84\xd9\x81_\xd8\xb3" || funcName == "fopen" || funcName == "c_fopen") {
+        if (argOperands.size() != 2) {
+            std::cerr << "[ERROR] fopen requires 2 arguments (filename, mode)" << std::endl;
+            return BuildResult("", SIRType::PTR);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::PTR);
+        SIRInstruction inst(SIROpcode::FFI_FOPEN);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::PTR);
+    }
+    
+    // 13. اغلق_ملف_س / fclose
+    if (funcName == "\xd8\xa7\xd8\xba\xd9\x84\xd9\x82_\xd9\x85\xd9\x84\xd9\x81_\xd8\xb3" || funcName == "fclose" || funcName == "c_fclose") {
+        if (argOperands.size() != 1) {
+            std::cerr << "[ERROR] fclose requires 1 argument (file pointer)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::FFI_FCLOSE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 14. اكتب_ملف_س / fputs — write string to file
+    if (funcName == "\xd8\xa7\xd9\x83\xd8\xaa\xd8\xa8_\xd9\x85\xd9\x84\xd9\x81_\xd8\xb3" || funcName == "fputs" || funcName == "c_fputs") {
+        if (argOperands.size() != 2) {
+            std::cerr << "[ERROR] fputs requires 2 arguments (string, file)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::FFI_FWRITE);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 15. اقرأ_ملف_س / fgets — read line from file
+    if (funcName == "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd9\x85\xd9\x84\xd9\x81_\xd8\xb3" || funcName == "fgets" || funcName == "c_fgets") {
+        if (argOperands.size() != 3) {
+            std::cerr << "[ERROR] fgets requires 3 arguments (buffer, size, file)" << std::endl;
+            return BuildResult("", SIRType::PTR);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::PTR);
+        SIRInstruction inst(SIROpcode::FFI_FREAD);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        inst.operands.push_back(argOperands[2]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::PTR);
+    }
+    
+    // 16. نفذ_امر / system — execute system command
+    if (funcName == "\xd9\x86\xd9\x81\xd8\xb0_\xd8\xa7\xd9\x85\xd8\xb1" || funcName == "system" || funcName == "c_system") {
+        if (argOperands.size() != 1) {
+            std::cerr << "[ERROR] system requires 1 argument (command)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::FFI_SYSTEM);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 17. قيمة_بيئة / getenv
+    if (funcName == "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9_\xd8\xa8\xd9\x8a\xd8\xa6\xd8\xa9" || funcName == "getenv" || funcName == "c_getenv") {
+        if (argOperands.size() != 1) {
+            std::cerr << "[ERROR] getenv requires 1 argument (name)" << std::endl;
+            return BuildResult("", SIRType::STRING);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::FFI_GETENV);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // 18. نص_لعدد / atoi
+    if (funcName == "\xd9\x86\xd8\xb5_\xd9\x84\xd8\xb9\xd8\xaf\xd8\xaf" || funcName == "atoi" || funcName == "c_atoi") {
+        if (argOperands.size() != 1) {
+            std::cerr << "[ERROR] atoi requires 1 argument (string)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::FFI_ATOI);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 19. نص_لعشري / atof
+    if (funcName == "\xd9\x86\xd8\xb5_\xd9\x84\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a" || funcName == "atof" || funcName == "c_atof") {
+        if (argOperands.size() != 1) {
+            std::cerr << "[ERROR] atof requires 1 argument (string)" << std::endl;
+            return BuildResult("", SIRType::F64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::F64);
+        SIRInstruction inst(SIROpcode::FFI_ATOF);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::F64);
+    }
+    
+    // 20. تنسيق_نص / snprintf — format to buffer (variadic)
+    if (funcName == "\xd8\xaa\xd9\x86\xd8\xb3\xd9\x8a\xd9\x82_\xd9\x86\xd8\xb5" || funcName == "snprintf" || funcName == "c_snprintf") {
+        if (argOperands.size() < 3) {
+            std::cerr << "[ERROR] snprintf requires at least 3 arguments (buf, size, fmt)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::FFI_SNPRINTF);
+        inst.result = resultOp;
+        for (size_t i = 0; i < argOperands.size(); i++) {
+            inst.operands.push_back(argOperands[i]);
+        }
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
     // ========================================================================
     // (AR) الخطوة 3: البحث عن الدالة والحصول على نوع الإرجاع
     // (EN) Step 3: Look up function and get return type
@@ -3070,6 +5115,243 @@ std::string SIRBuilder::instantiateTemplate(const std::string& templateName,
     std::cout << "[Template] Instantiation complete: " << instantiatedName << std::endl;
     
     return instantiatedName;
+}
+
+// ============================================================================
+// (AR) نظام الاستيراد والتصدير في المترجم
+// (EN) Import/Export System in Compiler
+// ============================================================================
+
+/**
+ * @brief (AR) تعيين مسار الملف الحالي - يُستخدم لحل مسارات الاستيراد النسبية
+ * @brief (EN) Set current file path - used for resolving relative import paths
+ */
+void SIRBuilder::setCurrentFilePath(const std::string& filePath) {
+    currentFilePath_ = filePath;
+    
+    // (AR) إنشاء محلل الوحدات إذا لم يكن موجوداً
+    // (EN) Create module resolver if it doesn't exist
+    if (!moduleResolver_) {
+        moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
+        
+        // (AR) إضافة مجلد الملف الحالي كمسار بحث
+        // (EN) Add current file's directory as search path
+        if (!filePath.empty()) {
+            auto parentDir = std::filesystem::path(filePath).parent_path();
+            if (!parentDir.empty() && std::filesystem::exists(parentDir)) {
+                moduleResolver_->addSearchPath(parentDir.string());
+            }
+        }
+    }
+}
+
+/**
+ * @brief (AR) معالجة وحدة مستوردة - تحليل ملف الوحدة وبناء دوالها
+ * @brief (EN) Process imported module - parse module file and build its functions
+ * 
+ * @details
+ * (AR) آلية العمل:
+ *      1. استخدام ModuleResolver للعثور على ملف الوحدة
+ *      2. تحليل AST الوحدة
+ *      3. استخراج الدوال المُصدَّرة
+ *      4. بناء SIR لكل دالة مُصدَّرة وإضافتها للوحدة الحالية
+ * 
+ * (EN) How it works:
+ *      1. Use ModuleResolver to find module file
+ *      2. Parse module AST
+ *      3. Extract exported functions
+ *      4. Build SIR for each exported function and add to current module
+ */
+void SIRBuilder::buildImportStmt(AST::ImportStmt* importStmt) {
+    if (!importStmt) return;
+    
+    // (AR) التحقق من وجود محلل الوحدات
+    // (EN) Check module resolver exists
+    if (!moduleResolver_) {
+        moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
+    }
+    
+    std::string fullModuleName = importStmt->getFullModuleName();
+    
+    // (AR) التحقق مما إذا تمت معالجة الوحدة بالفعل
+    // (EN) Check if module was already processed
+    if (processedModules_.count(fullModuleName)) {
+        return;
+    }
+    
+    // (AR) تحميل الوحدة
+    // (EN) Load module
+    Modules::Module* module = moduleResolver_->resolveModule(
+        importStmt->modulePath,
+        currentFilePath_
+    );
+    
+    if (!module) {
+        errors_.push_back(
+            "خطأ: لم يُعثر على الوحدة '" + fullModuleName + "' / "
+            "Error: Module '" + fullModuleName + "' not found"
+        );
+        return;
+    }
+    
+    // (AR) تمييز الوحدة كمعالجة
+    // (EN) Mark module as processed
+    processedModules_.insert(fullModuleName);
+    
+    // (AR) معالجة كل تصريح في الوحدة
+    // (EN) Process each declaration in module
+    for (const auto& stmt : module->ast) {
+        if (!stmt) continue;
+        
+        // (AR) استخراج الدوال (المُصدَّرة أو غير المُصدَّرة)
+        // (EN) Extract functions (exported or not)
+        AST::FunctionDecl* funcDecl = nullptr;
+        AST::VarDeclStmt* varDecl = nullptr;
+        AST::ClassDecl* classDecl = nullptr;
+        
+        // (AR) تحقق من تصدير صريح (ExportDecl)
+        // (EN) Check for explicit export (ExportDecl)
+        if (auto exportDecl = dynamic_cast<AST::ExportDecl*>(stmt.get())) {
+            if (exportDecl->declaration) {
+                funcDecl = dynamic_cast<AST::FunctionDecl*>(exportDecl->declaration.get());
+                varDecl = dynamic_cast<AST::VarDeclStmt*>(exportDecl->declaration.get());
+                classDecl = dynamic_cast<AST::ClassDecl*>(exportDecl->declaration.get());
+            }
+        }
+        // (AR) تحقق من تصدير قديم (ExportStmt)
+        // (EN) Check for legacy export (ExportStmt)
+        else if (auto exportStmt = dynamic_cast<AST::ExportStmt*>(stmt.get())) {
+            if (exportStmt->declaration) {
+                funcDecl = dynamic_cast<AST::FunctionDecl*>(exportStmt->declaration.get());
+                varDecl = dynamic_cast<AST::VarDeclStmt*>(exportStmt->declaration.get());
+                classDecl = dynamic_cast<AST::ClassDecl*>(exportStmt->declaration.get());
+            }
+        }
+        // (AR) دالة عادية (بدون تصدير صريح)
+        // (EN) Regular function (no explicit export)
+        else {
+            funcDecl = dynamic_cast<AST::FunctionDecl*>(stmt.get());
+            varDecl = dynamic_cast<AST::VarDeclStmt*>(stmt.get());
+            classDecl = dynamic_cast<AST::ClassDecl*>(stmt.get());
+        }
+        
+        // (AR) بناء SIR للتصريحات المُكتشفة
+        // (EN) Build SIR for discovered declarations
+        if (funcDecl) {
+            buildFunction(funcDecl);
+        }
+        if (varDecl) {
+            buildGlobalVariable(varDecl);
+        }
+        if (classDecl) {
+            buildClass(classDecl);
+        }
+    }
+}
+
+/**
+ * @brief (AR) معالجة استيراد انتقائي: من وحدة استورد ...
+ * @brief (EN) Process selective import: from module import ...
+ */
+void SIRBuilder::buildFromImportStmt(AST::FromImportStmt* fromImportStmt) {
+    if (!fromImportStmt) return;
+    
+    if (!moduleResolver_) {
+        moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
+    }
+    
+    std::string fullModuleName = fromImportStmt->getFullModuleName();
+    
+    // (AR) التحقق مما إذا تمت معالجة الوحدة بالفعل
+    // (EN) Check if module was already processed
+    if (processedModules_.count(fullModuleName)) {
+        return;
+    }
+    
+    // (AR) تحميل الوحدة
+    // (EN) Load module
+    Modules::Module* module = moduleResolver_->resolveModule(
+        fromImportStmt->modulePath,
+        currentFilePath_
+    );
+    
+    if (!module) {
+        errors_.push_back(
+            "خطأ: لم يُعثر على الوحدة '" + fullModuleName + "' / "
+            "Error: Module '" + fullModuleName + "' not found"
+        );
+        return;
+    }
+    
+    processedModules_.insert(fullModuleName);
+    
+    // (AR) جمع أسماء الرموز المطلوبة (للاستيراد الانتقائي)
+    // (EN) Collect requested symbol names (for selective import)
+    std::unordered_set<std::string> requestedSymbols;
+    bool isWildcard = fromImportStmt->isWildcard;
+    
+    if (!isWildcard) {
+        for (const auto& item : fromImportStmt->items) {
+            requestedSymbols.insert(item.name);
+        }
+    }
+    
+    // (AR) معالجة تصريحات الوحدة
+    // (EN) Process module declarations
+    for (const auto& stmt : module->ast) {
+        if (!stmt) continue;
+        
+        AST::FunctionDecl* funcDecl = nullptr;
+        AST::VarDeclStmt* varDecl = nullptr;
+        AST::ClassDecl* classDecl = nullptr;
+        bool isExported = false;
+        
+        if (auto exportDecl = dynamic_cast<AST::ExportDecl*>(stmt.get())) {
+            isExported = true;
+            if (exportDecl->declaration) {
+                funcDecl = dynamic_cast<AST::FunctionDecl*>(exportDecl->declaration.get());
+                varDecl = dynamic_cast<AST::VarDeclStmt*>(exportDecl->declaration.get());
+                classDecl = dynamic_cast<AST::ClassDecl*>(exportDecl->declaration.get());
+            }
+        } else if (auto exportStmt = dynamic_cast<AST::ExportStmt*>(stmt.get())) {
+            isExported = true;
+            if (exportStmt->declaration) {
+                funcDecl = dynamic_cast<AST::FunctionDecl*>(exportStmt->declaration.get());
+                varDecl = dynamic_cast<AST::VarDeclStmt*>(exportStmt->declaration.get());
+                classDecl = dynamic_cast<AST::ClassDecl*>(exportStmt->declaration.get());
+            }
+        } else {
+            funcDecl = dynamic_cast<AST::FunctionDecl*>(stmt.get());
+            varDecl = dynamic_cast<AST::VarDeclStmt*>(stmt.get());
+            classDecl = dynamic_cast<AST::ClassDecl*>(stmt.get());
+        }
+        
+        // (AR) تحديد ما إذا كان الرمز مطلوباً
+        // (EN) Determine if symbol is requested
+        std::string symbolName;
+        if (funcDecl) symbolName = funcDecl->name;
+        else if (varDecl) symbolName = varDecl->name;
+        else if (classDecl) symbolName = classDecl->name;
+        else continue;
+        
+        // (AR) في حالة الاستيراد الانتقائي، نتحقق من أن الرمز مطلوب
+        // (EN) For selective import, check if symbol is requested
+        if (!isWildcard && requestedSymbols.find(symbolName) == requestedSymbols.end()) {
+            continue;
+        }
+        
+        // (AR) بناء SIR
+        // (EN) Build SIR
+        if (funcDecl) {
+            buildFunction(funcDecl);
+        }
+        if (varDecl) {
+            buildGlobalVariable(varDecl);
+        }
+        if (classDecl) {
+            buildClass(classDecl);
+        }
+    }
 }
 
 } // namespace SIR
