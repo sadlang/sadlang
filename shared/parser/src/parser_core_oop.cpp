@@ -328,6 +328,24 @@ std::unique_ptr<ConstructorDecl> ParserCore::parseConstructorDeclaration(const s
             "(EN) Expected ')' after super constructor arguments.");
     }
     
+    // (AR) التحقق من استدعاء أساس() في بداية جسم الباني (بدون نقطتين)
+    // (EN) Check for super() call at the start of constructor body (without colon)
+    // يدعم: أساس(args) أو الأساس(args) كأول تعليمة في الباني
+    if (superArgs.empty() && check(TT::KEYWORD_SUPER)) {
+        advance(); // consume 'أساس' / 'الأساس'
+        if (check(TT::PAREN_LEFT)) {
+            advance(); // consume '('
+            if (!check(TT::PAREN_RIGHT)) {
+                do {
+                    superArgs.push_back(parseExpression());
+                } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));
+            }
+            consume(TT::PAREN_RIGHT,
+                "(AR) توقع ')' بعد معاملات أساس(). "
+                "(EN) Expected ')' after super() arguments.");
+        }
+    }
+    
     // (AR) جسم الباني / (EN) Constructor body
     StmtPtr body = parseBlockStmt();
     

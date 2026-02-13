@@ -48,6 +48,8 @@
 #include "variable_manager.h"
 #include "function_manager.h"
 #include "scope_manager.h"
+#include "ownership_manager.h"
+#include "module_resolver.h"
 #include "../visitors/expression_evaluator.h"
 #include "../visitors/statement_executor.h"
 #include <memory>
@@ -66,6 +68,16 @@ struct InterpreterOptions {
     bool enableStrictMode = false;      ///< (AR) تفعيل الوضع الصارم / (EN) Enable strict mode
     bool printResults = false;          ///< (AR) طباعة النتائج / (EN) Print results
     size_t maxCallDepth = 1000;        ///< (AR) أقصى عمق للاستدعاءات / (EN) Maximum call depth
+    bool enableOwnership = false;      ///< (AR) تفعيل نظام الملكية / (EN) Enable ownership system
+    bool ownershipArabicMessages = true; ///< (AR) رسائل ملكية عربية / (EN) Arabic ownership messages
+    bool ownershipDebugMode = false;    ///< (AR) تتبع الملكية / (EN) Ownership debug trace
+    bool enableTypeCheck = false;       ///< (AR) تفعيل فحص الأنواع / (EN) Enable type checking
+    bool typeCheckDebugMode = false;    ///< (AR) تنقيح فحص الأنواع / (EN) Type check debug mode
+    bool typeCheckStrictMode = false;   ///< (AR) فحص أنواع صارم / (EN) Strict type checking
+    bool enableSecurity = false;        ///< (AR) تفعيل نظام الأمان / (EN) Enable security system
+    bool securityStrictMode = false;    ///< (AR) وضع الأمان الصارم / (EN) Strict security mode
+    bool securityDebugMode = false;     ///< (AR) تنقيح الأمان / (EN) Security debug mode
+    std::string currentFilePath;        ///< (AR) مسار الملف الحالي - لحل مسارات الاستيراد / (EN) Current file path - for import resolution
 };
 
 /**
@@ -169,6 +181,18 @@ public:
     Data::ScopeManager& getScopeManager() { return *scopeManager_; }
     
     /**
+     * @brief (AR) الحصول على مدير الملكية
+     * @brief (EN) Get ownership manager
+     */
+    Data::OwnershipManager& getOwnershipManager() { return *ownershipManager_; }
+    
+    /**
+     * @brief (AR) الحصول على محلل الوحدات
+     * @brief (EN) Get module resolver
+     */
+    Modules::ModuleResolver& getModuleResolver() { return *moduleResolver_; }
+    
+    /**
      * @brief (AR) الحصول على الخيارات
      * @brief (EN) Get options
      */
@@ -188,6 +212,10 @@ private:
     std::shared_ptr<Data::ScopeManager> scopeManager_;
     std::shared_ptr<Data::VariableManager> variableManager_;
     std::shared_ptr<Data::FunctionManager> functionManager_;
+    std::shared_ptr<Data::OwnershipManager> ownershipManager_;
+    
+    // (AR) محلل الوحدات - لحل مسارات الاستيراد والتصدير / (EN) Module resolver - for import/export path resolution
+    std::shared_ptr<Modules::ModuleResolver> moduleResolver_;
     
     // (AR) المنفذون / (EN) Executors
     std::unique_ptr<ExpressionEvaluator> expressionEvaluator_;

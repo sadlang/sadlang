@@ -41,6 +41,16 @@ add_library(sad_shared STATIC
     errors/src/error_codes.cpp
     errors/src/error_manager.cpp
     
+    # Smart Errors - Phase 15
+    errors/src/smart_errors.cpp
+    errors/src/smart_suggestions.cpp
+    errors/src/smart_type_explanations.cpp
+    errors/src/smart_multi_error.cpp
+    errors/src/smart_fix_suggestions.cpp
+    errors/src/smart_teacher_mode.cpp
+    errors/src/smart_error_recovery.cpp
+    errors/src/smart_cascade_prevention.cpp
+    
     # Modules
     modules/src/dependency_graph.cpp
     modules/src/module.cpp

@@ -368,6 +368,14 @@ StmtPtr ParserCore::parseDeclaration() {
         return parseClassDecl();
     }
     
+    // (AR) دعم المتغيرات مع كلمة متغير / (EN) Support variables with var keyword
+    if (match(TT::KEYWORD_VAR)) {
+        if (!decorators.empty()) {
+            error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
+        }
+        return parseVarDecl();
+    }
+    
     // (AR) دعم الثوابت مع كلمة ثابت / (EN) Support constants with const keyword
     if (match(TT::KEYWORD_CONST)) {
         if (!decorators.empty()) {
@@ -579,7 +587,6 @@ StmtPtr ParserCore::parseStatement() {
         
         // Try to parse first expression (key)
         // This could be: identifier, number, string, or complex expression
-        std::cout << "Parsing potential map key expression\n";
         ExprPtr firstKey = parseExpression();
         
         if (!firstKey) {
@@ -590,7 +597,6 @@ StmtPtr ParserCore::parseStatement() {
         
         // Check if followed by colon (map syntax)
         if (check(TT::COLON)) {
-            std::cout << "Detected colon - this is a map!\n";
             consume(TT::COLON, "Expected :");
             
             // Parse first value
@@ -603,7 +609,6 @@ StmtPtr ParserCore::parseStatement() {
             
             // Check for dict comprehension
             if (check(TT::KEYWORD_FOR)) {
-                std::cout << "Dict comprehension detected!\n";
                 advance(); // consume 'for'
                 
                 Token loopVar = consume(TT::IDENTIFIER, "Expected loop variable");
@@ -1093,7 +1098,6 @@ StmtPtr ParserCore::parseVarDecl() {
         if (isClassName(current_.getValue())) {
             // Class-typed variable: ClassName varName = ...;
             // (AR) متغير من نوع صنف: اسم_الصنف اسم_المتغير = ...;
-            std::cout << "[parseVarDecl] Found class name, parsing class-typed variable\n";
             className = current_.getValue();
             varType = Data::DataType::OBJECT;
             advance();  // Consume class name
@@ -1115,7 +1119,6 @@ StmtPtr ParserCore::parseVarDecl() {
             // or just: IDENTIFIER = value; (type inference)
             // (AR) الصيغة 1: var/let/const معرّف : نوع = قيمة;
             // أو فقط: معرّف = قيمة; (استنتاج النوع)
-            std::cout << "[parseVarDecl] Found identifier, parsing standard declaration\n";
             name = peek();
             advance();
             
@@ -1349,23 +1352,35 @@ StmtPtr ParserCore::parseIfStmt() {
     
     // Parse then branch - directly as block (spec 04_syntax.md)
     // (AR) تحليل فرع then - مباشرة ككتلة
-    auto thenBranch = parseBlockStmt();
+    bool thenClosedByEnd = false;
+    auto thenBranch = parseBlockStmt(&thenClosedByEnd);
+    
+    // (AR) تحقق: إذا أُغلقت الكتلة بـ 'نهاية'، فالجملة مكتملة — لا نبحث عن وإلا/وإلا_إذا
+    //      لأن وإلا/وإلا_إذا التي تليها تنتمي لسلسلة if خارجية.
+    // (EN) Check: if block was closed by 'نهاية' (KEYWORD_END), the if statement
+    //      is complete — don't look for else/else_if because those belong to an outer chain.
+    //      Only look for else/else_if if parseBlockStmt() stopped WITHOUT consuming 'نهاية'
+    //      (i.e., it encountered else/else_if directly as the block terminator).
     
     // Parse optional else branch
     // (AR) تحليل فرع else الاختياري
     StmtPtr elseBranch = nullptr;
-    if (match(TT::KEYWORD_ELSE_IF)) {
+    if (!thenClosedByEnd && match(TT::KEYWORD_ELSE_IF)) {
         // else-if as single keyword (وإلا_إذا)
         // (AR) والا_اذا ككلمة واحدة
         elseBranch = parseIfStmt(); // Recursive for else-if
-    } else if (match(TT::KEYWORD_ELSE)) {
-        // Check for else-if as two separate keywords (وإلا إذا)
-        // (AR) التحقق من والا اذا ككلمتين منفصلتين
-        if (check(TT::KEYWORD_IF)) {
+    } else if (!thenClosedByEnd && match(TT::KEYWORD_ELSE)) {
+        // Check for else-if as two separate keywords (وإلا إذا) ON THE SAME LINE
+        // (AR) التحقق من والا اذا ككلمتين منفصلتين على نفس السطر فقط
+        // If إذا is on a DIFFERENT line than وإلا, treat as nested if inside else block
+        // (AR) إذا كانت إذا على سطر مختلف عن وإلا، تعاملها كـ إذا متداخلة داخل كتلة وإلا
+        if (check(TT::KEYWORD_IF) && 
+            peek().getPosition().line == previous().getPosition().line) {
+            // Same line: "وإلا إذا" → else-if chain (single نهاية for the chain)
             advance(); // consume 'if'
             elseBranch = parseIfStmt(); // Recursive for else-if
         } else {
-            elseBranch = parseBlockStmt(); // Regular else block
+            elseBranch = parseBlockStmt(); // Regular else block (may contain nested if)
         }
     }
     
@@ -1642,16 +1657,20 @@ StmtPtr ParserCore::parseContinueStmt() {
  * @brief (AR) يحلل كتلة من الجمل: { جملة1; جملة2; }.
  *        (EN) Parses block of statements: { stmt1; stmt2; }.
  */
-StmtPtr ParserCore::parseBlockStmt() {
+StmtPtr ParserCore::parseBlockStmt(bool* closedByEnd) {
     StmtList statements;
     
     // Parse statements until 'نهاية' keyword (spec 04_syntax.md)
     // (AR) تحليل الجمل حتى كلمة 'نهاية'
     // Also stop at else/else-if keywords (for if statements)
     // (AR) أيضاً التوقف عند كلمات والا/والا_اذا (لجمل if)
+    // Also stop at catch/finally keywords (for try statements)
+    // (AR) أيضاً التوقف عند كلمات امسك/أخيراً (لجمل حاول)
     while (!check(TT::KEYWORD_END) && 
            !check(TT::KEYWORD_ELSE) && 
            !check(TT::KEYWORD_ELSE_IF) && 
+           !check(TT::KEYWORD_CATCH) &&
+           !check(TT::KEYWORD_FINALLY) &&
            !isAtEnd()) {
         auto stmt = parseDeclaration();
         if (stmt) {
@@ -1664,12 +1683,26 @@ StmtPtr ParserCore::parseBlockStmt() {
     if (check(TT::KEYWORD_ELSE) || check(TT::KEYWORD_ELSE_IF)) {
         // This is the then-branch of an if statement, don't consume 'نهاية'
         // (AR) هذا هو فرع then لجملة if، لا نستهلك 'نهاية'
+        if (closedByEnd) *closedByEnd = false;
         return std::make_unique<BlockStmt>(
             std::move(statements),
             current_.getPosition()
         );
     }
     
+    // Don't require 'نهاية' if we stopped at catch/finally (try-catch blocks)
+    // (AR) لا نطلب 'نهاية' إذا توقفنا عند امسك/أخيراً (كتل حاول-امسك)
+    if (check(TT::KEYWORD_CATCH) || check(TT::KEYWORD_FINALLY)) {
+        if (closedByEnd) *closedByEnd = false;
+        return std::make_unique<BlockStmt>(
+            std::move(statements),
+            current_.getPosition()
+        );
+    }
+    
+    // Block ended with 'نهاية' — set closedByEnd flag
+    if (closedByEnd) *closedByEnd = true;
+
     if (isAtEnd() && !check(TT::KEYWORD_END)) {
         error(
             "(AR) خطأ نحوي: الكتلة غير مغلقة!\n"
@@ -1922,7 +1955,60 @@ StmtPtr ParserCore::parseExpressionStmt() {
  *        (EN) Parses expression - entry point.
  */
 ExprPtr ParserCore::parseExpression() {
-    return parseAssignment();
+    return parsePipeline();
+}
+
+/**
+ * @brief (AR) يحلل عامل الأنبوب |> مع إزالة السكر النحوي.
+ *        (EN) Parses pipeline operator |> with desugaring.
+ *
+ * Desugaring rules:
+ *   a |> f       →  f(a)
+ *   a |> f(b, c) →  f(a, b, c)
+ *   a |> f |> g  →  g(f(a))
+ */
+ExprPtr ParserCore::parsePipeline() {
+    auto expr = parseAssignment();
+    
+    while (match(TT::OP_PIPE_ARROW)) {
+        auto pos = previous().getPosition();
+        auto right = parseAssignment();
+        
+        if (!right) {
+            errorBilingual(
+                "خطأ: توقعت تعبير بعد '|>'.",
+                "Error: expected expression after '|>'."
+            );
+            return nullptr;
+        }
+        
+        // Desugar: if right is a CallExpr, prepend expr as first argument
+        // (AR) إزالة السكر: إذا كان الجانب الأيمن استدعاء دالة، أدخل التعبير كأول معامل
+        if (auto* call = dynamic_cast<CallExpr*>(right.get())) {
+            // a |> f(b, c) → f(a, b, c)
+            ExprList newArgs;
+            newArgs.push_back(std::move(expr));
+            for (auto& arg : call->arguments) {
+                newArgs.push_back(std::move(arg));
+            }
+            expr = std::make_unique<CallExpr>(
+                std::move(call->callee),
+                std::move(newArgs),
+                pos
+            );
+        } else {
+            // a |> f → f(a)
+            ExprList args;
+            args.push_back(std::move(expr));
+            expr = std::make_unique<CallExpr>(
+                std::move(right),
+                std::move(args),
+                pos
+            );
+        }
+    }
+    
+    return expr;
 }
 
 /**
@@ -2170,6 +2256,27 @@ ExprPtr ParserCore::parseFactor() {
  *        (EN) Parses unary operators: - ! ++ --.
  */
 ExprPtr ParserCore::parseUnary() {
+    // (AR) تحليل عامل الاستعارة & / (EN) Parse borrow operator &
+    if (match(TT::AMPERSAND)) {
+        auto pos = previous().getPosition();
+        // (AR) التحقق من &متغير / &mut (استعارة قابلة للتعديل)
+        // (EN) Check for &متغير / &mut (mutable borrow)
+        bool isMut = false;
+        if (check(TT::KEYWORD_VAR) || 
+            (check(TT::IDENTIFIER) && peek().getValue() == "mut")) {
+            isMut = true;
+            advance();
+        }
+        // (AR) اسم المتغير المُستعار / (EN) Variable name to borrow
+        if (!check(TT::IDENTIFIER)) {
+            error("\xD9\x85\xD8\xAA\xD9\x88\xD9\x82\xD8\xB9 \xD8\xA7\xD8\xB3\xD9\x85 \xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1 \xD8\xA8\xD8\xB9\xD8\xAF & / Expected variable name after &");
+            return std::make_unique<LiteralExpr>(Token(TT::LITERAL_NULL, "null", pos));
+        }
+        std::string varName = peek().getValue();
+        advance();
+        return std::make_unique<BorrowExpr>(varName, isMut, pos);
+    }
+    
     if (matchAny({TT::OP_NOT, TT::OP_MINUS, TT::OP_INCREMENT, TT::OP_DECREMENT})) {
         Token op = previous();
         auto right = parseUnary();
@@ -2395,7 +2502,11 @@ ExprPtr ParserCore::parsePrimary() {
         
         // (AR) تحقق إذا كان تنفيذ قالب: اسم<نوع>
         // (EN) Check if template instantiation: name<type>
-        if (check(TT::OP_LESS)) {
+        // (AR) نتحقق أن الرمز بعد < هو نوع مدمج فقط (رقم، نص، إلخ)
+        //      لتجنب التعارض مع عامل المقارنة <
+        // (EN) Only attempt template parsing if the token after < is a
+        //      built-in type keyword, to avoid conflict with < operator
+        if (check(TT::OP_LESS) && isTypeToken(nextToken_.getType())) {
             // (AR) حاول تحليل كتنفيذ قالب
             // (EN) Try to parse as template instantiation
             auto templateExpr = parseTemplateInstantiation(identName, identPos);
@@ -3204,27 +3315,26 @@ StmtPtr ParserCore::parseMatchStmt() {
         return nullptr;
     }
     
-    // Expect opening brace
-    // (AR) توقع قوس معقوف يسار
-    if (!match(TT::BRACE_LEFT)) {
-        errorBilingual(
-            "خطأ: توقعت '{' بعد تعبير match",
-            "Error: Expected '{' after match expression"
-        );
-        return nullptr;
-    }
+    // (AR) اختيارياً: يمكن قبول '{' للتوافق القديم
+    // (EN) Optionally accept '{' for backward compatibility
+    bool useBraces = match(TT::BRACE_LEFT);
     
     // Parse case clauses
     // (AR) تحليل فروع case
     std::vector<AST::CaseClause> cases;
     
-    while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
+    auto isMatchEnd = [&]() -> bool {
+        if (useBraces) return check(TT::BRACE_RIGHT);
+        return check(TT::KEYWORD_END);
+    };
+    
+    while (!isMatchEnd() && !isAtEnd()) {
         if (check(TT::KEYWORD_CASE)) {
             cases.push_back(parseCaseClause());
         } else {
             errorBilingual(
-                "خطأ: توقعت 'case' أو '}'",
-                "Error: Expected 'case' or '}'"
+                "خطأ: توقعت 'حالة' أو 'نهاية'",
+                "Error: Expected 'case' or 'end'"
             );
             return nullptr;
         }
@@ -3238,14 +3348,24 @@ StmtPtr ParserCore::parseMatchStmt() {
         return nullptr;
     }
     
-    // Expect closing brace
-    // (AR) توقع قوس معقوف يمين
-    if (!match(TT::BRACE_RIGHT)) {
-        errorBilingual(
-            "خطأ: توقعت '}' في نهاية جملة match",
-            "Error: Expected '}' at end of match statement"
-        );
-        return nullptr;
+    // Expect closing: 'نهاية' or '}'
+    // (AR) توقع إنهاء: 'نهاية' أو '}'
+    if (useBraces) {
+        if (!match(TT::BRACE_RIGHT)) {
+            errorBilingual(
+                "خطأ: توقعت '}' في نهاية جملة match",
+                "Error: Expected '}' at end of match statement"
+            );
+            return nullptr;
+        }
+    } else {
+        if (!match(TT::KEYWORD_END)) {
+            errorBilingual(
+                "خطأ: توقعت 'نهاية' في نهاية جملة match",
+                "Error: Expected 'end' at end of match statement"
+            );
+            return nullptr;
+        }
     }
     
     return std::make_unique<AST::MatchStmt>(
@@ -3306,36 +3426,17 @@ AST::CaseClause ParserCore::parseCaseClause() {
         return AST::CaseClause(nullptr, nullptr, {});
     }
     
-    // Parse body - can be brace block or single statement
-    // (AR) تحليل الجسم - يمكن أن يكون block بأقواس أو جملة واحدة
+    // Parse body - multiple statements until next 'case' or 'end' or '}'
+    // (AR) تحليل الجسم - جمل متعددة حتى 'حالة' أو 'نهاية' أو '}' التالية
     std::vector<StmtPtr> body;
     
-    if (check(TT::BRACE_LEFT)) {
-        // Block with multiple statements
-        // (AR) block بجمل متعددة
-        advance(); // consume {
-        
-        while (!check(TT::BRACE_RIGHT) && !isAtEnd()) {
-            auto stmt = parseStatement();
-            if (stmt) {
-                body.push_back(std::move(stmt));
-            } else {
-                synchronize();
-            }
-        }
-        
-        if (!match(TT::BRACE_RIGHT)) {
-            errorBilingual(
-                "خطأ: توقعت '}' في نهاية جسم case",
-                "Error: Expected '}' at end of case body"
-            );
-        }
-    } else {
-        // Single statement
-        // (AR) جملة واحدة
-        auto stmt = parseStatement();
+    while (!check(TT::KEYWORD_CASE) && !check(TT::KEYWORD_END) && 
+           !check(TT::BRACE_RIGHT) && !isAtEnd()) {
+        auto stmt = parseDeclaration();
         if (stmt) {
             body.push_back(std::move(stmt));
+        } else {
+            synchronize();
         }
     }
     

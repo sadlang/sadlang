@@ -165,7 +165,7 @@ enum class TokenType {
     // NOTE: module and package keywords removed - not in spec
     
     // ========== الكلمات المفتاحية - المتغيرات / Keywords - Variables ==========
-    // NOTE: var and let removed - not in spec (type inference works without them)
+    KEYWORD_VAR,            ///< متغير / var (variable declaration with auto type detection)
     KEYWORD_CONST,          ///< ثابت / const (spec 04_syntax.md - not "const" but "static" semantics)
     KEYWORD_STATIC,         ///< ساكن / static (spec 04_syntax.md)
     KEYWORD_PROPERTY,       ///< خاصية / property (Phase 6.3 - Properties/Getters/Setters)
@@ -187,6 +187,55 @@ enum class TokenType {
     KEYWORD_NAMESPACE,      ///< فضاء / namespace (namespaces - Phase 7B.5)
     KEYWORD_END_NAMESPACE,  ///< نهاية_فضاء / end_namespace (namespace terminator - Phase 7B.5)
     KEYWORD_OPERATOR,       ///< عامل / operator (operator overloading - Phase 7B.4)
+    
+    // ========== ميزات برمجة أنظمة التشغيل / OS Development Features (Phase 8) ==========
+    // (AR) هذا القسم يضيف دعم كتابة أنظمة التشغيل والبرمجة منخفضة المستوى
+    //      تشمل: التجميع المضمّن، منافذ الإدخال/الإخراج، الوصول المباشر للذاكرة،
+    //      المقاطعات، والتصريحات الخارجية
+    // (EN) This section adds OS development and low-level programming support
+    //      includes: inline assembly, port I/O, direct memory access,
+    //      interrupts, and external declarations
+    KEYWORD_ASM,            ///< تجميع / asm (inline assembly - كتابة أوامر التجميع مباشرة)
+    KEYWORD_VOLATILE,       ///< متطاير / volatile (منع التحسين - prevent optimization)
+    KEYWORD_EXTERN,         ///< خارجي / extern (تصريح خارجي - external declaration)
+    KEYWORD_SIZEOF,         ///< حجم / sizeof (حجم النوع بالبايتات - type size in bytes)
+    KEYWORD_UNSAFE,         ///< غير_آمن / unsafe (كتلة غير آمنة - unsafe block for raw ops)
+    KEYWORD_PACKED,         ///< محزوم / packed (بنية محزومة بلا حشو - packed struct without padding)
+    KEYWORD_NORETURN,       ///< بلا_رجوع / noreturn (دالة لا ترجع أبداً - function never returns)
+    KEYWORD_NAKED,          ///< عارية / naked (دالة بدون مقدمة/خاتمة - no prologue/epilogue)
+    KEYWORD_REGISTER,       ///< سجل / register (تخزين في سجل المعالج - store in CPU register)
+    KEYWORD_SECTION,        ///< قسم / section (تحديد قسم في الذاكرة - memory section)
+    
+    // ========== كلمات مفتاحية نظام النحلة / BeeOS Keywords (Phase 9) ==========
+    // (AR) كلمات مفتاحية إضافية لدعم بناء نظام النحلة (BeeOS)
+    // (EN) Additional keywords for BeeOS development support
+    KEYWORD_LET,            ///< دع / let (تعريف متغير مع ملكية - variable with ownership)
+    KEYWORD_STRUCT,         ///< بنية / struct (تعريف بنية بيانات - data structure definition)
+    KEYWORD_TRAIT,          ///< سمة / trait (تعريف سمة/واجهة - trait/interface definition)
+    KEYWORD_IMPL,           ///< نفّذ / impl (تنفيذ سمة لنوع - implement trait for type)
+    KEYWORD_TEST,           ///< اختبر / test (تعريف اختبار - test definition)
+    KEYWORD_ATOMIC,         ///< ذرّي / atomic (عملية ذرية - atomic operation)
+    KEYWORD_MODULE,         ///< وحدة / module (تعريف وحدة - module definition)
+    KEYWORD_USE,            ///< استخدم / use (استيراد مختصر - short import)
+    KEYWORD_MUT,            ///< متغيّر / mut (مؤشر/مرجع متغير - mutable pointer/reference)
+    KEYWORD_CONST_PTR,      ///< *ثابت / const_ptr (مؤشر ثابت - const pointer)
+    KEYWORD_MUT_PTR,        ///< *متغير / mut_ptr (مؤشر متغير - mutable pointer)
+    KEYWORD_COMPTIME,       ///< وقت_ترجمة / comptime (تقييم وقت الترجمة - compile-time evaluation)
+    TYPE_I64,               ///< ص64 / i64 (عدد صحيح 64-بت بإشارة / signed 64-bit)
+    TYPE_USIZE,             ///< ط_حجم / usize (حجم عنوان الذاكرة / memory address size)
+    TYPE_ISIZE,             ///< ص_حجم / isize (حجم عنوان بإشارة / signed address size)
+    
+    // ========== أنواع بيانات منخفضة المستوى / Low-Level Data Types ==========
+    // (AR) أنواع بيانات للتحكم الدقيق في الحجم، ضرورية لبرمجة العتاد
+    // (EN) Fixed-size types for precise control, essential for hardware programming
+    TYPE_U8,                ///< ط8 / u8 (عدد صحيح 8-بت بدون إشارة / unsigned 8-bit)
+    TYPE_U16,               ///< ط16 / u16 (عدد صحيح 16-بت بدون إشارة / unsigned 16-bit)
+    TYPE_U32,               ///< ط32 / u32 (عدد صحيح 32-بت بدون إشارة / unsigned 32-bit)
+    TYPE_U64,               ///< ط64 / u64 (عدد صحيح 64-بت بدون إشارة / unsigned 64-bit)
+    TYPE_I8,                ///< ص8 / i8 (عدد صحيح 8-بت بإشارة / signed 8-bit)
+    TYPE_I16,               ///< ص16 / i16 (عدد صحيح 16-بت بإشارة / signed 16-bit)
+    TYPE_I32,               ///< ص32 / i32 (عدد صحيح 32-بت بإشارة / signed 32-bit)
+    TYPE_PTR,               ///< مؤشر / ptr (مؤشر خام - raw pointer for memory addresses)
     
     // ========== أنواع البيانات الأساسية / Basic Data Types ==========
     TYPE_INTEGER,           ///< رقم / integer
@@ -243,6 +292,9 @@ enum class TokenType {
     OP_OR,                  ///< || أو / logical OR
     OP_NOT,                 ///< ! ليس / logical NOT
     
+    // ========== عامل الأنبوب / Pipeline Operator ==========
+    OP_PIPE_ARROW,          ///< |> أنبوب / pipeline operator
+    
     // ========== عوامل الزيادة والنقصان / Increment/Decrement ==========
     OP_INCREMENT,           ///< ++ زيادة / increment
     OP_DECREMENT,           ///< -- نقصان / decrement
@@ -267,6 +319,7 @@ enum class TokenType {
     FAT_ARROW,              ///< => سهم عريض / fat arrow (lambda/arrow functions)
     QUESTION,               ///< ? علامة استفهام / question mark
     AT_SIGN,                ///< @ علامة آت / at sign (decorators)
+    AMPERSAND,              ///< & علامة العطف / ampersand (borrow/reference)
     
     // ========== رموز خاصة / Special Tokens ==========
     COMMENT,                ///< تعليق / comment

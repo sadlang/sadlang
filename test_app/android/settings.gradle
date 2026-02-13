@@ -1,0 +1,17 @@
+// إعدادات المشروع - مُولَّد بواسطة لغة ص
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "test_app"
+include ':app'

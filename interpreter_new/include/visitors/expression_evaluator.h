@@ -50,10 +50,13 @@
 #include "value.h"
 #include "variable_manager.h"
 #include "function_manager.h"
+#include "ownership_manager.h"
 #include "token.h"
 #include "exception.h"  // For RuntimeError, TypeError, etc.
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 
 // Forward declaration to avoid circular dependency
 namespace Sad {
@@ -104,11 +107,13 @@ public:
     ExpressionEvaluator(Data::VariableManager& varMgr, 
                        Data::FunctionManager& funcMgr, 
                        Data::ScopeManager& scopeMgr,
-                       StatementExecutor& executor)
+                       StatementExecutor& executor,
+                       Data::OwnershipManager& ownershipMgr)
         : variableManager_(varMgr), 
           functionManager_(funcMgr), 
           scopeManager_(scopeMgr),
           statementExecutor_(executor),
+          ownershipManager_(ownershipMgr),
           lastResult_() {}
     
     /**
@@ -158,6 +163,12 @@ public:
      * @brief (EN) Read variable value (x, counter)
      */
     void visitVariableExpr(AST::VariableExpr& node) override;
+    
+    /**
+     * @brief (AR) تنفيذ تعبير الاستعارة (&x، &متغير x)
+     * @brief (EN) Execute borrow expression (&x, &mut x)
+     */
+    void visitBorrowExpr(AST::BorrowExpr& node) override;
     
     /**
      * @brief (AR) تنفيذ تعبير 'هذا' (this)
@@ -271,7 +282,54 @@ private:
     Data::FunctionManager& functionManager_;    ///< (AR) مدير الدوال / (EN) Function manager
     Data::ScopeManager& scopeManager_;          ///< (AR) مدير النطاقات / (EN) Scope manager
     StatementExecutor& statementExecutor_;      ///< (AR) منفذ العبارات / (EN) Statement executor
+    Data::OwnershipManager& ownershipManager_;  ///< (AR) مدير الملكية / (EN) Ownership manager
     Data::Value lastResult_;                    ///< (AR) آخر نتيجة / (EN) Last result
+    
+    // =====================================================================
+    // (AR) تحسين النصوص العربية / (EN) Arabic String Optimization
+    // =====================================================================
+    
+    /**
+     * @brief (AR) مُجمّع النصوص - يُخزّن النصوص المتكررة مرة واحدة فقط
+     * @brief (EN) String Pool - stores repeated strings only once
+     * 
+     * عندما يصادف المفسّر نصاً حرفياً، يفحص هل هو موجود في المُجمّع.
+     * إذا كان موجوداً، يُعيد مرجعاً للنسخة المُخزّنة بدلاً من إنشاء نسخة جديدة.
+     * هذا يوفر الذاكرة خاصةً مع النصوص العربية المتكررة.
+     */
+    std::unordered_set<std::string> stringPool_;
+    
+    /**
+     * @brief (AR) إحصائيات التحسين العربي للمفسّر
+     * @brief (EN) Arabic optimization statistics for interpreter
+     */
+    struct ArabicOptStats {
+        size_t totalStrings = 0;      ///< (AR) مجموع النصوص / (EN) Total strings
+        size_t pooledStrings = 0;     ///< (AR) النصوص المُدمجة / (EN) Pooled (deduplicated) strings
+        size_t poolHits = 0;          ///< (AR) عدد الإصابات / (EN) Pool hits
+        size_t arabicStrings = 0;     ///< (AR) النصوص العربية / (EN) Arabic strings
+        size_t savedBytes = 0;        ///< (AR) البايتات الموفرة / (EN) Saved bytes
+    } arabicOptStats_;
+    
+    /**
+     * @brief (AR) فحص إذا كان النص يحتوي أحرف عربية
+     * @brief (EN) Check if string contains Arabic characters
+     */
+    static bool containsArabic(const std::string& str);
+    
+    /**
+     * @brief (AR) تجميع نص في المُجمّع (intern)
+     * @brief (EN) Intern a string into the pool
+     * @return (AR) مرجع للنص المُجمّع / (EN) Reference to the pooled string
+     */
+    const std::string& internString(const std::string& str);
+    
+public:
+    /**
+     * @brief (AR) طباعة إحصائيات التحسين العربي
+     * @brief (EN) Print Arabic optimization statistics
+     */
+    void printArabicOptStats() const;
     
     /**
      * @brief (AR) تنفيذ عملية ثنائية حسابية

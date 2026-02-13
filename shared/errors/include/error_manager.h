@@ -120,6 +120,7 @@ private:
     bool colorizeOutput_ = true;             ///< (AR) استخدام ألوان / (EN) Use colors
     size_t maxErrors_ = 100;                 ///< (AR) الحد الأقصى للأخطاء / (EN) Maximum errors
     std::string outputFile_;                 ///< (AR) ملف الإخراج / (EN) Output file
+    bool smartErrorsEnabled_ = true;         ///< Phase 15: Smart Error enrichment
     mutable std::mutex mutex_;               ///< (AR) للأمان من التزامن / (EN) For thread safety
     
     // (AR) Singleton - منع النسخ والإنشاء الخارجي
@@ -297,6 +298,12 @@ public:
      */
     const std::string& getOutputFile() const { return outputFile_; }
     
+    /**
+     * @brief Phase 15: Smart Error enrichment toggle
+     */
+    void setSmartErrorsEnabled(bool enabled) { smartErrorsEnabled_ = enabled; }
+    bool isSmartErrorsEnabled() const { return smartErrorsEnabled_; }
+
     /**
      * @brief (AR) يمسح جميع التشخيصات
      *        (EN) Clears all diagnostics

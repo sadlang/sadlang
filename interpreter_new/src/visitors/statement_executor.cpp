@@ -25,10 +25,12 @@ namespace Interpreter {
 
 StatementExecutor::StatementExecutor(Data::VariableManager& varMgr, 
                                    Data::FunctionManager& funcMgr,
-                                   Data::ScopeManager& scopeMgr)
+                                   Data::ScopeManager& scopeMgr,
+                                   Data::OwnershipManager& ownershipMgr)
     : variableManager_(varMgr)
     , functionManager_(funcMgr)
     , scopeManager_(scopeMgr)
+    , ownershipManager_(ownershipMgr)
     , flowControl_(FlowControl::NONE)
     , returnValue_()
     , yieldValue_()
@@ -39,7 +41,7 @@ StatementExecutor::StatementExecutor(Data::VariableManager& varMgr,
 {
     // (AR) إنشاء مُقيِّم التعابير / (EN) Create expression evaluator
     // Note: Pass *this to allow ExpressionEvaluator to call back for function execution
-    expressionEvaluator_ = std::make_unique<ExpressionEvaluator>(varMgr, funcMgr, scopeMgr, *this);
+    expressionEvaluator_ = std::make_unique<ExpressionEvaluator>(varMgr, funcMgr, scopeMgr, *this, ownershipMgr);
 }
 
 // =========================================================================
@@ -99,6 +101,50 @@ void StatementExecutor::visitVarDeclStmt(AST::VarDeclStmt& node) {
     // (AR) تعريف المتغير / (EN) Define variable
     try {
         variableManager_.define(node.name, value);
+        
+        // (AR) تسجيل المتغير في نظام الملكية / (EN) Register variable in ownership system
+        if (ownershipManager_.isEnabled()) {
+            std::string typeName;
+            switch (node.type) {
+                case Data::DataType::INTEGER: typeName = "INTEGER"; break;
+                case Data::DataType::FLOAT: typeName = "FLOAT"; break;
+                case Data::DataType::STRING: typeName = "نص"; break;
+                case Data::DataType::BOOLEAN: typeName = "BOOLEAN"; break;
+                case Data::DataType::ARRAY: typeName = "مصفوفة"; break;
+                case Data::DataType::MAP: typeName = "قاموس"; break;
+                case Data::DataType::OBJECT: typeName = "كائن"; break;
+                default: {
+                    // (AR) استدلال النوع من القيمة عندما يكون النوع غير محدد (متغير)
+                    // (EN) Infer type from value when type is unspecified (متغير keyword)
+                    auto vt = value.getType();
+                    if (vt == Data::ValueType::INTEGER) typeName = "INTEGER";
+                    else if (vt == Data::ValueType::DOUBLE) typeName = "FLOAT";
+                    else if (vt == Data::ValueType::STRING) typeName = "نص";
+                    else if (vt == Data::ValueType::BOOLEAN) typeName = "BOOLEAN";
+                    else if (vt == Data::ValueType::ARRAY) typeName = "مصفوفة";
+                    else if (vt == Data::ValueType::MAP) typeName = "قاموس";
+                    else typeName = "";
+                    break;
+                }
+            }
+            ownershipManager_.declareVariable(node.name, typeName);
+            
+            // (AR) نقل الملكية: إذا كان المُهيّئ متغيراً، انقل ملكيته
+            // (EN) Move semantics: if initializer is a variable, move ownership from it
+            if (node.initializer) {
+                auto* varExpr = dynamic_cast<AST::VariableExpr*>(node.initializer.get());
+                if (varExpr && !varExpr->name.empty() && varExpr->name != node.name) {
+                    auto moveError = ownershipManager_.moveVariable(varExpr->name);
+                    if (moveError.has_value()) {
+                        throw SadException(
+                            moveError->arabicMessage + " / " + moveError->message,
+                            "OwnershipError",
+                            node.position
+                        );
+                    }
+                }
+            }
+        }
     }
     catch (const std::runtime_error& e) {
         // (AR) إضافة معلومات الموقع للخطأ / (EN) Add position info to error
@@ -113,6 +159,7 @@ void StatementExecutor::visitVarDeclStmt(AST::VarDeclStmt& node) {
 void StatementExecutor::visitBlockStmt(AST::BlockStmt& node) {
     // (AR) دخول نطاق جديد / (EN) Enter new scope
     scopeManager_.pushScope(Data::ScopeType::BLOCK);
+    ownershipManager_.enterScope();
     
     // (AR) تنفيذ جميع الجمل في الكتلة / (EN) Execute all statements in block
     for (auto& stmt : node.statements) {
@@ -125,6 +172,7 @@ void StatementExecutor::visitBlockStmt(AST::BlockStmt& node) {
     }
     
     // (AR) الخروج من النطاق / (EN) Exit scope
+    ownershipManager_.exitScope();
     scopeManager_.popScope();
 }
 
@@ -396,20 +444,10 @@ void StatementExecutor::visitReturnStmt(AST::ReturnStmt& node) {
         returnValue_ = evaluateExpression(*node.value);
         
         // (AR) التحقق من توافق نوع الإرجاع / (EN) Check return type compatibility
-        // If current function has UNKNOWN return type, it should not return a value
-        if (currentFunctionReturnType_ == Data::DataType::UNKNOWN) {
-            Sad::Errors::ErrorManager::getInstance().reportError(
-                Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH,
-                Sad::Errors::SourceLocation("<input>", 1, 1),
-                "(AR) خطأ: الدالة '" + currentFunctionName_ + "' لا تحتوي على نوع إرجاع محدد، لكنها تحاول إرجاع قيمة.\n"
-                "الحل: أضف نوع الإرجاع في تعريف الدالة.\n"
-                "مثال: دالة رقم " + currentFunctionName_ + "() بدلاً من: دالة " + currentFunctionName_ + "()",
-                "(EN) Error: Function '" + currentFunctionName_ + "' has no return type specified, but it's trying to return a value.\n"
-                "Solution: Add return type in function definition.\n"
-                "Example: function int " + currentFunctionName_ + "() instead of: function " + currentFunctionName_ + "()"
-            );
-            // Don't throw, just report error and continue
-        }
+        // (AR) إذا كان نوع الإرجاع UNKNOWN، فهذا يعني أن الدالة ديناميكية - لا خطأ
+        // (EN) If return type is UNKNOWN, function is dynamically typed - no error
+        // (AR) لا نبلغ عن خطأ لأن الدوال بدون نوع إرجاع صريح مسموحة في لغة ص
+        // (EN) We don't report error because functions without explicit return type are allowed in Sad
     } else {
         returnValue_ = Data::Value(); // VOID
     }
@@ -639,8 +677,32 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
             throw;
         }
     }
+    catch (const std::exception& e) {
+        // (AR) التقاط استثناءات C++ القياسية (مثل std::runtime_error من ذعر)
+        // (EN) Catch standard C++ exceptions (e.g. std::runtime_error from panic)
+        bool caught = false;
+        
+        for (auto& catchClause : node.catchClauses) {
+            scopeManager_.pushScope(Data::ScopeType::BLOCK);
+            
+            if (!catchClause.exceptionVar.empty()) {
+                variableManager_.define(catchClause.exceptionVar, 
+                    Data::Value(std::string(e.what())));
+            }
+            
+            catchClause.body->accept(*this);
+            scopeManager_.popScope();
+            
+            caught = true;
+            break;
+        }
+        
+        if (!caught) {
+            throw;
+        }
+    }
     catch (...) {
-        // (AR) التقاط استثناءات أخرى / (EN) Catch other exceptions
+        // (AR) التقاط استثناءات أخرى غير معروفة تماماً / (EN) Catch completely unknown exceptions
         bool caught = false;
         
         for (auto& catchClause : node.catchClauses) {

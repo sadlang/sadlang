@@ -1,0 +1,19 @@
+# ملفات مُولَّدة بواسطة لغة ص
+*.o
+*.so
+*.dylib
+build/
+
+# أندرويد
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+*.aab
+
+# محرر
+.vscode/
+.idea/
+*.swp
+.DS_Store

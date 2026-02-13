@@ -190,6 +190,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/stdlib/network
     ${CMAKE_SOURCE_DIR}/stdlib/core
     ${CMAKE_SOURCE_DIR}/stdlib/low_level/include
+    ${CMAKE_SOURCE_DIR}/stdlib/mobile  # مسار وحدة الهاتف / Mobile module path
     ${CMAKE_SOURCE_DIR}/compiler/frontend/include
     # New reorganized structure include paths
     ${CMAKE_SOURCE_DIR}/shared/utils/include
@@ -262,6 +263,7 @@ set(INTERPRETER_SOURCES
     interpreter_new/src/visitors/expression_evaluator.cpp
     interpreter_new/src/visitors/statement_executor.cpp
     interpreter_new/src/visitors/statement_executor_oop.cpp
+    interpreter_new/src/visitors/statement_executor_modules.cpp
     interpreter_new/src/exception.cpp
 )
 
@@ -272,6 +274,7 @@ set(DATA_SOURCES
     interpreter_new/src/managers/variable_manager.cpp
     interpreter_new/src/managers/function_manager.cpp
     interpreter_new/src/managers/scope_manager.cpp
+    interpreter_new/src/managers/ownership_manager.cpp
 )
 
 # البرمجة الكائنية - الأنواع / OOP - Types
@@ -328,6 +331,7 @@ set(STDLIB_SOURCES
     stdlib/core/other_functions.cpp
     stdlib/string/string_functions.cpp
     stdlib/math/math_functions.cpp
+    stdlib/math/advanced_math.cpp
     stdlib/io/io_functions.cpp
     stdlib/filesystem/filesystem_module.cpp
     stdlib/http/http_module.cpp
@@ -336,6 +340,8 @@ set(STDLIB_SOURCES
     stdlib/xml/xml_module.cpp
     stdlib/crypto/crypto_module.cpp
     stdlib/graphics/graphics_module_stub.cpp # Stub implementation without raylib
+    stdlib/system/system_functions.cpp
+    stdlib/mobile/mobile_module.cpp  # 📱 وحدة تطبيقات الهاتف / Mobile Module
     # stdlib/graphics/graphics_module_raylib.cpp # Disabled - raylib not available
 )
 
@@ -377,6 +383,7 @@ set(MODULES_SOURCES
     shared/modules/src/module_cache.cpp
     shared/modules/src/dependency_graph.cpp
     shared/modules/src/module_loader.cpp
+    shared/modules/src/module_resolver.cpp
     shared/modules/src/symbol_resolver.cpp
     shared/modules/src/module_validator.cpp
 )
@@ -605,6 +612,67 @@ message(STATUS "  - Broadcasting: Enabled")
 message(STATUS "════════════════════════════════════════════════════════")
 # ======================================================================
 
+# ======================================================================
+# مكتبة تطبيقات الهاتف / Mobile Applications Library
+# ======================================================================
+message(STATUS "════════════════════════════════════════════════════════")
+message(STATUS "📱 تكوين مكتبة تطبيقات الهاتف / Configuring Mobile Library")
+message(STATUS "════════════════════════════════════════════════════════")
+
+set(MOBILE_SOURCES
+    tools/compiler/src/android_target.cpp
+    tools/compiler/src/ios_target.cpp
+    tools/compiler/src/mobile_project_gen.cpp
+    tools/compiler/src/cli_main.cpp
+    tools/compiler/src/build_command.cpp
+    tools/compiler/src/run_command.cpp
+    tools/compiler/src/test_command.cpp
+    tools/compiler/src/formatter.cpp
+    shared/parser/src/ui_parser.cpp
+    compiler_new/src/backend/android_compose.cpp
+    compiler_new/src/backend/ios_swiftui.cpp
+)
+
+# إنشاء مكتبة الهاتف / Create mobile library
+add_library(sad_mobile STATIC ${MOBILE_SOURCES})
+
+# تعطيل تحذيرات Unicode / Disable Unicode warnings
+if(MSVC)
+    target_compile_options(sad_mobile PRIVATE /wd4819 /FS)
+endif()
+
+# إضافة مسارات التضمين / Add include directories
+target_include_directories(sad_mobile PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/tools/compiler/src
+    ${CMAKE_SOURCE_DIR}/shared/parser/include
+    ${CMAKE_SOURCE_DIR}/shared/ast/include
+    ${CMAKE_SOURCE_DIR}/shared/types/include
+    ${CMAKE_SOURCE_DIR}/shared/lexer/include
+    ${CMAKE_SOURCE_DIR}/shared/errors/include
+    ${CMAKE_SOURCE_DIR}/compiler_new/include
+    ${CMAKE_SOURCE_DIR}/compiler_new/include/backend
+)
+
+# تعيين معيار C++17 / Set C++17 standard
+target_compile_features(sad_mobile PUBLIC cxx_std_17)
+
+# تعيين خصائص المكتبة / Set library properties
+set_target_properties(sad_mobile PROPERTIES
+    OUTPUT_NAME "sad_mobile"
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+)
+
+message(STATUS "✓ مكتبة تطبيقات الهاتف تم تكوينها بنجاح / Mobile library configured successfully")
+message(STATUS "  - Android NDK Target: Enabled")
+message(STATUS "  - iOS Target: Enabled")
+message(STATUS "  - Mobile Project Generator: Enabled")
+message(STATUS "  - Declarative UI Parser: Enabled")
+message(STATUS "  - Android Compose Codegen: Enabled")
+message(STATUS "  - iOS SwiftUI Codegen: Enabled")
+message(STATUS "════════════════════════════════════════════════════════")
+# ======================================================================
+
 # تعيين خصائص المكتبة / Set library properties
 set_target_properties(sad_core PROPERTIES
     OUTPUT_NAME "sad_core"
@@ -625,10 +693,22 @@ add_executable(sad
 # Source: CMakeLists.txt (main) - Link sad_core library
 target_link_libraries(sad PRIVATE 
     sad_core
+    sad_new_type_system  # نظام الأنواع المتقدم / Advanced Type System
+    sad_new_semantic     # الفحص الدلالي / Semantic Analysis
     sad_network   # Network Library / مكتبة الشبكات
     sad_http      # HTTP Library / مكتبة HTTP
     sad_websocket # WebSocket Library / مكتبة WebSocket
+    sad_mobile    # Mobile Library / مكتبة تطبيقات الهاتف
     # llvm_pipeline  # LLVM Compiler Pipeline - DISABLED (library not found)
+)
+
+target_include_directories(sad PRIVATE
+    ${CMAKE_SOURCE_DIR}/compiler_new/include
+    ${CMAKE_SOURCE_DIR}/compiler_new/include/semantic
+    ${CMAKE_SOURCE_DIR}/compiler_new/include/types
+    ${CMAKE_SOURCE_DIR}/compiler_new/include/backend
+    ${CMAKE_SOURCE_DIR}/tools/compiler/src
+    ${CMAKE_SOURCE_DIR}/shared/parser/include
 )
 
 # تعيين خصائص البرنامج التنفيذي / Set executable properties
@@ -636,6 +716,57 @@ set_target_properties(sad PROPERTIES
     OUTPUT_NAME "sad"
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 )
+
+# ======================================================================
+# المترجم sadc / Compiler Executable (sadc)
+# ======================================================================
+if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
+    message(STATUS "==============================================")
+    message(STATUS "[Phase 7.2] بناء المترجم sadc / Building sadc Compiler")
+    message(STATUS "==============================================")
+
+    add_executable(sadc
+        tools/compiler/main.cpp
+        tools/compiler/compiler_driver.cpp
+    )
+
+    target_include_directories(sadc PRIVATE
+        ${CMAKE_SOURCE_DIR}/tools/compiler
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/shared/lexer/include
+        ${CMAKE_SOURCE_DIR}/shared/parser/include
+        ${CMAKE_SOURCE_DIR}/shared/ast/include
+        ${CMAKE_SOURCE_DIR}/shared/types/include
+        ${CMAKE_SOURCE_DIR}/shared/errors/include
+        ${CMAKE_SOURCE_DIR}/compiler_new/include
+        ${CMAKE_SOURCE_DIR}/compiler_new/include/frontend
+        ${CMAKE_SOURCE_DIR}/compiler_new/include/semantic
+        ${CMAKE_SOURCE_DIR}/compiler_new/include/types
+        ${CMAKE_SOURCE_DIR}/compiler_new/include/backend/llvm
+        ${LLVM_INCLUDE_DIRS}
+    )
+
+    target_link_libraries(sadc PRIVATE
+        sad_core
+        sad_new_compiler   # INTERFACE lib: frontend + llvm_backend + jit + semantic + memory + type_system
+        sad_mobile         # Mobile Library / مكتبة تطبيقات الهاتف
+        ${LLVM_LIBS}
+    )
+
+    if(MSVC)
+        target_compile_options(sadc PRIVATE /wd4819 /FS)
+    endif()
+
+    set_target_properties(sadc PROPERTIES
+        OUTPUT_NAME "sadc"
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
+    install(TARGETS sadc RUNTIME DESTINATION bin COMPONENT compiler)
+    message(STATUS "✓ المترجم sadc مفعّل / sadc Compiler enabled")
+else()
+    message(STATUS "⊘ المترجم sadc معطّل (LLVM غير متوفر) / sadc Compiler disabled (LLVM not found)")
+endif()
 
 # ======================================================================
 # الاختبارات / Tests
@@ -1182,7 +1313,8 @@ if(BUILD_TESTS)
     # ======================================================================
     
     # SIR Types Tests
-    if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_types.cpp")
+    if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_types.cpp"
+       AND EXISTS "${CMAKE_SOURCE_DIR}/compiler/frontend/src/type_info.cpp")
         add_executable(sir_types_tests
             tests/compiler/frontend/test_sir_types.cpp
             compiler/frontend/src/type_info.cpp
@@ -1863,8 +1995,12 @@ endif()
 # Type Checker Tests / اختبارات مدقق الأنواع
 # ======================================================================
 if(BUILD_TESTS)
-    message(STATUS "إضافة اختبارات Type Checker / Adding Type Checker tests")
-    add_subdirectory(compiler/frontend/type_checker/tests)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/compiler/frontend/type_checker/tests/CMakeLists.txt")
+        message(STATUS "إضافة اختبارات Type Checker / Adding Type Checker tests")
+        add_subdirectory(compiler/frontend/type_checker/tests)
+    else()
+        message(STATUS "⚠️  اختبارات Type Checker غير متاحة / Type Checker tests not available")
+    endif()
 endif()
 
 # ======================================================================

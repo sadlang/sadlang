@@ -60,6 +60,16 @@ LexerCore::LexerCore(const std::string& source)
 {
     DEBUG_PRINT("إنشاء محلل معجمي جديد - حجم المصدر: " + std::to_string(source_.length()) + " حرف");
     
+    // (AR) تخطي علامة ترتيب البايت UTF-8 (BOM) إن وجدت
+    // (EN) Skip UTF-8 BOM (Byte Order Mark) if present: 0xEF 0xBB 0xBF
+    if (source_.length() >= 3 &&
+        static_cast<unsigned char>(source_[0]) == 0xEF &&
+        static_cast<unsigned char>(source_[1]) == 0xBB &&
+        static_cast<unsigned char>(source_[2]) == 0xBF) {
+        current_ = 3;
+        DEBUG_PRINT("تم تخطي علامة BOM (3 بايت)");
+    }
+    
     // تهيئة جدول الكلمات المفتاحية
     KeywordTable::initialize();
     DEBUG_PRINT("تم تهيئة جدول الكلمات المفتاحية - عدد الكلمات: " + std::to_string(KeywordTable::getAllKeywords().size()));
@@ -1157,6 +1167,10 @@ Token LexerCore::scanOperator() {
         advance(); advance();
         return Token(TokenType::OP_OR, "||", start_position_);
     }
+    if (c == '|' && next == '>') {
+        advance(); advance();
+        return Token(TokenType::OP_PIPE_ARROW, "|>", start_position_);
+    }
     if (c == '-' && next == '>') {
         advance(); advance();
         return Token(TokenType::ARROW, "->", start_position_);
@@ -1179,6 +1193,7 @@ Token LexerCore::scanOperator() {
         case '>': return Token(TokenType::OP_GREATER, ">", start_position_);
         case '!': return Token(TokenType::OP_NOT, "!", start_position_);
         case '.': return Token(TokenType::DOT, ".", start_position_);
+        case '&': return Token(TokenType::AMPERSAND, "&", start_position_);
         default:
             return makeError("عامل غير معروف / Unknown operator: " + std::string(1, c));
     }

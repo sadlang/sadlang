@@ -9,8 +9,9 @@
  * ============================================================================
  */
 
-#include "../include/llvm_compiler_pipeline.h"
+#include "pipeline/llvm_compiler_pipeline.h"
 #include "llvm_linker.h"
+#include "../../../shared/utils/include/utf8_utils.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -714,7 +715,7 @@ llvm::Module* LLVMCompilerPipeline::getCurrentModule() {
  * قراءة ملف / Read file
  */
 std::string LLVMCompilerPipeline::readFile(const std::string& filename) {
-    std::ifstream file(filename);
+    auto file = sad::utf8::open_ifstream(filename);
     if (!file.is_open()) {
         logError("فشل فتح الملف / Failed to open file: " + filename);
         return "";

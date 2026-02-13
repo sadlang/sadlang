@@ -131,6 +131,26 @@ struct CodeGenContext {
     
     // خريطة تخصيص الذاكرة / Allocation map
     std::unordered_map<std::string, llvm::AllocaInst*> allocas;
+    
+    // ================================================================
+    // دعم الأصناف / Class Support
+    // ================================================================
+    
+    // خريطة السجل/المتغير → اسم الصنف
+    // Register/variable → class name mapping
+    std::unordered_map<std::string, std::string> objectClassMap;
+    
+    // اسم الصنف → نوع الهيكل LLVM
+    // Class name → LLVM struct type
+    std::unordered_map<std::string, llvm::StructType*> classStructTypes;
+    
+    // اسم الصنف → أسماء الحقول بالترتيب
+    // Class name → ordered field names
+    std::unordered_map<std::string, std::vector<std::string>> classFieldNames;
+    
+    // اسم الصنف الحالي في حالة البناء (فارغ خارج الباني)
+    // Current constructor class name (empty outside constructors)
+    std::string currentConstructorClass;
 };
 
 // ============================================================================
@@ -299,6 +319,14 @@ public:
     void emitModule(std::shared_ptr<SIRModule> sirModule);
     
     /**
+     * معالجة الأصناف وإنشاء أنواع الهياكل
+     * Pre-process classes and create struct types
+     * 
+     * @param sirModule وحدة SIR / SIR module
+     */
+    void preprocessClasses(std::shared_ptr<SIRModule> sirModule);
+    
+    /**
      * إصدار الدوال العامة / Global functions
      * Emit global functions
      * 
@@ -449,6 +477,7 @@ public:
     llvm::Value* emitStore(std::shared_ptr<SIRInstruction> inst);    // تخزين / Store
     llvm::Value* emitAlloca(std::shared_ptr<SIRInstruction> inst);   // تخصيص / Allocate
     llvm::Value* emitGEP(std::shared_ptr<SIRInstruction> inst);      // Get Element Ptr
+    llvm::Value* emitMove(std::shared_ptr<SIRInstruction> inst);     // نقل / Move (register assignment)
     
     // ------------------------------------------------------------------------
     // Control Flow Instructions / تعليمات تدفق التحكم
@@ -466,6 +495,9 @@ public:
     
     llvm::Value* emitBuiltinPrint(std::shared_ptr<SIRInstruction> inst);     // اطبع / Print
     llvm::Value* emitBuiltinRead(std::shared_ptr<SIRInstruction> inst);      // اقرأ / Read/Input
+    llvm::Value* emitStringConcat(std::shared_ptr<SIRInstruction> inst);     // دمج نص / String concat
+    llvm::Value* emitStringCharAt(std::shared_ptr<SIRInstruction> inst);     // رمز_حرف / Char at index
+    llvm::Value* emitStringCmp(std::shared_ptr<SIRInstruction> inst);        // مقارنة نصوص / String compare
     
     // (AR) دالة مساعدة: تحميل القيمة تلقائياً من alloca إذا لزم الأمر
     // (EN) Helper: Auto-load value from alloca pointer if needed
@@ -851,6 +883,10 @@ private:
     
     // Optimizer (محسّن LLVM) - NEW Phase 1.1.3
     std::unique_ptr<sad::LLVMOptimizer> optimizer_;
+    
+    // SIR Module reference for class info access
+    // مرجع وحدة SIR للوصول لمعلومات الأصناف
+    std::shared_ptr<SIRModule> sirModule_;
     
     // Optimization settings (إعدادات التحسين)
     sad::OptimizationLevel optimizationLevel_;  // مستوى التحسين / Optimization level

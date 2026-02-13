@@ -236,6 +236,12 @@ public:
     void addSearchPath(const std::string& path);
     
     /**
+     * @brief (AR) إضافة مسار بحث مباشرة من filesystem::path
+     *        (EN) Add search path directly from filesystem::path
+     */
+    void addSearchPathDirect(const std::filesystem::path& path);
+    
+    /**
      * @brief (AR) الحصول على جميع مسارات البحث / (EN) Get all search paths
      * @return (AR) قائمة المسارات / (EN) List of paths
      */

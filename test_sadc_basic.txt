@@ -1,0 +1,339 @@
+﻿[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+.\build\bin\Debug\sadc.exe : 
+At line:1 char:1
++ .\build\bin\Debug\sadc.exe working_exampels\patterns\test_pattern_bas ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+========================================
+  ≡ƒףך (AR) ┘ו┘ה╪«╪╡ ╪º┘ה╪¬╪¡┘ה┘ך┘ה / (EN) Parsing Summary
+========================================
+Γ£ף (AR) ╪╣╪»╪» ╪º┘ה╪¼┘ו┘ה ╪º┘ה┘ז╪º╪¼╪¡╪⌐: 1
+Γ£ף (EN) Successful statements: 1
+========================================
+
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 24 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='=== ╪º╪«╪¬╪¿╪º╪▒ Pattern Matching ╪º┘ה╪ú╪│╪º╪│┘ך ==='
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant=''
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='--- 1. ┘ו╪╖╪º╪¿┘ג╪⌐ ╪º╪▒┘ג╪º┘ו ---'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪│
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] Type inference: inferred type 1 for variable ╪│
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='42', type=1
+[DEBUG] Using constant value
+[DEBUG] Added I64 constant: 42
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found MatchStmt
+[DEBUG] buildMatchStatement: starting with 3 cases
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪│'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪│', type=1
+[DEBUG] buildMatchStatement: match value reg=%╪│, isConst=0
+[DEBUG] buildMatchStatement: case 0 is LiteralPattern(1.000000)
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה╪▒┘ג┘ו ┘ח┘ט ┘ט╪º╪¡╪»'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 0
+[DEBUG] buildMatchStatement: case 1 is LiteralPattern(42.000000)
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה╪▒┘ג┘ו ┘ח┘ט 42 - ╪╡╪¡┘ך╪¡!'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 1
+[DEBUG] buildMatchStatement: case 2 is WildcardPattern
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪▒┘ג┘ו ╪ó╪«╪▒'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 2
+[DEBUG] buildMatchStatement: completed
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant=''
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='--- 2. ┘ו╪╖╪º╪¿┘ג╪⌐ ┘ז╪╡┘ט╪╡ ---'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ┘ה
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] Type inference: inferred type 6 for variable ┘ה
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='╪º╪¡┘ו╪▒', type=6
+[DEBUG] Using constant value
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found MatchStmt
+[DEBUG] buildMatchStatement: starting with 4 cases
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '┘ה'
+[DEBUG] buildVariableAccess: found variable, registerName='%┘ה', type=6
+[DEBUG] buildMatchStatement: match value reg=%┘ה, isConst=0
+[DEBUG] buildMatchStatement: case 0 is LiteralPattern(╪º╪«╪╢╪▒)
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה┘ה┘ט┘ז ╪º╪«╪╢╪▒'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 0
+[DEBUG] buildMatchStatement: case 1 is LiteralPattern(╪º╪¡┘ו╪▒)
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה┘ה┘ט┘ז ╪º╪¡┘ו╪▒ - ╪╡╪¡┘ך╪¡!'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 1
+[DEBUG] buildMatchStatement: case 2 is LiteralPattern(╪º╪▓╪▒┘ג)
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה┘ה┘ט┘ז ╪º╪▓╪▒┘ג'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 2
+[DEBUG] buildMatchStatement: case 3 is WildcardPattern
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='┘ה┘ט┘ז ╪║┘ך╪▒ ┘ו╪╣╪▒┘ט┘ב'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 3
+[DEBUG] buildMatchStatement: completed
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] Type inference: inferred type 1 for variable ┘ג
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='999', type=1
+[DEBUG] Using constant value
+[DEBUG] Added I64 constant: 999
+[DEBUG] Type inference: inferred type 3 for variable ┘ז
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='true', type=3
+[DEBUG] Using constant value
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant=''
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='--- 3. ╪º┘ה┘ז┘ו╪╖ ╪º┘ה╪┤╪º┘ו┘ה _ ---'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ┘ג
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found MatchStmt
+[DEBUG] buildMatchStatement: starting with 3 cases
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '┘ג'
+[DEBUG] buildVariableAccess: found variable, registerName='%┘ג', type=1
+[DEBUG] buildMatchStatement: match value reg=%┘ג, isConst=0
+[DEBUG] buildMatchStatement: case 0 is LiteralPattern(1.000000)
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='┘ט╪º╪¡╪»'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 0
+[DEBUG] buildMatchStatement: case 1 is LiteralPattern(2.000000)
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º╪½┘ז╪º┘ז'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 1
+[DEBUG] buildMatchStatement: case 2 is WildcardPattern
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='┘ג┘ך┘ו╪⌐ ╪º╪«╪▒┘י (wildcard) - ╪╡╪¡┘ך╪¡!'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 2
+[DEBUG] buildMatchStatement: completed
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant=''
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='--- 4. ┘ו╪╖╪º╪¿┘ג╪⌐ ┘ג┘ך┘ו ┘ו┘ז╪╖┘ג┘ך╪⌐ ---'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ┘ז
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found MatchStmt
+[DEBUG] buildMatchStatement: starting with 2 cases
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '┘ז'
+[DEBUG] buildVariableAccess: found variable, registerName='%┘ז', type=3
+[DEBUG] buildMatchStatement: match value reg=%┘ז, isConst=0
+[DEBUG] buildMatchStatement: case 0 is LiteralPattern(true)
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ╪╡╪¡┘ך╪¡╪⌐ - ╪╡╪¡┘ך╪¡!'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 0
+[DEBUG] buildMatchStatement: case 1 is LiteralPattern(false)
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ╪«╪º╪╖╪ª╪⌐'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 1
+[DEBUG] buildMatchStatement: completed
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant=''
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='--- 5. ┘ו╪╖╪º╪¿┘ג╪⌐ ╪º┘ה╪╡┘ב╪▒ ---'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪╡
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found MatchStmt
+[DEBUG] buildMatchStatement: starting with 2 cases
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪╡'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪╡', type=1
+[DEBUG] buildMatchStatement: match value reg=%╪╡, isConst=0
+[DEBUG] buildMatchStatement: case 0 is LiteralPattern(0.000000)
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה┘ג┘ך┘ו╪⌐ ╪╡┘ב╪▒ - ╪╡╪¡┘ך╪¡!'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 0
+[DEBUG] buildMatchStatement: case 1 is WildcardPattern
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה┘ג┘ך┘ו╪⌐ ┘ה┘ך╪│╪¬ ╪╡┘ב╪▒'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildMatchStatement: generated case 1
+[DEBUG] buildMatchStatement: completed
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant=''
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='=== ╪º┘ז╪¬┘ח┘י ╪º┘ה╪º╪«╪¬╪¿╪º╪▒ ╪º┘ה╪ú╪│╪º╪│┘ך ==='
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found ReturnStmt
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildReturnStatement: registerName='%56', isConstant=1, constantValue='0'
+[DEBUG] Type inference: inferred type 1 for variable ╪╡
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='0', type=1
+[DEBUG] Using constant value
+[DEBUG] Added I64 constant: 0
+LLVM CodeGen Error: Unsupported constant type in store
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Operands not found for cmpeq
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Operands not found for cmpeq
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Operands not found for cmpeq
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Operands not found for cmpeq
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Operands not found for cmpeq
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Operands not found for cmpeq
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Operands not found for cmpeq
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Operands not found for cmpeq
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Operands not found for cmpeq
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Operands not found for cmpeq
+LLVM CodeGen Error: Condition not found for conditional branch
+LLVM CodeGen Error: Unsupported opcode: 37
+LLVM CodeGen Error: Condition not found for conditional branch
+Module verification failed:
+Basic Block in function '╪▒╪ª┘ך╪│┘ך╪⌐' does not have terminator!
+label %match.case0.test_1
+
+LLVM CodeGen Error: Module verification failed
+fatal error: ┘ב╪┤┘ה ╪¬┘ט┘ה┘ך╪» LLVM IR / Failed to generate LLVM IR
+1 error(s) generated.

@@ -19,11 +19,13 @@
 #endif
 
 // External declarations from llvm_runtime.cpp
-extern void* sad_llvm_string_new(const char* data, uint64_t length);
-extern void* sad_llvm_string_from_cstr(const char* cstr);
-extern uint64_t sad_llvm_string_length(void* str);
+extern "C" void* sad_llvm_string_new(const char* data, uint64_t length);
+extern "C" void* sad_llvm_string_from_cstr(const char* cstr);
+extern "C" uint64_t sad_llvm_string_length(void* str);
+extern "C" void* sad_llvm_alloc(uint64_t size);
+extern "C" void sad_llvm_free(void* ptr);
 
-// External GC context (defined in llvm_runtime.cpp)
+// GC context defined in llvm_runtime.cpp
 typedef struct {
     void** objects;
     uint64_t* sizes;
@@ -36,7 +38,6 @@ typedef struct {
     uint64_t root_count;
     uint64_t root_capacity;
 } GCContext;
-
 extern GCContext gc_context;
 extern FILE* open_files[256];
 
@@ -48,6 +49,67 @@ extern int gc_find_object(void* ptr);
 // ============================================================================
 // I/O Operations / عمليات الإدخال والإخراج
 // ============================================================================
+
+/**
+ * (AR) دالة مساعدة لتحضير stdin للقراءة التفاعلية على Windows
+ * (EN) Helper to prepare stdin for interactive reading on Windows
+ * 
+ * ConPTY (مثل طرفية VS Code) يُرسل تسلسلات هروب ANSI إلى stdin
+ * (مثل رد موقع المؤشر \x1b[row;colR الذي يحتوي على عدد الأسطر).
+ * هذه الدالة تنتظر قليلاً ثم تُنظّف كل البيانات الوهمية.
+ */
+#ifdef _WIN32
+#include <conio.h>
+static DWORD _saved_console_mode = 0;
+static bool _console_mode_saved = false;
+
+static void prepareStdinForRead() {
+    fflush(stdout);
+    
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    if (hStdin == INVALID_HANDLE_VALUE) return;
+    
+    DWORD mode = 0;
+    if (!GetConsoleMode(hStdin, &mode)) return; // ليس console (pipe) — لا حاجة للتنظيف
+    
+    // حفظ الوضع الأصلي
+    _saved_console_mode = mode;
+    _console_mode_saved = true;
+    
+    // (1) تعطيل ENABLE_VIRTUAL_TERMINAL_INPUT لمنع تسلسلات هروب جديدة
+    DWORD newMode = (mode & ~0x0200u);
+    newMode |= (ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+    SetConsoleMode(hStdin, newMode);
+    
+    // (2) انتظار قصير ليصل أي escape sequence متأخر من ConPTY
+    Sleep(50);
+    
+    // (3) تنظيف كل أحداث الإدخال المُعلّقة (بما فيها بقايا escape sequences)
+    DWORD numEvents = 0;
+    while (GetNumberOfConsoleInputEvents(hStdin, &numEvents) && numEvents > 0) {
+        INPUT_RECORD irBuf[256];
+        DWORD eventsRead = 0;
+        ReadConsoleInputW(hStdin, irBuf, (numEvents < 256 ? numEvents : 256), &eventsRead);
+        if (eventsRead == 0) break;
+    }
+    
+    // (4) تنظيف مخزن C Runtime
+    fflush(stdin);
+}
+
+static void restoreStdinAfterRead() {
+    if (!_console_mode_saved) return;
+    
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    if (hStdin != INVALID_HANDLE_VALUE) {
+        SetConsoleMode(hStdin, _saved_console_mode);
+    }
+    _console_mode_saved = false;
+}
+#else
+static void prepareStdinForRead() { fflush(stdout); }
+static void restoreStdinAfterRead() {}
+#endif
 
 /**
  * طباعة قيمة
@@ -122,23 +184,48 @@ void sad_llvm_print_float(double value) {
 }
 
 /**
- * قراءة سطر
- * Read line
+ * قراءة سطر - تُرجع SadString*
+ * Read line - returns SadString*
  */
 void* sad_llvm_input() {
     char buffer[4096];
-    if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
+    prepareStdinForRead();
+    char* ret = fgets(buffer, sizeof(buffer), stdin);
+    restoreStdinAfterRead();
+    
+    if (ret == NULL) {
         return sad_llvm_string_from_cstr("");
     }
     
-    // إزالة السطر الجديد / Remove newline
+    // إزالة السطر الجديد و \r / Remove newline and \r
     size_t len = strlen(buffer);
-    if (len > 0 && buffer[len-1] == '\n') {
-        buffer[len-1] = '\0';
-        len--;
+    while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r')) {
+        buffer[--len] = '\0';
     }
     
     return sad_llvm_string_new(buffer, len);
+}
+
+/**
+ * قراءة سطر - تُرجع char* مباشرة (للتوافق مع printf)
+ * Read line - returns char* directly (for printf compatibility)
+ */
+const char* sad_llvm_input_cstr() {
+    char buffer[4096];
+    prepareStdinForRead();
+    char* ret = fgets(buffer, sizeof(buffer), stdin);
+    restoreStdinAfterRead();
+    
+    if (ret) {
+        size_t len = strlen(buffer);
+        while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r')) {
+            buffer[--len] = '\0';
+        }
+        // إرجاع نسخة مستقلة حتى لا تتداخل المتغيرات
+        // Return a heap-allocated copy so each variable gets its own string
+        return _strdup(buffer);
+    }
+    return _strdup("");
 }
 
 /**
@@ -147,11 +234,12 @@ void* sad_llvm_input() {
  */
 int64_t sad_llvm_input_int() {
     int64_t value = 0;
+    prepareStdinForRead();
     scanf("%lld", (long long*)&value);
-    
     // تنظيف المخزن المؤقت / Clear buffer
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
+    restoreStdinAfterRead();
     
     return value;
 }
@@ -162,11 +250,12 @@ int64_t sad_llvm_input_int() {
  */
 double sad_llvm_input_float() {
     double value = 0.0;
+    prepareStdinForRead();
     scanf("%lf", &value);
-    
     // تنظيف المخزن المؤقت / Clear buffer
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
+    restoreStdinAfterRead();
     
     return value;
 }

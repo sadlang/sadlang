@@ -344,6 +344,69 @@ public:
         ) {}
 };
 
+/**
+ * @class SecurityError
+ * @brief Security violation error / خطأ أمني
+ * 
+ * @details Thrown when a security policy is violated
+ *          يُرمى عند انتهاك سياسة أمنية
+ */
+class SecurityError : public SadException {
+public:
+    SecurityError(const std::string& message,
+                  const Lexer::Position& position = Lexer::Position())
+        : SadException(message, "SecurityError", position) {}
+};
+
+/**
+ * @class AssertionError
+ * @brief Assertion failure error / خطأ التأكيد
+ * 
+ * @details Thrown when an assertion (تأكد) fails
+ *          يُرمى عند فشل التأكيد
+ */
+class AssertionError : public SadException {
+public:
+    AssertionError(const std::string& message,
+                   const Lexer::Position& position = Lexer::Position())
+        : SadException(message, "AssertionError", position) {}
+    
+    explicit AssertionError(const Lexer::Position& position = Lexer::Position())
+        : SadException(
+            "(AR) فشل التأكيد / (EN) Assertion failed",
+            "AssertionError",
+            position
+        ) {}
+};
+
+/**
+ * @class PermissionError
+ * @brief Permission denied error / خطأ الأذونات
+ * 
+ * @details Thrown when an operation is denied due to insufficient permissions
+ *          يُرمى عند رفض عملية بسبب عدم كفاية الأذونات
+ */
+class PermissionError : public SadException {
+public:
+    PermissionError(const std::string& message,
+                    const Lexer::Position& position = Lexer::Position())
+        : SadException(message, "PermissionError", position) {}
+};
+
+/**
+ * @class PanicError
+ * @brief Unrecoverable panic / ذعر غير قابل للتعافي
+ * 
+ * @details Thrown on unrecoverable errors (like stack overflow, null deref)
+ *          يُرمى عند أخطاء غير قابلة للتعافي
+ */
+class PanicError : public SadException {
+public:
+    PanicError(const std::string& message,
+               const Lexer::Position& position = Lexer::Position())
+        : SadException(message, "PanicError", position) {}
+};
+
 } // namespace Interpreter
 } // namespace Sad
 

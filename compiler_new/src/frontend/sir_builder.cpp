@@ -21,6 +21,8 @@
 #include "module_resolver.h"
 #include "lexer_core.h"
 #include "parser_core.h"
+#include "pattern_nodes.h"
+#include "../../../shared/utils/include/utf8_utils.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -90,6 +92,53 @@ std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode* program) {
     // (EN) Create new SIR module
     module_ = std::make_shared<SIRModule>("main");
     
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) المرحلة الأولى: تسجيل توقيعات جميع الدوال مسبقاً
+    // (EN) Phase 1: Pre-register all function signatures for forward references
+    // ═══════════════════════════════════════════════════════════════════
+    for (const auto& stmt : *program) {
+        if (!stmt) continue;
+        
+        AST::FunctionDecl* funcDecl = nullptr;
+        
+        // (AR) دالة عادية
+        if (auto fd = dynamic_cast<Sad::AST::FunctionDecl*>(stmt.get())) {
+            funcDecl = fd;
+        }
+        // (AR) دالة مُصدَّرة (الإصدار الجديد)
+        else if (auto exportDecl = dynamic_cast<Sad::AST::ExportDecl*>(stmt.get())) {
+            if (exportDecl->declaration) {
+                funcDecl = dynamic_cast<Sad::AST::FunctionDecl*>(exportDecl->declaration.get());
+            }
+        }
+        // (AR) دالة مُصدَّرة (الإصدار القديم)
+        else if (auto exportStmt = dynamic_cast<Sad::AST::ExportStmt*>(stmt.get())) {
+            if (exportStmt->declaration) {
+                funcDecl = dynamic_cast<Sad::AST::FunctionDecl*>(exportStmt->declaration.get());
+            }
+        }
+        
+        if (funcDecl) {
+            // (AR) تسجيل توقيع الدالة في الجدول
+            // (EN) Register function signature in function table
+            FunctionInfo funcInfo;
+            funcInfo.name = funcDecl->name;
+            funcInfo.returnType = astTypeToSIRType(funcDecl->returnType);
+            for (const auto& param : funcDecl->parameters) {
+                SIRType paramType = astTypeToSIRType(param.type);
+                funcInfo.parameters.push_back(SIRParameter(param.name, paramType));
+            }
+            // (AR) مؤشر الدالة سيُحدَّث لاحقاً في buildFunction
+            // (EN) sirFunction pointer will be updated later in buildFunction
+            funcInfo.sirFunction = nullptr;
+            functionTable_[funcDecl->name] = funcInfo;
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) المرحلة الثانية: بناء جميع التصريحات
+    // (EN) Phase 2: Build all declarations
+    // ═══════════════════════════════════════════════════════════════════
     // (AR) معالجة جميع التصريحات في البرنامج
     // (EN) Process all declarations in program
     // program هو StmtList = std::vector<StmtPtr> (ast_node.h:170)
@@ -258,6 +307,21 @@ void SIRBuilder::buildFunction(AST::FunctionDeclNode* funcDecl) {
     // (EN) Create new scope for function
     enterScope();
     
+    // (AR) تسجيل معاملات الدالة في النطاق
+    // (EN) Register function parameters in scope
+    for (const auto& param : funcDecl->parameters) {
+        VariableInfo paramInfo;
+        paramInfo.name = param.name;
+        paramInfo.type = astTypeToSIRType(param.type);
+        // (AR) المعاملات تحصل على سجل باسم %اسم_المعامل
+        // (EN) Parameters get register named %parameter_name
+        paramInfo.registerName = "%" + param.name;
+        paramInfo.isGlobal = false;
+        paramInfo.isMutable = false;
+        paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+        addVariable(paramInfo);
+    }
+    
     // (AR) إنشاء basic block للدخول (createBasicBlock: sir_builder.h:501)
     // (EN) Create entry basic block
     auto entryBlock = createBasicBlock("entry");
@@ -292,11 +356,15 @@ void SIRBuilder::buildFunction(AST::FunctionDeclNode* funcDecl) {
                 retInst.opcode = SIROpcode::RET_VOID;
                 currentBlock_->addInstruction(retInst);
             } else {
-                // (AR) للدوال غير void، نضيف return بقيمة افتراضية (0)
-                // (EN) For non-void functions, add return with default value (0)
+                // (AR) للدوال غير void، نضيف return بقيمة افتراضية
+                // (EN) For non-void functions, add return with default value
                 SIRInstruction retInst;
                 retInst.opcode = SIROpcode::RET;
-                retInst.operands.push_back(SIROperand::ConstantI64(0));
+                if (returnType == SIRType::STRING) {
+                    retInst.operands.push_back(SIROperand::ConstantString(""));
+                } else {
+                    retInst.operands.push_back(SIROperand::ConstantI64(0));
+                }
                 currentBlock_->addInstruction(retInst);
             }
         }
@@ -310,7 +378,11 @@ void SIRBuilder::buildFunction(AST::FunctionDeclNode* funcDecl) {
         } else {
             SIRInstruction retInst;
             retInst.opcode = SIROpcode::RET;
-            retInst.operands.push_back(SIROperand::ConstantI64(0));
+            if (returnType == SIRType::STRING) {
+                retInst.operands.push_back(SIROperand::ConstantString(""));
+            } else {
+                retInst.operands.push_back(SIROperand::ConstantI64(0));
+            }
             currentBlock_->addInstruction(retInst);
         }
     }
@@ -318,6 +390,19 @@ void SIRBuilder::buildFunction(AST::FunctionDeclNode* funcDecl) {
     // (AR) إضافة الدالة للوحدة (sir_module.h:569 - addFunction)
     // (EN) Add function to module
     module_->addFunction(sirFunction);
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) تسجيل/تحديث الدالة في جدول الدوال للبحث عنها عند الاستدعاء
+    // (EN) Register/update function in functionTable_ for call resolution
+    // ═══════════════════════════════════════════════════════════════════
+    {
+        FunctionInfo funcInfo;
+        funcInfo.name = funcDecl->name;
+        funcInfo.returnType = returnType;
+        funcInfo.parameters = sirFunction->getParameters();
+        funcInfo.sirFunction = sirFunction;
+        functionTable_[funcDecl->name] = funcInfo;
+    }
     
     // (AR) إعادة تعيين الدالة الحالية
     // (EN) Reset current function
@@ -357,9 +442,39 @@ void SIRBuilder::buildGlobalVariable(AST::VariableDeclNode* varDecl) {
     // (EN) Create global variable
     auto sirGlobal = std::make_shared<SIRGlobalVariable>(varDecl->name, varType);
     
-    // (AR) TODO: معالجة القيمة الأولية (initializer)
-    // (EN) TODO: Handle initializer
-    // هذا يتطلب buildExpression والذي سنكتبه في المرحلة التالية
+    // (AR) معالجة القيمة الأولية إذا كانت ثابتاً حرفياً
+    // (EN) Handle initializer if it's a literal constant
+    if (varDecl->initializer) {
+        if (auto* litExpr = dynamic_cast<Sad::AST::LiteralExpr*>(varDecl->initializer.get())) {
+            const auto& token = litExpr->token;
+            std::string value = token.getValue();
+            Lexer::TokenType tokenType = token.getType();
+            
+            if (tokenType == Lexer::TokenType::NUMBER_INTEGER) {
+                // (AR) تحويل الأعداد الست عشرية/الثمانية/الثنائية إلى عشرية
+                // (EN) Normalize hex/octal/binary literals to decimal
+                if (value.size() > 2 && value[0] == '0') {
+                    char prefix = value[1];
+                    if (prefix == 'x' || prefix == 'X') {
+                        value = std::to_string(static_cast<int64_t>(std::stoull(value, nullptr, 16)));
+                    } else if (prefix == 'o' || prefix == 'O') {
+                        value = std::to_string(static_cast<int64_t>(std::stoull(value.substr(2), nullptr, 8)));
+                    } else if (prefix == 'b' || prefix == 'B') {
+                        value = std::to_string(static_cast<int64_t>(std::stoull(value.substr(2), nullptr, 2)));
+                    }
+                }
+                sirGlobal->initialValue = value;
+            } else if (tokenType == Lexer::TokenType::NUMBER_DOUBLE) {
+                sirGlobal->initialValue = value;
+            } else if (tokenType == Lexer::TokenType::LITERAL_TRUE) {
+                sirGlobal->initialValue = "1";
+            } else if (tokenType == Lexer::TokenType::LITERAL_FALSE) {
+                sirGlobal->initialValue = "0";
+            } else if (tokenType == Lexer::TokenType::STRING_LITERAL) {
+                sirGlobal->initialValue = value;
+            }
+        }
+    }
     
     // (AR) إضافة المتغير العام للوحدة (sir_module.h:591 - addGlobalVariable)
     // (EN) Add global variable to module
@@ -421,38 +536,241 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
             sirClass->addField(fieldDecl->name, fieldType);
         }
         
+        // (AR) الباني (ConstructorDecl - declarations.h:268)
+        // (EN) Constructor
+        else if (auto ctorDecl = dynamic_cast<Sad::AST::ConstructorDecl*>(member.get())) {
+            std::cout << "[DEBUG] buildClass: found constructor" << std::endl;
+            
+            std::string fullCtorName = classDecl->name + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
+            auto sirCtor = std::make_shared<SIRFunction>(fullCtorName, SIRType::VOID);
+            sirCtor->addParameter(SIRParameter("self", SIRType::I64));
+            
+            for (const auto& param : ctorDecl->parameters) {
+                SIRType paramType = astTypeToSIRType(param.type);
+                sirCtor->addParameter(SIRParameter(param.name, paramType));
+            }
+            
+            sirClass->addMethod(sirCtor);
+            
+            // (AR) بناء جسم الباني
+            // (EN) Build constructor body
+            if (ctorDecl->body) {
+                auto prevFunction = currentFunction_;
+                auto prevBlock = currentBlock_;
+                auto prevClassName = currentClassName_;
+                
+                currentFunction_ = sirCtor;
+                currentClassName_ = classDecl->name;
+                
+                enterScope();
+                
+                // (AR) تسجيل معامل self
+                // (EN) Register self parameter
+                {
+                    VariableInfo selfInfo;
+                    selfInfo.name = "self";
+                    selfInfo.type = SIRType::I64;
+                    selfInfo.registerName = "%self";
+                    selfInfo.isGlobal = false;
+                    selfInfo.isMutable = false;
+                    selfInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(selfInfo);
+                }
+                
+                // (AR) تسجيل المعاملات + حقول الصنف كمتغيرات محلية
+                // (EN) Register parameters + class fields as local variables
+                for (const auto& param : ctorDecl->parameters) {
+                    VariableInfo paramInfo;
+                    paramInfo.name = param.name;
+                    paramInfo.type = astTypeToSIRType(param.type);
+                    paramInfo.registerName = "%" + param.name;
+                    paramInfo.isGlobal = false;
+                    paramInfo.isMutable = false;
+                    paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(paramInfo);
+                }
+                
+                // (AR) تسجيل حقول الصنف كمتغيرات محلية للوصول المباشر
+                // (EN) Register class fields as local variables for direct access
+                for (const auto& field : sirClass->fields_) {
+                    VariableInfo fieldInfo;
+                    fieldInfo.name = field.first;
+                    fieldInfo.type = field.second;
+                    fieldInfo.registerName = "%" + field.first;
+                    fieldInfo.isGlobal = false;
+                    fieldInfo.isMutable = true;
+                    fieldInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(fieldInfo);
+                }
+                
+                auto entryBlock = createBasicBlock("entry");
+                sirCtor->addBasicBlock(entryBlock);
+                currentBlock_ = entryBlock;
+                
+                // (AR) Alloca لكل حقل
+                // (EN) Alloca for each field
+                for (const auto& field : sirClass->fields_) {
+                    SIRInstruction allocInst;
+                    allocInst.opcode = SIROpcode::ALLOC;
+                    allocInst.result = SIROperand::Register("%" + field.first, field.second);
+                    currentBlock_->addInstruction(allocInst);
+                }
+                
+                buildStatement(ctorDecl->body.get());
+                
+                // (AR) إضافة RET_VOID
+                // (EN) Add RET_VOID
+                if (currentBlock_) {
+                    bool hasTerminator = false;
+                    if (!currentBlock_->instructions.empty()) {
+                        auto lastOp = currentBlock_->instructions.back().opcode;
+                        hasTerminator = (lastOp == SIROpcode::RET || lastOp == SIROpcode::RET_VOID);
+                    }
+                    if (!hasTerminator) {
+                        SIRInstruction retInst;
+                        retInst.opcode = SIROpcode::RET_VOID;
+                        currentBlock_->addInstruction(retInst);
+                    }
+                }
+                
+                exitScope();
+                
+                module_->addFunction(sirCtor);
+                
+                // (AR) تسجيل في جدول الدوال
+                // (EN) Register in function table
+                FunctionInfo ctorInfo;
+                ctorInfo.name = fullCtorName;
+                ctorInfo.returnType = SIRType::VOID;
+                ctorInfo.parameters = sirCtor->getParameters();
+                ctorInfo.sirFunction = sirCtor;
+                functionTable_[fullCtorName] = ctorInfo;
+                
+                currentFunction_ = prevFunction;
+                currentBlock_ = prevBlock;
+                currentClassName_ = prevClassName;
+            }
+        }
+        
         // (AR) الدوال (MethodDecl - declarations.h:222)
         // (EN) Methods
         else if (auto methodDecl = dynamic_cast<AST::MethodDecl*>(member.get())) {
             std::cout << "[DEBUG] buildClass: found method '" << methodDecl->name << "'" << std::endl;
             
-            // (AR) إنشاء دالة SIR للطريقة
-            // (EN) Create SIR function for method
             SIRType returnType = astTypeToSIRType(methodDecl->returnType);
-            
-            // (AR) اسم الدالة الكامل: ClassName.methodName
-            // (EN) Full method name: ClassName.methodName
             std::string fullMethodName = classDecl->name + "." + methodDecl->name;
             auto sirMethod = std::make_shared<SIRFunction>(fullMethodName, returnType);
             
-            // (AR) إضافة معاملات الدالة
-            // (EN) Add function parameters
-            // أولاً: إضافة معامل ضمني 'self' للوصول للكائن
-            // First: add implicit 'self' parameter for object access
-            sirMethod->addParameter(SIRParameter("self", SIRType::PTR));
+            sirMethod->addParameter(SIRParameter("self", SIRType::I64));
             
             for (const auto& param : methodDecl->parameters) {
                 SIRType paramType = astTypeToSIRType(param.type);
                 sirMethod->addParameter(SIRParameter(param.name, paramType));
             }
             
-            // (AR) إضافة الدالة للصنف
-            // (EN) Add method to class
             sirClass->addMethod(sirMethod);
             
-            // (AR) TODO: بناء جسم الدالة
-            // (EN) TODO: Build method body
-            // سيتم في مرحلة لاحقة
+            // (AR) بناء جسم الطريقة
+            // (EN) Build method body
+            if (methodDecl->body) {
+                auto prevFunction = currentFunction_;
+                auto prevBlock = currentBlock_;
+                auto prevClassName = currentClassName_;
+                
+                currentFunction_ = sirMethod;
+                currentClassName_ = classDecl->name;
+                
+                enterScope();
+                
+                // (AR) تسجيل self + معاملات + حقول الصنف
+                // (EN) Register self + params + class fields
+                {
+                    VariableInfo selfInfo;
+                    selfInfo.name = "self";
+                    selfInfo.type = SIRType::I64;
+                    selfInfo.registerName = "%self";
+                    selfInfo.isGlobal = false;
+                    selfInfo.isMutable = false;
+                    selfInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(selfInfo);
+                }
+                
+                for (const auto& param : methodDecl->parameters) {
+                    VariableInfo paramInfo;
+                    paramInfo.name = param.name;
+                    paramInfo.type = astTypeToSIRType(param.type);
+                    paramInfo.registerName = "%" + param.name;
+                    paramInfo.isGlobal = false;
+                    paramInfo.isMutable = false;
+                    paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(paramInfo);
+                }
+                
+                for (const auto& field : sirClass->fields_) {
+                    VariableInfo fieldInfo;
+                    fieldInfo.name = field.first;
+                    fieldInfo.type = field.second;
+                    fieldInfo.registerName = "%" + field.first;
+                    fieldInfo.isGlobal = false;
+                    fieldInfo.isMutable = true;
+                    fieldInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(fieldInfo);
+                }
+                
+                auto entryBlock = createBasicBlock("entry");
+                sirMethod->addBasicBlock(entryBlock);
+                currentBlock_ = entryBlock;
+                
+                // (AR) Alloca لكل حقل
+                // (EN) Alloca for each field
+                for (const auto& field : sirClass->fields_) {
+                    SIRInstruction allocInst;
+                    allocInst.opcode = SIROpcode::ALLOC;
+                    allocInst.result = SIROperand::Register("%" + field.first, field.second);
+                    currentBlock_->addInstruction(allocInst);
+                }
+                
+                buildStatement(methodDecl->body.get());
+                
+                // (AR) إضافة terminator
+                // (EN) Add terminator
+                if (currentBlock_) {
+                    bool hasTerminator = false;
+                    if (!currentBlock_->instructions.empty()) {
+                        auto lastOp = currentBlock_->instructions.back().opcode;
+                        hasTerminator = (lastOp == SIROpcode::RET || lastOp == SIROpcode::RET_VOID);
+                    }
+                    if (!hasTerminator) {
+                        SIRInstruction retInst;
+                        if (returnType == SIRType::VOID) {
+                            retInst.opcode = SIROpcode::RET_VOID;
+                        } else {
+                            retInst.opcode = SIROpcode::RET;
+                            if (returnType == SIRType::STRING) {
+                                retInst.operands.push_back(SIROperand::ConstantString(""));
+                            } else {
+                                retInst.operands.push_back(SIROperand::ConstantI64(0));
+                            }
+                        }
+                        currentBlock_->addInstruction(retInst);
+                    }
+                }
+                
+                exitScope();
+                
+                module_->addFunction(sirMethod);
+                
+                FunctionInfo methodInfo;
+                methodInfo.name = fullMethodName;
+                methodInfo.returnType = returnType;
+                methodInfo.parameters = sirMethod->getParameters();
+                methodInfo.sirFunction = sirMethod;
+                functionTable_[fullMethodName] = methodInfo;
+                
+                currentFunction_ = prevFunction;
+                currentBlock_ = prevBlock;
+                currentClassName_ = prevClassName;
+            }
         }
         
         // (AR) الدالة العادية داخل الصنف (FunctionDecl)
@@ -464,8 +782,7 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
             std::string fullMethodName = classDecl->name + "." + funcDecl->name;
             auto sirMethod = std::make_shared<SIRFunction>(fullMethodName, returnType);
             
-            // معامل self ضمني
-            sirMethod->addParameter(SIRParameter("self", SIRType::PTR));
+            sirMethod->addParameter(SIRParameter("self", SIRType::I64));
             
             for (const auto& param : funcDecl->parameters) {
                 SIRType paramType = astTypeToSIRType(param.type);
@@ -473,6 +790,102 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
             }
             
             sirClass->addMethod(sirMethod);
+            
+            // (AR) بناء جسم الدالة (مثل الطريقة تماماً)
+            // (EN) Build function body (same as method)
+            if (funcDecl->body) {
+                auto prevFunction = currentFunction_;
+                auto prevBlock = currentBlock_;
+                auto prevClassName = currentClassName_;
+                
+                currentFunction_ = sirMethod;
+                currentClassName_ = classDecl->name;
+                
+                enterScope();
+                
+                {
+                    VariableInfo selfInfo;
+                    selfInfo.name = "self";
+                    selfInfo.type = SIRType::I64;
+                    selfInfo.registerName = "%self";
+                    selfInfo.isGlobal = false;
+                    selfInfo.isMutable = false;
+                    selfInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(selfInfo);
+                }
+                
+                for (const auto& param : funcDecl->parameters) {
+                    VariableInfo paramInfo;
+                    paramInfo.name = param.name;
+                    paramInfo.type = astTypeToSIRType(param.type);
+                    paramInfo.registerName = "%" + param.name;
+                    paramInfo.isGlobal = false;
+                    paramInfo.isMutable = false;
+                    paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(paramInfo);
+                }
+                
+                for (const auto& field : sirClass->fields_) {
+                    VariableInfo fieldInfo;
+                    fieldInfo.name = field.first;
+                    fieldInfo.type = field.second;
+                    fieldInfo.registerName = "%" + field.first;
+                    fieldInfo.isGlobal = false;
+                    fieldInfo.isMutable = true;
+                    fieldInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(fieldInfo);
+                }
+                
+                auto entryBlock = createBasicBlock("entry");
+                sirMethod->addBasicBlock(entryBlock);
+                currentBlock_ = entryBlock;
+                
+                for (const auto& field : sirClass->fields_) {
+                    SIRInstruction allocInst;
+                    allocInst.opcode = SIROpcode::ALLOC;
+                    allocInst.result = SIROperand::Register("%" + field.first, field.second);
+                    currentBlock_->addInstruction(allocInst);
+                }
+                
+                buildStatement(funcDecl->body.get());
+                
+                if (currentBlock_) {
+                    bool hasTerminator = false;
+                    if (!currentBlock_->instructions.empty()) {
+                        auto lastOp = currentBlock_->instructions.back().opcode;
+                        hasTerminator = (lastOp == SIROpcode::RET || lastOp == SIROpcode::RET_VOID);
+                    }
+                    if (!hasTerminator) {
+                        SIRInstruction retInst;
+                        if (returnType == SIRType::VOID) {
+                            retInst.opcode = SIROpcode::RET_VOID;
+                        } else {
+                            retInst.opcode = SIROpcode::RET;
+                            if (returnType == SIRType::STRING) {
+                                retInst.operands.push_back(SIROperand::ConstantString(""));
+                            } else {
+                                retInst.operands.push_back(SIROperand::ConstantI64(0));
+                            }
+                        }
+                        currentBlock_->addInstruction(retInst);
+                    }
+                }
+                
+                exitScope();
+                
+                module_->addFunction(sirMethod);
+                
+                FunctionInfo methodInfo;
+                methodInfo.name = fullMethodName;
+                methodInfo.returnType = returnType;
+                methodInfo.parameters = sirMethod->getParameters();
+                methodInfo.sirFunction = sirMethod;
+                functionTable_[fullMethodName] = methodInfo;
+                
+                currentFunction_ = prevFunction;
+                currentBlock_ = prevBlock;
+                currentClassName_ = prevClassName;
+            }
         }
     }
     
@@ -614,6 +1027,14 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
         return;
     }
     
+    // (AR) MatchStmt - جملة match (pattern_nodes.h:MatchStmt)
+    // (EN) Match statement (pattern matching)
+    if (auto matchStmt = dynamic_cast<Sad::AST::MatchStmt*>(stmt)) {
+        std::cout << "[DEBUG] Found MatchStmt" << std::endl;
+        buildMatchStatement(matchStmt);
+        return;
+    }
+    
     std::cout << "[DEBUG] Unknown statement type!" << std::endl;
     // (AR) جملة غير معروفة - نتجاهلها
     // (EN) Unknown statement - ignore
@@ -669,6 +1090,9 @@ void SIRBuilder::buildReturnStatement(AST::ReturnStmt* retStmt) {
                     break;
                 case SIRType::BOOL:
                     retInst.operands.push_back(SIROperand::ConstantBool(valueResult.constantValue == "true"));
+                    break;
+                case SIRType::STRING:
+                    retInst.operands.push_back(SIROperand::ConstantString(valueResult.constantValue));
                     break;
                 default:
                     retInst.operands.push_back(SIROperand::Register(valueResult.registerName, valueResult.type));
@@ -881,14 +1305,13 @@ void SIRBuilder::buildLocalVariable(AST::VarDeclStmt* varDecl) {
         if (needsTypeInference) {
             varType = initResult.type;
             varInfo.type = varType;
-            std::cerr << "[DEBUG] Type inference: inferred type " 
-                      << static_cast<int>(varType) << " for variable " 
-                      << varDecl->name << std::endl;
         }
         
-        std::cerr << "[DEBUG] buildLocalVariable: isConstant=" << initResult.isConstant 
-                  << ", constantValue='" << initResult.constantValue << "'"
-                  << ", type=" << static_cast<int>(initResult.type) << std::endl;
+        // (AR) تتبع نوع الصنف إذا كان التعبير جديد ClassName()
+        // (EN) Track class type if expression is new ClassName()
+        if (auto* newExpr = dynamic_cast<Sad::AST::NewExpr*>(varDecl->initializer.get())) {
+            classInstanceTypes_[varDecl->name] = newExpr->className;
+        }
     }
     
     // (AR) توليد تعليمة ALLOC لتخصيص الذاكرة
@@ -909,13 +1332,11 @@ void SIRBuilder::buildLocalVariable(AST::VarDeclStmt* varDecl) {
         // (AR) المعامل الأول: القيمة المراد تخزينها
         // (EN) First operand: value to store
         if (initResult.isConstant && !initResult.constantValue.empty()) {
-            std::cerr << "[DEBUG] Using constant value" << std::endl;
             // (AR) القيمة ثابتة - تحويلها لثابت SIR
             // (EN) Value is constant - convert to SIR constant
             switch (initResult.type) {
                 case SIRType::I64:
                     storeInst.operands.push_back(SIROperand::ConstantI64(std::stoll(initResult.constantValue)));
-                    std::cerr << "[DEBUG] Added I64 constant: " << initResult.constantValue << std::endl;
                     break;
                 case SIRType::F64:
                     storeInst.operands.push_back(SIROperand::ConstantF64(std::stod(initResult.constantValue)));
@@ -931,7 +1352,6 @@ void SIRBuilder::buildLocalVariable(AST::VarDeclStmt* varDecl) {
                     break;
             }
         } else {
-            std::cerr << "[DEBUG] Using register value: " << initResult.registerName << std::endl;
             // (AR) القيمة في سجل
             // (EN) Value is in register
             storeInst.operands.push_back(SIROperand::Register(initResult.registerName, initResult.type));
@@ -1051,12 +1471,26 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
     
     // (AR) قفز غير شرطي إلى merge (sir_instruction.h:178-183)
     // (EN) Unconditional jump to merge
+    // (AR) لا نضيف القفز إذا كان الفرع قد انتهى بـ RET أو BR أو BR_COND
+    // (EN) Don't add branch if the block already ends with RET or BR or BR_COND
     SIROperand mergeLabelOp = SIROperand::Label(mergeLabel);
     SIRInstruction brMergeInst = SIRInstruction::Branch(mergeLabelOp);
     
-    if (currentBlock_) {
+    if (currentBlock_ && !currentBlock_->instructions.empty()) {
+        const auto& lastInst = currentBlock_->instructions.back();
+        bool hasTerminator = (lastInst.opcode == SIROpcode::RET || 
+                             lastInst.opcode == SIROpcode::RET_VOID ||
+                             lastInst.opcode == SIROpcode::BR ||
+                             lastInst.opcode == SIROpcode::BR_COND);
+        if (!hasTerminator) {
+            currentBlock_->instructions.push_back(brMergeInst);
+            std::cout << "[DEBUG] buildIfStatement: added BR to merge from then" << std::endl;
+        } else {
+            std::cout << "[DEBUG] buildIfStatement: then block already has terminator, skipping BR" << std::endl;
+        }
+    } else if (currentBlock_) {
         currentBlock_->instructions.push_back(brMergeInst);
-        std::cout << "[DEBUG] buildIfStatement: added BR to merge from then" << std::endl;
+        std::cout << "[DEBUG] buildIfStatement: added BR to merge from then (empty block)" << std::endl;
     }
     
     // ========================================================================
@@ -1070,9 +1504,23 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
         
         // (AR) قفز غير شرطي إلى merge
         // (EN) Unconditional jump to merge
-        if (currentBlock_) {
+        // (AR) لا نضيف القفز إذا كان الفرع قد انتهى بـ RET أو BR أو BR_COND
+        // (EN) Don't add branch if the block already ends with RET or BR or BR_COND
+        if (currentBlock_ && !currentBlock_->instructions.empty()) {
+            const auto& lastInst = currentBlock_->instructions.back();
+            bool hasTerminator = (lastInst.opcode == SIROpcode::RET || 
+                                 lastInst.opcode == SIROpcode::RET_VOID ||
+                                 lastInst.opcode == SIROpcode::BR ||
+                                 lastInst.opcode == SIROpcode::BR_COND);
+            if (!hasTerminator) {
+                currentBlock_->instructions.push_back(brMergeInst);
+                std::cout << "[DEBUG] buildIfStatement: added BR to merge from else" << std::endl;
+            } else {
+                std::cout << "[DEBUG] buildIfStatement: else block already has terminator, skipping BR" << std::endl;
+            }
+        } else if (currentBlock_) {
             currentBlock_->instructions.push_back(brMergeInst);
-            std::cout << "[DEBUG] buildIfStatement: added BR to merge from else" << std::endl;
+            std::cout << "[DEBUG] buildIfStatement: added BR to merge from else (empty block)" << std::endl;
         }
     }
     
@@ -1082,6 +1530,515 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
     // ========================================================================
     currentBlock_ = mergeBlock;
     std::cout << "[DEBUG] buildIfStatement: completed, now at merge block" << std::endl;
+}
+
+// ============================================================================
+// buildMatchStatement - بناء جملة match (Pattern Matching)
+// ============================================================================
+// (AR) تحويل جملة match إلى سلسلة من BR_COND/BR باستخدام SIR الموجود
+// (EN) Lower match statement to chain of BR_COND/BR using existing SIR
+//
+// (AR) الاستراتيجية:
+// لكل case:
+//   1. كتلة اختبار: مقارنة النمط مع القيمة
+//   2. كتلة guard (إن وجد): تقييم الشرط الإضافي
+//   3. كتلة الجسم: تنفيذ الكود
+//   4. قفز إلى كتلة النهاية
+//
+// (EN) Strategy:
+// For each case:
+//   1. Test block: compare pattern with value
+//   2. Guard block (if exists): evaluate guard condition
+//   3. Body block: execute code
+//   4. Jump to merge block
+// ============================================================================
+void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
+    if (!matchStmt) {
+        return;
+    }
+    
+    std::cout << "[DEBUG] buildMatchStatement: starting with " 
+              << matchStmt->cases.size() << " cases" << std::endl;
+    
+    // ========================================================================
+    // (AR) الخطوة 1: تقييم القيمة المُطابقة
+    // (EN) Step 1: Evaluate the match value
+    // ========================================================================
+    auto matchResult = buildExpression(matchStmt->value.get());
+    
+    if (matchResult.registerName.empty() && !matchResult.isConstant) {
+        errors_.push_back("Error: Failed to build match expression");
+        return;
+    }
+    
+    std::cout << "[DEBUG] buildMatchStatement: match value reg=" 
+              << matchResult.registerName << ", isConst=" << matchResult.isConstant << std::endl;
+    
+    // (AR) إذا كانت القيمة ثابتة، نحتاج تحميلها في سجل
+    // (EN) If value is constant, need to load it into a register
+    std::string matchValueReg = matchResult.registerName;
+    SIRType matchValueType = matchResult.type;
+    
+    if (matchResult.isConstant) {
+        matchValueReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(matchValueReg, matchResult.type);
+        SIROperand constOp;
+        if (matchResult.type == SIRType::STRING) {
+            constOp = SIROperand::ConstantString(matchResult.constantValue);
+        } else if (matchResult.type == SIRType::F64) {
+            constOp = SIROperand::ConstantF64(std::stod(matchResult.constantValue));
+        } else if (matchResult.type == SIRType::BOOL) {
+            constOp = SIROperand::ConstantBool(matchResult.constantValue == "true");
+        } else {
+            constOp = SIROperand::ConstantI64(std::stoll(matchResult.constantValue));
+        }
+        SIRInstruction moveInst(SIROpcode::MOVE);
+        moveInst.result = resultOp;
+        moveInst.operands = {constOp};
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(moveInst);
+        }
+    } else if (!matchResult.registerName.empty() && matchResult.registerName[0] == '%') {
+        // (AR) القيمة في عنوان alloca (متغير)، نحتاج لتحميلها
+        // (EN) Value is in alloca address (variable), need to LOAD it
+        std::string loadedReg = newTempRegister();
+        SIRInstruction loadInst;
+        loadInst.opcode = SIROpcode::LOAD;
+        loadInst.result = SIROperand::Register(loadedReg, matchValueType);
+        loadInst.operands.push_back(SIROperand::Register(matchValueReg, matchValueType));
+        if (currentBlock_) {
+            currentBlock_->addInstruction(loadInst);
+        }
+        matchValueReg = loadedReg;
+    }
+    
+    // ========================================================================
+    // (AR) الخطوة 2: إنشاء كتلة النهاية
+    // (EN) Step 2: Create merge block
+    // ========================================================================
+    std::string mergeLabel = newLabel("match.end");
+    auto mergeBlock = createBasicBlock(mergeLabel);
+    if (currentFunction_) {
+        currentFunction_->addBasicBlock(mergeBlock);
+    }
+    
+    // ========================================================================
+    // (AR) الخطوة 3: إنشاء كتل لكل case
+    // (EN) Step 3: Create blocks for each case
+    // ========================================================================
+    struct CaseBlockInfo {
+        std::string testLabel;
+        std::string bodyLabel;
+        std::string guardLabel;
+        std::shared_ptr<SIRBasicBlock> testBlock;
+        std::shared_ptr<SIRBasicBlock> bodyBlock;
+        std::shared_ptr<SIRBasicBlock> guardBlock;
+    };
+    
+    std::vector<CaseBlockInfo> caseBlocks;
+    
+    for (size_t i = 0; i < matchStmt->cases.size(); ++i) {
+        CaseBlockInfo info;
+        info.testLabel = newLabel("match.case" + std::to_string(i) + ".test");
+        info.bodyLabel = newLabel("match.case" + std::to_string(i) + ".body");
+        info.testBlock = createBasicBlock(info.testLabel);
+        info.bodyBlock = createBasicBlock(info.bodyLabel);
+        
+        if (currentFunction_) {
+            currentFunction_->addBasicBlock(info.testBlock);
+            currentFunction_->addBasicBlock(info.bodyBlock);
+        }
+        
+        // (AR) كتلة guard إن وُجد
+        // (EN) Guard block if exists
+        if (matchStmt->cases[i].guard) {
+            info.guardLabel = newLabel("match.case" + std::to_string(i) + ".guard");
+            info.guardBlock = createBasicBlock(info.guardLabel);
+            if (currentFunction_) {
+                currentFunction_->addBasicBlock(info.guardBlock);
+            }
+        }
+        
+        caseBlocks.push_back(std::move(info));
+    }
+    
+    // ========================================================================
+    // (AR) الخطوة 4: القفز للـ case الأول
+    // (EN) Step 4: Jump to first case
+    // ========================================================================
+    if (!caseBlocks.empty()) {
+        SIROperand firstLabel = SIROperand::Label(caseBlocks[0].testLabel);
+        SIRInstruction brFirst = SIRInstruction::Branch(firstLabel);
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(brFirst);
+        }
+    } else {
+        // (AR) لا يوجد cases، القفز مباشرة للنهاية
+        // (EN) No cases, jump directly to merge
+        SIROperand mergeLabelOp = SIROperand::Label(mergeLabel);
+        SIRInstruction brMerge = SIRInstruction::Branch(mergeLabelOp);
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(brMerge);
+        }
+        currentBlock_ = mergeBlock;
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) الخطوة 5: توليد كود كل case
+    // (EN) Step 5: Generate code for each case
+    // ========================================================================
+    for (size_t i = 0; i < matchStmt->cases.size(); ++i) {
+        const auto& caseClause = matchStmt->cases[i];
+        auto& info = caseBlocks[i];
+        
+        // (AR) تحديد الـ case التالي للقفز عند الفشل
+        // (EN) Determine next case to jump to on failure
+        std::string nextLabel = (i + 1 < caseBlocks.size()) 
+            ? caseBlocks[i + 1].testLabel 
+            : mergeLabel;
+        
+        // === كتلة الاختبار / Test block ===
+        currentBlock_ = info.testBlock;
+        
+        std::string condReg;
+        
+        if (caseClause.pattern) {
+            // (AR) تحديد نوع النمط وتوليد الاختبار المناسب
+            // (EN) Determine pattern type and generate appropriate test
+            
+            if (dynamic_cast<const Sad::AST::WildcardPattern*>(caseClause.pattern.get())) {
+                // (AR) النمط الشامل _ - دائماً true
+                // (EN) Wildcard _ - always true
+                condReg = newTempRegister();
+                SIROperand resultOp = SIROperand::Register(condReg, SIRType::BOOL);
+                SIROperand trueOp = SIROperand::ConstantBool(true);
+                SIRInstruction moveInst(SIROpcode::MOVE);
+                moveInst.result = resultOp;
+                moveInst.operands = {trueOp};
+                currentBlock_->instructions.push_back(moveInst);
+                
+                std::cout << "[DEBUG] buildMatchStatement: case " << i << " is WildcardPattern" << std::endl;
+            }
+            else if (auto* varPat = dynamic_cast<const Sad::AST::VariablePattern*>(caseClause.pattern.get())) {
+                // (AR) نمط متغير - دائماً true ويربط القيمة
+                // (EN) Variable pattern - always true and binds value
+                condReg = newTempRegister();
+                SIROperand resultOp = SIROperand::Register(condReg, SIRType::BOOL);
+                SIROperand trueOp = SIROperand::ConstantBool(true);
+                SIRInstruction moveInst(SIROpcode::MOVE);
+                moveInst.result = resultOp;
+                moveInst.operands = {trueOp};
+                currentBlock_->instructions.push_back(moveInst);
+                
+                // (AR) ربط المتغير: حجز + تخزين
+                // (EN) Bind variable: alloc + store
+                std::string varReg = newTempRegister();
+                
+                // (AR) إضافة المتغير إلى النطاق باسم النمط
+                // (EN) Add variable to scope with pattern name
+                VariableInfo varInfo;
+                varInfo.name = varPat->name;
+                varInfo.type = matchValueType;
+                varInfo.registerName = matchValueReg;
+                varInfo.isGlobal = false;
+                varInfo.isMutable = false;
+                varInfo.scopeLevel = currentScopeLevel_;
+                addVariable(varInfo);
+                
+                std::cout << "[DEBUG] buildMatchStatement: case " << i 
+                          << " is VariablePattern(" << varPat->name << ")" << std::endl;
+            }
+            else if (auto* litPat = dynamic_cast<const Sad::AST::LiteralPattern*>(caseClause.pattern.get())) {
+                // (AR) نمط قيمة حرفية - مقارنة EQ
+                // (EN) Literal pattern - EQ comparison
+                condReg = newTempRegister();
+                
+                // (AR) تحديد قيمة الثابت
+                // (EN) Determine constant value
+                std::string litValue;
+                SIRType litType = matchValueType;
+                
+                const auto& lit = litPat->literal;
+                if (lit.isInteger()) {
+                    litValue = std::to_string(lit.toInt());
+                    litType = SIRType::I64;
+                } else if (lit.getType() == Data::ValueType::DOUBLE) {
+                    litValue = std::to_string(lit.toDouble());
+                    litType = SIRType::F64;
+                } else if (lit.getType() == Data::ValueType::BOOLEAN) {
+                    litValue = lit.toBool() ? "true" : "false";
+                    litType = SIRType::BOOL;
+                } else if (lit.getType() == Data::ValueType::STRING) {
+                    litValue = lit.toString();
+                    litType = SIRType::STRING;
+                } else {
+                    litValue = "0";
+                    litType = SIRType::I64;
+                }
+                
+                // (AR) تحويل النوع ليطابق نوع القيمة المُطابقة
+                // (EN) Coerce literal type to match the match value type
+                if (matchValueType == SIRType::I64 && litType == SIRType::F64) {
+                    // (AR) تحويل من عشري إلى صحيح
+                    // (EN) Convert from float to integer
+                    litValue = std::to_string(static_cast<int64_t>(lit.toDouble()));
+                    litType = SIRType::I64;
+                } else if (matchValueType == SIRType::F64 && litType == SIRType::I64) {
+                    // (AR) تحويل من صحيح إلى عشري
+                    // (EN) Convert from integer to float
+                    litValue = std::to_string(static_cast<double>(lit.toInt()));
+                    litType = SIRType::F64;
+                }
+                
+                // (AR) تحميل الثابت في سجل
+                // (EN) Load constant into register
+                std::string litReg = newTempRegister();
+                SIROperand litResultOp = SIROperand::Register(litReg, litType);
+                SIROperand litConstOp;
+                if (litType == SIRType::STRING) {
+                    litConstOp = SIROperand::ConstantString(litValue);
+                } else if (litType == SIRType::F64) {
+                    litConstOp = SIROperand::ConstantF64(std::stod(litValue));
+                } else if (litType == SIRType::BOOL) {
+                    litConstOp = SIROperand::ConstantBool(litValue == "true");
+                } else {
+                    litConstOp = SIROperand::ConstantI64(std::stoll(litValue));
+                }
+                SIRInstruction moveLit(SIROpcode::MOVE);
+                moveLit.result = litResultOp;
+                moveLit.operands = {litConstOp};
+                currentBlock_->instructions.push_back(moveLit);
+                
+                // (AR) مقارنة القيمتين
+                // (EN) Compare values
+                SIROperand matchOp = SIROperand::Register(matchValueReg, matchValueType);
+                SIROperand cmpLitOp = SIROperand::Register(litReg, litType);
+                SIROperand cmpResultOp = SIROperand::Register(condReg, SIRType::BOOL);
+                SIRInstruction cmpInst = SIRInstruction::Binary(SIROpcode::EQ, cmpResultOp, matchOp, cmpLitOp);
+                currentBlock_->instructions.push_back(cmpInst);
+                
+                std::cout << "[DEBUG] buildMatchStatement: case " << i 
+                          << " is LiteralPattern(" << litValue << ")" << std::endl;
+            }
+            else if (auto* orPat = dynamic_cast<const Sad::AST::OrPattern*>(caseClause.pattern.get())) {
+                // (AR) نمط OR - سلسلة مقارنات مع OR
+                // (EN) OR pattern - chain comparisons with OR
+                condReg = newTempRegister();
+                
+                // (AR) بدء بـ false
+                // (EN) Start with false
+                std::string accumReg = newTempRegister();
+                SIROperand accResultOp = SIROperand::Register(accumReg, SIRType::BOOL);
+                SIROperand falseOp = SIROperand::ConstantBool(false);
+                SIRInstruction moveInit(SIROpcode::MOVE);
+                moveInit.result = accResultOp;
+                moveInit.operands = {falseOp};
+                currentBlock_->instructions.push_back(moveInit);
+                
+                for (const auto& alt : orPat->alternatives) {
+                    if (auto* altLit = dynamic_cast<const Sad::AST::LiteralPattern*>(alt.get())) {
+                        // (AR) مقارنة مع كل بديل
+                        // (EN) Compare with each alternative
+                        std::string altLitValue;
+                        SIRType altLitType = matchValueType;
+                        
+                        const auto& altVal = altLit->literal;
+                        if (altVal.isInteger()) {
+                            altLitValue = std::to_string(altVal.toInt());
+                            altLitType = SIRType::I64;
+                        } else if (altVal.getType() == Data::ValueType::DOUBLE) {
+                            altLitType = SIRType::F64;
+                            altLitValue = std::to_string(altVal.toDouble());
+                        } else if (altVal.getType() == Data::ValueType::BOOLEAN) {
+                            altLitValue = altVal.toBool() ? "true" : "false";
+                            altLitType = SIRType::BOOL;
+                        } else if (altVal.getType() == Data::ValueType::STRING) {
+                            altLitValue = altVal.toString();
+                            altLitType = SIRType::STRING;
+                        } else {
+                            altLitValue = altVal.toString();
+                        }
+                        
+                        // (AR) تحويل النوع ليطابق نوع القيمة المُطابقة
+                        // (EN) Coerce type to match the match value type
+                        if (matchValueType == SIRType::I64 && altLitType == SIRType::F64) {
+                            altLitValue = std::to_string(static_cast<int64_t>(altVal.toDouble()));
+                            altLitType = SIRType::I64;
+                        } else if (matchValueType == SIRType::F64 && altLitType == SIRType::I64) {
+                            altLitValue = std::to_string(static_cast<double>(altVal.toInt()));
+                            altLitType = SIRType::F64;
+                        }
+                        
+                        std::string altReg = newTempRegister();
+                        SIROperand altResultOp = SIROperand::Register(altReg, altLitType);
+                        SIROperand altConstOp;
+                        if (altLitType == SIRType::STRING) {
+                            altConstOp = SIROperand::ConstantString(altLitValue);
+                        } else if (altLitType == SIRType::F64) {
+                            altConstOp = SIROperand::ConstantF64(std::stod(altLitValue));
+                        } else if (altLitType == SIRType::BOOL) {
+                            altConstOp = SIROperand::ConstantBool(altLitValue == "true");
+                        } else {
+                            altConstOp = SIROperand::ConstantI64(std::stoll(altLitValue));
+                        }
+                        SIRInstruction moveAlt(SIROpcode::MOVE);
+                        moveAlt.result = altResultOp;
+                        moveAlt.operands = {altConstOp};
+                        currentBlock_->instructions.push_back(moveAlt);
+                        
+                        std::string cmpAltReg = newTempRegister();
+                        SIROperand matchOp = SIROperand::Register(matchValueReg, matchValueType);
+                        SIROperand cmpAltOp = SIROperand::Register(altReg, altLitType);
+                        SIROperand cmpAltResultOp = SIROperand::Register(cmpAltReg, SIRType::BOOL);
+                        SIRInstruction cmpAlt = SIRInstruction::Binary(SIROpcode::EQ, cmpAltResultOp, matchOp, cmpAltOp);
+                        currentBlock_->instructions.push_back(cmpAlt);
+                        
+                        // (AR) دمج مع النتيجة المتراكمة
+                        // (EN) OR with accumulated result
+                        std::string newAccumReg = newTempRegister();
+                        SIROperand prevAccOp = SIROperand::Register(accumReg, SIRType::BOOL);
+                        SIROperand cmpResOp = SIROperand::Register(cmpAltReg, SIRType::BOOL);
+                        SIROperand newAccResultOp = SIROperand::Register(newAccumReg, SIRType::BOOL);
+                        SIRInstruction orInst = SIRInstruction::Binary(SIROpcode::OR, newAccResultOp, prevAccOp, cmpResOp);
+                        currentBlock_->instructions.push_back(orInst);
+                        
+                        accumReg = newAccumReg;
+                    }
+                }
+                
+                // (AR) نقل النتيجة النهائية إلى condReg
+                // (EN) Move final result to condReg
+                SIROperand finalResultOp = SIROperand::Register(condReg, SIRType::BOOL);
+                SIROperand finalAccOp = SIROperand::Register(accumReg, SIRType::BOOL);
+                SIRInstruction moveFinal(SIROpcode::MOVE);
+                moveFinal.result = finalResultOp;
+                moveFinal.operands = {finalAccOp};
+                currentBlock_->instructions.push_back(moveFinal);
+                
+                std::cout << "[DEBUG] buildMatchStatement: case " << i << " is OrPattern" << std::endl;
+            }
+            else {
+                // (AR) نمط غير معروف - نعتبره true (يطابق أي شيء)
+                // (EN) Unknown pattern - treat as true (matches anything)
+                condReg = newTempRegister();
+                SIROperand resultOp = SIROperand::Register(condReg, SIRType::BOOL);
+                SIROperand trueOp = SIROperand::ConstantBool(true);
+                SIRInstruction moveInst(SIROpcode::MOVE);
+                moveInst.result = resultOp;
+                moveInst.operands = {trueOp};
+                currentBlock_->instructions.push_back(moveInst);
+                
+                std::cout << "[DEBUG] buildMatchStatement: case " << i << " is unknown pattern" << std::endl;
+            }
+        }   // end if (caseClause.pattern)
+        
+        // === التفريع / Branching ===
+        if (caseClause.guard && !info.guardLabel.empty()) {
+            // (AR) القفز إلى كتلة guard عند نجاح الاختبار
+            // (EN) Jump to guard block on test success
+            SIROperand condOp = SIROperand::Register(condReg, SIRType::BOOL);
+            SIROperand guardLabelOp = SIROperand::Label(info.guardLabel);
+            SIROperand nextLabelOp = SIROperand::Label(nextLabel);
+            SIRInstruction brCond = SIRInstruction::BranchCond(condOp, guardLabelOp, nextLabelOp);
+            currentBlock_->instructions.push_back(brCond);
+            
+            // === كتلة guard / Guard block ===
+            currentBlock_ = info.guardBlock;
+            enterScope();
+            
+            // (AR) ربط المتغيرات من النمط قبل تقييم الشرط
+            // (EN) Bind pattern variables before evaluating guard
+            if (auto* varPat = dynamic_cast<const Sad::AST::VariablePattern*>(caseClause.pattern.get())) {
+                VariableInfo guardVar;
+                guardVar.name = varPat->name;
+                guardVar.type = matchValueType;
+                guardVar.registerName = matchValueReg;
+                guardVar.isGlobal = false;
+                guardVar.isMutable = false;
+                guardVar.scopeLevel = currentScopeLevel_;
+                addVariable(guardVar);
+            }
+            
+            auto guardResult = buildExpression(caseClause.guard.get());
+            
+            std::string guardCondReg = guardResult.registerName;
+            if (guardResult.isConstant) {
+                guardCondReg = newTempRegister();
+                SIROperand gResultOp = SIROperand::Register(guardCondReg, guardResult.type);
+                SIROperand gConstOp;
+                if (guardResult.type == SIRType::BOOL) {
+                    gConstOp = SIROperand::ConstantBool(guardResult.constantValue == "true");
+                } else if (guardResult.type == SIRType::I64) {
+                    gConstOp = SIROperand::ConstantI64(std::stoll(guardResult.constantValue));
+                } else {
+                    gConstOp = SIROperand::ConstantI64(guardResult.constantValue == "true" ? 1 : 0);
+                }
+                SIRInstruction moveG(SIROpcode::MOVE);
+                moveG.result = gResultOp;
+                moveG.operands = {gConstOp};
+                currentBlock_->instructions.push_back(moveG);
+            }
+            
+            SIROperand guardCondOp = SIROperand::Register(guardCondReg, SIRType::BOOL);
+            SIROperand bodyLabelOp = SIROperand::Label(info.bodyLabel);
+            SIROperand nextLabelOp2 = SIROperand::Label(nextLabel);
+            SIRInstruction brGuard = SIRInstruction::BranchCond(guardCondOp, bodyLabelOp, nextLabelOp2);
+            currentBlock_->instructions.push_back(brGuard);
+            
+            exitScope();
+        } else {
+            // (AR) بدون guard: القفز مباشرة إلى الجسم أو التالي
+            // (EN) No guard: jump directly to body or next
+            SIROperand condOp = SIROperand::Register(condReg, SIRType::BOOL);
+            SIROperand bodyLabelOp = SIROperand::Label(info.bodyLabel);
+            SIROperand nextLabelOp = SIROperand::Label(nextLabel);
+            SIRInstruction brCond = SIRInstruction::BranchCond(condOp, bodyLabelOp, nextLabelOp);
+            currentBlock_->instructions.push_back(brCond);
+        }
+        
+        // === كتلة الجسم / Body block ===
+        currentBlock_ = info.bodyBlock;
+        enterScope();
+        
+        // (AR) ربط المتغيرات من النمط في الجسم
+        // (EN) Bind pattern variables in body scope
+        if (auto* varPat = dynamic_cast<const Sad::AST::VariablePattern*>(caseClause.pattern.get())) {
+            VariableInfo bodyVar;
+            bodyVar.name = varPat->name;
+            bodyVar.type = matchValueType;
+            bodyVar.registerName = matchValueReg;
+            bodyVar.isGlobal = false;
+            bodyVar.isMutable = false;
+            bodyVar.scopeLevel = currentScopeLevel_;
+            addVariable(bodyVar);
+        }
+        
+        // (AR) تنفيذ جسم الحالة
+        // (EN) Execute case body
+        for (auto& bodyStmt : caseClause.body) {
+            buildStatement(bodyStmt.get());
+        }
+        
+        exitScope();
+        
+        // (AR) قفز غير مشروط إلى كتلة النهاية
+        // (EN) Unconditional jump to merge block
+        SIROperand mergeLabelOp = SIROperand::Label(mergeLabel);
+        SIRInstruction brMerge = SIRInstruction::Branch(mergeLabelOp);
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(brMerge);
+        }
+        
+        std::cout << "[DEBUG] buildMatchStatement: generated case " << i << std::endl;
+    }   // end for each case
+    
+    // ========================================================================
+    // (AR) الخطوة 6: الاستمرار بعد match
+    // (EN) Step 6: Continue after match statement
+    // ========================================================================
+    currentBlock_ = mergeBlock;
+    std::cout << "[DEBUG] buildMatchStatement: completed" << std::endl;
 }
 
 // ============================================================================
@@ -1196,12 +2153,26 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
     // ========================================================================
     // (AR) الخطوة 6: قفز للعودة إلى كتلة الشرط
     // (EN) Step 6: Jump back to condition block
+    // (AR) لا نضيف القفز إذا كان الجسم قد انتهى بـ RET أو BR أو BR_COND
+    // (EN) Don't add branch if the body already ends with RET or BR or BR_COND
     // ========================================================================
     SIRInstruction brBackInst = SIRInstruction::Branch(condLabelOp);
     
-    if (currentBlock_) {
+    if (currentBlock_ && !currentBlock_->instructions.empty()) {
+        const auto& lastInst = currentBlock_->instructions.back();
+        bool hasTerminator = (lastInst.opcode == SIROpcode::RET || 
+                             lastInst.opcode == SIROpcode::RET_VOID ||
+                             lastInst.opcode == SIROpcode::BR ||
+                             lastInst.opcode == SIROpcode::BR_COND);
+        if (!hasTerminator) {
+            currentBlock_->instructions.push_back(brBackInst);
+            std::cout << "[DEBUG] buildWhileLoop: added BR back to condition" << std::endl;
+        } else {
+            std::cout << "[DEBUG] buildWhileLoop: body block already has terminator, skipping BR" << std::endl;
+        }
+    } else if (currentBlock_) {
         currentBlock_->instructions.push_back(brBackInst);
-        std::cout << "[DEBUG] buildWhileLoop: added BR back to condition" << std::endl;
+        std::cout << "[DEBUG] buildWhileLoop: added BR back to condition (empty block)" << std::endl;
     }
     
     // ========================================================================
@@ -1820,6 +2791,34 @@ VariableInfo* SIRBuilder::lookupVariable(const std::string& name) {
         }
     }
     
+    // =====================================================================
+    // (AR) البحث في المتغيرات العامة على مستوى الوحدة
+    // (EN) Fallback: search in module-level global variables
+    // عندما لا يُعثر على المتغير في النطاقات المحلية، نبحث في الوحدة
+    // When not found in local scopes, search in module globals
+    // =====================================================================
+    if (module_) {
+        auto globalVar = module_->getGlobalVariable(name);
+        if (globalVar) {
+            // (AR) إنشاء VariableInfo للمتغير العام وتخزينه في أول نطاق
+            // (EN) Create VariableInfo for global var and cache in first scope
+            VariableInfo globalInfo;
+            globalInfo.name = name;
+            globalInfo.type = globalVar->getType();
+            globalInfo.registerName = name;  // use same name as LLVM global
+            globalInfo.isGlobal = true;
+            globalInfo.isMutable = !globalVar->getIsConstant();
+            globalInfo.scopeLevel = 0;
+            
+            // (AR) تخزين في أقدم نطاق للبحث السريع لاحقاً
+            // (EN) Cache in oldest scope for fast future lookups
+            if (!scopeStack_.empty()) {
+                scopeStack_.front()[name] = globalInfo;
+                return &scopeStack_.front()[name];
+            }
+        }
+    }
+    
     // (AR) لم يُعثر على المتغير
     // (EN) Variable not found
     return nullptr;
@@ -2003,10 +3002,61 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         return buildNewObject(newExpr);
     }
     
+    // (AR) MemberExpr - الوصول لعضو في كائن (expressions.h:406)
+    // (EN) Member access via MemberExpr (from parser)
+    if (auto memberExpr = dynamic_cast<Sad::AST::MemberExpr*>(expr)) {
+        std::cout << "[DEBUG] buildExpression: found MemberExpr for member '"
+                  << memberExpr->member << "'" << std::endl;
+        
+        // (AR) الخطوة 1: بناء تعبير الكائن
+        // (EN) Step 1: Build object expression
+        auto objResult = buildExpression(memberExpr->object.get());
+        
+        // (AR) الخطوة 2: إنشاء تعليمة الوصول للعضو
+        // (EN) Step 2: Create member access instruction
+        std::string resultReg = newTempRegister();
+        
+        if (currentBlock_) {
+            SIRInstruction loadInst;
+            loadInst.opcode = SIROpcode::LOAD;
+            loadInst.result = SIROperand::Register(resultReg, SIRType::I64);
+            
+            // (AR) المعامل الأول: الكائن
+            // (EN) First operand: object
+            loadInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+            
+            // (AR) المعامل الثاني: اسم العضو
+            // (EN) Second operand: member name
+            loadInst.operands.push_back(SIROperand::ConstantString(memberExpr->member));
+            
+            currentBlock_->addInstruction(loadInst);
+        }
+        
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
     // (AR) MemberAccessExpr - الوصول لعضو في كائن (class_nodes.h:206)
     // (EN) Member access
     if (auto memberExpr = dynamic_cast<Sad::AST::MemberAccessExpr*>(expr)) {
         return buildMemberAccess(memberExpr);
+    }
+    
+    // (AR) MethodCallExpr - استدعاء طريقة على كائن (class_nodes.h:245)
+    // (EN) Method call on object
+    if (auto methodCallExpr = dynamic_cast<Sad::AST::MethodCallExpr*>(expr)) {
+        return buildMethodCall(methodCallExpr);
+    }
+    
+    // (AR) ThisExpr - مرجع ذاتي 'هذا' (class_nodes.h:288)
+    // (EN) This/self reference
+    if (auto thisExpr = dynamic_cast<Sad::AST::ThisExpr*>(expr)) {
+        // (AR) 'هذا' يشير إلى self في سياق الصنف
+        // (EN) 'this' refers to self in class context
+        VariableInfo* selfInfo = lookupVariable("self");
+        if (selfInfo) {
+            return BuildResult(selfInfo->registerName, selfInfo->type);
+        }
+        return BuildResult("%self", SIRType::I64);
     }
     
     // (AR) تعبير غير معروف - نرجع قيمة افتراضية
@@ -2068,6 +3118,23 @@ BuildResult SIRBuilder::buildLiteral(AST::LiteralNode* literal) {
     
     if (tokenType == Lexer::TokenType::NUMBER_INTEGER) {
         result.type = SIRType::I64;
+        // (AR) تحويل الأعداد الست عشرية/الثمانية/الثنائية إلى عشرية
+        //      لأن std::stoll() الافتراضي يستخدم أساس 10 فقط
+        // (EN) Normalize hex/octal/binary literals to decimal strings
+        //      because downstream std::stoll() uses base 10 by default
+        if (value.size() > 2 && value[0] == '0') {
+            char prefix = value[1];
+            if (prefix == 'x' || prefix == 'X') {
+                // Hex: 0x3F8 → "1016", 0xFFFF800000000000 → "-140737488355328"
+                result.constantValue = std::to_string(static_cast<int64_t>(std::stoull(value, nullptr, 16)));
+            } else if (prefix == 'o' || prefix == 'O') {
+                // Octal: 0o755 → "493"
+                result.constantValue = std::to_string(static_cast<int64_t>(std::stoull(value.substr(2), nullptr, 8)));
+            } else if (prefix == 'b' || prefix == 'B') {
+                // Binary: 0b1010 → "10"
+                result.constantValue = std::to_string(static_cast<int64_t>(std::stoull(value.substr(2), nullptr, 2)));
+            }
+        }
     }
     else if (tokenType == Lexer::TokenType::NUMBER_DOUBLE) {
         result.type = SIRType::F64;
@@ -2631,9 +3698,17 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     // (EN) Step 2.5: Check for builtin functions
     // ========================================================================
     
+    // ========================================================================
+    // (AR) إصلاح: تحقق أولاً إذا كانت الدالة معرّفة من المستخدم
+    // (EN) Fix: First check if function is user-defined before checking builtins
+    // هذا يمنع الدوال المضمنة من التداخل مع دوال المستخدم التي تحمل نفس الاسم
+    // This prevents builtins from shadowing user-defined functions with same name
+    // ========================================================================
+    bool isUserDefinedFunction = (functionTable_.find(funcName) != functionTable_.end());
+    
     // (AR) دالة طول() - STRING_LEN للنصوص، ARRAY_LEN للمصفوفات
     // (EN) length() function - STRING_LEN for strings, ARRAY_LEN for arrays
-    if (funcName == "طول" || funcName == "length") {
+    if (!isUserDefinedFunction && (funcName == "طول" || funcName == "length")) {
         if (argResults.size() != 1) {
             errors_.push_back("Error: طول() requires exactly 1 argument");
             return BuildResult();
@@ -3059,6 +4134,23 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_STRING_LENGTH);
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // 1b. رمز_حرف / char_at - get character at index
+    if (funcName == "رمز_حرف" || funcName == "char_at" || funcName == "charAt") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة رمز_حرف تتطلب معاملين (نص, فهرس)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_STRING_CHAR_AT);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);  // string
+        inst.operands.push_back(argOperands[1]);  // index
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
         return BuildResult(resultReg, SIRType::I64);
@@ -3826,7 +4918,7 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     // 1. تسلسلي_هيئ(منفذ، سرعة) — تهيئة منفذ تسلسلي
     //    serial_init(port, baud_rate) — initialize serial port
     // ──────────────────────────────────────────────
-    if (funcName == "تسلسلي_هيئ" || funcName == "serial_init") {
+    if (!isUserDefinedFunction && (funcName == "تسلسلي_هيئ" || funcName == "serial_init")) {
         if (argResults.size() < 2) {
             std::cerr << "[خطأ] دالة تسلسلي_هيئ تتطلب 2 معاملات: منفذ، سرعة" << std::endl;
             return BuildResult("", SIRType::VOID);
@@ -3842,7 +4934,7 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     // 2. تسلسلي_ارسل(منفذ، بايت) — إرسال بايت عبر التسلسلي
     //    serial_send(port, byte) — send byte via serial
     // ──────────────────────────────────────────────
-    if (funcName == "تسلسلي_ارسل" || funcName == "serial_send" || funcName == "serial_write") {
+    if (!isUserDefinedFunction && (funcName == "تسلسلي_ارسل" || funcName == "serial_send" || funcName == "serial_write")) {
         if (argResults.size() < 2) {
             std::cerr << "[خطأ] دالة تسلسلي_ارسل تتطلب 2 معاملات: منفذ، بايت" << std::endl;
             return BuildResult("", SIRType::VOID);
@@ -3858,7 +4950,7 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     // 3. تسلسلي_استقبل(منفذ) — استقبال بايت من التسلسلي
     //    serial_receive(port) — receive byte from serial
     // ──────────────────────────────────────────────
-    if (funcName == "تسلسلي_استقبل" || funcName == "serial_receive" || funcName == "serial_read") {
+    if (!isUserDefinedFunction && (funcName == "تسلسلي_استقبل" || funcName == "serial_receive" || funcName == "serial_read")) {
         if (argResults.empty()) {
             std::cerr << "[خطأ] دالة تسلسلي_استقبل تتطلب معامل: منفذ" << std::endl;
             return BuildResult("", SIRType::I64);
@@ -3877,7 +4969,7 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     // 4. تسلسلي_جاهز(منفذ) — فحص جاهزية البيانات
     //    serial_ready(port) — check if data available
     // ──────────────────────────────────────────────
-    if (funcName == "تسلسلي_جاهز" || funcName == "serial_ready") {
+    if (!isUserDefinedFunction && (funcName == "تسلسلي_جاهز" || funcName == "serial_ready")) {
         if (argResults.empty()) {
             std::cerr << "[خطأ] دالة تسلسلي_جاهز تتطلب معامل: منفذ" << std::endl;
             return BuildResult("", SIRType::BOOL);
@@ -5101,7 +6193,7 @@ BuildResult SIRBuilder::buildNewObject(AST::NewExpr* newExpr) {
     if (currentBlock_) {
         SIRInstruction allocInst;
         allocInst.opcode = SIROpcode::ALLOC;
-        allocInst.result = SIROperand::Register(objReg, SIRType::PTR);
+        allocInst.result = SIROperand::Register(objReg, SIRType::I64);
         // (AR) إضافة اسم الصنف كـ metadata
         // (EN) Add class name as metadata
         allocInst.operands.push_back(SIROperand::ConstantString(newExpr->className));
@@ -5111,7 +6203,7 @@ BuildResult SIRBuilder::buildNewObject(AST::NewExpr* newExpr) {
     // (AR) الخطوة 3: استدعاء دالة البناء (constructor) إن وجدت
     // (EN) Step 3: Call constructor if exists
     std::string constructorName = newExpr->className + ".بناء";
-    auto constructor = sirClass->getMethod("بناء");
+    auto constructor = sirClass->getMethod(constructorName);
     
     if (constructor || !newExpr->arguments.empty()) {
         // (AR) بناء معاملات البناء
@@ -5120,7 +6212,7 @@ BuildResult SIRBuilder::buildNewObject(AST::NewExpr* newExpr) {
         
         // (AR) المعامل الأول هو الكائن نفسه (self)
         // (EN) First argument is the object itself (self)
-        args.push_back(SIROperand::Register(objReg, SIRType::PTR));
+        args.push_back(SIROperand::Register(objReg, SIRType::I64));
         
         // (AR) باقي المعاملات
         // (EN) Rest of arguments
@@ -5165,7 +6257,7 @@ BuildResult SIRBuilder::buildNewObject(AST::NewExpr* newExpr) {
     
     // (AR) إرجاع مؤشر للكائن
     // (EN) Return pointer to object
-    return BuildResult(objReg, SIRType::PTR);
+    return BuildResult(objReg, SIRType::I64);
 }
 
 // ============================================================================
@@ -5216,6 +6308,120 @@ BuildResult SIRBuilder::buildMemberAccess(AST::MemberAccessExpr* memberExpr) {
     std::cout << "[DEBUG] buildMemberAccess: result in register '" << resultReg << "'" << std::endl;
     
     return BuildResult(resultReg, SIRType::I64);  // نوع افتراضي
+}
+
+// ============================================================================
+// buildMethodCall - بناء استدعاء طريقة على كائن
+// ============================================================================
+// مصدر التعريف / Source: class_nodes.h:245
+// التوقيع / Signature: BuildResult buildMethodCall(AST::MethodCallExpr* methodCallExpr);
+//
+// MethodCallExpr Members:
+// - object: std::unique_ptr<Expr> (line 247)
+// - methodName: std::string (line 248)
+// - arguments: std::vector<std::unique_ptr<Expr>> (line 249)
+// ============================================================================
+BuildResult SIRBuilder::buildMethodCall(AST::MethodCallExpr* methodCallExpr) {
+    if (!methodCallExpr) {
+        return BuildResult();
+    }
+    
+    std::cout << "[DEBUG] buildMethodCall: calling method '" 
+              << methodCallExpr->methodName << "'" << std::endl;
+    
+    // (AR) الخطوة 1: بناء تعبير الكائن
+    // (EN) Step 1: Build object expression
+    auto objResult = buildExpression(methodCallExpr->object.get());
+    
+    // (AR) الخطوة 2: تحديد اسم الصنف من المتغير
+    // (EN) Step 2: Determine class name from variable
+    std::string className;
+    
+    // (AR) نحاول إيجاد اسم الصنف من VariableExpr
+    // (EN) Try to find class name from VariableExpr
+    if (auto varExpr = dynamic_cast<Sad::AST::VariableExpr*>(methodCallExpr->object.get())) {
+        // (AR) البحث عن معلومات المتغير في classInstanceTypes_
+        // (EN) Look up variable info in classInstanceTypes_
+        if (classInstanceTypes_.find(varExpr->name) != classInstanceTypes_.end()) {
+            className = classInstanceTypes_[varExpr->name];
+        }
+    }
+    
+    // (AR) إذا 'هذا' (this), استخدم currentClassName_
+    // (EN) If 'this', use currentClassName_
+    if (auto thisExpr = dynamic_cast<Sad::AST::ThisExpr*>(methodCallExpr->object.get())) {
+        className = currentClassName_;
+    }
+    
+    // (AR) إذا لم نجد اسم الصنف، نحاول من الصنف الحالي
+    // (EN) If class name not found, try current class
+    if (className.empty() && !currentClassName_.empty()) {
+        className = currentClassName_;
+    }
+    
+    // (AR) البحث عن الطريقة في جدول الدوال
+    // (EN) Look up method in function table
+    std::string fullMethodName = className + "." + methodCallExpr->methodName;
+    
+    std::cout << "[DEBUG] buildMethodCall: full method name = '" << fullMethodName << "'" << std::endl;
+    
+    // (AR) تحديد نوع الإرجاع
+    // (EN) Determine return type
+    SIRType returnType = SIRType::VOID;
+    if (functionTable_.find(fullMethodName) != functionTable_.end()) {
+        returnType = functionTable_[fullMethodName].returnType;
+    }
+    
+    // (AR) الخطوة 3: بناء المعاملات
+    // (EN) Step 3: Build arguments
+    std::vector<SIROperand> args;
+    
+    // (AR) المعامل الأول: self (مؤشر الكائن)
+    // (EN) First argument: self (object pointer)
+    args.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+    
+    // (AR) باقي المعاملات
+    // (EN) Rest of arguments
+    for (const auto& arg : methodCallExpr->arguments) {
+        auto argResult = buildExpression(arg.get());
+        if (argResult.isConstant && !argResult.constantValue.empty()) {
+            switch (argResult.type) {
+                case SIRType::I64:
+                    args.push_back(SIROperand::ConstantI64(std::stoll(argResult.constantValue)));
+                    break;
+                case SIRType::F64:
+                    args.push_back(SIROperand::ConstantF64(std::stod(argResult.constantValue)));
+                    break;
+                case SIRType::STRING:
+                    args.push_back(SIROperand::ConstantString(argResult.constantValue));
+                    break;
+                default:
+                    args.push_back(SIROperand::Register(argResult.registerName, argResult.type));
+                    break;
+            }
+        } else {
+            args.push_back(SIROperand::Register(argResult.registerName, argResult.type));
+        }
+    }
+    
+    // (AR) الخطوة 4: إنشاء تعليمة CALL
+    // (EN) Step 4: Create CALL instruction
+    std::string resultReg = newTempRegister();
+    
+    if (currentBlock_) {
+        SIRInstruction callInst;
+        callInst.opcode = SIROpcode::CALL;
+        callInst.result = SIROperand::Register(resultReg, returnType);
+        callInst.operands.push_back(SIROperand::Function(fullMethodName));
+        for (const auto& arg : args) {
+            callInst.operands.push_back(arg);
+        }
+        currentBlock_->addInstruction(callInst);
+    }
+    
+    std::cout << "[DEBUG] buildMethodCall: result in register '" << resultReg << "'" << std::endl;
+    
+    return BuildResult(resultReg, returnType);
 }
 
 // ============================================================================
@@ -5463,9 +6669,18 @@ void SIRBuilder::setCurrentFilePath(const std::string& filePath) {
         // (AR) إضافة مجلد الملف الحالي كمسار بحث
         // (EN) Add current file's directory as search path
         if (!filePath.empty()) {
-            auto parentDir = std::filesystem::path(filePath).parent_path();
-            if (!parentDir.empty() && std::filesystem::exists(parentDir)) {
-                moduleResolver_->addSearchPath(parentDir.string());
+            try {
+                auto fsPath = sad::utf8::make_path(filePath);
+                auto parentDir = fsPath.parent_path();
+                if (!parentDir.empty() && std::filesystem::exists(parentDir)) {
+                    // (AR) نستخدم filesystem::path مباشرة لتجنب مشاكل ترميز UTF-8 مع ANSI
+                    // (EN) Push filesystem::path directly to avoid UTF-8/ANSI encoding issues
+                    moduleResolver_->addSearchPathDirect(parentDir);
+                }
+            } catch (const std::exception& e) {
+                // (AR) تجاهل الأخطاء - مسارات البحث الافتراضية كافية
+                // (EN) Ignore errors - default search paths are sufficient
+                (void)e;
             }
         }
     }

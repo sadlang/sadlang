@@ -21,6 +21,7 @@ class TernaryExpr;        // (AR) التعبير الثلاثي / (EN) Ternary e
 class LiteralExpr;
 class VariableExpr;
 class AssignExpr;
+class BorrowExpr;         // (AR) تعبير الاستعارة / (EN) Borrow expression
 class CallExpr;
 class IndexExpr;
 class MemberExpr;
@@ -34,6 +35,7 @@ class DictComprehensionExpr;
 class SetComprehensionExpr;
 class GeneratorExpr;
 class DecoratorExpr;
+class InlineAsmExpr;      // (AR) تعبير التجميع المضمّن / (EN) Inline assembly expression
 
 // OOP Expression nodes / عُقد تعابير OOP
 class NewExpr;
@@ -174,6 +176,14 @@ public:
      * Examples: x, counter, اسم, العمر
      */
     virtual void visitVariableExpr(VariableExpr& expr) = 0;
+    
+    /**
+     * @brief Visit borrow expression node / زيارة عقدة تعبير الاستعارة
+     * @param expr Borrow expression node (e.g., &x, &متغير x)
+     * 
+     * Examples: &x, &mut counter, &اسم
+     */
+    virtual void visitBorrowExpr(BorrowExpr& expr) = 0;
     
     /**
      * @brief Visit assignment expression node / زيارة عقدة تعبير الإسناد
@@ -318,6 +328,17 @@ public:
      * (EN) Decorators apply to functions and classes to modify their behavior
      */
     virtual void visitDecoratorExpr(DecoratorExpr& expr) = 0;
+    
+    /**
+     * @brief (AR) زيارة عقدة التجميع المضمّن — ضرورية لبرمجة أنظمة التشغيل
+     * @brief (EN) Visit inline assembly node — essential for OS development
+     * 
+     * (AR) التجميع المضمّن يسمح بكتابة أوامر المعالج مباشرة في كود لغة ص.
+     *      يُستخدم في: تعطيل المقاطعات، قراءة/كتابة المنافذ، تبديل السياق
+     * (EN) Inline asm allows writing CPU instructions directly in Sad code.
+     *      Used for: disabling interrupts, port I/O, context switching
+     */
+    virtual void visitInlineAsmExpr(InlineAsmExpr& expr) = 0;
     
     // =====================================================================
     // OOP Expression visitors / زوار تعابير OOP
@@ -735,6 +756,7 @@ public:
     void visitTernaryExpr(TernaryExpr& expr) override {}
     void visitLiteralExpr(LiteralExpr& expr) override {}
     void visitVariableExpr(VariableExpr& expr) override {}
+    void visitBorrowExpr(BorrowExpr& expr) override {}
     void visitAssignExpr(AssignExpr& expr) override {}
     void visitCallExpr(CallExpr& expr) override {}
     void visitIndexExpr(IndexExpr& expr) override {}
@@ -750,6 +772,7 @@ public:
     void visitSetComprehensionExpr(SetComprehensionExpr& expr) override {}
     void visitGeneratorExpr(GeneratorExpr& expr) override {}
     void visitDecoratorExpr(DecoratorExpr& expr) override {}
+    void visitInlineAsmExpr(InlineAsmExpr& expr) override {}
     
     // OOP Expression visitors / زوار تعابير OOP
     void visitNewExpr(NewExpr& expr) override {}

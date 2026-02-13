@@ -237,6 +237,7 @@ enum class SIROpcode {
     
     // String functions (12)
     BUILTIN_STRING_LENGTH,   ///< طول_نص / String length
+    BUILTIN_STRING_CHAR_AT,  ///< رمز_حرف / Char at index
     BUILTIN_STRING_TO_UPPER, ///< تحويل_كبير / To uppercase
     BUILTIN_STRING_TO_LOWER, ///< تحويل_صغير / To lowercase
     BUILTIN_STRING_FIND,     ///< بحث / Find substring

@@ -6,6 +6,7 @@
  */
 
 #include "llvm_linker.h"
+#include "llvm_bare_metal_linker.h"
 #include "toolchain_detection.h"
 #include <iostream>
 #include <fstream>
@@ -230,6 +231,37 @@ bool LLVMLinker::link(const LinkingOptions& options) {
     LinkingOptions opts = options;
     if (!opts.no_default_libs) {
         addDefaultLibraries(opts);
+    }
+    
+    // === فحص هدف bare-metal / Check for bare-metal target ===
+    if (LLVMBareMetalLinker::isBareMetalTriple(target_triple_) || opts.no_stdlib) {
+        // استخدام رابط bare-metal / Use bare-metal linker
+        LLVMBareMetalLinker bmLinker;
+        bmLinker.initialize(target_triple_);
+        bmLinker.setOutputFile(opts.output_file);
+        bmLinker.setVerbose(opts.verbose);
+        bmLinker.setStripSymbols(opts.strip_symbols);
+        bmLinker.setGenerateMap(opts.generate_map);
+        
+        if (!opts.entry_point.empty()) {
+            bmLinker.setEntryPoint(opts.entry_point);
+        }
+        
+        for (const auto& obj : opts.object_files) {
+            bmLinker.addObjectFile(obj);
+        }
+        for (const auto& flag : opts.linker_flags) {
+            bmLinker.addLinkerFlag(flag);
+        }
+        
+        auto bmResult = bmLinker.link();
+        
+        info_.output_size = bmResult.output_size;
+        info_.linking_time_ms = bmResult.linking_time_ms;
+        info_.warnings = bmResult.warnings;
+        info_.errors = bmResult.errors;
+        
+        return bmResult.success;
     }
     
     // بدء قياس الوقت / Start timing

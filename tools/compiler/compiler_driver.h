@@ -12,19 +12,46 @@
 #include <filesystem>
 #include <iostream>
 
+// AST types / أنواع شجرة AST
+#include "ast_node.h"
+#include "statements.h"
+
+// Borrow Checker / فاحص الاستعارة
+#include "semantic/borrow_checker.h"
+
+// Type Checker / فاحص الأنواع
+#include "semantic/type_checker.h"
+
+// Forward declarations outside sad::driver namespace
+namespace Sad {
+    namespace Lexer { class LexerCore; }
+    namespace Parser { class ParserCore; }
+    namespace Compiler {
+        namespace SIR { 
+            class SIRBuilder; 
+            class SIRModule;  // Forward declare SIRModule
+        }
+    }
+    namespace LLVM { class LLVMCodeGen; }  // Correct namespace for LLVMCodeGen
+}
+
+// (AR) تصريح مسبق لوحدة LLVM - نحتاجها في دالة link_object_to_executable
+// (EN) Forward declare llvm::Module - needed in link_object_to_executable
+namespace llvm { class Module; }
+
 namespace sad {
 namespace driver {
 
-// ============================================================================
-// Forward Declarations
-// ============================================================================
+// Type aliases for use in this namespace
+using Lexer = Sad::Lexer::LexerCore;
+using Parser = Sad::Parser::ParserCore;
+using SIRBuilder = Sad::Compiler::SIR::SIRBuilder;
+using SIRModule = Sad::Compiler::SIR::SIRModule;  // Add alias for SIRModule
+using LLVMCodeGen = Sad::LLVM::LLVMCodeGen;  // Correct namespace
 
-class Lexer;
-class Parser;
-class SIRBuilder;
+// Not implemented yet
 class SIROptimizer;
 class BytecodeEmitter;
-class LLVMCodeGen;
 
 // ============================================================================
 // Compilation Options / خيارات الترجمة
@@ -138,6 +165,12 @@ struct CompilerOptions {
     bool enable_bounds_check = true;         // فحص الحدود / Bounds checking
     bool enable_overflow_check = true;       // فحص الفيض / Overflow checking
     bool enable_null_check = true;           // فحص null
+    bool enable_borrow_check = true;         // فحص الاستعارة / Borrow checking
+    bool debug_borrow_check = false;         // تنقيح فحص الاستعارة / Debug borrow checker
+    bool arabic_borrow_messages = true;      // رسائل عربية / Arabic borrow messages
+    bool enable_type_check = true;           // فحص الأنواع / Type checking
+    bool debug_type_check = false;           // تنقيح فحص الأنواع / Debug type checker
+    bool strict_type_check = false;          // فحص أنواع صارم / Strict type checking
     
     // ========== Language ==========
     std::string language_standard = "sad2024"; // إصدار اللغة / Language version
@@ -317,6 +350,18 @@ private:
     bool run_frontend(const std::string& file);
     
     /**
+     * @brief (AR) فحص الملكية والاستعارة على AST
+     * @brief (EN) Run ownership/borrow checking on AST
+     */
+    bool run_borrow_check(const std::string& file);
+    
+    /**
+     * @brief (AR) فحص الأنواع المتقدم على AST
+     * @brief (EN) Run advanced type checking on AST
+     */
+    bool run_type_check(const std::string& file);
+    
+    /**
      * @brief Middle-end: SIR Building + Optimization / الطبقة الوسطى
      */
     bool run_middleend();
@@ -338,6 +383,27 @@ private:
                       const std::string& output);
     
     /**
+     * @brief (AR) ربط ملف كائن مع مكتبة وقت التشغيل لإنتاج ملف تنفيذي
+     * @brief (EN) Link object file with runtime library to produce executable
+     * 
+     * @param obj_path مسار ملف الكائن / Object file path
+     * @param output_file مسار الملف التنفيذي الناتج / Output executable path
+     * @param module وحدة LLVM (للحصول على معلومات الهدف) / LLVM module (for target info)
+     * @return true إذا نجح الربط / true if linking succeeded
+     */
+    bool link_object_to_executable(const std::string& obj_path,
+                                   const std::string& output_file,
+                                   llvm::Module* module);
+    
+    /**
+     * @brief (AR) البحث عن أداة clang في النظام
+     * @brief (EN) Find clang tool on the system
+     * 
+     * @return مسار clang إن وُجد / Path to clang if found
+     */
+    std::optional<std::string> find_clang();
+    
+    /**
      * @brief Get temporary file path
      */
     std::filesystem::path get_temp_file(const std::string& suffix);
@@ -356,9 +422,18 @@ private:
     std::unique_ptr<Lexer> lexer_;
     std::unique_ptr<Parser> parser_;
     std::unique_ptr<SIRBuilder> sir_builder_;
-    std::unique_ptr<SIROptimizer> optimizer_;
-    std::unique_ptr<BytecodeEmitter> bytecode_emitter_;
-    std::unique_ptr<LLVMCodeGen> llvm_codegen_;
+    std::shared_ptr<SIRModule> sir_module_;  // Store SIR module
+    // std::unique_ptr<SIROptimizer> optimizer_;  // Not implemented yet
+    // std::unique_ptr<BytecodeEmitter> bytecode_emitter_;  // Not implemented yet
+    std::unique_ptr<Sad::LLVM::LLVMCodeGen> llvm_codegen_;  // Correct namespace
+    
+    // نظام الملكية / Ownership System
+    std::unique_ptr<Sad::Semantic::BorrowChecker> borrow_checker_;
+    
+    // نظام الأنواع المتقدم / Advanced Type System
+    std::unique_ptr<Sad::Semantic::TypeChecker> type_checker_;
+    
+    Sad::AST::StmtList current_ast_;  // (AR) تخزين AST بين المراحل / (EN) Store AST between passes
     
     // Temporary files to clean up
     std::vector<std::filesystem::path> temp_files_;

@@ -17,6 +17,15 @@
 #include <cstdlib>
 #include <vector>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <io.h>
+// Windows.h defines VOID macro which conflicts with ValueType::VOID
+#ifdef VOID
+#undef VOID
+#endif
+#endif
+
 namespace Sad {
 namespace StdLib {
 namespace IO {
@@ -24,6 +33,97 @@ namespace IO {
 // ====================================================================
 // Helper Methods
 // ====================================================================
+
+/**
+ * @brief (AR) إزالة BOM (علامة ترتيب البايت) UTF-8 من بداية النص
+ * @brief (EN) Strip UTF-8 BOM (Byte Order Mark) from the beginning of a string
+ * 
+ * PowerShell on Windows prepends a UTF-8 BOM (EF BB BF) when piping
+ * strings to stdin. This corrupts string-to-number conversions like لرقم().
+ */
+static std::string stripUtf8Bom(const std::string& str) {
+    if (str.size() >= 3 &&
+        static_cast<unsigned char>(str[0]) == 0xEF &&
+        static_cast<unsigned char>(str[1]) == 0xBB &&
+        static_cast<unsigned char>(str[2]) == 0xBF) {
+        return str.substr(3);
+    }
+    return str;
+}
+
+/**
+ * @brief (AR) قراءة سطر من stdin مع دعم Windows الصحيح
+ * @brief (EN) Read a line from stdin with proper Windows support
+ *
+ * (AR) مشكلة ConPTY (طرفية VS Code): 
+ * ConPTY يُفعّل ENABLE_VIRTUAL_TERMINAL_INPUT (0x0200) مما يجعل
+ * تسلسلات هروب ANSI (مثل رد موقع المؤشر \x1b[row;colR) تظهر كإدخال عادي.
+ * هذا يسبب قراءة بيانات وهمية بدلاً من انتظار إدخال المستخدم.
+ * 
+ * (EN) ConPTY (VS Code terminal) problem:
+ * ConPTY enables ENABLE_VIRTUAL_TERMINAL_INPUT (0x0200) which causes
+ * ANSI escape sequences (like cursor position response \x1b[row;colR) 
+ * to appear as regular stdin input. This causes phantom data reads.
+ *
+ * الحل: تعطيل VT input مؤقتاً + تنظيف المخازن المؤقتة + ضبط وضع القراءة
+ * Fix: Temporarily disable VT input + flush buffers + set proper read mode
+ */
+static bool readLineFromStdin(std::string& result) {
+    // (AR) ضمان ظهور أي نص طُبع (مثل رسالة التوجيه) قبل القراءة
+    // (EN) Ensure any printed text (like prompt) is flushed before reading
+    fflush(stdout);
+    std::cout.flush();
+    
+#ifdef _WIN32
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD oldMode = 0;
+    bool isConsole = (hStdin != INVALID_HANDLE_VALUE && GetConsoleMode(hStdin, &oldMode));
+    
+    if (isConsole) {
+        // (AR) تعطيل ENABLE_VIRTUAL_TERMINAL_INPUT لمنع تسلسلات الهروب من الظهور كإدخال
+        // (EN) Disable ENABLE_VIRTUAL_TERMINAL_INPUT to prevent escape sequences as input
+        DWORD newMode = (oldMode & ~0x0200u);
+        // (AR) ضمان: معالجة إدخال + قراءة سطر كامل + صدى الكتابة
+        // (EN) Ensure: processed input + line input + echo
+        newMode |= (ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+        SetConsoleMode(hStdin, newMode);
+        
+        // (AR) انتظار قصير ليصل أي escape sequence متأخر من ConPTY
+        // (EN) Brief wait for any late ConPTY escape sequences to arrive
+        Sleep(50);
+        
+        // (AR) تنظيف كل أحداث الإدخال المُعلّقة (بما فيها بقايا escape sequences)
+        // (EN) Drain all pending input events (including leftover escape sequences)
+        DWORD numEvents = 0;
+        while (GetNumberOfConsoleInputEvents(hStdin, &numEvents) && numEvents > 0) {
+            INPUT_RECORD irBuf[256];
+            DWORD eventsRead = 0;
+            ReadConsoleInputW(hStdin, irBuf, (numEvents < 256 ? numEvents : 256), &eventsRead);
+            if (eventsRead == 0) break;
+        }
+        
+        // (AR) تنظيف مخزن C Runtime
+        // (EN) Flush C runtime's stdin buffer
+        fflush(stdin);
+    }
+#endif
+    
+    bool ok = false;
+    if (std::getline(std::cin, result)) {
+        result = stripUtf8Bom(result);
+        ok = true;
+    }
+    
+#ifdef _WIN32
+    if (isConsole) {
+        // (AR) استعادة وضع الطرفية الأصلي
+        // (EN) Restore original console mode
+        SetConsoleMode(hStdin, oldMode);
+    }
+#endif
+    
+    return ok;
+}
 
 std::string IOFunctions::processEscapeSequences(const std::string& input) {
     /**
@@ -220,6 +320,13 @@ Data::Value IOFunctions::input(const std::vector<Data::Value>& args) {
      * 
      * إذا تم توفير معامل، يتم طباعته كرسالة موجهة قبل قراءة الإدخال
      * If an argument is provided, it's displayed as prompt before reading
+     *
+     * (AR) ملاحظة: على Windows، نستخدم ReadConsoleW للإدخال التفاعلي
+     *       لتجنب مشاكل SetConsoleCP(CP_UTF8) مع std::getline
+     *       كما نزيل BOM الذي يضيفه PowerShell عند الأنبوب
+     * (EN) Note: On Windows, we use ReadConsoleW for interactive input
+     *       to avoid SetConsoleCP(CP_UTF8) issues with std::getline
+     *       We also strip the UTF-8 BOM that PowerShell adds when piping
      */
     
     try {
@@ -230,7 +337,7 @@ Data::Value IOFunctions::input(const std::vector<Data::Value>& args) {
         }
         
         std::string input_line;
-        if (std::getline(std::cin, input_line)) {
+        if (readLineFromStdin(input_line)) {
             return Data::Value(input_line);
         } else {
             // EOF or error
@@ -260,7 +367,7 @@ Data::Value IOFunctions::readLine(const std::vector<Data::Value>& args) {
         }
         
         std::string line;
-        if (std::getline(std::cin, line)) {
+        if (readLineFromStdin(line)) {
             return Data::Value(line);
         } else {
             // EOF or error

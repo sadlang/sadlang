@@ -538,7 +538,7 @@ private:
      * @return (AR) مؤشر لعقدة كتلة الجمل.
      *         (EN) Pointer to block statement node.
      */
-    AST::StmtPtr parseBlockStmt();
+    AST::StmtPtr parseBlockStmt(bool* closedByEnd = nullptr);
 
     /**
      * @brief (AR) يحلل جملة try-catch-finally للتعامل مع الأخطاء.
@@ -650,6 +650,18 @@ private:
      *         (EN) Pointer to assignment expression node.
      */
     AST::ExprPtr parseAssignment();
+
+    /**
+     * @brief (AR) يحلل عامل الأنبوب |> مع إزالة السكر النحوي.
+     *        (EN) Parses pipeline operator |> with desugaring.
+     * 
+     * Grammar / القواعد:
+     *   pipeline → assignment ("|>" assignment)*
+     * 
+     * @return (AR) مؤشر لعقدة تعبير الأنبوب (مُزال السكر إلى استدعاءات).
+     *         (EN) Pointer to pipeline expression (desugared to calls).
+     */
+    AST::ExprPtr parsePipeline();
 
     /**
      * @brief (AR) يحلل التعبير الثلاثي الشرطي (ternary conditional).

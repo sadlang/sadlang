@@ -60,7 +60,7 @@ namespace TypeSystem {
 //   auto type = env.lookup("x"); // البحث عن نوع x
 // ════════════════════════════════════════════════════════════════════════════════
 
-class TypeEnvironment {
+class TypeEnvironment : public std::enable_shared_from_this<TypeEnvironment> {
 public:
     // ═══════════════════════════════════════════════════════════════════════════
     // المُنشئات / Constructors

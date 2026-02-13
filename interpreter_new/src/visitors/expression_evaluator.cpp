@@ -17,6 +17,8 @@
 #include "class_manager.h"
 #include "object_instance.h"
 #include "error_manager.h"
+#include "ownership_manager.h"
+#include "exception.h"
 #include <cmath>
 #include <iostream>
 #include <unordered_map>
@@ -27,6 +29,63 @@ namespace Interpreter {
 using namespace Data;
 using namespace AST;
 using namespace Lexer;
+
+// =========================================================================
+// (AR) تحسين النصوص العربية / (EN) Arabic String Optimization
+// =========================================================================
+
+bool ExpressionEvaluator::containsArabic(const std::string& str) {
+    // فحص إذا كان النص يحتوي أحرف عربية (UTF-8)
+    // Arabic Unicode range: U+0600-U+06FF (UTF-8: 0xD8 0x80 - 0xDB 0xBF)
+    const unsigned char* bytes = reinterpret_cast<const unsigned char*>(str.data());
+    size_t len = str.size();
+    for (size_t i = 0; i + 1 < len; ++i) {
+        if (bytes[i] >= 0xD8 && bytes[i] <= 0xDB) {
+            return true;
+        }
+    }
+    return false;
+}
+
+const std::string& ExpressionEvaluator::internString(const std::string& str) {
+    arabicOptStats_.totalStrings++;
+    
+    if (containsArabic(str)) {
+        arabicOptStats_.arabicStrings++;
+    }
+    
+    auto [it, inserted] = stringPool_.insert(str);
+    if (inserted) {
+        // نص جديد - تم إضافته للمُجمّع
+        arabicOptStats_.pooledStrings++;
+    } else {
+        // نص مكرر - تم توفير الذاكرة
+        arabicOptStats_.poolHits++;
+        arabicOptStats_.savedBytes += str.size();
+    }
+    
+    return *it;
+}
+
+void ExpressionEvaluator::printArabicOptStats() const {
+    std::cout << "\n========================================\n";
+    std::cout << "إحصائيات التحسين العربي (المفسّر) / Arabic Optimization Statistics (Interpreter)\n";
+    std::cout << "========================================\n\n";
+    
+    std::cout << "📝 تحسينات النصوص / String Optimizations:\n";
+    std::cout << "  • مجموع النصوص / Total strings: " << arabicOptStats_.totalStrings << "\n";
+    std::cout << "  • النصوص الفريدة / Unique strings: " << arabicOptStats_.pooledStrings << "\n";
+    std::cout << "  • إصابات المُجمّع / Pool hits: " << arabicOptStats_.poolHits << "\n";
+    std::cout << "  • النصوص العربية / Arabic strings: " << arabicOptStats_.arabicStrings << "\n";
+    std::cout << "  • البايتات الموفرة / Saved bytes: " << arabicOptStats_.savedBytes << "\n";
+    
+    if (arabicOptStats_.totalStrings > 0) {
+        double hitRate = (static_cast<double>(arabicOptStats_.poolHits) / arabicOptStats_.totalStrings) * 100.0;
+        std::cout << "  • نسبة الإصابة / Hit rate: " << hitRate << "%\n";
+    }
+    
+    std::cout << "========================================\n\n";
+}
 
 // =========================================================================
 // (AR) تقييم القيم الحرفية / (EN) Literal Evaluation
@@ -64,7 +123,7 @@ Value ExpressionEvaluator::tokenToValue(const Token& token) {
             return Value(std::stod(token.getValue()));
         
         case TokenType::STRING_LITERAL:
-            return Value(token.getValue());
+            return Value(internString(token.getValue()));
         
         case TokenType::LITERAL_TRUE:
             return Value(true);
@@ -116,7 +175,56 @@ void ExpressionEvaluator::visitVariableExpr(VariableExpr& node) {
         lastResult_ = Value(); // Return null
         return;
     }
+    
+    // (AR) فحص الملكية: هل المتغير صالح للاستخدام؟ / (EN) Ownership check: is variable valid?
+    if (ownershipManager_.isEnabled()) {
+        auto error = ownershipManager_.useVariable(node.name);
+        if (error.has_value()) {
+            // (AR) المتغير منقول أو غير صالح / (EN) Variable moved or invalid
+            throw SadException(
+                error->arabicMessage + " / " + error->message,
+                "OwnershipError",
+                node.position
+            );
+        }
+    }
+    
     lastResult_ = variableManager_.get(node.name);
+}
+
+void ExpressionEvaluator::visitBorrowExpr(BorrowExpr& node) {
+    // (AR) التحقق من وجود المتغير / (EN) Check variable exists
+    if (!variableManager_.exists(node.variableName)) {
+        Sad::Errors::ErrorManager::getInstance().reportError(
+            Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
+            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            "\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1 \xD8\xBA\xD9\x8A\xD8\xB1 \xD9\x85\xD8\xB9\xD8\xB1\xD9\x91\xD9\x81: " + node.variableName,
+            "Undefined variable: " + node.variableName
+        );
+        lastResult_ = Value();
+        return;
+    }
+    
+    // (AR) إنشاء استعارة في نظام الملكية / (EN) Create borrow in ownership system
+    if (ownershipManager_.isEnabled()) {
+        auto borrowKind = node.isMutable 
+            ? Data::BorrowKind::Mutable 
+            : Data::BorrowKind::Shared;
+        // (AR) اسم المستعير المؤقت / (EN) Temporary borrower name
+        std::string borrowerName = "__borrow_" + node.variableName;
+        auto error = ownershipManager_.createBorrow(node.variableName, borrowerName, borrowKind);
+        if (error.has_value()) {
+            throw SadException(
+                error->arabicMessage + " / " + error->message,
+                "OwnershipError",
+                node.position
+            );
+        }
+    }
+    
+    // (AR) إرجاع قيمة المتغير (الاستعارة تُرجع نفس القيمة)
+    // (EN) Return variable value (borrow returns same value)
+    lastResult_ = variableManager_.get(node.variableName);
 }
 
 void ExpressionEvaluator::visitThisExpr(ThisExpr& node) {
@@ -160,6 +268,14 @@ void ExpressionEvaluator::visitSuperExpr(SuperExpr& node) {
 // =========================================================================
 
 void ExpressionEvaluator::visitAssignExpr(AssignExpr& node) {
+    // (AR) التحقق إذا كان الطرف الأيمن متغير (للنقل المحتمل)
+    // (EN) Check if RHS is a variable (for potential move)
+    std::string sourceVarName;
+    auto* varExpr = dynamic_cast<VariableExpr*>(node.value.get());
+    if (varExpr) {
+        sourceVarName = varExpr->name;
+    }
+    
     // تقييم القيمة اليمنى / Evaluate right-hand side
     node.value->accept(*this);
     Value value = lastResult_;
@@ -171,7 +287,37 @@ void ExpressionEvaluator::visitAssignExpr(AssignExpr& node) {
         // (AR) المتغير غير موجود - قم بتعريفه تلقائياً
         // (EN) Variable doesn't exist - auto-define it
         variableManager_.define(node.name, value);
+        
+        // (AR) تسجيل في نظام الملكية / (EN) Register in ownership system
+        if (ownershipManager_.isEnabled()) {
+            ownershipManager_.declareVariable(node.name);
+            
+            // (AR) نقل الملكية من المتغير المصدر (إن وُجد ولم يكن قابلاً للنسخ)
+            // (EN) Move ownership from source variable (if exists and not copy type)
+            if (!sourceVarName.empty() && sourceVarName != node.name) {
+                auto moveError = ownershipManager_.moveVariable(sourceVarName);
+                if (moveError.has_value()) {
+                    throw SadException(
+                        moveError->arabicMessage + " / " + moveError->message,
+                        "OwnershipError",
+                        node.position
+                    );
+                }
+            }
+        }
     } else {
+        // (AR) فحص الملكية: هل يمكن التعديل؟ / (EN) Ownership check: can mutate?
+        if (ownershipManager_.isEnabled()) {
+            auto error = ownershipManager_.mutateVariable(node.name);
+            if (error.has_value()) {
+                throw SadException(
+                    error->arabicMessage + " / " + error->message,
+                    "OwnershipError",
+                    node.position
+                );
+            }
+        }
+        
         // إسناد للمتغير الموجود / Assign to existing variable
         variableManager_.assign(node.name, value);
     }
@@ -1014,17 +1160,67 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
             }
         }
         
+        // === استدعاء باني الأب (أساس) إذا كانت هناك معاملات ===
+        // === Call base constructor (super) if superArgs exist ===
+        if (!constructor->superArgs.empty() && classType->getBaseClass()) {
+            ClassType* baseClass = classType->getBaseClass();
+            if (baseClass->constructor) {
+                // تقييم معاملات الأساس
+                std::vector<Value> superArgValues;
+                for (auto& sarg : constructor->superArgs) {
+                    sarg->accept(*this);
+                    superArgValues.push_back(lastResult_);
+                }
+                // ربط معاملات باني الأب بالقيم في الـ scope الحالي
+                if (superArgValues.size() == baseClass->constructor->parameters.size()) {
+                    for (size_t si = 0; si < baseClass->constructor->parameters.size(); ++si) {
+                        const auto& pname = baseClass->constructor->parameters[si].name;
+                        if (variableManager_.exists(pname)) {
+                            variableManager_.assign(pname, superArgValues[si]);
+                        } else {
+                            variableManager_.define(pname, superArgValues[si]);
+                        }
+                    }
+                    // تنفيذ جسم باني الأب
+                    try {
+                        baseClass->constructor->body->accept(statementExecutor_);
+                    } catch (...) {
+                        // تجاهل الأخطاء في باني الأب مبدئياً
+                    }
+                    // قراءة القيم المحدثة من باني الأب
+                    for (const auto& bfield : allFields) {
+                        if (!bfield.isStatic) {
+                            try {
+                                Value bval = variableManager_.get(bfield.name);
+                                objectFields[bfield.name] = bval;
+                            } catch (...) {}
+                        }
+                    }
+                }
+            }
+        }
+
         // تنفيذ جسم الباني
         try {
             constructor->body->accept(statementExecutor_);
             
-            // جمع القيم المحدثة من الـ scope
-            for (const auto& field : classType->fields) {
+            // جمع القيم المحدثة من الـ scope (بما في ذلك الحقول الموروثة)
+            // Collect updated values from scope (including inherited fields)
+            for (const auto& field : allFields) {
                 try {
                     Value updatedValue = variableManager_.get(field.name);
                     if (field.isStatic) {
-                        // تحديث الحقل الثابت في ClassType
-                        classType->setStaticField(field.name, updatedValue);
+                        // تحديث الحقل الثابت في ClassType الصحيح
+                        ClassType* fc = classType;
+                        while (fc) {
+                            for (const auto& ff : fc->fields) {
+                                if (ff.name == field.name && ff.isStatic) {
+                                    fc->setStaticField(field.name, updatedValue);
+                                    break;
+                                }
+                            }
+                            fc = fc->getBaseClass();
+                        }
                     } else {
                         // تحديث حقل الكائن
                         objectFields[field.name] = updatedValue;

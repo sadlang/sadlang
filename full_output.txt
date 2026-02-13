@@ -1,0 +1,713 @@
+﻿.\build\bin\Debug\sadc.exe : 
+At line:1 char:1
++ .\build\bin\Debug\sadc.exe "working_exampels\14_tested\09_number_gues ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:    String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandErr    or
+ 
+========================================
+  ≡ƒףך (AR) ┘ו┘ה╪«╪╡ ╪º┘ה╪¬╪¡┘ה┘ך┘ה / (EN) Parsing Summary
+========================================
+Γ£ף (AR) ╪╣╪»╪» ╪º┘ה╪¼┘ו┘ה ╪º┘ה┘ז╪º╪¼╪¡╪⌐: 1
+Γ£ף (EN) Successful statements: 1
+========================================
+
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[parseVarDecl] Found identifier, parsing standard declaration
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 42 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='==================================='
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='     ┘ה╪╣╪¿╪⌐ ╪¬╪¡┘ה┘ך┘ה ╪º┘ה╪ú╪▒┘ג╪º┘ו'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='==================================='
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant=''
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º╪»╪«┘ה ╪╣╪»╪» ╪º┘ה╪ú╪▒┘ג╪º┘ו ╪º┘ה╪¬┘ך ╪¬╪▒┘ך╪» ╪¬╪¡┘ה┘ך┘ה┘ח╪º (2-10): '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪╣╪»╪»
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '┘ה╪▒┘ג┘ו'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º┘ג╪▒╪ú'
+[DEBUG] buildFunctionCall: builtin ╪º┘ג╪▒╪ú() -> %5
+[DEBUG] buildFunctionCall: added register='%5', type=6
+[DEBUG] buildFunctionCall: builtin ┘ה╪▒┘ג┘ו() -> %6
+[DEBUG] Type inference: inferred type 1 for variable ╪╣╪»╪»
+[DEBUG] buildLocalVariable: isConstant=0, constantValue='', type=1
+[DEBUG] Using register value: %6
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪º┘ה┘ו╪¼┘ו┘ט╪╣
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] Type inference: inferred type 1 for variable ╪º┘ה┘ו╪¼┘ו┘ט╪╣
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='0', type=1
+[DEBUG] Using constant value
+[DEBUG] Added I64 constant: 0
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪º┘ה╪ú┘ד╪¿╪▒
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] Type inference: inferred type 1 for variable ╪º┘ה╪ú┘ד╪¿╪▒
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='0', type=1
+[DEBUG] Using constant value
+[DEBUG] Added I64 constant: 0
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪º┘ה╪ú╪╡╪║╪▒
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] Type inference: inferred type 1 for variable ╪º┘ה╪ú╪╡╪║╪▒
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='999999', type=1
+[DEBUG] Using constant value
+[DEBUG] Added I64 constant: 999999
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪╣╪»╪º╪»
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] Type inference: inferred type 1 for variable ╪╣╪»╪º╪»
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='1', type=1
+[DEBUG] Using constant value
+[DEBUG] Added I64 constant: 1
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪º┘ה┘ו┘ט╪¼╪¿
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] Type inference: inferred type 1 for variable ╪º┘ה┘ו┘ט╪¼╪¿
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='0', type=1
+[DEBUG] Using constant value
+[DEBUG] Added I64 constant: 0
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪º┘ה╪│╪º┘ה╪¿
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] Type inference: inferred type 1 for variable ╪º┘ה╪│╪º┘ה╪¿
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='0', type=1
+[DEBUG] Using constant value
+[DEBUG] Added I64 constant: 0
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪º┘ה╪▓┘ט╪¼┘ך
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] Type inference: inferred type 1 for variable ╪º┘ה╪▓┘ט╪¼┘ך
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='0', type=1
+[DEBUG] Using constant value
+[DEBUG] Added I64 constant: 0
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪º┘ה┘ב╪▒╪»┘ך
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] Type inference: inferred type 1 for variable ╪º┘ה┘ב╪▒╪»┘ך
+[DEBUG] buildLocalVariable: isConstant=1, constantValue='0', type=1
+[DEBUG] Using constant value
+[DEBUG] Added I64 constant: 0
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildWhileLoop: starting
+[DEBUG] buildWhileLoop: created blocks cond=while_cond_0, body=while_body_1, exit=while_exit_2
+[DEBUG] buildWhileLoop: added BR to condition block
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪╣╪»╪º╪»'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪╣╪»╪º╪»', type=1
+[DEBUG] Type inference: inferred type 1 for variable ╪º┘ה┘ג┘ך┘ו╪⌐
+[DEBUG] buildLocalVariable: isConstant=0, constantValue='', type=1
+[DEBUG] Using register value: %19
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪╣╪»╪º╪»', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪╣╪»╪»'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪╣╪»╪»', type=1
+[DEBUG] buildBinaryOp: rightResult.registerName='%╪╣╪»╪»', type=1, isConstant=0
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪ú╪╡╪║╪▒ ╪ú┘ט ┘ך╪│╪º┘ט┘ך (<=)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %15 ╪¿┘ז┘ט╪╣ 3
+[DEBUG] buildWhileLoop: condition reg=%15
+[DEBUG] buildWhileLoop: added BR_COND (body/exit)
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 11 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º╪»╪«┘ה ╪º┘ה╪▒┘ג┘ו '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪╣╪»╪º╪»'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪╣╪»╪º╪»', type=1
+[DEBUG] buildFunctionCall: added register='%╪╣╪»╪º╪»', type=1
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant=': '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪º┘ה┘ג┘ך┘ו╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '┘ה╪▒┘ג┘ו'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º┘ג╪▒╪ú'
+[DEBUG] buildFunctionCall: builtin ╪º┘ג╪▒╪ú() -> %18
+[DEBUG] buildFunctionCall: added register='%18', type=6
+[DEBUG] buildFunctionCall: builtin ┘ה╪▒┘ג┘ו() -> %19
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::AssignExpr
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ו╪¼┘ו┘ט╪╣'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ו╪¼┘ו┘ט╪╣', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה┘ו╪¼┘ו┘ט╪╣', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ג┘ך┘ו╪⌐'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1
+[DEBUG] buildBinaryOp: rightResult.registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1, isConstant=0
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪¼┘ו╪╣ (+)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %20 ╪¿┘ז┘ט╪╣ 1
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found IfStmt
+[DEBUG] buildIfStatement: starting
+[DEBUG] buildIfStatement: created blocks then=then_3, else=merge_4, merge=merge_4
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ג┘ך┘ו╪⌐'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה╪ú┘ד╪¿╪▒'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה╪ú┘ד╪¿╪▒', type=1
+[DEBUG] buildBinaryOp: rightResult.registerName='%╪º┘ה╪ú┘ד╪¿╪▒', type=1, isConstant=0
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪ú┘ד╪¿╪▒ ┘ו┘ז (>)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %21 ╪¿┘ז┘ט╪╣ 3
+[DEBUG] buildIfStatement: condition reg=%21
+[DEBUG] buildIfStatement: added BR_COND to current block
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 1 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::AssignExpr
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ג┘ך┘ו╪⌐'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1
+[DEBUG] buildIfStatement: added BR to merge from then
+[DEBUG] buildIfStatement: completed, now at merge block
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found IfStmt
+[DEBUG] buildIfStatement: starting
+[DEBUG] buildIfStatement: created blocks then=then_5, else=merge_6, merge=merge_6
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ג┘ך┘ו╪⌐'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1
+[DEBUG] buildIfStatement: condition reg=%╪º┘ה┘ג┘ך┘ו╪⌐
+[DEBUG] buildIfStatement: added BR_COND to current block
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 1 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::AssignExpr
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ג┘ך┘ו╪⌐'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1
+[DEBUG] buildIfStatement: added BR to merge from then
+[DEBUG] buildIfStatement: completed, now at merge block
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found IfStmt
+[DEBUG] buildIfStatement: starting
+[DEBUG] buildIfStatement: created blocks then=then_7, else=else_9, merge=merge_8
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ג┘ך┘ו╪⌐'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%22', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪ú┘ד╪¿╪▒ ╪ú┘ט ┘ך╪│╪º┘ט┘ך (>=)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %23 ╪¿┘ז┘ט╪╣ 3
+[DEBUG] buildIfStatement: condition reg=%23
+[DEBUG] buildIfStatement: added BR_COND to current block
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 1 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::AssignExpr
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ו┘ט╪¼╪¿'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ו┘ט╪¼╪¿', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה┘ו┘ט╪¼╪¿', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%24', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪¼┘ו╪╣ (+)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %25 ╪¿┘ז┘ט╪╣ 1
+[DEBUG] buildIfStatement: added BR to merge from then
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 1 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::AssignExpr
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה╪│╪º┘ה╪¿'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה╪│╪º┘ה╪¿', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה╪│╪º┘ה╪¿', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%26', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪¼┘ו╪╣ (+)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %27 ╪¿┘ז┘ט╪╣ 1
+[DEBUG] buildIfStatement: added BR to merge from else
+[DEBUG] buildIfStatement: completed, now at merge block
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪¿╪º┘ג┘ך
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ג┘ך┘ו╪⌐'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ג┘ך┘ו╪⌐'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה┘ג┘ך┘ו╪⌐', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%28', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ┘ג╪│┘ו╪⌐ (/)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %29 ╪¿┘ז┘ט╪╣ 1
+[DEBUG] buildBinaryOp: leftResult.registerName='%29', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%30', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪╢╪▒╪¿ (*)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %31 ╪¿┘ז┘ט╪╣ 1
+[DEBUG] buildBinaryOp: rightResult.registerName='%31', type=1, isConstant=0
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪╖╪▒╪¡ (-)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %32 ╪¿┘ז┘ט╪╣ 1
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found IfStmt
+[DEBUG] buildIfStatement: starting
+[DEBUG] buildIfStatement: created blocks then=then_10, else=else_12, merge=merge_11
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪¿╪º┘ג┘ך'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪¿╪º┘ג┘ך', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪¿╪º┘ג┘ך', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%33', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ┘ך╪│╪º┘ט┘ך (==)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %34 ╪¿┘ז┘ט╪╣ 3
+[DEBUG] buildIfStatement: condition reg=%34
+[DEBUG] buildIfStatement: added BR_COND to current block
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 1 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::AssignExpr
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה╪▓┘ט╪¼┘ך'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה╪▓┘ט╪¼┘ך', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה╪▓┘ט╪¼┘ך', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%35', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪¼┘ו╪╣ (+)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %36 ╪¿┘ז┘ט╪╣ 1
+[DEBUG] buildIfStatement: added BR to merge from then
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 1 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::AssignExpr
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ב╪▒╪»┘ך'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ב╪▒╪»┘ך', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה┘ב╪▒╪»┘ך', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%37', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪¼┘ו╪╣ (+)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %38 ╪¿┘ז┘ט╪╣ 1
+[DEBUG] buildIfStatement: added BR to merge from else
+[DEBUG] buildIfStatement: completed, now at merge block
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::AssignExpr
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪╣╪»╪º╪»'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪╣╪»╪º╪»', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪╣╪»╪º╪»', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%39', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪¼┘ו╪╣ (+)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %40 ╪¿┘ז┘ט╪╣ 1
+[DEBUG] buildWhileLoop: added BR back to condition
+[DEBUG] buildWhileLoop: completed, now at exit block
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found VarDeclStmt: ╪º┘ה┘ו╪¬┘ט╪│╪╖
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ו╪¼┘ו┘ט╪╣'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ו╪¼┘ו┘ט╪╣', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה┘ו╪¼┘ו┘ט╪╣', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪╣╪»╪»'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪╣╪»╪»', type=1
+[DEBUG] buildBinaryOp: rightResult.registerName='%╪╣╪»╪»', type=1, isConstant=0
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ┘ג╪│┘ו╪⌐ (/)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %41 ╪¿┘ז┘ט╪╣ 1
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant=''
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='==================================='
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='         ┘ז╪¬╪º╪ª╪¼ ╪º┘ה╪¬╪¡┘ה┘ך┘ה'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='==================================='
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה┘ו╪¼┘ו┘ט╪╣: '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ו╪¼┘ו┘ט╪╣'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ו╪¼┘ו┘ט╪╣', type=1
+[DEBUG] buildFunctionCall: added register='%╪º┘ה┘ו╪¼┘ו┘ט╪╣', type=1
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה┘ו╪¬┘ט╪│╪╖: '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ו╪¬┘ט╪│╪╖'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ו╪¬┘ט╪│╪╖', type=1
+[DEBUG] buildFunctionCall: added register='%╪º┘ה┘ו╪¬┘ט╪│╪╖', type=1
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪ú┘ד╪¿╪▒ ┘ג┘ך┘ו╪⌐: '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה╪ú┘ד╪¿╪▒'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה╪ú┘ד╪¿╪▒', type=1
+[DEBUG] buildFunctionCall: added register='%╪º┘ה╪ú┘ד╪¿╪▒', type=1
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪ú╪╡╪║╪▒ ┘ג┘ך┘ו╪⌐: '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה╪ú╪╡╪║╪▒'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה╪ú╪╡╪║╪▒', type=1
+[DEBUG] buildFunctionCall: added register='%╪º┘ה╪ú╪╡╪║╪▒', type=1
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] Type inference: inferred type 1 for variable ╪¿╪º┘ג┘ך
+[DEBUG] buildLocalVariable: isConstant=0, constantValue='', type=1
+[DEBUG] Using register value: %32
+[DEBUG] Type inference: inferred type 1 for variable ╪º┘ה┘ו╪¬┘ט╪│╪╖
+[DEBUG] buildLocalVariable: isConstant=0, constantValue='', type=1
+[DEBUG] Using register value: %41
+[DEBUG] buildFunctionCall: added STRING constant='╪º┘ה┘ו╪»┘י: '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה╪ú┘ד╪¿╪▒'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה╪ú┘ד╪¿╪▒', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה╪ú┘ד╪¿╪▒', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה╪ú╪╡╪║╪▒'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה╪ú╪╡╪║╪▒', type=1
+[DEBUG] buildBinaryOp: rightResult.registerName='%╪º┘ה╪ú╪╡╪║╪▒', type=1, isConstant=0
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪╖╪▒╪¡ (-)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %51 ╪¿┘ז┘ט╪╣ 1
+[DEBUG] buildFunctionCall: added register='%51', type=1
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='-----------------------------------'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪ú╪▒┘ג╪º┘ו ┘ו┘ט╪¼╪¿╪⌐: '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ו┘ט╪¼╪¿'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ו┘ט╪¼╪¿', type=1
+[DEBUG] buildFunctionCall: added register='%╪º┘ה┘ו┘ט╪¼╪¿', type=1
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪ú╪▒┘ג╪º┘ו ╪│╪º┘ה╪¿╪⌐: '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה╪│╪º┘ה╪¿'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה╪│╪º┘ה╪¿', type=1
+[DEBUG] buildFunctionCall: added register='%╪º┘ה╪│╪º┘ה╪¿', type=1
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪ú╪▒┘ג╪º┘ו ╪▓┘ט╪¼┘ך╪⌐: '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה╪▓┘ט╪¼┘ך'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה╪▓┘ט╪¼┘ך', type=1
+[DEBUG] buildFunctionCall: added register='%╪º┘ה╪▓┘ט╪¼┘ך', type=1
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='╪ú╪▒┘ג╪º┘ו ┘ב╪▒╪»┘ך╪⌐: '
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ב╪▒╪»┘ך'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ב╪▒╪»┘ך', type=1
+[DEBUG] buildFunctionCall: added register='%╪º┘ה┘ב╪▒╪»┘ך', type=1
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='==================================='
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found IfStmt
+[DEBUG] buildIfStatement: starting
+[DEBUG] buildIfStatement: created blocks then=then_13, else=else_15, merge=merge_14
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ו╪¬┘ט╪│╪╖'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ו╪¬┘ט╪│╪╖', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה┘ו╪¬┘ט╪│╪╖', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%58', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪ú┘ד╪¿╪▒ ╪ú┘ט ┘ך╪│╪º┘ט┘ך (>=)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %59 ╪¿┘ז┘ט╪╣ 3
+[DEBUG] buildIfStatement: condition reg=%59
+[DEBUG] buildIfStatement: added BR_COND to current block
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 1 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='≡ƒףך ╪º┘ה╪¬┘ג┘ך┘ך┘ו: ┘ו┘ו╪¬╪º╪▓!'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildIfStatement: added BR to merge from then
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found IfStmt
+[DEBUG] buildIfStatement: starting
+[DEBUG] buildIfStatement: created blocks then=then_16, else=else_18, merge=merge_17
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ו╪¬┘ט╪│╪╖'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ו╪¬┘ט╪│╪╖', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה┘ו╪¬┘ט╪│╪╖', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%61', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪ú┘ד╪¿╪▒ ╪ú┘ט ┘ך╪│╪º┘ט┘ך (>=)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %62 ╪¿┘ז┘ט╪╣ 3
+[DEBUG] buildIfStatement: condition reg=%62
+[DEBUG] buildIfStatement: added BR_COND to current block
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 1 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='≡ƒףך ╪º┘ה╪¬┘ג┘ך┘ך┘ו: ╪¼┘ך╪»'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildIfStatement: added BR to merge from then
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found IfStmt
+[DEBUG] buildIfStatement: starting
+[DEBUG] buildIfStatement: created blocks then=then_19, else=else_21, merge=merge_20
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::BinaryExpr
+[DEBUG] buildBinaryOp: ╪¿╪»╪í ╪¿┘ז╪º╪í ╪╣┘ו┘ה┘ך╪⌐ ╪½┘ז╪º╪ª┘ך╪⌐
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::VariableExpr
+[DEBUG] buildExpression: found VariableExpr
+[DEBUG] buildVariableAccess: looking up variable '╪º┘ה┘ו╪¬┘ט╪│╪╖'
+[DEBUG] buildVariableAccess: found variable, registerName='%╪º┘ה┘ו╪¬┘ט╪│╪╖', type=1
+[DEBUG] buildBinaryOp: leftResult.registerName='%╪º┘ה┘ו╪¬┘ט╪│╪╖', type=1, isConstant=0
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildBinaryOp: rightResult.registerName='%64', type=1, isConstant=1
+[DEBUG] buildBinaryOp: ╪╣┘ו┘ה┘ך╪⌐ ╪ú┘ד╪¿╪▒ ╪ú┘ט ┘ך╪│╪º┘ט┘ך (>=)
+[DEBUG] buildBinaryOp: ╪¬┘ו╪¬ ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה╪¬╪╣┘ה┘ך┘ו╪⌐ ┘ה┘ה┘ד╪¬┘ה╪⌐ ╪º┘ה╪¡╪º┘ה┘ך╪⌐
+[DEBUG] buildBinaryOp: ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ┘ב┘ך ╪│╪¼┘ה %65 ╪¿┘ז┘ט╪╣ 3
+[DEBUG] buildIfStatement: condition reg=%65
+[DEBUG] buildIfStatement: added BR_COND to current block
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 1 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='≡ƒףך ╪º┘ה╪¬┘ג┘ך┘ך┘ו: ┘ו╪¬┘ט╪│╪╖'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildIfStatement: added BR to merge from then
+[DEBUG] buildStatement: processing statement
+[DEBUG] Found BlockStmt with 1 statements
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='≡ƒףך ╪º┘ה╪¬┘ג┘ך┘ך┘ו: ╪╢╪╣┘ך┘ב'
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] buildIfStatement: added BR to merge from else
+[DEBUG] buildIfStatement: completed, now at merge block
+[DEBUG] buildIfStatement: added BR to merge from else
+[DEBUG] buildIfStatement: completed, now at merge block
+[DEBUG] buildIfStatement: added BR to merge from else
+[DEBUG] buildIfStatement: completed, now at merge block
+[DEBUG] buildStatement: processing statement
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::CallExpr
+[DEBUG] buildFunctionCall: function name = '╪º╪╖╪¿╪╣_╪│╪╖╪▒'
+[DEBUG] buildExpression: processing expression of type: class Sad::AST::LiteralExpr
+[DEBUG] buildFunctionCall: added STRING constant='==================================='
+[DEBUG] buildFunctionCall: builtin ╪º╪╖╪¿╪╣_╪│╪╖╪▒()
+[DEBUG] IR dumped to debug_ir_dump.ll
+

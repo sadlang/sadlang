@@ -156,6 +156,7 @@ SIRClass::SIRClass(const std::string& name, const std::string& parentClass)
 
 void SIRClass::addField(const std::string& name, SIRType type) {
     fields_[name] = type;
+    fieldOrder_.push_back(name);
 }
 
 void SIRClass::addMethod(std::shared_ptr<SIRFunction> method) {

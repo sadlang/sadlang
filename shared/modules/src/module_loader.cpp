@@ -8,6 +8,7 @@
  */
 
 #include "module_loader.h"
+#include "../../utils/include/utf8_utils.h"
 #include <fstream>
 #include <iostream>
 
@@ -162,7 +163,7 @@ void ModuleLoader::printDebugInfo() const {
 std::unique_ptr<Module> ModuleLoader::parseModule(const std::string& filePath, 
                                                   const std::string& moduleName) {
     // قراءة الملف / Read file
-    std::ifstream file(filePath);
+    auto file = sad::utf8::open_ifstream(filePath);
     if (!file.is_open()) {
         std::cerr << "Error: Cannot open file: " << filePath << std::endl;
         return nullptr;

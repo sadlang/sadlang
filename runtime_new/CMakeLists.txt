@@ -63,6 +63,42 @@ target_include_directories(sad_new_exception
 )
 
 # ============================================================================
+# Panic Library (Smart Panic System) — نظام الذعر الذكي
+# Phase 95: T1044-T1047
+# ============================================================================
+file(GLOB PANIC_SOURCES "src/panic/*.cpp")
+if(PANIC_SOURCES)
+    add_library(sad_new_panic STATIC ${PANIC_SOURCES})
+    target_include_directories(sad_new_panic
+        PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/panic
+    )
+    if(MSVC)
+        target_compile_options(sad_new_panic PRIVATE /wd4819 /FS)
+    endif()
+    message(STATUS "Configured sad_new_panic library (smart panic, AI analyzer, recovery)")
+endif()
+
+# ============================================================================
+# Sandbox Library (Permission Enforcement) — نظام الأذونات
+# Phase 94: T1042
+# ============================================================================
+file(GLOB SANDBOX_SOURCES "src/sandbox/*.cpp")
+if(SANDBOX_SOURCES)
+    add_library(sad_new_sandbox STATIC ${SANDBOX_SOURCES})
+    target_include_directories(sad_new_sandbox
+        PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/sandbox
+    )
+    if(MSVC)
+        target_compile_options(sad_new_sandbox PRIVATE /wd4819 /FS)
+    endif()
+    message(STATUS "Configured sad_new_sandbox library (permission enforcer)")
+endif()
+
+# ============================================================================
 # Unified Runtime Library
 # ============================================================================
 add_library(sad_new_runtime INTERFACE)
@@ -75,5 +111,13 @@ target_link_libraries(sad_new_runtime
         sad_new_exception
 )
 
-message(STATUS "Configured sad_new_runtime library (vm, memory, thread, ffi, exception)")
+# Link optional security libraries if they were built
+if(TARGET sad_new_panic)
+    target_link_libraries(sad_new_runtime INTERFACE sad_new_panic)
+endif()
+if(TARGET sad_new_sandbox)
+    target_link_libraries(sad_new_runtime INTERFACE sad_new_sandbox)
+endif()
+
+message(STATUS "Configured sad_new_runtime library (vm, memory, thread, ffi, exception, panic, sandbox)")
 

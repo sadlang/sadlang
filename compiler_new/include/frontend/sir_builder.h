@@ -32,9 +32,13 @@
 #include "statements.h"
 #include "declarations.h"
 #include "class_nodes.h"
+#include "module_nodes.h"
+#include "module_resolver.h"
+#include "pattern_nodes.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <stack>
 
@@ -84,9 +88,18 @@ namespace AST {
     using FieldDecl = Sad::AST::FieldDecl;
     using MethodDecl = Sad::AST::MethodDecl;
     using FunctionDecl = Sad::AST::FunctionDecl;
+    using ClassDecl = Sad::AST::ClassDecl;
     using TemplateFunctionDecl = Sad::AST::TemplateFunctionDecl;  // (AR) دالة قالب / (EN) Template function
     using NewExpr = Sad::AST::NewExpr;
     using MemberAccessExpr = Sad::AST::MemberAccessExpr;
+    using MethodCallExpr = Sad::AST::MethodCallExpr;
+    using ThisExpr = Sad::AST::ThisExpr;
+    
+    // (AR) عقد نظام الاستيراد والتصدير / (EN) Import/Export system nodes
+    using ImportStmt = Sad::AST::ImportStmt;
+    using FromImportStmt = Sad::AST::FromImportStmt;
+    using ExportDecl = Sad::AST::ExportDecl;
+    using ExportStmt = Sad::AST::ExportStmt;
     
     // Operator types - enums not classes
     using BinaryOperator = Sad::Lexer::TokenType;
@@ -395,6 +408,34 @@ public:
     void buildClass(AST::ClassDeclNode* classDecl);
     
     // ==================================================================
+    // (AR) بناء جمل الاستيراد / (EN) Building Import Statements
+    // ==================================================================
+    
+    /**
+     * @brief (AR) بناء جملة استيراد كاملة: استورد وحدة
+     * @brief (EN) Build full import statement: import module
+     * 
+     * @param importStmt (AR) عقدة الاستيراد / (EN) Import statement node
+     */
+    void buildImportStmt(AST::ImportStmt* importStmt);
+    
+    /**
+     * @brief (AR) بناء جملة استيراد انتقائي: من وحدة استورد ...
+     * @brief (EN) Build selective import statement: from module import ...
+     * 
+     * @param fromImportStmt (AR) عقدة الاستيراد الانتقائي / (EN) From-import statement node
+     */
+    void buildFromImportStmt(AST::FromImportStmt* fromImportStmt);
+    
+    /**
+     * @brief (AR) تعيين مسار الملف الحالي (لحل مسارات الاستيراد النسبية)
+     * @brief (EN) Set current file path (for resolving relative import paths)
+     * 
+     * @param filePath (AR) مسار الملف / (EN) File path
+     */
+    void setCurrentFilePath(const std::string& filePath);
+    
+    // ==================================================================
     // بناء الجمل / Building Statements
     // ==================================================================
     
@@ -417,6 +458,18 @@ public:
      * (EN) Builds CFG with basic blocks for condition, then, and else
      */
     void buildIfStatement(AST::IfStmt* ifStmt);
+    
+    /**
+     * @brief (AR) بناء جملة match (مطابقة أنماط)
+     * @brief (EN) Build match statement (pattern matching)
+     * 
+     * @param matchStmt (AR) جملة match / (EN) Match statement
+     * 
+     * @details
+     * (AR) يحول match إلى سلسلة BR_COND باستخدام SIR الموجود
+     * (EN) Lowers match to chain of BR_COND using existing SIR
+     */
+    void buildMatchStatement(Sad::AST::MatchStmt* matchStmt);
     
     /**
      * @brief (AR) بناء حلقة while
@@ -539,6 +592,15 @@ public:
      * @return (AR) قيمة العضو / (EN) Member value
      */
     BuildResult buildMemberAccess(AST::MemberAccessExpr* memberExpr);
+    
+    /**
+     * @brief (AR) بناء استدعاء طريقة على كائن
+     * @brief (EN) Build method call on object
+     * 
+     * @param methodCallExpr (AR) تعبير استدعاء الطريقة / (EN) Method call expression
+     * @return (AR) نتيجة الاستدعاء / (EN) Call result
+     */
+    BuildResult buildMethodCall(AST::MethodCallExpr* methodCallExpr);
     
     /**
      * @brief (AR) بناء وصول لمتغير
@@ -770,6 +832,13 @@ private:
     std::shared_ptr<SIRFunction> currentFunction_;      ///< (AR) الدالة الحالية / (EN) Current function
     std::shared_ptr<SIRBasicBlock> currentBlock_;       ///< (AR) الكتلة الحالية / (EN) Current block
     
+    // (AR) اسم الصنف الحالي أثناء بناء دوال الصنف / (EN) Current class name during method building
+    std::string currentClassName_;
+    
+    // (AR) خريطة أسماء المتغيرات -> أسماء الأصناف التي هي كائنات منها
+    // (EN) Map variable names -> class names they are instances of
+    std::unordered_map<std::string, std::string> classInstanceTypes_;
+    
     int nextTempRegister_;                              ///< (AR) رقم السجل المؤقت التالي / (EN) Next temp register number
     int nextLabel_;                                     ///< (AR) رقم التسمية التالية / (EN) Next label number
     int currentScopeLevel_;                             ///< (AR) مستوى النطاق الحالي / (EN) Current scope level
@@ -800,6 +869,15 @@ private:
     
     // (AR) قائمة الأخطاء / (EN) Error list
     std::vector<std::string> errors_;
+    
+    // (AR) محلل الوحدات للاستيراد / (EN) Module resolver for imports
+    std::unique_ptr<Modules::ModuleResolver> moduleResolver_;
+    
+    // (AR) مسار الملف الحالي / (EN) Current file path
+    std::string currentFilePath_;
+    
+    // (AR) الوحدات التي تمت معالجتها لمنع التكرار / (EN) Processed modules to prevent duplication
+    std::unordered_set<std::string> processedModules_;
     
     // ==================================================================
     // دوال مساعدة خاصة / Private Helper Functions

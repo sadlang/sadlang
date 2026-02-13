@@ -1,0 +1,14 @@
+﻿MSBuild version 17.14.14+a129329f1 for .NET Framework
+
+  sad_core.vcxproj -> C:\s\s_language\build\lib\Debug\sad_core.lib
+  sad_mobile.vcxproj -> C:\s\s_language\build\lib\Debug\sad_mobile.lib
+  sad_new_frontend.vcxproj -> C:\s\s_language\build\compiler_new\Debug\sad_new_frontend.lib
+  sad_new_optimizer.vcxproj -> C:\s\s_language\build\compiler_new\Debug\sad_new_optimizer.lib
+  sad_new_llvm_backend.vcxproj -> C:\s\s_language\build\compiler_new\Debug\sad_new_llvm_backend.lib
+  sad_new_jit.vcxproj -> C:\s\s_language\build\compiler_new\Debug\sad_new_jit.lib
+  sad_new_memory.vcxproj -> C:\s\s_language\build\compiler_new\Debug\sad_new_memory.lib
+  sad_new_security.vcxproj -> C:\s\s_language\build\compiler_new\Debug\sad_new_security.lib
+  sad_new_type_system.vcxproj -> C:\s\s_language\build\compiler_new\Debug\sad_new_type_system.lib
+  sad_shared.vcxproj -> C:\s\s_language\build\shared\Debug\sad_shared.lib
+  sad_new_semantic.vcxproj -> C:\s\s_language\build\compiler_new\Debug\sad_new_semantic.lib
+  sadc.vcxproj -> C:\s\s_language\build\bin\Debug\sadc.exe

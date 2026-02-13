@@ -42,11 +42,14 @@
 #include "variable_manager.h"
 #include "function_manager.h"
 #include "scope_manager.h"
+#include "ownership_manager.h"
+#include "module_resolver.h"
 #include "expression_evaluator.h"
 #include <stdexcept>
 #include <string>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Sad {
 namespace Interpreter {
@@ -103,13 +106,20 @@ public:
      */
     StatementExecutor(Data::VariableManager& varMgr, 
                      Data::FunctionManager& funcMgr,
-                     Data::ScopeManager& scopeMgr);
+                     Data::ScopeManager& scopeMgr,
+                     Data::OwnershipManager& ownershipMgr);
     
     /**
      * @brief (AR) الحصول على حالة التحكم بالتدفق الحالية
      * @brief (EN) Get current flow control state
      */
     FlowControl getFlowControl() const { return flowControl_; }
+    
+    /**
+     * @brief (AR) الحصول على مُقيِّم التعابير (للإحصائيات)
+     * @brief (EN) Get expression evaluator (for statistics)
+     */
+    ExpressionEvaluator* getExpressionEvaluator() const { return expressionEvaluator_.get(); }
     
     /**
      * @brief (AR) إعادة تعيين حالة التحكم بالتدفق
@@ -315,11 +325,61 @@ public:
      */
     void visitOperatorDecl(AST::OperatorDecl& node) override;
     
+    // =========================================================================
+    // (AR) زيارة جمل الاستيراد والتصدير / (EN) Import/Export Statement Visitors
+    // =========================================================================
+    
+    /**
+     * @brief (AR) زيارة جملة استيراد وحدة كاملة / (EN) Visit full module import statement
+     * @details تحمّل وحدة كاملة وتسجل رموزها في النطاق الحالي / Loads full module and registers its symbols in current scope
+     * @example استورد رياضيات → يحمّل ملف رياضيات.sad ويسجل كل صادراته
+     * @example استورد رياضيات كـ ر → يحمّل الوحدة بالاسم المستعار "ر"
+     */
+    void visitImportStmt(AST::ImportStmt& node) override;
+    
+    /**
+     * @brief (AR) زيارة جملة استيراد انتقائي / (EN) Visit selective import statement
+     * @details تحمّل رموز محددة من وحدة / Loads specific symbols from a module
+     * @example من رياضيات استورد جذر، قوة → يحمّل فقط الدوال جذر وقوة
+     * @example من رياضيات استورد * → يحمّل كل الصادرات
+     */
+    void visitFromImportStmt(AST::FromImportStmt& node) override;
+    
+    /**
+     * @brief (AR) زيارة جملة تصدير (الإصدار الجديد) / (EN) Visit export declaration (new version)
+     * @details تنفذ التصريح الداخلي وتميّزه كمُصدَّر / Executes inner declaration and marks it as exported
+     * @example صدّر دالة حساب() → تسجل الدالة وتميّزها كمُصدَّرة
+     */
+    void visitExportDecl(AST::ExportDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة جملة تصدير (الإصدار القديم للتوافق) / (EN) Visit export statement (legacy version)
+     * @details تنفذ التصريح الداخلي وتميّزه كمُصدَّر / Executes inner declaration and marks it as exported
+     */
+    void visitExportStmt(AST::ExportStmt& node) override;
+    
+    // =========================================================================
+    // (AR) إعدادات نظام الوحدات / (EN) Module System Configuration
+    // =========================================================================
+    
+    /**
+     * @brief (AR) تعيين محلل الوحدات / (EN) Set module resolver
+     * @param resolver (AR) مؤشر لمحلل الوحدات / (EN) Pointer to module resolver
+     */
+    void setModuleResolver(Modules::ModuleResolver* resolver) { moduleResolver_ = resolver; }
+    
+    /**
+     * @brief (AR) تعيين مسار الملف الحالي / (EN) Set current file path
+     * @param path (AR) مسار الملف / (EN) File path
+     */
+    void setCurrentFilePath(const std::string& path) { currentFilePath_ = path; }
+    
 private:
     // (AR) المراجع للمديرين / (EN) Manager references
     Data::VariableManager& variableManager_;
     Data::FunctionManager& functionManager_;
     Data::ScopeManager& scopeManager_;
+    Data::OwnershipManager& ownershipManager_;
     
     // (AR) مُقيِّم التعابير / (EN) Expression evaluator
     std::unique_ptr<ExpressionEvaluator> expressionEvaluator_;
@@ -362,6 +422,41 @@ private:
     
     // (AR) فضاء الأسماء الحالي / (EN) Current namespace
     std::string currentNamespace_;
+    
+    // =========================================================================
+    // (AR) نظام الوحدات (الاستيراد والتصدير) / (EN) Module System (Import/Export)
+    // =========================================================================
+    
+    // (AR) محلل الوحدات - يستخدم للبحث عن الوحدات وتحميلها
+    // (EN) Module resolver - used for finding and loading modules
+    Modules::ModuleResolver* moduleResolver_ = nullptr;
+    
+    // (AR) مسار الملف الحالي - يُستخدم لحل المسارات النسبية
+    // (EN) Current file path - used for resolving relative paths
+    std::string currentFilePath_;
+    
+    // (AR) الرموز المُصدَّرة من الملف الحالي - تُملأ عند مواجهة جمل صدّر
+    // (EN) Exported symbols from current file - populated when export statements are encountered
+    std::unordered_set<std::string> exportedSymbols_;
+    
+    // (AR) الوحدات المُحمَّلة كمتغيرات Map (لنمط: استورد وحدة كـ م → م.دالة)
+    // (EN) Loaded modules as Map variables (for: import module as m → m.function)
+    // key: اسم الوحدة (أو الاسم المستعار), value: Map من أسماء الرموز إلى قيمها
+    std::unordered_map<std::string, Data::Value> loadedModuleNamespaces_;
+    
+    // (AR) ذاكرة مخبئية لصادرات الوحدات التي تم تنفيذها - لمنع إعادة التنفيذ
+    // (EN) Cache for executed module exports - prevents re-execution
+    // key: مسار الملف الكامل, value: Map الصادرات
+    std::unordered_map<std::string, Data::Value> executedModuleExports_;
+    
+    /**
+     * @brief (AR) تنفيذ AST وحدة مُحمَّلة واستخراج رموزها
+     * @brief (EN) Execute a loaded module's AST and extract its symbols
+     * 
+     * @param module (AR) مؤشر للوحدة المُحمَّلة / (EN) Pointer to loaded module
+     * @return (AR) خريطة بأسماء الرموز المُصدَّرة وقيمها / (EN) Map of exported symbol names to their values
+     */
+    Data::Value executeModuleAndExtractExports(Modules::Module* module);
     
     /**
      * @brief (AR) تقييم تعبير وإرجاع قيمته

@@ -17,12 +17,14 @@ add_library(sad_new_interpreter STATIC
     src/visitors/expression_evaluator.cpp
     src/visitors/statement_executor.cpp
     src/visitors/statement_executor_oop.cpp
+    src/visitors/statement_executor_modules.cpp
     
     # Managers
     src/managers/class_manager.cpp
     src/managers/function_manager.cpp
     src/managers/object_manager.cpp
     src/managers/variable_manager.cpp
+    src/managers/ownership_manager.cpp
     
     # OOP - تم إصلاحه!
     src/oop/interpreter_classes_fixed.cpp

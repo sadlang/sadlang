@@ -1,0 +1,11 @@
+﻿MSBuild version 17.14.14+a129329f1 for .NET Framework
+
+  sad_core.vcxproj -> C:\s\s_language\build\lib\Debug\sad_core.lib
+  sad_network.vcxproj -> C:\s\s_language\build\lib\Debug\sad_network.lib
+  sad_http.vcxproj -> C:\s\s_language\build\lib\Debug\sad_http.lib
+  sad_mobile.vcxproj -> C:\s\s_language\build\lib\Debug\sad_mobile.lib
+  sad_new_type_system.vcxproj -> C:\s\s_language\build\compiler_new\Debug\sad_new_type_system.lib
+  sad_shared.vcxproj -> C:\s\s_language\build\shared\Debug\sad_shared.lib
+  sad_new_semantic.vcxproj -> C:\s\s_language\build\compiler_new\Debug\sad_new_semantic.lib
+  sad_websocket.vcxproj -> C:\s\s_language\build\lib\Debug\sad_websocket.lib
+  sad.vcxproj -> C:\s\s_language\build\bin\Debug\sad.exe

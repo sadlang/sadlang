@@ -14,6 +14,10 @@
 #include <thread>
 #include <chrono>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace Sad {
 namespace StdLib {
 namespace Core {
@@ -38,6 +42,54 @@ static bool validateArgCount(const std::vector<Value>& args, size_t min, size_t 
 }
 
 // =============================================================================
+// Helper: Strip UTF-8 BOM / إزالة BOM من UTF-8
+// PowerShell on Windows prepends EF BB BF when piping to stdin
+// =============================================================================
+static std::string stripUtf8Bom(const std::string& str) {
+    if (str.size() >= 3 &&
+        static_cast<unsigned char>(str[0]) == 0xEF &&
+        static_cast<unsigned char>(str[1]) == 0xBB &&
+        static_cast<unsigned char>(str[2]) == 0xBF) {
+        return str.substr(3);
+    }
+    return str;
+}
+
+// =============================================================================
+// Helper: Read line from stdin with Windows support
+// On Windows console, uses ReadConsoleW to avoid SetConsoleCP(CP_UTF8) bugs
+// On pipes/files, uses std::getline and strips UTF-8 BOM
+// =============================================================================
+static bool readLineFromStdin(std::string& result) {
+#ifdef _WIN32
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD mode;
+    if (hStdin != INVALID_HANDLE_VALUE && GetConsoleMode(hStdin, &mode)) {
+        // Interactive console: use ReadConsoleW to avoid CP_UTF8 bugs
+        std::wstring wline;
+        wchar_t wch;
+        DWORD charsRead;
+        while (ReadConsoleW(hStdin, &wch, 1, &charsRead, NULL) && charsRead > 0) {
+            if (wch == L'\n') break;
+            if (wch == L'\r') continue;
+            wline += wch;
+        }
+        if (charsRead == 0 && wline.empty()) return false;
+        if (wline.empty()) { result = ""; return true; }
+        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wline.c_str(), (int)wline.size(), NULL, 0, NULL, NULL);
+        result.resize(utf8Len);
+        WideCharToMultiByte(CP_UTF8, 0, wline.c_str(), (int)wline.size(), &result[0], utf8Len, NULL, NULL);
+        return true;
+    }
+#endif
+    if (std::getline(std::cin, result)) {
+        result = stripUtf8Bom(result);
+        return true;
+    }
+    return false;
+}
+
+// =============================================================================
 // input() - قراءة مدخل من المستخدم / Read input from user
 // =============================================================================
 
@@ -56,10 +108,10 @@ Value input(const std::vector<Value>& args) {
         std::cout.flush(); // تأكد من طباعة المحث فوراً / Ensure prompt is printed immediately
     }
     
-    // قراءة سطر من المستخدم
-    // Read line from user
+    // قراءة سطر من المستخدم (مع دعم Windows الصحيح)
+    // Read line from user (with proper Windows support)
     std::string line;
-    if (std::getline(std::cin, line)) {
+    if (readLineFromStdin(line)) {
         return Value(line);
     }
     

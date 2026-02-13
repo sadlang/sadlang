@@ -203,12 +203,35 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::KEYWORD_EXPORT:      return "KEYWORD_EXPORT";
         
         // الكلمات المفتاحية - المتغيرات
+        case TokenType::KEYWORD_VAR:         return "KEYWORD_VAR";
         case TokenType::KEYWORD_CONST:       return "KEYWORD_CONST";
         case TokenType::KEYWORD_STATIC:      return "KEYWORD_STATIC";
         
         // ميزات Python (spec 05_python_features.md)
         case TokenType::KEYWORD_LAMBDA:      return "KEYWORD_LAMBDA";
         case TokenType::KEYWORD_YIELD:       return "KEYWORD_YIELD";
+        
+        // ميزات برمجة أنظمة التشغيل / OS Development
+        case TokenType::KEYWORD_ASM:          return "KEYWORD_ASM";
+        case TokenType::KEYWORD_VOLATILE:     return "KEYWORD_VOLATILE";
+        case TokenType::KEYWORD_EXTERN:       return "KEYWORD_EXTERN";
+        case TokenType::KEYWORD_SIZEOF:       return "KEYWORD_SIZEOF";
+        case TokenType::KEYWORD_UNSAFE:       return "KEYWORD_UNSAFE";
+        case TokenType::KEYWORD_PACKED:       return "KEYWORD_PACKED";
+        case TokenType::KEYWORD_NORETURN:     return "KEYWORD_NORETURN";
+        case TokenType::KEYWORD_NAKED:        return "KEYWORD_NAKED";
+        case TokenType::KEYWORD_REGISTER:     return "KEYWORD_REGISTER";
+        case TokenType::KEYWORD_SECTION:      return "KEYWORD_SECTION";
+        
+        // أنواع بيانات منخفضة المستوى
+        case TokenType::TYPE_U8:              return "TYPE_U8";
+        case TokenType::TYPE_U16:             return "TYPE_U16";
+        case TokenType::TYPE_U32:             return "TYPE_U32";
+        case TokenType::TYPE_U64:             return "TYPE_U64";
+        case TokenType::TYPE_I8:              return "TYPE_I8";
+        case TokenType::TYPE_I16:             return "TYPE_I16";
+        case TokenType::TYPE_I32:             return "TYPE_I32";
+        case TokenType::TYPE_PTR:             return "TYPE_PTR";
         
         // أنواع البيانات
         case TokenType::TYPE_INTEGER:        return "TYPE_INTEGER";
@@ -259,6 +282,9 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::OP_AND:              return "OP_AND";
         case TokenType::OP_OR:               return "OP_OR";
         case TokenType::OP_NOT:              return "OP_NOT";
+        
+        // عامل الأنبوب
+        case TokenType::OP_PIPE_ARROW:       return "OP_PIPE_ARROW";
         
         // الزيادة والنقصان
         case TokenType::OP_INCREMENT:        return "OP_INCREMENT";

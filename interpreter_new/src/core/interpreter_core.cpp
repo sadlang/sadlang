@@ -10,11 +10,17 @@
 #include "interpreter_core.h"
 #include "declarations.h"
 #include "statements.h"
+#include "module_nodes.h"
 #include "error_manager.h"
 #include "source_location.h"
 #include "error_codes.h"
+
+// (AR) فاحص الأنواع المتقدم / (EN) Advanced Type Checker
+#include "semantic/type_checker.h"
+
 #include <iostream>
 #include <stdexcept>
+#include <filesystem>
 
 namespace Sad {
 namespace Interpreter {
@@ -35,19 +41,47 @@ void Interpreter::initializeComponents() {
     variableManager_ = std::make_shared<Data::VariableManager>(*scopeManager_);
     functionManager_ = std::make_shared<Data::FunctionManager>();
     
+    // (AR) إنشاء مدير الملكية / (EN) Create ownership manager
+    ownershipManager_ = std::make_shared<Data::OwnershipManager>();
+    if (options_.enableOwnership) {
+        ownershipManager_->enable();
+        ownershipManager_->setArabicMessages(options_.ownershipArabicMessages);
+        ownershipManager_->setDebugMode(options_.enableDebugMode || options_.ownershipDebugMode);
+    }
+    
+    // (AR) إنشاء محلل الوحدات لنظام الاستيراد والتصدير
+    // (EN) Create module resolver for import/export system
+    moduleResolver_ = std::make_shared<Modules::ModuleResolver>();
+    
+    // (AR) إضافة مسار الملف الحالي كمسار بحث للوحدات
+    // (EN) Add current file path as module search path
+    if (!options_.currentFilePath.empty()) {
+        auto parentDir = std::filesystem::path(options_.currentFilePath).parent_path();
+        if (std::filesystem::exists(parentDir)) {
+            moduleResolver_->addSearchPath(parentDir.string());
+        }
+    }
+    
     // (AR) إنشاء منفذ العبارات أولاً / (EN) Create statement executor first
     statementExecutor_ = std::make_unique<StatementExecutor>(
         *variableManager_,
         *functionManager_,
-        *scopeManager_
+        *scopeManager_,
+        *ownershipManager_
     );
+    
+    // (AR) ربط محلل الوحدات بمنفذ العبارات
+    // (EN) Connect module resolver to statement executor
+    statementExecutor_->setModuleResolver(moduleResolver_.get());
+    statementExecutor_->setCurrentFilePath(options_.currentFilePath);
     
     // (AR) ثم إنشاء مقيّم التعابير مع مرجع لمنفذ العبارات / (EN) Then create expression evaluator with statement executor reference
     expressionEvaluator_ = std::make_unique<ExpressionEvaluator>(
         *variableManager_,
         *functionManager_,
         *scopeManager_,
-        *statementExecutor_
+        *statementExecutor_,
+        *ownershipManager_
     );
     
     // (AR) تسجيل جميع الدوال المضمنة / (EN) Register all built-in functions
@@ -106,11 +140,19 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
                     dynamic_cast<AST::TemplateClassDecl*>(stmt.get()) != nullptr ||
                     dynamic_cast<AST::NamespaceDecl*>(stmt.get()) != nullptr;
                 
-                // (AR) السماح بـ VarDeclStmt للمتغيرات العامة
-                // (EN) Allow VarDeclStmt for global variables
+                // (AR) السماح بالمتغيرات العامة والاستيراد والتصدير
+                // (EN) Allow global variables, import, and export statements
                 bool isGlobalVar = dynamic_cast<AST::VarDeclStmt*>(stmt.get()) != nullptr;
                 
-                if (!isDeclaration && !isGlobalVar) {
+                // (AR) السماح بجمل الاستيراد والتصدير على المستوى الأعلى
+                // (EN) Allow import/export statements at top level
+                bool isModuleStmt = 
+                    dynamic_cast<AST::ImportStmt*>(stmt.get()) != nullptr ||
+                    dynamic_cast<AST::FromImportStmt*>(stmt.get()) != nullptr ||
+                    dynamic_cast<AST::ExportDecl*>(stmt.get()) != nullptr ||
+                    dynamic_cast<AST::ExportStmt*>(stmt.get()) != nullptr;
+                
+                if (!isDeclaration && !isGlobalVar && !isModuleStmt) {
                     // (AR) جملة تنفيذية خارج الدوال - غير مسموح عند وجود main
                     // (EN) Executable statement outside functions - not allowed when main exists
                     
@@ -138,6 +180,50 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
         
         // (AR) تسجيل التصريحات (الدوال، الأصناف، المتغيرات العامة)
         // (EN) Register declarations (functions, classes, global variables)
+        
+        // ================================================================
+        // (AR) فحص الأنواع المتقدم - قبل التنفيذ
+        // (EN) Advanced type check - before execution
+        // ================================================================
+        if (options_.enableTypeCheck) {
+            if (options_.enableDebugMode) {
+                std::cout << "(AR) فحص الأنواع... / (EN) Type checking..." << std::endl;
+            }
+            
+            Sad::Semantic::TypeChecker typeChecker;
+            typeChecker.setArabicMessages(true);
+            typeChecker.setDebugMode(options_.typeCheckDebugMode);
+            typeChecker.setStrictMode(options_.typeCheckStrictMode);
+            
+            // (AR) زيارة كل جملة مباشرة / (EN) Visit each statement directly
+            for (const auto& stmt : program) {
+                if (stmt) {
+                    stmt->accept(typeChecker);
+                }
+            }
+            
+            // (AR) الحصول على النتيجة وعرض الأخطاء / (EN) Get result and display errors
+            const auto& result = typeChecker.getResult();
+            
+            if (options_.typeCheckDebugMode || !result.errors.empty()) {
+                typeChecker.printSummary();
+            }
+            
+            if (!result.errors.empty()) {
+                std::cerr << "\n❌ فحص الأنواع فشل مع " << result.errors.size() << " أخطاء\n";
+                std::cerr << "❌ Type check failed with " << result.errors.size() << " error(s)\n";
+                return ExecutionResult(false, Data::Value(), "Type check failed");
+            }
+            
+            if (options_.enableDebugMode) {
+                std::cout << "(AR) ✓ فحص الأنواع تم / (EN) ✓ Type check completed" << std::endl;
+            }
+        }
+        
+        // (AR) مسح أي أخطاء سابقة من مراحل التحليل - نبدأ تنفيذاً نظيفاً
+        // (EN) Clear any previous errors from parsing phases - start with clean execution
+        Sad::Errors::ErrorManager::getInstance().clear();
+        
         for (const auto& stmt : program) {
             // (AR) تنفيذ التصريحات فقط (تسجيل الدوال، الأصناف، المتغيرات العامة)
             // (EN) Execute declarations only (register functions, classes, global variables)
@@ -200,6 +286,16 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
                              << returnValue.toString() << std::endl;
                 }
                 
+                // (AR) طباعة إحصائيات التحسين العربي
+                // (EN) Print Arabic optimization statistics
+                if (options_.enableDebugMode) {
+                    // (AR) استخدام ExpressionEvaluator من StatementExecutor (الذي يُنفَّذ فعلاً)
+                    // (EN) Use ExpressionEvaluator from StatementExecutor (the one actually executing)
+                    if (statementExecutor_->getExpressionEvaluator()) {
+                        statementExecutor_->getExpressionEvaluator()->printArabicOptStats();
+                    }
+                }
+                
                 return ExecutionResult(true, returnValue);
             }
             catch (const std::exception& e) {
@@ -223,6 +319,14 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
         if (options_.enableDebugMode) {
             std::cout << "(AR) لا توجد دالة رئيسية - الوضع القديم"
                      << " / (EN) No main function - legacy mode" << std::endl;
+        }
+        
+        // (AR) طباعة إحصائيات التحسين العربي في الوضع القديم أيضاً
+        // (EN) Print Arabic optimization statistics in legacy mode too
+        if (options_.enableDebugMode) {
+            if (statementExecutor_->getExpressionEvaluator()) {
+                statementExecutor_->getExpressionEvaluator()->printArabicOptStats();
+            }
         }
         
         return ExecutionResult(true, Data::Value());

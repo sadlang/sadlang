@@ -58,7 +58,12 @@ enum class TypeKind {
     Any,           // أي / Any Type
     Never,         // أبداً / Never Type
     Unknown,       // مجهول / Unknown Type
-    Error          // خطأ / Error Type (للأخطاء الداخلية)
+    Error,         // خطأ / Error Type (للأخطاء الداخلية)
+    
+    // أنواع البرمجة غير المتزامنة / Async Programming Types
+    Future,        // مستقبل / Future Type (async/await)
+    Generator,     // مولّد / Generator Type (yield)
+    Comprehension  // استيعاب / Comprehension Type (list/dict comprehensions)
 };
 
 // ════════════════════════════════════════════════════════════════════════════════

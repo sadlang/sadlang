@@ -657,4 +657,239 @@ public:
 } // namespace AST
 } // namespace Sad
 
+// =========================================================================
+// (AR) عقد نظام النحلة (BeeOS) — إضافات المرحلة 9
+// (EN) BeeOS AST Nodes — Phase 9 additions
+// =========================================================================
+
+namespace Sad {
+namespace AST {
+
+// =========================================================================
+// Struct Declaration / تصريح بنية
+// =========================================================================
+
+/**
+ * @brief Struct declaration / تصريح بنية
+ * 
+ * Represents a plain data structure (no inheritance, no vtable).
+ * يمثل بنية بيانات بسيطة (بدون وراثة، بدون جدول دوال افتراضية).
+ * 
+ * @example Examples / أمثلة:
+ * - بنية نقطة { عشري س، عشري ي }
+ * - بنية<ن> صندوق { ن قيمة }
+ * - struct Point { x: f64, y: f64 }
+ */
+struct StructField {
+    std::string name;           ///< Field name / اسم الحقل
+    Data::DataType type;        ///< Field type / نوع الحقل
+    ExprPtr defaultValue;       ///< Default value (optional) / القيمة الافتراضية
+    bool isPublic;              ///< Is public? / عام؟
+    
+    StructField(const std::string& n, Data::DataType t, 
+                ExprPtr def = nullptr, bool pub = true)
+        : name(n), type(t), defaultValue(std::move(def)), isPublic(pub) {}
+    
+    StructField(StructField&&) = default;
+    StructField& operator=(StructField&&) = default;
+    StructField(const StructField& other)
+        : name(other.name), type(other.type), defaultValue(nullptr), isPublic(other.isPublic) {}
+};
+
+class StructDecl : public Statement {
+public:
+    std::string name;                           ///< Struct name / اسم البنية
+    std::vector<StructField> fields;            ///< Struct fields / حقول البنية
+    std::vector<TypeParameter> typeParameters;  ///< Generic params / معاملات الأنواع
+    bool isPacked;                              ///< Packed? / محزومة؟
+    bool isExported;                            ///< Exported? / مصدّرة؟
+    StmtList methods;                           ///< Impl methods / الدوال المنفذة
+    
+    StructDecl(const std::string& name,
+               std::vector<StructField> fields,
+               std::vector<TypeParameter> typeParams = {},
+               bool packed = false,
+               bool exported = false,
+               const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), name(name), fields(std::move(fields)),
+          typeParameters(std::move(typeParams)),
+          isPacked(packed), isExported(exported) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        // (AR) البنى تُعامل كأصناف مبسطة حتى يتم إضافة visitStructDecl
+        // (EN) Structs treated as simplified classes until visitStructDecl is added
+    }
+    
+    std::string toString() const override {
+        return "struct " + name;
+    }
+};
+
+// =========================================================================
+// Trait Declaration / تصريح سمة
+// =========================================================================
+
+/**
+ * @brief Trait declaration / تصريح سمة
+ * 
+ * Represents a trait (interface with optional default implementations).
+ * يمثل سمة (واجهة مع تنفيذات افتراضية اختيارية).
+ * 
+ * @example Examples / أمثلة:
+ * - سمة قابل_للعرض { دالة اعرض(هذا) نص }
+ * - سمة<ن> مقارن { دالة قارن(هذا، آخر: ن) رقم }
+ * - trait Display { fn display(&self) -> String }
+ */
+struct TraitMethod {
+    std::string name;               ///< Method name / اسم الدالة
+    std::vector<Parameter> params;  ///< Parameters / المعاملات
+    Data::DataType returnType;      ///< Return type / نوع الإرجاع
+    StmtPtr defaultImpl;            ///< Default implementation (optional) / التنفيذ الافتراضي
+    
+    TraitMethod(const std::string& n, std::vector<Parameter> p,
+                Data::DataType ret, StmtPtr impl = nullptr)
+        : name(n), params(std::move(p)), returnType(ret),
+          defaultImpl(std::move(impl)) {}
+    
+    TraitMethod(TraitMethod&&) = default;
+    TraitMethod& operator=(TraitMethod&&) = default;
+};
+
+class TraitDecl : public Statement {
+public:
+    std::string name;                           ///< Trait name / اسم السمة
+    std::vector<TraitMethod> methods;           ///< Trait methods / دوال السمة
+    std::vector<TypeParameter> typeParameters;  ///< Generic params / معاملات الأنواع
+    std::vector<std::string> superTraits;       ///< Required traits / السمات المطلوبة
+    bool isExported;                            ///< Exported? / مصدّرة؟
+    
+    TraitDecl(const std::string& name,
+              std::vector<TraitMethod> methods,
+              std::vector<TypeParameter> typeParams = {},
+              std::vector<std::string> supers = {},
+              bool exported = false,
+              const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), name(name), methods(std::move(methods)),
+          typeParameters(std::move(typeParams)),
+          superTraits(std::move(supers)), isExported(exported) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        // (AR) السمات تُعامل مؤقتاً كأصناف حتى يتم إضافة visitTraitDecl
+    }
+    
+    std::string toString() const override {
+        return "trait " + name;
+    }
+};
+
+// =========================================================================
+// Impl Declaration / تصريح تنفيذ
+// =========================================================================
+
+/**
+ * @brief Impl block declaration / تصريح كتلة التنفيذ
+ * 
+ * Implements a trait for a type, or adds methods to a struct.
+ * ينفّذ سمة لنوع، أو يضيف دوال لبنية.
+ * 
+ * @example Examples / أمثلة:
+ * - نفّذ قابل_للعرض لـ نقطة { دالة اعرض(هذا) نص { ... } }
+ * - نفّذ نقطة { دالة المسافة(هذا) عشري { ... } }
+ * - impl Display for Point { fn display(&self) -> String { ... } }
+ */
+class ImplDecl : public Statement {
+public:
+    std::string traitName;          ///< Trait name (empty if inherent impl) / اسم السمة
+    std::string targetType;         ///< Target type name / اسم النوع المستهدف
+    StmtList methods;               ///< Implemented methods / الدوال المنفذة
+    std::vector<TypeParameter> typeParameters;  ///< Generic params / معاملات الأنواع
+    
+    ImplDecl(const std::string& trait, const std::string& target,
+             StmtList methods,
+             std::vector<TypeParameter> typeParams = {},
+             const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), traitName(trait), targetType(target),
+          methods(std::move(methods)), typeParameters(std::move(typeParams)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        // (AR) كتل التنفيذ تُعامل مؤقتاً حتى يتم إضافة visitImplDecl
+    }
+    
+    std::string toString() const override {
+        if (traitName.empty())
+            return "impl " + targetType;
+        return "impl " + traitName + " for " + targetType;
+    }
+};
+
+// =========================================================================
+// Test Declaration / تصريح اختبار
+// =========================================================================
+
+/**
+ * @brief Test function declaration / تصريح دالة اختبار
+ * 
+ * Represents a test case that can be run by the test framework.
+ * يمثل حالة اختبار يمكن تشغيلها بإطار الاختبار.
+ * 
+ * @example Examples / أمثلة:
+ * - اختبر("الجمع يعمل") { تأكد(1 + 1 == 2) }
+ * - test("addition works") { assert(1 + 1 == 2) }
+ */
+class TestDecl : public Statement {
+public:
+    std::string testName;       ///< Test name / اسم الاختبار
+    StmtPtr body;               ///< Test body / جسم الاختبار
+    bool shouldFail;            ///< Expected to fail? / متوقع أن يفشل؟
+    
+    TestDecl(const std::string& name, StmtPtr body,
+             bool shouldFail = false,
+             const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), testName(name), body(std::move(body)),
+          shouldFail(shouldFail) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        // (AR) الاختبارات تُعامل مؤقتاً حتى يتم إضافة visitTestDecl
+    }
+    
+    std::string toString() const override {
+        return "test \"" + testName + "\"";
+    }
+};
+
+// =========================================================================
+// Atomic Declaration / تصريح ذرّي
+// =========================================================================
+
+/**
+ * @brief Atomic variable declaration / تصريح متغير ذرّي
+ * 
+ * @example Examples / أمثلة:
+ * - ذرّي<رقم> عداد = 0
+ * - atomic<int> counter = 0
+ */
+class AtomicDecl : public Statement {
+public:
+    std::string name;           ///< Variable name / اسم المتغير
+    Data::DataType innerType;   ///< Inner type / النوع الداخلي
+    ExprPtr initialValue;       ///< Initial value / القيمة الأولية
+    
+    AtomicDecl(const std::string& name, Data::DataType type,
+               ExprPtr init = nullptr,
+               const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), name(name), innerType(type),
+          initialValue(std::move(init)) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        // (AR) الذريات تُعامل مؤقتاً حتى يتم إضافة visitAtomicDecl
+    }
+    
+    std::string toString() const override {
+        return "atomic " + name;
+    }
+};
+
+} // namespace AST
+} // namespace Sad
+
 #endif // SAD_AST_DECLARATIONS_H
