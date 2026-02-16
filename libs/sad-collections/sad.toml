@@ -1,0 +1,14 @@
+[package]
+name = "sad-collections"
+version = "1.0.0"
+description = "مكتبة هياكل البيانات للغة ص - Data Structures Library"
+authors = ["فريق لغة ص"]
+license = "MIT"
+keywords = ["collections", "مجموعات", "stack", "queue", "sort", "data-structures"]
+categories = ["data-structures", "algorithms"]
+
+[build]
+main = "src/مجموعات.sad"
+source-dirs = ["src"]
+
+[dependencies]
