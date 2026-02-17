@@ -41,6 +41,7 @@ class InlineAsmExpr;      // (AR) تعبير التجميع المضمّن / (EN
 class NewExpr;
 class MemberAccessExpr;
 class MemberAssignExpr;
+class IndexAssignExpr;
 class MethodCallExpr;
 class ThisExpr;
 class SuperExpr;
@@ -225,6 +226,14 @@ public:
      * Examples: obj.field = 10, person.name = "أحمد", شخص.اسم = "محمد"
      */
     virtual void visitMemberAssignExpr(MemberAssignExpr& expr) = 0;
+
+    /**
+     * @brief Visit index assignment expression / زيارة تعبير الإسناد بالفهرس
+     * @param expr Index assignment node (e.g., arr[0] = 5, م[1] = "قيمة")
+     *
+     * Examples: م[0] = 5, قاموس["مفتاح"] = قيمة
+     */
+    virtual void visitIndexAssignExpr(IndexAssignExpr& expr) = 0;
     
     /**
      * @brief Visit array literal expression node / زيارة عقدة تعبير المصفوفة الحرفية
@@ -762,6 +771,7 @@ public:
     void visitIndexExpr(IndexExpr& expr) override {}
     void visitMemberExpr(MemberExpr& expr) override {}
     void visitMemberAssignExpr(MemberAssignExpr& expr) override {}
+    void visitIndexAssignExpr(IndexAssignExpr& expr) override {}
     void visitArrayExpr(ArrayExpr& expr) override {}
     void visitMapExpr(MapExpr& expr) override {}
     void visitLambdaExpr(LambdaExpr& expr) override {}

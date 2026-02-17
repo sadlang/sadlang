@@ -267,6 +267,12 @@ public:
     void visitMemberAssignExpr(AST::MemberAssignExpr& node) override;
     
     /**
+     * @brief (AR) تقييم الإسناد بالفهرس (م[0] = قيمة، قاموس["مفتاح"] = قيمة)
+     * @brief (EN) Evaluate index assignment (arr[0] = value, map["key"] = value)
+     */
+    void visitIndexAssignExpr(AST::IndexAssignExpr& node) override;
+    
+    /**
      * @brief (AR) تقييم استدعاء طريقة على كائن (obj.method(args))
      * @brief (EN) Evaluate method call on object (obj.method(args))
      */

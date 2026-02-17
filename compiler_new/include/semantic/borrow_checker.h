@@ -193,6 +193,7 @@ public:
     void visitIndexExpr(AST::IndexExpr& expr) override;
     void visitMemberExpr(AST::MemberExpr& expr) override;
     void visitMemberAssignExpr(AST::MemberAssignExpr& expr) override;
+    void visitIndexAssignExpr(AST::IndexAssignExpr& expr) override;
     void visitArrayExpr(AST::ArrayExpr& expr) override;
     void visitMapExpr(AST::MapExpr& expr) override;
     void visitWalrusExpr(AST::WalrusExpr& expr) override;

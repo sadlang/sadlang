@@ -154,6 +154,7 @@ public:
      * @param expr (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
     void visitMemberAssignExpr(MemberAssignExpr& expr) override;
+    void visitIndexAssignExpr(IndexAssignExpr& expr) override;
     
     /**
      * @brief (AR) يزور عقدة المصفوفة الحرفية.

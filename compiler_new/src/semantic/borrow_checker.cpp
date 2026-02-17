@@ -274,6 +274,11 @@ void BorrowChecker::visitMemberAssignExpr(AST::MemberAssignExpr& expr) {
     // (EN) Check member assignment
 }
 
+void BorrowChecker::visitIndexAssignExpr(AST::IndexAssignExpr& expr) {
+    // (AR) فحص الإسناد بالفهرس
+    // (EN) Check index assignment
+}
+
 void BorrowChecker::visitArrayExpr(AST::ArrayExpr& expr) {
     // (AR) فحص عناصر المصفوفة
     // (EN) Check array elements

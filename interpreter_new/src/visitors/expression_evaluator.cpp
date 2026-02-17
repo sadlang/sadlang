@@ -9,6 +9,7 @@
 
 #include "expression_evaluator.h"
 #include "statement_executor.h"
+#include "ast_node.h"  // (AR) لضمان تعريف ASTNode الكامل عند استدعاء accept / (EN) Ensure full ASTNode definition for accept() calls
 #include "statements.h"
 #include "declarations.h"
 #include "class_nodes.h"
@@ -425,6 +426,28 @@ Value ExpressionEvaluator::evaluateArithmeticOp(const Value& left, TokenType op,
     // جمع النصوص (string concatenation) / String concatenation
     if (op == TokenType::OP_PLUS && (left.isString() || right.isString())) {
         return Value(left.toString() + right.toString());
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) عمليات المصفوفات: دمج (+) وتكرار (*)
+    // (EN) Array operations: concatenation (+) and repetition (*)
+    // ═══════════════════════════════════════════════════════════════════
+    if (left.isArray() || right.isArray()) {
+        if (op == TokenType::OP_PLUS) {
+            // (AR) دمج المصفوفات: [1,2] + [3,4] → [1,2,3,4]
+            //      أو إضافة عنصر: [1,2] + 3 → [1,2,3]
+            return left + right;
+        }
+        if (op == TokenType::OP_MULTIPLY) {
+            // (AR) تكرار المصفوفة: [1,2] * 3 → [1,2,1,2,1,2]
+            return left * right;
+        }
+    }
+    
+    // (AR) تكرار النصوص: "ها" * 3 → "هاهاها"
+    // (EN) String repetition: "ha" * 3 → "hahaha"
+    if (op == TokenType::OP_MULTIPLY && (left.isString() || right.isString())) {
+        return left * right;
     }
     
     // التأكد من أن الطرفين رقميين / Ensure both operands are numeric
@@ -1537,6 +1560,576 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     // إذا لم يكن استدعاء ثابت، فهو استدعاء عادي على كائن
     // If not static call, it's regular call on object
     if (!isStaticCall) {
+        // ═══════════════════════════════════════════════════════════════════
+        // (AR) نظام الطرق المدمجة على المصفوفات — الطرق المدعومة:
+        // ═══════════════════════════════════════════════════════════════════
+        //  ▸ الطول() / الحجم() / طول()         → حجم المصفوفة
+        //  ▸ اضف(عنصر) / ادفع(عنصر)            → إضافة عنصر في النهاية
+        //  ▸ احذف_اخير() / انزع()              → حذف وإرجاع آخر عنصر
+        //  ▸ احذف(فهرس)                        → حذف عنصر بالفهرس
+        //  ▸ ادخل(فهرس، عنصر)                  → إدخال عنصر في موقع محدد
+        //  ▸ اول() / أول()                      → أول عنصر
+        //  ▸ اخر() / آخر()                      → آخر عنصر
+        //  ▸ يحتوي(عنصر)                       → هل يحتوي على عنصر
+        //  ▸ فهرس(عنصر)                        → موقع العنصر (-1 إذا لم يُوجد)
+        //  ▸ اقلب() / قلب()                    → عكس ترتيب العناصر
+        //  ▸ رتب() / فرز()                     → ترتيب تصاعدي/تنازلي
+        //  ▸ شريحة(بداية، نهاية)               → استخراج جزء
+        //  ▸ فارغ() / فارغة()                   → هل المصفوفة فارغة
+        //  ▸ امسح() / نظف()                    → مسح جميع العناصر
+        //  ▸ صل(فاصل) / اربط(فاصل)            → دمج كنص
+        //  ▸ نسخ() / انسخ() / استنسخ()         → نسخة مستقلة
+        //  ▸ مسطح() / افرد()                   → تسطيح المصفوفات المتداخلة
+        //  ▸ فريد() / مميز()                    → إزالة التكرارات
+        //  ▸ عدّ(عنصر)                         → عدد مرات تكرار عنصر
+        //  ▸ لكل(دالة)                         → تنفيذ دالة على كل عنصر
+        //  ▸ خريطة(دالة) / حوّل(دالة)          → تحويل كل عنصر (map)
+        //  ▸ رشح(دالة) / صفّي(دالة)            → تصفية (filter)
+        //  ▸ اختزل(دالة، قاعدة)               → تجميع (reduce)
+        //  ▸ أي(دالة) / بعض(دالة)              → هل يوجد عنصر واحد يحقق الشرط
+        //  ▸ كل(دالة) / جميع(دالة)             → هل كل العناصر تحقق الشرط
+        //  ▸ جد(دالة)                          → أول عنصر يحقق الشرط
+        //  ▸ جد_فهرس(دالة)                     → فهرس أول عنصر يحقق الشرط
+        //  ▸ زب() / ازدوج(مصفوفة)              → دمج مصفوفتين كأزواج (zip)
+        //  ▸ مدى(بداية، نهاية)                 → إنشاء مصفوفة أرقام
+        // ═══════════════════════════════════════════════════════════════════
+        if (objectValue.isArray()) {
+            // (AR) تقييم جميع المعاملات أولاً
+            std::vector<Value> args;
+            for (auto& arg : node.arguments) {
+                arg->accept(*this);
+                args.push_back(lastResult_);
+            }
+            
+            Value::ArrayType arr = objectValue.toArray();
+            const std::string& m = node.methodName;
+            
+            // ─── الطول / الحجم ───
+            if (m == "الطول" || m == "الحجم" || m == "طول" || m == "length" || m == "size") {
+                lastResult_ = Value(static_cast<int>(arr.size()));
+                return;
+            }
+            // ─── إضافة عنصر (تعديل موضعي) ───
+            if (m == "اضف" || m == "أضف" || m == "ادفع" || m == "push" || m == "append") {
+                if (args.empty()) throw RuntimeError("(AR) اضف() يتطلب معاملاً واحداً على الأقل. (EN) push() requires at least one argument.", node.position);
+                for (auto& a : args) arr.push_back(a);
+                Value newArr(arr);
+                // (AR) تحديث المتغير الأصلي عند الإسناد الموضعي
+                if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+                    variableManager_.assign(varExpr->name, newArr);
+                }
+                lastResult_ = newArr;
+                return;
+            }
+            // ─── حذف وإرجاع آخر عنصر ───
+            if (m == "احذف_اخير" || m == "انزع" || m == "pop") {
+                if (arr.empty()) throw RuntimeError("(AR) لا يمكن الحذف من مصفوفة فارغة. (EN) Cannot pop from empty array.", node.position);
+                Value last = arr.back();
+                arr.pop_back();
+                Value newArr(arr);
+                if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+                    variableManager_.assign(varExpr->name, newArr);
+                }
+                lastResult_ = last;
+                return;
+            }
+            // ─── حذف عنصر بالفهرس ───
+            if (m == "احذف" || m == "ازل" || m == "أزل" || m == "remove" || m == "removeAt") {
+                if (args.empty()) throw RuntimeError("(AR) احذف() يتطلب فهرس العنصر. (EN) remove() requires an index.", node.position);
+                int idx = args[0].toInt();
+                if (idx < 0) idx = static_cast<int>(arr.size()) + idx;
+                if (idx < 0 || idx >= static_cast<int>(arr.size())) 
+                    throw RuntimeError("(AR) الفهرس " + std::to_string(idx) + " خارج النطاق. (EN) Index out of range.", node.position);
+                Value removed = arr[idx];
+                arr.erase(arr.begin() + idx);
+                Value newArr(arr);
+                if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+                    variableManager_.assign(varExpr->name, newArr);
+                }
+                lastResult_ = removed;
+                return;
+            }
+            // ─── إدخال عنصر في موقع محدد ───
+            if (m == "ادخل" || m == "أدخل" || m == "insert") {
+                if (args.size() < 2) throw RuntimeError("(AR) ادخل() يتطلب فهرساً وعنصراً. (EN) insert() requires index and value.", node.position);
+                int idx = args[0].toInt();
+                if (idx < 0) idx = static_cast<int>(arr.size()) + idx;
+                if (idx < 0) idx = 0;
+                if (idx > static_cast<int>(arr.size())) idx = static_cast<int>(arr.size());
+                arr.insert(arr.begin() + idx, args[1]);
+                Value newArr(arr);
+                if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+                    variableManager_.assign(varExpr->name, newArr);
+                }
+                lastResult_ = newArr;
+                return;
+            }
+            // ─── أول عنصر ───
+            if (m == "اول" || m == "أول" || m == "first") {
+                if (arr.empty()) throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
+                lastResult_ = arr.front();
+                return;
+            }
+            // ─── آخر عنصر ───
+            if (m == "اخر" || m == "آخر" || m == "last") {
+                if (arr.empty()) throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
+                lastResult_ = arr.back();
+                return;
+            }
+            // ─── يحتوي ───
+            if (m == "يحتوي" || m == "contains" || m == "includes") {
+                if (args.empty()) throw RuntimeError("(AR) يحتوي() يتطلب معاملاً. (EN) contains() requires argument.", node.position);
+                bool found = false;
+                for (auto& el : arr) {
+                    if (el.toString() == args[0].toString()) { found = true; break; }
+                }
+                lastResult_ = Value(found);
+                return;
+            }
+            // ─── فهرس العنصر ───
+            if (m == "فهرس" || m == "indexOf" || m == "findIndex") {
+                if (args.empty()) throw RuntimeError("(AR) فهرس() يتطلب معاملاً. (EN) indexOf() requires argument.", node.position);
+                for (int i = 0; i < static_cast<int>(arr.size()); ++i) {
+                    if (arr[i].toString() == args[0].toString()) { lastResult_ = Value(i); return; }
+                }
+                lastResult_ = Value(-1);
+                return;
+            }
+            // ─── عكس ───
+            if (m == "اقلب" || m == "قلب" || m == "reverse") {
+                std::reverse(arr.begin(), arr.end());
+                Value newArr(arr);
+                if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+                    variableManager_.assign(varExpr->name, newArr);
+                }
+                lastResult_ = newArr;
+                return;
+            }
+            // ─── ترتيب ───
+            if (m == "رتب" || m == "فرز" || m == "sort") {
+                bool ascending = true;
+                if (!args.empty() && args[0].isBoolean()) ascending = args[0].toBool();
+                if (!args.empty() && args[0].isString() && (args[0].toString() == "تنازلي" || args[0].toString() == "desc")) ascending = false;
+                auto cmp = [](const Value& a, const Value& b) -> bool {
+                    if (a.isNumeric() && b.isNumeric()) return a.toDouble() < b.toDouble();
+                    return a.toString() < b.toString();
+                };
+                if (ascending) std::sort(arr.begin(), arr.end(), cmp);
+                else std::sort(arr.begin(), arr.end(), [&cmp](const Value& a, const Value& b) { return cmp(b, a); });
+                Value newArr(arr);
+                if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+                    variableManager_.assign(varExpr->name, newArr);
+                }
+                lastResult_ = newArr;
+                return;
+            }
+            // ─── شريحة ───
+            if (m == "شريحة" || m == "slice") {
+                int start = args.empty() ? 0 : args[0].toInt();
+                int end = args.size() < 2 ? static_cast<int>(arr.size()) : args[1].toInt();
+                if (start < 0) start = std::max(0, static_cast<int>(arr.size()) + start);
+                if (end < 0) end = std::max(0, static_cast<int>(arr.size()) + end);
+                if (start > static_cast<int>(arr.size())) start = static_cast<int>(arr.size());
+                if (end > static_cast<int>(arr.size())) end = static_cast<int>(arr.size());
+                if (start >= end) { lastResult_ = Value(Value::ArrayType{}); return; }
+                Value::ArrayType sliced(arr.begin() + start, arr.begin() + end);
+                lastResult_ = Value(sliced);
+                return;
+            }
+            // ─── فارغة ───
+            if (m == "فارغ" || m == "فارغة" || m == "empty" || m == "isEmpty") {
+                lastResult_ = Value(arr.empty());
+                return;
+            }
+            // ─── مسح ───
+            if (m == "امسح" || m == "نظف" || m == "clear") {
+                Value newArr(Value::ArrayType{});
+                if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+                    variableManager_.assign(varExpr->name, newArr);
+                }
+                lastResult_ = newArr;
+                return;
+            }
+            // ─── صل / اربط (join) ───
+            if (m == "صل" || m == "اربط" || m == "join") {
+                std::string sep = args.empty() ? "" : args[0].toString();
+                std::string result;
+                for (size_t i = 0; i < arr.size(); ++i) {
+                    if (i > 0) result += sep;
+                    result += arr[i].toString();
+                }
+                lastResult_ = Value(result);
+                return;
+            }
+            // ─── نسخ ───
+            if (m == "نسخ" || m == "انسخ" || m == "استنسخ" || m == "clone" || m == "copy") {
+                Value::ArrayType copy(arr.begin(), arr.end());
+                lastResult_ = Value(copy);
+                return;
+            }
+            // ─── تسطيح (flatten) ───
+            if (m == "مسطح" || m == "افرد" || m == "flatten") {
+                Value::ArrayType flat;
+                std::function<void(const Value::ArrayType&)> doFlatten;
+                doFlatten = [&flat, &doFlatten](const Value::ArrayType& a) {
+                    for (auto& el : a) {
+                        if (el.isArray()) doFlatten(el.toArray());
+                        else flat.push_back(el);
+                    }
+                };
+                doFlatten(arr);
+                lastResult_ = Value(flat);
+                return;
+            }
+            // ─── فريد (unique) ───
+            if (m == "فريد" || m == "مميز" || m == "unique" || m == "distinct") {
+                Value::ArrayType unique;
+                std::vector<std::string> seen;
+                for (auto& el : arr) {
+                    std::string key = el.toString();
+                    if (std::find(seen.begin(), seen.end(), key) == seen.end()) {
+                        seen.push_back(key);
+                        unique.push_back(el);
+                    }
+                }
+                lastResult_ = Value(unique);
+                return;
+            }
+            // ─── عدّ (count) ───
+            if (m == "عدّ" || m == "عد" || m == "count") {
+                if (args.empty()) { lastResult_ = Value(static_cast<int>(arr.size())); return; }
+                int cnt = 0;
+                std::string target = args[0].toString();
+                for (auto& el : arr) { if (el.toString() == target) ++cnt; }
+                lastResult_ = Value(cnt);
+                return;
+            }
+            
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) العمليات الدالية (Functional) — تقبل دوال كمعاملات
+            // ═══════════════════════════════════════════════════════════════
+            
+            // ─── دالة مساعدة لتنفيذ lambda/function على عنصر ───
+            auto callFunction = [this, &node](const std::string& funcName, const std::vector<Value>& callArgs) -> Value {
+                // (AR) البحث عن الدالة في مدير الدوال بعدد المعاملات الممررة
+                auto funcDef = functionManager_.getFunction(funcName, callArgs.size());
+                if (!funcDef) {
+                    // (AR) بحث بالاسم الموسع __template_
+                    funcDef = functionManager_.getFunction("__template_" + funcName, callArgs.size());
+                }
+                if (!funcDef) {
+                    throw RuntimeError("(AR) الدالة '" + funcName + "' غير موجودة. (EN) Function '" + funcName + "' not found.", node.position);
+                }
+                
+                variableManager_.enterScope(Data::ScopeType::FUNCTION, funcName);
+                // (AR) ربط المعاملات باستخدام getParameters()
+                const auto& params = funcDef->getParameters();
+                for (size_t i = 0; i < params.size() && i < callArgs.size(); ++i) {
+                    variableManager_.define(params[i].name, callArgs[i]);
+                }
+                
+                Value result;
+                try {
+                    if (funcDef->hasBody()) {
+                        // (AR) الحصول على جسم الدالة واستدعاء accept
+                        // نحتاج cast لأن getBody يعيد Parser::ASTNode (forward declared)
+                        // بينما AST::ASTNode هو التعريف الكامل
+                        auto bodyPtr = funcDef->getBody();
+                        auto* bodyNode = reinterpret_cast<AST::ASTNode*>(bodyPtr.get());
+                        bodyNode->accept(statementExecutor_);
+                        if (statementExecutor_.getFlowControl() == FlowControl::RETURN) {
+                            result = statementExecutor_.getReturnValue();
+                            statementExecutor_.resetFlowControl();
+                        }
+                    }
+                } catch (...) {
+                    variableManager_.exitScope();
+                    throw;
+                }
+                variableManager_.exitScope();
+                return result;
+            };
+            
+            // ─── لكل (forEach) ───
+            if (m == "لكل" || m == "forEach" || m == "each") {
+                if (args.empty() || !args[0].isString()) throw RuntimeError("(AR) لكل() يتطلب اسم دالة. (EN) forEach() requires function name.", node.position);
+                std::string funcName = args[0].toString();
+                for (size_t i = 0; i < arr.size(); ++i) {
+                    callFunction(funcName, {arr[i], Value(static_cast<int>(i))});
+                }
+                lastResult_ = Value();
+                return;
+            }
+            // ─── خريطة / حوّل (map) ───
+            if (m == "خريطة" || m == "حوّل" || m == "حول" || m == "map" || m == "transform") {
+                if (args.empty() || !args[0].isString()) throw RuntimeError("(AR) خريطة() يتطلب اسم دالة. (EN) map() requires function name.", node.position);
+                std::string funcName = args[0].toString();
+                Value::ArrayType result;
+                for (size_t i = 0; i < arr.size(); ++i) {
+                    result.push_back(callFunction(funcName, {arr[i], Value(static_cast<int>(i))}));
+                }
+                lastResult_ = Value(result);
+                return;
+            }
+            // ─── رشح / صفّي (filter) ───
+            if (m == "رشح" || m == "صفّي" || m == "صفي" || m == "filter") {
+                if (args.empty() || !args[0].isString()) throw RuntimeError("(AR) رشح() يتطلب اسم دالة. (EN) filter() requires function name.", node.position);
+                std::string funcName = args[0].toString();
+                Value::ArrayType result;
+                for (size_t i = 0; i < arr.size(); ++i) {
+                    Value cond = callFunction(funcName, {arr[i], Value(static_cast<int>(i))});
+                    if (cond.toBool()) result.push_back(arr[i]);
+                }
+                lastResult_ = Value(result);
+                return;
+            }
+            // ─── اختزل (reduce) ───
+            if (m == "اختزل" || m == "reduce" || m == "fold") {
+                if (args.empty() || !args[0].isString()) throw RuntimeError("(AR) اختزل() يتطلب اسم دالة. (EN) reduce() requires function name.", node.position);
+                std::string funcName = args[0].toString();
+                if (arr.empty()) { 
+                    lastResult_ = args.size() > 1 ? args[1] : Value(); 
+                    return; 
+                }
+                Value accumulator = args.size() > 1 ? args[1] : arr[0];
+                size_t startIdx = args.size() > 1 ? 0 : 1;
+                for (size_t i = startIdx; i < arr.size(); ++i) {
+                    accumulator = callFunction(funcName, {accumulator, arr[i]});
+                }
+                lastResult_ = accumulator;
+                return;
+            }
+            // ─── أي / بعض (some/any) ───
+            if (m == "أي" || m == "اي" || m == "بعض" || m == "some" || m == "any") {
+                if (args.empty() || !args[0].isString()) throw RuntimeError("(AR) أي() يتطلب اسم دالة. (EN) some() requires function name.", node.position);
+                std::string funcName = args[0].toString();
+                for (auto& el : arr) {
+                    if (callFunction(funcName, {el}).toBool()) { lastResult_ = Value(true); return; }
+                }
+                lastResult_ = Value(false);
+                return;
+            }
+            // ─── كل / جميع (every) ───
+            if (m == "كل" || m == "جميع" || m == "every" || m == "all") {
+                if (args.empty() || !args[0].isString()) throw RuntimeError("(AR) كل() يتطلب اسم دالة. (EN) every() requires function name.", node.position);
+                std::string funcName = args[0].toString();
+                for (auto& el : arr) {
+                    if (!callFunction(funcName, {el}).toBool()) { lastResult_ = Value(false); return; }
+                }
+                lastResult_ = Value(true);
+                return;
+            }
+            // ─── جد (find) ───
+            if (m == "جد" || m == "find") {
+                if (args.empty() || !args[0].isString()) throw RuntimeError("(AR) جد() يتطلب اسم دالة. (EN) find() requires function name.", node.position);
+                std::string funcName = args[0].toString();
+                for (auto& el : arr) {
+                    if (callFunction(funcName, {el}).toBool()) { lastResult_ = el; return; }
+                }
+                lastResult_ = Value();
+                return;
+            }
+            // ─── جد_فهرس (findIndex) ───
+            if (m == "جد_فهرس" || m == "findIndex") {
+                if (args.empty() || !args[0].isString()) throw RuntimeError("(AR) جد_فهرس() يتطلب اسم دالة. (EN) findIndex() requires function name.", node.position);
+                std::string funcName = args[0].toString();
+                for (int i = 0; i < static_cast<int>(arr.size()); ++i) {
+                    if (callFunction(funcName, {arr[i]}).toBool()) { lastResult_ = Value(i); return; }
+                }
+                lastResult_ = Value(-1);
+                return;
+            }
+            // ─── ازدوج / zip ───
+            if (m == "ازدوج" || m == "zip") {
+                if (args.empty() || !args[0].isArray()) throw RuntimeError("(AR) ازدوج() يتطلب مصفوفة ثانية. (EN) zip() requires another array.", node.position);
+                Value::ArrayType other = args[0].toArray();
+                Value::ArrayType result;
+                size_t minLen = std::min(arr.size(), other.size());
+                for (size_t i = 0; i < minLen; ++i) {
+                    Value::ArrayType pair;
+                    pair.push_back(arr[i]);
+                    pair.push_back(other[i]);
+                    result.push_back(Value(pair));
+                }
+                lastResult_ = Value(result);
+                return;
+            }
+            // ─── عكس المصفوفة بدون تعديل (reversed) ───
+            if (m == "معكوس" || m == "reversed") {
+                Value::ArrayType rev(arr.rbegin(), arr.rend());
+                lastResult_ = Value(rev);
+                return;
+            }
+            // ─── حد_أقصى / max ───
+            if (m == "حد_اقصى" || m == "أقصى" || m == "max") {
+                if (arr.empty()) throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
+                Value mx = arr[0];
+                for (size_t i = 1; i < arr.size(); ++i) {
+                    if (arr[i].isNumeric() && mx.isNumeric()) {
+                        if (arr[i].toDouble() > mx.toDouble()) mx = arr[i];
+                    } else if (arr[i].toString() > mx.toString()) mx = arr[i];
+                }
+                lastResult_ = mx;
+                return;
+            }
+            // ─── حد_أدنى / min ───
+            if (m == "حد_ادنى" || m == "أدنى" || m == "min") {
+                if (arr.empty()) throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
+                Value mn = arr[0];
+                for (size_t i = 1; i < arr.size(); ++i) {
+                    if (arr[i].isNumeric() && mn.isNumeric()) {
+                        if (arr[i].toDouble() < mn.toDouble()) mn = arr[i];
+                    } else if (arr[i].toString() < mn.toString()) mn = arr[i];
+                }
+                lastResult_ = mn;
+                return;
+            }
+            // ─── مجموع / sum ───
+            if (m == "مجموع" || m == "sum") {
+                double sum = 0;
+                for (auto& el : arr) {
+                    if (el.isNumeric()) sum += el.toDouble();
+                }
+                if (sum == static_cast<int>(sum)) lastResult_ = Value(static_cast<int>(sum));
+                else lastResult_ = Value(sum);
+                return;
+            }
+            // ─── متوسط / average ───
+            if (m == "متوسط" || m == "average" || m == "avg") {
+                if (arr.empty()) throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
+                double sum = 0;
+                int count = 0;
+                for (auto& el : arr) {
+                    if (el.isNumeric()) { sum += el.toDouble(); ++count; }
+                }
+                if (count == 0) { lastResult_ = Value(0); return; }
+                lastResult_ = Value(sum / count);
+                return;
+            }
+            // ─── ملء / fill ───
+            if (m == "املأ" || m == "املا" || m == "fill") {
+                if (args.empty()) throw RuntimeError("(AR) املأ() يتطلب قيمة. (EN) fill() requires a value.", node.position);
+                for (auto& el : arr) el = args[0];
+                Value newArr(arr);
+                if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+                    variableManager_.assign(varExpr->name, newArr);
+                }
+                lastResult_ = newArr;
+                return;
+            }
+            
+            // (AR) طريقة غير معروفة على المصفوفة
+            throw RuntimeError(
+                "(AR) الطريقة '" + m + "' غير موجودة على المصفوفة. (EN) Method '" + m + "' not found on array.",
+                node.position
+            );
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // (AR) نظام الطرق المدمجة على النصوص
+        // ═══════════════════════════════════════════════════════════════════
+        if (objectValue.isString()) {
+            std::vector<Value> args;
+            for (auto& arg : node.arguments) {
+                arg->accept(*this);
+                args.push_back(lastResult_);
+            }
+            
+            std::string str = objectValue.toString();
+            const std::string& m = node.methodName;
+            
+            if (m == "الطول" || m == "طول" || m == "length" || m == "size") {
+                lastResult_ = Value(static_cast<int>(str.size()));
+                return;
+            }
+            if (m == "يحتوي" || m == "contains" || m == "includes") {
+                if (args.empty()) throw RuntimeError("(AR) يحتوي() يتطلب معاملاً. (EN) contains() requires argument.", node.position);
+                lastResult_ = Value(str.find(args[0].toString()) != std::string::npos);
+                return;
+            }
+            if (m == "قسّم" || m == "قسم" || m == "split") {
+                std::string sep = args.empty() ? " " : args[0].toString();
+                Value::ArrayType parts;
+                size_t pos = 0, found;
+                while ((found = str.find(sep, pos)) != std::string::npos) {
+                    parts.push_back(Value(str.substr(pos, found - pos)));
+                    pos = found + sep.size();
+                }
+                parts.push_back(Value(str.substr(pos)));
+                lastResult_ = Value(parts);
+                return;
+            }
+            if (m == "فارغ" || m == "فارغة" || m == "empty" || m == "isEmpty") {
+                lastResult_ = Value(str.empty());
+                return;
+            }
+            if (m == "استبدل" || m == "replace") {
+                if (args.size() < 2) throw RuntimeError("(AR) استبدل() يتطلب معاملين. (EN) replace() requires 2 arguments.", node.position);
+                std::string from = args[0].toString(), to = args[1].toString();
+                std::string result = str;
+                size_t pos = 0;
+                while ((pos = result.find(from, pos)) != std::string::npos) {
+                    result.replace(pos, from.length(), to);
+                    pos += to.length();
+                }
+                lastResult_ = Value(result);
+                return;
+            }
+            if (m == "جزء" || m == "substr" || m == "substring") {
+                int start = args.empty() ? 0 : args[0].toInt();
+                int len = args.size() < 2 ? static_cast<int>(str.size()) - start : args[1].toInt();
+                if (start < 0) start = std::max(0, static_cast<int>(str.size()) + start);
+                lastResult_ = Value(str.substr(start, len));
+                return;
+            }
+            if (m == "حرف_عند" || m == "charAt" || m == "at") {
+                if (args.empty()) throw RuntimeError("(AR) حرف_عند() يتطلب فهرساً. (EN) charAt() requires index.", node.position);
+                int idx = args[0].toInt();
+                if (idx < 0) idx = static_cast<int>(str.size()) + idx;
+                if (idx < 0 || idx >= static_cast<int>(str.size())) throw RuntimeError("(AR) الفهرس خارج النطاق. (EN) Index out of range.", node.position);
+                lastResult_ = Value(std::string(1, str[idx]));
+                return;
+            }
+            if (m == "يبدأ_بـ" || m == "يبدأ" || m == "startsWith") {
+                if (args.empty()) throw RuntimeError("(AR) يبدأ_بـ() يتطلب معاملاً. (EN) startsWith() requires argument.", node.position);
+                std::string prefix = args[0].toString();
+                lastResult_ = Value(str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix);
+                return;
+            }
+            if (m == "ينتهي_بـ" || m == "ينتهي" || m == "endsWith") {
+                if (args.empty()) throw RuntimeError("(AR) ينتهي_بـ() يتطلب معاملاً. (EN) endsWith() requires argument.", node.position);
+                std::string suffix = args[0].toString();
+                lastResult_ = Value(str.size() >= suffix.size() && str.substr(str.size() - suffix.size()) == suffix);
+                return;
+            }
+            if (m == "قص" || m == "trim") {
+                std::string result = str;
+                result.erase(0, result.find_first_not_of(" \t\r\n"));
+                result.erase(result.find_last_not_of(" \t\r\n") + 1);
+                lastResult_ = Value(result);
+                return;
+            }
+            if (m == "كرر" || m == "repeat") {
+                if (args.empty()) throw RuntimeError("(AR) كرر() يتطلب عدداً. (EN) repeat() requires count.", node.position);
+                int count = args[0].toInt();
+                std::string result;
+                for (int i = 0; i < count; ++i) result += str;
+                lastResult_ = Value(result);
+                return;
+            }
+            if (m == "عكس" || m == "reverse") {
+                std::string result(str.rbegin(), str.rend());
+                lastResult_ = Value(result);
+                return;
+            }
+            
+            // (AR) طريقة غير معروفة على النص
+            throw RuntimeError(
+                "(AR) الطريقة '" + m + "' غير موجودة على النص. (EN) Method '" + m + "' not found on string.",
+                node.position
+            );
+        }
+        
         // التحقق من أن القيمة كائن
         if (!objectValue.isMap()) {
             std::string errMsg = "(AR) لا يمكن استدعاء طريقة على قيمة ليست كائن. ";
@@ -1987,6 +2580,102 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
         errMsg += "(EN) Assignment to field in complex expression not yet supported.";
         throw RuntimeError(errMsg, node.position);
     }
+}
+
+// =========================================================================
+// (AR) تقييم الإسناد بالفهرس / (EN) Index Assignment Evaluation
+// م[0] = 5 ، قاموس["مفتاح"] = قيمة
+// =========================================================================
+void ExpressionEvaluator::visitIndexAssignExpr(IndexAssignExpr& node) {
+    // ==========================================
+    // الخطوة 1: تقييم الكائن (المصفوفة أو القاموس)
+    // ==========================================
+    node.object->accept(*this);
+    Value objectValue = lastResult_;
+
+    // ==========================================
+    // الخطوة 2: تقييم الفهرس
+    // ==========================================
+    node.index->accept(*this);
+    Value indexValue = lastResult_;
+
+    // ==========================================
+    // الخطوة 3: تقييم القيمة الجديدة
+    // ==========================================
+    node.value->accept(*this);
+    Value newValue = lastResult_;
+
+    // ==========================================
+    // الخطوة 4: التعامل مع المصفوفات
+    // ==========================================
+    if (objectValue.isArray()) {
+        if (!indexValue.isInteger()) {
+            throw RuntimeError(
+                "(AR) فهرس المصفوفة يجب أن يكون عددًا صحيحًا. "
+                "(EN) Array index must be an integer.",
+                node.position);
+        }
+
+        auto arr = objectValue.toArray();
+        int idx = indexValue.toInt();
+        int size = static_cast<int>(arr.size());
+
+        // دعم الفهارس السالبة: -1 = آخر عنصر، -2 = ما قبل الأخير...
+        if (idx < 0) {
+            idx = size + idx;
+        }
+
+        if (idx < 0 || idx >= size) {
+            throw RuntimeError(
+                "(AR) فهرس المصفوفة خارج النطاق: " + std::to_string(idx) +
+                " (الحجم: " + std::to_string(size) + "). "
+                "(EN) Array index out of range: " + std::to_string(idx) +
+                " (size: " + std::to_string(size) + ").",
+                node.position);
+        }
+
+        arr[idx] = newValue;
+
+        // تحديث المتغير الأصلي بالمصفوفة المعدّلة
+        if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+            variableManager_.assign(varExpr->name, Value(arr));
+        } else {
+            throw RuntimeError(
+                "(AR) الإسناد بالفهرس لتعبير معقد غير مدعوم. "
+                "(EN) Index assignment to complex expression not supported.",
+                node.position);
+        }
+
+        lastResult_ = newValue;
+        return;
+    }
+
+    // ==========================================
+    // الخطوة 5: التعامل مع القواميس (MAP)
+    // ==========================================
+    if (objectValue.isMap()) {
+        std::string key = indexValue.toString();
+        auto map = objectValue.toMap();
+        map[key] = newValue;
+
+        // تحديث المتغير الأصلي بالقاموس المعدّل
+        if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+            variableManager_.assign(varExpr->name, Value(map));
+        } else {
+            throw RuntimeError(
+                "(AR) الإسناد بالمفتاح لتعبير معقد غير مدعوم. "
+                "(EN) Key assignment to complex expression not supported.",
+                node.position);
+        }
+
+        lastResult_ = newValue;
+        return;
+    }
+
+    throw RuntimeError(
+        "(AR) لا يمكن الإسناد بالفهرس إلا للمصفوفات والقواميس. "
+        "(EN) Index assignment only supported on arrays and maps.",
+        node.position);
 }
 
 // =========================================================================

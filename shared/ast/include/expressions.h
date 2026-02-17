@@ -476,6 +476,39 @@ public:
 };
 
 // =========================================================================
+// (AR) تعبير إسناد الفهرس / (EN) Index Assignment Expression
+// =========================================================================
+/**
+ * @brief (AR) عقدة إسناد عبر الفهرس (مثل: م[0] = 5، قاموس["مفتاح"] = قيمة)
+ *        (EN) Index assignment expression node (e.g., arr[0] = 5, dict["key"] = value)
+ * 
+ * يمثل تعيين قيمة إلى عنصر في مصفوفة أو قاموس عبر الفهرس.
+ * Represents assigning a value to an array element or map entry by index.
+ */
+class IndexAssignExpr : public Expression {
+public:
+    ExprPtr object;         ///< (AR) الكائن المفهرس (المصفوفة/القاموس) / (EN) Indexed object
+    ExprPtr index;          ///< (AR) تعبير الفهرس / (EN) Index expression
+    ExprPtr value;          ///< (AR) القيمة المراد إسنادها / (EN) Value to assign
+
+    IndexAssignExpr(ExprPtr obj, ExprPtr idx, ExprPtr val,
+                    const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), object(std::move(obj)), index(std::move(idx)), value(std::move(val)) {}
+
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitIndexAssignExpr(*this);
+    }
+
+    std::string toString() const override {
+        return object->toString() + "[" + index->toString() + "] = " + value->toString();
+    }
+
+    Data::DataType getType() const override {
+        return value->getType();
+    }
+};
+
+// =========================================================================
 // Array Literal Expression / تعبير المصفوفة الحرفية
 // =========================================================================
 

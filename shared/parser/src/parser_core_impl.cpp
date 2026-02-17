@@ -2114,9 +2114,22 @@ ExprPtr ParserCore::parseAssignment() {
             );
         }
         
+        // دعم الإسناد بالفهرس: م[0] = قيمة ، قاموس["مفتاح"] = قيمة
+        // (EN) Support index assignment: arr[0] = value, map["key"] = value
+        if (auto* indexExpr = dynamic_cast<IndexExpr*>(expr.get())) {
+            std::unique_ptr<IndexExpr> indexPtr(static_cast<IndexExpr*>(expr.release()));
+            
+            return std::make_unique<IndexAssignExpr>(
+                std::move(indexPtr->object),
+                std::move(indexPtr->index),
+                std::move(value),
+                equals.getPosition()
+            );
+        }
+        
         errorBilingual(
-            "خطأ: هدف الإسناد غير صالح - يجب أن يكون معرّفاً أو حقل كائن",
-            "Error: invalid assignment target - must be identifier or object field"
+            "خطأ: هدف الإسناد غير صالح - يجب أن يكون معرّفاً أو حقل كائن أو فهرس مصفوفة",
+            "Error: invalid assignment target - must be identifier, object field, or array index"
         );
     }
     

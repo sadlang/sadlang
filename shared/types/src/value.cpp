@@ -205,6 +205,33 @@ Value::MapType Value::toMap() const {
 // ========================================
 
 Value Value::operator+(const Value& other) const {
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) دمج المصفوفات: [1,2] + [3,4] → [1,2,3,4]
+    //      إضافة عنصر: [1,2] + 3 → [1,2,3]
+    // (EN) Array concatenation: [1,2] + [3,4] → [1,2,3,4]
+    //      Element append: [1,2] + 3 → [1,2,3]
+    // ═══════════════════════════════════════════════════════════════════
+    if (type_ == ValueType::ARRAY) {
+        ArrayType result = toArray();
+        if (other.type_ == ValueType::ARRAY) {
+            // (AR) دمج مصفوفتين
+            ArrayType otherArr = other.toArray();
+            result.insert(result.end(), otherArr.begin(), otherArr.end());
+        } else {
+            // (AR) إضافة عنصر واحد للمصفوفة
+            result.push_back(other);
+        }
+        return Value(result);
+    }
+    if (other.type_ == ValueType::ARRAY) {
+        // (AR) إضافة عنصر في بداية المصفوفة: 0 + [1,2] → [0,1,2]
+        ArrayType result;
+        result.push_back(*this);
+        ArrayType otherArr = other.toArray();
+        result.insert(result.end(), otherArr.begin(), otherArr.end());
+        return Value(result);
+    }
+    
     // (AR) جمع النصوص / (EN) String concatenation
     if (type_ == ValueType::STRING || other.type_ == ValueType::STRING) {
         return Value(toString() + other.toString());
@@ -235,6 +262,47 @@ Value Value::operator-(const Value& other) const {
 }
 
 Value Value::operator*(const Value& other) const {
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) تكرار المصفوفات: [1,2] * 3 → [1,2,1,2,1,2]
+    // (EN) Array repetition: [1,2] * 3 → [1,2,1,2,1,2]
+    // ═══════════════════════════════════════════════════════════════════
+    if (type_ == ValueType::ARRAY && other.isNumeric()) {
+        ArrayType arr = toArray();
+        int count = other.toInt();
+        if (count <= 0) return Value(ArrayType{});
+        ArrayType result;
+        result.reserve(arr.size() * count);
+        for (int i = 0; i < count; ++i)
+            result.insert(result.end(), arr.begin(), arr.end());
+        return Value(result);
+    }
+    if (other.type_ == ValueType::ARRAY && isNumeric()) {
+        // (AR) 3 * [1,2] → [1,2,1,2,1,2] (ضرب من اليسار)
+        ArrayType arr = other.toArray();
+        int count = toInt();
+        if (count <= 0) return Value(ArrayType{});
+        ArrayType result;
+        result.reserve(arr.size() * count);
+        for (int i = 0; i < count; ++i)
+            result.insert(result.end(), arr.begin(), arr.end());
+        return Value(result);
+    }
+    // (AR) تكرار النصوص: "ها" * 3 → "هاهاها"
+    if (type_ == ValueType::STRING && other.isNumeric()) {
+        std::string s = toString();
+        int count = other.toInt();
+        std::string result;
+        for (int i = 0; i < count; ++i) result += s;
+        return Value(result);
+    }
+    if (other.type_ == ValueType::STRING && isNumeric()) {
+        std::string s = other.toString();
+        int count = toInt();
+        std::string result;
+        for (int i = 0; i < count; ++i) result += s;
+        return Value(result);
+    }
+    
     if (isNumeric() && other.isNumeric()) {
         if (type_ == ValueType::DOUBLE || other.type_ == ValueType::DOUBLE) {
             return Value(toDouble() * other.toDouble());

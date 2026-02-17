@@ -217,6 +217,14 @@ void ASTPrinter::visitMemberAssignExpr(MemberAssignExpr& expr) {
     expr.value->accept(*this);
 }
 
+void ASTPrinter::visitIndexAssignExpr(IndexAssignExpr& expr) {
+    expr.object->accept(*this);
+    result_ += "[";
+    expr.index->accept(*this);
+    result_ += "] = ";
+    expr.value->accept(*this);
+}
+
 /**
  * @brief (AR) يزور عقدة المصفوفة الحرفية - يطبع العناصر.
  *        (EN) Visits array literal node - prints elements.

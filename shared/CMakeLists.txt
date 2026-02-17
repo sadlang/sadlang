@@ -29,6 +29,10 @@ add_library(sad_shared STATIC
     ast/src/property_nodes.cpp
     ast/src/statements.cpp
     ast/src/type_nodes.cpp
+    ast/src/class_nodes.cpp          # OOP AST nodes (ThisExpr, SuperExpr, NewExpr, etc.)
+    
+    # OOP Managers (مطلوبة للمترجم sadc)
+    ${CMAKE_SOURCE_DIR}/interpreter_new/src/managers/class_manager.cpp
     
     # Types
     types/src/class_type.cpp
@@ -74,6 +78,7 @@ target_include_directories(sad_shared
         ${CMAKE_CURRENT_SOURCE_DIR}/errors/include
         ${CMAKE_CURRENT_SOURCE_DIR}/modules/include
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/include
+        ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers   # ClassManager header
 )
 
 # للتوافق مع الكود القديم
