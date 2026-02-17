@@ -24,25 +24,25 @@ namespace Graphics {
             
             // نمط عادي / Normal style
             m_normalStyle = m_style;
-            m_normalStyle.backgroundColor = Color(200, 200, 200);  // رمادي فاتح / Light gray
+            m_normalStyle.backgroundColor = Color::FromBytes(200, 200, 200);  // رمادي فاتح / Light gray
             m_normalStyle.foregroundColor = Color::Black;           // نص أسود / Black text
-            m_normalStyle.borderColor = Color(150, 150, 150);       // حدود رمادية / Gray border
+            m_normalStyle.borderColor = Color::FromBytes(150, 150, 150);       // حدود رمادية / Gray border
             m_normalStyle.borderWidth = 2.0f;                       // عرض حدود / Border width
 
             // نمط التحويم / Hover style
             m_hoverStyle = m_normalStyle;
-            m_hoverStyle.backgroundColor = Color(220, 220, 220);    // رمادي أفتح / Lighter gray
-            m_hoverStyle.borderColor = Color(100, 100, 255);        // حدود زرقاء / Blue border
+            m_hoverStyle.backgroundColor = Color::FromBytes(220, 220, 220);    // رمادي أفتح / Lighter gray
+            m_hoverStyle.borderColor = Color::FromBytes(100, 100, 255);        // حدود زرقاء / Blue border
 
             // نمط الضغط / Pressed style
             m_pressedStyle = m_normalStyle;
-            m_pressedStyle.backgroundColor = Color(150, 150, 150);  // رمادي داكن / Darker gray
-            m_pressedStyle.borderColor = Color(50, 50, 200);        // حدود زرقاء داكنة / Dark blue border
+            m_pressedStyle.backgroundColor = Color::FromBytes(150, 150, 150);  // رمادي داكن / Darker gray
+            m_pressedStyle.borderColor = Color::FromBytes(50, 50, 200);        // حدود زرقاء داكنة / Dark blue border
 
             // نمط معطل / Disabled style
             m_disabledStyle = m_normalStyle;
-            m_disabledStyle.backgroundColor = Color(180, 180, 180); // رمادي باهت / Pale gray
-            m_disabledStyle.foregroundColor = Color(120, 120, 120); // نص رمادي / Gray text
+            m_disabledStyle.backgroundColor = Color::FromBytes(180, 180, 180); // رمادي باهت / Pale gray
+            m_disabledStyle.foregroundColor = Color::FromBytes(120, 120, 120); // نص رمادي / Gray text
             m_disabledStyle.opacity = 0.6f;                         // شفافية / Opacity
 
             // تطبيق النمط العادي / Apply normal style
@@ -201,7 +201,7 @@ namespace Graphics {
         // ============================================================================
         // رسم الزر / Draw button
         // ============================================================================
-        void Button::Draw(Renderer2D* renderer) {
+        void Button::Draw(SadGraphics::Renderer2D* renderer) {
             // إذا لم يكن ظاهراً / If not visible
             if (!m_visible) {
                 return;

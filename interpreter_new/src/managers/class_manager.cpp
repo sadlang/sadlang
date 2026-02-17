@@ -63,7 +63,9 @@ bool ClassManager::registerClass(std::unique_ptr<ClassType> classType) {
         // (AR) إذا كان الصنف الموجود فارغاً (تسجيل مؤقت)، استبدله
         // (EN) If existing class is empty (temporary registration), replace it
         if (it->second->fields.empty() && it->second->methods.empty()) {
-            std::cout << "[ClassManager] تحديث التسجيل المؤقت للصنف: " << className << "\n";
+            #ifdef DEBUG_OOP
+std::cout << "[ClassManager] تحديث التسجيل المؤقت للصنف: " << className << "\n";
+#endif
             classes_[className] = std::move(classType);
             return true;
         }

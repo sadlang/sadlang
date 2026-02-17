@@ -62,6 +62,7 @@
 namespace Sad {
 namespace Data {
     class ClassType;
+    struct OperatorOverload;
 }
 namespace Interpreter {
     class StatementExecutor;
@@ -348,6 +349,18 @@ public:
      * @brief (EN) Execute logical operation
      */
     Data::Value evaluateLogicalOp(const Data::Value& left, Lexer::TokenType op, const Data::Value& right, const Lexer::Position& pos);
+    
+    /**
+     * @brief (AR) تنفيذ عامل محمل زائداً على كائن
+     * @brief (EN) Execute operator overload on an object
+     * 
+     * @param left (const Data::Value&) — (AR) الكائن (الطرف الأيسر) / (EN) object (left operand)
+     * @param overload (Data::OperatorOverload&) — (AR) تعريف العامل / (EN) operator definition
+     * @param right (const Data::Value&) — (AR) الطرف الأيمن / (EN) right operand
+     * @param pos (const Lexer::Position&) — (AR) موقع في الكود / (EN) source position
+     * @return (Data::Value) — (AR) نتيجة العملية / (EN) operation result
+     */
+    Data::Value executeOperatorOverload(const Data::Value& left, Data::OperatorOverload& overload, const Data::Value& right, const Lexer::Position& pos);
     
     /**
      * @brief (AR) تحويل Token إلى Value

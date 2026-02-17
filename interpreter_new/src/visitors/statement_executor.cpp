@@ -158,7 +158,7 @@ void StatementExecutor::visitVarDeclStmt(AST::VarDeclStmt& node) {
 
 void StatementExecutor::visitBlockStmt(AST::BlockStmt& node) {
     // (AR) دخول نطاق جديد / (EN) Enter new scope
-    scopeManager_.pushScope(Data::ScopeType::BLOCK);
+    variableManager_.enterScope(Data::ScopeType::BLOCK);
     ownershipManager_.enterScope();
     
     // (AR) تنفيذ جميع الجمل في الكتلة / (EN) Execute all statements in block
@@ -173,7 +173,7 @@ void StatementExecutor::visitBlockStmt(AST::BlockStmt& node) {
     
     // (AR) الخروج من النطاق / (EN) Exit scope
     ownershipManager_.exitScope();
-    scopeManager_.popScope();
+    variableManager_.exitScope();
 }
 
 // =========================================================================
@@ -232,7 +232,7 @@ void StatementExecutor::visitWhileStmt(AST::WhileStmt& node) {
 
 void StatementExecutor::visitForStmt(AST::ForStmt& node) {
     // (AR) دخول نطاق جديد للحلقة / (EN) Enter new scope for loop
-    scopeManager_.pushScope(Data::ScopeType::LOOP);
+    variableManager_.enterScope(Data::ScopeType::LOOP);
     
     // (AR) تنفيذ التهيئة / (EN) Execute initializer
     if (node.initializer) {
@@ -281,7 +281,7 @@ void StatementExecutor::visitForStmt(AST::ForStmt& node) {
     loopDepth_--;
     
     // (AR) الخروج من نطاق الحلقة / (EN) Exit loop scope
-    scopeManager_.popScope();
+    variableManager_.exitScope();
 }
 
 void StatementExecutor::visitForRangeStmt(AST::ForRangeStmt& node) {
@@ -289,7 +289,7 @@ void StatementExecutor::visitForRangeStmt(AST::ForRangeStmt& node) {
     Data::Value iterable = evaluateExpression(*node.iterable);
     
     // (AR) دخول نطاق جديد / (EN) Enter new scope
-    scopeManager_.pushScope(Data::ScopeType::LOOP);
+    variableManager_.enterScope(Data::ScopeType::LOOP);
     
     // (AR) زيادة عمق الحلقة / (EN) Increase loop depth
     loopDepth_++;
@@ -373,7 +373,7 @@ void StatementExecutor::visitForRangeStmt(AST::ForRangeStmt& node) {
     loopDepth_--;
     
     // (AR) الخروج من النطاق / (EN) Exit scope
-    scopeManager_.popScope();
+    variableManager_.exitScope();
 }
 
 // =========================================================================
@@ -562,7 +562,7 @@ void StatementExecutor::visitWithStmt(AST::WithStmt& node) {
     // Note: In future, will support calling special methods
     
     // (AR) دخول نطاق جديد لـ with / (EN) Enter new scope for with
-    scopeManager_.pushScope(Data::ScopeType::BLOCK);
+    variableManager_.enterScope(Data::ScopeType::BLOCK);
     
     // (AR) تعريف المتغير المستعار إذا وُجد / (EN) Define alias variable if present
     if (!node.alias.empty()) {
@@ -588,7 +588,7 @@ void StatementExecutor::visitWithStmt(AST::WithStmt& node) {
     // Note: Currently we just exit the scope
     
     // (AR) خروج من نطاق with / (EN) Exit with scope
-    scopeManager_.popScope();
+    variableManager_.exitScope();
     
     // (AR) إعادة رمي الاستثناء إذا لم يُعالج / (EN) Re-throw exception if not handled
     if (exceptionOccurred && !exceptionMessage.empty()) {
@@ -631,7 +631,7 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
             }
             
             // (AR) دخول نطاق جديد / (EN) Enter new scope
-            scopeManager_.pushScope(Data::ScopeType::BLOCK);
+            variableManager_.enterScope(Data::ScopeType::BLOCK);
             
             // (AR) تعريف متغير الاستثناء / (EN) Define exception variable
             if (!catchClause.exceptionVar.empty()) {
@@ -643,7 +643,7 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
             catchClause.body->accept(*this);
             
             // (AR) الخروج من النطاق / (EN) Exit scope
-            scopeManager_.popScope();
+            variableManager_.exitScope();
             
             caught = true;
             break;
@@ -659,7 +659,7 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
         bool caught = false;
         
         for (auto& catchClause : node.catchClauses) {
-            scopeManager_.pushScope(Data::ScopeType::BLOCK);
+            variableManager_.enterScope(Data::ScopeType::BLOCK);
             
             if (!catchClause.exceptionVar.empty()) {
                 variableManager_.define(catchClause.exceptionVar, 
@@ -667,7 +667,7 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
             }
             
             catchClause.body->accept(*this);
-            scopeManager_.popScope();
+            variableManager_.exitScope();
             
             caught = true;
             break;
@@ -683,7 +683,7 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
         bool caught = false;
         
         for (auto& catchClause : node.catchClauses) {
-            scopeManager_.pushScope(Data::ScopeType::BLOCK);
+            variableManager_.enterScope(Data::ScopeType::BLOCK);
             
             if (!catchClause.exceptionVar.empty()) {
                 variableManager_.define(catchClause.exceptionVar, 
@@ -691,7 +691,7 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
             }
             
             catchClause.body->accept(*this);
-            scopeManager_.popScope();
+            variableManager_.exitScope();
             
             caught = true;
             break;
@@ -706,7 +706,7 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
         bool caught = false;
         
         for (auto& catchClause : node.catchClauses) {
-            scopeManager_.pushScope(Data::ScopeType::BLOCK);
+            variableManager_.enterScope(Data::ScopeType::BLOCK);
             
             if (!catchClause.exceptionVar.empty()) {
                 variableManager_.define(catchClause.exceptionVar, 
@@ -714,7 +714,7 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
             }
             
             catchClause.body->accept(*this);
-            scopeManager_.popScope();
+            variableManager_.exitScope();
             
             caught = true;
             break;
@@ -769,7 +769,7 @@ void StatementExecutor::visitMatchStmt(AST::MatchStmt& node) {
             
             // (AR) النمط والحارس نجحا - ننفذ الجسم / (EN) Pattern and guard succeeded - execute body
             // (AR) ندفع نطاق جديد لربط متغيرات النمط / (EN) Push new scope to bind pattern variables
-            scopeManager_.pushScope(Data::ScopeType::BLOCK);
+            variableManager_.enterScope(Data::ScopeType::BLOCK);
             
             // (AR) ربط جميع المتغيرات من النمط / (EN) Bind all variables from pattern
             for (const auto& [name, value] : bindings) {
@@ -783,13 +783,13 @@ void StatementExecutor::visitMatchStmt(AST::MatchStmt& node) {
                 // (AR) إذا حدث تحكم في التدفق (return, break, continue)، نتوقف
                 // (EN) If flow control occurred (return, break, continue), stop
                 if (flowControl_ != FlowControl::NONE) {
-                    scopeManager_.popScope();
+                    variableManager_.exitScope();
                     return;
                 }
             }
             
             // (AR) إزالة النطاق / (EN) Pop scope
-            scopeManager_.popScope();
+            variableManager_.exitScope();
             
             // (AR) وجدنا تطابق، ننهي / (EN) Found match, exit
             return;
@@ -1048,7 +1048,7 @@ void StatementExecutor::visitNamespaceDecl(AST::NamespaceDecl& node) {
     
     // (AR) إنشاء نطاق جديد لفضاء الأسماء (نستخدم BLOCK لأنه أقرب)
     // (EN) Create new scope for namespace (using BLOCK as closest match)
-    scopeManager_.pushScope(Data::ScopeType::BLOCK);
+    variableManager_.enterScope(Data::ScopeType::BLOCK);
     
     // (AR) تنفيذ جميع التصريحات داخل فضاء الأسماء
     // (EN) Execute all declarations inside namespace
@@ -1063,7 +1063,7 @@ void StatementExecutor::visitNamespaceDecl(AST::NamespaceDecl& node) {
     
     // (AR) الخروج من النطاق
     // (EN) Exit scope
-    scopeManager_.popScope();
+    variableManager_.exitScope();
     
     // (AR) استعادة فضاء الأسماء السابق
     // (EN) Restore previous namespace
@@ -1073,18 +1073,17 @@ void StatementExecutor::visitNamespaceDecl(AST::NamespaceDecl& node) {
 void StatementExecutor::visitOperatorDecl(AST::OperatorDecl& node) {
     // (AR) تسجيل حمل العامل الزائد
     // (EN) Register operator overload
-    // هذا يحتاج سياق الصنف الحالي - سيُنفّذ عند تحليل الصنف
-    // This needs current class context - will be executed during class parsing
-    
-    // (AR) للتنفيذ المستقبلي: ربط العامل مع الصنف الحالي
-    // (EN) For future implementation: link operator with current class
+    // (AR) ملاحظة: التسجيل الفعلي يتم في visitClassDecl عند تحليل أعضاء الصنف.
+    //       هذه الدالة تُستدعى فقط إذا ظهر تصريح عامل خارج سياق صنف.
+    // (EN) Note: Actual registration happens in visitClassDecl when parsing class members.
+    //       This function is only called if an operator declaration appears outside class context.
     
     #ifdef DEBUG
-    std::cout << "[Operator] تسجيل عامل: " << node.operatorSymbol << std::endl;
+    std::cout << "[Operator] تصريح عامل خارج صنف (مُتجاهل): " << node.operatorSymbol << std::endl;
     #endif
     
-    // (AR) حالياً لا نفعل شيئاً - العامل يُستخدم فقط عند تحليل الصنف
-    // (EN) Currently do nothing - operator is only used during class parsing
+    // (AR) العوامل المحملة زائداً صالحة فقط داخل صنف
+    // (EN) Operator overloads are only valid inside a class
 }
 
 // =========================================================================
@@ -1194,7 +1193,9 @@ void StatementExecutor::visitTemplateClassDecl(AST::TemplateClassDecl& node) {
     std::cout << std::endl;
     #endif
     
-    // TODO: Implement template class instantiation
+    // (AR) حفظ مؤشر للعقدة الأصلية في خريطة القوالب
+    // (EN) Store pointer to original AST node in template map
+    templateClasses_[node.name] = &node;
 }
 
 } // namespace Interpreter

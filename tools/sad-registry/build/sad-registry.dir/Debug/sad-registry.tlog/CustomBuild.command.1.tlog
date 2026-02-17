@@ -1,0 +1,10 @@
+^C:\S\S_LANGUAGE\TOOLS\SAD-REGISTRY\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/s/s_language/tools/sad-registry -BC:/s/s_language/tools/sad-registry/build --check-stamp-file C:/s/s_language/tools/sad-registry/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

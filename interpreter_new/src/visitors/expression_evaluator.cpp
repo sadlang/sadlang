@@ -339,6 +339,45 @@ void ExpressionEvaluator::visitBinaryExpr(BinaryExpr& node) {
     node.right->accept(*this);
     Value right = lastResult_;
     
+    // (AR) فحص تحميل العامل الزائد على الكائنات / (EN) Check operator overloading on objects
+    if (left.isMap()) {
+        auto fields = left.toMap();
+        auto classNameIt = fields.find("__class__");
+        if (classNameIt != fields.end()) {
+            std::string className = classNameIt->second.toString();
+            auto* classManager = Data::ClassManager::getInstance();
+            Data::ClassType* classType = classManager->getClass(className);
+            if (classType) {
+                // (AR) تحويل رمز العامل من TokenType إلى نص / (EN) Convert operator token to string
+                std::string opSymbol;
+                switch (node.op) {
+                    case TokenType::OP_PLUS:          opSymbol = "+"; break;
+                    case TokenType::OP_MINUS:         opSymbol = "-"; break;
+                    case TokenType::OP_MULTIPLY:      opSymbol = "*"; break;
+                    case TokenType::OP_DIVIDE:        opSymbol = "/"; break;
+                    case TokenType::OP_MODULO:        opSymbol = "%"; break;
+                    case TokenType::OP_POWER:         opSymbol = "**"; break;
+                    case TokenType::OP_EQUAL:         opSymbol = "=="; break;
+                    case TokenType::OP_NOT_EQUAL:     opSymbol = "!="; break;
+                    case TokenType::OP_LESS:          opSymbol = "<"; break;
+                    case TokenType::OP_LESS_EQUAL:    opSymbol = "<="; break;
+                    case TokenType::OP_GREATER:       opSymbol = ">"; break;
+                    case TokenType::OP_GREATER_EQUAL: opSymbol = ">="; break;
+                    default: break;
+                }
+                
+                if (!opSymbol.empty()) {
+                    Data::OperatorOverload* opOverload = classType->findOperator(opSymbol);
+                    if (opOverload && opOverload->body) {
+                        // (AR) تنفيذ العامل المحمل زائداً / (EN) Execute operator overload
+                        lastResult_ = executeOperatorOverload(left, *opOverload, right, node.position);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    
     // تحديد نوع العملية / Determine operation type
     switch (node.op) {
         // (AR) عمليات حسابية / (EN) Arithmetic operations
@@ -574,6 +613,58 @@ Value ExpressionEvaluator::evaluateLogicalOp(const Value& left, TokenType op, co
             );
             return Value(false);
     }
+}
+
+// =========================================================================
+// (AR) تنفيذ عامل محمل زائداً / (EN) Operator Overload Execution
+// =========================================================================
+
+Value ExpressionEvaluator::executeOperatorOverload(const Value& left, Data::OperatorOverload& overload, const Value& right, const Lexer::Position& pos) {
+    // (AR) التحقق من عدد المعاملات / (EN) Verify parameter count
+    if (overload.parameters.size() != 1) {
+        throw RuntimeError(
+            "(AR) العامل '" + overload.operatorSymbol + "' يجب أن يقبل معاملاً واحداً بالضبط. "
+            "(EN) Operator '" + overload.operatorSymbol + "' must accept exactly one parameter.",
+            pos
+        );
+    }
+    
+    // (AR) إنشاء نطاق جديد لتنفيذ العامل / (EN) Create new scope for operator execution
+    variableManager_.enterScope(Data::ScopeType::FUNCTION, "operator" + overload.operatorSymbol);
+    
+    // (AR) ربط 'هذا' بالكائن الأيسر / (EN) Bind 'this' to left object
+    variableManager_.define("هذا", left);
+    
+    // (AR) ربط حقول الكائن الأيسر كمتغيرات محلية (محاكاة this.field → field)
+    // (EN) Bind left object fields as local variables (simulate this.field → field)
+    if (left.isMap()) {
+        auto fields = left.toMap();
+        for (const auto& [fieldName, fieldValue] : fields) {
+            if (fieldName != "__class__") {
+                variableManager_.define(fieldName, fieldValue);
+            }
+        }
+    }
+    
+    // (AR) ربط المعامل الأيمن / (EN) Bind right operand
+    variableManager_.define(overload.parameters[0].name, right);
+    
+    // (AR) تنفيذ جسم العامل / (EN) Execute operator body
+    Value returnValue;
+    try {
+        overload.body->accept(statementExecutor_);
+        
+        if (statementExecutor_.getFlowControl() == FlowControl::RETURN) {
+            returnValue = statementExecutor_.getReturnValue();
+            statementExecutor_.resetFlowControl();
+        }
+    } catch (...) {
+        variableManager_.exitScope();
+        throw;
+    }
+    
+    variableManager_.exitScope();
+    return returnValue;
 }
 
 // =========================================================================
@@ -847,6 +938,80 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
         arguments.push_back(lastResult_);
     }
     
+    // (AR) أولوية: إذا كنا داخل طريقة صنف، نبحث أولاً عن الطريقة في الصنف الحالي
+    //       قبل البحث في الدوال العامة (لتجنب تعارض الأسماء مع الدوال المضمنة)
+    // (EN) Priority: if inside a class method, search class methods first
+    //       before global functions (to avoid name conflicts with built-ins)
+    {
+        auto* classManager = Data::ClassManager::getInstance();
+        if (variableManager_.exists("هذا")) {
+            Value thisValue = variableManager_.get("هذا");
+            if (thisValue.isMap()) {
+                auto thisFields = thisValue.toMap();
+                auto classNameIt = thisFields.find("__class__");
+                if (classNameIt != thisFields.end()) {
+                    std::string thisClassName = classNameIt->second.toString();
+                    Data::ClassType* thisClassType = classManager->getClass(thisClassName);
+                    if (thisClassType) {
+                        Data::ClassMethod* method = thisClassType->findMethod(funcName);
+                        // (AR) البحث عن الجسم: أولاً في الطريقة نفسها، ثم في مصدر القالب
+                        // (EN) Find body: first in method itself, then in template instance source
+                        AST::Statement* methodBody = nullptr;
+                        if (method && method->body) {
+                            methodBody = method->body.get();
+                        } else if (method) {
+                            auto* tplSrc = statementExecutor_.getTemplateInstanceSource(thisClassName);
+                            if (tplSrc) {
+                                for (auto& m : tplSrc->members) {
+                                    if (auto* md = dynamic_cast<AST::MethodDecl*>(m.get())) {
+                                        if (md->name == funcName && md->body) {
+                                            methodBody = md->body.get();
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (method && methodBody) {
+                            // (AR) وجدنا طريقة في الصنف الحالي - ننفذها بأولوية
+                            // (EN) Found method in current class - execute with priority
+                            if (arguments.size() != method->parameters.size()) {
+                                std::string errMsg = "(AR) عدد معاملات الطريقة '" + funcName + "' غير متطابق. ";
+                                errMsg += "توقع " + std::to_string(method->parameters.size()) + " لكن حصل على " + std::to_string(arguments.size()) + ". ";
+                                errMsg += "(EN) Argument count mismatch for method '" + funcName + "'.";
+                                throw RuntimeError(errMsg, node.position);
+                            }
+                            
+                            // (AR) ندفع نطاق فقط للمعاملات - الحقول موروثة من النطاق الأب
+                            // (EN) Push scope only for parameters - fields inherited from parent scope
+                            variableManager_.enterScope(Data::ScopeType::FUNCTION, funcName);
+                            
+                            for (size_t i = 0; i < method->parameters.size(); ++i) {
+                                variableManager_.define(method->parameters[i].name, arguments[i]);
+                            }
+                            
+                            Value returnValue;
+                            try {
+                                methodBody->accept(statementExecutor_);
+                                if (statementExecutor_.getFlowControl() == FlowControl::RETURN) {
+                                    returnValue = statementExecutor_.getReturnValue();
+                                    statementExecutor_.resetFlowControl();
+                                }
+                            } catch (...) {
+                                variableManager_.exitScope();
+                                throw;
+                            }
+                            
+                            variableManager_.exitScope();
+                            lastResult_ = returnValue;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     // (AR) البحث عن الدالة - flexible matching مع default parameters
     // (EN) Find function - flexible matching with default parameters
     auto allOverloads = functionManager_.getFunctionOverloads(funcName);
@@ -854,17 +1019,22 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
     
     // (AR) نبحث عن دالة تقبل هذا العدد من المعاملات (مع الافتراضيات)
     // (EN) Search for function that accepts this argument count (with defaults)
+    // (AR) الأولوية 1: الدوال المعرفة من المستخدم التي تطابق عدد المعاملات
+    // (EN) Priority 1: User-defined functions that match argument count
     for (const auto& candidate : allOverloads) {
-        // (AR) الدوال المضمنة يمكن أن تقبل أي عدد من المعاملات
-        // (EN) Built-in functions can accept any number of arguments
-        if (candidate->hasNativeImplementation()) {
+        if (!candidate->hasNativeImplementation() && candidate->acceptsArgumentCount(arguments.size())) {
             func = candidate;
             break;
         }
-        
-        if (candidate->acceptsArgumentCount(arguments.size())) {
-            func = candidate;
-            break;
+    }
+    // (AR) الأولوية 2: الدوال المضمنة (كنسخة احتياطية)
+    // (EN) Priority 2: Built-in functions (as fallback)
+    if (!func) {
+        for (const auto& candidate : allOverloads) {
+            if (candidate->hasNativeImplementation()) {
+                func = candidate;
+                break;
+            }
         }
     }
     
@@ -876,6 +1046,31 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
         func = functionManager_.getFunction(funcName, arguments.size());
         
         if (!func) {
+            // (AR) التحقق إذا كان الاسم هو اسم صنف مسجّل → إنشاء كائن بدون 'جديد'
+            // (EN) Check if name is a registered class → create object without 'new' keyword
+            // مثال: مكدس م1 = مكدس()  بدلاً من  متغير م1 = جديد مكدس()
+            auto* classManager2 = Data::ClassManager::getInstance();
+            Data::ClassType* classType = classManager2->getClass(funcName);
+            if (classType) {
+                // (AR) بناء عقدة NewExpr مؤقتة والنقل إليها
+                // (EN) Build a temporary NewExpr node and delegate
+                NewExpr tempNewExpr(funcName);
+                tempNewExpr.position = node.position;
+                // (AR) نقل المعاملات من الـ CallExpr إلى NewExpr
+                // (EN) Move arguments from CallExpr to NewExpr
+                for (auto& arg : node.arguments) {
+                    tempNewExpr.arguments.push_back(std::move(arg));
+                }
+                visitNewExpr(tempNewExpr);
+                // (AR) إعادة المعاملات للـ CallExpr لتجنب مؤشرات معلقة
+                // (EN) Move arguments back to CallExpr to avoid dangling pointers
+                node.arguments.clear();
+                for (auto& arg : tempNewExpr.arguments) {
+                    node.arguments.push_back(std::move(arg));
+                }
+                return;
+            }
+            
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
                 Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
@@ -920,7 +1115,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
     }
     
     // (AR) إنشاء نطاق جديد للدالة / (EN) Create new scope for function
-    scopeManager_.pushScope(Data::ScopeType::FUNCTION, funcName);
+    variableManager_.enterScope(Data::ScopeType::FUNCTION, funcName);
     
     // (AR) الحصول على المعاملات / (EN) Get parameters
     const auto& params = func->getParameters();
@@ -943,7 +1138,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
         const auto& param = params[i];
         
         if (!param.hasDefaultValue) {
-            scopeManager_.popScope();
+            variableManager_.exitScope();
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT,
                 Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
@@ -969,7 +1164,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
             } else {
                 // (AR) لا توجد قيمة افتراضية في AST (خطأ)
                 // (EN) No default value in AST (error)
-                scopeManager_.popScope();
+                variableManager_.exitScope();
                 throw RuntimeError(
                     "(AR) معامل إلزامي مفقود: " + param.name + 
                     " / (EN) Required parameter missing: " + param.name
@@ -1037,7 +1232,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
         );
         
         if (!bodyExpr) {
-            scopeManager_.popScope();
+            variableManager_.exitScope();
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
                 Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
@@ -1053,7 +1248,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
     }
     
     // (AR) الخروج من نطاق الدالة / (EN) Exit function scope
-    scopeManager_.popScope();
+    variableManager_.exitScope();
 }
 
 // =========================================================================
@@ -1061,16 +1256,48 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
 // =========================================================================
 
 void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
+    #ifdef DEBUG_OOP
     std::cout << "[OOP] تنفيذ تعبير جديد: " << node.className << "\n";
+#endif
+    
+    // (AR) دعم أصناف القوالب: جديد صنف<نوع>(معاملات)
+    // (EN) Template class support: new Class<Type>(args)
+    std::string effectiveClassName = node.className;
+    if (!node.templateArguments.empty()) {
+        // (AR) هذا إنشاء صنف قالب - نحتاج إنشاء نسخة ملموسة
+        // (EN) This is a template class instantiation - need to create concrete version
+        auto* templateDecl = statementExecutor_.getTemplateClass(node.className);
+        if (templateDecl) {
+            // (AR) إنشاء النسخة الملموسة تحت الاسم الأصلي (بدون تغيير)
+            // (EN) Instantiate concrete version under original name (unchanged)
+            // لأن المفسر ديناميكي النوع، النسخة واحدة تكفي لكل الأنواع
+            statementExecutor_.instantiateTemplateClass(*templateDecl, node.className);
+            effectiveClassName = node.className;
+        } else {
+            // (AR) ربما الصنف مسجّل بالفعل (من تنفيذ سابق)
+            // (EN) Perhaps the class is already registered (from previous execution)
+            // نتابع بالاسم الأصلي
+        }
+    }
     
     // الحصول على ClassType من ClassManager
     auto* classManager = Data::ClassManager::getInstance();
-    ClassType* classType = classManager->getClass(node.className);
+    ClassType* classType = classManager->getClass(effectiveClassName);
     
     if (!classType) {
-        std::string errMsg = "(AR) الصنف '" + node.className + "' غير موجود. ";
-        errMsg += "(EN) Class '" + node.className + "' not found.";
-        throw RuntimeError(errMsg, node.position);
+        // (AR) آخر محاولة: هل هو صنف قالب ولم نحدد الأنواع؟
+        // (EN) Last attempt: is it a template class without type args?
+        auto* templateDecl = statementExecutor_.getTemplateClass(node.className);
+        if (templateDecl) {
+            statementExecutor_.instantiateTemplateClass(*templateDecl, node.className);
+            classType = classManager->getClass(node.className);
+        }
+        
+        if (!classType) {
+            std::string errMsg = "(AR) الصنف '" + effectiveClassName + "' غير موجود. ";
+            errMsg += "(EN) Class '" + effectiveClassName + "' not found.";
+            throw RuntimeError(errMsg, node.position);
+        }
     }
     
     // إنشاء كائن كـ MAP مؤقتًا (حتى يتم توسيع نظام Value)
@@ -1108,13 +1335,35 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
     // إضافة معلومة اسم الصنف
     objectFields["__class__"] = Value(node.className);
     
+    #ifdef DEBUG_OOP
+    
     std::cout << "[OOP] تم إنشاء كائن من صنف: " << node.className << "\n";
+#endif
+    #ifdef DEBUG_OOP
     std::cout << "[OOP] عدد الحقول: " << allFields.size() << " (بما في ذلك الموروثة)\n";
+#endif
     
     // استدعاء الباني إذا كان موجودًا
+    // (AR) نبحث أولاً في ClassType، ثم في مصدر القالب
+    // (EN) First check ClassType, then template instance source
+    AST::ConstructorDecl* constructor = nullptr;
     if (classType->constructor) {
-        auto& constructor = classType->constructor;
-        
+        constructor = classType->constructor.get();
+    } else {
+        // (AR) البحث في مصادر نسخ القوالب
+        // (EN) Look up constructor from template instance source
+        auto* templateSrc = statementExecutor_.getTemplateInstanceSource(effectiveClassName);
+        if (templateSrc) {
+            for (auto& member : templateSrc->members) {
+                if (auto* ctorDecl = dynamic_cast<AST::ConstructorDecl*>(member.get())) {
+                    constructor = ctorDecl;
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (constructor) {
         // التحقق من عدد المعاملات
         if (node.arguments.size() != constructor->parameters.size()) {
             std::string errMsg = "(AR) عدد المعاملات غير متطابق. توقع " + 
@@ -1142,7 +1391,11 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
         }
         
         // إضافة حقول الكائن للـ scope (محاكاة 'this')
-        // هذا حل مؤقت - يجب استخدام 'this' بشكل صحيح
+        // (AR) ربط 'هذا' بالكائن الحالي / (EN) Bind 'this' to current object
+        Value objectValue(objectFields);
+        variableManager_.define("هذا", objectValue);
+        variableManager_.define("this", objectValue);
+        
         for (const auto& [name, value] : objectFields) {
             if (name != "__class__") {
                 variableManager_.define(name, value);
@@ -1164,7 +1417,11 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
         // === Call base constructor (super) if superArgs exist ===
         if (!constructor->superArgs.empty() && classType->getBaseClass()) {
             ClassType* baseClass = classType->getBaseClass();
+            AST::ConstructorDecl* baseCtor = nullptr;
             if (baseClass->constructor) {
+                baseCtor = baseClass->constructor.get();
+            }
+            if (baseCtor) {
                 // تقييم معاملات الأساس
                 std::vector<Value> superArgValues;
                 for (auto& sarg : constructor->superArgs) {
@@ -1172,9 +1429,9 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
                     superArgValues.push_back(lastResult_);
                 }
                 // ربط معاملات باني الأب بالقيم في الـ scope الحالي
-                if (superArgValues.size() == baseClass->constructor->parameters.size()) {
-                    for (size_t si = 0; si < baseClass->constructor->parameters.size(); ++si) {
-                        const auto& pname = baseClass->constructor->parameters[si].name;
+                if (superArgValues.size() == baseCtor->parameters.size()) {
+                    for (size_t si = 0; si < baseCtor->parameters.size(); ++si) {
+                        const auto& pname = baseCtor->parameters[si].name;
                         if (variableManager_.exists(pname)) {
                             variableManager_.assign(pname, superArgValues[si]);
                         } else {
@@ -1183,7 +1440,7 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
                     }
                     // تنفيذ جسم باني الأب
                     try {
-                        baseClass->constructor->body->accept(statementExecutor_);
+                        baseCtor->body->accept(statementExecutor_);
                     } catch (...) {
                         // تجاهل الأخطاء في باني الأب مبدئياً
                     }
@@ -1246,7 +1503,9 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
 // =========================================================================
 
 void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
+    #ifdef DEBUG_OOP
     std::cout << "[OOP] استدعاء طريقة: " << node.methodName << "\n";
+#endif
     
     // تقييم الكائن
     node.object->accept(*this);
@@ -1267,7 +1526,9 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
         if (classType) {
             // هذا استدعاء ثابت: ClassName.staticMethod()
             // This is static call: ClassName.staticMethod()
+            #ifdef DEBUG_OOP
             std::cout << "[OOP] استدعاء طريقة ثابتة: " << possibleClassName << "." << node.methodName << "\n";
+#endif
             className = possibleClassName;
             isStaticCall = true;
         }
@@ -1375,10 +1636,31 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     }
     
     // تنفيذ جسم الطريقة
+    // (AR) نبحث عن الجسم في ClassType أولاً، ثم في مصدر القالب
+    // (EN) Look for body in ClassType first, then in template instance source
+    AST::Statement* methodBody = nullptr;
+    if (method->body) {
+        methodBody = method->body.get();
+    } else {
+        // (AR) البحث في مصدر القالب
+        // (EN) Look up method body from template instance source
+        auto* templateSrc = statementExecutor_.getTemplateInstanceSource(className);
+        if (templateSrc) {
+            for (auto& member : templateSrc->members) {
+                if (auto* methodDecl = dynamic_cast<AST::MethodDecl*>(member.get())) {
+                    if (methodDecl->name == node.methodName && methodDecl->body) {
+                        methodBody = methodDecl->body.get();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
     Value returnValue;
     try {
-        if (method->body) {
-            method->body->accept(statementExecutor_);
+        if (methodBody) {
+            methodBody->accept(statementExecutor_);
             
             // التحقق من وجود return
             if (statementExecutor_.getFlowControl() == FlowControl::RETURN) {
@@ -1424,7 +1706,10 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     
     variableManager_.exitScope();
     
+    #ifdef DEBUG_OOP
+    
     std::cout << "[OOP] ✅ تم تنفيذ الطريقة: " << node.methodName << "\n";
+#endif
     lastResult_ = returnValue;
 }
 
@@ -1448,7 +1733,9 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
         if (classType) {
             // هذا وصول ثابت: ClassName.staticField
             // This is static access: ClassName.staticField
+            #ifdef DEBUG_OOP
             std::cout << "[OOP] الوصول لحقل ثابت: " << possibleClassName << "." << node.member << "\n";
+#endif
             
             // البحث عن الحقل
             ClassField* field = classType->findField(node.member);
@@ -1477,7 +1764,9 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
             }
             
             lastResult_ = *staticValue;
+            #ifdef DEBUG_OOP
             std::cout << "[OOP] قيمة الحقل الثابت: " << lastResult_.toString() << "\n";
+#endif
             return;
         }
     }
@@ -1492,7 +1781,10 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
         throw RuntimeError(errMsg, node.position);
     }
     
+    #ifdef DEBUG_OOP
+    
     std::cout << "[OOP] الوصول لحقل: " << node.member << "\n";
+#endif
     
     // الحصول على MAP
     Value::MapType fields = objectValue.toMap();
@@ -1529,7 +1821,9 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
     
     // إذا كانت خاصية، نفذ الـ getter
     if (property) {
+        #ifdef DEBUG_OOP
         std::cout << "[OOP] تنفيذ getter للخاصية: " << node.member << "\n";
+#endif
         
         // فحص الوصول
         checkMemberAccess(property->visibility, node.member, classType);
@@ -1549,7 +1843,10 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
             // في حالة حدوث خطأ، نعيد القيمة الحالية
         }
         
+        #ifdef DEBUG_OOP
+        
         std::cout << "[OOP] قيمة الخاصية: " << lastResult_.toString() << "\n";
+#endif
         return;
     }
     
@@ -1567,7 +1864,9 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
     
     // إرجاع قيمة الحقل
     lastResult_ = it->second;
+    #ifdef DEBUG_OOP
     std::cout << "[OOP] قيمة الحقل: " << lastResult_.toString() << "\n";
+#endif
 }
 
 // =========================================================================
@@ -1626,7 +1925,9 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
     
     // إذا كانت خاصية، نفذ الـ setter
     if (property) {
+        #ifdef DEBUG_OOP
         std::cout << "[OOP] تنفيذ setter للخاصية: " << node.member << "\n";
+#endif
         
         // فحص الوصول
         checkMemberAccess(property->visibility, node.member, classType);
@@ -1648,7 +1949,9 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
         }
         
         lastResult_ = newValue;
+        #ifdef DEBUG_OOP
         std::cout << "[OOP] تم تعيين قيمة الخاصية: " << newValue.toString() << "\n";
+#endif
         return;
     }
     
@@ -1800,7 +2103,7 @@ void ExpressionEvaluator::visitListComprehensionExpr(ListComprehensionExpr& node
     std::vector<Value> result;
     
     // (AR) إنشاء نطاق جديد للـ comprehension / (EN) Create new scope for comprehension
-    scopeManager_.pushScope(Data::ScopeType::BLOCK, "list_comprehension");
+    variableManager_.enterScope(Data::ScopeType::BLOCK, "list_comprehension");
     
     // (AR) المرور على كل عنصر / (EN) Iterate over each element
     for (size_t i = 0; i < iterableValue.size(); ++i) {
@@ -1830,7 +2133,7 @@ void ExpressionEvaluator::visitListComprehensionExpr(ListComprehensionExpr& node
     }
     
     // (AR) الخروج من نطاق الـ comprehension / (EN) Exit comprehension scope
-    scopeManager_.popScope();
+    variableManager_.exitScope();
     
     // (AR) إرجاع المصفوفة الناتجة / (EN) Return result array
     lastResult_ = Value(result);
@@ -1860,7 +2163,7 @@ void ExpressionEvaluator::visitDictComprehensionExpr(DictComprehensionExpr& node
     std::unordered_map<std::string, Value> result;
     
     // (AR) إنشاء نطاق جديد للـ comprehension / (EN) Create new scope for comprehension
-    scopeManager_.pushScope(Data::ScopeType::BLOCK, "dict_comprehension");
+    variableManager_.enterScope(Data::ScopeType::BLOCK, "dict_comprehension");
     
     // (AR) المرور على كل عنصر / (EN) Iterate over each element
     for (size_t i = 0; i < iterableValue.size(); ++i) {
@@ -1901,7 +2204,7 @@ void ExpressionEvaluator::visitDictComprehensionExpr(DictComprehensionExpr& node
     }
     
     // (AR) الخروج من نطاق الـ comprehension / (EN) Exit comprehension scope
-    scopeManager_.popScope();
+    variableManager_.exitScope();
     
     // (AR) إرجاع القاموس الناتج / (EN) Return result dictionary
     lastResult_ = Value(result);
@@ -1931,7 +2234,7 @@ void ExpressionEvaluator::visitSetComprehensionExpr(SetComprehensionExpr& node) 
     std::vector<Value> result;
     
     // (AR) إنشاء نطاق جديد للـ comprehension / (EN) Create new scope for comprehension
-    scopeManager_.pushScope(Data::ScopeType::BLOCK, "set_comprehension");
+    variableManager_.enterScope(Data::ScopeType::BLOCK, "set_comprehension");
     
     // (AR) المرور على كل عنصر / (EN) Iterate over each element
     for (size_t i = 0; i < iterableValue.size(); ++i) {
@@ -1977,7 +2280,7 @@ void ExpressionEvaluator::visitSetComprehensionExpr(SetComprehensionExpr& node) 
     }
     
     // (AR) الخروج من نطاق الـ comprehension / (EN) Exit comprehension scope
-    scopeManager_.popScope();
+    variableManager_.exitScope();
     
     // (AR) إرجاع المجموعة الناتجة (كمصفوفة) / (EN) Return result set (as array)
     lastResult_ = Value(result);

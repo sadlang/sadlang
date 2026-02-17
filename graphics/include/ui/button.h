@@ -44,7 +44,7 @@ namespace Graphics {
             virtual bool OnMouseUp(int x, int y, int button) override;    // رفع زر الفأرة / Mouse button up
 
             // الرسم / Drawing
-            virtual void Draw(Renderer2D* renderer) override;  // رسم الزر / Draw button
+            virtual void Draw(SadGraphics::Renderer2D* renderer) override;  // رسم الزر / Draw button
 
         protected:
             // دوال الأحداث / Event callbacks

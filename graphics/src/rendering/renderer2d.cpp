@@ -6,7 +6,13 @@
 // ==============================================================================
 
 #include "../../include/rendering/renderer2d.h"  // ملف الرأس / Header file
+#include "../../include/text/arabic_text.h"      // دعم النص العربي / Arabic text support
 #include <glad/glad.h>                           // GLAD OpenGL loader
+#include <SDL.h>                                 // SDL2 for window functions
+#include <algorithm>                             // std::reverse
+#ifdef DrawText
+#undef DrawText                                  // Remove Win32 DrawText macro collision
+#endif
 #include <cmath>                                 // للدوال الرياضية / For math functions
 #include <cstring>                               // لعمليات الذاكرة / For memory operations
 #include <iostream>                              // للطباعة / For printing
@@ -33,6 +39,7 @@ Renderer2D::Renderer2D(RenderContext* context)
     , m_lineThickness(1.0f)                      // سمك الخط افتراضي / Default line thickness
     , m_currentTexture(nullptr)                  // لا يوجد texture / No texture
     , m_textureEnabled(false)                    // textures معطلة / Textures disabled
+    , m_currentBatchMode(DrawMode::Triangles)    // نمط الدفعة الافتراضي / Default batch mode
 {
     // تهيئة المخازن / Initialize buffers
     InitializeBuffers();                         // إنشاء المخازن / Create buffers
@@ -75,8 +82,12 @@ void Renderer2D::BeginFrame() {
 void Renderer2D::EndFrame() {
     // دفع أي رسومات متبقية / Flush any remaining draws
     if (!m_vertices.empty()) {                   // إذا كان هناك رؤوس / If vertices exist
-        FlushBatch(DrawMode::Triangles);         // دفع الدفعة / Flush batch
+        FlushBatch(m_currentBatchMode);          // دفع الدفعة بالنمط الحالي / Flush with current mode
     }
+    // إعادة تعيين حالة الدفعة / Reset batch state
+    m_textureEnabled = false;
+    m_currentTexture = nullptr;
+    m_currentBatchMode = DrawMode::Triangles;
 }
 
 /// مسح الشاشة / Clear screen
@@ -91,19 +102,23 @@ void Renderer2D::Clear(const Color& color) {
 /// رسم خط / Draw line
 void Renderer2D::DrawLine(Float32 x1, Float32 y1, Float32 x2, Float32 y2,
                           const Color& color, Float32 thickness) {
+    // تحضير دفعة الخطوط / Prepare line batch
+    BeginBatch(DrawMode::Lines);
+    
     // إضافة رؤوس الخط / Add line vertices
     AddLineVertices(x1, y1, x2, y2, color, thickness);
-    
-    // دفع الدفعة / Flush batch
-    FlushBatch(DrawMode::Lines);                 // رسم كخطوط / Draw as lines
+    // التجميع - لا دفع / Batching - no flush
 }
 
 /// رسم مستطيل / Draw rectangle
 void Renderer2D::DrawRect(Float32 x, Float32 y, Float32 width, Float32 height,
                           const Color& color, bool filled) {
     if (filled) {                                // إذا كان ممتلئ / If filled
+        // تحضير دفعة المثلثات / Prepare triangle batch
+        BeginBatch(DrawMode::Triangles);
+        
         // إضافة 4 رؤوس للمستطيل / Add 4 vertices for rectangle
-        UInt32 startIndex = m_vertices.size();   // فهرس البداية / Start index
+        UInt32 startIndex = static_cast<UInt32>(m_vertices.size());   // فهرس البداية / Start index
         
         AddVertex(x, y, color);                  // الزاوية العلوية اليسرى / Top-left
         AddVertex(x + width, y, color);          // الزاوية العلوية اليمنى / Top-right
@@ -119,8 +134,7 @@ void Renderer2D::DrawRect(Float32 x, Float32 y, Float32 width, Float32 height,
         m_indices.push_back(startIndex + 2);     // المثلث الثاني / Second triangle
         m_indices.push_back(startIndex + 3);     // المثلث الثاني / Second triangle
         
-        // دفع الدفعة / Flush batch
-        FlushBatch(DrawMode::Triangles);         // رسم كمثلثات / Draw as triangles
+        // التجميع - لا دفع / Batching - no flush
     } else {                                     // إذا كان فارغ / If outline
         // رسم 4 خطوط / Draw 4 lines
         DrawLine(x, y, x + width, y, color, m_lineThickness);              // أعلى / Top
@@ -150,8 +164,11 @@ void Renderer2D::DrawCircle(Float32 x, Float32 y, Float32 radius,
     if (segments < 3) segments = 3;              // الحد الأدنى 3 أضلاع / Minimum 3 segments
     
     if (filled) {                                // إذا كانت ممتلئة / If filled
+        // تحضير دفعة المثلثات / Prepare triangle batch
+        BeginBatch(DrawMode::Triangles);
+        
         // إضافة نقطة المركز / Add center point
-        UInt32 centerIndex = m_vertices.size();  // فهرس المركز / Center index
+        UInt32 centerIndex = static_cast<UInt32>(m_vertices.size());  // فهرس المركز / Center index
         AddVertex(x, y, color);                  // المركز / Center
         
         // إضافة نقاط المحيط / Add perimeter points
@@ -170,8 +187,7 @@ void Renderer2D::DrawCircle(Float32 x, Float32 y, Float32 radius,
             }
         }
         
-        // دفع الدفعة / Flush batch
-        FlushBatch(DrawMode::Triangles);         // رسم كمثلثات / Draw as triangles
+        // التجميع - لا دفع / Batching - no flush
     } else {                                     // إذا كانت فارغة / If outline
         // رسم كخطوط متصلة / Draw as line loop
         Float32 angleStep = TWO_PI / segments;   // خطوة الزاوية / Angle step
@@ -199,7 +215,10 @@ void Renderer2D::DrawEllipse(Float32 x, Float32 y, Float32 radiusX, Float32 radi
     Float32 angleStep = TWO_PI / segments;       // خطوة الزاوية / Angle step
     
     if (filled) {                                // ممتلئ / Filled
-        UInt32 centerIndex = m_vertices.size();  // فهرس المركز / Center index
+        // تحضير دفعة المثلثات / Prepare triangle batch
+        BeginBatch(DrawMode::Triangles);
+        
+        UInt32 centerIndex = static_cast<UInt32>(m_vertices.size());  // فهرس المركز / Center index
         AddVertex(x, y, color);                  // المركز / Center
         
         for (Int32 i = 0; i <= segments; i++) {  // الأضلاع / Segments
@@ -215,7 +234,7 @@ void Renderer2D::DrawEllipse(Float32 x, Float32 y, Float32 radiusX, Float32 radi
             }
         }
         
-        FlushBatch(DrawMode::Triangles);         // دفع / Flush
+        // التجميع - لا دفع / Batching - no flush
     } else {                                     // فارغ / Outline
         Float32 prevX = x + radiusX;             // السابق / Previous
         Float32 prevY = y;
@@ -239,8 +258,11 @@ void Renderer2D::DrawPolygon(const Point2D* points, Int32 numPoints,
     if (numPoints < 3) return;                   // الحد الأدنى 3 نقاط / Minimum 3 points
     
     if (filled) {                                // ممتلئ / Filled
+        // تحضير دفعة المثلثات / Prepare triangle batch
+        BeginBatch(DrawMode::Triangles);
+        
         // استخدام تثليث بسيط (fan triangulation) / Simple fan triangulation
-        UInt32 startIndex = m_vertices.size();   // البداية / Start
+        UInt32 startIndex = static_cast<UInt32>(m_vertices.size());   // البداية / Start
         
         for (Int32 i = 0; i < numPoints; i++) {  // إضافة الرؤوس / Add vertices
             AddVertex(points[i].x, points[i].y, color);
@@ -253,7 +275,7 @@ void Renderer2D::DrawPolygon(const Point2D* points, Int32 numPoints,
             m_indices.push_back(startIndex + i + 1);
         }
         
-        FlushBatch(DrawMode::Triangles);         // دفع / Flush
+        // التجميع - لا دفع / Batching - no flush
     } else {                                     // فارغ / Outline
         // رسم خطوط بين النقاط / Draw lines between points
         for (Int32 i = 0; i < numPoints; i++) {
@@ -419,13 +441,17 @@ void Renderer2D::InitializeBuffers() {
     glGenVertexArrays(1, &m_vao);                // توليد VAO / Generate VAO
     glBindVertexArray(m_vao);                    // ربط VAO / Bind VAO
     
-    // إنشاء VBO / Create VBO
+    // إنشاء VBO مع تخصيص مسبق / Create VBO with pre-allocation
     glGenBuffers(1, &m_vbo);                     // توليد VBO / Generate VBO
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);        // ربط VBO / Bind VBO
+    glBufferData(GL_ARRAY_BUFFER,                // تخصيص مسبق / Pre-allocate
+                 MAX_BATCH_VERTICES * sizeof(Vertex2D), nullptr, GL_DYNAMIC_DRAW);
     
-    // إنشاء EBO / Create EBO
+    // إنشاء EBO مع تخصيص مسبق / Create EBO with pre-allocation
     glGenBuffers(1, &m_ebo);                     // توليد EBO / Generate EBO
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);  // ربط EBO / Bind EBO
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,        // تخصيص مسبق / Pre-allocate
+                 MAX_BATCH_INDICES * sizeof(UInt32), nullptr, GL_DYNAMIC_DRAW);
     
     // ضبط خصائص الرؤوس / Setup vertex attributes
     // Position (x, y) - 2 floats / الموقع
@@ -436,9 +462,9 @@ void Renderer2D::InitializeBuffers() {
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(2 * sizeof(Float32)));
     
-    // Color (r, g, b, a) - 4 bytes / اللون
+    // Color (r, g, b, a) - 4 FLOATS (ليس بايتات!) / 4 FLOATS (not bytes!)
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex2D), (void*)(4 * sizeof(Float32)));
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(4 * sizeof(Float32)));
     
     // فك الربط / Unbind
     glBindVertexArray(0);                        // فك VAO / Unbind VAO
@@ -458,13 +484,14 @@ void Renderer2D::FlushBatch(DrawMode mode) {
     // ربط VAO / Bind VAO
     glBindVertexArray(m_vao);
     
-    // رفع بيانات الرؤوس / Upload vertex data
+    // رفع بيانات الرؤوس (المخزن مُخصص مسبقاً) / Upload vertex data (buffer pre-allocated)
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, m_vertices.size() * sizeof(Vertex2D), 
-                 m_vertices.data(), GL_DYNAMIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0,
+                    m_vertices.size() * sizeof(Vertex2D), m_vertices.data());
     
-    // اختيار الـ shader المناسب / Select appropriate shader
-    ShaderProgram& shader = m_textureEnabled ? m_textureShader : m_defaultShader;
+    // استخدام الشيدر الموحد دائماً (يدعم اللون لكل رأس + الـ textures)
+    // Always use unified shader (per-vertex color + textures)
+    ShaderProgram& shader = m_textureShader;
     
     // استخدام الـ shader / Use shader
     shader.Use();
@@ -483,20 +510,21 @@ void Renderer2D::FlushBatch(DrawMode mode) {
     // الرسم / Draw
     if (m_indices.empty()) {                     // رسم مباشر / Direct draw
         GLenum glMode = (mode == DrawMode::Lines) ? GL_LINES : GL_TRIANGLES;
-        glDrawArrays(glMode, 0, m_vertices.size());
+        glDrawArrays(glMode, 0, static_cast<GLsizei>(m_vertices.size()));
         
         m_stats.drawCalls++;                     // زيادة العدد / Increment count
-        m_stats.vertices += m_vertices.size();
+        m_stats.vertices += static_cast<UInt32>(m_vertices.size());
     } else {                                     // رسم بالفهارس / Indexed draw
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indices.size() * sizeof(UInt32),
-                     m_indices.data(), GL_DYNAMIC_DRAW);
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0,
+                        m_indices.size() * sizeof(UInt32), m_indices.data());
         
-        glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_indices.size()),
+                       GL_UNSIGNED_INT, 0);
         
         m_stats.drawCalls++;
-        m_stats.vertices += m_vertices.size();
-        m_stats.triangles += m_indices.size() / 3;
+        m_stats.vertices += static_cast<UInt32>(m_vertices.size());
+        m_stats.triangles += static_cast<UInt32>(m_indices.size() / 3);
     }
     
     // فك ربط الـ texture / Unbind texture
@@ -504,11 +532,42 @@ void Renderer2D::FlushBatch(DrawMode mode) {
         m_currentTexture->Unbind();
     }
     
-    // تنظيف / Clear
+    // تنظيف بيانات الرؤوس والفهارس فقط (الحالة تُحفظ للتجميع)
+    // Only clear vertex/index data (state preserved for batching)
     m_vertices.clear();
     m_indices.clear();
-    m_currentTexture = nullptr;                  // مسح الـ texture / Clear texture
-    m_textureEnabled = false;                    // تعطيل الـ textures / Disable textures
+}
+
+/// تحضير الدفعة / Prepare batch
+void Renderer2D::BeginBatch(DrawMode mode, bool textured,
+                            const sad::graphics::TextureRef& texture) {
+    bool needsFlush = false;
+    
+    if (!m_vertices.empty()) {
+        // تغيير نمط الرسم / Draw mode change
+        if (m_currentBatchMode != mode) needsFlush = true;
+        // تغيير حالة الـ texture / Texture state change
+        if (m_textureEnabled != textured) needsFlush = true;
+        // تغيير الـ texture / Texture change
+        if (textured && texture && m_currentTexture != texture) needsFlush = true;
+        // فيض مخزن الرؤوس / Vertex buffer overflow
+        if (m_vertices.size() >= MAX_BATCH_VERTICES - 512) needsFlush = true;
+        // فيض مخزن الفهارس / Index buffer overflow
+        if (!m_indices.empty() && m_indices.size() >= MAX_BATCH_INDICES - 1536) needsFlush = true;
+    }
+    
+    if (needsFlush) {
+        FlushBatch(m_currentBatchMode);          // دفع الدفعة الحالية / Flush current batch
+    }
+    
+    // تحديث الحالة / Update state
+    m_currentBatchMode = mode;
+    m_textureEnabled = textured;
+    if (textured && texture) {
+        m_currentTexture = texture;              // تحديث الـ texture / Update texture
+    } else if (!textured) {
+        m_currentTexture = nullptr;              // مسح الـ texture / Clear texture
+    }
 }
 
 /// إنشاء مصفوفة إسقاط / Create orthographic matrix
@@ -587,16 +646,7 @@ void Renderer2D::DrawTexture(const sad::graphics::TextureRef& texture,
         return;
     }
     
-    // دفع أي رسومات سابقة / Flush previous draws
-    if (m_textureEnabled && m_currentTexture && m_currentTexture != texture) {
-        FlushBatch(DrawMode::Triangles);
-    }
-    
-    // تفعيل texture mode / Enable texture mode
-    SetTextureMode(true);
-    m_currentTexture = texture;
-    
-    // رسم quad مع إحداثيات UV كاملة / Draw quad with full UV coordinates
+    // DrawTexturedQuad يتولى إدارة الدفعة / DrawTexturedQuad handles batch management
     DrawTexturedQuad(texture, x, y, width, height, 0.0f, 0.0f, 1.0f, 1.0f, tint);
 }
 
@@ -661,14 +711,8 @@ void Renderer2D::DrawTexturedQuad(const sad::graphics::TextureRef& texture,
         return;
     }
     
-    // دفع أي رسومات سابقة / Flush previous draws
-    if (m_textureEnabled && m_currentTexture && m_currentTexture != texture) {
-        FlushBatch(DrawMode::Triangles);
-    }
-    
-    // تفعيل texture mode / Enable texture mode
-    SetTextureMode(true);
-    m_currentTexture = texture;
+    // تحضير دفعة الـ texture / Prepare texture batch
+    BeginBatch(DrawMode::Triangles, true, texture);
     
     // حساب إحداثيات الزوايا / Calculate corner coordinates
     Float32 x0 = x;
@@ -677,7 +721,7 @@ void Renderer2D::DrawTexturedQuad(const sad::graphics::TextureRef& texture,
     Float32 y1 = y + height;
     
     // إضافة 4 رؤوس للـ quad / Add 4 vertices for quad
-    UInt32 startIndex = m_vertices.size();
+    UInt32 startIndex = static_cast<UInt32>(m_vertices.size());
     
     AddVertex(x0, y0, u0, v0, tint);  // أعلى يسار / Top-left
     AddVertex(x1, y0, u1, v0, tint);  // أعلى يمين / Top-right
@@ -741,7 +785,7 @@ void Renderer2D::CreateTextureShader() {
     )";
     
     // ترجمة وربط الـ shader / Compile and link shader
-    m_textureShader.CompileShader(vertexShaderSource, fragmentShaderSource);
+    m_textureShader.Compile(vertexShaderSource, fragmentShaderSource);
 }
 
 /// تفعيل/تعطيل texture mode / Enable/disable texture mode
@@ -892,4 +936,151 @@ void Renderer2D::DrawTextAligned(const std::string& text,
     // رسم النص / Draw text
     DrawText(text, font, alignedX, alignedY, color);  // استدعاء DrawText الأساسي / Call basic DrawText
 }
+
+// ==============================================================================
+// رسم النصوص العربية / Arabic Text Drawing
+// ==============================================================================
+
+/// رسم نص عربي مع تشكيل تلقائي و RTL / Draw Arabic text with shaping and RTL
+void Renderer2D::DrawTextArabic(const std::string& text,
+                                const sad::graphics::FontRef& font,
+                                Float32 x, Float32 y,
+                                const Color& color) {
+    if (!font || !font->IsValid()) return;
+    
+    // فك ترميز UTF-8 / Decode UTF-8
+    auto codepoints = sad::graphics::ArabicText::DecodeUTF8(text);
+    if (codepoints.empty()) return;
+    
+    // تشكيل الحروف العربية / Shape Arabic characters
+    auto shaped = sad::graphics::ArabicText::ShapeArabic(codepoints);
+    
+    // عكس الترتيب للعرض RTL / Reverse for RTL display
+    std::reverse(shaped.begin(), shaped.end());
+    
+    // الحصول على atlas / Get atlas
+    const sad::graphics::TextureRef& atlas = font->GetAtlas();
+    if (!atlas || !atlas->IsValid()) return;
+    
+    // حساب العرض الكلي لتحديد نقطة البداية / Calculate total width for start position
+    Float32 penX = x;
+    Float32 penY = y + font->GetBaseline();
+    u32 prevCodepoint = 0;
+    
+    for (u32 cp : shaped) {
+        if (sad::graphics::ArabicText::IsDiacritic(cp)) {
+            // التشكيل يُرسم فوق/تحت الحرف السابق / Diacritics drawn over previous char
+            const sad::graphics::GlyphInfo* diacGlyph = font->GetGlyph(cp);
+            if (diacGlyph && diacGlyph->width > 0 && diacGlyph->height > 0) {
+                // رسم التشكيل في موقع الحرف السابق / Draw diacritic at previous char position
+                Float32 diacX = penX - diacGlyph->advanceX + diacGlyph->bearingX;
+                Float32 diacY = penY - diacGlyph->bearingY;
+                DrawTexturedQuad(atlas, diacX, diacY,
+                    diacGlyph->width, diacGlyph->height,
+                    diacGlyph->u0, diacGlyph->v0, diacGlyph->u1, diacGlyph->v1,
+                    color);
+            }
+            continue;
+        }
+        
+        if (cp == '\n') {
+            penX = x;
+            penY += font->GetLineHeight();
+            prevCodepoint = 0;
+            continue;
+        }
+        
+        const sad::graphics::GlyphInfo* glyph = font->GetGlyph(cp);
+        if (!glyph) {
+            glyph = font->GetGlyph(' ');
+            if (!glyph) continue;
+        }
+        
+        if (prevCodepoint != 0) {
+            penX += font->GetKerning(prevCodepoint, cp);
+        }
+        
+        Float32 glyphX = penX + glyph->bearingX;
+        Float32 glyphY = penY - glyph->bearingY;
+        
+        if (glyph->width > 0 && glyph->height > 0) {
+            DrawTexturedQuad(atlas, glyphX, glyphY,
+                glyph->width, glyph->height,
+                glyph->u0, glyph->v0, glyph->u1, glyph->v1,
+                color);
+        }
+        
+        penX += glyph->advanceX;
+        prevCodepoint = cp;
+    }
+}
+
+/// رسم نص تلقائي الاتجاه / Draw auto-direction text
+void Renderer2D::DrawTextAuto(const std::string& text,
+                              const sad::graphics::FontRef& font,
+                              Float32 x, Float32 y,
+                              const Color& color) {
+    if (!font || !font->IsValid()) return;
+    
+    auto codepoints = sad::graphics::ArabicText::DecodeUTF8(text);
+    auto direction = sad::graphics::ArabicText::DetectDirection(codepoints);
+    
+    if (direction == sad::graphics::TextDirection::RTL) {
+        DrawTextArabic(text, font, x, y, color);
+    } else {
+        // نص LTR - استخدام DrawText العادي مع دعم UTF-8
+        // LTR text - use regular DrawText with UTF-8 support
+        DrawTextUTF8(codepoints, font, x, y, color);
+    }
+}
+
+/// رسم نص من رموز Unicode / Draw text from Unicode codepoints
+void Renderer2D::DrawTextUTF8(const std::vector<sad::graphics::u32>& codepoints,
+                              const sad::graphics::FontRef& font,
+                              Float32 x, Float32 y,
+                              const Color& color) {
+    if (!font || !font->IsValid()) return;
+    
+    // الحصول على atlas / Get atlas
+    const sad::graphics::TextureRef& atlas = font->GetAtlas();
+    if (!atlas || !atlas->IsValid()) return;
+    
+    Float32 penX = x;
+    Float32 penY = y + font->GetBaseline();
+    u32 prevCodepoint = 0;
+    
+    for (u32 cp : codepoints) {
+        if (cp == '\n') {
+            penX = x;
+            penY += font->GetLineHeight();
+            prevCodepoint = 0;
+            continue;
+        }
+        if (cp == '\r') continue;
+        if (sad::graphics::ArabicText::IsDiacritic(cp)) continue;
+        
+        const sad::graphics::GlyphInfo* glyph = font->GetGlyph(cp);
+        if (!glyph) {
+            glyph = font->GetGlyph(' ');
+            if (!glyph) continue;
+        }
+        
+        if (prevCodepoint != 0) penX += font->GetKerning(prevCodepoint, cp);
+        
+        Float32 glyphX = penX + glyph->bearingX;
+        Float32 glyphY = penY - glyph->bearingY;
+        
+        if (glyph->width > 0 && glyph->height > 0) {
+            DrawTexturedQuad(atlas, glyphX, glyphY,
+                glyph->width, glyph->height,
+                glyph->u0, glyph->v0, glyph->u1, glyph->v1,
+                color);
+        }
+        
+        penX += glyph->advanceX;
+        prevCodepoint = cp;
+    }
+}
+
+} // namespace SadGraphics
 

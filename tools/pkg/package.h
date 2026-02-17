@@ -616,8 +616,22 @@ public:
         }
 
         // Package name validation - التحقق من صحة اسم الحزمة
-        if (!std::regex_match(name, std::regex("^[a-z][a-z0-9_-]*$"))) {
-            errors.push_back("Package name must start with lowercase letter and contain only lowercase letters, numbers, hyphens, and underscores");
+        // Allow Arabic and English package names
+        // Arabic names: must contain at least one Arabic letter
+        // English names: must start with lowercase letter
+        bool has_arabic = false;
+        for (unsigned char c : name) {
+            if (c >= 0xD8 || c >= 0xC0) { has_arabic = true; break; }
+        }
+        if (!has_arabic) {
+            if (!std::regex_match(name, std::regex("^[a-z][a-z0-9_-]*$"))) {
+                errors.push_back("Package name must start with lowercase letter and contain only lowercase letters, numbers, hyphens, and underscores");
+            }
+        } else {
+            // For Arabic names: just check it's not empty and has no spaces
+            if (name.find(' ') != std::string::npos) {
+                errors.push_back("Package name must not contain spaces");
+            }
         }
 
         if (version.major < 0 || version.minor < 0 || version.patch < 0) {

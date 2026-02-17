@@ -14,12 +14,18 @@
 #include <vector>          // لاستخدام المصفوفات / For vectors
 #include <functional>      // لاستخدام الدوال / For functions
 #include "../core/types.h" // لاستخدام الأنواع الأساسية / For basic types
+#include "../text/font.h"  // لاستخدام الخطوط / For fonts (FontRef)
 
 // استخدام أنواع من مكتبة الرسومات / Use types from graphics library
 using sad::graphics::Color;
 using sad::graphics::Float32;
 using sad::graphics::Int32;
 using sad::graphics::UInt32;
+using sad::graphics::FontRef;
+using sad::graphics::Point2D;
+
+// التصريح المسبق لمحرك الرسم / Forward declaration for renderer
+namespace SadGraphics { class Renderer2D; }
 
 namespace Graphics {
     // المساحة الاسمية للواجهة / Namespace for UI
@@ -58,6 +64,11 @@ namespace Graphics {
             void GetCenter(float& cx, float& cy) const {
                 cx = x + width / 2.0f;   // حساب المركز الأفقي / Calculate center X
                 cy = y + height / 2.0f;  // حساب المركز العمودي / Calculate center Y
+            }
+
+            // الحصول على المركز كنقطة / Get center as point
+            Point2D GetCenter() const {
+                return Point2D(x + width / 2.0f, y + height / 2.0f);
             }
         };
 
@@ -141,7 +152,7 @@ namespace Graphics {
             bool IsFocused() const { return m_focused; }            // هل له التركيز؟ / Is focused?
 
             // الرسم والتحديث / Drawing and updating
-            virtual void Draw(class Renderer2D* renderer);          // رسم العنصر / Draw widget
+            virtual void Draw(SadGraphics::Renderer2D* renderer);   // رسم العنصر / Draw widget
             virtual void Update(float deltaTime);                   // تحديث العنصر / Update widget
 
             // معالجة الأحداث / Event handling

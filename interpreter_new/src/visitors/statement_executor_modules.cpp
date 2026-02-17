@@ -64,7 +64,9 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
     
     // (AR) التحقق من الذاكرة المخبئية - إذا سبق تنفيذ هذه الوحدة نعيد الصادرات المخبأة
     // (EN) Check cache - if module was already executed, return cached exports
-    std::string moduleKey = module->filePath.string();
+    // (AR) استخدام اسم الوحدة بدلاً من المسار لتجنب مشاكل الترميز العربي
+    // (EN) Use module name instead of path to avoid Arabic encoding issues
+    std::string moduleKey = module->fullName;
     auto cacheIt = executedModuleExports_.find(moduleKey);
     if (cacheIt != executedModuleExports_.end()) {
         return cacheIt->second;
@@ -80,7 +82,13 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
     
     // (AR) تعيين مسار الملف الجديد (مسار الوحدة)
     // (EN) Set new file path (module path)
+    // (AR) استخدام u8string لدعم المسارات العربية
+    // (EN) Use u8string to support Arabic paths
+#ifdef _WIN32
+    currentFilePath_ = module->filePath.u8string();
+#else
     currentFilePath_ = module->filePath.string();
+#endif
     
     // (AR) مسح الرموز المُصدَّرة للوحدة الجديدة
     // (EN) Clear exported symbols for new module

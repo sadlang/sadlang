@@ -66,7 +66,7 @@ namespace Graphics {
             void GetScrollOffset(float& x, float& y) const;     // الحصول على إزاحة التمرير / Get scroll offset
 
             // الرسم والتحديث / Drawing and updating
-            virtual void Draw(Renderer2D* renderer) override;   // رسم اللوحة / Draw panel
+            virtual void Draw(SadGraphics::Renderer2D* renderer) override;   // رسم اللوحة / Draw panel
             virtual void Update(float deltaTime) override;      // تحديث اللوحة / Update panel
 
             // معالجة الأحداث / Event handling

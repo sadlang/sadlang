@@ -122,11 +122,14 @@ public:
     }
     
     /// تحويل مرجع إلى مؤشر خام
+    // TODO: ReferenceType not yet defined - disabled for now
+#if 0
     static RawPointerType fromReference(const class ReferenceType& ref) {
         auto mutability = ref.isMutable() ? PointerMutability::Mutable 
                                            : PointerMutability::Const;
         return RawPointerType(ref.innerType(), mutability);
     }
+#endif
     
     /// التحقق من تحويل مؤشر خام إلى مرجع آمن
     static DerefResult checkPointerToRef(const RawPointerType& ptr, 

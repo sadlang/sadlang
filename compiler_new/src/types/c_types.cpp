@@ -168,7 +168,7 @@ FFI::CBasicType CTypeMapper::primitiveKindToCBasic(TypeKind kind) const {
             return FFI::CBasicType::VOID;
             
         // (AR) منطقي / (EN) Boolean
-        case TypeTypeKind::Integerean:
+        case TypeKind::Boolean:
             return FFI::CBasicType::BOOL;
             
         // (AR) أعداد صحيحة موقّعة / (EN) Signed integers
@@ -440,7 +440,7 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
             );
     }
     
-    return makePrimitiveType(sadKind);
+    return std::make_shared<PrimitiveType>(sadKind);
 }
 
 /**

@@ -183,7 +183,9 @@ struct ConstructorDefinition {
      * طباعة معلومات الباني
      */
     void print() const {
+#ifdef DEBUG_OOP
         std::cout << "باني " << className << "(";
+#endif
         for (size_t i = 0; i < parameters.size(); i++) {
             if (i > 0) std::cout << ", ";
             std::cout << parameters[i].toString();
@@ -1125,7 +1127,9 @@ int main() {
         ConstructorParser parser(tokens);
         auto ctor = parser.parse();
         
+#ifdef DEBUG_OOP
         std::cout << "\nمعلومات الباني المستخرجة:\n";
+#endif
         std::cout << "═══════════════════════════\n";
         ctor.print();
         

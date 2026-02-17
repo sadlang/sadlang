@@ -189,6 +189,7 @@ enum class SIROpcode {
     STRING_FIND, ///< البحث / Find substring
     STRING_REPLACE, ///< الاستبدال / Replace
     STRING_TO_I64, ///< تحويل نص لرقم / String to integer
+    STRING_TO_F64, ///< تحويل نص لعشري / String to float (atof)
     
     // ==========================================
     // 8. البرمجة الكائنية / OOP (10)

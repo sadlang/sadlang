@@ -4,6 +4,11 @@
 
 cmake_minimum_required(VERSION 3.15)
 
+# UTF-8 لجميع الأمثلة / UTF-8 for all examples
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 # ==============================================================================
 # مثال بسيط / Simple Demo
 # ==============================================================================
@@ -79,7 +84,7 @@ target_link_libraries(ui_demo
 # ==============================================================================
 # نسخ SDL2.dll للتشغيل / Copy SDL2.dll for execution
 # ==============================================================================
-set(SDL2_DLL "${CMAKE_SOURCE_DIR}/third_party/SDL2/lib/x64/SDL2.dll")
+set(SDL2_DLL "${CMAKE_SOURCE_DIR}/third_party/SDL2/SDL2-2.28.5/lib/x64/SDL2.dll")
 
 if(EXISTS ${SDL2_DLL})
     # نسخ DLL إلى مجلد البناء / Copy DLL to build directory

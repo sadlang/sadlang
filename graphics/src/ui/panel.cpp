@@ -27,8 +27,8 @@ namespace Graphics {
             SetSize(300, 200);
 
             // نمط افتراضي / Default style
-            m_style.backgroundColor = Color(245, 245, 245);  // خلفية فاتحة / Light background
-            m_style.borderColor = Color(200, 200, 200);      // حدود رمادية / Gray border
+            m_style.backgroundColor = Color::FromBytes(245, 245, 245);  // خلفية فاتحة / Light background
+            m_style.borderColor = Color::FromBytes(200, 200, 200);      // حدود رمادية / Gray border
             m_style.borderWidth = 1.0f;                      // عرض حدود / Border width
             m_style.padding = 0.0f;                          // بدون مسافة خارجية / No outer padding
         }
@@ -116,7 +116,7 @@ namespace Graphics {
         // ============================================================================
         // رسم اللوحة / Draw panel
         // ============================================================================
-        void Panel::Draw(Renderer2D* renderer) {
+        void Panel::Draw(SadGraphics::Renderer2D* renderer) {
             // إذا لم يكن ظاهراً / If not visible
             if (!m_visible) {
                 return;

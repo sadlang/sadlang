@@ -1045,7 +1045,9 @@ struct ClassInfo {
     void print() const {
         std::cout << "صنف: " << name << "\n";
         if (!parentClass.empty()) {
+#ifdef DEBUG_OOP
             std::cout << "  يرث من: " << parentClass << "\n";
+#endif
         }
         if (!typeParameters.empty()) {
             std::cout << "  معاملات النوع: ";

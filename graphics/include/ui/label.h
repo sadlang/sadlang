@@ -75,7 +75,7 @@ namespace Graphics {
             void MeasureText(float& width, float& height) const;  // قياس أبعاد النص / Measure text dimensions
 
             // الرسم / Drawing
-            virtual void Draw(Renderer2D* renderer) override;  // رسم التسمية / Draw label
+            virtual void Draw(SadGraphics::Renderer2D* renderer) override;  // رسم التسمية / Draw label
 
         protected:
             std::string m_text;             // النص المعروض / Displayed text

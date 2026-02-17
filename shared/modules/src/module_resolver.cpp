@@ -239,7 +239,10 @@ std::optional<std::filesystem::path> ModuleResolver::findModuleFile(
     // (AR) البحث في المسارات / (EN) Search in paths
     for (const auto& searchPath : searchPaths_) {
         for (const auto& ext : extensions) {
-            auto fullPath = searchPath / (filename + ext);
+            // (AR) استخدام make_path لدعم أسماء الملفات العربية على ويندوز
+            // (EN) Use make_path to support Arabic filenames on Windows
+            auto filenamePath = sad::utf8::make_path(filename + ext);
+            auto fullPath = searchPath / filenamePath;
             
             if (std::filesystem::exists(fullPath)) {
                 return fullPath;
@@ -249,10 +252,11 @@ std::optional<std::filesystem::path> ModuleResolver::findModuleFile(
     
     // (AR) البحث نسبة للملف الحالي / (EN) Search relative to current file
     if (!currentFile.empty()) {
-        auto currentPath = std::filesystem::path(currentFile).parent_path();
+        auto currentPath = sad::utf8::make_path(currentFile).parent_path();
         
         for (const auto& ext : extensions) {
-            auto fullPath = currentPath / (filename + ext);
+            auto filenamePath = sad::utf8::make_path(filename + ext);
+            auto fullPath = currentPath / filenamePath;
             
             if (std::filesystem::exists(fullPath)) {
                 return fullPath;
@@ -277,9 +281,11 @@ Module* ModuleResolver::loadModule(
     
     try {
         // (AR) قراءة الملف / (EN) Read file
-        auto file = sad::utf8::open_ifstream(filePath.string());
+        // (AR) فتح الملف باستخدام filesystem::path مباشرة لدعم الأسماء العربية
+        // (EN) Open file using filesystem::path directly to support Arabic names
+        std::ifstream file(filePath);
         if (!file.is_open()) {
-            throw std::runtime_error("Cannot open file: " + filePath.string());
+            throw std::runtime_error("Cannot open module file: " + moduleName);
         }
         
         std::stringstream buffer;
@@ -306,7 +312,13 @@ Module* ModuleResolver::loadModule(
         module->fullName = moduleName;
         module->filePath = filePath;
         module->ast = std::move(ast);
+        // (AR) استخدام wstring على ويندوز لتجنب مشاكل الترميز
+        // (EN) Use wstring on Windows to avoid encoding issues
+#ifdef _WIN32
+        module->isStdlib = (filePath.wstring().find(L"stdlib") != std::wstring::npos);
+#else
         module->isStdlib = (filePath.string().find("stdlib") != std::string::npos);
+#endif
         module->isLoaded = true;
         
         // (AR) استخراج الرموز المُصدَّرة / (EN) Extract exported symbols

@@ -10,6 +10,8 @@
 #include <SDL.h>                                   // لوظائف الحافظة / For clipboard functions
 #include <algorithm>                               // للخوارزميات / For algorithms
 
+using sad::graphics::ResourceManager;
+
 namespace Graphics {
     namespace UI {
 
@@ -22,8 +24,8 @@ namespace Graphics {
             , m_placeholder("Enter text...")        // نص توضيحي افتراضي / Default placeholder
             , m_font(nullptr)                       // لا يوجد خط / No font
             , m_textColor(Color::Black)             // لون أسود / Black color
-            , m_placeholderColor(Color(150, 150, 150)) // لون رمادي / Gray color
-            , m_selectionColor(Color(100, 150, 255, 128)) // لون أزرق شفاف / Transparent blue
+            , m_placeholderColor(Color::FromBytes(150, 150, 150)) // لون رمادي / Gray color
+            , m_selectionColor(Color::FromBytes(100, 150, 255, 128)) // لون أزرق شفاف / Transparent blue
             , m_cursorColor(Color::Black)           // مؤشر أسود / Black cursor
             , m_cursorPos(0)                        // المؤشر في البداية / Cursor at start
             , m_selectionStart(-1)                  // لا يوجد تحديد / No selection
@@ -47,7 +49,7 @@ namespace Graphics {
 
             // نمط افتراضي / Default style
             m_style.backgroundColor = Color::White;     // خلفية بيضاء / White background
-            m_style.borderColor = Color(150, 150, 150); // حدود رمادية / Gray border
+            m_style.borderColor = Color::FromBytes(150, 150, 150); // حدود رمادية / Gray border
             m_style.borderWidth = 1.0f;                 // عرض حدود / Border width
             m_style.padding = 5.0f;                     // مسافة داخلية / Padding
         }
@@ -201,7 +203,7 @@ namespace Graphics {
         // ============================================================================
         // رسم حقل الإدخال / Draw input field
         // ============================================================================
-        void TextInput::Draw(Renderer2D* renderer) {
+        void TextInput::Draw(SadGraphics::Renderer2D* renderer) {
             // إذا لم يكن ظاهراً / If not visible
             if (!m_visible) {
                 return;

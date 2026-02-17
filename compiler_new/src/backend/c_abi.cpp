@@ -622,7 +622,9 @@ void ExternFunctionDecl::addParameter(
     OwnershipAnnotation ownership,
     const std::string& freeFunc)
 {
-    parameters_.push_back({originalName, arabicName, type, ownership, freeFunc});
+    // (AR) إنشاء معلومات المعامل — حقل 'name' يُعيّن كنسخة من الاسم الأصلي
+    // (EN) Create parameter info — 'name' field is set as copy of originalName
+    parameters_.push_back({originalName, arabicName, originalName, type, ownership, freeFunc});
 }
 
 void ExternFunctionDecl::setResultOwnership(OwnershipAnnotation ownership, const std::string& freeFunc) {

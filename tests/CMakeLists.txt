@@ -157,6 +157,42 @@ add_test(
 )
 
 # ========================================
+# Catch2 Unit Tests (unit_tests)
+# هدف اختبارات الوحدة باستخدام Catch2 - سيجمع جميع ملفات الاختبار في مجلدات lexer/parser/stdlib
+# ========================================
+
+file(GLOB UNIT_TEST_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/lexer_tests/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/parser_tests/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/stdlib_tests/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/unit/*.cpp
+)
+
+add_executable(unit_tests
+    ${UNIT_TEST_SOURCES}
+    test_main.cpp
+)
+
+target_include_directories(unit_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../shared/lexer/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../shared/parser/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../graphics/third_party/catch2
+)
+
+target_link_libraries(unit_tests
+    PRIVATE
+        sad_lexer
+        sad_parser
+        sad_runtime
+        sad_compiler
+        sad_bytecode
+)
+
+add_test(NAME "UnitTests" COMMAND unit_tests)
+
+# ========================================
 # Summary - الملخص
 # ========================================
 

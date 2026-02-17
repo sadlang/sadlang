@@ -40,13 +40,17 @@
 #include <chrono>
 
 // Sad Components - مكونات لغة ص
-#include "../../../../include/lexer/lexer_core.h"
-#include "../../../../include/parser/parser_core.h"
-#include "../../../../compiler/frontend/type_checker/include/type_checker.h"
-#include "../../../../compiler/frontend/include/sir_builder.h"
-#include "../../../../compiler/backends/llvm/llvm_codegen.h"
-#include "../../../../compiler/backends/llvm/llvm_optimizer.h"
-#include "../../../../compiler/include/compiler_options.h"
+// (AR) مسارات التضمين مُعدّلة لتعمل مع مسارات CMake
+// (EN) Include paths adjusted to work with CMake include directories
+#include "lexer_core.h"
+#include "parser_core.h"
+// (AR) تصريح مسبق لفاحص الأنواع — التنفيذ مُعطّل حالياً (قيد التطوير)
+// (EN) Forward declaration for TypeChecker — implementation currently disabled (WIP)
+namespace Sad { namespace Semantic { class TypeChecker; } }
+#include "frontend/sir_builder.h"
+#include "backend/llvm/llvm_codegen.h"
+#include "backend/llvm/llvm_optimizer.h"
+#include "pipeline/compiler_options.h"
 
 namespace Sad {
 namespace Compiler {
@@ -344,7 +348,9 @@ private:
     // المكونات / Components
     std::unique_ptr<Lexer::LexerCore> lexer_;
     std::unique_ptr<Parser::ParserCore> parser_;
-    std::unique_ptr<TypeChecker::TypeChecker> typeChecker_;
+    // (AR) فاحص الأنواع — مُعطّل حالياً (قيد التطوير)
+    // (EN) Type checker — currently disabled (under development)
+    // std::unique_ptr<Sad::Semantic::TypeChecker> typeChecker_;
     std::unique_ptr<SIR::SIRBuilder> sirBuilder_;
     std::unique_ptr<Sad::LLVM::LLVMCodeGen> codeGen_;
     

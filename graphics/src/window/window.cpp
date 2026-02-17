@@ -9,6 +9,11 @@
 #include <atomic>               // للعمليات الذرية / Atomic operations
 #include <stdexcept>            // للاستثناءات / Exceptions
 
+// Remove Win32 macro collisions after all includes
+#ifdef CreateWindow
+#undef CreateWindow
+#endif
+
 namespace sad {
 namespace graphics {
 
@@ -318,7 +323,7 @@ void Window::ProcessEvents() {
 // إنشاء النافذة الأساسية / Create Native Window
 // ----------------------------------------------------------------------------
 bool Window::CreateNativeWindow(WindowFlags flags) {
-    Uint32 sdlFlags = SDL_WINDOW_SHOWN;                // أعلام SDL الافتراضية / Default SDL flags
+    Uint32 sdlFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL;  // أعلام SDL الافتراضية + OpenGL / Default SDL flags + OpenGL
     
     // تحويل الأعلام المخصصة إلى أعلام SDL / Convert custom flags to SDL flags
     if (HasFlag(flags, WindowFlags::Fullscreen)) {

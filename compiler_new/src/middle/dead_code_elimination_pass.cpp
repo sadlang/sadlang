@@ -316,6 +316,27 @@ bool DeadCodeEliminationPass::hasSideEffect(SIR::SIRInstruction* inst) const {
         case SIR::SIROpcode::FREE:
         case SIR::SIROpcode::MEMCPY:
         case SIR::SIROpcode::MEMSET:
+
+        // ────────────────────────────────────────────────────────────────
+        // (AR) تعليمات الإدخال/الإخراج المدمجة — لا يجب حذفها أبداً
+        // (EN) Built-in I/O instructions — must never be removed
+        // ────────────────────────────────────────────────────────────────
+        case SIR::SIROpcode::BUILTIN_PRINT:
+        case SIR::SIROpcode::BUILTIN_READ:
+
+        // ────────────────────────────────────────────────────────────────
+        // (AR) تعليمات تعديل المصفوفات والكائنات
+        // (EN) Array/Object mutation instructions
+        // ────────────────────────────────────────────────────────────────
+        case SIR::SIROpcode::ARRAY_SET:
+        case SIR::SIROpcode::ARRAY_APPEND:
+        case SIR::SIROpcode::OBJECT_SET:
+
+        // ────────────────────────────────────────────────────────────────
+        // (AR) تعليمات التحكم بالبرنامج
+        // (EN) Program control instructions
+        // ────────────────────────────────────────────────────────────────
+        case SIR::SIROpcode::SWITCH:
             return true;
             
         default:
@@ -326,48 +347,28 @@ bool DeadCodeEliminationPass::hasSideEffect(SIR::SIRInstruction* inst) const {
 /**
  * @brief الحصول على السجل المعرّف
  * @brief Get defined register
+ * 
+ * (AR) بدلاً من استخدام قائمة بيضاء يدوية للأوامر التي تُعرّف سجلاً،
+ *      نستخدم فحصاً عاماً عبر hasResult(). هذا يضمن أن أي تعليمة
+ *      تُنتج نتيجة (ALLOC, LOAD, ADD, CALL, STRING_CONCAT, OBJECT_NEW, ...)
+ *      يتم إدراجها في defMap تلقائياً — مما يمنع حذفها خطأً بواسطة DCE.
+ * 
+ * (EN) Instead of a manual whitelist of opcodes that define a register,
+ *      we use a generic hasResult() check. This ensures that ANY instruction
+ *      producing a result (ALLOC, LOAD, ADD, CALL, STRING_CONCAT, OBJECT_NEW,
+ *      ...) is automatically added to defMap — preventing erroneous DCE deletion.
  */
 std::optional<std::string> DeadCodeEliminationPass::getDefinedRegister(
     SIR::SIRInstruction* inst
 ) const {
     if (!inst) return std::nullopt;
     
-    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
-    auto opcode = inst->opcode;
-    
-    // معظم التعليمات تعرّف سجلاً / Most instructions define a register
-    switch (opcode) {
-        case SIR::SIROpcode::LOAD:
-        case SIR::SIROpcode::ADD_I64:
-        case SIR::SIROpcode::ADD_F64:
-        case SIR::SIROpcode::SUB_I64:
-        case SIR::SIROpcode::SUB_F64:
-        case SIR::SIROpcode::MUL_I64:
-        case SIR::SIROpcode::MUL_F64:
-        case SIR::SIROpcode::DIV_I64:
-        case SIR::SIROpcode::DIV_F64:
-        case SIR::SIROpcode::MOD_I64:
-        case SIR::SIROpcode::AND:
-        case SIR::SIROpcode::OR:
-        case SIR::SIROpcode::XOR:
-        case SIR::SIROpcode::NEG:
-        case SIR::SIROpcode::NOT:
-        case SIR::SIROpcode::EQ:
-        case SIR::SIROpcode::NE:
-        case SIR::SIROpcode::LT:
-        case SIR::SIROpcode::LE:
-        case SIR::SIROpcode::GT:
-        case SIR::SIROpcode::GE:
-        case SIR::SIROpcode::CALL:
-            // الحصول على اسم السجل الفعلي / Get actual register name
-            if (inst->hasResult()) {
-                return inst->result->name;
-            }
-            return std::nullopt;
-            
-        default:
-            return std::nullopt;
+    // (AR) فحص عام: أي تعليمة لها نتيجة تُعرّف سجلاً
+    // (EN) Generic check: any instruction with a result defines a register
+    if (inst->hasResult()) {
+        return inst->result->name;
     }
+    return std::nullopt;
 }
 
 /**

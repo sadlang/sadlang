@@ -204,6 +204,32 @@ public:
      */
     void setOptions(const InterpreterOptions& options) { options_ = options; }
     
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) استدعاء دالة مستخدم من C++ — يُستخدم للإطار التفاعلي
+    // (EN) Call a user function from C++ — used for reactive framework
+    // ═══════════════════════════════════════════════════════════════════
+    
+    /**
+     * @brief (AR) استدعاء دالة معرّفة في لغة ص من كود C++
+     * @brief (EN) Call a Sad-defined function from C++ code
+     * 
+     * هذه الدالة تُمكّن النظام التفاعلي من استدعاء دوال البناء
+     * ومعالجات الأحداث المكتوبة بلغة ص من داخل محرك C++.
+     * تدعم إعادة الدخول (re-entrant) — يمكن استدعاؤها من داخل
+     * دالة مضمنة تعمل حالياً.
+     * 
+     * This function enables the reactive system to call build functions
+     * and event handlers written in Sad from within the C++ engine.
+     * Supports re-entrant calls — can be called from within a currently
+     * running builtin function.
+     * 
+     * @param funcName (AR) اسم الدالة / (EN) Function name
+     * @param args (AR) المعاملات / (EN) Arguments
+     * @return (AR) القيمة المُرجعة / (EN) Return value
+     */
+    Data::Value callUserFunction(const std::string& funcName, 
+                                 const std::vector<Data::Value>& args = {});
+    
 private:
     // (AR) خيارات المفسر / (EN) Interpreter options
     InterpreterOptions options_;

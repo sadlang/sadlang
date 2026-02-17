@@ -1,0 +1,10 @@
+^C:\S\S_LANGUAGE\TESTS\STDLIB_TESTS\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/s/s_language/tests/stdlib_tests -BC:/s/s_language/tests/stdlib_tests/build --check-stamp-file C:/s/s_language/tests/stdlib_tests/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

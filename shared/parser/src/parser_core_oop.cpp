@@ -87,7 +87,9 @@ AccessModifier ParserCore::parseModifiers(bool& isStatic, bool& isVirtual, bool&
  * Note: Semicolon is OPTIONAL (both Arabic ؛ and English ; supported)
  */
 std::unique_ptr<FieldDecl> ParserCore::parseFieldDeclaration(AccessModifier access, bool isStatic) {
+#ifdef DEBUG_OOP
     std::cout << "[OOP] تحليل حقل\n";
+#endif
     
     // (AR) النوع / (EN) Type
     // Check if current token is a type token
@@ -107,7 +109,9 @@ std::unique_ptr<FieldDecl> ParserCore::parseFieldDeclaration(AccessModifier acce
         "(AR) توقع اسم الحقل. (EN) Expected field name.");
     std::string fieldName = nameToken.getValue();
     
+#ifdef DEBUG_OOP
     std::cout << "[OOP] حقل: " << typeName << " " << fieldName << "\n";
+#endif
     
     // (AR) القيمة الافتراضية (اختياري) / (EN) Default value (optional)
     ExprPtr initializer = nullptr;
@@ -141,7 +145,9 @@ std::unique_ptr<FieldDecl> ParserCore::parseFieldDeclaration(AccessModifier acce
 std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
     AccessModifier access, bool isStatic, bool isVirtual, bool isAbstract) {
     
+#ifdef DEBUG_OOP
     std::cout << "[OOP] تحليل طريقة\n";
+#endif
     
     // (AR) نوع الإرجاع (اختياري - يأتي قبل اسم الطريقة)
     // (EN) Return type (optional - comes BEFORE method name)
@@ -162,8 +168,10 @@ std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
     }
     
     std::string methodName = nameToken.getValue();
+#ifdef DEBUG_OOP
     std::cout << "[OOP] طريقة: " << methodName << " (نوع الإرجاع: " 
               << static_cast<int>(returnType) << ")\n";
+#endif
     
     // (AR) المعاملات / (EN) Parameters
     consume(TT::PAREN_LEFT,
@@ -172,14 +180,53 @@ std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
     std::vector<Parameter> parameters;
     if (!check(TT::PAREN_RIGHT)) {
         do {
-            // (AR) نوع المعامل / (EN) Parameter type
-            Data::DataType paramType = parseType();
+            // ─────────────────────────────────────────────────────────────
+            // (AR) نوع المعامل (اختياري) — ندعم صيغتين:
+            //   أ) دالة طريقة(رقم س، نص ن) — مع نوع صريح
+            //   ب) دالة طريقة(س، ن) — بدون نوع (يُعامل كـ OBJECT/ديناميكي)
+            //   ج) دالة طريقة(ت قيمة) — حيث ت معامل نوع قالب (يُعامل كـ OBJECT)
+            // هذا مهم جداً لدعم الأصناف القالبية حيث نوع المعامل
+            // قد يكون معامل نوع قالب (معرّف وليس كلمة نوع مدمجة)
+            // ─────────────────────────────────────────────────────────────
+            // (EN) Parameter type (optional) — supports two forms:
+            //   a) method(int x, string s) — with explicit type
+            //   b) method(x, s) — without type (treated as OBJECT/dynamic)
+            //   c) method(T value) — where T is template type param (OBJECT)
+            // ─────────────────────────────────────────────────────────────
+            Data::DataType paramType = Data::DataType::OBJECT;
             
-            // (AR) اسم المعامل / (EN) Parameter name
-            Token paramToken = consume(TT::IDENTIFIER,
-                "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
-            
-            parameters.push_back(Parameter(paramToken.getValue(), paramType, nullptr));
+            if (isTypeToken(current_.getType())) {
+                // (AR) نوع صريح مدمج (رقم، نص، منطقي، إلخ)
+                paramType = parseType();
+                Token paramToken = consume(TT::IDENTIFIER,
+                    "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
+                parameters.push_back(Parameter(paramToken.getValue(), paramType, nullptr));
+            } else if (check(TT::IDENTIFIER)) {
+                // (AR) التحقق: هل هذا معرّف متبوع بمعرّف آخر؟ (أي: نوع_صنف اسم)
+                // (EN) Check: is this identifier followed by another? (i.e. class_type name)
+                Token firstToken = current_;
+                // (AR) نتحقق من الرمز التالي: إذا كان معرّفاً أيضاً فهذا "نوع اسم"
+                if (peekNext().getType() == TT::IDENTIFIER) {
+                    // (AR) صيغة: نوع_صنف اسم_المعامل (مثل: شخص ش)
+                    advance(); // (AR) استهلاك اسم النوع
+                    Token paramToken = current_;
+                    advance(); // (AR) استهلاك اسم المعامل
+                    parameters.push_back(Parameter(paramToken.getValue(), Data::DataType::OBJECT, nullptr));
+                } else {
+                    // (AR) صيغة: اسم_المعامل فقط (بدون نوع)
+                    advance();
+                    parameters.push_back(Parameter(firstToken.getValue(), paramType, nullptr));
+                }
+            } else {
+                // (AR) نوع المعامل / (EN) Parameter type
+                paramType = parseType();
+                
+                // (AR) اسم المعامل / (EN) Parameter name
+                Token paramToken = consume(TT::IDENTIFIER,
+                    "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
+                
+                parameters.push_back(Parameter(paramToken.getValue(), paramType, nullptr));
+            }
             
             // Spec: docs\language_spec\rules\03_oop.md §1 - param_list ::= param ((',' | '،') param)*
         } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));
@@ -242,7 +289,9 @@ std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
  * Note: Supports both 'باني' and 'منشئ' keywords
  */
 std::unique_ptr<ConstructorDecl> ParserCore::parseConstructorDeclaration(const std::string& className, AccessModifier access) {
+#ifdef DEBUG_OOP
     std::cout << "[OOP] تحليل باني: " << className << "\n";
+#endif
     
     // Constructor name should match class name
     // (AR) المعاملات / (EN) Parameters
@@ -252,14 +301,28 @@ std::unique_ptr<ConstructorDecl> ParserCore::parseConstructorDeclaration(const s
     std::vector<Parameter> parameters;
     if (!check(TT::PAREN_RIGHT)) {
         do {
-            // (AR) نوع المعامل / (EN) Parameter type
-            Data::DataType paramType = parseType();
+            // (AR) نوع المعامل (اختياري) / (EN) Parameter type (optional)
+            // (AR) ندعم صيغتين: باني(رقم س) أو باني(س) بدون نوع
+            // (EN) Support two forms: constructor(int x) or constructor(x) without type
+            Data::DataType paramType = Data::DataType::OBJECT;
             
-            // (AR) اسم المعامل / (EN) Parameter name
-            Token paramToken = consume(TT::IDENTIFIER,
-                "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
-            
-            parameters.push_back(Parameter(paramToken.getValue(), paramType, nullptr));
+            if (isTypeToken(current_.getType())) {
+                // (AR) نوع صريح موجود / (EN) Explicit type present
+                paramType = parseType();
+                Token paramToken = consume(TT::IDENTIFIER,
+                    "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
+                parameters.push_back(Parameter(paramToken.getValue(), paramType, nullptr));
+            } else if (check(TT::IDENTIFIER)) {
+                // (AR) لا يوجد نوع صريح - نعتبره OBJECT (ديناميكي)
+                // (EN) No explicit type - treat as OBJECT (dynamic)
+                // هذا يدعم أصناف القوالب حيث نوع المعامل هو معامل قالب
+                Token paramToken = current_;
+                advance();
+                parameters.push_back(Parameter(paramToken.getValue(), paramType, nullptr));
+            } else {
+                error("(AR) توقع نوع أو اسم المعامل. (EN) Expected parameter type or name.");
+                break;
+            }
             
         } while (matchAny({TT::COMMA, TT::ARABIC_COMMA}));
     }
@@ -366,7 +429,9 @@ std::unique_ptr<ConstructorDecl> ParserCore::parseConstructorDeclaration(const s
  * Note: Supports three forms: '~باني', '~منشئ', and 'مدمر'
  */
 std::unique_ptr<DestructorDecl> ParserCore::parseDestructorDeclaration(const std::string& className, AccessModifier access) {
+#ifdef DEBUG_OOP
     std::cout << "[OOP] تحليل هدام: " << className << "\n";
+#endif
     
     // (AR) لا يوجد معاملات / (EN) No parameters
     consume(TT::PAREN_LEFT,
@@ -391,7 +456,9 @@ std::unique_ptr<DestructorDecl> ParserCore::parseDestructorDeclaration(const std
  * الصيغة / Syntax: جديد اسم_الصنف(معاملات)
  */
 ExprPtr ParserCore::parseNewExpr() {
+#ifdef DEBUG_OOP
     std::cout << "[OOP] تحليل تعبير جديد (new)\n";
+#endif
     
     // (AR) اسم الصنف / (EN) Class name
     Token classToken = consume(TT::IDENTIFIER,
@@ -399,12 +466,36 @@ ExprPtr ParserCore::parseNewExpr() {
     
     std::string className = classToken.getValue();
     
-    std::cout << "[OOP] إنشاء كائن من صنف: " << className << "\n";
+    // (AR) دعم القوالب: جديد صنف<نوع>(معاملات)
+    // (EN) Template support: new Class<Type>(args)
+    std::vector<Data::DataType> templateArgs;
+    if (check(TT::OP_LESS)) {
+        advance(); // consume '<'
+        do {
+            if (isTypeToken(current_.getType())) {
+                templateArgs.push_back(mapTokenTypeToDataType(current_.getType()));
+                advance();
+            } else if (check(TT::IDENTIFIER)) {
+                // (AR) نوع مخصص - نعتبره OBJECT
+                // (EN) Custom type - treat as OBJECT
+                templateArgs.push_back(Data::DataType::OBJECT);
+                advance();
+            } else {
+                error("(AR) توقع نوع في معاملات القالب. (EN) Expected type in template arguments.");
+                break;
+            }
+        } while (matchAny({TT::COMMA, TT::ARABIC_COMMA}));
+        
+        if (!match(TT::OP_GREATER)) {
+            error("(AR) توقع '>' لإنهاء معاملات القالب. (EN) Expected '>' to close template arguments.");
+        }
+    }
     
-    // Note: We don't check if the class is registered here during parsing
-    // Class existence will be validated during interpretation phase
-    // (AR) ملاحظة: لا نتحقق من تسجيل الصنف هنا أثناء التحليل النحوي
-    // سيتم التحقق من وجود الصنف أثناء مرحلة التنفيذ
+#ifdef DEBUG_OOP
+    std::cout << "[OOP] إنشاء كائن من صنف: " << className;
+    if (!templateArgs.empty()) std::cout << " (قالب بـ " << templateArgs.size() << " نوع)";
+    std::cout << "\n";
+#endif
     
     // (AR) معاملات الباني / (EN) Constructor arguments
     consume(TT::PAREN_LEFT,
@@ -417,7 +508,9 @@ ExprPtr ParserCore::parseNewExpr() {
         } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));
     }
     
+#ifdef DEBUG_OOP
     std::cout << "[OOP] عدد معاملات الباني: " << arguments.size() << "\n";
+#endif
     
     consume(TT::PAREN_RIGHT,
         "(AR) توقع ')' بعد معاملات الباني. (EN) Expected ')' after constructor arguments.");
@@ -425,6 +518,7 @@ ExprPtr ParserCore::parseNewExpr() {
     // إنشاء عقدة NewExpr / Create NewExpr node
     auto newExpr = std::make_unique<NewExpr>(className);
     newExpr->arguments = std::move(arguments);
+    newExpr->templateArguments = std::move(templateArgs);
     
     return newExpr;
 }
@@ -450,7 +544,9 @@ ExprPtr ParserCore::parseNewExpr() {
  * this.method()
  */
 ExprPtr ParserCore::parseThisExpression() {
+#ifdef DEBUG_OOP
     std::cout << "[OOP] تحليل تعبير 'هذا' (this)\n";
+#endif
     
     // (AR) إنشاء عقدة ThisExpr
     // (EN) Create ThisExpr node
@@ -482,7 +578,9 @@ ExprPtr ParserCore::parseThisExpression() {
  * super(args)       // Call parent constructor
  */
 ExprPtr ParserCore::parseSuperExpression() {
+#ifdef DEBUG_OOP
     std::cout << "[OOP] تحليل تعبير 'الأساس' (super)\n";
+#endif
     
     // Spec: docs\language_spec\rules\03_oop.md §2 - super keyword: `الأساس` refers to parent class
     // This can be followed by:
@@ -507,7 +605,9 @@ ExprPtr ParserCore::parseSuperExpression() {
  * Example: خاصية نص الاسم احصل ارجع قيمة نهاية عيّن(قيمة_جديدة) قيمة = قيمة_جديدة نهاية نهاية
  */
 std::unique_ptr<PropertyDecl> ParserCore::parsePropertyDeclaration(AccessModifier access, bool isStatic) {
+#ifdef DEBUG_OOP
     std::cout << "[OOP] تحليل خاصية (property)\n";
+#endif
     
     // (AR) النوع / (EN) Type
     if (!isTypeToken(current_.getType())) {
@@ -523,8 +623,10 @@ std::unique_ptr<PropertyDecl> ParserCore::parsePropertyDeclaration(AccessModifie
         "(AR) توقع اسم الخاصية. (EN) Expected property name.");
     std::string propertyName = nameToken.getValue();
     
+#ifdef DEBUG_OOP
     std::cout << "[OOP] خاصية: " << propertyName << " (نوع: " 
               << static_cast<int>(propertyType) << ")\n";
+#endif
     
     // (AR) كتلة القراءة (getter) - إلزامية / (EN) Getter block - required
     std::unique_ptr<GetterBlock> getter = nullptr;
@@ -591,7 +693,9 @@ std::unique_ptr<PropertyDecl> ParserCore::parsePropertyDeclaration(AccessModifie
     consume(TT::KEYWORD_END,
         "(AR) توقع 'نهاية' في نهاية تصريح الخاصية. (EN) Expected 'نهاية' at end of property declaration.");
     
+#ifdef DEBUG_OOP
     std::cout << "[OOP] انتهى تحليل خاصية '" << propertyName << "'\n";
+#endif
     
     return std::make_unique<PropertyDecl>(
         propertyName,

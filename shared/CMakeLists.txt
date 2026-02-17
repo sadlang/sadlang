@@ -93,5 +93,10 @@ target_include_directories(sad_shared
 
 target_compile_features(sad_shared PUBLIC cxx_std_17)
 
+# إصلاح مشكلة PDB / Fix PDB lock issue
+if(MSVC)
+    target_compile_options(sad_shared PRIVATE /FS)
+endif()
+
 # رسالة تأكيد
 message(STATUS "Configured sad_shared library")

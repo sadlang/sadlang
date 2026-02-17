@@ -261,6 +261,57 @@ bool ClassType::hasProperty(const std::string& propertyName) const {
 }
 
 // ======================================================================
+// إدارة العوامل المحملة زائداً / Operator Overload Management
+// ======================================================================
+
+void ClassType::addOperatorOverload(OperatorOverload overload) {
+    // (AR) إضافة تحميل عامل زائد للصنف
+    // (EN) Add operator overload to class
+    
+    #ifdef DEBUG_OOP
+    std::cout << "[ClassType] أضيف تحميل عامل زائد: " << overload.operatorSymbol << " للصنف " << name << "\n";
+    #endif
+    
+    operatorOverloads.push_back(std::move(overload));
+}
+
+OperatorOverload* ClassType::findOperator(const std::string& operatorSymbol) {
+    // (AR) البحث عن تحميل عامل زائد بالرمز
+    // (EN) Find operator overload by symbol
+    
+    for (auto& op : operatorOverloads) {
+        if (op.operatorSymbol == operatorSymbol) {
+            return &op;
+        }
+    }
+    
+    // (AR) البحث في الصنف الأساسي
+    // (EN) Search in base class
+    if (baseClass) {
+        return baseClass->findOperator(operatorSymbol);
+    }
+    
+    return nullptr;
+}
+
+bool ClassType::hasOperator(const std::string& operatorSymbol) const {
+    // (AR) التحقق من وجود تحميل عامل زائد
+    // (EN) Check if operator overload exists
+    
+    for (const auto& op : operatorOverloads) {
+        if (op.operatorSymbol == operatorSymbol) {
+            return true;
+        }
+    }
+    
+    if (baseClass) {
+        return baseClass->hasOperator(operatorSymbol);
+    }
+    
+    return false;
+}
+
+// ======================================================================
 // الباني والهدام / Constructor and Destructor
 // ======================================================================
 

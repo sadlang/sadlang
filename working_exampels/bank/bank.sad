@@ -1,0 +1,217 @@
+﻿# بسم الله الرحمن الرحيم
+# تطبيق إدارة البنك - بمكونات جاهزة (Flutter-like)
+# Bank Management App using Flutter-like UI Framework
+
+# استيراد مكتبة الواجهات
+من واجهات استورد *
+
+# إنشاء التطبيق / Create app
+متغير app = تطبيق_جديد("Bank Manager", 450, 600)
+تطبيق_لون(app, 235, 240, 248)
+
+# حالة الحساب / Account state
+متغير balance = 1000
+متغير msg = "Welcome! Balance: 1000"
+
+# العمود الرئيسي / Main column
+متغير mc = عمود_جديد()
+عنصر_حشوة(mc, 16)
+عنصر_تباعد(mc, 10)
+
+# ===== العنوان / Header =====
+متغير header = بطاقة_جديدة()
+عنصر_ارتفاع(header, 70)
+عنصر_لون(header, 25, 80, 160)
+عنصر_حدود(header, 12)
+
+متغير title = نص_عنصر("BANK MANAGER")
+نص_حجم(title, 35)
+نص_لون(title, 255, 255, 255)
+نص_محاذاة(title, "center")
+عنصر_اضف(header, title)
+عنصر_اضف(mc, header)
+
+# ===== بطاقة الرصيد / Balance Card =====
+متغير bcard = بطاقة_جديدة()
+عنصر_ارتفاع(bcard, 80)
+عنصر_لون(bcard, 255, 255, 255)
+عنصر_حدود(bcard, 12)
+
+متغير bal_label = نص_عنصر("BALANCE")
+نص_حجم(bal_label, 21)
+نص_لون(bal_label, 120, 120, 120)
+نص_محاذاة(bal_label, "center")
+
+متغير bal_text = نص_عنصر("$ 1000")
+نص_حجم(bal_text, 35)
+نص_لون(bal_text, 25, 80, 160)
+نص_محاذاة(bal_text, "center")
+
+متغير bal_col = عمود_جديد()
+عنصر_تباعد(bal_col, 4)
+عنصر_اضف(bal_col, bal_label)
+عنصر_اضف(bal_col, bal_text)
+عنصر_اضف(bcard, bal_col)
+عنصر_اضف(mc, bcard)
+
+# ===== حقل المبلغ / Amount Field =====
+متغير amt_field = حقل_عنصر("Enter amount...")
+عنصر_ارتفاع(amt_field, 50)
+نص_حجم(amt_field, 21)
+عنصر_اضف(mc, amt_field)
+
+# ===== أزرار العمليات / Operation Buttons =====
+متغير op_row = صف_جديد()
+عنصر_تباعد(op_row, 10)
+عنصر_ارتفاع(op_row, 55)
+
+متغير btn_dep = زر_عنصر("DEPOSIT")
+عنصر_توسيع(btn_dep, 1)
+زر_لون(btn_dep, 46, 139, 87)
+نص_حجم(btn_dep, 21)
+
+متغير btn_wd = زر_عنصر("WITHDRAW")
+عنصر_توسيع(btn_wd, 1)
+زر_لون(btn_wd, 220, 53, 69)
+نص_حجم(btn_wd, 21)
+
+عنصر_اضف(op_row, btn_dep)
+عنصر_اضف(op_row, btn_wd)
+عنصر_اضف(mc, op_row)
+
+# ===== أزرار مبالغ سريعة / Quick Amount Buttons =====
+متغير qrow1 = صف_جديد()
+عنصر_تباعد(qrow1, 8)
+عنصر_ارتفاع(qrow1, 45)
+
+متغير bq50 = زر_عنصر("$50")
+عنصر_توسيع(bq50, 1)
+زر_لون(bq50, 100, 120, 150)
+نص_حجم(bq50, 21)
+
+متغير bq100 = زر_عنصر("$100")
+عنصر_توسيع(bq100, 1)
+زر_لون(bq100, 100, 120, 150)
+نص_حجم(bq100, 21)
+
+متغير bq500 = زر_عنصر("$500")
+عنصر_توسيع(bq500, 1)
+زر_لون(bq500, 100, 120, 150)
+نص_حجم(bq500, 21)
+
+متغير bq1000 = زر_عنصر("$1000")
+عنصر_توسيع(bq1000, 1)
+زر_لون(bq1000, 100, 120, 150)
+نص_حجم(bq1000, 21)
+
+عنصر_اضف(qrow1, bq50)
+عنصر_اضف(qrow1, bq100)
+عنصر_اضف(qrow1, bq500)
+عنصر_اضف(qrow1, bq1000)
+عنصر_اضف(mc, qrow1)
+
+# ===== خط فاصل =====
+متغير div1 = خط_فاصل()
+عنصر_اضف(mc, div1)
+
+# ===== رسالة الحالة / Status Message =====
+متغير msg_card = بطاقة_جديدة()
+عنصر_ارتفاع(msg_card, 50)
+عنصر_لون(msg_card, 245, 245, 245)
+
+متغير msg_text = نص_عنصر("Ready")
+نص_حجم(msg_text, 21)
+نص_لون(msg_text, 80, 80, 80)
+نص_محاذاة(msg_text, "center")
+عنصر_اضف(msg_card, msg_text)
+عنصر_اضف(mc, msg_card)
+
+# ===== فاصل مرن =====
+متغير spacer = فاصل_جديد(10)
+عنصر_اضف(mc, spacer)
+
+# ===== زر مسح الحقل / Clear Button =====
+متغير btn_clear = زر_عنصر("CLEAR")
+عنصر_ارتفاع(btn_clear, 45)
+زر_لون(btn_clear, 108, 117, 125)
+نص_حجم(btn_clear, 21)
+عنصر_اضف(mc, btn_clear)
+
+# تعيين المحتوى / Set content
+تطبيق_محتوى(app, mc)
+
+# ===== دوال المعالجة =====
+دالة update_balance()
+    متغير bt = "$ " + balance
+    نص_محتوى(bal_text, bt)
+نهاية
+
+دالة do_deposit(amount)
+    balance = balance + amount
+    update_balance()
+    متغير m = "Deposited: $" + amount
+    نص_محتوى(msg_text, m)
+نهاية
+
+دالة do_withdraw(amount)
+    اذا (amount > balance)
+        نص_محتوى(msg_text, "Not enough funds!")
+    والا
+        balance = balance - amount
+        update_balance()
+        متغير m = "Withdrawn: $" + amount
+        نص_محتوى(msg_text, m)
+    نهاية
+نهاية
+
+# ===== حلقة التطبيق / App Loop =====
+بينما (تطبيق_يعمل(app))
+    تطبيق_تحديث(app)
+
+    # إيداع / Deposit
+    اذا (زر_ضغط(btn_dep))
+        متغير amt_str = حقل_نص(amt_field)
+        متغير amt = amt_str + 0
+        اذا (amt > 0)
+            do_deposit(amt)
+            حقل_تعيين(amt_field, "")
+        والا
+            نص_محتوى(msg_text, "Enter valid amount")
+        نهاية
+    نهاية
+
+    # سحب / Withdraw
+    اذا (زر_ضغط(btn_wd))
+        متغير amt_str2 = حقل_نص(amt_field)
+        متغير amt2 = amt_str2 + 0
+        اذا (amt2 > 0)
+            do_withdraw(amt2)
+            حقل_تعيين(amt_field, "")
+        والا
+            نص_محتوى(msg_text, "Enter valid amount")
+        نهاية
+    نهاية
+
+    # مبالغ سريعة /  Quick amounts (deposit)
+    اذا (زر_ضغط(bq50))
+        حقل_تعيين(amt_field, "50")
+    نهاية
+    اذا (زر_ضغط(bq100))
+        حقل_تعيين(amt_field, "100")
+    نهاية
+    اذا (زر_ضغط(bq500))
+        حقل_تعيين(amt_field, "500")
+    نهاية
+    اذا (زر_ضغط(bq1000))
+        حقل_تعيين(amt_field, "1000")
+    نهاية
+
+    # مسح / Clear
+    اذا (زر_ضغط(btn_clear))
+        حقل_تعيين(amt_field, "")
+        نص_محتوى(msg_text, "Ready")
+    نهاية
+نهاية
+
+تطبيق_اغلاق(app)
+اطبع("Bank app closed")

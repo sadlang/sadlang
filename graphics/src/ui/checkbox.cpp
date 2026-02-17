@@ -8,6 +8,8 @@
 #include "../include/resources/resource_manager.h" // لإدارة الخطوط / For font management
 #include <SDL.h>                                   // للمفاتيح / For keys
 
+using sad::graphics::ResourceManager;
+
 namespace Graphics {
     namespace UI {
 
@@ -33,7 +35,7 @@ namespace Graphics {
             SetSize(150, 24);
 
             // نمط افتراضي / Default style
-            m_style.backgroundColor = Color(240, 240, 240);  // خلفية فاتحة / Light background
+            m_style.backgroundColor = Color::FromBytes(240, 240, 240);  // خلفية فاتحة / Light background
             m_style.borderColor = Color::Black;              // حدود سوداء / Black border
             m_style.borderWidth = 0.0f;                      // بدون حدود / No border
             m_style.padding = 2.0f;                          // مسافة صغيرة / Small padding
@@ -111,7 +113,7 @@ namespace Graphics {
         // ============================================================================
         // رسم مربع الاختيار / Draw checkbox
         // ============================================================================
-        void Checkbox::Draw(Renderer2D* renderer) {
+        void Checkbox::Draw(SadGraphics::Renderer2D* renderer) {
             // إذا لم يكن ظاهراً / If not visible
             if (!m_visible) {
                 return;
@@ -151,7 +153,7 @@ namespace Graphics {
                 
                 // تطبيق الشفافية / Apply opacity
                 Color finalColor = m_labelColor;
-                finalColor.a = (unsigned char)(m_style.opacity * 255.0f);
+                finalColor.a *= m_style.opacity;
 
                 renderer->DrawText(m_label, m_font, labelX, labelY, finalColor);
             }

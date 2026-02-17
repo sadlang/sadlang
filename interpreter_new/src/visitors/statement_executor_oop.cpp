@@ -14,6 +14,7 @@
 #include "class_manager.h"
 #include "object_manager.h"
 #include "property_nodes.h"
+#include "declarations.h"  // For OperatorDecl
 #include <iostream>
 
 namespace Sad {
@@ -27,7 +28,10 @@ using namespace Data;
 // ======================================================================
 
 void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
+    #ifdef DEBUG_OOP
+
     std::cout << "[OOP] تنفيذ تصريح صنف: " << node.name << "\n";
+#endif
     
     // Get ClassManager instance
     auto* classManager = ClassManager::getInstance();
@@ -42,7 +46,10 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
         if (!existingClass->fields.empty() || !existingClass->methods.empty()) {
             throw std::runtime_error("(AR) الصنف '" + node.name + "' معرّف مسبقاً. (EN) Class '" + node.name + "' is already defined.");
         }
+        #ifdef DEBUG_OOP
+
         std::cout << "[OOP] استبدال التسجيل المؤقت للصنف: " << node.name << "\n";
+#endif
     }
     
     // Create new ClassType (simplified registration)
@@ -51,7 +58,9 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
     
     // (AR) معالجة الوراثة المتعددة / (EN) Handle multiple inheritance
     if (!node.superclasses.empty()) {
+        #ifdef DEBUG_OOP
         std::cout << "[OOP] الصنف '" << node.name << "' يرث من: ";
+        #endif
         
         // (AR) التحقق من وجود جميع الأصناف الأساسية / (EN) Verify all base classes exist
         std::vector<ClassType*> baseClasses;
@@ -63,9 +72,13 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
                     "(EN) Base class '" + baseName + "' not found.");
             }
             baseClasses.push_back(baseClass);
+            #ifdef DEBUG_OOP
             std::cout << "'" << baseName << "' ";
+            #endif
         }
+        #ifdef DEBUG_OOP
         std::cout << "\n";
+        #endif
         
         // (AR) تعيين الصنف الأساسي الأول (للتوافق مع النظام الحالي) / (EN) Set first base class (for current system compatibility)
         classType->baseClass = baseClasses[0];
@@ -73,10 +86,12 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
         // (AR) ملاحظة: دعم كامل للوراثة المتعددة يتطلب تحديث ClassType لتخزين vector من base classes
         // (EN) Note: Full multiple inheritance support requires updating ClassType to store vector of base classes
         if (baseClasses.size() > 1) {
+            #ifdef DEBUG_OOP
             std::cout << "[OOP] تحذير: الوراثة المتعددة مدعومة جزئياً. الصنف الأول فقط '" 
                       << node.superclasses[0] << "' سيُستخدم حالياً.\n";
             std::cout << "[OOP] Warning: Multiple inheritance partially supported. Only first class '" 
                       << node.superclasses[0] << "' will be used currently.\n";
+            #endif
         }
     }
     
@@ -101,11 +116,13 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
         }
     }
     
+    #ifdef DEBUG_OOP
     std::cout << "[OOP] الصنف يحتوي على: " << fieldCount << " حقل، " 
               << methodCount << " طريقة، " << propertyCount << " خاصية";
     if (hasConstructor) std::cout << "، باني";
     if (hasDestructor) std::cout << "، هادم";
     std::cout << "\n";
+    #endif
     
     // Register fields (simplified - without full type resolution for now)
     for (auto& member : node.members) {
@@ -148,9 +165,15 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
                         defaultValue = Value();
                 }
                 classType->setStaticField(fieldDecl->name, defaultValue);
+                #ifdef DEBUG_OOP
+
                 std::cout << "[OOP]   - حقل ثابت: " << fieldDecl->name << " = " << defaultValue.toString() << "\n";
+#endif
             } else {
+                #ifdef DEBUG_OOP
+
                 std::cout << "[OOP]   - حقل: " << fieldDecl->name << "\n";
+#endif
             }
         }
         // Store constructor
@@ -188,8 +211,12 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
                 methodDecl->isVirtual
             );
             
+            #ifdef DEBUG_OOP
+
+            
             std::cout << "[OOP]   - طريقة: " << methodDecl->name 
                       << " بـ " << methodDecl->parameters.size() << " معاملات\n";
+#endif
         }
         // Store properties
         else if (auto* propertyDecl = dynamic_cast<AST::PropertyDecl*>(member.get())) {
@@ -226,7 +253,25 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
             
             std::string accessType = property.isReadOnly() ? " (للقراءة فقط)" : 
                                    property.isWriteOnly() ? " (للكتابة فقط)" : "";
+            #ifdef DEBUG_OOP
+
             std::cout << "[OOP]   - خاصية: " << propertyDecl->name << accessType << "\n";
+#endif
+        }
+        // Store operator overloads
+        // (AR) تسجيل العوامل المحملة زائداً / (EN) Register operator overloads
+        else if (auto* operatorDecl = dynamic_cast<AST::OperatorDecl*>(member.get())) {
+            OperatorOverload overload(operatorDecl->operatorSymbol, operatorDecl->access);
+            overload.parameters = operatorDecl->parameters;
+            overload.returnType = operatorDecl->returnType;
+            overload.body = std::move(operatorDecl->body);
+            
+            classType->addOperatorOverload(std::move(overload));
+            
+            #ifdef DEBUG_OOP
+            std::cout << "[OOP]   - عامل محمل زائداً: " << operatorDecl->operatorSymbol 
+                      << " بـ " << operatorDecl->parameters.size() << " معاملات\n";
+            #endif
         }
     }
     
@@ -234,7 +279,10 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
     // (AR) إذا كان الصنف مسجلاً بالفعل (من التحليل)، قم بإزالته أولاً
     // (EN) If class is already registered (from parsing), remove it first
     if (classManager->hasClass(node.name)) {
+        #ifdef DEBUG_OOP
+
         std::cout << "[OOP] الصنف مسجل مسبقاً (من مرحلة التحليل)، سيتم تحديثه...\n";
+#endif
         // Note: ClassManager automatically overwrites existing class definition
         // No need for explicit removeClass method - registerClass handles this
     }
@@ -242,15 +290,24 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
     bool registered = classManager->registerClass(std::move(classType));
     
     if (registered) {
+        #ifdef DEBUG_OOP
+
         std::cout << "[OOP] ✅ تم تسجيل الصنف: " << node.name << "\n";
+#endif
     } else {
         // Already registered - update it instead
+        #ifdef DEBUG_OOP
+
         std::cout << "[OOP] ⚠️ الصنف موجود مسبقاً - تم التخطي\n";
+#endif
     }
 }
 
 void StatementExecutor::visitFieldDecl(AST::FieldDecl& node) {
+    #ifdef DEBUG_OOP
+
     std::cout << "[OOP] تنفيذ تصريح حقل: " << node.name << "\n";
+#endif
     
     // (AR) تصريحات الحقول جزء من بنية الصنف، سيتم معالجتها عند إنشاء كائنات الصنف
     // (EN) Field declarations are part of class structure, processed when class is instantiated
@@ -258,7 +315,10 @@ void StatementExecutor::visitFieldDecl(AST::FieldDecl& node) {
 }
 
 void StatementExecutor::visitMethodDecl(AST::MethodDecl& node) {
+    #ifdef DEBUG_OOP
+
     std::cout << "[OOP] تنفيذ تصريح طريقة: " << node.name << "\n";
+#endif
     
     // (AR) تصريحات الطرق جزء من بنية الصنف، سيتم تسجيلها عند تعريف الصنف
     // (EN) Method declarations are part of class structure, registered when class is defined
@@ -266,7 +326,10 @@ void StatementExecutor::visitMethodDecl(AST::MethodDecl& node) {
 }
 
 void StatementExecutor::visitPropertyDecl(AST::PropertyDecl& node) {
+    #ifdef DEBUG_OOP
+
     std::cout << "[OOP] تنفيذ تصريح خاصية (Property): " << node.name << "\n";
+#endif
     
     // (AR) تصريحات الخصائص جزء من بنية الصنف، سيتم تسجيلها عند تعريف الصنف
     // (EN) Property declarations are part of class structure, registered when class is defined
@@ -274,7 +337,10 @@ void StatementExecutor::visitPropertyDecl(AST::PropertyDecl& node) {
 }
 
 void StatementExecutor::visitConstructorDecl(AST::ConstructorDecl& node) {
+    #ifdef DEBUG_OOP
+
     std::cout << "[OOP] تنفيذ تصريح باني\n";
+#endif
     
     // (AR) الباني جزء من بنية الصنف، سيتم استدعاؤه عند إنشاء كائنات جديدة
     // (EN) Constructor is part of class structure, invoked when creating new instances
@@ -282,11 +348,98 @@ void StatementExecutor::visitConstructorDecl(AST::ConstructorDecl& node) {
 }
 
 void StatementExecutor::visitDestructorDecl(AST::DestructorDecl& node) {
+    #ifdef DEBUG_OOP
+
     std::cout << "[OOP] تنفيذ تصريح هادم\n";
+#endif
     
     // (AR) الهادم جزء من بنية الصنف، سيتم استدعاؤه عند حذف الكائنات
     // (EN) Destructor is part of class structure, invoked when deleting instances
     // Note: Destructor is called automatically during object cleanup
+}
+
+// ======================================================================
+// (AR) إنشاء نسخة ملموسة من صنف قالب
+// (EN) Instantiate a concrete version of a template class
+// ======================================================================
+
+void StatementExecutor::instantiateTemplateClass(AST::TemplateClassDecl& templateNode, const std::string& className) {
+    auto* classManager = ClassManager::getInstance();
+    
+    // (AR) لا نحتاج إنشاءه مجدداً إن كان موجوداً
+    // (EN) No need to re-instantiate if already registered
+    if (classManager->hasClass(className)) {
+        return;
+    }
+    
+    // (AR) إنشاء ClassType جديد بالاسم الملموس
+    // (EN) Create new ClassType with concrete name
+    auto classType = std::make_unique<ClassType>(className);
+    
+    // (AR) معالجة الوراثة
+    // (EN) Handle inheritance
+    if (!templateNode.superclasses.empty()) {
+        ClassType* baseClass = classManager->getClass(templateNode.superclasses[0]);
+        if (baseClass) {
+            classType->baseClass = baseClass;
+        }
+    }
+    
+    // (AR) معالجة الأعضاء: حقول فقط + توقيعات الطرق (بدون أجسام)
+    // (EN) Process members: fields only + method signatures (no bodies)
+    // ملاحظة: لا نخزّن الباني أو أجسام الطرق في ClassType لتجنب مشاكل الملكية
+    // Note: We DON'T store constructor or method bodies in ClassType to avoid unique_ptr ownership conflicts
+    // Instead, we look them up at runtime from the template AST via templateInstanceSources_
+    for (auto& member : templateNode.members) {
+        if (auto* fieldDecl = dynamic_cast<FieldDecl*>(member.get())) {
+            AST::Visibility vis = AST::Visibility::PUBLIC;
+            switch (fieldDecl->access) {
+                case AST::AccessModifier::PUBLIC: vis = AST::Visibility::PUBLIC; break;
+                case AST::AccessModifier::PRIVATE: vis = AST::Visibility::PRIVATE; break;
+                case AST::AccessModifier::PROTECTED: vis = AST::Visibility::PROTECTED; break;
+            }
+            classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic);
+        }
+        else if (auto* methodDecl = dynamic_cast<MethodDecl*>(member.get())) {
+            // (AR) نضيف توقيع الطريقة فقط (بدون body) — الجسم يُحلّ من القالب عند التنفيذ
+            // (EN) Add method signature only (no body) — body resolved from template at runtime
+            AST::Visibility vis = AST::Visibility::PUBLIC;
+            switch (methodDecl->access) {
+                case AST::AccessModifier::PUBLIC: vis = AST::Visibility::PUBLIC; break;
+                case AST::AccessModifier::PRIVATE: vis = AST::Visibility::PRIVATE; break;
+                case AST::AccessModifier::PROTECTED: vis = AST::Visibility::PROTECTED; break;
+            }
+            classType->addMethod(
+                methodDecl->name,
+                vis,
+                nullptr,  // returnType
+                methodDecl->parameters,
+                nullptr,  // body — resolved at runtime from template
+                methodDecl->isStatic,
+                methodDecl->isVirtual
+            );
+        }
+        else if (auto* propertyDecl = dynamic_cast<AST::PropertyDecl*>(member.get())) {
+            AST::Visibility vis = AST::Visibility::PUBLIC;
+            if (propertyDecl->visibility == AST::AccessModifier::PUBLIC) vis = AST::Visibility::PUBLIC;
+            else if (propertyDecl->visibility == AST::AccessModifier::PRIVATE) vis = AST::Visibility::PRIVATE;
+            else if (propertyDecl->visibility == AST::AccessModifier::PROTECTED) vis = AST::Visibility::PROTECTED;
+            
+            ClassProperty property(propertyDecl->name, nullptr, vis);
+            property.isStatic = propertyDecl->isStatic;
+            classType->addProperty(std::move(property));
+        }
+        // (AR) الباني يُتخطّى هنا — يُحلّ عبر templateInstanceSources_ عند إنشاء الكائن
+        // (EN) Constructor is skipped here — resolved via templateInstanceSources_ at object creation
+    }
+    
+    // (AR) حفظ مرجع مصدر القالب للبحث عن الباني والطرق عند التنفيذ
+    // (EN) Store template source reference for constructor/method lookup at runtime
+    templateInstanceSources_[className] = &templateNode;
+    
+    // (AR) تسجيل الصنف الملموس
+    // (EN) Register the concrete class
+    classManager->registerClass(std::move(classType));
 }
 
 } // namespace Interpreter

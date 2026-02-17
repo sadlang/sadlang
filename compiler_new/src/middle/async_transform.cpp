@@ -55,13 +55,13 @@
  */
 
 #include "async_transform.hpp"
-// #include "../backend/ir_generator.hpp" // TODO: File does not exist
-// #include "../../shared/ast/include/ast.hpp" // TODO: File does not exist
-// #include "../../shared/errors/include/error_reporter.hpp" // TODO: Check path
+// (AR) كل الأنواع المطلوبة (ast::*, types::*, errors::*) معرّفة في async_transform.hpp
+// (EN) All required types (ast::*, types::*, errors::*) are defined in async_transform.hpp
 
 #include <memory>
 #include <vector>
 #include <string>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
@@ -255,7 +255,7 @@ public:
     ) {
         current_machine_ = std::make_unique<AsyncStateMachine>();
         current_machine_->name = func.name + "_آلة";
-        current_machine_->is_generator = (func.kind == ast::AsyncFunctionKind::ASYNC_GENERATOR);
+        current_machine_->is_generator = (func.func_kind == ast::AsyncFunctionKind::ASYNC_GENERATOR);
         
         if (func.return_type) {
             current_machine_->output_type = extractOutputType(func.return_type.get());
@@ -532,8 +532,9 @@ private:
     
     /**
      * (AR) هل التعبير يحتوي await؟
+     * (AR) تقبل أي عقدة ASTNode لتسهيل التحقق العام
      */
-    bool containsAwait(const ast::ExpressionNode* expr) const {
+    bool containsAwait(const ast::ASTNode* expr) const {
         if (!expr) return false;
         
         if (expr->getKind() == ast::NodeKind::AwaitExpr) {
@@ -823,13 +824,16 @@ public:
                 
                 // Ready(val) => ...
                 ast::MatchArm ready_arm;
-                ready_arm.pattern = std::make_unique<ast::EnumPatternNode>(
-                    "حالة_استطلاع",
-                    "جاهز",
-                    std::vector<std::unique_ptr<ast::PatternNode>>{
-                        std::make_unique<ast::BindingPatternNode>(await.result_var)
-                    }
-                );
+                {
+                    // (AR) بناء أنماط الربط بدون initializer_list (unique_ptr لا يُنسخ)
+                    std::vector<std::unique_ptr<ast::PatternNode>> patterns;
+                    patterns.push_back(std::make_unique<ast::BindingPatternNode>(await.result_var));
+                    ready_arm.pattern = std::make_unique<ast::EnumPatternNode>(
+                        "حالة_استطلاع",
+                        "جاهز",
+                        std::move(patterns)
+                    );
+                }
                 ready_arm.body = std::make_unique<ast::BlockNode>();
                 // (AR) حفظ النتيجة والانتقال للحالة التالية
                 generateStateTransition(

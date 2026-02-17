@@ -1151,9 +1151,40 @@ void SIRBuilder::buildBreakStatement(AST::BreakStmt* breakStmt) {
         return;
     }
     
-    // (AR) TODO: التحقق من وجود حلقة والقفز لنهايتها
-    // (EN) TODO: Check for loop and jump to its end
-    // استخدام getCurrentLoop() للحصول على سياق الحلقة
+    // ========================================================================
+    // (AR) جملة break: القفز إلى نهاية الحلقة الحالية
+    //      نستخدم مكدس الحلقات (loopStack_) للحصول على تسمية كتلة الخروج
+    //      ثم نولّد تعليمة قفز غير شرطي (BR) إلى تلك الكتلة
+    //
+    // (EN) break statement: Jump to the end of current loop
+    //      We use the loop stack (loopStack_) to get the exit block label
+    //      Then generate an unconditional branch (BR) to that block
+    // ========================================================================
+    LoopContext* loop = getCurrentLoop();
+    if (!loop) {
+        errors_.push_back("(AR) خطأ: جملة 'قف' خارج حلقة. (EN) Error: 'break' outside of loop.");
+        return;
+    }
+    
+    // (AR) توليد قفز غير شرطي إلى كتلة خروج الحلقة
+    // (EN) Generate unconditional branch to loop exit block
+    SIROperand exitLabel = SIROperand::Label(loop->breakLabel);
+    SIRInstruction brInst = SIRInstruction::Branch(exitLabel);
+    
+    if (currentBlock_) {
+        currentBlock_->instructions.push_back(brInst);
+    }
+    
+    // (AR) إنشاء كتلة جديدة للكود بعد break (كود ميت)
+    //      هذا ضروري لأن LLVM يتطلب أن كل كتلة تنتهي بمُنهِي واحد فقط
+    // (EN) Create new block for code after break (dead code)
+    //      Required because LLVM needs each block to end with exactly one terminator
+    std::string afterBreakLabel = newLabel("after_break");
+    auto afterBreakBlock = createBasicBlock(afterBreakLabel);
+    if (currentFunction_) {
+        currentFunction_->addBasicBlock(afterBreakBlock);
+    }
+    currentBlock_ = afterBreakBlock;
 }
 
 // ============================================================================
@@ -1171,8 +1202,44 @@ void SIRBuilder::buildContinueStatement(AST::ContinueStmt* continueStmt) {
         return;
     }
     
-    // (AR) TODO: التحقق من وجود حلقة والقفز لبدايتها
-    // (EN) TODO: Check for loop and jump to its beginning
+    // ========================================================================
+    // (AR) جملة continue: القفز إلى بداية تكرار الحلقة التالي
+    //      - في حلقة while: نقفز إلى كتلة الشرط (while_cond)
+    //      - في حلقة for: نقفز إلى كتلة الزيادة (for_inc) 
+    //        ثم الزيادة ستقفز بدورها للشرط
+    //      نستخدم continueLabel من مكدس الحلقات
+    //
+    // (EN) continue statement: Jump to next loop iteration
+    //      - In while loop: jump to condition block (while_cond)
+    //      - In for loop: jump to increment block (for_inc)
+    //        then increment jumps to condition
+    //      We use continueLabel from the loop stack
+    // ========================================================================
+    LoopContext* loop = getCurrentLoop();
+    if (!loop) {
+        errors_.push_back("(AR) خطأ: جملة 'أكمل' خارج حلقة. (EN) Error: 'continue' outside of loop.");
+        return;
+    }
+    
+    // (AR) توليد قفز غير شرطي إلى كتلة استمرار الحلقة
+    // (EN) Generate unconditional branch to loop continue block
+    SIROperand continueLabel = SIROperand::Label(loop->continueLabel);
+    SIRInstruction brInst = SIRInstruction::Branch(continueLabel);
+    
+    if (currentBlock_) {
+        currentBlock_->instructions.push_back(brInst);
+    }
+    
+    // (AR) إنشاء كتلة جديدة للكود بعد continue (كود ميت)
+    //      هذا ضروري لأن LLVM يتطلب أن كل كتلة تنتهي بمُنهِي واحد فقط
+    // (EN) Create new block for code after continue (dead code)
+    //      Required because LLVM needs each block to end with exactly one terminator
+    std::string afterContinueLabel = newLabel("after_continue");
+    auto afterContinueBlock = createBasicBlock(afterContinueLabel);
+    if (currentFunction_) {
+        currentFunction_->addBasicBlock(afterContinueBlock);
+    }
+    currentBlock_ = afterContinueBlock;
 }
 
 // ============================================================================
@@ -2141,6 +2208,19 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
     }
     
     // ========================================================================
+    // (AR) الخطوة 4.5: تسجيل سياق الحلقة لدعم break/continue
+    //      continueLabel = كتلة الشرط (while_cond) — continue يقفز للشرط
+    //      breakLabel = كتلة الخروج (while_exit) — break يقفز للخروج
+    // (EN) Step 4.5: Register loop context for break/continue support
+    //      continueLabel = condition block (while_cond) — continue jumps to condition
+    //      breakLabel = exit block (while_exit) — break jumps to exit
+    // ========================================================================
+    LoopContext whileLoopCtx;
+    whileLoopCtx.continueLabel = condLabel;
+    whileLoopCtx.breakLabel = exitLabel;
+    enterLoop(whileLoopCtx);
+    
+    // ========================================================================
     // (AR) الخطوة 5: بناء جسم الحلقة
     // (EN) Step 5: Build loop body
     // المصدر: WhileStmt::body (statements.h:150)
@@ -2149,6 +2229,10 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
     if (whileLoop->body) {
         buildStatement(whileLoop->body.get());
     }
+    
+    // (AR) الخروج من سياق الحلقة بعد بناء الجسم
+    // (EN) Exit loop context after building body
+    exitLoop();
     
     // ========================================================================
     // (AR) الخطوة 6: قفز للعودة إلى كتلة الشرط
@@ -2309,6 +2393,21 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
     }
     
     // ========================================================================
+    // (AR) الخطوة 5.5: تسجيل سياق الحلقة لدعم break/continue
+    //      continueLabel = كتلة الزيادة (for_inc) — continue يقفز للزيادة أولاً
+    //      breakLabel = كتلة الخروج (for_exit) — break يقفز للخروج مباشرة
+    //      ملاحظة: في for، continue يجب أن ينفّذ الزيادة ثم يعود للشرط
+    // (EN) Step 5.5: Register loop context for break/continue support
+    //      continueLabel = increment block (for_inc) — continue goes to increment first
+    //      breakLabel = exit block (for_exit) — break jumps to exit directly
+    //      Note: In for, continue must execute increment then go to condition
+    // ========================================================================
+    LoopContext forLoopCtx;
+    forLoopCtx.continueLabel = incLabel;
+    forLoopCtx.breakLabel = exitLabel;
+    enterLoop(forLoopCtx);
+    
+    // ========================================================================
     // (AR) الخطوة 6: بناء جسم الحلقة
     // (EN) Step 6: Build loop body
     // المصدر: ForStmt::body (statements.h:196)
@@ -2317,6 +2416,10 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
     if (forLoop->body) {
         buildStatement(forLoop->body.get());
     }
+    
+    // (AR) الخروج من سياق الحلقة بعد بناء الجسم
+    // (EN) Exit loop context after building body
+    exitLoop();
     
     // (AR) قفز إلى كتلة الزيادة
     // (EN) Jump to increment block
@@ -3771,7 +3874,7 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         std::string resultReg = newTempRegister();
         SIROperand resultOp = SIROperand::Register(resultReg, SIRType::F64);
         
-        SIRInstruction convInst(SIROpcode::F64_TO_I64);  // TODO: Add STRING_TO_F64 opcode
+        SIRInstruction convInst(SIROpcode::STRING_TO_F64);  // (AR) تحويل نص إلى عشري (EN) Convert string to float
         convInst.result = resultOp;
         convInst.operands.push_back(argOperands[0]);
         

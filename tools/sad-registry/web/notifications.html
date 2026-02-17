@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإشعارات — مستودع حزم لغة ص</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .notification-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; gap: 16px; align-items: flex-start; transition: all 0.2s; }
+        .notification-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+        .notification-card.unread { border-right: 4px solid var(--primary); background: #f8f9ff; }
+        .notification-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+        .notification-icon.version { background: #e3f2fd; }
+        .notification-icon.security { background: #ffebee; }
+        .notification-icon.star { background: #fff8e1; }
+        .notification-icon.mention { background: #e8f5e9; }
+        .notification-content { flex: 1; }
+        .notification-title { font-weight: 600; margin-bottom: 4px; }
+        .notification-message { color: #666; font-size: 0.95rem; margin-bottom: 8px; }
+        .notification-time { font-size: 0.85rem; color: #999; }
+        .notification-actions { display: flex; gap: 8px; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+        .tab { padding: 10px 20px; border-radius: 8px; background: #f0f0f0; cursor: pointer; transition: all 0.2s; }
+        .tab:hover { background: #e0e0e0; }
+        .tab.active { background: var(--primary); color: white; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+        .empty-state-icon { font-size: 4rem; margin-bottom: 16px; }
+        .subscriptions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+        .subscription-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+    <!-- شريط التنقل -->
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="navbar-brand">
+                <span class="brand-icon">ص</span>
+                <span class="brand-text">مستودع الحزم</span>
+            </a>
+            <div class="navbar-actions">
+                <a href="/search.html" class="nav-link">استكشاف</a>
+                <a href="/organizations.html" class="nav-link">المنظمات</a>
+                <a href="/security.html" class="nav-link">الأمان</a>
+                <a href="/notifications.html" class="nav-link active">🔔 الإشعارات</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- القسم الرئيسي -->
+    <section class="page-header">
+        <div class="container">
+            <h1>🔔 الإشعارات</h1>
+            <p>تابع آخر التحديثات والتنبيهات</p>
+        </div>
+    </section>
+
+    <!-- التبويبات -->
+    <section style="padding: 30px 0 0;">
+        <div class="container">
+            <div class="tabs">
+                <div class="tab active" data-tab="notifications">الإشعارات</div>
+                <div class="tab" data-tab="subscriptions">الاشتراكات</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- قسم الإشعارات -->
+    <section class="notifications-section" id="notificationsTab" style="padding: 0 0 40px;">
+        <div class="container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div class="filter-buttons">
+                    <button class="btn btn-small active" id="filterAll">الكل</button>
+                    <button class="btn btn-small" id="filterUnread">غير مقروءة</button>
+                </div>
+                <button class="btn btn-secondary btn-small" id="markAllReadBtn">✓ تعيين الكل كمقروء</button>
+            </div>
+            
+            <div id="notificationsList">
+                <div class="loading-placeholder">جارٍ التحميل...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- قسم الاشتراكات -->
+    <section class="subscriptions-section" id="subscriptionsTab" style="display: none; padding: 0 0 40px;">
+        <div class="container">
+            <p style="margin-bottom: 20px; color: #666;">اشترك في الحزم لتلقي إشعارات عند صدور إصدارات جديدة أو تنبيهات أمنية.</p>
+            <div class="subscriptions-grid" id="subscriptionsList">
+                <div class="loading-placeholder">جارٍ التحميل...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- رسالة تسجيل الدخول -->
+    <section id="loginRequired" style="display: none; padding: 60px 0;">
+        <div class="container">
+            <div class="empty-state">
+                <div class="empty-state-icon">🔐</div>
+                <h2>يجب تسجيل الدخول</h2>
+                <p>سجل دخولك لعرض إشعاراتك واشتراكاتك</p>
+                <button class="btn btn-primary" id="loginPromptBtn" style="margin-top: 20px;">تسجيل الدخول</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- التذييل -->
+    <footer class="footer">
+        <div class="container footer-content">
+            <div class="footer-brand">
+                <span class="brand-icon">ص</span>
+                <p>مستودع حزم لغة ص — النسخة 2.0 الثورية</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <p>بسم الله الرحمن الرحيم — صُنع بـ ❤️ للمطورين العرب</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/app.js"></script>
+    <script>
+        const token = localStorage.getItem('token');
+        let showUnreadOnly = false;
+
+        function init() {
+            if (!token) {
+                document.getElementById('loginRequired').style.display = 'block';
+                document.getElementById('notificationsTab').style.display = 'none';
+                document.querySelector('.tabs').style.display = 'none';
+                return;
+            }
+            loadNotifications();
+        }
+
+        async function loadNotifications() {
+            const list = document.getElementById('notificationsList');
+            list.innerHTML = '<div class="loading-placeholder">جارٍ التحميل...</div>';
+            
+            try {
+                const url = `/api/v1/notifications?unread=${showUnreadOnly}`;
+                const res = await fetch(url, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                
+                if (data.notifications && data.notifications.length > 0) {
+                    list.innerHTML = data.notifications.map(n => `
+                        <div class="notification-card ${n.is_read ? '' : 'unread'}" data-id="${n.id}">
+                            <div class="notification-icon ${getIconClass(n.type)}">
+                                ${getIcon(n.type)}
+                            </div>
+                            <div class="notification-content">
+                                <div class="notification-title">${n.title}</div>
+                                <div class="notification-message">${n.message}</div>
+                                <div class="notification-time">${formatTime(n.created_at)}</div>
+                            </div>
+                            <div class="notification-actions">
+                                ${!n.is_read ? `<button class="btn btn-small" onclick="markRead(${n.id})">✓</button>` : ''}
+                                <button class="btn btn-small btn-danger" onclick="deleteNotification(${n.id})">🗑️</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    list.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <h3>لا توجد إشعارات</h3>
+                            <p>ستظهر هنا الإشعارات عند حدوث تحديثات في حزمك أو اشتراكاتك</p>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                list.innerHTML = '<p class="error">خطأ في تحميل الإشعارات</p>';
+            }
+        }
+
+        async function loadSubscriptions() {
+            const list = document.getElementById('subscriptionsList');
+            list.innerHTML = '<div class="loading-placeholder">جارٍ التحميل...</div>';
+            
+            try {
+                const res = await fetch('/api/v1/subscriptions', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                
+                if (data.subscriptions && data.subscriptions.length > 0) {
+                    list.innerHTML = data.subscriptions.map(s => `
+                        <div class="subscription-card" data-id="${s.id}">
+                            <div>
+                                <strong>حزمة #${s.package_id}</strong>
+                                <br><small style="color: #666;">${s.event_type} • ${s.created_at}</small>
+                            </div>
+                            <button class="btn btn-small btn-danger" onclick="unsubscribe(${s.id})">إلغاء</button>
+                        </div>
+                    `).join('');
+                } else {
+                    list.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1/-1;">
+                            <div class="empty-state-icon">📬</div>
+                            <h3>لا توجد اشتراكات</h3>
+                            <p>اشترك في الحزم من صفحة الحزمة لتلقي إشعارات</p>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                list.innerHTML = '<p class="error">خطأ في تحميل الاشتراكات</p>';
+            }
+        }
+
+        function getIcon(type) {
+            const icons = {
+                'new_version': '📦',
+                'security': '⚠️',
+                'star': '⭐',
+                'mention': '💬',
+                'system': '📢'
+            };
+            return icons[type] || '🔔';
+        }
+
+        function getIconClass(type) {
+            return type || 'version';
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = (now - date) / 1000;
+            
+            if (diff < 60) return 'الآن';
+            if (diff < 3600) return `منذ ${Math.floor(diff / 60)} دقيقة`;
+            if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} ساعة`;
+            if (diff < 604800) return `منذ ${Math.floor(diff / 86400)} يوم`;
+            return date.toLocaleDateString('ar');
+        }
+
+        async function markRead(id) {
+            try {
+                await fetch(`/api/v1/notifications/${id}/read`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                loadNotifications();
+            } catch (e) {
+                alert('خطأ في تعيين الإشعار كمقروء');
+            }
+        }
+
+        async function deleteNotification(id) {
+            if (!confirm('حذف هذا الإشعار؟')) return;
+            
+            try {
+                await fetch(`/api/v1/notifications/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                loadNotifications();
+            } catch (e) {
+                alert('خطأ في حذف الإشعار');
+            }
+        }
+
+        async function unsubscribe(id) {
+            if (!confirm('إلغاء هذا الاشتراك؟')) return;
+            
+            try {
+                await fetch(`/api/v1/subscriptions/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                loadSubscriptions();
+            } catch (e) {
+                alert('خطأ في إلغاء الاشتراك');
+            }
+        }
+
+        // تعيين الكل كمقروء
+        document.getElementById('markAllReadBtn')?.addEventListener('click', async () => {
+            try {
+                await fetch('/api/v1/notifications/read-all', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                loadNotifications();
+            } catch (e) {
+                alert('خطأ');
+            }
+        });
+
+        // فلترة
+        document.getElementById('filterAll')?.addEventListener('click', () => {
+            showUnreadOnly = false;
+            document.getElementById('filterAll').classList.add('active');
+            document.getElementById('filterUnread').classList.remove('active');
+            loadNotifications();
+        });
+
+        document.getElementById('filterUnread')?.addEventListener('click', () => {
+            showUnreadOnly = true;
+            document.getElementById('filterUnread').classList.add('active');
+            document.getElementById('filterAll').classList.remove('active');
+            loadNotifications();
+        });
+
+        // التبويبات
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                const tabName = tab.dataset.tab;
+                if (tabName === 'notifications') {
+                    document.getElementById('notificationsTab').style.display = 'block';
+                    document.getElementById('subscriptionsTab').style.display = 'none';
+                    loadNotifications();
+                } else {
+                    document.getElementById('notificationsTab').style.display = 'none';
+                    document.getElementById('subscriptionsTab').style.display = 'block';
+                    loadSubscriptions();
+                }
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

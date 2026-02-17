@@ -201,6 +201,168 @@ void widget_update_impl(int widgetId, float deltaTime);
  */
 void widget_mouse_event_impl(int widgetId, int x, int y, bool pressed);
 
+// ============================================================================
+// Input Handling - معالجة المدخلات
+// ============================================================================
+
+/**
+ * @brief Check if a key is currently pressed - فحص إذا كان مفتاح مضغوطًا
+ * @param keycode SDL scancode (e.g., 26='W', 22='S', 4='A', 7='D', etc.)
+ */
+bool key_is_pressed_impl(int keycode);
+
+/**
+ * @brief Get mouse X position - الحصول على موقع الفأرة الأفقي
+ */
+int mouse_get_x_impl();
+
+/**
+ * @brief Get mouse Y position - الحصول على موقع الفأرة العمودي
+ */
+int mouse_get_y_impl();
+
+/**
+ * @brief Check if mouse button is pressed - فحص إذا كان زر الفأرة مضغوطًا
+ * @param button 1=left, 2=middle, 3=right
+ */
+bool mouse_button_pressed_impl(int button);
+
+// ============================================================================
+// Texture / Image Management - إدارة الصور والنسيج
+// ============================================================================
+
+/**
+ * @brief Load texture from file - تحميل نسيج من ملف
+ * @return Texture ID or -1 on failure
+ */
+int texture_load_impl(const std::string& filePath);
+
+/**
+ * @brief Draw texture on renderer - رسم نسيج على الرسام
+ */
+void texture_draw_impl(int rendererId, int textureId, float x, float y, float width, float height);
+
+/**
+ * @brief Unload texture - تحرير النسيج
+ */
+void texture_unload_impl(int textureId);
+
+// ============================================================================
+// Audio System - نظام الصوت
+// ============================================================================
+
+/**
+ * @brief Initialize audio system - تهيئة نظام الصوت
+ */
+bool audio_init_impl();
+
+/**
+ * @brief Load a sound file - تحميل ملف صوتي
+ * @return Sound ID or -1 on failure
+ */
+int sound_load_impl(const std::string& filePath, const std::string& name);
+
+/**
+ * @brief Play a loaded sound - تشغيل صوت محمّل
+ * @return Channel ID
+ */
+int sound_play_impl(int soundId);
+
+/**
+ * @brief Stop a playing sound - إيقاف صوت
+ */
+void sound_stop_impl(int channelId);
+
+/**
+ * @brief Set sound volume - تعيين مستوى الصوت
+ */
+void sound_set_volume_impl(int channelId, float volume);
+
+/**
+ * @brief Set master volume - تعيين مستوى الصوت الرئيسي
+ */
+void audio_set_master_volume_impl(float volume);
+
+// ============================================================================
+// Drawing Shapes - رسم الأشكال
+// ============================================================================
+
+/**
+ * @brief Draw a triangle - رسم مثلث
+ */
+void renderer_draw_triangle_impl(int rendererId, float x1, float y1, 
+                                  float x2, float y2, float x3, float y3,
+                                  int r, int g, int b, int a, bool filled);
+
+/**
+ * @brief Draw a rounded rectangle - رسم مستطيل دائري الحواف
+ */
+void renderer_draw_rounded_rect_impl(int rendererId, float x, float y, float w, float h,
+                                      float radius, int r, int g, int b, int a, bool filled);
+
+// ============================================================================
+// Extended Drawing - رسم متقدم
+// ============================================================================
+
+void renderer_draw_ellipse_impl(int rendererId, float cx, float cy, float rx, float ry,
+                                int r, int g, int b, int a, bool filled);
+
+void renderer_draw_arc_impl(int rendererId, float cx, float cy, float radius,
+                            float startAngle, float endAngle, int r, int g, int b, int a);
+
+void renderer_draw_rect_outline_impl(int rendererId, float x, float y, float w, float h,
+                                      int fillR, int fillG, int fillB, int fillA,
+                                      int outR, int outG, int outB, int outA,
+                                      float outlineThickness);
+
+// ============================================================================
+// Transformation - التحويلات
+// ============================================================================
+
+void renderer_push_transform_impl(int rendererId);
+void renderer_pop_transform_impl(int rendererId);
+void renderer_translate_impl(int rendererId, float x, float y);
+void renderer_rotate_impl(int rendererId, float angle);
+void renderer_scale_impl(int rendererId, float sx, float sy);
+void renderer_reset_transform_impl(int rendererId);
+
+// ============================================================================
+// Renderer Settings - إعدادات الرسام
+// ============================================================================
+
+void renderer_set_draw_color_impl(int rendererId, int r, int g, int b, int a);
+void renderer_set_line_thickness_impl(int rendererId, float thickness);
+void renderer_set_viewport_impl(int rendererId, int x, int y, int w, int h);
+void renderer_set_projection_impl(int rendererId, float left, float right, float bottom, float top);
+
+// ============================================================================
+// Window Properties - خصائص النافذة
+// ============================================================================
+
+/**
+ * @brief Get window width - الحصول على عرض النافذة
+ */
+int window_get_width_impl(int windowId);
+
+/**
+ * @brief Get window height - الحصول على ارتفاع النافذة
+ */
+int window_get_height_impl(int windowId);
+
+/**
+ * @brief Set window title - تعيين عنوان النافذة
+ */
+void window_set_title_impl(int windowId, const std::string& title);
+
+// ============================================================================
+// Time Utilities - أدوات الوقت
+// ============================================================================
+
+/**
+ * @brief Get current tick count (milliseconds since SDL init) - الحصول على الوقت الحالي
+ */
+int get_ticks_impl();
+
 } // namespace graphics
 } // namespace stdlib
 } // namespace sad

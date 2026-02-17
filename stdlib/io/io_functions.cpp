@@ -279,10 +279,15 @@ Data::Value IOFunctions::print(const std::vector<Data::Value>& args) {
     
     try {
         for (size_t i = 0; i < args.size(); ++i) {
-            if (i > 0) std::cout << " ";
-            std::cout << valueToString(args[i]);
+            if (i > 0) {
+                // (AR) استخدام fwrite لتجنب مشاكل ترميز Unicode على Windows
+                // (EN) Use fwrite to avoid Unicode encoding issues on Windows
+                fwrite(" ", 1, 1, stdout);
+            }
+            std::string str = valueToString(args[i]);
+            fwrite(str.c_str(), 1, str.size(), stdout);
         }
-        std::cout.flush();
+        fflush(stdout);
     } catch (const std::exception& e) {
         throw std::runtime_error(
             std::string("(AR) خطأ في طبع() / (EN) Error in print(): ") + e.what()
@@ -300,10 +305,16 @@ Data::Value IOFunctions::println(const std::vector<Data::Value>& args) {
     
     try {
         for (size_t i = 0; i < args.size(); ++i) {
-            if (i > 0) std::cout << " ";
-            std::cout << valueToString(args[i]);
+            if (i > 0) {
+                fwrite(" ", 1, 1, stdout);
+            }
+            std::string str = valueToString(args[i]);
+            fwrite(str.c_str(), 1, str.size(), stdout);
         }
-        std::cout << std::endl;
+        // (AR) إضافة سطر جديد
+        // (EN) Add newline
+        fwrite("\n", 1, 1, stdout);
+        fflush(stdout);
     } catch (const std::exception& e) {
         throw std::runtime_error(
             std::string("(AR) خطأ في طبع_سطر() / (EN) Error in println(): ") + e.what()

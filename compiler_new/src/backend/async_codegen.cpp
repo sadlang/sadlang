@@ -687,9 +687,12 @@ void generateAsyncStateMachineCode(
     const middle::AsyncStateMachine& machine,
     llvm::Module& module,
     llvm::LLVMContext& context,
-    llvm::IRBuilder<>& builder
+    llvm::IRBuilderBase& builder
 ) {
-    AsyncCodeGenerator generator(module, context, builder);
+    // (AR) تحويل IRBuilderBase إلى IRBuilder<> للاستخدام الداخلي
+    // (EN) Cast IRBuilderBase to IRBuilder<> for internal use
+    auto& typedBuilder = static_cast<llvm::IRBuilder<>&>(builder);
+    AsyncCodeGenerator generator(module, context, typedBuilder);
     
     // (AR) توليد النوع
     generator.generateStateMachineType(machine);

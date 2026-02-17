@@ -184,14 +184,8 @@ void ShaderProgram::SetFloat4(const std::string& name, Float32 v0, Float32 v1, F
 
 /// ضبط لون / Set color
 void ShaderProgram::SetColor(const std::string& name, const Color& color) {
-    // تحويل اللون من 0-255 إلى 0.0-1.0 / Convert color from 0-255 to 0.0-1.0
-    Float32 r = color.r / 255.0f;            // الأحمر / Red
-    Float32 g = color.g / 255.0f;            // الأخضر / Green
-    Float32 b = color.b / 255.0f;            // الأزرق / Blue
-    Float32 a = color.a / 255.0f;            // الشفافية / Alpha
-    
-    // ضبط القيم / Set values
-    SetFloat4(name, r, g, b, a);             // إرسال القيم / Send values
+    // اللون بالفعل في النطاق 0.0-1.0 / Color is already in 0.0-1.0 range
+    SetFloat4(name, color.r, color.g, color.b, color.a);  // إرسال القيم / Send values
 }
 
 /// ضبط مصفوفة / Set matrix

@@ -420,6 +420,11 @@ private:
     // Key: template class name, Value: pointer to AST node
     std::unordered_map<std::string, AST::TemplateClassDecl*> templateClasses_;
     
+    // (AR) خريطة مصادر نسخ القوالب - لربط الأصناف الملموسة بقوالبها الأصلية
+    // (EN) Template instance sources map - links concrete class names to their template AST nodes
+    // Used for runtime lookup of constructor/method bodies (avoids ownership issues with unique_ptr)
+    std::unordered_map<std::string, AST::TemplateClassDecl*> templateInstanceSources_;
+    
     // (AR) فضاء الأسماء الحالي / (EN) Current namespace
     std::string currentNamespace_;
     
@@ -507,6 +512,38 @@ public:
      */
     bool shouldStopExecution() const {
         return flowControl_ != FlowControl::NONE;
+    }
+    
+    /**
+     * @brief (AR) الحصول على صنف قالب بالاسم
+     * @brief (EN) Get a template class by name
+     * @param name (AR) اسم صنف القالب / (EN) Template class name
+     * @return (AR) مؤشر لعقدة صنف القالب أو nullptr / (EN) Pointer to template class node or nullptr
+     */
+    AST::TemplateClassDecl* getTemplateClass(const std::string& name) {
+        auto it = templateClasses_.find(name);
+        if (it != templateClasses_.end()) return it->second;
+        return nullptr;
+    }
+    
+    /**
+     * @brief (AR) إنشاء نسخة ملموسة من صنف قالب وتسجيلها
+     * @brief (EN) Instantiate a concrete version of a template class and register it
+     * @param templateNode (AR) عقدة صنف القالب / (EN) Template class AST node
+     * @param className (AR) اسم الصنف الملموس / (EN) Concrete class name
+     */
+    void instantiateTemplateClass(AST::TemplateClassDecl& templateNode, const std::string& className);
+    
+    /**
+     * @brief (AR) الحصول على مصدر القالب لنسخة ملموسة
+     * @brief (EN) Get the template source for a concrete instance
+     * @param className (AR) اسم الصنف الملموس / (EN) Concrete class name
+     * @return (AR) مؤشر لعقدة صنف القالب أو nullptr / (EN) Pointer to template class node or nullptr
+     */
+    AST::TemplateClassDecl* getTemplateInstanceSource(const std::string& className) {
+        auto it = templateInstanceSources_.find(className);
+        if (it != templateInstanceSources_.end()) return it->second;
+        return nullptr;
     }
 };
 

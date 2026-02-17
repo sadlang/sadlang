@@ -5,590 +5,278 @@
 // Description: Comprehensive example showcasing text and font system capabilities
 // ==============================================================================
 
-#include "../include/window/window.h"           // نظام النوافذ / Window system
-#include "../include/rendering/context.h"       // سياق الرسم / Render context
-#include "../include/rendering/renderer2d.h"    // محرك الرسم 2D / 2D renderer
-#include "../include/input/input_manager.h"     // إدارة المدخلات / Input management
-#include "../include/text/font.h"               // نظام الخطوط / Font system
+#include "../include/window/window.h"
+#include "../include/rendering/context.h"
+#include "../include/rendering/renderer2d.h"
+#include "../include/input/input_manager.h"
+#include "../include/text/font.h"
+#include "../include/text/arabic_text.h"
+#include <SDL.h>
+#ifdef CreateWindow
+#undef CreateWindow
+#endif
+#ifdef DrawText
+#undef DrawText
+#endif
 
-#include <iostream>                             // للإدخال/الإخراج / For I/O
-#include <sstream>                              // للنصوص / For strings
-#include <iomanip>                              // للتنسيق / For formatting
-#include <chrono>                               // للوقت / For timing
-#include <cmath>                                // للرياضيات / For math
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+#include <cmath>
 
-// استخدام مساحات الأسماء / Using namespaces
-using namespace SadGraphics;                    // مساحة أسماء الرسومات / Graphics namespace
-using namespace sad::graphics;                  // مساحة أسماء sad / sad namespace
-
-// ==============================================================================
-// الثوابت / Constants
-// ==============================================================================
-constexpr int WINDOW_WIDTH = 1280;              // عرض النافذة / Window width
-constexpr int WINDOW_HEIGHT = 720;              // ارتفاع النافذة / Window height
-constexpr float TARGET_FPS = 60.0f;             // الإطارات المستهدفة / Target FPS
-constexpr float FRAME_TIME = 1.0f / TARGET_FPS; // وقت الإطار / Frame time
+using namespace sad::graphics;
+using namespace SadGraphics;
 
 // ==============================================================================
-// بيانات العرض / Demo Data
-// ==============================================================================
+constexpr int W = 1280, H = 720;
 
-/// معلومات خط / Font info
 struct FontInfo {
-    FontRef font;                               // الخط / Font
-    std::string name;                           // الاسم / Name
-    float size;                                 // الحجم / Size
-    bool loaded;                                // محمّل؟ / Loaded?
+    FontRef font;
+    std::string name;
+    float size;
 };
 
-/// حالة التطبيق / Application state
 struct AppState {
-    bool running;                               // يعمل؟ / Running?
-    bool showHelp;                              // عرض المساعدة؟ / Show help?
-    bool showStats;                             // عرض الإحصائيات؟ / Show statistics?
-    int selectedDemo;                           // العرض المختار / Selected demo
-    
-    // إحصائيات الأداء / Performance stats
-    float fps;                                  // الإطارات في الثانية / Frames per second
-    float frameTime;                            // وقت الإطار (ms) / Frame time (ms)
-    int frameCount;                             // عداد الإطارات / Frame counter
-    double lastTime;                            // آخر وقت / Last time
-    double fpsTimer;                            // مؤقت FPS / FPS timer
-    
-    // الخطوط / Fonts
-    std::vector<FontInfo> fonts;                // قائمة الخطوط / Font list
-    int selectedFont;                           // الخط المختار / Selected font
-    
-    // النصوص التوضيحية / Demo texts
-    std::string sampleText;                     // نص تجريبي / Sample text
-    std::string arabicText;                     // نص عربي / Arabic text
-    std::string englishText;                    // نص إنجليزي / English text
-    
-    // الألوان / Colors
-    std::vector<Color> colors;                  // قائمة الألوان / Color list
-    int selectedColor;                          // اللون المختار / Selected color
-    
-    // التحريك / Animation
-    float animationTime;                        // وقت التحريك / Animation time
-    float waveAmplitude;                        // سعة الموجة / Wave amplitude
-    float waveFrequency;                        // تردد الموجة / Wave frequency
-    
-    /// المُنشئ / Constructor
-    AppState()
-        : running(true)                         // تشغيل / Running
-        , showHelp(true)                        // عرض المساعدة / Show help
-        , showStats(true)                       // عرض الإحصائيات / Show stats
-        , selectedDemo(0)                       // العرض الأول / First demo
-        , fps(0.0f)                             // FPS صفر / Zero FPS
-        , frameTime(0.0f)                       // وقت صفر / Zero time
-        , frameCount(0)                         // عداد صفر / Zero count
-        , lastTime(0.0)                         // وقت صفر / Zero time
-        , fpsTimer(0.0)                         // مؤقت صفر / Zero timer
-        , selectedFont(0)                       // الخط الأول / First font
-        , selectedColor(0)                      // اللون الأول / First color
-        , animationTime(0.0f)                   // وقت صفر / Zero time
-        , waveAmplitude(20.0f)                  // سعة 20 / Amplitude 20
-        , waveFrequency(2.0f)                   // تردد 2 / Frequency 2
-    {
-        // النصوص التجريبية / Sample texts
-        sampleText = "Hello, World! مرحبا بالعالم!";
-        arabicText = "اللغة العربية جميلة ورائعة";
-        englishText = "The quick brown fox jumps over the lazy dog";
-        
-        // الألوان / Colors
-        colors = {
-            Color::White,                       // أبيض / White
-            Color::Red,                         // أحمر / Red
-            Color::Green,                       // أخضر / Green
-            Color::Blue,                        // أزرق / Blue
-            Color::Yellow,                      // أصفر / Yellow
-            Color::Magenta,                     // بنفسجي / Magenta
-            Color::Cyan,                        // سماوي / Cyan
-            Color(255, 128, 0, 255),           // برتقالي / Orange
-        };
-    }
+    bool running       = true;
+    int  selectedDemo  = 0;
+    int  selectedFont  = 0;
+    int  selectedColor = 0;
+    Float32 time       = 0.0f;
+    Float32 waveAmp    = 20.0f;
+    Float32 waveFreq   = 2.0f;
+
+    std::vector<FontInfo> fonts;
+    std::vector<Color> colors = {
+        Color::White, Color::Red, Color::Green, Color::Blue,
+        Color::Yellow, Color::Magenta, Color::Cyan,
+        Color(1.0f, 0.5f, 0.0f) // orange
+    };
+
+    std::string sample  = "Hello, World!";
+    std::string arabic  = "\xD8\xA7\xD9\x84\xD9\x84\xD8\xBA\xD8\xA9 \xD8\xA7\xD9\x84\xD8\xB9\xD8\xB1\xD8\xA8\xD9\x8A\xD8\xA9 \xD8\xAC\xD9\x85\xD9\x8A\xD9\x84\xD8\xA9"; // اللغة العربية جميلة
+    std::string english = "The quick brown fox jumps over the lazy dog";
+    std::string sadLang = "\xD9\x84\xD8\xBA\xD8\xA9 \xD8\xB5"; // لغة ص
+    std::string bismillah = "\xD8\xA8\xD8\xB3\xD9\x85 \xD8\xA7\xD9\x84\xD9\x84\xD9\x87"; // بسم الله
+    std::string mixed = "\xD9\x85\xD8\xB1\xD8\xAD\xD8\xA8\xD8\xA7 Hello \xD8\xB9\xD8\xA7\xD9\x84\xD9\x85"; // مرحبا Hello عالم
 };
 
 // ==============================================================================
-// الدوال المساعدة / Helper Functions
-// ==============================================================================
-
-/// تحميل الخطوط / Load fonts
-void LoadFonts(AppState& state) {
-    std::cout << "(AR) تحميل الخطوط... / (EN) Loading fonts..." << std::endl;
-    
-    // قائمة الخطوط للتحميل / List of fonts to load
-    std::vector<std::pair<std::string, float>> fontPaths = {
-        {"C:/Windows/Fonts/arial.ttf", 24.0f},              // Arial
-        {"C:/Windows/Fonts/times.ttf", 24.0f},              // Times New Roman
-        {"C:/Windows/Fonts/cour.ttf", 24.0f},               // Courier New
-        {"C:/Windows/Fonts/verdana.ttf", 24.0f},            // Verdana
-        {"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24.0f},  // Linux
+static void LoadFonts(AppState& s) {
+    const char* paths[] = {
+        "C:/Windows/Fonts/arial.ttf",
+        "C:/Windows/Fonts/times.ttf",
+        "C:/Windows/Fonts/cour.ttf",
+        "C:/Windows/Fonts/verdana.ttf",
     };
-    
-    // محاولة تحميل كل خط / Try loading each font
-    for (const auto& [path, size] : fontPaths) {
-        FontInfo info;                          // معلومات الخط / Font info
-        info.font = Font::CreateFromFile(path, size);  // محاولة التحميل / Try loading
-        info.size = size;                       // حفظ الحجم / Store size
-        info.loaded = (info.font != nullptr && info.font->IsValid());  // التحقق / Check
-        
-        // استخراج اسم الخط من المسار / Extract font name from path
-        size_t lastSlash = path.find_last_of("/\\");
-        info.name = (lastSlash != std::string::npos) 
-                   ? path.substr(lastSlash + 1) 
-                   : path;
-        
-        if (info.loaded) {                      // إذا نجح التحميل / If loaded successfully
-            std::cout << "(AR) تم تحميل: " << info.name 
-                     << " / (EN) Loaded: " << info.name << std::endl;
-            state.fonts.push_back(info);        // إضافة للقائمة / Add to list
+    for (auto p : paths) {
+        auto f = Font::CreateFromFile(p, 24.0f);
+        if (f && f->IsValid()) {
+            std::string name(p);
+            auto pos = name.find_last_of("/\\");
+            if (pos != std::string::npos) name = name.substr(pos + 1);
+            s.fonts.push_back({f, name, 24.0f});
+            std::cout << "Loaded: " << name << '\n';
         }
     }
-    
-    // التحقق من وجود خطوط / Check if fonts loaded
-    if (state.fonts.empty()) {                  // إذا لم يُحمَّل أي خط / If no fonts loaded
-        std::cerr << "(AR) فشل تحميل أي خط! / (EN) Failed to load any fonts!" << std::endl;
-        state.running = false;                  // إيقاف التطبيق / Stop application
-    } else {
-        std::cout << "(AR) تم تحميل " << state.fonts.size() << " خط(وط)"
-                 << " / (EN) Loaded " << state.fonts.size() << " font(s)" << std::endl;
+    if (s.fonts.empty()) {
+        auto df = Font::CreateDefault(24.0f);
+        if (df && df->IsValid()) s.fonts.push_back({df, "default", 24.0f});
     }
+    if (s.fonts.empty()) { std::cerr << "No fonts!\n"; s.running = false; }
 }
 
-/// تحديث حالة التطبيق / Update application state
-void UpdateState(AppState& state, float deltaTime) {
-    // تحديث وقت التحريك / Update animation time
-    state.animationTime += deltaTime;           // زيادة الوقت / Increment time
-    
-    // تحديث عداد الإطارات / Update frame counter
-    state.frameCount++;                         // زيادة العداد / Increment counter
-    state.fpsTimer += deltaTime;                // زيادة المؤقت / Increment timer
-    
-    // حساب FPS كل ثانية / Calculate FPS every second
-    if (state.fpsTimer >= 1.0) {                // كل ثانية / Every second
-        state.fps = state.frameCount / state.fpsTimer;  // حساب FPS / Calculate FPS
-        state.frameTime = (state.fpsTimer / state.frameCount) * 1000.0f;  // ms
-        state.frameCount = 0;                   // إعادة تعيين / Reset
-        state.fpsTimer = 0.0;                   // إعادة تعيين / Reset
-    }
-}
-
-/// معالجة المدخلات / Handle input
-void HandleInput(AppState& state, InputManager& input) {
-    // ESC للخروج / ESC to exit
-    if (input.IsKeyPressed(SDLK_ESCAPE)) {
-        state.running = false;                  // إيقاف / Stop
-    }
-    
-    // H لعرض/إخفاء المساعدة / H to toggle help
-    if (input.IsKeyPressed(SDLK_h)) {
-        state.showHelp = !state.showHelp;       // تبديل / Toggle
-    }
-    
-    // S لعرض/إخفاء الإحصائيات / S to toggle stats
-    if (input.IsKeyPressed(SDLK_s)) {
-        state.showStats = !state.showStats;     // تبديل / Toggle
-    }
-    
-    // 1-5 لتبديل العروض / 1-5 to switch demos
-    if (input.IsKeyPressed(SDLK_1)) state.selectedDemo = 0;
-    if (input.IsKeyPressed(SDLK_2)) state.selectedDemo = 1;
-    if (input.IsKeyPressed(SDLK_3)) state.selectedDemo = 2;
-    if (input.IsKeyPressed(SDLK_4)) state.selectedDemo = 3;
-    if (input.IsKeyPressed(SDLK_5)) state.selectedDemo = 4;
-    
-    // F لتبديل الخط / F to cycle font
-    if (input.IsKeyPressed(SDLK_f)) {
-        state.selectedFont = (state.selectedFont + 1) % state.fonts.size();
-    }
-    
-    // C لتبديل اللون / C to cycle color
-    if (input.IsKeyPressed(SDLK_c)) {
-        state.selectedColor = (state.selectedColor + 1) % state.colors.size();
-    }
-    
-    // سهم لأعلى/لأسفل لتعديل السعة / Up/Down to adjust amplitude
-    if (input.IsKeyDown(SDLK_UP)) {
-        state.waveAmplitude += 10.0f * 0.016f;  // زيادة السعة / Increase amplitude
-    }
-    if (input.IsKeyDown(SDLK_DOWN)) {
-        state.waveAmplitude -= 10.0f * 0.016f;  // تقليل السعة / Decrease amplitude
-        if (state.waveAmplitude < 0.0f) state.waveAmplitude = 0.0f;
-    }
+static void HandleInput(InputManager& in, AppState& s) {
+    if (in.IsKeyPressed(KeyCode::Escape)) s.running = false;
+    if (in.IsKeyPressed(KeyCode::Num1))   s.selectedDemo = 0;
+    if (in.IsKeyPressed(KeyCode::Num2))   s.selectedDemo = 1;
+    if (in.IsKeyPressed(KeyCode::Num3))   s.selectedDemo = 2;
+    if (in.IsKeyPressed(KeyCode::Num4))   s.selectedDemo = 3;
+    if (in.IsKeyPressed(KeyCode::Num5))   s.selectedDemo = 4;
+    if (in.IsKeyPressed(KeyCode::Num6))   s.selectedDemo = 5;
+    if (in.IsKeyPressed(KeyCode::F) && !s.fonts.empty())
+        s.selectedFont = (s.selectedFont + 1) % (int)s.fonts.size();
+    if (in.IsKeyPressed(KeyCode::C))
+        s.selectedColor = (s.selectedColor + 1) % (int)s.colors.size();
+    if (in.IsKeyHeld(KeyCode::ArrowUp))   s.waveAmp += 10.0f * 0.016f;
+    if (in.IsKeyHeld(KeyCode::ArrowDown)) { s.waveAmp -= 10.0f * 0.016f; if (s.waveAmp < 0) s.waveAmp = 0; }
 }
 
 // ==============================================================================
-// العروض التوضيحية / Demos
-// ==============================================================================
-
-/// عرض 1: نص أساسي / Demo 1: Basic Text
-void Demo1_BasicText(Renderer2D& renderer, AppState& state) {
-    const FontRef& font = state.fonts[state.selectedFont].font;
-    const Color& color = state.colors[state.selectedColor];
-    
-    float y = 100.0f;                           // موقع Y البداية / Start Y position
-    float lineSpacing = 50.0f;                  // المسافة بين الأسطر / Line spacing
-    
-    // عنوان العرض / Demo title
-    renderer.DrawText("Demo 1: Basic Text Rendering", font, 50, y, Color::Yellow);
-    y += lineSpacing * 1.5f;
-    
-    // نص عادي / Normal text
-    renderer.DrawText("Standard text: " + state.englishText, font, 50, y, color);
-    y += lineSpacing;
-    
-    // نص عربي / Arabic text
-    renderer.DrawText("Arabic text: " + state.arabicText, font, 50, y, color);
-    y += lineSpacing;
-    
-    // نص مختلط / Mixed text
-    renderer.DrawText("Mixed: " + state.sampleText, font, 50, y, color);
-    y += lineSpacing;
-    
-    // أحجام مختلفة / Different sizes
-    for (int i = 0; i < std::min(3, (int)state.fonts.size()); ++i) {
-        std::ostringstream oss;
-        oss << "Font " << (i + 1) << ": " << state.fonts[i].name;
-        renderer.DrawText(oss.str(), state.fonts[i].font, 50, y, color);
-        y += lineSpacing;
+static void Demo1(Renderer2D& r, AppState& s) {
+    auto& font = s.fonts[s.selectedFont].font;
+    auto& col  = s.colors[s.selectedColor];
+    float y = 100;
+    r.DrawText("Demo 1: Basic Text Rendering", font, 50, y, Color::Yellow); y += 60;
+    r.DrawText("Standard: " + s.english, font, 50, y, col); y += 50;
+    r.DrawText("Arabic: " + s.arabic, font, 50, y, col); y += 50;
+    r.DrawText("Mixed: " + s.sample, font, 50, y, col); y += 60;
+    for (int i = 0; i < std::min(3, (int)s.fonts.size()); i++) {
+        r.DrawText("Font " + std::to_string(i+1) + ": " + s.fonts[i].name,
+                   s.fonts[i].font, 50, y, col);
+        y += 50;
     }
 }
 
-/// عرض 2: محاذاة النصوص / Demo 2: Text Alignment
-void Demo2_Alignment(Renderer2D& renderer, AppState& state) {
-    const FontRef& font = state.fonts[state.selectedFont].font;
-    
-    float centerX = WINDOW_WIDTH / 2.0f;        // مركز X / Center X
-    float centerY = WINDOW_HEIGHT / 2.0f;       // مركز Y / Center Y
-    
-    // عنوان / Title
-    renderer.DrawTextCentered("Demo 2: Text Alignment", font, 
-                             centerX, 100, Color::Yellow);
-    
-    // رسم خطوط مرجعية / Draw reference lines
-    renderer.DrawLine(centerX, 0, centerX, WINDOW_HEIGHT, Color(128, 128, 128, 128), 2.0f);
-    renderer.DrawLine(0, centerY, WINDOW_WIDTH, centerY, Color(128, 128, 128, 128), 2.0f);
-    
-    // محاذاة مختلفة / Different alignments
-    renderer.DrawTextAligned("Top-Left (0,0)", font, 
-                            centerX, centerY, 0.0f, 0.0f, Color::Red);
-    
-    renderer.DrawTextAligned("Top-Center (0.5,0)", font, 
-                            centerX, centerY, 0.5f, 0.0f, Color::Green);
-    
-    renderer.DrawTextAligned("Top-Right (1,0)", font, 
-                            centerX, centerY, 1.0f, 0.0f, Color::Blue);
-    
-    renderer.DrawTextAligned("Center-Left (0,0.5)", font, 
-                            centerX, centerY, 0.0f, 0.5f, Color::Yellow);
-    
-    renderer.DrawTextCentered("CENTER (0.5,0.5)", font, 
-                             centerX, centerY, Color::Magenta);
-    
-    renderer.DrawTextAligned("Center-Right (1,0.5)", font, 
-                            centerX, centerY, 1.0f, 0.5f, Color::Cyan);
-    
-    renderer.DrawTextAligned("Bottom-Left (0,1)", font, 
-                            centerX, centerY, 0.0f, 1.0f, Color(255, 128, 0, 255));
-    
-    renderer.DrawTextAligned("Bottom-Center (0.5,1)", font, 
-                            centerX, centerY, 0.5f, 1.0f, Color(128, 255, 0, 255));
-    
-    renderer.DrawTextAligned("Bottom-Right (1,1)", font, 
-                            centerX, centerY, 1.0f, 1.0f, Color(255, 0, 128, 255));
+static void Demo2(Renderer2D& r, AppState& s) {
+    auto& font = s.fonts[s.selectedFont].font;
+    float cx = W / 2.0f, cy = H / 2.0f;
+    r.DrawTextCentered("Demo 2: Text Alignment", font, cx, 100, Color::Yellow);
+    r.DrawLine(cx, 0, cx, (float)H, Color(0.5f,0.5f,0.5f,0.5f), 1.0f);
+    r.DrawLine(0, cy, (float)W, cy, Color(0.5f,0.5f,0.5f,0.5f), 1.0f);
+    r.DrawTextAligned("Top-Left (0,0)",    font, cx, cy, 0.0f, 0.0f, Color::Red);
+    r.DrawTextAligned("Top-Center (0.5,0)",font, cx, cy, 0.5f, 0.0f, Color::Green);
+    r.DrawTextAligned("Top-Right (1,0)",   font, cx, cy, 1.0f, 0.0f, Color::Blue);
+    r.DrawTextCentered("CENTER",           font, cx, cy, Color::Magenta);
+    r.DrawTextAligned("Bottom-Left (0,1)", font, cx, cy, 0.0f, 1.0f, Color::Yellow);
+    r.DrawTextAligned("Bottom-Right (1,1)",font, cx, cy, 1.0f, 1.0f, Color::Cyan);
 }
 
-/// عرض 3: الألوان / Demo 3: Colors
-void Demo3_Colors(Renderer2D& renderer, AppState& state) {
-    const FontRef& font = state.fonts[state.selectedFont].font;
-    
-    // عنوان / Title
-    renderer.DrawTextCentered("Demo 3: Text Colors", font, 
-                             WINDOW_WIDTH / 2, 100, Color::Yellow);
-    
-    float y = 200.0f;                           // موقع البداية / Start position
-    float spacing = 50.0f;                      // المسافة / Spacing
-    
-    // عرض جميع الألوان / Show all colors
-    const char* colorNames[] = {
-        "White", "Red", "Green", "Blue", 
-        "Yellow", "Magenta", "Cyan", "Orange"
-    };
-    
-    for (size_t i = 0; i < state.colors.size(); ++i) {
-        std::ostringstream oss;
-        oss << colorNames[i] << ": " << state.sampleText;
-        renderer.DrawText(oss.str(), font, 50, y, state.colors[i]);
-        y += spacing;
+static void Demo3(Renderer2D& r, AppState& s) {
+    auto& font = s.fonts[s.selectedFont].font;
+    r.DrawTextCentered("Demo 3: Text Colors", font, W/2.0f, 100, Color::Yellow);
+    const char* names[] = {"White","Red","Green","Blue","Yellow","Magenta","Cyan","Orange"};
+    float y = 200;
+    for (size_t i = 0; i < s.colors.size(); i++) {
+        r.DrawText(std::string(names[i]) + ": " + s.sample, font, 50, y, s.colors[i]);
+        y += 50;
     }
 }
 
-/// عرض 4: تأثيرات متحركة / Demo 4: Animated Effects
-void Demo4_AnimatedEffects(Renderer2D& renderer, AppState& state) {
-    const FontRef& font = state.fonts[state.selectedFont].font;
-    
-    // عنوان / Title
-    renderer.DrawTextCentered("Demo 4: Animated Text Effects", font, 
-                             WINDOW_WIDTH / 2, 50, Color::Yellow);
-    
+static void Demo4(Renderer2D& r, AppState& s) {
+    auto& font = s.fonts[s.selectedFont].font;
+    r.DrawTextCentered("Demo 4: Animated Text Effects", font, W/2.0f, 50, Color::Yellow);
+
+    // Wave
     std::string text = "WAVE EFFECT";
-    float baseX = 200.0f;                       // موقع X الأساسي / Base X
-    float baseY = 200.0f;                       // موقع Y الأساسي / Base Y
-    
-    // تأثير موجة / Wave effect
-    float charWidth = 30.0f;                    // عرض الحرف التقريبي / Approx char width
-    for (size_t i = 0; i < text.length(); ++i) {
-        float x = baseX + i * charWidth;        // موقع X / X position
-        float offset = std::sin(state.animationTime * state.waveFrequency + i * 0.5f) 
-                      * state.waveAmplitude;    // إزاحة الموجة / Wave offset
-        float y = baseY + offset;               // موقع Y مع الموجة / Y with wave
-        
-        // لون متدرج / Gradient color
-        float hue = (state.animationTime + i * 0.1f);
-        u8 r = static_cast<u8>(std::sin(hue) * 127 + 128);
-        u8 g = static_cast<u8>(std::sin(hue + 2.0f) * 127 + 128);
-        u8 b = static_cast<u8>(std::sin(hue + 4.0f) * 127 + 128);
-        Color color(r, g, b, 255);
-        
-        std::string charStr(1, text[i]);        // حرف واحد / Single char
-        renderer.DrawText(charStr, font, x, y, color);
+    float bx = 200, by = 200, cw = 30;
+    for (size_t i = 0; i < text.size(); i++) {
+        float off = std::sin(s.time * s.waveFreq + i * 0.5f) * s.waveAmp;
+        float h = s.time + i * 0.1f;
+        Color c(std::sin(h)*0.5f+0.5f, std::sin(h+2)*0.5f+0.5f, std::sin(h+4)*0.5f+0.5f);
+        r.DrawText(std::string(1, text[i]), font, bx + i * cw, by + off, c);
     }
-    
-    // تأثير نبض / Pulse effect
-    baseY = 350.0f;
-    text = "PULSE EFFECT";
-    float scale = 1.0f + std::sin(state.animationTime * 3.0f) * 0.3f;  // نبض / Pulse
-    u8 alpha = static_cast<u8>(std::sin(state.animationTime * 2.0f) * 127 + 128);
-    renderer.DrawTextCentered(text, font, WINDOW_WIDTH / 2, baseY, 
-                             Color(255, 255, 255, alpha));
-    
-    // تأثير قوس قزح / Rainbow effect
-    baseY = 500.0f;
+
+    // Pulse
+    float alpha = std::sin(s.time * 2.0f) * 0.5f + 0.5f;
+    r.DrawTextCentered("PULSE EFFECT", font, W/2.0f, 350, Color(1,1,1,alpha));
+
+    // Rainbow
     text = "RAINBOW TEXT";
-    charWidth = 40.0f;
-    float startX = (WINDOW_WIDTH - text.length() * charWidth) / 2;
-    
-    for (size_t i = 0; i < text.length(); ++i) {
-        float hue = (state.animationTime + i * 0.3f) * 2.0f;
-        u8 r = static_cast<u8>(std::sin(hue) * 127 + 128);
-        u8 g = static_cast<u8>(std::sin(hue + 2.094f) * 127 + 128);
-        u8 b = static_cast<u8>(std::sin(hue + 4.189f) * 127 + 128);
-        
-        std::string charStr(1, text[i]);
-        renderer.DrawText(charStr, font, startX + i * charWidth, baseY, 
-                         Color(r, g, b, 255));
+    cw = 40;
+    float sx = (W - text.size() * cw) / 2;
+    for (size_t i = 0; i < text.size(); i++) {
+        float h = (s.time + i * 0.3f) * 2.0f;
+        Color c(std::sin(h)*0.5f+0.5f, std::sin(h+2.094f)*0.5f+0.5f, std::sin(h+4.189f)*0.5f+0.5f);
+        r.DrawText(std::string(1, text[i]), font, sx + i * cw, 500, c);
     }
 }
 
-/// عرض 5: قياس النصوص / Demo 5: Text Measurement
-void Demo5_TextMeasurement(Renderer2D& renderer, AppState& state) {
-    const FontRef& font = state.fonts[state.selectedFont].font;
-    
-    // عنوان / Title
-    renderer.DrawTextCentered("Demo 5: Text Measurement & Bounding Boxes", font, 
-                             WINDOW_WIDTH / 2, 50, Color::Yellow);
-    
-    // نص تجريبي / Sample text
-    std::string text = state.sampleText;
-    float x = 100.0f;
-    float y = 200.0f;
-    
-    // قياس النص / Measure text
-    float width, height;
-    font->MeasureText(text, width, height);
-    
-    // رسم صندوق محيط / Draw bounding box
-    renderer.DrawRect(x - 5, y - 5, width + 10, height + 10, 
-                     Color(64, 64, 64, 128), true);
-    renderer.DrawRect(x - 5, y - 5, width + 10, height + 10, 
-                     Color::White, false);
-    
-    // رسم النص / Draw text
-    renderer.DrawText(text, font, x, y, Color::White);
-    
-    // عرض المعلومات / Display info
-    std::ostringstream info;
-    info << "Width: " << std::fixed << std::setprecision(2) << width << " px";
-    renderer.DrawText(info.str(), font, x, y + height + 30, Color::Cyan);
-    
-    info.str("");
-    info << "Height: " << height << " px";
-    renderer.DrawText(info.str(), font, x, y + height + 60, Color::Cyan);
-    
-    info.str("");
-    info << "Font Size: " << font->GetFontSize() << " px";
-    renderer.DrawText(info.str(), font, x, y + height + 90, Color::Cyan);
-    
-    info.str("");
-    info << "Line Height: " << font->GetLineHeight() << " px";
-    renderer.DrawText(info.str(), font, x, y + height + 120, Color::Cyan);
+static void Demo5_Arabic(Renderer2D& r, AppState& s) {
+    auto& font = s.fonts[s.selectedFont].font;
+    r.DrawTextCentered("Demo 5: Arabic Text Rendering", font, W/2.0f, 50, Color::Yellow);
+
+    float y = 130;
+    // عنوان القسم / Section title
+    r.DrawText("Arabic Shaping + RTL:", font, 50, y, Color::Cyan); y += 50;
+
+    // عرض النص العربي بالتشكيل / Arabic text with shaping
+    r.DrawTextArabic(s.arabic, font, W - 50, y, Color::White); y += 50;
+    r.DrawTextArabic(s.sadLang, font, W - 50, y, Color::Green); y += 50;
+    r.DrawTextArabic(s.bismillah, font, W - 50, y, Color(1.0f, 0.85f, 0.0f)); y += 70;
+
+    // DrawTextAuto - كشف تلقائي / Auto detect
+    r.DrawText("Auto-detect direction (DrawTextAuto):", font, 50, y, Color::Cyan); y += 50;
+    r.DrawTextAuto(s.mixed, font, 50, y, Color::White); y += 50;
+    r.DrawTextAuto(s.english, font, 50, y, Color::White); y += 50;
+    r.DrawTextAuto(s.arabic, font, 50, y, Color::White); y += 70;
+
+    // الأبجدية العربية / Arabic alphabet
+    r.DrawText("Arabic Alphabet Shaping:", font, 50, y, Color::Cyan); y += 50;
+    std::string alph = "\xD8\xA7\xD8\xA8\xD8\xAA\xD8\xAB\xD8\xAC\xD8\xAD\xD8\xAE\xD8\xAF\xD8\xB0\xD8\xB1\xD8\xB2\xD8\xB3\xD8\xB4\xD8\xB5\xD8\xB6\xD8\xB7\xD8\xB8\xD8\xB9\xD8\xBA\xD9\x81\xD9\x82\xD9\x83\xD9\x84\xD9\x85\xD9\x86\xD9\x87\xD9\x88\xD9\x8A";
+    r.DrawTextArabic(alph, font, W - 50, y, Color::Yellow); y += 50;
+
+    // ألوان متعددة / Multiple colors
+    r.DrawText("Colored Arabic:", font, 50, y, Color::Cyan); y += 50;
+    r.DrawTextArabic(s.sadLang, font, 650, y, Color::Red);
+    r.DrawTextArabic(s.sadLang, font, 750, y, Color::Green);
+    r.DrawTextArabic(s.sadLang, font, 850, y, Color::Blue);
+}
+
+static void Demo6(Renderer2D& r, AppState& s) {
+    auto& font = s.fonts[s.selectedFont].font;
+    r.DrawTextCentered("Demo 5: Text Measurement", font, W/2.0f, 50, Color::Yellow);
+
+    float tw, th;
+    font->MeasureText(s.sample, tw, th);
+    float x = 100, y = 200;
+    r.DrawRect(x-5, y-5, tw+10, th+10, Color(0.25f,0.25f,0.25f,0.5f), true);
+    r.DrawRect(x-5, y-5, tw+10, th+10, Color::White, false);
+    r.DrawText(s.sample, font, x, y, Color::White);
+
+    std::ostringstream o; o << "Width: " << std::fixed << std::setprecision(1) << tw << " px";
+    r.DrawText(o.str(), font, x, y+th+30, Color::Cyan);
+    o.str(""); o << "Height: " << th << " px";
+    r.DrawText(o.str(), font, x, y+th+60, Color::Cyan);
+    o.str(""); o << "Font Size: " << font->GetFontSize();
+    r.DrawText(o.str(), font, x, y+th+90, Color::Cyan);
+    o.str(""); o << "Line Height: " << font->GetLineHeight();
+    r.DrawText(o.str(), font, x, y+th+120, Color::Cyan);
 }
 
 // ==============================================================================
-// عرض المساعدة والإحصائيات / Show Help and Stats
-// ==============================================================================
+int main(int /*argc*/, char* /*argv*/[]) {
+    std::cout << "\n=== Sad Graphics - Text Demo ===\n"
+              << "1-6=Demo  F=Font  C=Color  Up/Down=Wave  ESC=Exit\n"
+              << "5=Arabic Text  6=Text Measurement\n\n";
 
-/// عرض المساعدة / Show help
-void ShowHelp(Renderer2D& renderer, const FontRef& font) {
-    float x = 20.0f;                            // موقع X / X position
-    float y = WINDOW_HEIGHT - 200.0f;          // موقع Y / Y position
-    float lineHeight = 25.0f;                   // ارتفاع السطر / Line height
-    
-    // خلفية شبه شفافة / Semi-transparent background
-    renderer.DrawRect(10, y - 10, 400, 210, Color(0, 0, 0, 180), true);
-    
-    // عنوان / Title
-    renderer.DrawText("Controls (H to toggle):", font, x, y, Color::Yellow);
-    y += lineHeight;
-    
-    // المفاتيح / Keys
-    renderer.DrawText("ESC - Exit", font, x, y, Color::White);
-    y += lineHeight;
-    renderer.DrawText("1-5 - Select Demo", font, x, y, Color::White);
-    y += lineHeight;
-    renderer.DrawText("F - Cycle Font", font, x, y, Color::White);
-    y += lineHeight;
-    renderer.DrawText("C - Cycle Color", font, x, y, Color::White);
-    y += lineHeight;
-    renderer.DrawText("S - Toggle Stats", font, x, y, Color::White);
-    y += lineHeight;
-    renderer.DrawText("UP/DOWN - Adjust Wave", font, x, y, Color::White);
-}
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) { std::cerr << "SDL: " << SDL_GetError() << '\n'; return -1; }
 
-/// عرض الإحصائيات / Show statistics
-void ShowStats(Renderer2D& renderer, const FontRef& font, const AppState& state) {
-    float x = WINDOW_WIDTH - 320.0f;           // موقع X / X position
-    float y = 20.0f;                            // موقع Y / Y position
-    float lineHeight = 25.0f;                   // ارتفاع السطر / Line height
-    
-    // خلفية / Background
-    renderer.DrawRect(x - 10, y - 10, 310, 180, Color(0, 0, 0, 180), true);
-    
-    // العنوان / Title
-    renderer.DrawText("Performance Stats:", font, x, y, Color::Yellow);
-    y += lineHeight;
-    
-    // الإحصائيات / Statistics
-    std::ostringstream oss;
-    
-    oss << "FPS: " << std::fixed << std::setprecision(1) << state.fps;
-    renderer.DrawText(oss.str(), font, x, y, Color::Green);
-    y += lineHeight;
-    
-    oss.str("");
-    oss << "Frame Time: " << std::setprecision(2) << state.frameTime << " ms";
-    renderer.DrawText(oss.str(), font, x, y, Color::Cyan);
-    y += lineHeight;
-    
-    oss.str("");
-    oss << "Demo: " << (state.selectedDemo + 1) << "/5";
-    renderer.DrawText(oss.str(), font, x, y, Color::White);
-    y += lineHeight;
-    
-    oss.str("");
-    oss << "Font: " << state.fonts[state.selectedFont].name;
-    renderer.DrawText(oss.str(), font, x, y, Color::White);
-    y += lineHeight;
-    
-    oss.str("");
-    oss << "Color: " << (state.selectedColor + 1) << "/" << state.colors.size();
-    renderer.DrawText(oss.str(), font, x, y, Color::White);
-}
+    try {
+        Window window("Sad Graphics - Text Demo", W, H, WindowFlags::Resizable);
+        if (!window.IsOpen()) { SDL_Quit(); return -1; }
 
-// ==============================================================================
-// الدالة الرئيسية / Main Function
-// ==============================================================================
+        RenderContext context(window.GetNativeWindow());
+        if (!context.IsValid()) { SDL_Quit(); return -1; }
 
-int main(int argc, char* argv[]) {
-    std::cout << "=====================================" << std::endl;
-    std::cout << "(AR) عرض نظام النصوص والخطوط" << std::endl;
-    std::cout << "(EN) Text and Font System Demo" << std::endl;
-    std::cout << "=====================================" << std::endl;
-    
-    // إنشاء النافذة / Create window
-    Window window("Text Demo - عرض النصوص", WINDOW_WIDTH, WINDOW_HEIGHT);
-    if (!window.IsValid()) {                    // التحقق من الصحة / Check validity
-        std::cerr << "(AR) فشل إنشاء النافذة! / (EN) Failed to create window!" << std::endl;
-        return 1;                               // خطأ / Error
-    }
-    
-    // إنشاء سياق الرسم / Create render context
-    RenderContext context(&window);
-    if (!context.IsValid()) {                   // التحقق من الصحة / Check validity
-        std::cerr << "(AR) فشل إنشاء سياق الرسم! / (EN) Failed to create context!" << std::endl;
-        return 1;                               // خطأ / Error
-    }
-    
-    // إنشاء محرك الرسم / Create renderer
-    Renderer2D renderer(&context);
-    
-    // إنشاء مدير المدخلات / Create input manager
-    InputManager input;
-    
-    // حالة التطبيق / Application state
-    AppState state;
-    
-    // تحميل الخطوط / Load fonts
-    LoadFonts(state);
-    if (!state.running) {                       // إذا فشل التحميل / If loading failed
-        return 1;                               // خروج / Exit
-    }
-    
-    // الحلقة الرئيسية / Main loop
-    auto lastFrameTime = std::chrono::high_resolution_clock::now();
-    
-    while (state.running) {                     // حلقة العرض / Render loop
-        // حساب دلتا الوقت / Calculate delta time
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<float> deltaTime = currentTime - lastFrameTime;
-        lastFrameTime = currentTime;
-        float dt = deltaTime.count();           // دلتا بالثواني / Delta in seconds
-        
-        // معالجة الأحداث / Process events
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {       // حدث إغلاق / Quit event
-                state.running = false;          // إيقاف / Stop
+        Renderer2D renderer(&context);
+        InputManager input;
+        AppState state;
+        LoadFonts(state);
+        if (!state.running) { SDL_Quit(); return -1; }
+
+        Uint32 last = SDL_GetTicks();
+        while (state.running) {
+            Uint32 now = SDL_GetTicks();
+            state.time += (now - last) / 1000.0f;
+            last = now;
+
+            SDL_Event ev;
+            while (SDL_PollEvent(&ev)) {
+                if (ev.type == SDL_QUIT) state.running = false;
+                input.ProcessEvent(ev);
             }
-            input.ProcessEvent(&event);         // معالجة الحدث / Process event
+            input.Update();
+            HandleInput(input, state);
+
+            renderer.BeginFrame();
+            renderer.Clear(Color(0.08f, 0.08f, 0.12f));
+            switch (state.selectedDemo) {
+                case 0: Demo1(renderer, state); break;
+                case 1: Demo2(renderer, state); break;
+                case 2: Demo3(renderer, state); break;
+                case 3: Demo4(renderer, state); break;
+                case 4: Demo5_Arabic(renderer, state); break;
+                case 5: Demo6(renderer, state); break;
+            }
+            renderer.EndFrame();
+            context.SwapBuffers();
         }
-        
-        // معالجة المدخلات / Handle input
-        HandleInput(state, input);
-        
-        // تحديث الحالة / Update state
-        UpdateState(state, dt);
-        
-        // تحديث المدخلات / Update input
-        input.Update();
-        
-        // بدء الرسم / Begin rendering
-        renderer.BeginFrame();
-        renderer.Clear(Color(20, 20, 30, 255)); // خلفية داكنة / Dark background
-        
-        // رسم العرض المختار / Draw selected demo
-        switch (state.selectedDemo) {
-            case 0: Demo1_BasicText(renderer, state); break;
-            case 1: Demo2_Alignment(renderer, state); break;
-            case 2: Demo3_Colors(renderer, state); break;
-            case 3: Demo4_AnimatedEffects(renderer, state); break;
-            case 4: Demo5_TextMeasurement(renderer, state); break;
-        }
-        
-        // رسم المساعدة والإحصائيات / Draw help and stats
-        if (state.showHelp) {
-            ShowHelp(renderer, state.fonts[0].font);
-        }
-        if (state.showStats) {
-            ShowStats(renderer, state.fonts[0].font, state);
-        }
-        
-        // إنهاء الرسم / End rendering
-        renderer.EndFrame();
-        context.SwapBuffers();                  // تبديل المخازن / Swap buffers
+
+        renderer.PrintStats();
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << '\n';
+        SDL_Quit(); return -1;
     }
-    
-    std::cout << "(AR) إنهاء العرض / (EN) Demo finished" << std::endl;
-    return 0;                                   // نجاح / Success
+    SDL_Quit();
+    return 0;
 }

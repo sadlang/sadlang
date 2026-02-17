@@ -10,6 +10,7 @@
 #define SAD_GRAPHICS_TYPES_H
 
 #include <cstdint>      // لأنواع الأعداد الصحيحة ذات الحجم المحدد / Fixed-size integer types
+#include <cmath>        // للدوال الرياضية / Math functions
 #include <string>       // لنوع النصوص / String type
 #include <memory>       // للمؤشرات الذكية / Smart pointers
 #include <functional>   // لأنواع الدوال / Function types
@@ -163,7 +164,50 @@ struct Vec2 {
     
     Vec2() : x(0.0f), y(0.0f) {}
     Vec2(Float32 x_, Float32 y_) : x(x_), y(y_) {}
+    Vec2(Float32 s) : x(s), y(s) {}              // منشئ قيمة واحدة / Scalar constructor
+    
+    // العمليات الحسابية / Arithmetic operators
+    Vec2 operator+(const Vec2& v) const { return Vec2(x + v.x, y + v.y); }
+    Vec2 operator-(const Vec2& v) const { return Vec2(x - v.x, y - v.y); }
+    Vec2 operator*(const Vec2& v) const { return Vec2(x * v.x, y * v.y); }
+    Vec2 operator/(const Vec2& v) const { return Vec2(x / v.x, y / v.y); }
+    Vec2 operator*(Float32 s) const { return Vec2(x * s, y * s); }
+    Vec2 operator/(Float32 s) const { Float32 inv = 1.0f / s; return Vec2(x * inv, y * inv); }
+    Vec2 operator-() const { return Vec2(-x, -y); }
+    
+    // عمليات الإسناد المركبة / Compound assignment operators
+    Vec2& operator+=(const Vec2& v) { x += v.x; y += v.y; return *this; }
+    Vec2& operator-=(const Vec2& v) { x -= v.x; y -= v.y; return *this; }
+    Vec2& operator*=(Float32 s) { x *= s; y *= s; return *this; }
+    Vec2& operator/=(Float32 s) { Float32 inv = 1.0f / s; x *= inv; y *= inv; return *this; }
+    
+    // المقارنة / Comparison
+    bool operator==(const Vec2& v) const { return x == v.x && y == v.y; }
+    bool operator!=(const Vec2& v) const { return !(*this == v); }
+    
+    // الوصول بالفهرس / Index access
+    Float32& operator[](int i) { return (&x)[i]; }
+    Float32 operator[](int i) const { return (&x)[i]; }
+    
+    // الدوال الرياضية / Math functions
+    Float32 Dot(const Vec2& v) const { return x * v.x + y * v.y; }
+    Float32 Cross(const Vec2& v) const { return x * v.y - y * v.x; }
+    Float32 LengthSq() const { return x * x + y * y; }
+    Float32 Length() const;
+    Vec2 Normalized() const;
+    void Normalize();
+    Float32 Distance(const Vec2& v) const;
+    Vec2 Lerp(const Vec2& v, Float32 t) const { return *this + (v - *this) * t; }
+    Vec2 Perpendicular() const { return Vec2(-y, x); }
+    Float32 Angle() const;
+    
+    // ثوابت / Constants
+    static Vec2 Zero() { return Vec2(0.0f, 0.0f); }
+    static Vec2 One() { return Vec2(1.0f, 1.0f); }
+    static Vec2 UnitX() { return Vec2(1.0f, 0.0f); }
+    static Vec2 UnitY() { return Vec2(0.0f, 1.0f); }
 };
+inline Vec2 operator*(Float32 s, const Vec2& v) { return v * s; }
 
 /// متجه ثلاثي الأبعاد / 3D Vector
 struct Vec3 {
@@ -171,7 +215,54 @@ struct Vec3 {
     
     Vec3() : x(0.0f), y(0.0f), z(0.0f) {}
     Vec3(Float32 x_, Float32 y_, Float32 z_) : x(x_), y(y_), z(z_) {}
+    Vec3(Float32 s) : x(s), y(s), z(s) {}
+    Vec3(const Vec2& v, Float32 z_) : x(v.x), y(v.y), z(z_) {}
+    
+    // العمليات الحسابية / Arithmetic operators
+    Vec3 operator+(const Vec3& v) const { return Vec3(x + v.x, y + v.y, z + v.z); }
+    Vec3 operator-(const Vec3& v) const { return Vec3(x - v.x, y - v.y, z - v.z); }
+    Vec3 operator*(const Vec3& v) const { return Vec3(x * v.x, y * v.y, z * v.z); }
+    Vec3 operator/(const Vec3& v) const { return Vec3(x / v.x, y / v.y, z / v.z); }
+    Vec3 operator*(Float32 s) const { return Vec3(x * s, y * s, z * s); }
+    Vec3 operator/(Float32 s) const { Float32 inv = 1.0f / s; return Vec3(x * inv, y * inv, z * inv); }
+    Vec3 operator-() const { return Vec3(-x, -y, -z); }
+    
+    Vec3& operator+=(const Vec3& v) { x += v.x; y += v.y; z += v.z; return *this; }
+    Vec3& operator-=(const Vec3& v) { x -= v.x; y -= v.y; z -= v.z; return *this; }
+    Vec3& operator*=(Float32 s) { x *= s; y *= s; z *= s; return *this; }
+    Vec3& operator/=(Float32 s) { Float32 inv = 1.0f / s; x *= inv; y *= inv; z *= inv; return *this; }
+    
+    bool operator==(const Vec3& v) const { return x == v.x && y == v.y && z == v.z; }
+    bool operator!=(const Vec3& v) const { return !(*this == v); }
+    
+    Float32& operator[](int i) { return (&x)[i]; }
+    Float32 operator[](int i) const { return (&x)[i]; }
+    
+    // الدوال الرياضية / Math functions
+    Float32 Dot(const Vec3& v) const { return x * v.x + y * v.y + z * v.z; }
+    Vec3 Cross(const Vec3& v) const {
+        return Vec3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
+    }
+    Float32 LengthSq() const { return x * x + y * y + z * z; }
+    Float32 Length() const;
+    Vec3 Normalized() const;
+    void Normalize();
+    Float32 Distance(const Vec3& v) const;
+    Vec3 Lerp(const Vec3& v, Float32 t) const { return *this + (v - *this) * t; }
+    Vec3 Reflect(const Vec3& normal) const { return *this - normal * (2.0f * Dot(normal)); }
+    
+    Vec2 XY() const { return Vec2(x, y); }
+    
+    static Vec3 Zero() { return Vec3(0.0f, 0.0f, 0.0f); }
+    static Vec3 One() { return Vec3(1.0f, 1.0f, 1.0f); }
+    static Vec3 UnitX() { return Vec3(1.0f, 0.0f, 0.0f); }
+    static Vec3 UnitY() { return Vec3(0.0f, 1.0f, 0.0f); }
+    static Vec3 UnitZ() { return Vec3(0.0f, 0.0f, 1.0f); }
+    static Vec3 Up() { return Vec3(0.0f, 1.0f, 0.0f); }
+    static Vec3 Forward() { return Vec3(0.0f, 0.0f, -1.0f); }
+    static Vec3 Right() { return Vec3(1.0f, 0.0f, 0.0f); }
 };
+inline Vec3 operator*(Float32 s, const Vec3& v) { return v * s; }
 
 /// متجه رباعي الأبعاد / 4D Vector
 struct Vec4 {
@@ -179,7 +270,39 @@ struct Vec4 {
     
     Vec4() : x(0.0f), y(0.0f), z(0.0f), w(0.0f) {}
     Vec4(Float32 x_, Float32 y_, Float32 z_, Float32 w_) : x(x_), y(y_), z(z_), w(w_) {}
+    Vec4(Float32 s) : x(s), y(s), z(s), w(s) {}
+    Vec4(const Vec3& v, Float32 w_) : x(v.x), y(v.y), z(v.z), w(w_) {}
+    Vec4(const Vec2& v, Float32 z_, Float32 w_) : x(v.x), y(v.y), z(z_), w(w_) {}
+    
+    Vec4 operator+(const Vec4& v) const { return Vec4(x + v.x, y + v.y, z + v.z, w + v.w); }
+    Vec4 operator-(const Vec4& v) const { return Vec4(x - v.x, y - v.y, z - v.z, w - v.w); }
+    Vec4 operator*(const Vec4& v) const { return Vec4(x * v.x, y * v.y, z * v.z, w * v.w); }
+    Vec4 operator*(Float32 s) const { return Vec4(x * s, y * s, z * s, w * s); }
+    Vec4 operator/(Float32 s) const { Float32 inv = 1.0f / s; return Vec4(x * inv, y * inv, z * inv, w * inv); }
+    Vec4 operator-() const { return Vec4(-x, -y, -z, -w); }
+    
+    Vec4& operator+=(const Vec4& v) { x += v.x; y += v.y; z += v.z; w += v.w; return *this; }
+    Vec4& operator-=(const Vec4& v) { x -= v.x; y -= v.y; z -= v.z; w -= v.w; return *this; }
+    Vec4& operator*=(Float32 s) { x *= s; y *= s; z *= s; w *= s; return *this; }
+    
+    bool operator==(const Vec4& v) const { return x == v.x && y == v.y && z == v.z && w == v.w; }
+    bool operator!=(const Vec4& v) const { return !(*this == v); }
+    
+    Float32& operator[](int i) { return (&x)[i]; }
+    Float32 operator[](int i) const { return (&x)[i]; }
+    
+    Float32 Dot(const Vec4& v) const { return x * v.x + y * v.y + z * v.z + w * v.w; }
+    Float32 LengthSq() const { return x * x + y * y + z * z + w * w; }
+    Float32 Length() const;
+    Vec4 Normalized() const;
+    
+    Vec2 XY() const { return Vec2(x, y); }
+    Vec3 XYZ() const { return Vec3(x, y, z); }
+    
+    static Vec4 Zero() { return Vec4(0.0f, 0.0f, 0.0f, 0.0f); }
+    static Vec4 One() { return Vec4(1.0f, 1.0f, 1.0f, 1.0f); }
 };
+inline Vec4 operator*(Float32 s, const Vec4& v) { return v * s; }
 
 // ============================================================================
 // المصفوفات / Matrices
@@ -192,15 +315,62 @@ struct Mat3 {
     Mat3() {
         for (int i = 0; i < 9; i++) m[i] = 0.0f;
     }
+    
+    static Mat3 Identity() {
+        Mat3 result;
+        result.m[0] = result.m[4] = result.m[8] = 1.0f;
+        return result;
+    }
 };
 
-/// مصفوفة 4x4 / 4x4 Matrix
+/// مصفوفة 4x4 / 4x4 Matrix (column-major like OpenGL)
 struct Mat4 {
     Float32 m[16];
     
     Mat4() {
         for (int i = 0; i < 16; i++) m[i] = 0.0f;
     }
+    
+    // الوصول بالعمود والصف / Access by column and row
+    Float32& At(int row, int col) { return m[col * 4 + row]; }
+    Float32 At(int row, int col) const { return m[col * 4 + row]; }
+    
+    // ضرب المصفوفات / Matrix multiplication
+    Mat4 operator*(const Mat4& other) const;
+    Vec4 operator*(const Vec4& v) const;
+    Vec3 TransformPoint(const Vec3& p) const;
+    Vec3 TransformDirection(const Vec3& d) const;
+    
+    // إنشاء مصفوفات خاصة / Create special matrices
+    static Mat4 Identity();
+    static Mat4 Translate(const Vec3& t);
+    static Mat4 Translate(Float32 x, Float32 y, Float32 z);
+    static Mat4 Scale(const Vec3& s);
+    static Mat4 Scale(Float32 x, Float32 y, Float32 z);
+    static Mat4 Scale(Float32 s);
+    static Mat4 RotateX(Float32 radians);
+    static Mat4 RotateY(Float32 radians);
+    static Mat4 RotateZ(Float32 radians);
+    static Mat4 RotateAxis(const Vec3& axis, Float32 radians);
+    
+    // مصفوفات الإسقاط / Projection matrices
+    static Mat4 Ortho(Float32 left, Float32 right, Float32 bottom, Float32 top,
+                      Float32 near_ = -1.0f, Float32 far_ = 1.0f);
+    static Mat4 Perspective(Float32 fovRadians, Float32 aspect, Float32 near_, Float32 far_);
+    static Mat4 LookAt(const Vec3& eye, const Vec3& target, const Vec3& up);
+    
+    // عمليات المصفوفة / Matrix operations
+    Mat4 Transposed() const;
+    Mat4 Inverted() const;
+    Float32 Determinant() const;
+    
+    // استخراج / Extract
+    Vec3 GetTranslation() const { return Vec3(m[12], m[13], m[14]); }
+    Vec3 GetScale() const;
+    
+    // الحصول على مؤشر البيانات (لـ OpenGL) / Get data pointer (for OpenGL)
+    const Float32* Data() const { return m; }
+    Float32* Data() { return m; }
 };
 
 /// لون RGBA / RGBA Color
@@ -221,6 +391,28 @@ struct Color {
     Color(Float32 r_, Float32 g_, Float32 b_, Float32 a_)
         : r(r_), g(g_), b(b_), a(a_) {}
     
+    /// منشئ من قيم بايت (0-255) / Constructor from byte values (0-255)
+    static Color FromBytes(int r_, int g_, int b_, int a_ = 255) {
+        return Color(r_ / 255.0f, g_ / 255.0f, b_ / 255.0f, a_ / 255.0f);
+    }
+    
+    /// منشئ من نص HEX / Constructor from HEX string
+    static Color FromHex(const std::string& hex) {
+        std::string h = hex;
+        if (!h.empty() && h[0] == '#') h = h.substr(1);
+        unsigned int val = 0;
+        for (char c : h) {
+            val <<= 4;
+            if (c >= '0' && c <= '9') val |= (c - '0');
+            else if (c >= 'a' && c <= 'f') val |= (c - 'a' + 10);
+            else if (c >= 'A' && c <= 'F') val |= (c - 'A' + 10);
+        }
+        if (h.size() == 8) {
+            return FromBytes((val >> 24) & 0xFF, (val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
+        }
+        return FromBytes((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF);
+    }
+    
     // الألوان المعرفة مسبقاً / Predefined colors
     static const Color Black;       ///< أسود / Black
     static const Color White;       ///< أبيض / White
@@ -231,6 +423,9 @@ struct Color {
     static const Color Cyan;        ///< سماوي / Cyan
     static const Color Magenta;     ///< أرجواني / Magenta
     static const Color Transparent; ///< شفاف / Transparent
+    static const Color Gray;        ///< رمادي / Gray
+    static const Color LightGray;   ///< رمادي فاتح / Light Gray
+    static const Color DarkGray;    ///< رمادي غامق / Dark Gray
 };
 
 // ============================================================================

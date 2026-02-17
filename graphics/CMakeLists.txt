@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 3.15)
 project(SadGraphics
     VERSION 0.1.0
     DESCRIPTION "مكتبة الرسومات للغة ص / Graphics Library for Sad Language"
-    LANGUAGES CXX
+    LANGUAGES C CXX
 )
 
 # ==============================================================================
@@ -60,16 +60,65 @@ message(STATUS "استخدام GLAD من / Using GLAD from: ${GLAD_INCLUDE_DIR}"
 
 # ملفات الرأس / Header files
 set(SAD_GRAPHICS_HEADERS
+    # النواة / Core
     include/core/types.h
+    include/core/math3d.h
+    include/core/event_bus.h
+    include/core/ecs.h
+    include/core/state_machine.h
+    include/core/serialization.h
+    include/core/profiler.h
+    include/core/tween.h
+    include/core/timer.h
+    include/core/scene.h
+
+    # النافذة والإدخال / Window & Input
     include/window/window.h
+    include/input/input_manager.h
+
+    # التصيير / Rendering
     include/rendering/context.h
     include/rendering/shader.h
     include/rendering/renderer2d.h
-    include/input/input_manager.h
+    include/rendering/renderer3d.h
+    include/rendering/framebuffer.h
+    include/rendering/camera2d.h
+    include/rendering/camera3d.h
+    include/rendering/sprite.h
+    include/rendering/mesh.h
+    include/rendering/material.h
+    include/rendering/lighting.h
+
+    # النصوص / Textures & Text
     include/texture/texture.h
     include/texture/image.h
+    include/texture/texture_atlas.h
     include/text/font.h
+    include/text/arabic_text.h
+
+    # التأثيرات / Effects
+    include/effects/particle_system.h
+    include/effects/post_processing.h
+
+    # العالم / World
+    include/world/tilemap.h
+
+    # الفيزياء / Physics
+    include/physics/physics2d.h
+
+    # الصوت / Audio
+    include/audio/audio_system.h
+
+    # الموارد / Resources
     include/resources/resource_manager.h
+
+    # الرسم / Drawing
+    include/drawing/shapes.h
+
+    # نظام التشغيل / OS
+    include/os/os_framebuffer.h
+
+    # واجهة المستخدم لسطح المكتب / Desktop UI
     include/ui/widget.h
     include/ui/label.h
     include/ui/button.h
@@ -77,20 +126,73 @@ set(SAD_GRAPHICS_HEADERS
     include/ui/checkbox.h
     include/ui/panel.h
     include/ui/slider.h
+    include/ui/ui_layout.h
+
+    # واجهة المستخدم للهاتف / Mobile UI
+    include/ui/mobile/mobile_core.h
+    include/ui/mobile/mobile_buttons.h
+    include/ui/mobile/mobile_input.h
+    include/ui/mobile/mobile_navigation.h
+    include/ui/mobile/mobile_lists.h
+    include/ui/mobile/mobile_dialogs.h
+    include/ui/mobile/mobile_display.h
+    include/ui/mobile/mobile_media.h
+    include/ui/mobile/mobile_advanced.h
 )
 
 # ملفات المصدر / Source files
 set(SAD_GRAPHICS_SOURCES
+    # النواة / Core
     src/core/types.cpp
+    src/core/math.cpp
+    src/core/tween.cpp
+    src/core/timer.cpp
+    src/core/scene.cpp
+
+    # النافذة والإدخال / Window & Input
     src/window/window.cpp
+    src/input/input_manager.cpp
+
+    # التصيير / Rendering
     src/rendering/context.cpp
     src/rendering/shader.cpp
     src/rendering/renderer2d.cpp
-    src/input/input_manager.cpp
+    src/rendering/renderer3d.cpp
+    src/rendering/framebuffer.cpp
+    src/rendering/camera2d.cpp
+    src/rendering/camera3d.cpp
+    src/rendering/sprite.cpp
+    src/rendering/mesh.cpp
+    src/rendering/material.cpp
+    src/rendering/lighting.cpp
+
+    # النصوص / Textures & Text
     src/texture/texture.cpp
     src/texture/image.cpp
+    src/texture/texture_atlas.cpp
     src/text/font.cpp
+    src/text/arabic_text.cpp
+
+    # التأثيرات / Effects
+    src/effects/particle_system.cpp
+    src/effects/post_processing.cpp
+
+    # العالم / World
+    src/world/tilemap.cpp
+
+    # الفيزياء / Physics
+    src/physics/physics2d.cpp
+
+    # الصوت / Audio
+    src/audio/audio_system.cpp
+
+    # الموارد / Resources
     src/resources/resource_manager.cpp
+
+    # الرسم / Drawing
+    src/drawing/shapes.cpp
+
+    # واجهة المستخدم لسطح المكتب / Desktop UI
     src/ui/widget.cpp
     src/ui/label.cpp
     src/ui/button.cpp
@@ -98,7 +200,20 @@ set(SAD_GRAPHICS_SOURCES
     src/ui/checkbox.cpp
     src/ui/panel.cpp
     src/ui/slider.cpp
-    ${GLAD_SRC}  # محمل GLAD / GLAD loader
+    src/ui/ui_layout.cpp
+
+    # واجهة المستخدم للهاتف / Mobile UI
+    src/ui/mobile/mobile_core.cpp
+    src/ui/mobile/mobile_buttons.cpp
+    src/ui/mobile/mobile_input.cpp
+    src/ui/mobile/mobile_navigation.cpp
+    src/ui/mobile/mobile_lists.cpp
+    src/ui/mobile/mobile_dialogs.cpp
+    src/ui/mobile/mobile_display.cpp
+    src/ui/mobile/mobile_media.cpp
+
+    # محمل GLAD / GLAD loader
+    ${GLAD_SRC}
 )
 
 # ==============================================================================
@@ -131,12 +246,12 @@ add_library(Sad::Graphics ALIAS sad_graphics)
 target_include_directories(sad_graphics
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${SDL2_INCLUDE_DIRS}>
+        $<BUILD_INTERFACE:${GLAD_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:include>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party
-        ${GLAD_INCLUDE_DIR}  # مسارات GLAD / GLAD paths
-        ${SDL2_INCLUDE_DIRS}  # مسارات SDL2 / SDL2 paths
 )
 
 # ==============================================================================

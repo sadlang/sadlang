@@ -56,7 +56,7 @@ namespace Graphics {
             void SetOnCheckChange(CheckStateCallback callback) { m_onCheckChange = callback; } // عند تغيير الحالة / On state change
 
             // الرسم / Drawing
-            virtual void Draw(Renderer2D* renderer) override;   // رسم مربع الاختيار / Draw checkbox
+            virtual void Draw(SadGraphics::Renderer2D* renderer) override;   // رسم مربع الاختيار / Draw checkbox
 
             // معالجة الأحداث / Event handling
             virtual bool OnMouseDown(int x, int y, int button) override;   // ضغط زر الفأرة / Mouse button down

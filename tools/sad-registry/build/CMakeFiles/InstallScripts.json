@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/s/s_language/tools/sad-registry/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

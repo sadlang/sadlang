@@ -56,41 +56,42 @@ void KeywordTable::initialize() {
     // (AR) كلمة 'رئيسية' للدالة الرئيسية - نقطة الدخول للبرنامج
     // (EN) 'main' keyword for main function - program entry point
     keywords_["رئيسية"] = TokenType::KEYWORD_MAIN;
-    keywords_["main"] = TokenType::KEYWORD_MAIN;
+    
     
     // (AR) كلمة 'إرجاع' لإرجاع القيم من الدوال
     // (EN) 'return' keyword for returning values from functions
-    keywords_["إرجاع"] = TokenType::KEYWORD_RETURN;
+    
     keywords_["ارجع"] = TokenType::KEYWORD_RETURN;
-    keywords_["return"] = TokenType::KEYWORD_RETURN;
+    keywords_["\xd8\xa5\xd8\xb1\xd8\xac\xd8\xa7\xd8\xb9"] = TokenType::KEYWORD_RETURN;  // إرجاع (with hamza under alef)
+    
     
     // (AR) كلمة 'ترجع' لتحديد نوع الإرجاع (في القوالب والدوال)
     // (EN) 'returns' keyword for return type specification (templates & functions)
     keywords_["ترجع"] = TokenType::KEYWORD_RETURNS;
-    keywords_["returns"] = TokenType::KEYWORD_RETURNS;
+    
     
     keywords_["صنف"] = TokenType::KEYWORD_CLASS;
-    keywords_["class"] = TokenType::KEYWORD_CLASS;
+    
     // (AR) كلمة 'يرث' للوراثة - المواصفة 03_oop.md القسم 1 و 2
     // (EN) 'inherits' keyword for inheritance - spec 03_oop.md §1,2
     keywords_["يرث"] = TokenType::KEYWORD_INHERITS;
-    keywords_["inherits"] = TokenType::KEYWORD_INHERITS;
+    
     // (AR) كلمة 'نهاية' لإنهاء الصنف/الكتلة - المواصفة 03_oop.md القسم 1
     // (EN) 'end' keyword for class/block termination - spec 03_oop.md §1
     keywords_["نهاية"] = TokenType::KEYWORD_END;
-    keywords_["end"] = TokenType::KEYWORD_END;
+    
     keywords_["جديد"] = TokenType::KEYWORD_NEW;
-    keywords_["new"] = TokenType::KEYWORD_NEW;
+   
     keywords_["هذا"] = TokenType::KEYWORD_THIS;
-    keywords_["this"] = TokenType::KEYWORD_THIS;
-    keywords_["منشئ"] = TokenType::KEYWORD_CONSTRUCTOR;
+   
+    keywords_["باني"] = TokenType::KEYWORD_CONSTRUCTOR;
     keywords_["constructor"] = TokenType::KEYWORD_CONSTRUCTOR;
     keywords_["باني"] = TokenType::KEYWORD_CONSTRUCTOR_ALT;   // Alternative constructor keyword
     keywords_["مدمر"] = TokenType::KEYWORD_DESTRUCTOR;         // Destructor
-    keywords_["destructor"] = TokenType::KEYWORD_DESTRUCTOR;
+   
     keywords_["الأساس"] = TokenType::KEYWORD_SUPER;           // Super/base class
-    keywords_["أساس"] = TokenType::KEYWORD_SUPER;             // Super/base class (short form)
-    keywords_["super"] = TokenType::KEYWORD_SUPER;
+  
+ 
     
     DEBUG_PRINT("تمت إضافة 16 كلمة: الدوال والبنيات (عربي + إنجليزي)");
     
@@ -98,71 +99,71 @@ void KeywordTable::initialize() {
     // Keywords - Control Flow (Arabic + English)
     keywords_["إذا"] = TokenType::KEYWORD_IF;
      keywords_["اذا"] = TokenType::KEYWORD_IF;
-    keywords_["if"] = TokenType::KEYWORD_IF;
+    
     keywords_["وإلا"] = TokenType::KEYWORD_ELSE;
      keywords_["والا"] = TokenType::KEYWORD_ELSE;
-    keywords_["else"] = TokenType::KEYWORD_ELSE;
+    
     keywords_["وإلا_إذا"] = TokenType::KEYWORD_ELSE_IF;
      keywords_["والا_اذا"] = TokenType::KEYWORD_ELSE_IF;
-    keywords_["elif"] = TokenType::KEYWORD_ELSE_IF;
+   
     keywords_["بينما"] = TokenType::KEYWORD_WHILE;
     keywords_["طالما"] = TokenType::KEYWORD_WHILE;
-    keywords_["while"] = TokenType::KEYWORD_WHILE;
+   
     keywords_["لكل"] = TokenType::KEYWORD_FOR;
-    keywords_["for"] = TokenType::KEYWORD_FOR;
-    keywords_["اخرج"] = TokenType::KEYWORD_BREAK;
-    keywords_["break"] = TokenType::KEYWORD_BREAK;
+
+    keywords_["توقف"] = TokenType::KEYWORD_BREAK;
+    
     keywords_["استمر"] = TokenType::KEYWORD_CONTINUE;
-    keywords_["continue"] = TokenType::KEYWORD_CONTINUE;
+   
     
     DEBUG_PRINT("تمت إضافة 14 كلمة: التحكم في التدفق (عربي + إنجليزي)");
     
     // ========== الكلمات المفتاحية - Switch/Case ==========
     // Keywords - Switch/Case (spec 04_syntax.md)
     keywords_["حالة"] = TokenType::KEYWORD_CASE;
-    keywords_["case"] = TokenType::KEYWORD_CASE;
+   
     keywords_["عندما"] = TokenType::KEYWORD_WHEN;
-    keywords_["when"] = TokenType::KEYWORD_WHEN;
+
     keywords_["افتراضي"] = TokenType::KEYWORD_DEFAULT;  // For switch default
-    keywords_["default"] = TokenType::KEYWORD_DEFAULT;
+
     
-    DEBUG_PRINT("تمت إضافة 6 كلمات: Switch/Case");
+    DEBUG_PRINT("تمت إضافة 3 كلمات: Switch/Case");
     
     // ========== الكلمات المفتاحية - Pattern Matching (Phase 2) ==========
     // Keywords - Pattern Matching
     keywords_["طابق"] = TokenType::KEYWORD_MATCH;  // (AR) مطابقة الأنماط / (EN) Pattern matching
-    keywords_["match"] = TokenType::KEYWORD_MATCH;
+
     
-    DEBUG_PRINT("تمت إضافة 2 كلمة: Pattern Matching");
+    DEBUG_PRINT("تمت إضافة 1 كلمة: Pattern Matching");
     
     // ========== الكلمات المفتاحية - Async/Await (Phase 2) ==========
     // Keywords - Async/Await
     keywords_["غير_متزامن"] = TokenType::KEYWORD_ASYNC;  // (AR) دالة غير متزامنة / (EN) Async function
-    keywords_["async"] = TokenType::KEYWORD_ASYNC;
+
     keywords_["انتظر"] = TokenType::KEYWORD_AWAIT;        // (AR) انتظار نتيجة / (EN) Await result
-    keywords_["await"] = TokenType::KEYWORD_AWAIT;
+
     
-    DEBUG_PRINT("تمت إضافة 4 كلمات: Async/Await");
+    DEBUG_PRINT("تمت إضافة 2 كلمات: Async/Await");
     
     // ========== الكلمات المفتاحية الإضافية ==========
     // Additional Keywords
     keywords_["في"] = TokenType::KEYWORD_IN;
-    keywords_["in"] = TokenType::KEYWORD_IN;
+   
     
-    DEBUG_PRINT("تمت إضافة 2 كلمة: كلمات إضافية");
+    DEBUG_PRINT("تمت إضافة 1 كلمة: كلمات إضافية");
     
     // ========== الكلمات المفتاحية - معالجة الأخطاء ==========
     // Keywords - Error Handling (spec 05_python_features.md)
     keywords_["حاول"] = TokenType::KEYWORD_TRY;
-    keywords_["try"] = TokenType::KEYWORD_TRY;
+
     keywords_["امسك"] = TokenType::KEYWORD_CATCH;  // Changed from اصطد to امسك per spec
-    keywords_["catch"] = TokenType::KEYWORD_CATCH;
-    keywords_["ارمِ"] = TokenType::KEYWORD_THROW;
-    keywords_["throw"] = TokenType::KEYWORD_THROW;
+
+    keywords_["ارمي"] = TokenType::KEYWORD_THROW;
+ 
     keywords_["أخيراً"] = TokenType::KEYWORD_FINALLY;
-    keywords_["finally"] = TokenType::KEYWORD_FINALLY;
+ 
     
-    DEBUG_PRINT("تمت إضافة 4 كلمات: معالجة الأخطاء");
+    DEBUG_PRINT("تمت إضافة 2 كلمات: معالجة الأخطاء");
     
     // ========== الكلمات المفتاحية - التحكم بالوصول ==========
     // Keywords - Access Control
@@ -183,13 +184,13 @@ void KeywordTable::initialize() {
     // ========== الكلمات المفتاحية - الوحدات ==========
     // Keywords - Modules (spec 08_modules_and_ffi.md)
     keywords_["استورد"] = TokenType::KEYWORD_IMPORT;
-    keywords_["import"] = TokenType::KEYWORD_IMPORT;
+
     keywords_["من"] = TokenType::KEYWORD_FROM;  // for "from X import Y"
-    keywords_["from"] = TokenType::KEYWORD_FROM;
+
     keywords_["كـ"] = TokenType::KEYWORD_AS;    // for "import X as Y"
-    keywords_["as"] = TokenType::KEYWORD_AS;
+
     keywords_["صدّر"] = TokenType::KEYWORD_EXPORT;
-    keywords_["export"] = TokenType::KEYWORD_EXPORT;
+  
     // NOTE: module and package removed - not in spec
     
     DEBUG_PRINT("تمت إضافة 8 كلمات: الوحدات");
@@ -197,19 +198,18 @@ void KeywordTable::initialize() {
     // ========== الكلمات المفتاحية - المتغيرات ==========
     // Keywords - Variables (spec 04_syntax.md)
     keywords_["متغير"] = TokenType::KEYWORD_VAR;
-    keywords_["var"] = TokenType::KEYWORD_VAR;
+ 
     keywords_["ثابت"] = TokenType::KEYWORD_CONST;
-    keywords_["const"] = TokenType::KEYWORD_CONST;
+    
     keywords_["ساكن"] = TokenType::KEYWORD_STATIC;
-    keywords_["static"] = TokenType::KEYWORD_STATIC;
+  
     
     // Properties (Phase 6.3)
     keywords_["خاصية"] = TokenType::KEYWORD_PROPERTY;
-    keywords_["property"] = TokenType::KEYWORD_PROPERTY;
+
     keywords_["احصل"] = TokenType::KEYWORD_GET;
-    keywords_["get"] = TokenType::KEYWORD_GET;
     keywords_["عيّن"] = TokenType::KEYWORD_SET;
-    keywords_["set"] = TokenType::KEYWORD_SET;
+   
     
     DEBUG_PRINT("تمت إضافة 10 كلمات: المتغيرات والخصائص");
     
@@ -218,58 +218,53 @@ void KeywordTable::initialize() {
     
     // Integer Types (Arabic + English)
     keywords_["رقم"] = TokenType::TYPE_INTEGER;
-    keywords_["int"] = TokenType::TYPE_INTEGER;
-    keywords_["integer"] = TokenType::TYPE_INTEGER;
-    keywords_["number"] = TokenType::TYPE_INTEGER;  // 'number' as alias for integer
+   
+   
     
     // Float/Double Types (Arabic + English)
     keywords_["عشري"] = TokenType::TYPE_DOUBLE;
-    keywords_["float"] = TokenType::TYPE_DOUBLE;
-    keywords_["double"] = TokenType::TYPE_DOUBLE;
+
     
     // String Types (Arabic + English)
     keywords_["نص"] = TokenType::TYPE_STRING;
-    keywords_["string"] = TokenType::TYPE_STRING;
-    keywords_["str"] = TokenType::TYPE_STRING;
+
     
     // Boolean Types (Arabic + English)
     keywords_["منطقي"] = TokenType::TYPE_BOOLEAN;
-    keywords_["bool"] = TokenType::TYPE_BOOLEAN;
-    keywords_["boolean"] = TokenType::TYPE_BOOLEAN;
+
     
     // Void/None Types (Arabic + English)
     keywords_["فراغ"] = TokenType::TYPE_VOID;
-    keywords_["void"] = TokenType::TYPE_VOID;
+  
     keywords_["عدم"] = TokenType::TYPE_NULL;
-    keywords_["null"] = TokenType::TYPE_NULL;
-    keywords_["none"] = TokenType::TYPE_NULL;
+   
     
     // Composite Types (Arabic + English)
     keywords_["مصفوفة"] = TokenType::TYPE_ARRAY;
-    keywords_["array"] = TokenType::TYPE_ARRAY;
+
     keywords_["خريطة"] = TokenType::TYPE_MAP;
-    keywords_["map"] = TokenType::TYPE_MAP;
-    keywords_["dict"] = TokenType::TYPE_MAP;
+   
+  
     
     // Any Type (spec 01_types.md, 04_syntax.md)
     keywords_["أي"] = TokenType::TYPE_ANY;
-    keywords_["any"] = TokenType::TYPE_ANY;
+
     
     DEBUG_PRINT("تمت إضافة 24 كلمة: أنواع البيانات (عربي + إنجليزي)");
     
     // ========== ميزات Python المدعومة ==========
     // Supported Python Features (spec 05_python_features.md)
     keywords_["لامدا"] = TokenType::KEYWORD_LAMBDA;
-    keywords_["lambda"] = TokenType::KEYWORD_LAMBDA;
-    keywords_["اعطِ"] = TokenType::KEYWORD_YIELD;
+
+
     keywords_["أنتج"] = TokenType::KEYWORD_YIELD;  // Alternative Arabic yield keyword
-    keywords_["yield"] = TokenType::KEYWORD_YIELD;
+  
     keywords_["مولد"] = TokenType::KEYWORD_GENERATOR;  // Generator function keyword (Phase 7)
-    keywords_["generator"] = TokenType::KEYWORD_GENERATOR;
+
     keywords_["باستخدام"] = TokenType::KEYWORD_WITH;  // Context manager keyword (Phase 7)
-    keywords_["with"] = TokenType::KEYWORD_WITH;
+
     keywords_["نهاية_استخدام"] = TokenType::KEYWORD_END_WITH;  // End context manager (Phase 7)
-    keywords_["end_with"] = TokenType::KEYWORD_END_WITH;
+
     
     DEBUG_PRINT("تمت إضافة 11 كلمات: ميزات Python");
     
@@ -278,19 +273,18 @@ void KeywordTable::initialize() {
     
     // Templates (Phase 7B.1)
     keywords_["قالب"] = TokenType::KEYWORD_TEMPLATE;      // (AR) لتعريف القوالب / (EN) template keyword
-    keywords_["template"] = TokenType::KEYWORD_TEMPLATE;
+
     keywords_["نوع"] = TokenType::KEYWORD_TYPENAME;       // (AR) معامل النوع / (EN) typename
-    keywords_["typename"] = TokenType::KEYWORD_TYPENAME;
+
     
     // Namespaces (Phase 7B.5)
     keywords_["فضاء"] = TokenType::KEYWORD_NAMESPACE;     // (AR) فضاء الأسماء / (EN) namespace
-    keywords_["namespace"] = TokenType::KEYWORD_NAMESPACE;
+
     keywords_["نهاية_فضاء"] = TokenType::KEYWORD_END_NAMESPACE;  // (AR) نهاية فضاء الأسماء
-    keywords_["end_namespace"] = TokenType::KEYWORD_END_NAMESPACE;
-    
+ 
     // Operator Overloading (Phase 7B.4)
     keywords_["عامل"] = TokenType::KEYWORD_OPERATOR;      // (AR) تحميل العوامل / (EN) operator overloading
-    keywords_["operator"] = TokenType::KEYWORD_OPERATOR;
+ 
     
     DEBUG_PRINT("تمت إضافة 10 كلمات: ميزات C++");
     
@@ -306,53 +300,53 @@ void KeywordTable::initialize() {
     // (AR) كلمة 'تجميع' للتجميع المضمّن — يسمح بكتابة أوامر المعالج مباشرة
     // (EN) 'asm' keyword for inline assembly — allows writing CPU instructions directly
     keywords_["تجميع"] = TokenType::KEYWORD_ASM;
-    keywords_["asm"] = TokenType::KEYWORD_ASM;
+
     
     // (AR) كلمة 'متطاير' — تمنع المترجم من تحسين عمليات القراءة/الكتابة
     //      ضرورية عند التعامل مع سجلات العتاد (hardware registers)
     // (EN) 'volatile' — prevents compiler from optimizing read/write operations
     keywords_["متطاير"] = TokenType::KEYWORD_VOLATILE;
-    keywords_["volatile"] = TokenType::KEYWORD_VOLATILE;
+   
     
     // (AR) كلمة 'خارجي' — تصريح بوجود رمز معرّف في مكان آخر (ربط خارجي)
     // (EN) 'extern' — declares symbol defined elsewhere (external linkage)
     keywords_["خارجي"] = TokenType::KEYWORD_EXTERN;
-    keywords_["extern"] = TokenType::KEYWORD_EXTERN;
+
     
     // (AR) كلمة 'حجم' — تعيد حجم النوع بالبايتات (مثل sizeof في C)
     // (EN) 'sizeof' — returns type size in bytes
     keywords_["حجم"] = TokenType::KEYWORD_SIZEOF;
-    keywords_["sizeof"] = TokenType::KEYWORD_SIZEOF;
+
     
     // (AR) كلمة 'غير_آمن' — كتلة تسمح بالعمليات الخطرة (وصول مباشر للذاكرة)
     // (EN) 'unsafe' — block that allows dangerous operations (raw memory access)
     keywords_["غير_آمن"] = TokenType::KEYWORD_UNSAFE;
-    keywords_["unsafe"] = TokenType::KEYWORD_UNSAFE;
+
     
     // (AR) كلمة 'محزوم' — بنية بلا حشو بين الحقول (للتوافق مع بنيات العتاد)
     // (EN) 'packed' — struct without padding (for hardware structure compatibility)
     keywords_["محزوم"] = TokenType::KEYWORD_PACKED;
-    keywords_["packed"] = TokenType::KEYWORD_PACKED;
+
     
     // (AR) كلمة 'بلا_رجوع' — دالة لا ترجع أبداً (مثل حلقة النواة الرئيسية)
     // (EN) 'noreturn' — function that never returns (like kernel main loop)
     keywords_["بلا_رجوع"] = TokenType::KEYWORD_NORETURN;
-    keywords_["noreturn"] = TokenType::KEYWORD_NORETURN;
+ 
     
     // (AR) كلمة 'عارية' — دالة بدون مقدمة/خاتمة (لمعالجات المقاطعات)
     // (EN) 'naked' — function without prologue/epilogue (for interrupt handlers)
     keywords_["عارية"] = TokenType::KEYWORD_NAKED;
-    keywords_["naked"] = TokenType::KEYWORD_NAKED;
+    
     
     // (AR) كلمة 'سجل' — تلميح لتخزين المتغير في سجل المعالج
     // (EN) 'register' — hint to store variable in CPU register
     keywords_["سجل"] = TokenType::KEYWORD_REGISTER;
-    keywords_["register"] = TokenType::KEYWORD_REGISTER;
+ 
     
     // (AR) كلمة 'قسم' — تحديد قسم في ملف الكائن (مثل .text, .data, .bss)
     // (EN) 'section' — specify section in object file
     keywords_["قسم"] = TokenType::KEYWORD_SECTION;
-    keywords_["section"] = TokenType::KEYWORD_SECTION;
+  
     
     DEBUG_PRINT("تمت إضافة 20 كلمة: ميزات برمجة أنظمة التشغيل");
     
@@ -366,55 +360,54 @@ void KeywordTable::initialize() {
     // (AR) كلمة 'دع' — تعريف متغير مع نظام الملكية (بديل لـ 'متغير' مع دلالة Rust-like)
     // (EN) 'let' — variable declaration with ownership semantics
     keywords_["دع"] = TokenType::KEYWORD_LET;
-    keywords_["let"] = TokenType::KEYWORD_LET;
+
     
     // (AR) كلمة 'بنية' — تعريف بنية بيانات بسبطة بدون وراثة (مثل struct في C/Rust)
     // (EN) 'struct' — plain data structure without inheritance
     keywords_["بنية"] = TokenType::KEYWORD_STRUCT;
-    keywords_["struct"] = TokenType::KEYWORD_STRUCT;
+ 
     
     // (AR) كلمة 'سمة' — تعريف واجهة/سمة (مثل trait في Rust)
     // (EN) 'trait' — trait/interface definition
     keywords_["سمة"] = TokenType::KEYWORD_TRAIT;
-    keywords_["trait"] = TokenType::KEYWORD_TRAIT;
+
     
     // (AR) كلمة 'نفّذ' — تنفيذ سمة لنوع معين (مثل impl في Rust)
     // (EN) 'impl' — implement trait for a type
     keywords_["نفّذ"] = TokenType::KEYWORD_IMPL;
     keywords_["نفذ"] = TokenType::KEYWORD_IMPL;
-    keywords_["impl"] = TokenType::KEYWORD_IMPL;
+
     
     // (AR) كلمة 'اختبر' — تعريف دالة اختبار (مثل #[test] في Rust)
     // (EN) 'test' — define a test function
     keywords_["اختبر"] = TokenType::KEYWORD_TEST;
-    keywords_["test"] = TokenType::KEYWORD_TEST;
+
     
     // (AR) كلمة 'ذرّي' — عملية ذرية للمزامنة بين الخيوط (Atomic)
     // (EN) 'atomic' — atomic operation for thread synchronization
     keywords_["ذرّي"] = TokenType::KEYWORD_ATOMIC;
     keywords_["ذري"] = TokenType::KEYWORD_ATOMIC;
-    keywords_["atomic"] = TokenType::KEYWORD_ATOMIC;
+
     
     // (AR) كلمة 'وحدة' — تعريف وحدة برمجية (مثل mod في Rust)
     // (EN) 'module' — module definition
     keywords_["وحدة"] = TokenType::KEYWORD_MODULE;
-    keywords_["module"] = TokenType::KEYWORD_MODULE;
-    keywords_["mod"] = TokenType::KEYWORD_MODULE;
+
     
     // (AR) كلمة 'استخدم' — استيراد مختصر من وحدة (مثل use في Rust)
     // (EN) 'use' — short import from module
     keywords_["استخدم"] = TokenType::KEYWORD_USE;
-    keywords_["use"] = TokenType::KEYWORD_USE;
+
     
     // (AR) كلمة 'متغيّر' — تعديل مؤشر/مرجع لجعله قابل للتعديل
     // (EN) 'mut' — make pointer/reference mutable
     keywords_["متغيّر"] = TokenType::KEYWORD_MUT;
-    keywords_["mut"] = TokenType::KEYWORD_MUT;
+
     
     // (AR) كلمة 'وقت_ترجمة' — تقييم التعبير في وقت الترجمة (مثل comptime في Zig)
     // (EN) 'comptime' — compile-time evaluation
     keywords_["وقت_ترجمة"] = TokenType::KEYWORD_COMPTIME;
-    keywords_["comptime"] = TokenType::KEYWORD_COMPTIME;
+
     
     DEBUG_PRINT("تمت إضافة 22 كلمة: ميزات نظام النحلة (BeeOS)");
     
@@ -423,11 +416,11 @@ void KeywordTable::initialize() {
     // (EN) Additional data types for BeeOS
     // ================================================================
     keywords_["ص64"] = TokenType::TYPE_I64;         // (AR) عدد صحيح 64 بت بإشارة
-    keywords_["i64"] = TokenType::TYPE_I64;
+
     keywords_["ط_حجم"] = TokenType::TYPE_USIZE;    // (AR) حجم عنوان بلا إشارة
-    keywords_["usize"] = TokenType::TYPE_USIZE;
+   
     keywords_["ص_حجم"] = TokenType::TYPE_ISIZE;    // (AR) حجم عنوان بإشارة
-    keywords_["isize"] = TokenType::TYPE_ISIZE;
+   
     
     DEBUG_PRINT("تمت إضافة 6 كلمات: أنواع بيانات إضافية");
     
@@ -439,34 +432,34 @@ void KeywordTable::initialize() {
     //      بالبايتات، على عكس 'رقم' الذي يعتمد على بنية المعالج
     
     keywords_["ط8"] = TokenType::TYPE_U8;          // (AR) عدد صحيح 8 بت بلا إشارة (0-255)
-    keywords_["u8"] = TokenType::TYPE_U8;
+   
     keywords_["بايت"] = TokenType::TYPE_U8;         // (AR) اسم بديل — بايت واحد
-    keywords_["byte"] = TokenType::TYPE_U8;
+  
     keywords_["ط16"] = TokenType::TYPE_U16;         // (AR) عدد صحيح 16 بت بلا إشارة (0-65535)
-    keywords_["u16"] = TokenType::TYPE_U16;
+   
     keywords_["كلمة"] = TokenType::TYPE_U16;        // (AR) اسم بديل — كلمة (word)
-    keywords_["word"] = TokenType::TYPE_U16;
+ 
     keywords_["ط32"] = TokenType::TYPE_U32;         // (AR) عدد صحيح 32 بت بلا إشارة
-    keywords_["u32"] = TokenType::TYPE_U32;
+
     keywords_["ط64"] = TokenType::TYPE_U64;         // (AR) عدد صحيح 64 بت بلا إشارة
-    keywords_["u64"] = TokenType::TYPE_U64;
+
     keywords_["ص8"] = TokenType::TYPE_I8;           // (AR) عدد صحيح 8 بت بإشارة (-128 إلى 127)
-    keywords_["i8"] = TokenType::TYPE_I8;
+
     keywords_["ص16"] = TokenType::TYPE_I16;          // (AR) عدد صحيح 16 بت بإشارة
-    keywords_["i16"] = TokenType::TYPE_I16;
+
     keywords_["ص32"] = TokenType::TYPE_I32;          // (AR) عدد صحيح 32 بت بإشارة
-    keywords_["i32"] = TokenType::TYPE_I32;
+  
     keywords_["مؤشر"] = TokenType::TYPE_PTR;        // (AR) مؤشر خام — عنوان ذاكرة
-    keywords_["ptr"] = TokenType::TYPE_PTR;
+
     
     DEBUG_PRINT("تمت إضافة 18 كلمة: أنواع بيانات منخفضة المستوى");
     
     // ========== القيم الحرفية ==========
     // Literal Values (Arabic + English)
     keywords_["صحيح"] = TokenType::LITERAL_TRUE;
-    keywords_["true"] = TokenType::LITERAL_TRUE;
+
     keywords_["خطأ"] = TokenType::LITERAL_FALSE;
-    keywords_["false"] = TokenType::LITERAL_FALSE;
+
     keywords_["لاشيء"] = TokenType::LITERAL_NULL;
     
     DEBUG_PRINT("تمت إضافة 5 كلمات: القيم الحرفية (عربي + إنجليزي)");

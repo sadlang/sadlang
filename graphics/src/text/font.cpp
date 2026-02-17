@@ -6,6 +6,7 @@
 // ==============================================================================
 
 #include "../../include/text/font.h"          // ملف الرأس / Header file
+#include "../../include/text/arabic_text.h"   // دعم العربية / Arabic support
 
 // تضمين stb_truetype - مكتبة تحميل الخطوط
 // Include stb_truetype - font loading library
@@ -317,8 +318,8 @@ bool Font::GenerateAtlas(u32 firstChar, u32 numChars) {
         atlasData.data(),                    // بيانات atlas / Atlas data
         atlasWidth, atlasHeight,             // الأبعاد / Dimensions
         TextureFormat::R8,                   // صيغة قناة واحدة / Single channel format
-        TextureFilter::Linear,               // فلتر خطي / Linear filter
-        TextureWrap::ClampToEdge             // تثبيت الحواف / Clamp edges
+        TextureFilter::LINEAR,               // فلتر خطي / Linear filter
+        TextureWrap::CLAMP_TO_EDGE             // تثبيت الحواف / Clamp edges
     );
     
     if (!m_atlas || !m_atlas->IsValid()) {   // التحقق من النجاح / Check success
@@ -459,6 +460,159 @@ void Font::Free() {
     m_ascent = 0.0f;                         // ascent صفر / Zero ascent
     m_descent = 0.0f;                        // descent صفر / Zero descent
     m_isValid = false;                       // غير صالح / Invalid
+}
+
+// ==============================================================================
+// توليد Atlas موسع / Extended Atlas Generation  
+// ==============================================================================
+
+/// توليد atlas موسع مع نطاقات Unicode متعددة
+/// Generate extended atlas with multiple Unicode ranges
+bool Font::GenerateExtendedAtlas(const std::vector<ArabicText::UnicodeRange>& ranges) {
+    if (!m_stbFontInfo) return false;
+    
+    float scale = stbtt_ScaleForPixelHeight(
+        static_cast<stbtt_fontinfo*>(m_stbFontInfo), m_fontSize);
+    
+    // حساب حجم أكبر للـ atlas (1024x1024 للحروف العربية)
+    // Larger atlas for Arabic character set
+    int atlasWidth = 1024;
+    int atlasHeight = 1024;
+    
+    std::vector<u8> atlasData(atlasWidth * atlasHeight, 0);
+    
+    int currentX = 1;
+    int currentY = 1;
+    int maxRowHeight = 0;
+    
+    // المرور على كل نطاق / Iterate through each range
+    for (const auto& range : ranges) {
+        for (u32 codepoint = range.first; codepoint <= range.last; ++codepoint) {
+            int glyphIndex = stbtt_FindGlyphIndex(
+                static_cast<stbtt_fontinfo*>(m_stbFontInfo), codepoint);
+            
+            if (glyphIndex == 0 && codepoint != ' ') continue;
+            
+            int advanceWidth, leftSideBearing;
+            stbtt_GetGlyphHMetrics(
+                static_cast<stbtt_fontinfo*>(m_stbFontInfo),
+                glyphIndex, &advanceWidth, &leftSideBearing);
+            
+            int x0, y0, x1, y1;
+            stbtt_GetGlyphBitmapBox(
+                static_cast<stbtt_fontinfo*>(m_stbFontInfo),
+                glyphIndex, scale, scale, &x0, &y0, &x1, &y1);
+            
+            int glyphWidth = x1 - x0;
+            int glyphHeight = y1 - y0;
+            
+            if (currentX + glyphWidth + 1 > atlasWidth) {
+                currentX = 1;
+                currentY += maxRowHeight + 1;
+                maxRowHeight = 0;
+            }
+            
+            if (currentY + glyphHeight + 1 > atlasHeight) {
+                // النص العربي يحتاج atlas أكبر / Need bigger atlas
+                // إعادة المحاولة مع atlas أكبر / Retry with larger atlas
+                if (atlasWidth < 4096) {
+                    atlasWidth *= 2;
+                    atlasHeight *= 2;
+                    atlasData.assign(atlasWidth * atlasHeight, 0);
+                    currentX = 1;
+                    currentY = 1;
+                    maxRowHeight = 0;
+                    m_glyphs.clear();
+                    // إعادة توليد من البداية / Regenerate from start
+                    return GenerateExtendedAtlas(ranges);
+                }
+                std::cerr << "(AR) تحذير: atlas ممتلئ / (EN) Warning: Atlas full at " 
+                          << atlasWidth << "x" << atlasHeight << std::endl;
+                break;
+            }
+            
+            if (glyphWidth > 0 && glyphHeight > 0) {
+                stbtt_MakeGlyphBitmap(
+                    static_cast<stbtt_fontinfo*>(m_stbFontInfo),
+                    atlasData.data() + currentY * atlasWidth + currentX,
+                    glyphWidth, glyphHeight, atlasWidth,
+                    scale, scale, glyphIndex);
+            }
+            
+            GlyphInfo glyph;
+            glyph.codepoint = codepoint;
+            glyph.advanceX = advanceWidth * scale;
+            glyph.bearingX = leftSideBearing * scale;
+            glyph.bearingY = -y0;
+            glyph.width = static_cast<float>(glyphWidth);
+            glyph.height = static_cast<float>(glyphHeight);
+            glyph.u0 = static_cast<float>(currentX) / atlasWidth;
+            glyph.v0 = static_cast<float>(currentY) / atlasHeight;
+            glyph.u1 = static_cast<float>(currentX + glyphWidth) / atlasWidth;
+            glyph.v1 = static_cast<float>(currentY + glyphHeight) / atlasHeight;
+            
+            m_glyphs[codepoint] = glyph;
+            
+            currentX += glyphWidth + 1;
+            maxRowHeight = std::max(maxRowHeight, glyphHeight);
+        }
+    }
+    
+    m_atlas = Texture::CreateFromMemory(
+        atlasData.data(), atlasWidth, atlasHeight,
+        TextureFormat::R8, TextureFilter::LINEAR, TextureWrap::CLAMP_TO_EDGE);
+    
+    if (!m_atlas || !m_atlas->IsValid()) {
+        std::cerr << "(AR) فشل إنشاء atlas موسع / (EN) Failed to create extended atlas" << std::endl;
+        return false;
+    }
+    
+    return true;
+}
+
+/// توليد atlas عربي / Generate Arabic atlas
+bool Font::GenerateArabicAtlas() {
+    return GenerateExtendedAtlas(ArabicText::GetFullRanges());
+}
+
+// ==============================================================================
+// قياس النصوص مع UTF-8 / Text Measurement with UTF-8
+// ==============================================================================
+
+float Font::MeasureTextUTF8(const std::string& text) const {
+    if (!m_isValid) return 0.0f;
+    
+    auto codepoints = ArabicText::DecodeUTF8(text);
+    
+    float width = 0.0f;
+    u32 prevCodepoint = 0;
+    
+    for (u32 cp : codepoints) {
+        if (ArabicText::IsDiacritic(cp)) continue; // التشكيل لا يأخذ عرض / Diacritics don't advance
+        
+        const GlyphInfo* glyph = GetGlyph(cp);
+        if (glyph) {
+            width += glyph->advanceX;
+            if (prevCodepoint != 0) {
+                width += GetKerning(prevCodepoint, cp);
+            }
+        }
+        prevCodepoint = cp;
+    }
+    
+    return width;
+}
+
+void Font::MeasureTextUTF8(const std::string& text, float& width, float& height) const {
+    width = MeasureTextUTF8(text);
+    height = m_lineHeight;
+    
+    auto codepoints = ArabicText::DecodeUTF8(text);
+    size_t lineCount = 1;
+    for (u32 cp : codepoints) {
+        if (cp == '\n') lineCount++;
+    }
+    height = lineCount * m_lineHeight;
 }
 
 // ==============================================================================

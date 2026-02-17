@@ -504,6 +504,7 @@ public:
     llvm::Value* resolveValue(llvm::Value* val, SIRType sirType);
     
     llvm::Value* emitStringToI64(std::shared_ptr<SIRInstruction> inst);      // لرقم / String to I64
+    llvm::Value* emitStringToF64(std::shared_ptr<SIRInstruction> inst);      // لعشري / String to F64
     llvm::Value* emitBuiltinSqrt(std::shared_ptr<SIRInstruction> inst);      // جذر / Sqrt
     llvm::Value* emitBuiltinPow(std::shared_ptr<SIRInstruction> inst);       // أس / Power
     llvm::Value* emitBuiltinAbs(std::shared_ptr<SIRInstruction> inst);       // مطلق / Abs
@@ -690,6 +691,62 @@ public:
     llvm::Value* emitTrunc(std::shared_ptr<SIRInstruction> inst);            // اقتطاع / Truncate
     llvm::Value* emitZExt(std::shared_ptr<SIRInstruction> inst);             // توسيع بصفر / Zero extend
     llvm::Value* emitSExt(std::shared_ptr<SIRInstruction> inst);             // توسيع بإشارة / Sign extend
+    
+    // SIR Type Conversion opcodes / أكواد تحويل الأنواع
+    llvm::Value* emitI64ToF64(std::shared_ptr<SIRInstruction> inst);         // صحيح → عشري
+    llvm::Value* emitF64ToI64(std::shared_ptr<SIRInstruction> inst);         // عشري → صحيح
+    llvm::Value* emitI64ToBool(std::shared_ptr<SIRInstruction> inst);        // صحيح → منطقي
+    llvm::Value* emitBoolToI64(std::shared_ptr<SIRInstruction> inst);        // منطقي → صحيح
+    llvm::Value* emitI64ToString(std::shared_ptr<SIRInstruction> inst);      // صحيح → نص
+    llvm::Value* emitF64ToString(std::shared_ptr<SIRInstruction> inst);      // عشري → نص
+    llvm::Value* emitBoolToString(std::shared_ptr<SIRInstruction> inst);     // منطقي → نص
+    
+    // ------------------------------------------------------------------------
+    // OOP Instructions / تعليمات البرمجة الكائنية
+    // ------------------------------------------------------------------------
+    llvm::Value* emitObjectNew(std::shared_ptr<SIRInstruction> inst);        // إنشاء كائن
+    llvm::Value* emitObjectGet(std::shared_ptr<SIRInstruction> inst);        // قراءة خاصية
+    llvm::Value* emitObjectSet(std::shared_ptr<SIRInstruction> inst);        // تعيين خاصية
+    llvm::Value* emitObjectCall(std::shared_ptr<SIRInstruction> inst);       // استدعاء طريقة
+    llvm::Value* emitInstanceOf(std::shared_ptr<SIRInstruction> inst);       // تحقق النوع
+    llvm::Value* emitObjectCast(std::shared_ptr<SIRInstruction> inst);       // تحويل كائن
+    llvm::Value* emitClassDef(std::shared_ptr<SIRInstruction> inst);         // تعريف صنف
+    llvm::Value* emitMethodDef(std::shared_ptr<SIRInstruction> inst);        // تعريف طريقة
+    llvm::Value* emitFieldDef(std::shared_ptr<SIRInstruction> inst);         // تعريف حقل
+    llvm::Value* emitConstructorCall(std::shared_ptr<SIRInstruction> inst);  // استدعاء منشئ
+    
+    // ------------------------------------------------------------------------
+    // Missing Bitwise / عمليات ثنائية ناقصة
+    // ------------------------------------------------------------------------
+    llvm::Value* emitSar(std::shared_ptr<SIRInstruction> inst);              // إزاحة حسابية يمين
+    llvm::Value* emitRol(std::shared_ptr<SIRInstruction> inst);              // دوران يسار
+    
+    // ------------------------------------------------------------------------
+    // Missing Memory / عمليات ذاكرة ناقصة
+    // ------------------------------------------------------------------------
+    llvm::Value* emitCallIndirect(std::shared_ptr<SIRInstruction> inst);     // استدعاء غير مباشر
+    llvm::Value* emitAllocHeap(std::shared_ptr<SIRInstruction> inst);        // تخصيص كومة
+    llvm::Value* emitFreeMem(std::shared_ptr<SIRInstruction> inst);          // تحرير ذاكرة
+    llvm::Value* emitAddr(std::shared_ptr<SIRInstruction> inst);             // عنوان متغير
+    llvm::Value* emitPtrAdd(std::shared_ptr<SIRInstruction> inst);           // حساب مؤشرات
+    llvm::Value* emitPtrCast(std::shared_ptr<SIRInstruction> inst);          // تحويل مؤشر
+    
+    // ------------------------------------------------------------------------
+    // Array core / عمليات المصفوفات الأساسية
+    // ------------------------------------------------------------------------
+    llvm::Value* emitArrayNew(std::shared_ptr<SIRInstruction> inst);         // إنشاء مصفوفة
+    llvm::Value* emitArrayGet(std::shared_ptr<SIRInstruction> inst);         // قراءة عنصر
+    llvm::Value* emitArraySet(std::shared_ptr<SIRInstruction> inst);         // تعيين عنصر
+    llvm::Value* emitArrayLen(std::shared_ptr<SIRInstruction> inst);         // طول مصفوفة
+    
+    // String core
+    llvm::Value* emitStringNew(std::shared_ptr<SIRInstruction> inst);        // إنشاء نص
+    
+    // Builtin Extra
+    llvm::Value* emitBuiltinMin(std::shared_ptr<SIRInstruction> inst);       // الأصغر
+    llvm::Value* emitBuiltinMax(std::shared_ptr<SIRInstruction> inst);       // الأكبر
+    llvm::Value* emitBuiltinAssert(std::shared_ptr<SIRInstruction> inst);    // تأكيد
+    llvm::Value* emitBuiltinDebug(std::shared_ptr<SIRInstruction> inst);     // تنقيح
     
     // ------------------------------------------------------------------------
     // Aggregate Instructions / تعليمات التجميع

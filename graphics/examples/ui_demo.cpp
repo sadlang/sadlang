@@ -2,387 +2,262 @@
 // ui_demo.cpp - مثال تطبيقي لنظام واجهة المستخدم
 // UI system demonstration example
 // ============================================================================
-// الوصف: مثال شامل يوضح استخدام عناصر واجهة المستخدم
-// Description: Comprehensive example demonstrating UI widget usage
+
+#include "../include/window/window.h"
+#include "../include/rendering/context.h"
+#include "../include/rendering/renderer2d.h"
+#include "../include/input/input_manager.h"
+#include "../include/resources/resource_manager.h"
+#include "../include/ui/widget.h"
+#include "../include/ui/label.h"
+#include "../include/ui/button.h"
+#include <SDL.h>
+#ifdef CreateWindow
+#undef CreateWindow
+#endif
+#ifdef DrawText
+#undef DrawText
+#endif
+
+#include <iostream>
+#include <memory>
+#include <vector>
+#include <string>
+
+using namespace sad::graphics;    // Window, Color, types, ResourceManager
+using namespace SadGraphics;      // RenderContext, Renderer2D, InputManager, KeyCode
+using namespace Graphics::UI;     // Widget, Label, Button, WidgetStyle, TextAlignment
+
 // ============================================================================
+constexpr int W = 1280, H = 720;
 
-#include "../include/window/window.h"              // نافذة التطبيق / Application window
-#include "../include/rendering/context.h"          // سياق الرسم / Rendering context
-#include "../include/rendering/renderer2d.h"       // محرك الرسم 2D / 2D renderer
-#include "../include/input/input_manager.h"        // إدارة الإدخال / Input management
-#include "../include/resources/resource_manager.h" // إدارة الموارد / Resource management
-#include "../include/ui/widget.h"                  // الفئة الأساسية للعناصر / Base widget class
-#include "../include/ui/label.h"                   // عنصر التسمية / Label widget
-#include "../include/ui/button.h"                  // عنصر الزر / Button widget
-
-#include <iostream>    // للطباعة / For printing
-#include <memory>      // للمؤشرات الذكية / For smart pointers
-#include <vector>      // للمصفوفات / For vectors
-#include <string>      // للنصوص / For strings
-
-// استخدام المساحات الاسمية / Using namespaces
-using namespace Graphics;
-using namespace Graphics::UI;
-
-// ============================================================================
-// حالة التطبيق / Application State
-// ============================================================================
 struct AppState {
-    bool running;           // هل التطبيق يعمل؟ / Is application running?
-    bool showHelp;          // هل نعرض المساعدة؟ / Show help?
-    int clickCount;         // عدد النقرات / Click count
-    std::string statusText; // نص الحالة / Status text
-
-    // البناء الافتراضي / Default constructor
-    AppState() 
-        : running(true)
-        , showHelp(true)
-        , clickCount(0)
-        , statusText("Welcome to UI Demo!")
-    {}
+    bool running    = true;
+    bool showHelp   = true;
+    int  clickCount = 0;
+    std::string statusText = "Welcome to UI Demo!";
 };
 
 // ============================================================================
 // إنشاء واجهة المستخدم / Create UI
 // ============================================================================
-void CreateUI(std::vector<std::shared_ptr<Widget>>& widgets, AppState& state) {
-    // الحصول على مدير الموارد / Get resource manager
+static void CreateUI(std::vector<std::shared_ptr<Widget>>& widgets, AppState& state) {
     auto& rm = ResourceManager::GetInstance();
-
-    // تحميل خط / Load font
     auto font = rm.LoadFont("arial.ttf", 20.0f);
 
-    // ============================================================================
-    // 1. عنوان رئيسي / Main title
-    // ============================================================================
-    auto title = std::make_shared<Label>("UI System Demo", font);  // إنشاء تسمية / Create label
-    title->SetPosition(320, 20);                                    // ضبط الموقع / Set position
-    title->SetSize(560, 50);                                        // ضبط الحجم / Set size
-    title->SetAlignment(TextAlignment::MiddleCenter);               // محاذاة للمركز / Center alignment
-    title->SetTextColor(Color::White);                              // لون أبيض / White color
-    
-    // نمط العنوان / Title style
-    WidgetStyle titleStyle;
-    titleStyle.backgroundColor = Color(50, 50, 150);  // خلفية زرقاء داكنة / Dark blue background
-    titleStyle.borderColor = Color::White;            // حدود بيضاء / White border
-    titleStyle.borderWidth = 3.0f;                    // عرض الحدود / Border width
-    titleStyle.padding = 10.0f;                       // مسافة داخلية / Padding
-    title->SetStyle(titleStyle);
-    
-    widgets.push_back(title);  // إضافة للقائمة / Add to list
+    // --- 0: عنوان رئيسي / Title ---
+    {
+        auto lbl = std::make_shared<Label>("UI System Demo", font);
+        lbl->SetPosition(360, 20);
+        lbl->SetSize(560, 50);
+        lbl->SetAlignment(TextAlignment::MiddleCenter);
+        lbl->SetTextColor(Color::White);
+        WidgetStyle s;
+        s.backgroundColor = Color(0.2f, 0.2f, 0.6f);
+        s.borderColor     = Color::White;
+        s.borderWidth     = 3.0f;
+        s.padding         = 10.0f;
+        lbl->SetStyle(s);
+        widgets.push_back(lbl);
+    }
 
-    // ============================================================================
-    // 2. زر النقر / Click button
-    // ============================================================================
-    auto clickButton = std::make_shared<Button>("Click Me!");  // إنشاء زر / Create button
-    clickButton->SetPosition(440, 100);                        // ضبط الموقع / Set position
-    clickButton->SetSize(200, 50);                             // ضبط الحجم / Set size
-    
-    // دالة عند النقر / Click callback
-    clickButton->SetOnClick([&state]() {
-        state.clickCount++;  // زيادة العداد / Increment counter
-        state.statusText = "Button clicked " + std::to_string(state.clickCount) + " times!";
-        std::cout << state.statusText << std::endl;  // طباعة / Print
-    });
+    // --- 1: زر نقر / Click button ---
+    {
+        auto btn = std::make_shared<Button>("Click Me!");
+        btn->SetPosition(440, 100);
+        btn->SetSize(200, 50);
+        btn->SetOnClick([&state]() {
+            state.clickCount++;
+            state.statusText = "Button clicked " + std::to_string(state.clickCount) + " times!";
+            std::cout << state.statusText << '\n';
+        });
+        widgets.push_back(btn);
+    }
 
-    widgets.push_back(clickButton);  // إضافة للقائمة / Add to list
+    // --- 2: عداد النقرات / Counter label ---
+    {
+        auto lbl = std::make_shared<Label>("Clicks: 0", font);
+        lbl->SetPosition(440, 170);
+        lbl->SetSize(200, 40);
+        lbl->SetAlignment(TextAlignment::MiddleCenter);
+        lbl->SetTextColor(Color::Black);
+        WidgetStyle s;
+        s.backgroundColor = Color(0.86f, 0.86f, 0.86f);
+        s.borderColor     = Color::Black;
+        s.borderWidth     = 2.0f;
+        lbl->SetStyle(s);
+        widgets.push_back(lbl);
+    }
 
-    // ============================================================================
-    // 3. تسمية عداد النقرات / Click counter label
-    // ============================================================================
-    auto counterLabel = std::make_shared<Label>("Clicks: 0");  // إنشاء تسمية / Create label
-    counterLabel->SetPosition(440, 170);                       // ضبط الموقع / Set position
-    counterLabel->SetSize(200, 40);                            // ضبط الحجم / Set size
-    counterLabel->SetAlignment(TextAlignment::MiddleCenter);   // محاذاة للمركز / Center alignment
-    counterLabel->SetTextColor(Color::Black);                  // لون أسود / Black color
-    
-    // نمط العداد / Counter style
-    WidgetStyle counterStyle;
-    counterStyle.backgroundColor = Color(220, 220, 220);  // خلفية رمادية فاتحة / Light gray background
-    counterStyle.borderColor = Color::Black;              // حدود سوداء / Black border
-    counterStyle.borderWidth = 2.0f;                      // عرض الحدود / Border width
-    counterLabel->SetStyle(counterStyle);
-    
-    widgets.push_back(counterLabel);  // إضافة للقائمة / Add to list
+    // --- 3: زر إعادة الضبط / Reset button ---
+    {
+        auto btn = std::make_shared<Button>("Reset Counter");
+        btn->SetPosition(440, 230);
+        btn->SetSize(200, 50);
+        btn->SetOnClick([&state]() {
+            state.clickCount = 0;
+            state.statusText = "Counter reset!";
+            std::cout << state.statusText << '\n';
+        });
+        widgets.push_back(btn);
+    }
 
-    // ============================================================================
-    // 4. زر إعادة الضبط / Reset button
-    // ============================================================================
-    auto resetButton = std::make_shared<Button>("Reset Counter");  // إنشاء زر / Create button
-    resetButton->SetPosition(440, 230);                            // ضبط الموقع / Set position
-    resetButton->SetSize(200, 50);                                 // ضبط الحجم / Set size
-    
-    // دالة عند النقر / Click callback
-    resetButton->SetOnClick([&state]() {
-        state.clickCount = 0;  // إعادة العداد / Reset counter
-        state.statusText = "Counter reset!";
-        std::cout << state.statusText << std::endl;  // طباعة / Print
-    });
+    // --- 4-7: أزرار ملونة / Coloured buttons ---
+    struct ColorBtn { const char* name; Color bg; Color fg; float x; };
+    ColorBtn colors[] = {
+        {"Red",    Color(0.78f, 0.2f, 0.2f),  Color::White, 100},
+        {"Green",  Color(0.2f, 0.78f, 0.2f),  Color::White, 280},
+        {"Blue",   Color(0.2f, 0.2f, 0.78f),  Color::White, 460},
+        {"Yellow", Color(0.86f, 0.86f, 0.2f), Color::Black, 640},
+    };
+    for (auto& c : colors) {
+        auto btn = std::make_shared<Button>(c.name);
+        btn->SetPosition(c.x, 350);
+        btn->SetSize(150, 50);
+        WidgetStyle s;
+        s.backgroundColor = c.bg;
+        s.foregroundColor  = c.fg;
+        btn->SetNormalStyle(s);
+        btn->SetOnClick([&state, n = std::string(c.name)]() {
+            state.statusText = n + " button clicked!";
+            std::cout << state.statusText << '\n';
+        });
+        widgets.push_back(btn);
+    }
 
-    widgets.push_back(resetButton);  // إضافة للقائمة / Add to list
+    // --- 8: شريط الحالة / Status bar ---
+    {
+        auto lbl = std::make_shared<Label>(state.statusText, font);
+        lbl->SetPosition(50, 520);
+        lbl->SetSize(1180, 40);
+        lbl->SetAlignment(TextAlignment::MiddleLeft);
+        lbl->SetTextColor(Color::White);
+        WidgetStyle s;
+        s.backgroundColor = Color(0.31f, 0.31f, 0.31f);
+        s.borderColor     = Color::Black;
+        s.borderWidth     = 2.0f;
+        s.padding         = 10.0f;
+        lbl->SetStyle(s);
+        widgets.push_back(lbl);
+    }
 
-    // ============================================================================
-    // 5. أزرار ملونة / Colored buttons
-    // ============================================================================
-    
-    // زر أحمر / Red button
-    auto redButton = std::make_shared<Button>("Red");  // إنشاء زر / Create button
-    redButton->SetPosition(100, 350);                  // ضبط الموقع / Set position
-    redButton->SetSize(150, 50);                       // ضبط الحجم / Set size
-    
-    // نمط أحمر / Red style
-    WidgetStyle redStyle = redButton->GetStyle();
-    redStyle.backgroundColor = Color(200, 50, 50);  // خلفية حمراء / Red background
-    redStyle.foregroundColor = Color::White;        // نص أبيض / White text
-    redButton->SetNormalStyle(redStyle);
-    
-    redButton->SetOnClick([&state]() {
-        state.statusText = "Red button clicked!";
-        std::cout << state.statusText << std::endl;
-    });
-    
-    widgets.push_back(redButton);
-
-    // زر أخضر / Green button
-    auto greenButton = std::make_shared<Button>("Green");  // إنشاء زر / Create button
-    greenButton->SetPosition(280, 350);                    // ضبط الموقع / Set position
-    greenButton->SetSize(150, 50);                         // ضبط الحجم / Set size
-    
-    // نمط أخضر / Green style
-    WidgetStyle greenStyle = greenButton->GetStyle();
-    greenStyle.backgroundColor = Color(50, 200, 50);  // خلفية خضراء / Green background
-    greenStyle.foregroundColor = Color::White;        // نص أبيض / White text
-    greenButton->SetNormalStyle(greenStyle);
-    
-    greenButton->SetOnClick([&state]() {
-        state.statusText = "Green button clicked!";
-        std::cout << state.statusText << std::endl;
-    });
-    
-    widgets.push_back(greenButton);
-
-    // زر أزرق / Blue button
-    auto blueButton = std::make_shared<Button>("Blue");  // إنشاء زر / Create button
-    blueButton->SetPosition(460, 350);                   // ضبط الموقع / Set position
-    blueButton->SetSize(150, 50);                        // ضبط الحجم / Set size
-    
-    // نمط أزرق / Blue style
-    WidgetStyle blueStyle = blueButton->GetStyle();
-    blueStyle.backgroundColor = Color(50, 50, 200);  // خلفية زرقاء / Blue background
-    blueStyle.foregroundColor = Color::White;        // نص أبيض / White text
-    blueButton->SetNormalStyle(blueStyle);
-    
-    blueButton->SetOnClick([&state]() {
-        state.statusText = "Blue button clicked!";
-        std::cout << state.statusText << std::endl;
-    });
-    
-    widgets.push_back(blueButton);
-
-    // زر أصفر / Yellow button
-    auto yellowButton = std::make_shared<Button>("Yellow");  // إنشاء زر / Create button
-    yellowButton->SetPosition(640, 350);                     // ضبط الموقع / Set position
-    yellowButton->SetSize(150, 50);                          // ضبط الحجم / Set size
-    
-    // نمط أصفر / Yellow style
-    WidgetStyle yellowStyle = yellowButton->GetStyle();
-    yellowStyle.backgroundColor = Color(220, 220, 50);  // خلفية صفراء / Yellow background
-    yellowStyle.foregroundColor = Color::Black;         // نص أسود / Black text
-    yellowButton->SetNormalStyle(yellowStyle);
-    
-    yellowButton->SetOnClick([&state]() {
-        state.statusText = "Yellow button clicked!";
-        std::cout << state.statusText << std::endl;
-    });
-    
-    widgets.push_back(yellowButton);
-
-    // ============================================================================
-    // 6. شريط الحالة / Status bar
-    // ============================================================================
-    auto statusLabel = std::make_shared<Label>(state.statusText);  // إنشاء تسمية / Create label
-    statusLabel->SetPosition(50, 520);                             // ضبط الموقع / Set position
-    statusLabel->SetSize(1180, 40);                                // ضبط الحجم / Set size
-    statusLabel->SetAlignment(TextAlignment::MiddleLeft);          // محاذاة لليسار / Left alignment
-    statusLabel->SetTextColor(Color::White);                       // لون أبيض / White color
-    
-    // نمط شريط الحالة / Status bar style
-    WidgetStyle statusStyle;
-    statusStyle.backgroundColor = Color(80, 80, 80);  // خلفية رمادية داكنة / Dark gray background
-    statusStyle.borderColor = Color::Black;           // حدود سوداء / Black border
-    statusStyle.borderWidth = 2.0f;                   // عرض الحدود / Border width
-    statusStyle.padding = 10.0f;                      // مسافة داخلية / Padding
-    statusLabel->SetStyle(statusStyle);
-    
-    widgets.push_back(statusLabel);  // إضافة للقائمة / Add to list
-
-    // ============================================================================
-    // 7. معلومات المساعدة / Help info
-    // ============================================================================
-    auto helpLabel = std::make_shared<Label>("Press H to toggle help | ESC to exit");  // إنشاء تسمية / Create label
-    helpLabel->SetPosition(50, 580);                                                   // ضبط الموقع / Set position
-    helpLabel->SetSize(1180, 30);                                                      // ضبط الحجم / Set size
-    helpLabel->SetAlignment(TextAlignment::MiddleCenter);                              // محاذاة للمركز / Center alignment
-    helpLabel->SetTextColor(Color(180, 180, 180));                                     // لون رمادي فاتح / Light gray
-    
-    widgets.push_back(helpLabel);  // إضافة للقائمة / Add to list
+    // --- 9: سطر المساعدة / Help line ---
+    {
+        auto lbl = std::make_shared<Label>("Press H to toggle help | ESC to exit", font);
+        lbl->SetPosition(50, 580);
+        lbl->SetSize(1180, 30);
+        lbl->SetAlignment(TextAlignment::MiddleCenter);
+        lbl->SetTextColor(Color(0.7f, 0.7f, 0.7f));
+        widgets.push_back(lbl);
+    }
 }
 
 // ============================================================================
-// تحديث واجهة المستخدم / Update UI
+// تحديث الواجهة / Update UI
 // ============================================================================
-void UpdateUI(std::vector<std::shared_ptr<Widget>>& widgets, AppState& state, float deltaTime) {
-    // تحديث جميع العناصر / Update all widgets
-    for (auto& widget : widgets) {
-        if (widget) {
-            widget->Update(deltaTime);  // تحديث العنصر / Update widget
-        }
-    }
+static void UpdateUI(std::vector<std::shared_ptr<Widget>>& widgets,
+                     AppState& state, float dt) {
+    for (auto& w : widgets) if (w) w->Update(dt);
 
-    // تحديث تسمية العداد / Update counter label
-    if (widgets.size() >= 3) {
-        auto counterLabel = std::dynamic_pointer_cast<Label>(widgets[2]);  // الحصول على التسمية / Get label
-        if (counterLabel) {
-            counterLabel->SetText("Clicks: " + std::to_string(state.clickCount));  // تحديث النص / Update text
-        }
-    }
+    // تحديث العداد / Update counter label (index 2)
+    if (widgets.size() > 2)
+        if (auto lbl = std::dynamic_pointer_cast<Label>(widgets[2]))
+            lbl->SetText("Clicks: " + std::to_string(state.clickCount));
 
-    // تحديث شريط الحالة / Update status bar
-    if (widgets.size() >= 9) {
-        auto statusLabel = std::dynamic_pointer_cast<Label>(widgets[8]);  // الحصول على التسمية / Get label
-        if (statusLabel) {
-            statusLabel->SetText(state.statusText);  // تحديث النص / Update text
-        }
-    }
+    // تحديث شريط الحالة / Update status bar (index 8)
+    if (widgets.size() > 8)
+        if (auto lbl = std::dynamic_pointer_cast<Label>(widgets[8]))
+            lbl->SetText(state.statusText);
 }
 
 // ============================================================================
 // معالجة الإدخال / Handle Input
 // ============================================================================
-void HandleInput(InputManager& input, std::vector<std::shared_ptr<Widget>>& widgets, AppState& state) {
-    // الخروج / Exit
-    if (input.IsKeyPressed(KeyCode::Escape)) {
-        state.running = false;  // إيقاف التطبيق / Stop application
-    }
-
-    // تبديل المساعدة / Toggle help
+static void HandleInput(InputManager& input,
+                        std::vector<std::shared_ptr<Widget>>& widgets,
+                        AppState& state) {
+    if (input.IsKeyPressed(KeyCode::Escape)) state.running = false;
     if (input.IsKeyPressed(KeyCode::H)) {
-        state.showHelp = !state.showHelp;  // تبديل / Toggle
+        state.showHelp = !state.showHelp;
         state.statusText = state.showHelp ? "Help shown" : "Help hidden";
     }
 
-    // الحصول على موقع الفأرة / Get mouse position
-    int mouseX, mouseY;
-    input.GetMousePosition(mouseX, mouseY);
+    Point2D mp = input.GetMousePosition();
+    int mx = (int)mp.x, my = (int)mp.y;
 
-    // معالجة حركة الفأرة / Handle mouse move
-    for (auto& widget : widgets) {
-        if (widget) {
-            widget->OnMouseMove(mouseX, mouseY);  // إرسال حدث الحركة / Send move event
-        }
-    }
+    for (auto& w : widgets) if (w) w->OnMouseMove(mx, my);
 
-    // معالجة أزرار الفأرة / Handle mouse buttons
-    if (input.IsMouseButtonPressed(MouseButton::Left)) {
-        // ضغط زر الفأرة / Mouse button pressed
-        for (auto& widget : widgets) {
-            if (widget) {
-                widget->OnMouseDown(mouseX, mouseY, 0);  // إرسال حدث الضغط / Send press event
-            }
-        }
-    }
+    if (input.IsMouseButtonPressed(MouseButton::Left))
+        for (auto& w : widgets) if (w) w->OnMouseDown(mx, my, 0);
 
-    if (input.IsMouseButtonReleased(MouseButton::Left)) {
-        // رفع زر الفأرة / Mouse button released
-        for (auto& widget : widgets) {
-            if (widget) {
-                widget->OnMouseUp(mouseX, mouseY, 0);  // إرسال حدث الرفع / Send release event
-            }
-        }
-    }
+    if (input.IsMouseButtonReleased(MouseButton::Left))
+        for (auto& w : widgets) if (w) w->OnMouseUp(mx, my, 0);
 }
 
 // ============================================================================
 // الدالة الرئيسية / Main Function
 // ============================================================================
-int main() {
-    std::cout << "=== UI Demo Starting ===" << std::endl;  // طباعة بداية / Print start
+int main(int /*argc*/, char* /*argv*/[]) {
+    std::cout << "=== UI Demo ===\n";
+
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "SDL_Init: " << SDL_GetError() << '\n';
+        return -1;
+    }
 
     try {
-        // ============================================================================
-        // إنشاء النافذة / Create Window
-        // ============================================================================
-        Window window("UI System Demo", 1280, 720);  // نافذة 1280×720 / 1280×720 window
-        if (!window.IsOpen()) {
-            std::cerr << "Failed to create window!" << std::endl;  // فشل إنشاء النافذة / Window creation failed
-            return 1;
-        }
+        Window window("UI System Demo - واجهة المستخدم", W, H, WindowFlags::Resizable);
+        if (!window.IsOpen()) { SDL_Quit(); return -1; }
 
-        // ============================================================================
-        // إنشاء السياق والمحرك / Create Context and Renderer
-        // ============================================================================
-        RenderContext context(&window);                      // سياق الرسم / Rendering context
-        Renderer2D renderer(&context);                       // محرك الرسم 2D / 2D renderer
-        InputManager& input = InputManager::GetInstance();   // مدير الإدخال / Input manager
+        RenderContext context(window.GetNativeWindow());
+        if (!context.IsValid()) { SDL_Quit(); return -1; }
 
-        // ============================================================================
-        // تهيئة إدارة الموارد / Initialize Resource Manager
-        // ============================================================================
+        Renderer2D renderer(&context);
+        InputManager input;
+
+        // تهيئة الموارد / Init resources
         auto& rm = ResourceManager::GetInstance();
-        rm.AddSearchPath("assets/fonts/");           // إضافة مسار الخطوط / Add fonts path
-        rm.AddSearchPath("C:/Windows/Fonts/");      // إضافة مسار خطوط Windows / Add Windows fonts path
+        rm.AddSearchPath("assets/fonts/");
+        rm.AddSearchPath("C:/Windows/Fonts/");
 
-        // ============================================================================
-        // إنشاء حالة التطبيق وواجهة المستخدم / Create App State and UI
-        // ============================================================================
-        AppState state;                               // حالة التطبيق / App state
-        std::vector<std::shared_ptr<Widget>> widgets; // قائمة العناصر / Widget list
-        CreateUI(widgets, state);                     // إنشاء الواجهة / Create UI
+        AppState state;
+        std::vector<std::shared_ptr<Widget>> widgets;
+        CreateUI(widgets, state);
+        std::cout << "Widgets: " << widgets.size() << '\n';
 
-        std::cout << "UI created with " << widgets.size() << " widgets" << std::endl;  // طباعة / Print
+        Uint32 last = SDL_GetTicks();
 
-        // ============================================================================
-        // حلقة التطبيق الرئيسية / Main Application Loop
-        // ============================================================================
-        float lastTime = 0.0f;  // الوقت السابق / Last time
-        
-        while (state.running && window.IsOpen()) {
-            // حساب الوقت / Calculate time
-            float currentTime = SDL_GetTicks() / 1000.0f;  // الوقت الحالي بالثواني / Current time in seconds
-            float deltaTime = currentTime - lastTime;       // الفرق الزمني / Time delta
-            lastTime = currentTime;                         // تحديث الوقت / Update time
+        while (state.running) {
+            Uint32 now = SDL_GetTicks();
+            float dt = (now - last) / 1000.0f;
+            last = now;
 
-            // معالجة الأحداث / Process events
-            window.PollEvents();
+            SDL_Event ev;
+            while (SDL_PollEvent(&ev)) {
+                if (ev.type == SDL_QUIT) state.running = false;
+                input.ProcessEvent(ev);
+            }
             input.Update();
 
-            // معالجة الإدخال / Handle input
             HandleInput(input, widgets, state);
+            UpdateUI(widgets, state, dt);
 
-            // تحديث الواجهة / Update UI
-            UpdateUI(widgets, state, deltaTime);
+            renderer.BeginFrame();
+            renderer.Clear(Color(0.12f, 0.12f, 0.16f));
 
-            // الرسم / Rendering
-            renderer.BeginFrame();                   // بداية الإطار / Begin frame
-            renderer.Clear(Color(30, 30, 40));       // مسح بلون رمادي داكن / Clear with dark gray
+            for (auto& w : widgets) if (w) w->Draw(&renderer);
 
-            // رسم جميع العناصر / Draw all widgets
-            for (auto& widget : widgets) {
-                if (widget) {
-                    widget->Draw(&renderer);  // رسم العنصر / Draw widget
-                }
-            }
-
-            renderer.EndFrame();                     // نهاية الإطار / End frame
-            context.SwapBuffers();                   // عرض الإطار / Display frame
+            renderer.EndFrame();
+            context.SwapBuffers();
         }
 
-        std::cout << "=== UI Demo Finished ===" << std::endl;  // طباعة النهاية / Print end
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;  // طباعة الخطأ / Print error
-        return 1;
+        std::cout << "=== UI Demo Finished ===\n";
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << '\n';
+        SDL_Quit();
+        return -1;
     }
 
-    return 0;  // نجاح / Success
+    SDL_Quit();
+    return 0;
 }

@@ -14,13 +14,16 @@
 #include <vector>
 #include <memory>
 
-// تعريفات أمامية لـ LLVM
-// LLVM forward declarations
+// (AR) تصريحات أمامية لأنواع LLVM الأساسية
+//      نستخدم IRBuilderBase بدلاً من IRBuilder<> لتجنب تضمين هيدر IRBuilder الثقيل
+//      والذي يتسبب في نفاد ذاكرة المترجم (C1060)
+// (EN) Forward declarations for LLVM types
+//      We use IRBuilderBase instead of IRBuilder<> to avoid including
+//      the heavy IRBuilder.h header that causes compiler heap exhaustion
 namespace llvm {
     class Module;
     class LLVMContext;
-    template<typename T> class IRBuilder;
-    class NoFolder;
+    class IRBuilderBase;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -161,7 +164,7 @@ void generateAsyncStateMachineCode(
     const middle::AsyncStateMachine& machine,
     llvm::Module& module,
     llvm::LLVMContext& context,
-    llvm::IRBuilder<>& builder
+    llvm::IRBuilderBase& builder
 );
 
 } // namespace sad::backend

@@ -158,10 +158,11 @@ void ParserCore::advance() {
     // Fetch new nextToken_ for lookahead
     nextToken_ = lexer_.nextToken();
     
-    // Skip whitespace and comments in both current and nextToken_
-    // (AR) تجاوز المسافات والتعليقات في كل من current و nextToken_
+    // Skip whitespace, comments, and doc-comments in both current and nextToken_
+    // (AR) تجاوز المسافات والتعليقات والتعليقات التوثيقية في كل من current و nextToken_
     while (current_.getType() == TT::WHITESPACE || 
            current_.getType() == TT::COMMENT ||
+           current_.getType() == TT::DOC_COMMENT ||
            current_.getType() == TT::NEWLINE) {
         current_ = nextToken_;
         nextToken_ = lexer_.nextToken();

@@ -825,6 +825,7 @@ public:
     struct ParameterInfo {
         std::string originalName;   // الاسم الأصلي (C)
         std::string arabicName;     // الاسم العربي
+        std::string name;           // (AR) اسم عام يُستخدم في مولّد الأغلفة
         CTypePtr type;              // النوع
         OwnershipAnnotation ownership = OwnershipAnnotation::NONE;
         std::string freeFunction;   // دالة التحرير (إذا كانت مملوكة)
@@ -843,6 +844,12 @@ public:
      */
     void setOriginalName(const std::string& name) { originalName_ = name; }
     std::string getOriginalName() const { return originalName_; }
+    
+    /**
+     * @brief (AR) اسم الدالة العام — يُرجع الاسم الأصلي (C) كاختصار
+     *        (EN) Generic function name — returns original C name as alias
+     */
+    std::string getName() const { return originalName_; }
     
     /**
      * @brief (AR) تعيين الاسم العربي للدالة

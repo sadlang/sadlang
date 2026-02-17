@@ -9,6 +9,11 @@
 #include "error_manager.h"
 #include "value.h"
 
+// الآلة الافتراضية / Bytecode VM
+#include "sad_vm_compiler.h"
+#include "sad_vm_executor.h"
+#include "sad_vm_debug.h"
+
 // CLI Commands for mobile etc.
 #include "cli_commands.hpp"
 
@@ -36,6 +41,9 @@ void print_help(const char* program_name) {
               << "  --version, -v عرض الإصدار / Show version\n"
               << "  --ownership   تفعيل نظام الملكية / Enable ownership system\n"
               << "  --ملكية       تفعيل نظام الملكية (عربي) / Enable ownership (Arabic)\n"
+              << "  --vm, --آلة    تنفيذ عبر الآلة الافتراضية / Execute via Bytecode VM\n"
+              << "  --vm-trace    تتبع تعليمات الآلة / Trace VM instructions\n"
+              << "  --vm-disasm   فك البايت كود / Disassemble bytecode\n"
               << std::endl;
 }
 
@@ -57,6 +65,10 @@ int main(int argc, char* argv[]) {
     // إعداد دعم UTF-8 للعربية / Setup UTF-8 support for Arabic
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+    // (AR) ضبط الـ locale لدعم UTF-8 في std::cout
+    // (EN) Set locale for UTF-8 support in std::cout
+    setlocale(LC_ALL, ".UTF-8");
     // (AR) الحصول على معاملات UTF-8 لدعم أسماء الملفات العربية
     // (EN) Get UTF-8 args for Arabic filename support
     auto utf8_args = sad::utf8::get_utf8_args();
@@ -121,6 +133,9 @@ int main(int argc, char* argv[]) {
         bool strictSecurity = false;
         bool enableDebug = false;
         bool showOptStats = false;
+        bool useVM = false;
+        bool vmTrace = false;
+        bool vmDisasm = false;
         std::string filename;
         for (int i = 1; i < argc; ++i) {
             std::string a = argv[i];
@@ -147,6 +162,14 @@ int main(int argc, char* argv[]) {
                 strictSecurity = true;
             } else if (a == "--debug") {
                 enableDebug = true;
+            } else if (a == "--vm" || a == "--\xD8\xA2\xD9\x84\xD8\xA9") {
+                useVM = true;
+            } else if (a == "--vm-trace" || a == "--\xD8\xAA\xD8\xAA\xD8\xA8\xD8\xB9-\xD8\xA2\xD9\x84\xD8\xA9") {
+                useVM = true;
+                vmTrace = true;
+            } else if (a == "--vm-disasm" || a == "--\xD9\x81\xD9\x83-\xD8\xA8\xD8\xA7\xD9\x8A\xD8\xAA\xD9\x83\xD9\x88\xD8\xAF") {
+                useVM = true;
+                vmDisasm = true;
             } else if (a == "--opt-stats" || a == "-v") {
                 showOptStats = true;
             } else if (a[0] != '-') {
@@ -176,6 +199,54 @@ int main(int argc, char* argv[]) {
             parser.printErrors();
             return 1;
         }
+        
+        // ===================================================================
+        // وضع الآلة الافتراضية: ترجمة AST إلى بايت كود وتنفيذه
+        // VM Mode: Compile AST to bytecode and execute
+        // ===================================================================
+        if (useVM) {
+            // الترجمة / Compile
+            sad::vm::مُترجم_بايت_كود compiler;
+            auto chunk = compiler.ترجم(program, filename);
+            
+            if (compiler.يوجد_أخطاء()) {
+                std::cerr << "أخطاء ترجمة البايت كود / Bytecode compilation errors:" << std::endl;
+                for (const auto& err : compiler.الأخطاء()) {
+                    std::cerr << "  " << err << std::endl;
+                }
+                return 1;
+            }
+            
+            // فك التجميع (اختياري) / Disassemble (optional)
+            if (vmDisasm) {
+                sad::vm::مفكك_البايت_كود disasm;
+                disasm.فكّك_وحدة(chunk);
+                std::cout << "\n═══ بدء التنفيذ / Starting execution ═══\n" << std::endl;
+            }
+            
+            // التنفيذ / Execute
+            sad::vm::آلة_افتراضية vm;
+            if (vmTrace) vm.عيّن_وضع_التتبع(true);
+            
+            auto result = vm.نفّذ(chunk);
+            
+            if (result.الحالة != sad::vm::حالة_التنفيذ::نجاح) {
+                std::cerr << result.رسالة_الخطأ << std::endl;
+                return 1;
+            }
+            
+            if (enableDebug) {
+                std::cout << "\n[آلة افتراضية] عدد التعليمات: " << result.عدد_التعليمات
+                          << " | الزمن: " << result.زمن_التنفيذ_مللي << " مللي" << std::endl;
+            }
+            
+            return 0;
+        }
+        
+        // ===================================================================
+        // الوضع العادي: تنفيذ شجرة AST مباشرة
+        // Normal Mode: Tree-walking interpreter
+        // ===================================================================
         
         // Interpreter - create and execute
         Sad::Interpreter::InterpreterOptions options;

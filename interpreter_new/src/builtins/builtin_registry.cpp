@@ -26,6 +26,27 @@
 #include "system/system_functions.h"
 #include "filesystem/filesystem_module.h"
 #include "graphics/graphics_module.h"
+// ═══════════════════════════════════════════════════════════════════════════
+// أنظمة الرسومات المتقدمة — كل نظام يضيف قدرات غير موجودة في Flutter
+// ═══════════════════════════════════════════════════════════════════════════
+#include "graphics/sad_particles.h"      // نظام الجسيمات — نار، دخان، مطر، ثلج
+#include "graphics/sad_effects.h"        // التأثيرات البصرية — ظل، توهج، زجاج
+#include "graphics/sad_physics.h"        // محرك الفيزياء — تصادم، جاذبية، نوابض
+#include "graphics/sad_scene3d.h"        // المشاهد ثلاثية الأبعاد — رسم 3D فوق SDL2
+#include "graphics/sad_ai.h"             // الذكاء الاصطناعي — إيجاد المسار، آلة الحالات
+#include "graphics/sad_camera2d.h"       // الكاميرا ثنائية الأبعاد — تتبع، اهتزاز، تكبير
+#include "graphics/sad_charts.h"         // الرسوم البيانية — أعمدة، خطوط، دائري
+#include "graphics/sad_audio.h"          // النظام الصوتي — نغمات، مؤثرات صوتية
+#include "graphics/sad_tilemap.h"        // خرائط البلاط — ألعاب ثنائية الأبعاد
+// ═══════════════════════════════════════════════════════════════════════════
+// الأنظمة الإسلامية — أول مكتبة برمجة في العالم بدعم إسلامي مدمج
+// ═══════════════════════════════════════════════════════════════════════════
+#include "graphics/sad_islamic_art.h"    // الفن الإسلامي — أنماط هندسية، أرابيسك
+#include "graphics/sad_dhikr.h"          // الأذكار والتسبيح — عداد، أذكار الصباح والمساء
+#include "graphics/sad_qibla.h"          // اتجاه القبلة — بوصلة، حساب الزاوية
+#include "graphics/sad_prayer.h"         // أوقات الصلاة — حساب فلكي دقيق
+#include "graphics/sad_hijri.h"          // التقويم الهجري — تحويل، مناسبات
+#include "graphics/sad_android.h"        // دعم أندرويد — إشعارات، موقع، بطارية
 #include "mobile/mobile_module.h"
 #include <memory>
 #include <iostream>
@@ -1546,6 +1567,2118 @@ void registerBuiltinFunctions(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("عنصر_حدث_فأرة", widget_mouse_event_func);
     interpreter.getFunctionManager().registerBuiltinFunction("widget_mouse_event", widget_mouse_event_func);
     
+    // ╔═══════════════════════════════════════════════════════════════════════╗
+    // ║                                                                       ║
+    // ║   الموجة الأولى: أنظمة الرسومات المتقدمة                              ║
+    // ║   Wave 1: Advanced Graphics Systems                                   ║
+    // ║                                                                       ║
+    // ║   تتضمن أربعة أنظمة فرعية قوية:                                       ║
+    // ║     1) نظام الجسيمات (Particles) — نار، دخان، مطر، ثلج، انفجار       ║
+    // ║     2) نظام التأثيرات البصرية (Effects) — ظل، توهج، تدرج، زجاج       ║
+    // ║     3) محرك الفيزياء (Physics) — تصادم، جاذبية، نوابض                 ║
+    // ║     4) المشاهد ثلاثية الأبعاد (Scene3D) — مكعب، كرة، كاميرا، إضاءة   ║
+    // ║                                                                       ║
+    // ║   كل دالة مسجلة باسم عربي وإنجليزي لتحقيق ثنائية اللغة الكاملة      ║
+    // ║                                                                       ║
+    // ╚═══════════════════════════════════════════════════════════════════════╝
+
+    // ===================================================================
+    // النظام 1: الجسيمات — sad::particles
+    // ===================================================================
+    //
+    // نظام الجسيمات يوفر القدرة على إنشاء تأثيرات بصرية مذهلة مثل
+    // النار والدخان والمطر والثلج والانفجارات والمزيد. كل مُصدِر جسيمات
+    // يمكن تخصيصه بالكامل من حيث اللون والسرعة والجاذبية والشكل.
+    // هذا النظام لا يوجد نظيره في Flutter على الإطلاق!
+    // ===================================================================
+
+    // ─── أنشئ_مصدر_جسيمات ───
+    // إنشاء مُصدِر جسيمات جديد في الموضع (س، ص) المحدد.
+    // المُصدِر هو المصدر الذي تنطلق منه الجسيمات — يمكنك إنشاء عدة مُصدِرات
+    // في المشهد الواحد لتأثيرات مختلفة (مثلاً: نار هنا ودخان هناك).
+    // يُرجع معرّف المُصدِر الذي يُستخدم في باقي الدوال للتحكم به.
+    auto particles_createEmitter_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        int id = sad::particles::createEmitter(x, y);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_مصدر_جسيمات", particles_createEmitter_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_create_emitter", particles_createEmitter_func);
+
+    // ─── احذف_مصدر ───
+    // حذف مُصدِر جسيمات بمعرّفه. عند الحذف تختفي جميع الجسيمات
+    // المرتبطة به فوراً من المشهد ويُحرَّر الذاكرة المخصصة له.
+    // يُستخدم عندما لا نعود بحاجة لتأثير معين (مثلاً: انتهاء الانفجار).
+    auto particles_destroyEmitter_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        sad::particles::destroyEmitter(id);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("احذف_مصدر", particles_destroyEmitter_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_destroy_emitter", particles_destroyEmitter_func);
+
+    // ─── احذف_كل_المصادر ───
+    // حذف جميع مُصدِرات الجسيمات الموجودة في المشهد دفعة واحدة.
+    // مفيد عند الانتقال بين المشاهد أو عند إعادة تعيين اللعبة بالكامل
+    // لتنظيف كل التأثيرات البصرية القديمة.
+    auto particles_destroyAllEmitters_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        sad::particles::destroyAllEmitters();
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("احذف_كل_المصادر", particles_destroyAllEmitters_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_destroy_all_emitters", particles_destroyAllEmitters_func);
+
+    // ─── ابدأ_جسيمات ───
+    // بدء إصدار الجسيمات من المُصدِر المحدد. بعد إنشاء المُصدِر يكون
+    // متوقفاً بشكل افتراضي — يجب استدعاء هذه الدالة لبدء تدفق الجسيمات.
+    // بمجرد البدء يستمر المُصدِر في إطلاق الجسيمات حسب معدل الإصدار المحدد.
+    auto particles_startEmitter_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        sad::particles::startEmitter(id);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ابدأ_جسيمات", particles_startEmitter_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_start_emitter", particles_startEmitter_func);
+
+    // ─── أوقف_جسيمات ───
+    // إيقاف إصدار جسيمات جديدة من المُصدِر المحدد. الجسيمات الموجودة
+    // حالياً تستمر في حركتها حتى تنتهي أعمارها وتختفي تدريجياً.
+    // يمكن إعادة تشغيل المُصدِر لاحقاً بالدالة ابدأ_جسيمات.
+    auto particles_stopEmitter_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        sad::particles::stopEmitter(id);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أوقف_جسيمات", particles_stopEmitter_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_stop_emitter", particles_stopEmitter_func);
+
+    // ─── دفعة_جسيمات ───
+    // إطلاق دفعة واحدة من الجسيمات بعدد محدد. على عكس الإصدار المستمر،
+    // هذه الدالة تطلق كمية محددة مرة واحدة ثم تتوقف. مثالية لتأثيرات
+    // مثل الانفجار أو ضربة السيف أو جمع عنصر في اللعبة.
+    auto particles_burstEmitter_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        int count = (int)args[1]->toDouble();
+        sad::particles::burstEmitter(id, count);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("دفعة_جسيمات", particles_burstEmitter_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_burst_emitter", particles_burstEmitter_func);
+
+    // ─── عيّن_معدل_إصدار ───
+    // تعيين عدد الجسيمات التي يُصدرها المُصدِر في الثانية الواحدة.
+    // القيم الأعلى تعطي تأثيراً أكثف (مثل نار شديدة) والقيم الأقل
+    // تعطي تأثيراً أخف (مثل بخار خفيف). القيمة الافتراضية عادةً 50.
+    auto particles_setEmitRate_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float rate = (float)args[1]->toDouble();
+        sad::particles::setEmitRate(id, rate);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_معدل_إصدار", particles_setEmitRate_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_set_emit_rate", particles_setEmitRate_func);
+
+    // ─── عيّن_جاذبية_جسيمات ───
+    // تعيين قوة الجاذبية المؤثرة على جسيمات مُصدِر معين.
+    // الجاذبية تسحب الجسيمات في الاتجاه المحدد — مثلاً:
+    // (0, 100) تسحب للأسفل (للنار التي تصعد استخدم 0, -100)
+    // (50, 0) تسحب لليمين (لمحاكاة الرياح الجانبية).
+    auto particles_setGravity_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float gx = (float)args[1]->toDouble();
+        float gy = (float)args[2]->toDouble();
+        sad::particles::setGravity(id, gx, gy);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_جاذبية_جسيمات", particles_setGravity_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_set_gravity", particles_setGravity_func);
+
+    // ─── عيّن_رياح_جسيمات ───
+    // تعيين قوة الرياح المؤثرة على الجسيمات. الرياح تضيف قوة ثابتة
+    // في الاتجاه المحدد، مما يجعل الجسيمات تنحرف. مثلاً: رياح (20, 0)
+    // تجعل الدخان ينحرف لليمين، ورياح (0, -10) تجعل الثلج يطير للأعلى قليلاً.
+    auto particles_setWind_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float wx = (float)args[1]->toDouble();
+        float wy = (float)args[2]->toDouble();
+        sad::particles::setWind(id, wx, wy);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_رياح_جسيمات", particles_setWind_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_set_wind", particles_setWind_func);
+
+    // ─── عيّن_لون_بداية ───
+    // تعيين اللون الذي يبدأ به كل جسيم عند ولادته (RGBA).
+    // الجسيمات تتدرج من لون البداية إلى لون النهاية خلال عمرها.
+    // مثلاً: للنار نبدأ بأصفر مشرق (255, 200, 50) وننتهي بأحمر داكن.
+    // المعامل الرابع (الشفافية) اختياري وقيمته الافتراضية 255 (معتم بالكامل).
+    auto particles_setColorStart_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        uint8_t r = (uint8_t)args[1]->toDouble();
+        uint8_t g = (uint8_t)args[2]->toDouble();
+        uint8_t b = (uint8_t)args[3]->toDouble();
+        uint8_t a = args.size() > 4 ? (uint8_t)args[4]->toDouble() : 255;
+        sad::particles::setColorStart(id, r, g, b, a);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_لون_بداية", particles_setColorStart_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_set_color_start", particles_setColorStart_func);
+
+    // ─── عيّن_لون_نهاية ───
+    // تعيين اللون الذي ينتهي به كل جسيم عند اقتراب موته (RGBA).
+    // الجسيمات تتدرج تلقائياً من لون البداية إلى هذا اللون.
+    // المعامل الرابع (الشفافية) اختياري وقيمته الافتراضية 0 (شفاف بالكامل)
+    // مما يجعل الجسيم يتلاشى قبل اختفائه.
+    auto particles_setColorEnd_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        uint8_t r = (uint8_t)args[1]->toDouble();
+        uint8_t g = (uint8_t)args[2]->toDouble();
+        uint8_t b = (uint8_t)args[3]->toDouble();
+        uint8_t a = args.size() > 4 ? (uint8_t)args[4]->toDouble() : 0;
+        sad::particles::setColorEnd(id, r, g, b, a);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_لون_نهاية", particles_setColorEnd_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_set_color_end", particles_setColorEnd_func);
+
+    // ─── عيّن_موضع_مصدر ───
+    // تغيير موضع مُصدِر الجسيمات أثناء التشغيل. مفيد لجعل التأثير
+    // يتبع كائناً متحركاً (مثل ذيل صاروخ أو شعلة في يد شخصية اللعبة).
+    // الجسيمات الموجودة بالفعل لا تتأثر — فقط الجسيمات الجديدة تنطلق من الموضع الجديد.
+    auto particles_setPosition_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float x = (float)args[1]->toDouble();
+        float y = (float)args[2]->toDouble();
+        sad::particles::setPosition(id, x, y);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_موضع_مصدر", particles_setPosition_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_set_position", particles_setPosition_func);
+
+    // ─── عدد_الجسيمات ───
+    // الحصول على عدد الجسيمات الحية حالياً في مُصدِر معين.
+    // مفيد لمراقبة الأداء أو لتحديد متى انتهى تأثير معين
+    // (عندما يصل العدد إلى صفر بعد إيقاف المُصدِر).
+    auto particles_getParticleCount_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        int count = sad::particles::getParticleCount(id);
+        return std::make_shared<Data::Value>((double)count);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عدد_الجسيمات", particles_getParticleCount_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_get_count", particles_getParticleCount_func);
+
+    // ─── حدّث_جسيمات ───
+    // تحديث فيزياء جميع الجسيمات ورسمها على المُصيِّر (renderer).
+    // يجب استدعاء هذه الدالة في كل إطار (frame) من حلقة اللعبة الرئيسية.
+    // المعامل الأول: مؤشر المُصيِّر (renderer) كقيمة رقمية.
+    // المعامل الثاني: الزمن المنقضي منذ آخر إطار بالملي ثانية (مثلاً: 16.67 لـ 60 إطار/ثانية).
+    // هذه الدالة تحدّث حركة الجسيمات وتطبّق الجاذبية والرياح ثم ترسمها.
+    auto particles_updateAndRenderAll_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        double deltaMs = args[1]->toDouble();
+        sad::particles::updateAndRenderAll(renderer, deltaMs);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("حدّث_جسيمات", particles_updateAndRenderAll_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_update_and_render", particles_updateAndRenderAll_func);
+
+    // ─── التأثيرات الجاهزة (Presets) ───
+    // هذه مجموعة من التأثيرات المُعدَّة مسبقاً والتي يمكن استخدامها بسطر واحد.
+    // كل تأثير يُنشئ مُصدِر جسيمات مُهيَّأ تلقائياً بالإعدادات المثالية.
+    // تُرجع جميعها معرّف المُصدِر للتحكم به لاحقاً.
+
+    // ─── نار 🔥 ───
+    // إنشاء تأثير نار واقعي في الموضع المحدد. اللهب يصعد للأعلى مع
+    // تدرج من الأصفر المشرق إلى الأحمر الداكن. المعامل الثالث يتحكم
+    // بشدة النار (1.0 = عادية، 2.0 = مضاعفة، 0.5 = خفيفة).
+    auto particles_presetFire_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float intensity = args.size() > 2 ? (float)args[2]->toDouble() : 1.0f;
+        int id = sad::particles::presetFire(x, y, intensity);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("نار", particles_presetFire_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_fire", particles_presetFire_func);
+
+    // ─── دخان 💨 ───
+    // إنشاء تأثير دخان — سحابة رمادية تصعد ببطء وتتلاشى تدريجياً.
+    // مثالي للبراكين والمداخن ومحركات السيارات والحرائق المنطفئة.
+    // المعامل الثالث يتحكم بكثافة الدخان (عدد الجسيمات وحجمها).
+    auto particles_presetSmoke_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float density = args.size() > 2 ? (float)args[2]->toDouble() : 1.0f;
+        int id = sad::particles::presetSmoke(x, y, density);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("دخان", particles_presetSmoke_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_smoke", particles_presetSmoke_func);
+
+    // ─── مطر 🌧️ ───
+    // إنشاء تأثير مطر يغطي عرض الشاشة المحدد. القطرات تتساقط
+    // من الأعلى بسرعة عالية مع ميلان خفيف يحاكي الرياح.
+    // المعامل الأول: عرض منطقة المطر. المعامل الثاني: شدة المطر.
+    auto particles_presetRain_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float width = (float)args[0]->toDouble();
+        float intensity = args.size() > 1 ? (float)args[1]->toDouble() : 1.0f;
+        int id = sad::particles::presetRain(width, intensity);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("مطر", particles_presetRain_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_rain", particles_presetRain_func);
+
+    // ─── ثلج ❄️ ───
+    // إنشاء تأثير ثلج — رقائق بيضاء تتساقط ببطء مع تمايل أفقي طفيف.
+    // يعطي شعوراً بالشتاء والبرد. المعامل الأول: عرض منطقة الثلج.
+    // المعامل الثاني: شدة التساقط (كلما زادت كلما زاد عدد الرقائق).
+    auto particles_presetSnow_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float width = (float)args[0]->toDouble();
+        float intensity = args.size() > 1 ? (float)args[1]->toDouble() : 1.0f;
+        int id = sad::particles::presetSnow(width, intensity);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ثلج", particles_presetSnow_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_snow", particles_presetSnow_func);
+
+    // ─── كونفيتي 🎊 ───
+    // إنشاء تأثير كونفيتي احتفالي — قصاصات ملونة تتطاير في كل الاتجاهات.
+    // مثالي لشاشات الفوز والاحتفالات. المعامل الثالث يحدد عدد القصاصات
+    // (الافتراضي 100 قصاصة).
+    auto particles_presetConfetti_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        int count = args.size() > 2 ? (int)args[2]->toDouble() : 100;
+        int id = sad::particles::presetConfetti(x, y, count);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("كونفيتي", particles_presetConfetti_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_confetti", particles_presetConfetti_func);
+
+    // ─── شرارات ✨ ───
+    // إنشاء تأثير شرارات متألقة — نقاط مضيئة تظهر وتختفي في دائرة.
+    // مثالي للعناصر السحرية والنجوم والجوائز. المعامل الثالث يحدد
+    // نصف قطر الدائرة التي تظهر فيها الشرارات (الافتراضي 50 بكسل).
+    auto particles_presetSparkle_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float radius = args.size() > 2 ? (float)args[2]->toDouble() : 50.0f;
+        int id = sad::particles::presetSparkle(x, y, radius);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("شرارات", particles_presetSparkle_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_sparkle", particles_presetSparkle_func);
+
+    // ─── انفجار 💥 ───
+    // إنشاء تأثير انفجار — دفعة واحدة من الجسيمات تتطاير في كل الاتجاهات.
+    // مثالي لتدمير الأعداء والانفجارات الكبيرة. المعامل الثالث يتحكم بقوة
+    // الانفجار (سرعة الجسيمات وعددها). ينتهي تلقائياً بعد انطلاق الجسيمات.
+    auto particles_presetExplosion_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float power = args.size() > 2 ? (float)args[2]->toDouble() : 1.0f;
+        int id = sad::particles::presetExplosion(x, y, power);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("انفجار", particles_presetExplosion_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_explosion", particles_presetExplosion_func);
+
+    // ─── فقاعات 🌊 ───
+    // إنشاء تأثير فقاعات صاعدة — دوائر شفافة تصعد ببطء وتتمايل.
+    // مثالي للمشاهد المائية وأحواض السمك والمشروبات الغازية.
+    // المعامل الثالث يحدد معدل إنتاج الفقاعات في الثانية (الافتراضي 10).
+    auto particles_presetBubbles_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float rate = args.size() > 2 ? (float)args[2]->toDouble() : 10.0f;
+        int id = sad::particles::presetBubbles(x, y, rate);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("فقاعات", particles_presetBubbles_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_bubbles", particles_presetBubbles_func);
+
+    // ─── مسار_نجمي ⭐ ───
+    // إنشاء تأثير مسار نجمي — جسيمات تتبع نقطة معينة (مثل مؤشر الفأرة).
+    // كل جسيم يظهر خلف الحركة ويتلاشى تدريجياً مكوّناً ذيلاً لامعاً.
+    // لتحريك المسار استخدم عيّن_موضع_مصدر لتحديث الموضع في كل إطار.
+    auto particles_presetTrail_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        int id = sad::particles::presetTrail(x, y);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("مسار_نجمي", particles_presetTrail_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_trail", particles_presetTrail_func);
+
+    // ─── بتلات 🌸 ───
+    // إنشاء تأثير بتلات أزهار متساقطة — أوراق زهرية تهبط ببطء مع
+    // تمايل أنيق يحاكي سقوط أوراق الكرز اليابانية. يعطي إحساساً
+    // رومانسياً وجميلاً. المعامل الأول: عرض المنطقة. الثاني: الشدة.
+    auto particles_presetPetals_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float width = (float)args[0]->toDouble();
+        float intensity = args.size() > 1 ? (float)args[1]->toDouble() : 1.0f;
+        int id = sad::particles::presetPetals(width, intensity);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("بتلات", particles_presetPetals_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("particles_petals", particles_presetPetals_func);
+
+    // ===================================================================
+    // النظام 2: التأثيرات البصرية — sad::effects
+    // ===================================================================
+    //
+    // نظام التأثيرات البصرية يوفر مجموعة غنية من التأثيرات التي لا
+    // تتوفر في Flutter افتراضياً. يشمل الظلال الناعمة والتوهج
+    // والتدرجات اللونية والزجاج الشفاف والنيومورفيزم وفلاتر الألوان
+    // وتأثيرات التموج والحدود المتدرجة — كلها بأداء عالٍ فوق SDL2.
+    // ===================================================================
+
+    // ─── ارسم_ظل ───
+    // رسم ظل ناعم خلف عنصر مستطيل. الظل يعطي إحساساً بالعمق والارتفاع.
+    // المعاملات: المُصيِّر، موضع وأبعاد المستطيل (x, y, w, h)،
+    // إزاحة الظل (أفقي، عمودي)، مقدار الضبابية، لون الظل (أحمر، أخضر، أزرق)،
+    // وشفافية الظل (0.0 = شفاف تماماً، 1.0 = معتم تماماً).
+    auto effects_drawShadowSimple_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        int w = (int)args[3]->toDouble();
+        int h = (int)args[4]->toDouble();
+        float offX = (float)args[5]->toDouble();
+        float offY = (float)args[6]->toDouble();
+        float blur = (float)args[7]->toDouble();
+        uint8_t r = (uint8_t)args[8]->toDouble();
+        uint8_t g = (uint8_t)args[9]->toDouble();
+        uint8_t b = (uint8_t)args[10]->toDouble();
+        float alpha = (float)args[11]->toDouble();
+        sad::effects::drawShadowSimple(renderer, x, y, w, h, offX, offY, blur, r, g, b, alpha);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_ظل", effects_drawShadowSimple_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_draw_shadow", effects_drawShadowSimple_func);
+
+    // ─── ارسم_توهج ───
+    // رسم تأثير توهج (Glow) حول عنصر مستطيل. التوهج يعطي انطباعاً بأن
+    // العنصر يشع ضوءاً. مثالي لإبراز الأزرار النشطة أو العناصر المهمة.
+    // المعاملات: المُصيِّر، الموضع والأبعاد، نصف قطر التوهج، اللون (أحمر، أخضر، أزرق)،
+    // وشدة التوهج (كلما زادت كلما كان التوهج أوضح).
+    auto effects_drawGlowSimple_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        int w = (int)args[3]->toDouble();
+        int h = (int)args[4]->toDouble();
+        float radius = (float)args[5]->toDouble();
+        uint8_t r = (uint8_t)args[6]->toDouble();
+        uint8_t g = (uint8_t)args[7]->toDouble();
+        uint8_t b = (uint8_t)args[8]->toDouble();
+        float intensity = (float)args[9]->toDouble();
+        sad::effects::drawGlowSimple(renderer, x, y, w, h, radius, r, g, b, intensity);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_توهج", effects_drawGlowSimple_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_draw_glow", effects_drawGlowSimple_func);
+
+    // ─── ارسم_تدرج_افقي ───
+    // رسم تدرج لوني أفقي (من اليسار إلى اليمين) داخل مستطيل.
+    // التدرج ينتقل سلساً بين لونين. مثالي لخلفيات الأزرار والعناوين
+    // والشرائط الزخرفية. المعاملات: المُصيِّر، الموضع والأبعاد،
+    // اللون الأول (بداية التدرج)، اللون الثاني (نهاية التدرج)، والشفافية.
+    auto effects_drawGradientH_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        int w = (int)args[3]->toDouble();
+        int h = (int)args[4]->toDouble();
+        uint8_t r1 = (uint8_t)args[5]->toDouble();
+        uint8_t g1 = (uint8_t)args[6]->toDouble();
+        uint8_t b1 = (uint8_t)args[7]->toDouble();
+        uint8_t r2 = (uint8_t)args[8]->toDouble();
+        uint8_t g2 = (uint8_t)args[9]->toDouble();
+        uint8_t b2 = (uint8_t)args[10]->toDouble();
+        float alpha = (float)args[11]->toDouble();
+        sad::effects::drawGradientH(renderer, x, y, w, h, r1, g1, b1, r2, g2, b2, alpha);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_تدرج_افقي", effects_drawGradientH_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_draw_gradient_h", effects_drawGradientH_func);
+
+    // ─── ارسم_تدرج_عمودي ───
+    // رسم تدرج لوني عمودي (من الأعلى إلى الأسفل) داخل مستطيل.
+    // مشابه للتدرج الأفقي لكن الاتجاه رأسي. مثالي لخلفيات السماء
+    // (أزرق فاتح في الأعلى إلى أزرق غامق في الأسفل) أو لأشرطة التقدم.
+    auto effects_drawGradientV_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        int w = (int)args[3]->toDouble();
+        int h = (int)args[4]->toDouble();
+        uint8_t r1 = (uint8_t)args[5]->toDouble();
+        uint8_t g1 = (uint8_t)args[6]->toDouble();
+        uint8_t b1 = (uint8_t)args[7]->toDouble();
+        uint8_t r2 = (uint8_t)args[8]->toDouble();
+        uint8_t g2 = (uint8_t)args[9]->toDouble();
+        uint8_t b2 = (uint8_t)args[10]->toDouble();
+        float alpha = (float)args[11]->toDouble();
+        sad::effects::drawGradientV(renderer, x, y, w, h, r1, g1, b1, r2, g2, b2, alpha);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_تدرج_عمودي", effects_drawGradientV_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_draw_gradient_v", effects_drawGradientV_func);
+
+    // ─── ارسم_تدرج_دائري ───
+    // رسم تدرج لوني دائري (شعاعي) — اللون يتغير من المركز إلى الحافة.
+    // مثالي لتأثيرات الإضاءة المركزية (بقعة ضوء) أو خلفيات دائرية جميلة.
+    // المعاملات: المُصيِّر، مركز الدائرة (cx, cy)، نصف القطر، لونا البداية والنهاية، والشفافية.
+    auto effects_drawGradientRadial_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int cx = (int)args[1]->toDouble();
+        int cy = (int)args[2]->toDouble();
+        float radius = (float)args[3]->toDouble();
+        uint8_t r1 = (uint8_t)args[4]->toDouble();
+        uint8_t g1 = (uint8_t)args[5]->toDouble();
+        uint8_t b1 = (uint8_t)args[6]->toDouble();
+        uint8_t r2 = (uint8_t)args[7]->toDouble();
+        uint8_t g2 = (uint8_t)args[8]->toDouble();
+        uint8_t b2 = (uint8_t)args[9]->toDouble();
+        float alpha = (float)args[10]->toDouble();
+        sad::effects::drawGradientRadial(renderer, cx, cy, radius, r1, g1, b1, r2, g2, b2, alpha);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_تدرج_دائري", effects_drawGradientRadial_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_draw_gradient_radial", effects_drawGradientRadial_func);
+
+    // ─── ارسم_زجاج ───
+    // رسم تأثير الزجاج الشفاف (Glass Morphism) — لوحة زجاجية مع ضبابية
+    // وشفافية وصبغة لونية. هذا التأثير شائع في تصاميم واجهات iOS الحديثة
+    // ويعطي مظهراً أنيقاً وعصرياً. المعاملات: المُصيِّر، الموضع والأبعاد،
+    // مقدار الضبابية، الشفافية، ولون الصبغة (أحمر، أخضر، أزرق).
+    auto effects_drawGlassPanelSimple_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        int w = (int)args[3]->toDouble();
+        int h = (int)args[4]->toDouble();
+        float blur = (float)args[5]->toDouble();
+        float opacity = (float)args[6]->toDouble();
+        uint8_t tR = (uint8_t)args[7]->toDouble();
+        uint8_t tG = (uint8_t)args[8]->toDouble();
+        uint8_t tB = (uint8_t)args[9]->toDouble();
+        sad::effects::drawGlassPanelSimple(renderer, x, y, w, h, blur, opacity, tR, tG, tB);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_زجاج", effects_drawGlassPanelSimple_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_draw_glass", effects_drawGlassPanelSimple_func);
+
+    // ─── ارسم_نيومورف ───
+    // رسم تأثير النيومورفيزم (Neumorphism) — تصميم ثلاثي الأبعاد ناعم
+    // يبدو كأن العنصر مطبوع في السطح نفسه. يتضمن ظلاً فاتحاً وظلاً داكناً
+    // ليعطي إحساساً بالبروز أو الغؤور. المعاملات: المُصيِّر، الموضع والأبعاد،
+    // عمق التأثير، لون الخلفية، وهل هو بارز (true) أم غائر (false).
+    auto effects_drawNeumorphSimple_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        int w = (int)args[3]->toDouble();
+        int h = (int)args[4]->toDouble();
+        float depth = (float)args[5]->toDouble();
+        uint8_t bgR = (uint8_t)args[6]->toDouble();
+        uint8_t bgG = (uint8_t)args[7]->toDouble();
+        uint8_t bgB = (uint8_t)args[8]->toDouble();
+        bool convex = args[9]->toDouble() != 0.0;
+        sad::effects::drawNeumorphSimple(renderer, x, y, w, h, depth, bgR, bgG, bgB, convex);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_نيومورف", effects_drawNeumorphSimple_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_draw_neumorph", effects_drawNeumorphSimple_func);
+
+    // ─── فلتر_بني ───
+    // تطبيق فلتر اللون البني القديم (Sepia) على منطقة مستطيلة من الشاشة.
+    // يعطي الصورة مظهراً كلاسيكياً قديماً كصور القرن التاسع عشر.
+    // المعامل الأخير يتحكم بشدة التأثير (0.0 = بلا تأثير، 1.0 = كامل).
+    auto effects_applySepia_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        int w = (int)args[3]->toDouble();
+        int h = (int)args[4]->toDouble();
+        float amount = args.size() > 5 ? (float)args[5]->toDouble() : 1.0f;
+        sad::effects::applySepia(renderer, x, y, w, h, amount);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("فلتر_بني", effects_applySepia_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_sepia", effects_applySepia_func);
+
+    // ─── فلتر_رمادي ───
+    // تطبيق فلتر التدرج الرمادي (Grayscale) على منطقة مستطيلة.
+    // يحوّل كل الألوان إلى درجات الرمادي. مفيد لتأثيرات الموت في الألعاب
+    // أو لإبراز عنصر ملون واحد بجعل باقي الشاشة رمادية.
+    // المعامل الأخير يتحكم بشدة التأثير (0.0 = ألوان كاملة، 1.0 = رمادي تماماً).
+    auto effects_applyGrayscale_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        int w = (int)args[3]->toDouble();
+        int h = (int)args[4]->toDouble();
+        float amount = args.size() > 5 ? (float)args[5]->toDouble() : 1.0f;
+        sad::effects::applyGrayscale(renderer, x, y, w, h, amount);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("فلتر_رمادي", effects_applyGrayscale_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_grayscale", effects_applyGrayscale_func);
+
+    // ─── فلتر_سطوع ───
+    // تعديل سطوع منطقة مستطيلة من الشاشة. المعامل factor يحدد
+    // مستوى السطوع: 1.0 = بلا تغيير، أكبر من 1.0 = أكثر سطوعاً،
+    // أقل من 1.0 = أكثر عتمةً. مثلاً: 1.5 = أكثر سطوعاً بـ 50%، 0.5 = نصف السطوع.
+    // مفيد لتأثيرات الوميض (flash) أو التعتيم عند فتح القوائم.
+    auto effects_applyBrightness_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        int w = (int)args[3]->toDouble();
+        int h = (int)args[4]->toDouble();
+        float factor = (float)args[5]->toDouble();
+        sad::effects::applyBrightness(renderer, x, y, w, h, factor);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("فلتر_سطوع", effects_applyBrightness_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_brightness", effects_applyBrightness_func);
+
+    // ─── ارسم_تموج ───
+    // رسم تأثير تموج دائري (Ripple) — موجات دائرية تنتشر من نقطة مركزية.
+    // مثالي لتأثيرات سقوط الحجر في الماء أو موجات الصوت أو الضغط على الشاشة.
+    // المعاملات: المُصيِّر، مركز التموج (cx, cy)، نصف القطر، السعة (ارتفاع الموجة)،
+    // الطور (لتحريك الموجة بمرور الوقت)، اللون، والشفافية.
+    auto effects_drawRipple_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        float cx = (float)args[1]->toDouble();
+        float cy = (float)args[2]->toDouble();
+        float radius = (float)args[3]->toDouble();
+        float amplitude = (float)args[4]->toDouble();
+        float phase = (float)args[5]->toDouble();
+        uint8_t r = (uint8_t)args[6]->toDouble();
+        uint8_t g = (uint8_t)args[7]->toDouble();
+        uint8_t b = (uint8_t)args[8]->toDouble();
+        float alpha = (float)args[9]->toDouble();
+        sad::effects::drawRipple(renderer, cx, cy, radius, amplitude, phase, r, g, b, alpha);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_تموج", effects_drawRipple_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_draw_ripple", effects_drawRipple_func);
+
+    // ─── ارسم_حافة ───
+    // رسم تأثير الحافة المعتمة (Vignette) — تعتيم تدريجي عند حواف الشاشة.
+    // يوجّه انتباه المشاهد إلى وسط الشاشة ويعطي مظهراً سينمائياً.
+    // المعاملات: المُصيِّر، عرض وارتفاع الشاشة، نصف قطر المنطقة المضيئة،
+    // نعومة الانتقال، وشدة التعتيم.
+    auto effects_drawVignette_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int width = (int)args[1]->toDouble();
+        int height = (int)args[2]->toDouble();
+        float radius = (float)args[3]->toDouble();
+        float softness = (float)args[4]->toDouble();
+        float alpha = (float)args[5]->toDouble();
+        sad::effects::drawVignette(renderer, width, height, radius, softness, alpha);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_حافة", effects_drawVignette_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_draw_vignette", effects_drawVignette_func);
+
+    // ─── ارسم_حد_متدرج ───
+    // رسم حد (Border) بتدرج لوني حول مستطيل. الحد ينتقل سلساً بين لونين
+    // مما يعطي مظهراً أنيقاً وعصرياً. مثالي لتزيين البطاقات والنوافذ والأزرار.
+    // المعاملات: المُصيِّر، الموضع والأبعاد، سُمك الحد، لونا البداية والنهاية.
+    auto effects_drawBorderGradient_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        int w = (int)args[3]->toDouble();
+        int h = (int)args[4]->toDouble();
+        float thickness = (float)args[5]->toDouble();
+        uint8_t r1 = (uint8_t)args[6]->toDouble();
+        uint8_t g1 = (uint8_t)args[7]->toDouble();
+        uint8_t b1 = (uint8_t)args[8]->toDouble();
+        uint8_t r2 = (uint8_t)args[9]->toDouble();
+        uint8_t g2 = (uint8_t)args[10]->toDouble();
+        uint8_t b2 = (uint8_t)args[11]->toDouble();
+        sad::effects::drawBorderGradient(renderer, x, y, w, h, thickness, r1, g1, b1, r2, g2, b2);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_حد_متدرج", effects_drawBorderGradient_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("effects_draw_border_gradient", effects_drawBorderGradient_func);
+
+    // ===================================================================
+    // النظام 3: محرك الفيزياء — sad::physics
+    // ===================================================================
+    //
+    // محرك فيزياء ثنائي الأبعاد متكامل يوفر محاكاة فيزيائية واقعية.
+    // يدعم الأجسام الصلبة (دوائر ومستطيلات)، كشف التصادمات،
+    // الجاذبية والاحتكاك والارتداد، القوى والاندفاعات، القيود (النوابض)،
+    // والرسم التصحيحي. يمكن محاكاة حتى 500 جسم بأداء ممتاز.
+    // Flutter ليس لديه أي محرك فيزياء مدمج!
+    // ===================================================================
+
+    // ─── أنشئ_دائرة_فيزيائية ───
+    // إنشاء جسم فيزيائي دائري الشكل في الموضع (x, y) مع نصف القطر والكتلة المحددين.
+    // الجسم الدائري مثالي لمحاكاة الكرات والعملات والفقاعات والقذائف.
+    // يتأثر بالجاذبية والتصادمات تلقائياً. يُرجع معرّف الجسم للتحكم به.
+    auto physics_createCircle_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float radius = (float)args[2]->toDouble();
+        float mass = args.size() > 3 ? (float)args[3]->toDouble() : 1.0f;
+        int id = sad::physics::createCircle(x, y, radius, mass);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_دائرة_فيزيائية", physics_createCircle_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_create_circle", physics_createCircle_func);
+
+    // ─── أنشئ_صندوق_فيزيائي ───
+    // إنشاء جسم فيزيائي مستطيل الشكل (صندوق) في الموضع (x, y) مع العرض والارتفاع والكتلة.
+    // الصندوق مثالي لمحاكاة الصناديق والطوب والبلوكات والمنصات المتحركة.
+    // يتأثر بالجاذبية والتصادمات ويتفاعل مع الأجسام الأخرى. يُرجع معرّف الجسم.
+    auto physics_createBox_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float w = (float)args[2]->toDouble();
+        float h = (float)args[3]->toDouble();
+        float mass = args.size() > 4 ? (float)args[4]->toDouble() : 1.0f;
+        int id = sad::physics::createBox(x, y, w, h, mass);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_صندوق_فيزيائي", physics_createBox_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_create_box", physics_createBox_func);
+
+    // ─── أنشئ_منصة ───
+    // إنشاء منصة ثابتة (Static Platform) لا تتحرك ولا تتأثر بالقوى.
+    // المنصات الثابتة تُستخدم كأرضيات وجدران وحواجز وسلالم.
+    // الأجسام المتحركة ترتد عنها لكنها هي لا تتزحزح أبداً.
+    auto physics_createStaticPlatform_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float w = (float)args[2]->toDouble();
+        float h = (float)args[3]->toDouble();
+        int id = sad::physics::createStaticPlatform(x, y, w, h);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_منصة", physics_createStaticPlatform_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_create_platform", physics_createStaticPlatform_func);
+
+    // ─── احذف_جسم ───
+    // حذف جسم فيزيائي من العالم بمعرّفه. يختفي الجسم فوراً
+    // ولا يعود يؤثر في التصادمات أو الفيزياء.
+    auto physics_destroyBody_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        sad::physics::destroyBody(id);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("احذف_جسم", physics_destroyBody_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_destroy_body", physics_destroyBody_func);
+
+    // ─── عيّن_موضع_فيزيائي ───
+    // نقل جسم فيزيائي مباشرة إلى موضع جديد (x, y).
+    // تحذير: هذا يتجاوز الفيزياء — الجسم ينتقل فوراً بدون تصادمات.
+    // يُستخدم عادةً لإعادة وضع الجسم بعد السقوط أو عند بدء مرحلة جديدة.
+    auto physics_setPosition_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float x = (float)args[1]->toDouble();
+        float y = (float)args[2]->toDouble();
+        sad::physics::setPosition(id, x, y);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_موضع_فيزيائي", physics_setPosition_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_set_position", physics_setPosition_func);
+
+    // ─── عيّن_سرعة ───
+    // تعيين سرعة جسم فيزيائي مباشرة (vx, vy بالبكسل/ثانية).
+    // مفيد لإطلاق قذيفة أو قفز شخصية أو تحريك جسم بسرعة محددة.
+    // القيمة الموجبة في vy تعني الحركة للأسفل والسالبة للأعلى.
+    auto physics_setVelocity_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float vx = (float)args[1]->toDouble();
+        float vy = (float)args[2]->toDouble();
+        sad::physics::setVelocity(id, vx, vy);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_سرعة", physics_setVelocity_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_set_velocity", physics_setVelocity_func);
+
+    // ─── عيّن_ارتداد ───
+    // تعيين معامل الارتداد (Restitution) لجسم فيزيائي.
+    // القيمة 0 = لا ارتداد (الجسم يتوقف عند الاصطدام مثل الطين).
+    // القيمة 1 = ارتداد مرن كامل (مثل كرة مطاطية).
+    // القيم بين 0 و1 تعطي ارتداداً جزئياً (مثل كرة القدم ≈ 0.6).
+    auto physics_setRestitution_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float rest = (float)args[1]->toDouble();
+        sad::physics::setRestitution(id, rest);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_ارتداد", physics_setRestitution_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_set_restitution", physics_setRestitution_func);
+
+    // ─── عيّن_احتكاك ───
+    // تعيين معامل الاحتكاك (Friction) لجسم فيزيائي.
+    // القيمة 0 = سطح زلق (مثل الجليد — لا يبطئ الحركة).
+    // القيمة 1 = سطح خشن جداً (يوقف الحركة بسرعة).
+    // مفيد لمحاكاة أنواع مختلفة من الأسطح في الألعاب.
+    auto physics_setFriction_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float fric = (float)args[1]->toDouble();
+        sad::physics::setFriction(id, fric);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_احتكاك", physics_setFriction_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_set_friction", physics_setFriction_func);
+
+    // ─── عيّن_لون_جسم ───
+    // تعيين لون عرض جسم فيزيائي عند رسمه بالدالة التصحيحية.
+    // مفيد للتمييز بين أنواع الأجسام (مثلاً: أعداء بالأحمر، لاعب بالأزرق).
+    auto physics_setBodyColor_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        uint8_t r = (uint8_t)args[1]->toDouble();
+        uint8_t g = (uint8_t)args[2]->toDouble();
+        uint8_t b = (uint8_t)args[3]->toDouble();
+        sad::physics::setBodyColor(id, r, g, b);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_لون_جسم", physics_setBodyColor_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_set_body_color", physics_setBodyColor_func);
+
+    // ─── موضع_س_فيزيائي ───
+    // الحصول على الإحداثي الأفقي (X) لجسم فيزيائي.
+    // يُستخدم لمعرفة أين يقع الجسم حالياً في العالم الفيزيائي
+    // لرسمه في المكان الصحيح أو لاتخاذ قرارات بناءً على موضعه.
+    auto physics_getX_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float x = sad::physics::getX(id);
+        return std::make_shared<Data::Value>((double)x);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("موضع_س_فيزيائي", physics_getX_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_get_x", physics_getX_func);
+
+    // ─── موضع_ص_فيزيائي ───
+    // الحصول على الإحداثي الرأسي (Y) لجسم فيزيائي.
+    // مع موضع_س_فيزيائي يمكنك معرفة الموضع الكامل للجسم في العالم.
+    // لاحظ أن المحور Y موجب للأسفل (كما هو معتاد في الرسوميات ثنائية الأبعاد).
+    auto physics_getY_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float y = sad::physics::getY(id);
+        return std::make_shared<Data::Value>((double)y);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("موضع_ص_فيزيائي", physics_getY_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_get_y", physics_getY_func);
+
+    // ─── طبّق_قوة ───
+    // تطبيق قوة مستمرة على جسم فيزيائي (بالنيوتن تقريباً).
+    // القوة تُضاف إلى القوى الأخرى وتُطبَّق في الإطار التالي.
+    // مثل الرياح أو محرك صاروخ — قوة مستمرة ما دام يتم استدعاؤها.
+    // لقفزة أو ضربة مفاجئة استخدم طبّق_اندفاع بدلاً من هذه الدالة.
+    auto physics_applyForce_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float fx = (float)args[1]->toDouble();
+        float fy = (float)args[2]->toDouble();
+        sad::physics::applyForce(id, fx, fy);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("طبّق_قوة", physics_applyForce_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_apply_force", physics_applyForce_func);
+
+    // ─── طبّق_اندفاع ───
+    // تطبيق اندفاع فوري (Impulse) على جسم فيزيائي — تغيير مباشر وفوري في السرعة.
+    // على عكس القوة المستمرة، الاندفاع يحدث مرة واحدة فقط.
+    // مثالي للقفز والرمي والضربات والانفجارات والنطّات.
+    // القيمة السالبة في iy تعني اندفاع للأعلى (قفزة).
+    auto physics_applyImpulse_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float ix = (float)args[1]->toDouble();
+        float iy = (float)args[2]->toDouble();
+        sad::physics::applyImpulse(id, ix, iy);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("طبّق_اندفاع", physics_applyImpulse_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_apply_impulse", physics_applyImpulse_func);
+
+    // ─── عيّن_جاذبية_العالم ───
+    // تعيين الجاذبية العامة لعالم الفيزياء بأكمله.
+    // الجاذبية تؤثر على جميع الأجسام المتحركة (Dynamic).
+    // القيمة الافتراضية عادةً (0, 980) لمحاكاة جاذبية الأرض (9.8 م/ث² × 100 بكسل/متر).
+    // يمكن تغييرها لمحاكاة القمر (0, 160) أو الفضاء (0, 0) أو حتى عكسها (0, -500).
+    auto physics_setWorldGravity_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float gx = (float)args[0]->toDouble();
+        float gy = (float)args[1]->toDouble();
+        sad::physics::setWorldGravity(gx, gy);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_جاذبية_العالم", physics_setWorldGravity_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_set_world_gravity", physics_setWorldGravity_func);
+
+    // ─── عيّن_حدود_العالم ───
+    // تعيين حدود العالم الفيزيائي (المنطقة التي تحتوي الأجسام).
+    // الأجسام التي تخرج من هذه الحدود تُعاد إلى الداخل (ترتد عن الجدران).
+    // المعاملات: الحد الأيسر، العلوي، الأيمن، السفلي.
+    // مفيد لمنع الأجسام من السقوط إلى ما لا نهاية.
+    auto physics_setWorldBounds_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float left = (float)args[0]->toDouble();
+        float top = (float)args[1]->toDouble();
+        float right = (float)args[2]->toDouble();
+        float bottom = (float)args[3]->toDouble();
+        sad::physics::setWorldBounds(left, top, right, bottom);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_حدود_العالم", physics_setWorldBounds_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_set_world_bounds", physics_setWorldBounds_func);
+
+    // ─── أنشئ_نابض ───
+    // إنشاء قيد نابض (Spring Constraint) بين جسمين فيزيائيين.
+    // النابض يحاول إبقاء المسافة بين الجسمين عند الطول المحدد —
+    // إذا ابتعدا يسحبهما وإذا اقتربا يبعدهما. مثالي لمحاكاة الحبال
+    // والجسور المعلقة والسلاسل وأجهزة الزنبرك.
+    // المعاملات: معرّفا الجسمين، طول النابض، الصلابة (0-1)، التخميد (0-1).
+    auto physics_createSpringConstraint_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int bodyA = (int)args[0]->toDouble();
+        int bodyB = (int)args[1]->toDouble();
+        float length = (float)args[2]->toDouble();
+        float stiffness = args.size() > 3 ? (float)args[3]->toDouble() : 0.3f;
+        float damping = args.size() > 4 ? (float)args[4]->toDouble() : 0.1f;
+        int id = sad::physics::createSpringConstraint(bodyA, bodyB, length, stiffness, damping);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_نابض", physics_createSpringConstraint_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_create_spring", physics_createSpringConstraint_func);
+
+    // ─── هل_يتصادم ───
+    // فحص هل جسمان فيزيائيان يتصادمان (يتلامسان) حالياً.
+    // يُرجع 1 (صحيح) إذا كان هناك تصادم، و0 (خطأ) إذا لم يكن.
+    // مفيد لكشف وصول الكرة للهدف، أو ملامسة اللاعب لعدو، أو جمع عنصر.
+    auto physics_isColliding_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int idA = (int)args[0]->toDouble();
+        int idB = (int)args[1]->toDouble();
+        bool colliding = sad::physics::isColliding(idA, idB);
+        return std::make_shared<Data::Value>(colliding ? 1.0 : 0.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("هل_يتصادم", physics_isColliding_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_is_colliding", physics_isColliding_func);
+
+    // ─── عدد_الأجسام ───
+    // الحصول على العدد الإجمالي للأجسام الفيزيائية الموجودة في العالم.
+    // مفيد لمراقبة الأداء أو لعرض إحصائيات أو للتحقق من فراغ العالم.
+    auto physics_getBodyCount_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int count = sad::physics::getBodyCount();
+        return std::make_shared<Data::Value>((double)count);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عدد_الأجسام", physics_getBodyCount_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_get_body_count", physics_getBodyCount_func);
+
+    // ─── خطوة_فيزيائية ───
+    // تقديم المحاكاة الفيزيائية خطوة واحدة للأمام بالزمن المحدد (بالملي ثانية).
+    // يجب استدعاء هذه الدالة في كل إطار من حلقة اللعبة الرئيسية.
+    // هي التي تحرّك الأجسام وتكشف التصادمات وتطبّق الجاذبية والقوى.
+    // مثال: خطوة_فيزيائية(16.67) لـ 60 إطار في الثانية.
+    auto physics_step_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float dt = (float)args[0]->toDouble();
+        sad::physics::step(dt);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("خطوة_فيزيائية", physics_step_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_step", physics_step_func);
+
+    // ─── ارسم_فيزياء ───
+    // رسم جميع الأجسام الفيزيائية بأشكالها الهندسية وألوانها على المُصيِّر.
+    // هذه الدالة تصحيحية (Debug) — ترسم الدوائر والمستطيلات والقيود.
+    // مفيدة أثناء التطوير لرؤية مواضع الأجسام وحدود التصادم.
+    // المعامل: مؤشر المُصيِّر (renderer) كقيمة رقمية.
+    auto physics_debugRender_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        sad::physics::debugRender(renderer);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_فيزياء", physics_debugRender_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_debug_render", physics_debugRender_func);
+
+    // ─── أعد_تعيين_العالم ───
+    // إعادة تعيين عالم الفيزياء بالكامل — حذف كل الأجسام والقيود
+    // وإعادة كل الإعدادات إلى قيمها الافتراضية. يُستخدم عند بدء
+    // مرحلة جديدة أو إعادة تشغيل اللعبة أو تحميل مشهد جديد.
+    auto physics_resetWorld_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        sad::physics::resetWorld();
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أعد_تعيين_العالم", physics_resetWorld_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("physics_reset_world", physics_resetWorld_func);
+
+    // ===================================================================
+    // النظام 4: المشاهد ثلاثية الأبعاد — sad::scene3d
+    // ===================================================================
+    //
+    // نظام رسم ثلاثي الأبعاد كامل فوق SDL2 — Flutter لا يدعم 3D إطلاقاً!
+    // يتضمن إسقاطاً منظورياً، إضاءة اتجاهية ومحيطية، أشكالاً أساسية
+    // (مكعب، كرة، مخروط، أسطوانة، مستوى)، كاميرا قابلة للتحريك والتدوير،
+    // ورسم شبكي ومحاور إحداثية. يمكن عرض حتى 1000 كائن ثلاثي الأبعاد.
+    // ===================================================================
+
+    // ─── أنشئ_مكعب ───
+    // إنشاء مكعب ثلاثي الأبعاد في الموضع (x, y, z) بالحجم المحدد.
+    // المكعب هو أبسط الأشكال ثلاثية الأبعاد — 6 وجوه متساوية.
+    // مثالي لتمثيل المباني والصناديق والأرضيات والجدران في مشاهد 3D.
+    // المعامل الرابع (الحجم) اختياري وقيمته الافتراضية 1.0.
+    auto scene3d_createCube_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float z = (float)args[2]->toDouble();
+        float size = args.size() > 3 ? (float)args[3]->toDouble() : 1.0f;
+        int id = sad::scene3d::createCube(x, y, z, size);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_مكعب", scene3d_createCube_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_create_cube", scene3d_createCube_func);
+
+    // ─── أنشئ_كرة ───
+    // إنشاء كرة ثلاثية الأبعاد في الموضع (x, y, z) بنصف القطر وعدد الأقسام.
+    // الكرة مكونة من مثلثات — كلما زاد عدد الأقسام (segments) كلما بدت أكثر نعومة
+    // لكن تكلفة الرسم تزيد. القيمة الافتراضية 12 قسماً تعطي نتيجة جيدة.
+    // مثالية لتمثيل الكواكب والكرات والجزيئات والنقاط المضيئة.
+    auto scene3d_createSphere_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float z = (float)args[2]->toDouble();
+        float radius = args.size() > 3 ? (float)args[3]->toDouble() : 0.5f;
+        int segments = args.size() > 4 ? (int)args[4]->toDouble() : 12;
+        int id = sad::scene3d::createSphere(x, y, z, radius, segments);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_كرة", scene3d_createSphere_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_create_sphere", scene3d_createSphere_func);
+
+    // ─── أنشئ_مخروط ───
+    // إنشاء مخروط ثلاثي الأبعاد في الموضع (x, y, z) بنصف القطر والارتفاع.
+    // المخروط شكل هندسي قاعدته دائرة ورأسه نقطة. مثالي لتمثيل
+    // الأشجار (أقماع خضراء) والأسهم والمؤشرات والقمع والمباني المخروطية.
+    auto scene3d_createCone_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float z = (float)args[2]->toDouble();
+        float radius = args.size() > 3 ? (float)args[3]->toDouble() : 0.5f;
+        float height = args.size() > 4 ? (float)args[4]->toDouble() : 1.0f;
+        int id = sad::scene3d::createCone(x, y, z, radius, height);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_مخروط", scene3d_createCone_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_create_cone", scene3d_createCone_func);
+
+    // ─── أنشئ_أسطوانة ───
+    // إنشاء أسطوانة ثلاثية الأبعاد في الموضع (x, y, z) بنصف القطر والارتفاع.
+    // الأسطوانة شكل ذو قاعدتين دائريتين وجسم مستقيم. مثالية لتمثيل
+    // الأعمدة والأنابيب وجذوع الأشجار والعملات المعدنية (مع ارتفاع صغير).
+    auto scene3d_createCylinder_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float z = (float)args[2]->toDouble();
+        float radius = args.size() > 3 ? (float)args[3]->toDouble() : 0.5f;
+        float height = args.size() > 4 ? (float)args[4]->toDouble() : 1.0f;
+        int id = sad::scene3d::createCylinder(x, y, z, radius, height);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_أسطوانة", scene3d_createCylinder_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_create_cylinder", scene3d_createCylinder_func);
+
+    // ─── أنشئ_مستوى ───
+    // إنشاء مستوى (Plane) ثلاثي الأبعاد — سطح مسطح أفقي.
+    // يُستخدم كأرضية للمشهد أو كسطح ماء أو كقاعدة للكائنات.
+    // المعامل الرابع يحدد حجم المستوى (الافتراضي 5.0 وحدات).
+    auto scene3d_createPlane_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float z = (float)args[2]->toDouble();
+        float size = args.size() > 3 ? (float)args[3]->toDouble() : 5.0f;
+        int id = sad::scene3d::createPlane(x, y, z, size);
+        return std::make_shared<Data::Value>((double)id);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_مستوى", scene3d_createPlane_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_create_plane", scene3d_createPlane_func);
+
+    // ─── احذف_كائن_3D ───
+    // حذف كائن ثلاثي الأبعاد من المشهد بمعرّفه.
+    // الكائن يختفي فوراً ولا يُرسم بعد ذلك.
+    auto scene3d_destroyObject_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        sad::scene3d::destroyObject(id);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("احذف_كائن_3D", scene3d_destroyObject_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_destroy_object", scene3d_destroyObject_func);
+
+    // ─── عيّن_موضع_3D ───
+    // تعيين موضع كائن ثلاثي الأبعاد مباشرة إلى الإحداثيات (x, y, z).
+    // المحور X أفقي (يمين/يسار)، المحور Y رأسي (أعلى/أسفل)،
+    // المحور Z عمق (بعيد/قريب من الكاميرا). يُستخدم لتحريك الكائنات في المشهد.
+    auto scene3d_setObjectPosition_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float x = (float)args[1]->toDouble();
+        float y = (float)args[2]->toDouble();
+        float z = (float)args[3]->toDouble();
+        sad::scene3d::setObjectPosition(id, x, y, z);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_موضع_3D", scene3d_setObjectPosition_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_set_position", scene3d_setObjectPosition_func);
+
+    // ─── عيّن_دوران_3D ───
+    // تعيين دوران كائن ثلاثي الأبعاد حول المحاور الثلاثة (بالدرجات).
+    // rx = الدوران حول المحور X (ميلان أمامي/خلفي).
+    // ry = الدوران حول المحور Y (دوران يمين/يسار — الأكثر شيوعاً).
+    // rz = الدوران حول المحور Z (إمالة جانبية).
+    auto scene3d_setObjectRotation_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float rx = (float)args[1]->toDouble();
+        float ry = (float)args[2]->toDouble();
+        float rz = (float)args[3]->toDouble();
+        sad::scene3d::setObjectRotation(id, rx, ry, rz);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_دوران_3D", scene3d_setObjectRotation_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_set_rotation", scene3d_setObjectRotation_func);
+
+    // ─── عيّن_مقياس_3D ───
+    // تعيين مقياس (حجم) كائن ثلاثي الأبعاد على المحاور الثلاثة.
+    // (1, 1, 1) = الحجم الطبيعي. (2, 2, 2) = ضعف الحجم في كل الاتجاهات.
+    // يمكن مط الكائن بتغيير محور واحد فقط مثل (1, 2, 1) لمضاعفة الارتفاع.
+    auto scene3d_setObjectScale_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float sx = (float)args[1]->toDouble();
+        float sy = (float)args[2]->toDouble();
+        float sz = (float)args[3]->toDouble();
+        sad::scene3d::setObjectScale(id, sx, sy, sz);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_مقياس_3D", scene3d_setObjectScale_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_set_scale", scene3d_setObjectScale_func);
+
+    // ─── عيّن_لون_3D ───
+    // تعيين لون كائن ثلاثي الأبعاد (RGBA). اللون يؤثر على كيفية ظهور
+    // الكائن عند تطبيق الإضاءة عليه. المعامل الخامس (الشفافية) اختياري
+    // وقيمته الافتراضية 255 (معتم بالكامل). قيم أقل تجعل الكائن شبه شفاف.
+    auto scene3d_setObjectColor_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        uint8_t r = (uint8_t)args[1]->toDouble();
+        uint8_t g = (uint8_t)args[2]->toDouble();
+        uint8_t b = (uint8_t)args[3]->toDouble();
+        uint8_t a = args.size() > 4 ? (uint8_t)args[4]->toDouble() : 255;
+        sad::scene3d::setObjectColor(id, r, g, b, a);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_لون_3D", scene3d_setObjectColor_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_set_color", scene3d_setObjectColor_func);
+
+    // ─── دوّر_كائن ───
+    // إضافة دوران تدريجي لكائن ثلاثي الأبعاد (بالدرجات).
+    // على عكس عيّن_دوران_3D الذي يحدد الدوران المطلق، هذه الدالة
+    // تضيف الدوران المحدد للدوران الحالي. مثالية لتدوير الكائنات باستمرار
+    // في كل إطار (مثل كوكب يدور حول نفسه أو عملة تتقلب).
+    auto scene3d_rotateObject_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int id = (int)args[0]->toDouble();
+        float dx = (float)args[1]->toDouble();
+        float dy = (float)args[2]->toDouble();
+        float dz = (float)args[3]->toDouble();
+        sad::scene3d::rotateObject(id, dx, dy, dz);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("دوّر_كائن", scene3d_rotateObject_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_rotate_object", scene3d_rotateObject_func);
+
+    // ─── عيّن_كاميرا ───
+    // تعيين موضع الكاميرا في الفضاء ثلاثي الأبعاد.
+    // الكاميرا هي "العين" التي ننظر من خلالها للمشهد.
+    // الموضع الافتراضي (0, 2, -5) — مرتفعة قليلاً ومبتعدة عن المركز.
+    // غيّر z لتقريب/إبعاد الكاميرا، وy لرفعها/خفضها.
+    auto scene3d_setCameraPosition_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float z = (float)args[2]->toDouble();
+        sad::scene3d::setCameraPosition(x, y, z);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_كاميرا", scene3d_setCameraPosition_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_set_camera_position", scene3d_setCameraPosition_func);
+
+    // ─── عيّن_هدف_كاميرا ───
+    // تعيين النقطة التي تنظر إليها الكاميرا في الفضاء ثلاثي الأبعاد.
+    // الكاميرا دائماً موجهة نحو هذه النقطة. الهدف الافتراضي (0, 0, 0) — المركز.
+    // غيّر الهدف لتوجيه الكاميرا نحو كائن معين أو منطقة محددة.
+    auto scene3d_setCameraTarget_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float z = (float)args[2]->toDouble();
+        sad::scene3d::setCameraTarget(x, y, z);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_هدف_كاميرا", scene3d_setCameraTarget_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_set_camera_target", scene3d_setCameraTarget_func);
+
+    // ─── دوّر_كاميرا ───
+    // تدوير الكاميرا حول هدفها (Orbit) — كأنك تدور حول كائن لرؤيته من كل الزوايا.
+    // المعامل الأول: الزاوية الأفقية (يمين/يسار). الثاني: الزاوية الرأسية (أعلى/أسفل).
+    // الثالث: المسافة من الهدف (القرب/البعد). مثالي للمعاينة ثلاثية الأبعاد.
+    auto scene3d_orbitCamera_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float angleH = (float)args[0]->toDouble();
+        float angleV = (float)args[1]->toDouble();
+        float distance = (float)args[2]->toDouble();
+        sad::scene3d::orbitCamera(angleH, angleV, distance);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("دوّر_كاميرا", scene3d_orbitCamera_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_orbit_camera", scene3d_orbitCamera_func);
+
+    // ─── عيّن_إضاءة ───
+    // تعيين اتجاه الضوء الرئيسي (الاتجاهي) في المشهد ثلاثي الأبعاد.
+    // الضوء الاتجاهي يشبه ضوء الشمس — يأتي من اتجاه واحد ويؤثر على
+    // كل الكائنات بنفس الطريقة. الاتجاه الافتراضي (-0.5, -1, 0.5)
+    // يمثل ضوءاً يأتي من الأعلى اليسار. غيّره لتغيير مظهر الإضاءة.
+    auto scene3d_setLightDirection_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float z = (float)args[2]->toDouble();
+        sad::scene3d::setLightDirection(x, y, z);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_إضاءة", scene3d_setLightDirection_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_set_light_direction", scene3d_setLightDirection_func);
+
+    // ─── عيّن_إضاءة_محيطية ───
+    // تعيين مستوى الإضاءة المحيطية (Ambient Light) في المشهد.
+    // الإضاءة المحيطية هي الضوء الذي يصل لكل مكان بالتساوي بدون اتجاه محدد.
+    // القيمة 0 = ظلام تام (فقط الضوء الاتجاهي يعمل).
+    // القيمة 1 = إضاءة كاملة (لا ظلال — كل الوجوه مضاءة بالتساوي).
+    // القيمة الافتراضية 0.3 تعطي توازناً جيداً بين الإضاءة والظلال.
+    auto scene3d_setAmbientLight_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float amount = (float)args[0]->toDouble();
+        sad::scene3d::setAmbientLight(amount);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_إضاءة_محيطية", scene3d_setAmbientLight_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_set_ambient_light", scene3d_setAmbientLight_func);
+
+    // ─── ارسم_3D ───
+    // رسم المشهد ثلاثي الأبعاد بالكامل على المُصيِّر (renderer).
+    // هذه هي الدالة الرئيسية التي تُستدعى في كل إطار لعرض المشهد.
+    // تقوم بتطبيق الإسقاط المنظوري والإضاءة وترتيب العمق ورسم كل الكائنات.
+    // المعاملات: المُصيِّر، عرض الشاشة، ارتفاع الشاشة.
+    auto scene3d_render_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int w = (int)args[1]->toDouble();
+        int h = (int)args[2]->toDouble();
+        sad::scene3d::render(renderer, w, h);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_3D", scene3d_render_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_render", scene3d_render_func);
+
+    // ─── ارسم_شبكة ───
+    // رسم شبكة أرضية (Grid) في المشهد ثلاثي الأبعاد — خطوط متقاطعة على
+    // المستوى الأفقي تُساعد في تقدير المسافات والمواضع. مفيدة جداً أثناء
+    // التطوير لرؤية "أرضية" المشهد. المعاملات: المُصيِّر، أبعاد الشاشة،
+    // حجم الشبكة الكلي، وعدد التقسيمات (كلما زاد كلما كانت الشبكة أدق).
+    auto scene3d_drawGrid_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int w = (int)args[1]->toDouble();
+        int h = (int)args[2]->toDouble();
+        float size = (float)args[3]->toDouble();
+        int divs = (int)args[4]->toDouble();
+        sad::scene3d::drawGrid(renderer, w, h, size, divs);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_شبكة", scene3d_drawGrid_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_draw_grid", scene3d_drawGrid_func);
+
+    // ─── ارسم_محاور ───
+    // رسم المحاور الإحداثية الثلاثة (X أحمر، Y أخضر، Z أزرق) في المشهد.
+    // تُساعد في فهم اتجاهات المحاور والتنقل في الفضاء ثلاثي الأبعاد.
+    // المعامل الرابع يحدد طول المحاور (بالوحدات ثلاثية الأبعاد).
+    auto scene3d_drawAxes_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int w = (int)args[1]->toDouble();
+        int h = (int)args[2]->toDouble();
+        float length = (float)args[3]->toDouble();
+        sad::scene3d::drawAxes(renderer, w, h, length);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_محاور", scene3d_drawAxes_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_draw_axes", scene3d_drawAxes_func);
+
+    // ─── أعد_تعيين_المشهد ───
+    // إعادة تعيين المشهد ثلاثي الأبعاد بالكامل — حذف كل الكائنات وإعادة
+    // الكاميرا والإضاءة إلى قيمها الافتراضية. يُستخدم عند الانتقال
+    // لمشهد جديد أو إعادة بناء المشهد من الصفر.
+    auto scene3d_resetScene_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        sad::scene3d::resetScene();
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أعد_تعيين_المشهد", scene3d_resetScene_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("scene3d_reset_scene", scene3d_resetScene_func);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // نظام الذكاء الاصطناعي للألعاب (Game AI System) — sad::ai
+    // ═══════════════════════════════════════════════════════════════════════════
+    // هذا النظام يقدم أدوات ذكاء اصطناعي متكاملة للألعاب تشمل:
+    //   - إيجاد المسار (A* Pathfinding): إنشاء شبكة وتحديد المسار الأقصر
+    //   - آلة الحالات المحدودة (FSM): إدارة حالات الكيانات والانتقالات بينها
+    //   - سلوكيات التوجيه (Steering): مطاردة، هروب، تجوال، اقتراب
+    //   - سلوك الأسراب (Flocking): محاكاة حركة مجموعات مثل الطيور والأسماك
+    // كل هذه الميزات مدمجة بدون أي مكتبة خارجية!
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // ─── أنشئ_شبكة_مسار / ai_create_grid ───
+    // إنشاء شبكة ثنائية الأبعاد لنظام إيجاد المسار (A* Pathfinding).
+    // الشبكة هي أساس كل عمليات إيجاد المسار — كل خلية يمكن أن تكون
+    // قابلة للمشي أو حاجزاً. المعاملات: العرض والارتفاع (عدد الخلايا).
+    // تُرجع معرّف الشبكة لاستخدامه في الدوال الأخرى.
+    auto ai_createGrid_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int w = (int)args[0]->toDouble();
+        int h = (int)args[1]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::createGrid(w, h));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_شبكة_مسار", ai_createGrid_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_create_grid", ai_createGrid_func);
+
+    // ─── احذف_شبكة_مسار / ai_destroy_grid ───
+    // حذف شبكة المسار وتحرير ذاكرتها. يجب استدعاء هذه الدالة عند الانتهاء
+    // من استخدام الشبكة لتجنب تسرب الذاكرة. المعامل: معرّف الشبكة.
+    auto ai_destroyGrid_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int gridId = (int)args[0]->toDouble();
+        sad::ai::destroyGrid(gridId);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("احذف_شبكة_مسار", ai_destroyGrid_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_destroy_grid", ai_destroyGrid_func);
+
+    // ─── عيّن_قابلية_المشي / ai_set_walkable ───
+    // تعيين خلية معينة في الشبكة كقابلة للمشي أو كحاجز (جدار).
+    // هذا يحدد أين يمكن للكيانات أن تمر وأين لا يمكنها.
+    // المعاملات: معرّف الشبكة، إحداثيات الخلية (س، ص)، وقيمة منطقية (1=ممر، 0=حاجز).
+    auto ai_setWalkable_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int gridId = (int)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        bool walkable = args[3]->toDouble() != 0.0;
+        sad::ai::setWalkable(gridId, x, y, walkable);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_قابلية_المشي", ai_setWalkable_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_set_walkable", ai_setWalkable_func);
+
+    // ─── عيّن_تكلفة / ai_set_cost ───
+    // تعيين تكلفة المرور عبر خلية معينة. الخلايا ذات التكلفة الأعلى
+    // يتم تجنبها في المسار — مثلاً: الرمال أبطأ من الطريق المعبد.
+    // المعاملات: معرّف الشبكة، إحداثيات الخلية (س، ص)، والتكلفة (عدد عشري).
+    auto ai_setCost_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int gridId = (int)args[0]->toDouble();
+        int x = (int)args[1]->toDouble();
+        int y = (int)args[2]->toDouble();
+        float cost = (float)args[3]->toDouble();
+        sad::ai::setCost(gridId, x, y, cost);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_تكلفة", ai_setCost_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_set_cost", ai_setCost_func);
+
+    // ─── جد_مسار / ai_find_path ───
+    // إيجاد أقصر مسار بين نقطتين على الشبكة باستخدام خوارزمية A*.
+    // هذه هي الدالة الأساسية في نظام إيجاد المسار — تأخذ نقطة البداية
+    // ونقطة النهاية وتُرجع معرّف المسار الذي يمكن قراءة نقاطه لاحقاً.
+    // المعاملات: معرّف الشبكة، بداية (س، ص)، نهاية (س، ص).
+    auto ai_findPath_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int gridId = (int)args[0]->toDouble();
+        int sx = (int)args[1]->toDouble();
+        int sy = (int)args[2]->toDouble();
+        int ex = (int)args[3]->toDouble();
+        int ey = (int)args[4]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::findPath(gridId, sx, sy, ex, ey));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("جد_مسار", ai_findPath_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_find_path", ai_findPath_func);
+
+    // ─── طول_المسار / ai_get_path_length ───
+    // الحصول على عدد النقاط في المسار المحسوب. يُستخدم للتكرار على
+    // نقاط المسار واحدة تلو الأخرى (مع مسار_س ومسار_ص).
+    // المعامل: معرّف المسار.
+    auto ai_getPathLength_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int pathId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::getPathLength(pathId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("طول_المسار", ai_getPathLength_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_get_path_length", ai_getPathLength_func);
+
+    // ─── مسار_س / ai_get_path_x ───
+    // الحصول على الإحداثي الأفقي (س) لنقطة معينة في المسار.
+    // المعاملات: معرّف المسار، ورقم النقطة (الفهرس).
+    auto ai_getPathX_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int pathId = (int)args[0]->toDouble();
+        int index = (int)args[1]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::getPathX(pathId, index));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("مسار_س", ai_getPathX_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_get_path_x", ai_getPathX_func);
+
+    // ─── مسار_ص / ai_get_path_y ───
+    // الحصول على الإحداثي العمودي (ص) لنقطة معينة في المسار.
+    // المعاملات: معرّف المسار، ورقم النقطة (الفهرس).
+    auto ai_getPathY_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int pathId = (int)args[0]->toDouble();
+        int index = (int)args[1]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::getPathY(pathId, index));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("مسار_ص", ai_getPathY_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_get_path_y", ai_getPathY_func);
+
+    // ─── هل_وجد_مسار / ai_is_path_found ───
+    // التحقق من نجاح عملية إيجاد المسار. تُرجع 1 إذا تم إيجاد مسار
+    // و0 إذا لم يكن هناك مسار ممكن (مثلاً: الهدف محاط بحواجز).
+    // المعامل: معرّف المسار.
+    auto ai_isPathFound_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int pathId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>(sad::ai::isPathFound(pathId) ? 1.0 : 0.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("هل_وجد_مسار", ai_isPathFound_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_is_path_found", ai_isPathFound_func);
+
+    // ─── احذف_مسار / ai_destroy_path ───
+    // حذف المسار المحسوب وتحرير ذاكرته. يجب استدعاء هذه الدالة بعد
+    // الانتهاء من استخدام المسار لتجنب تسرب الذاكرة.
+    // المعامل: معرّف المسار.
+    auto ai_destroyPath_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int pathId = (int)args[0]->toDouble();
+        sad::ai::destroyPath(pathId);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("احذف_مسار", ai_destroyPath_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_destroy_path", ai_destroyPath_func);
+
+    // ─────────────────────────────────────────────────────────────────────
+    // آلة الحالات المحدودة (Finite State Machine - FSM)
+    // ─────────────────────────────────────────────────────────────────────
+    // آلة الحالات تُستخدم لإدارة سلوك الكيانات في اللعبة. كل كيان
+    // (عدو، NPC، إلخ) يكون في "حالة" واحدة في كل لحظة (مثل: خمول،
+    // مطاردة، هجوم، هروب). الانتقال بين الحالات يحدث من خلال "محفزات".
+    // ─────────────────────────────────────────────────────────────────────
+
+    // ─── أنشئ_آلة_حالات / ai_create_fsm ───
+    // إنشاء آلة حالات محدودة جديدة. تُرجع معرّف الآلة لاستخدامه
+    // في إضافة الحالات والانتقالات وإطلاق المحفزات.
+    auto ai_createFSM_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        return std::make_shared<Data::Value>((double)sad::ai::createFSM());
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_آلة_حالات", ai_createFSM_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_create_fsm", ai_createFSM_func);
+
+    // ─── احذف_آلة_حالات / ai_destroy_fsm ───
+    // حذف آلة الحالات وتحرير ذاكرتها. المعامل: معرّف الآلة.
+    auto ai_destroyFSM_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int fsmId = (int)args[0]->toDouble();
+        sad::ai::destroyFSM(fsmId);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("احذف_آلة_حالات", ai_destroyFSM_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_destroy_fsm", ai_destroyFSM_func);
+
+    // ─── أضف_حالة / ai_add_state ───
+    // إضافة حالة جديدة إلى آلة الحالات. كل حالة لها معرّف رقمي
+    // واسم نصي (مثلاً: "خمول"، "مطاردة"، "هجوم").
+    // المعاملات: معرّف الآلة، معرّف الحالة (رقم)، اسم الحالة (نص).
+    auto ai_addState_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int fsmId = (int)args[0]->toDouble();
+        int stateId = (int)args[1]->toDouble();
+        std::string name = args[2]->toString();
+        sad::ai::addState(fsmId, stateId, name);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أضف_حالة", ai_addState_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_add_state", ai_addState_func);
+
+    // ─── عيّن_حالة_أولية / ai_set_initial_state ───
+    // تعيين الحالة التي تبدأ منها آلة الحالات. يجب استدعاء هذه الدالة
+    // بعد إضافة الحالات وقبل البدء في إطلاق المحفزات.
+    // المعاملات: معرّف الآلة، معرّف الحالة الأولية.
+    auto ai_setInitialState_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int fsmId = (int)args[0]->toDouble();
+        int stateId = (int)args[1]->toDouble();
+        sad::ai::setInitialState(fsmId, stateId);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_حالة_أولية", ai_setInitialState_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_set_initial_state", ai_setInitialState_func);
+
+    // ─── أضف_انتقال / ai_add_transition ───
+    // إضافة انتقال بين حالتين. عند إطلاق المحفز المحدد، إذا كانت الآلة
+    // في الحالة "من"، تنتقل تلقائياً إلى الحالة "إلى".
+    // المعاملات: معرّف الآلة، حالة المصدر، حالة الوجهة، اسم المحفز.
+    auto ai_addTransition_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int fsmId = (int)args[0]->toDouble();
+        int from = (int)args[1]->toDouble();
+        int to = (int)args[2]->toDouble();
+        std::string trigger = args[3]->toString();
+        sad::ai::addTransition(fsmId, from, to, trigger);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أضف_انتقال", ai_addTransition_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_add_transition", ai_addTransition_func);
+
+    // ─── أطلق_محفز / ai_fire_trigger ───
+    // إطلاق محفز (trigger) في آلة الحالات. إذا كان هناك انتقال معرّف
+    // من الحالة الحالية بهذا المحفز، يتم الانتقال وتُرجع 1 (نجاح).
+    // إذا لم يكن هناك انتقال مناسب، تُرجع 0 (فشل).
+    // المعاملات: معرّف الآلة، اسم المحفز.
+    auto ai_fireTrigger_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int fsmId = (int)args[0]->toDouble();
+        std::string trigger = args[1]->toString();
+        return std::make_shared<Data::Value>(sad::ai::fireTrigger(fsmId, trigger) ? 1.0 : 0.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أطلق_محفز", ai_fireTrigger_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_fire_trigger", ai_fireTrigger_func);
+
+    // ─── الحالة_الحالية / ai_get_current_state ───
+    // الحصول على المعرّف الرقمي للحالة الحالية في آلة الحالات.
+    // مفيد للتحقق من حالة الكيان برمجياً (مثلاً: إذا كان في حالة الهجوم).
+    // المعامل: معرّف الآلة.
+    auto ai_getCurrentState_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int fsmId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::getCurrentState(fsmId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("الحالة_الحالية", ai_getCurrentState_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_get_current_state", ai_getCurrentState_func);
+
+    // ─── اسم_الحالة_الحالية / ai_get_current_state_name ───
+    // الحصول على الاسم النصي للحالة الحالية (مثلاً: "مطاردة").
+    // مفيد لعرض حالة الكيان على الشاشة أو لأغراض التصحيح.
+    // المعامل: معرّف الآلة.
+    auto ai_getCurrentStateName_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int fsmId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>(sad::ai::getCurrentStateName(fsmId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("اسم_الحالة_الحالية", ai_getCurrentStateName_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_get_current_state_name", ai_getCurrentStateName_func);
+
+    // ─────────────────────────────────────────────────────────────────────
+    // سلوكيات التوجيه (Steering Behaviors)
+    // ─────────────────────────────────────────────────────────────────────
+    // سلوكيات التوجيه تُحرك الكيانات (أعداء، NPCs) بطريقة طبيعية وذكية.
+    // كل كيان له موضع وسرعة وسرعة قصوى، ويمكنه تنفيذ سلوكيات مختلفة:
+    //   - المطاردة (Seek): التوجه نحو هدف بأقصى سرعة
+    //   - الهروب (Flee): الابتعاد عن تهديد بأقصى سرعة
+    //   - التجوال (Wander): حركة عشوائية طبيعية
+    //   - الاقتراب (Arrive): مطاردة مع تباطؤ تدريجي عند الاقتراب
+    // ─────────────────────────────────────────────────────────────────────
+
+    // ─── أنشئ_كيان / ai_create_agent ───
+    // إنشاء كيان ذكي جديد (عدو، NPC، وحش، إلخ) في الموضع المحدد
+    // مع سرعة قصوى. الكيان يمكنه تنفيذ سلوكيات التوجيه المختلفة.
+    // المعاملات: الموضع الأفقي (س)، الموضع العمودي (ص)، السرعة القصوى.
+    // تُرجع معرّف الكيان.
+    auto ai_createAgent_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        float x = (float)args[0]->toDouble();
+        float y = (float)args[1]->toDouble();
+        float maxSpeed = (float)args[2]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::createAgent(x, y, maxSpeed));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_كيان", ai_createAgent_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_create_agent", ai_createAgent_func);
+
+    // ─── احذف_كيان / ai_destroy_agent ───
+    // حذف كيان وتحرير ذاكرته. المعامل: معرّف الكيان.
+    auto ai_destroyAgent_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int agentId = (int)args[0]->toDouble();
+        sad::ai::destroyAgent(agentId);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("احذف_كيان", ai_destroyAgent_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_destroy_agent", ai_destroyAgent_func);
+
+    // ─── عيّن_موضع_كيان / ai_set_agent_position ───
+    // تعيين موضع الكيان يدوياً. مفيد لنقل الكيان فوراً إلى موضع جديد
+    // (مثلاً: عند ظهوره لأول مرة أو إعادة تعيينه).
+    // المعاملات: معرّف الكيان، الموضع الأفقي (س)، الموضع العمودي (ص).
+    auto ai_setAgentPosition_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int agentId = (int)args[0]->toDouble();
+        float x = (float)args[1]->toDouble();
+        float y = (float)args[2]->toDouble();
+        sad::ai::setAgentPosition(agentId, x, y);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_موضع_كيان", ai_setAgentPosition_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_set_agent_position", ai_setAgentPosition_func);
+
+    // ─── موضع_كيان_س / ai_get_agent_x ───
+    // الحصول على الموضع الأفقي (س) للكيان. مفيد لرسم الكيان أو
+    // حساب المسافات. المعامل: معرّف الكيان.
+    auto ai_getAgentX_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int agentId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::getAgentX(agentId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("موضع_كيان_س", ai_getAgentX_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_get_agent_x", ai_getAgentX_func);
+
+    // ─── موضع_كيان_ص / ai_get_agent_y ───
+    // الحصول على الموضع العمودي (ص) للكيان. مفيد لرسم الكيان أو
+    // حساب المسافات. المعامل: معرّف الكيان.
+    auto ai_getAgentY_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int agentId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::getAgentY(agentId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("موضع_كيان_ص", ai_getAgentY_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_get_agent_y", ai_getAgentY_func);
+
+    // ─── طارد / ai_seek ───
+    // سلوك المطاردة — يجعل الكيان يتجه نحو نقطة الهدف بأقصى سرعة.
+    // هذا أبسط سلوك توجيه: الكيان يتحرك مباشرةً نحو الهدف بدون تباطؤ.
+    // المعاملات: معرّف الكيان، موضع الهدف (س، ص)، الزمن المنقضي (dt).
+    auto ai_seek_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int agentId = (int)args[0]->toDouble();
+        float tx = (float)args[1]->toDouble();
+        float ty = (float)args[2]->toDouble();
+        float dt = (float)args[3]->toDouble();
+        sad::ai::seek(agentId, tx, ty, dt);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("طارد", ai_seek_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_seek", ai_seek_func);
+
+    // ─── اهرب / ai_flee ───
+    // سلوك الهروب — يجعل الكيان يبتعد عن نقطة التهديد بأقصى سرعة.
+    // عكس المطاردة تماماً — مفيد لسلوك الخوف أو التراجع.
+    // المعاملات: معرّف الكيان، موضع التهديد (س، ص)، الزمن المنقضي (dt).
+    auto ai_flee_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int agentId = (int)args[0]->toDouble();
+        float tx = (float)args[1]->toDouble();
+        float ty = (float)args[2]->toDouble();
+        float dt = (float)args[3]->toDouble();
+        sad::ai::flee(agentId, tx, ty, dt);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("اهرب", ai_flee_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_flee", ai_flee_func);
+
+    // ─── تجوّل / ai_wander ───
+    // سلوك التجوال العشوائي — يجعل الكيان يتحرك بحركة عشوائية طبيعية
+    // تشبه حركة الحيوانات في الطبيعة. لا يحتاج هدفاً محدداً.
+    // المعاملات: معرّف الكيان، الزمن المنقضي (dt).
+    auto ai_wander_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int agentId = (int)args[0]->toDouble();
+        float dt = (float)args[1]->toDouble();
+        sad::ai::wander(agentId, dt);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("تجوّل", ai_wander_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_wander", ai_wander_func);
+
+    // ─── اقترب / ai_arrive ───
+    // سلوك الاقتراب — مثل المطاردة ولكن مع تباطؤ تدريجي عند الاقتراب
+    // من الهدف. يمنع الكيان من التجاوز ذهاباً وإياباً حول الهدف.
+    // نصف قطر التباطؤ (slowRadius) يحدد متى يبدأ التباطؤ.
+    // المعاملات: معرّف الكيان، موضع الهدف (س، ص)، نصف قطر التباطؤ، الزمن (dt).
+    auto ai_arrive_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int agentId = (int)args[0]->toDouble();
+        float tx = (float)args[1]->toDouble();
+        float ty = (float)args[2]->toDouble();
+        float slowR = (float)args[3]->toDouble();
+        float dt = (float)args[4]->toDouble();
+        sad::ai::arrive(agentId, tx, ty, slowR, dt);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("اقترب", ai_arrive_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_arrive", ai_arrive_func);
+
+    // ─── هل_يرى / ai_can_see ───
+    // التحقق هل الكيان يمكنه رؤية النقطة المحددة (ضمن مدى رؤيته).
+    // تُرجع 1 إذا كانت النقطة ضمن مدى الرؤية، و0 إذا كانت خارجه.
+    // مفيد لتحديد متى يبدأ العدو في مطاردة اللاعب.
+    // المعاملات: معرّف الكيان، موضع الهدف (س، ص).
+    auto ai_canSee_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int agentId = (int)args[0]->toDouble();
+        float tx = (float)args[1]->toDouble();
+        float ty = (float)args[2]->toDouble();
+        return std::make_shared<Data::Value>(sad::ai::canSee(agentId, tx, ty) ? 1.0 : 0.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("هل_يرى", ai_canSee_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_can_see", ai_canSee_func);
+
+    // ─────────────────────────────────────────────────────────────────────
+    // سلوك الأسراب (Flocking)
+    // ─────────────────────────────────────────────────────────────────────
+    // محاكاة حركة مجموعة من الكيانات (مثل سرب طيور أو مجموعة أسماك).
+    // يعتمد على ثلاث قواعد بسيطة:
+    //   1. الفصل (Separation): تجنب التصادم مع الجيران
+    //   2. المحاذاة (Alignment): محاذاة الاتجاه مع الجيران
+    //   3. التماسك (Cohesion): الانجذاب نحو مركز المجموعة
+    // ─────────────────────────────────────────────────────────────────────
+
+    // ─── أنشئ_سرب / ai_create_flock ───
+    // إنشاء سرب جديد من الكيانات موزعين عشوائياً في المنطقة المحددة.
+    // المعاملات: عدد أفراد السرب، منطقة التوزيع (س، ص، عرض، ارتفاع).
+    // تُرجع معرّف السرب.
+    auto ai_createFlock_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int count = (int)args[0]->toDouble();
+        float ax = (float)args[1]->toDouble();
+        float ay = (float)args[2]->toDouble();
+        float aw = (float)args[3]->toDouble();
+        float ah = (float)args[4]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::createFlock(count, ax, ay, aw, ah));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_سرب", ai_createFlock_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_create_flock", ai_createFlock_func);
+
+    // ─── احذف_سرب / ai_destroy_flock ───
+    // حذف السرب وتحرير ذاكرته. المعامل: معرّف السرب.
+    auto ai_destroyFlock_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int flockId = (int)args[0]->toDouble();
+        sad::ai::destroyFlock(flockId);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("احذف_سرب", ai_destroyFlock_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_destroy_flock", ai_destroyFlock_func);
+
+    // ─── حدّث_سرب / ai_update_flock ───
+    // تحديث حركة جميع أفراد السرب — يُطبق قواعد الفصل والمحاذاة والتماسك.
+    // يجب استدعاء هذه الدالة في كل إطار (frame) لتحريك السرب.
+    // المعاملات: معرّف السرب، الزمن المنقضي (dt).
+    auto ai_updateFlock_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int flockId = (int)args[0]->toDouble();
+        float dt = (float)args[1]->toDouble();
+        sad::ai::updateFlock(flockId, dt);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("حدّث_سرب", ai_updateFlock_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_update_flock", ai_updateFlock_func);
+
+    // ─── موضع_عنصر_سرب_س / ai_get_flock_member_x ───
+    // الحصول على الموضع الأفقي (س) لعنصر معين في السرب.
+    // المعاملات: معرّف السرب، رقم العنصر (الفهرس يبدأ من 0).
+    auto ai_getFlockMemberX_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int flockId = (int)args[0]->toDouble();
+        int index = (int)args[1]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::getFlockMemberX(flockId, index));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("موضع_عنصر_سرب_س", ai_getFlockMemberX_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_get_flock_member_x", ai_getFlockMemberX_func);
+
+    // ─── موضع_عنصر_سرب_ص / ai_get_flock_member_y ───
+    // الحصول على الموضع العمودي (ص) لعنصر معين في السرب.
+    // المعاملات: معرّف السرب، رقم العنصر (الفهرس يبدأ من 0).
+    auto ai_getFlockMemberY_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int flockId = (int)args[0]->toDouble();
+        int index = (int)args[1]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::getFlockMemberY(flockId, index));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("موضع_عنصر_سرب_ص", ai_getFlockMemberY_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_get_flock_member_y", ai_getFlockMemberY_func);
+
+    // ─── حجم_السرب / ai_get_flock_size ───
+    // الحصول على عدد أفراد السرب. مفيد للتكرار على جميع الأفراد لرسمهم.
+    // المعامل: معرّف السرب.
+    auto ai_getFlockSize_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int flockId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::ai::getFlockSize(flockId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("حجم_السرب", ai_getFlockSize_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_get_flock_size", ai_getFlockSize_func);
+
+    // ─── عيّن_هدف_سرب / ai_set_flock_target ───
+    // تعيين نقطة هدف للسرب — يتحرك أفراد السرب تدريجياً نحو هذه النقطة
+    // مع الحفاظ على سلوك السرب (الفصل والمحاذاة والتماسك).
+    // المعاملات: معرّف السرب، موضع الهدف (س، ص).
+    auto ai_setFlockTarget_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int flockId = (int)args[0]->toDouble();
+        float x = (float)args[1]->toDouble();
+        float y = (float)args[2]->toDouble();
+        sad::ai::setFlockTarget(flockId, x, y);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_هدف_سرب", ai_setFlockTarget_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_set_flock_target", ai_setFlockTarget_func);
+
+    // ─── ارسم_سرب / ai_render_flock ───
+    // رسم جميع أفراد السرب كنقاط ملونة على الشاشة. دالة مساعدة سريعة
+    // لعرض السرب بدون كتابة حلقة رسم يدوية.
+    // المعاملات: المُصيِّر (renderer)، معرّف السرب، اللون (أحمر، أخضر، أزرق).
+    auto ai_renderFlock_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        void* renderer = (void*)(uintptr_t)(uint64_t)args[0]->toDouble();
+        int flockId = (int)args[1]->toDouble();
+        uint8_t r = (uint8_t)(int)args[2]->toDouble();
+        uint8_t g = (uint8_t)(int)args[3]->toDouble();
+        uint8_t b = (uint8_t)(int)args[4]->toDouble();
+        sad::ai::renderFlock(renderer, flockId, r, g, b);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ارسم_سرب", ai_renderFlock_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ai_render_flock", ai_renderFlock_func);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // نظام الكاميرا ثنائية الأبعاد (2D Camera System) — sad::camera2d
+    // ═══════════════════════════════════════════════════════════════════════════
+    // نظام كاميرا متقدم يوفر تحكماً كاملاً بنافذة العرض في الألعاب ثنائية الأبعاد:
+    //   - الموضع والتحريك: تعيين موضع الكاميرا أو تحريكها نسبياً
+    //   - التكبير والتصغير (Zoom): مع حدود دنيا وقصوى
+    //   - الدوران: تدوير الكاميرا حول مركزها
+    //   - متابعة الهدف (Follow): مع تنعيم ومنطقة ميتة ونظر أمامي
+    //   - حدود الكاميرا (Bounds): لمنع الخروج عن الخريطة
+    //   - الاهتزاز (Screen Shake): تأثيرات اهتزاز بقوة ومدة محددة
+    //   - الحركة السينمائية (Pan): تحريك سلس بين نقطتين
+    //   - تحويل الإحداثيات: من العالم للشاشة والعكس
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // ─── أنشئ_كاميرا / cam2d_create ───
+    // إنشاء كاميرا ثنائية أبعاد جديدة بأبعاد نافذة العرض المحددة.
+    // عادةً تكون الأبعاد مساوية لحجم الشاشة (مثلاً: 800×600).
+    // المعاملات: عرض نافذة العرض، ارتفاع نافذة العرض.
+    // تُرجع معرّف الكاميرا لاستخدامه في الدوال الأخرى.
+    auto cam2d_create_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int w = (int)args[0]->toDouble();
+        int h = (int)args[1]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::camera2d::createCamera(w, h));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنشئ_كاميرا", cam2d_create_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_create", cam2d_create_func);
+
+    // ─── احذف_كاميرا / cam2d_destroy ───
+    // حذف الكاميرا وتحرير ذاكرتها. المعامل: معرّف الكاميرا.
+    auto cam2d_destroy_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        sad::camera2d::destroyCamera(camId);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("احذف_كاميرا", cam2d_destroy_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_destroy", cam2d_destroy_func);
+
+    // ─── عيّن_موضع_كاميرا_2D / cam2d_set_position ───
+    // تعيين موضع مركز الكاميرا مباشرةً. الكاميرا تعرض المنطقة المحيطة
+    // بهذا الموضع. مفيد لنقل الكاميرا فوراً (بدون تنعيم).
+    // المعاملات: معرّف الكاميرا، الموضع الأفقي (س)، الموضع العمودي (ص).
+    auto cam2d_setPosition_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float x = (float)args[1]->toDouble();
+        float y = (float)args[2]->toDouble();
+        sad::camera2d::setCamPosition(camId, x, y);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_موضع_كاميرا_2D", cam2d_setPosition_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_set_position", cam2d_setPosition_func);
+
+    // ─── موضع_كاميرا_س / cam2d_get_x ───
+    // الحصول على الموضع الأفقي (س) لمركز الكاميرا.
+    // المعامل: معرّف الكاميرا.
+    auto cam2d_getX_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::camera2d::getCamX(camId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("موضع_كاميرا_س", cam2d_getX_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_get_x", cam2d_getX_func);
+
+    // ─── موضع_كاميرا_ص / cam2d_get_y ───
+    // الحصول على الموضع العمودي (ص) لمركز الكاميرا.
+    // المعامل: معرّف الكاميرا.
+    auto cam2d_getY_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::camera2d::getCamY(camId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("موضع_كاميرا_ص", cam2d_getY_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_get_y", cam2d_getY_func);
+
+    // ─── حرّك_كاميرا / cam2d_move ───
+    // تحريك الكاميرا بمقدار نسبي من موضعها الحالي.
+    // المعاملات: معرّف الكاميرا، الإزاحة الأفقية (dx)، الإزاحة العمودية (dy).
+    auto cam2d_move_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float dx = (float)args[1]->toDouble();
+        float dy = (float)args[2]->toDouble();
+        sad::camera2d::moveCam(camId, dx, dy);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("حرّك_كاميرا", cam2d_move_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_move", cam2d_move_func);
+
+    // ─── عيّن_تكبير / cam2d_set_zoom ───
+    // تعيين مستوى التكبير. القيمة 1.0 تعني العرض الطبيعي، 2.0 تعني
+    // تكبير مضاعف (كل شيء يبدو أكبر)، 0.5 تعني تصغير (كل شيء أصغر).
+    // المعاملات: معرّف الكاميرا، مستوى التكبير.
+    auto cam2d_setZoom_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float zoom = (float)args[1]->toDouble();
+        sad::camera2d::setCamZoom(camId, zoom);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_تكبير", cam2d_setZoom_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_set_zoom", cam2d_setZoom_func);
+
+    // ─── تكبير_الكاميرا / cam2d_get_zoom ───
+    // الحصول على مستوى التكبير الحالي للكاميرا. المعامل: معرّف الكاميرا.
+    auto cam2d_getZoom_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::camera2d::getCamZoom(camId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("تكبير_الكاميرا", cam2d_getZoom_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_get_zoom", cam2d_getZoom_func);
+
+    // ─── حدود_تكبير / cam2d_set_zoom_limits ───
+    // تعيين الحدود الدنيا والقصوى للتكبير. يمنع المستخدم من التكبير
+    // أكثر من اللازم أو التصغير بشكل مفرط.
+    // المعاملات: معرّف الكاميرا، الحد الأدنى، الحد الأقصى.
+    auto cam2d_setZoomLimits_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float minZ = (float)args[1]->toDouble();
+        float maxZ = (float)args[2]->toDouble();
+        sad::camera2d::setCamZoomLimits(camId, minZ, maxZ);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("حدود_تكبير", cam2d_setZoomLimits_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_set_zoom_limits", cam2d_setZoomLimits_func);
+
+    // ─── عيّن_دوران_كاميرا / cam2d_set_rotation ───
+    // تعيين زاوية دوران الكاميرا (بالدرجات). الدوران يكون حول مركز الكاميرا.
+    // مفيد لتأثيرات مثل ميلان الشاشة عند الضرر أو الانعطاف.
+    // المعاملات: معرّف الكاميرا، الزاوية (بالدرجات).
+    auto cam2d_setRotation_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float degrees = (float)args[1]->toDouble();
+        sad::camera2d::setCamRotation(camId, degrees);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عيّن_دوران_كاميرا", cam2d_setRotation_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_set_rotation", cam2d_setRotation_func);
+
+    // ─── دوران_الكاميرا / cam2d_get_rotation ───
+    // الحصول على زاوية الدوران الحالية للكاميرا (بالدرجات).
+    // المعامل: معرّف الكاميرا.
+    auto cam2d_getRotation_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::camera2d::getCamRotation(camId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("دوران_الكاميرا", cam2d_getRotation_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_get_rotation", cam2d_getRotation_func);
+
+    // ─── تابع_هدف / cam2d_follow_target ───
+    // جعل الكاميرا تتبع نقطة هدف تلقائياً مع تنعيم (smoothing).
+    // قيمة التنعيم بين 0 و1: قريبة من 0 = بطيئة وسلسة، قريبة من 1 = سريعة.
+    // يُستدعى كل إطار مع موضع اللاعب الحالي.
+    // المعاملات: معرّف الكاميرا، موضع الهدف (س، ص)، معامل التنعيم.
+    auto cam2d_followTarget_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float tx = (float)args[1]->toDouble();
+        float ty = (float)args[2]->toDouble();
+        float smoothing = (float)args[3]->toDouble();
+        sad::camera2d::followTarget(camId, tx, ty, smoothing);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("تابع_هدف", cam2d_followTarget_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_follow_target", cam2d_followTarget_func);
+
+    // ─── منطقة_ميتة / cam2d_set_dead_zone ───
+    // تعيين المنطقة الميتة (Dead Zone) في وسط الشاشة. عندما يتحرك الهدف
+    // داخل هذه المنطقة، الكاميرا لا تتحرك — فقط عند خروجه منها.
+    // يجعل حركة الكاميرا أقل اضطراباً مع الحركات الصغيرة.
+    // المعاملات: معرّف الكاميرا، عرض المنطقة، ارتفاع المنطقة.
+    auto cam2d_setDeadZone_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float w = (float)args[1]->toDouble();
+        float h = (float)args[2]->toDouble();
+        sad::camera2d::setDeadZone(camId, w, h);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("منطقة_ميتة", cam2d_setDeadZone_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_set_dead_zone", cam2d_setDeadZone_func);
+
+    // ─── نظر_أمامي / cam2d_set_look_ahead ───
+    // تعيين مقدار النظر الأمامي — الكاميرا تنظر قليلاً في اتجاه حركة
+    // الهدف لإعطاء اللاعب رؤية أفضل لما أمامه.
+    // المعاملات: معرّف الكاميرا، مقدار النظر الأمامي (بالبكسل).
+    auto cam2d_setLookAhead_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float amount = (float)args[1]->toDouble();
+        sad::camera2d::setLookAhead(camId, amount);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("نظر_أمامي", cam2d_setLookAhead_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_set_look_ahead", cam2d_setLookAhead_func);
+
+    // ─── حدود_كاميرا / cam2d_set_bounds ───
+    // تعيين حدود الكاميرا — تمنع الكاميرا من عرض مناطق خارج الخريطة.
+    // الحدود تُعرَّف بالإحداثيات: يسار، أعلى، يمين، أسفل.
+    // المعاملات: معرّف الكاميرا، الحد الأيسر، العلوي، الأيمن، السفلي.
+    auto cam2d_setBounds_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float l = (float)args[1]->toDouble();
+        float t = (float)args[2]->toDouble();
+        float r = (float)args[3]->toDouble();
+        float b = (float)args[4]->toDouble();
+        sad::camera2d::setCamBounds(camId, l, t, r, b);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("حدود_كاميرا", cam2d_setBounds_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_set_bounds", cam2d_setBounds_func);
+
+    // ─── ألغ_حدود_كاميرا / cam2d_clear_bounds ───
+    // إلغاء حدود الكاميرا — السماح لها بالتحرك بحرية بدون قيود.
+    // المعامل: معرّف الكاميرا.
+    auto cam2d_clearBounds_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        sad::camera2d::clearCamBounds(camId);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ألغ_حدود_كاميرا", cam2d_clearBounds_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_clear_bounds", cam2d_clearBounds_func);
+
+    // ─── هزّ_الكاميرا / cam2d_shake ───
+    // بدء تأثير اهتزاز الشاشة — يُستخدم عند الضربات القوية والانفجارات.
+    // الاهتزاز يضعف تدريجياً خلال المدة المحددة.
+    // المعاملات: معرّف الكاميرا، المدة (بالثواني)، الشدة (بالبكسل).
+    auto cam2d_shake_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float duration = (float)args[1]->toDouble();
+        float intensity = (float)args[2]->toDouble();
+        sad::camera2d::shakeCamera(camId, duration, intensity);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("هزّ_الكاميرا", cam2d_shake_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_shake", cam2d_shake_func);
+
+    // ─── أوقف_الاهتزاز / cam2d_stop_shake ───
+    // إيقاف الاهتزاز فوراً (بدون انتظار انتهاء المدة).
+    // المعامل: معرّف الكاميرا.
+    auto cam2d_stopShake_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        sad::camera2d::stopShake(camId);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أوقف_الاهتزاز", cam2d_stopShake_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_stop_shake", cam2d_stopShake_func);
+
+    // ─── حرّك_نحو / cam2d_pan_to ───
+    // تحريك الكاميرا بسلاسة من موضعها الحالي إلى نقطة الهدف خلال
+    // المدة المحددة. مفيد للمشاهد السينمائية وعرض مناطق الخريطة.
+    // المعاملات: معرّف الكاميرا، موضع الهدف (س، ص)، المدة (بالثواني).
+    auto cam2d_panTo_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float tx = (float)args[1]->toDouble();
+        float ty = (float)args[2]->toDouble();
+        float duration = (float)args[3]->toDouble();
+        sad::camera2d::panTo(camId, tx, ty, duration);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("حرّك_نحو", cam2d_panTo_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_pan_to", cam2d_panTo_func);
+
+    // ─── هل_تتحرك / cam2d_is_panning ───
+    // التحقق هل الكاميرا في حالة حركة سينمائية (pan) حالياً.
+    // تُرجع 1 إذا كانت تتحرك، و0 إذا انتهت الحركة.
+    // المعامل: معرّف الكاميرا.
+    auto cam2d_isPanning_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>(sad::camera2d::isPanning(camId) ? 1.0 : 0.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("هل_تتحرك", cam2d_isPanning_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_is_panning", cam2d_isPanning_func);
+
+    // ─── حدّث_كاميرا / cam2d_update ───
+    // تحديث الكاميرا — يجب استدعاء هذه الدالة في كل إطار.
+    // تُعالج: متابعة الهدف، الاهتزاز، الحركة السينمائية، تطبيق الحدود.
+    // المعاملات: معرّف الكاميرا، الزمن المنقضي (dt).
+    auto cam2d_update_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float dt = (float)args[1]->toDouble();
+        sad::camera2d::updateCamera(camId, dt);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("حدّث_كاميرا", cam2d_update_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_update", cam2d_update_func);
+
+    // ─── عالم_إلى_شاشة_س / cam2d_world_to_screen_x ───
+    // تحويل إحداثي أفقي من نظام العالم إلى نظام الشاشة.
+    // مفيد لمعرفة أين سيظهر كائن معين على الشاشة بعد تطبيق الكاميرا.
+    // المعاملات: معرّف الكاميرا، الإحداثي الأفقي في العالم.
+    auto cam2d_worldToScreenX_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float wx = (float)args[1]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::camera2d::worldToScreenX(camId, wx));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عالم_إلى_شاشة_س", cam2d_worldToScreenX_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_world_to_screen_x", cam2d_worldToScreenX_func);
+
+    // ─── عالم_إلى_شاشة_ص / cam2d_world_to_screen_y ───
+    // تحويل إحداثي عمودي من نظام العالم إلى نظام الشاشة.
+    // المعاملات: معرّف الكاميرا، الإحداثي العمودي في العالم.
+    auto cam2d_worldToScreenY_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float wy = (float)args[1]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::camera2d::worldToScreenY(camId, wy));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("عالم_إلى_شاشة_ص", cam2d_worldToScreenY_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_world_to_screen_y", cam2d_worldToScreenY_func);
+
+    // ─── شاشة_إلى_عالم_س / cam2d_screen_to_world_x ───
+    // تحويل إحداثي أفقي من نظام الشاشة إلى نظام العالم.
+    // مفيد لتحديد النقطة التي نقر عليها المستخدم في عالم اللعبة.
+    // المعاملات: معرّف الكاميرا، الإحداثي الأفقي على الشاشة.
+    auto cam2d_screenToWorldX_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float sx = (float)args[1]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::camera2d::screenToWorldX(camId, sx));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("شاشة_إلى_عالم_س", cam2d_screenToWorldX_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_screen_to_world_x", cam2d_screenToWorldX_func);
+
+    // ─── شاشة_إلى_عالم_ص / cam2d_screen_to_world_y ───
+    // تحويل إحداثي عمودي من نظام الشاشة إلى نظام العالم.
+    // المعاملات: معرّف الكاميرا، الإحداثي العمودي على الشاشة.
+    auto cam2d_screenToWorldY_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        float sy = (float)args[1]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::camera2d::screenToWorldY(camId, sy));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("شاشة_إلى_عالم_ص", cam2d_screenToWorldY_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_screen_to_world_y", cam2d_screenToWorldY_func);
+
+    // ─── ابدأ_كاميرا / cam2d_begin ───
+    // تفعيل الكاميرا — كل عمليات الرسم بعد هذا السطر ستُحوَّل حسب
+    // موضع الكاميرا وتكبيرها ودورانها. يجب استدعاء أنهِ_كاميرا بعد الانتهاء.
+    // المعامل: معرّف الكاميرا.
+    auto cam2d_begin_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        sad::camera2d::beginCamera(camId);
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("ابدأ_كاميرا", cam2d_begin_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_begin", cam2d_begin_func);
+
+    // ─── أنهِ_كاميرا / cam2d_end ───
+    // إنهاء تحويل الكاميرا — العودة لنظام الإحداثيات العادي (الشاشة).
+    // كل الرسم بعد هذا السطر لن يتأثر بالكاميرا (مفيد لعناصر الواجهة HUD).
+    auto cam2d_end_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        sad::camera2d::endCamera();
+        return std::make_shared<Data::Value>(1.0);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("أنهِ_كاميرا", cam2d_end_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_end", cam2d_end_func);
+
+    // ─── إزاحة_كاميرا_س / cam2d_get_offset_x ───
+    // الحصول على الإزاحة الأفقية الحالية للكاميرا (تشمل التنعيم والاهتزاز).
+    // مفيد للاستخدام اليدوي مع SDL بدلاً من beginCamera/endCamera.
+    // المعامل: معرّف الكاميرا.
+    auto cam2d_getOffsetX_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::camera2d::getOffsetX(camId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("إزاحة_كاميرا_س", cam2d_getOffsetX_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_get_offset_x", cam2d_getOffsetX_func);
+
+    // ─── إزاحة_كاميرا_ص / cam2d_get_offset_y ───
+    // الحصول على الإزاحة العمودية الحالية للكاميرا (تشمل التنعيم والاهتزاز).
+    // المعامل: معرّف الكاميرا.
+    auto cam2d_getOffsetY_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
+        int camId = (int)args[0]->toDouble();
+        return std::make_shared<Data::Value>((double)sad::camera2d::getOffsetY(camId));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("إزاحة_كاميرا_ص", cam2d_getOffsetY_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("cam2d_get_offset_y", cam2d_getOffsetY_func);
+
     // ===================================================================
     // Phase 23: Advanced Math Functions (log, exp, clamp, etc.)
     // ===================================================================

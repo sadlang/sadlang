@@ -1,0 +1,13 @@
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/sad_graphics.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/test_sad_graphics_basic.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/test_sad_graphics_shapes.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/test_sad_graphics_arabic_text.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/test_sad_graphics_image.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/test_sad_graphics_transform.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/test_sad_graphics_3d.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/test_sad_graphics_animation.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/sad_cube_demo.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/sad_pong_game.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/RUN_TESTS.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/ALL_BUILD.dir
+C:/s/s_language/stdlib/graphics/build/CMakeFiles/ZERO_CHECK.dir

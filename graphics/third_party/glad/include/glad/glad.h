@@ -417,6 +417,103 @@ GLAPI PFNGLLINEWIDTHPROC glad_glLineWidth;
 GLAPI PFNGLPOINTSIZEPROC glad_glPointSize;
 #define glPointSize glad_glPointSize
 
+/* ====== Additional OpenGL 3.x functions (FBO, etc.) ====== */
+
+/* Constants */
+#ifndef GL_COLOR_ATTACHMENT0
+#define GL_COLOR_ATTACHMENT0              0x8CE0
+#endif
+#ifndef GL_DEPTH_ATTACHMENT
+#define GL_DEPTH_ATTACHMENT               0x8D00
+#endif
+#ifndef GL_STENCIL_ATTACHMENT
+#define GL_STENCIL_ATTACHMENT             0x8D20
+#endif
+#ifndef GL_DEPTH_STENCIL_ATTACHMENT
+#define GL_DEPTH_STENCIL_ATTACHMENT       0x821A
+#endif
+#ifndef GL_FRAMEBUFFER_COMPLETE
+#define GL_FRAMEBUFFER_COMPLETE           0x8CD5
+#endif
+#ifndef GL_READ_FRAMEBUFFER
+#define GL_READ_FRAMEBUFFER               0x8CA8
+#endif
+#ifndef GL_DRAW_FRAMEBUFFER
+#define GL_DRAW_FRAMEBUFFER               0x8CA9
+#endif
+#ifndef GL_DEPTH_COMPONENT24
+#define GL_DEPTH_COMPONENT24              0x81A6
+#endif
+#ifndef GL_UNSIGNED_INT_24_8
+#define GL_UNSIGNED_INT_24_8              0x84FA
+#endif
+#ifndef GL_RENDERBUFFER
+#define GL_RENDERBUFFER                   0x8D41
+#endif
+
+/* Framebuffer functions */
+typedef void (APIENTRYP PFNGLGENFRAMEBUFFERSPROC) (GLsizei n, GLuint *framebuffers);
+GLAPI PFNGLGENFRAMEBUFFERSPROC glad_glGenFramebuffers;
+#define glGenFramebuffers glad_glGenFramebuffers
+
+typedef void (APIENTRYP PFNGLDELETEFRAMEBUFFERSPROC) (GLsizei n, const GLuint *framebuffers);
+GLAPI PFNGLDELETEFRAMEBUFFERSPROC glad_glDeleteFramebuffers;
+#define glDeleteFramebuffers glad_glDeleteFramebuffers
+
+typedef void (APIENTRYP PFNGLBINDFRAMEBUFFERPROC) (GLenum target, GLuint framebuffer);
+GLAPI PFNGLBINDFRAMEBUFFERPROC glad_glBindFramebuffer;
+#define glBindFramebuffer glad_glBindFramebuffer
+
+typedef void (APIENTRYP PFNGLFRAMEBUFFERTEXTURE2DPROC) (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+GLAPI PFNGLFRAMEBUFFERTEXTURE2DPROC glad_glFramebufferTexture2D;
+#define glFramebufferTexture2D glad_glFramebufferTexture2D
+
+typedef GLenum (APIENTRYP PFNGLCHECKFRAMEBUFFERSTATUSPROC) (GLenum target);
+GLAPI PFNGLCHECKFRAMEBUFFERSTATUSPROC glad_glCheckFramebufferStatus;
+#define glCheckFramebufferStatus glad_glCheckFramebufferStatus
+
+typedef void (APIENTRYP PFNGLDRAWBUFFERSPROC) (GLsizei n, const GLenum *bufs);
+GLAPI PFNGLDRAWBUFFERSPROC glad_glDrawBuffers;
+#define glDrawBuffers glad_glDrawBuffers
+
+typedef void (APIENTRYP PFNGLREADBUFFERPROC) (GLenum mode);
+GLAPI PFNGLREADBUFFERPROC glad_glReadBuffer;
+#define glReadBuffer glad_glReadBuffer
+
+typedef void (APIENTRYP PFNGLREADPIXELSPROC) (GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void *pixels);
+GLAPI PFNGLREADPIXELSPROC glad_glReadPixels;
+#define glReadPixels glad_glReadPixels
+
+typedef void (APIENTRYP PFNGLBLITFRAMEBUFFERPROC) (GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
+GLAPI PFNGLBLITFRAMEBUFFERPROC glad_glBlitFramebuffer;
+#define glBlitFramebuffer glad_glBlitFramebuffer
+
+/* Buffer sub-data */
+typedef void (APIENTRYP PFNGLBUFFERSUBDATAPROC) (GLenum target, GLintptr offset, GLsizeiptr size, const void *data);
+GLAPI PFNGLBUFFERSUBDATAPROC glad_glBufferSubData;
+#define glBufferSubData glad_glBufferSubData
+
+/* Renderbuffer functions */
+typedef void (APIENTRYP PFNGLGENRENDERBUFFERSPROC) (GLsizei n, GLuint *renderbuffers);
+GLAPI PFNGLGENRENDERBUFFERSPROC glad_glGenRenderbuffers;
+#define glGenRenderbuffers glad_glGenRenderbuffers
+
+typedef void (APIENTRYP PFNGLDELETERENDERBUFFERSPROC) (GLsizei n, const GLuint *renderbuffers);
+GLAPI PFNGLDELETERENDERBUFFERSPROC glad_glDeleteRenderbuffers;
+#define glDeleteRenderbuffers glad_glDeleteRenderbuffers
+
+typedef void (APIENTRYP PFNGLBINDRENDERBUFFERPROC) (GLenum target, GLuint renderbuffer);
+GLAPI PFNGLBINDRENDERBUFFERPROC glad_glBindRenderbuffer;
+#define glBindRenderbuffer glad_glBindRenderbuffer
+
+typedef void (APIENTRYP PFNGLRENDERBUFFERSTORAGEPROC) (GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
+GLAPI PFNGLRENDERBUFFERSTORAGEPROC glad_glRenderbufferStorage;
+#define glRenderbufferStorage glad_glRenderbufferStorage
+
+typedef void (APIENTRYP PFNGLFRAMEBUFFERRENDERBUFFERPROC) (GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
+GLAPI PFNGLFRAMEBUFFERRENDERBUFFERPROC glad_glFramebufferRenderbuffer;
+#define glFramebufferRenderbuffer glad_glFramebufferRenderbuffer
+
 int gladLoadGL(void);
 
 #ifdef __cplusplus

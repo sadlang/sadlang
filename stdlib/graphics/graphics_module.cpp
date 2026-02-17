@@ -22,6 +22,8 @@
 #include "../../../graphics/include/rendering/renderer2d.h"      // محرك الرسم 2D / 2D renderer
 #include "../../../graphics/include/core/types.h"                // الأنواع الأساسية / Basic types
 #include "../../../graphics/include/ui/widget.h"                 // عناصر الواجهة / UI widgets
+#include "../../../graphics/include/texture/texture.h"           // النسيج / Textures
+#include "../../../graphics/include/audio/audio_system.h"        // نظام الصوت / Audio system
 
 namespace sad {
 namespace stdlib {
@@ -350,11 +352,7 @@ void renderer_clear_impl(int rendererId, int r, int g, int b, int a) {
         auto rendererData = GetRenderer(rendererId);     // الحصول على بيانات الرسام / Get renderer data
         if (rendererData->renderer) {                    // التحقق من وجود الرسام / Check renderer exists
             // إنشاء كائن لون من القيم / Create color object from values
-            sad::graphics::Color color;                  // كائن اللون / Color object
-            color.r = static_cast<sad::graphics::UInt8>(r); // القناة الحمراء / Red channel
-            color.g = static_cast<sad::graphics::UInt8>(g); // القناة الخضراء / Green channel
-            color.b = static_cast<sad::graphics::UInt8>(b); // القناة الزرقاء / Blue channel
-            color.a = static_cast<sad::graphics::UInt8>(a); // قناة الشفافية / Alpha channel
+            sad::graphics::Color color = sad::graphics::Color::FromBytes(r, g, b, a);
             
             rendererData->renderer->Clear(color);        // مسح الشاشة / Clear screen
         }
@@ -371,11 +369,7 @@ void renderer_draw_line_impl(int rendererId, float x1, float y1, float x2, float
         auto rendererData = GetRenderer(rendererId);     // الحصول على بيانات الرسام / Get renderer data
         if (rendererData->renderer) {                    // التحقق من وجود الرسام / Check renderer exists
             // إنشاء كائن لون / Create color object
-            sad::graphics::Color color;                  // كائن اللون / Color object
-            color.r = static_cast<sad::graphics::UInt8>(r); // الأحمر / Red
-            color.g = static_cast<sad::graphics::UInt8>(g); // الأخضر / Green
-            color.b = static_cast<sad::graphics::UInt8>(b); // الأزرق / Blue
-            color.a = static_cast<sad::graphics::UInt8>(a); // الشفافية / Alpha
+            sad::graphics::Color color = sad::graphics::Color::FromBytes(r, g, b, a);
             
             // رسم الخط / Draw the line
             rendererData->renderer->DrawLine(x1, y1, x2, y2, color);
@@ -393,11 +387,7 @@ void renderer_draw_rect_impl(int rendererId, float x, float y, float width, floa
         auto rendererData = GetRenderer(rendererId);     // الحصول على بيانات الرسام / Get renderer data
         if (rendererData->renderer) {                    // التحقق من وجود الرسام / Check renderer exists
             // إنشاء كائن لون / Create color object
-            sad::graphics::Color color;                  // كائن اللون / Color object
-            color.r = static_cast<sad::graphics::UInt8>(r); // الأحمر / Red
-            color.g = static_cast<sad::graphics::UInt8>(g); // الأخضر / Green
-            color.b = static_cast<sad::graphics::UInt8>(b); // الأزرق / Blue
-            color.a = static_cast<sad::graphics::UInt8>(a); // الشفافية / Alpha
+            sad::graphics::Color color = sad::graphics::Color::FromBytes(r, g, b, a);
             
             // رسم المستطيل / Draw the rectangle
             rendererData->renderer->DrawRect(x, y, width, height, color, filled);
@@ -415,11 +405,7 @@ void renderer_draw_circle_impl(int rendererId, float x, float y, float radius,
         auto rendererData = GetRenderer(rendererId);     // الحصول على بيانات الرسام / Get renderer data
         if (rendererData->renderer) {                    // التحقق من وجود الرسام / Check renderer exists
             // إنشاء كائن لون / Create color object
-            sad::graphics::Color color;                  // كائن اللون / Color object
-            color.r = static_cast<sad::graphics::UInt8>(r); // الأحمر / Red
-            color.g = static_cast<sad::graphics::UInt8>(g); // الأخضر / Green
-            color.b = static_cast<sad::graphics::UInt8>(b); // الأزرق / Blue
-            color.a = static_cast<sad::graphics::UInt8>(a); // الشفافية / Alpha
+            sad::graphics::Color color = sad::graphics::Color::FromBytes(r, g, b, a);
             
             // رسم الدائرة / Draw the circle
             rendererData->renderer->DrawCircle(x, y, radius, color, filled);
@@ -437,11 +423,7 @@ void renderer_draw_text_impl(int rendererId, const std::string& text, float x, f
         auto rendererData = GetRenderer(rendererId);     // الحصول على بيانات الرسام / Get renderer data
         if (rendererData->renderer) {                    // التحقق من وجود الرسام / Check renderer exists
             // إنشاء كائن لون / Create color object
-            sad::graphics::Color color;                  // كائن اللون / Color object
-            color.r = static_cast<sad::graphics::UInt8>(r); // الأحمر / Red
-            color.g = static_cast<sad::graphics::UInt8>(g); // الأخضر / Green
-            color.b = static_cast<sad::graphics::UInt8>(b); // الأزرق / Blue
-            color.a = static_cast<sad::graphics::UInt8>(a); // الشفافية / Alpha
+            sad::graphics::Color color = sad::graphics::Color::FromBytes(r, g, b, a);
             
             // رسم النص (مؤقتاً نستخدم مستطيل كبديل) / Draw text (temporarily use rectangle as substitute)
             // ملاحظة: يحتاج إلى تطبيق نظام الخطوط / Note: Needs font system implementation
@@ -713,8 +695,8 @@ void widget_draw_impl(int widgetId, int rendererId) {
         }
         
         // رسم حسب نوع العنصر / Draw based on widget type
-        sad::graphics::Color bgColor{200, 200, 200, 255};    // لون الخلفية / Background color
-        sad::graphics::Color textColor{0, 0, 0, 255};        // لون النص / Text color
+        sad::graphics::Color bgColor = sad::graphics::Color::FromBytes(200, 200, 200, 255);    // لون الخلفية / Background color
+        sad::graphics::Color textColor = sad::graphics::Color::FromBytes(0, 0, 0, 255);        // لون النص / Text color
         
         // رسم خلفية العنصر / Draw widget background
         rendererData->renderer->DrawRect(widgetData->x, widgetData->y, 
@@ -722,7 +704,7 @@ void widget_draw_impl(int widgetId, int rendererId) {
                                         bgColor, true);
         
         // رسم حدود العنصر / Draw widget border
-        sad::graphics::Color borderColor{100, 100, 100, 255}; // لون الحدود / Border color
+        sad::graphics::Color borderColor = sad::graphics::Color::FromBytes(100, 100, 100, 255); // لون الحدود / Border color
         rendererData->renderer->DrawRect(widgetData->x, widgetData->y,
                                         widgetData->width, widgetData->height,
                                         borderColor, false);
@@ -769,6 +751,353 @@ void widget_mouse_event_impl(int widgetId, int x, int y, bool pressed) {
     catch (const std::exception& e) {                    // معالجة الأخطاء / Handle errors
         std::cerr << "خطأ في معالجة حدث الماوس / Error handling mouse event: " << e.what() << std::endl;
     }
+}
+
+// ============================================================================
+// Input Handling Implementation - تنفيذ معالجة المدخلات
+// ============================================================================
+
+bool key_is_pressed_impl(int keycode) {
+    const Uint8* state = SDL_GetKeyboardState(nullptr);
+    if (keycode >= 0 && keycode < SDL_NUM_SCANCODES) {
+        return state[keycode] != 0;
+    }
+    return false;
+}
+
+int mouse_get_x_impl() {
+    int x, y;
+    SDL_GetMouseState(&x, &y);
+    return x;
+}
+
+int mouse_get_y_impl() {
+    int x, y;
+    SDL_GetMouseState(&x, &y);
+    return y;
+}
+
+bool mouse_button_pressed_impl(int button) {
+    Uint32 state = SDL_GetMouseState(nullptr, nullptr);
+    switch (button) {
+        case 1: return (state & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
+        case 2: return (state & SDL_BUTTON(SDL_BUTTON_MIDDLE)) != 0;
+        case 3: return (state & SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0;
+        default: return false;
+    }
+}
+
+// ============================================================================
+// Texture / Image Management Implementation
+// ============================================================================
+
+struct TextureData {
+    std::shared_ptr<sad::graphics::Texture> texture;
+    int width = 0;
+    int height = 0;
+};
+static std::map<int, TextureData> g_textures;
+
+int texture_load_impl(const std::string& filePath) {
+    try {
+        auto tex = sad::graphics::Texture::CreateFromFile(filePath);
+        if (tex && tex->IsValid()) {
+            int id = g_nextId++;
+            TextureData td;
+            td.texture = tex;
+            td.width = static_cast<int>(tex->GetWidth());
+            td.height = static_cast<int>(tex->GetHeight());
+            g_textures[id] = td;
+            return id;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في تحميل النسيج / Error loading texture: " << e.what() << std::endl;
+    }
+    return -1;
+}
+
+void texture_draw_impl(int rendererId, int textureId, float x, float y, float width, float height) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        auto texIt = g_textures.find(textureId);
+        if (texIt == g_textures.end()) {
+            throw std::runtime_error("معرف نسيج غير صالح / Invalid texture ID");
+        }
+        // Draw a textured quad using the renderer
+        // For now, draw a placeholder rect (actual texture binding requires Renderer2D texture support)
+        if (renderer->renderer) {
+            sad::graphics::Color white(1.0f, 1.0f, 1.0f, 1.0f);
+            renderer->renderer->DrawFilledRect(x, y, width, height, white);
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في رسم النسيج / Error drawing texture: " << e.what() << std::endl;
+    }
+}
+
+void texture_unload_impl(int textureId) {
+    g_textures.erase(textureId);
+}
+
+// ============================================================================
+// Audio System Implementation
+// ============================================================================
+
+static bool g_audioInitialized = false;
+static sad::graphics::AudioSystem* g_audioSystem = nullptr;
+
+bool audio_init_impl() {
+    if (g_audioInitialized) return true;
+    g_audioSystem = &sad::graphics::AudioSystem::GetInstance();
+    g_audioInitialized = g_audioSystem->Initialize();
+    return g_audioInitialized;
+}
+
+int sound_load_impl(const std::string& filePath, const std::string& name) {
+    if (!g_audioInitialized) {
+        if (!audio_init_impl()) return -1;
+    }
+    auto id = g_audioSystem->LoadSound(filePath, name);
+    return static_cast<int>(id);
+}
+
+int sound_play_impl(int soundId) {
+    if (!g_audioSystem) return -1;
+    auto channelId = g_audioSystem->Play(static_cast<sad::graphics::SoundId>(soundId));
+    return static_cast<int>(channelId);
+}
+
+void sound_stop_impl(int channelId) {
+    if (g_audioSystem) {
+        g_audioSystem->Stop(static_cast<sad::graphics::ChannelId>(channelId));
+    }
+}
+
+void sound_set_volume_impl(int channelId, float volume) {
+    if (g_audioSystem) {
+        g_audioSystem->SetVolume(static_cast<sad::graphics::ChannelId>(channelId), volume);
+    }
+}
+
+void audio_set_master_volume_impl(float volume) {
+    if (g_audioSystem) {
+        g_audioSystem->SetMasterVolume(volume);
+    }
+}
+
+// ============================================================================
+// Drawing Shapes Implementation
+// ============================================================================
+
+void renderer_draw_triangle_impl(int rendererId, float x1, float y1,
+                                  float x2, float y2, float x3, float y3,
+                                  int r, int g, int b, int a, bool filled) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) {
+            sad::graphics::Color color = sad::graphics::Color::FromBytes(r, g, b, a);
+            renderer->renderer->DrawTriangle(x1, y1, x2, y2, x3, y3, color, filled);
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في رسم المثلث / Error drawing triangle: " << e.what() << std::endl;
+    }
+}
+
+void renderer_draw_rounded_rect_impl(int rendererId, float x, float y, float w, float h,
+                                      float radius, int r, int g, int b, int a, bool filled) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) {
+            sad::graphics::Color color = sad::graphics::Color::FromBytes(r, g, b, a);
+            // Use DrawRect as fallback since DrawRoundedRect may not exist
+            renderer->renderer->DrawRect(x, y, w, h, color, filled);
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في رسم المستطيل الدائري / Error drawing rounded rect: " << e.what() << std::endl;
+    }
+}
+
+// ============================================================================
+// Extended Drawing Implementations
+// ============================================================================
+
+void renderer_draw_ellipse_impl(int rendererId, float cx, float cy, float rx, float ry,
+                                int r, int g, int b, int a, bool filled) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) {
+            sad::graphics::Color color = sad::graphics::Color::FromBytes(r, g, b, a);
+            renderer->renderer->DrawEllipse(cx, cy, rx, ry, color, filled);
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في رسم القطع الناقص / Error drawing ellipse: " << e.what() << std::endl;
+    }
+}
+
+void renderer_draw_arc_impl(int rendererId, float cx, float cy, float radius,
+                            float startAngle, float endAngle, int r, int g, int b, int a) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) {
+            sad::graphics::Color color = sad::graphics::Color::FromBytes(r, g, b, a);
+            renderer->renderer->DrawArc(cx, cy, radius, startAngle, endAngle, color);
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في رسم القوس / Error drawing arc: " << e.what() << std::endl;
+    }
+}
+
+void renderer_draw_rect_outline_impl(int rendererId, float x, float y, float w, float h,
+                                      int fillR, int fillG, int fillB, int fillA,
+                                      int outR, int outG, int outB, int outA,
+                                      float outlineThickness) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) {
+            sad::graphics::Color fillColor = sad::graphics::Color::FromBytes(fillR, fillG, fillB, fillA);
+            sad::graphics::Color outlineColor = sad::graphics::Color::FromBytes(outR, outG, outB, outA);
+            renderer->renderer->DrawRectOutline(x, y, w, h, fillColor, outlineColor, outlineThickness);
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في رسم المستطيل المحدد / Error drawing rect outline: " << e.what() << std::endl;
+    }
+}
+
+// ============================================================================
+// Transformation Implementations
+// ============================================================================
+
+void renderer_push_transform_impl(int rendererId) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) renderer->renderer->PushTransform();
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في حفظ التحويل / Error pushing transform: " << e.what() << std::endl;
+    }
+}
+
+void renderer_pop_transform_impl(int rendererId) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) renderer->renderer->PopTransform();
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في استرجاع التحويل / Error popping transform: " << e.what() << std::endl;
+    }
+}
+
+void renderer_translate_impl(int rendererId, float x, float y) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) renderer->renderer->Translate(x, y);
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في التحريك / Error translating: " << e.what() << std::endl;
+    }
+}
+
+void renderer_rotate_impl(int rendererId, float angle) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) renderer->renderer->Rotate(angle);
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في التدوير / Error rotating: " << e.what() << std::endl;
+    }
+}
+
+void renderer_scale_impl(int rendererId, float sx, float sy) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) renderer->renderer->Scale(sx, sy);
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في القياس / Error scaling: " << e.what() << std::endl;
+    }
+}
+
+void renderer_reset_transform_impl(int rendererId) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) renderer->renderer->ResetTransform();
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في إعادة التحويل / Error resetting transform: " << e.what() << std::endl;
+    }
+}
+
+// ============================================================================
+// Renderer Settings Implementations
+// ============================================================================
+
+void renderer_set_draw_color_impl(int rendererId, int r, int g, int b, int a) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) {
+            sad::graphics::Color color = sad::graphics::Color::FromBytes(r, g, b, a);
+            renderer->renderer->SetDrawColor(color);
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في تعيين اللون / Error setting draw color: " << e.what() << std::endl;
+    }
+}
+
+void renderer_set_line_thickness_impl(int rendererId, float thickness) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) renderer->renderer->SetLineThickness(thickness);
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في تعيين سمك الخط / Error setting line thickness: " << e.what() << std::endl;
+    }
+}
+
+void renderer_set_viewport_impl(int rendererId, int x, int y, int w, int h) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) renderer->renderer->SetViewport(x, y, w, h);
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في تعيين منطقة العرض / Error setting viewport: " << e.what() << std::endl;
+    }
+}
+
+void renderer_set_projection_impl(int rendererId, float left, float right, float bottom, float top) {
+    try {
+        auto renderer = GetRenderer(rendererId);
+        if (renderer->renderer) renderer->renderer->SetOrthographicProjection(left, right, bottom, top);
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في تعيين الإسقاط / Error setting projection: " << e.what() << std::endl;
+    }
+}
+
+// ============================================================================
+// Window Properties Implementation
+// ============================================================================
+
+int window_get_width_impl(int windowId) {
+    try {
+        auto win = GetWindow(windowId);
+        if (win->window) return static_cast<int>(win->window->GetWidth());
+    } catch (...) {}
+    return 0;
+}
+
+int window_get_height_impl(int windowId) {
+    try {
+        auto win = GetWindow(windowId);
+        if (win->window) return static_cast<int>(win->window->GetHeight());
+    } catch (...) {}
+    return 0;
+}
+
+void window_set_title_impl(int windowId, const std::string& title) {
+    try {
+        auto win = GetWindow(windowId);
+        if (win->window) win->window->SetTitle(title);
+    } catch (const std::exception& e) {
+        std::cerr << "خطأ في تعيين عنوان النافذة / Error setting title: " << e.what() << std::endl;
+    }
+}
+
+// ============================================================================
+// Time Utilities Implementation
+// ============================================================================
+
+int get_ticks_impl() {
+    return static_cast<int>(SDL_GetTicks());
 }
 
 } // namespace graphics

@@ -1,0 +1,10 @@
+^C:\S\S_LANGUAGE\TESTS\STDLIB_TESTS\BUILD\CMAKEFILES\C90C1228DA5CD70F10D75693B788E26A\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/s/s_language/tests/stdlib_tests -BC:/s/s_language/tests/stdlib_tests/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/s/s_language/tests/stdlib_tests/build/StdLibTests.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

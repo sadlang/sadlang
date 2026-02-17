@@ -165,6 +165,7 @@ class NewExpr : public Expression {
 public:
     std::string className;                          ///< (AR) اسم الصنف / (EN) class name
     std::vector<std::unique_ptr<Expr>> arguments;   ///< (AR) معاملات الباني / (EN) constructor arguments
+    std::vector<Data::DataType> templateArguments;  ///< (AR) أنواع القالب / (EN) template type arguments
     
     /**
      * @brief (AR) منشئ مع اسم الصنف

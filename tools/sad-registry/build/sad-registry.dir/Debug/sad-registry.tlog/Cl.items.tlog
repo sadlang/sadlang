@@ -1,0 +1,10 @@
+C:\s\s_language\tools\sad-registry\src\main.cpp;C:\s\s_language\tools\sad-registry\build\sad-registry.dir\Debug\main.obj
+C:\s\s_language\tools\sad-registry\src\server\http_server.cpp;C:\s\s_language\tools\sad-registry\build\sad-registry.dir\Debug\http_server.obj
+C:\s\s_language\tools\sad-registry\src\server\api_routes.cpp;C:\s\s_language\tools\sad-registry\build\sad-registry.dir\Debug\api_routes.obj
+C:\s\s_language\tools\sad-registry\src\storage\database.cpp;C:\s\s_language\tools\sad-registry\build\sad-registry.dir\Debug\database.obj
+C:\s\s_language\tools\sad-registry\src\storage\blob_store.cpp;C:\s\s_language\tools\sad-registry\build\sad-registry.dir\Debug\blob_store.obj
+C:\s\s_language\tools\sad-registry\src\search\arabic_search.cpp;C:\s\s_language\tools\sad-registry\build\sad-registry.dir\Debug\arabic_search.obj
+C:\s\s_language\tools\sad-registry\src\federation\federation.cpp;C:\s\s_language\tools\sad-registry\build\sad-registry.dir\Debug\federation.obj
+C:\s\s_language\tools\sad-registry\src\auth\auth.cpp;C:\s\s_language\tools\sad-registry\build\sad-registry.dir\Debug\auth.obj
+C:\s\s_language\tools\sad-registry\src\auth\crypto.cpp;C:\s\s_language\tools\sad-registry\build\sad-registry.dir\Debug\crypto.obj
+C:\s\s_language\tools\sad-registry\src\deps\dependency_resolver.cpp;C:\s\s_language\tools\sad-registry\build\sad-registry.dir\Debug\dependency_resolver.obj

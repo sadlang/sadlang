@@ -16,7 +16,7 @@
 #include "error_codes.h"
 
 // (AR) فاحص الأنواع المتقدم / (EN) Advanced Type Checker
-#include "semantic/type_checker.h"
+#include "../../../compiler_new/include/semantic/type_checker.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -252,7 +252,7 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
             try {
                 // (AR) إنشاء نطاق جديد للدالة الرئيسية
                 // (EN) Create new scope for main function
-                scopeManager_->pushScope(Data::ScopeType::FUNCTION, "main");
+                variableManager_->enterScope(Data::ScopeType::FUNCTION, "main");
                 
                 // (AR) تنفيذ جسم الدالة مع نوع الإرجاع
                 // (EN) Execute function body with return type
@@ -277,7 +277,7 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
                 
                 // (AR) إزالة النطاق
                 // (EN) Pop scope
-                scopeManager_->popScope();
+                variableManager_->exitScope();
                 
                 if (options_.enableDebugMode) {
                     std::cout << "(AR) اكتملت الدالة الرئيسية بقيمة إرجاع: "
@@ -302,7 +302,7 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
                 // (AR) التأكد من إزالة النطاق حتى في حالة الخطأ
                 // (EN) Ensure scope is popped even on error
                 try {
-                    scopeManager_->popScope();
+                    variableManager_->exitScope();
                 } catch (...) {
                     // (AR) تجاهل أخطاء popScope في حالة الاستثناء
                     // (EN) Ignore popScope errors during exception
@@ -405,6 +405,138 @@ void Interpreter::reset() {
     
     // (AR) إعادة إنشاء جميع المكونات / (EN) Recreate all components
     initializeComponents();
+}
+
+// =========================================================================
+// (AR) استدعاء دالة مستخدم من C++ — الإطار التفاعلي
+// (EN) Call user function from C++ — Reactive Framework
+// =========================================================================
+
+Data::Value Interpreter::callUserFunction(const std::string& funcName, 
+                                           const std::vector<Data::Value>& args) {
+    // ─── (AR) البحث عن الدالة بالاسم وعدد المعاملات ───
+    // ─── (EN) Find function by name and argument count ───
+    auto func = functionManager_->getFunction(funcName, args.size());
+    
+    if (!func) {
+        // (AR) بحث مرن — جرّب مع القيم الافتراضية
+        // (EN) Flexible search — try with default parameter support
+        auto allOverloads = functionManager_->getFunctionOverloads(funcName);
+        for (const auto& candidate : allOverloads) {
+            if (candidate->hasNativeImplementation()) {
+                func = candidate;
+                break;
+            }
+            if (candidate->acceptsArgumentCount(args.size())) {
+                func = candidate;
+                break;
+            }
+        }
+    }
+    
+    if (!func) {
+        throw std::runtime_error(
+            "(AR) الدالة '" + funcName + "' غير موجودة / "
+            "(EN) Function '" + funcName + "' not found"
+        );
+    }
+    
+    // ─── (AR) إذا كانت دالة مضمنة — استدعاء مباشر ───
+    // ─── (EN) If built-in — call directly ───
+    if (func->hasNativeImplementation()) {
+        std::vector<std::shared_ptr<Data::Value>> valuePtrs;
+        for (const auto& arg : args) {
+            valuePtrs.push_back(std::make_shared<Data::Value>(arg));
+        }
+        auto result = func->callNative(valuePtrs);
+        return result ? *result : Data::Value();
+    }
+    
+    // ─── (AR) التحقق من وجود جسم للدالة ───
+    // ─── (EN) Check function has body ───
+    if (!func->hasBody()) {
+        throw std::runtime_error(
+            "(AR) الدالة '" + funcName + "' ليس لها جسم / "
+            "(EN) Function '" + funcName + "' has no body"
+        );
+    }
+    
+    // ─── (AR) إنشاء نطاق جديد للدالة ───
+    // ─── (EN) Create new scope for function ───
+    variableManager_->enterScope(Data::ScopeType::FUNCTION, funcName);
+    
+    // ─── (AR) تعريف المعاملات كمتغيرات محلية ───
+    // ─── (EN) Define parameters as local variables ───
+    const auto& params = func->getParameters();
+    for (size_t i = 0; i < params.size() && i < args.size(); ++i) {
+        variableManager_->define(params[i].name, args[i]);
+    }
+    
+    // ─── (AR) معالجة المعاملات الافتراضية للناقصة ───
+    // ─── (EN) Handle default values for missing parameters ───
+    if (args.size() < params.size()) {
+        auto funcDeclNode = func->getFunctionDecl();
+        AST::FunctionDecl* astFuncDecl = nullptr;
+        if (funcDeclNode) {
+            astFuncDecl = reinterpret_cast<AST::FunctionDecl*>(funcDeclNode.get());
+        }
+        
+        for (size_t i = args.size(); i < params.size(); ++i) {
+            const auto& param = params[i];
+            Data::Value defaultVal;
+            
+            if (astFuncDecl && i < astFuncDecl->parameters.size() && 
+                astFuncDecl->parameters[i].defaultValue) {
+                astFuncDecl->parameters[i].defaultValue->accept(*expressionEvaluator_);
+                defaultVal = expressionEvaluator_->getResult();
+            } else if (param.hasDefaultValue) {
+                const std::string& ds = param.defaultValue;
+                if (ds == "true" || ds == "صحيح") defaultVal = Data::Value(true);
+                else if (ds == "false" || ds == "خطأ") defaultVal = Data::Value(false);
+                else {
+                    try { defaultVal = Data::Value(std::stod(ds)); }
+                    catch (...) { defaultVal = Data::Value(ds); }
+                }
+            }
+            
+            variableManager_->define(param.name, defaultVal);
+        }
+    }
+    
+    // ─── (AR) تنفيذ جسم الدالة ───
+    // ─── (EN) Execute function body ───
+    Data::Value result;
+    try {
+        auto bodyNode = func->getBody();
+        auto bodyStmt = dynamic_cast<AST::Statement*>(
+            reinterpret_cast<AST::ASTNode*>(bodyNode.get())
+        );
+        
+        if (bodyStmt) {
+            result = statementExecutor_->executeFunctionBody(*bodyStmt);
+        } else {
+            // (AR) جسم لامدا — تعبير
+            // (EN) Lambda body — expression
+            auto bodyExpr = reinterpret_cast<AST::Expression*>(
+                reinterpret_cast<AST::ASTNode*>(bodyNode.get())
+            );
+            if (bodyExpr) {
+                bodyExpr->accept(*expressionEvaluator_);
+                result = expressionEvaluator_->getResult();
+            }
+        }
+    } catch (...) {
+        // (AR) التأكد من إزالة النطاق حتى عند الخطأ
+        // (EN) Ensure scope is popped even on error
+        variableManager_->exitScope();
+        throw;
+    }
+    
+    // ─── (AR) إزالة نطاق الدالة ───
+    // ─── (EN) Pop function scope ───
+    variableManager_->exitScope();
+    
+    return result;
 }
 
 } // namespace Interpreter

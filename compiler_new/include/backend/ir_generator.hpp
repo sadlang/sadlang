@@ -19,7 +19,10 @@ namespace llvm {
     class BasicBlock;
     class Value;
     class Type;
-    template<typename T> class IRBuilder;
+    // (AR) ملاحظة: لا نصرّح عن IRBuilder أمامياً لأنه قالب معقد
+    //      يتم تضمينه مباشرة من <llvm/IR/IRBuilder.h> عند الحاجة
+    // (EN) Note: Don't forward-declare IRBuilder as it's a complex template
+    //      Include it directly from <llvm/IR/IRBuilder.h> when needed
 }
 
 #endif // SAD_BACKEND_IR_GENERATOR_HPP

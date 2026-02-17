@@ -280,7 +280,7 @@ private:
     std::unordered_map<std::string, FFI::CTypePtr> typeRegistry_;  // سجل الأنواع
     
     // (AR) دوال مساعدة / (EN) Helper functions
-    FFI::CBasicType primitiveKindToCBasic(PrimitiveType::Kind kind) const;
+    FFI::CBasicType primitiveKindToCBasic(TypeKind kind) const;
 };
 
 // ============================================================================

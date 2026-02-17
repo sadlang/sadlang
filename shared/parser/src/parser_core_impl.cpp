@@ -46,18 +46,20 @@ ParserCore::ParserCore(LexerCore& lexer)
     // Initialize by fetching first two tokens for proper lookahead
     // (AR) التهيئة بجلب أول رمزين للنظر المسبق الصحيح
     
-    // Fetch first token into current_, skipping whitespace/comments
+    // Fetch first token into current_, skipping whitespace/comments/doc-comments
     current_ = lexer_.nextToken();
     while (current_.getType() == TT::WHITESPACE || 
            current_.getType() == TT::COMMENT ||
+           current_.getType() == TT::DOC_COMMENT ||
            current_.getType() == TT::NEWLINE) {
         current_ = lexer_.nextToken();
     }
     
-    // Fetch second token into nextToken_, also skipping whitespace/comments
+    // Fetch second token into nextToken_, also skipping whitespace/comments/doc-comments
     nextToken_ = lexer_.nextToken();
     while (nextToken_.getType() == TT::WHITESPACE || 
            nextToken_.getType() == TT::COMMENT ||
+           nextToken_.getType() == TT::DOC_COMMENT ||
            nextToken_.getType() == TT::NEWLINE) {
         nextToken_ = lexer_.nextToken();
     }
@@ -398,6 +400,10 @@ StmtPtr ParserCore::parseDeclaration() {
                 error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
             }
             return parseVarDecl();
+        } else if (nextTok.getType() == TT::PAREN_LEFT) {
+            // Type keyword used as function call: نص(...) → treat as expression statement
+            // (AR) كلمة نوع مستخدمة كاستدعاء دالة: نص(...) → تعامل كجملة تعبير
+            return parseStatement();
         } else {
             // TYPE token not followed by IDENTIFIER - this is an error
             // The user wrote a type keyword but didn't follow it with a variable name
@@ -725,9 +731,13 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async, bool i
     
     // Check if next token is a type keyword (before function name)
     // (AR) التحقق إذا كان الرمز التالي هو نوع (قبل اسم الدالة)
-    if (check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || 
-        check(TT::TYPE_STRING) || check(TT::TYPE_BOOLEAN) ||
-        check(TT::TYPE_ARRAY) || check(TT::TYPE_MAP)) {
+    // BUT only if it's NOT followed by '(' — otherwise the type keyword IS the function name
+    // e.g., "دالة نص مربع(...)" = return type string, name مربع
+    //       "دالة نص(...)"       = function named نص (no return type)
+    if ((check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || 
+         check(TT::TYPE_STRING) || check(TT::TYPE_BOOLEAN) ||
+         check(TT::TYPE_ARRAY) || check(TT::TYPE_MAP)) &&
+        nextToken_.getType() != TT::PAREN_LEFT) {
         returnType = parseType();
     }
     
@@ -749,6 +759,12 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async, bool i
         // (AR) استخدام "رئيسية" كاسم للدالة
         // (EN) Use "main" as the function name
         name = Token(TT::IDENTIFIER, "رئيسية", mainToken.getPosition());
+    } else if (isTypeToken(current_.getType())) {
+        // Type keyword used as function name (e.g., دالة نص(props))
+        // (AR) كلمة نوع مستخدمة كاسم دالة (مثلاً: دالة نص(props))
+        auto tok = current_;
+        advance();
+        name = Token(TT::IDENTIFIER, tok.getValue(), tok.getPosition());
     } else {
         // Expect function name (for regular functions)
         // (AR) توقع اسم الدالة (للدوال العادية)
@@ -919,7 +935,9 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async, bool i
  *   }
  */
 StmtPtr ParserCore::parseClassDecl() {
+#ifdef DEBUG_OOP
     std::cout << "[OOP] بدء تحليل تصريح صنف\n";
+#endif
     
     // (AR) اسم الصنف / (EN) Class name
     // Spec: docs\language_spec\rules\03_oop.md §1 - class_decl ::= 'صنف' IDENTIFIER ...
@@ -927,7 +945,9 @@ StmtPtr ParserCore::parseClassDecl() {
         "(AR) توقع اسم الصنف بعد 'صنف'. (EN) Expected class name after 'class'.");
     std::string className = nameToken.getValue();
     
+#ifdef DEBUG_OOP
     std::cout << "[OOP] اسم الصنف: " << className << "\n";
+#endif
     
     // (AR) الوراثة (اختياري) - دعم كلا من ':' و'يرث'
     // (EN) Inheritance (optional) - support both ':' and 'يرث'
@@ -941,7 +961,9 @@ StmtPtr ParserCore::parseClassDecl() {
             Token baseToken = consume(TT::IDENTIFIER,
                 "(AR) توقع اسم الصنف الأساسي. (EN) Expected base class name.");
             baseClassNames.push_back(baseToken.getValue());
+#ifdef DEBUG_OOP
             std::cout << "[OOP] يرث من: " << baseToken.getValue() << "\n";
+#endif
         } while (matchAny({TT::COMMA, TT::ARABIC_COMMA})); // Support both commas
     }
     
@@ -1010,6 +1032,21 @@ StmtPtr ParserCore::parseClassDecl() {
             continue;
         }
         
+        // Check for operator overload (keyword 'عامل')
+        // (AR) التحقق من تحميل العامل الزائد / (EN) Check for operator overload
+        if (check(TT::KEYWORD_OPERATOR)) {
+            advance(); // consume 'عامل'
+            auto operatorDecl = parseOperatorDecl();
+            if (operatorDecl) {
+                // (AR) تعيين معدّل الوصول / (EN) Set access modifier
+                if (auto* opDecl = dynamic_cast<AST::OperatorDecl*>(operatorDecl.get())) {
+                    opDecl->access = access;
+                }
+                members.push_back(std::move(operatorDecl));
+            }
+            continue;
+        }
+        
         // Otherwise, parse as field declaration
         // Field syntax: type name [= value] [;]
         // Support both built-in types (نص، رقم) and class types (شخص، حيوان)
@@ -1032,8 +1069,10 @@ StmtPtr ParserCore::parseClassDecl() {
     consume(TT::KEYWORD_END,
         "(AR) توقع 'نهاية' بعد جسم الصنف. (EN) Expected 'نهاية' after class body.");
     
+#ifdef DEBUG_OOP
     std::cout << "[OOP] انتهى تحليل صنف '" << className << "' - "
               << members.size() << " أعضاء\n";
+#endif
     
     // (AR) تسجيل الصنف مبكراً في ClassManager للسماح بمتغيرات من هذا النوع لاحقاً في نفس الملف
     // (EN) Register class early in ClassManager to allow variables of this type later in same file
@@ -1043,7 +1082,9 @@ StmtPtr ParserCore::parseClassDecl() {
     if (!classManager->hasClass(className)) {
         auto tempClassType = std::make_unique<Data::ClassType>(className);
         classManager->registerClass(std::move(tempClassType));
+#ifdef DEBUG_OOP
         std::cout << "[OOP] ✅ تسجيل مؤقت للصنف: " << className << " (أثناء التحليل)\n";
+#endif
     }
     
     // (AR) استخدام جميع الأصناف الأساسية بدلاً من الأول فقط / (EN) Use all base classes instead of just first
@@ -2571,6 +2612,15 @@ ExprPtr ParserCore::parsePrimary() {
         return result;
     }
     
+    // Type keywords used as expressions (e.g., نص(...) as function call)
+    // (AR) كلمات أنواع مستخدمة كتعبيرات (مثلاً نص(...) كاستدعاء دالة)
+    // This allows type names to be used as function names in expression position
+    if (isTypeToken(current_.getType())) {
+        auto tok = current_;
+        advance();
+        return std::make_unique<VariableExpr>(tok.getValue(), tok.getPosition());
+    }
+
     // Provide more specific error message based on what we found
     // (AR) قدم رسالة خطأ أكثر تحديداً بناءً على ما وجدنا
     Token current = peek();
@@ -3955,20 +4005,101 @@ StmtPtr ParserCore::parseTemplateDecl() {
         // (EN) Parse class members
         AST::StmtList members;
         
-        // Lambda to parse class member
-        auto parseTemplateClassMember = [this, &className]() -> StmtPtr {
+        // (AR) دالة مساعدة لتحليل أعضاء الصنف القالبي
+        // ======================================================================
+        // تتعامل هذه الدالة مع جميع أنواع أعضاء الصنف القالبي:
+        //   1. خاصية (KEYWORD_PROPERTY) — حقل بسيط أو خاصية كاملة مع getter/setter
+        //   2. دالة/طريقة (KEYWORD_FUNCTION) — طريقة عادية
+        //   3. بناء (KEYWORD_CONSTRUCTOR_ALT) — دالة البناء
+        //   4. هدم (KEYWORD_DESTRUCTOR) — دالة الهدم
+        //   5. عامل (KEYWORD_OPERATOR) — تحميل العوامل الزائد
+        //   6. متغير (KEYWORD_VAR) — حقل بنوع ديناميكي
+        //   7. معامل نوع قالب كاسم نوع (مثل: ت اسم_الحقل)
+        //   8. نوع مدمج عادي (نص، رقم، منطقي، إلخ) — حقل بنوع ثابت
+        // ======================================================================
+        auto parseTemplateClassMember = [this, &className, &typeParams]() -> StmtPtr {
             bool isStatic = false;
             bool isVirtual = false;
             bool isAbstract = false;
             AccessModifier access = parseModifiers(isStatic, isVirtual, isAbstract);
             
-            // Check if it's a method
+            // ─────────────────────────────────────────────────────────────
+            // (AR) [1] التحقق من كلمة 'خاصية' (KEYWORD_PROPERTY)
+            // ─────────────────────────────────────────────────────────────
+            // الصيغ المدعومة:
+            //   أ) خاصية ت اسم         — حقل بنوع قالب (ت = معامل نوع قالب)
+            //   ب) خاصية نوع اسم احصل...نهاية — خاصية كاملة مع getter/setter
+            //   ج) خاصية اسم            — حقل بنوع ديناميكي (OBJECT)
+            //   د) خاصية نوع اسم        — حقل بنوع مدمج (بدون getter/setter)
+            // ─────────────────────────────────────────────────────────────
+            if (check(TT::KEYWORD_PROPERTY)) {
+                advance(); // (AR) استهلاك 'خاصية'
+                
+                // (AR) الحالة (أ): التالي هو معامل نوع قالب (مثل: خاصية ت محتوى)
+                if (check(TT::IDENTIFIER)) {
+                    std::string nextIdent = current_.getValue();
+                    bool isTemplateTypeParam = false;
+                    for (const auto& tp : typeParams) {
+                        if (tp.name == nextIdent) {
+                            isTemplateTypeParam = true;
+                            break;
+                        }
+                    }
+                    if (isTemplateTypeParam) {
+                        // (AR) النوع هو معامل قالب — نعامله كـ OBJECT (نوع عام)
+                        advance(); // (AR) استهلاك اسم معامل النوع
+                        Token nameToken = consume(TT::IDENTIFIER,
+                            "(AR) توقع اسم الحقل بعد نوع القالب. (EN) Expected field name after template type.");
+                        ExprPtr initializer = nullptr;
+                        if (match(TT::OP_ASSIGN)) {
+                            initializer = parseExpression();
+                        }
+                        if (matchAny({TT::SEMICOLON, TT::ARABIC_SEMICOLON})) {}
+                        return std::make_unique<FieldDecl>(nameToken.getValue(), Data::DataType::OBJECT,
+                            std::move(initializer), access, isStatic, nameToken.getPosition());
+                    }
+                }
+                
+                // (AR) الحالة (ب)/(د): التالي هو رمز نوع مدمج (نص، رقم، منطقي...)
+                if (isTypeToken(current_.getType())) {
+                    // (AR) تحقق مما إذا كان هناك 'احصل' بعد النوع والاسم
+                    //      لتحديد إذا كانت خاصية كاملة أم حقل بسيط
+                    // (EN) Check if there's a 'get' keyword after type+name to determine
+                    //      full property vs simple field
+                    return parsePropertyDeclaration(access, isStatic);
+                }
+                
+                // (AR) الحالة (ج): خاصية متبوعة مباشرة باسم فقط (بدون نوع)
+                //      نعاملها كحقل بنوع OBJECT (ديناميكي)
+                if (check(TT::IDENTIFIER)) {
+                    Token nameToken = current_;
+                    advance(); // (AR) استهلاك اسم الحقل
+                    ExprPtr initializer = nullptr;
+                    if (match(TT::OP_ASSIGN)) {
+                        initializer = parseExpression();
+                    }
+                    if (matchAny({TT::SEMICOLON, TT::ARABIC_SEMICOLON})) {}
+                    return std::make_unique<FieldDecl>(nameToken.getValue(), Data::DataType::OBJECT,
+                        std::move(initializer), access, isStatic, nameToken.getPosition());
+                }
+                
+                // (AR) لا شيء معروف بعد 'خاصية'
+                error("(AR) توقع نوع أو اسم بعد 'خاصية'. (EN) Expected type or name after 'خاصية'.");
+                advance();
+                return nullptr;
+            }
+            
+            // ─────────────────────────────────────────────────────────────
+            // (AR) [2] التحقق من طريقة (KEYWORD_FUNCTION = دالة/طريقة)
+            // ─────────────────────────────────────────────────────────────
             if (check(TT::KEYWORD_FUNCTION)) {
                 advance();
                 return parseMethodDeclaration(access, isStatic, isVirtual, isAbstract);
             }
             
-            // Check for constructor
+            // ─────────────────────────────────────────────────────────────
+            // (AR) [3] التحقق من دالة البناء (KEYWORD_CONSTRUCTOR_ALT = بناء)
+            // ─────────────────────────────────────────────────────────────
             if (check(TT::KEYWORD_CONSTRUCTOR_ALT) ||
                 (check(TT::IDENTIFIER) && current_.getValue() == className && 
                  peekNext().getType() == TT::PAREN_LEFT)) {
@@ -3980,12 +4111,78 @@ StmtPtr ParserCore::parseTemplateDecl() {
                 return parseConstructorDeclaration(className, access);
             }
             
-            // Check for destructor
+            // ─────────────────────────────────────────────────────────────
+            // (AR) [4] التحقق من دالة الهدم (KEYWORD_DESTRUCTOR = هدم)
+            // ─────────────────────────────────────────────────────────────
             if (check(TT::KEYWORD_DESTRUCTOR)) {
                 return parseDestructorDeclaration(className, access);
             }
             
-            // Otherwise, parse as field
+            // ─────────────────────────────────────────────────────────────
+            // (AR) [5] التحقق من تحميل العوامل الزائد (KEYWORD_OPERATOR = عامل)
+            // ─────────────────────────────────────────────────────────────
+            if (check(TT::KEYWORD_OPERATOR)) {
+                advance(); // (AR) استهلاك 'عامل'
+                auto operatorDecl = parseOperatorDecl();
+                if (operatorDecl) {
+                    if (auto* opDecl = dynamic_cast<AST::OperatorDecl*>(operatorDecl.get())) {
+                        opDecl->access = access;
+                    }
+                    return operatorDecl;
+                }
+                return nullptr;
+            }
+            
+            // ─────────────────────────────────────────────────────────────
+            // (AR) [6] دعم 'متغير' كنوع حقل في الأصناف القالبية (نوع ديناميكي)
+            // (EN) Support 'متغير' (var) as field type in template classes (dynamic type)
+            // ─────────────────────────────────────────────────────────────
+            if (check(TT::KEYWORD_VAR)) {
+                advance(); // (AR) استهلاك 'متغير'
+                Token nameToken = consume(TT::IDENTIFIER,
+                    "(AR) توقع اسم الحقل. (EN) Expected field name.");
+                ExprPtr initializer = nullptr;
+                if (match(TT::OP_ASSIGN)) {
+                    initializer = parseExpression();
+                }
+                if (matchAny({TT::SEMICOLON, TT::ARABIC_SEMICOLON})) {}
+                return std::make_unique<FieldDecl>(nameToken.getValue(), Data::DataType::OBJECT, 
+                    std::move(initializer), access, isStatic, nameToken.getPosition());
+            }
+
+            // ─────────────────────────────────────────────────────────────
+            // (AR) [7] التحقق إذا كان المعرّف الحالي هو اسم معامل نوع قالب
+            //      مثال: ت اسم_الحقل — حيث ت هو معامل النوع في القالب
+            // (EN) Check if current identifier is a template type parameter name
+            // ─────────────────────────────────────────────────────────────
+            if (check(TT::IDENTIFIER)) {
+                std::string identName = current_.getValue();
+                bool isTemplateTypeParam = false;
+                for (const auto& tp : typeParams) {
+                    if (tp.name == identName) {
+                        isTemplateTypeParam = true;
+                        break;
+                    }
+                }
+                if (isTemplateTypeParam) {
+                    // (AR) هذا معامل نوع قالب - نعامله كنوع حقل OBJECT (عام)
+                    advance(); // (AR) استهلاك اسم معامل النوع
+                    Token nameToken = consume(TT::IDENTIFIER,
+                        "(AR) توقع اسم الحقل. (EN) Expected field name.");
+                    ExprPtr initializer = nullptr;
+                    if (match(TT::OP_ASSIGN)) {
+                        initializer = parseExpression();
+                    }
+                    if (matchAny({TT::SEMICOLON, TT::ARABIC_SEMICOLON})) {}
+                    return std::make_unique<FieldDecl>(nameToken.getValue(), Data::DataType::OBJECT,
+                        std::move(initializer), access, isStatic, nameToken.getPosition());
+                }
+            }
+
+            // ─────────────────────────────────────────────────────────────
+            // (AR) [8] حقل بنوع مدمج عادي (نص، رقم، منطقي، إلخ)
+            // (EN) Field with built-in type (string, number, boolean, etc.)
+            // ─────────────────────────────────────────────────────────────
             if (isTypeToken(current_.getType()) || 
                 (check(TT::IDENTIFIER) && isClassName(current_.getValue()))) {
                 return parseFieldDeclaration(access, isStatic);
@@ -4251,11 +4448,8 @@ StmtPtr ParserCore::parseOperatorDecl() {
     }
     
     // (AR) تحليل جسم العامل
-    // (EN) Parse operator body
-    StmtPtr body = nullptr;
-    if (check(TT::BRACE_LEFT)) {
-        body = parseBlockStmt();
-    }
+    // (EN) Parse operator body - ends with 'نهاية'
+    StmtPtr body = parseBlockStmt();
     
     return std::make_unique<AST::OperatorDecl>(
         opSymbol,

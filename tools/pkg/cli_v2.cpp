@@ -162,6 +162,8 @@ static void print_usage() {
               << u8"            تحديث الكل / Update all\n";
     std::cout << "  " << CYAN << "publish" << RESET
               << u8"           نشر الحزمة / Publish package\n";
+    std::cout << "  " << CYAN << "publish --local" << RESET
+              << u8"    نشر محلي / Publish locally\n";
     std::cout << "  " << CYAN << "search <query>" << RESET
               << u8"    بحث / Search\n";
     std::cout << "  " << CYAN << "info <pkg>" << RESET
@@ -528,9 +530,131 @@ static int cmd_list() {
 }
 
 /**
+ * @brief الحصول على مسار مخزن الحزم المحلي
+ */
+static std::filesystem::path get_local_packages_dir() {
+#ifdef _WIN32
+    const char* appdata = std::getenv("LOCALAPPDATA");
+    if (appdata) return std::filesystem::path(appdata) / "sad" / "packages";
+    return "C:\\ProgramData\\sad\\packages";
+#else
+    const char* home = std::getenv("HOME");
+    if (home) return std::filesystem::path(home) / ".sad" / "packages";
+    return "/usr/local/share/sad/packages";
+#endif
+}
+
+/**
+ * @brief أمر: publish --local (نشر محلي)
+ * ينسخ الحزمة إلى مخزن الحزم المحلي حتى يمكن تثبيتها من مشاريع أخرى
+ */
+static int cmd_publish_local() {
+    print_header(u8"نشر محلي... / Publishing locally...");
+
+    Package pkg;
+    try {
+        pkg = load_package_from_config();
+    } catch (const std::exception& e) {
+        print_error(e.what());
+        return 1;
+    }
+
+    print_info(u8"الحزمة: " + pkg.name);
+    print_info(u8"الإصدار: " + pkg.version.to_string());
+
+    // تخطي التحقق المعقد للنشر المحلي - الملفات موجودة محلياً بالفعل
+    if (pkg.name.empty()) {
+        print_error(u8"اسم الحزمة مطلوب");
+        return 1;
+    }
+
+    // إنشاء مجلد الحزمة في المخزن المحلي
+    auto packages_dir = get_local_packages_dir();
+    auto pkg_name_path = utf8_path(pkg.name);
+    auto pkg_dest = packages_dir / pkg_name_path / pkg.version.to_string();
+
+    try {
+        std::filesystem::create_directories(pkg_dest);
+
+        // نسخ الملفات
+        auto current = std::filesystem::current_path();
+        int file_count = 0;
+        size_t total_size = 0;
+
+        // استخدام error_code لتجنب الاستثناءات مع مسارات Unicode
+        std::error_code ec;
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(current, ec)) {
+            if (!entry.is_regular_file()) continue;
+
+            auto rel = std::filesystem::relative(entry.path(), current, ec);
+            if (ec) continue;
+
+            // استخدام wstring للمقارنة على ويندوز لتجنب مشاكل الترميز
+            std::wstring rel_wstr = rel.wstring();
+
+            // تخطي مجلد tests و examples و .git و build
+            if (rel_wstr.find(L"tests") == 0 || rel_wstr.find(L"test") == 0 ||
+                rel_wstr.find(L".git") == 0 || rel_wstr.find(L"build") == 0 ||
+                rel_wstr.find(L"examples") == 0) {
+                continue;
+            }
+
+            auto dest_file = pkg_dest / rel;
+            std::filesystem::create_directories(dest_file.parent_path(), ec);
+            std::filesystem::copy_file(entry.path(), dest_file,
+                std::filesystem::copy_options::overwrite_existing, ec);
+
+            if (!ec) {
+                file_count++;
+                total_size += entry.file_size();
+            }
+        }
+
+        // إنشاء ملف metadata (باستخدام wstring لمسار الملف)
+        auto meta_path = pkg_dest / ".sad-pkg-meta.json";
+        std::ofstream meta(meta_path);
+        meta << "{\n";
+        meta << "  \"name\": \"" << pkg.name << "\",\n";
+        meta << "  \"version\": \"" << pkg.version.to_string() << "\",\n";
+        meta << "  \"description\": \"" << pkg.description << "\",\n";
+        meta << "  \"files\": " << file_count << ",\n";
+        meta << "  \"size\": " << total_size << ",\n";
+        meta << "  \"published_locally\": true\n";
+        meta << "}\n";
+        meta.close();
+
+        double size_kb = total_size / 1024.0;
+        print_success(u8"تم النشر المحلي بنجاح! / Published locally!");
+
+        // استخدام وظيفة آمنة لعرض المسار
+        std::string dest_display;
+        try { dest_display = pkg_dest.u8string(); }
+        catch (...) { dest_display = "(unicode path)"; }
+        print_info(u8"  المسار: " + dest_display);
+
+        std::cout << "  " << BLUE << u8"الملفات: " << file_count
+                  << u8" ملف (" << std::fixed << std::setprecision(1)
+                  << size_kb << " KB)" << RESET << "\n";
+        print_info(u8"  للتثبيت في مشروع آخر:");
+        std::cout << "    sad-pkg add " << pkg.name << " " << pkg.version.to_string() << "\n";
+        std::cout << "    sad-pkg install --local\n";
+
+    } catch (const std::exception& e) {
+        print_error(u8"فشل النشر المحلي: " + std::string(e.what()));
+        return 1;
+    }
+
+    return 0;
+}
+
+/**
  * @brief أمر: publish
  */
-static int cmd_publish() {
+static int cmd_publish(bool local_mode = false) {
+    if (local_mode) {
+        return cmd_publish_local();
+    }
+
     print_header(u8"نشر الحزمة... / Publishing package...");
 
     Package pkg;
@@ -547,6 +671,7 @@ static int cmd_publish() {
     RegistryClientV2 registry;
 
     if (!registry.is_logged_in()) {
+        print_warning(u8"لم يتم تسجيل الدخول. استخدم 'sad-pkg publish --local' للنشر المحلي");
         print_error(u8"يجب تسجيل الدخول أولاً: sad-pkg login");
         return 1;
     }
@@ -692,7 +817,12 @@ int main(int argc, char* argv[]) {
             return cmd_list();
         }
         else if (command == "publish" || command == u8"انشر") {
-            return cmd_publish();
+            bool local = false;
+            for (int i = 2; i < argc; i++) {
+                std::string arg = argv[i];
+                if (arg == "--local" || arg == u8"--محلي") local = true;
+            }
+            return cmd_publish(local);
         }
         else if (command == "login" || command == u8"سجّل") {
             return cmd_login();

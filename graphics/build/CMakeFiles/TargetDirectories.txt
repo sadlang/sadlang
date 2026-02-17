@@ -1,0 +1,4 @@
+C:/s/s_language/graphics/build/CMakeFiles/sad_graphics.dir
+C:/s/s_language/graphics/build/CMakeFiles/INSTALL.dir
+C:/s/s_language/graphics/build/CMakeFiles/ALL_BUILD.dir
+C:/s/s_language/graphics/build/CMakeFiles/ZERO_CHECK.dir

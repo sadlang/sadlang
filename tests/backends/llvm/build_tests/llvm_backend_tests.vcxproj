@@ -1,0 +1,386 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B1C7330D-A305-3EBC-9E4A-E16E12C08CEE}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>llvm_backend_tests</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\s\s_language\tests\backends\llvm\build_tests\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">llvm_backend_tests.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">llvm_backend_tests</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\s\s_language\tests\backends\llvm\build_tests\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">llvm_backend_tests.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">llvm_backend_tests</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\s\s_language\tests\backends\llvm\build_tests\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">llvm_backend_tests.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">llvm_backend_tests</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\s\s_language\tests\backends\llvm\build_tests\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">llvm_backend_tests.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">llvm_backend_tests</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;_CRT_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_SCL_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;UNICODE;_UNICODE;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;__STDC_LIMIT_MACROS;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_SCL_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;UNICODE;_UNICODE;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;__STDC_LIMIT_MACROS;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>C:\LLVM\lib\LLVMCore.lib;C:\LLVM\lib\LLVMSupport.lib;C:\LLVM\lib\LLVMTarget.lib;C:\LLVM\lib\LLVMAnalysis.lib;C:\LLVM\lib\LLVMTransformUtils.lib;LLVMScalar.lib;C:\LLVM\lib\LLVMInstCombine.lib;C:\LLVM\lib\LLVMAggressiveInstCombine.lib;C:\LLVM\lib\LLVMPasses.lib;C:\LLVM\lib\LLVMipo.lib;C:\LLVM\lib\LLVMVectorize.lib;C:\LLVM\lib\LLVMX86CodeGen.lib;C:\LLVM\lib\LLVMX86AsmParser.lib;C:\LLVM\lib\LLVMX86Desc.lib;C:\LLVM\lib\LLVMX86Disassembler.lib;C:\LLVM\lib\LLVMX86Info.lib;C:\LLVM\lib\LLVMARMCodeGen.lib;C:\LLVM\lib\LLVMARMAsmParser.lib;C:\LLVM\lib\LLVMARMDesc.lib;C:\LLVM\lib\LLVMARMDisassembler.lib;C:\LLVM\lib\LLVMARMInfo.lib;C:\LLVM\lib\LLVMARMUtils.lib;C:\LLVM\lib\LLVMAArch64CodeGen.lib;C:\LLVM\lib\LLVMAArch64AsmParser.lib;C:\LLVM\lib\LLVMAArch64Desc.lib;C:\LLVM\lib\LLVMAArch64Disassembler.lib;C:\LLVM\lib\LLVMAArch64Info.lib;C:\LLVM\lib\LLVMAArch64Utils.lib;C:\LLVM\lib\LLVMRISCVCodeGen.lib;C:\LLVM\lib\LLVMRISCVAsmParser.lib;C:\LLVM\lib\LLVMRISCVDesc.lib;C:\LLVM\lib\LLVMRISCVDisassembler.lib;C:\LLVM\lib\LLVMRISCVInfo.lib;C:\LLVM\lib\LLVMWebAssemblyCodeGen.lib;C:\LLVM\lib\LLVMWebAssemblyAsmParser.lib;C:\LLVM\lib\LLVMWebAssemblyDesc.lib;C:\LLVM\lib\LLVMWebAssemblyDisassembler.lib;C:\LLVM\lib\LLVMWebAssemblyInfo.lib;C:\LLVM\lib\LLVMWebAssemblyUtils.lib;C:\LLVM\lib\LLVMCoroutines.lib;C:\LLVM\lib\LLVMHipStdPar.lib;C:\LLVM\lib\LLVMIRPrinter.lib;C:\LLVM\lib\LLVMARMDesc.lib;C:\LLVM\lib\LLVMARMInfo.lib;C:\LLVM\lib\LLVMARMUtils.lib;C:\LLVM\lib\LLVMCFGuard.lib;C:\LLVM\lib\LLVMAArch64Desc.lib;C:\LLVM\lib\LLVMAArch64Info.lib;C:\LLVM\lib\LLVMAArch64Utils.lib;C:\LLVM\lib\LLVMipo.lib;C:\LLVM\lib\LLVMVectorize.lib;C:\LLVM\lib\LLVMInstrumentation.lib;C:\LLVM\lib\LLVMFrontendOpenMP.lib;C:\LLVM\lib\LLVMFrontendOffloading.lib;C:\LLVM\lib\LLVMLinker.lib;C:\LLVM\lib\LLVMGlobalISel.lib;C:\LLVM\lib\LLVMRISCVDesc.lib;C:\LLVM\lib\LLVMRISCVInfo.lib;C:\LLVM\lib\LLVMAsmPrinter.lib;C:\LLVM\lib\LLVMSelectionDAG.lib;C:\LLVM\lib\LLVMCodeGen.lib;C:\LLVM\lib\LLVMTarget.lib;C:\LLVM\lib\LLVMObjCARCOpts.lib;C:\LLVM\lib\LLVMScalarOpts.lib;C:\LLVM\lib\LLVMInstCombine.lib;C:\LLVM\lib\LLVMAggressiveInstCombine.lib;C:\LLVM\lib\LLVMTransformUtils.lib;C:\LLVM\lib\LLVMBitWriter.lib;C:\LLVM\lib\LLVMAnalysis.lib;C:\LLVM\lib\LLVMProfileData.lib;C:\LLVM\lib\LLVMSymbolize.lib;C:\LLVM\lib\LLVMDebugInfoPDB.lib;C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\DIA SDK\lib\amd64\diaguids.lib;C:\LLVM\lib\LLVMDebugInfoMSF.lib;C:\LLVM\lib\LLVMDebugInfoBTF.lib;C:\LLVM\lib\LLVMDebugInfoDWARF.lib;C:\LLVM\lib\LLVMObject.lib;C:\LLVM\lib\LLVMIRReader.lib;C:\LLVM\lib\LLVMBitReader.lib;C:\LLVM\lib\LLVMAsmParser.lib;C:\LLVM\lib\LLVMCore.lib;C:\LLVM\lib\LLVMRemarks.lib;C:\LLVM\lib\LLVMBitstreamReader.lib;C:\LLVM\lib\LLVMTextAPI.lib;C:\LLVM\lib\LLVMMCParser.lib;C:\LLVM\lib\LLVMWebAssemblyDesc.lib;C:\LLVM\lib\LLVMWebAssemblyInfo.lib;C:\LLVM\lib\LLVMCodeGenTypes.lib;C:\LLVM\lib\LLVMMCDisassembler.lib;C:\LLVM\lib\LLVMMC.lib;C:\LLVM\lib\LLVMBinaryFormat.lib;C:\LLVM\lib\LLVMTargetParser.lib;C:\LLVM\lib\LLVMDebugInfoCodeView.lib;C:\LLVM\lib\LLVMSupport.lib;C:\LLVM\lib\LLVMDemangle.lib;psapi.lib;shell32.lib;ole32.lib;uuid.lib;advapi32.lib;ws2_32.lib;delayimp.lib;-delayload:shell32.dll;-delayload:ole32.dll;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:/LLVM/lib;C:/LLVM/lib/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/s/s_language/tests/backends/llvm/build_tests/Debug/llvm_backend_tests.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/s/s_language/tests/backends/llvm/build_tests/Debug/llvm_backend_tests.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_SCL_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;UNICODE;_UNICODE;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;__STDC_LIMIT_MACROS;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_SCL_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;UNICODE;_UNICODE;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;__STDC_LIMIT_MACROS;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>C:\LLVM\lib\LLVMCore.lib;C:\LLVM\lib\LLVMSupport.lib;C:\LLVM\lib\LLVMTarget.lib;C:\LLVM\lib\LLVMAnalysis.lib;C:\LLVM\lib\LLVMTransformUtils.lib;LLVMScalar.lib;C:\LLVM\lib\LLVMInstCombine.lib;C:\LLVM\lib\LLVMAggressiveInstCombine.lib;C:\LLVM\lib\LLVMPasses.lib;C:\LLVM\lib\LLVMipo.lib;C:\LLVM\lib\LLVMVectorize.lib;C:\LLVM\lib\LLVMX86CodeGen.lib;C:\LLVM\lib\LLVMX86AsmParser.lib;C:\LLVM\lib\LLVMX86Desc.lib;C:\LLVM\lib\LLVMX86Disassembler.lib;C:\LLVM\lib\LLVMX86Info.lib;C:\LLVM\lib\LLVMARMCodeGen.lib;C:\LLVM\lib\LLVMARMAsmParser.lib;C:\LLVM\lib\LLVMARMDesc.lib;C:\LLVM\lib\LLVMARMDisassembler.lib;C:\LLVM\lib\LLVMARMInfo.lib;C:\LLVM\lib\LLVMARMUtils.lib;C:\LLVM\lib\LLVMAArch64CodeGen.lib;C:\LLVM\lib\LLVMAArch64AsmParser.lib;C:\LLVM\lib\LLVMAArch64Desc.lib;C:\LLVM\lib\LLVMAArch64Disassembler.lib;C:\LLVM\lib\LLVMAArch64Info.lib;C:\LLVM\lib\LLVMAArch64Utils.lib;C:\LLVM\lib\LLVMRISCVCodeGen.lib;C:\LLVM\lib\LLVMRISCVAsmParser.lib;C:\LLVM\lib\LLVMRISCVDesc.lib;C:\LLVM\lib\LLVMRISCVDisassembler.lib;C:\LLVM\lib\LLVMRISCVInfo.lib;C:\LLVM\lib\LLVMWebAssemblyCodeGen.lib;C:\LLVM\lib\LLVMWebAssemblyAsmParser.lib;C:\LLVM\lib\LLVMWebAssemblyDesc.lib;C:\LLVM\lib\LLVMWebAssemblyDisassembler.lib;C:\LLVM\lib\LLVMWebAssemblyInfo.lib;C:\LLVM\lib\LLVMWebAssemblyUtils.lib;C:\LLVM\lib\LLVMCoroutines.lib;C:\LLVM\lib\LLVMHipStdPar.lib;C:\LLVM\lib\LLVMIRPrinter.lib;C:\LLVM\lib\LLVMARMDesc.lib;C:\LLVM\lib\LLVMARMInfo.lib;C:\LLVM\lib\LLVMARMUtils.lib;C:\LLVM\lib\LLVMCFGuard.lib;C:\LLVM\lib\LLVMAArch64Desc.lib;C:\LLVM\lib\LLVMAArch64Info.lib;C:\LLVM\lib\LLVMAArch64Utils.lib;C:\LLVM\lib\LLVMipo.lib;C:\LLVM\lib\LLVMVectorize.lib;C:\LLVM\lib\LLVMInstrumentation.lib;C:\LLVM\lib\LLVMFrontendOpenMP.lib;C:\LLVM\lib\LLVMFrontendOffloading.lib;C:\LLVM\lib\LLVMLinker.lib;C:\LLVM\lib\LLVMGlobalISel.lib;C:\LLVM\lib\LLVMRISCVDesc.lib;C:\LLVM\lib\LLVMRISCVInfo.lib;C:\LLVM\lib\LLVMAsmPrinter.lib;C:\LLVM\lib\LLVMSelectionDAG.lib;C:\LLVM\lib\LLVMCodeGen.lib;C:\LLVM\lib\LLVMTarget.lib;C:\LLVM\lib\LLVMObjCARCOpts.lib;C:\LLVM\lib\LLVMScalarOpts.lib;C:\LLVM\lib\LLVMInstCombine.lib;C:\LLVM\lib\LLVMAggressiveInstCombine.lib;C:\LLVM\lib\LLVMTransformUtils.lib;C:\LLVM\lib\LLVMBitWriter.lib;C:\LLVM\lib\LLVMAnalysis.lib;C:\LLVM\lib\LLVMProfileData.lib;C:\LLVM\lib\LLVMSymbolize.lib;C:\LLVM\lib\LLVMDebugInfoPDB.lib;C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\DIA SDK\lib\amd64\diaguids.lib;C:\LLVM\lib\LLVMDebugInfoMSF.lib;C:\LLVM\lib\LLVMDebugInfoBTF.lib;C:\LLVM\lib\LLVMDebugInfoDWARF.lib;C:\LLVM\lib\LLVMObject.lib;C:\LLVM\lib\LLVMIRReader.lib;C:\LLVM\lib\LLVMBitReader.lib;C:\LLVM\lib\LLVMAsmParser.lib;C:\LLVM\lib\LLVMCore.lib;C:\LLVM\lib\LLVMRemarks.lib;C:\LLVM\lib\LLVMBitstreamReader.lib;C:\LLVM\lib\LLVMTextAPI.lib;C:\LLVM\lib\LLVMMCParser.lib;C:\LLVM\lib\LLVMWebAssemblyDesc.lib;C:\LLVM\lib\LLVMWebAssemblyInfo.lib;C:\LLVM\lib\LLVMCodeGenTypes.lib;C:\LLVM\lib\LLVMMCDisassembler.lib;C:\LLVM\lib\LLVMMC.lib;C:\LLVM\lib\LLVMBinaryFormat.lib;C:\LLVM\lib\LLVMTargetParser.lib;C:\LLVM\lib\LLVMDebugInfoCodeView.lib;C:\LLVM\lib\LLVMSupport.lib;C:\LLVM\lib\LLVMDemangle.lib;psapi.lib;shell32.lib;ole32.lib;uuid.lib;advapi32.lib;ws2_32.lib;delayimp.lib;-delayload:shell32.dll;-delayload:ole32.dll;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:/LLVM/lib;C:/LLVM/lib/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/s/s_language/tests/backends/llvm/build_tests/Release/llvm_backend_tests.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/s/s_language/tests/backends/llvm/build_tests/Release/llvm_backend_tests.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_SCL_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;UNICODE;_UNICODE;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;__STDC_LIMIT_MACROS;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_SCL_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;UNICODE;_UNICODE;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;__STDC_LIMIT_MACROS;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>C:\LLVM\lib\LLVMCore.lib;C:\LLVM\lib\LLVMSupport.lib;C:\LLVM\lib\LLVMTarget.lib;C:\LLVM\lib\LLVMAnalysis.lib;C:\LLVM\lib\LLVMTransformUtils.lib;LLVMScalar.lib;C:\LLVM\lib\LLVMInstCombine.lib;C:\LLVM\lib\LLVMAggressiveInstCombine.lib;C:\LLVM\lib\LLVMPasses.lib;C:\LLVM\lib\LLVMipo.lib;C:\LLVM\lib\LLVMVectorize.lib;C:\LLVM\lib\LLVMX86CodeGen.lib;C:\LLVM\lib\LLVMX86AsmParser.lib;C:\LLVM\lib\LLVMX86Desc.lib;C:\LLVM\lib\LLVMX86Disassembler.lib;C:\LLVM\lib\LLVMX86Info.lib;C:\LLVM\lib\LLVMARMCodeGen.lib;C:\LLVM\lib\LLVMARMAsmParser.lib;C:\LLVM\lib\LLVMARMDesc.lib;C:\LLVM\lib\LLVMARMDisassembler.lib;C:\LLVM\lib\LLVMARMInfo.lib;C:\LLVM\lib\LLVMARMUtils.lib;C:\LLVM\lib\LLVMAArch64CodeGen.lib;C:\LLVM\lib\LLVMAArch64AsmParser.lib;C:\LLVM\lib\LLVMAArch64Desc.lib;C:\LLVM\lib\LLVMAArch64Disassembler.lib;C:\LLVM\lib\LLVMAArch64Info.lib;C:\LLVM\lib\LLVMAArch64Utils.lib;C:\LLVM\lib\LLVMRISCVCodeGen.lib;C:\LLVM\lib\LLVMRISCVAsmParser.lib;C:\LLVM\lib\LLVMRISCVDesc.lib;C:\LLVM\lib\LLVMRISCVDisassembler.lib;C:\LLVM\lib\LLVMRISCVInfo.lib;C:\LLVM\lib\LLVMWebAssemblyCodeGen.lib;C:\LLVM\lib\LLVMWebAssemblyAsmParser.lib;C:\LLVM\lib\LLVMWebAssemblyDesc.lib;C:\LLVM\lib\LLVMWebAssemblyDisassembler.lib;C:\LLVM\lib\LLVMWebAssemblyInfo.lib;C:\LLVM\lib\LLVMWebAssemblyUtils.lib;C:\LLVM\lib\LLVMCoroutines.lib;C:\LLVM\lib\LLVMHipStdPar.lib;C:\LLVM\lib\LLVMIRPrinter.lib;C:\LLVM\lib\LLVMARMDesc.lib;C:\LLVM\lib\LLVMARMInfo.lib;C:\LLVM\lib\LLVMARMUtils.lib;C:\LLVM\lib\LLVMCFGuard.lib;C:\LLVM\lib\LLVMAArch64Desc.lib;C:\LLVM\lib\LLVMAArch64Info.lib;C:\LLVM\lib\LLVMAArch64Utils.lib;C:\LLVM\lib\LLVMipo.lib;C:\LLVM\lib\LLVMVectorize.lib;C:\LLVM\lib\LLVMInstrumentation.lib;C:\LLVM\lib\LLVMFrontendOpenMP.lib;C:\LLVM\lib\LLVMFrontendOffloading.lib;C:\LLVM\lib\LLVMLinker.lib;C:\LLVM\lib\LLVMGlobalISel.lib;C:\LLVM\lib\LLVMRISCVDesc.lib;C:\LLVM\lib\LLVMRISCVInfo.lib;C:\LLVM\lib\LLVMAsmPrinter.lib;C:\LLVM\lib\LLVMSelectionDAG.lib;C:\LLVM\lib\LLVMCodeGen.lib;C:\LLVM\lib\LLVMTarget.lib;C:\LLVM\lib\LLVMObjCARCOpts.lib;C:\LLVM\lib\LLVMScalarOpts.lib;C:\LLVM\lib\LLVMInstCombine.lib;C:\LLVM\lib\LLVMAggressiveInstCombine.lib;C:\LLVM\lib\LLVMTransformUtils.lib;C:\LLVM\lib\LLVMBitWriter.lib;C:\LLVM\lib\LLVMAnalysis.lib;C:\LLVM\lib\LLVMProfileData.lib;C:\LLVM\lib\LLVMSymbolize.lib;C:\LLVM\lib\LLVMDebugInfoPDB.lib;C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\DIA SDK\lib\amd64\diaguids.lib;C:\LLVM\lib\LLVMDebugInfoMSF.lib;C:\LLVM\lib\LLVMDebugInfoBTF.lib;C:\LLVM\lib\LLVMDebugInfoDWARF.lib;C:\LLVM\lib\LLVMObject.lib;C:\LLVM\lib\LLVMIRReader.lib;C:\LLVM\lib\LLVMBitReader.lib;C:\LLVM\lib\LLVMAsmParser.lib;C:\LLVM\lib\LLVMCore.lib;C:\LLVM\lib\LLVMRemarks.lib;C:\LLVM\lib\LLVMBitstreamReader.lib;C:\LLVM\lib\LLVMTextAPI.lib;C:\LLVM\lib\LLVMMCParser.lib;C:\LLVM\lib\LLVMWebAssemblyDesc.lib;C:\LLVM\lib\LLVMWebAssemblyInfo.lib;C:\LLVM\lib\LLVMCodeGenTypes.lib;C:\LLVM\lib\LLVMMCDisassembler.lib;C:\LLVM\lib\LLVMMC.lib;C:\LLVM\lib\LLVMBinaryFormat.lib;C:\LLVM\lib\LLVMTargetParser.lib;C:\LLVM\lib\LLVMDebugInfoCodeView.lib;C:\LLVM\lib\LLVMSupport.lib;C:\LLVM\lib\LLVMDemangle.lib;psapi.lib;shell32.lib;ole32.lib;uuid.lib;advapi32.lib;ws2_32.lib;delayimp.lib;-delayload:shell32.dll;-delayload:ole32.dll;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:/LLVM/lib;C:/LLVM/lib/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/s/s_language/tests/backends/llvm/build_tests/MinSizeRel/llvm_backend_tests.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/s/s_language/tests/backends/llvm/build_tests/MinSizeRel/llvm_backend_tests.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_SCL_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;UNICODE;_UNICODE;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;__STDC_LIMIT_MACROS;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_NONSTDC_NO_WARNINGS;_SCL_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_WARNINGS;UNICODE;_UNICODE;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;__STDC_LIMIT_MACROS;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\LLVM\include;C:\s\s_language;C:\s\s_language\include;C:\s\s_language\compiler\frontend\include;C:\s\s_language\compiler\backends\llvm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>C:\LLVM\lib\LLVMCore.lib;C:\LLVM\lib\LLVMSupport.lib;C:\LLVM\lib\LLVMTarget.lib;C:\LLVM\lib\LLVMAnalysis.lib;C:\LLVM\lib\LLVMTransformUtils.lib;LLVMScalar.lib;C:\LLVM\lib\LLVMInstCombine.lib;C:\LLVM\lib\LLVMAggressiveInstCombine.lib;C:\LLVM\lib\LLVMPasses.lib;C:\LLVM\lib\LLVMipo.lib;C:\LLVM\lib\LLVMVectorize.lib;C:\LLVM\lib\LLVMX86CodeGen.lib;C:\LLVM\lib\LLVMX86AsmParser.lib;C:\LLVM\lib\LLVMX86Desc.lib;C:\LLVM\lib\LLVMX86Disassembler.lib;C:\LLVM\lib\LLVMX86Info.lib;C:\LLVM\lib\LLVMARMCodeGen.lib;C:\LLVM\lib\LLVMARMAsmParser.lib;C:\LLVM\lib\LLVMARMDesc.lib;C:\LLVM\lib\LLVMARMDisassembler.lib;C:\LLVM\lib\LLVMARMInfo.lib;C:\LLVM\lib\LLVMARMUtils.lib;C:\LLVM\lib\LLVMAArch64CodeGen.lib;C:\LLVM\lib\LLVMAArch64AsmParser.lib;C:\LLVM\lib\LLVMAArch64Desc.lib;C:\LLVM\lib\LLVMAArch64Disassembler.lib;C:\LLVM\lib\LLVMAArch64Info.lib;C:\LLVM\lib\LLVMAArch64Utils.lib;C:\LLVM\lib\LLVMRISCVCodeGen.lib;C:\LLVM\lib\LLVMRISCVAsmParser.lib;C:\LLVM\lib\LLVMRISCVDesc.lib;C:\LLVM\lib\LLVMRISCVDisassembler.lib;C:\LLVM\lib\LLVMRISCVInfo.lib;C:\LLVM\lib\LLVMWebAssemblyCodeGen.lib;C:\LLVM\lib\LLVMWebAssemblyAsmParser.lib;C:\LLVM\lib\LLVMWebAssemblyDesc.lib;C:\LLVM\lib\LLVMWebAssemblyDisassembler.lib;C:\LLVM\lib\LLVMWebAssemblyInfo.lib;C:\LLVM\lib\LLVMWebAssemblyUtils.lib;C:\LLVM\lib\LLVMCoroutines.lib;C:\LLVM\lib\LLVMHipStdPar.lib;C:\LLVM\lib\LLVMIRPrinter.lib;C:\LLVM\lib\LLVMARMDesc.lib;C:\LLVM\lib\LLVMARMInfo.lib;C:\LLVM\lib\LLVMARMUtils.lib;C:\LLVM\lib\LLVMCFGuard.lib;C:\LLVM\lib\LLVMAArch64Desc.lib;C:\LLVM\lib\LLVMAArch64Info.lib;C:\LLVM\lib\LLVMAArch64Utils.lib;C:\LLVM\lib\LLVMipo.lib;C:\LLVM\lib\LLVMVectorize.lib;C:\LLVM\lib\LLVMInstrumentation.lib;C:\LLVM\lib\LLVMFrontendOpenMP.lib;C:\LLVM\lib\LLVMFrontendOffloading.lib;C:\LLVM\lib\LLVMLinker.lib;C:\LLVM\lib\LLVMGlobalISel.lib;C:\LLVM\lib\LLVMRISCVDesc.lib;C:\LLVM\lib\LLVMRISCVInfo.lib;C:\LLVM\lib\LLVMAsmPrinter.lib;C:\LLVM\lib\LLVMSelectionDAG.lib;C:\LLVM\lib\LLVMCodeGen.lib;C:\LLVM\lib\LLVMTarget.lib;C:\LLVM\lib\LLVMObjCARCOpts.lib;C:\LLVM\lib\LLVMScalarOpts.lib;C:\LLVM\lib\LLVMInstCombine.lib;C:\LLVM\lib\LLVMAggressiveInstCombine.lib;C:\LLVM\lib\LLVMTransformUtils.lib;C:\LLVM\lib\LLVMBitWriter.lib;C:\LLVM\lib\LLVMAnalysis.lib;C:\LLVM\lib\LLVMProfileData.lib;C:\LLVM\lib\LLVMSymbolize.lib;C:\LLVM\lib\LLVMDebugInfoPDB.lib;C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\DIA SDK\lib\amd64\diaguids.lib;C:\LLVM\lib\LLVMDebugInfoMSF.lib;C:\LLVM\lib\LLVMDebugInfoBTF.lib;C:\LLVM\lib\LLVMDebugInfoDWARF.lib;C:\LLVM\lib\LLVMObject.lib;C:\LLVM\lib\LLVMIRReader.lib;C:\LLVM\lib\LLVMBitReader.lib;C:\LLVM\lib\LLVMAsmParser.lib;C:\LLVM\lib\LLVMCore.lib;C:\LLVM\lib\LLVMRemarks.lib;C:\LLVM\lib\LLVMBitstreamReader.lib;C:\LLVM\lib\LLVMTextAPI.lib;C:\LLVM\lib\LLVMMCParser.lib;C:\LLVM\lib\LLVMWebAssemblyDesc.lib;C:\LLVM\lib\LLVMWebAssemblyInfo.lib;C:\LLVM\lib\LLVMCodeGenTypes.lib;C:\LLVM\lib\LLVMMCDisassembler.lib;C:\LLVM\lib\LLVMMC.lib;C:\LLVM\lib\LLVMBinaryFormat.lib;C:\LLVM\lib\LLVMTargetParser.lib;C:\LLVM\lib\LLVMDebugInfoCodeView.lib;C:\LLVM\lib\LLVMSupport.lib;C:\LLVM\lib\LLVMDemangle.lib;psapi.lib;shell32.lib;ole32.lib;uuid.lib;advapi32.lib;ws2_32.lib;delayimp.lib;-delayload:shell32.dll;-delayload:ole32.dll;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:/LLVM/lib;C:/LLVM/lib/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/s/s_language/tests/backends/llvm/build_tests/RelWithDebInfo/llvm_backend_tests.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>C:/s/s_language/tests/backends/llvm/build_tests/RelWithDebInfo/llvm_backend_tests.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\s\s_language\tests\backends\llvm\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/s/s_language/tests/backends/llvm/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/s/s_language/tests/backends/llvm -BC:/s/s_language/tests/backends/llvm/build_tests --check-stamp-file C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\LLVM\lib\cmake\llvm\LLVM-Config.cmake;C:\LLVM\lib\cmake\llvm\LLVMConfig.cmake;C:\LLVM\lib\cmake\llvm\LLVMConfigVersion.cmake;C:\LLVM\lib\cmake\llvm\LLVMExports-release.cmake;C:\LLVM\lib\cmake\llvm\LLVMExports.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindLibXml2.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPkgConfig.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeCCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeCXXCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeRCCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/s/s_language/tests/backends/llvm/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/s/s_language/tests/backends/llvm -BC:/s/s_language/tests/backends/llvm/build_tests --check-stamp-file C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\LLVM\lib\cmake\llvm\LLVM-Config.cmake;C:\LLVM\lib\cmake\llvm\LLVMConfig.cmake;C:\LLVM\lib\cmake\llvm\LLVMConfigVersion.cmake;C:\LLVM\lib\cmake\llvm\LLVMExports-release.cmake;C:\LLVM\lib\cmake\llvm\LLVMExports.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindLibXml2.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPkgConfig.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeCCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeCXXCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeRCCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule C:/s/s_language/tests/backends/llvm/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/s/s_language/tests/backends/llvm -BC:/s/s_language/tests/backends/llvm/build_tests --check-stamp-file C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\LLVM\lib\cmake\llvm\LLVM-Config.cmake;C:\LLVM\lib\cmake\llvm\LLVMConfig.cmake;C:\LLVM\lib\cmake\llvm\LLVMConfigVersion.cmake;C:\LLVM\lib\cmake\llvm\LLVMExports-release.cmake;C:\LLVM\lib\cmake\llvm\LLVMExports.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindLibXml2.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPkgConfig.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeCCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeCXXCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeRCCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/s/s_language/tests/backends/llvm/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/s/s_language/tests/backends/llvm -BC:/s/s_language/tests/backends/llvm/build_tests --check-stamp-file C:/s/s_language/tests/backends/llvm/build_tests/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\LLVM\lib\cmake\llvm\LLVM-Config.cmake;C:\LLVM\lib\cmake\llvm\LLVMConfig.cmake;C:\LLVM\lib\cmake\llvm\LLVMConfigVersion.cmake;C:\LLVM\lib\cmake\llvm\LLVMExports-release.cmake;C:\LLVM\lib\cmake\llvm\LLVMExports.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindLibXml2.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPackageMessage.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\FindPkgConfig.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.1\Modules\Platform\WindowsPaths.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeCCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeCXXCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeRCCompiler.cmake;C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\4.1.2\CMakeSystem.cmake;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\s\s_language\tests\backends\llvm\build_tests\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="C:\s\s_language\tests\backends\llvm\test_llvm_simple.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_linker.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_optimizer.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_target.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_debug.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_runtime.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_codegen.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_type_mapper.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_control_flow.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_expression_builder.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_array_support.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_dict_support.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_class_support.cpp" />
+    <ClCompile Include="C:\s\s_language\compiler\backends\llvm\llvm_memory_manager.cpp" />
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="C:\s\s_language\tests\backends\llvm\build_tests\ZERO_CHECK.vcxproj">
+      <Project>{E973981A-2FCD-35E0-95BC-C218639CF759}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

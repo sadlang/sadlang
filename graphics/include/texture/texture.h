@@ -189,6 +189,22 @@ public:
     // returns: shared pointer للـ texture - shared pointer to texture
     static std::shared_ptr<Texture> CreateBlack();
     
+    // إنشاء texture من بيانات في الذاكرة
+    // Create texture from raw memory data
+    // data: مؤشر للبيانات - pointer to pixel data
+    // width, height: أبعاد الـ texture - texture dimensions
+    // format: صيغة البيانات - data format
+    // minFilter: تصفية التصغير - minification filter
+    // wrap: نوع الـ wrapping - wrapping mode
+    // returns: shared pointer للـ texture - shared pointer to texture
+    static std::shared_ptr<Texture> CreateFromMemory(
+        const void* data,
+        u32 width, u32 height,
+        TextureFormat format,
+        TextureFilter minFilter = TextureFilter::LINEAR,
+        TextureWrap wrap = TextureWrap::REPEAT
+    );
+    
     // الحصول على عدد القنوات من الصيغة
     // Get number of channels from format
     // format: صيغة الـ texture - texture format

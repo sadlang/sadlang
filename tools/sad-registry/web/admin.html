@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة الإدارة — مستودع حزم لغة ص</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .admin-content { padding: 2rem 0 4rem; }
+        .admin-header { margin-bottom: 2rem; }
+        .admin-header h1 { font-size: 28px; color: var(--color-text); }
+        .admin-header p { color: var(--color-text-muted); }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .stat-card .stat-num {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--color-primary);
+            display: block;
+        }
+        .stat-card .stat-lbl {
+            color: var(--color-text-muted);
+            font-size: 14px;
+        }
+        .stat-card.alert .stat-num { color: #d9534f; }
+
+        .admin-section {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .admin-section h2 {
+            font-size: 20px;
+            margin: 0 0 1rem;
+            color: var(--color-text);
+            border-bottom: 2px solid var(--color-primary);
+            padding-bottom: 8px;
+        }
+
+        .report-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--color-border-light, var(--color-border));
+        }
+        .report-item:last-child { border-bottom: none; }
+        .report-info h4 { margin: 0; font-size: 15px; }
+        .report-info p { margin: 4px 0 0; font-size: 13px; color: var(--color-text-muted); }
+        .report-actions { display: flex; gap: 8px; }
+
+        .btn-sm {
+            padding: 6px 14px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            background: var(--color-surface);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .btn-sm.resolve { border-color: var(--color-primary); color: var(--color-primary); }
+        .btn-sm.resolve:hover { background: var(--color-primary); color: #fff; }
+        .btn-sm.dismiss { border-color: var(--color-text-muted); color: var(--color-text-muted); }
+
+        .audit-item {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--color-border-light, var(--color-border));
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+        .audit-item:last-child { border-bottom: none; }
+        .audit-action { font-weight: 600; color: var(--color-primary); }
+        .audit-user { color: var(--color-text-secondary); }
+        .audit-time { color: var(--color-text-muted); font-size: 12px; }
+
+        .no-access {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--color-text-muted);
+        }
+        .no-access h2 { font-size: 48px; margin: 0; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="navbar-brand">
+                <span class="brand-icon">ص</span>
+                <span class="brand-text">مستودع الحزم</span>
+            </a>
+            <div class="navbar-actions">
+                <a href="/" class="nav-link">الرئيسية</a>
+                <a href="/search.html" class="nav-link">استكشاف</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container admin-content">
+        <div class="admin-header">
+            <h1>🛡️ لوحة الإدارة</h1>
+            <p>إدارة المستودع والحزم والمستخدمين</p>
+        </div>
+
+        <!-- بطاقات الإحصائيات -->
+        <div class="admin-grid" id="adminStats">
+            <div class="stat-card">
+                <span class="stat-num" id="aStatPkgs">—</span>
+                <span class="stat-lbl">حزمة</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-num" id="aStatUsers">—</span>
+                <span class="stat-lbl">مستخدم</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-num" id="aStatDl">—</span>
+                <span class="stat-lbl">تنزيل</span>
+            </div>
+            <div class="stat-card alert" id="reportCountCard">
+                <span class="stat-num" id="aStatReports">—</span>
+                <span class="stat-lbl">بلاغ معلّق</span>
+            </div>
+        </div>
+
+        <!-- البلاغات المعلقة -->
+        <div class="admin-section">
+            <h2>🚩 البلاغات المعلقة</h2>
+            <div id="reportsList">
+                <p style="color:var(--color-text-muted);">جارٍ التحميل...</p>
+            </div>
+        </div>
+
+        <!-- سجل المراجعة -->
+        <div class="admin-section">
+            <h2>📋 سجل المراجعة</h2>
+            <div id="auditList">
+                <p style="color:var(--color-text-muted);">جارٍ التحميل...</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>مستودع حزم لغة ص — صُنع بـ ❤️ للمجتمع البرمجي العربي</p>
+        </div>
+    </footer>
+
+    <script src="/app.js"></script>
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // سكربت لوحة الإدارة
+        // ═══════════════════════════════════════════════════════════════
+
+        async function loadAdminPage() {
+            const token = localStorage.getItem('sad_token');
+            if (!token) {
+                document.querySelector('.admin-content').innerHTML =
+                    '<div class="no-access"><h2>🔒</h2><p>يجب تسجيل الدخول كمسؤول</p></div>';
+                return;
+            }
+
+            // تحميل الإحصائيات
+            const stats = await apiCall('/admin/stats');
+            if (!stats || !stats.stats) {
+                document.querySelector('.admin-content').innerHTML =
+                    '<div class="no-access"><h2>⛔</h2><p>ليس لديك صلاحيات المسؤول</p></div>';
+                return;
+            }
+
+            const s = stats.stats;
+            el('aStatPkgs').textContent = formatNumber(s.total_packages);
+            el('aStatUsers').textContent = formatNumber(s.total_users);
+            el('aStatDl').textContent = formatNumber(s.total_downloads);
+            el('aStatReports').textContent = formatNumber(s.pending_reports);
+
+            // تحميل البلاغات
+            const reportsData = await apiCall('/admin/reports?status=pending');
+            const reportsList = document.getElementById('reportsList');
+            if (reportsData && reportsData.reports && reportsData.reports.length > 0) {
+                reportsList.innerHTML = '';
+                reportsData.reports.forEach(r => {
+                    const item = document.createElement('div');
+                    item.className = 'report-item';
+                    item.innerHTML = `
+                        <div class="report-info">
+                            <h4>📦 ${escapeHtml(r.package)} — ${escapeHtml(r.reason)}</h4>
+                            <p>أبلغ بواسطة ${escapeHtml(r.reporter)} · ${timeAgo(r.created_at)}</p>
+                            ${r.details ? `<p>${escapeHtml(r.details)}</p>` : ''}
+                        </div>
+                        <div class="report-actions">
+                            <button class="btn-sm resolve" onclick="resolveReport(${r.id}, 'resolved')">✓ حل</button>
+                            <button class="btn-sm dismiss" onclick="resolveReport(${r.id}, 'dismissed')">✗ رفض</button>
+                        </div>
+                    `;
+                    reportsList.appendChild(item);
+                });
+            } else {
+                reportsList.innerHTML = '<p style="color:var(--color-text-muted);">✓ لا توجد بلاغات معلقة</p>';
+            }
+
+            // تحميل سجل المراجعة
+            const auditData = await apiCall('/admin/audit?limit=50');
+            const auditList = document.getElementById('auditList');
+            if (auditData && auditData.audit_log && auditData.audit_log.length > 0) {
+                auditList.innerHTML = '';
+                auditData.audit_log.forEach(a => {
+                    const item = document.createElement('div');
+                    item.className = 'audit-item';
+                    item.innerHTML = `
+                        <span>
+                            <span class="audit-action">${escapeHtml(a.action)}</span>
+                            <span class="audit-user">— ${escapeHtml(a.user || '?')}</span>
+                            ${a.details ? ` · <span>${escapeHtml(a.details)}</span>` : ''}
+                        </span>
+                        <span class="audit-time">${timeAgo(a.created_at)}</span>
+                    `;
+                    auditList.appendChild(item);
+                });
+            } else {
+                auditList.innerHTML = '<p style="color:var(--color-text-muted);">لا توجد سجلات بعد</p>';
+            }
+        }
+
+        async function resolveReport(reportId, status) {
+            const notes = prompt('ملاحظات المسؤول (اختياري):') || '';
+            const data = await apiCall(`/admin/reports/${reportId}/resolve`, {
+                method: 'POST',
+                body: JSON.stringify({ status, notes }),
+            });
+            if (data) {
+                showToast('✓ تم التحديث');
+                loadAdminPage();
+            }
+        }
+
+        function el(id) { return document.getElementById(id); }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initAuth();
+            loadAdminPage();
+        });
+    </script>
+</body>
+</html>
