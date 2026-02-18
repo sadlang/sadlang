@@ -203,7 +203,7 @@ public:
             } else if (arg[0] != '-') {
                 // ملف أو prompt
                 if (std::filesystem::exists(arg) && 
-                    (arg.ends_with(".ص") || arg.ends_with(".sad"))) {
+                    arg.ends_with(".ص")) {
                     options.inputFile = arg;
                 } else if (options.prompt.empty()) {
                     options.prompt = arg;

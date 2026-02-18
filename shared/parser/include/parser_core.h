@@ -186,6 +186,18 @@ private:
      */
     AST::StmtPtr parseClassDecl();
     
+    /**
+     * @brief (AR) يحلل تصريح واجهة/سمة
+     *        (EN) Parses trait/interface declaration
+     */
+    AST::StmtPtr parseTraitDecl();
+    
+    /**
+     * @brief (AR) يحلل كتلة تنفيذ سمة لصنف
+     *        (EN) Parses impl block
+     */
+    AST::StmtPtr parseImplDecl();
+    
     // =====================================================================
     // (AR) تحليل القوالب والميزات المتقدمة (Phase 7B)
     // (EN) Template and Advanced Features Parsing (Phase 7B)
@@ -267,7 +279,7 @@ private:
      *         (EN) Pointer to ImportStmt node
      * 
      * @example
-     * @code{.sad}
+     * @code{.ص}
      * استورد رياضيات
      * استورد رياضيات كـ م
      * @endcode
@@ -293,7 +305,7 @@ private:
      *         (EN) Pointer to FromImportStmt node
      * 
      * @example
-     * @code{.sad}
+     * @code{.ص}
      * من رياضيات استورد جذر، قوة
      * من رياضيات استورد *
      * @endcode
@@ -319,7 +331,7 @@ private:
      *         (EN) Pointer to ExportDecl node
      * 
      * @example
-     * @code{.sad}
+     * @code{.ص}
      * صدّر دالة مضاعفة(رقم س) { إرجاع س * 2 }
      * صدّر ثابت PI = 3.14
      * @endcode
@@ -704,6 +716,24 @@ private:
      *         (EN) Pointer to logical expression node.
      */
     AST::ExprPtr parseLogicalAnd();
+
+    /**
+     * @brief (AR) يحلل عامل OR البتّي: |.
+     *        (EN) Parses bitwise OR operator: |.
+     */
+    AST::ExprPtr parseBitwiseOr();
+
+    /**
+     * @brief (AR) يحلل عامل XOR البتّي: ^.
+     *        (EN) Parses bitwise XOR operator: ^.
+     */
+    AST::ExprPtr parseBitwiseXor();
+
+    /**
+     * @brief (AR) يحلل عامل AND البتّي: &.
+     *        (EN) Parses bitwise AND operator: &.
+     */
+    AST::ExprPtr parseBitwiseAnd();
 
     /**
      * @brief (AR) يحلل عوامل المساواة (== !=).

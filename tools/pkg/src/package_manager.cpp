@@ -491,7 +491,7 @@ public:
         info.name = name;
         info.name_ar = name_ar;
         info.version = SemanticVersion::parse("0.1.0");
-        info.main_file = "src/main.s";
+        info.main_file = "src/main.ص";
         info.source_dirs.push_back("src");
         
         // حفظ ملف الإعداد
@@ -511,7 +511,7 @@ public:
         std::filesystem::create_directories(project_dir_ + "/src");
         
         // إنشاء الملف الرئيسي
-        std::ofstream main_file(project_dir_ + "/src/main.s");
+        std::ofstream main_file(project_dir_ + "/src/main.ص");
         if (main_file.is_open()) {
             main_file << "// بسم الله الرحمن الرحيم\n";
             main_file << "// " << name << " - نقطة الدخول الرئيسية\n\n";
@@ -523,7 +523,7 @@ public:
         }
         
         log_success("تم تهيئة المشروع بنجاح!");
-        log_info("أنشئ: " + std::string(CONFIG_FILE_NAME_AR) + " و src/main.s");
+        log_info("أنشئ: " + std::string(CONFIG_FILE_NAME_AR) + " و src/main.ص");
         
         return true;
     }

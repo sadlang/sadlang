@@ -233,8 +233,8 @@ std::optional<std::filesystem::path> ModuleResolver::findModuleFile(
     // (AR) تحويل مسار الوحدة إلى مسار ملف / (EN) Convert module path to file path
     std::string filename = modulePathToFilename(modulePath);
     
-    // (AR) الامتدادات المدعومة / (EN) Supported extensions
-    std::vector<std::string> extensions = {".sad", ".sd", ".\xd8\xb5"};
+    // (AR) الامتداد الوحيد المدعوم هو .ص / (EN) Only supported extension is .ص
+    std::vector<std::string> extensions = {".\xd8\xb5"};
     
     // (AR) البحث في المسارات / (EN) Search in paths
     for (const auto& searchPath : searchPaths_) {

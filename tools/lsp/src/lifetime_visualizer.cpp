@@ -1,45 +1,39 @@
 /**
- * =============================================================================
+ * ══════════════════════════════════════════════════════════════════════════════════════════════════
  * ملف: lifetime_visualizer.cpp
- * الوصف: مُصور دورة حياة المتغيرات
- * المهمة: T253 - Lifetime visualization
- * المرحلة: Phase 26 - User Story 23 (LSP Advanced)
- * =============================================================================
+ * الوصف: مُصور دورة حياة المتغيرات - متصل بالمحلل النحوي الحقيقي
+ * ══════════════════════════════════════════════════════════════════════════════════════════════════
  * 
- * ⌛ دليل المبتدئ لتصور دورة الحياة
- * ═══════════════════════════════════════
+ * ⌛ تصور دورة الحياة (Lifetime Visualization)
+ * ═══════════════════════════════════════════════
  * 
  * ما هي دورة الحياة (Lifetime)؟
  * ────────────────────────────────
- * المدة التي يكون فيها المتغير صالحاً للاستخدام.
+ * المدة التي يكون فيها المتغير صالحاً للاستخدام في الذاكرة.
  * 
- * ```sad
- * دالة مثال() {
- *     متغير س = 10    // ← س تبدأ هنا
- *     اطبع(س)         // ← س متاحة
- *     متغير ع = س + 5 // ← س لا تزال متاحة
- * }                    // ← س تنتهي هنا
- * ```
+ * مثال:
+ *   دالة مثال() {
+ *       متغير س = 10    // ← س تبدأ هنا (سطر 2)
+ *       اطبع(س)         // ← س متاحة للقراءة
+ *       متغير ع = س + 5 // ← س لا تزال متاحة
+ *   }                    // ← س تنتهي هنا (خروج من النطاق)
  * 
- * ماذا يفعل المُصور؟
+ * كيف يعمل المُصور؟
  * ──────────────────
- * يرسم خطاً جانبياً يوضح:
+ *   ① يستخدم المحلل النحوي الحقيقي (LexerCore + ParserCore)
+ *   ② يعبر شجرة AST لاكتشاف تعريفات المتغيرات
+ *   ③ يتتبع استخدام كل متغير عبر الأسطر
+ *   ④ يحسب نقاط تغيير الحالة (صالح → مُستعار → منقول)
+ *   ⑤ يولد زخارف بصرية وتصور ASCII/SVG
  * 
- * ```
- * 1 │ دالة مثال() {
- * 2 │┌    متغير س = 10
- * 3 ││    اطبع(س)
- * 4 ││    متغير ع = س + 5
- * 5 │└}
- * ```
+ * الألوان المستخدمة:
+ * ──────────────────
+ *   🟢 أخضر (#64C864):  المتغير صالح للاستخدام
+ *   🟡 أصفر (#FFC864):  استعارة نشطة
+ *   🔴 أحمر (#FF6464):  تم نقله أو إسقاطه
+ *   ⚪ رمادي (#969696): خرج من النطاق
  * 
- * الألوان:
- * ────────
- * 🟢 أخضر: المتغير صالح
- * 🟡 أصفر: استعارة نشطة
- * 🔴 أحمر: تم نقله / إسقاطه
- * 
- * =============================================================================
+ * ══════════════════════════════════════════════════════════════════════════════════════════════════
  */
 
 #include <string>
@@ -48,6 +42,15 @@
 #include <optional>
 #include <sstream>
 #include <algorithm>
+#include <iomanip>
+
+// ── ربط مع المحلل النحوي الحقيقي ──
+#include "../../shared/parser/include/lexer_core.h"
+#include "../../shared/parser/include/parser_core.h"
+#include "../../shared/parser/include/lexer_keywords.h"
+#include "../../shared/ast/include/declarations.h"
+#include "../../shared/ast/include/statements.h"
+#include "../../shared/ast/include/expressions.h"
 
 namespace sad::lsp {
 
@@ -127,74 +130,165 @@ struct LineDecoration {
     bool isEnd;
 };
 
-// =============================================================================
-// مُحلل دورة الحياة
-// =============================================================================
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// مُحلل دورة الحياة - متصل بالمحلل النحوي الحقيقي
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// خوارزمية التحليل:
+//   ① تحليل الكود بـ LexerCore + ParserCore → شجرة AST
+//   ② عبور VarDeclStmt: تعريف متغير جديد → بداية دورة الحياة
+//   ③ عبور FunctionDecl: حدود الدالة = نطاق المتغيرات المحلية
+//   ④ عبور التعبيرات: تتبع كل استخدام لاسم المتغير
+//   ⑤ تحديد نهاية الحياة: نهاية النطاق أو عملية نقل (انقل)
+//   ⑥ إذا فشل المحلل → التحليل المبسط بـ regex
+//
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 class LifetimeAnalyzer {
 public:
+    /// نتيجة تحليل دورات الحياة
     struct AnalysisResult {
-        std::vector<LifetimeSpan> spans;
-        std::map<std::string, std::vector<int>> usages;  // اسم → أسطر الاستخدام
+        std::vector<LifetimeSpan> spans;                        // نطاقات دورة الحياة
+        std::map<std::string, std::vector<int>> usages;         // اسم المتغير → أسطر الاستخدام
     };
     
+    /// ──────────────────────────────────────────────────────────────────────
+    /// تحليل الكود واكتشاف دورات حياة المتغيرات
+    ///
+    /// يستخدم المحلل النحوي الحقيقي أولاً.
+    /// إذا فشل (كود مكسور)، يسقط على تحليل نصي مبسط.
+    ///
+    /// @param source  الكود المصدري
+    /// @return AnalysisResult  نتيجة التحليل
+    /// ──────────────────────────────────────────────────────────────────────
     AnalysisResult analyze(const std::string& source) {
         AnalysisResult result;
         
-        // تحليل مبسط - سيتم ربطه مع المحلل الفعلي
+        // ── محاولة التحليل بالمحلل الحقيقي ──
+        bool parserSucceeded = false;
+        try {
+            Sad::Lexer::KeywordTable::initialize();
+            Sad::Lexer::LexerCore lexer(source);
+            Sad::Parser::ParserCore parser(lexer);
+            auto program = parser.parseProgram();
+            
+            // حساب عدد أسطر الكود لتحديد نهاية النطاق العام
+            int totalLines = 1;
+            for (auto c : source) { if (c == '\n') totalLines++; }
+            
+            // ── عبور شجرة AST ──
+            for (const auto& stmt : program) {
+                if (!stmt) continue;
+                analyzeNode(stmt.get(), result, totalLines);
+            }
+            
+            parserSucceeded = !result.spans.empty();
+        } catch (...) {
+            // فشل المحلل النحوي
+        }
+        
+        // ── التحليل الاحتياطي إذا لم ينتج المحلل نتائج ──
+        if (!parserSucceeded) {
+            analyzeFallback(source, result);
+        }
+        
+        // ── تتبع الاستخدامات بالبحث النصي (يكمل معلومات AST) ──
+        collectUsages(source, result);
+        
+        // ── تحديث نهايات دورات الحياة بناءً على آخر استخدام ──
+        for (auto& span : result.spans) {
+            auto it = result.usages.find(span.variableName);
+            if (it != result.usages.end() && !it->second.empty()) {
+                int lastUsage = *std::max_element(it->second.begin(), it->second.end());
+                span.endLine = std::max(span.endLine, lastUsage);
+            }
+        }
+        
+        return result;
+    }
+
+private:
+    /// ──────────────────────────────────────────────────────────────────────
+    /// تحليل عقدة واحدة من شجرة AST
+    /// ──────────────────────────────────────────────────────────────────────
+    void analyzeNode(Sad::AST::ASTNode* node, AnalysisResult& result, int scopeEnd) {
+        if (!node) return;
+        
+        // ── تصريح متغير → بداية دورة حياة جديدة ──
+        auto* var = dynamic_cast<Sad::AST::VarDeclStmt*>(node);
+        if (var) {
+            LifetimeSpan span;
+            span.variableName = var->name;
+            span.startLine = static_cast<int>(var->position.line);
+            span.endLine = scopeEnd;  // ينتهي عند نهاية النطاق
+            span.stateChanges.push_back({span.startLine, VariableState::Valid});
+            result.spans.push_back(span);
+            return;
+        }
+        
+        // ── تصريح دالة → عبور الجسم مع نطاق محدد ──
+        auto* func = dynamic_cast<Sad::AST::FunctionDecl*>(node);
+        if (func) {
+            int funcStart = static_cast<int>(func->position.line);
+            // تقدير نهاية الدالة بالبحث عن آخر عقدة في الجسم
+            int funcEnd = funcStart + 20;  // تقدير أولي
+            
+            // تسجيل المعلمات كمتغيرات
+            for (const auto& param : func->parameters) {
+                LifetimeSpan span;
+                span.variableName = param.name;
+                span.startLine = funcStart;
+                span.endLine = funcEnd;
+                span.stateChanges.push_back({funcStart, VariableState::Valid});
+                result.spans.push_back(span);
+            }
+            
+            // عبور جسم الدالة
+            if (func->body) {
+                auto* block = dynamic_cast<Sad::AST::BlockStmt*>(func->body.get());
+                if (block) {
+                    // تحديث نهاية النطاق بناءً على آخر عبارة
+                    if (!block->statements.empty()) {
+                        auto& lastStmt = block->statements.back();
+                        if (lastStmt) {
+                            funcEnd = static_cast<int>(lastStmt->position.line) + 1;
+                        }
+                    }
+                    for (const auto& stmt : block->statements) {
+                        if (stmt) analyzeNode(stmt.get(), result, funcEnd);
+                    }
+                }
+            }
+            return;
+        }
+        
+        // ── تصريح صنف → عبور الأعضاء ──
+        auto* cls = dynamic_cast<Sad::AST::ClassDecl*>(node);
+        if (cls) {
+            for (const auto& member : cls->members) {
+                if (member) analyzeNode(member.get(), result, scopeEnd);
+            }
+        }
+    }
+    
+    /// ──────────────────────────────────────────────────────────────────────
+    /// تتبع استخدامات المتغيرات بالبحث النصي
+    /// ──────────────────────────────────────────────────────────────────────
+    void collectUsages(const std::string& source, AnalysisResult& result) {
         std::istringstream iss(source);
         std::string line;
         int lineNum = 0;
-        int scopeDepth = 0;
-        std::vector<std::pair<std::string, int>> scopeStack;  // اسم، سطر البداية
         
         while (std::getline(iss, line)) {
             lineNum++;
-            
-            // تتبع النطاقات
-            if (line.find('{') != std::string::npos || 
-                line.find("نهاية") == std::string::npos && 
-                (line.find("دالة") != std::string::npos || 
-                 line.find("إذا") != std::string::npos ||
-                 line.find("بينما") != std::string::npos)) {
-                scopeDepth++;
-            }
-            
-            if (line.find('}') != std::string::npos || 
-                line.find("نهاية") != std::string::npos) {
-                scopeDepth--;
-                // إنهاء المتغيرات في هذا النطاق
-            }
-            
-            // البحث عن تعريفات المتغيرات
-            size_t varPos = line.find("متغير");
-            if (varPos != std::string::npos) {
-                // استخراج اسم المتغير (مبسط)
-                size_t nameStart = line.find_first_not_of(" \t", varPos + 10);
-                if (nameStart != std::string::npos) {
-                    size_t nameEnd = line.find_first_of(" =:", nameStart);
-                    std::string varName = line.substr(nameStart, nameEnd - nameStart);
-                    
-                    LifetimeSpan span;
-                    span.variableName = varName;
-                    span.startLine = lineNum;
-                    span.endLine = lineNum + 10;  // تقدير مبدئي
-                    span.stateChanges.push_back({lineNum, VariableState::Valid});
-                    
-                    result.spans.push_back(span);
-                }
-            }
-            
-            // تتبع الاستخدامات
-            for (auto& span : result.spans) {
+            for (const auto& span : result.spans) {
                 if (line.find(span.variableName) != std::string::npos) {
                     result.usages[span.variableName].push_back(lineNum);
                 }
             }
             
-            // البحث عن النقل
+            // اكتشاف عمليات النقل (انقل) → تغيير حالة المتغير
             if (line.find("انقل") != std::string::npos) {
-                // تحديث حالة المتغير
                 for (auto& span : result.spans) {
                     if (line.find(span.variableName) != std::string::npos) {
                         span.stateChanges.push_back({lineNum, VariableState::Moved});
@@ -202,14 +296,55 @@ public:
                 }
             }
         }
+    }
+    
+    /// ──────────────────────────────────────────────────────────────────────
+    /// التحليل الاحتياطي بأنماط نصية (يعمل مع كود مكسور)
+    /// ──────────────────────────────────────────────────────────────────────
+    void analyzeFallback(const std::string& source, AnalysisResult& result) {
+        // تحليل نصي مبسط - يعمل حتى مع كود مكسور
+        std::istringstream iss(source);
+        std::string line;
+        int lineNum = 0;
+        int scopeDepth = 0;
         
-        return result;
+        // حساب عدد الأسطر الكلي
+        int totalLines = 1;
+        for (auto c : source) { if (c == '\n') totalLines++; }
+        
+        while (std::getline(iss, line)) {
+            lineNum++;
+            
+            // تتبع النطاقات
+            if (line.find('{') != std::string::npos) scopeDepth++;
+            if (line.find('}') != std::string::npos) scopeDepth--;
+            
+            // البحث عن تعريفات المتغيرات
+            size_t varPos = line.find("متغير");
+            if (varPos != std::string::npos) {
+                size_t nameStart = line.find_first_not_of(" \t", varPos + 10);
+                if (nameStart != std::string::npos) {
+                    size_t nameEnd = line.find_first_of(" =:", nameStart);
+                    if (nameEnd != std::string::npos) {
+                        std::string varName = line.substr(nameStart, nameEnd - nameStart);
+                        if (!varName.empty()) {
+                            LifetimeSpan span;
+                            span.variableName = varName;
+                            span.startLine = lineNum;
+                            span.endLine = totalLines;  // سيُحدَّث لاحقاً
+                            span.stateChanges.push_back({lineNum, VariableState::Valid});
+                            result.spans.push_back(span);
+                        }
+                    }
+                }
+            }
+        }
     }
 };
 
-// =============================================================================
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
 // مُصور دورة الحياة
-// =============================================================================
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 class LifetimeVisualizer {
 public:

@@ -12,7 +12,7 @@ namespace lsp {
 namespace uri {
 
 /// تحويل URI إلى مسار ملف محلي
-/// مثال: "file:///c%3A/project/main.sad" → "c:/project/main.sad"
+/// مثال: "file:///c%3A/project/main.ص" → "c:/project/main.ص"
 std::string uri_to_path(const std::string& uri) {
     std::string path = uri;
 
@@ -44,7 +44,7 @@ std::string uri_to_path(const std::string& uri) {
 }
 
 /// تحويل مسار ملف محلي إلى URI
-/// مثال: "c:/project/main.sad" → "file:///c%3A/project/main.sad"
+/// مثال: "c:/project/main.ص" → "file:///c%3A/project/main.ص"
 std::string path_to_uri(const std::string& path) {
     std::string result = path;
 

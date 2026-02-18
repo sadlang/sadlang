@@ -283,6 +283,13 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::OP_OR:               return "OP_OR";
         case TokenType::OP_NOT:              return "OP_NOT";
         
+        // عوامل البت
+        case TokenType::OP_XOR:              return "OP_XOR";
+        case TokenType::OP_BITWISE_AND:      return "OP_BITWISE_AND";
+        case TokenType::OP_BITWISE_OR:       return "OP_BITWISE_OR";
+        case TokenType::OP_SHIFT_LEFT:       return "OP_SHIFT_LEFT";
+        case TokenType::OP_SHIFT_RIGHT:      return "OP_SHIFT_RIGHT";
+        
         // عامل الأنبوب
         case TokenType::OP_PIPE_ARROW:       return "OP_PIPE_ARROW";
         

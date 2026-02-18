@@ -29,6 +29,7 @@
  */
 
 #include "types/c_types.h"
+#include "types/composite_type_classes.h"
 #include <stdexcept>
 #include <cassert>
 
@@ -113,9 +114,10 @@ FFI::CTypePtr CTypeMapper::sadToC(TypePtr sadType) const {
     // }
     
     // (AR) نوع البنية / (EN) Struct type
-    if (auto* structType = dynamic_cast<StructType*>(sadType.get())) {
-        return sadStructToC(*structType);
-    }
+    // TODO: StructType doesn't inherit from Type yet - enable when unified
+    // if (auto* structType = dynamic_cast<StructType*>(sadType.get())) {
+    //     return std::static_pointer_cast<FFI::CType>(sadStructToC(*structType));
+    // }
     
     // (AR) نوع غير معروف / (EN) Unknown type
     throw std::runtime_error(
@@ -286,14 +288,17 @@ TypePtr CTypeMapper::cToSad(FFI::CTypePtr cType) const {
     // (AR) نوع المصفوفة / (EN) Array type
     if (auto* arrayType = dynamic_cast<FFI::CArrayType*>(cType.get())) {
         TypePtr elemType = cToSad(arrayType->getElementType());
-        return makeArrayType(elemType, arrayType->getSize());
+        return std::make_shared<ArrayType>(elemType, arrayType->getSize());
     }
     
     // (AR) نوع البنية / (EN) Struct type
     if (auto* structType = dynamic_cast<FFI::CStructType*>(cType.get())) {
-        // (AR) إنشاء بنية "ص" من بنية C
-        // (EN) Create Sad struct from C struct
-        return makeSadStructFromC(structType);
+        // (AR) إنشاء بنية "ص" من بنية C - TODO: تحويل الحقول بشكل كامل
+        // (EN) Create Sad struct from C struct - TODO: full field conversion
+        throw std::runtime_error(
+            "(AR) تحويل بنية C إلى ص غير مكتمل بعد / "
+            "(EN) C struct to Sad conversion not fully implemented yet"
+        );
     }
     
     throw std::runtime_error(
@@ -374,7 +379,7 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
                 sadKind = TypeKind::Integer;  // (AR) 32-bit: long = 32 بت
             }
             break;
-        case FFI::CBasicType::LONG_LONG:
+        case FFI::CBasicType::LONGLONG:
             sadKind = TypeKind::Integer;
             break;
             
@@ -397,7 +402,7 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
                 sadKind = TypeKind::Integer;
             }
             break;
-        case FFI::CBasicType::ULONG_LONG:
+        case FFI::CBasicType::ULONGLONG:
             sadKind = TypeKind::Integer;
             break;
             
@@ -408,7 +413,7 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
         case FFI::CBasicType::DOUBLE:
             sadKind = TypeKind::Integer;
             break;
-        case FFI::CBasicType::LONG_DOUBLE:
+        case FFI::CBasicType::LONGDOUBLE:
             /*
              * (AR) long double: نستخدم FLOAT64 كتقريب
              *      (الحجم الفعلي يختلف: 80/128 بت)
@@ -456,7 +461,9 @@ TypePtr CTypeMapper::cPointerToSad(FFI::CTypePtr pointeeType) const {
      *      Then create Sad pointer type
      */
     TypePtr sadPointeeType = cToSad(pointeeType);
-    return makePointerType(sadPointeeType);
+    // TODO: No PointerType in TypeSystem hierarchy yet
+    // Return pointee type for now until pointer types are unified
+    return sadPointeeType;
 }
 
 // ----------------------------------------------------------------------------
@@ -487,7 +494,7 @@ CTypeInfo CTypeMapper::getTypeInfo(FFI::CTypePtr cType) const {
                         bt == FFI::CBasicType::SHORT ||
                         bt == FFI::CBasicType::INT ||
                         bt == FFI::CBasicType::LONG ||
-                        bt == FFI::CBasicType::LONG_LONG);
+                        bt == FFI::CBasicType::LONGLONG);
         info.isPointer = false;
         info.requiresCleanup = false;
     } else if (dynamic_cast<FFI::CPointerType*>(cType.get())) {
@@ -550,11 +557,11 @@ size_t CTypeMapper::getTypeSize(FFI::CTypePtr cType) const {
                 // (AR) حجم long يعتمد على المنصة
                 if (options_.isWindows) return 4;
                 return options_.is64Bit ? 8 : 4;
-            case FFI::CBasicType::LONG_LONG:
-            case FFI::CBasicType::ULONG_LONG:
+            case FFI::CBasicType::LONGLONG:
+            case FFI::CBasicType::ULONGLONG:
             case FFI::CBasicType::DOUBLE:
                 return 8;
-            case FFI::CBasicType::LONG_DOUBLE:
+            case FFI::CBasicType::LONGDOUBLE:
                 // (AR) حجم long double يختلف
                 return 16;  // (AR) افتراض 128 بت
             case FFI::CBasicType::SIZE_T:
@@ -910,11 +917,11 @@ FFI::CTypePtr getUInt32() {
 }
 
 FFI::CTypePtr getInt64() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::LONG_LONG);
+    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::LONGLONG);
 }
 
 FFI::CTypePtr getUInt64() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::ULONG_LONG);
+    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::ULONGLONG);
 }
 
 FFI::CTypePtr getVoidPtr() {
@@ -939,9 +946,9 @@ FFI::CTypePtr getFILEPtr() {
     /*
      * (AR) FILE*: مؤشر مبهم لبنية FILE
      * (EN) FILE*: opaque pointer to FILE struct
+     * نستخدم void* كتقريب / Use void* as approximation
      */
-    auto fileStruct = std::make_shared<FFI::COpaqueType>("FILE");
-    return std::make_shared<FFI::CPointerType>(fileStruct);
+    return std::make_shared<FFI::CPointerType>(getVoid());
 }
 
 } // namespace CommonCTypes

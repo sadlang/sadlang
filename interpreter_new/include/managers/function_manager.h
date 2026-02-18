@@ -109,16 +109,23 @@ enum class FunctionType {
 /**
  * @brief (AR) معلومات عن معامل دالة
  * @brief (EN) Function parameter information
+ * 
+ * (AR) يحتوي على اسم المعامل، نوعه، وإذا كان النوع صنفاً (OBJECT)
+ *      يُخزَّن اسم الصنف في typeName لفحص النوع في وقت التشغيل.
+ * (EN) Contains parameter name, type, and if the type is a class (OBJECT),
+ *      the class name is stored in typeName for runtime type checking.
  */
 struct FunctionParameter {
     std::string name;           ///< (AR) اسم المعامل / (EN) Parameter name
     std::string type;           ///< (AR) نوع المعامل (اختياري) / (EN) Parameter type (optional)
+    std::string typeName;       ///< (AR) اسم الصنف عندما يكون النوع كائن / (EN) Class name when type is object
     bool hasDefaultValue;       ///< (AR) هل له قيمة افتراضية؟ / (EN) Has default value?
     std::string defaultValue;   ///< (AR) القيمة الافتراضية / (EN) Default value
     
     FunctionParameter(const std::string& n = "", const std::string& t = "", 
-                     bool hasDefault = false, const std::string& defVal = "")
-        : name(n), type(t), hasDefaultValue(hasDefault), defaultValue(defVal) {}
+                     bool hasDefault = false, const std::string& defVal = "",
+                     const std::string& tn = "")
+        : name(n), type(t), typeName(tn), hasDefaultValue(hasDefault), defaultValue(defVal) {}
 };
 
 /**

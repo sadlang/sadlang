@@ -843,7 +843,8 @@ void StatementExecutor::visitFunctionDecl(AST::FunctionDecl& node) {
             param.name,
             dataTypeToString(param.type),
             hasDefault,
-            defaultValStr
+            defaultValStr,
+            param.typeName  // (AR) اسم الصنف إذا كان المعامل من نوع OBJECT / (EN) Class name if param is OBJECT type
         ));
     }
     
@@ -1146,7 +1147,8 @@ void StatementExecutor::visitTemplateFunctionDecl(AST::TemplateFunctionDecl& nod
             param.name,
             dataTypeToString(param.type),
             hasDefault,
-            defaultValStr
+            defaultValStr,
+            param.typeName  // (AR) اسم الصنف إذا كان المعامل من نوع OBJECT / (EN) Class name if OBJECT
         ));
     }
     

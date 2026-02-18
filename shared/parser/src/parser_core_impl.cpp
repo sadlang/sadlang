@@ -361,13 +361,41 @@ StmtPtr ParserCore::parseDeclaration() {
         return parseNamespaceDecl();
     }
     
+    if (match(TT::KEYWORD_ABSTRACT)) {
+        // (AR) صنف مجرد: مجرد صنف اسم_الصنف ... نهاية
+        // (EN) Abstract class: abstract class ClassName ... end
+        if (!match(TT::KEYWORD_CLASS)) {
+            error("(AR) توقع 'صنف' بعد 'مجرد'. (EN) Expected 'class' after 'abstract'.");
+        }
+        auto classDecl = parseClassDecl();
+        if (auto* cd = dynamic_cast<AST::ClassDecl*>(classDecl.get())) {
+            cd->isAbstract = true;
+        }
+        return classDecl;
+    }
+    
     if (match(TT::KEYWORD_CLASS)) {
         // TODO: Add decorator support for classes in future
-        // (AR) ملاحظة: دعم المُزخرِفات للأصناف سيُضاف مستقبلاً
         if (!decorators.empty()) {
             error("(AR) المُزخرِفات للأصناف غير مدعومة بعد. (EN) Class decorators not yet supported.");
         }
         return parseClassDecl();
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) دعم الواجهات/السمات: سمة اسم_الواجهة ... نهاية
+    // (EN) Interface/Trait support: trait TraitName ... end
+    // ═══════════════════════════════════════════════════════════════════
+    if (match(TT::KEYWORD_TRAIT)) {
+        return parseTraitDecl();
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) دعم تنفيذ الواجهات: نفّذ اسم_الواجهة لـ اسم_الصنف ... نهاية
+    // (EN) Impl block: impl TraitName for ClassName ... end
+    // ═══════════════════════════════════════════════════════════════════
+    if (match(TT::KEYWORD_IMPL)) {
+        return parseImplDecl();
     }
     
     // (AR) دعم المتغيرات مع كلمة متغير / (EN) Support variables with var keyword
@@ -1005,15 +1033,18 @@ StmtPtr ParserCore::parseClassDecl() {
             continue;
         }
         
-        // Check for constructor ('باني' keyword or class name followed by '(')
-        if (check(TT::KEYWORD_CONSTRUCTOR_ALT) ||  // 'باني'
+        // ───────────────────────────────────────────────────────────────────────
+        // (AR) التحقق من دالة الباني - يدعم: باني، منشئ، بناء، أو اسم الصنف()
+        // (EN) Check for constructor - supports: باني، منشئ، بناء, or ClassName()
+        // ───────────────────────────────────────────────────────────────────────
+        if (check(TT::KEYWORD_CONSTRUCTOR) ||
             (check(TT::IDENTIFIER) && current_.getValue() == className && 
              peekNext().getType() == TT::PAREN_LEFT)) {
             
-            if (check(TT::KEYWORD_CONSTRUCTOR_ALT)) {
-                advance(); // consume 'باني'
+            if (check(TT::KEYWORD_CONSTRUCTOR)) {
+                advance(); // (AR) استهلاك كلمة الباني
             } else {
-                advance(); // consume class name
+                advance(); // (AR) استهلاك اسم الصنف
             }
             
             auto constructor = parseConstructorDeclaration(className, access);
@@ -1369,6 +1400,148 @@ StmtPtr ParserCore::parseExportStmt() {
 }
 
 // ======================================================================
+// (AR) تحليل تصريح واجهة/سمة / (EN) Parse Trait/Interface Declaration
+// ======================================================================
+// الصيغة: سمة اسم_السمة [يرث سمة_أخرى]
+//              دالة اسم_دالة(معاملات) [نوع_إرجاع]
+//              [    جسم_افتراضي    ]
+//              نهاية
+//          نهاية
+// ======================================================================
+StmtPtr ParserCore::parseTraitDecl() {
+    // (AR) اسم الواجهة
+    Token nameToken = consume(TT::IDENTIFIER,
+        "(AR) توقع اسم الواجهة/السمة بعد 'سمة'. (EN) Expected trait name after 'trait'.");
+    std::string traitName = nameToken.getValue();
+    
+    // (AR) وراثة واجهات أخرى (اختياري)
+    std::vector<std::string> superTraits;
+    if (matchAny({TT::COLON, TT::KEYWORD_INHERITS})) {
+        do {
+            Token superToken = consume(TT::IDENTIFIER,
+                "(AR) توقع اسم الواجهة الأساسية. (EN) Expected parent trait name.");
+            superTraits.push_back(superToken.getValue());
+        } while (matchAny({TT::COMMA, TT::ARABIC_COMMA}));
+    }
+    
+    // (AR) تحليل دوال الواجهة
+    std::vector<AST::TraitMethod> methods;
+    while (!check(TT::KEYWORD_END) && !isAtEnd()) {
+        // (AR) تخطي الفواصل المنقوطة
+        while (matchAny({TT::SEMICOLON, TT::ARABIC_SEMICOLON})) {}
+        if (check(TT::KEYWORD_END)) break;
+        
+        // (AR) توقع 'دالة'
+        if (match(TT::KEYWORD_FUNCTION)) {
+            // (AR) نوع الإرجاع (اختياري قبل الاسم)
+            Data::DataType returnType = Data::DataType::NONE;
+            
+            // (AR) التحقق من نوع الإرجاع
+            if (check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || 
+                check(TT::TYPE_STRING) || check(TT::TYPE_BOOLEAN)) {
+                if (match(TT::TYPE_INTEGER)) returnType = Data::DataType::INTEGER;
+                else if (match(TT::TYPE_DOUBLE)) returnType = Data::DataType::FLOAT;
+                else if (match(TT::TYPE_STRING)) returnType = Data::DataType::STRING;
+                else if (match(TT::TYPE_BOOLEAN)) returnType = Data::DataType::BOOLEAN;
+            }
+            
+            // (AR) اسم الدالة
+            Token methodName = consume(TT::IDENTIFIER,
+                "(AR) توقع اسم الدالة في السمة. (EN) Expected method name in trait.");
+            
+            // (AR) المعاملات
+            consume(TT::PAREN_LEFT, "(AR) توقع '('. (EN) Expected '('.");
+            std::vector<AST::Parameter> params;
+            if (!check(TT::PAREN_RIGHT)) {
+                do {
+                    Data::DataType pType = Data::DataType::UNKNOWN;
+                    if (check(TT::TYPE_INTEGER)) { advance(); pType = Data::DataType::INTEGER; }
+                    else if (check(TT::TYPE_DOUBLE)) { advance(); pType = Data::DataType::FLOAT; }
+                    else if (check(TT::TYPE_STRING)) { advance(); pType = Data::DataType::STRING; }
+                    else if (check(TT::TYPE_BOOLEAN)) { advance(); pType = Data::DataType::BOOLEAN; }
+                    
+                    Token pName = consume(TT::IDENTIFIER, "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
+                    params.push_back(AST::Parameter(pName.getValue(), pType));
+                } while (matchAny({TT::COMMA, TT::ARABIC_COMMA}));
+            }
+            consume(TT::PAREN_RIGHT, "(AR) توقع ')'. (EN) Expected ')'.");
+            
+            // (AR) جسم افتراضي (اختياري) — إذا لم يكن هناك 'نهاية' مباشرة
+            StmtPtr defaultImpl = nullptr;
+            
+            methods.emplace_back(methodName.getValue(), std::move(params), returnType, std::move(defaultImpl));
+        } else {
+            // (AR) تخطي عنصر غير معروف
+            advance();
+        }
+    }
+    
+    consume(TT::KEYWORD_END,
+        "(AR) توقع 'نهاية' بعد جسم السمة. (EN) Expected 'end' after trait body.");
+    
+    return std::make_unique<AST::TraitDecl>(traitName, std::move(methods),
+        std::vector<AST::TypeParameter>{}, std::move(superTraits), false, nameToken.getPosition());
+}
+
+// ======================================================================
+// (AR) تحليل كتلة تنفيذ (impl) / (EN) Parse Impl Block
+// ======================================================================
+// الصيغة: نفّذ اسم_السمة لـ اسم_الصنف
+//              دالة اسم_دالة(معاملات)
+//                  جسم
+//              نهاية
+//          نهاية
+// ======================================================================
+StmtPtr ParserCore::parseImplDecl() {
+    // (AR) يمكن أن يكون: نفّذ سمة لـ صنف  أو  نفّذ صنف
+    Token firstToken = consume(TT::IDENTIFIER,
+        "(AR) توقع اسم السمة أو الصنف بعد 'نفّذ'. (EN) Expected trait/class name after 'impl'.");
+    
+    std::string traitName;
+    std::string targetType;
+    
+    // (AR) فحص كلمة 'لـ' (for)
+    if (check(TT::IDENTIFIER) && (previous().getValue() != "")) {
+        // (AR) نبحث عن 'لـ' أو 'ل'
+        Token nextTok = peek();
+        if (nextTok.getValue() == "\xd9\x84\xd9\x80" || nextTok.getValue() == "\xd9\x84" || 
+            nextTok.getValue() == "for") {
+            traitName = firstToken.getValue();
+            advance(); // skip لـ/ل/for
+            Token target = consume(TT::IDENTIFIER,
+                "(AR) توقع اسم الصنف بعد 'لـ'. (EN) Expected class name after 'for'.");
+            targetType = target.getValue();
+        } else {
+            // (AR) نفّذ صنف (بدون سمة)
+            targetType = firstToken.getValue();
+        }
+    } else {
+        targetType = firstToken.getValue();
+    }
+    
+    // (AR) تحليل الدوال
+    StmtList methods;
+    while (!check(TT::KEYWORD_END) && !isAtEnd()) {
+        while (matchAny({TT::SEMICOLON, TT::ARABIC_SEMICOLON})) {}
+        if (check(TT::KEYWORD_END)) break;
+        
+        if (match(TT::KEYWORD_FUNCTION)) {
+            // (AR) match() يستهلك 'دالة' — parseFunctionDecl يتوقع أنه مستهلك بالفعل
+            // (EN) match() consumes 'دالة' — parseFunctionDecl expects it already consumed
+            methods.push_back(parseFunctionDecl());
+        } else {
+            advance();
+        }
+    }
+    
+    consume(TT::KEYWORD_END,
+        "(AR) توقع 'نهاية' بعد كتلة التنفيذ. (EN) Expected 'end' after impl block.");
+    
+    return std::make_unique<AST::ImplDecl>(traitName, targetType, std::move(methods),
+        std::vector<AST::TypeParameter>{}, firstToken.getPosition());
+}
+
+// ======================================================================
 // (AR) تحليل الجمل / (EN) Statement Parsing
 // ======================================================================
 
@@ -1472,11 +1645,38 @@ StmtPtr ParserCore::parseWhileStmt() {
  *        (EN) Parses for loop: for element in collection { body }.
  */
 StmtPtr ParserCore::parseForStmt() {
-    consume(TT::PAREN_LEFT, 
-        "(AR) توقع '(' بعد 'لكل'. (EN) Expected '(' after 'for'.");
-    
+    // (AR) الأقواس اختيارية: يُقبل كلا الشكلين:
+    //   لكل عنصر في مجموعة   <- بدون أقواس (المفضّل)
+    //   لكل (عنصر في مجموعة) <- بأقواس (للتوافق مع القديم)
+    // (EN) Parentheses optional: both forms accepted
+    bool hasParen = match(TT::PAREN_LEFT);
+
     // Parse loop variable
-    // (AR) تحليل متغير الحلقة
+    // (AR) تحليل متغير الحلقة — يسمح بالمعرّفات وكلمات الأنواع (رقم، عشري، نص...)
+    // (EN) Loop variable: accept identifiers and type keywords (رقم، عشري، نص...)
+    bool isTypeKeyword = check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || 
+                         check(TT::TYPE_STRING)  || check(TT::TYPE_BOOLEAN) ||
+                         check(TT::TYPE_ARRAY)   || check(TT::TYPE_MAP)     ||
+                         check(TT::TYPE_ANY);
+    if (isTypeKeyword) {
+        // (AR) قبول كلمة النوع كاسم متغير حلقة
+        // نحرّك المؤشر ونحفظ الرمز
+        Token saved = current_;
+        advance();
+        // نعيد تعيين var بعد الاستهلاك
+        Token var = saved;
+        // (AR) توقع كلمة 'في'
+        if (!match(TT::KEYWORD_IN)) {
+            errorExpectedToken("كلمة 'في'", "keyword 'في' (in)", "في حلقة for", "in for loop");
+        }
+        auto collection = parseExpression();
+        if (hasParen) {
+            consume(TT::PAREN_RIGHT, "(AR) توقع ')' بعد مجموعة for. (EN) Expected ')' after for collection.");
+        }
+        auto body = parseBlockStmt();
+        return std::make_unique<ForRangeStmt>(
+            var.getValue(), std::move(collection), std::move(body), "", var.getPosition());
+    }
     Token var = consume(TT::IDENTIFIER, 
         "(AR) توقع اسم متغير الحلقة. (EN) Expected loop variable name.");
     
@@ -1490,8 +1690,11 @@ StmtPtr ParserCore::parseForStmt() {
     // (AR) تحليل تعبير المجموعة
     auto collection = parseExpression();
     
-    consume(TT::PAREN_RIGHT, 
-        "(AR) توقع ')' بعد مجموعة for. (EN) Expected ')' after for collection.");
+    // (AR) إغلاق القوس إذا فُتح
+    if (hasParen) {
+        consume(TT::PAREN_RIGHT, 
+            "(AR) توقع ')' بعد مجموعة for. (EN) Expected ')' after for collection.");
+    }
     
     // Parse body - directly as block (spec 04_syntax.md)
     // (AR) تحليل الجسم - مباشرة ككتلة
@@ -2204,11 +2407,11 @@ ExprPtr ParserCore::parseLogicalOr() {
  *        (EN) Parses logical AND: expr1 && expr2.
  */
 ExprPtr ParserCore::parseLogicalAnd() {
-    auto expr = parseEquality();
+    auto expr = parseBitwiseOr();
     
     while (match(TT::OP_AND)) {
         Token op = previous();
-        auto right = parseEquality();
+        auto right = parseBitwiseOr();
         expr = std::make_unique<BinaryExpr>(
             std::move(expr),
             op.getType(),
@@ -2217,6 +2420,70 @@ ExprPtr ParserCore::parseLogicalAnd() {
         );
     }
     
+    return expr;
+}
+
+/**
+ * @brief (AR) يحلل عامل OR البتّي: | .
+ *        (EN) Parses bitwise OR operator: | .
+ */
+ExprPtr ParserCore::parseBitwiseOr() {
+    auto expr = parseBitwiseXor();
+
+    while (match(TT::OP_BITWISE_OR)) {
+        Token op = previous();
+        auto right = parseBitwiseXor();
+        expr = std::make_unique<BinaryExpr>(
+            std::move(expr),
+            op.getType(),
+            std::move(right),
+            op.getPosition()
+        );
+    }
+
+    return expr;
+}
+
+/**
+ * @brief (AR) يحلل عامل XOR البتّي: ^.
+ *        (EN) Parses bitwise XOR operator: ^.
+ */
+ExprPtr ParserCore::parseBitwiseXor() {
+    auto expr = parseBitwiseAnd();
+
+    while (match(TT::OP_XOR)) {
+        Token op = previous();
+        auto right = parseBitwiseAnd();
+        expr = std::make_unique<BinaryExpr>(
+            std::move(expr),
+            op.getType(),
+            std::move(right),
+            op.getPosition()
+        );
+    }
+
+    return expr;
+}
+
+/**
+ * @brief (AR) يحلل عامل AND البتّي: &.
+ *        (EN) Parses bitwise AND operator: &.
+ */
+ExprPtr ParserCore::parseBitwiseAnd() {
+    auto expr = parseEquality();
+
+    while (check(TT::OP_BITWISE_AND)) {
+        advance();
+        Token op = previous();
+        auto right = parseEquality();
+        expr = std::make_unique<BinaryExpr>(
+            std::move(expr),
+            TT::OP_BITWISE_AND,
+            std::move(right),
+            op.getPosition()
+        );
+    }
+
     return expr;
 }
 
@@ -2271,6 +2538,18 @@ ExprPtr ParserCore::parseTerm() {
     auto expr = parseFactor();
     
     while (matchAny({TT::OP_PLUS, TT::OP_MINUS})) {
+        Token op = previous();
+        auto right = parseFactor();
+        expr = std::make_unique<BinaryExpr>(
+            std::move(expr),
+            op.getType(),
+            std::move(right),
+            op.getPosition()
+        );
+    }
+
+    // (AR) إزاحة البت: << >>  / (EN) Bit shifts: << >>
+    while (matchAny({TT::OP_SHIFT_LEFT, TT::OP_SHIFT_RIGHT})) {
         Token op = previous();
         auto right = parseFactor();
         expr = std::make_unique<BinaryExpr>(
@@ -4018,18 +4297,19 @@ StmtPtr ParserCore::parseTemplateDecl() {
         // (EN) Parse class members
         AST::StmtList members;
         
+        // ══════════════════════════════════════════════════════════════════════════
         // (AR) دالة مساعدة لتحليل أعضاء الصنف القالبي
-        // ======================================================================
+        // ══════════════════════════════════════════════════════════════════════════
         // تتعامل هذه الدالة مع جميع أنواع أعضاء الصنف القالبي:
         //   1. خاصية (KEYWORD_PROPERTY) — حقل بسيط أو خاصية كاملة مع getter/setter
         //   2. دالة/طريقة (KEYWORD_FUNCTION) — طريقة عادية
-        //   3. بناء (KEYWORD_CONSTRUCTOR_ALT) — دالة البناء
+        //   3. بناء (KEYWORD_CONSTRUCTOR) — دالة البناء (باني/منشئ/بناء)
         //   4. هدم (KEYWORD_DESTRUCTOR) — دالة الهدم
         //   5. عامل (KEYWORD_OPERATOR) — تحميل العوامل الزائد
         //   6. متغير (KEYWORD_VAR) — حقل بنوع ديناميكي
         //   7. معامل نوع قالب كاسم نوع (مثل: ت اسم_الحقل)
         //   8. نوع مدمج عادي (نص، رقم، منطقي، إلخ) — حقل بنوع ثابت
-        // ======================================================================
+        // ══════════════════════════════════════════════════════════════════════════
         auto parseTemplateClassMember = [this, &className, &typeParams]() -> StmtPtr {
             bool isStatic = false;
             bool isVirtual = false;
@@ -4111,15 +4391,16 @@ StmtPtr ParserCore::parseTemplateDecl() {
             }
             
             // ─────────────────────────────────────────────────────────────
-            // (AR) [3] التحقق من دالة البناء (KEYWORD_CONSTRUCTOR_ALT = بناء)
+            // (AR) [3] التحقق من دالة البناء (باني/منشئ/بناء)
+            // (EN) [3] Check for constructor (باني/منشئ/بناء keywords)
             // ─────────────────────────────────────────────────────────────
-            if (check(TT::KEYWORD_CONSTRUCTOR_ALT) ||
+            if (check(TT::KEYWORD_CONSTRUCTOR) ||
                 (check(TT::IDENTIFIER) && current_.getValue() == className && 
                  peekNext().getType() == TT::PAREN_LEFT)) {
-                if (check(TT::KEYWORD_CONSTRUCTOR_ALT)) {
-                    advance();
+                if (check(TT::KEYWORD_CONSTRUCTOR)) {
+                    advance(); // (AR) استهلاك كلمة الباني
                 } else {
-                    advance();
+                    advance(); // (AR) استهلاك اسم الصنف
                 }
                 return parseConstructorDeclaration(className, access);
             }

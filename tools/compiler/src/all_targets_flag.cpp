@@ -525,10 +525,7 @@ public:
                 sourceFile = arg;
                 break;
             }
-            if (arg.size() > 4 && arg.substr(arg.size() - 4) == ".sad") {
-                sourceFile = arg;
-                break;
-            }
+            // (AR) الامتداد القديم .sad لم يعد مدعوماً / (EN) Old .sad extension no longer supported
         }
         
         if (sourceFile.empty()) {

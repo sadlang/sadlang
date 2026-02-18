@@ -11,6 +11,7 @@
  */
 
 #include "io/io_functions.h"
+#include "object_instance.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -222,6 +223,42 @@ std::string IOFunctions::valueToString(const Data::Value& value) {
             }
             oss << "}";
             return oss.str();
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) كائن (صنف) — يطبع اسم الصنف وحقوله
+        //      إذا كان الكائن يملك حقل __نص_عرض__ يستخدمه
+        //      وإلا يطبع الصنف{الحقول} بالشكل الافتراضي
+        // (EN) Object (class instance) — prints class name and fields
+        //      If object has __نص_عرض__ field, uses it
+        //      Otherwise prints ClassName{fields} as default
+        // ═══════════════════════════════════════════════════════════════
+        case VT::OBJECT: {
+            try {
+                auto objPtr = value.toObject();
+                if (!objPtr) return "(كائن فارغ)";
+                
+                // (AR) التحقق من وجود تمثيل نصي مخصص
+                // (EN) Check for custom string representation
+                auto customIt = objPtr->fields.find("__نص_عرض__");
+                if (customIt != objPtr->fields.end() && customIt->second.isString()) {
+                    return customIt->second.toString();
+                }
+                
+                std::ostringstream oss;
+                oss << objPtr->getClassName() << "{";
+                bool first = true;
+                for (const auto& [key, val] : objPtr->fields) {
+                    if (key.find("__") == 0) continue; // (AR) تخطي الحقول الداخلية
+                    if (!first) oss << ", ";
+                    oss << key << ": " << valueToString(val);
+                    first = false;
+                }
+                oss << "}";
+                return oss.str();
+            } catch (...) {
+                return "(كائن)";
+            }
         }
         
         default:

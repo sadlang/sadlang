@@ -406,6 +406,7 @@ class SIRClass {
 public:
     std::string name;           ///< (AR) اسم الصنف / (EN) Class name
     std::string parentClass;    ///< (AR) الصنف الأب (للوراثة) / (EN) Parent class (for inheritance)
+    bool isAbstract = false;    ///< (AR) هل الصنف مجرد / (EN) Is class abstract
     std::unordered_map<std::string, SIRType> fields_;   ///< (AR) الحقول / (EN) Fields
     std::vector<std::string> fieldOrder_;                ///< (AR) ترتيب الحقول / (EN) Field insertion order
     std::unordered_map<std::string, std::shared_ptr<SIRFunction>> methods_;  ///< (AR) الدوال / (EN) Methods

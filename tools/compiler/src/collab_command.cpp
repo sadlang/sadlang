@@ -279,7 +279,7 @@ private:
         std::cout << "   • أحمد (المضيف) 🟢\n";
         std::cout << "   • أنت 🟢\n\n";
         
-        std::cout << "📄 الملف المشترك: main.sad\n\n";
+        std::cout << "📄 الملف المشترك: main.ص\n\n";
         
         std::cout << "💡 نصائح:\n";
         std::cout << "   • اكتب في المحرر لمشاركة تعديلاتك\n";
@@ -310,8 +310,8 @@ private:
         
         std::cout << "  # │ الاسم       │ الدور    │ الحالة │ الموقع\n";
         std::cout << "────┼─────────────┼──────────┼────────┼─────────────\n";
-        std::cout << "  1 │ أحمد       │ 👑 مضيف │ 🟢 نشط │ main.sad:25\n";
-        std::cout << "  2 │ سارة       │ 👤 عضو  │ 🟢 نشط │ utils.sad:10\n";
+        std::cout << "  1 │ أحمد       │ 👑 مضيف │ 🟢 نشط │ main.ص:25\n";
+        std::cout << "  2 │ سارة       │ 👤 عضو  │ 🟢 نشط │ utils.ص:10\n";
         std::cout << "  3 │ محمد       │ 👤 عضو  │ 🟡 بعيد │ -\n\n";
         
         return 0;
@@ -362,7 +362,7 @@ private:
     int shareFile(const CollabCommandOptions& opts) {
         if (opts.filename.empty()) {
             std::cerr << "❌ خطأ: يجب تحديد الملف\n";
-            std::cerr << "   مثال: ص شراكة شارك main.sad\n";
+            std::cerr << "   مثال: ص شراكة شارك main.ص\n";
             return 1;
         }
         

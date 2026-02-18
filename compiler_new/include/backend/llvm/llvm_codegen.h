@@ -148,6 +148,10 @@ struct CodeGenContext {
     // Class name → ordered field names
     std::unordered_map<std::string, std::vector<std::string>> classFieldNames;
     
+    // اسم الصنف → اسم الصنف الأب (للوراثة)
+    // Class name → parent class name (for inheritance)
+    std::unordered_map<std::string, std::string> classParentMap;
+    
     // اسم الصنف الحالي في حالة البناء (فارغ خارج الباني)
     // Current constructor class name (empty outside constructors)
     std::string currentConstructorClass;

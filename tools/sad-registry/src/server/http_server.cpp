@@ -742,8 +742,7 @@ std::string HttpServer::get_content_type(const std::string& path) {
         // نصوص
         {".txt",   "text/plain; charset=utf-8"},
         {".md",    "text/markdown; charset=utf-8"},
-        {".sad",   "text/plain; charset=utf-8"},
-        {".s",     "text/plain; charset=utf-8"},
+        {".ص",    "text/plain; charset=utf-8"},
 
         // أخرى
         {".wasm",  "application/wasm"},

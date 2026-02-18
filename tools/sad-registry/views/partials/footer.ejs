@@ -1,0 +1,66 @@
+<%# بسم الله الرحمن الرحيم %>
+<%# ======================================================================= %>
+<%# ذيل الصفحة المشترك — يُضمن في كل صفحات الموقع                          %>
+<%# Shared Footer Partial — included in all site pages                      %>
+<%#                                                                         %>
+<%# يحتوي على:                                                              %>
+<%#   - شبكة روابط (3 أعمدة): لغة ص، المجتمع، أدوات المطورين              %>
+<%#   - شريط حقوق النشر                                                     %>
+<%#   - ملف JavaScript الرئيسي                                              %>
+<%# ======================================================================= %>
+
+    </main>
+
+    <!-- ==================================================================== -->
+    <!-- ذيل الصفحة — روابط مفيدة ومعلومات                                   -->
+    <!-- Page Footer — useful links and information                          -->
+    <!-- ==================================================================== -->
+    <footer class="footer">
+        <div class="container">
+
+            <!-- شبكة الروابط: 3 أعمدة -->
+            <div class="footer-grid">
+
+                <!-- عمود 1: عن لغة ص -->
+                <div class="footer-col">
+                    <h4>📦 لغة ص</h4>
+                    <ul>
+                        <li><a href="/">الرئيسية</a></li>
+                        <li><a href="/search">تصفح الحزم</a></li>
+                        <li><a href="/api/v1">وثائق API</a></li>
+                    </ul>
+                </div>
+
+                <!-- عمود 2: المجتمع -->
+                <div class="footer-col">
+                    <h4>👥 المجتمع</h4>
+                    <ul>
+                        <li><a href="https://github.com/sad-lang" target="_blank" rel="noopener">GitHub</a></li>
+                        <li><a href="#">المنتدى</a></li>
+                        <li><a href="#">التواصل</a></li>
+                    </ul>
+                </div>
+
+                <!-- عمود 3: أدوات -->
+                <div class="footer-col">
+                    <h4>🛠️ أدوات</h4>
+                    <ul>
+                        <li><a href="#">sad-pkg (مدير الحزم)</a></li>
+                        <li><a href="#">sad-lsp (خادم اللغة)</a></li>
+                        <li><a href="#">إضافة VS Code</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- شريط حقوق النشر -->
+            <div class="footer-bottom">
+                <p>سجل حزم لغة ص &copy; <%= new Date().getFullYear() %> — صُنع بـ ❤️ للمبرمجين العرب</p>
+            </div>
+
+        </div>
+    </footer>
+
+    <!-- JavaScript للواجهة الأمامية -->
+    <script src="/js/main.js"></script>
+</body>
+</html>

@@ -20,7 +20,7 @@
  * 
  *      الاستخدام:
  *      ┌────────────────────────────────────────────────────────────────────┐
- *      │ ص_ولّد_ربط header.h -o bindings.sad                                │
+ *      │ ص_ولّد_ربط header.h -o bindings.ص                                │
  *      │ ص_ولّد_ربط header.h --آمن --ترجم-أسماء                              │
  *      │ ص_ولّد_ربط header.h -I/include/path --بادئة مكتبتي_                 │
  *      └────────────────────────────────────────────────────────────────────┘
@@ -30,7 +30,7 @@
  *      --ترجم-أسماء, --translate : ترجمة أسماء الدوال للعربية
  *      --بادئة, --prefix      : بادئة للأسماء المولّدة
  *      -I, --include          : مسار البحث عن ملفات الرأس
- *      -o, --output           : ملف الخرج (.sad)
+ *      -o, --output           : ملف الخرج (.ص)
  *      --json                 : إخراج JSON للمعالجة البرمجية
  * 
  * @author فريق تطوير لغة ص (Sad Language Development Team)
@@ -948,7 +948,7 @@ private:
         std::ostringstream out;
         
         out << "/**\n";
-        out << u8" * @file ربط_" << config_.libraryName << ".sad\n";
+        out << u8" * @file ربط_" << config_.libraryName << ".ص\n";
         out << u8" * @brief ربطات لغة ص لمكتبة " << config_.libraryName << "\n";
         out << " * \n";
         out << u8" * @details تم توليد هذا الملف تلقائياً بواسطة ص_ولّد_ربط\n";
@@ -1262,7 +1262,7 @@ void printUsage(const std::string& programName) {
     std::cout << "  " << programName << u8" <ملف.h> [خيارات]\n\n";
     
     std::cout << u8"الخيارات:\n";
-    std::cout << u8"  -o, --output <ملف>      ملف الخرج (.sad)\n";
+    std::cout << u8"  -o, --output <ملف>      ملف الخرج (.ص)\n";
     std::cout << u8"  --آمن, --safe           توليد أغلفة آمنة مع RAII\n";
     std::cout << u8"  --ترجم-أسماء, --translate ترجمة أسماء الدوال للعربية\n";
     std::cout << u8"  --بادئة, --prefix <نص>  بادئة للأسماء المولّدة\n";
@@ -1275,13 +1275,13 @@ void printUsage(const std::string& programName) {
     
     std::cout << u8"أمثلة:\n";
     std::cout << u8"  # توليد ربطات بسيطة\n";
-    std::cout << "  " << programName << u8" stdio.h -o ربط_stdio.sad\n\n";
+    std::cout << "  " << programName << u8" stdio.h -o ربط_stdio.ص\n\n";
     
     std::cout << u8"  # توليد مع ترجمة وأغلفة آمنة\n";
-    std::cout << "  " << programName << u8" mylib.h --آمن --ترجم-أسماء -o ربط_مكتبتي.sad\n\n";
+    std::cout << "  " << programName << u8" mylib.h --آمن --ترجم-أسماء -o ربط_مكتبتي.ص\n\n";
     
     std::cout << u8"  # مع بادئة ومسار بحث\n";
-    std::cout << "  " << programName << u8" header.h -I/usr/include --بادئة مك_ -o ربط.sad\n\n";
+    std::cout << "  " << programName << u8" header.h -I/usr/include --بادئة مك_ -o ربط.ص\n\n";
 }
 
 /**
@@ -1349,7 +1349,7 @@ BindgenConfig parseArguments(int argc, char* argv[]) {
     // (AR) تعيين القيم الافتراضية
     if (config.outputPath.empty()) {
         fs::path input(inputFile);
-        config.outputPath = u8"ربط_" + input.stem().string() + ".sad";
+        config.outputPath = u8"ربط_" + input.stem().string() + ".ص";
     }
     
     if (config.libraryName.empty()) {

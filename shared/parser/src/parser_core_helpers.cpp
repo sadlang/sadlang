@@ -729,6 +729,34 @@ std::vector<Parameter> ParserCore::parseTypedParameterList() {
                     paramType,
                     std::move(defaultValue)
                 );
+            } else if (check(TT::IDENTIFIER) && peekNext().getType() == TT::IDENTIFIER) {
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) صيغة نوع الصنف: "اسم_صنف اسم_معامل"
+                //      مثال: "شخص ش" أو "سيارة س"
+                //      يُعامل المعرّف الأول كاسم صنف والمعرّف الثاني كاسم المعامل
+                //
+                // (EN) Class-type syntax: "ClassName paramName"
+                //      Example: "Person p" or "Car c"
+                //      Treats first identifier as class type, second as parameter name
+                // ═══════════════════════════════════════════════════════════════
+                std::string className = current_.getValue();
+                advance();  // (AR) تخطي اسم الصنف / (EN) skip class name
+                Token paramName = consume(TT::IDENTIFIER,
+                    "(AR) توقع اسم معامل بعد اسم الصنف. (EN) Expected parameter name after class type.");
+                
+                // (AR) القيمة الافتراضية الاختيارية
+                // (EN) Optional default value
+                ExprPtr defaultValue = nullptr;
+                if (match(TT::OP_ASSIGN)) {
+                    defaultValue = parseExpression();
+                }
+                
+                parameters.emplace_back(
+                    paramName.getValue(),
+                    Data::DataType::OBJECT,
+                    std::move(defaultValue),
+                    className
+                );
             } else {
                 // Name-first syntax: "x: int"
                 // (AR) صيغة الاسم أولاً: "س: رقم"

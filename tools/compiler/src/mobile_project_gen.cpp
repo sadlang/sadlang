@@ -495,7 +495,7 @@ std::vector<GeneratedFile> MobileProjectGenerator::generateSharedCode(
     mainSad << "    هيئ()\n";
     mainSad << "}\n";
     
-    files.push_back({"shared/src/main.sad", mainSad.str(), false});
+    files.push_back({"shared/src/main.ص", mainSad.str(), false});
     
     // ملف الإعدادات
     std::ostringstream configSad;
@@ -503,7 +503,7 @@ std::vector<GeneratedFile> MobileProjectGenerator::generateSharedCode(
     configSad << "ثابت اسم_التطبيق = \"" << config.metadata.arabicName << "\"\n";
     configSad << "ثابت معرف_الحزمة = \"" << config.metadata.packageId << "\"\n";
     configSad << "ثابت الإصدار = \"" << config.metadata.version << "\"\n";
-    files.push_back({"shared/src/config.sad", configSad.str(), false});
+    files.push_back({"shared/src/config.ص", configSad.str(), false});
     
     // README.md
     files.push_back({"README.md", generateReadme(config), false});

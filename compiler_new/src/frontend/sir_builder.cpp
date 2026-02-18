@@ -169,6 +169,20 @@ std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode* program) {
             continue;
         }
         
+        // (AR) سمة/واجهة؟ (declarations.h - class TraitDecl)
+        // (EN) Trait/Interface declaration?
+        if (auto traitDecl = dynamic_cast<Sad::AST::TraitDecl*>(stmt.get())) {
+            buildTrait(traitDecl);
+            continue;
+        }
+        
+        // (AR) تنفيذ سمة؟ (declarations.h - class ImplDecl)
+        // (EN) Impl block?
+        if (auto implDecl = dynamic_cast<Sad::AST::ImplDecl*>(stmt.get())) {
+            buildImpl(implDecl);
+            continue;
+        }
+        
         // (AR) دالة قالب؟ (declarations.h:470 - class TemplateFunctionDecl)
         // (EN) Template function declaration?
         if (auto templateDecl = dynamic_cast<Sad::AST::TemplateFunctionDecl*>(stmt.get())) {
@@ -519,6 +533,30 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
     // (EN) Create SIR class
     auto sirClass = std::make_shared<SIRClass>(classDecl->name, parentClass);
     
+    // (AR) تعيين علامة المجرد / (EN) Set abstract flag
+    sirClass->isAbstract = classDecl->isAbstract;
+    
+    // (AR) نسخ حقول الصنف الأب إلى الصنف الابن (دعم الوراثة)
+    // (EN) Copy parent class fields into child class (inheritance support)
+    if (!parentClass.empty()) {
+        auto parentSirClass = module_->getClass(parentClass);
+        if (parentSirClass) {
+            std::cout << "[DEBUG] buildClass: inheriting " << parentSirClass->fields_.size() 
+                      << " fields from parent '" << parentClass << "'" << std::endl;
+            // (AR) إضافة حقول الأب بالترتيب أولاً
+            // (EN) Add parent fields in order first
+            for (const auto& parentFieldName : parentSirClass->fieldOrder_) {
+                auto fieldIt = parentSirClass->fields_.find(parentFieldName);
+                if (fieldIt != parentSirClass->fields_.end()) {
+                    sirClass->addField(parentFieldName, fieldIt->second);
+                }
+            }
+        } else {
+            std::cerr << "[WARNING] buildClass: parent class '" << parentClass 
+                      << "' not found in module (must be declared before child class)" << std::endl;
+        }
+    }
+    
     // (AR) معالجة أعضاء الصنف (members)
     // (EN) Process class members
     for (const auto& member : classDecl->members) {
@@ -577,6 +615,19 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
                     addVariable(selfInfo);
                 }
                 
+                // (AR) تسجيل "هذا" كمرادف لـ self
+                // (EN) Register "هذا" (this) as alias for self
+                {
+                    VariableInfo thisInfo;
+                    thisInfo.name = "\xD9\x87\xD8\xB0\xD8\xA7"; // هذا
+                    thisInfo.type = SIRType::I64;
+                    thisInfo.registerName = "%self";
+                    thisInfo.isGlobal = false;
+                    thisInfo.isMutable = false;
+                    thisInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(thisInfo);
+                }
+                
                 // (AR) تسجيل المعاملات + حقول الصنف كمتغيرات محلية
                 // (EN) Register parameters + class fields as local variables
                 for (const auto& param : ctorDecl->parameters) {
@@ -614,6 +665,35 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
                     allocInst.opcode = SIROpcode::ALLOC;
                     allocInst.result = SIROperand::Register("%" + field.first, field.second);
                     currentBlock_->addInstruction(allocInst);
+                }
+                
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) استدعاء باني الأب إذا كانت هناك superArgs
+                // (EN) Call parent constructor if superArgs exist
+                // ═══════════════════════════════════════════════════════════════
+                if (!ctorDecl->superArgs.empty() && !parentClass.empty()) {
+                    // (AR) بناء معاملات استدعاء باني الأب
+                    // (EN) Build parent constructor call arguments
+                    std::string parentCtorName = parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
+                    
+                    std::vector<SIROperand> superArgOperands;
+                    superArgOperands.push_back(SIROperand::Register("%self", SIRType::I64)); // self
+                    
+                    for (auto& arg : ctorDecl->superArgs) {
+                        BuildResult argResult = buildExpression(arg.get());
+                        superArgOperands.push_back(SIROperand::Register(argResult.registerName, argResult.type));
+                    }
+                    
+                    // (AR) إصدار تعليمة CALL لباني الأب
+                    // (EN) Emit CALL instruction for parent constructor
+                    SIRInstruction callInst;
+                    callInst.opcode = SIROpcode::CALL;
+                    callInst.result = SIROperand::Register(newTempRegister(), SIRType::VOID);
+                    callInst.operands.push_back(SIROperand::Register(parentCtorName, SIRType::VOID));
+                    for (auto& op : superArgOperands) {
+                        callInst.operands.push_back(op);
+                    }
+                    if (currentBlock_) currentBlock_->addInstruction(callInst);
                 }
                 
                 buildStatement(ctorDecl->body.get());
@@ -657,6 +737,13 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
         else if (auto methodDecl = dynamic_cast<AST::MethodDecl*>(member.get())) {
             std::cout << "[DEBUG] buildClass: found method '" << methodDecl->name << "'" << std::endl;
             
+            // (AR) تخطي الدوال المجردة — لا تملك جسماً يُبنى
+            // (EN) Skip abstract methods — they have no body to build
+            if (methodDecl->isAbstract) {
+                std::cout << "[DEBUG] buildClass: skipping abstract method '" << methodDecl->name << "'" << std::endl;
+                continue;
+            }
+            
             SIRType returnType = astTypeToSIRType(methodDecl->returnType);
             std::string fullMethodName = classDecl->name + "." + methodDecl->name;
             auto sirMethod = std::make_shared<SIRFunction>(fullMethodName, returnType);
@@ -693,6 +780,19 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
                     selfInfo.isMutable = false;
                     selfInfo.scopeLevel = static_cast<int>(scopeStack_.size());
                     addVariable(selfInfo);
+                }
+                
+                // (AR) تسجيل "هذا" كمرادف لـ self
+                // (EN) Register "هذا" (this) as alias for self
+                {
+                    VariableInfo thisInfo;
+                    thisInfo.name = "\xD9\x87\xD8\xB0\xD8\xA7"; // هذا
+                    thisInfo.type = SIRType::I64;
+                    thisInfo.registerName = "%self";
+                    thisInfo.isGlobal = false;
+                    thisInfo.isMutable = false;
+                    thisInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(thisInfo);
                 }
                 
                 for (const auto& param : methodDecl->parameters) {
@@ -814,6 +914,19 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
                     addVariable(selfInfo);
                 }
                 
+                // (AR) تسجيل "هذا" كمرادف لـ self
+                // (EN) Register "هذا" (this) as alias for self
+                {
+                    VariableInfo thisInfo;
+                    thisInfo.name = "\xD9\x87\xD8\xB0\xD8\xA7"; // هذا
+                    thisInfo.type = SIRType::I64;
+                    thisInfo.registerName = "%self";
+                    thisInfo.isGlobal = false;
+                    thisInfo.isMutable = false;
+                    thisInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(thisInfo);
+                }
+                
                 for (const auto& param : funcDecl->parameters) {
                     VariableInfo paramInfo;
                     paramInfo.name = param.name;
@@ -887,6 +1000,155 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
                 currentClassName_ = prevClassName;
             }
         }
+        
+        // (AR) تحميل المعاملات الزائد (OperatorDecl - declarations.h:632)
+        // (EN) Operator overloading
+        else if (auto operatorDecl = dynamic_cast<Sad::AST::OperatorDecl*>(member.get())) {
+            std::cout << "[DEBUG] buildClass: found operator overload '" << operatorDecl->operatorSymbol << "'" << std::endl;
+            
+            // (AR) تحويل رمز العامل إلى اسم آمن للدالة
+            // (EN) Convert operator symbol to safe function name
+            std::string opSafeName;
+            if (operatorDecl->operatorSymbol == "+") opSafeName = "__op_add__";
+            else if (operatorDecl->operatorSymbol == "-") opSafeName = "__op_sub__";
+            else if (operatorDecl->operatorSymbol == "*") opSafeName = "__op_mul__";
+            else if (operatorDecl->operatorSymbol == "/") opSafeName = "__op_div__";
+            else if (operatorDecl->operatorSymbol == "%") opSafeName = "__op_mod__";
+            else if (operatorDecl->operatorSymbol == "**") opSafeName = "__op_pow__";
+            else if (operatorDecl->operatorSymbol == "==") opSafeName = "__op_eq__";
+            else if (operatorDecl->operatorSymbol == "!=") opSafeName = "__op_ne__";
+            else if (operatorDecl->operatorSymbol == "<") opSafeName = "__op_lt__";
+            else if (operatorDecl->operatorSymbol == "<=") opSafeName = "__op_le__";
+            else if (operatorDecl->operatorSymbol == ">") opSafeName = "__op_gt__";
+            else if (operatorDecl->operatorSymbol == ">=") opSafeName = "__op_ge__";
+            else opSafeName = "__op_" + operatorDecl->operatorSymbol + "__";
+            
+            SIRType returnType = astTypeToSIRType(operatorDecl->returnType);
+            std::string fullOpName = classDecl->name + "." + opSafeName;
+            auto sirOpFunc = std::make_shared<SIRFunction>(fullOpName, returnType);
+            
+            // (AR) المعامل الأول: self (الكائن الحالي)
+            // (EN) First param: self (current object)
+            sirOpFunc->addParameter(SIRParameter("self", SIRType::I64));
+            
+            // (AR) المعامل الثاني: المعامل الآخر (other)
+            // (EN) Second param: other operand
+            for (const auto& param : operatorDecl->parameters) {
+                SIRType paramType = astTypeToSIRType(param.type);
+                sirOpFunc->addParameter(SIRParameter(param.name, paramType));
+            }
+            
+            sirClass->addMethod(sirOpFunc);
+            
+            // (AR) بناء جسم العامل
+            // (EN) Build operator body
+            if (operatorDecl->body) {
+                auto prevFunction = currentFunction_;
+                auto prevBlock = currentBlock_;
+                auto prevClassName = currentClassName_;
+                
+                currentFunction_ = sirOpFunc;
+                currentClassName_ = classDecl->name;
+                
+                enterScope();
+                
+                {
+                    VariableInfo selfInfo;
+                    selfInfo.name = "self";
+                    selfInfo.type = SIRType::I64;
+                    selfInfo.registerName = "%self";
+                    selfInfo.isGlobal = false;
+                    selfInfo.isMutable = false;
+                    selfInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(selfInfo);
+                }
+                
+                // (AR) تسجيل "هذا" كمرادف لـ self
+                // (EN) Register "هذا" (this) as alias for self
+                {
+                    VariableInfo thisInfo;
+                    thisInfo.name = "\xD9\x87\xD8\xB0\xD8\xA7"; // هذا
+                    thisInfo.type = SIRType::I64;
+                    thisInfo.registerName = "%self";
+                    thisInfo.isGlobal = false;
+                    thisInfo.isMutable = false;
+                    thisInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(thisInfo);
+                }
+                
+                for (const auto& param : operatorDecl->parameters) {
+                    VariableInfo paramInfo;
+                    paramInfo.name = param.name;
+                    paramInfo.type = astTypeToSIRType(param.type);
+                    paramInfo.registerName = "%" + param.name;
+                    paramInfo.isGlobal = false;
+                    paramInfo.isMutable = false;
+                    paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(paramInfo);
+                }
+                
+                for (const auto& field : sirClass->fields_) {
+                    VariableInfo fieldInfo;
+                    fieldInfo.name = field.first;
+                    fieldInfo.type = field.second;
+                    fieldInfo.registerName = "%" + field.first;
+                    fieldInfo.isGlobal = false;
+                    fieldInfo.isMutable = true;
+                    fieldInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    addVariable(fieldInfo);
+                }
+                
+                auto entryBlock = createBasicBlock("entry");
+                sirOpFunc->addBasicBlock(entryBlock);
+                currentBlock_ = entryBlock;
+                
+                for (const auto& field : sirClass->fields_) {
+                    SIRInstruction allocInst;
+                    allocInst.opcode = SIROpcode::ALLOC;
+                    allocInst.result = SIROperand::Register("%" + field.first, field.second);
+                    currentBlock_->addInstruction(allocInst);
+                }
+                
+                buildStatement(operatorDecl->body.get());
+                
+                if (currentBlock_) {
+                    bool hasTerminator = false;
+                    if (!currentBlock_->instructions.empty()) {
+                        auto lastOp = currentBlock_->instructions.back().opcode;
+                        hasTerminator = (lastOp == SIROpcode::RET || lastOp == SIROpcode::RET_VOID);
+                    }
+                    if (!hasTerminator) {
+                        SIRInstruction retInst;
+                        if (returnType == SIRType::VOID) {
+                            retInst.opcode = SIROpcode::RET_VOID;
+                        } else {
+                            retInst.opcode = SIROpcode::RET;
+                            if (returnType == SIRType::STRING) {
+                                retInst.operands.push_back(SIROperand::ConstantString(""));
+                            } else {
+                                retInst.operands.push_back(SIROperand::ConstantI64(0));
+                            }
+                        }
+                        currentBlock_->addInstruction(retInst);
+                    }
+                }
+                
+                exitScope();
+                
+                module_->addFunction(sirOpFunc);
+                
+                FunctionInfo opInfo;
+                opInfo.name = fullOpName;
+                opInfo.returnType = returnType;
+                opInfo.parameters = sirOpFunc->getParameters();
+                opInfo.sirFunction = sirOpFunc;
+                functionTable_[fullOpName] = opInfo;
+                
+                currentFunction_ = prevFunction;
+                currentBlock_ = prevBlock;
+                currentClassName_ = prevClassName;
+            }
+        }
     }
     
     // (AR) إضافة الصنف للوحدة (sir_module.h:608 - addClass)
@@ -896,6 +1158,145 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
     std::cout << "[DEBUG] buildClass: class '" << classDecl->name << "' added with " 
               << sirClass->fields_.size() << " fields and "
               << sirClass->methods_.size() << " methods" << std::endl;
+}
+
+// ============================================================================
+// (AR) بناء سمة/واجهة / (EN) Build Trait/Interface
+// ============================================================================
+// السمة هي عقد موصفة — لا تولّد كوداً مباشراً، بل تُسجَّل للتحقق والتوثيق
+// Traits are descriptive nodes — no direct code generated, registered for validation
+// ============================================================================
+void SIRBuilder::buildTrait(AST::TraitDecl* traitDecl) {
+    if (!traitDecl) return;
+    
+    std::cout << "[DEBUG] buildTrait: registering trait '" << traitDecl->name 
+              << "' with " << traitDecl->methods.size() << " methods" << std::endl;
+    
+    // (AR) السمات لا تولّد كوداً — فقط تُسجَّل كبيانات وصفية
+    // (EN) Traits don't generate code — they're registered as metadata
+    // (AR) يمكن تخزينها في وحدة SIR إذا احتجنا للتحقق لاحقاً
+    // (EN) Could be stored in SIR module for later validation if needed
+}
+
+// ============================================================================
+// (AR) بناء كتلة تنفيذ سمة / (EN) Build Impl Block
+// ============================================================================
+// كتلة التنفيذ تضيف دوال إلى صنف موجود
+// Impl block adds methods to an existing class
+// ============================================================================
+void SIRBuilder::buildImpl(AST::ImplDecl* implDecl) {
+    if (!implDecl) return;
+    
+    std::string className = implDecl->targetType;
+    std::cout << "[DEBUG] buildImpl: implementing";
+    if (!implDecl->traitName.empty()) {
+        std::cout << " trait '" << implDecl->traitName << "'";
+    }
+    std::cout << " for class '" << className << "'" << std::endl;
+    
+    // (AR) البحث عن الصنف المستهدف في وحدة SIR
+    // (EN) Find target class in SIR module
+    auto sirClass = module_->getClass(className);
+    if (!sirClass) {
+        std::cerr << "[WARNING] buildImpl: class '" << className 
+                  << "' not found in module" << std::endl;
+        return;
+    }
+    
+    // (AR) معالجة الدوال في كتلة التنفيذ
+    // (EN) Process methods in impl block
+    for (const auto& method : implDecl->methods) {
+        if (!method) continue;
+        
+        auto funcDecl = dynamic_cast<AST::FunctionDecl*>(method.get());
+        if (!funcDecl) continue;
+        
+        std::string fullMethodName = className + "." + funcDecl->name;
+        std::cout << "[DEBUG] buildImpl: adding method '" << fullMethodName << "'" << std::endl;
+        
+        // (AR) تحويل نوع الإرجاع
+        // (EN) Convert return type
+        SIR::SIRType retType = astTypeToSIRType(funcDecl->returnType);
+        auto sirMethod = std::make_shared<SIR::SIRFunction>(fullMethodName, retType);
+        
+        // (AR) إضافة معامل self ضمنياً
+        // (EN) Add implicit self parameter
+        sirMethod->addParameter(SIR::SIRParameter("self", SIR::SIRType::I64));
+        
+        // (AR) إضافة المعاملات
+        // (EN) Add parameters
+        for (const auto& param : funcDecl->parameters) {
+            SIR::SIRType paramType = astTypeToSIRType(param.type);
+            sirMethod->addParameter(SIR::SIRParameter(param.name, paramType));
+        }
+        
+        // (AR) إضافة الدالة للصنف
+        // (EN) Add method to class
+        sirClass->addMethod(sirMethod);
+        
+        // (AR) بناء جسم الدالة
+        // (EN) Build method body
+        if (funcDecl->body) {
+            auto prevFunction = currentFunction_;
+            auto prevBlock = currentBlock_;
+            auto prevClassName = currentClassName_;
+            
+            currentFunction_ = sirMethod;
+            currentClassName_ = className;
+            
+            enterScope();
+            
+            // (AR) تسجيل معامل self
+            // (EN) Register self parameter
+            {
+                VariableInfo selfInfo;
+                selfInfo.name = "self";
+                selfInfo.type = SIR::SIRType::I64;
+                selfInfo.registerName = "%self";
+                selfInfo.isGlobal = false;
+                selfInfo.isMutable = false;
+                selfInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                addVariable(selfInfo);
+            }
+            
+            // (AR) تسجيل المعاملات
+            // (EN) Register parameters
+            for (const auto& param : funcDecl->parameters) {
+                VariableInfo paramInfo;
+                paramInfo.name = param.name;
+                paramInfo.type = astTypeToSIRType(param.type);
+                paramInfo.registerName = "%" + param.name;
+                paramInfo.isGlobal = false;
+                paramInfo.isMutable = true;
+                paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                addVariable(paramInfo);
+            }
+            
+            // (AR) بناء جسم الدالة
+            // (EN) Build function body
+            if (auto blockStmt = dynamic_cast<Sad::AST::BlockStmt*>(funcDecl->body.get())) {
+                for (const auto& bodyStmt : blockStmt->statements) {
+                    if (bodyStmt) {
+                        buildStatement(bodyStmt.get());
+                    }
+                }
+            } else {
+                buildStatement(funcDecl->body.get());
+            }
+            
+            exitScope();
+            
+            currentFunction_ = prevFunction;
+            currentBlock_ = prevBlock;
+            currentClassName_ = prevClassName;
+        }
+        
+        // (AR) إضافة الدالة للوحدة
+        // (EN) Add function to module
+        module_->addFunction(sirMethod);
+    }
+    
+    std::cout << "[DEBUG] buildImpl: finished impl for '" << className << "'" << std::endl;
 }
 
 // ============================================================================
@@ -3162,6 +3563,18 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         return BuildResult("%self", SIRType::I64);
     }
     
+    // (AR) SuperExpr - مرجع الصنف الأب 'الأساس' (class_nodes.h:298)
+    // (EN) Super/base class reference
+    if (auto superExpr = dynamic_cast<Sad::AST::SuperExpr*>(expr)) {
+        // (AR) في سياق المترجم، الأساس يشير إلى self (لأن الكائن واحد)
+        // (EN) In compiler context, super refers to self (single object)
+        VariableInfo* selfInfo = lookupVariable("self");
+        if (selfInfo) {
+            return BuildResult(selfInfo->registerName, selfInfo->type);
+        }
+        return BuildResult("%self", SIRType::I64);
+    }
+    
     // (AR) تعبير غير معروف - نرجع قيمة افتراضية
     // (EN) Unknown expression - return default
     return BuildResult();
@@ -3356,6 +3769,105 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
               << "', type=" << static_cast<int>(rightResult.type) 
               << ", isConstant=" << rightResult.isConstant << std::endl;
     
+    // ================================================================
+    // (AR) تحميل المعاملات الزائد: إذا كان المعامل الأيسر كائن، استدعاء دالة العامل
+    // (EN) Operator overloading: if left operand is an object, call operator function
+    // ================================================================
+    std::string leftClassName = leftResult.className;
+    if (leftClassName.empty() && !leftResult.registerName.empty()) {
+        auto it = classInstanceTypes_.find(leftResult.registerName);
+        if (it != classInstanceTypes_.end()) {
+            leftClassName = it->second;
+        }
+    }
+    
+    if (!leftClassName.empty()) {
+        // (AR) تحويل رمز العامل إلى اسم دالة
+        // (EN) Convert operator symbol to function name
+        std::string opSafeName;
+        switch (binOp->op) {
+            case Lexer::TokenType::OP_PLUS:          opSafeName = "__op_add__"; break;
+            case Lexer::TokenType::OP_MINUS:         opSafeName = "__op_sub__"; break;
+            case Lexer::TokenType::OP_MULTIPLY:      opSafeName = "__op_mul__"; break;
+            case Lexer::TokenType::OP_DIVIDE:        opSafeName = "__op_div__"; break;
+            case Lexer::TokenType::OP_MODULO:        opSafeName = "__op_mod__"; break;
+            case Lexer::TokenType::OP_POWER:         opSafeName = "__op_pow__"; break;
+            case Lexer::TokenType::OP_EQUAL:         opSafeName = "__op_eq__"; break;
+            case Lexer::TokenType::OP_NOT_EQUAL:     opSafeName = "__op_ne__"; break;
+            case Lexer::TokenType::OP_LESS:          opSafeName = "__op_lt__"; break;
+            case Lexer::TokenType::OP_LESS_EQUAL:    opSafeName = "__op_le__"; break;
+            case Lexer::TokenType::OP_GREATER:       opSafeName = "__op_gt__"; break;
+            case Lexer::TokenType::OP_GREATER_EQUAL: opSafeName = "__op_ge__"; break;
+            default: break;
+        }
+        
+        if (!opSafeName.empty()) {
+            // (AR) البحث عن دالة العامل في الصنف أو الأصناف الأب
+            // (EN) Look for operator function in the class or parent classes
+            std::string searchClass = leftClassName;
+            std::string fullOpName;
+            bool found = false;
+            while (!searchClass.empty()) {
+                fullOpName = searchClass + "." + opSafeName;
+                auto funcIt = functionTable_.find(fullOpName);
+                if (funcIt != functionTable_.end()) {
+                    found = true;
+                    break;
+                }
+                // (AR) البحث في الأب
+                // (EN) Search in parent
+                auto parentClass = module_->getClass(searchClass);
+                if (parentClass && !parentClass->parentClass.empty()) {
+                    searchClass = parentClass->parentClass;
+                } else {
+                    break;
+                }
+            }
+            
+            if (found) {
+                std::cout << "[DEBUG] buildBinaryOp: dispatching to operator overload '" 
+                          << fullOpName << "'" << std::endl;
+                
+                std::string resultReg = newTempRegister();
+                auto& opInfo = functionTable_[fullOpName];
+                SIRType returnType = opInfo.returnType;
+                
+                if (currentBlock_) {
+                    SIRInstruction callInst;
+                    callInst.opcode = SIROpcode::OBJECT_CALL;
+                    callInst.result = SIROperand::Register(resultReg, returnType);
+                    callInst.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
+                    callInst.operands.push_back(SIROperand::ConstantString(opSafeName));
+                    // (AR) إضافة المعامل الأيمن
+                    // (EN) Add right operand
+                    if (rightResult.isConstant && !rightResult.constantValue.empty()) {
+                        switch (rightResult.type) {
+                            case SIRType::I64:
+                                callInst.operands.push_back(SIROperand::ConstantI64(std::stoll(rightResult.constantValue)));
+                                break;
+                            case SIRType::F64:
+                                callInst.operands.push_back(SIROperand::ConstantF64(std::stod(rightResult.constantValue)));
+                                break;
+                            case SIRType::STRING:
+                                callInst.operands.push_back(SIROperand::ConstantString(rightResult.constantValue));
+                                break;
+                            default:
+                                callInst.operands.push_back(SIROperand::Register(rightResult.registerName, rightResult.type));
+                                break;
+                        }
+                    } else {
+                        callInst.operands.push_back(SIROperand::Register(rightResult.registerName, rightResult.type));
+                    }
+                    currentBlock_->addInstruction(callInst);
+                }
+                
+                BuildResult result(resultReg, returnType);
+                result.className = leftClassName;
+                return result;
+            }
+        }
+    }
+    
     // (AR) إنشاء سجل للنتيجة (sir_builder.h:511 - newTempRegister)
     // (EN) Create result register
     std::string resultReg = newTempRegister();
@@ -3496,6 +4008,42 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
             opcode = SIROpcode::OR;
             isComparison = true;  // (AR) النتيجة منطقية
             std::cout << "[DEBUG] buildBinaryOp: عملية OR (||)" << std::endl;
+            break;
+
+        // ========== العمليات البتية (token.h) ==========
+        case Lexer::TokenType::OP_XOR:
+            // (AR) XOR بتّي: Xor (sir_opcodes.h)
+            opcode = SIROpcode::XOR;
+            resultType = SIRType::I64;
+            std::cout << "[DEBUG] buildBinaryOp: عملية XOR بتي (^)" << std::endl;
+            break;
+
+        case Lexer::TokenType::OP_BITWISE_AND:
+            // (AR) AND بتّي: AND
+            opcode = SIROpcode::AND;
+            resultType = SIRType::I64;
+            std::cout << "[DEBUG] buildBinaryOp: عملية AND بتي (&)" << std::endl;
+            break;
+
+        case Lexer::TokenType::OP_BITWISE_OR:
+            // (AR) OR بتّي: OR
+            opcode = SIROpcode::OR;
+            resultType = SIRType::I64;
+            std::cout << "[DEBUG] buildBinaryOp: عملية OR بتي (|)" << std::endl;
+            break;
+
+        case Lexer::TokenType::OP_SHIFT_LEFT:
+            // (AR) إزاحة يسار: Shl
+            opcode = SIROpcode::SHL;
+            resultType = SIRType::I64;
+            std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يسار (<<)" << std::endl;
+            break;
+
+        case Lexer::TokenType::OP_SHIFT_RIGHT:
+            // (AR) إزاحة يمين: Shr
+            opcode = SIROpcode::SHR;
+            resultType = SIRType::I64;
+            std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يمين (>>)" << std::endl;
             break;
             
         default:
@@ -3717,6 +4265,49 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         // (AR) لا ندعم استدعاءات غير مباشرة حالياً
         // (EN) We don't support indirect calls currently
         errors_.push_back("Error: Only direct function calls are supported");
+        return BuildResult();
+    }
+    
+    // ========================================================================
+    // (AR) التعامل مع استدعاء باني الأب: أساس(...) / الأساس(...) / super(...)
+    // (EN) Handle super constructor call: أساس(...) / الأساس(...) / super(...)
+    // ========================================================================
+    if ((funcName == "\xD8\xA3\xD8\xB3\xD8\xA7\xD8\xB3" ||       // أساس
+         funcName == "\xD8\xA7\xD9\x84\xD8\xA3\xD8\xB3\xD8\xA7\xD8\xB3" || // الأساس
+         funcName == "\xD8\xA7\xD8\xB3\xD8\xA7\xD8\xB3" ||       // اساس
+         funcName == "\xD8\xA7\xD9\x84\xD8\xA7\xD8\xB3\xD8\xA7\xD8\xB3" || // الاساس
+         funcName == "super") && !currentClassName_.empty()) {
+        // (AR) البحث عن الصنف الأب
+        // (EN) Find parent class
+        auto sirClass = module_->getClass(currentClassName_);
+        if (sirClass && !sirClass->parentClass.empty()) {
+            std::string parentCtorName = sirClass->parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
+            
+            // (AR) بناء المعاملات
+            // (EN) Build arguments
+            std::vector<SIROperand> superArgs;
+            superArgs.push_back(SIROperand::Register("%self", SIRType::I64)); // self
+            for (const auto& arg : call->arguments) {
+                BuildResult argResult = buildExpression(arg.get());
+                superArgs.push_back(SIROperand::Register(argResult.registerName, argResult.type));
+            }
+            
+            // (AR) إصدار تعليمة CALL لباني الأب
+            // (EN) Emit CALL instruction for parent constructor
+            std::string superResultReg = newTempRegister();
+            SIRInstruction callInst;
+            callInst.opcode = SIROpcode::CALL;
+            callInst.result = SIROperand::Register(superResultReg, SIRType::VOID);
+            callInst.operands.push_back(SIROperand::Register(parentCtorName, SIRType::VOID));
+            for (auto& op : superArgs) {
+                callInst.operands.push_back(op);
+            }
+            if (currentBlock_) currentBlock_->addInstruction(callInst);
+            
+            return BuildResult(superResultReg, SIRType::VOID);
+        }
+        // (AR) لا يوجد صنف أب - نتجاهل
+        // (EN) No parent class - ignore
         return BuildResult();
     }
     
@@ -6358,9 +6949,15 @@ BuildResult SIRBuilder::buildNewObject(AST::NewExpr* newExpr) {
     
     std::cout << "[DEBUG] buildNewObject: object created in register '" << objReg << "'" << std::endl;
     
-    // (AR) إرجاع مؤشر للكائن
-    // (EN) Return pointer to object
-    return BuildResult(objReg, SIRType::I64);
+    // (AR) تتبع نوع الكائن لدعم تحميل المعاملات الزائد
+    // (EN) Track object type for operator overloading support
+    classInstanceTypes_[objReg] = newExpr->className;
+    
+    // (AR) إرجاع مؤشر للكائن مع اسم الصنف
+    // (EN) Return pointer to object with class name
+    BuildResult result(objReg, SIRType::I64);
+    result.className = newExpr->className;
+    return result;
 }
 
 // ============================================================================

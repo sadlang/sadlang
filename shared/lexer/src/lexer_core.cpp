@@ -1171,6 +1171,18 @@ Token LexerCore::scanOperator() {
         advance(); advance();
         return Token(TokenType::OP_PIPE_ARROW, "|>", start_position_);
     }
+    if (c == '|' && next == '|') {
+        advance(); advance();
+        return Token(TokenType::OP_OR, "||", start_position_);
+    }
+    if (c == '<' && next == '<') {
+        advance(); advance();
+        return Token(TokenType::OP_SHIFT_LEFT, "<<", start_position_);
+    }
+    if (c == '>' && next == '>') {
+        advance(); advance();
+        return Token(TokenType::OP_SHIFT_RIGHT, ">>", start_position_);
+    }
     if (c == '-' && next == '>') {
         advance(); advance();
         return Token(TokenType::ARROW, "->", start_position_);
@@ -1193,6 +1205,8 @@ Token LexerCore::scanOperator() {
         case '>': return Token(TokenType::OP_GREATER, ">", start_position_);
         case '!': return Token(TokenType::OP_NOT, "!", start_position_);
         case '.': return Token(TokenType::DOT, ".", start_position_);
+        case '^': return Token(TokenType::OP_XOR, "^", start_position_);
+        case '|': return Token(TokenType::OP_BITWISE_OR, "|", start_position_);
         case '&': return Token(TokenType::AMPERSAND, "&", start_position_);
         default:
             return makeError("عامل غير معروف / Unknown operator: " + std::string(1, c));
@@ -1345,6 +1359,18 @@ Token LexerCore::nextToken() {
         return scanString();
     }
     
+    // (AR) فحص عامل الضرب العربي × (U+00D7, UTF-8: 0xC3 0x97) - يجب قبل scanIdentifier!
+    // (EN) Check for Arabic multiplication sign × (U+00D7, UTF-8: 0xC3 0x97) - MUST be before scanIdentifier!
+    if (static_cast<unsigned char>(c) == 0xC3 && (current_ + 1) < source_.length()) {
+        unsigned char next = static_cast<unsigned char>(source_[current_ + 1]);
+        if (next == 0x97) {
+            // × Arabic/math multiplication sign → OP_MULTIPLY
+            advance(); // consume 0xC3
+            advance(); // consume 0x97
+            return Token(TokenType::OP_MULTIPLY, "\xC3\x97", start_position_);
+        }
+    }
+
     // (AR) فحص الفاصلة والفاصلة المنقوطة العربية (UTF-8 multi-byte) - يجب أن يكون قبل scanIdentifier!
     // (EN) Check for Arabic comma and semicolon (UTF-8 multi-byte) - MUST be before scanIdentifier!
     // Spec: docs\language_spec\rules\03_oop.md §1
@@ -1497,11 +1523,18 @@ bool LexerCore::isAlpha(char c) const {
     // (EN) Check Arabic characters (UTF-8 multi-byte)
     // استبعاد الفاصلة العربية ، (0xD8 0x8C) والفاصلة المنقوطة العربية ؛ (0xD8 0x9B)
     // Exclude Arabic comma (0xD8 0x8C) and Arabic semicolon (0xD8 0x9B)
+    // استبعاد علامة الضرب × (0xC3 0x97 = U+00D7) - عامل رياضي وليس حرفاً
+    // Exclude multiplication sign × (0xC3 0x97 = U+00D7) - it's an operator, not a letter
     unsigned char uc = static_cast<unsigned char>(c);
     if (uc == 0xD8) {
         // نحتاج للتحقق من البايت التالي - لكن isAlpha لا تستطيع الوصول إليه
         // نقبل 0xD8 هنا، وسنتحقق في scanIdentifier من أن التسلسل ليس ، أو ؛
         return true;
+    }
+    if (uc == 0xC3) {
+        // 0xC3 0x97 = × (ضرب) — لا يُعدّ حرفاً، سيُعالج كعامل في nextToken
+        // It's handled as OP_MULTIPLY in nextToken before reaching isAlpha
+        return false;
     }
     return uc >= 0x80; // UTF-8 للعربية
 }

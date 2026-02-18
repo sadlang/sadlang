@@ -355,6 +355,12 @@ public:
      * @brief (EN) Execute logical operation
      */
     Data::Value evaluateLogicalOp(const Data::Value& left, Lexer::TokenType op, const Data::Value& right, const Lexer::Position& pos);
+
+    /**
+     * @brief (AR) تنفيذ عمليات البت: ^ | & << >>
+     * @brief (EN) Execute bitwise operations: ^ | & << >>
+     */
+    Data::Value evaluateBitwiseOp(const Data::Value& left, Lexer::TokenType op, const Data::Value& right, const Lexer::Position& pos);
     
     /**
      * @brief (AR) تنفيذ عامل محمل زائداً على كائن

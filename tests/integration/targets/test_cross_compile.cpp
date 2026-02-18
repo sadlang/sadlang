@@ -578,7 +578,7 @@ test::TestSuite createE2ETests() {
     suite.addTest("تجميع لهدف واحد", []() {
         mock::MockCompiler compiler;
         
-        auto result = compiler.compile("test.sad", "x86_64-pc-windows-msvc", {"-O2"});
+        auto result = compiler.compile("test.ص", "x86_64-pc-windows-msvc", {"-O2"});
         
         ASSERT_TRUE(result.success);
         ASSERT_EQ(result.exitCode, 0);
@@ -596,7 +596,7 @@ test::TestSuite createE2ETests() {
         
         int successCount = 0;
         for (const auto& target : targets) {
-            auto result = compiler.compile("test.sad", target, {});
+            auto result = compiler.compile("test.ص", target, {});
             if (result.success) successCount++;
         }
         

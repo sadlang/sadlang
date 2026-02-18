@@ -487,8 +487,8 @@ bool CompilerDriver::compile_files(const std::vector<std::string>& input_files) 
         // Get file extension
         std::string ext = get_file_extension(input_file);
         
-        if (ext == ".s" || ext == ".sad" || ext == ".\xd8\xb5") {
-            // Source file - compile it (supports .s, .sad, .ص)
+        if (ext == ".\xd8\xb5") {
+            // Source file - compile it (supports .ص only)
             
             // (AR) عند الحاجة للربط، نجمع كل ملف مصدري إلى ملف كائن (.o) أولاً
             // (EN) When linking is needed, compile each source to object file first
@@ -583,6 +583,18 @@ bool CompilerDriver::parse_command_line(int argc, char* argv[]) {
 }
 
 bool CompilerDriver::validate_options() {
+    // ════════════════════════════════════════════════════════════════════════
+    // (AR) التحقق من خيارات المترجم قبل بدء الترجمة
+    // ════════════════════════════════════════════════════════════════════════
+    // هذه الدالة تُجري سلسلة من التحقق على خيارات المترجم لضمان:
+    //   1. وجود ملفات إدخال صالحة
+    //   2. إعداد ملف الإخراج الافتراضي إذا لم يُحدَّد
+    //   3. ضبط خيارات وضع Freestanding تلقائياً إذا كانت مُفعَّلة
+    //   4. التعامل مع خصوصيات نظام ويندوز (مثل دعم الألوان)
+    // ════════════════════════════════════════════════════════════════════════
+    // (EN) Validate compiler options before starting compilation
+    // ════════════════════════════════════════════════════════════════════════
+
     // Check if we have input files
     if (options_.input_files.empty()) {
         diagnostics_.report_fatal("no input files / لا يوجد ملفات إدخال");
@@ -595,6 +607,82 @@ bool CompilerDriver::validate_options() {
             options_.input_files[0],
             options_.output_type
         );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // (AR) ضبط خيارات وضع Freestanding التلقائية
+    // ════════════════════════════════════════════════════════════════════════
+    // وضع Freestanding يعني البرمجة بدون مكتبة قياسية — يُستخدم في:
+    //   - تطوير أنوية أنظمة التشغيل (kernel)
+    //   - البرمجة المدمجة (embedded systems)
+    //   - البرامج ذاتية الاكتفاء (self-contained executables)
+    //   - بيئات بدء التشغيل (boot loaders)
+    //   - البرمجة المعدنية (bare-metal programming)
+    //
+    // عندما يُفعَّل هذا الوضع (سواء عبر --freestanding أو #![بلا_مكتبة_قياسية]):
+    //   1. no_main = true   → لا يوجد دالة main() القياسية
+    //   2. abort_on_panic   → لا استثناءات C++ في بيئة بدون مكتبة
+    //   3. freestanding_entry = "_start" → نقطة الدخول الافتراضية للنواة
+    //
+    // ملاحظة: يمكن تجاوز اسم نقطة الدخول بـ --entry=kernel_main
+    // ════════════════════════════════════════════════════════════════════════
+    // (EN) Configure freestanding mode defaults
+    //
+    // Freestanding mode = programming without standard library, used in:
+    //   - OS kernel development
+    //   - Embedded systems
+    //   - Self-contained executables
+    //   - Boot loaders
+    //   - Bare-metal programming
+    //
+    // When activated (via --freestanding or #![بلا_مكتبة_قياسية]):
+    //   1. no_main = true   → no standard main() entry point
+    //   2. abort_on_panic   → no C++ exceptions without runtime
+    //   3. freestanding_entry = "_start" → default kernel entry point
+    // ════════════════════════════════════════════════════════════════════════
+    if (options_.freestanding) {
+        // (AR) تفعيل no_main تلقائياً — في بيئة freestanding لا مكتبة C
+        //      لذا لا توجد دالة __start المسؤولة عن استدعاء main()
+        // (EN) Auto-enable no_main — freestanding has no C lib startup
+        if (!options_.no_main) {
+            options_.no_main = true;
+            if (options_.verbose) {
+                std::cout << u8"  \u2699 [freestanding] no_main \u0645\u0641\u0639\u0651\u0644 \u062a\u0644\u0642\u0627\u0626\u064a\u0627\u064b\n";
+            }
+        }
+
+        // (AR) تعيين نقطة الدخول الافتراضية _start إذا لم تُحدَّد
+        //      _start هي نقطة الدخول القياسية لأنوية لينكس/نظم التشغيل
+        //      يمكن تغييرها لـ kernel_main أو أي اسم آخر بـ --entry=...
+        // (EN) Set default entry point _start if not specified
+        //      _start is the standard entry for Linux kernels/OS
+        if (options_.freestanding_entry.empty()) {
+            options_.freestanding_entry = "_start";
+            if (options_.verbose) {
+                std::cout << u8"  \u2699 [freestanding] \u0646\u0642\u0637\u0629 \u0627\u0644\u062f\u062e\u0648\u0644: _start\n";
+            }
+        }
+
+        // (AR) تفعيل abort_on_panic — لا استثناءات C++ في بيئة freestanding
+        //      الذعر (panic) يجب أن يوقف النواة مباشرة بدلاً من رمي استثناء
+        // (EN) Enable abort_on_panic — no C++ exceptions in freestanding
+        //      Panic must halt the kernel directly, not throw an exception
+        if (!options_.abort_on_panic) {
+            options_.abort_on_panic = true;
+            if (options_.verbose) {
+                std::cout << u8"  \u2699 [freestanding] abort_on_panic \u0645\u0641\u0639\u0651\u0644 \u062a\u0644\u0642\u0627\u0626\u064a\u0627\u064b\n";
+            }
+        }
+
+        // (AR) طباعة ملخص وضع freestanding في الوضع المفصل
+        // (EN) Print freestanding mode summary in verbose mode
+        if (options_.verbose) {
+            std::cout << u8"\n  \u2550\u2550 \u0648\u0636\u0639 Freestanding \u0645\u064f\u0641\u0639\u064e\u0651\u0644 \u2550\u2550\n";
+            std::cout << u8"     \u2022 \u0628\u062f\u0648\u0646 \u0645\u0643\u062a\u0628\u0629 \u0642\u064a\u0627\u0633\u064a\u0629 (no stdlib)\n";
+            std::cout << u8"     \u2022 \u0646\u0642\u0637\u0629 \u0627\u0644\u062f\u062e\u0648\u0644: " << options_.freestanding_entry << "\n";
+            std::cout << u8"     \u2022 abort_on_panic: \u0645\u0641\u0639\u0651\u0644\n";
+            std::cout << u8"     \u2022 \u0644\u0627 \u062f\u0627\u0644\u0629 main() \u0642\u064a\u0627\u0633\u064a\u0629\n\n";
+        }
     }
     
     // Disable colors on Windows if not supported
@@ -622,6 +710,209 @@ bool CompilerDriver::run_frontend(const std::string& file) {
     }
     
     std::string source = *source_opt;
+
+    // ════════════════════════════════════════════════════════════════════════
+    // (AR) المرحلة 0: فحص سمات Freestanding قبل التحليل المعجمي
+    // ════════════════════════════════════════════════════════════════════════
+    // نبحث في النص المصدري عن سمة #![بلا_مكتبة_قياسية] قبل أي مرحلة تحليل.
+    // هذا يسمح للمبرمج باستخدام:
+    //
+    //   #![بلا_مكتبة_قياسية]      ← السمة العربية (المتوقع في لغة ص)
+    //   #![no_std]                ← السمة الإنجليزية (للتوافق)
+    //   #![بلا_رئيسية]            ← تعطيل main() بشكل صريح
+    //   #![نقطة_دخول="_start"]    ← تحديد نقطة الدخول
+    //
+    // هذا الفحص المبكر يضمن أن كل مراحل التحليل اللاحقة (المعجمي، النحوي،
+    // الدلالي، بناء SIR) تعرف أنها في وضع freestanding وتُطبّق القواعد
+    // المناسبة (عدم استخدام malloc, printf, أنواع STL، ...)
+    //
+    // الخوارزمية:
+    //   1. البحث السريع بـ string::find (O(n) مرة واحدة فقط)
+    //   2. إذا وُجدت السمة: تفعيل options_.freestanding
+    //   3. إعادة تشغيل validate_freestanding_options لضبط باقي الخيارات
+    //   4. طباعة رسالة تشخيصية في الوضع المفصل
+    // ════════════════════════════════════════════════════════════════════════
+    // (EN) Phase 0: Detect freestanding attributes before lexing
+    //
+    // Search source text for #![بلا_مكتبة_قياسية] before any parsing.
+    // This allows programmers to use Arabic and English no_std annotations.
+    //
+    // Early detection ensures all analysis phases operate in freestanding
+    // mode: no malloc, printf, STL types, etc.
+    //
+    // Algorithm:
+    //   1. Fast O(n) string search (done once only)
+    //   2. If attribute found: activate options_.freestanding
+    //   3. Re-run freestanding defaults setup
+    //   4. Print diagnostic in verbose mode
+    // ════════════════════════════════════════════════════════════════════════
+    {
+        // (AR) البحث عن السمات بالعربية والإنجليزية
+        // (EN) Search for attributes in both Arabic and English
+        const bool has_no_std_arabic  = (source.find(u8"#![\u0628\u0644\u0627_\u0645\u0643\u062a\u0628\u0629_\u0642\u064a\u0627\u0633\u064a\u0629]") != std::string::npos);
+        const bool has_no_std_english = (source.find("#![no_std]") != std::string::npos);
+        const bool has_no_main_arabic = (source.find(u8"#![\u0628\u0644\u0627_\u0631\u0626\u064a\u0633\u064a\u0629]") != std::string::npos);
+        const bool has_no_std = has_no_std_arabic || has_no_std_english;
+
+        if (has_no_std && !options_.freestanding) {
+            // (AR) تفعيل وضع freestanding تلقائياً
+            // (EN) Auto-activate freestanding mode
+            options_.freestanding = true;
+
+            // (AR) تفعيل no_main — بلا مكتبة قياسية = بلا نقطة بدء C
+            // (EN) Enable no_main — no stdlib means no C startup entry
+            if (!options_.no_main) {
+                options_.no_main = true;
+            }
+
+            // (AR) تعيين نقطة الدخول الافتراضية
+            // (EN) Set default entry point
+            if (options_.freestanding_entry.empty()) {
+                options_.freestanding_entry = "_start";
+            }
+
+            // (AR) تفعيل abort_on_panic — لا استثناءات بدون مكتبة
+            // (EN) Enable abort on panic — no exceptions without stdlib
+            options_.abort_on_panic = true;
+
+            if (options_.verbose) {
+                std::cout << u8"  \u26a1 [مرحلة 0] اكتُشف ";
+                if (has_no_std_arabic) {
+                    std::cout << u8"#![\u0628\u0644\u0627_\u0645\u0643\u062a\u0628\u0629_\u0642\u064a\u0627\u0633\u064a\u0629]";
+                } else {
+                    std::cout << "#![no_std]";
+                }
+                std::cout << u8" — وضع Freestanding مُفعَّل تلقائياً\n";
+                std::cout << u8"     \u2022 \u0646\u0642\u0637\u0629 \u0627\u0644\u062f\u062e\u0648\u0644: " << options_.freestanding_entry << "\n";
+                std::cout << u8"     \u2022 no_main: \u0645\u0641\u0639\u064e\u0651\u0644 | abort_on_panic: \u0645\u0641\u0639\u064e\u0651\u0644\n";
+            }
+        }
+
+        // (AR) تفعيل no_main إذا وُجدت السمة #![بلا_رئيسية] بشكل مستقل
+        // (EN) Enable no_main if #![بلا_رئيسية] attribute found independently
+        if (has_no_main_arabic && !options_.no_main) {
+            options_.no_main = true;
+            if (options_.verbose) {
+                std::cout << u8"  \u26a1 [مرحلة 0] اكتُشف #![\u0628\u0644\u0627_\u0631\u0626\u064a\u0633\u064a\u0629] — no_main \u0645\u0641\u0639\u064e\u0651\u0644\n";
+            }
+        }
+
+        // (AR) البحث عن سمة نقطة الدخول المُخصَّصة: #![نقطة_دخول="..."]
+        //      مثال: #![نقطة_دخول="kernel_main"] أو #![entry="my_start"]
+        // (EN) Search for custom entry point attribute: #![نقطة_دخول="..."]
+        {
+            // (AR) نمط السمة العربية
+            const std::string ar_entry_prefix = u8"#![\u0646\u0642\u0637\u0629_\u062f\u062e\u0648\u0644=\"";
+            auto ar_pos = source.find(ar_entry_prefix);
+            if (ar_pos != std::string::npos) {
+                auto start = ar_pos + ar_entry_prefix.size();
+                auto end   = source.find('"', start);
+                if (end != std::string::npos && end > start) {
+                    options_.freestanding_entry = source.substr(start, end - start);
+                    if (options_.verbose) {
+                        std::cout << u8"  \u26a1 [مرحلة 0] نقطة دخول مُخصَّصة: "
+                                  << options_.freestanding_entry << "\n";
+                    }
+                }
+            }
+
+            // (AR) نمط السمة الإنجليزية للتوافق
+            const std::string en_entry_prefix = "#![entry=\"";
+            auto en_pos = source.find(en_entry_prefix);
+            if (en_pos != std::string::npos && options_.freestanding_entry.empty()) {
+                auto start = en_pos + en_entry_prefix.size();
+                auto end   = source.find('"', start);
+                if (end != std::string::npos && end > start) {
+                    options_.freestanding_entry = source.substr(start, end - start);
+                    if (options_.verbose) {
+                        std::cout << u8"  \u26a1 [مرحلة 0] entry point (EN): "
+                                  << options_.freestanding_entry << "\n";
+                    }
+                }
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) المرحلة 0.1: اكتشاف سمات الدوال الخاصة بـ freestanding
+        // ════════════════════════════════════════════════════════════════════
+        // نبحث عن السمات التالية على الدوال (function attributes) لتسجيلها:
+        //
+        //   #[معالج_ذعر]       → يجب وجودها في كل وحدة freestanding
+        //                         تُعالج الذعر بدلاً من throw/std::terminate
+        //
+        //   #[معالج_تخصيص]    → تُوجَد عند استخدام التخصيص الديناميكي
+        //                         مطلوبة مع --allow-alloc
+        //
+        //   #[معالج_مقاطعة]   → معالجات المقاطعات (ISR)
+        //                         تُولَّد مع اتفاقية interrupt تلقائياً
+        //
+        //   #[نقطة_دخول]      → دالة بدء التشغيل (بدلاً من main)
+        //
+        // هذه المعلومات تُستخدم لاحقاً في:
+        //   - التحقق من اكتمال الوحدة (FreestandingCodeGen::أنهِ_وحدة)
+        //   - توليد الاتفاقيات الصحيحة للدوال
+        //   - الإبلاغ عن السمات المفقودة
+        // ════════════════════════════════════════════════════════════════════
+        if (options_.freestanding) {
+            // (AR) فحص وجود #[معالج_ذعر] أو #[panic_handler]
+            const bool له_معالج_ذعر_عربي    = (source.find(u8"#[\u0645\u0639\u0627\u0644\u062c_\u0630\u0639\u0631]") != std::string::npos);
+            const bool له_معالج_ذعر_إنجليزي = (source.find("#[panic_handler]") != std::string::npos);
+
+            // (AR) فحص وجود #[معالج_تخصيص] أو #[alloc_error_handler]
+            const bool له_معالج_تخصيص_عربي    = (source.find(u8"#[\u0645\u0639\u0627\u0644\u062c_\u062a\u062e\u0635\u064a\u0635]") != std::string::npos);
+            const bool له_معالج_تخصيص_إنجليزي = (source.find("#[alloc_error_handler]") != std::string::npos);
+
+            // (AR) فحص وجود #[معالج_مقاطعة] أو #[interrupt_handler]
+            const bool له_معالج_مقاطعة_عربي    = (source.find(u8"#[\u0645\u0639\u0627\u0644\u062c_\u0645\u0642\u0627\u0637\u0639\u0629") != std::string::npos);
+            const bool له_معالج_مقاطعة_إنجليزي = (source.find("#[interrupt_handler") != std::string::npos);
+
+            // (AR) فحص وجود #[نقطة_دخول] أو #[entry_point]
+            const bool له_نقطة_دخول_عربي    = (source.find(u8"#[\u0646\u0642\u0637\u0629_\u062f\u062e\u0648\u0644]") != std::string::npos);
+            const bool له_نقطة_دخول_إنجليزي = (source.find("#[entry_point]") != std::string::npos);
+
+            if (options_.verbose) {
+                // (AR) طباعة ملخص السمات المكتشفة
+                std::cout << u8"\n  \u2550\u2550 \u0633\u0645\u0627\u062a freestanding \u0627\u0644\u0645\u0643\u062a\u0634\u0641\u0629 \u2550\u2550\n";
+                // نقطة الدخول
+                std::cout << (له_نقطة_دخول_عربي || له_نقطة_دخول_إنجليزي
+                    ? u8"  \u2705 " : u8"  \u274c ")
+                    << u8"#[\u0646\u0642\u0637\u0629_\u062f\u062e\u0648\u0644]\n";
+                // معالج الذعر
+                std::cout << (له_معالج_ذعر_عربي || له_معالج_ذعر_إنجليزي
+                    ? u8"  \u2705 " : u8"  \u26a0  ")
+                    << u8"#[\u0645\u0639\u0627\u0644\u062c_\u0630\u0639\u0631]\n";
+                // معالج التخصيص
+                if (options_.allow_freestanding_alloc) {
+                    std::cout << (له_معالج_تخصيص_عربي || له_معالج_تخصيص_إنجليزي
+                        ? u8"  \u2705 " : u8"  \u274c ")
+                        << u8"#[\u0645\u0639\u0627\u0644\u062c_\u062a\u062e\u0635\u064a\u0635] (\u0645\u0637\u0644\u0648\u0628 \u0645\u0639 --allow-alloc)\n";
+                }
+                // معالج المقاطعة
+                if (له_معالج_مقاطعة_عربي || له_معالج_مقاطعة_إنجليزي) {
+                    std::cout << u8"  \u2705 #[\u0645\u0639\u0627\u0644\u062c_\u0645\u0642\u0627\u0637\u0639\u0629] (\u0633\u064a\u062a\u0645 \u062a\u0648\u0644\u064a\u062f \u0627\u062a\u0641\u0627\u0642\u064a\u0629 interrupt)\n";
+                }
+
+                // (AR) تحذير: وضع freestanding بدون معالج ذعر
+                if (!له_معالج_ذعر_عربي && !له_معالج_ذعر_إنجليزي) {
+                    std::cout << u8"\n  \u26a0 [freestanding] \u062a\u062d\u0630\u064a\u0631: \u0644\u0627 \u064a\u0648\u062c\u062f #[\u0645\u0639\u0627\u0644\u062c_\u0630\u0639\u0631]\n"
+                              << u8"     \u0633\u064a\u0633\u062a\u062e\u062f\u0645 \u0627\u0644\u0645\u0639\u0627\u0644\u062c \u0627\u0644\u0627\u0641\u062a\u0631\u0627\u0636\u064a (happy loop + hlt).\n"
+                              << u8"     \u0623\u0636\u0641:\n"
+                              << u8"       #[\u0645\u0639\u0627\u0644\u062c_\u0630\u0639\u0631]\n"
+                              << u8"       \u062f\u0627\u0644\u0629 \u0639\u0646\u062f_\u0627\u0644\u0630\u0639\u0631() \u062a \u062d\u0644\u0642\u0629 {}\n\n";
+                }
+
+                // (AR) تحذير: --allow-alloc بدون معالج تخصيص
+                if (options_.allow_freestanding_alloc &&
+                    !له_معالج_تخصيص_عربي && !له_معالج_تخصيص_إنجليزي) {
+                    std::cout << u8"  \u26a0 [freestanding] \u062a\u062d\u0630\u064a\u0631: --allow-alloc \u0645\u0641\u0639\u0651\u0644 \u0644\u0643\u0646 \u0644\u0627 \u064a\u0648\u062c\u062f #[\u0645\u0639\u0627\u0644\u062c_\u062a\u062e\u0635\u064a\u0635]\n"
+                              << u8"     \u0627\u0644\u0644\u062d\u0627\u0638\u0629: \u0627\u0635\u0641 \u062f\u0627\u0644\u0629 \u0628\u0640 #[\u0645\u0639\u0627\u0644\u062c_\u062a\u062e\u0635\u064a\u0635] \u0644\u0645\u0639\u0627\u0644\u062c\u0629 \u0641\u0634\u0644 \u0627\u0644\u062a\u062e\u0635\u064a\u0635.\n";
+                }
+
+                std::cout << u8"\n";
+            }
+        }
+    }
+    // ════════════════════════════════════════════════════════════════════════
     
     // Lex source
     if (options_.verbose) {
@@ -1304,6 +1595,28 @@ void CompilerDriver::print_ir_if_requested() {
 
 bool CompilerDriver::invoke_linker(const std::vector<std::string>& objects,
                                   const std::string& output) {
+    // ════════════════════════════════════════════════════════════════════════
+    // (AR) دالة ربط الملفات الثنائية — تجمع ملفات الكائن في ملف واحد
+    // ════════════════════════════════════════════════════════════════════════
+    // هذه الدالة تُنفِّذ مرحلة الربط (Linking) التي تجمع:
+    //   - ملفات الكائن (.obj/.o)   : الكود المُترجَم
+    //   - مكتبات النظام (.lib/.a)  : وظائف قياسية
+    //   - ملفات بدء التشغيل (CRT) : إعداد البيئة قبل main()
+    //
+    // في وضع Freestanding يتم تخطّي جميع المكتبات القياسية وملفات CRT،
+    // لأن النواة/البرنامج المدمج يُعرِّف بيئته الخاصة من الصفر.
+    // ════════════════════════════════════════════════════════════════════════
+    // (EN) Linker invocation — combines object files into a single binary
+    //
+    // This function performs the Linking phase combining:
+    //   - Object files (.obj/.o)   : compiled code
+    //   - System libraries (.lib/.a): standard functions
+    //   - C runtime files (CRT)    : environment setup before main()
+    //
+    // In Freestanding mode, all standard libraries and CRT files are
+    // skipped — the kernel/embedded program defines its own environment.
+    // ════════════════════════════════════════════════════════════════════════
+
     // Find system linker
     auto linker_opt = find_system_linker();
     if (!linker_opt) {
@@ -1324,31 +1637,119 @@ bool CompilerDriver::invoke_linker(const std::vector<std::string>& objects,
         command += " " + obj;
     }
     
-    // Add library paths
-    for (const auto& path : options_.library_paths) {
-        command += " -L" + path;
-    }
-    
-    // Add libraries
-    for (const auto& lib : options_.libraries) {
-        command += " -l" + lib;
-    }
-    
-    // Add static linking flag
-    if (options_.link_static) {
-        command += " -static";
-    }
-    
-    // Add linker script
-    if (!options_.linker_script.empty()) {
-        command += " -T " + options_.linker_script;
-    }
-    
-    // Add freestanding flag
+    // (AR) إضافة علامات وضع Freestanding قبل أي مكتبات
+    // ════════════════════════════════════════════════════════════════════════
+    // (AR) وضع Freestanding — علامات الرابط الضرورية:
+    //
+    //   -nostdlib
+    //       لا تضمّن مكتبة C القياسية (libc.a / msvcrt.lib)
+    //       ولا مكتبة C++ القياسية (libstdc++.a / msvcprt.lib)
+    //       هذا يضمن عدم وجود أي كود خارجي غير متوقع في الثنائي
+    //
+    //   -nostartfiles
+    //       لا تضمّن ملفات بدء تشغيل C (crt0.o, crti.o, crtn.o)
+    //       هذه الملفات مسؤولة عن استدعاء main() وإعداد مكدّس C
+    //       في وضع freestanding، الكود يبدأ مباشرة من رمز _start
+    //
+    //   -nodefaultlibs
+    //       لا تُضف أي مكتبات افتراضية أخرى (libgcc, compiler-rt, ...)
+    //       هذا يُعطي تحكماً كاملاً على ما يُرتبط بالثنائي
+    //
+    //   -e <نقطة_الدخول>
+    //       تحديد نقطة البداية الفعلية للتنفيذ
+    //       افتراضياً: _start (معيار لينكس)
+    //       قابل للتغيير: kernel_main, boot_entry, ...
+    //
+    //   -T <سكريبت_الرابط>
+    //       سكريبت يُحدّد تخطيط الذاكرة (Memory Layout):
+    //       - أين تبدأ قسم النص (.text) في الذاكرة
+    //       - أين تُوضع البيانات (.data, .bss)
+    //       - عنوان التحميل لأنظمة التشغيل والبرامج المدمجة
+    // ════════════════════════════════════════════════════════════════════════
+    // (EN) Freestanding mode — required linker flags:
+    //
+    //   -nostdlib     : no C/C++ standard library
+    //   -nostartfiles : no C startup files (crt0.o etc.)
+    //   -nodefaultlibs: no default libraries (libgcc, compiler-rt)
+    //   -e <entry>    : specify actual execution entry point
+    //   -T <script>   : linker script for memory layout
+    // ════════════════════════════════════════════════════════════════════════
     if (options_.freestanding) {
-        command += " -nostdlib";
+        // (AR) العلامات الثلاثة الأساسية لوضع freestanding
+        // (EN) Three essential freestanding flags
+        command += " -nostdlib -nostartfiles -nodefaultlibs";
+
+        // (AR) تحديد نقطة الدخول — دائماً في وضع freestanding
+        //      حتى _start الافتراضية يجب تحديدها صراحةً
+        //      لأن بعض الرابطات قد تبحث عن main() افتراضياً
+        // (EN) Always specify entry point in freestanding mode
+        //      Because some linkers default to looking for main()
+        if (!options_.freestanding_entry.empty()) {
+            command += " -e " + options_.freestanding_entry;
+            if (options_.verbose) {
+                std::cout << u8"  \u2699 [linker] \u0646\u0642\u0637\u0629 \u0627\u0644\u062f\u062e\u0648\u0644: "
+                          << options_.freestanding_entry << "\n";
+            }
+        }
+
+        // (AR) سكريبت الرابط — يُحدَّد هنا (لا يُكرَّر لاحقاً)
+        //      يُوفِّر تحكماً كاملاً في تخطيط الذاكرة
+        // (EN) Linker script — specified here (not duplicated below)
+        if (!options_.linker_script.empty()) {
+            command += " -T \"" + options_.linker_script + "\"";
+            if (options_.verbose) {
+                std::cout << u8"  \u2699 [linker] \u0633\u0643\u0631\u064a\u0628\u062a \u0627\u0644\u0631\u0627\u0628\u0637: "
+                          << options_.linker_script << "\n";
+            }
+        }
+
+        // (AR) تحذير للمطور إذا لم يوجد سكريبت ربط في وضع freestanding
+        //      بدون سكريبت، الرابط يستخدم التخطيط الافتراضي للنظام المضيف
+        //      وهذا قد لا يكون صحيحاً للنواة أو الأنظمة المدمجة
+        // (EN) Warn developer if no linker script in freestanding mode
+        if (options_.linker_script.empty() && options_.verbose) {
+            std::cout << u8"  \u26a0 [freestanding] \u062a\u062d\u0630\u064a\u0631: \u0644\u0627 \u064a\u0648\u062c\u062f \u0633\u0643\u0631\u064a\u0628\u062a \u0631\u0627\u0628\u0637 (-T).\n"
+                      << u8"     \u0633\u064a\u0633\u062a\u062e\u062f\u0645 \u0627\u0644\u0631\u0627\u0628\u0637 \u0627\u0644\u062a\u062e\u0637\u064a\u0637 \u0627\u0644\u0627\u0641\u062a\u0631\u0627\u0636\u064a.\n"
+                      << u8"     \u0627\u0633\u062a\u062e\u062f\u0645 --linker-script=<\u0645\u0633\u0627\u0631> \u0644\u062a\u062d\u062f\u064a\u062f \u062a\u062e\u0637\u064a\u0637 \u0627\u0644\u0630\u0627\u0643\u0631\u0629.\n";
+        }
+    } else {
+        // (AR) وضع عادي (غير freestanding) — إضافة الخيارات القياسية
+        // (EN) Normal (non-freestanding) mode — add standard options
+
+        // Add library paths
+        for (const auto& path : options_.library_paths) {
+            command += " -L" + path;
+        }
+        
+        // Add libraries
+        for (const auto& lib : options_.libraries) {
+            command += " -l" + lib;
+        }
+        
+        // Add static linking flag
+        if (options_.link_static) {
+            command += " -static";
+        }
+        
+        // Add linker script (normal mode)
+        if (!options_.linker_script.empty()) {
+            command += " -T " + options_.linker_script;
+        }
     }
     
+    // (AR) في وضع freestanding نضيف أيضاً مسارات/مكتبات المستخدم
+    //      (مثلاً مكتبة runtime خاصة بالنواة)
+    // (EN) In freestanding mode also add user-specified paths/libs
+    //      (e.g., custom kernel runtime library)
+    if (options_.freestanding) {
+        for (const auto& path : options_.library_paths) {
+            command += " -L" + path;
+        }
+        for (const auto& lib : options_.libraries) {
+            command += " -l" + lib;
+        }
+    }
+
     // Execute linker
     if (options_.verbose) {
         std::cout << colors::CYAN << "Running: " << command << "\n" 
@@ -1969,13 +2370,13 @@ void CompilerDriver::print_help(std::ostream& os) {
     os << "  sadc [options] <input files...>\n\n";
     
     os << "Examples / أمثلة:\n";
-    os << "  sadc program.s -o program           " 
+    os << "  sadc program.ص -o program           " 
        << colors::CYAN << "# Compile to executable\n" << colors::RESET;
-    os << "  sadc program.s -O3 -o program       " 
+    os << "  sadc program.ص -O3 -o program       " 
        << colors::CYAN << "# With optimizations\n" << colors::RESET;
-    os << "  sadc program.s -c -o program.o      " 
+    os << "  sadc program.ص -c -o program.o      " 
        << colors::CYAN << "# Compile to object file\n" << colors::RESET;
-    os << "  sadc program.s --emit-llvm -o prog.ll " 
+    os << "  sadc program.ص --emit-llvm -o prog.ll " 
        << colors::CYAN << "# Emit LLVM IR\n" << colors::RESET;
     os << "  sadc *.o -o program                 " 
        << colors::CYAN << "# Link object files\n\n" << colors::RESET;
@@ -2005,7 +2406,22 @@ void CompilerDriver::print_help(std::ostream& os) {
     
     os << "Target / الهدف:\n";
     os << "  --target=<triple>      " << "Target platform / المنصة المستهدفة\n";
-    os << "  --freestanding         " << "Freestanding (no OS) / مستقل\n";
+    os << "  --freestanding         " << "Freestanding (no OS) / مستقل بلا نظام تشغيل\n";
+    os << "\n";
+
+    os << "Freestanding / وضع بلا مكتبة قياسية:\n";
+    os << "  --freestanding         " << "Full bare-metal mode / وضع bare-metal كامل\n";
+    os << "                         " << "(مكافئ لـ --no-std)\n";
+    os << "  --no-std               " << "Same as --freestanding / نفس --freestanding\n";
+    os << "  --no-main              " << "No default main() entry / تعطيل main الافتراضية\n";
+    os << "  --abort-on-panic       " << "Abort instead of unwind / إيقاف عند الذعر\n";
+    os << "  --linker-script=<f>    " << "Use linker script (.ld) / سكريبت رابط\n";
+    os << "  --entry-point=<name>   " << "Custom entry point name / اسم نقطة الدخول\n";
+    os << "  --allow-alloc          " << "Allow heap allocation / السماح بالتخصيص الديناميكي\n";
+    os << "\n";
+    os << "  مثال نواة بسيطة / Minimal kernel example:\n";
+    os << "    sadc --freestanding --no-main --abort-on-panic \\\n";
+    os << "         --linker-script=kernel.ld kernel.ص -o kernel.elf\n";
     os << "\n";
     
     os << "Linking / الربط:\n";
@@ -2145,20 +2561,70 @@ bool CommandLineParser::parse_option(const std::string& arg, CompilerOptions& op
             return false;
         }
     } else if (arg == "--freestanding") {
+        // ────────────────────────────────────────────────────────────────────
+        // (AR) تفعيل وضع bare-metal الكامل:
+        //   - يُعطِّل جميع مكتبات C/C++ القياسية
+        //   - يُلزم وجود معالج ذعر مخصص
+        //   - يُلزم وجود نقطة دخول مخصصة
+        //   - يُضيف -nostdlib -nostartfiles -nodefaultlibs للرابط
+        //
+        // (EN) Enable full bare-metal mode:
+        //   - Disables all C/C++ standard libraries
+        //   - Requires custom panic handler
+        //   - Requires custom entry point
+        //   - Adds -nostdlib -nostartfiles -nodefaultlibs to linker
+        // ────────────────────────────────────────────────────────────────────
         options.freestanding = true;
-    }
-    
-    // Linking
-    else if (arg.size() >= 2 && arg.substr(0, 2) == "-L") {
+
+    } else if (arg == "--no-std" || arg == "--nostd") {
+        // (AR) مرادف لـ --freestanding
+        // (EN) Alias for --freestanding
+        options.freestanding = true;
+
+    } else if (arg == "--no-main" || arg == "--nomain") {
+        // (AR) تعطيل نقطة الدخول الافتراضية main()
+        //      يُستخدم مع --freestanding لتعريف _start المخصص
+        // (EN) Disable default main() entry point
+        options.no_main = true;
+
+    } else if (arg == "--abort-on-panic") {
+        // (AR) إيقاف عند الذعر بدلاً من stack unwinding
+        //      مناسب لأنظمة لا تدعم C++ exceptions
+        // (EN) Abort on panic instead of stack unwinding
+        options.abort_on_panic = true;
+
+    } else if (arg.size() >= 16 && arg.substr(0, 16) == "--linker-script=") {
+        // (AR) مسار سكريبت الرابط (.ld) لتعريف تخطيط الذاكرة
+        //      مثال: --linker-script=kernel.ld
+        // (EN) Linker script path (.ld) to define memory layout
+        options.linker_script = arg.substr(16);
+
+    } else if (arg.size() >= 14 && arg.substr(0, 14) == "--entry-point=") {
+        // (AR) اسم دالة نقطة الدخول المخصصة
+        //      مثال: --entry-point=kernel_main
+        // (EN) Custom entry point function name
+        options.freestanding_entry = arg.substr(14);
+
+    } else if (arg == "--allow-alloc") {
+        // (AR) السماح بالتخصيص الديناميكي في وضع freestanding
+        //      يتطلب تسجيل مُخصّص مخصص (#[معالج_تخصيص])
+        // (EN) Allow dynamic allocation in freestanding (requires custom allocator)
+        options.allow_freestanding_alloc = true;
+
+    // ─── ربط المكتبات ───────────────────────────────────────────────────────
+    // (AR) خيارات الرابط (Linker): مسارات المكتبات وأسماؤها ونوع الربط
+    // (EN) Linker options: library paths, library names, and link type
+    } else if (arg.size() >= 2 && arg.substr(0, 2) == "-L") {
         options.library_paths.push_back(arg.substr(2));
     } else if (arg.size() >= 2 && arg.substr(0, 2) == "-l") {
         options.libraries.push_back(arg.substr(2));
     } else if (arg == "--static") {
         options.link_static = true;
-    }
-    
-    // Other
-    else if (arg == "-v" || arg == "--verbose") {
+
+    // ─── خيارات متنوعة أخرى ─────────────────────────────────────────────────
+    // (AR) خيارات عامة: الإسهاب، التحذيرات كأخطاء، والألوان
+    // (EN) General options: verbosity, warnings-as-errors, color output
+    } else if (arg == "-v" || arg == "--verbose") {
         options.verbose = true;
     } else if (arg == "-Werror") {
         options.warnings_as_errors = true;
@@ -2167,10 +2633,11 @@ bool CommandLineParser::parse_option(const std::string& arg, CompilerOptions& op
     } else if (arg == "--no-color") {
         options.color_diagnostics = false;
         colors::disable_colors();
-    }
-    
-    // (AR) خيارات نظام الملكية والاستعارة / Ownership & Borrow Check options
-    else if (arg == "--borrow-check" || arg == "--فحص-الاستعارة" || arg == "--ملكية") {
+
+    // ─── خيارات نظام الملكية والاستعارة ────────────────────────────────────
+    // (AR) التحكم في فحص الملكية والاستعارة (Ownership & Borrow Checker)
+    // (EN) Ownership & Borrow Check options
+    } else if (arg == "--borrow-check" || arg == "--فحص-الاستعارة" || arg == "--ملكية") {
         options.enable_borrow_check = true;
     } else if (arg == "--no-borrow-check" || arg == "--بدون-فحص-استعارة") {
         options.enable_borrow_check = false;

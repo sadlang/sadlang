@@ -371,8 +371,7 @@ public:
         if (الخيارات.كل_الملفات) {
             // البحث عن كل ملفات .ص
             for (const auto& entry : fs::recursive_directory_iterator(".")) {
-                if (entry.path().extension() == ".sad" || 
-                    entry.path().extension() == ".ص") {
+                if (entry.path().extension() == ".ص") {
                     الملفات.push_back(entry.path().string());
                 }
             }

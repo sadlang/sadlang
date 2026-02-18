@@ -333,7 +333,7 @@ protected:
     }
     
     // مساعدات / Helpers
-    SourceLocation loc(size_t line) { return SourceLocation("test.sad", line, 1); }
+    SourceLocation loc(size_t line) { return SourceLocation("test.ص", line, 1); }
     
     void declareVar(const std::string& name, size_t line, bool isCopy = false) {
         tracker.declareVariable(name, "T", loc(line), isCopy);

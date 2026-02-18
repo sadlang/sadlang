@@ -728,6 +728,19 @@ void BorrowChecker::visitOperatorDecl(AST::OperatorDecl& decl) {
     // (EN) Check operator overload declaration
 }
 
+void BorrowChecker::visitTraitDecl(AST::TraitDecl& decl) {
+    // (AR) فحص تصريح السمة — تحقق من الملكية في الدوال المعلنة
+    // (EN) Check trait declaration — verify ownership in declared methods
+}
+
+void BorrowChecker::visitImplDecl(AST::ImplDecl& decl) {
+    // (AR) فحص تنفيذ السمة — تحليل أجسام الدوال
+    // (EN) Check trait implementation — analyze method bodies
+    for (auto& method : decl.methods) {
+        if (method) method->accept(*this);
+    }
+}
+
 // ============================================================================
 // دوال مساعدة / Helper Functions
 // ============================================================================

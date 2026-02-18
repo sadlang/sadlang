@@ -1,0 +1,351 @@
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# ملف: cmake/tests.cmake
+# الوصف: جميع الاختبارات (unit, integration, stdlib) / All Tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+if(NOT BUILD_TESTS)
+    return()
+endif()
+
+enable_testing()
+
+# Find GTest (optional)
+find_package(GTest CONFIG QUIET)
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات المحلل النحوي / Parser Tests
+# ──────────────────────────────────────────────────────────────────────
+set(PARSER_TEST_SOURCES tests/parser_tests/test_runner.cpp)
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/parser_tests/test_lambda_simple.cpp")
+    add_executable(parser_tests ${PARSER_TEST_SOURCES})
+    target_link_libraries(parser_tests PRIVATE sad_core)
+    target_include_directories(parser_tests PRIVATE ${CMAKE_SOURCE_DIR}/tests/parser_tests)
+    set_target_properties(parser_tests PROPERTIES
+        OUTPUT_NAME "parser_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME ParserTests COMMAND parser_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات المحلل النحوي / Parser tests enabled")
+else()
+    message(STATUS "⚠ اختبارات المحلل النحوي غير متاحة / Parser tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات تحليل الوحدات / Module Parsing Tests
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/parser/test_module_parsing.cpp")
+    add_executable(test_module_parsing tests/parser/test_module_parsing.cpp)
+    target_link_libraries(test_module_parsing PRIVATE sad_core)
+    target_include_directories(test_module_parsing PRIVATE
+        ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests/parser)
+    set_target_properties(test_module_parsing PROPERTIES
+        OUTPUT_NAME "test_module_parsing" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME ModuleParsingTests COMMAND test_module_parsing WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات تحليل الوحدات / Module parsing tests enabled")
+else()
+    message(STATUS "⚠ اختبارات تحليل الوحدات غير متاحة / Module parsing tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات عُقد الأنواع / Type Nodes Tests
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/parser_tests/test_type_nodes.cpp")
+    add_executable(test_type_nodes tests/parser_tests/test_type_nodes.cpp)
+    target_link_libraries(test_type_nodes PRIVATE sad_core)
+    target_include_directories(test_type_nodes PRIVATE
+        ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests/parser_tests)
+    set_target_properties(test_type_nodes PROPERTIES
+        OUTPUT_NAME "test_type_nodes" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME TypeNodesTests COMMAND test_type_nodes WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات عُقد الأنواع / Type nodes tests enabled")
+else()
+    message(STATUS "⚠ اختبارات عُقد الأنواع غير متاحة / Type nodes tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات محمل الوحدات / Module Loader Tests
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/modules/test_module_loader.cpp")
+    add_executable(test_module_loader tests/modules/test_module_loader.cpp)
+    target_link_libraries(test_module_loader PRIVATE sad_core)
+    target_include_directories(test_module_loader PRIVATE
+        ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests/modules)
+    set_target_properties(test_module_loader PROPERTIES
+        OUTPUT_NAME "test_module_loader" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME ModuleLoaderTests COMMAND test_module_loader WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات محمل الوحدات / Module loader tests enabled")
+else()
+    message(STATUS "⚠ اختبارات محمل الوحدات غير متاحة / Module loader tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات محلل الرموز / Symbol Resolver Tests
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/modules/test_symbol_resolver.cpp")
+    add_executable(test_symbol_resolver tests/modules/test_symbol_resolver.cpp)
+    target_link_libraries(test_symbol_resolver PRIVATE sad_core)
+    target_include_directories(test_symbol_resolver PRIVATE
+        ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests/modules)
+    set_target_properties(test_symbol_resolver PROPERTIES
+        OUTPUT_NAME "test_symbol_resolver" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME SymbolResolverTests COMMAND test_symbol_resolver WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات محلل الرموز / Symbol resolver tests enabled")
+else()
+    message(STATUS "⚠ اختبارات محلل الرموز غير متاحة / Symbol resolver tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات محقق صحة الوحدات / Module Validator Tests
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/modules/test_module_validator.cpp")
+    add_executable(test_module_validator tests/modules/test_module_validator.cpp)
+    target_link_libraries(test_module_validator PRIVATE sad_core)
+    target_include_directories(test_module_validator PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    add_test(NAME ModuleValidatorTests COMMAND test_module_validator WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات محقق صحة الوحدات / Module validator tests enabled")
+else()
+    message(STATUS "⚠ اختبارات محقق صحة الوحدات غير متاحة / Module validator tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات التكامل الشاملة / End-to-End Integration Tests
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/modules/integration/test_end_to_end.cpp")
+    add_executable(test_integration_e2e tests/modules/integration/test_end_to_end.cpp)
+    target_link_libraries(test_integration_e2e PRIVATE GTest::gtest sad_core)
+    target_include_directories(test_integration_e2e PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    add_test(NAME IntegrationEndToEndTests COMMAND test_integration_e2e WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات التكامل / End-to-end integration tests enabled")
+else()
+    message(STATUS "⚠ اختبارات التكامل غير متاحة / Integration tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات بناء SIR / SIR Builder Tests
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_builder.cpp")
+    add_executable(sir_builder_tests tests/compiler/frontend/test_sir_builder.cpp)
+    target_link_libraries(sir_builder_tests PRIVATE sad_core)
+    target_include_directories(sir_builder_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/compiler/frontend/include ${CMAKE_SOURCE_DIR}/parser/include)
+    set_target_properties(sir_builder_tests PROPERTIES
+        OUTPUT_NAME "sir_builder_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME SIRBuilderTests COMMAND sir_builder_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات بناء SIR / SIR Builder tests enabled")
+else()
+    message(STATUS "⚠ اختبارات بناء SIR غير متاحة / SIR Builder tests not available")
+endif()
+
+# SIR Integration Tests
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_integration.cpp")
+    add_executable(sir_integration_tests tests/compiler/frontend/test_sir_integration.cpp)
+    target_link_libraries(sir_integration_tests PRIVATE sad_core)
+    target_include_directories(sir_integration_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/compiler/frontend/include ${CMAKE_SOURCE_DIR}/parser/include)
+    set_target_properties(sir_integration_tests PROPERTIES
+        OUTPUT_NAME "sir_integration_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME SIRIntegrationTests COMMAND sir_integration_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات تكامل SIR / SIR Integration tests enabled")
+else()
+    message(STATUS "⚠ اختبارات تكامل SIR غير متاحة / SIR Integration tests not available")
+endif()
+
+# SIR Edge Cases Tests
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_edge_cases.cpp")
+    add_executable(sir_edge_cases_tests tests/compiler/frontend/test_sir_edge_cases.cpp)
+    target_link_libraries(sir_edge_cases_tests PRIVATE sad_core)
+    target_include_directories(sir_edge_cases_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/compiler/frontend/include ${CMAKE_SOURCE_DIR}/parser/include)
+    set_target_properties(sir_edge_cases_tests PROPERTIES
+        OUTPUT_NAME "sir_edge_cases_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME SIREdgeCasesTests COMMAND sir_edge_cases_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات الحالات الحدية SIR / SIR Edge Cases tests enabled")
+else()
+    message(STATUS "⚠ اختبارات الحالات الحدية SIR غير متاحة / SIR Edge Cases tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات دوال الإدخال والإخراج / I/O Functions Tests
+# ──────────────────────────────────────────────────────────────────────
+add_executable(io_functions_tests tests/stdlib_tests/test_io_simple.cpp)
+target_link_libraries(io_functions_tests PRIVATE sad_core)
+target_include_directories(io_functions_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+set_target_properties(io_functions_tests PROPERTIES
+    OUTPUT_NAME "io_functions_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+add_test(NAME IOFunctionsTests COMMAND io_functions_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات محسّن اللغة العربية / Arabic Optimizer Tests
+# ──────────────────────────────────────────────────────────────────────
+add_executable(test_arabic_optimizer tests/test_arabic_optimizer.cpp)
+target_include_directories(test_arabic_optimizer PRIVATE
+    ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/compiler/llvm/include)
+set_target_properties(test_arabic_optimizer PROPERTIES
+    OUTPUT_NAME "test_arabic_optimizer" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+add_test(NAME ArabicOptimizerTests COMMAND test_arabic_optimizer WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+message(STATUS "✓ اختبارات محسّن اللغة العربية (standalone) / Arabic Optimizer tests enabled")
+
+# ──────────────────────────────────────────────────────────────────────
+# قياسات أداء التحسينات / Optimization Benchmarks
+# ──────────────────────────────────────────────────────────────────────
+add_executable(benchmark_arabic_opt tests/benchmark_arabic_opt.cpp)
+target_include_directories(benchmark_arabic_opt PRIVATE ${CMAKE_SOURCE_DIR}/include)
+set_target_properties(benchmark_arabic_opt PROPERTIES
+    OUTPUT_NAME "benchmark_arabic_opt" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+message(STATUS "✓ قياسات أداء محسّن اللغة العربية / Arabic Optimizer benchmarks enabled")
+
+# ──────────────────────────────────────────────────────────────────────
+# المحسن المتقدم (معطل - يحتاج GTest) / Advanced Optimizer (disabled)
+# ──────────────────────────────────────────────────────────────────────
+# DISABLED: uses old include path (parser/parser_core.h)
+if(FALSE AND EXISTS "${CMAKE_SOURCE_DIR}/tests/optimizer/advanced_optimizer_test.cpp")
+    add_executable(optimizer_tests tests/optimizer/advanced_optimizer_test.cpp)
+    target_link_libraries(optimizer_tests PRIVATE sad_core)
+    target_include_directories(optimizer_tests PRIVATE ${CMAKE_SOURCE_DIR})
+    set_target_properties(optimizer_tests PROPERTIES
+        OUTPUT_NAME "optimizer_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME OptimizerTests COMMAND optimizer_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات المحسن المتقدم / Advanced Optimizer tests enabled")
+else()
+    message(STATUS "⚠ اختبارات المحسن المتقدم غير متاحة / Advanced Optimizer tests not available")
+endif()
+
+# المحسن البسيط / Simple Optimizer Tests
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/optimizer/test_optimizer_simple.cpp")
+    add_executable(optimizer_simple_tests tests/optimizer/test_optimizer_simple.cpp)
+    target_link_libraries(optimizer_simple_tests PRIVATE sad_core)
+    target_include_directories(optimizer_simple_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    set_target_properties(optimizer_simple_tests PROPERTIES
+        OUTPUT_NAME "optimizer_simple_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME OptimizerSimpleTests COMMAND optimizer_simple_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات المحسن البسيطة / Simple Optimizer tests enabled")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات البرمجة الكائنية / OOP Tests
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/oop_tests/class_declaration_tests.cpp")
+    add_executable(oop_tests tests/oop_tests/class_declaration_tests.cpp)
+    target_link_libraries(oop_tests PRIVATE sad_core)
+    target_include_directories(oop_tests PRIVATE ${CMAKE_SOURCE_DIR})
+    set_target_properties(oop_tests PROPERTIES
+        OUTPUT_NAME "oop_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME OOPTests COMMAND oop_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات البرمجة الكائنية / OOP tests enabled")
+else()
+    message(STATUS "⚠ اختبارات البرمجة الكائنية غير متاحة / OOP tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات الواجهة الأمامية للمترجم / Compiler Frontend Tests
+# ──────────────────────────────────────────────────────────────────────
+
+# SIR Types Tests
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_types.cpp"
+   AND EXISTS "${CMAKE_SOURCE_DIR}/compiler/frontend/src/type_info.cpp")
+    add_executable(sir_types_tests
+        tests/compiler/frontend/test_sir_types.cpp
+        compiler/frontend/src/type_info.cpp)
+    target_link_libraries(sir_types_tests PRIVATE sad_core)
+    target_include_directories(sir_types_tests PRIVATE ${CMAKE_SOURCE_DIR}/compiler/frontend/include)
+    set_target_properties(sir_types_tests PROPERTIES
+        OUTPUT_NAME "sir_types_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME SIRTypesTests COMMAND sir_types_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات أنواع SIR / SIR Types tests enabled")
+else()
+    message(STATUS "⚠ اختبارات أنواع SIR غير متاحة / SIR Types tests not available")
+endif()
+
+# SIR Instruction Tests (updated to current API - February 2026)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/frontend/test_sir_instruction.cpp")
+    add_executable(sir_instruction_tests tests/compiler/frontend/test_sir_instruction.cpp)
+    target_link_libraries(sir_instruction_tests PRIVATE sad_core)
+    target_include_directories(sir_instruction_tests PRIVATE ${CMAKE_SOURCE_DIR}/compiler/frontend/include)
+    set_target_properties(sir_instruction_tests PROPERTIES
+        OUTPUT_NAME "sir_instruction_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME SIRInstructionTests COMMAND sir_instruction_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات تعليمات SIR / SIR Instruction tests enabled")
+else()
+    message(STATUS "⚠ اختبارات تعليمات SIR غير متاحة / SIR Instruction tests not available")
+endif()
+
+message(STATUS "⊘ اختبارات وحدات SIR معطلة مؤقتاً / SIR Module tests disabled (WIP)")
+
+# SIR Optimizer Tests
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/optimizer/CMakeLists.txt")
+    add_subdirectory(tests/compiler/optimizer)
+    message(STATUS "✓ اختبارات محسّن SIR / SIR Optimizer tests enabled")
+else()
+    message(STATUS "⚠ اختبارات محسّن SIR غير متاحة / SIR Optimizer tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات المستوى المنخفض / Low-Level Tests
+# ──────────────────────────────────────────────────────────────────────
+message(STATUS "⊘ اختبارات نظام المؤشرات معطلة مؤقتاً / Pointer system tests disabled (WIP)")
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/low_level/test_bitwise.cpp")
+    add_executable(bitwise_tests tests/low_level/test_bitwise.cpp)
+    target_link_libraries(bitwise_tests PRIVATE sad_core)
+    target_include_directories(bitwise_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    set_target_properties(bitwise_tests PROPERTIES
+        OUTPUT_NAME "bitwise_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME BitwiseTests COMMAND bitwise_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات العمليات الثنائية / Bitwise operations tests enabled")
+else()
+    message(STATUS "⚠ اختبارات العمليات الثنائية غير متاحة / Bitwise operations tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات المكتبات القياسية / Standard Library Tests
+# ──────────────────────────────────────────────────────────────────────
+
+# اختبارات نظام الملفات / Filesystem Tests
+add_executable(filesystem_tests tests/stdlib/test_filesystem_module.cpp)
+target_include_directories(filesystem_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(filesystem_tests PRIVATE sad_core GTest::gtest GTest::gtest_main)
+set_target_properties(filesystem_tests PROPERTIES
+    OUTPUT_NAME "filesystem_tests" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
+
+# اختبارات HTTP / HTTP Tests
+add_executable(http_tests tests/stdlib/test_http_module.cpp)
+target_include_directories(http_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(http_tests PRIVATE sad_core GTest::gtest GTest::gtest_main)
+if(WIN32)
+    target_link_libraries(http_tests PRIVATE ws2_32)
+endif()
+set_target_properties(http_tests PROPERTIES
+    OUTPUT_NAME "http_tests" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
+
+# اختبارات HTTP الجديدة (معطلة) / New HTTP Tests (disabled)
+if(BUILD_TESTS AND TARGET sad_http)
+    add_subdirectory(tests/network/http)
+endif()
+
+# اختبارات JSON/XML / JSON/XML Tests
+add_executable(json_xml_tests tests/stdlib/test_json_module.cpp tests/stdlib/test_xml_module.cpp)
+target_include_directories(json_xml_tests PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(json_xml_tests PRIVATE sad_core GTest::gtest GTest::gtest_main)
+set_target_properties(json_xml_tests PROPERTIES
+    OUTPUT_NAME "json_xml_tests" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
+
+# اختبارات التشفير / Cryptography Tests
+if(OPENSSL_FOUND)
+    add_executable(crypto_tests tests/stdlib/test_crypto_module.cpp)
+    target_include_directories(crypto_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(crypto_tests PRIVATE
+        sad_core GTest::gtest GTest::gtest_main OpenSSL::SSL OpenSSL::Crypto)
+    set_target_properties(crypto_tests PROPERTIES
+        OUTPUT_NAME "crypto_tests" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
+endif()
+
+# Type Checker Tests
+if(EXISTS "${CMAKE_SOURCE_DIR}/compiler/frontend/type_checker/tests/CMakeLists.txt")
+    add_subdirectory(compiler/frontend/type_checker/tests)
+    message(STATUS "✓ اختبارات Type Checker / Type Checker tests enabled")
+else()
+    message(STATUS "⚠ اختبارات Type Checker غير متاحة / Type Checker tests not available")
+endif()
+
+message(STATUS "✓ الاختبارات مفعلة / Tests enabled")

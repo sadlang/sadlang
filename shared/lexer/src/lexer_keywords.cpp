@@ -84,12 +84,22 @@ void KeywordTable::initialize() {
    
     keywords_["هذا"] = TokenType::KEYWORD_THIS;
    
-    keywords_["باني"] = TokenType::KEYWORD_CONSTRUCTOR;
-    keywords_["constructor"] = TokenType::KEYWORD_CONSTRUCTOR;
-    keywords_["باني"] = TokenType::KEYWORD_CONSTRUCTOR_ALT;   // Alternative constructor keyword
+    // ─────────────────────────────────────────────────────────────────────────
+    // (AR) كلمات الباني/المنشئ - تم توحيدها جميعاً على KEYWORD_CONSTRUCTOR
+    // (EN) Constructor keywords - unified to KEYWORD_CONSTRUCTOR
+    // ─────────────────────────────────────────────────────────────────────────
+    keywords_["باني"] = TokenType::KEYWORD_CONSTRUCTOR;        // (AR) الكلمة الأساسية للباني
+    keywords_["بناء"] = TokenType::KEYWORD_CONSTRUCTOR;        // (AR) مرادف: بناء
+    keywords_["منشئ"] = TokenType::KEYWORD_CONSTRUCTOR;        // (AR) مرادف: منشئ
+    keywords_["constructor"] = TokenType::KEYWORD_CONSTRUCTOR; // (EN) English alternative
     keywords_["مدمر"] = TokenType::KEYWORD_DESTRUCTOR;         // Destructor
+    keywords_["هادم"] = TokenType::KEYWORD_DESTRUCTOR;         // Alternative destructor keyword
    
     keywords_["الأساس"] = TokenType::KEYWORD_SUPER;           // Super/base class
+    keywords_["الاساس"] = TokenType::KEYWORD_SUPER;           // Super/base class (without hamza)
+    keywords_["أساس"] = TokenType::KEYWORD_SUPER;             // Super/base class (without ال)
+    keywords_["اساس"] = TokenType::KEYWORD_SUPER;             // Super/base class (without ال and hamza)
+    keywords_["super"] = TokenType::KEYWORD_SUPER;             // Super/base class (English)
   
  
     
@@ -176,10 +186,11 @@ void KeywordTable::initialize() {
     // ========== الكلمات المفتاحية - الوراثة ==========
     // Keywords - Inheritance (spec 04_syntax.md)
     // NOTE: 'يرث' already registered as KEYWORD_INHERITS at line 59
-    // NOTE: Advanced OOP (implements, interface, abstract, override) removed - Phase 2
+    keywords_["\xD9\x85\xD8\xAC\xD8\xB1\xD8\xAF"] = TokenType::KEYWORD_ABSTRACT; // مجرد
+    keywords_["abstract"] = TokenType::KEYWORD_ABSTRACT;
     // NOTE: virtual removed - conflicts with DEFAULT (افتراضي)
     
-    DEBUG_PRINT("تمت إضافة 0 كلمة: الوراثة (مسجلة بالفعل في القسم OOP)");
+    DEBUG_PRINT("تمت إضافة 2 كلمة: الوراثة (abstract)");
     
     // ========== الكلمات المفتاحية - الوحدات ==========
     // Keywords - Modules (spec 08_modules_and_ffi.md)
@@ -370,6 +381,9 @@ void KeywordTable::initialize() {
     // (AR) كلمة 'سمة' — تعريف واجهة/سمة (مثل trait في Rust)
     // (EN) 'trait' — trait/interface definition
     keywords_["سمة"] = TokenType::KEYWORD_TRAIT;
+    keywords_["واجهة"] = TokenType::KEYWORD_TRAIT;  // (AR) بديل: واجهة = interface
+    keywords_["interface"] = TokenType::KEYWORD_TRAIT;
+    keywords_["trait"] = TokenType::KEYWORD_TRAIT;
 
     
     // (AR) كلمة 'نفّذ' — تنفيذ سمة لنوع معين (مثل impl في Rust)

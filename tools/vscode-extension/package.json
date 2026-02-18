@@ -38,8 +38,7 @@
           "ص"
         ],
         "extensions": [
-          ".s",
-          ".sad"
+          ".ص"
         ],
         "configuration": "./language-configuration.json",
         "icon": {

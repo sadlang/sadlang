@@ -114,8 +114,11 @@ enum class TokenType {
     KEYWORD_END,            ///< نهاية / end (NEW: spec 03_oop.md §1 - class/block terminator)
     KEYWORD_NEW,            ///< جديد / new
     KEYWORD_THIS,           ///< هذا / this
-    KEYWORD_CONSTRUCTOR,    ///< منشئ / constructor
-    KEYWORD_CONSTRUCTOR_ALT,///< باني / constructor (alternative)
+    // ─────────────────────────────────────────────────────────────────────────
+    // (AR) كلمة الباني الموحدة - تشمل: باني، منشئ، بناء، constructor
+    // (EN) Unified constructor keyword - includes: باني، منشئ، بناء، constructor
+    // ─────────────────────────────────────────────────────────────────────────
+    KEYWORD_CONSTRUCTOR,    ///< باني/منشئ/بناء / constructor
     KEYWORD_DESTRUCTOR,     ///< مدمر / destructor
     KEYWORD_SUPER,          ///< الأساس / super (base class)
     
@@ -154,7 +157,7 @@ enum class TokenType {
     
     // ========== الكلمات المفتاحية - الوراثة / Keywords - Inheritance ==========
     KEYWORD_EXTENDS,        ///< يرث / extends (same as KEYWORD_INHERITS - spec 04_syntax.md)
-    // NOTE: Advanced OOP features (implements, interface, abstract, override) removed - Phase 2
+    KEYWORD_ABSTRACT,       ///< مجرد / abstract (abstract class/method)
     // NOTE: virtual removed - conflicts with DEFAULT keyword (افتراضي)
     
     // ========== الكلمات المفتاحية - الوحدات / Keywords - Modules (spec 08_modules_and_ffi.md) ==========
@@ -291,6 +294,13 @@ enum class TokenType {
     OP_AND,                 ///< && و / logical AND
     OP_OR,                  ///< || أو / logical OR
     OP_NOT,                 ///< ! ليس / logical NOT
+    
+    // ========== عوامل البت / Bitwise Operators ==========
+    OP_XOR,                 ///< ^ XOR بتّي / bitwise XOR
+    OP_BITWISE_AND,         ///< & AND بتّي / bitwise AND
+    OP_BITWISE_OR,          ///< | OR بتّي / bitwise OR
+    OP_SHIFT_LEFT,          ///< << إزاحة يسار / left shift
+    OP_SHIFT_RIGHT,         ///< >> إزاحة يمين / right shift
     
     // ========== عامل الأنبوب / Pipeline Operator ==========
     OP_PIPE_ARROW,          ///< |> أنبوب / pipeline operator

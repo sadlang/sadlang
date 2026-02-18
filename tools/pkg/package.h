@@ -584,7 +584,7 @@ public:
                 if (!entry.is_regular_file()) continue;
 
                 auto ext = entry.path().extension().string();
-                if (ext == ".s" || ext == ".sad") {
+                if (ext == ".ص" || ext == u8".ص") {
                     // Check if excluded - التحقق من الاستثناء
                     bool excluded = false;
                     for (const auto& pattern : exclude_patterns) {

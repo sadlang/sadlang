@@ -135,6 +135,54 @@ struct CompilerOptions {
     TargetTriple target = TargetTriple::get_host_target();
     bool freestanding = false;               // نظام مستقل / Freestanding (no OS)
     bool position_independent_code = false;  // PIC for shared libraries
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // ========== Freestanding / No-std Options - خيارات وضع بلا مكتبة ==========
+    // ──────────────────────────────────────────────────────────────────────────
+    //
+    // (AR) هذه الخيارات مخصصة لوضع Freestanding (bare-metal):
+    //   المناسب لكتابة أنظمة التشغيل، المتحكمات الدقيقة، UEFI...
+    //   تُفعَّل تلقائياً عند اكتشاف #![بلا_مكتبة_قياسية] في الكود أو
+    //   يدوياً بعلامة --freestanding من سطر الأوامر.
+    //
+    // (EN) These options are for Freestanding mode (bare-metal):
+    //   Suitable for OS kernels, microcontrollers, UEFI applications...
+    //   Auto-activated when #![no_std] is detected, or manually via --freestanding.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * (AR) تعطيل دالة main الافتراضية
+     *      يُستخدم مع freestanding لتعريف نقطة دخول مخصصة (_start)
+     *      يُفعَّل تلقائياً عند اكتشاف #![بلا_رئيسية] في الكود
+     * (EN) Disable default main() entry point
+     */
+    bool no_main = false;
+
+    /**
+     * (AR) إيقاف عند الذعر بدلاً من stack unwinding
+     *      في وضع freestanding لا يمكن استخدام استثناءات C++
+     *      يُفعَّل تلقائياً عند اكتشاف #![إيقاف_عند_ذعر] في الكود
+     * (EN) Abort on panic instead of C++ exception stack unwinding
+     */
+    bool abort_on_panic = false;
+
+    /**
+     * (AR) السماح بالتخصيص الديناميكي في وضع freestanding
+     *      يتطلب تسجيل مُخصّص مخصص (#[معالج_تخصيص] / #[alloc_error_handler])
+     *      افتراضياً: محظور لتجنب الأخطاء غير المقصودة
+     * (EN) Allow dynamic allocation in freestanding mode
+     */
+    bool allow_freestanding_alloc = false;
+
+    /**
+     * (AR) اسم دالة نقطة الدخول المخصصة
+     *      مثال: "_start", "kernel_main", "uefi_main"
+     *      يُمرَّر للرابط كـ --entry أو -e
+     * (EN) Custom entry point function name passed to linker
+     */
+    std::string freestanding_entry;
+
+    // ──────────────────────────────────────────────────────────────────────────
     
     // ========== Debug ==========
     bool debug_info = false;                 // معلومات التنقيح / Debug info (DWARF)

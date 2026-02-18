@@ -128,6 +128,71 @@ static const std::vector<KeywordSnippet>& get_keyword_snippets() {
             "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xaa\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86 \xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9 ${1:\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd9\x85}(${2}) {\n\t${0}\n}",
             true, CompletionItemKind::Keyword
         },
+        // ──── بنية (struct) ────
+        {
+            "\xd8\xa8\xd9\x86\xd9\x8a\xd8\xa9", // بنية
+            "\xd8\xa8\xd9\x86\xd9\x8a\xd8\xa9 (تعريف بنية)",
+            "تعريف بنية بيانات جديدة (struct)",
+            "\xd8\xa8\xd9\x86\xd9\x8a\xd8\xa9 ${1:\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd9\x85} {\n\t${2:\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd9\x85}: ${3:\xd8\xa7\xd9\x84\xd9\x86\xd9\x88\xd8\xb9}\n\t${0}\n}",
+            true, CompletionItemKind::Keyword
+        },
+        // ──── تعداد (enum) ────
+        {
+            "\xd8\xaa\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf", // تعداد
+            "\xd8\xaa\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf (تعريف تعداد)",
+            "تعريف تعداد قيم محددة (enum)",
+            "\xd8\xaa\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf ${1:\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd9\x85} {\n\t${2:\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9_1}\n\t${3:\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9_2}\n\t${0}\n}",
+            true, CompletionItemKind::Keyword
+        },
+        // ──── سمة (trait) ────
+        {
+            "\xd8\xb3\xd9\x85\xd8\xa9", // سمة
+            "\xd8\xb3\xd9\x85\xd8\xa9 (تعريف سمة)",
+            "تعريف سمة (واجهة) يمكن تنفيذها بواسطة الأصناف (trait)",
+            "\xd8\xb3\xd9\x85\xd8\xa9 ${1:\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd9\x85} {\n\t\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9 ${2:\xd8\xa7\xd9\x84\xd8\xb7\xd8\xb1\xd9\x8a\xd9\x82\xd8\xa9}(${3})\n\t${0}\n}",
+            true, CompletionItemKind::Keyword
+        },
+        // ──── تنفيذ (impl) ────
+        {
+            "\xd8\xaa\xd9\x86\xd9\x81\xd9\x8a\xd8\xb0", // تنفيذ
+            "\xd8\xaa\xd9\x86\xd9\x81\xd9\x8a\xd8\xb0 (تنفيذ سمة)",
+            "تنفيذ سمة لصنف أو بنية (impl)",
+            "\xd8\xaa\xd9\x86\xd9\x81\xd9\x8a\xd8\xb0 ${1:\xd8\xa7\xd9\x84\xd8\xb3\xd9\x85\xd8\xa9} \xd9\x84 ${2:\xd8\xa7\xd9\x84\xd8\xb5\xd9\x86\xd9\x81} {\n\t${0}\n}",
+            true, CompletionItemKind::Keyword
+        },
+        // ──── فضاء (namespace) ────
+        {
+            "\xd9\x81\xd8\xb6\xd8\xa7\xd8\xa1", // فضاء
+            "\xd9\x81\xd8\xb6\xd8\xa7\xd8\xa1 (فضاء أسماء)",
+            "تعريف فضاء أسماء لتنظيم الكود (namespace)",
+            "\xd9\x81\xd8\xb6\xd8\xa7\xd8\xa1 ${1:\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd9\x85} {\n\t${0}\n}",
+            true, CompletionItemKind::Keyword
+        },
+        // ──── انتظر (await) ────
+        {"\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1", "\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1", "انتظار نتيجة عملية غير متزامنة (await)",
+         "\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1 ${0}", true, CompletionItemKind::Keyword},
+        // ──── اختبار (test) ────
+        {
+            "\xd8\xa7\xd8\xae\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb1", // اختبار
+            "\xd8\xa7\xd8\xae\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb1 (كتلة اختبار)",
+            "تعريف كتلة اختبار وحدوية (test block)",
+            "\xd8\xa7\xd8\xae\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb1 \"${1:\xd8\xa7\xd8\xb3\xd9\x85_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xae\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb1}\" {\n\t${0}\n}",
+            true, CompletionItemKind::Keyword
+        },
+        // ──── ذري (atomic) ────
+        {"\xd8\xb0\xd8\xb1\xd9\x8a", "\xd8\xb0\xd8\xb1\xd9\x8a", "تعريف متغير ذري آمن للخيوط (atomic)",
+         "\xd8\xb0\xd8\xb1\xd9\x8a ${1:\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd9\x85}: ${2:\xd8\xa7\xd9\x84\xd9\x86\xd9\x88\xd8\xb9} = ${0}", true, CompletionItemKind::Keyword},
+        // ──── صدّر (export) ────
+        {"\xd8\xb5\xd8\xaf\xd9\x91\xd8\xb1", "\xd8\xb5\xd8\xaf\xd9\x91\xd8\xb1 (تصدير)", "تصدير رمز للاستخدام في ملفات أخرى",
+         "\xd8\xb5\xd8\xaf\xd9\x91\xd8\xb1 ${0}", true, CompletionItemKind::Keyword},
+        // ──── من (from import) ────
+        {
+            "\xd9\x85\xd9\x86", // من
+            "\xd9\x85\xd9\x86 ... \xd8\xa7\xd8\xb3\xd8\xaa\xd9\x88\xd8\xb1\xd8\xaf (استيراد جزئي)",
+            "استيراد رموز محددة من وحدة",
+            "\xd9\x85\xd9\x86 \"${1:\xd8\xa7\xd9\x84\xd9\x88\xd8\xad\xd8\xaf\xd8\xa9}\" \xd8\xa7\xd8\xb3\xd8\xaa\xd9\x88\xd8\xb1\xd8\xaf ${0}",
+            true, CompletionItemKind::Keyword
+        },
         // ──── أنواع البيانات ────
         {"\xd8\xb1\xd9\x82\xd9\x85", "\xd8\xb1\xd9\x82\xd9\x85 (نوع)", "نوع عدد صحيح", "\xd8\xb1\xd9\x82\xd9\x85", false, CompletionItemKind::TypeParameter},
         {"\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a", "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a (نوع)", "نوع عدد عشري", "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a", false, CompletionItemKind::TypeParameter},
@@ -279,25 +344,77 @@ CompletionList LspEngine::completion(const DocumentUri& uri, const Position& pos
             return list; // لا نضيف شيئاً آخر في سياق الأعضاء
         }
 
-        // Postfix completions: عند كتابة شيء.اطبع → اطبع(شيء)
+        // ══════════════════════════════════════════════════════════════
+        //  Postfix completions: تحويلات ذكية بعد النقطة
+        //  مثال: قائمة.اطبع → اطبع(قائمة)
+        //  مثال: قائمة.طول → طول(قائمة)
+        //  مثال: قائمة.لكل → لكل عنصر في قائمة { }
+        // ══════════════════════════════════════════════════════════════
         std::string prefix_after_dot = current_word;
         if (!prefix_after_dot.empty()) {
-            // اقتراح postfix: اطبع
-            std::string kw_print = "\xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9"; // اطبع
-            if (arabic::fuzzy_match_arabic(arabic::normalize_arabic(prefix_after_dot),
-                                            arabic::normalize_arabic(kw_print))) {
-                CompletionItem item;
-                item.label = ".اطبع → اطبع(" + object_name + ")";
-                item.kind = CompletionItemKind::Snippet;
-                item.detail = "تحويل إلى استدعاء اطبع";
-                // نحتاج استبدال object.اطبع بـ اطبع(object)
-                TextEdit te;
-                te.range.start = {pos.line, static_cast<int>(current_line.find(object_name))};
-                te.range.end = {pos.line, pos.character};
-                te.new_text = kw_print + "(" + object_name + ")";
-                item.text_edit = te;
-                item.sort_text = "0_postfix";
-                list.items.push_back(item);
+            std::string norm_prefix = arabic::normalize_arabic(prefix_after_dot);
+
+            // ──── مصفوفة تحويلات postfix ────
+            struct PostfixTemplate {
+                std::string keyword;  // الكلمة المفتاحية
+                std::string label;    // العنوان المعروض
+                std::string detail;   // شرح مختصر
+                std::string transform; // النص الناتج (OBJ يُستبدل باسم الكائن)
+            };
+
+            static const std::vector<PostfixTemplate> postfix_templates = {
+                {"\xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9", // اطبع
+                 ".\xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9 \xe2\x86\x92 \xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9(OBJ)",
+                 "تحويل إلى استدعاء اطبع",
+                 "\xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9(OBJ)"},
+                {"\xd8\xb7\xd9\x88\xd9\x84", // طول
+                 ".\xd8\xb7\xd9\x88\xd9\x84 \xe2\x86\x92 \xd8\xb7\xd9\x88\xd9\x84(OBJ)",
+                 "الحصول على الطول",
+                 "\xd8\xb7\xd9\x88\xd9\x84(OBJ)"},
+                {"\xd9\x86\xd9\x88\xd8\xb9", // نوع
+                 ".\xd9\x86\xd9\x88\xd8\xb9 \xe2\x86\x92 \xd9\x86\xd9\x88\xd8\xb9(OBJ)",
+                 "الحصول على النوع",
+                 "\xd9\x86\xd9\x88\xd8\xb9(OBJ)"},
+                {"\xd9\x84\xd9\x83\xd9\x84", // لكل
+                 ".\xd9\x84\xd9\x83\xd9\x84 \xe2\x86\x92 \xd9\x84\xd9\x83\xd9\x84 \xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 \xd9\x81\xd9\x8a OBJ {}",
+                 "تحويل إلى حلقة لكل",
+                 "\xd9\x84\xd9\x83\xd9\x84 ${1:\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1} \xd9\x81\xd9\x8a OBJ {\n\t${0}\n}"},
+                {"\xd8\xa5\xd8\xb0\xd8\xa7", // إذا
+                 ".\xd8\xa5\xd8\xb0\xd8\xa7 \xe2\x86\x92 \xd8\xa5\xd8\xb0\xd8\xa7 (OBJ) {}",
+                 "تحويل إلى جملة شرطية",
+                 "\xd8\xa5\xd8\xb0\xd8\xa7 (OBJ) {\n\t${0}\n}"},
+                {"\xd9\x86\xd8\xb5", // نص
+                 ".\xd9\x86\xd8\xb5 \xe2\x86\x92 \xd9\x86\xd8\xb5(OBJ)",
+                 "تحويل إلى نص",
+                 "\xd9\x86\xd8\xb5(OBJ)"},
+            };
+
+            for (const auto& tmpl : postfix_templates) {
+                if (arabic::fuzzy_match_arabic(norm_prefix,
+                        arabic::normalize_arabic(tmpl.keyword))) {
+                    CompletionItem item;
+                    // استبدال OBJ باسم الكائن الحقيقي
+                    std::string result_text = tmpl.transform;
+                    size_t obj_pos;
+                    while ((obj_pos = result_text.find("OBJ")) != std::string::npos) {
+                        result_text.replace(obj_pos, 3, object_name);
+                    }
+                    std::string label_text = tmpl.label;
+                    while ((obj_pos = label_text.find("OBJ")) != std::string::npos) {
+                        label_text.replace(obj_pos, 3, object_name);
+                    }
+                    item.label = label_text;
+                    item.kind = CompletionItemKind::Snippet;
+                    item.detail = tmpl.detail;
+                    TextEdit te;
+                    te.range.start = {pos.line, static_cast<int>(current_line.find(object_name))};
+                    te.range.end = {pos.line, pos.character};
+                    te.new_text = result_text;
+                    item.text_edit = te;
+                    item.insert_text_format = InsertTextFormat::Snippet;
+                    item.sort_text = "0_postfix";
+                    list.items.push_back(item);
+                }
             }
         }
 

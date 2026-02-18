@@ -208,7 +208,8 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
                 methodDecl->parameters,
                 methodDecl->body ? std::unique_ptr<AST::BlockStmt>(dynamic_cast<AST::BlockStmt*>(methodDecl->body.release())) : nullptr,
                 methodDecl->isStatic,
-                methodDecl->isVirtual
+                methodDecl->isVirtual,
+                methodDecl->isAbstract
             );
             
             #ifdef DEBUG_OOP
@@ -440,6 +441,105 @@ void StatementExecutor::instantiateTemplateClass(AST::TemplateClassDecl& templat
     // (AR) تسجيل الصنف الملموس
     // (EN) Register the concrete class
     classManager->registerClass(std::move(classType));
+}
+
+// ======================================================================
+// (AR) تنفيذ تصريح واجهة/سمة / (EN) Execute Trait Declaration
+// ======================================================================
+
+void StatementExecutor::visitTraitDecl(AST::TraitDecl& node) {
+    // (AR) إنشاء تعريف الواجهة
+    // (EN) Create trait definition
+    auto* classManager = ClassManager::getInstance();
+    
+    TraitDefinition traitDef(node.name);
+    traitDef.superTraits = node.superTraits;
+    
+    // (AR) تحويل دوال الواجهة
+    // (EN) Convert trait methods
+    for (auto& method : node.methods) {
+        TraitMethodInfo info;
+        info.name = method.name;
+        info.returnType = method.returnType;
+        info.hasDefaultImpl = (method.defaultImpl != nullptr);
+        
+        for (const auto& param : method.params) {
+            info.paramTypes.push_back(param.type);
+        }
+        
+        traitDef.requiredMethods.push_back(std::move(info));
+    }
+    
+    // (AR) تسجيل الواجهة في مدير الأصناف
+    // (EN) Register trait in class manager
+    if (!classManager->registerTrait(std::move(traitDef))) {
+        throw std::runtime_error(
+            "(AR) الواجهة '" + node.name + "' معرّفة مسبقاً. "
+            "(EN) Trait '" + node.name + "' is already defined.");
+    }
+}
+
+// ======================================================================
+// (AR) تنفيذ كتلة التنفيذ (impl) / (EN) Execute Impl Block
+// ======================================================================
+
+void StatementExecutor::visitImplDecl(AST::ImplDecl& node) {
+    auto* classManager = ClassManager::getInstance();
+    
+    // (AR) التحقق من وجود الصنف المستهدف
+    // (EN) Verify target class exists
+    ClassType* targetClass = classManager->getClass(node.targetType);
+    if (!targetClass) {
+        throw std::runtime_error(
+            "(AR) الصنف '" + node.targetType + "' غير معرّف. "
+            "(EN) Class '" + node.targetType + "' is not defined.");
+    }
+    
+    // (AR) إضافة الدوال من كتلة التنفيذ إلى الصنف
+    // (EN) Add methods from impl block to the class
+    for (auto& method : node.methods) {
+        // (AR) معالجة كل دالة
+        auto* funcDecl = dynamic_cast<AST::FunctionDecl*>(method.get());
+        if (funcDecl) {
+            // (AR) تحويل الجسم إلى BlockStmt
+            std::unique_ptr<AST::BlockStmt> bodyBlock = nullptr;
+            if (funcDecl->body) {
+                auto* block = dynamic_cast<AST::BlockStmt*>(funcDecl->body.get());
+                if (block) {
+                    bodyBlock = std::unique_ptr<AST::BlockStmt>(
+                        dynamic_cast<AST::BlockStmt*>(funcDecl->body.release()));
+                }
+            }
+            
+            targetClass->addMethod(
+                funcDecl->name,
+                AST::Visibility::PUBLIC,
+                nullptr,  // returnType as Type*
+                funcDecl->parameters,
+                std::move(bodyBlock),
+                false,  // isStatic
+                false   // isVirtual
+            );
+        }
+    }
+    
+    // (AR) إذا كانت هناك واجهة محددة، التحقق منها وتسجيلها
+    // (EN) If there's a specific trait, validate and register it
+    if (!node.traitName.empty()) {
+        if (!classManager->hasTrait(node.traitName)) {
+            throw std::runtime_error(
+                "(AR) الواجهة '" + node.traitName + "' غير معرّفة. "
+                "(EN) Trait '" + node.traitName + "' is not defined.");
+        }
+        
+        if (!classManager->validateTraitImpl(node.targetType, node.traitName)) {
+            throw std::runtime_error(
+                "(AR) الصنف '" + node.targetType + "' لا ينفذ جميع دوال الواجهة '" + node.traitName + "'. "
+                "(EN) Class '" + node.targetType + "' does not implement all methods of trait '" + node.traitName + "'.");
+        }
+        
+        classManager->registerTraitImpl(node.targetType, node.traitName);
+    }
 }
 
 } // namespace Interpreter

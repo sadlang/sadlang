@@ -183,13 +183,12 @@ int BuildCommand::execute(const ParsedOptions& options) {
     if (input_files.empty()) {
         auto project_root = utils::find_project_root();
         if (project_root) {
-            // البحث عن ملف src/رئيسي.ص أو src/main.s
+            // البحث عن ملف src/رئيسي.ص أو src/main.ص
             std::vector<std::string> main_candidates = {
                 *project_root + "/src/رئيسي.ص",
-                *project_root + "/src/main.s",
-                *project_root + "/src/رئيسي.s",
+                *project_root + "/src/main.ص",
                 *project_root + "/رئيسي.ص",
-                *project_root + "/main.s"
+                *project_root + "/main.ص"
             };
             
             for (const auto& candidate : main_candidates) {
@@ -337,7 +336,7 @@ bool BuildCommand::validate_input_files(const std::vector<std::string>& files) c
         
         // التحقق من امتداد الملف
         std::string ext = utils::get_extension(file);
-        if (ext != ".s" && ext != ".ص" && ext != ".sad" && ext != ".o" && ext != ".obj") {
+        if (ext != ".ص" && ext != ".o" && ext != ".obj") {
             print_warning_ar("نوع ملف غير معروف: " + file);
             print_warning("Unknown file type: " + file);
         }
@@ -491,32 +490,32 @@ void BuildCommand::print_examples(std::ostream& os) const {
     
     os << "  " << colors::GREEN << "# بناء برنامج بسيط" << colors::RESET << std::endl;
     os << "  ص بناء برنامج.ص" << std::endl;
-    os << "  sad build program.s" << std::endl;
+    os << "  sad build program.ص" << std::endl;
     os << std::endl;
     
     os << "  " << colors::GREEN << "# بناء مع تحديد اسم الإخراج" << colors::RESET << std::endl;
     os << "  ص بناء برنامج.ص --إخراج تطبيقي" << std::endl;
-    os << "  sad build program.s -o myapp" << std::endl;
+    os << "  sad build program.ص -o myapp" << std::endl;
     os << std::endl;
     
     os << "  " << colors::GREEN << "# بناء بوضع الإصدار (تحسينات قصوى)" << colors::RESET << std::endl;
     os << "  ص بناء برنامج.ص --إصدار" << std::endl;
-    os << "  sad build program.s --release" << std::endl;
+    os << "  sad build program.ص --release" << std::endl;
     os << std::endl;
     
     os << "  " << colors::GREEN << "# بناء لـ WebAssembly" << colors::RESET << std::endl;
     os << "  ص بناء تطبيق_ويب.ص --واسم" << std::endl;
-    os << "  sad build webapp.s --wasm" << std::endl;
+    os << "  sad build webapp.ص --wasm" << std::endl;
     os << std::endl;
     
     os << "  " << colors::GREEN << "# بناء كمكتبة" << colors::RESET << std::endl;
     os << "  ص بناء مكتبتي.ص --مكتبة" << std::endl;
-    os << "  sad build mylib.s --lib" << std::endl;
+    os << "  sad build mylib.ص --lib" << std::endl;
     os << std::endl;
     
     os << "  " << colors::GREEN << "# بناء مع معلومات التصحيح" << colors::RESET << std::endl;
     os << "  ص بناء برنامج.ص --تطوير" << std::endl;
-    os << "  sad build program.s --debug" << std::endl;
+    os << "  sad build program.ص --debug" << std::endl;
 }
 
 } // namespace cli

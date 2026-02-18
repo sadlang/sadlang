@@ -266,7 +266,7 @@ public:
         // تحديد نوع الملف
         std::string ext = std::filesystem::path(options.inputFile).extension().string();
         
-        if (ext == ".ص" || ext == ".sad") {
+        if (ext == ".ص") {
             // ملف مصدري - ترجمة
             return handleSourceFile(options);
         } else if (ext == ".صكد" || ext == ".sadc") {

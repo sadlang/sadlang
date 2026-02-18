@@ -100,6 +100,9 @@ namespace AST {
     using FromImportStmt = Sad::AST::FromImportStmt;
     using ExportDecl = Sad::AST::ExportDecl;
     using ExportStmt = Sad::AST::ExportStmt;
+    using TraitDecl = Sad::AST::TraitDecl;
+    using ImplDecl = Sad::AST::ImplDecl;
+    using BlockStmt = Sad::AST::BlockStmt;
     
     // Operator types - enums not classes
     using BinaryOperator = Sad::Lexer::TokenType;
@@ -406,6 +409,22 @@ public:
      * @param classDecl (AR) تصريح الصنف / (EN) Class declaration
      */
     void buildClass(AST::ClassDeclNode* classDecl);
+    
+    /**
+     * @brief (AR) بناء سمة/واجهة
+     * @brief (EN) Build trait/interface
+     * 
+     * @param traitDecl (AR) تصريح السمة / (EN) Trait declaration
+     */
+    void buildTrait(AST::TraitDecl* traitDecl);
+    
+    /**
+     * @brief (AR) بناء كتلة تنفيذ سمة
+     * @brief (EN) Build impl block
+     * 
+     * @param implDecl (AR) تصريح التنفيذ / (EN) Impl declaration
+     */
+    void buildImpl(AST::ImplDecl* implDecl);
     
     // ==================================================================
     // (AR) بناء جمل الاستيراد / (EN) Building Import Statements

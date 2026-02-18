@@ -99,8 +99,8 @@ struct SourceLocation {
      * 
      * @example
      * @code
-     * SourceLocation loc("test.s", 5, 10);
-     * std::string str = loc.toString();  // "test.s:5:10"
+     * SourceLocation loc("test.ص", 5, 10);
+     * std::string str = loc.toString();  // "test.ص:5:10"
      * @endcode
      */
     std::string toString() const {
@@ -127,8 +127,8 @@ struct SourceLocation {
      * 
      * @example
      * @code
-     * SourceLocation loc("test.s", 5, 10, 42, 3);
-     * std::string str = loc.toDetailedString();  // "test.s:5:10 (length: 3)"
+     * SourceLocation loc("test.ص", 5, 10, 42, 3);
+     * std::string str = loc.toDetailedString();  // "test.ص:5:10 (length: 3)"
      * @endcode
      */
     std::string toDetailedString() const {

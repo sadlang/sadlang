@@ -143,10 +143,10 @@ public:
             result.errors.push_back("مجلد src/ غير موجود");
             result.valid = false;
         } else {
-            bool hasEntry = fs::exists(srcPath / "main.sad") || 
-                           fs::exists(srcPath / "lib.sad");
+            bool hasEntry = fs::exists(srcPath / "main.ص") || 
+                           fs::exists(srcPath / "lib.ص");
             if (!hasEntry) {
-                result.errors.push_back("لا يوجد ملف main.sad أو lib.sad في src/");
+                result.errors.push_back("لا يوجد ملف main.ص أو lib.ص في src/");
                 result.valid = false;
             }
         }

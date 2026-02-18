@@ -266,7 +266,7 @@ public:
         // التحقق من الامتداد
         if (!hasValidExtension(path)) {
             result.success = false;
-            result.errorMessage = "امتداد غير صالح. استخدم .ص أو .sad";
+            result.errorMessage = "امتداد غير صالح. استخدم .ص";
             return result;
         }
         
@@ -289,7 +289,7 @@ public:
 private:
     bool hasValidExtension(const std::string& path) {
         auto ext = std::filesystem::path(path).extension().string();
-        return ext == ".sad" || ext == ".ص" || ext == u8".ص";
+        return ext == ".ص" || ext == u8".ص";
     }
 };
 

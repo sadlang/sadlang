@@ -142,6 +142,111 @@ struct CompilerOptions {
     bool enableAsync = false;
 
     // ═══════════════════════════════════════════════════════════════════════
+    //  (AR) خيارات وضع بلا مكتبة قياسية (Freestanding / no_std)
+    //  (EN) No-standard-library mode options (Freestanding / no_std)
+    //
+    //  هذه الخيارات ضرورية لبرمجة:
+    //    - أنظمة التشغيل (OS Kernels) مثل BeeOS
+    //    - المتحكمات الدقيقة (Microcontrollers)
+    //    - برامج UEFI والـ Bootloaders
+    //    - الأنظمة المدمجة بدون نظام تشغيل
+    //
+    //  تُفعَّل تلقائياً عند اكتشاف #![بلا_مكتبة_قياسية] في المصدر،
+    //  أو يمكن تمريرها يدوياً من سطر الأوامر.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * (AR) تفعيل وضع بلا مكتبة قياسية (no_std mode)
+     *      عند تفعيله:
+     *        - تُرفَض جميع أنواع المكتبة القياسية (std::string, std::vector...)
+     *        - تُرفَض دوال C القياسية (printf, malloc, exit...)
+     *        - يُتوقَّع وجود معالج ذعر مخصص (#[معالج_ذعر])
+     *        - يُضمَّن sad_core.h تلقائياً كبديل
+     * (EN) Enable no-std mode
+     */
+    bool no_std = false;
+
+    /**
+     * (AR) تعطيل دالة main الافتراضية (no_main mode)
+     *      يُستخدم مع no_std لإزالة نقطة الدخول الافتراضية
+     *      ويُتيح للمبرمج تعريف #[نقطة_دخول] مخصصة
+     * (EN) Disable default main entry point
+     */
+    bool no_main = false;
+
+    /**
+     * (AR) إيقاف عند الذعر بدلاً من الـ unwind
+     *      في وضع freestanding لا يمكن استخدام stack unwinding
+     *      لذا يتوقف البرنامج فور حدوث ذعر غير معالج
+     * (EN) Abort on panic instead of unwind
+     */
+    bool abort_on_panic = false;
+
+    /**
+     * (AR) السماح بالتخصيص الديناميكي في وضع freestanding
+     *      يشترط تسجيل مُخصّص ذاكرة مخصص (#[معالج_تخصيص])
+     *      افتراضياً: محظور في وضع freestanding الكامل
+     * (EN) Allow dynamic allocation in freestanding mode (requires custom allocator)
+     */
+    bool freestanding_allow_alloc = false;
+
+    /**
+     * (AR) السماح بالأعداد العشرية (float/double) في freestanding
+     *      بعض المعالجات لا تدعم الوحدة الحسابية للفاصلة العائمة (FPU)
+     *      افتراضياً: مسموح
+     * (EN) Allow floating-point in freestanding mode
+     */
+    bool freestanding_allow_float = true;
+
+    /**
+     * (AR) السماح بعمليات الـ atomics في freestanding
+     *      يتطلب دعم أجهزة (LOCK prefix على x86)
+     *      افتراضياً: مسموح
+     * (EN) Allow atomic operations in freestanding mode
+     */
+    bool freestanding_allow_atomics = true;
+
+    /**
+     * (AR) نقطة الدخول المخصصة في وضع freestanding
+     *      اسم الدالة المُعلَّمة بـ #[نقطة_دخول] أو #[entry_point]
+     *      مثال: "_start", "kernel_main"
+     * (EN) Custom entry point function name for freestanding
+     */
+    std::string freestanding_entry_point;
+
+    /**
+     * (AR) اسم دالة معالج الذعر المخصصة
+     *      الدالة المُعلَّمة بـ #[معالج_ذعر] أو #[panic_handler]
+     *      إذا كانت فارغة يُستخدم المعالج الافتراضي (حلقة + hlt)
+     * (EN) Custom panic handler function name
+     */
+    std::string freestanding_panic_handler;
+
+    /**
+     * (AR) سكريبت الرابط للنظام المستهدف (Linker Script)
+     *      مسار ملف .ld يُحدِّد تخطيط الذاكرة للنواة
+     *      مثال: "linker.ld", "kernel.ld"
+     * (EN) Linker script for target system (path to .ld file)
+     */
+    std::string freestanding_linker_script;
+
+    /**
+     * (AR) المعمارية المستهدفة للـ freestanding
+     *      مثال: "x86_64", "aarch64", "riscv64", "arm"
+     *      تؤثر على كود التهيئة والتجميع المُضمَّن
+     * (EN) Target architecture for freestanding
+     */
+    std::string freestanding_arch;
+
+    /**
+     * (AR) هل تم اكتشاف وضع freestanding تلقائياً من الكود المصدري؟
+     *      true = وُجد #![بلا_مكتبة_قياسية] في الملف
+     *      false = وضع عادي
+     * (EN) Was no_std mode auto-detected from source code?
+     */
+    bool freestanding_auto_detected = false;
+
+    // ═══════════════════════════════════════════════════════════════════════
     //  (AR) دوال مساعدة / (EN) Helper Functions
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -149,6 +254,24 @@ struct CompilerOptions {
      *  (EN) Is optimization enabled? i.e. level > O0 */
     bool isOptimizationEnabled() const {
         return static_cast<int>(optimization_level) > 0;
+    }
+
+    /**
+     * (AR) هل نحن في وضع Freestanding (بلا مكتبة قياسية)؟
+     *      يُعيد صحيح إذا كان no_std مُفعَّل (يدوياً أو تلقائياً)
+     * (EN) Are we in freestanding (no_std) mode?
+     */
+    bool isFreestandingMode() const {
+        return no_std || freestanding_auto_detected;
+    }
+
+    /**
+     * (AR) هل يجب التحقق من الرموز المحظورة في وضع freestanding؟
+     *      نشط فقط في وضع no_std
+     * (EN) Should banned symbols be checked in freestanding mode?
+     */
+    bool shouldCheckFreestandingSymbols() const {
+        return isFreestandingMode();
     }
 
     /**

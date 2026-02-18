@@ -11,7 +11,7 @@
  * ============================================================================
  */
 
-#include "low_level/bitwise_ops.h"
+#include "bitwise_ops.h"
 #include <iostream>
 #include <cassert>
 

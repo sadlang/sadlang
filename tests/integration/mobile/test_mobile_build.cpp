@@ -582,7 +582,7 @@ TEST_F(MobileBuildTest, DISABLED_FullAndroidBuild) {
             نهاية
         نهاية
     )";
-    createTestSadFile("main.s", mainCode);
+    createTestSadFile("main.ص", mainCode);
     
     // Build APK
     sad::mobile::AndroidBuilder builder;

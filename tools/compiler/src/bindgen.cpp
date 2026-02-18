@@ -1429,7 +1429,7 @@ Sad Bindgen - FFI Binding Generator
 
 الخيارات / Options:
   -i, --input <file>     ملف رأس C للإدخال / Input C header file
-  -o, --output <file>    ملف الإخراج .sad / Output .sad file
+  -o, --output <file>    ملف الإخراج .ص / Output .ص file
   -I, --include <path>   مسار include / Include path
   
   --arabic               توليد أسماء عربية (افتراضي) / Generate Arabic names (default)
@@ -1441,8 +1441,8 @@ Sad Bindgen - FFI Binding Generator
   -v, --version          عرض الإصدار / Show version
 
 أمثلة / Examples:
-  sad_bindgen -i stdio.h -o stdio.sad
-  sad_bindgen -I/usr/include raylib.h -o raylib.sad --arabic
+  sad_bindgen -i stdio.h -o stdio.ص
+  sad_bindgen -I/usr/include raylib.h -o raylib.ص --arabic
 
 )" << std::endl;
 }

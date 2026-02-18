@@ -92,7 +92,7 @@ struct QEMUConfig {
 
 struct BareMetalTestCase {
     std::string name;              // اسم الاختبار / Test name
-    std::string sourceFile;        // ملف المصدر .ص / Source file .sad
+    std::string sourceFile;        // ملف المصدر .ص / Source file .ص
     std::string expectedOutput;    // الإخراج المتوقع / Expected serial output
     std::string linkerScript;      // سكربت ربط مخصص (اختياري) / Custom linker script (optional)
     std::string target = "x86_64-unknown-none-elf";  // الهدف / Target
@@ -106,7 +106,7 @@ struct BareMetalTestCase {
 // Class: BareMetalTestHarness
 //
 // الوصف: إطار اختبار يترجم ملفات ص في وضع bare-metal ويشغلها على QEMU
-// Description: Test framework that compiles .sad files in bare-metal mode and runs them on QEMU
+// Description: Test framework that compiles .ص files in bare-metal mode and runs them on QEMU
 // ════════════════════════════════════════════════════════════════════════════════
 
 class BareMetalTestHarness {

@@ -113,7 +113,8 @@ const std::string SERVER_VERSION = "1.0.0";
 /**
  * امتدادات ملفات لغة ص
  */
-const std::vector<std::string> SAD_EXTENSIONS = {".ص", ".sad", ".s"};
+// (AR) الامتداد الوحيد المدعوم هو .ص / (EN) Only supported extension is .ص
+const std::vector<std::string> SAD_EXTENSIONS = {".\xd8\xb5"};
 
 
 // ═══════════════════════════════════════════════════════════════════════════════

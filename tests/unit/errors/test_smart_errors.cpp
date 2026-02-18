@@ -533,15 +533,15 @@ void testMultiErrorCollection() {
     SimpleMultiErrorCollector collector;
     
     // إضافة أخطاء متعددة
-    collector.addError({"main.sad", 10, 5, "error", "T001", "نوع غير متوافق"});
-    collector.addError({"main.sad", 15, 1, "warning", "W001", "متغير غير مستخدم"});
-    collector.addError({"helper.sad", 3, 8, "error", "S001", "متغير غير معرف"});
+    collector.addError({"main.ص", 10, 5, "error", "T001", "نوع غير متوافق"});
+    collector.addError({"main.ص", 15, 1, "warning", "W001", "متغير غير مستخدم"});
+    collector.addError({"helper.ص", 3, 8, "error", "S001", "متغير غير معرف"});
     
     ASSERT_EQ(collector.errorCount(), 3, "Should have 3 errors");
     
     std::string formatted = collector.formatAll();
-    ASSERT_CONTAINS(formatted, "main.sad", "Should contain first file");
-    ASSERT_CONTAINS(formatted, "helper.sad", "Should contain second file");
+    ASSERT_CONTAINS(formatted, "main.ص", "Should contain first file");
+    ASSERT_CONTAINS(formatted, "helper.ص", "Should contain second file");
     ASSERT_CONTAINS(formatted, "نوع غير متوافق", "Should contain error message");
     
     std::cout << "   ✓ Multi-error collection tests passed\n";
@@ -553,9 +553,9 @@ void testErrorGrouping() {
     SimpleMultiErrorCollector collector;
     
     // إضافة أخطاء من نفس الملف
-    collector.addError({"app.sad", 1, 1, "error", "E001", "خطأ 1"});
-    collector.addError({"app.sad", 5, 1, "error", "E002", "خطأ 2"});
-    collector.addError({"app.sad", 10, 1, "error", "E003", "خطأ 3"});
+    collector.addError({"app.ص", 1, 1, "error", "E001", "خطأ 1"});
+    collector.addError({"app.ص", 5, 1, "error", "E002", "خطأ 2"});
+    collector.addError({"app.ص", 10, 1, "error", "E003", "خطأ 3"});
     
     std::string formatted = collector.formatAll();
     
@@ -698,8 +698,8 @@ void testFullErrorPipeline() {
     ASSERT_CONTAINS(typeExplanation, "اقتراح", "Should have fix suggestion");
     
     // جمع الأخطاء
-    collector.addError({"test.sad", 1, 1, "error", "S001", "اطبه غير معرف - هل قصدت 'اطبع'؟"});
-    collector.addError({"test.sad", 2, 1, "error", "T001", "نوع غير متوافق"});
+    collector.addError({"test.ص", 1, 1, "error", "S001", "اطبه غير معرف - هل قصدت 'اطبع'؟"});
+    collector.addError({"test.ص", 2, 1, "error", "T001", "نوع غير متوافق"});
     
     ASSERT_EQ(collector.errorCount(), 2, "Should collect both errors");
     

@@ -1,8 +1,14 @@
-# Build directories
+# ══════════════════════════════════════════════════════════════════
+# .gitignore - لغة ص / Sad Programming Language
+# ══════════════════════════════════════════════════════════════════
+
+# ── مجلدات البناء / Build directories ──
 build/
 build_new/
+out/
+cmake-build-*/
 
-# Compiled files
+# ── ملفات مُجمَّعة / Compiled files ──
 *.exe
 *.lib
 *.pdb
@@ -11,26 +17,58 @@ build_new/
 *.so
 *.dll
 *.dylib
+*.a
+*.ilk
+*.exp
 
-# IDE files
+# ── ملفات IDE ──
 .vs/
-.vscode/
+.vscode/settings.json
+.vscode/c_cpp_properties.json
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
+*.code-workspace
+.idea/
 
-# CMake
+# ── CMake ──
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-*.cmake
+_deps/
 
-# Logs
+# ── سجلات / Logs ──
 *.log
 
-# Temporary files
+# ── ملفات مؤقتة / Temporary files ──
 *.tmp
 *.temp
 *.swp
 *.bak
+*.backup
+*~
+
+# ── مخرجات البناء والاختبار في الجذر / Build & test output in root ──
+# (هذه الملفات يجب نقلها إلى build/ أو حذفها)
+build_*.txt
+test_*.txt
+test_*.xml
+test-results.xml
+trait_*.txt
+graphics_build.txt
+sad_debug_log.txt
+sadc_build_log*.txt
+CMakeLists.txt.new
+CMakeLists.txt.backup
+
+# ── حزم ومكتبات خارجية / External packages ──
+node_modules/
+__pycache__/
+*.pyc
+.env
+
+# ── نظام التشغيل / OS files ──
+.DS_Store
+Thumbs.db
+Desktop.ini

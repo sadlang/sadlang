@@ -41,13 +41,19 @@ void VariableManager::define(const std::string& name, const Value& value) {
     // (EN) Get current scope
     Scope* currentScope = scopeManager_.getCurrentScope();
     
-    // (AR) التحقق: هل المتغير معرف مسبقاً في نفس النطاق؟
-    // (EN) Check: is variable already defined in same scope?
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) السماح بإعادة تعريف المتغير في نفس النطاق (variable shadowing)
+    //      بدلاً من رمي خطأ، نقوم بتحديث القيمة مباشرة
+    //      هذا يدعم: متغير س = 5 ... متغير س = 10 في نفس دالة/كتلة
+    // (EN) Allow variable re-declaration in same scope (variable shadowing)
+    //      Instead of throwing, update value directly
+    //      This supports: var x = 5 ... var x = 10 in same function/block
+    // ═══════════════════════════════════════════════════════════════
     if (currentScope->hasVariable(name)) {
-        std::ostringstream oss;
-        oss << "(AR) المتغير '" << name << "' معرّف مسبقاً في النطاق الحالي "
-            << "(EN) Variable '" << name << "' already defined in current scope";
-        throw std::runtime_error(oss.str());
+        // (AR) المتغير موجود — نحدّث قيمته فقط
+        // (EN) Variable exists — just update its value
+        scopeVariables_[currentScope][name] = value;
+        return;
     }
     
     // (AR) تعريف المتغير في مدير النطاقات (تسجيل الاسم)

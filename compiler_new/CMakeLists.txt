@@ -195,12 +195,33 @@ if(LLVM_FOUND)
 endif()
 
 # ============================================================================
-# Bytecode Library - DISABLED: uses old SIR API, needs complete rewrite
+# Bytecode Library (تنسيق ملفات البايت كود)
 # ============================================================================
-# file(GLOB BYTECODE_SOURCES "src/bytecode/*.cpp")
-# file(GLOB BYTECODE_HEADERS "include/bytecode/*.h")
-# add_library(sad_new_bytecode STATIC ${BYTECODE_SOURCES})
-# target_include_directories(sad_new_bytecode PUBLIC ...)
+# (AR) الملفات المستقلة (format): decoder, encoder, constant_pool, symbol_table, magic, version, validator, opcodes
+# (EN) Standalone format files: decoder, encoder, constant_pool, symbol_table, magic, version, validator, opcodes
+# (AR) ملفات SIR المعتمدة (emitter.cpp, bytecode.cpp) مؤجلة - تحتاج تحديث SIR API
+# (EN) SIR-dependent files (emitter.cpp, bytecode.cpp) deferred - need SIR API update
+file(GLOB BYTECODE_SOURCES "src/bytecode/*.cpp")
+file(GLOB BYTECODE_HEADERS "include/bytecode/*.h")
+
+# استبعاد الملفات المعتمدة على SIR API القديم
+list(FILTER BYTECODE_SOURCES EXCLUDE REGEX "emitter\\.cpp")
+list(FILTER BYTECODE_SOURCES EXCLUDE REGEX "bytecode\\.cpp")
+
+add_library(sad_new_bytecode STATIC ${BYTECODE_SOURCES})
+
+target_include_directories(sad_new_bytecode
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/bytecode
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+if(MSVC)
+    target_compile_options(sad_new_bytecode PRIVATE /utf-8 /wd4819 /FS)
+endif()
+
+message(STATUS "Configured sad_new_bytecode library (format utilities)")
 
 # ============================================================================
 # Semantic Analysis Library (نظام الملكية والاستعارة)
@@ -288,9 +309,10 @@ target_include_directories(sad_new_memory
 file(GLOB TYPE_SYSTEM_SOURCES "src/types/*.cpp")
 file(GLOB TYPE_SYSTEM_HEADERS "include/types/*.h")
 
-# (AR) تم إعادة تضمين c_types.cpp و pointer_types.cpp بعد إصلاح الأنواع
-# (EN) Re-included c_types.cpp and pointer_types.cpp after type fixes
-# (AR) مؤقتاً: استبعاد c_types.cpp بسبب أخطاء التجميع
+# (AR) c_types.cpp يعتمد على أنواع FFI غير مكتملة التعريف (CStructType, CUnionType, CEnumType, CTypedefType)
+#      ويحتاج LLVM headers عبر c_abi.h - سيُفعَّل عند اكتمال تعريف هذه الأنواع
+# (EN) c_types.cpp depends on incomplete FFI types (CStructType, CUnionType, CEnumType, CTypedefType)
+#      and needs LLVM headers via c_abi.h - will be enabled when these types are fully defined
 list(FILTER TYPE_SYSTEM_SOURCES EXCLUDE REGEX "c_types\\.cpp")
 
 add_library(sad_new_type_system STATIC ${TYPE_SYSTEM_SOURCES})
@@ -323,7 +345,7 @@ if(LLVM_FOUND)
             sad_new_optimizer
             sad_new_llvm_backend
             sad_new_jit
-            # sad_new_bytecode  # DISABLED: needs rewrite
+            sad_new_bytecode
             sad_new_type_system
             sad_new_semantic
             sad_new_memory
@@ -337,7 +359,7 @@ else()
         INTERFACE
             sad_new_frontend
             sad_new_optimizer
-            # sad_new_bytecode  # DISABLED
+            sad_new_bytecode
             sad_new_type_system
             sad_new_semantic
             sad_new_memory

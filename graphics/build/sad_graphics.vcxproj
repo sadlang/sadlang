@@ -371,9 +371,14 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\s\s_language\graphics\src\rendering\context.cpp" />
     <ClCompile Include="C:\s\s_language\graphics\src\rendering\shader.cpp" />
     <ClCompile Include="C:\s\s_language\graphics\src\rendering\renderer2d.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\rendering\renderer3d.cpp" />
     <ClCompile Include="C:\s\s_language\graphics\src\rendering\framebuffer.cpp" />
     <ClCompile Include="C:\s\s_language\graphics\src\rendering\camera2d.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\rendering\camera3d.cpp" />
     <ClCompile Include="C:\s\s_language\graphics\src\rendering\sprite.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\rendering\mesh.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\rendering\material.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\rendering\lighting.cpp" />
     <ClCompile Include="C:\s\s_language\graphics\src\texture\texture.cpp" />
     <ClCompile Include="C:\s\s_language\graphics\src\texture\image.cpp" />
     <ClCompile Include="C:\s\s_language\graphics\src\texture\texture_atlas.cpp" />
@@ -394,6 +399,14 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\s\s_language\graphics\src\ui\panel.cpp" />
     <ClCompile Include="C:\s\s_language\graphics\src\ui\slider.cpp" />
     <ClCompile Include="C:\s\s_language\graphics\src\ui\ui_layout.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_core.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_buttons.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_input.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_navigation.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_lists.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_dialogs.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_display.cpp" />
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_media.cpp" />
     <ClCompile Include="C:\s\s_language\graphics\third_party\glad\src\glad.c" />
   </ItemGroup>
   <ItemGroup />

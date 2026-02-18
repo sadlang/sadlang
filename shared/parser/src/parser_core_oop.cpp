@@ -63,10 +63,12 @@ AccessModifier ParserCore::parseModifiers(bool& isStatic, bool& isVirtual, bool&
         else if (match(TT::KEYWORD_STATIC)) {
             isStatic = true;
         }
+        else if (match(TT::KEYWORD_ABSTRACT)) {
+            isAbstract = true;
+            isVirtual = true; // (AR) المجرد هو افتراضي / (EN) Abstract implies virtual
+        }
         else {
             // (AR) لا توجد معدلات أخرى / (EN) No more modifiers
-            // (AR) ملاحظة: virtual و abstract تم إزالتهم لعدم وجودهم في المواصفة
-            // (EN) Note: virtual and abstract removed - not in specification
             break;
         }
     }
@@ -259,21 +261,20 @@ std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
     // (AR) جسم الطريقة / (EN) Method body
     StmtPtr body = nullptr;
     if (isAbstract) {
-        // (AR) طريقة مجردة - فاصلة منقوطة فقط / (EN) Abstract method - semicolon only
-        consume(TT::SEMICOLON,
-            "(AR) توقع ';' بعد تصريح طريقة مجردة. (EN) Expected ';' after abstract method.");
+        // (AR) طريقة مجردة - بدون جسم، فاصلة منقوطة اختيارية
+        // (EN) Abstract method - no body, optional semicolon
+        matchAny({TT::SEMICOLON, TT::ARABIC_SEMICOLON});
     } else {
         // (AR) طريقة عادية - جسم كامل / (EN) Regular method - full body
         body = parseBlockStmt();
     }
     
     bool isOverride = false; 
-    // (AR) ملاحظة: override غير مدعوم حالياً - سيتم إضافته في Phase 2
-    // (EN) Note: override not currently supported - will be added in Phase 2
-    // Reason: KEYWORD_OVERRIDE was removed from TokenType (conflicts with other keywords)
+    // (AR) ملاحظة: override غير مدعوم حالياً - سيتم إضافته لاحقاً
+    // (EN) Note: override not currently supported - will be added later
     return std::make_unique<MethodDecl>(methodName, std::move(parameters), returnType,
                                          std::move(body), access, isStatic, isVirtual,
-                                         isOverride, nameToken.getPosition());
+                                         isOverride, isAbstract, nameToken.getPosition());
 }
 
 // ======================================================================

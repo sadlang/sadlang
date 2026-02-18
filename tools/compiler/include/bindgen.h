@@ -16,7 +16,7 @@
  *      ┌────────────────────────────────────────────────────────────┐
  *      │ 1. قراءة وتحليل ملفات .h                                    │
  *      │ 2. استخراج الدوال والأنواع والثوابت                          │
- *      │ 3. توليد ملفات .sad مع extern blocks                       │
+ *      │ 3. توليد ملفات .ص مع extern blocks                       │
  *      │ 4. توليد الأسماء العربية تلقائياً                           │
  *      │ 5. إنشاء توثيق عربي للدوال                                  │
  *      │ 6. التعامل مع الـ preprocessor directives                   │
@@ -27,13 +27,13 @@
  *      أمثلة الاستخدام:
  *      @code{.bash}
  *      # توليد ربط من stdio.h
- *      ص_ولّد_ربط --input stdio.h --output stdio.sad
+ *      ص_ولّد_ربط --input stdio.h --output stdio.ص
  *      
  *      # مع ترجمة عربية
- *      ص_ولّد_ربط --input math.h --output حسابات.sad --arabic-names
+ *      ص_ولّد_ربط --input math.h --output حسابات.ص --arabic-names
  *      
  *      # مع تضمين مسارات
- *      ص_ولّد_ربط -I/usr/include --input raylib.h --output raylib.sad
+ *      ص_ولّد_ربط -I/usr/include --input raylib.h --output raylib.ص
  *      @endcode
  * 
  * (EN) This file contains the bindgen tool that automatically generates
@@ -471,7 +471,7 @@ private:
  *      @endcode
  * 
  *      مثال المخرج (ص):
- *      @code{.sad}
+ *      @code{.ص}
  *      // دالة طباعة منسقة
  *      خارجي "C" {
  *          دالة printf(format: *ثابت[حرف], ...) -> ص32
@@ -562,7 +562,7 @@ private:
  * // استخدام Bindgen
  * Bindgen bindgen;
  * bindgen.config().addInputFile("raylib.h");
- * bindgen.config().setOutputFile("raylib.sad");
+ * bindgen.config().setOutputFile("raylib.ص");
  * bindgen.config().setGenerateArabicNames(true);
  * 
  * if (bindgen.run()) {

@@ -150,11 +150,15 @@ ClassMethod* ObjectInstance::getMethod(const std::string& methodName) {
 // ======================================================================
 
 bool ObjectInstance::isInstanceOf(const std::string& className) const {
-    // (AR) فحص نوع الكائن
-    // (EN) Check object type
+    // (AR) فحص نوع الكائن — يمشي على سلسلة الوراثة كاملة
+    // (EN) Check object type — walks the full inheritance chain
     
-    return classType->name == className || 
-           (classType->baseClass && classType->inheritsFrom(classType->baseClass));
+    const ClassType* current = classType;
+    while (current) {
+        if (current->name == className) return true;
+        current = current->baseClass;
+    }
+    return false;
 }
 
 bool ObjectInstance::isInstanceOf(const ClassType* cls) const {

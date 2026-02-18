@@ -247,12 +247,42 @@ void ExpressionEvaluator::visitThisExpr(ThisExpr& node) {
 }
 
 void ExpressionEvaluator::visitSuperExpr(SuperExpr& node) {
-    // الحصول على super من النطاق الحالي
-    // Get 'super' from current scope
+    // (AR) الحصول على super من النطاق الحالي — نبحث عن الصنف الأب
+    // (EN) Get super from current scope — look for base class
     if (variableManager_.exists("الأساس")) {
         lastResult_ = variableManager_.get("الأساس");
     } else if (variableManager_.exists("super")) {
         lastResult_ = variableManager_.get("super");
+    } else if (variableManager_.exists("هذا")) {
+        // (AR) نحاول بناء مرجع الأساس من الكائن الحالي
+        // (EN) Try to build super reference from current object
+        Value thisValue = variableManager_.get("هذا");
+        auto* classManager = Data::ClassManager::getInstance();
+        std::string className;
+        if (thisValue.isObject()) {
+            auto objPtr = thisValue.toObject();
+            if (objPtr) className = objPtr->getClassName();
+        } else if (thisValue.isMap()) {
+            auto fields = thisValue.toMap();
+            auto it = fields.find("__class__");
+            if (it != fields.end()) className = it->second.toString();
+        }
+        if (!className.empty()) {
+            Data::ClassType* cls = classManager->getClass(className);
+            if (cls && cls->getBaseClass()) {
+                // (AR) نرجع اسم الصنف الأب كقيمة نصية
+                // (EN) Return base class name as string value
+                lastResult_ = Value(cls->getBaseClass()->name);
+                return;
+            }
+        }
+        Sad::Errors::ErrorManager::getInstance().reportError(
+            Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
+            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            "(AR) 'الأساس' غير متاح - الصنف لا يرث من صنف آخر. (EN) 'super' not available - class does not inherit.",
+            "'super' keyword used in class without base class"
+        );
+        lastResult_ = Value();
     } else {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
@@ -340,12 +370,13 @@ void ExpressionEvaluator::visitBinaryExpr(BinaryExpr& node) {
     node.right->accept(*this);
     Value right = lastResult_;
     
-    // (AR) فحص تحميل العامل الزائد على الكائنات / (EN) Check operator overloading on objects
-    if (left.isMap()) {
-        auto fields = left.toMap();
-        auto classNameIt = fields.find("__class__");
-        if (classNameIt != fields.end()) {
-            std::string className = classNameIt->second.toString();
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) فحص تحميل العامل الزائد على الكائنات — يدعم OBJECT و MAP
+    // (EN) Check operator overloading on objects — supports OBJECT and MAP
+    // ═══════════════════════════════════════════════════════════════════
+    if (left.isObject() || left.isObjectLike()) {
+        std::string className = left.getClassName();
+        if (!className.empty()) {
             auto* classManager = Data::ClassManager::getInstance();
             Data::ClassType* classType = classManager->getClass(className);
             if (classType) {
@@ -405,6 +436,15 @@ void ExpressionEvaluator::visitBinaryExpr(BinaryExpr& node) {
         case TokenType::OP_AND:
         case TokenType::OP_OR:
             lastResult_ = evaluateLogicalOp(left, node.op, right, node.position);
+            break;
+
+        // (AR) عمليات البت / (EN) Bitwise operations
+        case TokenType::OP_XOR:
+        case TokenType::OP_BITWISE_AND:
+        case TokenType::OP_BITWISE_OR:
+        case TokenType::OP_SHIFT_LEFT:
+        case TokenType::OP_SHIFT_RIGHT:
+            lastResult_ = evaluateBitwiseOp(left, node.op, right, node.position);
             break;
         
         default:
@@ -639,6 +679,41 @@ Value ExpressionEvaluator::evaluateLogicalOp(const Value& left, TokenType op, co
 }
 
 // =========================================================================
+// (AR) عمليات البت / (EN) Bitwise Operations
+// =========================================================================
+
+Value ExpressionEvaluator::evaluateBitwiseOp(const Value& left, TokenType op, const Value& right, const Lexer::Position& pos) {
+    if (!left.isNumeric() || !right.isNumeric()) {
+        Sad::Errors::ErrorManager::getInstance().reportError(
+            Sad::Errors::ErrorCode::RUN_INVALID_CAST,
+            Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+            "عمليات البت تتطلب قيم صحيحة",
+            "Bitwise operations require integer values"
+        );
+        return Value(0);
+    }
+
+    int l = left.toInt();
+    int r = right.toInt();
+
+    switch (op) {
+        case TokenType::OP_XOR:          return Value(l ^ r);
+        case TokenType::OP_BITWISE_AND:  return Value(l & r);
+        case TokenType::OP_BITWISE_OR:   return Value(l | r);
+        case TokenType::OP_SHIFT_LEFT:   return Value(l << r);
+        case TokenType::OP_SHIFT_RIGHT:  return Value(l >> r);
+        default:
+            Sad::Errors::ErrorManager::getInstance().reportError(
+                Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
+                Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+                "عملية بت غير مدعومة",
+                "Unsupported bitwise operation"
+            );
+            return Value(0);
+    }
+}
+
+// =========================================================================
 // (AR) تنفيذ عامل محمل زائداً / (EN) Operator Overload Execution
 // =========================================================================
 
@@ -660,7 +735,19 @@ Value ExpressionEvaluator::executeOperatorOverload(const Value& left, Data::Oper
     
     // (AR) ربط حقول الكائن الأيسر كمتغيرات محلية (محاكاة this.field → field)
     // (EN) Bind left object fields as local variables (simulate this.field → field)
-    if (left.isMap()) {
+    if (left.isObject()) {
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) كائن حقيقي — نربط حقوله من ObjectInstance مباشرة
+        // (EN) Real OBJECT — bind fields from ObjectInstance directly
+        // ═══════════════════════════════════════════════════════════════
+        auto objPtr = left.toObject();
+        if (objPtr) {
+            for (const auto& [fieldName, fieldValue] : objPtr->fields) {
+                variableManager_.define(fieldName, fieldValue);
+            }
+        }
+    } else if (left.isMap()) {
+        // (AR) MAP قديم مع __class__ / (EN) Legacy MAP with __class__
         auto fields = left.toMap();
         for (const auto& [fieldName, fieldValue] : fields) {
             if (fieldName != "__class__") {
@@ -680,6 +767,25 @@ Value ExpressionEvaluator::executeOperatorOverload(const Value& left, Data::Oper
         if (statementExecutor_.getFlowControl() == FlowControl::RETURN) {
             returnValue = statementExecutor_.getReturnValue();
             statementExecutor_.resetFlowControl();
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) كتابة الحقول المحدثة إلى الكائن الأصلي (لدعم العوامل المتغيرة)
+        //      مثل: عامل += قد يعدل حقول الكائن
+        //
+        // (EN) Write back updated fields to original object (for mutating operators)
+        //      e.g.: operator += may modify object fields
+        // ═══════════════════════════════════════════════════════════════
+        if (left.isObject()) {
+            auto objPtr = left.toObject();
+            if (objPtr) {
+                for (auto& [fieldName, fieldValue] : objPtr->fields) {
+                    try {
+                        Value updated = variableManager_.get(fieldName);
+                        objPtr->fields[fieldName] = updated;
+                    } catch (...) {}
+                }
+            }
         }
     } catch (...) {
         variableManager_.exitScope();
@@ -969,13 +1075,31 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
         auto* classManager = Data::ClassManager::getInstance();
         if (variableManager_.exists("هذا")) {
             Value thisValue = variableManager_.get("هذا");
-            if (thisValue.isMap()) {
+            // (AR) الحصول على اسم الصنف — يدعم OBJECT الحقيقي و MAP القديم
+            // (EN) Get class name — supports real OBJECT and legacy MAP
+            std::string thisClassName;
+            Data::ClassType* thisClassType = nullptr;
+            
+            if (thisValue.isObject()) {
+                // (AR) نوع OBJECT الحقيقي
+                // (EN) Real OBJECT type
+                auto objPtr = thisValue.toObject();
+                if (objPtr) {
+                    thisClassName = objPtr->getClassName();
+                    thisClassType = classManager->getClass(thisClassName);
+                }
+            } else if (thisValue.isMap()) {
+                // (AR) MAP القديم مع __class__
+                // (EN) Legacy MAP with __class__
                 auto thisFields = thisValue.toMap();
                 auto classNameIt = thisFields.find("__class__");
                 if (classNameIt != thisFields.end()) {
-                    std::string thisClassName = classNameIt->second.toString();
-                    Data::ClassType* thisClassType = classManager->getClass(thisClassName);
-                    if (thisClassType) {
+                    thisClassName = classNameIt->second.toString();
+                    thisClassType = classManager->getClass(thisClassName);
+                }
+            }
+            
+            if (thisClassType) {
                         Data::ClassMethod* method = thisClassType->findMethod(funcName);
                         // (AR) البحث عن الجسم: أولاً في الطريقة نفسها، ثم في مصدر القالب
                         // (EN) Find body: first in method itself, then in template instance source
@@ -1029,10 +1153,119 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
                             lastResult_ = returnValue;
                             return;
                         }
+            }
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) التعامل مع استدعاء باني الأب: أساس(...) أو الأساس(...) أو super(...)
+    // (EN) Handle super constructor call: أساس(...) or الأساس(...) or super(...)
+    // ═══════════════════════════════════════════════════════════════
+    if (funcName == "أساس" || funcName == "الأساس" || funcName == "الاساس" || 
+        funcName == "اساس" || funcName == "super") {
+        // (AR) نبحث عن هذا في النطاق لتحديد الصنف الحالي
+        // (EN) Look for this in scope to determine current class
+        if (variableManager_.exists("هذا")) {
+            Value thisValue = variableManager_.get("هذا");
+            auto* classManager = Data::ClassManager::getInstance();
+            
+            std::string currentClassName;
+            Data::ObjectInstance* objPtr = nullptr;
+            
+            if (thisValue.isObject()) {
+                auto objShared = thisValue.toObject();
+                objPtr = objShared.get();
+                if (objPtr) currentClassName = objPtr->getClassName();
+            } else if (thisValue.isMap()) {
+                auto fields = thisValue.toMap();
+                auto it = fields.find("__class__");
+                if (it != fields.end()) currentClassName = it->second.toString();
+            }
+            
+            // ═══════════════════════════════════════════════════════════
+            // (AR) إصلاح الوراثة متعددة المستويات: نتتبع أي صنف ننفذ بانيه حالياً
+            // (EN) Fix multi-level inheritance: track which class constructor is executing
+            // (AR) مثال: قط_فارسي.باني يستدعي أساس() → يجب أن ينادي باني قط (وليس قط_فارسي مرة أخرى)
+            //       قط.باني يستدعي أساس() → يجب أن ينادي باني حيوان (وليس قط مرة أخرى)
+            // ═══════════════════════════════════════════════════════════
+            std::string executingClassName = currentClassName;
+            if (variableManager_.exists("__executing_constructor_class__")) {
+                executingClassName = variableManager_.get("__executing_constructor_class__").toString();
+            }
+            
+            if (!executingClassName.empty()) {
+                Data::ClassType* executingClass = classManager->getClass(executingClassName);
+                if (executingClass) {
+                    Data::ClassType* baseClass = executingClass->getBaseClass();
+                    if (baseClass && baseClass->constructor) {
+                        AST::ConstructorDecl* baseCtor = baseClass->constructor.get();
+                        // (AR) ربط معاملات باني الأب
+                        // (EN) Bind base constructor parameters
+                        if (arguments.size() == baseCtor->parameters.size()) {
+                            for (size_t i = 0; i < baseCtor->parameters.size(); ++i) {
+                                const auto& pname = baseCtor->parameters[i].name;
+                                if (variableManager_.exists(pname)) {
+                                    variableManager_.assign(pname, arguments[i]);
+                                } else {
+                                    variableManager_.define(pname, arguments[i]);
+                                }
+                            }
+                            // (AR) تعيين الصنف المنفذ حالياً لدعم السلسلة (A→B→C)
+                            // (EN) Set executing class for chained super calls (A→B→C)
+                            std::string baseClassName = baseClass->name;
+                            bool hadPrevious = variableManager_.exists("__executing_constructor_class__");
+                            Value previousVal;
+                            if (hadPrevious) previousVal = variableManager_.get("__executing_constructor_class__");
+                            
+                            if (variableManager_.exists("__executing_constructor_class__")) {
+                                variableManager_.assign("__executing_constructor_class__", Value(baseClassName));
+                            } else {
+                                variableManager_.define("__executing_constructor_class__", Value(baseClassName));
+                            }
+                            
+                            try {
+                                baseCtor->body->accept(statementExecutor_);
+                            } catch (...) {
+                                // (AR) تجاهل الأخطاء في باني الأب
+                            }
+                            
+                            // (AR) استعادة القيمة السابقة
+                            // (EN) Restore previous value
+                            if (hadPrevious) {
+                                variableManager_.assign("__executing_constructor_class__", previousVal);
+                            }
+                            
+                            // (AR) قراءة القيم المحدثة من باني الأب وتحديث الكائن
+                            // (EN) Read updated values from base constructor and update object
+                            if (objPtr) {
+                                // (AR) نجمع كل الحقول من سلسلة الوراثة
+                                // (EN) Collect all fields from inheritance chain
+                                std::function<void(Data::ClassType*)> collectFields;
+                                collectFields = [&](Data::ClassType* cls) {
+                                    if (!cls) return;
+                                    if (cls->getBaseClass()) collectFields(cls->getBaseClass());
+                                    for (const auto& field : cls->fields) {
+                                        if (!field.isStatic) {
+                                            try {
+                                                Value val = variableManager_.get(field.name);
+                                                objPtr->fields[field.name] = val;
+                                            } catch (...) {}
+                                        }
+                                    }
+                                };
+                                collectFields(baseClass);
+                            }
+                        }
+                        lastResult_ = Value();
+                        return;
                     }
                 }
             }
         }
+        // (AR) لم نجد باني أب - نتجاهل الاستدعاء
+        // (EN) No base constructor found - ignore the call
+        lastResult_ = Value();
+        return;
     }
     
     // (AR) البحث عن الدالة - flexible matching مع default parameters
@@ -1233,6 +1466,64 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
     // (AR) تعريف المعاملات كمتغيرات محلية / (EN) Define parameters as local variables
     for (size_t i = 0; i < params.size(); ++i) {
         variableManager_.define(params[i].name, arguments[i]);
+        
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) التحقق من نوع المعامل في وقت التشغيل لأنواع الأصناف
+        //      إذا حدد المبرمج نوع صنف (مثل: دالة عرض(شخص ش))
+        //      نتحقق أن القيمة المرسلة هي فعلاً كائن من هذا الصنف
+        //
+        // (EN) Runtime type checking for class-typed parameters
+        //      If programmer specified a class type (e.g.: func show(Person p))
+        //      we verify the passed value is actually an object of that class
+        // ═══════════════════════════════════════════════════════════════
+        if (!params[i].typeName.empty()) {
+            const std::string& expectedClass = params[i].typeName;
+            const Value& argVal = arguments[i];
+            
+            if (argVal.isObject()) {
+                // (AR) كائن حقيقي — نتحقق من اسم الصنف
+                // (EN) Real object — check class name
+                auto objPtr = argVal.toObject();
+                if (objPtr && objPtr->getClassName() != expectedClass) {
+                    // (AR) أيضاً نتحقق من الوراثة
+                    // (EN) Also check inheritance
+                    auto* classManager = Data::ClassManager::getInstance();
+                    auto* expectedClassType = classManager->getClass(expectedClass);
+                    if (!expectedClassType || !objPtr->isInstanceOf(expectedClassType)) {
+                        throw RuntimeError(
+                            "(AR) نوع المعامل '" + params[i].name + "' غير متطابق. توقع كائن من صنف '" + 
+                            expectedClass + "' لكن حصل على '" + objPtr->getClassName() + "'. " +
+                            "(EN) Type mismatch for parameter '" + params[i].name + "'. Expected object of class '" + 
+                            expectedClass + "' but got '" + objPtr->getClassName() + "'.",
+                            node.position
+                        );
+                    }
+                }
+            } else if (argVal.isObjectLike()) {
+                // (AR) MAP قديم مع __class__ — نتحقق من اسم الصنف
+                // (EN) Legacy MAP with __class__ — check class name
+                std::string actualClass = argVal.getClassName();
+                if (actualClass != expectedClass) {
+                    throw RuntimeError(
+                        "(AR) نوع المعامل '" + params[i].name + "' غير متطابق. توقع '" + 
+                        expectedClass + "' لكن حصل على '" + actualClass + "'. " +
+                        "(EN) Type mismatch for '" + params[i].name + "'. Expected '" + 
+                        expectedClass + "' but got '" + actualClass + "'.",
+                        node.position
+                    );
+                }
+            } else {
+                // (AR) القيمة ليست كائناً أصلاً
+                // (EN) Value is not an object at all
+                throw RuntimeError(
+                    "(AR) نوع المعامل '" + params[i].name + "' غير متطابق. توقع كائن من صنف '" + 
+                    expectedClass + "' لكن حصل على قيمة من نوع '" + argVal.getTypeName() + "'. " +
+                    "(EN) Type mismatch for '" + params[i].name + "'. Expected object of class '" + 
+                    expectedClass + "' but got value of type '" + argVal.getTypeName() + "'.",
+                    node.position
+                );
+            }
+        }
     }
     
     // (AR) تنفيذ جسم الدالة / (EN) Execute function body
@@ -1279,6 +1570,26 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
 // =========================================================================
 
 void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
+    // ═══════════════════════════════════════════════════════════════════════
+    // (AR) تنفيذ تعبير إنشاء كائن جديد — 'جديد صنف(معاملات)' أو 'صنف(معاملات)'
+    //
+    //      الآن يُنشئ كائناً حقيقياً من نوع ObjectInstance بمؤشر مشترك
+    //      بدلاً من استخدام MAP مؤقت. هذا يسمح بـ:
+    //      ✓ تمرير الكائنات كمعاملات للدوال بالمرجع
+    //      ✓ هوية فريدة لكل كائن (objectId)
+    //      ✓ البحث في سلسلة الوراثة (baseInstance)
+    //      ✓ إدارة الذاكرة تلقائياً عبر shared_ptr
+    //
+    // (EN) Execute new object expression — 'new Class(args)' or 'Class(args)'
+    //
+    //      Now creates a real ObjectInstance with shared_ptr
+    //      instead of using a temporary MAP. This enables:
+    //      ✓ Passing objects as function parameters by reference
+    //      ✓ Unique identity for each object (objectId)
+    //      ✓ Inheritance chain lookup (baseInstance)
+    //      ✓ Automatic memory management via shared_ptr
+    // ═══════════════════════════════════════════════════════════════════════
+    
     #ifdef DEBUG_OOP
     std::cout << "[OOP] تنفيذ تعبير جديد: " << node.className << "\n";
 #endif
@@ -1303,7 +1614,8 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
         }
     }
     
-    // الحصول على ClassType من ClassManager
+    // (AR) الحصول على ClassType من ClassManager
+    // (EN) Get ClassType from ClassManager
     auto* classManager = Data::ClassManager::getInstance();
     ClassType* classType = classManager->getClass(effectiveClassName);
     
@@ -1323,52 +1635,60 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
         }
     }
     
-    // إنشاء كائن كـ MAP مؤقتًا (حتى يتم توسيع نظام Value)
-    // Create object as MAP temporarily (until Value system is extended)
-    Value::MapType objectFields;
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) فحص الصنف المجرد — لا يمكن إنشاء كائن من صنف مجرد
+    // (EN) Abstract class check — cannot instantiate abstract class
+    // ═══════════════════════════════════════════════════════════════════
+    for (const auto& method : classType->methods) {
+        if (method.isAbstract) {
+            std::string errMsg = "(AR) لا يمكن إنشاء كائن من صنف مجرد '" + effectiveClassName + "'. ";
+            errMsg += "الدالة '" + method.name + "' مجردة وبدون تنفيذ. ";
+            errMsg += "(EN) Cannot instantiate abstract class '" + effectiveClassName + "'. ";
+            errMsg += "Method '" + method.name + "' is abstract.";
+            throw RuntimeError(errMsg, node.position);
+        }
+    }
     
-    // تهيئة الحقول بقيم افتراضية (بما في ذلك الحقول الموروثة)
-    // Initialize fields with default values (including inherited fields)
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) إنشاء كائن حقيقي من نوع ObjectInstance باستخدام shared_ptr
+    //      هذا يختلف عن السلوك القديم الذي كان يستخدم MAP
+    //
+    // (EN) Create a real ObjectInstance using shared_ptr
+    //      This differs from the old behavior which used MAP
+    // ═══════════════════════════════════════════════════════════════════
+    size_t objId = generateObjectId();
+    auto objectInstance = std::make_shared<ObjectInstance>(classType, objId);
+    
+    // (AR) تهيئة الحقول بقيم افتراضية (بما في ذلك الحقول الموروثة)
+    // (EN) Initialize fields with default values (including inherited fields)
     std::vector<ClassField> allFields;
     
-    // جمع جميع الحقول من السلسلة الهرمية
-    // Collect all fields from the class hierarchy
+    // (AR) جمع جميع الحقول من السلسلة الهرمية
+    // (EN) Collect all fields from the class hierarchy
     ClassType* currentClass = classType;
     while (currentClass) {
-        // إضافة حقول الصنف الحالي
         for (const auto& field : currentClass->fields) {
             allFields.push_back(field);
         }
-        // الانتقال للصنف الأب
         currentClass = currentClass->getBaseClass();
     }
     
-    // تهيئة جميع الحقول
+    // (AR) تهيئة جميع الحقول غير الثابتة في الكائن
+    // (EN) Initialize all non-static fields in the object
     for (const auto& field : allFields) {
-        // تخطي الحقول الثابتة - يتم تخزينها في ClassType وليس في الكائن
-        // Skip static fields - they are stored in ClassType not in object
-        if (field.isStatic) {
-            continue;
-        }
-        
-        Value defaultValue;  // null/none by default
-        objectFields[field.name] = defaultValue;
+        if (field.isStatic) continue;
+        objectInstance->fields[field.name] = Value();  // قيمة افتراضية VOID
     }
     
-    // إضافة معلومة اسم الصنف
-    objectFields["__class__"] = Value(node.className);
-    
     #ifdef DEBUG_OOP
-    
-    std::cout << "[OOP] تم إنشاء كائن من صنف: " << node.className << "\n";
-#endif
-    #ifdef DEBUG_OOP
+    std::cout << "[OOP] تم إنشاء كائن من صنف: " << node.className << " (ID: " << objId << ")\n";
     std::cout << "[OOP] عدد الحقول: " << allFields.size() << " (بما في ذلك الموروثة)\n";
 #endif
     
-    // استدعاء الباني إذا كان موجودًا
-    // (AR) نبحث أولاً في ClassType، ثم في مصدر القالب
-    // (EN) First check ClassType, then template instance source
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) استدعاء الباني إذا كان موجودًا
+    // (EN) Call constructor if it exists
+    // ═══════════════════════════════════════════════════════════════════
     AST::ConstructorDecl* constructor = nullptr;
     if (classType->constructor) {
         constructor = classType->constructor.get();
@@ -1387,7 +1707,8 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
     }
     
     if (constructor) {
-        // التحقق من عدد المعاملات
+        // (AR) التحقق من عدد المعاملات
+        // (EN) Verify argument count
         if (node.arguments.size() != constructor->parameters.size()) {
             std::string errMsg = "(AR) عدد المعاملات غير متطابق. توقع " + 
                 std::to_string(constructor->parameters.size()) + " لكن حصل على " + 
@@ -1398,35 +1719,47 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
             throw RuntimeError(errMsg, node.position);
         }
         
-        // تقييم المعاملات
+        // (AR) تقييم المعاملات
+        // (EN) Evaluate arguments
         std::vector<Value> argValues;
         for (auto& arg : node.arguments) {
             arg->accept(*this);
             argValues.push_back(lastResult_);
         }
         
-        // إنشاء scope جديد للباني
+        // (AR) إنشاء scope جديد للباني
+        // (EN) Create new scope for constructor
         variableManager_.enterScope(Data::ScopeType::FUNCTION, "constructor");
         
-        // ربط المعاملات بالقيم
+        // (AR) ربط المعاملات بالقيم
+        // (EN) Bind parameters to values
         for (size_t i = 0; i < constructor->parameters.size(); ++i) {
             variableManager_.define(constructor->parameters[i].name, argValues[i]);
         }
         
-        // إضافة حقول الكائن للـ scope (محاكاة 'this')
-        // (AR) ربط 'هذا' بالكائن الحالي / (EN) Bind 'this' to current object
-        Value objectValue(objectFields);
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) ربط 'هذا'/'this' بالكائن الحقيقي كقيمة OBJECT
+        //      هذا يسمح للباني بتعديل حقول الكائن مباشرة
+        //
+        // (EN) Bind 'this'/هذا to the real object as OBJECT value
+        //      This allows the constructor to modify object fields directly
+        // ═══════════════════════════════════════════════════════════════
+        Value objectValue(objectInstance);
         variableManager_.define("هذا", objectValue);
         variableManager_.define("this", objectValue);
         
-        for (const auto& [name, value] : objectFields) {
-            if (name != "__class__") {
-                variableManager_.define(name, value);
-            }
+        // (AR) تعيين الصنف المنفذ حالياً لدعم سلسلة أساس() متعددة المستويات
+        // (EN) Set executing constructor class to support multi-level أساس() chains
+        variableManager_.define("__executing_constructor_class__", Value(effectiveClassName));
+        
+        // (AR) إضافة حقول الكائن للـ scope لسهولة الوصول المباشر
+        // (EN) Add object fields to scope for direct access convenience
+        for (const auto& [name, value] : objectInstance->fields) {
+            variableManager_.define(name, value);
         }
         
-        // إضافة الحقول الثابتة للـ scope أيضًا
-        // Add static fields to scope as well
+        // (AR) إضافة الحقول الثابتة للـ scope
+        // (EN) Add static fields to scope
         for (const auto& field : classType->fields) {
             if (field.isStatic) {
                 Value* staticValue = classType->getStaticField(field.name);
@@ -1436,61 +1769,101 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
             }
         }
         
-        // === استدعاء باني الأب (أساس) إذا كانت هناك معاملات ===
-        // === Call base constructor (super) if superArgs exist ===
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) استدعاء باني الأب إذا كانت هناك معاملات
+        // (EN) Call base constructor if superArgs exist
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) إصلاح: دعم الوراثة متعددة المستويات بالتسلسل المتكرر
+        //      مثال: قط_فارسي.superArgs → يستدعي باني قط
+        //      → قط.superArgs → يستدعي باني حيوان (تسلسل تلقائي)
+        // (EN) Fix: Support multi-level inheritance with recursive chaining
+        // ═══════════════════════════════════════════════════════════════
         if (!constructor->superArgs.empty() && classType->getBaseClass()) {
+            // (AR) دالة مساعدة لتنفيذ سلسلة البانين المتكررة
+            // (EN) Helper to execute recursive constructor chain
+            std::function<void(AST::ConstructorDecl*, ClassType*, const std::vector<Value>&)> executeCtorChain;
+            executeCtorChain = [&](AST::ConstructorDecl* ctor, ClassType* cls, const std::vector<Value>& args) {
+                // (AR) ربط معاملات هذا الباني
+                // (EN) Bind this constructor's parameters
+                if (args.size() == ctor->parameters.size()) {
+                    for (size_t i = 0; i < ctor->parameters.size(); ++i) {
+                        const auto& pname = ctor->parameters[i].name;
+                        if (variableManager_.exists(pname)) {
+                            variableManager_.assign(pname, args[i]);
+                        } else {
+                            variableManager_.define(pname, args[i]);
+                        }
+                    }
+                }
+                
+                // (AR) أولاً: إذا كان لهذا الباني superArgs خاصة به، نستدعي الجد أولاً
+                // (EN) First: if this constructor has its own superArgs, call grandparent first
+                if (!ctor->superArgs.empty() && cls->getBaseClass()) {
+                    ClassType* parentClass = cls->getBaseClass();
+                    if (parentClass->constructor) {
+                        AST::ConstructorDecl* parentCtor = parentClass->constructor.get();
+                        // (AR) تقييم superArgs لهذا الباني
+                        // (EN) Evaluate this constructor's superArgs
+                        std::vector<Value> parentArgs;
+                        for (auto& sarg : ctor->superArgs) {
+                            sarg->accept(*this);
+                            parentArgs.push_back(lastResult_);
+                        }
+                        // (AR) استدعاء متكرر لباني الأب
+                        // (EN) Recursive call to parent constructor
+                        executeCtorChain(parentCtor, parentClass, parentArgs);
+                    }
+                }
+                
+                // (AR) ثانياً: تنفيذ جسم هذا الباني
+                // (EN) Second: execute this constructor's body
+                try {
+                    ctor->body->accept(statementExecutor_);
+                } catch (...) {
+                    // ignore
+                }
+                
+                // (AR) ثالثاً: تحديث حقول الكائن من المتغيرات في النطاق
+                // (EN) Third: update object fields from scope variables
+                for (const auto& field : cls->fields) {
+                    if (!field.isStatic) {
+                        try {
+                            Value val = variableManager_.get(field.name);
+                            objectInstance->fields[field.name] = val;
+                        } catch (...) {}
+                    }
+                }
+            };
+            
             ClassType* baseClass = classType->getBaseClass();
-            AST::ConstructorDecl* baseCtor = nullptr;
             if (baseClass->constructor) {
-                baseCtor = baseClass->constructor.get();
-            }
-            if (baseCtor) {
-                // تقييم معاملات الأساس
+                AST::ConstructorDecl* baseCtor = baseClass->constructor.get();
+                // (AR) تقييم superArgs الأصلية
+                // (EN) Evaluate original superArgs
                 std::vector<Value> superArgValues;
                 for (auto& sarg : constructor->superArgs) {
                     sarg->accept(*this);
                     superArgValues.push_back(lastResult_);
                 }
-                // ربط معاملات باني الأب بالقيم في الـ scope الحالي
-                if (superArgValues.size() == baseCtor->parameters.size()) {
-                    for (size_t si = 0; si < baseCtor->parameters.size(); ++si) {
-                        const auto& pname = baseCtor->parameters[si].name;
-                        if (variableManager_.exists(pname)) {
-                            variableManager_.assign(pname, superArgValues[si]);
-                        } else {
-                            variableManager_.define(pname, superArgValues[si]);
-                        }
-                    }
-                    // تنفيذ جسم باني الأب
-                    try {
-                        baseCtor->body->accept(statementExecutor_);
-                    } catch (...) {
-                        // تجاهل الأخطاء في باني الأب مبدئياً
-                    }
-                    // قراءة القيم المحدثة من باني الأب
-                    for (const auto& bfield : allFields) {
-                        if (!bfield.isStatic) {
-                            try {
-                                Value bval = variableManager_.get(bfield.name);
-                                objectFields[bfield.name] = bval;
-                            } catch (...) {}
-                        }
-                    }
-                }
+                // (AR) بدء سلسلة التنفيذ المتكرر
+                // (EN) Start recursive execution chain
+                executeCtorChain(baseCtor, baseClass, superArgValues);
             }
         }
 
-        // تنفيذ جسم الباني
+        // (AR) تنفيذ جسم الباني
+        // (EN) Execute constructor body
         try {
             constructor->body->accept(statementExecutor_);
             
-            // جمع القيم المحدثة من الـ scope (بما في ذلك الحقول الموروثة)
-            // Collect updated values from scope (including inherited fields)
+            // (AR) جمع القيم المحدثة من الـ scope إلى حقول الكائن
+            // (EN) Collect updated values from scope into object fields
             for (const auto& field : allFields) {
                 try {
                     Value updatedValue = variableManager_.get(field.name);
                     if (field.isStatic) {
-                        // تحديث الحقل الثابت في ClassType الصحيح
+                        // (AR) تحديث الحقل الثابت في ClassType
+                        // (EN) Update static field in ClassType
                         ClassType* fc = classType;
                         while (fc) {
                             for (const auto& ff : fc->fields) {
@@ -1502,11 +1875,13 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
                             fc = fc->getBaseClass();
                         }
                     } else {
-                        // تحديث حقل الكائن
-                        objectFields[field.name] = updatedValue;
+                        // (AR) تحديث حقل الكائن الحقيقي
+                        // (EN) Update real object field
+                        objectInstance->fields[field.name] = updatedValue;
                     }
                 } catch (...) {
-                    // الحقل لم يتم تعيينه في الباني، استخدام القيمة الافتراضية
+                    // (AR) الحقل لم يتم تعيينه في الباني
+                    // (EN) Field was not set in constructor
                 }
             }
         } catch (const std::exception&) {
@@ -1517,8 +1892,12 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
         variableManager_.exitScope();
     }
     
-    // إرجاع الكائن كـ MAP
-    lastResult_ = Value(objectFields);
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) وضع العلامة أن الباني اُستدعي → إرجاع الكائن كقيمة OBJECT
+    // (EN) Mark constructed → Return object as OBJECT value
+    // ═══════════════════════════════════════════════════════════════════
+    objectInstance->markConstructed();
+    lastResult_ = Value(objectInstance);
 }
 
 // =========================================================================
@@ -2130,24 +2509,42 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
             );
         }
         
-        // التحقق من أن القيمة كائن
-        if (!objectValue.isMap()) {
+        // ═══════════════════════════════════════════════════════════════════
+        // (AR) التحقق من أن القيمة كائن — تدعم كلاً من:
+        //      1. نوع OBJECT الحقيقي (الجديد) مع ObjectInstance
+        //      2. نوع MAP القديم الذي يحتوي على __class__ (للتوافق)
+        //
+        // (EN) Check if value is an object — supports both:
+        //      1. Real OBJECT type (new) with ObjectInstance
+        //      2. Legacy MAP type containing __class__ (backward compat)
+        // ═══════════════════════════════════════════════════════════════════
+        if (objectValue.isObject()) {
+            // (AR) نوع OBJECT الحقيقي — الحصول على اسم الصنف من ObjectInstance
+            // (EN) Real OBJECT type — get class name from ObjectInstance
+            auto objPtr = objectValue.toObject();
+            if (objPtr) {
+                className = objPtr->getClassName();
+                classType = classManager->getClass(className);
+                // (AR) تحويل الحقول إلى MAP للتوافق مع باقي الكود
+                // (EN) Convert fields to MAP for compatibility with rest of code
+                fields = objPtr->fields;
+                fields["__class__"] = Value(className);
+            }
+        } else if (objectValue.isMap()) {
+            // (AR) نوع MAP القديم — التحقق من وجود __class__
+            // (EN) Legacy MAP type — check for __class__
+            fields = objectValue.toMap();
+            auto classNameIt = fields.find("__class__");
+            if (classNameIt == fields.end()) {
+                throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.", node.position);
+            }
+            className = classNameIt->second.toString();
+            classType = classManager->getClass(className);
+        } else {
             std::string errMsg = "(AR) لا يمكن استدعاء طريقة على قيمة ليست كائن. ";
             errMsg += "(EN) Cannot call method on non-object value.";
             throw RuntimeError(errMsg, node.position);
         }
-        
-        // الحصول على اسم الصنف من الكائن
-        fields = objectValue.toMap();
-        auto classNameIt = fields.find("__class__");
-        if (classNameIt == fields.end()) {
-            throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.", node.position);
-        }
-        
-        className = classNameIt->second.toString();
-        
-        // الحصول على ClassType
-        classType = classManager->getClass(className);
     }
     
     if (!classType) {
@@ -2261,32 +2658,65 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
                 statementExecutor_.resetFlowControl();
             }
             
-            // جمع القيم المحدثة للحقول (في حالة تم تعديلها)
-            // Collect updated field values (if modified)
-            // يجب جمع الحقول من السلسلة الهرمية الكاملة
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) جمع القيم المحدثة للحقول — تحديث الكائن الحقيقي
+            //      إذا كان الكائن من نوع OBJECT، نحدّث حقول ObjectInstance 
+            //      مباشرة (بالمرجع). إذا كان MAP قديم، نعيد بناء MAP.
+            //
+            // (EN) Collect updated field values — update the real object
+            //      If object is OBJECT type, update ObjectInstance fields
+            //      directly (by reference). If legacy MAP, rebuild MAP.
+            // ═══════════════════════════════════════════════════════════════
             ClassType* currentClass = classType;
             while (currentClass) {
                 for (const auto& field : currentClass->fields) {
                     try {
                         Value updatedValue = variableManager_.get(field.name);
                         if (field.isStatic) {
-                            // تحديث الحقل الثابت في ClassType
+                            // (AR) تحديث الحقل الثابت في ClassType
+                            // (EN) Update static field in ClassType
                             currentClass->setStaticField(field.name, updatedValue);
                         } else if (!isStaticCall) {
-                            // تحديث حقل الكائن - فقط للطرق غير الثابتة
+                            // (AR) تحديث حقل الكائن (MAP مؤقت)
+                            // (EN) Update object field (temporary MAP)
                             fields[field.name] = updatedValue;
                         }
                     } catch (...) {
-                        // الحقل لم يتم تعديله
+                        // (AR) الحقل لم يتم تعديله
+                        // (EN) Field was not modified
                     }
                 }
                 currentClass = currentClass->getBaseClass();
             }
             
-            // تحديث الكائن الأصلي إذا كان متغيراً - فقط للطرق غير الثابتة
-            // Update original object if it's a variable - only for non-static methods
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) تحديث الكائن الأصلي — فقط للطرق غير الثابتة
+            //      إذا كان OBJECT حقيقي: نحدّث ObjectInstance مباشرة
+            //      إذا كان MAP قديم: نبني MAP جديد ونعيّنه
+            //
+            // (EN) Update original object — only for non-static methods
+            //      If real OBJECT: update ObjectInstance directly
+            //      If legacy MAP: build new MAP and assign it
+            // ═══════════════════════════════════════════════════════════════
             if (!isStaticCall) {
-                if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+                if (objectValue.isObject()) {
+                    // (AR) الكائنات الحقيقية: نحدّث حقول ObjectInstance مباشرة
+                    //      لأن ObjectInstance مخزّن كـ shared_ptr، فالتحديث
+                    //      ينعكس على جميع المتغيرات التي تشير لنفس الكائن
+                    // (EN) Real objects: update ObjectInstance fields directly
+                    //      Since ObjectInstance is stored as shared_ptr, the update
+                    //      reflects on all variables pointing to the same object
+                    auto objPtr = objectValue.toObject();
+                    if (objPtr) {
+                        for (const auto& [name, value] : fields) {
+                            if (name != "__class__") {
+                                objPtr->fields[name] = value;
+                            }
+                        }
+                    }
+                } else if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+                    // (AR) MAP القديم: نبني MAP جديد من الحقول المحدثة
+                    // (EN) Legacy MAP: build new MAP from updated fields
                     Value modifiedObject(fields);
                     variableManager_.assign(varExpr->name, modifiedObject);
                 }
@@ -2303,7 +2733,20 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     
     std::cout << "[OOP] ✅ تم تنفيذ الطريقة: " << node.methodName << "\n";
 #endif
-    lastResult_ = returnValue;
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) إرجاع ضمني لـ 'هذا': إذا لم تُرجع الدالة قيمة صريحة
+    //      ولم تكن الدالة ثابتة، نُرجع الكائن نفسه تلقائياً
+    //      لدعم تسلسل الاستدعاءات: كائن.دالة1().دالة2().دالة3()
+    //
+    // (EN) Implicit 'this' return: if method has no explicit return
+    //      and is not static, automatically return the object itself
+    //      to support method chaining: obj.method1().method2().method3()
+    // ═══════════════════════════════════════════════════════════════════
+    if (returnValue.isVoid() && !isStaticCall) {
+        lastResult_ = objectValue;
+    } else {
+        lastResult_ = returnValue;
+    }
 }
 
 // =========================================================================
@@ -2364,34 +2807,43 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
         }
     }
     
-    // وصول عادي للكائن: object.field
-    // Regular object access: object.field
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) وصول عادي للكائن: كائن.حقل
+    //      يدعم كلاً من نوع OBJECT الحقيقي ونوع MAP القديم
+    //
+    // (EN) Regular object access: object.field
+    //      Supports both real OBJECT type and legacy MAP type
+    // ═══════════════════════════════════════════════════════════════════
     
-    // التحقق من أن القيمة كائن (MAP مؤقتًا)
-    if (!objectValue.isMap()) {
+    std::string className;
+    ClassType* classType = nullptr;
+    Value::MapType fields;
+    
+    if (objectValue.isObject()) {
+        // (AR) نوع OBJECT الحقيقي — الحصول على البيانات من ObjectInstance
+        // (EN) Real OBJECT type — get data from ObjectInstance
+        auto objPtr = objectValue.toObject();
+        if (objPtr) {
+            className = objPtr->getClassName();
+            classType = classManager->getClass(className);
+            fields = objPtr->fields;
+            fields["__class__"] = Value(className);
+        }
+    } else if (objectValue.isMap()) {
+        // (AR) نوع MAP القديم — التوافق مع الكود السابق
+        // (EN) Legacy MAP type — backward compatibility
+        fields = objectValue.toMap();
+        auto classNameIt = fields.find("__class__");
+        if (classNameIt == fields.end()) {
+            throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.", node.position);
+        }
+        className = classNameIt->second.toString();
+        classType = classManager->getClass(className);
+    } else {
         std::string errMsg = "(AR) لا يمكن الوصول لعضو من قيمة ليست كائن. ";
         errMsg += "(EN) Cannot access member of non-object value.";
         throw RuntimeError(errMsg, node.position);
     }
-    
-    #ifdef DEBUG_OOP
-    
-    std::cout << "[OOP] الوصول لحقل: " << node.member << "\n";
-#endif
-    
-    // الحصول على MAP
-    Value::MapType fields = objectValue.toMap();
-    
-    // الحصول على اسم الصنف
-    auto classNameIt = fields.find("__class__");
-    if (classNameIt == fields.end()) {
-        throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.", node.position);
-    }
-    
-    std::string className = classNameIt->second.toString();
-    
-    // الحصول على ClassType
-    ClassType* classType = classManager->getClass(className);
     
     if (!classType) {
         throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.", node.position);
@@ -2428,13 +2880,41 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
             throw RuntimeError(errMsg, node.position);
         }
         
-        // تنفيذ getter body في نطاق جديد
-        // TODO: Add proper 'this' context support in future
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) تنفيذ getter body في نطاق جديد مع سياق الكائن
+        //      نربط 'هذا' بالكائن ونضيف الحقول للنطاق
+        //      حتى يستطيع الـ getter الوصول لبيانات الكائن
+        //
+        // (EN) Execute getter body in new scope with object context
+        //      Bind 'هذا' (this) to object and add fields to scope
+        //      so getter can access object data
+        // ═══════════════════════════════════════════════════════════════
+        variableManager_.enterScope(Data::ScopeType::FUNCTION, "get_" + node.member);
+        
+        // (AR) ربط 'هذا' بالكائن / (EN) Bind 'this' to object
+        variableManager_.define("هذا", objectValue);
+        variableManager_.define("this", objectValue);
+        
+        // (AR) ربط حقول الكائن كمتغيرات محلية / (EN) Bind object fields as local variables
+        for (const auto& [fname, fval] : fields) {
+            if (fname != "__class__") {
+                variableManager_.define(fname, fval);
+            }
+        }
+        
         try {
             property->getterBody->accept(*this);
+            
+            if (statementExecutor_.getFlowControl() == FlowControl::RETURN) {
+                lastResult_ = statementExecutor_.getReturnValue();
+                statementExecutor_.resetFlowControl();
+            }
         } catch (...) {
-            // في حالة حدوث خطأ، نعيد القيمة الحالية
+            variableManager_.exitScope();
+            throw;
         }
+        
+        variableManager_.exitScope();
         
         #ifdef DEBUG_OOP
         
@@ -2467,44 +2947,75 @@ void ExpressionEvaluator::visitMemberExpr(MemberExpr& node) {
 // =========================================================================
 
 void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
-    // تقييم الكائن
+    // ═══════════════════════════════════════════════════════════════════════
+    // (AR) تعيين قيمة لحقل في كائن: كائن.حقل = قيمة
+    //      يدعم كلاً من نوع OBJECT الحقيقي ونوع MAP القديم
+    //      
+    //      مع OBJECT الحقيقي: التعيين يكون بالمرجع — أي تغيير ينعكس
+    //      على جميع المتغيرات التي تشير لنفس الكائن
+    //
+    // (EN) Assign value to field in object: object.field = value
+    //      Supports both real OBJECT type and legacy MAP type
+    //      
+    //      With real OBJECT: assignment is by reference — any change
+    //      reflects on all variables pointing to the same object
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    // (AR) تقييم الكائن
+    // (EN) Evaluate the object
     node.object->accept(*this);
     Value objectValue = lastResult_;
     
-    // التحقق من أن القيمة كائن (MAP مؤقتًا)
-    if (!objectValue.isMap()) {
+    // (AR) تقييم القيمة الجديدة
+    // (EN) Evaluate the new value
+    node.value->accept(*this);
+    Value newValue = lastResult_;
+    
+    std::string className;
+    ClassType* classType = nullptr;
+    Value::MapType fields;
+    bool isRealObject = false;
+    std::shared_ptr<ObjectInstance> objPtr = nullptr;
+    
+    if (objectValue.isObject()) {
+        // (AR) نوع OBJECT الحقيقي
+        // (EN) Real OBJECT type
+        isRealObject = true;
+        objPtr = objectValue.toObject();
+        if (objPtr) {
+            className = objPtr->getClassName();
+            fields = objPtr->fields;
+        }
+    } else if (objectValue.isMap()) {
+        // (AR) نوع MAP القديم
+        // (EN) Legacy MAP type
+        fields = objectValue.toMap();
+        auto classNameIt = fields.find("__class__");
+        if (classNameIt == fields.end()) {
+            throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.", node.position);
+        }
+        className = classNameIt->second.toString();
+    } else {
         std::string errMsg = "(AR) لا يمكن تعيين قيمة لعضو من قيمة ليست كائن. ";
         errMsg += "(EN) Cannot assign to member of non-object value.";
         throw RuntimeError(errMsg, node.position);
     }
     
-    // تقييم القيمة الجديدة
-    node.value->accept(*this);
-    Value newValue = lastResult_;
-    
-    // الحصول على MAP
-    Value::MapType fields = objectValue.toMap();
-    
-    // الحصول على اسم الصنف
-    auto classNameIt = fields.find("__class__");
-    if (classNameIt == fields.end()) {
-        throw RuntimeError("(AR) كائن بدون معلومات صنف. (EN) Object without class info.", node.position);
-    }
-    
-    std::string className = classNameIt->second.toString();
-    
-    // الحصول على ClassType
+    // (AR) الحصول على ClassType
+    // (EN) Get ClassType
     auto* classManager = Data::ClassManager::getInstance();
-    ClassType* classType = classManager->getClass(className);
+    classType = classManager->getClass(className);
     
     if (!classType) {
         throw RuntimeError("(AR) الصنف غير موجود. (EN) Class not found.", node.position);
     }
     
-    // البحث عن الحقل
+    // (AR) البحث عن الحقل
+    // (EN) Find the field
     ClassField* field = classType->findField(node.member);
     
-    // البحث عن خاصية (Property) إذا لم يُوجد حقل
+    // (AR) البحث عن خاصية (Property) إذا لم يُوجد حقل
+    // (EN) Search for property if field not found
     ClassProperty* property = nullptr;
     if (!field) {
         property = classType->findProperty(node.member);
@@ -2516,69 +3027,118 @@ void ExpressionEvaluator::visitMemberAssignExpr(MemberAssignExpr& node) {
         throw RuntimeError(errMsg, node.position);
     }
     
-    // إذا كانت خاصية، نفذ الـ setter
+    // (AR) إذا كانت خاصية، نفذ الـ setter
+    // (EN) If it's a property, execute the setter
     if (property) {
-        #ifdef DEBUG_OOP
-        std::cout << "[OOP] تنفيذ setter للخاصية: " << node.member << "\n";
-#endif
-        
-        // فحص الوصول
         checkMemberAccess(property->visibility, node.member, classType);
         
-        // التحقق من وجود setter
         if (!property->setterBody) {
             std::string errMsg = "(AR) الخاصية '" + node.member + "' للقراءة فقط (لا يوجد setter). ";
             errMsg += "(EN) Property '" + node.member + "' is read-only (no setter).";
             throw RuntimeError(errMsg, node.position);
         }
         
-        // إنشاء نطاق جديد لمعامل setter
-        // TODO: Add proper scope and 'this' context support
-        try {
-            // تنفيذ setter body
-            property->setterBody->accept(*this);
-        } catch (...) {
-            // معالجة الأخطاء
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) تنفيذ setter body في نطاق جديد مع سياق الكائن
+        //      نربط 'هذا' بالكائن، ونربط 'قيمة'/'value' بالقيمة الجديدة
+        //      وكذلك نربط الحقول للوصول المباشر
+        //
+        // (EN) Execute setter body in new scope with object context
+        //      Bind 'هذا' (this) to object, 'قيمة'/'value' to new value
+        //      and bind fields for direct access
+        // ═══════════════════════════════════════════════════════════════
+        variableManager_.enterScope(Data::ScopeType::FUNCTION, "set_" + node.member);
+        
+        // (AR) ربط 'هذا' و 'قيمة' / (EN) Bind 'this' and 'value'
+        variableManager_.define("هذا", objectValue);
+        variableManager_.define("this", objectValue);
+        variableManager_.define("قيمة", newValue);
+        variableManager_.define("value", newValue);
+        
+        // (AR) ربط حقول الكائن / (EN) Bind object fields
+        if (isRealObject && objPtr) {
+            for (const auto& [fname, fval] : objPtr->fields) {
+                variableManager_.define(fname, fval);
+            }
+        } else {
+            auto fields = objectValue.toMap();
+            for (const auto& [fname, fval] : fields) {
+                if (fname != "__class__") {
+                    variableManager_.define(fname, fval);
+                }
+            }
         }
         
+        try {
+            property->setterBody->accept(*this);
+            
+            if (statementExecutor_.getFlowControl() == FlowControl::RETURN) {
+                statementExecutor_.resetFlowControl();
+            }
+            
+            // (AR) كتابة الحقول المحدثة إلى الكائن
+            // (EN) Write back updated fields to object
+            if (isRealObject && objPtr) {
+                for (auto& [fname, fval] : objPtr->fields) {
+                    try {
+                        Value updated = variableManager_.get(fname);
+                        objPtr->fields[fname] = updated;
+                    } catch (...) {}
+                }
+            }
+        } catch (...) {
+            variableManager_.exitScope();
+            throw;
+        }
+        
+        variableManager_.exitScope();
         lastResult_ = newValue;
-        #ifdef DEBUG_OOP
-        std::cout << "[OOP] تم تعيين قيمة الخاصية: " << newValue.toString() << "\n";
-#endif
         return;
     }
     
-    // معالجة الحقل العادي
-    // فحص الوصول (Phase 6.1: Access Modifiers)
+    // (AR) معالجة الحقل العادي
+    // (EN) Handle regular field
     checkMemberAccess(field->visibility, node.member, classType);
     
-    // التحقق من وجود الحقل في الكائن
-    if (fields.find(node.member) == fields.end()) {
-        std::string errMsg = "(AR) الحقل '" + node.member + "' غير موجود في الكائن. ";
-        errMsg += "(EN) Field '" + node.member + "' not found in object.";
-        throw RuntimeError(errMsg, node.position);
-    }
-    
-    // تحديث قيمة الحقل
-    fields[node.member] = newValue;
-    
-    // حفظ الكائن المعدّل
-    // PROBLEM: We need to update the original variable!
-    // This is where we hit a limitation - we need to know which variable holds the object
-    // For now, we need to handle this differently
-    
-    // The object came from evaluating node.object, which is likely a VariableExpr
-    // We need to update that variable with the modified MAP
-    if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
-        // Update the variable with the modified object
-        Value modifiedObject(fields);
-        variableManager_.assign(varExpr->name, modifiedObject);
+    if (isRealObject && objPtr) {
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) OBJECT حقيقي: نحدّث ObjectInstance مباشرة بالمرجع
+        //      لا نحتاج إعادة تعيين المتغير لأن shared_ptr يعمل بالمرجع
+        //
+        // (EN) Real OBJECT: update ObjectInstance directly by reference
+        //      No need to reassign the variable since shared_ptr works by ref
+        //
+        // (AR) مزامنة متغير النطاق: عند تعيين هذا.حقل = قيمة داخل دالة،
+        //      يجب تحديث متغير النطاق أيضاً لأن مرحلة الكتابة الراجعة
+        //      في visitMethodCallExpr تقرأ من متغيرات النطاق
+        //
+        // (EN) Sync scope variable: when assigning this.field = value inside 
+        //      a method, also update scope variable because the writeback 
+        //      phase in visitMethodCallExpr reads from scope variables
+        // ═══════════════════════════════════════════════════════════════
+        objPtr->fields[node.member] = newValue;
+        // (AR) مزامنة النطاق / (EN) Sync scope
+        try {
+            variableManager_.assign(node.member, newValue);
+        } catch (...) {
+            // (AR) الحقل قد لا يكون في النطاق (خارج سياق الدالة)
+            // (EN) Field might not be in scope (outside method context)
+        }
         lastResult_ = newValue;
     } else {
-        // Complex expression - not supported yet
-        std::string errMsg = "(AR) تعيين قيمة لحقل في تعبير معقد غير مدعوم حاليًا. ";
-        errMsg += "(EN) Assignment to field in complex expression not yet supported.";
-        throw RuntimeError(errMsg, node.position);
+        // (AR) MAP القديم: نحتاج إعادة بناء وتعيين
+        // (EN) Legacy MAP: need to rebuild and reassign
+        fields[node.member] = newValue;
+        
+        if (auto* varExpr = dynamic_cast<VariableExpr*>(node.object.get())) {
+            Value modifiedObject(fields);
+            variableManager_.assign(varExpr->name, modifiedObject);
+            lastResult_ = newValue;
+        } else {
+            std::string errMsg = "(AR) تعيين قيمة لحقل في تعبير معقد غير مدعوم حاليًا. ";
+            errMsg += "(EN) Assignment to field in complex expression not yet supported.";
+            throw RuntimeError(errMsg, node.position);
+        }
     }
 }
 
@@ -2994,22 +3554,32 @@ void ExpressionEvaluator::checkMemberAccess(
     bool insideMethod = variableManager_.exists("هذا") || variableManager_.exists("this");
     
     if (insideMethod) {
-        // نحن داخل method، نتحقق من الصنف الحالي
+        // (AR) نحن داخل طريقة — نتحقق من الصنف الحالي
+        //      يدعم نوع OBJECT الحقيقي ونوع MAP القديم
+        // (EN) We're inside a method — check current class
+        //      Supports real OBJECT type and legacy MAP type
         Value thisValue = variableManager_.exists("هذا") ? 
                          variableManager_.get("هذا") : 
                          variableManager_.get("this");
         
-        if (thisValue.isMap()) {
+        std::string currentClassName;
+        if (thisValue.isObject()) {
+            currentClassName = thisValue.getClassName();
+        } else if (thisValue.isMap()) {
             auto fields = thisValue.toMap();
             auto classNameIt = fields.find("__class__");
             if (classNameIt != fields.end()) {
-                std::string currentClassName = classNameIt->second.toString();
-                auto* classManager = Data::ClassManager::getInstance();
-                Data::ClassType* currentClass = classManager->getClass(currentClassName);
-                
-                if (currentClass) {
-                    // التحقق إذا كان الصنف الحالي هو نفسه أو مشتق من targetClass
-                    // Check if current class is same or derived from targetClass
+                currentClassName = classNameIt->second.toString();
+            }
+        }
+        
+        if (!currentClassName.empty()) {
+            auto* classManager = Data::ClassManager::getInstance();
+            Data::ClassType* currentClass = classManager->getClass(currentClassName);
+            
+            if (currentClass) {
+                    // (AR) التحقق إذا كان الصنف الحالي هو نفسه أو مشتق من targetClass
+                    // (EN) Check if current class is same or derived from targetClass
                     Data::ClassType* temp = currentClass;
                     while (temp) {
                         if (temp == targetClass || temp->name == targetClass->name) {
@@ -3025,7 +3595,6 @@ void ExpressionEvaluator::checkMemberAccess(
                         temp = temp->getBaseClass();
                     }
                 }
-            }
         }
     }
     

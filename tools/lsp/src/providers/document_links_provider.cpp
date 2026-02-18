@@ -6,9 +6,9 @@
 //
 // روابط المستند (Document Links) تجعل مسارات الاستيراد قابلة للنقر:
 //
-//   استورد "رياضيات/حساب"     ← النقر يفتح ملف حساب.sad
-//   استورد "أدوات/نصوص"       ← النقر يفتح ملف نصوص.sad
-//   # ملاحظة: راجع ملف حساب.sad  ← النقر يفتح الملف المذكور
+//   استورد "رياضيات/حساب"     ← النقر يفتح ملف حساب.ص
+//   استورد "أدوات/نصوص"       ← النقر يفتح ملف نصوص.ص
+//   # ملاحظة: راجع ملف حساب.ص  ← النقر يفتح الملف المذكور
 //
 // الميزات:
 //   ● اكتشاف تلقائي لجمل الاستيراد (استورد/import)
@@ -93,8 +93,8 @@ static std::vector<ImportMatch> find_imports_in_line(const std::string& line) {
     return matches;
 }
 
-/// البحث عن مسارات ملفات .sad في التعليقات
-/// مثال: # راجع ملف حساب.sad
+/// البحث عن مسارات ملفات .ص في التعليقات
+/// مثال: # راجع ملف حساب.ص
 static std::vector<ImportMatch> find_file_paths_in_comments(const std::string& line) {
     std::vector<ImportMatch> matches;
 
@@ -112,8 +112,8 @@ static std::vector<ImportMatch> find_file_paths_in_comments(const std::string& l
 
     if (!is_comment) return matches;
 
-    // البحث عن أنماط ملفات .sad
-    const std::string sad_ext = ".sad";
+    // البحث عن أنماط ملفات .ص
+    const std::string sad_ext = ".ص";
     size_t search_pos = 0;
     while ((search_pos = line.find(sad_ext, search_pos)) != std::string::npos) {
         // الرجوع للخلف لإيجاد بداية اسم الملف
@@ -148,7 +148,7 @@ static std::vector<ImportMatch> find_file_paths_in_comments(const std::string& l
 //
 // نمسح المستند سطراً سطراً ونبحث عن:
 //   ١. جمل الاستيراد (استورد/import/تحميل/ادخل)
-//   ٢. مسارات ملفات .sad في التعليقات
+//   ٢. مسارات ملفات .ص في التعليقات
 //
 // لكل مسار نجده، ننشئ DocumentLink يمكن النقر عليه
 //
@@ -180,9 +180,9 @@ std::vector<DocumentLink> LspEngine::document_links(const DocumentUri& uri) {
 
             // بناء عنوان URI الهدف
             std::string target_path = imp.path;
-            // إضافة امتداد .sad إذا لم يكن موجوداً
-            if (target_path.find(".sad") == std::string::npos) {
-                target_path += ".sad";
+            // إضافة امتداد .ص إذا لم يكن موجوداً
+            if (target_path.find(".ص") == std::string::npos) {
+                target_path += ".ص";
             }
             // تحويل الفواصل المائلة العكسية إلى أمامية
             for (auto& ch : target_path) {

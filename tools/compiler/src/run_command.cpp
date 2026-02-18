@@ -452,27 +452,27 @@ void RunCommand::print_examples(std::ostream& os) const {
     
     os << "  " << colors::GREEN << "# تشغيل برنامج بسيط" << colors::RESET << std::endl;
     os << "  ص شغّل برنامج.ص" << std::endl;
-    os << "  sad run program.s" << std::endl;
+    os << "  sad run program.ص" << std::endl;
     os << std::endl;
     
     os << "  " << colors::GREEN << "# تشغيل مع وسائط للبرنامج" << colors::RESET << std::endl;
     os << "  ص شغّل برنامج.ص -- وسيط1 وسيط2" << std::endl;
-    os << "  sad run program.s -- arg1 arg2" << std::endl;
+    os << "  sad run program.ص -- arg1 arg2" << std::endl;
     os << std::endl;
     
     os << "  " << colors::GREEN << "# تشغيل بوضع الإصدار (أسرع)" << colors::RESET << std::endl;
     os << "  ص شغّل برنامج.ص --إصدار" << std::endl;
-    os << "  sad run program.s --release" << std::endl;
+    os << "  sad run program.ص --release" << std::endl;
     os << std::endl;
     
     os << "  " << colors::GREEN << "# تشغيل مع عرض الوقت" << colors::RESET << std::endl;
     os << "  ص شغّل برنامج.ص --وقت" << std::endl;
-    os << "  sad run program.s --time" << std::endl;
+    os << "  sad run program.ص --time" << std::endl;
     os << std::endl;
     
     os << "  " << colors::GREEN << "# تشغيل مع مراقبة التغييرات" << colors::RESET << std::endl;
     os << "  ص شغّل برنامج.ص --راقب" << std::endl;
-    os << "  sad run program.s --watch" << std::endl;
+    os << "  sad run program.ص --watch" << std::endl;
     os << std::endl;
     
     os << "  " << colors::GREEN << "# تشغيل من مجلد المشروع (بدون تحديد ملف)" << colors::RESET << std::endl;

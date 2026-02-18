@@ -484,7 +484,7 @@ private:
             field.nameEn = "entry";
             field.type = SchemaType::PATH;
             field.required = false;
-            field.defaultValue = "src/main.sad";
+            field.defaultValue = "src/main.ص";
             field.descriptionAr = "ملف نقطة الدخول";
             field.descriptionEn = "Entry point file";
             schema_["build.entry"] = field;

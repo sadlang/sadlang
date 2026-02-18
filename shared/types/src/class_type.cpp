@@ -167,7 +167,7 @@ bool ClassType::setStaticField(const std::string& fieldName, const Value& value)
 bool ClassType::addMethod(const std::string& methodName, AST::Visibility visibility,
                           Type* returnType, const std::vector<AST::Parameter>& parameters,
                           std::unique_ptr<AST::BlockStmt> body,
-                          bool isStatic, bool isVirtual) {
+                          bool isStatic, bool isVirtual, bool isAbstract) {
     // (AR) إضافة طريقة جديدة
     // (EN) Add new method
     
@@ -184,6 +184,7 @@ bool ClassType::addMethod(const std::string& methodName, AST::Visibility visibil
     method.body = std::move(body);
     method.isStatic = isStatic;
     method.isVirtual = isVirtual;
+    method.isAbstract = isAbstract;
     
     // (AR) إضافة للقائمة والفهرس
     // (EN) Add to list and index

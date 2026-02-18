@@ -249,6 +249,8 @@ public:
     void visitTemplateInstantiation(AST::TemplateInstantiation& inst) override;
     void visitNamespaceDecl(AST::NamespaceDecl& decl) override;
     void visitOperatorDecl(AST::OperatorDecl& decl) override;
+    void visitTraitDecl(AST::TraitDecl& decl) override;
+    void visitImplDecl(AST::ImplDecl& decl) override;
     
 protected:
     // ==================================================================

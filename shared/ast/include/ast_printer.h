@@ -476,6 +476,19 @@ public:
      * @param stmt (AR) مؤشر للعقدة. (EN) Pointer to node.
      */
     void visitClassDeclStmt(ClassDeclStmt& stmt) override;
+    
+    // (AR) السمات والتنفيذ / (EN) Traits and Implementation
+    void visitTraitDecl(TraitDecl& decl) override;
+    void visitImplDecl(ImplDecl& decl) override;
+
+    // (AR) الدوال المفقودة من ASTVisitor / (EN) Missing ASTVisitor methods
+    void visitBorrowExpr(BorrowExpr& expr) override;
+    void visitInlineAsmExpr(InlineAsmExpr& expr) override;
+    void visitTemplateFunctionDecl(TemplateFunctionDecl& decl) override;
+    void visitTemplateClassDecl(TemplateClassDecl& decl) override;
+    void visitTemplateInstantiation(TemplateInstantiation& expr) override;
+    void visitNamespaceDecl(NamespaceDecl& decl) override;
+    void visitOperatorDecl(OperatorDecl& decl) override;
 
 private:
     std::string result_;        ///< (AR) النتيجة المُخزنة. (EN) Stored result.

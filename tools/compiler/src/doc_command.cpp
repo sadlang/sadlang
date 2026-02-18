@@ -358,7 +358,7 @@ private:
             for (const auto& entry : fs::recursive_directory_iterator(dir)) {
                 if (entry.is_regular_file()) {
                     std::string ext = entry.path().extension().string();
-                    if (ext == ".ص" || ext == ".sad") {
+                    if (ext == ".ص") {
                         files.push_back(entry.path().string());
                     }
                 }

@@ -173,19 +173,23 @@ endif()
 # ======================================================================
 # إضافة الاختبارات إلى CTest / Add tests to CTest
 # ======================================================================
-if(BUILD_TESTS)
+if(BUILD_TESTS AND TARGET constant_folding_tests)
     add_test(
         NAME ConstantFoldingTests
         COMMAND constant_folding_tests
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
-    
+endif()
+
+if(BUILD_TESTS AND TARGET dead_code_elimination_tests)
     add_test(
         NAME DeadCodeEliminationTests
         COMMAND dead_code_elimination_tests
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
-    
+endif()
+
+if(BUILD_TESTS AND TARGET optimizer_integration_tests)
     add_test(
         NAME OptimizerIntegrationTests
         COMMAND optimizer_integration_tests

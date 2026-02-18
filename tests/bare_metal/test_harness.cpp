@@ -133,7 +133,7 @@ void BareMetalTestHarness::addTestDirectory(const std::string& dir,
     if (!fs::exists(dir)) return;
     
     for (const auto& entry : fs::directory_iterator(dir)) {
-        if (entry.path().extension() == ".sad" || entry.path().extension() == u8".ص") {
+        if (entry.path().extension() == ".ص" || entry.path().extension() == u8".ص") {
             BareMetalTestCase tc;
             tc.name = entry.path().stem().string();
             tc.sourceFile = entry.path().string();

@@ -337,6 +337,102 @@ std::string ClassManager::getStatistics() const {
     return oss.str();
 }
 
+// ======================================================================
+// الواجهات والسمات / Traits and Interfaces
+// ======================================================================
+
+bool ClassManager::registerTrait(TraitDefinition trait) {
+    if (traits_.find(trait.name) != traits_.end()) {
+        return false; // (AR) السمة موجودة مسبقاً
+    }
+    std::string name = trait.name;
+    traits_[name] = std::move(trait);
+    return true;
+}
+
+const TraitDefinition* ClassManager::getTrait(const std::string& traitName) const {
+    auto it = traits_.find(traitName);
+    if (it != traits_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+bool ClassManager::hasTrait(const std::string& traitName) const {
+    return traits_.find(traitName) != traits_.end();
+}
+
+bool ClassManager::validateTraitImpl(const std::string& className, const std::string& traitName) const {
+    auto* cls = const_cast<ClassManager*>(this)->getClass(className);
+    auto* trait = getTrait(traitName);
+    if (!cls || !trait) return false;
+    
+    // (AR) التحقق من أن الصنف يحتوي على جميع الدوال المطلوبة
+    for (const auto& requiredMethod : trait->requiredMethods) {
+        if (requiredMethod.hasDefaultImpl) continue; // has default, ok to skip
+        
+        bool found = false;
+        for (const auto& classMethod : cls->methods) {
+            if (classMethod.name == requiredMethod.name) {
+                found = true;
+                break;
+            }
+        }
+        // (AR) البحث في سلسلة الوراثة
+        if (!found) {
+            ClassType* parent = cls->baseClass;
+            while (parent && !found) {
+                for (const auto& m : parent->methods) {
+                    if (m.name == requiredMethod.name) {
+                        found = true;
+                        break;
+                    }
+                }
+                parent = parent->baseClass;
+            }
+        }
+        
+        if (!found) return false;
+    }
+    
+    // (AR) التحقق من السمات الأساسية أيضاً
+    for (const auto& superTrait : trait->superTraits) {
+        if (!validateTraitImpl(className, superTrait)) return false;
+    }
+    
+    return true;
+}
+
+bool ClassManager::registerTraitImpl(const std::string& className, const std::string& traitName) {
+    auto* cls = getClass(className);
+    if (!cls) return false;
+    if (!hasTrait(traitName)) return false;
+    
+    // (AR) التحقق من التنفيذ
+    if (!validateTraitImpl(className, traitName)) return false;
+    
+    // (AR) تسجيل أن الصنف ينفذ الواجهة
+    cls->implementedTraits.push_back(traitName);
+    return true;
+}
+
+bool ClassManager::classImplementsTrait(const std::string& className, const std::string& traitName) const {
+    auto it = classes_.find(className);
+    if (it == classes_.end()) return false;
+    
+    const auto& traits = it->second->implementedTraits;
+    for (const auto& t : traits) {
+        if (t == traitName) return true;
+    }
+    
+    // (AR) البحث في سلسلة الوراثة
+    if (it->second->baseClass) {
+        return classImplementsTrait(it->second->baseClass->name, traitName);
+    }
+    
+    return false;
+}
+
 } // namespace Data
 } // namespace Sad
 

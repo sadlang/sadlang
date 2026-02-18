@@ -38,20 +38,20 @@
  * @see docs/import_export_plan/phase1_import_export.md
  * 
  * @example استيراد كامل / Full Import
- * @code{.sad}
+ * @code{.ص}
  * استورد رياضيات
  * اطبع(رياضيات.جذر(16))  // 4
  * @endcode
  * 
  * @example استيراد انتقائي / Selective Import
- * @code{.sad}
+ * @code{.ص}
  * من رياضيات استورد جذر، قوة
  * اطبع(جذر(16))    // 4
  * اطبع(قوة(2، 3))   // 8
  * @endcode
  * 
  * @example تصدير / Export
- * @code{.sad}
+ * @code{.ص}
  * صدّر دالة رقم مضاعفة(رقم س) {
  *     إرجاع س * 2
  * }

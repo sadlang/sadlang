@@ -187,7 +187,11 @@ enum class Opcode {
     And,            // و: %r = And(%a, %b)
     Or,             // أو: %r = Or(%a, %b)
     Not,            // ليس: %r = Not(%v)
-    Xor,            // حصري: %r = Xor(%a, %b)
+    Xor,            // حصري XOR بتّي: %r = Xor(%a, %b)
+    BitAnd,         // AND بتّي: %r = BitAnd(%a, %b)
+    BitOr,          // OR بتّي: %r = BitOr(%a, %b)
+    Shl,            // إزاحة يسار: %r = Shl(%a, %b)
+    Shr,            // إزاحة يمين: %r = Shr(%a, %b)
     
     // ═══════════════════════════════════════════════════════════════
     // عمليات التحكم
@@ -631,11 +635,15 @@ private:
             case Opcode::Gt: return "أكبر";
             case Opcode::Ge: return "أكبر_أو_يساوي";
             
-            // عمليات منطقية
+            // عمليات منطقية وبتية
             case Opcode::And: return "و";
             case Opcode::Or: return "أو";
             case Opcode::Not: return "ليس";
             case Opcode::Xor: return "حصري";
+            case Opcode::BitAnd: return "بت_و";
+            case Opcode::BitOr: return "بت_أو";
+            case Opcode::Shl: return "إزاحة_يسار";
+            case Opcode::Shr: return "إزاحة_يمين";
             
             // عمليات التحكم
             case Opcode::Jump: return "قفز";

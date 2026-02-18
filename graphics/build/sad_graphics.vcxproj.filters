@@ -31,13 +31,28 @@
     <ClCompile Include="C:\s\s_language\graphics\src\rendering\renderer2d.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\rendering\renderer3d.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\s\s_language\graphics\src\rendering\framebuffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\s\s_language\graphics\src\rendering\camera2d.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\rendering\camera3d.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\s\s_language\graphics\src\rendering\sprite.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\rendering\mesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\rendering\material.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\rendering\lighting.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\s\s_language\graphics\src\texture\texture.cpp">
@@ -98,6 +113,30 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\s\s_language\graphics\src\ui\ui_layout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_core.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_buttons.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_input.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_navigation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_lists.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_dialogs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_display.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\s\s_language\graphics\src\ui\mobile\mobile_media.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\s\s_language\graphics\third_party\glad\src\glad.c">

@@ -372,17 +372,11 @@ std::vector<std::string> TestCommand::discover_tests(const std::string& pattern)
         base_dir + "/اختبارات"
     };
     
-    // أنماط الملفات
+    // أنماط الملفات — الامتداد الوحيد المدعوم هو .ص
     std::vector<std::string> test_patterns = {
-        "test_*.s",
         "test_*.ص",
-        "test_*.sad",
-        "*_test.s",
         "*_test.ص",
-        "*_test.sad",
-        "اختبار_*.s",
-        "اختبار_*.ص",
-        "اختبار_*.sad"
+        "اختبار_*.ص"
     };
     
     for (const auto& dir : search_dirs) {

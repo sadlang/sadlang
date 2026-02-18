@@ -309,8 +309,7 @@ int main(int argc, char* argv[]) {
         if (std::filesystem::is_directory(مسار)) {
             // جمع كل ملفات .ص
             for (const auto& entry : std::filesystem::recursive_directory_iterator(مسار)) {
-                if (entry.path().extension() == ".ص" || 
-                    entry.path().extension() == ".sad") {
+                if (entry.path().extension() == ".ص") {
                     ملفات_للمعالجة.push_back(entry.path().string());
                 }
             }

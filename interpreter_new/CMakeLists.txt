@@ -25,6 +25,7 @@ add_library(sad_new_interpreter STATIC
     src/managers/object_manager.cpp
     src/managers/variable_manager.cpp
     src/managers/ownership_manager.cpp
+    src/managers/scope_manager.cpp
     
     # OOP - تم إصلاحه!
     src/oop/interpreter_classes_fixed.cpp
@@ -51,6 +52,8 @@ target_include_directories(sad_new_interpreter
         ${CMAKE_SOURCE_DIR}/include/interpreter/visitors
         ${CMAKE_SOURCE_DIR}/include/data/managers
         ${CMAKE_SOURCE_DIR}/include/data/scope
+        ${CMAKE_SOURCE_DIR}/compiler_new/include
+        ${CMAKE_SOURCE_DIR}/compiler_new/include/semantic
 )
 
 target_link_libraries(sad_new_interpreter

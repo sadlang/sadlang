@@ -342,7 +342,7 @@ public:
             for (const auto& entry : fs::recursive_directory_iterator(dirPath)) {
                 if (entry.is_regular_file()) {
                     std::string ext = entry.path().extension().string();
-                    if (ext == ".ص" || ext == ".sad") {
+                    if (ext == ".ص") {
                         auto tests = extractFromFile(entry.path().string());
                         allTests.insert(allTests.end(), tests.begin(), tests.end());
                     }

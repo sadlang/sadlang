@@ -128,6 +128,7 @@ public:
     std::vector<std::string> superclasses;   ///< Base class names (multiple inheritance) / أسماء الأصناف الأساسية
     StmtList members;                        ///< Class members / أعضاء الصنف
     bool isExported;                         ///< Is exported? / مصدّر؟
+    bool isAbstract;                         ///< Is abstract class? / صنف مجرد؟
     
     /**
      * @brief Constructor with multiple base classes / البناء مع أصناف أساسية متعددة
@@ -141,7 +142,7 @@ public:
               StmtList members, bool exported = false,
               const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), superclasses(bases),
-          members(std::move(members)), isExported(exported) {}
+          members(std::move(members)), isExported(exported), isAbstract(false) {}
     
     /**
      * @brief Constructor with single base class (backward compatibility) / البناء مع صنف أساسي واحد
@@ -156,7 +157,7 @@ public:
               const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), 
           superclasses(superclass.empty() ? std::vector<std::string>() : std::vector<std::string>{superclass}),
-          members(std::move(members)), isExported(exported) {}
+          members(std::move(members)), isExported(exported), isAbstract(false) {}
     
     void accept(ASTVisitor& visitor) override {
         visitor.visitClassDecl(*this);
@@ -230,6 +231,7 @@ public:
     bool isStatic;                  ///< Is static? / ثابت؟
     bool isVirtual;                 ///< Is virtual? / افتراضي؟
     bool isOverride;                ///< Is override? / تجاوز؟
+    bool isAbstract;                ///< Is abstract? / مجرد؟
     
     /**
      * @brief Constructor / البناء
@@ -238,11 +240,12 @@ public:
                Data::DataType retType, StmtPtr body,
                AccessModifier access = AccessModifier::PUBLIC,
                bool isStatic = false, bool isVirtual = false,
-               bool isOverride = false,
+               bool isOverride = false, bool isAbstract = false,
                const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
           returnType(retType), body(std::move(body)), access(access),
-          isStatic(isStatic), isVirtual(isVirtual), isOverride(isOverride) {}
+          isStatic(isStatic), isVirtual(isVirtual), isOverride(isOverride),
+          isAbstract(isAbstract) {}
     
     void accept(ASTVisitor& visitor) override {
         visitor.visitMethodDecl(*this);
@@ -774,7 +777,7 @@ public:
           superTraits(std::move(supers)), isExported(exported) {}
     
     void accept(ASTVisitor& visitor) override {
-        // (AR) السمات تُعامل مؤقتاً كأصناف حتى يتم إضافة visitTraitDecl
+        visitor.visitTraitDecl(*this);
     }
     
     std::string toString() const override {
@@ -812,7 +815,7 @@ public:
           methods(std::move(methods)), typeParameters(std::move(typeParams)) {}
     
     void accept(ASTVisitor& visitor) override {
-        // (AR) كتل التنفيذ تُعامل مؤقتاً حتى يتم إضافة visitImplDecl
+        visitor.visitImplDecl(*this);
     }
     
     std::string toString() const override {

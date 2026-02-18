@@ -250,6 +250,7 @@ public:
     std::unordered_map<std::string, size_t> methodIndex;        ///< (AR) خريطة اسم→رقم الطريقة / (EN) name→method index map
     std::unordered_map<std::string, size_t> propertyIndex;      ///< (AR) خريطة اسم→رقم Property / (EN) name→property index map
     std::unordered_map<std::string, Value> staticFields;        ///< (AR) الخصائص الثابتة / (EN) static fields values
+    std::vector<std::string> implementedTraits;                 ///< (AR) الواجهات المنفذة / (EN) implemented traits
     
     // ──────────────────────────────────────────────────────────────────
     // المنشئات / Constructors
@@ -397,7 +398,8 @@ public:
     bool addMethod(const std::string& methodName, AST::Visibility visibility,
                    Type* returnType, const std::vector<AST::Parameter>& parameters,
                    std::unique_ptr<AST::BlockStmt> body,
-                   bool isStatic = false, bool isVirtual = false);
+                   bool isStatic = false, bool isVirtual = false,
+                   bool isAbstract = false);
     
     /**
      * @brief (AR) البحث عن طريقة بالاسم

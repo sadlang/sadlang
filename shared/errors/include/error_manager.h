@@ -102,7 +102,7 @@ public:
  * // (AR) الإبلاغ عن خطأ / (EN) Report an error
  * ErrorManager::getInstance().reportError(
  *     ErrorCode::SYN_MISSING_SEMICOLON,
- *     SourceLocation("test.s", 5, 10),
+ *     SourceLocation("test.ص", 5, 10),
  *     "متوقع ';' في نهاية الجملة",
  *     "Expected ';' at end of statement"
  * );
@@ -161,7 +161,7 @@ public:
      * @code
      * ErrorManager::getInstance().reportError(
      *     ErrorCode::LEX_INVALID_CHARACTER,
-     *     SourceLocation("test.s", 1, 5),
+     *     SourceLocation("test.ص", 1, 5),
      *     "رمز غير صالح '@'",
      *     "Invalid character '@'"
      * );
@@ -326,9 +326,9 @@ public:
  * @code
  * DiagnosticBuilder(ErrorCode::SYN_MISSING_SEMICOLON,
  *                   DiagnosticSeverity::ERROR,
- *                   SourceLocation("test.s", 5, 10))
+ *                   SourceLocation("test.ص", 5, 10))
  *     .withMessage("متوقع ';'", "Expected ';'")
- *     .withFixItInsert(SourceLocation("test.s", 5, 11), ";")
+ *     .withFixItInsert(SourceLocation("test.ص", 5, 11), ";")
  *     .report();
  * @endcode
  */

@@ -236,7 +236,7 @@ void StatementExecutor::visitImportStmt(AST::ImportStmt& node) {
         throw ExecutionError(
             "خطأ: لم يتم العثور على الوحدة '" + fullModuleName + "'\n"
             "المسارات التي تم البحث فيها:\n" + searchedPaths +
-            "تأكد من أن الملف '" + fullModuleName + ".sad' موجود في أحد هذه المسارات."
+            "تأكد من أن الملف '" + fullModuleName + ".ص' موجود في أحد هذه المسارات."
         );
     }
     

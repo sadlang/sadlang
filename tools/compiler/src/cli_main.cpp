@@ -587,7 +587,7 @@ int MobileCommand::execute_new(const ParsedOptions& options, Platform platform) 
         mainSad << "    أعرض(شاشة_رئيسية())\n";
         mainSad << "}\n";
         
-        std::ofstream out(projectDir / "src" / "main.sad");
+        std::ofstream out(projectDir / "src" / "main.ص");
         out << mainSad.str();
     }
     
@@ -602,7 +602,7 @@ int MobileCommand::execute_new(const ParsedOptions& options, Platform platform) 
     std::cout << result.toArabicSummary() << std::endl;
     
     print_success_ar("📱 تم إنشاء مشروع الهاتف: " + project_name);
-    print_info_ar("  ابدأ بتحرير: " + (projectDir / "src" / "main.sad").string());
+    print_info_ar("  ابدأ بتحرير: " + (projectDir / "src" / "main.ص").string());
     print_info_ar("  للبناء: ص هاتف بناء --اندرويد");
     
     return 0;
@@ -854,12 +854,12 @@ int MobileCommand::build_android(const std::filesystem::path& project_root,
     
     // البحث عن ملف المصدر الرئيسي
     fs::path main_sad;
-    if (fs::exists(src_dir / "main.sad")) {
-        main_sad = src_dir / "main.sad";
+    if (fs::exists(src_dir / "main.ص")) {
+        main_sad = src_dir / "main.ص";
     } else if (fs::exists(shared_dir / "رئيسي.ص")) {
         main_sad = shared_dir / "رئيسي.ص";
-    } else if (fs::exists(project_root / "main.sad")) {
-        main_sad = project_root / "main.sad";
+    } else if (fs::exists(project_root / "main.ص")) {
+        main_sad = project_root / "main.ص";
     }
     
     if (!main_sad.empty() && fs::exists(main_sad)) {
@@ -1050,8 +1050,8 @@ int MobileCommand::build_ios(const std::filesystem::path& project_root,
     
     // توليد كود SwiftUI من ملفات ص
     fs::path main_sad;
-    if (fs::exists(project_root / "src" / "main.sad")) {
-        main_sad = project_root / "src" / "main.sad";
+    if (fs::exists(project_root / "src" / "main.ص")) {
+        main_sad = project_root / "src" / "main.ص";
     } else if (fs::exists(project_root / "shared" / "src" / "رئيسي.ص")) {
         main_sad = project_root / "shared" / "src" / "رئيسي.ص";
     }
@@ -1979,9 +1979,9 @@ void FormatCommand::print_examples(std::ostream& os) const {
     os << "  ص نسّق --تحقق برنامج.ص   # التحقق بدون تعديل\n";
     os << "\n";
     os << "Examples:\n";
-    os << "  sad format program.sad     # Format a file\n";
+    os << "  sad format program.ص     # Format a file\n";
     os << "  sad format src/            # Format a directory\n";
-    os << "  sad format --check file.sad # Check without modifying\n";
+    os << "  sad format --check file.ص # Check without modifying\n";
 }
 
 // NewProjectCommand — أمر إنشاء مشروع جديد (stub حتى يُنقل لملف مستقل)
@@ -2009,7 +2009,7 @@ int NewProjectCommand::execute(const ParsedOptions& options) {
     
     // إنشاء الملف الرئيسي
     {
-        std::ofstream main_file(project_dir / "src" / "main.sad");
+        std::ofstream main_file(project_dir / "src" / "main.ص");
         main_file << "# " << project_name << " - مشروع لغة ص\n\n"
                   << "دالة رئيسية()\n"
                   << "    اطبع_سطر(\"مرحباً من " << project_name << "!\")\n"
@@ -2018,7 +2018,7 @@ int NewProjectCommand::execute(const ParsedOptions& options) {
     
     // إنشاء ملف اختبار
     {
-        std::ofstream test_file(project_dir / "tests" / "test_main.sad");
+        std::ofstream test_file(project_dir / "tests" / "test_main.ص");
         test_file << "# اختبارات " << project_name << "\n\n"
                   << "دالة رئيسية()\n"
                   << "    اطبع_سطر(\"الاختبارات...\")\n"
@@ -2027,7 +2027,7 @@ int NewProjectCommand::execute(const ParsedOptions& options) {
     }
     
     print_success_ar("تم إنشاء المشروع: " + project_name);
-    print_info_ar("  ابدأ بـ: cd " + project_name + " && ص شغّل src/main.sad");
+    print_info_ar("  ابدأ بـ: cd " + project_name + " && ص شغّل src/main.ص");
     return 0;
 }
 

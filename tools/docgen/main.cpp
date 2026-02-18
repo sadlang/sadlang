@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
         
         // Recursively process all .s files
         for (const auto& entry : fs::recursive_directory_iterator(dir)) {
-            if (entry.is_regular_file() && entry.path().extension() == ".s") {
+            if (entry.is_regular_file() && (entry.path().extension() == ".ص" || entry.path().extension() == u8".ص")) {
                 if (opts.verbose) {
                     std::cout << "  Processing: " << entry.path().string() << std::endl;
                 }

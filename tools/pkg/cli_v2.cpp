@@ -221,7 +221,7 @@ static int cmd_init() {
     pkg.version = Version::parse(version_str);
     pkg.description = description;
     if (!author.empty()) pkg.authors.push_back(author);
-    pkg.main_file = "src/main.s";
+    pkg.main_file = "src/main.ص";
     pkg.source_dirs.push_back("src");
 
     // حفظ كملف sad.toml (متوافق مع جميع الأنظمة)
@@ -231,7 +231,7 @@ static int cmd_init() {
     std::filesystem::create_directories("src");
 
     // إنشاء الملف الرئيسي
-    std::ofstream main_file("src/main.s");
+    std::ofstream main_file("src/main.ص");
     if (main_file.is_open()) {
         main_file << u8"// بسم الله الرحمن الرحيم\n";
         main_file << u8"// " << name << u8" - نقطة الدخول الرئيسية\n\n";
@@ -243,7 +243,7 @@ static int cmd_init() {
     }
 
     print_success(u8"تم إنشاء الحزمة بنجاح! / Package initialized!");
-    print_info(u8"أُنشئ: sad.toml و src/main.s");
+    print_info(u8"أُنشئ: sad.toml و src/main.ص");
     print_info(u8"استخدم 'sad-pkg install' لتثبيت التبعيات");
 
     return 0;

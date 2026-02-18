@@ -3,12 +3,28 @@
  * @brief (AR) تنفيذ فئة القيمة في وقت التشغيل
  * @brief (EN) Runtime value class implementation
  * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * (AR) هذا الملف يحتوي على تنفيذ جميع دوال فئة Value
+ *      بما في ذلك دعم نوع OBJECT الجديد لتمثيل كائنات الأصناف
+ *      
+ *      التغييرات الرئيسية في الإصدار 2.0:
+ *      - إضافة منشئ Value(ObjectPtr) لإنشاء قيم كائنات
+ *      - إضافة toObject() للحصول على مؤشر الكائن
+ *      - إضافة getClassName() للحصول على اسم الصنف
+ *      - إضافة isObjectLike() للتوافق مع الكود القديم
+ *      - تحديث toString(), toBool(), getTypeName(), clone() لدعم OBJECT
+ *
+ * (EN) This file contains the implementation of all Value class methods
+ *      including support for the new OBJECT type for class instances
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
  * @author S Language Development Team
- * @date November 21, 2025
- * @version 1.0
+ * @date November 21, 2025 - يناير 2026
+ * @version 2.0
  */
 
 #include "value.h"
+#include "object_instance.h"
 #include <cmath>
 #include <iomanip>
 
@@ -37,6 +53,18 @@ Value::Value(const ArrayType& val)
 Value::Value(const MapType& val) 
     : type_(ValueType::MAP), data_(std::make_shared<MapType>(val)) {}
 
+// ════════════════════════════════════════════════════════════════════════
+// (AR) منشئ الكائن — يُنشئ قيمة من نوع OBJECT تحمل مؤشراً مشتركاً
+//      للكائن. الكائن يُمرّر بالمرجع عند تمريره للدوال أو تعيينه
+//      لمتغيرات أخرى (سلوك مشابه لـ Python/Java)
+//
+// (EN) Object constructor — creates an OBJECT value holding a shared_ptr
+//      to the object instance. Objects are passed by reference when passed
+//      to functions or assigned to other variables (Python/Java-like behavior)
+// ════════════════════════════════════════════════════════════════════════
+Value::Value(ObjectPtr obj) 
+    : type_(ValueType::OBJECT), data_(std::move(obj)) {}
+
 // ========================================
 // Clone / النسخ العميق
 // ========================================
@@ -50,6 +78,15 @@ Value Value::clone() const {
         case ValueType::MAP: {
             const auto& map = *std::get<std::shared_ptr<MapType>>(data_);
             return Value(map);  // Creates new shared_ptr with copy
+        }
+        case ValueType::OBJECT: {
+            // (AR) نسخ الكائن: نُرجع نفس المؤشر المشترك (سلوك المرجع)
+            //      لأن الكائنات تُمرّر بالمرجع دائماً مثل Python/Java
+            //      للنسخ العميق، يجب استخدام دالة نسخ مخصصة
+            // (EN) Object clone: return same shared_ptr (reference behavior)
+            //      because objects are always passed by reference like Python/Java
+            //      for deep copy, use a custom copy function
+            return *this;
         }
         default:
             return *this;  // Shallow copy for primitives
@@ -152,6 +189,18 @@ std::string Value::toString() const {
             return oss.str();
         }
         
+        case ValueType::OBJECT: {
+            // (AR) تحويل الكائن إلى نص — يستخدم دالة toString() من ObjectInstance
+            //      إذا كان المؤشر فارغاً، يُرجع "كائن_فارغ"
+            // (EN) Convert object to string — uses toString() from ObjectInstance
+            //      If pointer is null, returns "null_object"
+            const auto& objPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+            if (objPtr) {
+                return objPtr->toString();
+            }
+            return "كائن_فارغ";  // null object
+        }
+        
         case ValueType::VOID:
             return "void";
     }
@@ -178,6 +227,13 @@ bool Value::toBool() const {
         case ValueType::MAP:
             return !std::get<std::shared_ptr<MapType>>(data_)->empty();
         
+        case ValueType::OBJECT: {
+            // (AR) الكائن صحيح إذا كان المؤشر غير فارغ
+            // (EN) Object is true if the pointer is not null
+            const auto& objPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+            return objPtr != nullptr;
+        }
+        
         case ValueType::VOID:
             return false;
     }
@@ -196,8 +252,82 @@ Value::MapType Value::toMap() const {
     if (type_ == ValueType::MAP) {
         return *std::get<std::shared_ptr<MapType>>(data_);
     }
+    // (AR) إذا كان كائناً، نحوله لقاموس من الحقول للتوافق مع الكود القديم
+    // (EN) If it's an object, convert to map of fields for backward compatibility
+    if (type_ == ValueType::OBJECT) {
+        const auto& objPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+        if (objPtr) {
+            MapType result = objPtr->fields;
+            result["__class__"] = Value(objPtr->getClassName());
+            return result;
+        }
+    }
     throwInvalidType("toMap - value is not a map");
     return MapType();
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// (AR) دالة toObject — الحصول على مؤشر الكائن
+//      يجب أن تكون القيمة من نوع OBJECT
+//
+// (EN) toObject function — get the object pointer
+//      Value must be of OBJECT type
+// ════════════════════════════════════════════════════════════════════════
+Value::ObjectPtr Value::toObject() const {
+    if (type_ == ValueType::OBJECT) {
+        return std::get<std::shared_ptr<ObjectInstance>>(data_);
+    }
+    throwInvalidType("toObject - القيمة ليست كائناً / value is not an object");
+    return nullptr;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// (AR) دالة getClassName — الحصول على اسم الصنف
+//      تعمل مع نوع OBJECT الجديد ومع MAP القديم الذي يحتوي على __class__
+//
+// (EN) getClassName function — get the class name
+//      Works with new OBJECT type and legacy MAP with __class__
+// ════════════════════════════════════════════════════════════════════════
+std::string Value::getClassName() const {
+    // (AR) أولاً: التحقق من نوع OBJECT الحقيقي
+    // (EN) First: check for real OBJECT type
+    if (type_ == ValueType::OBJECT) {
+        const auto& objPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+        if (objPtr) {
+            return objPtr->getClassName();
+        }
+        return "";
+    }
+    // (AR) ثانياً: التوافق مع MAP القديم
+    // (EN) Second: backward compatibility with legacy MAP
+    if (type_ == ValueType::MAP) {
+        const auto& map = *std::get<std::shared_ptr<MapType>>(data_);
+        auto it = map.find("__class__");
+        if (it != map.end()) {
+            return it->second.toString();
+        }
+    }
+    return "";
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// (AR) دالة isObjectLike — هل القيمة تمثل كائناً بأي شكل؟
+//      تكشف كلاً من:
+//      1. نوع OBJECT الحقيقي (الجديد)
+//      2. MAP القديم الذي يحتوي على مفتاح __class__
+//
+// (EN) isObjectLike function — does the value represent an object?
+//      Detects both:
+//      1. Real OBJECT type (new)
+//      2. Legacy MAP containing __class__ key
+// ════════════════════════════════════════════════════════════════════════
+bool Value::isObjectLike() const {
+    if (type_ == ValueType::OBJECT) return true;
+    if (type_ == ValueType::MAP) {
+        const auto& map = *std::get<std::shared_ptr<MapType>>(data_);
+        return map.find("__class__") != map.end();
+    }
+    return false;
 }
 
 // ========================================
@@ -393,6 +523,17 @@ Value Value::operator==(const Value& other) const {
         
         case ValueType::VOID:
             return Value(true);
+        
+        case ValueType::OBJECT: {
+            // (AR) مقارنة الكائنات: نقارن بالمرجع (هل هما نفس الكائن؟)
+            // (EN) Object comparison: compare by reference (are they the same object?)
+            const auto& obj1 = std::get<std::shared_ptr<ObjectInstance>>(data_);
+            const auto& obj2 = std::get<std::shared_ptr<ObjectInstance>>(other.data_);
+            return Value(obj1.get() == obj2.get());
+        }
+        
+        default:
+            break;
     }
     
     return Value(false);
@@ -537,6 +678,15 @@ std::string Value::getTypeName() const {
         case ValueType::BOOLEAN: return "BOOLEAN";
         case ValueType::ARRAY:   return "ARRAY";
         case ValueType::MAP:     return "MAP";
+        case ValueType::OBJECT: {
+            // (AR) للكائنات: نُرجع "OBJECT:اسم_الصنف" للتوضيح
+            // (EN) For objects: return "OBJECT:ClassName" for clarity
+            const auto& objPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+            if (objPtr) {
+                return "OBJECT:" + objPtr->getClassName();
+            }
+            return "OBJECT";
+        }
     }
     return "UNKNOWN";
 }

@@ -610,19 +610,25 @@ public:
 
 /**
  * @brief Function parameter / معامل الدالة
+ * 
+ * (AR) يمثل معامل دالة مع اسمه ونوعه. عندما يكون النوع OBJECT،
+ *      يُخزَّن اسم الصنف في typeName (مثلاً: "شخص")
+ * (EN) Represents a function parameter with name and type. When type is OBJECT,
+ *      the class name is stored in typeName (e.g., "Person")
  */
 struct Parameter {
     std::string name;           ///< Parameter name / اسم المعامل
     Data::DataType type;        ///< Parameter type / نوع المعامل
+    std::string typeName;       ///< (AR) اسم الصنف (عندما يكون النوع OBJECT) / (EN) Class name (when type is OBJECT)
     ExprPtr defaultValue;       ///< Default value (optional) / القيمة الافتراضية
     
     Parameter(const std::string& n, Data::DataType t = Data::DataType::UNKNOWN,
-              ExprPtr def = nullptr)
-        : name(n), type(t), defaultValue(std::move(def)) {}
+              ExprPtr def = nullptr, const std::string& tn = "")
+        : name(n), type(t), typeName(tn), defaultValue(std::move(def)) {}
     
     // Copy constructor - deep copy the defaultValue
     Parameter(const Parameter& other)
-        : name(other.name), type(other.type) {
+        : name(other.name), type(other.type), typeName(other.typeName) {
         // Deep copy defaultValue if it exists
         if (other.defaultValue) {
             // Create a new copy by cloning (if clone method exists)
@@ -638,6 +644,7 @@ struct Parameter {
         if (this != &other) {
             name = other.name;
             type = other.type;
+            typeName = other.typeName;
             // Deep copy defaultValue if it exists
             if (other.defaultValue) {
                 // For now, set to nullptr as we can't clone expressions easily

@@ -151,7 +151,7 @@ public:
         }
         
         // الامتدادات المدعومة
-        std::set<std::string> امتدادات = {".sad", ".ص", ".hpp", ".cpp", ".h"};
+        std::set<std::string> امتدادات = {".ص", ".hpp", ".cpp", ".h"};
         
         for (const auto& entry : fs::recursive_directory_iterator(مسار)) {
             if (entry.is_regular_file()) {

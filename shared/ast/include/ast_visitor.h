@@ -87,6 +87,8 @@ class TemplateClassDecl;      // (AR) تصريح صنف قالب / (EN) Template
 class TemplateInstantiation;  // (AR) تنفيذ القالب / (EN) Template instantiation
 class NamespaceDecl;          // (AR) تصريح فضاء الأسماء / (EN) Namespace declaration
 class OperatorDecl;           // (AR) تصريح تحميل العامل / (EN) Operator overload declaration
+class TraitDecl;              // (AR) تصريح الواجهة/السمة / (EN) Trait/Interface declaration
+class ImplDecl;               // (AR) تصريح كتلة التنفيذ / (EN) Impl block declaration
 /**
  * @brief Abstract visitor interface for AST traversal / واجهة الزائر المجردة لاجتياز AST
  * 
@@ -746,6 +748,10 @@ public:
      *   operator +(other: Fraction) -> Fraction { ... }
      */
     virtual void visitOperatorDecl(OperatorDecl& decl) = 0;
+
+    // Trait/Interface visitors / زوار الواجهات والسمات
+    virtual void visitTraitDecl(TraitDecl& decl) = 0;
+    virtual void visitImplDecl(ImplDecl& decl) = 0;
 };
 
 /**
@@ -830,6 +836,10 @@ public:
     void visitTemplateInstantiation(TemplateInstantiation& expr) override {}
     void visitNamespaceDecl(NamespaceDecl& decl) override {}
     void visitOperatorDecl(OperatorDecl& decl) override {}
+
+    // Trait/Interface visitors / زوار الواجهات والسمات
+    void visitTraitDecl(TraitDecl& decl) override {}
+    void visitImplDecl(ImplDecl& decl) override {}
 };
 
 } // namespace AST

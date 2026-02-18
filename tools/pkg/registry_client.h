@@ -442,9 +442,9 @@ private:
         // List of files to copy
         std::vector<std::string> files_to_copy = {
             "sad.toml",
-            "main.s",
-            "firebase.sad",
-            "package_registry.s",
+            "main.ص",
+            "firebase.ص",
+            "package_registry.ص",
             "README.md",
             "LICENSE"
         };

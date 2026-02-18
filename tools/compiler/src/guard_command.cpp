@@ -370,7 +370,7 @@ private:
             if (entry.is_regular_file()) {
                 auto ext = entry.path().extension().string();
                 // ملفات ص فقط
-                if (ext == ".ص" || ext == ".sad") {
+                if (ext == ".ص") {
                     if (shouldInclude(entry.path().string(), excludePatterns)) {
                         files.push_back(entry.path().string());
                     }

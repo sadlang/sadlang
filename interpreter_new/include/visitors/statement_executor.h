@@ -325,6 +325,16 @@ public:
      */
     void visitOperatorDecl(AST::OperatorDecl& node) override;
     
+    /**
+     * @brief (AR) زيارة تصريح واجهة/سمة / (EN) Visit trait/interface declaration
+     */
+    void visitTraitDecl(AST::TraitDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة كتلة تنفيذ واجهة / (EN) Visit impl block declaration
+     */
+    void visitImplDecl(AST::ImplDecl& node) override;
+    
     // =========================================================================
     // (AR) زيارة جمل الاستيراد والتصدير / (EN) Import/Export Statement Visitors
     // =========================================================================
@@ -332,7 +342,7 @@ public:
     /**
      * @brief (AR) زيارة جملة استيراد وحدة كاملة / (EN) Visit full module import statement
      * @details تحمّل وحدة كاملة وتسجل رموزها في النطاق الحالي / Loads full module and registers its symbols in current scope
-     * @example استورد رياضيات → يحمّل ملف رياضيات.sad ويسجل كل صادراته
+     * @example استورد رياضيات → يحمّل ملف رياضيات.ص ويسجل كل صادراته
      * @example استورد رياضيات كـ ر → يحمّل الوحدة بالاسم المستعار "ر"
      */
     void visitImportStmt(AST::ImportStmt& node) override;

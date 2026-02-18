@@ -159,7 +159,7 @@ int cmd_init() {
     if (!author.empty()) {
         pkg.authors.push_back(author);
     }
-    pkg.main_file = "src/main.s";
+    pkg.main_file = "src/main.ص";
     pkg.source_dirs.push_back("src");
 
     // Save to sad.toml - الحفظ في sad.toml
@@ -168,8 +168,8 @@ int cmd_init() {
     // Create directory structure - إنشاء هيكل المجلدات
     std::filesystem::create_directories("src");
     
-    // Create main.s - إنشاء main.s
-    std::ofstream main_file("src/main.s");
+    // Create main.ص - إنشاء main.ص
+    std::ofstream main_file("src/main.ص");
     if (main_file.is_open()) {
         main_file << "// بسم الله الرحمن الرحيم\n";
         main_file << "// " << name << " - Main entry point\n";
@@ -182,7 +182,7 @@ int cmd_init() {
     }
 
     print_success("Package initialized successfully!");
-    print_info("Created sad.toml and src/main.s");
+    print_info("Created sad.toml and src/main.ص");
     print_info("Run 'sad-pkg install' to install dependencies");
 
     return 0;

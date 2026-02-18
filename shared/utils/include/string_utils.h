@@ -150,8 +150,8 @@ public:
      * @return bool true إذا كان النص ينتهي باللاحقة / true if ends with suffix
      * 
      * @example
-     *   std::string filename = "برنامج.s";
-     *   bool result = StringUtils::endsWith(filename, ".s");
+     *   std::string filename = "برنامج.ص";
+     *   bool result = StringUtils::endsWith(filename, ".ص");
      *   // result = true
      * 
      * @note حساسة لحالة الأحرف / Case-sensitive

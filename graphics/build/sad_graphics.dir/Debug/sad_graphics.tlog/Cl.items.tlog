@@ -8,9 +8,14 @@ C:\s\s_language\graphics\src\input\input_manager.cpp;C:\s\s_language\graphics\bu
 C:\s\s_language\graphics\src\rendering\context.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\context.obj
 C:\s\s_language\graphics\src\rendering\shader.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\shader.obj
 C:\s\s_language\graphics\src\rendering\renderer2d.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\renderer2d.obj
+C:\s\s_language\graphics\src\rendering\renderer3d.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\renderer3d.obj
 C:\s\s_language\graphics\src\rendering\framebuffer.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\framebuffer.obj
 C:\s\s_language\graphics\src\rendering\camera2d.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\camera2d.obj
+C:\s\s_language\graphics\src\rendering\camera3d.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\camera3d.obj
 C:\s\s_language\graphics\src\rendering\sprite.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\sprite.obj
+C:\s\s_language\graphics\src\rendering\mesh.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\mesh.obj
+C:\s\s_language\graphics\src\rendering\material.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\material.obj
+C:\s\s_language\graphics\src\rendering\lighting.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\lighting.obj
 C:\s\s_language\graphics\src\texture\texture.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\texture.obj
 C:\s\s_language\graphics\src\texture\image.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\image.obj
 C:\s\s_language\graphics\src\texture\texture_atlas.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\texture_atlas.obj
@@ -31,4 +36,12 @@ C:\s\s_language\graphics\src\ui\checkbox.cpp;C:\s\s_language\graphics\build\sad_
 C:\s\s_language\graphics\src\ui\panel.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\panel.obj
 C:\s\s_language\graphics\src\ui\slider.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\slider.obj
 C:\s\s_language\graphics\src\ui\ui_layout.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\ui_layout.obj
+C:\s\s_language\graphics\src\ui\mobile\mobile_core.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\mobile_core.obj
+C:\s\s_language\graphics\src\ui\mobile\mobile_buttons.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\mobile_buttons.obj
+C:\s\s_language\graphics\src\ui\mobile\mobile_input.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\mobile_input.obj
+C:\s\s_language\graphics\src\ui\mobile\mobile_navigation.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\mobile_navigation.obj
+C:\s\s_language\graphics\src\ui\mobile\mobile_lists.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\mobile_lists.obj
+C:\s\s_language\graphics\src\ui\mobile\mobile_dialogs.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\mobile_dialogs.obj
+C:\s\s_language\graphics\src\ui\mobile\mobile_display.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\mobile_display.obj
+C:\s\s_language\graphics\src\ui\mobile\mobile_media.cpp;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\mobile_media.obj
 C:\s\s_language\graphics\third_party\glad\src\glad.c;C:\s\s_language\graphics\build\sad_graphics.dir\Debug\glad.obj

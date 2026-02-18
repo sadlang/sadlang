@@ -309,10 +309,10 @@ public:
      * 
      * @details
      * (AR) يبحث فقط عن الملف بدون تحميله.
-     *      يتحقق من الامتدادات: .sad، .sd
+     *      يتحقق من الامتدادات: .ص
      * 
      * (EN) Only searches for file without loading.
-     *      Checks extensions: .sad, .sd
+     *      Checks extensions: .ص
      */
     std::optional<std::filesystem::path> findModuleFile(
         const std::vector<std::string>& modulePath,
@@ -451,7 +451,7 @@ private:
      * @return (AR) اسم الملف / (EN) Filename
      * 
      * @example
-     * ["mylib", "utils"] → "mylib/utils.sad"
+     * ["mylib", "utils"] → "mylib/utils.ص"
      */
     std::string modulePathToFilename(const std::vector<std::string>& modulePath) const;
     

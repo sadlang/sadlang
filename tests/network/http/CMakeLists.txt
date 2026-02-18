@@ -3,8 +3,15 @@
 
 cmake_minimum_required(VERSION 3.15)
 
-# Find Google Test
-find_package(GTest REQUIRED)
+# Google Test (already fetched via FetchContent in parent)
+# If not available, try find_package as fallback
+if(NOT TARGET GTest::gtest)
+    find_package(GTest QUIET)
+    if(NOT GTest_FOUND)
+        message(STATUS "⚠ HTTP network tests skipped (GTest not available)")
+        return()
+    endif()
+endif()
 
 # HTTP Test Sources
 set(HTTP_TEST_SOURCES
@@ -21,15 +28,14 @@ add_executable(http_network_tests ${HTTP_TEST_SOURCES})
 # Include directories
 target_include_directories(http_network_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/include
-    ${GTEST_INCLUDE_DIRS}
 )
 
 # Link libraries
 target_link_libraries(http_network_tests PRIVATE
     sad_http
     sad_network
-    GTest::GTest
-    GTest::Main
+    GTest::gtest
+    GTest::gtest_main
 )
 
 # Platform-specific libraries

@@ -588,7 +588,7 @@ void testReturnLocalRefError() {
     
     std::cout << "\n═══ خطأ إرجاع مرجع محلي ═══\n\n";
     
-    factory.reportReturnLocalRef("x", {"مثال.sad", 5, 12},
+    factory.reportReturnLocalRef("x", {"مثال.ص", 5, 12},
         "    أرجع &x");
 }
 
@@ -597,7 +597,7 @@ void testUndefinedLifetimeError() {
     
     std::cout << "\n═══ خطأ عمر غير معرّف ═══\n\n";
     
-    factory.reportUndefinedLifetime("'ب", {"مثال.sad", 3, 20},
+    factory.reportUndefinedLifetime("'ب", {"مثال.ص", 3, 20},
         "دالة foo(x: &'ب نص) -> &'ب نص");
 }
 
@@ -606,7 +606,7 @@ void testBorrowConflictError() {
     
     std::cout << "\n═══ خطأ تعارض استعارة ═══\n\n";
     
-    factory.reportBorrowConflict("قائمة", false, true, {"مثال.sad", 10, 5},
+    factory.reportBorrowConflict("قائمة", false, true, {"مثال.ص", 10, 5},
         "    متغير مرجع = &متغير قائمة");
 }
 
@@ -614,7 +614,7 @@ void testJsonFormat() {
     sad::errors::lifetime::LifetimeErrorBuilder builder;
     sad::errors::lifetime::LifetimeErrorFormatter formatter;
     
-    auto err = builder.returnLocalReference("x", {"test.sad", 5, 12, 5, 14});
+    auto err = builder.returnLocalReference("x", {"test.ص", 5, 12, 5, 14});
     
     std::cout << "\n═══ تنسيق JSON ═══\n\n";
     std::cout << formatter.formatAsJson(err) << "\n";

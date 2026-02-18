@@ -663,7 +663,7 @@ public:
                 std::string ext = entry.path().extension().string();
                 
                 // التحقق من امتداد ملف ص
-                if (ext == ".ص" || ext == ".sad" || ext == ".s") {
+                if (ext == ".ص") {
                     if (format_file(entry.path().string())) {
                         count++;
                         std::cout << "تم تنسيق: " << entry.path().string() << std::endl;

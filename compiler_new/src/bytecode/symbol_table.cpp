@@ -48,6 +48,7 @@
  */
 
 #include "format.h"
+#include "constant_pool.h"
 #include <vector>
 #include <string>
 #include <unordered_map>
