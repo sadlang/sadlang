@@ -1,139 +1,141 @@
 // بسم الله الرحمن الرحيم
-/**
- * @file api.js
- * @description مسارات API v1 لمستودع حزم لغة ص
- * 
- * جميع نقاط النهاية متوافقة مع عميل sad-pkg (registry_client.h)
- * All endpoints are compatible with the sad-pkg client (registry_client.h)
- * 
- * API Contract (from registry_client.h):
- *   GET  /api/v1/search?q=<query>&limit=<n>           → {packages: [{name, ...}]}
- *   GET  /api/v1/packages/:name                        → {name, description, ...} (200 = exists)
- *   GET  /api/v1/packages/:name/versions               → {versions: ["1.0.0", ...]}
- *   GET  /api/v1/packages/:name/:version               → {description, authors, license, dependencies, ...}
- *   GET  /api/v1/packages/:name/:version/download      → binary file download
- *   POST /api/v1/packages/publish                      → upload package (auth required)
- *   GET  /api/v1/user/packages                         → {packages: [{name, ...}]} (auth required)
- */
+// =========================================================================
+// الموجّه الرئيسي لـ API v1 — يربط جميع المسارات الفرعية
+// Main API v1 Router — Connects all sub-routes
+// =========================================================================
 
-const express = require('express');
-const router = express.Router();
+const { Router } = require('express');
+const { ERROR_CODES } = require('../utils/error-codes');
 
-const packagesRouter = require('./packages');
-const authRouter = require('./auth');
-const userRouter = require('./user');
-const statsRouter = require('./stats');
+function createApiRouter(db, services) {
+    const router = Router();
 
-// ============================================================================
-// معلومات API / API Info
-// ============================================================================
+    // ═══════════════════════════════════════════════════════════════
+    // GET /api/v1/ — معلومات عن API
+    // ═══════════════════════════════════════════════════════════════
+    router.get('/', (req, res) => {
+        res.json({
+            success: true,
+            name: 'سجل حزم لغة ص',
+            name_en: 'Sad Language Package Registry',
+            version: '2.0.0',
+            description: 'واجهة برمجية لإدارة حزم لغة ص البرمجية',
+            endpoints: {
+                info: 'GET /api/v1/',
+                health: 'GET /api/v1/health',
+                auth: {
+                    register: 'POST /api/v1/auth/register',
+                    login: 'POST /api/v1/auth/login',
+                    token: 'POST /api/v1/auth/token',
+                },
+                packages: {
+                    search: 'GET /api/v1/packages/search?q={query}&limit=20&offset=0&category={slug}',
+                    info: 'GET /api/v1/packages/{name}',
+                    versions: 'GET /api/v1/packages/{name}/versions',
+                    version_info: 'GET /api/v1/packages/{name}/{version}',
+                    download: 'GET /api/v1/packages/{name}/{version}/download',
+                    publish: 'POST /api/v1/packages/publish (multipart: package + metadata)',
+                    yank: 'DELETE /api/v1/packages/{name}/{version}/yank',
+                },
+                user: {
+                    profile: 'GET /api/v1/user/profile',
+                    packages: 'GET /api/v1/user/packages',
+                },
+                stats: {
+                    overview: 'GET /api/v1/stats',
+                    downloads: 'GET /api/v1/stats/downloads?days=30',
+                    categories: 'GET /api/v1/stats/categories',
+                },
+            },
+            error_format: {
+                description: 'جميع الأخطاء تُرجع بنفس الهيكل',
+                example: {
+                    success: false,
+                    error: {
+                        code: 'PKG_001',
+                        message: 'الحزمة غير موجودة (رسالة عربية مختصرة)',
+                        message_en: 'Package not found (brief English message)',
+                        explain: 'شرح تفصيلي للمشكلة',
+                        hint: 'الحل المقترح أو الخطوة التالية',
+                    },
+                    request_id: 'abc123',
+                    timestamp: '2026-01-01T00:00:00.000Z',
+                },
+            },
+            documentation: 'https://sadlang.org/docs/packages',
+            timestamp: new Date().toISOString(),
+        });
+    });
 
-router.get('/', (req, res) => {
-    res.json({
-        name: 'سجل حزم لغة ص',
-        name_en: 'Sad Language Package Registry',
-        version: '1.0.0',
-        api_version: 'v1',
-        endpoints: {
-            search: 'GET /api/v1/search?q=<query>&limit=<n>',
-            package_info: 'GET /api/v1/packages/:name',
-            package_versions: 'GET /api/v1/packages/:name/versions',
-            version_info: 'GET /api/v1/packages/:name/:version',
-            download: 'GET /api/v1/packages/:name/:version/download',
-            publish: 'POST /api/v1/packages/publish',
-            register: 'POST /api/v1/auth/register',
-            login: 'POST /api/v1/auth/login',
-            user_packages: 'GET /api/v1/user/packages',
-            stats: 'GET /api/v1/stats',
+    // ═══════════════════════════════════════════════════════════════
+    // GET /api/v1/health — فحص صحة الخادم
+    // ═══════════════════════════════════════════════════════════════
+    router.get('/health', (req, res) => {
+        try {
+            // فحص قاعدة البيانات
+            const dbCheck = db.prepare('SELECT 1 as ok').get();
+            const stats = services.statsService.getSummary();
+
+            res.json({
+                success: true,
+                status: 'healthy',
+                status_ar: 'الخادم يعمل بشكل طبيعي',
+                uptime_seconds: Math.floor(process.uptime()),
+                database: dbCheck ? 'connected' : 'disconnected',
+                stats: {
+                    packages: stats.total_packages,
+                    users: stats.total_users,
+                    versions: stats.total_versions,
+                },
+                memory: {
+                    used_mb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+                    total_mb: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+                },
+                node_version: process.version,
+                timestamp: new Date().toISOString(),
+            });
+        } catch (err) {
+            res.status(503).json({
+                success: false,
+                status: 'unhealthy',
+                status_ar: 'الخادم يعاني من مشاكل',
+                error: err.message,
+                timestamp: new Date().toISOString(),
+            });
         }
     });
-});
 
-// ============================================================================
-// البحث / Search
-// ============================================================================
-
-router.get('/search', (req, res) => {
-    const { q = '', limit = 20, offset = 0, category } = req.query;
-    const db = req.app.locals.db;
-    const limitNum = Math.min(parseInt(limit) || 20, 100);
-    const offsetNum = parseInt(offset) || 0;
-
-    let query, params;
-
-    if (category) {
-        query = `
-            SELECT p.name, p.description, p.description_ar, p.latest_version,
-                   p.total_downloads, p.license, p.keywords, p.created_at,
-                   u.username as author
-            FROM packages p
-            JOIN users u ON p.owner_id = u.id
-            WHERE p.is_yanked = 0
-              AND (p.name LIKE ? OR p.description LIKE ? OR p.description_ar LIKE ? OR p.keywords LIKE ?)
-              AND p.categories LIKE ?
-            ORDER BY p.total_downloads DESC
-            LIMIT ? OFFSET ?
-        `;
-        const search = `%${q}%`;
-        const catSearch = `%"${category}"%`;
-        params = [search, search, search, search, catSearch, limitNum, offsetNum];
-    } else {
-        query = `
-            SELECT p.name, p.description, p.description_ar, p.latest_version,
-                   p.total_downloads, p.license, p.keywords, p.created_at,
-                   u.username as author
-            FROM packages p
-            JOIN users u ON p.owner_id = u.id
-            WHERE p.is_yanked = 0
-              AND (p.name LIKE ? OR p.description LIKE ? OR p.description_ar LIKE ? OR p.keywords LIKE ?)
-            ORDER BY p.total_downloads DESC
-            LIMIT ? OFFSET ?
-        `;
-        const search = `%${q}%`;
-        params = [search, search, search, search, limitNum, offsetNum];
-    }
-
-    try {
-        const packages = db.prepare(query).all(...params);
-
-        // عدد النتائج الكلي / Total count
-        const countQuery = `
-            SELECT COUNT(*) as total FROM packages 
-            WHERE is_yanked = 0
-              AND (name LIKE ? OR description LIKE ? OR description_ar LIKE ? OR keywords LIKE ?)
-        `;
-        const search = `%${q}%`;
-        const { total } = db.prepare(countQuery).get(search, search, search, search);
+    // ═══════════════════════════════════════════════════════════════
+    // GET /api/v1/errors — قائمة رموز الأخطاء المتاحة (للمطورين)
+    // ═══════════════════════════════════════════════════════════════
+    router.get('/errors', (req, res) => {
+        const errors = Object.entries(ERROR_CODES).map(([key, val]) => ({
+            code: val.code,
+            status: val.status,
+            message: val.message,
+            message_en: val.message_en,
+        }));
 
         res.json({
-            packages: packages.map(p => ({
-                name: p.name,
-                description: p.description,
-                description_ar: p.description_ar,
-                latest_version: p.latest_version,
-                downloads: p.total_downloads,
-                license: p.license,
-                keywords: JSON.parse(p.keywords || '[]'),
-                author: p.author,
-                created_at: p.created_at,
-            })),
-            total,
-            limit: limitNum,
-            offset: offsetNum,
+            success: true,
+            description: 'قائمة بجميع رموز الأخطاء المستخدمة في API',
+            total: errors.length,
+            errors,
         });
-    } catch (error) {
-        console.error('خطأ في البحث / Search error:', error.message);
-        res.status(500).json({ error: 'فشل البحث / Search failed' });
-    }
-});
+    });
 
-// ============================================================================
-// المسارات الفرعية / Sub-routes
-// ============================================================================
+    // ربط المسارات الفرعية
+    const createAuthRouter = require('./auth');
+    const createPackageRouter = require('./packages');
+    const createUserRouter = require('./user');
+    const createStatsRouter = require('./stats');
 
-router.use('/packages', packagesRouter);
-router.use('/auth', authRouter);
-router.use('/user', userRouter);
-router.use('/stats', statsRouter);
+    router.use('/auth', createAuthRouter(db, services));
+    router.use('/packages', createPackageRouter(db, services));
+    router.use('/user', createUserRouter(db, services));
+    router.use('/stats', createStatsRouter(db, services));
 
-module.exports = router;
+    return router;
+}
+
+module.exports = createApiRouter;

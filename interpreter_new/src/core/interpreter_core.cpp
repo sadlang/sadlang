@@ -18,6 +18,9 @@
 // (AR) فاحص الأنواع المتقدم / (EN) Advanced Type Checker
 #include "../../../compiler_new/include/semantic/type_checker.h"
 
+// (AR) المكتبة القياسية / (EN) Standard Library Manager
+#include "../../../stdlib/core/stdlib_manager.h"
+
 #include <iostream>
 #include <stdexcept>
 #include <filesystem>
@@ -86,6 +89,13 @@ void Interpreter::initializeComponents() {
     
     // (AR) تسجيل جميع الدوال المضمنة / (EN) Register all built-in functions
     registerBuiltinFunctions(*this);
+    
+    // (AR) تسجيل دوال المكتبة القياسية (رياضيات، نصوص، مصفوفات، أنواع)
+    // (EN) Register standard library functions (math, string, array, type)
+    {
+        StdLib::StandardLibraryManager stdlibMgr(*functionManager_);
+        stdlibMgr.registerAllFunctions();
+    }
     
     if (options_.enableDebugMode) {
         std::cout << "(AR) تم تهيئة المفسر / (EN) Interpreter initialized" << std::endl;
@@ -478,7 +488,7 @@ Data::Value Interpreter::callUserFunction(const std::string& funcName,
         auto funcDeclNode = func->getFunctionDecl();
         AST::FunctionDecl* astFuncDecl = nullptr;
         if (funcDeclNode) {
-            astFuncDecl = reinterpret_cast<AST::FunctionDecl*>(funcDeclNode.get());
+            astFuncDecl = dynamic_cast<AST::FunctionDecl*>(funcDeclNode.get());
         }
         
         for (size_t i = args.size(); i < params.size(); ++i) {
@@ -508,18 +518,14 @@ Data::Value Interpreter::callUserFunction(const std::string& funcName,
     Data::Value result;
     try {
         auto bodyNode = func->getBody();
-        auto bodyStmt = dynamic_cast<AST::Statement*>(
-            reinterpret_cast<AST::ASTNode*>(bodyNode.get())
-        );
+        auto bodyStmt = dynamic_cast<AST::Statement*>(bodyNode.get());
         
         if (bodyStmt) {
             result = statementExecutor_->executeFunctionBody(*bodyStmt);
         } else {
             // (AR) جسم لامدا — تعبير
             // (EN) Lambda body — expression
-            auto bodyExpr = reinterpret_cast<AST::Expression*>(
-                reinterpret_cast<AST::ASTNode*>(bodyNode.get())
-            );
+            auto bodyExpr = dynamic_cast<AST::Expression*>(bodyNode.get());
             if (bodyExpr) {
                 bodyExpr->accept(*expressionEvaluator_);
                 result = expressionEvaluator_->getResult();

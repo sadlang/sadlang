@@ -1,139 +1,166 @@
 // بسم الله الرحمن الرحيم
 // =========================================================================
-// أدوات التحقق من صحة البيانات — Validation Utilities
-// =========================================================================
-//
-// هذا الملف يحتوي على دوال التحقق المستخدمة في كل أنحاء الخادم:
-//   - التحقق من أسماء الحزم (عربية وإنجليزية)
-//   - التحقق من أرقام الإصدارات (Semantic Versioning)
-//   - تطهير النصوص من HTML الضار
-//
-// تُستخدم في:
-//   - مسار النشر (packages.js → POST /publish)
-//   - خدمة الحزم (package-service.js → publish())
-//   - مسار المصادقة (auth.js → register)
-//
-// قواعد أسماء الحزم:
-//   ✅ sad-math          ← حروف لاتينية مع شرطة
-//   ✅ هجري             ← حروف عربية
-//   ✅ نص-عربي          ← حروف عربية مع شرطة
-//   ✅ sad_utils_v2      ← حروف لاتينية مع شرطة سفلية وأرقام
-//   ❌ -invalid          ← لا يبدأ بشرطة
-//   ❌ 123pkg            ← لا يبدأ برقم
-//   ❌ a                 ← أقل من حرفين
-//   ❌ pkg with spaces   ← لا مسافات
+// أدوات التحقق — التحقق من صحة البيانات المُدخلة
+// Validators — Input validation utilities
 // =========================================================================
 
+const { sendError } = require('./error-codes');
+
 /**
- * التحقق من صحة اسم الحزمة / Validate package name
- * 
- * القواعد:
- *   1. النوع: يجب أن يكون نصاً (string)
- *   2. الطول: 2-100 حرف
- *   3. البداية: يجب أن يبدأ بحرف عربي أو لاتيني (ليس رقماً أو رمزاً)
- *   4. المحتوى: حروف عربية (U+0600-U+06FF, U+0750-U+077F)،
- *              حروف لاتينية (a-z, A-Z)، أرقام (0-9)،
- *              شرطات (-) وشرطات سفلية (_)
- * 
- * نطاقات Unicode المدعومة:
- *   U+0600-U+06FF: العربية الأساسية (حروف، أرقام عربية، تشكيل)
- *   U+0750-U+077F: العربية التكميلية (حروف إضافية لبعض اللهجات)
- * 
- * @param {string} name — اسم الحزمة المراد التحقق منه
- * @returns {boolean} صحيح إذا كان الاسم صالحاً
- * 
- * @example
- *   validatePackageName('sad-math')   // → true
- *   validatePackageName('هجري')       // → true
- *   validatePackageName('نص-عربي')   // → true
- *   validatePackageName('')           // → false (فارغ)
- *   validatePackageName('a')          // → false (أقل من حرفين)
- *   validatePackageName('-bad')       // → false (يبدأ بشرطة)
+ * التحقق من اسم الحزمة
+ * يقبل: حروف عربية، إنجليزية، أرقام، شرطات، شرطات سفلية
+ * الطول: 2-100 حرف
  */
 function validatePackageName(name) {
-    // التحقق من النوع والوجود
-    if (!name || typeof name !== 'string') return false;
+    if (!name || typeof name !== 'string') {
+        return { valid: false, reason: 'اسم الحزمة مطلوب' };
+    }
 
-    // التحقق من الطول: 2 حرف على الأقل لتجنب أسماء غامضة
-    // 100 حرف كحد أقصى لتجنب أسماء طويلة بشكل غير معقول
-    if (name.length < 2 || name.length > 100) return false;
+    const trimmed = name.trim();
+    if (trimmed.length < 2) {
+        return { valid: false, reason: 'اسم الحزمة يجب أن يكون حرفين على الأقل' };
+    }
+    if (trimmed.length > 100) {
+        return { valid: false, reason: 'اسم الحزمة يجب أن يكون 100 حرف أو أقل' };
+    }
 
-    // التعبير النمطي (Regex) يتحقق من:
-    //   ^                          ← بداية النص
-    //   [\u0600-\u06FF\u0750-\u077Fa-zA-Z]  ← الحرف الأول: عربي أو لاتيني (ليس رقماً)
-    //   [\u0600-\u06FF\u0750-\u077Fa-zA-Z0-9_-]*  ← بقية الأحرف: عربي/لاتيني/رقم/شرطة
-    //   $                          ← نهاية النص
-    const validPattern = /^[\u0600-\u06FF\u0750-\u077Fa-zA-Z][\u0600-\u06FF\u0750-\u077Fa-zA-Z0-9_-]*$/;
-    return validPattern.test(name);
+    // حروف عربية + إنجليزية + أرقام + شرطات + شرطات سفلية
+    const pattern = /^[\u0600-\u06FFa-zA-Z0-9\-_]+$/;
+    if (!pattern.test(trimmed)) {
+        return {
+            valid: false,
+            reason: 'اسم الحزمة يقبل فقط: حروف عربية/إنجليزية، أرقام، شرطات (-) وشرطات سفلية (_)',
+        };
+    }
+
+    // لا يبدأ بشرطة أو رقم
+    if (/^[-_0-9]/.test(trimmed)) {
+        return { valid: false, reason: 'اسم الحزمة يجب أن يبدأ بحرف' };
+    }
+
+    return { valid: true };
 }
 
 /**
- * التحقق من صحة رقم الإصدار / Validate version string
- * 
- * يتبع نظام Semantic Versioning (semver.org):
- *   MAJOR.MINOR.PATCH[-prerelease][+build]
- * 
- * أمثلة صالحة:
- *   "1.0.0"            ← إصدار بسيط
- *   "0.1.0"            ← إصدار ما قبل الاستقرار
- *   "2.3.1-beta.1"     ← إصدار تجريبي
- *   "1.0.0+build.123"  ← مع بيانات بناء
- * 
- * أمثلة غير صالحة:
- *   "1.0"              ← ينقص PATCH
- *   "v1.0.0"           ← بادئة v غير مسموحة
- *   "1.0.0.0"          ← أكثر من 3 أقسام
- * 
- * @param {string} version — رقم الإصدار المراد التحقق منه
- * @returns {boolean} صحيح إذا كان الإصدار صالحاً
- * 
- * @example
- *   validateVersion('1.0.0')         // → true
- *   validateVersion('0.1.0-alpha')   // → true
- *   validateVersion('invalid')       // → false
+ * التحقق من رقم الإصدار (SemVer)
  */
 function validateVersion(version) {
-    if (!version || typeof version !== 'string') return false;
+    if (!version || typeof version !== 'string') {
+        return { valid: false, reason: 'رقم الإصدار مطلوب' };
+    }
 
-    // التعبير النمطي يطابق: MAJOR.MINOR.PATCH مع prerelease و build metadata اختياريين
-    //   ^\d+          ← MAJOR: رقم واحد أو أكثر
-    //   \.\d+         ← .MINOR: نقطة ثم رقم
-    //   \.\d+         ← .PATCH: نقطة ثم رقم
-    //   (-[a-zA-Z0-9.]+)?   ← prerelease اختياري (مثل: -beta.1)
-    //   (\+[a-zA-Z0-9.]+)?  ← build metadata اختياري (مثل: +build.123)
-    const semverPattern = /^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$/;
-    return semverPattern.test(version);
+    const semverPattern = /^\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$/;
+    if (!semverPattern.test(version.trim())) {
+        return {
+            valid: false,
+            reason: `رقم الإصدار "${version}" غير صالح. استخدم صيغة SemVer: كبير.متوسط.صغير (مثال: 1.0.0)`,
+        };
+    }
+
+    return { valid: true };
 }
 
 /**
- * تطهير النص من محتوى HTML الضار / Sanitize text from harmful HTML
- * 
- * يزيل كل وسوم HTML لمنع هجمات XSS (Cross-Site Scripting).
- * يقطع النص عند الحد الأقصى المحدد.
- * 
- * لماذا نحتاج هذا؟
- *   عند نشر حزمة، يرسل المستخدم وصفاً نصياً.
- *   إذا أدخل <script>alert('hack')</script> ولم ننظفه،
- *   سيُنفذ الكود عند عرض الوصف في واجهة الويب.
- * 
- * @param {string} text — النص المراد تطهيره
- * @param {number} maxLength — الحد الأقصى للطول (افتراضي: 500)
- * @returns {string} النص المطهّر
- * 
- * @example
- *   sanitizeText('مكتبة <b>رائعة</b>')
- *   // → 'مكتبة رائعة'
- *   
- *   sanitizeText('<script>alert(1)</script>Hello')
- *   // → 'Hello'
+ * التحقق من اسم المستخدم
  */
-function sanitizeText(text, maxLength = 500) {
-    if (!text || typeof text !== 'string') return '';
+function validateUsername(username) {
+    if (!username || typeof username !== 'string') {
+        return { valid: false, reason: 'اسم المستخدم مطلوب' };
+    }
 
-    return text
-        .slice(0, maxLength)          // قطع عند الحد الأقصى
-        .replace(/<[^>]*>/g, '')      // إزالة كل وسوم HTML
-        .trim();                       // إزالة المسافات الطرفية
+    const trimmed = username.trim();
+    if (trimmed.length < 3) {
+        return { valid: false, reason: 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل' };
+    }
+    if (trimmed.length > 50) {
+        return { valid: false, reason: 'اسم المستخدم يجب أن يكون 50 حرف أو أقل' };
+    }
+
+    const pattern = /^[\u0600-\u06FFa-zA-Z0-9\-_]+$/;
+    if (!pattern.test(trimmed)) {
+        return {
+            valid: false,
+            reason: 'اسم المستخدم يقبل فقط: حروف عربية/إنجليزية، أرقام، شرطات (-) وشرطات سفلية (_)',
+        };
+    }
+
+    return { valid: true };
 }
 
-module.exports = { validatePackageName, validateVersion, sanitizeText };
+/**
+ * التحقق من البريد الإلكتروني
+ */
+function validateEmail(email) {
+    if (!email || typeof email !== 'string') {
+        return { valid: false, reason: 'البريد الإلكتروني مطلوب' };
+    }
+
+    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!pattern.test(email.trim())) {
+        return { valid: false, reason: 'صيغة البريد الإلكتروني غير صحيحة' };
+    }
+
+    return { valid: true };
+}
+
+/**
+ * التحقق من كلمة المرور
+ */
+function validatePassword(password) {
+    if (!password || typeof password !== 'string') {
+        return { valid: false, reason: 'كلمة المرور مطلوبة' };
+    }
+    if (password.length < 8) {
+        return { valid: false, reason: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' };
+    }
+
+    return { valid: true };
+}
+
+/**
+ * تنظيف النص من HTML خطير
+ */
+function sanitizeText(text) {
+    if (!text || typeof text !== 'string') return '';
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;')
+        .trim();
+}
+
+/**
+ * Middleware للتحقق من الحقول المطلوبة
+ * @param {string[]} fields - قائمة أسماء الحقول المطلوبة
+ */
+function requireFields(...fields) {
+    return (req, res, next) => {
+        const missing = [];
+        for (const field of fields) {
+            if (!req.body[field] && req.body[field] !== 0 && req.body[field] !== false) {
+                missing.push(field);
+            }
+        }
+
+        if (missing.length > 0) {
+            return sendError(res, 'VAL_001', {
+                hint: `الحقول المفقودة: ${missing.join('، ')}`,
+                details: { missing_fields: missing },
+            });
+        }
+
+        next();
+    };
+}
+
+module.exports = {
+    validatePackageName,
+    validateVersion,
+    validateUsername,
+    validateEmail,
+    validatePassword,
+    sanitizeText,
+    requireFields,
+};

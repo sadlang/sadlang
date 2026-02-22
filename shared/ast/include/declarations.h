@@ -45,6 +45,7 @@ public:
     bool isMainFunction;            ///< Is main function? / هل هي الدالة الرئيسية؟
     bool is_async;                  ///< Is async function? / دالة غير متزامنة؟
     bool isGenerator;               ///< Is generator function? / دالة مولد؟ (Phase 7)
+    bool isExtern;                  ///< Is external function? / دالة خارجية؟ (FFI)
     ExprList decorators;            ///< Decorators (@decorator) / المُزخرِفات
     
     /**
@@ -64,7 +65,7 @@ public:
                  const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
           returnType(retType), body(std::move(body)), isExported(exported),
-          isMainFunction(false), is_async(async_func), isGenerator(generator), decorators() {}
+          isMainFunction(false), is_async(async_func), isGenerator(generator), isExtern(false), decorators() {}
     
     /**
      * @brief Constructor with decorators / البناء مع مُزخرِفات
@@ -84,7 +85,7 @@ public:
                  const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
           returnType(retType), body(std::move(body)), isExported(exported),
-          isMainFunction(false), is_async(async_func), isGenerator(generator), decorators(std::move(decs)) {}
+          isMainFunction(false), is_async(async_func), isGenerator(generator), isExtern(false), decorators(std::move(decs)) {}
     
     void accept(ASTVisitor& visitor) override {
         visitor.visitFunctionDecl(*this);
@@ -129,6 +130,7 @@ public:
     StmtList members;                        ///< Class members / أعضاء الصنف
     bool isExported;                         ///< Is exported? / مصدّر؟
     bool isAbstract;                         ///< Is abstract class? / صنف مجرد؟
+    ExprList decorators;                     ///< Decorators (@decorator) / المُزخرِفات
     
     /**
      * @brief Constructor with multiple base classes / البناء مع أصناف أساسية متعددة
@@ -719,8 +721,7 @@ public:
           isPacked(packed), isExported(exported) {}
     
     void accept(ASTVisitor& visitor) override {
-        // (AR) البنى تُعامل كأصناف مبسطة حتى يتم إضافة visitStructDecl
-        // (EN) Structs treated as simplified classes until visitStructDecl is added
+        visitor.visitStructDecl(*this);
     }
     
     std::string toString() const override {
@@ -852,7 +853,7 @@ public:
           shouldFail(shouldFail) {}
     
     void accept(ASTVisitor& visitor) override {
-        // (AR) الاختبارات تُعامل مؤقتاً حتى يتم إضافة visitTestDecl
+        visitor.visitTestDecl(*this);
     }
     
     std::string toString() const override {
@@ -884,7 +885,12 @@ public:
           initialValue(std::move(init)) {}
     
     void accept(ASTVisitor& visitor) override {
-        // (AR) الذريات تُعامل مؤقتاً حتى يتم إضافة visitAtomicDecl
+        // (AR) ذرّي يُعامل كمتغير عادي مؤقتاً حتى يتم دعم التزامن
+        // (EN) Atomic treated as regular variable until concurrency is fully supported
+        VarDeclStmt varDecl(name, innerType, nullptr, false, position);
+        varDecl.initializer = std::move(initialValue);
+        visitor.visitVarDeclStmt(varDecl);
+        initialValue = std::move(varDecl.initializer);
     }
     
     std::string toString() const override {

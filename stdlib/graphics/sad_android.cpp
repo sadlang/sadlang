@@ -19,6 +19,11 @@
 #include <algorithm>
 #include <cstring>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <shellapi.h>
+#endif
+
 // ═══════════════════════════════════════════════════════════════════
 // الحالة العامة — المتغيرات الداخلية
 // ═══════════════════════════════════════════════════════════════════
@@ -374,8 +379,13 @@ void shareUrl(const std::string& url, const std::string& title) {
 
 void openUrl(const std::string& url) {
     #ifdef _WIN32
-        std::string cmd = "start " + url;
-        system(cmd.c_str());
+        // [FIX #1] حماية من حقن الأوامر — استخدام ShellExecuteA بدلاً من system()
+        // التحقق من أن الرابط يبدأ ببروتوكول آمن فقط
+        if (url.substr(0, 7) == "http://" || url.substr(0, 8) == "https://") {
+            ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+        } else {
+            std::cout << "[Android] رابط غير آمن: " << url << std::endl;
+        }
     #else
         std::cout << "[Android] \xd9\x81\xd8\xaa\xd8\xad: " << url << std::endl;
     #endif
@@ -392,9 +402,18 @@ void openAppSettings() {
 void copyToClipboard(const std::string& text) {
     g_clipboard = text;
     #ifdef _WIN32
-        // على ويندوز: نسخ فعلي للحافظة
-        std::string cmd = "echo " + text + " | clip";
-        system(cmd.c_str());
+        // [FIX #2] حماية من حقن الأوامر — استخدام Win32 Clipboard API
+        if (OpenClipboard(NULL)) {
+            EmptyClipboard();
+            size_t len = text.size() + 1;
+            HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, len);
+            if (hMem) {
+                memcpy(GlobalLock(hMem), text.c_str(), len);
+                GlobalUnlock(hMem);
+                SetClipboardData(CF_TEXT, hMem);
+            }
+            CloseClipboard();
+        }
     #endif
 }
 

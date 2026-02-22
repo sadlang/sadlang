@@ -71,9 +71,7 @@ if(BUILD_PKG_MANAGER)
         ${CMAKE_SOURCE_DIR}/tools/pkg ${CMAKE_SOURCE_DIR}/include)
 
     if(WIN32)
-        target_link_libraries(sad-pkg PRIVATE winhttp sad_core)
-    else()
-        target_link_libraries(sad-pkg PRIVATE sad_core)
+        target_link_libraries(sad-pkg PRIVATE winhttp)
     endif()
 
     set_target_properties(sad-pkg PROPERTIES
@@ -91,4 +89,23 @@ option(BUILD_REPL "بناء REPL / Build REPL" ON)
 if(BUILD_REPL AND EXISTS "${CMAKE_SOURCE_DIR}/tools/repl/CMakeLists.txt")
     add_subdirectory(tools/repl)
     message(STATUS "✓ REPL: sad-repl")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# أداة بناء APK / APK Builder Tool
+# ──────────────────────────────────────────────────────────────────────
+option(BUILD_APK_BUILDER "بناء أداة APK / Build APK builder" ON)
+
+if(BUILD_APK_BUILDER AND EXISTS "${CMAKE_SOURCE_DIR}/tools/apk_builder/CMakeLists.txt")
+    add_subdirectory(tools/apk_builder)
+    message(STATUS "✓ أداة بناء APK / APK Builder: sad-apk")
+endif()
+# ──────────────────────────────────────────────────────────────────────
+# أداة بناء Android / Android Builder Tool
+# ──────────────────────────────────────────────────────────────────────
+option(BUILD_ANDROID_TOOL "بناء أداة Android / Build Android tool" ON)
+
+if(BUILD_ANDROID_TOOL AND NOT ANDROID AND EXISTS "${CMAKE_SOURCE_DIR}/tools/android/CMakeLists.txt")
+    add_subdirectory(tools/android)
+    message(STATUS "✓ أداة Android / Android Tool: sad-android")
 endif()

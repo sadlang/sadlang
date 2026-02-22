@@ -1,52 +1,26 @@
 // بسم الله الرحمن الرحيم
 // =========================================================================
-// خدمة الحزم — الطبقة المنطقية لعمليات إدارة الحزم
-// Package Service — Business logic layer for package operations
-// =========================================================================
-//
-// هذه الخدمة تفصل المنطق البرمجي عن مسارات Express (routes).
-// الهدف: أن تكون المسارات رقيقة (thin controllers) وأن يكون المنطق
-// كله هنا قابلاً لإعادة الاستخدام والاختبار المستقل.
-//
-// البنية المعمارية:
-//   Route (مسار) → Service (خدمة) → Database (قاعدة بيانات)
-//                                  → Storage (تخزين)
-//
-// الأسباب:
-//   1. إعادة استخدام المنطق في مسارات API وواجهة الويب
-//   2. اختبار المنطق بدون HTTP
-//   3. تبديل قاعدة البيانات بسهولة مستقبلاً
+// خدمة الحزم — العمليات الكاملة لإدارة الحزم
+// Package Service — Full package management operations
 // =========================================================================
 
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const semver = require('semver');
-
-// =========================================================================
-// فئة خدمة الحزم / PackageService Class
-// =========================================================================
+const { createError } = require('../utils/error-codes');
 
 class PackageService {
-    /**
-     * إنشاء خدمة الحزم
-     * 
-     * @param {import('better-sqlite3').Database} db — كائن قاعدة بيانات SQLite
-     * @param {string} storagePath — مسار تخزين ملفات الحزم المضغوطة
-     * 
-     * @example
-     *   const service = new PackageService(db, './storage/packages');
-     */
     constructor(db, storagePath = './storage/packages') {
         this.db = db;
         this.storagePath = storagePath;
 
-        // ---------------------------------------------------------------
-        // تحضير الاستعلامات المتكررة (Prepared Statements)
-        // هذا أسرع بكثير من إعادة التحضير في كل طلب
-        // ---------------------------------------------------------------
+        // إنشاء مجلد التخزين إذا لم يكن موجوداً
+        if (!fs.existsSync(this.storagePath)) {
+            fs.mkdirSync(this.storagePath, { recursive: true });
+        }
 
-        /** جلب حزمة بالاسم مع اسم المالك */
+        // الاستعلامات المُحضّرة
         this._getPackage = db.prepare(`
             SELECT p.*, u.username as author_name
             FROM packages p
@@ -54,7 +28,6 @@ class PackageService {
             WHERE p.name = ?
         `);
 
-        /** جلب إصدارات حزمة مرتبة تنازلياً */
         this._getVersions = db.prepare(`
             SELECT version, downloads, created_at, is_yanked
             FROM versions
@@ -62,7 +35,6 @@ class PackageService {
             ORDER BY major DESC, minor DESC, patch DESC
         `);
 
-        /** جلب مالكي حزمة */
         this._getOwners = db.prepare(`
             SELECT u.username, u.display_name, po.role
             FROM package_owners po
@@ -70,52 +42,29 @@ class PackageService {
             WHERE po.package_id = ?
         `);
 
-        /** التحقق من ملكية حزمة */
-        this._checkOwnership = db.prepare(`
-            SELECT 1 FROM package_owners WHERE package_id = ? AND user_id = ?
-        `);
+        this._checkOwnership = db.prepare(
+            'SELECT 1 FROM package_owners WHERE package_id = ? AND user_id = ?'
+        );
 
-        /** زيادة عداد التنزيلات */
-        this._incrementDownloads = db.prepare(`
-            UPDATE versions SET downloads = downloads + 1 WHERE id = ?
-        `);
+        this._incrementDownloads = db.prepare(
+            'UPDATE versions SET downloads = downloads + 1 WHERE id = ?'
+        );
 
         this._incrementPackageDownloads = db.prepare(`
             UPDATE packages SET total_downloads = total_downloads + 1 
             WHERE id = (SELECT package_id FROM versions WHERE id = ?)
         `);
 
-        /** تسجيل التنزيل في السجل */
-        this._logDownload = db.prepare(`
-            INSERT INTO download_log (version_id, ip_address, user_agent)
-            VALUES (?, ?, ?)
-        `);
+        this._logDownload = db.prepare(
+            'INSERT INTO download_log (version_id, ip_address, user_agent) VALUES (?, ?, ?)'
+        );
     }
 
-    // =====================================================================
-    // البحث عن الحزم / Search Packages
-    // =====================================================================
-    //
-    // يبحث في:
-    //   - اسم الحزمة (name)
-    //   - الوصف الإنجليزي (description)
-    //   - الوصف العربي (description_ar)
-    //   - الكلمات المفتاحية (keywords)
-    //
-    // يدعم تصفية اختيارية حسب التصنيف (category)
-    //
-    // @param {string} query — نص البحث
-    // @param {Object} options — خيارات البحث
-    // @param {number} options.limit — الحد الأقصى للنتائج (افتراضي: 20)
-    // @param {number} options.offset — الإزاحة للتصفح (افتراضي: 0)
-    // @param {string} options.category — تصنيف اختياري للتصفية
-    // @returns {{ packages: Array, total: number }}
-    // =====================================================================
-
+    // ─────────────────────────────────────────────────────────────
+    // البحث
+    // ─────────────────────────────────────────────────────────────
     search(query = '', options = {}) {
         const { limit = 20, offset = 0, category = null } = options;
-
-        // تحديد الحد الأقصى بـ 100 لمنع الإفراط في التحميل
         const limitNum = Math.min(parseInt(limit) || 20, 100);
         const offsetNum = parseInt(offset) || 0;
         const searchPattern = `%${query}%`;
@@ -123,11 +72,7 @@ class PackageService {
         let sql, countSql, params, countParams;
 
         if (category) {
-            // ---------------------------------------------------------
-            // بحث مع تصفية تصنيف
-            // البحث في التصنيفات يستخدم LIKE لأن التصنيفات مخزنة
-            // كـ JSON array (مثلاً: '["math","data"]')
-            // ---------------------------------------------------------
+            const catPattern = `%"${category}"%`;
             sql = `
                 SELECT p.name, p.description, p.description_ar, p.latest_version,
                        p.total_downloads, p.license, p.keywords, p.created_at,
@@ -141,7 +86,6 @@ class PackageService {
                 ORDER BY p.total_downloads DESC
                 LIMIT ? OFFSET ?
             `;
-            const catPattern = `%"${category}"%`;
             params = [searchPattern, searchPattern, searchPattern, searchPattern, catPattern, limitNum, offsetNum];
 
             countSql = `
@@ -152,9 +96,6 @@ class PackageService {
             `;
             countParams = [searchPattern, searchPattern, searchPattern, searchPattern, catPattern];
         } else {
-            // ---------------------------------------------------------
-            // بحث بدون تصنيف — في كل الحزم
-            // ---------------------------------------------------------
             sql = `
                 SELECT p.name, p.description, p.description_ar, p.latest_version,
                        p.total_downloads, p.license, p.keywords, p.created_at,
@@ -180,8 +121,8 @@ class PackageService {
         const packages = this.db.prepare(sql).all(...params);
         const { total } = this.db.prepare(countSql).get(...countParams);
 
-        // تنسيق النتائج: تحويل JSON المخزن كنص إلى مصفوفة حقيقية
         return {
+            success: true,
             packages: packages.map(p => ({
                 name: p.name,
                 description: p.description,
@@ -199,59 +140,50 @@ class PackageService {
         };
     }
 
-    // =====================================================================
-    // جلب معلومات حزمة واحدة / Get Package Info
-    // =====================================================================
-    //
-    // يرجع كل المعلومات عن حزمة بما في ذلك:
-    //   - البيانات الوصفية (الاسم، الوصف، الرخصة...)
-    //   - قائمة كل الإصدارات
-    //   - قائمة المالكين
-    //
-    // @param {string} name — اسم الحزمة
-    // @returns {Object|null} — كائن الحزمة أو null إذا غير موجودة
-    // =====================================================================
-
+    // ─────────────────────────────────────────────────────────────
+    // معلومات الحزمة
+    // ─────────────────────────────────────────────────────────────
     getPackageInfo(name) {
         const pkg = this._getPackage.get(name);
-        if (!pkg) return null;
+        if (!pkg) {
+            return createError('PKG_001', {
+                hint: `لم يتم العثور على حزمة باسم "${name}". ابحث عن الحزم المتاحة: sad-pkg search`,
+            });
+        }
 
         const versions = this._getVersions.all(pkg.id);
         const owners = this._getOwners.all(pkg.id);
 
         return {
-            name: pkg.name,
-            description: pkg.description,
-            description_ar: pkg.description_ar,
-            homepage: pkg.homepage,
-            repository: pkg.repository,
-            documentation: pkg.documentation,
-            license: pkg.license,
-            keywords: this._parseJSON(pkg.keywords, []),
-            categories: this._parseJSON(pkg.categories, []),
-            latest_version: pkg.latest_version,
-            total_downloads: pkg.total_downloads,
-            owners: owners,
-            versions: versions.map(v => ({
-                version: v.version,
-                downloads: v.downloads,
-                created_at: v.created_at,
-                is_yanked: !!v.is_yanked,
-            })),
-            created_at: pkg.created_at,
-            updated_at: pkg.updated_at,
+            success: true,
+            package: {
+                name: pkg.name,
+                description: pkg.description,
+                description_ar: pkg.description_ar,
+                homepage: pkg.homepage,
+                repository: pkg.repository,
+                documentation: pkg.documentation,
+                license: pkg.license,
+                keywords: this._parseJSON(pkg.keywords, []),
+                categories: this._parseJSON(pkg.categories, []),
+                latest_version: pkg.latest_version,
+                total_downloads: pkg.total_downloads,
+                owners,
+                versions: versions.map(v => ({
+                    version: v.version,
+                    downloads: v.downloads,
+                    created_at: v.created_at,
+                    is_yanked: !!v.is_yanked,
+                })),
+                created_at: pkg.created_at,
+                updated_at: pkg.updated_at,
+            },
         };
     }
 
-    // =====================================================================
-    // جلب معلومات إصدار محدد / Get Version Info
-    // =====================================================================
-    //
-    // @param {string} packageName — اسم الحزمة
-    // @param {string} version — رقم الإصدار (مثلاً "1.2.0")
-    // @returns {Object|null}
-    // =====================================================================
-
+    // ─────────────────────────────────────────────────────────────
+    // معلومات إصدار محدد
+    // ─────────────────────────────────────────────────────────────
     getVersionInfo(packageName, version) {
         const result = this.db.prepare(`
             SELECT v.*, p.name as package_name, p.repository, p.homepage
@@ -260,134 +192,186 @@ class PackageService {
             WHERE p.name = ? AND v.version = ?
         `).get(packageName, version);
 
-        if (!result) return null;
+        if (!result) {
+            // فحص: هل الحزمة موجودة أصلاً؟
+            const pkgExists = this.db.prepare('SELECT id FROM packages WHERE name = ?').get(packageName);
+            if (!pkgExists) {
+                return createError('PKG_001', {
+                    hint: `لم يتم العثور على حزمة باسم "${packageName}"`,
+                });
+            }
+            return createError('PKG_002', {
+                hint: `الإصدار "${version}" غير موجود للحزمة "${packageName}". اعرض الإصدارات: sad-pkg versions ${packageName}`,
+            });
+        }
 
         return {
-            name: result.package_name,
-            version: result.version,
-            description: result.description,
-            authors: this._parseJSON(result.authors, []),
-            license: result.license,
-            repository: result.repository,
-            homepage: result.homepage,
-            dependencies: this._parseJSON(result.dependencies, {}),
-            dev_dependencies: this._parseJSON(result.dev_dependencies, {}),
-            build_dependencies: this._parseJSON(result.build_dependencies, {}),
-            checksum: result.checksum_sha256,
-            archive_size: result.archive_size,
-            downloads: result.downloads,
-            is_yanked: !!result.is_yanked,
-            created_at: result.created_at,
+            success: true,
+            version: {
+                name: result.package_name,
+                version: result.version,
+                description: result.description,
+                authors: this._parseJSON(result.authors, []),
+                license: result.license,
+                repository: result.repository,
+                homepage: result.homepage,
+                dependencies: this._parseJSON(result.dependencies, {}),
+                dev_dependencies: this._parseJSON(result.dev_dependencies, {}),
+                build_dependencies: this._parseJSON(result.build_dependencies, {}),
+                checksum: result.checksum_sha256,
+                archive_size: result.archive_size,
+                downloads: result.downloads,
+                is_yanked: !!result.is_yanked,
+                created_at: result.created_at,
+            },
         };
     }
 
-    // =====================================================================
-    // تنزيل حزمة / Download Package
-    // =====================================================================
-    //
-    // يتحقق من وجود الإصدار والملف، ثم يزيد عدادات التنزيل.
-    //
-    // لماذا نسجل كل تنزيل في download_log؟
-    //   1. إحصائيات دقيقة (تنزيلات/يوم، /أسبوع)
-    //   2. كشف الاستخدام المشبوه (bot scraping)
-    //   3. تحليلات الاستخدام للمطورين
-    //
-    // @param {string} name — اسم الحزمة
-    // @param {string} version — الإصدار
-    // @param {string} ip — عنوان IP للتنزيل
-    // @param {string} userAgent — متصفح/عميل التنزيل
-    // @returns {{ filePath: string, checksum: string }|null}
-    // =====================================================================
+    // ─────────────────────────────────────────────────────────────
+    // قائمة الإصدارات
+    // ─────────────────────────────────────────────────────────────
+    getVersionsList(packageName) {
+        const pkg = this.db.prepare('SELECT id FROM packages WHERE name = ?').get(packageName);
+        if (!pkg) {
+            return createError('PKG_001', {
+                hint: `لم يتم العثور على حزمة باسم "${packageName}"`,
+            });
+        }
 
-    recordDownload(name, version, ip = '', userAgent = '') {
+        const versions = this._getVersions.all(pkg.id);
+        return {
+            success: true,
+            name: packageName,
+            versions: versions.map(v => ({
+                version: v.version,
+                downloads: v.downloads,
+                created_at: v.created_at,
+                is_yanked: !!v.is_yanked,
+            })),
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // تنزيل حزمة
+    // ─────────────────────────────────────────────────────────────
+    download(name, version, ip = '', userAgent = '') {
         const result = this.db.prepare(`
-            SELECT v.id, v.archive_path, v.checksum_sha256
+            SELECT v.id, v.archive_path, v.checksum_sha256, v.is_yanked,
+                   p.name as package_name
             FROM versions v
             JOIN packages p ON v.package_id = p.id
-            WHERE p.name = ? AND v.version = ? AND v.is_yanked = 0
+            WHERE p.name = ? AND v.version = ?
         `).get(name, version);
 
-        if (!result || !result.archive_path) return null;
+        if (!result) {
+            const pkgExists = this.db.prepare('SELECT id FROM packages WHERE name = ?').get(name);
+            if (!pkgExists) {
+                return createError('PKG_001');
+            }
+            return createError('PKG_002', {
+                hint: `الإصدار "${version}" غير موجود. اعرض الإصدارات: sad-pkg versions ${name}`,
+            });
+        }
+
+        if (result.is_yanked) {
+            return createError('PKG_007', {
+                hint: `الإصدار "${version}" من "${name}" مسحوب. استخدم إصداراً آخر: sad-pkg versions ${name}`,
+            });
+        }
+
+        if (!result.archive_path) {
+            return createError('PKG_008');
+        }
 
         const filePath = path.resolve(result.archive_path);
-        if (!fs.existsSync(filePath)) return null;
+        if (!fs.existsSync(filePath)) {
+            return createError('PKG_008', {
+                explain: `ملف الأرشيف مسجل في قاعدة البيانات لكنه مفقود من نظام الملفات: ${result.archive_path}`,
+            });
+        }
 
-        // تحديث العدادات وتسجيل التنزيل (كعملية ذرية)
-        const downloadTransaction = this.db.transaction(() => {
+        // تسجيل التنزيل
+        this.db.exec('BEGIN');
+        try {
             this._incrementDownloads.run(result.id);
             this._incrementPackageDownloads.run(result.id);
             this._logDownload.run(result.id, ip, userAgent);
-        });
-        downloadTransaction();
+            this.db.exec('COMMIT');
+        } catch (downloadErr) {
+            this.db.exec('ROLLBACK');
+            // لا نوقف التنزيل بسبب خطأ في التسجيل
+            console.error('خطأ في تسجيل التنزيل:', downloadErr.message);
+        }
 
         return {
+            success: true,
             filePath,
             checksum: result.checksum_sha256,
         };
     }
 
-    // =====================================================================
-    // نشر حزمة / Publish Package
-    // =====================================================================
-    //
-    // خطوات النشر:
-    //   1. التحقق من صحة البيانات الوصفية (الاسم، الإصدار)
-    //   2. التحقق من الملكية (إذا الحزمة موجودة)
-    //   3. التحقق من عدم تكرار الإصدار
-    //   4. حساب checksum SHA-256
-    //   5. نقل الملف من المؤقت إلى التخزين الدائم
-    //   6. إدخال السجلات في قاعدة البيانات
-    //   7. تحديث أحدث إصدار
-    //
-    // @param {Object} metadata — البيانات الوصفية من sad.toml
-    // @param {string} filePath — مسار الملف المرفوع (مؤقت)
-    // @param {number} userId — معرف المستخدم الناشر
-    // @returns {{ success: boolean, error?: string, package?: Object }}
-    // =====================================================================
-
+    // ─────────────────────────────────────────────────────────────
+    // نشر حزمة
+    // ─────────────────────────────────────────────────────────────
     publish(metadata, filePath, userId) {
         const {
             name, version: versionStr, description, description_ar,
             authors, license, homepage, repository, documentation,
             keywords, categories, dependencies, dev_dependencies,
-            build_dependencies
+            build_dependencies,
         } = metadata;
 
-        // ----- التحقق من الصحة -----
-        if (!name || !versionStr) {
-            return { success: false, error: 'الاسم والإصدار مطلوبان' };
+        // التحقق من الاسم
+        if (!name) {
+            return createError('PUB_002', {
+                hint: 'حقل "name" مفقود في البيانات الوصفية',
+                details: { missing: 'name' },
+            });
         }
 
-        // التحقق من الإصدار بنظام Semantic Versioning
+        // التحقق من الإصدار
+        if (!versionStr) {
+            return createError('PUB_002', {
+                hint: 'حقل "version" مفقود في البيانات الوصفية',
+                details: { missing: 'version' },
+            });
+        }
+
         const parsedVersion = semver.valid(semver.coerce(versionStr));
         if (!parsedVersion) {
-            return { success: false, error: `إصدار غير صالح: ${versionStr}` };
+            return createError('PKG_006', {
+                hint: `الإصدار "${versionStr}" غير صالح. أمثلة صحيحة: 1.0.0, 2.1.3-beta`,
+            });
         }
 
-        // ----- التحقق من الملكية -----
         let pkg = this.db.prepare('SELECT * FROM packages WHERE name = ?').get(name);
 
         if (pkg) {
+            // التحقق من الملكية
             const isOwner = this._checkOwnership.get(pkg.id, userId);
             if (!isOwner && pkg.owner_id !== userId) {
-                return { success: false, error: 'ليس لديك صلاحية النشر لهذه الحزمة', code: 403 };
+                return createError('PKG_004', {
+                    hint: `الحزمة "${name}" مملوكة لمستخدم آخر. إذا كنت تعتقد أن هذا خطأ، تواصل مع المالك`,
+                });
             }
 
-            // التحقق من عدم تكرار الإصدار
+            // التحقق من تكرار الإصدار
             const existingVer = this.db.prepare(
                 'SELECT 1 FROM versions WHERE package_id = ? AND version = ?'
             ).get(pkg.id, versionStr);
 
             if (existingVer) {
-                return { success: false, error: `الإصدار ${versionStr} موجود بالفعل`, code: 409 };
+                return createError('PKG_003', {
+                    hint: `الإصدار "${versionStr}" موجود بالفعل للحزمة "${name}". زِد الرقم في sad.json`,
+                });
             }
         }
 
-        // ----- حساب checksum وحجم الملف -----
+        // حساب checksum
         const fileBuffer = fs.readFileSync(filePath);
         const checksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
-        // ----- نقل الملف إلى التخزين الدائم -----
+        // حفظ الملف
         const packageDir = path.join(this.storagePath, name, versionStr);
         if (!fs.existsSync(packageDir)) {
             fs.mkdirSync(packageDir, { recursive: true });
@@ -395,12 +379,14 @@ class PackageService {
         const archivePath = path.join(packageDir, `${name}-${versionStr}.tar.gz`);
         fs.renameSync(filePath, archivePath);
 
-        // ----- إدخال البيانات (عملية ذرية) -----
+        // تحليل SemVer
         const sv = semver.parse(semver.coerce(versionStr));
 
-        const publishTransaction = this.db.transaction(() => {
-            // إنشاء حزمة جديدة إذا لم تكن موجودة
+        // معاملة قاعدة البيانات
+        this.db.exec('BEGIN');
+        try {
             if (!pkg) {
+                // حزمة جديدة
                 const result = this.db.prepare(`
                     INSERT INTO packages (name, description, description_ar, homepage, repository,
                         documentation, license, keywords, categories, owner_id, latest_version)
@@ -416,13 +402,13 @@ class PackageService {
 
                 pkg = { id: result.lastInsertRowid };
 
-                // تسجيل الملكية
+                // إضافة المالك
                 this.db.prepare(
                     'INSERT INTO package_owners (package_id, user_id, role) VALUES (?, ?, ?)'
                 ).run(pkg.id, userId, 'owner');
             }
 
-            // إدخال الإصدار
+            // إضافة الإصدار
             this.db.prepare(`
                 INSERT INTO versions (package_id, version, major, minor, patch, prerelease,
                     description, dependencies, dev_dependencies, build_dependencies,
@@ -452,36 +438,89 @@ class PackageService {
                     'UPDATE packages SET latest_version = ?, updated_at = datetime("now") WHERE id = ?'
                 ).run(latest.version, pkg.id);
             }
-        });
 
-        publishTransaction();
+            this.db.exec('COMMIT');
+        } catch (publishErr) {
+            this.db.exec('ROLLBACK');
+            // حذف الملف المحفوظ في حالة الفشل
+            try { fs.unlinkSync(archivePath); } catch {}
+            throw publishErr;
+        }
 
         return {
             success: true,
+            message: `تم نشر الحزمة "${name}" بنجاح (الإصدار ${versionStr})`,
+            message_en: `Package "${name}" published successfully (version ${versionStr})`,
             package: {
                 name,
                 version: versionStr,
                 checksum,
                 size: fileBuffer.length,
-            }
+            },
         };
     }
 
-    // =====================================================================
-    // أدوات مساعدة خاصة / Private Helpers
-    // =====================================================================
+    // ─────────────────────────────────────────────────────────────
+    // سحب إصدار (yank)
+    // ─────────────────────────────────────────────────────────────
+    yank(packageName, version, userId) {
+        const pkg = this.db.prepare('SELECT * FROM packages WHERE name = ?').get(packageName);
+        if (!pkg) {
+            return createError('PKG_001');
+        }
 
-    /**
-     * تحليل JSON بأمان — يرجع القيمة الافتراضية عند الفشل
-     * Safe JSON parse — returns default value on failure
-     * 
-     * لماذا نحتاج هذا؟ لأن بعض الحقول في قاعدة البيانات مخزنة كنص JSON
-     * وقد تكون فارغة أو تالفة. هذا يمنع انهيار الخادم.
-     *
-     * @param {string} str — النص المراد تحليله
-     * @param {*} defaultValue — القيمة عند الفشل
-     * @returns {*} الكائن المحلل أو القيمة الافتراضية
-     */
+        // التحقق من الملكية
+        const isOwner = this._checkOwnership.get(pkg.id, userId);
+        if (!isOwner && pkg.owner_id !== userId) {
+            return createError('PKG_004');
+        }
+
+        const ver = this.db.prepare(
+            'SELECT id, is_yanked FROM versions WHERE package_id = ? AND version = ?'
+        ).get(pkg.id, version);
+
+        if (!ver) {
+            return createError('PKG_002', {
+                hint: `الإصدار "${version}" غير موجود للحزمة "${packageName}"`,
+            });
+        }
+
+        if (ver.is_yanked) {
+            return {
+                success: true,
+                message: 'هذا الإصدار مسحوب بالفعل',
+                message_en: 'This version is already yanked',
+            };
+        }
+
+        this.db.prepare('UPDATE versions SET is_yanked = 1 WHERE id = ?').run(ver.id);
+
+        // تحديث أحدث إصدار
+        const latest = this.db.prepare(`
+            SELECT version FROM versions WHERE package_id = ? AND is_yanked = 0
+            ORDER BY major DESC, minor DESC, patch DESC LIMIT 1
+        `).get(pkg.id);
+
+        if (latest) {
+            this.db.prepare(
+                'UPDATE packages SET latest_version = ?, updated_at = datetime("now") WHERE id = ?'
+            ).run(latest.version, pkg.id);
+        } else {
+            this.db.prepare(
+                'UPDATE packages SET latest_version = "", is_yanked = 1, updated_at = datetime("now") WHERE id = ?'
+            ).run(pkg.id);
+        }
+
+        return {
+            success: true,
+            message: `تم سحب الإصدار ${version} من الحزمة "${packageName}"`,
+            message_en: `Version ${version} of "${packageName}" has been yanked`,
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // أدوات مساعدة
+    // ─────────────────────────────────────────────────────────────
     _parseJSON(str, defaultValue) {
         try {
             return JSON.parse(str || JSON.stringify(defaultValue));

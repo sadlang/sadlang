@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.10)
+project(sqlite3_bundled C)
+
+add_library(sqlite3 STATIC sqlite3.c)
+target_include_directories(sqlite3 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+set_target_properties(sqlite3 PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+    target_compile_options(sqlite3 PRIVATE /W0)
+    target_compile_definitions(sqlite3 PRIVATE _CRT_SECURE_NO_WARNINGS SQLITE_THREADSAFE=1)
+endif()

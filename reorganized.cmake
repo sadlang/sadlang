@@ -1,47 +1,28 @@
 # ============================================================================
-# المجلدات المعاد تنظيمها / Reorganized Folders
+# reorganized.cmake - تضمين المكونات المعاد تنظيمها
+# Include reorganized sub-components (shared/, interpreter_new/, compiler_new/)
 # ============================================================================
-# هذا الملف يضيف المجلدات الجديدة المنظمة إلى نظام البناء
-# This file adds the new organized folders to the build system
-# ============================================================================
-
-message(STATUS "")
-message(STATUS "======================================")
-message(STATUS "تحميل المجلدات المعاد تنظيمها...")
-message(STATUS "Loading reorganized folders...")
-message(STATUS "======================================")
-
-# ============================================================================
-# المجلدات الجديدة معطلة مؤقتاً - تحتاج إصلاح مسارات include
-# New folders temporarily disabled - need include path fixes
+# (AR) هذا الملف يضيف المجلدات الفرعية التي تحتوي على CMakeLists.txt
+#      للمكونات الرئيسية المعاد تنظيمها.
+# (EN) This file adds subdirectories that contain CMakeLists.txt
+#      for the main reorganized components.
 # ============================================================================
 
-# shared/ - المكونات المشتركة
+# المكونات المشتركة / Shared Components
 if(EXISTS "${CMAKE_SOURCE_DIR}/shared/CMakeLists.txt")
-    add_subdirectory(shared)
-    message(STATUS "✅ shared/ - المكونات المشتركة")
+    add_subdirectory(${CMAKE_SOURCE_DIR}/shared ${CMAKE_BINARY_DIR}/shared)
 endif()
 
-# interpreter_new/ - المفسر
+# المفسر / Interpreter
 if(EXISTS "${CMAKE_SOURCE_DIR}/interpreter_new/CMakeLists.txt")
-    add_subdirectory(interpreter_new)
-    message(STATUS "✅ interpreter_new/ - المفسر")
+    add_subdirectory(${CMAKE_SOURCE_DIR}/interpreter_new ${CMAKE_BINARY_DIR}/interpreter_new)
 endif()
 
-# compiler_new/ - المترجم
+# المترجم / Compiler
 if(EXISTS "${CMAKE_SOURCE_DIR}/compiler_new/CMakeLists.txt")
-    add_subdirectory(compiler_new)
-    message(STATUS "✅ compiler_new/ - المترجم")
+    add_subdirectory(${CMAKE_SOURCE_DIR}/compiler_new ${CMAKE_BINARY_DIR}/compiler_new)
 endif()
 
-# runtime_new/ - وقت التشغيل (معطل - يستخدم API قديم غير متوافق)
-# runtime_new/ - Runtime (disabled - uses incompatible old API)
-#if(EXISTS "${CMAKE_SOURCE_DIR}/runtime_new/CMakeLists.txt")
-#    add_subdirectory(runtime_new)
-#    message(STATUS "✅ runtime_new/ - وقت التشغيل")
-#endif()
-message(STATUS "⏸️ runtime_new/ - معطل مؤقتاً (يحتاج إعادة كتابة)")
-message(STATUS "⏸️ runtime_new/ - Disabled (needs API rewrite)")
-
-message(STATUS "======================================")
-message(STATUS "")
+# (AR) الرسوميات، الآلة الافتراضية، بيئة التشغيل والأدوات تُضاف عبر cmake/libraries.cmake
+# (EN) Graphics, VM, runtime and tools are added via cmake/libraries.cmake
+# NOTE: Do NOT add graphics, vm, runtime_new, tools here to avoid duplicate subdirectory errors.

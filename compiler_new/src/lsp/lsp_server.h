@@ -125,6 +125,9 @@ public:
     /// هل وضع المعلم مُفعّل
     bool teacherMode() const { return teacher_mode_; }
 
+    /// (AR) الحصول على معالج مزامنة المستندات / (EN) Get document sync handler
+    LspSync* getSync() { return sync_.get(); }
+
 private:
     /// قراءة رسالة من stdin
     std::string readMessage();

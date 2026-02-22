@@ -72,6 +72,11 @@ void KeywordTable::initialize() {
     
     keywords_["صنف"] = TokenType::KEYWORD_CLASS;
     
+    // (AR) كلمة 'تعداد' لتعريف التعدادات - المواصفة 01_types.md
+    // (EN) 'enum' keyword for enum declarations - spec 01_types.md
+    keywords_["تعداد"] = TokenType::KEYWORD_ENUM;
+    keywords_["enum"] = TokenType::KEYWORD_ENUM;
+    
     // (AR) كلمة 'يرث' للوراثة - المواصفة 03_oop.md القسم 1 و 2
     // (EN) 'inherits' keyword for inheritance - spec 03_oop.md §1,2
     keywords_["يرث"] = TokenType::KEYWORD_INHERITS;
@@ -99,6 +104,7 @@ void KeywordTable::initialize() {
     keywords_["الاساس"] = TokenType::KEYWORD_SUPER;           // Super/base class (without hamza)
     keywords_["أساس"] = TokenType::KEYWORD_SUPER;             // Super/base class (without ال)
     keywords_["اساس"] = TokenType::KEYWORD_SUPER;             // Super/base class (without ال and hamza)
+    keywords_["أصل"] = TokenType::KEYWORD_SUPER;              // Super/base class (parent/origin)
     keywords_["super"] = TokenType::KEYWORD_SUPER;             // Super/base class (English)
   
  
@@ -122,8 +128,12 @@ void KeywordTable::initialize() {
     keywords_["لكل"] = TokenType::KEYWORD_FOR;
 
     keywords_["توقف"] = TokenType::KEYWORD_BREAK;
+    keywords_["اخرج"] = TokenType::KEYWORD_BREAK;             // (AR) اخرج من الحلقة / (EN) break alias
+    keywords_["break"] = TokenType::KEYWORD_BREAK;             // (EN) break
     
     keywords_["استمر"] = TokenType::KEYWORD_CONTINUE;
+    keywords_["تابع"] = TokenType::KEYWORD_CONTINUE;           // (AR) تابع الحلقة / (EN) continue alias
+    keywords_["continue"] = TokenType::KEYWORD_CONTINUE;       // (EN) continue
    
     
     DEBUG_PRINT("تمت إضافة 14 كلمة: التحكم في التدفق (عربي + إنجليزي)");

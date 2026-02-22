@@ -203,6 +203,12 @@ public:
     void visitMemberExpr(AST::MemberExpr& node) override;
     
     /**
+     * @brief (AR) الوصول لعضو (obj.field) — عقدة class_nodes.h
+     * @brief (EN) Member access (obj.field) — class_nodes.h node
+     */
+    void visitMemberAccessExpr(AST::MemberAccessExpr& node) override;
+    
+    /**
      * @brief (AR) إنشاء مصفوفة ([1, 2, 3])
      * @brief (EN) Create array ([1, 2, 3])
      */
@@ -284,6 +290,25 @@ public:
      */
     void visitTemplateInstantiation(AST::TemplateInstantiation& node) override;
     
+    /**
+     * @brief (AR) تقييم تعبير مولّد (yield expression)
+     * @brief (EN) Evaluate generator expression (yield expression)
+     */
+    void visitGeneratorExpr(AST::GeneratorExpr& node) override;
+    
+    /**
+     * @brief (AR) تقييم تعبير مزخرف (@decorator)
+     * @brief (EN) Evaluate decorator expression (@decorator)
+     */
+    void visitDecoratorExpr(AST::DecoratorExpr& node) override;
+    
+    /**
+     * @brief (AR) تقييم تعبير تجميع مضمّن (inline assembly)
+     * @brief (EN) Evaluate inline assembly expression
+     */
+    void visitInlineAsmExpr(AST::InlineAsmExpr& node) override;
+    void visitRangeExpr(AST::RangeExpr& node) override;
+    
 private:
     Data::VariableManager& variableManager_;    ///< (AR) مدير المتغيرات / (EN) Variable manager
     Data::FunctionManager& functionManager_;    ///< (AR) مدير الدوال / (EN) Function manager
@@ -291,6 +316,11 @@ private:
     StatementExecutor& statementExecutor_;      ///< (AR) منفذ العبارات / (EN) Statement executor
     Data::OwnershipManager& ownershipManager_;  ///< (AR) مدير الملكية / (EN) Ownership manager
     Data::Value lastResult_;                    ///< (AR) آخر نتيجة / (EN) Last result
+    
+    // (AR) عدّاد عمق الاستدعاء لمنع الاستدعاء التكراري اللانهائي
+    // (EN) Call depth counter to prevent infinite recursion
+    size_t currentCallDepth_ = 0;
+    size_t maxCallDepth_ = 1000;
     
     // =====================================================================
     // (AR) تحسين النصوص العربية / (EN) Arabic String Optimization
@@ -305,6 +335,20 @@ private:
      * هذا يوفر الذاكرة خاصةً مع النصوص العربية المتكررة.
      */
     std::unordered_set<std::string> stringPool_;
+    
+    /**
+     * @brief (AR) كتابة القيمة رجوعاً عبر سلسلة التعبيرات المتداخلة
+     * @brief (EN) Write value back through nested expression chain
+     * 
+     * (AR) تستخدم لدعم التعيين المتداخل العميق مثل a.b.c.d = val أو arr[0][1].x = val.
+     *      تتبع سلسلة التعبيرات للوصول للمتغير الجذري وتكتب القيمة المعدلة.
+     * (EN) Used to support deep nested assignment like a.b.c.d = val or arr[0][1].x = val.
+     *      Traces the expression chain to find the root variable and writes the modified value.
+     * 
+     * @param expr (AR) التعبير الذي نريد كتابة القيمة إليه / (EN) Expression to write value to
+     * @param value (AR) القيمة المراد كتابتها / (EN) Value to write
+     */
+    void writeBackChain(AST::Expression* expr, const Data::Value& value);
     
     /**
      * @brief (AR) إحصائيات التحسين العربي للمفسّر

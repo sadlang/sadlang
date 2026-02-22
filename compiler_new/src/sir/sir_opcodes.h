@@ -225,7 +225,82 @@ enum class Opcode {
     
     DebugLoc,       // موقع تصحيح: DebugLoc(سطر، عمود)
     DebugValue,     // قيمة تصحيح: DebugValue(%v, اسم)
-    Assert          // تأكيد: Assert(%cond, رسالة)
+    Assert,         // تأكيد: Assert(%cond, رسالة)
+    
+    // ═══════════════════════════════════════════════════════════════
+    // عمليات منخفضة المستوى (نظام التشغيل)
+    // Low-level operations (OS development)
+    // ═══════════════════════════════════════════════════════════════
+    
+    // --- الذاكرة المباشرة (Raw Memory Access) ---
+    RawLoad8,       // قراءة بايت من عنوان: %r = RawLoad8(%addr)
+    RawLoad16,      // قراءة 16 بت: %r = RawLoad16(%addr)
+    RawLoad32,      // قراءة 32 بت: %r = RawLoad32(%addr)
+    RawLoad64,      // قراءة 64 بت: %r = RawLoad64(%addr)
+    RawStore8,      // كتابة بايت: RawStore8(%addr, %val)
+    RawStore16,     // كتابة 16 بت: RawStore16(%addr, %val)
+    RawStore32,     // كتابة 32 بت: RawStore32(%addr, %val)
+    RawStore64,     // كتابة 64 بت: RawStore64(%addr, %val)
+    
+    // --- منافذ الإدخال/الإخراج (I/O Ports) ---
+    PortIn8,        // قراءة بايت من منفذ: %r = PortIn8(%port)
+    PortIn16,       // قراءة 16 بت من منفذ: %r = PortIn16(%port)
+    PortIn32,       // قراءة 32 بت من منفذ: %r = PortIn32(%port)
+    PortOut8,       // كتابة بايت إلى منفذ: PortOut8(%port, %val)
+    PortOut16,      // كتابة 16 بت إلى منفذ: PortOut16(%port, %val)
+    PortOut32,      // كتابة 32 بت إلى منفذ: PortOut32(%port, %val)
+    
+    // --- التحكم بالمعالج (CPU Control) ---
+    Cli,            // تعطيل المقاطعات: Cli()
+    Sti,            // تفعيل المقاطعات: Sti()
+    Hlt,            // إيقاف المعالج: Hlt()
+    Pause,          // انتظار قصير: Pause()
+    Nop,            // لا عملية: Nop()
+    
+    // --- سجلات النظام (System Registers) ---
+    Cpuid,          // معلومات المعالج: %r = Cpuid(%leaf, %subleaf)
+    Rdmsr,          // قراءة MSR: %r = Rdmsr(%msr_id)
+    Wrmsr,          // كتابة MSR: Wrmsr(%msr_id, %val)
+    ReadCr0,        // قراءة CR0: %r = ReadCr0()
+    ReadCr2,        // قراءة CR2: %r = ReadCr2()
+    ReadCr3,        // قراءة CR3: %r = ReadCr3()
+    ReadCr4,        // قراءة CR4: %r = ReadCr4()
+    WriteCr0,       // كتابة CR0: WriteCr0(%val)
+    WriteCr3,       // كتابة CR3: WriteCr3(%val)
+    WriteCr4,       // كتابة CR4: WriteCr4(%val)
+    
+    // --- الواصفات (Descriptor Tables) ---
+    Lgdt,           // تحميل GDT: Lgdt(%base, %limit)
+    Lidt,           // تحميل IDT: Lidt(%base, %limit)
+    Lldt,           // تحميل LDT: Lldt(%selector)
+    Ltr,            // تحميل TR: Ltr(%selector)
+    Sgdt,           // قراءة GDT: %r = Sgdt()
+    Sidt,           // قراءة IDT: %r = Sidt()
+    
+    // --- العمليات الذرية (Atomic Operations) ---
+    AtomicLoad,     // تحميل ذري: %r = AtomicLoad(%ptr)
+    AtomicStore,    // تخزين ذري: AtomicStore(%ptr, %val)
+    AtomicAdd,      // إضافة ذرية: %r = AtomicAdd(%ptr, %val)
+    AtomicSub,      // طرح ذري: %r = AtomicSub(%ptr, %val)
+    AtomicExchange, // تبادل ذري: %r = AtomicExchange(%ptr, %val)
+    AtomicCmpXchg,  // مقارنة وتبديل: %r = AtomicCmpXchg(%ptr, %expected, %desired)
+    
+    // --- حواجز الذاكرة (Memory Barriers) ---
+    MemFence,       // حاجز كامل: MemFence()
+    LoadFence,      // حاجز قراءة: LoadFence()
+    StoreFence,     // حاجز كتابة: StoreFence()
+    
+    // --- المقاطعات (Interrupts) ---
+    Int,            // استدعاء مقاطعة: Int(%vector)
+    Iret,           // عودة من مقاطعة: Iret()
+    
+    // --- تبديل السياق (Context Switch) ---
+    SaveContext,    // حفظ السياق: SaveContext(%ptr)
+    RestoreContext, // استعادة السياق: RestoreContext(%ptr)
+    
+    // --- الذاكرة الافتراضية (Virtual Memory) ---
+    Invlpg,         // إبطال صفحة TLB: Invlpg(%addr)
+    Invpcid         // إبطال PCID: Invpcid(%type, %desc)
 };
 
 // =============================================================================
@@ -342,6 +417,10 @@ public:
     std::vector<Operand> operands;      // المعاملات
     SourceLocation location;            // موقع الكود الأصلي
     std::string comment;                // تعليق للتوثيق
+    
+    // (AR) نوع النتيجة — يُستخدم عند التحويل إلى LLVM IR لتجنب i32 المُجمّد
+    // (EN) Result type — used during LLVM IR lowering to avoid hardcoded i32
+    std::shared_ptr<SirType> resultType;
     
     // ═══════════════════════════════════════════════════════════════
     // مُنشئات سريعة لعمليات الملكية الـ 12

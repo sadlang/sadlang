@@ -28,7 +28,11 @@ set(LEXER_SOURCES
 # ──────────────────────────────────────────────────────────────────────
 set(PARSER_SOURCES
     shared/parser/src/parser_core.cpp
-    shared/parser/src/parser_core_impl.cpp
+    shared/parser/src/parser_core_main.cpp
+    shared/parser/src/parser_declarations.cpp
+    shared/parser/src/parser_statements.cpp
+    shared/parser/src/parser_expressions.cpp
+    shared/parser/src/parser_advanced.cpp
     shared/parser/src/parser_core_helpers.cpp
     shared/parser/src/parser_core_oop.cpp
     shared/parser/src/parser_modules.cpp
@@ -63,7 +67,19 @@ set(INTERPRETER_SOURCES
     interpreter_new/src/builtins/builtin_registry_part7.cpp
     interpreter_new/src/builtins/builtin_registry_part8.cpp
     interpreter_new/src/builtins/builtin_registry_part9.cpp
-    interpreter_new/src/visitors/expression_evaluator.cpp
+    interpreter_new/src/builtins/builtin_registry_part10.cpp
+    interpreter_new/src/builtins/builtin_registry_part11.cpp
+    interpreter_new/src/builtins/builtin_registry_part12.cpp
+    interpreter_new/src/builtins/builtin_registry_part14.cpp
+    interpreter_new/src/builtins/builtin_registry_part15.cpp
+    interpreter_new/src/builtins/builtin_registry_part13.cpp
+    interpreter_new/src/builtins/builtin_registry_part16.cpp
+    interpreter_new/src/builtins/builtin_registry_part17.cpp
+    interpreter_new/src/builtins/builtin_registry_part18.cpp
+    interpreter_new/src/visitors/expression_evaluator_core.cpp
+    interpreter_new/src/visitors/expression_evaluator_calls.cpp
+    interpreter_new/src/visitors/expression_evaluator_oop.cpp
+    interpreter_new/src/visitors/expression_evaluator_members.cpp
     interpreter_new/src/visitors/statement_executor.cpp
     interpreter_new/src/visitors/statement_executor_oop.cpp
     interpreter_new/src/visitors/statement_executor_modules.cpp
@@ -146,7 +162,9 @@ set(STDLIB_SOURCES
     stdlib/xml/xml_module.cpp
     stdlib/crypto/crypto_module.cpp
     stdlib/graphics/graphics_module.cpp
-    stdlib/graphics/sad_ui_framework.cpp
+    stdlib/graphics/sad_ui_fonts_arabic.cpp
+    stdlib/graphics/sad_ui_layout_render.cpp
+    stdlib/graphics/sad_ui_api.cpp
     stdlib/graphics/sad_animation.cpp
     stdlib/graphics/sad_state.cpp
     stdlib/graphics/sad_gesture.cpp
@@ -198,7 +216,16 @@ set(COMPILER_FRONTEND_SOURCES
     compiler_new/src/frontend/sir_types.cpp
     compiler_new/src/frontend/sir_module.cpp
     compiler_new/src/frontend/sir_instruction.cpp
-    compiler_new/src/frontend/sir_builder.cpp
+    compiler_new/src/frontend/sir_builder_module.cpp
+    compiler_new/src/frontend/sir_builder_classes.cpp
+    compiler_new/src/frontend/sir_builder_statements.cpp
+    compiler_new/src/frontend/sir_builder_control_flow.cpp
+    compiler_new/src/frontend/sir_builder_helpers.cpp
+    compiler_new/src/frontend/sir_builder_operators.cpp
+    compiler_new/src/frontend/sir_builder_calls.cpp
+    compiler_new/src/frontend/sir_builder_builtins_core.cpp
+    compiler_new/src/frontend/sir_builder_builtins_system.cpp
+    compiler_new/src/frontend/sir_builder_templates.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────

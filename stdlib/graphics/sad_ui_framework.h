@@ -95,13 +95,290 @@ struct Widget {
     char iconChar = '*';          // Icon, IconButton
     int columns = 2;             // GridView, DataTable
     float scrollY = 0;           // ListView, ScrollView
+    float contentHeight = 0;     // [NEW] إجمالي ارتفاع المحتوى (للتمرير)
     bool masked = false;         // PasswordField
     int level = 1;               // Heading (1-6), TreeItem depth
     bool active = false;         // NavItem, MenuItem, StepIndicator
     int currentPage = 0;         // PageView, Pagination
     int totalPages = 1;          // Pagination
-    float animProgress = 0;      // LoadingSpinner angle
     bool dialogVisible = false;  // Dialog, Modal, Popover, Drawer
+
+    // [NEW] محاذاة المحاور — Flutter-like alignment
+    std::string mainAxisAlignment = "start";   // "start", "center", "end", "spaceBetween", "spaceEvenly"
+    std::string crossAxisAlignment = "start";  // "start", "center", "end", "stretch"
+
+    // ═══ NEW: Enhanced Properties (v2.0) ═══
+    // رؤية وشفافية
+    float opacity = 1.0f;           // 0.0 = شفاف، 1.0 = مرئي بالكامل
+    bool enabled = true;            // تفعيل/تعطيل التفاعل
+
+    // ظل (Shadow / Elevation)
+    float shadowRadius = 0;         // نصف قطر الظل (0 = بدون ظل)
+    float shadowOffsetX = 0;        // إزاحة الظل أفقياً
+    float shadowOffsetY = 2;        // إزاحة الظل عمودياً
+    RGBA shadowColor = {0,0,0,64};  // لون الظل
+
+    // تلميح (Tooltip)
+    std::string tooltipText;        // نص التلميح عند التحويم
+
+    // قيود الحجم (Size Constraints)
+    float minWidth = -1, maxWidth = -1;
+    float minHeight = -1, maxHeight = -1;
+
+    // هامش (Margin) — خارج الحدود
+    float marginTop=0, marginRight=0, marginBottom=0, marginLeft=0;
+    float margin = 0;                // هامش موحد
+
+    // تدرج لوني (Gradient)
+    RGBA gradientStart = {0,0,0,0};
+    RGBA gradientEnd = {0,0,0,0};
+    bool hasGradient = false;
+
+    // ألوان تحويم وضغط مخصصة
+    RGBA hoverColor = {0,0,0,0};    // لون مخصص عند التحويم (0,0,0,0 = تلقائي)
+    RGBA pressColor = {0,0,0,0};    // لون مخصص عند الضغط
+
+    // خصائص النص المتقدمة
+    std::string fontWeight = "normal"; // "normal", "bold"
+    bool italic = false;
+    float lineHeight = 1.2f;        // تباعد الأسطر
+
+    // تحويلات (Transforms)
+    float rotation = 0;             // الدوران بالدرجات
+    float scaleX = 1.0f, scaleY = 1.0f;
+
+    // ترتيب العرض
+    int zIndex = 0;                 // ترتيب الطبقة (أعلى = فوق)
+    int tabIndex = -1;              // ترتيب التنقل بالتاب
+
+    // أيقونة متعددة المحارف (بديل iconChar)
+    std::string iconText;           // يدعم إيموجي ونص كامل
+
+    // الأب والـ callbacks
+    int parentId = -1;              // معرف الأب
+    int callbackId = -1;            // معرف دالة الاستدعاء
+    float animationProgress = 0;    // تقدم الحركة (0-1)
+
+    // تمرير أفقي
+    float scrollX = 0;
+
+    // نوع الفائض
+    std::string overflow = "visible"; // "visible", "clip", "scroll"
+
+    // المؤشر
+    std::string cursor = "default";   // "default", "pointer", "text", "grab"
+
+    // القيمة السابقة للمنزلق (لاكتشاف التغيّر)
+    float _prevSliderValue = -99999.f;
+
+    // ═══ FIX #1-30: خصائص جديدة (v3.0) ═══
+    // [FIX #1] تغليف النص (Text Wrapping)
+    bool textWrap = false;              // تفعيل التغليف التلقائي
+    std::string textOverflow = "clip";  // "clip", "ellipsis", "fade"
+    int maxLines = 0;                   // الحد الأقصى للأسطر (0 = بلا حد)
+
+    // [FIX #2] تنسيق النص المتقدم
+    float letterSpacing = 0;            // تباعد بين الحروف
+    std::string textDecoration = "none"; // "none", "underline", "strikethrough", "overline"
+    std::string textTransform = "none";  // "none", "uppercase", "lowercase", "capitalize"
+
+    // [FIX #3] نسبة الأبعاد
+    float aspectRatio = 0;              // 0 = لا نسبة (مثل 16.0/9.0 = 1.778)
+
+    // [FIX #4] الارتفاع والشكل
+    float elevation = 0;               // مستوى الارتفاع بديل للظل (0-24)
+    std::string shape = "rectangle";    // "rectangle", "circle", "stadium", "rounded"
+    bool clipToBounds = false;          // قص الأبناء الخارجين عن الحدود
+
+    // [FIX #5] اتجاه التخطيط
+    bool reverse = false;               // عكس ترتيب الأبناء
+    float gap = 0;                      // [FIX #6] فجوة بين الأبناء (بديل spacing)
+
+    // [FIX #7] مرونة CSS Flex
+    float flexGrow = 0, flexShrink = 1;
+    std::string alignSelf = "auto";     // "auto", "start", "center", "end", "stretch"
+
+    // [FIX #8] التركيز والتنقل
+    bool focusable = true;              // يمكن التركيز عليه
+    bool hasFocus = false;              // هل مركّز حالياً
+    RGBA focusColor = {66,133,244,128}; // لون حلقة التركيز
+
+    // [FIX #9] السحب والإفلات
+    bool draggable = false;
+    bool droppable = false;
+
+    // [FIX #10] تأثير الضغط
+    float rippleRadius = 0;             // تأثير موجة عند النقر
+    float _rippleProgress = 0;
+    int _rippleX = 0, _rippleY = 0;
+
+    // [FIX #11] حقول الإدخال المتقدمة
+    int cursorPosition = -1;            // موضع المؤشر (-1 = آخر)
+    int selectionStart = -1, selectionEnd = -1; // نطاق التحديد
+    bool readOnly = false;              // للقراءة فقط
+    std::string placeholder;             // نص بديل (بدل text للتلميح)
+    std::string inputType = "text";      // "text", "number", "email", "url", "phone"
+
+    // [FIX #12] حدود مخصصة لكل جانب
+    float borderTopWidth = 0, borderRightWidth = 0, borderBottomWidth = 0, borderLeftWidth = 0;
+
+    // [FIX #13] تمرير متقدم
+    float scrollSpeed = 40;             // سرعة التمرير
+    bool scrollbarVisible = true;       // إظهار/إخفاء شريط التمرير
+    std::string scrollDirection = "vertical"; // "vertical", "horizontal", "both"
+
+    // [FIX #14] التدرج المتقدم
+    std::string gradientDirection = "vertical"; // "vertical", "horizontal", "diagonal"
+    float gradientAngle = 0;                    // زاوية مخصصة
+
+    // [FIX #15] خلفية ثانية (overlay)
+    RGBA overlayColor = {0,0,0,0};      // لون تراكب فوق الخلفية
+
+    // [FIX #16-20] متنوعات
+    std::string semanticLabel;           // [FIX #16] تسمية وصفية (Accessibility)
+    bool selected = false;               // [FIX #17] حالة التحديد
+    float progress = 0;                  // [FIX #18] تقدم عام (0-1)
+    std::string badge;                   // [FIX #19] نص شارة صغيرة
+    int badgeCount = 0;                  // [FIX #20] عدد الشارة
+
+    // [FIX #21-25] حالات مرئية
+    bool showDivider = false;            // [FIX #21] إظهار فاصل تحت العنصر
+    bool showShadow = false;             // [FIX #22] تفعيل الظل التلقائي
+    bool compact = false;                // [FIX #23] وضع مضغوط
+    bool dense = false;                  // [FIX #24] وضع كثيف
+    float contentPadding = 0;            // [FIX #25] حشوة المحتوى الداخلي
+
+    // [FIX #26-30] قيمة ثالثة ومتنوعات
+    float value3 = 0;                   // [FIX #26] قيمة ثالثة (للمخططات)
+    std::string hint;                    // [FIX #27] تلميح ثانوي
+    std::string errorText;               // [FIX #28] نص الخطأ للحقول
+    bool hasError = false;               // [FIX #29] حالة الخطأ
+    std::string helperText;              // [FIX #30] نص المساعدة
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [NEW v4.0] 100 حقل Widget جديد — Flutter-Level Comprehensive Properties
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // ═══ [31-40] Animation & Transitions ═══
+    float animationDuration = 300;        // [31] مدة الرسوم المتحركة (ms)
+    std::string animationCurve = "ease";  // [32] "ease", "linear", "easeIn", "easeOut", "bounce"
+    float animationDelay = 0;             // [33] تأخير البدء
+    bool animating = false;               // [34] هل يتم تحريكه حالياً
+    float animationValue = 0;             // [35] القيمة الحالية للحركة (0-1)
+    std::string transitionProperty = "";  // [36] الخاصية المتحركة
+    float springStiffness = 200;          // [37] صلابة الزنبرك
+    float springDamping = 20;             // [38] تخميد الزنبرك
+    float springVelocity = 0;             // [39] سرعة الزنبرك
+    bool useSpringPhysics = false;        // [40] استخدام فيزياء الزنبرك
+
+    // ═══ [41-50] Gestures & Touch ═══
+    bool swipeEnabled = true;             // [41] تمكين السحب
+    float swipeThreshold = 50;            // [42] عتبة السحب
+    std::string swipeDirection = "both"; // [43] "horizontal", "vertical", "both"
+    bool longPressEnabled = true;         // [44] تمكين الضغط المطول
+    int longPressDuration = 500;          // [45] مدة الضغط المطول (ms)
+    bool panEnabled = false;              // [46] تمكين السحب الحر
+    float panX = 0, panY = 0;             // [47-48] إزاحة السحب الحر
+    bool pinchEnabled = false;            // [49] تمكين القرص للتكبير
+    float pinchScale = 1.0f;              // [50] مقياس القرص
+
+    // ═══ [51-60] Layout Advanced ═══
+    std::string position = "relative";    // [51] "relative", "absolute", "fixed", "sticky"
+    float posTop = 0, posRight = 0, posBottom = 0, posLeft = 0; // [52-55] للموضع المطلق
+    std::string display = "flex";         // [56] "flex", "block", "inline", "none", "grid"
+    std::string flexDirection = "column"; // [57] "row", "column", "row-reverse", "column-reverse"
+    std::string flexWrap = "nowrap";      // [58] "nowrap", "wrap", "wrap-reverse"
+    std::string justifyContent = "start"; // [59] "start", "center", "end", "space-between", "space-around"
+    std::string alignItems = "stretch";   // [60] "stretch", "start", "center", "end", "baseline"
+
+    // ═══ [61-70] Grid Layout ═══
+    int gridRows = 0;                     // [61] عدد صفوف Grid (0 = تلقائي)
+    float gridRowGap = 0;                 // [62] فجوة بين الصفوف
+    float gridColGap = 0;                 // [63] فجوة بين الأعمدة  
+    int gridColumn = 0, gridRow = 0;      // [64-65] موضع العنصر في الشبكة
+    int gridColSpan = 1, gridRowSpan = 1; // [66-67] امتداد العنصر
+    std::string gridAutoFlow = "row";     // [68] "row", "column", "dense"
+    std::string gridTemplateColumns = ""; // [69] قالب الأعمدة "1fr 2fr auto"
+    std::string gridTemplateRows = "";    // [70] قالب الصفوف
+
+    // ═══ [71-80] Typography Extended ═══
+    std::string fontFamily = "";          // [71] عائلة الخط
+    std::string fontStyle = "normal";     // [72] "normal", "italic", "oblique"
+    int fontWeightNum = 400;              // [73] 100-900 وزن الخط رقمياً
+    std::string textShadow = "";          // [74] ظل النص "2px 2px 4px black"
+    float wordSpacing = 0;                // [75] تباعد الكلمات
+    std::string textDirection = "auto";   // [76] "auto", "ltr", "rtl"
+    std::string writingMode = "horizontal"; // [77] "horizontal", "vertical"
+    float textIndent = 0;                 // [78] إزاحة السطر الأول
+    std::string whiteSpace = "normal";    // [79] "normal", "nowrap", "pre", "pre-wrap"
+    std::string textJustify = "auto";     // [80] "auto", "inter-word", "inter-character"
+
+    // ═══ [81-90] Borders Extended ═══
+    RGBA borderTopColor = {0,0,0,0};      // [81] لون الحد العلوي
+    RGBA borderRightColor = {0,0,0,0};    // [82] لون الحد الأيمن
+    RGBA borderBottomColor = {0,0,0,0};   // [83] لون الحد السفلي
+    RGBA borderLeftColor = {0,0,0,0};     // [84] لون الحد الأيسر
+    std::string borderStyle = "solid";    // [85] "solid", "dashed", "dotted", "double"
+    float borderTopLeftRadius = -1;       // [86] نصف قطر - أعلى يسار (-1 = عام)
+    float borderTopRightRadius = -1;      // [87] نصف قطر - أعلى يمين
+    float borderBottomRightRadius = -1;   // [88] نصف قطر - أسفل يمين
+    float borderBottomLeftRadius = -1;    // [89] نصف قطر - أسفل يسار
+    std::string boxSizing = "border-box"; // [90] "border-box", "content-box"
+
+    // ═══ [91-100] Effects & Filters ═══
+    float blur = 0;                       // [91] تمويه (px)
+    float brightness = 1.0f;              // [92] سطوع (0-2)
+    float contrast = 1.0f;                // [93] تباين (0-2) 
+    float saturation = 1.0f;              // [94] تشبع (0-2)
+    float hueRotate = 0;                  // [95] تدوير اللون (درجات)
+    bool grayscale = false;               // [96] تدرج رمادي
+    bool invert = false;                  // [97] عكس الألوان
+    float sepia = 0;                      // [98] تأثير بني قديم (0-1)
+    std::string blendMode = "normal";     // [99] "normal", "multiply", "screen", "overlay"
+    std::string backdropFilter = "";      // [100] فلتر الخلفية
+
+    // ═══ [101-110] State & Interaction ═══
+    std::string state = "normal";         // [101] "normal", "hover", "active", "disabled", "focus"
+    bool isLoading = false;               // [102] حالة التحميل
+    std::string loadingText = "";         // [103] نص أثناء التحميل
+    bool isSuccess = false;               // [104] حالة النجاح
+    bool isWarning = false;               // [105] حالة التحذير
+    std::string validationState = "";     // [106] "valid", "invalid", "pending"
+    int clickCount = 0;                   // [107] عدد النقرات
+    double lastClickTime = 0;             // [108] وقت آخر نقرة
+    bool preventDoubleClick = false;      // [109] منع النقر المزدوج
+    bool capturePointer = false;          // [110] التقاط المؤشر
+
+    // ═══ [111-120] Content & Data ═══
+    std::string contentType = "";         // [111] نوع المحتوى
+    std::string dataSource = "";          // [112] مصدر البيانات
+    std::string bindingPath = "";         // [113] مسار الربط
+    bool isTemplate = false;              // [114] هل هو قالب
+    int repeatCount = 0;                  // [115] عدد التكرار
+    std::string filterPredicate = "";     // [116] شرط الفلترة
+    std::string sortProperty = "";        // [117] خاصية الترتيب
+    bool sortAscending = true;            // [118] ترتيب تصاعدي
+    int pageSize = 20;                    // [119] حجم الصفحة
+    int currentIndex = 0;                 // [120] الفهرس الحالي
+
+    // ═══ [121-130] Accessibility Extended ═══
+    std::string role = "";                // [121] دور ARIA
+    std::string ariaLabel = "";           // [122] تسمية ARIA
+    std::string ariaDescribedBy = "";     // [123] موصوف بواسطة
+    std::string ariaLabelledBy = "";      // [124] مسمى بواسطة
+    bool ariaHidden = false;              // [125] مخفي من قارئ الشاشة
+    bool ariaExpanded = false;            // [126] موسع
+    bool ariaSelected = false;            // [127] محدد
+    int ariaLevel = 0;                    // [128] المستوى
+    int ariaSetSize = 0;                  // [129] حجم المجموعة
+    int ariaPosInSet = 0;                 // [130] الموضع في المجموعة
+
+    // ═══ [131-140] Callbacks & Events Extended ═══
+    int hoverCallbackId = -1;             // [131] معرف دالة التحويم
+    int focusCallbackId = -1;             // [132] معرف دالة التركيز
+    int blurCallbackId = -1;              // [133] معرف دالة فقدان التركيز
+    int changeCallbackId = -1;            // [134] معرف دالة التغيير
+    bool required = false;                // [135] حقل مطلوب
 
     std::vector<int> children;
     std::vector<std::string> items;   // Dropdown items, TabBar labels, etc.
@@ -316,6 +593,79 @@ void   widget_set_accent_color(int id, int r, int g, int b);
 void   widget_show_dialog(int id, bool show);
 bool   widget_is_dialog_visible(int id);
 
+// ═══ NEW v2.0: Enhanced Property APIs ═══
+// شفافية
+void   widget_set_opacity(int id, float opacity);
+float  widget_get_opacity(int id);
+// تفعيل/تعطيل
+void   widget_set_enabled(int id, bool enabled);
+bool   widget_is_enabled(int id);
+// ظل
+void   widget_set_shadow(int id, float radius, float offsetX, float offsetY, int r, int g, int b, int a);
+float  widget_get_shadow_radius(int id);
+// تلميح
+void   widget_set_tooltip(int id, const std::string& text);
+std::string widget_get_tooltip(int id);
+// قيود الحجم
+void   widget_set_min_size(int id, float minW, float minH);
+void   widget_set_max_size(int id, float maxW, float maxH);
+// هامش
+void   widget_set_margin(int id, float all);
+void   widget_set_margin4(int id, float top, float right, float bottom, float left);
+// تدرج لوني
+void   widget_set_gradient(int id, int r1, int g1, int b1, int r2, int g2, int b2);
+// ألوان تحويم وضغط مخصصة
+void   widget_set_hover_color(int id, int r, int g, int b);
+void   widget_set_press_color(int id, int r, int g, int b);
+// خصائص النص المتقدمة
+void   widget_set_font_weight(int id, const std::string& weight);
+void   widget_set_italic(int id, bool italic);
+void   widget_set_line_height(int id, float lh);
+// تحويلات
+void   widget_set_rotation(int id, float degrees);
+void   widget_set_scale(int id, float sx, float sy);
+// ترتيب
+void   widget_set_z_index(int id, int z);
+void   widget_set_tab_index(int id, int idx);
+// أيقونة نصية
+void   widget_set_icon_text(int id, const std::string& text);
+std::string widget_get_icon_text(int id);
+// تمرير
+void   widget_set_scroll_position(int id, float x, float y);
+float  widget_get_scroll_x(int id);
+float  widget_get_scroll_y(int id);
+// نوع الفائض
+void   widget_set_overflow(int id, const std::string& mode);
+// اسم المكون
+void   widget_set_name(int id, const std::string& name);
+std::string widget_get_name(int id);
+// استعلام المكون
+std::string widget_get_type_name(int id);
+int    widget_get_children_count(int id);
+int    widget_get_child_at(int id, int index);
+void   widget_remove_child(int parentId, int childId);
+int    widget_find_by_name(const std::string& name);
+// موضع وحجم
+float  widget_get_x(int id);
+float  widget_get_y(int id);
+float  widget_get_width(int id);
+float  widget_get_height(int id);
+// مجموع الصفحات
+void   widget_set_total_pages(int id, int total);
+// القيمة الثانية للمنزلق المزدوج
+void   widget_set_value2(int id, float val);
+float  widget_get_value2(int id);
+// نص الإدخال
+void   widget_set_input_text(int id, const std::string& text);
+std::string widget_get_input_text(int id);
+// العناصر والبيانات بالجملة
+void   widget_clear_items(int id);
+void   widget_clear_data(int id);
+void   widget_add_data_color(int id, int r, int g, int b);
+// مقنّع (PasswordField)
+void   widget_set_masked(int id, bool masked);
+bool   widget_get_masked(int id);
+
 // ═══════════════════════════════════════════════════════════════════
 // القسم الجديد: نظام إنشاء المكونات بالخصائص (Declarative/Flutter-like)
 // ─────────────────────────────────────────────────────────────────
@@ -422,6 +772,16 @@ void setThemeProperty(const std::string& propName, double numValue);
 // (أزرار مضغوطة، نصوص تغيّرت، قيم تغيّرت، مفاتيح بُدّلت)
 std::vector<UIEvent> collectEvents(int rootWidget);
 
+// ═══ NEW v2.0: Full Event Data Access ═══
+// بعد جمع الأحداث, يمكن الوصول لتفاصيل كل حدث
+int    events_count(int rootWidget);           // عدد الأحداث
+std::string event_get_type(int index);         // نوع الحدث
+int    event_get_widget_id(int index);         // معرف المكون
+std::string event_get_text(int index);         // بيانات نصية
+double event_get_number(int index);            // بيانات رقمية
+bool   event_get_bool(int index);              // بيانات منطقية
+void   events_clear();                         // مسح الأحداث المخزنة مؤقتاً
+
 // ───── حفظ واستعادة حالة الحقول ─────
 // يحفظ نصوص جميع حقول الإدخال في الشجرة (المفتاح = التلميح أو الترتيب)
 std::map<std::string, std::string> saveTextFieldStates(int rootWidget);
@@ -445,5 +805,97 @@ void widgetSetProp(int id, const std::string& propName, bool boolValue);
 // ───── ضبط الأطفال من مصفوفة ─────
 // يمسح الأطفال الحاليين ويُعيّن أطفال جدد من المصفوفة
 void widgetSetChildren(int parentId, const std::vector<int>& childIds);
+
+// ═══════════════════════════════════════════════════════════════════
+// [NEW v2.1] دوال API إضافية — تحسينات شاملة (FIX #90-150)
+// ═══════════════════════════════════════════════════════════════════
+
+// ───── استعلامات ─────
+int widget_count();                               // عدد العناصر المسجلة
+int widget_get_parent(int widgetId);              // معرف الأب (-1 إذا لم يجد)
+std::vector<int> widget_find_by_type(WidgetType type); // البحث حسب النوع
+int widget_find_by_name_fast(const std::string& name); // بحث سريع بالاسم
+
+// ───── تعديل الشجرة ─────
+void widget_add_child_tracked(int parentId, int childId); // إضافة ابن مع تتبع الأب
+int  widget_clone(int widgetId);                   // نسخ عنصر (بدون أبناء)
+int  widget_deep_clone(int widgetId);              // نسخ عنصر مع الأبناء
+void widget_remove(int widgetId);                  // إزالة عنصر وأبنائه
+void widget_reparent(int widgetId, int newParentId); // نقل عنصر لأب جديد
+
+// ───── التطبيق ─────
+void app_set_title(int appId, const std::string& title);
+std::string app_get_title(int appId);
+double app_get_fps(int appId);
+double app_get_delta_time(int appId);
+int  app_get_width(int appId);
+int  app_get_height(int appId);
+void app_set_size(int appId, int w, int h);
+
+// ───── تمرير ─────
+void widget_scroll_by(int widgetId, float deltaY);
+void widget_scroll_to(int widgetId, float y);
+
+// ───── تموضع ─────
+void widget_move_to(int widgetId, float x, float y);
+
+// ───── تنسيق متقدم ─────
+void widget_set_alignment(int widgetId, const std::string& main, const std::string& cross);
+void widgetSetPropString_v2(int widgetId, const std::string& prop, const std::string& val);
+
+// ═══════════════════════════════════════════════════════════════════
+// [NEW v3.0] نظام الخصائص السطرية (Inline Property System)
+// ─────────────────────────────────────────────────────────────────
+// يدعم 120+ خاصية للتعيين المباشر عند إنشاء المكونات
+// مثال: نص_واجهة("مرحبا"، "لون"، "احمر"، "حجم_خط"، 20)
+// ═══════════════════════════════════════════════════════════════════
+bool isKnownPropertyName(const std::string& name);
+
+// ═══════════════════════════════════════════════════════════════════
+// [NEW v3.0] 40 مصنع مكونات مركبة (Convenience Widget Factories)
+// ─────────────────────────────────────────────────────────────────
+// مكونات مبنية من تركيب عناصر موجودة — لا تحتاج WidgetType جديد
+// ═══════════════════════════════════════════════════════════════════
+int convenience_scaffold(const std::string& title, int bodyId, int bottomBarId = -1);
+int convenience_safe_area(int childId, float topInset=24, float bottomInset=24);
+int convenience_padding_widget(int childId, float all);
+int convenience_padding_widget4(int childId, float top, float right, float bottom, float left);
+int convenience_align(int childId, const std::string& mainAlign, const std::string& crossAlign);
+int convenience_aspect_ratio(int childId, float ratio);
+int convenience_constrained_box(int childId, float minW, float minH, float maxW, float maxH);
+int convenience_opacity_widget(int childId, float opacity);
+int convenience_decorated_box(int childId, int r, int g, int b, float radius, float borderW);
+int convenience_clip_rrect(int childId, float radius);
+int convenience_flexible(int childId, float flexFactor);
+int convenience_circle_avatar(const std::string& letter, int r, int g, int b, float size);
+int convenience_search_bar(const std::string& hint, int r=33, int g=150, int b=243);
+int convenience_bottom_sheet(int contentId, float height);
+int convenience_navigation_rail(int selectedIdx);
+int convenience_segmented_button();
+int convenience_filter_chip(const std::string& label, bool selected);
+int convenience_choice_chip(const std::string& label, bool selected);
+int convenience_input_chip(const std::string& label);
+int convenience_action_chip(const std::string& label);
+int convenience_form_group(const std::string& label);
+int convenience_list_section(const std::string& title);
+int convenience_empty_state(const std::string& message, const std::string& icon);
+int convenience_error_widget(const std::string& message);
+int convenience_placeholder(float w, float h);
+int convenience_kpi_card(const std::string& label, const std::string& value, const std::string& trend);
+int convenience_countdown(int seconds);
+int convenience_divider_themed(const std::string& color, float thickness);
+int convenience_gradient_card(const std::string& title, int r1, int g1, int b1, int r2, int g2, int b2);
+int convenience_outlined_card(const std::string& title, int r, int g, int b);
+int convenience_hero_header(const std::string& title, const std::string& subtitle, int r, int g, int b);
+int convenience_login_form(const std::string& title);
+int convenience_avatar_group(int count);
+int convenience_toolbar_action(const std::string& icon, const std::string& label);
+int convenience_tag_group();
+int convenience_rating_bar(int maxStars, float initialValue);
+int convenience_progress_indicator(float value, const std::string& label);
+int convenience_split_button(const std::string& text);
+int convenience_fab_extended(const std::string& label, char icon);
+int convenience_chip_group();
+int convenience_nav_drawer(const std::string& title);
 
 }} // namespace sad::ui

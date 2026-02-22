@@ -61,20 +61,26 @@ option(BUILD_PKG_MANAGER "بناء مدير الحزم / Build package manager" 
 option(ENABLE_LLVM_BACKEND "تفعيل LLVM Backend / Enable LLVM Backend" ON)
 
 # ══════════════════════════════════════════════════════════════════════
+# تحميل وحدات CMake / Load CMake Modules
+# ══════════════════════════════════════════════════════════════════════
+
+# 1. إعدادات LLVM الاختيارية (يجب أن تأتي قبل reorganized.cmake) / Optional LLVM Configuration
+include(${CMAKE_SOURCE_DIR}/cmake/llvm.cmake)
+
+# 2. إعدادات المنصة (preprocessor, warnings) / Platform Configuration
+# (AR) يجب تحميلها قبل reorganized.cmake لتنتشر الخيارات إلى المجلدات الفرعية
+# (EN) Must be loaded before reorganized.cmake so options propagate to subdirectories
+include(${CMAKE_SOURCE_DIR}/cmake/platform.cmake)
+
+# ══════════════════════════════════════════════════════════════════════
 # تضمين المكونات الفرعية المعاد تنظيمها
 # Include reorganized sub-components (shared/, interpreter_new/, compiler_new/)
 # ══════════════════════════════════════════════════════════════════════
 include(${CMAKE_SOURCE_DIR}/reorganized.cmake)
 
 # ══════════════════════════════════════════════════════════════════════
-# تحميل وحدات CMake / Load CMake Modules
+# وحدات إضافية / Additional Modules
 # ══════════════════════════════════════════════════════════════════════
-
-# 1. إعدادات LLVM الاختيارية / Optional LLVM Configuration
-include(${CMAKE_SOURCE_DIR}/cmake/llvm.cmake)
-
-# 2. إعدادات المنصة (preprocessor, warnings) / Platform Configuration
-include(${CMAKE_SOURCE_DIR}/cmake/platform.cmake)
 
 # 3. مجلدات التضمين / Include Directories
 include_directories(

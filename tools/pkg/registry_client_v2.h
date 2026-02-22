@@ -23,6 +23,12 @@
 
 #pragma once
 
+#ifdef _MSC_VER
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+#endif
+
 #include "http_client.h"
 #include "package.h"
 #include "dependency_resolver.h"
@@ -693,10 +699,10 @@ class RegistryClientV2 : public IPackageRegistry {
 public:
     /**
      * @brief منشئ
-     * @param registry_url عنوان المستودع (افتراضي: packages.sadlang.org)
+     * @param registry_url عنوان المستودع (افتراضي: 185.47.174.39:3000)
      */
     explicit RegistryClientV2(
-        const std::string& registry_url = "https://packages.sadlang.org")
+        const std::string& registry_url = "http://185.47.174.39:3000")
         : registry_url_(registry_url) {
 
         cache_dir_ = get_default_cache_dir();
@@ -974,46 +980,34 @@ public:
      * @brief تسجيل الدخول
      */
     bool login(const std::string& username, const std::string& password) {
-        log_info("تسجيل الدخول كـ " + username + "...");
+        log_info(u8"تسجيل الدخول كـ " + username + "...");
 
-#if SAD_HAS_NLOHMANN_JSON
-        nlohmann::json body;
-        body["username"] = username;
-        body["password"] = password;
-        std::string body_str = body.dump();
-#else
-        std::string body_str = "{\"username\":\"" + username +
-                               "\",\"password\":\"" + password + "\"}";
-#endif
+        std::string body_str = "{\"username\":\"" + json_escape(username) +
+                               "\",\"password\":\"" + json_escape(password) + "\"}";
 
         auto response = http_.post(
-            registry_url_ + "/api/v1/login", body_str,
+            registry_url_ + "/api/v1/auth/login", body_str,
             {{"Content-Type", "application/json"}});
 
         if (!response.ok()) {
-            log_error("فشل تسجيل الدخول");
+            auto j = SimpleJson::parse(response.body);
+            log_error(j.get_string("error", u8"فشل تسجيل الدخول"));
             return false;
         }
 
-#if SAD_HAS_NLOHMANN_JSON
-        auto j = nlohmann::json::parse(response.body, nullptr, false);
-        if (j.contains("token")) {
-            auth_token_ = j["token"].get<std::string>();
-            save_auth_token();
-            log_success("تم تسجيل الدخول بنجاح");
-            return true;
-        }
-#else
         auto j = SimpleJson::parse(response.body);
         if (j.contains("token") && j["token"].is_string()) {
             auth_token_ = j["token"].str_val;
-            save_auth_token();
-            log_success("تم تسجيل الدخول بنجاح");
+            saved_username_ = j.contains("user") ? j["user"].get_string("username", username) : username;
+            saved_email_ = j.contains("user") ? j["user"].get_string("email", "") : "";
+            std::string api_token = j.get_string("api_token", "");
+            if (!api_token.empty()) saved_api_token_ = api_token;
+            save_credentials(saved_username_, saved_email_, auth_token_, saved_api_token_);
+            log_success(j.get_string("message", u8"تم تسجيل الدخول بنجاح"));
             return true;
         }
-#endif
 
-        log_error("فشل تسجيل الدخول: استجابة غير متوقعة");
+        log_error(u8"فشل تسجيل الدخول: استجابة غير متوقعة");
         return false;
     }
 
@@ -1022,13 +1016,247 @@ public:
      */
     void logout() {
         auth_token_.clear();
+        saved_username_.clear();
+        saved_email_.clear();
+        saved_api_token_.clear();
         auto token_path = get_token_path();
         if (std::filesystem::exists(token_path))
             std::filesystem::remove(token_path);
-        log_info("تم تسجيل الخروج");
+        log_info(u8"تم تسجيل الخروج");
     }
 
     bool is_logged_in() const { return !auth_token_.empty(); }
+
+    /**
+     * @brief الحصول على اسم المستخدم المحفوظ
+     */
+    std::string get_saved_username() const { return saved_username_; }
+
+    /**
+     * @brief الحصول على البريد الإلكتروني المحفوظ
+     */
+    std::string get_saved_email() const { return saved_email_; }
+
+    // ========================================================================
+    // Registration - التسجيل
+    // ========================================================================
+
+    /**
+     * @brief تسجيل مستخدم جديد في المستودع
+     * @param username اسم المستخدم
+     * @param email البريد الإلكتروني
+     * @param password كلمة المرور
+     * @param display_name الاسم المعروض (اختياري)
+     * @return true إذا نجح التسجيل
+     */
+    bool register_user(const std::string& username, const std::string& email,
+                       const std::string& password, const std::string& display_name = "") {
+        log_info(u8"تسجيل حساب جديد باسم " + username + "...");
+
+        std::string body_str = "{\"username\":\"" + json_escape(username) +
+                               "\",\"email\":\"" + json_escape(email) +
+                               "\",\"password\":\"" + json_escape(password) + "\"";
+        if (!display_name.empty()) {
+            body_str += ",\"display_name\":\"" + json_escape(display_name) + "\"";
+        }
+        body_str += "}";
+
+        auto response = http_.post(
+            registry_url_ + "/api/v1/auth/register", body_str,
+            {{"Content-Type", "application/json"}});
+
+        if (!response.ok()) {
+            auto j = SimpleJson::parse(response.body);
+            std::string err = j.get_string("error", u8"فشل التسجيل");
+            log_error(err);
+            if (j.contains("details") && j["details"].is_array()) {
+                for (const auto& d : j["details"].arr_val) {
+                    log_error("  - " + d.get_string("msg", ""));
+                }
+            }
+            return false;
+        }
+
+        auto j = SimpleJson::parse(response.body);
+        if (j.contains("token") && j["token"].is_string()) {
+            auth_token_ = j["token"].str_val;
+            saved_username_ = username;
+            saved_email_ = email;
+
+            // حفظ api_token إذا وُجد
+            std::string api_token = j.get_string("api_token", "");
+            save_credentials(username, email, auth_token_, api_token);
+
+            log_success(j.get_string("message", u8"تم إنشاء الحساب بنجاح!"));
+            if (!api_token.empty()) {
+                log_info(u8"رمز API الخاص بك: " + api_token);
+                log_info(u8"⚠ احفظ هذا الرمز! لن يظهر مرة أخرى");
+            }
+            return true;
+        }
+
+        log_error(u8"فشل التسجيل: استجابة غير متوقعة");
+        return false;
+    }
+
+    // ========================================================================
+    // User Profile - الملف الشخصي
+    // ========================================================================
+
+    /**
+     * @brief جلب الملف الشخصي للمستخدم الحالي
+     * @return كائن JSON يحتوي معلومات المستخدم
+     */
+    SimpleJson get_profile() {
+        if (auth_token_.empty()) {
+            log_error(u8"يجب تسجيل الدخول أولاً");
+            return {};
+        }
+
+        auto response = http_.get(
+            registry_url_ + "/api/v1/user/profile",
+            {{"Authorization", "Bearer " + auth_token_}});
+
+        if (!response.ok()) {
+            log_error(u8"فشل جلب الملف الشخصي");
+            return {};
+        }
+
+        return SimpleJson::parse(response.body);
+    }
+
+    /**
+     * @brief جلب حزم المستخدم الحالي
+     * @return قائمة الحزم
+     */
+    SimpleJson get_my_packages() {
+        if (auth_token_.empty()) {
+            log_error(u8"يجب تسجيل الدخول أولاً");
+            return {};
+        }
+
+        auto response = http_.get(
+            registry_url_ + "/api/v1/user/packages",
+            {{"Authorization", "Bearer " + auth_token_}});
+
+        if (!response.ok()) {
+            log_error(u8"فشل جلب حزم المستخدم");
+            return {};
+        }
+
+        return SimpleJson::parse(response.body);
+    }
+
+    // ========================================================================
+    // API Token Management - إدارة مفاتيح API
+    // ========================================================================
+
+    /**
+     * @brief إنشاء رمز API جديد
+     * @param token_name اسم الرمز
+     * @param scopes الصلاحيات (مثل: publish, read)
+     * @return الرمز الجديد (فارغ إذا فشل)
+     */
+    std::string create_api_token(const std::string& token_name,
+                                  const std::vector<std::string>& scopes = {"publish"}) {
+        if (auth_token_.empty()) {
+            log_error(u8"يجب تسجيل الدخول أولاً");
+            return "";
+        }
+
+        std::string scopes_json = "[";
+        for (size_t i = 0; i < scopes.size(); i++) {
+            scopes_json += "\"" + scopes[i] + "\"";
+            if (i + 1 < scopes.size()) scopes_json += ",";
+        }
+        scopes_json += "]";
+
+        std::string body_str = "{\"name\":\"" + json_escape(token_name) +
+                               "\",\"scopes\":" + scopes_json + "}";
+
+        auto response = http_.post(
+            registry_url_ + "/api/v1/auth/token", body_str,
+            {{"Content-Type", "application/json"},
+             {"Authorization", "Bearer " + auth_token_}});
+
+        if (!response.ok()) {
+            log_error(u8"فشل إنشاء رمز API");
+            return "";
+        }
+
+        auto j = SimpleJson::parse(response.body);
+        return j.get_string("token", "");
+    }
+
+    // ========================================================================
+    // Registry Statistics - إحصائيات المستودع
+    // ========================================================================
+
+    /**
+     * @brief جلب إحصائيات المستودع العامة
+     * @return كائن JSON بالإحصائيات
+     */
+    SimpleJson get_stats() {
+        auto response = http_.get(registry_url_ + "/api/v1/stats");
+        if (!response.ok()) {
+            log_error(u8"فشل جلب الإحصائيات");
+            return {};
+        }
+        return SimpleJson::parse(response.body);
+    }
+
+    // ========================================================================
+    // Yank Version - سحب إصدار
+    // ========================================================================
+
+    /**
+     * @brief سحب إصدار من المستودع (إيقافه دون حذفه)
+     * @param package_name اسم الحزمة
+     * @param version الإصدار
+     * @return true إذا نجح السحب
+     */
+    bool yank_version(const std::string& package_name, const std::string& version) {
+        if (auth_token_.empty()) {
+            log_error(u8"يجب تسجيل الدخول أولاً");
+            return false;
+        }
+
+        log_info(u8"سحب " + package_name + "@" + version + "...");
+
+        // نستخدم POST بدلاً من DELETE لأن بعض البيئات لا تدعم DELETE
+        auto response = http_.post(
+            registry_url_ + "/api/v1/packages/" + url_encode(package_name) +
+            "/" + version + "/yank", "{}",
+            {{"Content-Type", "application/json"},
+             {"Authorization", "Bearer " + auth_token_}});
+
+        if (!response.ok()) {
+            auto j = SimpleJson::parse(response.body);
+            log_error(j.get_string("error", u8"فشل سحب الإصدار"));
+            return false;
+        }
+
+        auto j = SimpleJson::parse(response.body);
+        log_success(j.get_string("message", u8"تم سحب الإصدار بنجاح"));
+        return true;
+    }
+
+    // ========================================================================
+    // Package Versions Detail - تفاصيل الإصدارات
+    // ========================================================================
+
+    /**
+     * @brief جلب معلومات تفصيلية عن جميع إصدارات حزمة
+     * @param package_name اسم الحزمة
+     * @return كائن JSON بتفاصيل الحزمة والإصدارات
+     */
+    SimpleJson get_package_details(const std::string& package_name) {
+        auto response = http_.get(
+            registry_url_ + "/api/v1/packages/" + url_encode(package_name));
+
+        if (!response.ok()) return {};
+        return SimpleJson::parse(response.body);
+    }
 
     // ========================================================================
     // Cache Management - إدارة الذاكرة المؤقتة
@@ -1059,11 +1287,29 @@ private:
     std::string registry_url_;
     std::filesystem::path cache_dir_;
     std::string auth_token_;
+    std::string saved_username_;
+    std::string saved_email_;
+    std::string saved_api_token_;
     HttpClient http_;
 
     // ========================================================================
     // Internal Helpers - دوال مساعدة داخلية
     // ========================================================================
+
+    static std::string json_escape(const std::string& s) {
+        std::string r;
+        for (char c : s) {
+            switch (c) {
+                case '"': r += "\\\""; break;
+                case '\\': r += "\\\\"; break;
+                case '\n': r += "\\n"; break;
+                case '\r': r += "\\r"; break;
+                case '\t': r += "\\t"; break;
+                default: r += c;
+            }
+        }
+        return r;
+    }
 
     static std::filesystem::path get_default_cache_dir() {
 #ifdef _WIN32
@@ -1077,15 +1323,24 @@ private:
 #endif
     }
 
-    std::filesystem::path get_token_path() {
+    static std::filesystem::path get_config_dir() {
 #ifdef _WIN32
         const char* appdata = std::getenv("LOCALAPPDATA");
-        if (appdata) return std::filesystem::path(appdata) / "sad" / "credentials.json";
+        if (appdata) return std::filesystem::path(appdata) / "sad";
+        return "C:\\ProgramData\\sad";
 #else
         const char* home = std::getenv("HOME");
-        if (home) return std::filesystem::path(home) / ".sad" / "credentials.json";
+        if (home) return std::filesystem::path(home) / ".sad";
+        return "/tmp/sad";
 #endif
-        return ".sad/credentials.json";
+    }
+
+    std::filesystem::path get_token_path() {
+        return get_config_dir() / "credentials.json";
+    }
+
+    std::filesystem::path get_config_path() {
+        return get_config_dir() / "config.json";
     }
 
     void load_auth_token() {
@@ -1096,24 +1351,87 @@ private:
             std::ifstream f(path);
             std::string content((std::istreambuf_iterator<char>(f)),
                                  std::istreambuf_iterator<char>());
-#if SAD_HAS_NLOHMANN_JSON
-            auto j = nlohmann::json::parse(content, nullptr, false);
-            if (j.contains("token"))
-                auth_token_ = j["token"].get<std::string>();
-#else
             auto j = SimpleJson::parse(content);
             if (j.contains("token"))
                 auth_token_ = j["token"].str_val;
-#endif
+            if (j.contains("username"))
+                saved_username_ = j["username"].str_val;
+            if (j.contains("email"))
+                saved_email_ = j["email"].str_val;
+            if (j.contains("api_token"))
+                saved_api_token_ = j["api_token"].str_val;
         } catch (...) {}
     }
 
     void save_auth_token() {
+        save_credentials(saved_username_, saved_email_, auth_token_, saved_api_token_);
+    }
+
+    void save_credentials(const std::string& username, const std::string& email,
+                          const std::string& token, const std::string& api_token = "") {
         auto path = get_token_path();
         std::filesystem::create_directories(path.parent_path());
         std::ofstream f(path);
-        f << "{\"token\":\"" << auth_token_ << "\"}";
+        f << "{\n";
+        f << "  \"token\": \"" << json_escape(token) << "\",\n";
+        f << "  \"username\": \"" << json_escape(username) << "\",\n";
+        f << "  \"email\": \"" << json_escape(email) << "\"";
+        if (!api_token.empty()) {
+            f << ",\n  \"api_token\": \"" << json_escape(api_token) << "\"";
+        }
+        f << "\n}\n";
     }
+
+public:
+    /**
+     * @brief تحميل/حفظ إعدادات المستخدم (registry_url, etc.)
+     */
+    static SimpleJson load_user_config() {
+        auto path = get_config_dir() / "config.json";
+        if (!std::filesystem::exists(path)) return {};
+        try {
+            std::ifstream f(path);
+            std::string content((std::istreambuf_iterator<char>(f)),
+                                 std::istreambuf_iterator<char>());
+            return SimpleJson::parse(content);
+        } catch (...) { return {}; }
+    }
+
+    static void save_user_config(const std::map<std::string, std::string>& settings) {
+        auto path = get_config_dir() / "config.json";
+        std::filesystem::create_directories(path.parent_path());
+
+        // تحميل الإعدادات الحالية ودمج الجديدة
+        auto existing = load_user_config();
+        std::ofstream f(path);
+        f << "{\n";
+        bool first = true;
+
+        // كتابة الإعدادات الحالية
+        if (existing.is_object()) {
+            for (const auto& [k, v] : existing.obj_val) {
+                if (settings.count(k)) continue; // سيُكتب من الجديدة
+                if (!first) f << ",\n";
+                f << "  \"" << k << "\": \"" << v.str_val << "\"";
+                first = false;
+            }
+        }
+
+        // كتابة الإعدادات الجديدة
+        for (const auto& [k, v] : settings) {
+            if (!first) f << ",\n";
+            f << "  \"" << k << "\": \"" << v << "\"";
+            first = false;
+        }
+
+        f << "\n}\n";
+    }
+
+    static std::filesystem::path get_config_dir_public() {
+        return get_config_dir();
+    }
+
+private:
 
     void copy_to_dest(const std::filesystem::path& src,
                       const std::filesystem::path& dest) {

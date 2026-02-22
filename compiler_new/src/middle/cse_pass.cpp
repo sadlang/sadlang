@@ -46,7 +46,6 @@ bool CSEPass::runOnFunction(SIR::SIRFunction* function) {
         return false;
     }
     
-    clearTables();
     bool modified = false;
     replacementCount_ = 0;
     
@@ -56,6 +55,11 @@ bool CSEPass::runOnFunction(SIR::SIRFunction* function) {
     for (size_t blockIdx = 0; blockIdx < blocks.size(); ++blockIdx) {
         auto& block = blocks[blockIdx];
         if (!block) continue;
+        
+        // Clear expression table for each block - LOCAL CSE only.
+        // Cross-block CSE requires dominance analysis which we don't have,
+        // and causes "Instruction does not dominate all uses!" LLVM errors.
+        clearTables();
         
         // instructions is vector<SIRInstruction> (not unique_ptr)
         auto& instructions = block->instructions;
@@ -185,9 +189,33 @@ std::unique_ptr<ExpressionKey> CSEPass::analyzeExpression(
     }
     
     // Collect operand names from inst->operands (vector<SIROperand>)
+    // FIX: For constant operands, include the actual value in the key,
+    // not just the name (which is empty for ConstantI64/F64/Bool).
+    // Without this, all comparisons like GE %x, 3 and GE %x, 2
+    // would be treated as identical expressions.
     std::vector<std::string> operandNames;
     for (const auto& operand : inst->operands) {
-        operandNames.push_back(operand.name);
+        if (operand.type == SIR::SIROperandType::CONSTANT) {
+            switch (operand.dataType) {
+                case SIR::SIRType::I64:
+                    operandNames.push_back("$ci64_" + std::to_string(operand.intValue));
+                    break;
+                case SIR::SIRType::F64:
+                    operandNames.push_back("$cf64_" + std::to_string(operand.floatValue));
+                    break;
+                case SIR::SIRType::BOOL:
+                    operandNames.push_back(std::string("$cbool_") + (operand.boolValue ? "1" : "0"));
+                    break;
+                case SIR::SIRType::STRING:
+                    operandNames.push_back("$cstr_" + operand.name);
+                    break;
+                default:
+                    operandNames.push_back("$c_" + operand.name);
+                    break;
+            }
+        } else {
+            operandNames.push_back(operand.name);
+        }
     }
     
     if (operandNames.empty()) {
@@ -257,13 +285,13 @@ void CSEPass::replaceRegisterUses(
     
     auto& blocks = function->getBasicBlocks();
     
-    for (size_t blockIdx = startBlock; blockIdx < blocks.size(); ++blockIdx) {
-        auto& block = blocks[blockIdx];
-        if (!block) continue;
+    // Only replace within the SAME basic block to avoid dominance issues.
+    // Cross-block replacement can cause "Instruction does not dominate all uses!"
+    if (startBlock >= 0 && startBlock < static_cast<int>(blocks.size())) {
+        auto& block = blocks[startBlock];
+        if (!block) return;
         
-        // instructions is vector<SIRInstruction>
         for (auto& inst : block->instructions) {
-            // Replace in operands (inst.operands is vector<SIROperand>)
             for (auto& operand : inst.operands) {
                 if (operand.name == oldReg) {
                     operand.name = newReg;

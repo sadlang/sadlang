@@ -57,8 +57,9 @@
 #include <memory>
 #include <sstream>
 
-namespace sad {
-namespace parser {
+namespace Sad {
+namespace Parser {
+namespace ErrorRecovery {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //                          أنواع الرموز | Token Types
@@ -692,5 +693,6 @@ extern "C" {
     }
 }
 
-} // namespace parser
-} // namespace sad
+} // namespace ErrorRecovery
+} // namespace Parser
+} // namespace Sad

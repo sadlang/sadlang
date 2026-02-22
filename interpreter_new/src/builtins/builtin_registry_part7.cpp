@@ -294,14 +294,43 @@ void registerBuiltinsPart7(Interpreter& interpreter) {
         std::string hex_text = args[0]->toString();
         std::string key = args[1]->toString();
         if (key.empty()) throw std::runtime_error("(AR) المفتاح فارغ / (EN) Key is empty");
-        // Convert hex back to bytes
-        std::string bytes;
-        for (size_t i = 0; i + 1 < hex_text.size(); i += 2) {
-            int byte = std::stoi(hex_text.substr(i, 2), nullptr, 16);
-            bytes += static_cast<char>(byte);
+        
+        // التحقق من صحة طول النص المشفر (يجب أن يكون زوجياً)
+        if (hex_text.size() % 2 != 0) {
+            throw std::runtime_error("(AR) النص المشفر غير صالح: طول غير زوجي / (EN) Invalid encrypted text: odd length");
         }
+        
+        // Convert hex back to bytes with validation
+        std::string bytes;
+        bytes.reserve(hex_text.size() / 2);
+        
+        for (size_t i = 0; i + 1 < hex_text.size(); i += 2) {
+            std::string hex_byte = hex_text.substr(i, 2);
+            
+            // التحقق من أن الحرف hex صالح
+            for (char c : hex_byte) {
+                if (!std::isxdigit(static_cast<unsigned char>(c))) {
+                    throw std::runtime_error(
+                        "(AR) النص المشفر يحتوي على حرف غير صالح: '" + std::string(1, c) + 
+                        "' / (EN) Invalid hex character in encrypted text: '" + std::string(1, c) + "'"
+                    );
+                }
+            }
+            
+            try {
+                int byte = std::stoi(hex_byte, nullptr, 16);
+                bytes += static_cast<char>(byte);
+            } catch (const std::exception& e) {
+                throw std::runtime_error(
+                    "(AR) فشل تحليل البايت: " + hex_byte + 
+                    " / (EN) Failed to parse byte: " + hex_byte
+                );
+            }
+        }
+        
         // XOR decrypt
         std::string result;
+        result.reserve(bytes.size());
         for (size_t i = 0; i < bytes.size(); ++i) {
             result += static_cast<char>(bytes[i] ^ key[i % key.size()]);
         }
@@ -444,6 +473,43 @@ void registerBuiltinsPart7(Interpreter& interpreter) {
     // Section 13: FFI Functions (C/C++ Foreign Function Interface)
     // ===================================================================
 
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) جدول مؤشرات مُدار — يخزّن العناوين الحقيقية بمعرّف int آمن
+    //      بدلاً من تخزين uintptr_t كـ double (يفقد الدقة فوق 2^52)
+    // (EN) Managed pointer table — stores real addresses with safe int IDs
+    //      instead of storing uintptr_t as double (loses precision above 2^52)
+    // ═══════════════════════════════════════════════════════════════════
+    static std::unordered_map<int, void*> ptrTable;
+    static int nextPtrId = 1;
+    static constexpr size_t MAX_FFI_ALLOC_SIZE = 256 * 1024 * 1024; // 256MB حد أقصى للحجز
+    static constexpr size_t MAX_FFI_ALLOC_COUNT = 10000;            // حد أقصى لعدد الحجوزات
+
+    // (AR) دالة مساعدة لتسجيل مؤشر وإرجاع معرّفه
+    // (EN) Helper to register a pointer and return its ID
+    auto registerPtr = [](void* ptr) -> int {
+        if (!ptr) return 0;
+        int id = nextPtrId++;
+        ptrTable[id] = ptr;
+        return id;
+    };
+
+    // (AR) دالة مساعدة لجلب المؤشر من معرّفه
+    // (EN) Helper to get pointer from its ID
+    auto getPtr = [](int id) -> void* {
+        auto it = ptrTable.find(id);
+        return (it != ptrTable.end()) ? it->second : nullptr;
+    };
+
+    // (AR) دالة مساعدة لإزالة مؤشر من الجدول
+    // (EN) Helper to remove pointer from table
+    auto removePtr = [](int id) -> void* {
+        auto it = ptrTable.find(id);
+        if (it == ptrTable.end()) return nullptr;
+        void* ptr = it->second;
+        ptrTable.erase(it);
+        return ptr;
+    };
+
     // 1. printf — طباعة_تنسيق / formatted print
     auto ffi_printf_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.empty()) throw std::runtime_error("(AR) printf: يحتاج نص التنسيق / (EN) printf: needs format string");
@@ -492,48 +558,78 @@ void registerBuiltinsPart7(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("printf", ffi_printf_func);
     interpreter.getFunctionManager().registerBuiltinFunction("c_printf", ffi_printf_func);
 
-    // 2. malloc — حجز / allocate memory (simulated with unique ID)
-    auto ffi_malloc_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    // 2. malloc — حجز / allocate memory (managed pointer table)
+    auto ffi_malloc_func = [&interpreter, registerPtr](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.empty()) throw std::runtime_error("(AR) malloc: يحتاج الحجم / (EN) malloc: needs size");
+        // (AR) فحص أمني — حظر في وضع الأمان
+        if (interpreter.getOptions().enableSecurity) {
+            throw std::runtime_error("(AR) malloc محظورة في الوضع الآمن — استخدم مصفوفة بدلاً منها / (EN) malloc blocked in secure mode — use arrays instead");
+        }
         size_t size = static_cast<size_t>(args[0]->toDouble());
+        if (size > MAX_FFI_ALLOC_SIZE) {
+            throw std::runtime_error("(AR) malloc: الحجم " + std::to_string(size) + " يتجاوز الحد 256MB / (EN) malloc: size exceeds 256MB limit");
+        }
+        if (ptrTable.size() >= MAX_FFI_ALLOC_COUNT) {
+            throw std::runtime_error("(AR) malloc: تجاوز الحد الأقصى لعدد الحجوزات / (EN) malloc: exceeded max allocation count");
+        }
         void* ptr = std::malloc(size);
         if (!ptr) return std::make_shared<Data::Value>(0);
-        return std::make_shared<Data::Value>(static_cast<double>(reinterpret_cast<uintptr_t>(ptr)));
+        return std::make_shared<Data::Value>(registerPtr(ptr));
     };
     interpreter.getFunctionManager().registerBuiltinFunction("حجز", ffi_malloc_func);
     interpreter.getFunctionManager().registerBuiltinFunction("malloc", ffi_malloc_func);
     interpreter.getFunctionManager().registerBuiltinFunction("c_malloc", ffi_malloc_func);
 
-    // 3. free — حرر / free memory
-    auto ffi_free_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    // 3. free — حرر / free memory (managed pointer table)
+    auto ffi_free_func = [&interpreter, removePtr](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.empty()) throw std::runtime_error("(AR) free: يحتاج مؤشر / (EN) free: needs pointer");
-        uintptr_t addr = static_cast<uintptr_t>(args[0]->toDouble());
-        if (addr != 0) std::free(reinterpret_cast<void*>(addr));
+        if (interpreter.getOptions().enableSecurity) {
+            throw std::runtime_error("(AR) free محظورة في الوضع الآمن / (EN) free blocked in secure mode");
+        }
+        int id = static_cast<int>(args[0]->toDouble());
+        void* ptr = removePtr(id);
+        if (ptr) std::free(ptr);
         return std::make_shared<Data::Value>();
     };
     interpreter.getFunctionManager().registerBuiltinFunction("حرر", ffi_free_func);
     interpreter.getFunctionManager().registerBuiltinFunction("free", ffi_free_func);
     interpreter.getFunctionManager().registerBuiltinFunction("c_free", ffi_free_func);
 
-    // 4. realloc — اعد_حجز
-    auto ffi_realloc_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    // 4. realloc — اعد_حجز (managed pointer table)
+    auto ffi_realloc_func = [&interpreter, getPtr, removePtr, registerPtr](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) throw std::runtime_error("(AR) realloc: يحتاج مؤشر وحجم / (EN) realloc: needs ptr and size");
-        uintptr_t addr = static_cast<uintptr_t>(args[0]->toDouble());
+        if (interpreter.getOptions().enableSecurity) {
+            throw std::runtime_error("(AR) realloc محظورة في الوضع الآمن / (EN) realloc blocked in secure mode");
+        }
+        int id = static_cast<int>(args[0]->toDouble());
         size_t size = static_cast<size_t>(args[1]->toDouble());
-        void* ptr = std::realloc(reinterpret_cast<void*>(addr), size);
-        return std::make_shared<Data::Value>(static_cast<double>(reinterpret_cast<uintptr_t>(ptr)));
+        if (size > MAX_FFI_ALLOC_SIZE) {
+            throw std::runtime_error("(AR) realloc: الحجم يتجاوز الحد 256MB / (EN) realloc: size exceeds 256MB limit");
+        }
+        void* oldPtr = removePtr(id);
+        void* ptr = std::realloc(oldPtr, size);
+        return std::make_shared<Data::Value>(registerPtr(ptr));
     };
     interpreter.getFunctionManager().registerBuiltinFunction("اعد_حجز", ffi_realloc_func);
     interpreter.getFunctionManager().registerBuiltinFunction("realloc", ffi_realloc_func);
     interpreter.getFunctionManager().registerBuiltinFunction("c_realloc", ffi_realloc_func);
 
-    // 5. calloc — حجز_صفري
-    auto ffi_calloc_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    // 5. calloc — حجز_صفري (managed pointer table)
+    auto ffi_calloc_func = [&interpreter, registerPtr](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) throw std::runtime_error("(AR) calloc: يحتاج العدد والحجم / (EN) calloc: needs count and size");
+        if (interpreter.getOptions().enableSecurity) {
+            throw std::runtime_error("(AR) calloc محظورة في الوضع الآمن / (EN) calloc blocked in secure mode");
+        }
         size_t count = static_cast<size_t>(args[0]->toDouble());
         size_t size = static_cast<size_t>(args[1]->toDouble());
+        if (count * size > MAX_FFI_ALLOC_SIZE) {
+            throw std::runtime_error("(AR) calloc: الحجم الكلي يتجاوز الحد 256MB / (EN) calloc: total size exceeds 256MB limit");
+        }
+        if (ptrTable.size() >= MAX_FFI_ALLOC_COUNT) {
+            throw std::runtime_error("(AR) calloc: تجاوز الحد الأقصى لعدد الحجوزات / (EN) calloc: exceeded max allocation count");
+        }
         void* ptr = std::calloc(count, size);
-        return std::make_shared<Data::Value>(static_cast<double>(reinterpret_cast<uintptr_t>(ptr)));
+        return std::make_shared<Data::Value>(registerPtr(ptr));
     };
     interpreter.getFunctionManager().registerBuiltinFunction("حجز_صفري", ffi_calloc_func);
     interpreter.getFunctionManager().registerBuiltinFunction("calloc", ffi_calloc_func);
@@ -601,38 +697,54 @@ void registerBuiltinsPart7(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("memset", ffi_memset_func);
     interpreter.getFunctionManager().registerBuiltinFunction("c_memset", ffi_memset_func);
 
-    // 12. fopen — افتح_ملف_س
-    auto ffi_fopen_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    // 12. fopen — افتح_ملف_س (managed pointer table + security check)
+    auto ffi_fopen_func = [&interpreter, registerPtr](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) throw std::runtime_error("(AR) fopen: يحتاج اسم الملف والوضع / (EN) fopen: needs filename and mode");
         std::string filename = args[0]->toString();
         std::string mode = args[1]->toString();
+        // (AR) فحص أمني — حظر مسارات خطيرة في الوضع الآمن
+        // (EN) Security check — block dangerous paths in secure mode
+        if (interpreter.getOptions().enableSecurity) {
+            // (AR) حظر المسارات التي تحتوي على تصعيد (..)
+            if (filename.find("..") != std::string::npos) {
+                throw std::runtime_error("(AR) fopen: مسار غير مسموح في الوضع الآمن (تصعيد مسار) / (EN) fopen: path not allowed in secure mode (path traversal)");
+            }
+            // (AR) حظر المسارات المطلقة في Unix/Windows
+            if (filename[0] == '/' || (filename.size() >= 2 && filename[1] == ':')) {
+                throw std::runtime_error("(AR) fopen: مسارات مطلقة محظورة في الوضع الآمن / (EN) fopen: absolute paths blocked in secure mode");
+            }
+        }
         FILE* fp = std::fopen(filename.c_str(), mode.c_str());
         if (!fp) return std::make_shared<Data::Value>(0);
-        return std::make_shared<Data::Value>(static_cast<double>(reinterpret_cast<uintptr_t>(fp)));
+        return std::make_shared<Data::Value>(registerPtr(fp));
     };
     interpreter.getFunctionManager().registerBuiltinFunction("افتح_ملف_س", ffi_fopen_func);
     interpreter.getFunctionManager().registerBuiltinFunction("fopen", ffi_fopen_func);
     interpreter.getFunctionManager().registerBuiltinFunction("c_fopen", ffi_fopen_func);
 
-    // 13. fclose — اغلق_ملف_س
-    auto ffi_fclose_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    // 13. fclose — اغلق_ملف_س (managed pointer table)
+    auto ffi_fclose_func = [removePtr](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.empty()) throw std::runtime_error("(AR) fclose: يحتاج مؤشر ملف / (EN) fclose: needs file pointer");
-        uintptr_t addr = static_cast<uintptr_t>(args[0]->toDouble());
-        if (addr == 0) return std::make_shared<Data::Value>(-1);
-        int result = std::fclose(reinterpret_cast<FILE*>(addr));
+        int id = static_cast<int>(args[0]->toDouble());
+        if (id == 0) return std::make_shared<Data::Value>(-1);
+        void* ptr = removePtr(id);
+        if (!ptr) return std::make_shared<Data::Value>(-1);
+        int result = std::fclose(reinterpret_cast<FILE*>(ptr));
         return std::make_shared<Data::Value>(static_cast<double>(result));
     };
     interpreter.getFunctionManager().registerBuiltinFunction("اغلق_ملف_س", ffi_fclose_func);
     interpreter.getFunctionManager().registerBuiltinFunction("fclose", ffi_fclose_func);
     interpreter.getFunctionManager().registerBuiltinFunction("c_fclose", ffi_fclose_func);
 
-    // 14. fputs — اكتب_ملف_س
-    auto ffi_fputs_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    // 14. fputs — اكتب_ملف_س (managed pointer table)
+    auto ffi_fputs_func = [getPtr](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) throw std::runtime_error("(AR) fputs: يحتاج نص ومؤشر ملف / (EN) fputs: needs string and file pointer");
         std::string text = args[0]->toString();
-        uintptr_t addr = static_cast<uintptr_t>(args[1]->toDouble());
-        if (addr == 0) return std::make_shared<Data::Value>(-1);
-        int result = std::fputs(text.c_str(), reinterpret_cast<FILE*>(addr));
+        int id = static_cast<int>(args[1]->toDouble());
+        if (id == 0) return std::make_shared<Data::Value>(-1);
+        void* ptr = getPtr(id);
+        if (!ptr) return std::make_shared<Data::Value>(-1);
+        int result = std::fputs(text.c_str(), reinterpret_cast<FILE*>(ptr));
         return std::make_shared<Data::Value>(static_cast<double>(result));
     };
     interpreter.getFunctionManager().registerBuiltinFunction("اكتب_ملف_س", ffi_fputs_func);
@@ -655,9 +767,34 @@ void registerBuiltinsPart7(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("c_fgets", ffi_fgets_func);
 
     // 16. system — نفذ_امر
-    auto ffi_system_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    // (AR) أضيفت حماية أمنية: يُمنع تنفيذ أوامر النظام في الوضع الآمن
+    // (EN) Added security: system commands blocked in secure mode
+    auto ffi_system_func = [&interpreter](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        // (AR) فحص وضع الأمان / (EN) Check security mode
+        if (interpreter.getOptions().enableSecurity) {
+            throw std::runtime_error(
+                "(AR) خطأ أمني: تنفيذ أوامر النظام محظور في الوضع الآمن. استخدم --no-security لتعطيل الحماية.\n"
+                "(EN) Security error: System command execution is blocked in secure mode. Use --no-security to disable."
+            );
+        }
         if (args.empty()) throw std::runtime_error("(AR) system: يحتاج أمر / (EN) system: needs command");
         std::string cmd = args[0]->toString();
+        
+        // (AR) فحص أوامر خطرة حتى خارج الوضع الآمن
+        // (EN) Check dangerous commands even outside secure mode
+        static const std::vector<std::string> dangerousPatterns = {
+            "rm -rf /", "del /f /s /q C:\\", "format ", "mkfs.", 
+            ":(){ :|:", "shutdown", "reboot"
+        };
+        for (const auto& pattern : dangerousPatterns) {
+            if (cmd.find(pattern) != std::string::npos) {
+                throw std::runtime_error(
+                    "(AR) خطأ أمني: الأمر يحتوي على نمط خطير: " + pattern + 
+                    "\n(EN) Security error: Command contains dangerous pattern: " + pattern
+                );
+            }
+        }
+        
         int result = std::system(cmd.c_str());
         return std::make_shared<Data::Value>(static_cast<double>(result));
     };

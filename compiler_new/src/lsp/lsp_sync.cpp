@@ -174,13 +174,62 @@ void LspSync::handleDidChange(const std::string& params) {
         doc->version = std::atoi(params.c_str() + colon + 1);
     }
     
-    // TODO: تحليل contentChanges وتطبيقها
-    // حالياً نطلب النص الكامل
-    size_t text_pos = params.find("\"text\"");
-    if (text_pos != std::string::npos) {
-        size_t q1 = params.find('"', params.find(':', text_pos) + 1);
-        // البحث عن نهاية النص (معقد مع JSON المهربة)
-        // TODO: محلل JSON كامل
+    // تحليل contentChanges وتطبيقها
+    // (AR) نبحث عن "text" داخل contentChanges — في وضع المزامنة الكاملة
+    //      contentChanges يحتوي على عنصر واحد فيه النص الكامل
+    // (EN) Search for "text" inside contentChanges — in full sync mode
+    //      contentChanges has one element with the full text
+    
+    // (AR) نبحث عن "contentChanges" ثم نستخرج "text" من داخله
+    // (EN) Find "contentChanges" then extract "text" from it
+    size_t changes_pos = params.find("\"contentChanges\"");
+    if (changes_pos != std::string::npos) {
+        // (AR) نبحث عن "text" بعد contentChanges
+        // (EN) Find "text" after contentChanges
+        size_t text_pos = params.find("\"text\"", changes_pos);
+        if (text_pos != std::string::npos) {
+            size_t colon_pos = params.find(':', text_pos + 4);
+            if (colon_pos != std::string::npos) {
+                // (AR) تخطي المسافات البيضاء بعد النقطتين
+                // (EN) Skip whitespace after colon
+                size_t q1 = params.find('"', colon_pos + 1);
+                if (q1 != std::string::npos) {
+                    // (AR) البحث عن نهاية النص مع مراعاة الأحرف المهربة
+                    // (EN) Find end of text respecting escaped characters
+                    size_t q2 = q1 + 1;
+                    while (q2 < params.size()) {
+                        if (params[q2] == '"' && params[q2 - 1] != '\\') {
+                            break;
+                        }
+                        q2++;
+                    }
+                    if (q2 < params.size()) {
+                        std::string newText = params.substr(q1 + 1, q2 - q1 - 1);
+                        
+                        // (AR) فك ترميز أبسط أحرف JSON المهربة
+                        // (EN) Decode basic JSON escape characters
+                        std::string decoded;
+                        decoded.reserve(newText.size());
+                        for (size_t i = 0; i < newText.size(); i++) {
+                            if (newText[i] == '\\' && i + 1 < newText.size()) {
+                                switch (newText[i + 1]) {
+                                    case 'n': decoded += '\n'; i++; break;
+                                    case 'r': decoded += '\r'; i++; break;
+                                    case 't': decoded += '\t'; i++; break;
+                                    case '"': decoded += '"'; i++; break;
+                                    case '\\': decoded += '\\'; i++; break;
+                                    default: decoded += newText[i]; break;
+                                }
+                            } else {
+                                decoded += newText[i];
+                            }
+                        }
+                        
+                        doc->content = decoded;
+                    }
+                }
+            }
+        }
     }
     
     doc->updateLines();

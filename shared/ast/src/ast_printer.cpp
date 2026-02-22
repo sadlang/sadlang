@@ -1109,6 +1109,14 @@ void ASTPrinter::visitInlineAsmExpr(InlineAsmExpr& expr) {
     result_ += indent() + "(inline_asm \"" + expr.asmCode + "\")";
 }
 
+void ASTPrinter::visitRangeExpr(RangeExpr& expr) {
+    result_ += indent() + "(range ";
+    if (expr.start) { expr.start->accept(*this); }
+    result_ += "..";
+    if (expr.end) { expr.end->accept(*this); }
+    result_ += ")";
+}
+
 void ASTPrinter::visitTemplateFunctionDecl(TemplateFunctionDecl& decl) {
     result_ += indent() + "template_fn " + decl.name + "<";
     for (size_t i = 0; i < decl.typeParameters.size(); i++) {

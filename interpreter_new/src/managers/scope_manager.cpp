@@ -104,6 +104,15 @@ void ScopeManager::popScope() {
         );
     }
     
+    // (AR) تحقق إضافي من حجم المكدس لمنع سلوك غير محدد
+    // (EN) Additional stack size guard to prevent undefined behavior
+    if (scopeStack_.size() <= 1) {
+        throwError(
+            "مكدس النطاقات فارغ — لا يمكن الإزالة",
+            "Scope stack is empty — cannot pop"
+        );
+    }
+    
     // Update current scope to parent
     currentScope_ = currentScope_->getParent();
     

@@ -229,7 +229,8 @@ public:
     // ──────────────────────────────────────────────────────────────────
     
     std::string name;                                           ///< (AR) اسم الصنف / (EN) class name
-    ClassType* baseClass;                                       ///< (AR) الصنف الأساسي / (EN) base class (for inheritance)
+    ClassType* baseClass;                                       ///< (AR) الصنف الأساسي الأول / (EN) primary base class
+    std::vector<ClassType*> additionalBases;                    ///< (AR) الأصناف الأساسية الإضافية (وراثة متعددة) / (EN) additional base classes (multiple inheritance)
     
     // ──────────────────────────────────────────────────────────────────
     // الأعضاء / Members
@@ -544,6 +545,12 @@ public:
      * @return (ClassType*) — (AR) مؤشر للصنف الأساسي أو nullptr / (EN) pointer to base class or nullptr
      */
     ClassType* getBaseClass() const { return baseClass; }
+    
+    /**
+     * @brief (AR) الحصول على جميع الأصناف الأساسية الإضافية
+     * @brief (EN) Get additional base classes
+     */
+    const std::vector<ClassType*>& getAdditionalBases() const { return additionalBases; }
     
     /**
      * @brief (AR) تعيين الصنف الأساسي

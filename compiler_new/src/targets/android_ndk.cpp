@@ -325,7 +325,10 @@ public:
                         try {
                             int api = std::stoi(name.substr(8));
                             apis.push_back(api);
-                        } catch (...) {}
+                        } catch (const std::exception& e) {
+                            // تجاهل أسماء غير صالحة مع تسجيل للتصحيح
+                            // std::cerr << "[android_ndk] تحذير: تجاهل " << name << ": " << e.what() << std::endl;
+                        }
                     }
                 }
             }

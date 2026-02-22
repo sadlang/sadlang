@@ -620,41 +620,16 @@ struct Parameter {
     std::string name;           ///< Parameter name / اسم المعامل
     Data::DataType type;        ///< Parameter type / نوع المعامل
     std::string typeName;       ///< (AR) اسم الصنف (عندما يكون النوع OBJECT) / (EN) Class name (when type is OBJECT)
-    ExprPtr defaultValue;       ///< Default value (optional) / القيمة الافتراضية
+    std::shared_ptr<Expression> defaultValue;  ///< Default value (optional) / القيمة الافتراضية — shared_ptr للسماح بالنسخ الآمن
     
     Parameter(const std::string& n, Data::DataType t = Data::DataType::UNKNOWN,
               ExprPtr def = nullptr, const std::string& tn = "")
         : name(n), type(t), typeName(tn), defaultValue(std::move(def)) {}
     
-    // Copy constructor - deep copy the defaultValue
-    Parameter(const Parameter& other)
-        : name(other.name), type(other.type), typeName(other.typeName) {
-        // Deep copy defaultValue if it exists
-        if (other.defaultValue) {
-            // Create a new copy by cloning (if clone method exists)
-            // For now, set to nullptr as we can't clone expressions easily
-            defaultValue = nullptr;
-        } else {
-            defaultValue = nullptr;
-        }
-    }
-    
-    // Copy assignment operator
-    Parameter& operator=(const Parameter& other) {
-        if (this != &other) {
-            name = other.name;
-            type = other.type;
-            typeName = other.typeName;
-            // Deep copy defaultValue if it exists
-            if (other.defaultValue) {
-                // For now, set to nullptr as we can't clone expressions easily
-                defaultValue = nullptr;
-            } else {
-                defaultValue = nullptr;
-            }
-        }
-        return *this;
-    }
+    // (AR) النسخ آمن الآن — shared_ptr يشارك ملكية التعبير الافتراضي
+    // (EN) Copy is safe now — shared_ptr shares ownership of default expression
+    Parameter(const Parameter& other) = default;
+    Parameter& operator=(const Parameter& other) = default;
     
     // Move constructor and assignment
     Parameter(Parameter&&) = default;
@@ -1097,6 +1072,32 @@ public:
     
     Data::DataType getType() const override {
         return Data::DataType::INTEGER;
+    }
+};
+
+/**
+ * @brief (AR) تعبير المدى — يمثل نطاقاً عددياً (مثل 1..10)
+ * @brief (EN) Range expression — represents a numeric range (e.g. 1..10)
+ */
+class RangeExpr : public Expression {
+public:
+    ExprPtr start;    ///< (AR) بداية المدى / (EN) Start of range
+    ExprPtr end;      ///< (AR) نهاية المدى / (EN) End of range
+
+    RangeExpr(ExprPtr start, ExprPtr end,
+              const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), start(std::move(start)), end(std::move(end)) {}
+
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitRangeExpr(*this);
+    }
+
+    std::string toString() const override {
+        return start->toString() + ".." + end->toString();
+    }
+
+    Data::DataType getType() const override {
+        return Data::DataType::ARRAY;
     }
 };
 

@@ -47,8 +47,13 @@ class Callback;
 
 /**
  * مكتبة ديناميكية محملة / Loaded dynamic library
+ * 
+ * (AR) يرث من enable_shared_from_this لأن get_function() يستدعي shared_from_this()
+ *      لتمرير مرجع مُدار إلى كائنات Function لضمان بقاء المكتبة حية.
+ * (EN) Inherits from enable_shared_from_this because get_function() calls shared_from_this()
+ *      to pass a managed reference to Function objects to keep the library alive.
  */
-class Library {
+class Library : public std::enable_shared_from_this<Library> {
 public:
     Library(const std::string& path);
     ~Library();

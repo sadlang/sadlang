@@ -682,7 +682,12 @@ std::optional<MemoryModeSettings> readConfigFile(const std::string& configPath) 
         } else if (key == "gc_memory_limit" || key == "حد_ذاكرة") {
             try {
                 settings.gcMemoryLimitMB = std::stoul(value);
-            } catch (...) {}
+            } catch (const std::invalid_argument&) {
+                // قيمة غير رقمية - استخدام القيمة الافتراضية
+                // settings.gcMemoryLimitMB يبقى بدون تغيير
+            } catch (const std::out_of_range&) {
+                // قيمة خارج النطاق - استخدام القيمة الافتراضية
+            }
         } else if (key == "suggestions" || key == "اقتراحات") {
             settings.enableOwnershipSuggestions = (value == "true" || value == "1" || value == "نعم");
         } else if (key == "cycle_detection" || key == "كشف_دورات") {

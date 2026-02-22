@@ -37,6 +37,7 @@ target_include_directories(sad-repl PRIVATE
 # Link libraries
 target_link_libraries(sad-repl PRIVATE
     sad_core
+    sad_new_semantic
 )
 
 # C++ Standard

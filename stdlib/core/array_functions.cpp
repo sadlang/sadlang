@@ -169,7 +169,7 @@ Data::Value ArrayFunctions::indexOf(const std::vector<Data::Value>& args) {
     // (AR) البحث عن العنصر
     // (EN) Search for element
     for (size_t i = startPos; i < arr.size(); i++) {
-        if (arr[i].toString() == searchValue.toString()) {
+        if ((arr[i] == searchValue).toBool()) {
             return Data::Value(static_cast<int>(i));
         }
     }
@@ -198,7 +198,7 @@ Data::Value ArrayFunctions::contains(const std::vector<Data::Value>& args) {
     // (AR) البحث عن العنصر
     // (EN) Search for element
     for (const auto& elem : arr) {
-        if (elem.toString() == searchValue.toString()) {
+        if ((elem == searchValue).toBool()) {
             return Data::Value(true);
         }
     }
@@ -259,7 +259,7 @@ Data::Value ArrayFunctions::sort(const std::vector<Data::Value>& args) {
     } else {
         std::sort(arr.begin(), arr.end(), 
                  [](const Data::Value& a, const Data::Value& b) {
-                     return !compareValues(a, b) && a.toString() != b.toString();
+                     return compareValues(b, a);
                  });
     }
     

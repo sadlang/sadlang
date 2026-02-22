@@ -28,6 +28,7 @@
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
+#include <set>  // For pre-scan label discovery
 // Source: LLVM 14+ API - llvm/MC/TargetRegistry.h ╪¿╪»┘ה╪º┘כ ┘ו┘ז llvm/Support/TargetRegistry.h
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -140,19 +141,23 @@ void LLVMCodeGen::emitGlobalFunctions(std::shared_ptr<SIRModule> sirModule) {
 void LLVMCodeGen::emitMainWrapper(std::shared_ptr<SIRModule> sirModule) {
     if (!sirModule || !module_) return;
     
-    // ╪º┘ה╪¿╪¡╪½ ╪╣┘ז ╪º┘ה╪»╪º┘ה╪⌐ ╪º┘ה╪▒╪ª┘ך╪│┘ך╪⌐ (╪▒╪ª┘ך╪│┘ך╪⌐ ╪ú┘ט main)
-    // Find main function (╪▒╪ª┘ך╪│┘ך╪⌐ or main)
+    // (AR) البحث عن الدالة الرئيسية
+    // (EN) Find the main entry point function
+    // Priority: 1) "رئيسية"  2) "main"  3) "__sad_main"
     llvm::Function* mainFunc = nullptr;
     std::string mainName;
     
-    // ╪ú┘ט┘ה╪º┘כ: ╪º┘ה╪¿╪¡╪½ ╪╣┘ז "╪▒╪ª┘ך╪│┘ך╪⌐"
-    auto it = context_info_.functions.find("╪▒╪ª┘ך╪│┘ך╪⌐");
+    // (AR) أولا: البحث عن دالة "رئيسية" (UTF-8 hex escape)
+    // (EN) First: look for Arabic "رئيسية" function
+    std::string arabicMain = "\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9";
+    auto it = context_info_.functions.find(arabicMain);
     if (it != context_info_.functions.end()) {
         mainFunc = it->second;
-        mainName = "╪▒╪ª┘ך╪│┘ך╪⌐";
+        mainName = arabicMain;
     }
     
-    // ╪Ñ╪░╪º ┘ה┘ו ╪¬┘ט╪¼╪»╪ל ┘ז╪¿╪¡╪½ ╪╣┘ז "main"
+    // (AR) ثانيا: البحث عن "main"
+    // (EN) Second: look for "main"
     if (!mainFunc) {
         it = context_info_.functions.find("main");
         if (it != context_info_.functions.end()) {
@@ -161,14 +166,26 @@ void LLVMCodeGen::emitMainWrapper(std::shared_ptr<SIRModule> sirModule) {
         }
     }
     
-    // ╪Ñ╪░╪º ┘ה┘ו ╪¬┘ט╪¼╪» ╪»╪º┘ה╪⌐ ╪▒╪ª┘ך╪│┘ך╪⌐╪ל ┘ה╪º ┘ז╪¡╪¬╪º╪¼ wrapper
+    // (AR) ثالثا: البحث عن "__sad_main" (الكود التنفيذي في المستوى الأعلى)
+    // (EN) Third: look for "__sad_main" (top-level executable code wrapper)
+    if (!mainFunc) {
+        it = context_info_.functions.find("__sad_main");
+        if (it != context_info_.functions.end()) {
+            mainFunc = it->second;
+            mainName = "__sad_main";
+        }
+    }
+    
+    // (AR) إذا لم نجد أي دالة رئيسية لا حاجة لـ wrapper
+    // (EN) If no main function found, no wrapper needed
     if (!mainFunc) return;
     
-    // ╪Ñ╪░╪º ┘ד╪º┘ז ╪º╪│┘ו ╪º┘ה╪»╪º┘ה╪⌐ ╪¿╪º┘ה┘ב╪╣┘ה "main"╪ל ┘ה╪º ┘ז╪¡╪¬╪º╪¼ wrapper
+    // (AR) إذا كان اسم الدالة بالفعل "main" لا نحتاج wrapper
+    // (EN) If function is already named "main", no wrapper needed
     if (mainName == "main") return;
     
-    // ╪Ñ┘ז╪┤╪º╪í ╪»╪º┘ה╪⌐ main wrapper
-    // Create main wrapper function: int main() { return ╪▒╪ª┘ך╪│┘ך╪⌐(); }
+    // (AR) إنشاء دالة main wrapper: int main() { call mainFunc(); return 0; }
+    // (EN) Create main wrapper function
     llvm::FunctionType* mainType = llvm::FunctionType::get(
         llvm::Type::getInt32Ty(*context_),  // int return type
         {},                                  // no parameters
@@ -182,23 +199,25 @@ void LLVMCodeGen::emitMainWrapper(std::shared_ptr<SIRModule> sirModule) {
         module_.get()
     );
     
-    // ╪Ñ┘ז╪┤╪º╪í basic block
+    // (AR) إنشاء basic block
+    // (EN) Create entry basic block
     llvm::BasicBlock* entryBB = llvm::BasicBlock::Create(*context_, "entry", wrapper);
     builder_->SetInsertPoint(entryBB);
     
-    // ╪º╪│╪¬╪»╪╣╪º╪í ╪º┘ה╪»╪º┘ה╪⌐ ╪º┘ה╪▒╪ª┘ך╪│┘ך╪⌐
-    // Call the main function
+    // (AR) استدعاء الدالة الرئيسية
+    // (EN) Call the main function
     llvm::Value* result = builder_->CreateCall(mainFunc);
     
-    // ╪¬╪¡┘ט┘ך┘ה ╪º┘ה┘ז╪¬┘ך╪¼╪⌐ ╪Ñ┘ה┘י i32 ╪Ñ╪░╪º ┘ה╪▓┘ו ╪º┘ה╪ú┘ו╪▒
-    // Convert result to i32 if needed
+    // (AR) تحويل النتيجة إلى i32 إذا لزم الأمر
+    // (EN) Convert result to i32 if needed
     if (result->getType()->isIntegerTy(64)) {
         result = builder_->CreateTrunc(result, llvm::Type::getInt32Ty(*context_));
     } else if (result->getType()->isVoidTy()) {
         result = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0);
     }
     
-    // ╪Ñ╪▒╪¼╪º╪╣ ╪º┘ה┘ז╪¬┘ך╪¼╪⌐
+    // (AR) إرجاع النتيجة
+    // (EN) Return the result
     builder_->CreateRet(result);
 }
 
@@ -478,14 +497,29 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
     // Detect constructor: if function name contains ".╪¿┘ז╪º╪í"
     // ================================================================
     context_info_.currentConstructorClass.clear();
+    context_info_.currentMethodClass.clear();
     std::string funcName = sirFunc->getName();
-    // ╪¿┘ז╪º╪í = \xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1
+    // بناء = \xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1
     std::string ctorSuffix = ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
     size_t ctorPos = funcName.find(ctorSuffix);
     if (ctorPos != std::string::npos) {
         context_info_.currentConstructorClass = funcName.substr(0, ctorPos);
         std::cout << "[DEBUG] emitFunctionBody: detected constructor for class '"
                   << context_info_.currentConstructorClass << "'" << std::endl;
+    } else {
+        // ================================================================
+        // كشف الدوال (Methods): إذا كان الاسم يحتوي على "." والبادئة صنف معروف
+        // Detect methods: if name contains "." and prefix is a known class
+        // ================================================================
+        size_t dotPos = funcName.find('.');
+        if (dotPos != std::string::npos) {
+            std::string prefix = funcName.substr(0, dotPos);
+            if (context_info_.classStructTypes.find(prefix) != context_info_.classStructTypes.end()) {
+                context_info_.currentMethodClass = prefix;
+                std::cout << "[DEBUG] emitFunctionBody: detected method for class '"
+                          << context_info_.currentMethodClass << "'" << std::endl;
+            }
+        }
     }
     
     // Source: SIRFunction::getBasicBlocks() is at sir_module.h:299
@@ -502,26 +536,82 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
     // Source: context_info_.basicBlocks is at llvm_codegen.h:619
     context_info_.basicBlocks.clear();
     
+    // ========================================================================
+    // FIX: Pre-scan all instructions to discover referenced labels
+    // This fixes the bug where buildIfStatement creates blocks that aren't
+    // registered in SIRFunction (currentFunction_ issue)
+    // ========================================================================
+    std::set<std::string> allLabels;
     for (const auto& sirBlock : basicBlocks) {
         if (!sirBlock) continue;
-        
-        // Source: SIRBasicBlock::name is PUBLIC member at sir_instruction.h:355
-        std::string blockName = sirBlock->name;
+        allLabels.insert(sirBlock->name);
+        // Scan instructions for BR_COND and BR labels
+        for (const auto& inst : sirBlock->instructions) {
+            if (inst.opcode == SIROpcode::BR_COND) {
+                // BR_COND has: condition, trueLabel, falseLabel
+                if (inst.operands.size() >= 3) {
+                    if (inst.operands[1].type == SIROperandType::LABEL) {
+                        allLabels.insert(inst.operands[1].name);
+                    }
+                    if (inst.operands[2].type == SIROperandType::LABEL) {
+                        allLabels.insert(inst.operands[2].name);
+                    }
+                }
+            } else if (inst.opcode == SIROpcode::BR) {
+                // BR has: targetLabel
+                if (!inst.operands.empty() && inst.operands[0].type == SIROperandType::LABEL) {
+                    allLabels.insert(inst.operands[0].name);
+                }
+            }
+        }
+    }
+    
+    std::cout << "[DEBUG] emitFunctionBody: discovered " << allLabels.size() << " labels (including referenced)" << std::endl;
+    
+    // Create LLVM blocks for ALL discovered labels
+    // FIX: Create "entry" block first so it's the LLVM function entry point
+    if (allLabels.count("entry")) {
+        llvm::BasicBlock* entryBlock = llvm::BasicBlock::Create(
+            *context_, "entry", llvmFunc);
+        context_info_.basicBlocks["entry"] = entryBlock;
+    }
+    for (const auto& labelName : allLabels) {
+        if (labelName == "entry") continue;  // already created
+        std::cout << "[DEBUG] emitFunctionBody: creating block '" << labelName << "'" << std::endl;
         
         llvm::BasicBlock* llvmBlock = llvm::BasicBlock::Create(
             *context_,  // Source: context_ is at llvm_codegen.h:631
-            blockName,
+            labelName,
             llvmFunc
         );
         
-        context_info_.basicBlocks[blockName] = llvmBlock;
+        context_info_.basicBlocks[labelName] = llvmBlock;
     }
     
-    // ╪º┘ה┘ו╪▒╪¡┘ה╪⌐ 2: ╪Ñ╪╢╪º┘ב╪⌐ ╪º┘ה┘ו╪╣╪º┘ו┘ה╪º╪¬ ┘ה┘ה┘ג┘ך┘ו ╪º┘ה┘ו╪│┘ו╪º╪⌐ (╪¿╪╣╪» ╪Ñ┘ז╪┤╪º╪í ╪º┘ה┘ד╪¬┘ה)
     // Phase 2: Add parameters to named values (after blocks are created)
     emitFunctionParameters(sirFunc, llvmFunc);
     
-    // ╪º┘ה┘ו╪▒╪¡┘ה╪⌐ 2: ╪Ñ╪╡╪»╪º╪▒ ╪¬╪╣┘ה┘ך┘ו╪º╪¬ ┘ד┘ה ┘ד╪¬┘ה╪⌐
+    // DEBUG: Dump SIR blocks and instructions
+    std::cout << "\n[SIR-DUMP] Function: " << sirFunc->getName() << std::endl;
+    for (const auto& sirBlock : basicBlocks) {
+        if (!sirBlock) continue;
+        std::cout << "[SIR-DUMP]   Block '" << sirBlock->name << "' addr=" << (void*)sirBlock.get()
+                  << " has " << sirBlock->instructions.size() << " instructions:" << std::endl;
+        for (size_t i = 0; i < sirBlock->instructions.size(); i++) {
+            const auto& inst = sirBlock->instructions[i];
+            std::cout << "[SIR-DUMP]     [" << i << "] opcode=" << static_cast<int>(inst.opcode);
+            if (inst.result.has_value()) {
+                std::cout << " result=" << inst.result->name;
+            }
+            for (size_t j = 0; j < inst.operands.size(); j++) {
+                std::cout << " op" << j << "=(" << static_cast<int>(inst.operands[j].type) 
+                          << ":" << inst.operands[j].name << ")";
+            }
+            std::cout << std::endl;
+        }
+    }
+    std::cout << "[SIR-DUMP] End function\n" << std::endl;
+    
     // Phase 2: Emit instructions for each block
     for (const auto& sirBlock : basicBlocks) {
         if (!sirBlock) continue;
@@ -553,6 +643,24 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
             // Convert const SIRInstruction& to shared_ptr
             auto instPtr = std::make_shared<SIRInstruction>(inst);
             emitInstruction(instPtr);
+        }
+    }
+    
+    // ========================================================================
+    // Phase 3: Ensure ALL basic blocks have terminators
+    // FIX: Some blocks (then_X, merge_X) may be empty if the SIR builder
+    // didn't generate instructions for them. Add appropriate terminators.
+    // ========================================================================
+    for (auto& [blockName, llvmBlock] : context_info_.basicBlocks) {
+        if (!llvmBlock->getTerminator()) {
+            builder_->SetInsertPoint(llvmBlock);
+            // If function returns void, add ret void
+            if (llvmFunc->getReturnType()->isVoidTy()) {
+                builder_->CreateRetVoid();
+            } else {
+                // Return default value for non-void functions
+                builder_->CreateRet(llvm::Constant::getNullValue(llvmFunc->getReturnType()));
+            }
         }
     }
 }

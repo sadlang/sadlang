@@ -223,6 +223,10 @@ struct CompilerOptions {
     // ========== Language ==========
     std::string language_standard = "sad2024"; // إصدار اللغة / Language version
     bool allow_experimental = false;         // ميزات تجريبية / Experimental features
+    
+    // ========== UI Pipeline / خط أنابيب الواجهات ==========
+    bool emit_ui = false;                    // توليد واجهات / Generate UI code
+    std::string ui_platform = "desktop";     // المنصة المستهدفة للواجهات / UI target platform
 };
 
 // ============================================================================
@@ -423,6 +427,17 @@ private:
      * @brief Print intermediate representations
      */
     void print_ir_if_requested();
+    
+    /**
+     * @brief (AR) تشغيل خط أنابيب الواجهات الرسومية
+     * @brief (EN) Run UI IR pipeline for cross-platform code generation
+     * 
+     * @param input_file ملف المصدر / Source file
+     * @param ui_platform_str المنصة المستهدفة / Target platform string
+     * @return true إذا نجح التوليد / true if generation succeeded
+     */
+    bool run_ui_pipeline(const std::string& input_file,
+                          const std::string& ui_platform_str);
     
     /**
      * @brief Invoke system linker

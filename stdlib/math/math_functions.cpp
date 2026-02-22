@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <limits>
+#include <random>
 
 namespace Sad {
 namespace StdLib {
@@ -190,9 +191,13 @@ Data::Value MathFunctions::round(const std::vector<Data::Value>& args) {
     validateArguments(args, 1, 1);
     
     double num = toDouble(args[0]);
-    int result = static_cast<int>(std::round(num));
-    
-    return Data::Value(result);
+    double rounded = std::round(num);
+    // (AR) إرجاع كعدد صحيح إذا كان ضمن النطاق، وإلا كعشري
+    // (EN) Return as int if within range, otherwise as double
+    if (rounded >= INT_MIN && rounded <= INT_MAX) {
+        return Data::Value(static_cast<int>(rounded));
+    }
+    return Data::Value(rounded);
 }
 
 /**
@@ -203,9 +208,11 @@ Data::Value MathFunctions::floor(const std::vector<Data::Value>& args) {
     validateArguments(args, 1, 1);
     
     double num = toDouble(args[0]);
-    int result = static_cast<int>(std::floor(num));
-    
-    return Data::Value(result);
+    double floored = std::floor(num);
+    if (floored >= INT_MIN && floored <= INT_MAX) {
+        return Data::Value(static_cast<int>(floored));
+    }
+    return Data::Value(floored);
 }
 
 /**
@@ -216,9 +223,11 @@ Data::Value MathFunctions::ceil(const std::vector<Data::Value>& args) {
     validateArguments(args, 1, 1);
     
     double num = toDouble(args[0]);
-    int result = static_cast<int>(std::ceil(num));
-    
-    return Data::Value(result);
+    double ceiled = std::ceil(num);
+    if (ceiled >= INT_MIN && ceiled <= INT_MAX) {
+        return Data::Value(static_cast<int>(ceiled));
+    }
+    return Data::Value(ceiled);
 }
 
 /**
@@ -294,6 +303,123 @@ Data::Value MathFunctions::tan(const std::vector<Data::Value>& args) {
     }
     
     return Data::Value(result);
+}
+
+// ============================================================================
+// (AR) دوال مثلثية عكسية / (EN) Inverse Trigonometric Functions
+// ============================================================================
+
+Data::Value MathFunctions::asin(const std::vector<Data::Value>& args) {
+    validateArguments(args, 1, 1);
+    double num = toDouble(args[0]);
+    if (num < -1.0 || num > 1.0) {
+        throw std::runtime_error(
+            "(AR) قيمة asin يجب أن تكون بين -1 و 1 / "
+            "(EN) asin argument must be between -1 and 1");
+    }
+    return Data::Value(std::asin(num));
+}
+
+Data::Value MathFunctions::acos(const std::vector<Data::Value>& args) {
+    validateArguments(args, 1, 1);
+    double num = toDouble(args[0]);
+    if (num < -1.0 || num > 1.0) {
+        throw std::runtime_error(
+            "(AR) قيمة acos يجب أن تكون بين -1 و 1 / "
+            "(EN) acos argument must be between -1 and 1");
+    }
+    return Data::Value(std::acos(num));
+}
+
+Data::Value MathFunctions::atan(const std::vector<Data::Value>& args) {
+    validateArguments(args, 1, 1);
+    return Data::Value(std::atan(toDouble(args[0])));
+}
+
+Data::Value MathFunctions::atan2(const std::vector<Data::Value>& args) {
+    validateArguments(args, 2, 2);
+    return Data::Value(std::atan2(toDouble(args[0]), toDouble(args[1])));
+}
+
+// ============================================================================
+// (AR) دوال لوغاريتمية وأسية / (EN) Logarithmic & Exponential Functions
+// ============================================================================
+
+Data::Value MathFunctions::log(const std::vector<Data::Value>& args) {
+    validateArguments(args, 1, 1);
+    double num = toDouble(args[0]);
+    if (num <= 0) {
+        throw std::runtime_error(
+            "(AR) لا يمكن حساب اللوغاريتم لعدد غير موجب / "
+            "(EN) Cannot compute logarithm of non-positive number");
+    }
+    return Data::Value(std::log(num));
+}
+
+Data::Value MathFunctions::log2(const std::vector<Data::Value>& args) {
+    validateArguments(args, 1, 1);
+    double num = toDouble(args[0]);
+    if (num <= 0) {
+        throw std::runtime_error(
+            "(AR) لا يمكن حساب log2 لعدد غير موجب / "
+            "(EN) Cannot compute log2 of non-positive number");
+    }
+    return Data::Value(std::log2(num));
+}
+
+Data::Value MathFunctions::log10(const std::vector<Data::Value>& args) {
+    validateArguments(args, 1, 1);
+    double num = toDouble(args[0]);
+    if (num <= 0) {
+        throw std::runtime_error(
+            "(AR) لا يمكن حساب log10 لعدد غير موجب / "
+            "(EN) Cannot compute log10 of non-positive number");
+    }
+    return Data::Value(std::log10(num));
+}
+
+Data::Value MathFunctions::exp(const std::vector<Data::Value>& args) {
+    validateArguments(args, 1, 1);
+    double result = std::exp(toDouble(args[0]));
+    if (std::isinf(result)) {
+        throw std::runtime_error(
+            "(AR) النتيجة كبيرة جداً (overflow) / "
+            "(EN) Result too large (overflow)");
+    }
+    return Data::Value(result);
+}
+
+// ============================================================================
+// (AR) ثوابت رياضية / (EN) Math Constants
+// ============================================================================
+
+Data::Value MathFunctions::pi(const std::vector<Data::Value>& args) {
+    return Data::Value(3.14159265358979323846);
+}
+
+Data::Value MathFunctions::e(const std::vector<Data::Value>& args) {
+    return Data::Value(2.71828182845904523536);
+}
+
+// ============================================================================
+// (AR) دوال عشوائية / (EN) Random Functions
+// ============================================================================
+
+Data::Value MathFunctions::random(const std::vector<Data::Value>& args) {
+    // (AR) إرجاع رقم عشوائي بين 0.0 و 1.0
+    static std::mt19937 gen(std::random_device{}());
+    static std::uniform_real_distribution<double> dist(0.0, 1.0);
+    return Data::Value(dist(gen));
+}
+
+Data::Value MathFunctions::randomInt(const std::vector<Data::Value>& args) {
+    validateArguments(args, 2, 2);
+    int minVal = static_cast<int>(toDouble(args[0]));
+    int maxVal = static_cast<int>(toDouble(args[1]));
+    if (minVal > maxVal) std::swap(minVal, maxVal);
+    static std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<int> dist(minVal, maxVal);
+    return Data::Value(dist(gen));
 }
 
 } // namespace Math

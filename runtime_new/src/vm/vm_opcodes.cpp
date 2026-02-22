@@ -505,18 +505,12 @@ void VirtualMachine::op_array_new() {
     // (AR) أنشئ كائن مصفوفة
     // (EN) Create array object
     ArrayObject* array = static_cast<ArrayObject*>(
-        allocateObject(OBJ_ARRAY, sizeof(ArrayObject))
+        allocateObject(ObjectType::OBJ_ARRAY, sizeof(ArrayObject))
     );
     
-    array->length = size;
-    array->capacity = size;
-    array->elements = new Value[size];
-    
-    // (AR) املأ بـ null
-    // (EN) Fill with null
-    for (size_t i = 0; i < size; ++i) {
-        array->elements[i] = Value::Null();
-    }
+    // (AR) تهيئة المصفوفة باستخدام placement new للـ vector ثم ملئها بـ null
+    // (EN) Initialize array using placement new for vector then fill with null
+    new (&array->elements) std::vector<Value>(size, Value::Null());
     
     push(Value::Array(array));
 }
@@ -540,7 +534,7 @@ void VirtualMachine::op_array_get() {
     ArrayObject* array = arrayVal.asArray();
     int64_t index = indexVal.asInt();
     
-    if (index < 0 || static_cast<size_t>(index) >= array->length) {
+    if (index < 0 || static_cast<size_t>(index) >= array->elements.size()) {
         runtimeError("Array index out of bounds");
         push(Value::Null());
         return;
@@ -567,7 +561,7 @@ void VirtualMachine::op_array_set() {
     ArrayObject* array = arrayVal.asArray();
     int64_t index = indexVal.asInt();
     
-    if (index < 0 || static_cast<size_t>(index) >= array->length) {
+    if (index < 0 || static_cast<size_t>(index) >= array->elements.size()) {
         runtimeError("Array index out of bounds");
         return;
     }
@@ -585,7 +579,7 @@ void VirtualMachine::op_array_len() {
     }
     
     ArrayObject* array = arrayVal.asArray();
-    push(Value::Int(static_cast<int64_t>(array->length)));
+    push(Value::Int(static_cast<int64_t>(array->elements.size())));
 }
 
 void VirtualMachine::op_array_push() {
@@ -599,22 +593,9 @@ void VirtualMachine::op_array_push() {
     
     ArrayObject* array = arrayVal.asArray();
     
-    // (AR) تحقق من السعة
-    // (EN) Check capacity
-    if (array->length >= array->capacity) {
-        // (AR) ضاعف السعة
-        // (EN) Double capacity
-        size_t newCapacity = array->capacity * 2;
-        Value* newElements = new Value[newCapacity];
-        
-        std::memcpy(newElements, array->elements, array->length * sizeof(Value));
-        delete[] array->elements;
-        
-        array->elements = newElements;
-        array->capacity = newCapacity;
-    }
-    
-    array->elements[array->length++] = value;
+    // (AR) أضف العنصر باستخدام push_back — الـ vector يدير السعة تلقائياً
+    // (EN) Use push_back — vector manages capacity automatically
+    array->elements.push_back(value);
 }
 
 void VirtualMachine::op_array_pop() {
@@ -628,13 +609,15 @@ void VirtualMachine::op_array_pop() {
     
     ArrayObject* array = arrayVal.asArray();
     
-    if (array->length == 0) {
+    if (array->elements.empty()) {
         runtimeError("Cannot pop from empty array");
         push(Value::Null());
         return;
     }
     
-    push(array->elements[--array->length]);
+    // (AR) أخذ آخر عنصر ثم حذفه / (EN) Get last element then remove it
+    push(array->elements.back());
+    array->elements.pop_back();
 }
 
 // ========================================
@@ -657,7 +640,7 @@ void VirtualMachine::op_string_concat() {
     
     size_t newLength = strA->length + strB->length;
     StringObject* result = static_cast<StringObject*>(
-        allocateObject(OBJ_STRING, sizeof(StringObject))
+        allocateObject(ObjectType::OBJ_STRING, sizeof(StringObject))
     );
     
     result->length = newLength;
@@ -715,7 +698,7 @@ void VirtualMachine::op_string_get() {
     // (AR) أنشئ نص من حرف واحد
     // (EN) Create single-character string
     StringObject* result = static_cast<StringObject*>(
-        allocateObject(OBJ_STRING, sizeof(StringObject))
+        allocateObject(ObjectType::OBJ_STRING, sizeof(StringObject))
     );
     
     result->length = 1;
@@ -759,7 +742,7 @@ void VirtualMachine::op_string_substr() {
     }
     
     StringObject* result = static_cast<StringObject*>(
-        allocateObject(OBJ_STRING, sizeof(StringObject))
+        allocateObject(ObjectType::OBJ_STRING, sizeof(StringObject))
     );
     
     result->length = static_cast<size_t>(length);

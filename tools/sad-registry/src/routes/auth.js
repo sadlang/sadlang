@@ -1,200 +1,141 @@
 // بسم الله الرحمن الرحيم
-/**
- * @file auth.js
- * @description مسارات المصادقة - Authentication routes
- */
+// =========================================================================
+// مسارات المصادقة — تسجيل الحساب وتسجيل الدخول ورموز API
+// Auth Routes — Registration, login, API tokens
+// =========================================================================
 
-const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const { body, validationResult } = require('express-validator');
+const { Router } = require('express');
+const { sendError } = require('../utils/error-codes');
+const { validateUsername, validateEmail, validatePassword, sanitizeText } = require('../utils/validators');
+const { authenticate } = require('../middleware/auth');
+const { authLimiter } = require('../middleware/rate-limit');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'sad-registry-default-secret';
-const JWT_EXPIRY = process.env.JWT_EXPIRY || '30d';
-const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS) || 12;
+function createAuthRouter(db, services) {
+    const router = Router();
+    const { userService } = services;
 
-// ============================================================================
-// POST /api/v1/auth/register — تسجيل مستخدم جديد / Register
-// ============================================================================
+    // ═══════════════════════════════════════════════════════════════
+    // POST /register — تسجيل حساب جديد
+    // ═══════════════════════════════════════════════════════════════
+    router.post('/register', authLimiter, async (req, res) => {
+        try {
+            const { username, email, password, display_name } = req.body;
 
-router.post('/register', [
-    body('username')
-        .isLength({ min: 3, max: 50 })
-        .matches(/^[\u0600-\u06FFa-zA-Z0-9_-]+$/)
-        .withMessage('اسم المستخدم يجب أن يحتوي على 3-50 حرفاً (عربي/إنجليزي/أرقام)'),
-    body('email')
-        .isEmail()
-        .normalizeEmail()
-        .withMessage('بريد إلكتروني غير صالح'),
-    body('password')
-        .isLength({ min: 8 })
-        .withMessage('كلمة المرور يجب أن تكون 8 أحرف على الأقل'),
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ 
-            error: 'بيانات غير صالحة / Invalid data',
-            details: errors.array() 
-        });
-    }
+            // التحقق من الحقول
+            if (!username || !email || !password) {
+                return sendError(res, 'VAL_001', {
+                    hint: 'الحقول المطلوبة: username, email, password',
+                    details: {
+                        missing_fields: [
+                            ...(!username ? ['username'] : []),
+                            ...(!email ? ['email'] : []),
+                            ...(!password ? ['password'] : []),
+                        ],
+                    },
+                });
+            }
 
-    const { username, email, password, display_name } = req.body;
-    const db = req.app.locals.db;
+            // تحقق من اسم المستخدم
+            const usernameCheck = validateUsername(username);
+            if (!usernameCheck.valid) {
+                return sendError(res, 'REG_003', { explain: usernameCheck.reason });
+            }
 
-    try {
-        // التحقق من عدم تكرار المستخدم
-        const existing = db.prepare(
-            'SELECT id FROM users WHERE username = ? OR email = ?'
-        ).get(username, email);
+            // تحقق من البريد
+            const emailCheck = validateEmail(email);
+            if (!emailCheck.valid) {
+                return sendError(res, 'REG_004', { explain: emailCheck.reason });
+            }
 
-        if (existing) {
-            return res.status(409).json({
-                error: 'اسم المستخدم أو البريد الإلكتروني مسجل مسبقاً',
-                error_en: 'Username or email already registered'
+            // تحقق من كلمة المرور
+            const passwordCheck = validatePassword(password);
+            if (!passwordCheck.valid) {
+                return sendError(res, 'REG_005', { explain: passwordCheck.reason });
+            }
+
+            const result = await userService.register({
+                username: sanitizeText(username),
+                email: email.trim().toLowerCase(),
+                password,
+                display_name: display_name ? sanitizeText(display_name) : undefined,
+            });
+
+            if (!result.success) {
+                const status = result.error?.code === 'REG_001' || result.error?.code === 'REG_002' ? 409 : 400;
+                return res.status(status).json(result);
+            }
+
+            res.status(201).json(result);
+        } catch (err) {
+            console.error('خطأ في التسجيل:', err.message);
+            return sendError(res, 'GEN_002', {
+                explain: process.env.NODE_ENV !== 'production' ? err.message : undefined,
             });
         }
+    });
 
-        // تشفير كلمة المرور / Hash password
-        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    // ═══════════════════════════════════════════════════════════════
+    // POST /login — تسجيل الدخول
+    // ═══════════════════════════════════════════════════════════════
+    router.post('/login', authLimiter, async (req, res) => {
+        try {
+            const { username, password } = req.body;
 
-        // إنشاء رمز API / Generate API token
-        const apiToken = `sad_${crypto.randomBytes(32).toString('hex')}`;
+            if (!username || !password) {
+                return sendError(res, 'VAL_001', {
+                    hint: 'الحقول المطلوبة: username (أو email), password',
+                    details: {
+                        missing_fields: [
+                            ...(!username ? ['username'] : []),
+                            ...(!password ? ['password'] : []),
+                        ],
+                    },
+                });
+            }
 
-        // إدخال المستخدم / Insert user
-        const result = db.prepare(`
-            INSERT INTO users (username, email, password_hash, display_name, api_token)
-            VALUES (?, ?, ?, ?, ?)
-        `).run(username, email, passwordHash, display_name || username, apiToken);
-
-        // إنشاء JWT
-        const token = jwt.sign(
-            { id: result.lastInsertRowid, username },
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRY }
-        );
-
-        res.status(201).json({
-            success: true,
-            message: `مرحباً ${username}! تم إنشاء حسابك بنجاح`,
-            message_en: `Welcome ${username}! Account created successfully`,
-            user: {
-                id: result.lastInsertRowid,
-                username,
-                email,
-                display_name: display_name || username,
-            },
-            token,
-            api_token: apiToken,
-        });
-
-    } catch (error) {
-        console.error('خطأ في التسجيل:', error.message);
-        res.status(500).json({ error: 'فشل التسجيل / Registration failed' });
-    }
-});
-
-// ============================================================================
-// POST /api/v1/auth/login — تسجيل الدخول / Login
-// ============================================================================
-
-router.post('/login', [
-    body('username').notEmpty().withMessage('اسم المستخدم مطلوب'),
-    body('password').notEmpty().withMessage('كلمة المرور مطلوبة'),
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ error: 'بيانات غير صالحة', details: errors.array() });
-    }
-
-    const { username, password } = req.body;
-    const db = req.app.locals.db;
-
-    try {
-        // البحث عن المستخدم (بالاسم أو البريد)
-        const user = db.prepare(
-            'SELECT * FROM users WHERE (username = ? OR email = ?) AND is_active = 1'
-        ).get(username, username);
-
-        if (!user) {
-            return res.status(401).json({
-                error: 'اسم المستخدم أو كلمة المرور غير صحيحة',
-                error_en: 'Invalid username or password'
+            const result = await userService.login({
+                username: username.trim(),
+                password,
             });
+
+            if (!result.success) {
+                const status = result.error?.code === 'AUTH_005' ? 403 : 401;
+                return res.status(status).json(result);
+            }
+
+            res.json(result);
+        } catch (err) {
+            console.error('خطأ في تسجيل الدخول:', err.message);
+            return sendError(res, 'GEN_002');
         }
+    });
 
-        // التحقق من كلمة المرور
-        const isValid = await bcrypt.compare(password, user.password_hash);
-        if (!isValid) {
-            return res.status(401).json({
-                error: 'اسم المستخدم أو كلمة المرور غير صحيحة',
-                error_en: 'Invalid username or password'
-            });
+    // ═══════════════════════════════════════════════════════════════
+    // POST /token — إنشاء رمز API جديد
+    // ═══════════════════════════════════════════════════════════════
+    router.post('/token', authenticate(db), async (req, res) => {
+        try {
+            const { name, scopes } = req.body;
+
+            if (!name) {
+                return sendError(res, 'TKN_001');
+            }
+
+            const scopeList = Array.isArray(scopes) ? scopes : ['publish'];
+            const result = userService.createApiToken(req.user.id, name, scopeList);
+
+            if (!result.success) {
+                return res.status(400).json(result);
+            }
+
+            res.status(201).json(result);
+        } catch (err) {
+            console.error('خطأ في إنشاء رمز:', err.message);
+            return sendError(res, 'GEN_002');
         }
+    });
 
-        // إنشاء JWT
-        const token = jwt.sign(
-            { id: user.id, username: user.username },
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRY }
-        );
+    return router;
+}
 
-        res.json({
-            success: true,
-            message: `مرحباً مجدداً ${user.display_name || user.username}`,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                display_name: user.display_name,
-            },
-            token,
-            api_token: user.api_token,
-        });
-
-    } catch (error) {
-        console.error('خطأ في تسجيل الدخول:', error.message);
-        res.status(500).json({ error: 'فشل تسجيل الدخول / Login failed' });
-    }
-});
-
-// ============================================================================
-// POST /api/v1/auth/token — إنشاء رمز API جديد / Generate new API token
-// ============================================================================
-
-router.post('/token', [
-    body('name').notEmpty().withMessage('اسم الرمز مطلوب'),
-], async (req, res) => {
-    // يتطلب JWT صالح في الرأس
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'مطلوب تسجيل الدخول' });
-    }
-
-    try {
-        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
-        const { name, scopes } = req.body;
-        const db = req.app.locals.db;
-
-        const rawToken = `sad_${crypto.randomBytes(32).toString('hex')}`;
-        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-
-        db.prepare(`
-            INSERT INTO api_tokens (user_id, name, token_hash, scopes)
-            VALUES (?, ?, ?, ?)
-        `).run(decoded.id, name, tokenHash, JSON.stringify(scopes || ['publish']));
-
-        res.status(201).json({
-            success: true,
-            message: 'تم إنشاء رمز API جديد',
-            token: rawToken,
-            warning: 'احفظ هذا الرمز! لن يظهر مرة أخرى / Save this token! It won\'t be shown again'
-        });
-
-    } catch (error) {
-        res.status(401).json({ error: 'رمز غير صالح / Invalid token' });
-    }
-});
-
-module.exports = router;
+module.exports = createAuthRouter;

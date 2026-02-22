@@ -14,7 +14,10 @@ add_library(sad_new_interpreter STATIC
     src/exception.cpp
     
     # Visitors
-    src/visitors/expression_evaluator.cpp
+    src/visitors/expression_evaluator_core.cpp
+    src/visitors/expression_evaluator_calls.cpp
+    src/visitors/expression_evaluator_members.cpp
+    src/visitors/expression_evaluator_oop.cpp
     src/visitors/statement_executor.cpp
     src/visitors/statement_executor_oop.cpp
     src/visitors/statement_executor_modules.cpp
@@ -30,8 +33,8 @@ add_library(sad_new_interpreter STATIC
     # OOP - تم إصلاحه!
     src/oop/interpreter_classes_fixed.cpp
     
-    # Builtins - مستبعد مؤقتاً للإصلاح  
-    # src/builtins/builtin_registry.cpp
+    # Builtins - تم إعادة تفعيله
+    src/builtins/builtin_registry.cpp
 )
 
 target_include_directories(sad_new_interpreter
@@ -62,6 +65,11 @@ target_link_libraries(sad_new_interpreter
 )
 
 target_compile_features(sad_new_interpreter PUBLIC cxx_std_17)
+
+# إصلاح تحذيرات UTF-8 / Fix UTF-8 encoding warnings
+if(MSVC)
+    target_compile_options(sad_new_interpreter PRIVATE /utf-8)
+endif()
 
 # رسالة تأكيد
 message(STATUS "Configured sad_new_interpreter library")

@@ -136,11 +136,14 @@ std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode* program) {
     }
     
     // ═══════════════════════════════════════════════════════════════════
-    // (AR) المرحلة الثانية: بناء جميع التصريحات
-    // (EN) Phase 2: Build all declarations
+    // (AR) المرحلة الثانية: بناء التصريحات وجمع الجمل التنفيذية
+    // (EN) Phase 2: Build declarations and collect executable statements
     // ═══════════════════════════════════════════════════════════════════
-    // (AR) معالجة جميع التصريحات في البرنامج
-    // (EN) Process all declarations in program
+    // (AR) جمع الجمل التنفيذية في المستوى الأعلى لتضمينها في __sad_main
+    // (EN) Collect top-level executable statements for __sad_main wrapper
+    std::vector<Sad::AST::Statement*> topLevelStatements;
+    bool hasMainFunction = false;  // (AR) هل توجد دالة "رئيسية" أو "main"؟
+    
     // program هو StmtList = std::vector<StmtPtr> (ast_node.h:170)
     for (const auto& stmt : *program) {
         if (!stmt) continue;
@@ -152,13 +155,10 @@ std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode* program) {
         // (EN) Function declaration?
         if (auto funcDecl = dynamic_cast<Sad::AST::FunctionDecl*>(stmt.get())) {
             buildFunction(funcDecl);
-            continue;
-        }
-        
-        // (AR) متغير عام؟ (statements.h:74 - class VarDeclStmt)
-        // (EN) Global variable?
-        if (auto varDecl = dynamic_cast<Sad::AST::VarDeclStmt*>(stmt.get())) {
-            buildGlobalVariable(varDecl);
+            // (AR) التحقق هل هي دالة رئيسية
+            if (funcDecl->name == "\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9" || funcDecl->name == "main") {
+                hasMainFunction = true;
+            }
             continue;
         }
         
@@ -198,17 +198,19 @@ std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode* program) {
         // (AR) تصدير (الإصدار الجديد): صدّر دالة|صنف|متغير ...
         // (EN) Export declaration (new version): export function|class|var ...
         if (auto exportDecl = dynamic_cast<Sad::AST::ExportDecl*>(stmt.get())) {
-            // (AR) استخراج التصريح الداخلي وترجمته مباشرة
-            // (EN) Extract inner declaration and compile it directly
             if (exportDecl->declaration) {
                 auto* innerStmt = exportDecl->declaration.get();
                 
                 if (auto innerFunc = dynamic_cast<Sad::AST::FunctionDecl*>(innerStmt)) {
                     buildFunction(innerFunc);
-                } else if (auto innerVar = dynamic_cast<Sad::AST::VarDeclStmt*>(innerStmt)) {
-                    buildGlobalVariable(innerVar);
+                    if (innerFunc->name == "\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9" || innerFunc->name == "main") {
+                        hasMainFunction = true;
+                    }
                 } else if (auto innerClass = dynamic_cast<Sad::AST::ClassDecl*>(innerStmt)) {
                     buildClass(innerClass);
+                } else {
+                    // (AR) أي تصدير آخر (متغير، إلخ) → جملة تنفيذية
+                    topLevelStatements.push_back(stmt.get());
                 }
             }
             continue;
@@ -222,10 +224,10 @@ std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode* program) {
                 
                 if (auto innerFunc = dynamic_cast<Sad::AST::FunctionDecl*>(innerStmt)) {
                     buildFunction(innerFunc);
-                } else if (auto innerVar = dynamic_cast<Sad::AST::VarDeclStmt*>(innerStmt)) {
-                    buildGlobalVariable(innerVar);
                 } else if (auto innerClass = dynamic_cast<Sad::AST::ClassDecl*>(innerStmt)) {
                     buildClass(innerClass);
+                } else {
+                    topLevelStatements.push_back(stmt.get());
                 }
             }
             continue;
@@ -245,8 +247,92 @@ std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode* program) {
             continue;
         }
         
-        // (AR) تصريح غير معروف - نتجاهله حالياً
-        // (EN) Unknown declaration - ignore for now
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) جملة تنفيذية في المستوى الأعلى (طباعة، متغير، شرط، حلقة...)
+        // (EN) Top-level executable statement (print, var, if, while...)
+        // ═══════════════════════════════════════════════════════════════
+        topLevelStatements.push_back(stmt.get());
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) المرحلة الثالثة: إنشاء دالة __sad_main لتغليف الكود التنفيذي
+    // (EN) Phase 3: Create __sad_main to wrap top-level executable code
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) إذا توجد جمل تنفيذية ولا توجد دالة رئيسية صريحة
+    // (EN) If there are executable statements and no explicit main function
+    if (!topLevelStatements.empty() && !hasMainFunction) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildModule: creating __sad_main with " 
+                  << topLevelStatements.size() << " top-level statements" << std::endl;
+        #endif
+        
+        // (AR) إنشاء دالة __sad_main من نوع void بدون معاملات
+        // (EN) Create __sad_main function: void __sad_main()
+        auto sadMainFunc = std::make_shared<SIRFunction>("__sad_main", SIRType::VOID);
+        
+        // (AR) حفظ الحالة الحالية
+        // (EN) Save current state
+        auto prevFunction = currentFunction_;
+        auto prevBlock = currentBlock_;
+        
+        currentFunction_ = sadMainFunc;
+        
+        // (AR) إنشاء نطاق جديد للدالة الرئيسية
+        // (EN) Create new scope for main function
+        enterScope();
+        
+        // (AR) إنشاء basic block للدخول
+        // (EN) Create entry basic block
+        auto entryBlock = createBasicBlock("entry");
+        sadMainFunc->addBasicBlock(entryBlock);
+        currentBlock_ = entryBlock;
+        
+        // (AR) بناء جميع الجمل التنفيذية
+        // (EN) Build all executable statements
+        for (auto* stmtNode : topLevelStatements) {
+            if (stmtNode) {
+                buildStatement(stmtNode);
+            }
+        }
+        
+        // (AR) الخروج من النطاق
+        // (EN) Exit scope
+        exitScope();
+        
+        // (AR) التأكد من وجود terminator
+        // (EN) Ensure terminator exists
+        if (currentBlock_) {
+            bool hasTerminator = false;
+            if (!currentBlock_->instructions.empty()) {
+                const auto& lastInst = currentBlock_->instructions.back();
+                hasTerminator = (lastInst.opcode == SIROpcode::RET || 
+                               lastInst.opcode == SIROpcode::RET_VOID);
+            }
+            if (!hasTerminator) {
+                SIRInstruction retInst;
+                retInst.opcode = SIROpcode::RET_VOID;
+                currentBlock_->addInstruction(retInst);
+            }
+        }
+        
+        // (AR) إضافة الدالة للوحدة
+        // (EN) Add function to module
+        module_->addFunction(sadMainFunc);
+        
+        // (AR) تسجيل في جدول الدوال
+        // (EN) Register in function table
+        {
+            FunctionInfo funcInfo;
+            funcInfo.name = "__sad_main";
+            funcInfo.returnType = SIRType::VOID;
+            funcInfo.sirFunction = sadMainFunc;
+            functionTable_["__sad_main"] = funcInfo;
+        }
+        
+        // (AR) استعادة الحالة السابقة
+        // (EN) Restore previous state
+        currentFunction_ = prevFunction;
+        currentBlock_ = prevBlock;
     }
     
     return module_;
@@ -290,7 +376,18 @@ void SIRBuilder::buildFunction(AST::FunctionDeclNode* funcDecl) {
     // (AR) تحويل نوع الإرجاع من DataType إلى SIRType
     // (EN) Convert return type from DataType to SIRType
     // astTypeToSIRType: sir_builder.h:713
-    SIRType returnType = astTypeToSIRType(funcDecl->returnType);
+    SIRType returnType;
+    
+    // (AR) إذا كان نوع الإرجاع غير محدد (UNKNOWN/NONE)، نستنتجه من جسم الدالة
+    // (EN) If return type is unspecified (UNKNOWN/NONE), infer it from function body
+    if (funcDecl->returnType == Data::DataType::UNKNOWN ||
+        funcDecl->returnType == Data::DataType::NONE) {
+        // (AR) استنتاج النوع من جسم الدالة
+        // (EN) Infer type from function body
+        returnType = inferReturnTypeFromBody(funcDecl->body.get());
+    } else {
+        returnType = astTypeToSIRType(funcDecl->returnType);
+    }
     
     // (AR) إنشاء دالة SIR جديدة (sir_module.h:235 - SIRFunction constructor)
     // (EN) Create new SIR function
@@ -519,14 +616,18 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
         return;
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildClass: processing class '" << classDecl->name << "'" << std::endl;
+    #endif
     
     // (AR) تحديد الصنف الأب (إن وجد)
     // (EN) Determine parent class (if any)
     std::string parentClass = "";
     if (!classDecl->superclasses.empty()) {
         parentClass = classDecl->superclasses[0];  // دعم وراثة واحدة حالياً
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildClass: parent class = '" << parentClass << "'" << std::endl;
+        #endif
     }
     
     // (AR) إنشاء صنف SIR (SIRClass constructor: sir_module.h:409)
@@ -541,8 +642,10 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
     if (!parentClass.empty()) {
         auto parentSirClass = module_->getClass(parentClass);
         if (parentSirClass) {
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildClass: inheriting " << parentSirClass->fields_.size() 
                       << " fields from parent '" << parentClass << "'" << std::endl;
+            #endif
             // (AR) إضافة حقول الأب بالترتيب أولاً
             // (EN) Add parent fields in order first
             for (const auto& parentFieldName : parentSirClass->fieldOrder_) {
@@ -566,7 +669,9 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
         // (AR) الحقول (FieldDecl - declarations.h:180)
         // (EN) Fields
         if (auto fieldDecl = dynamic_cast<AST::FieldDecl*>(member.get())) {
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildClass: found field '" << fieldDecl->name << "'" << std::endl;
+            #endif
             
             // (AR) تحويل النوع وإضافة الحقل
             // (EN) Convert type and add field
@@ -577,7 +682,9 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
         // (AR) الباني (ConstructorDecl - declarations.h:268)
         // (EN) Constructor
         else if (auto ctorDecl = dynamic_cast<Sad::AST::ConstructorDecl*>(member.get())) {
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildClass: found constructor" << std::endl;
+            #endif
             
             std::string fullCtorName = classDecl->name + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
             auto sirCtor = std::make_shared<SIRFunction>(fullCtorName, SIRType::VOID);
@@ -735,12 +842,16 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
         // (AR) الدوال (MethodDecl - declarations.h:222)
         // (EN) Methods
         else if (auto methodDecl = dynamic_cast<AST::MethodDecl*>(member.get())) {
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildClass: found method '" << methodDecl->name << "'" << std::endl;
+            #endif
             
             // (AR) تخطي الدوال المجردة — لا تملك جسماً يُبنى
             // (EN) Skip abstract methods — they have no body to build
             if (methodDecl->isAbstract) {
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildClass: skipping abstract method '" << methodDecl->name << "'" << std::endl;
+                #endif
                 continue;
             }
             
@@ -876,7 +987,9 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
         // (AR) الدالة العادية داخل الصنف (FunctionDecl)
         // (EN) Regular function inside class (FunctionDecl)
         else if (auto funcDecl = dynamic_cast<AST::FunctionDecl*>(member.get())) {
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildClass: found function as method '" << funcDecl->name << "'" << std::endl;
+            #endif
             
             SIRType returnType = astTypeToSIRType(funcDecl->returnType);
             std::string fullMethodName = classDecl->name + "." + funcDecl->name;
@@ -1004,7 +1117,9 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
         // (AR) تحميل المعاملات الزائد (OperatorDecl - declarations.h:632)
         // (EN) Operator overloading
         else if (auto operatorDecl = dynamic_cast<Sad::AST::OperatorDecl*>(member.get())) {
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildClass: found operator overload '" << operatorDecl->operatorSymbol << "'" << std::endl;
+            #endif
             
             // (AR) تحويل رمز العامل إلى اسم آمن للدالة
             // (EN) Convert operator symbol to safe function name
@@ -1155,9 +1270,11 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
     // (EN) Add class to module
     module_->addClass(sirClass);
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildClass: class '" << classDecl->name << "' added with " 
               << sirClass->fields_.size() << " fields and "
               << sirClass->methods_.size() << " methods" << std::endl;
+    #endif
 }
 
 // ============================================================================
@@ -1169,8 +1286,10 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
 void SIRBuilder::buildTrait(AST::TraitDecl* traitDecl) {
     if (!traitDecl) return;
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildTrait: registering trait '" << traitDecl->name 
               << "' with " << traitDecl->methods.size() << " methods" << std::endl;
+    #endif
     
     // (AR) السمات لا تولّد كوداً — فقط تُسجَّل كبيانات وصفية
     // (EN) Traits don't generate code — they're registered as metadata
@@ -1188,7 +1307,9 @@ void SIRBuilder::buildImpl(AST::ImplDecl* implDecl) {
     if (!implDecl) return;
     
     std::string className = implDecl->targetType;
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildImpl: implementing";
+    #endif
     if (!implDecl->traitName.empty()) {
         std::cout << " trait '" << implDecl->traitName << "'";
     }
@@ -1212,7 +1333,9 @@ void SIRBuilder::buildImpl(AST::ImplDecl* implDecl) {
         if (!funcDecl) continue;
         
         std::string fullMethodName = className + "." + funcDecl->name;
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildImpl: adding method '" << fullMethodName << "'" << std::endl;
+        #endif
         
         // (AR) تحويل نوع الإرجاع
         // (EN) Convert return type
@@ -1296,7 +1419,9 @@ void SIRBuilder::buildImpl(AST::ImplDecl* implDecl) {
         module_->addFunction(sirMethod);
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildImpl: finished impl for '" << className << "'" << std::endl;
+    #endif
 }
 
 // ============================================================================
@@ -1335,12 +1460,16 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
         return;
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildStatement: processing statement" << std::endl;
+    #endif
     
     // (AR) BlockStmt - كتلة من الجمل (statements.h:423)
     // (EN) Block statement
     if (auto blockStmt = dynamic_cast<Sad::AST::BlockStmt*>(stmt)) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] Found BlockStmt with " << blockStmt->statements.size() << " statements" << std::endl;
+        #endif
         // (AR) معالجة كل جملة في الكتلة
         // (EN) Process each statement in the block
         for (const auto& innerStmt : blockStmt->statements) {
@@ -1352,7 +1481,9 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
     // (AR) IfStmt - جملة if (statements.h:104)
     // (EN) If statement
     if (auto ifStmt = dynamic_cast<Sad::AST::IfStmt*>(stmt)) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] Found IfStmt" << std::endl;
+        #endif
         buildIfStatement(ifStmt);
         return;
     }
@@ -1374,7 +1505,9 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
     // (AR) ForRangeStmt - حلقة لكل في (statements.h:228)
     // (EN) For-range loop (foreach)
     if (auto forRangeStmt = dynamic_cast<Sad::AST::ForRangeStmt*>(stmt)) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] Found ForRangeStmt" << std::endl;
+        #endif
         buildForRangeLoop(forRangeStmt);
         return;
     }
@@ -1382,7 +1515,9 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
     // (AR) ReturnStmt - جملة return (statements.h:266)
     // (EN) Return statement
     if (auto returnStmt = dynamic_cast<Sad::AST::ReturnStmt*>(stmt)) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] Found ReturnStmt" << std::endl;
+        #endif
         buildReturnStatement(returnStmt);
         return;
     }
@@ -1415,7 +1550,9 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
     // (AR) VarDeclStmt - تصريح متغير (statements.h:74)
     // (EN) Variable declaration
     if (auto varDecl = dynamic_cast<Sad::AST::VarDeclStmt*>(stmt)) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] Found VarDeclStmt: " << varDecl->name << std::endl;
+        #endif
         buildLocalVariable(varDecl);
         return;
     }
@@ -1423,20 +1560,947 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
     // (AR) TemplateFunctionDecl - تصريح دالة قالب (declarations.h:470)
     // (EN) Template function declaration
     if (auto templateDecl = dynamic_cast<Sad::AST::TemplateFunctionDecl*>(stmt)) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] Found TemplateFunctionDecl: " << templateDecl->name << std::endl;
+        #endif
         buildTemplateFunction(templateDecl);
+        return;
+    }
+    
+    // (AR) TemplateClassDecl - تصريح صنف قالب (declarations.h:520)
+    // (EN) Template class declaration — store for later instantiation
+    if (auto templateClassDecl = dynamic_cast<Sad::AST::TemplateClassDecl*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found TemplateClassDecl: " << templateClassDecl->name 
+                  << " with " << templateClassDecl->typeParameters.size() << " type params" << std::endl;
+        #endif
+        
+        // (AR) تسجيل صنف القالب — يُنشأ عند TemplateInstantiation
+        // (EN) Register template class — instantiated at TemplateInstantiation
+        templateClasses_[templateClassDecl->name] = templateClassDecl;
+        
+        // (AR) إنشاء SIRClass فارغ بالاسم الأساسي ليُعرف في الجدول
+        // (EN) Create empty SIRClass with base name so it's known
+        std::string parentClass;
+        if (!templateClassDecl->superclasses.empty()) {
+            parentClass = templateClassDecl->superclasses[0];
+        }
+        auto sirClass = std::make_shared<SIRClass>(templateClassDecl->name, parentClass);
+        
+        for (const auto& tp : templateClassDecl->typeParameters) {
+            sirClass->addField(tp.name, SIRType::PTR);
+        }
+        
+        module_->addClass(sirClass);
         return;
     }
     
     // (AR) MatchStmt - جملة match (pattern_nodes.h:MatchStmt)
     // (EN) Match statement (pattern matching)
     if (auto matchStmt = dynamic_cast<Sad::AST::MatchStmt*>(stmt)) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] Found MatchStmt" << std::endl;
+        #endif
         buildMatchStatement(matchStmt);
         return;
     }
     
-    std::cout << "[DEBUG] Unknown statement type!" << std::endl;
+    // ========================================================================
+    // (AR) SwitchStmt - جملة حالة/switch (statements.h:SwitchStmt)
+    // (EN) Switch statement
+    // ========================================================================
+    if (auto switchStmt = dynamic_cast<Sad::AST::SwitchStmt*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found SwitchStmt with " << switchStmt->cases.size() << " cases" << std::endl;
+        #endif
+        
+        // (AR) بناء تعبير الحالة
+        // (EN) Build switch expression
+        auto exprResult = buildExpression(switchStmt->expression.get());
+        
+        // (AR) إنشاء كتل لكل حالة وكتلة الخروج
+        // (EN) Create blocks for each case and exit block
+        std::string exitLabel = newLabel("switch_exit");
+        auto exitBlock = createBasicBlock(exitLabel);
+        
+        std::string defaultLabel = exitLabel;
+        if (switchStmt->defaultCase) {
+            defaultLabel = newLabel("switch_default");
+        }
+        
+        // (AR) بناء سلسلة من فروع شرطية لكل حالة
+        // (EN) Build chain of conditional branches for each case
+        std::vector<std::pair<std::string, std::shared_ptr<SIRBasicBlock>>> caseBlocks;
+        
+        for (size_t i = 0; i < switchStmt->cases.size(); ++i) {
+            std::string caseLabel = newLabel("switch_case_" + std::to_string(i));
+            auto caseBlock = createBasicBlock(caseLabel);
+            caseBlocks.push_back({caseLabel, caseBlock});
+        }
+        
+        // (AR) بناء شروط المقارنة
+        // (EN) Build comparison conditions
+        for (size_t i = 0; i < switchStmt->cases.size(); ++i) {
+            auto& caseBranch = switchStmt->cases[i];
+            
+            // (AR) بناء تعبير قيمة الحالة
+            // (EN) Build case value expression
+            auto caseVal = buildExpression(caseBranch.value.get());
+            
+            // (AR) مقارنة المساواة
+            // (EN) Equality comparison
+            std::string cmpReg = newTempRegister();
+            SIRInstruction cmpInst = SIRInstruction::Binary(
+                SIROpcode::EQ,
+                SIROperand::Register(cmpReg, SIRType::BOOL),
+                SIROperand::Register(exprResult.registerName, exprResult.type),
+                SIROperand::Register(caseVal.registerName, caseVal.type)
+            );
+            if (currentBlock_) {
+                currentBlock_->addInstruction(cmpInst);
+            }
+            
+            // (AR) التحديد: إذا تطابقت القيمة، اذهب لكتلة الحالة
+            // (EN) Branch: if matched, go to case block
+            std::string nextCheckLabel;
+            if (i + 1 < switchStmt->cases.size()) {
+                nextCheckLabel = newLabel("switch_check_" + std::to_string(i + 1));
+            } else {
+                nextCheckLabel = defaultLabel;
+            }
+            
+            auto nextCheckBlock = createBasicBlock(nextCheckLabel);
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                    SIROperand::Register(cmpReg, SIRType::BOOL),
+                    SIROperand::Label(caseBlocks[i].first),
+                    SIROperand::Label(nextCheckLabel)
+                ));
+            }
+            
+            if (currentFunction_) {
+                currentFunction_->addBasicBlock(nextCheckBlock);
+            }
+            currentBlock_ = nextCheckBlock;
+        }
+        
+        // (AR) بناء أجسام الحالات
+        // (EN) Build case bodies
+        for (size_t i = 0; i < switchStmt->cases.size(); ++i) {
+            if (currentFunction_) {
+                currentFunction_->addBasicBlock(caseBlocks[i].second);
+            }
+            currentBlock_ = caseBlocks[i].second;
+            
+            enterScope();
+            if (switchStmt->cases[i].body) {
+                buildStatement(switchStmt->cases[i].body.get());
+            }
+            exitScope();
+            
+            // (AR) لا fall-through — القفز مباشرة للخروج
+            // (EN) No fall-through — jump directly to exit
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(exitLabel)));
+            }
+        }
+        
+        // (AR) بناء الحالة الافتراضية
+        // (EN) Build default case
+        if (switchStmt->defaultCase) {
+            auto defaultBlock = createBasicBlock(defaultLabel);
+            if (currentFunction_) {
+                currentFunction_->addBasicBlock(defaultBlock);
+            }
+            currentBlock_ = defaultBlock;
+            
+            enterScope();
+            buildStatement(switchStmt->defaultCase.get());
+            exitScope();
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(exitLabel)));
+            }
+        }
+        
+        // (AR) كتلة الخروج
+        // (EN) Exit block
+        if (currentFunction_) {
+            currentFunction_->addBasicBlock(exitBlock);
+        }
+        currentBlock_ = exitBlock;
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) TryStmt - جملة حاول/التقط (statements.h:TryStmt)
+    // (EN) Try-catch statement
+    // ========================================================================
+    if (auto tryStmt = dynamic_cast<Sad::AST::TryStmt*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found TryStmt" << std::endl;
+        #endif
+        
+        // (AR) إنشاء كتل: try، catch، finally، exit
+        // (EN) Create blocks: try, catch, finally, exit
+        std::string tryLabel = newLabel("try_body");
+        std::string catchLabel = newLabel("catch_body");
+        std::string finallyLabel = newLabel("finally_body");
+        std::string exitLabel = newLabel("try_exit");
+        
+        auto tryBlock = createBasicBlock(tryLabel);
+        auto catchBlock = createBasicBlock(catchLabel);
+        auto finallyBlock = createBasicBlock(finallyLabel);
+        auto exitBlock = createBasicBlock(exitLabel);
+        
+        // (AR) القفز إلى كتلة try
+        // (EN) Jump to try block
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(tryLabel)));
+        }
+        
+        // (AR) بناء كتلة try
+        // (EN) Build try block
+        if (currentFunction_) currentFunction_->addBasicBlock(tryBlock);
+        currentBlock_ = tryBlock;
+        
+        enterScope();
+        if (tryStmt->tryBlock) {
+            buildStatement(tryStmt->tryBlock.get());
+        }
+        exitScope();
+        
+        // (AR) في النهاية العادية: اذهب لـ finally ثم exit
+        // (EN) Normal end: go to finally then exit
+        std::string normalDest = tryStmt->finallyBlock ? finallyLabel : exitLabel;
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(normalDest)));
+        }
+        
+        // (AR) بناء كتل catch
+        // (EN) Build catch blocks
+        if (currentFunction_) currentFunction_->addBasicBlock(catchBlock);
+        currentBlock_ = catchBlock;
+        
+        for (auto& catchClause : tryStmt->catchClauses) {
+            enterScope();
+            
+            // (AR) تسجيل متغير الاستثناء
+            // (EN) Register exception variable
+            if (!catchClause.exceptionVar.empty()) {
+                std::string exReg = newTempRegister();
+                VariableInfo exVar;
+                exVar.name = catchClause.exceptionVar;
+                exVar.type = SIRType::STRING;
+                exVar.registerName = exReg;
+                exVar.isMutable = false;
+                exVar.scopeLevel = currentScopeLevel_;
+                addVariable(exVar);
+                
+                // (AR) تعليمة خاصة لتحميل الاستثناء
+                // (EN) Special instruction to load exception
+                SIRInstruction loadExInst;
+                loadExInst.opcode = SIROpcode::CALL;
+                loadExInst.result = SIROperand::Register(exReg, SIRType::STRING);
+                loadExInst.operands.push_back(SIROperand::ConstantString("__sad_get_exception"));
+                loadExInst.comment = "load caught exception into " + catchClause.exceptionVar;
+                if (currentBlock_) currentBlock_->addInstruction(loadExInst);
+            }
+            
+            if (catchClause.body) {
+                buildStatement(catchClause.body.get());
+            }
+            
+            exitScope();
+        }
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Branch(
+                SIROperand::Label(tryStmt->finallyBlock ? finallyLabel : exitLabel)));
+        }
+        
+        // (AR) بناء كتلة finally
+        // (EN) Build finally block
+        if (tryStmt->finallyBlock) {
+            if (currentFunction_) currentFunction_->addBasicBlock(finallyBlock);
+            currentBlock_ = finallyBlock;
+            
+            enterScope();
+            buildStatement(tryStmt->finallyBlock.get());
+            exitScope();
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(exitLabel)));
+            }
+        }
+        
+        // (AR) كتلة الخروج
+        // (EN) Exit block
+        if (currentFunction_) currentFunction_->addBasicBlock(exitBlock);
+        currentBlock_ = exitBlock;
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) RaiseStmt - جملة رفع استثناء: ارفع خطأ("...")
+    // (EN) Raise/throw statement
+    // ========================================================================
+    if (auto raiseStmt = dynamic_cast<Sad::AST::RaiseStmt*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found RaiseStmt" << std::endl;
+        #endif
+        
+        // (AR) بناء تعبير الاستثناء
+        // (EN) Build the exception expression
+        BuildResult exResult;
+        if (raiseStmt->exception) {
+            exResult = buildExpression(raiseStmt->exception.get());
+        }
+        
+        // (AR) استدعاء دالة runtime لرفع الاستثناء
+        // (EN) Call runtime function to raise exception
+        SIRInstruction raiseInst;
+        raiseInst.opcode = SIROpcode::CALL;
+        raiseInst.operands.push_back(SIROperand::ConstantString("__sad_raise"));
+        if (!exResult.registerName.empty()) {
+            raiseInst.operands.push_back(SIROperand::Register(exResult.registerName, exResult.type));
+        }
+        raiseInst.comment = "raise exception";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(raiseInst);
+        }
+        
+        // (AR) بعد الرفع، لا يمكن الوصول لهذه النقطة
+        // (EN) After raise, this point is unreachable — emit ret void as terminator
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
+        }
+        
+        // (AR) كتلة جديدة للكود بعد raise (كود ميت)
+        // (EN) New block for code after raise (dead code)
+        std::string afterRaiseLabel = newLabel("after_raise");
+        auto afterRaiseBlock = createBasicBlock(afterRaiseLabel);
+        if (currentFunction_) currentFunction_->addBasicBlock(afterRaiseBlock);
+        currentBlock_ = afterRaiseBlock;
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) YieldStmt - جملة yield (مولّد): اعطِ قيمة
+    // (EN) Yield statement (generator)
+    // ========================================================================
+    if (auto yieldStmt = dynamic_cast<Sad::AST::YieldStmt*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found YieldStmt" << std::endl;
+        #endif
+        
+        BuildResult valResult;
+        if (yieldStmt->value) {
+            valResult = buildExpression(yieldStmt->value.get());
+        }
+        
+        // (AR) استدعاء دالة runtime للـ yield
+        // (EN) Call runtime yield function
+        SIRInstruction yieldInst;
+        yieldInst.opcode = SIROpcode::CALL;
+        yieldInst.operands.push_back(SIROperand::ConstantString(
+            yieldStmt->isYieldFrom ? "__sad_yield_from" : "__sad_yield"));
+        if (!valResult.registerName.empty()) {
+            yieldInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+        }
+        yieldInst.comment = yieldStmt->isYieldFrom ? "yield from" : "yield";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(yieldInst);
+        }
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) WithStmt - جملة باستخدام (مدير سياق)
+    // (EN) With statement (context manager)
+    // ========================================================================
+    if (auto withStmt = dynamic_cast<Sad::AST::WithStmt*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found WithStmt" << std::endl;
+        #endif
+        
+        enterScope();
+        
+        // (AR) بناء تعبير المورد
+        // (EN) Build resource expression
+        auto resResult = buildExpression(withStmt->resource.get());
+        
+        // (AR) تسجيل المتغير المستعار
+        // (EN) Register alias variable
+        if (!withStmt->alias.empty()) {
+            VariableInfo aliasVar;
+            aliasVar.name = withStmt->alias;
+            aliasVar.type = resResult.type;
+            aliasVar.registerName = resResult.registerName;
+            aliasVar.isMutable = false;
+            aliasVar.scopeLevel = currentScopeLevel_;
+            addVariable(aliasVar);
+        }
+        
+        // (AR) استدعاء __دخول__() على المورد
+        // (EN) Call __enter__() on resource
+        SIRInstruction enterInst;
+        enterInst.opcode = SIROpcode::CALL;
+        enterInst.operands.push_back(SIROperand::ConstantString("__sad_context_enter"));
+        enterInst.operands.push_back(SIROperand::Register(resResult.registerName, resResult.type));
+        enterInst.comment = "context manager __enter__";
+        if (currentBlock_) currentBlock_->addInstruction(enterInst);
+        
+        // (AR) بناء جسم الكتلة
+        // (EN) Build block body
+        if (withStmt->body) {
+            buildStatement(withStmt->body.get());
+        }
+        
+        // (AR) استدعاء __خروج__() على المورد
+        // (EN) Call __exit__() on resource
+        SIRInstruction exitInst;
+        exitInst.opcode = SIROpcode::CALL;
+        exitInst.operands.push_back(SIROperand::ConstantString("__sad_context_exit"));
+        exitInst.operands.push_back(SIROperand::Register(resResult.registerName, resResult.type));
+        exitInst.comment = "context manager __exit__";
+        if (currentBlock_) currentBlock_->addInstruction(exitInst);
+        
+        exitScope();
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) EnumDecl - تصريح تعداد: تعداد اللون { أحمر، أخضر، أزرق }
+    // (EN) Enum declaration
+    // ========================================================================
+    if (auto enumDecl = dynamic_cast<Sad::AST::EnumDecl*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found EnumDecl: " << enumDecl->name << std::endl;
+        #endif
+        
+        // (AR) تحويل التعداد إلى ثوابت عددية صحيحة
+        // (EN) Lower enum to integer constants
+        for (size_t i = 0; i < enumDecl->members.size(); ++i) {
+            const auto& member = enumDecl->members[i];
+            std::string fullName = enumDecl->name + "." + member.name;
+            
+            // (AR) تحديد القيمة: إما صريحة أو تلقائية
+            // (EN) Determine value: explicit or automatic
+            int64_t enumValue = static_cast<int64_t>(i);
+            if (member.value) {
+                auto valResult = buildExpression(member.value.get());
+                if (valResult.isConstant) {
+                    try {
+                        enumValue = std::stoll(valResult.constantValue);
+                    } catch (const std::exception&) {
+                        // إصلاح: استخدام القيمة الافتراضية عند فشل التحويل
+                        // enumValue = i (already set)
+                    }
+                }
+            }
+            
+            // (AR) إنشاء متغير عام للثابت
+            // (EN) Create global variable for constant
+            std::string regName = "%" + fullName;
+            
+            if (module_) {
+                auto global = std::make_shared<SIRGlobalVariable>(
+                    fullName, SIRType::I64, std::to_string(enumValue), true);
+                module_->addGlobalVariable(global);
+            }
+            
+            // (AR) تسجيل كثابت في النطاق
+            // (EN) Register as constant in scope
+            VariableInfo enumVar;
+            enumVar.name = fullName;
+            enumVar.type = SIRType::I64;
+            enumVar.registerName = regName;
+            enumVar.isGlobal = true;
+            enumVar.isMutable = false;
+            enumVar.scopeLevel = 0;
+            addVariable(enumVar);
+        }
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) StructDecl - تصريح بنية: بنية نقطة { عشري س، عشري ي }
+    // (EN) Struct declaration
+    // ========================================================================
+    if (auto structDecl = dynamic_cast<Sad::AST::StructDecl*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found StructDecl: " << structDecl->name << std::endl;
+        #endif
+        
+        // (AR) إنشاء "صنف" SIR بدون وراثة لتمثيل البنية
+        // (EN) Create SIR "class" without inheritance to represent struct
+        auto sirClass = std::make_shared<SIRClass>(structDecl->name, "");
+        
+        // (AR) إضافة الحقول
+        // (EN) Add fields
+        for (const auto& field : structDecl->fields) {
+            SIRType fieldType = SIRType::I64;
+            switch (field.type) {
+                case Sad::Data::DataType::INTEGER:  fieldType = SIRType::I64;    break;
+                case Sad::Data::DataType::FLOAT:    fieldType = SIRType::F64;    break;
+                case Sad::Data::DataType::BOOLEAN:  fieldType = SIRType::BOOL;   break;
+                case Sad::Data::DataType::STRING:   fieldType = SIRType::STRING; break;
+                case Sad::Data::DataType::ARRAY:    fieldType = SIRType::ARRAY;  break;
+                default:                            fieldType = SIRType::I64;    break;
+            }
+            sirClass->addField(field.name, fieldType);
+        }
+        
+        // (AR) إضافة الدوال المنفذة (إن وجدت)
+        // (EN) Add implemented methods (if any)
+        for (auto& methodStmt : structDecl->methods) {
+            buildStatement(methodStmt.get());
+        }
+        
+        if (module_) {
+            module_->addClass(sirClass);
+        }
+        
+        // (AR) تسجيل الصنف في الجدول
+        // (EN) Register class in table
+        classTable_[structDecl->name] = sirClass;
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) NamespaceDecl - فضاء أسماء: فضاء رياضيات ... نهاية_فضاء
+    // (EN) Namespace declaration
+    // ========================================================================
+    if (auto nsDecl = dynamic_cast<Sad::AST::NamespaceDecl*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found NamespaceDecl: " << nsDecl->name << std::endl;
+        #endif
+        
+        // (AR) بناء أعضاء الفضاء (الدوال، الأصناف، المتغيرات)
+        // (EN) Build namespace members (functions, classes, variables)
+        enterScope();
+        
+        for (const auto& member : nsDecl->members) {
+            if (!member) continue;
+            
+            // (AR) محاولة بناء كتعريف عام أو جملة
+            // (EN) Try to build as top-level declaration or statement
+            auto funcDecl = dynamic_cast<Sad::AST::FunctionDecl*>(member.get());
+            auto varDecl = dynamic_cast<Sad::AST::VarDeclStmt*>(member.get());
+            auto classDecl = dynamic_cast<Sad::AST::ClassDecl*>(member.get());
+            
+            if (funcDecl) {
+                // (AR) بناء الدالة مع بادئة الفضاء
+                // (EN) Build function with namespace prefix
+                std::string originalName = funcDecl->name;
+                funcDecl->name = nsDecl->name + "::" + originalName;
+                buildFunction(funcDecl);
+                funcDecl->name = originalName;
+            } else if (varDecl) {
+                buildGlobalVariable(varDecl);
+            } else if (classDecl) {
+                std::string originalName = classDecl->name;
+                classDecl->name = nsDecl->name + "::" + originalName;
+                buildClass(classDecl);
+                classDecl->name = originalName;
+            } else {
+                buildStatement(member.get());
+            }
+        }
+        
+        exitScope();
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) ClassDeclStmt - تصريح صنف (الصيغة البديلة)
+    // (EN) ClassDeclStmt - alternate class declaration syntax
+    // ========================================================================
+    if (auto classDeclStmt = dynamic_cast<Sad::AST::ClassDeclStmt*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found ClassDeclStmt: " << classDeclStmt->name << std::endl;
+        #endif
+        
+        // (AR) تحويل ClassDeclStmt إلى SIRClass
+        // (EN) Convert ClassDeclStmt to SIRClass
+        std::string parentClass;
+        if (!classDeclStmt->baseClasses.empty()) {
+            parentClass = classDeclStmt->baseClasses[0];
+        }
+        
+        auto sirClass = std::make_shared<SIRClass>(classDeclStmt->name, parentClass);
+        
+        // (AR) معالجة الحقول
+        // (EN) Process fields
+        for (const auto& field : classDeclStmt->fields) {
+            SIRType fieldType = SIRType::I64;
+            sirClass->addField(field->name, fieldType);
+        }
+        
+        // (AR) حفظ السياق
+        // (EN) Save context
+        std::string savedClassName = currentClassName_;
+        currentClassName_ = classDeclStmt->name;
+        
+        // (AR) معالجة الباني
+        // (EN) Process constructor
+        if (classDeclStmt->constructor) {
+            auto ctorDecl = classDeclStmt->constructor.get();
+            std::string ctorName = classDeclStmt->name + "::باني";
+            
+            std::vector<SIRParameter> ctorParams;
+            ctorParams.push_back(SIRParameter("self", SIRType::PTR));
+            if (auto ctor = dynamic_cast<Sad::AST::ConstructorDecl*>(ctorDecl)) {
+                for (const auto& p : ctor->parameters) {
+                    ctorParams.push_back(SIRParameter(p.name, SIRType::I64));
+                }
+            }
+            
+            auto ctorFunc = std::make_shared<SIRFunction>(ctorName, SIRType::VOID);
+            for (const auto& cp : ctorParams) ctorFunc->addParameter(cp);
+            auto savedFunc = currentFunction_;
+            auto savedBlock = currentBlock_;
+            
+            currentFunction_ = ctorFunc;
+            auto entryBlock = createBasicBlock("ctor_entry");
+            ctorFunc->addBasicBlock(entryBlock);
+            currentBlock_ = entryBlock;
+            
+            enterScope();
+            VariableInfo selfVar;
+            selfVar.name = "self";
+            selfVar.type = SIRType::PTR;
+            selfVar.registerName = "%self";
+            addVariable(selfVar);
+            
+            if (auto ctor = dynamic_cast<Sad::AST::ConstructorDecl*>(ctorDecl)) {
+                if (ctor->body) buildStatement(ctor->body.get());
+            }
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
+            }
+            exitScope();
+            
+            if (module_) module_->addFunction(ctorFunc);
+            sirClass->addMethod(ctorFunc);
+            
+            currentFunction_ = savedFunc;
+            currentBlock_ = savedBlock;
+        }
+        
+        // (AR) معالجة الدوال
+        // (EN) Process methods
+        for (const auto& method : classDeclStmt->methods) {
+            if (auto methodDecl = dynamic_cast<Sad::AST::MethodDecl*>(method.get())) {
+                std::string methodName = classDeclStmt->name + "::" + methodDecl->name;
+                
+                std::vector<SIRParameter> methodParams;
+                methodParams.push_back(SIRParameter("self", SIRType::PTR));
+                for (const auto& p : methodDecl->parameters) {
+                    methodParams.push_back(SIRParameter(p.name, SIRType::I64));
+                }
+                
+                auto methodFunc = std::make_shared<SIRFunction>(methodName, SIRType::I64);
+                for (const auto& mp : methodParams) methodFunc->addParameter(mp);
+                auto savedFunc = currentFunction_;
+                auto savedBlock = currentBlock_;
+                
+                currentFunction_ = methodFunc;
+                auto entryBlock = createBasicBlock("method_entry");
+                methodFunc->addBasicBlock(entryBlock);
+                currentBlock_ = entryBlock;
+                
+                enterScope();
+                VariableInfo selfVar;
+                selfVar.name = "self";
+                selfVar.type = SIRType::PTR;
+                selfVar.registerName = "%self";
+                addVariable(selfVar);
+                
+                for (const auto& p : methodDecl->parameters) {
+                    VariableInfo pVar;
+                    pVar.name = p.name;
+                    pVar.type = SIRType::I64;
+                    pVar.registerName = "%" + p.name;
+                    addVariable(pVar);
+                }
+                
+                if (methodDecl->body) buildStatement(methodDecl->body.get());
+                exitScope();
+                
+                if (module_) module_->addFunction(methodFunc);
+                sirClass->addMethod(methodFunc);
+                
+                currentFunction_ = savedFunc;
+                currentBlock_ = savedBlock;
+            }
+        }
+        
+        currentClassName_ = savedClassName;
+        
+        if (module_) module_->addClass(sirClass);
+        classTable_[classDeclStmt->name] = sirClass;
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) FunctionDecl داخل جسم دالة (دوال متداخلة)
+    // (EN) FunctionDecl inside function body (nested function)
+    // ========================================================================
+    if (auto funcDecl = dynamic_cast<Sad::AST::FunctionDecl*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found nested FunctionDecl: " << funcDecl->name << std::endl;
+        #endif
+        buildFunction(funcDecl);
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) ClassDecl داخل جسم (صنف متداخل)
+    // (EN) ClassDecl inside body (nested class)
+    // ========================================================================
+    if (auto classDecl = dynamic_cast<Sad::AST::ClassDecl*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found nested ClassDecl: " << classDecl->name << std::endl;
+        #endif
+        buildClass(classDecl);
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) DestructorDecl - هادم الصنف (declarations.h:DestructorDecl)
+    // (EN) Destructor declaration — lowered to a special __destructor function
+    // ========================================================================
+    if (auto destructorDecl = dynamic_cast<Sad::AST::DestructorDecl*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found DestructorDecl" << std::endl;
+        #endif
+        
+        // (AR) بناء دالة هادم خاصة: __destructor_<className>
+        // (EN) Build special destructor function: __destructor_<className>
+        std::string dtorName = "__destructor";
+        auto dtorFunc = std::make_shared<SIRFunction>(dtorName, SIRType::VOID);
+        
+        // (AR) إضافة معامل this
+        // (EN) Add 'this' parameter
+        dtorFunc->addParameter(SIRParameter("this", SIRType::PTR));
+        
+        auto entryBlock = createBasicBlock("destructor_entry");
+        dtorFunc->addBasicBlock(entryBlock);
+        
+        auto savedFunction = currentFunction_;
+        auto savedBlock = currentBlock_;
+        currentFunction_ = dtorFunc;
+        currentBlock_ = entryBlock;
+        
+        enterScope();
+        if (destructorDecl->body) {
+            buildStatement(destructorDecl->body.get());
+        }
+        exitScope();
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
+        }
+        
+        currentFunction_ = savedFunction;
+        currentBlock_ = savedBlock;
+        module_->addFunction(dtorFunc);
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) TestDecl - إعلان اختبار (declarations.h:TestDecl)
+    // (EN) Test declaration — lowered to a __test_<name> function
+    // ========================================================================
+    if (auto testDecl = dynamic_cast<Sad::AST::TestDecl*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found TestDecl: " << testDecl->testName << std::endl;
+        #endif
+        
+        // (AR) بناء دالة اختبار: __test_<name>
+        // (EN) Build test function: __test_<name>
+        std::string testFuncName = "__test_" + testDecl->testName;
+        auto testFunc = std::make_shared<SIRFunction>(testFuncName, SIRType::BOOL);
+        
+        auto entryBlock = createBasicBlock("test_entry");
+        testFunc->addBasicBlock(entryBlock);
+        
+        auto savedFunction = currentFunction_;
+        auto savedBlock = currentBlock_;
+        currentFunction_ = testFunc;
+        currentBlock_ = entryBlock;
+        
+        enterScope();
+        if (testDecl->body) {
+            buildStatement(testDecl->body.get());
+        }
+        exitScope();
+        
+        // (AR) ارجاع true (نجاح الاختبار) افتراضياً
+        // (EN) Return true (test passed) by default
+        if (currentBlock_) {
+            if (testDecl->shouldFail) {
+                // (AR) إذا كان الاختبار يجب أن يفشل، ارجع false
+                // (EN) If test should fail, return false
+                currentBlock_->addInstruction(SIRInstruction::Return(
+                    SIROperand::ConstantBool(false)));
+            } else {
+                currentBlock_->addInstruction(SIRInstruction::Return(
+                    SIROperand::ConstantBool(true)));
+            }
+        }
+        
+        currentFunction_ = savedFunction;
+        currentBlock_ = savedBlock;
+        module_->addFunction(testFunc);
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) AtomicDecl - متغير ذري (declarations.h:AtomicDecl)
+    // (EN) Atomic variable declaration — lowered to regular variable with atomic hint
+    // ========================================================================
+    if (auto atomicDecl = dynamic_cast<Sad::AST::AtomicDecl*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found AtomicDecl: " << atomicDecl->name << std::endl;
+        #endif
+        
+        // (AR) تحويل النوع الداخلي إلى SIRType
+        // (EN) Convert inner type to SIRType
+        SIRType varType = astTypeToSIRType(atomicDecl->innerType);
+        
+        // (AR) تخصيص مكان في الذاكرة
+        // (EN) Allocate memory
+        std::string reg = newTempRegister();
+        if (currentBlock_) {
+            SIRInstruction allocInst;
+            allocInst.opcode = SIROpcode::ALLOC;
+            allocInst.result = SIROperand::Register(reg, varType);
+            currentBlock_->addInstruction(allocInst);
+        }
+        
+        // (AR) تهيئة القيمة إن وُجدت
+        // (EN) Initialize value if present
+        if (atomicDecl->initialValue) {
+            auto initResult = buildExpression(atomicDecl->initialValue.get());
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::Store(
+                    SIROperand::Register(reg, varType),
+                    SIROperand::Register(initResult.registerName, initResult.type)));
+            }
+        }
+        
+        // (AR) تسجيل المتغير في النطاق الحالي
+        // (EN) Register variable in current scope
+        VariableInfo varInfo;
+        varInfo.name = atomicDecl->name;
+        varInfo.type = varType;
+        varInfo.registerName = reg;
+        varInfo.isGlobal = false;
+        varInfo.isMutable = true;
+        addVariable(varInfo);
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) PropertyDecl - خاصية مع getter/setter (property_nodes.h:PropertyDecl)
+    // (EN) Property declaration — lowered to getter/setter functions
+    // ========================================================================
+    if (auto propDecl = dynamic_cast<Sad::AST::PropertyDecl*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found PropertyDecl: " << propDecl->name << std::endl;
+        #endif
+        
+        SIRType propType = astTypeToSIRType(propDecl->type);
+        
+        // (AR) بناء دالة getter إن وُجدت
+        // (EN) Build getter function if present
+        if (propDecl->getter) {
+            std::string getterName = "__get_" + propDecl->name;
+            auto getterFunc = std::make_shared<SIRFunction>(getterName, propType);
+            
+            // (AR) معامل this
+            // (EN) this parameter
+            getterFunc->addParameter(SIRParameter("this", SIRType::PTR));
+            
+            auto entryBlock = createBasicBlock("getter_entry");
+            getterFunc->addBasicBlock(entryBlock);
+            
+            auto savedFunction = currentFunction_;
+            auto savedBlock = currentBlock_;
+            currentFunction_ = getterFunc;
+            currentBlock_ = entryBlock;
+            
+            enterScope();
+            if (propDecl->getter->body) {
+                buildStatement(propDecl->getter->body.get());
+            }
+            exitScope();
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
+            }
+            
+            currentFunction_ = savedFunction;
+            currentBlock_ = savedBlock;
+            module_->addFunction(getterFunc);
+        }
+        
+        // (AR) بناء دالة setter إن وُجدت
+        // (EN) Build setter function if present
+        if (propDecl->setter) {
+            std::string setterName = "__set_" + propDecl->name;
+            auto setterFunc = std::make_shared<SIRFunction>(setterName, SIRType::VOID);
+            
+            // (AR) معامل this + معامل القيمة
+            // (EN) this parameter + value parameter
+            setterFunc->addParameter(SIRParameter("this", SIRType::PTR));
+            setterFunc->addParameter(SIRParameter(propDecl->setter->parameterName, propType));
+            
+            auto entryBlock = createBasicBlock("setter_entry");
+            setterFunc->addBasicBlock(entryBlock);
+            
+            auto savedFunction = currentFunction_;
+            auto savedBlock = currentBlock_;
+            currentFunction_ = setterFunc;
+            currentBlock_ = entryBlock;
+            
+            enterScope();
+            // (AR) تسجيل معامل القيمة في النطاق
+            // (EN) Register value parameter in scope
+            VariableInfo paramInfo;
+            paramInfo.name = propDecl->setter->parameterName;
+            paramInfo.type = propType;
+            paramInfo.registerName = propDecl->setter->parameterName;
+            paramInfo.isGlobal = false;
+            paramInfo.isMutable = true;
+            addVariable(paramInfo);
+            
+            if (propDecl->setter->body) {
+                buildStatement(propDecl->setter->body.get());
+            }
+            exitScope();
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
+            }
+            
+            currentFunction_ = savedFunction;
+            currentBlock_ = savedBlock;
+            module_->addFunction(setterFunc);
+        }
+        return;
+    }
+    
+    #ifndef NDEBUG
+    std::cout << "[DEBUG] Unknown statement type: " << typeid(*stmt).name() << std::endl;
+    #endif
     // (AR) جملة غير معروفة - نتجاهلها
     // (EN) Unknown statement - ignore
 }
@@ -1468,9 +2532,11 @@ void SIRBuilder::buildReturnStatement(AST::ReturnStmt* retStmt) {
         // (EN) Build return value expression
         BuildResult valueResult = buildExpression(retStmt->value.get());
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildReturnStatement: registerName='" << valueResult.registerName 
                   << "', isConstant=" << valueResult.isConstant 
                   << ", constantValue='" << valueResult.constantValue << "'" << std::endl;
+        #endif
         
         // (AR) توليد تعليمة RET مع القيمة
         // (EN) Generate RET instruction with value
@@ -1865,7 +2931,9 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
         return;
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildIfStatement: starting" << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 1: إنشاء الكتل الأساسية
@@ -1892,8 +2960,10 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
         currentFunction_->addBasicBlock(mergeBlock);
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildIfStatement: created blocks then=" << thenLabel 
               << ", else=" << elseLabel << ", merge=" << mergeLabel << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 2: بناء الشرط
@@ -1903,12 +2973,16 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
     auto condResult = buildExpression(ifStmt->condition.get());
     
     if (condResult.registerName.empty()) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildIfStatement: condition build failed!" << std::endl;
+        #endif
         errors_.push_back("Error: Failed to build if condition");
         return;
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildIfStatement: condition reg=" << condResult.registerName << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 3: توليد تعليمة القفز الشرطي
@@ -1924,7 +2998,9 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
     
     if (currentBlock_) {
         currentBlock_->instructions.push_back(brCondInst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildIfStatement: added BR_COND to current block" << std::endl;
+        #endif
     }
     
     // ========================================================================
@@ -1952,13 +3028,19 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
                              lastInst.opcode == SIROpcode::BR_COND);
         if (!hasTerminator) {
             currentBlock_->instructions.push_back(brMergeInst);
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildIfStatement: added BR to merge from then" << std::endl;
+            #endif
         } else {
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildIfStatement: then block already has terminator, skipping BR" << std::endl;
+            #endif
         }
     } else if (currentBlock_) {
         currentBlock_->instructions.push_back(brMergeInst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildIfStatement: added BR to merge from then (empty block)" << std::endl;
+        #endif
     }
     
     // ========================================================================
@@ -1982,13 +3064,19 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
                                  lastInst.opcode == SIROpcode::BR_COND);
             if (!hasTerminator) {
                 currentBlock_->instructions.push_back(brMergeInst);
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildIfStatement: added BR to merge from else" << std::endl;
+                #endif
             } else {
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildIfStatement: else block already has terminator, skipping BR" << std::endl;
+                #endif
             }
         } else if (currentBlock_) {
             currentBlock_->instructions.push_back(brMergeInst);
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildIfStatement: added BR to merge from else (empty block)" << std::endl;
+            #endif
         }
     }
     
@@ -1997,7 +3085,9 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
     // (EN) Step 6: Continue after if statement
     // ========================================================================
     currentBlock_ = mergeBlock;
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildIfStatement: completed, now at merge block" << std::endl;
+    #endif
 }
 
 // ============================================================================
@@ -2025,8 +3115,10 @@ void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
         return;
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildMatchStatement: starting with " 
               << matchStmt->cases.size() << " cases" << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 1: تقييم القيمة المُطابقة
@@ -2039,8 +3131,10 @@ void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
         return;
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildMatchStatement: match value reg=" 
               << matchResult.registerName << ", isConst=" << matchResult.isConstant << std::endl;
+    #endif
     
     // (AR) إذا كانت القيمة ثابتة، نحتاج تحميلها في سجل
     // (EN) If value is constant, need to load it into a register
@@ -2186,7 +3280,9 @@ void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
                 moveInst.operands = {trueOp};
                 currentBlock_->instructions.push_back(moveInst);
                 
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildMatchStatement: case " << i << " is WildcardPattern" << std::endl;
+                #endif
             }
             else if (auto* varPat = dynamic_cast<const Sad::AST::VariablePattern*>(caseClause.pattern.get())) {
                 // (AR) نمط متغير - دائماً true ويربط القيمة
@@ -2214,8 +3310,10 @@ void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
                 varInfo.scopeLevel = currentScopeLevel_;
                 addVariable(varInfo);
                 
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildMatchStatement: case " << i 
                           << " is VariablePattern(" << varPat->name << ")" << std::endl;
+                #endif
             }
             else if (auto* litPat = dynamic_cast<const Sad::AST::LiteralPattern*>(caseClause.pattern.get())) {
                 // (AR) نمط قيمة حرفية - مقارنة EQ
@@ -2286,8 +3384,10 @@ void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
                 SIRInstruction cmpInst = SIRInstruction::Binary(SIROpcode::EQ, cmpResultOp, matchOp, cmpLitOp);
                 currentBlock_->instructions.push_back(cmpInst);
                 
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildMatchStatement: case " << i 
                           << " is LiteralPattern(" << litValue << ")" << std::endl;
+                #endif
             }
             else if (auto* orPat = dynamic_cast<const Sad::AST::OrPattern*>(caseClause.pattern.get())) {
                 // (AR) نمط OR - سلسلة مقارنات مع OR
@@ -2384,7 +3484,9 @@ void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
                 moveFinal.operands = {finalAccOp};
                 currentBlock_->instructions.push_back(moveFinal);
                 
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildMatchStatement: case " << i << " is OrPattern" << std::endl;
+                #endif
             }
             else {
                 // (AR) نمط غير معروف - نعتبره true (يطابق أي شيء)
@@ -2397,7 +3499,9 @@ void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
                 moveInst.operands = {trueOp};
                 currentBlock_->instructions.push_back(moveInst);
                 
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildMatchStatement: case " << i << " is unknown pattern" << std::endl;
+                #endif
             }
         }   // end if (caseClause.pattern)
         
@@ -2498,7 +3602,9 @@ void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
             currentBlock_->instructions.push_back(brMerge);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildMatchStatement: generated case " << i << std::endl;
+        #endif
     }   // end for each case
     
     // ========================================================================
@@ -2506,7 +3612,9 @@ void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
     // (EN) Step 6: Continue after match statement
     // ========================================================================
     currentBlock_ = mergeBlock;
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildMatchStatement: completed" << std::endl;
+    #endif
 }
 
 // ============================================================================
@@ -2536,7 +3644,9 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
         return;
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildWhileLoop: starting" << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 1: إنشاء الكتل الأساسية
@@ -2560,8 +3670,10 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
         currentFunction_->addBasicBlock(exitBlock);
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildWhileLoop: created blocks cond=" << condLabel 
               << ", body=" << bodyLabel << ", exit=" << exitLabel << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 2: قفز غير شرطي إلى كتلة الشرط
@@ -2573,7 +3685,9 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
     
     if (currentBlock_) {
         currentBlock_->instructions.push_back(brCondBlockInst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildWhileLoop: added BR to condition block" << std::endl;
+        #endif
     }
     
     // ========================================================================
@@ -2585,12 +3699,16 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
     auto condResult = buildExpression(whileLoop->condition.get());
     
     if (condResult.registerName.empty()) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildWhileLoop: condition build failed!" << std::endl;
+        #endif
         errors_.push_back("Error: Failed to build while condition");
         return;
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildWhileLoop: condition reg=" << condResult.registerName << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 4: توليد تعليمة القفز الشرطي
@@ -2605,7 +3723,9 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
     
     if (currentBlock_) {
         currentBlock_->instructions.push_back(brCondInst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildWhileLoop: added BR_COND (body/exit)" << std::endl;
+        #endif
     }
     
     // ========================================================================
@@ -2651,13 +3771,19 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
                              lastInst.opcode == SIROpcode::BR_COND);
         if (!hasTerminator) {
             currentBlock_->instructions.push_back(brBackInst);
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildWhileLoop: added BR back to condition" << std::endl;
+            #endif
         } else {
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildWhileLoop: body block already has terminator, skipping BR" << std::endl;
+            #endif
         }
     } else if (currentBlock_) {
         currentBlock_->instructions.push_back(brBackInst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildWhileLoop: added BR back to condition (empty block)" << std::endl;
+        #endif
     }
     
     // ========================================================================
@@ -2665,7 +3791,9 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
     // (EN) Step 7: Continue after loop
     // ========================================================================
     currentBlock_ = exitBlock;
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildWhileLoop: completed, now at exit block" << std::endl;
+    #endif
 }
 
 // ============================================================================
@@ -2700,7 +3828,9 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
         return;
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildForLoop: starting" << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 1: دخول نطاق جديد للحلقة
@@ -2715,7 +3845,9 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
     // المصدر: ForStmt::initializer (statements.h:193)
     // ========================================================================
     if (forLoop->initializer) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildForLoop: building initializer" << std::endl;
+        #endif
         buildStatement(forLoop->initializer.get());
     }
     
@@ -2742,9 +3874,11 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
         currentFunction_->addBasicBlock(exitBlock);
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildForLoop: created blocks cond=" << condLabel 
               << ", body=" << bodyLabel << ", inc=" << incLabel 
               << ", exit=" << exitLabel << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 4: قفز غير شرطي إلى كتلة الشرط
@@ -2755,7 +3889,9 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
     
     if (currentBlock_) {
         currentBlock_->instructions.push_back(brCondBlockInst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildForLoop: added BR to condition block" << std::endl;
+        #endif
     }
     
     // ========================================================================
@@ -2779,7 +3915,9 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
             
             if (currentBlock_) {
                 currentBlock_->instructions.push_back(brCondInst);
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildForLoop: added BR_COND (body/exit)" << std::endl;
+                #endif
             }
         }
     } else {
@@ -2789,7 +3927,9 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
         
         if (currentBlock_) {
             currentBlock_->instructions.push_back(brBodyInst);
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildForLoop: no condition, added BR to body" << std::endl;
+            #endif
         }
     }
     
@@ -2829,7 +3969,9 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
     
     if (currentBlock_) {
         currentBlock_->instructions.push_back(brIncInst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildForLoop: added BR to increment block" << std::endl;
+        #endif
     }
     
     // ========================================================================
@@ -2840,7 +3982,9 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
     currentBlock_ = incBlock;
     if (forLoop->increment) {
         buildExpression(forLoop->increment.get());
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildForLoop: built increment expression" << std::endl;
+        #endif
     }
     
     // (AR) قفز للعودة إلى كتلة الشرط
@@ -2849,7 +3993,9 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
     
     if (currentBlock_) {
         currentBlock_->instructions.push_back(brBackInst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildForLoop: added BR back to condition" << std::endl;
+        #endif
     }
     
     // ========================================================================
@@ -2862,7 +4008,9 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
     // (EN) Exit loop scope
     exitScope();
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildForLoop: completed, now at exit block" << std::endl;
+    #endif
 }
 
 // ============================================================================
@@ -2885,8 +4033,10 @@ void SIRBuilder::buildForRangeLoop(AST::ForRangeStmt* forRange) {
         return;
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildForRangeLoop: starting, variable='" 
               << forRange->variable << "'" << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 1: دخول نطاق جديد للحلقة
@@ -2902,14 +4052,18 @@ void SIRBuilder::buildForRangeLoop(AST::ForRangeStmt* forRange) {
     auto iterableResult = buildExpression(forRange->iterable.get());
     
     if (iterableResult.registerName.empty()) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildForRangeLoop: failed to build iterable!" << std::endl;
+        #endif
         errors_.push_back("Error: Failed to build iterable expression in for-range");
         exitScope();
         return;
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildForRangeLoop: iterable reg='" 
               << iterableResult.registerName << "'" << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 3: إنشاء الكتل الأساسية
@@ -2968,8 +4122,10 @@ void SIRBuilder::buildForRangeLoop(AST::ForRangeStmt* forRange) {
     
     addVariable(varInfo);
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildForRangeLoop: registered loop var '" 
               << forRange->variable << "' = " << loopVarReg << std::endl;
+    #endif
     
     // ========================================================================
     // (AR) الخطوة 6: قفز غير شرطي إلى كتلة الشرط
@@ -3092,7 +4248,9 @@ void SIRBuilder::buildForRangeLoop(AST::ForRangeStmt* forRange) {
     // (EN) Exit loop scope
     exitScope();
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildForRangeLoop: completed" << std::endl;
+    #endif
 }
 
 // ============================================================================
@@ -3450,11 +4608,15 @@ void SIRBuilder::exitGenericScope() {
 // ============================================================================
 BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
     if (!expr) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildExpression: expr is null!" << std::endl;
+        #endif
         return BuildResult();
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildExpression: processing expression of type: " << typeid(*expr).name() << std::endl;
+    #endif
     
     // (AR) BinaryExpr - تعبير ثنائي (expressions.h:40)
     // (EN) Binary expression
@@ -3477,7 +4639,9 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
     // (AR) VariableExpr - متغير (expressions.h:206)
     // (EN) Variable
     if (auto varExpr = dynamic_cast<Sad::AST::VariableExpr*>(expr)) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildExpression: found VariableExpr" << std::endl;
+        #endif
         return buildVariableAccess(varExpr);
     }
     
@@ -3509,8 +4673,10 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
     // (AR) MemberExpr - الوصول لعضو في كائن (expressions.h:406)
     // (EN) Member access via MemberExpr (from parser)
     if (auto memberExpr = dynamic_cast<Sad::AST::MemberExpr*>(expr)) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildExpression: found MemberExpr for member '"
                   << memberExpr->member << "'" << std::endl;
+        #endif
         
         // (AR) الخطوة 1: بناء تعبير الكائن
         // (EN) Step 1: Build object expression
@@ -3575,8 +4741,1011 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         return BuildResult("%self", SIRType::I64);
     }
     
+    // ========================================================================
+    // (AR) TernaryExpr - التعبير الثلاثي: شرط ? قيمة_صح : قيمة_خطأ
+    // (EN) Ternary expression: cond ? trueVal : falseVal
+    // ========================================================================
+    if (auto ternaryExpr = dynamic_cast<Sad::AST::TernaryExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found TernaryExpr" << std::endl;
+        #endif
+        
+        // (AR) بناء الشرط
+        // (EN) Build condition
+        auto condResult = buildExpression(ternaryExpr->condition.get());
+        
+        // (AR) إنشاء الكتل الأساسية
+        // (EN) Create basic blocks
+        std::string thenLabel = newLabel("ternary_then");
+        std::string elseLabel = newLabel("ternary_else");
+        std::string mergeLabel = newLabel("ternary_merge");
+        
+        auto thenBlock = createBasicBlock(thenLabel);
+        auto elseBlock = createBasicBlock(elseLabel);
+        auto mergeBlock = createBasicBlock(mergeLabel);
+        
+        // (AR) تعليمة فرع شرطي
+        // (EN) Conditional branch instruction
+        if (currentBlock_) {
+            SIRInstruction brInst = SIRInstruction::BranchCond(
+                SIROperand::Register(condResult.registerName, SIRType::BOOL),
+                SIROperand::Label(thenLabel),
+                SIROperand::Label(elseLabel)
+            );
+            currentBlock_->addInstruction(brInst);
+        }
+        
+        // (AR) بناء فرع الحالة الصحيحة
+        // (EN) Build true branch
+        if (currentFunction_) {
+            currentFunction_->addBasicBlock(thenBlock);
+        }
+        currentBlock_ = thenBlock;
+        auto trueResult = buildExpression(ternaryExpr->trueExpr.get());
+        std::string trueReg = trueResult.registerName;
+        SIRType resultType = trueResult.type;
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+        }
+        
+        // (AR) بناء فرع الحالة الخاطئة
+        // (EN) Build false branch
+        if (currentFunction_) {
+            currentFunction_->addBasicBlock(elseBlock);
+        }
+        currentBlock_ = elseBlock;
+        auto falseResult = buildExpression(ternaryExpr->falseExpr.get());
+        std::string falseReg = falseResult.registerName;
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+        }
+        
+        // (AR) كتلة الدمج مع PHI
+        // (EN) Merge block with PHI
+        if (currentFunction_) {
+            currentFunction_->addBasicBlock(mergeBlock);
+        }
+        currentBlock_ = mergeBlock;
+        
+        std::string phiReg = newTempRegister();
+        SIRInstruction phiInst = SIRInstruction::Phi(
+            SIROperand::Register(phiReg, resultType),
+            {
+                {SIROperand::Register(trueReg, resultType), SIROperand::Label(thenLabel)},
+                {SIROperand::Register(falseReg, resultType), SIROperand::Label(elseLabel)}
+            }
+        );
+        if (currentBlock_) {
+            currentBlock_->addInstruction(phiInst);
+        }
+        
+        return BuildResult(phiReg, resultType);
+    }
+    
+    // ========================================================================
+    // (AR) IndexExpr - الوصول بالفهرس: مصفوفة[فهرس] أو خريطة["مفتاح"]
+    // (EN) Index access: array[index] or map["key"]
+    // ========================================================================
+    if (auto indexExpr = dynamic_cast<Sad::AST::IndexExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found IndexExpr" << std::endl;
+        #endif
+        
+        // (AR) بناء تعبير الكائن وتعبير الفهرس
+        // (EN) Build object expression and index expression
+        auto objResult = buildExpression(indexExpr->object.get());
+        auto idxResult = buildExpression(indexExpr->index.get());
+        
+        // (AR) تعليمة Take للوصول بالفهرس
+        // (EN) Take instruction for indexed access
+        std::string resultReg = newTempRegister();
+        SIRInstruction takeInst;
+        takeInst.opcode = SIROpcode::LOAD;
+        takeInst.result = SIROperand::Register(resultReg, SIRType::I64);
+        takeInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+        takeInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
+        takeInst.comment = "index access";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(takeInst);
+        }
+        
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // ========================================================================
+    // (AR) MemberAssignExpr - إسناد لعضو: كائن.حقل = قيمة
+    // (EN) Member assignment: obj.field = value
+    // ========================================================================
+    if (auto memberAssignExpr = dynamic_cast<Sad::AST::MemberAssignExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found MemberAssignExpr" << std::endl;
+        #endif
+        
+        // (AR) بناء تعبير الكائن والقيمة
+        // (EN) Build object expression and value
+        auto objResult = buildExpression(memberAssignExpr->object.get());
+        auto valResult = buildExpression(memberAssignExpr->value.get());
+        
+        // (AR) تعليمة STORE لتخزين القيمة في العضو
+        // (EN) STORE instruction to store value in member
+        SIRInstruction storeInst;
+        storeInst.opcode = SIROpcode::STORE;
+        storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+        storeInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+        storeInst.operands.push_back(SIROperand::ConstantString(memberAssignExpr->member));
+        storeInst.comment = "member assign: " + memberAssignExpr->member;
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(storeInst);
+        }
+        
+        return BuildResult(valResult.registerName, valResult.type);
+    }
+    
+    // ========================================================================
+    // (AR) IndexAssignExpr - إسناد بالفهرس: مصفوفة[فهرس] = قيمة
+    // (EN) Index assignment: array[index] = value
+    // ========================================================================
+    if (auto indexAssignExpr = dynamic_cast<Sad::AST::IndexAssignExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found IndexAssignExpr" << std::endl;
+        #endif
+        
+        // (AR) بناء تعابير الكائن والفهرس والقيمة
+        // (EN) Build object, index, and value expressions
+        auto objResult = buildExpression(indexAssignExpr->object.get());
+        auto idxResult = buildExpression(indexAssignExpr->index.get());
+        auto valResult = buildExpression(indexAssignExpr->value.get());
+        
+        // (AR) تعليمة STORE لتخزين القيمة في موضع الفهرس
+        // (EN) STORE instruction to store value at index position
+        SIRInstruction storeInst;
+        storeInst.opcode = SIROpcode::STORE;
+        storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+        storeInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+        storeInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
+        storeInst.comment = "index assign";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(storeInst);
+        }
+        
+        return BuildResult(valResult.registerName, valResult.type);
+    }
+    
+    // ========================================================================
+    // (AR) ArrayExpr - مصفوفة حرفية: [1، 2، 3]
+    // (EN) Array literal: [1, 2, 3]
+    // ========================================================================
+    if (auto arrayExpr = dynamic_cast<Sad::AST::ArrayExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found ArrayExpr with " 
+                  << arrayExpr->elements.size() << " elements" << std::endl;
+        #endif
+        
+        // (AR) تخصيص مصفوفة جديدة
+        // (EN) Allocate new array
+        std::string arrReg = newTempRegister();
+        SIRInstruction allocInst;
+        allocInst.opcode = SIROpcode::ALLOC;
+        allocInst.result = SIROperand::Register(arrReg, SIRType::ARRAY);
+        allocInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(arrayExpr->elements.size())));
+        allocInst.comment = "array alloc [" + std::to_string(arrayExpr->elements.size()) + "]";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(allocInst);
+        }
+        
+        // (AR) تخزين العناصر واحداً تلو الآخر
+        // (EN) Store elements one by one
+        for (size_t i = 0; i < arrayExpr->elements.size(); ++i) {
+            auto elemResult = buildExpression(arrayExpr->elements[i].get());
+            
+            // (AR) تجسيد الثوابت قبل تخزينها (نفس الإصلاح المُطبَّق على MapExpr)
+            // (EN) Materialize constants before storing (same fix applied to MapExpr)
+            if (elemResult.isConstant && currentBlock_) {
+                std::string reg = newTempRegister();
+                elemResult.registerName = reg;
+                SIRInstruction moveInst(SIROpcode::MOVE);
+                moveInst.result = SIROperand::Register(reg, elemResult.type);
+                if (elemResult.type == SIRType::STRING) {
+                    moveInst.operands.push_back(SIROperand::ConstantString(elemResult.constantValue));
+                } else if (elemResult.type == SIRType::F64) {
+                    moveInst.operands.push_back(SIROperand::ConstantF64(std::stod(elemResult.constantValue)));
+                } else if (elemResult.type == SIRType::BOOL) {
+                    moveInst.operands.push_back(SIROperand::ConstantBool(elemResult.constantValue == "true" || elemResult.constantValue == "1"));
+                } else {
+                    try { moveInst.operands.push_back(SIROperand::ConstantI64(std::stoll(elemResult.constantValue))); }
+                    catch (...) { moveInst.operands.push_back(SIROperand::ConstantI64(0)); }
+                }
+                currentBlock_->addInstruction(moveInst);
+                elemResult.isConstant = false;
+            }
+            
+            SIRInstruction storeInst;
+            storeInst.opcode = SIROpcode::STORE;
+            storeInst.operands.push_back(SIROperand::Register(elemResult.registerName, elemResult.type));
+            storeInst.operands.push_back(SIROperand::Register(arrReg, SIRType::ARRAY));
+            storeInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i)));
+            storeInst.comment = "array[" + std::to_string(i) + "] = ...";
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(storeInst);
+            }
+        }
+        
+        BuildResult result(arrReg, SIRType::ARRAY);
+        if (!arrayExpr->elements.empty()) {
+            // (AR) استنتاج نوع العنصر من العنصر الأول
+            // (EN) Infer element type from first element
+            auto firstElem = buildExpression(arrayExpr->elements[0].get());
+            result.elementType = firstElem.type;
+        }
+        return result;
+    }
+    
+    // ========================================================================
+    // (AR) MapExpr - قاموس حرفي: {"مفتاح": قيمة}
+    // (EN) Map literal: {"key": value}
+    // ========================================================================
+    if (auto mapExpr = dynamic_cast<Sad::AST::MapExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found MapExpr with " 
+                  << mapExpr->pairs.size() << " pairs" << std::endl;
+        #endif
+        
+        // (AR) تخصيص خريطة جديدة
+        // (EN) Allocate new map
+        std::string mapReg = newTempRegister();
+        SIRInstruction allocInst;
+        allocInst.opcode = SIROpcode::ALLOC;
+        allocInst.result = SIROperand::Register(mapReg, SIRType::STRUCT);
+        allocInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(mapExpr->pairs.size())));
+        allocInst.comment = "map alloc {" + std::to_string(mapExpr->pairs.size()) + " pairs}";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(allocInst);
+        }
+        
+        // (AR) تخزين الأزواج (مفتاح، قيمة)
+        // (EN) Store key-value pairs
+        for (size_t i = 0; i < mapExpr->pairs.size(); ++i) {
+            auto keyResult = buildExpression(mapExpr->pairs[i].key.get());
+            auto valResult = buildExpression(mapExpr->pairs[i].value.get());
+            
+            // (AR) دالة مساعدة: تحويل BuildResult إلى SIROperand مع معالجة الثوابت
+            // (EN) Helper: convert BuildResult to SIROperand, handling constants properly
+            // When isConstant=true, registerName is empty and constantValue holds the data.
+            // We must emit a MOVE instruction to materialize the constant into a named register,
+            // because emitStore resolves operands by register name lookup in namedValues.
+            auto materializeResult = [&](BuildResult& res) -> SIROperand {
+                if (res.isConstant) {
+                    // Emit MOVE to materialize constant into a fresh register
+                    std::string reg = newTempRegister();
+                    res.registerName = reg;
+                    SIRInstruction moveInst(SIROpcode::MOVE);
+                    moveInst.result = SIROperand::Register(reg, res.type);
+                    if (res.type == SIRType::STRING) {
+                        moveInst.operands.push_back(SIROperand::ConstantString(res.constantValue));
+                    } else if (res.type == SIRType::F64) {
+                        moveInst.operands.push_back(SIROperand::ConstantF64(std::stod(res.constantValue)));
+                    } else if (res.type == SIRType::BOOL) {
+                        moveInst.operands.push_back(SIROperand::ConstantBool(res.constantValue == "true" || res.constantValue == "1"));
+                    } else {
+                        // I64 or default
+                        try {
+                            moveInst.operands.push_back(SIROperand::ConstantI64(std::stoll(res.constantValue)));
+                        } catch (...) {
+                            moveInst.operands.push_back(SIROperand::ConstantI64(0));
+                        }
+                    }
+                    if (currentBlock_) {
+                        currentBlock_->addInstruction(moveInst);
+                    }
+                    res.isConstant = false;
+                }
+                return SIROperand::Register(res.registerName, res.type);
+            };
+            
+            SIROperand keyOp = materializeResult(keyResult);
+            SIROperand valOp = materializeResult(valResult);
+            
+            // (AR) تخزين المفتاح
+            // (EN) Store key
+            SIRInstruction storeKeyInst;
+            storeKeyInst.opcode = SIROpcode::STORE;
+            storeKeyInst.operands.push_back(keyOp);
+            storeKeyInst.operands.push_back(SIROperand::Register(mapReg, SIRType::STRUCT));
+            storeKeyInst.operands.push_back(SIROperand::ConstantString("key_" + std::to_string(i)));
+            storeKeyInst.comment = "map key[" + std::to_string(i) + "]";
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(storeKeyInst);
+            }
+            
+            // (AR) تخزين القيمة
+            // (EN) Store value
+            SIRInstruction storeValInst;
+            storeValInst.opcode = SIROpcode::STORE;
+            storeValInst.operands.push_back(valOp);
+            storeValInst.operands.push_back(SIROperand::Register(mapReg, SIRType::STRUCT));
+            storeValInst.operands.push_back(SIROperand::ConstantString("val_" + std::to_string(i)));
+            storeValInst.comment = "map val[" + std::to_string(i) + "]";
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(storeValInst);
+            }
+        }
+        
+        return BuildResult(mapReg, SIRType::STRUCT);
+    }
+    
+    // ========================================================================
+    // (AR) WalrusExpr - عامل Walrus: (متغير := قيمة)
+    // (EN) Walrus operator: (var := expr)
+    // ========================================================================
+    if (auto walrusExpr = dynamic_cast<Sad::AST::WalrusExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found WalrusExpr: " << walrusExpr->variable << std::endl;
+        #endif
+        
+        // (AR) بناء تعبير القيمة
+        // (EN) Build value expression
+        auto valResult = buildExpression(walrusExpr->value.get());
+        
+        // (AR) تخصيص متغير جديد وتخزين القيمة فيه
+        // (EN) Allocate new variable and store value
+        std::string varReg = newTempRegister();
+        
+        SIRInstruction allocInst;
+        allocInst.opcode = SIROpcode::ALLOC;
+        allocInst.result = SIROperand::Register(varReg, valResult.type);
+        allocInst.operands.push_back(SIROperand::ConstantI64(1));
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(allocInst);
+        }
+        
+        SIRInstruction storeInst;
+        storeInst.opcode = SIROpcode::STORE;
+        storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+        storeInst.operands.push_back(SIROperand::Register(varReg, valResult.type));
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(storeInst);
+        }
+        
+        // (AR) تسجيل المتغير في النطاق الحالي
+        // (EN) Register variable in current scope
+        VariableInfo varInfo;
+        varInfo.name = walrusExpr->variable;
+        varInfo.type = valResult.type;
+        varInfo.registerName = varReg;
+        varInfo.isMutable = true;
+        varInfo.scopeLevel = currentScopeLevel_;
+        addVariable(varInfo);
+        
+        // (AR) Walrus يرجع القيمة نفسها
+        // (EN) Walrus returns the value itself
+        return BuildResult(valResult.registerName, valResult.type);
+    }
+    
+    // ========================================================================
+    // (AR) LambdaExpr - دالة مجهولة: (س) => س * 2
+    // (EN) Lambda expression: (x) => x * 2
+    // ========================================================================
+    if (auto lambdaExpr = dynamic_cast<Sad::AST::LambdaExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found LambdaExpr with " 
+                  << lambdaExpr->parameters.size() << " params" << std::endl;
+        #endif
+        
+        // (AR) إنشاء اسم فريد للدالة المجهولة
+        // (EN) Create unique name for anonymous function
+        std::string lambdaName = "__lambda_" + std::to_string(nextTempRegister_++);
+        
+        // (AR) بناء معاملات الدالة
+        // (EN) Build function parameters
+        std::vector<SIRParameter> sirParams;
+        for (const auto& param : lambdaExpr->parameters) {
+            SIRType paramType = SIRType::I64; // (AR) نوع افتراضي / (EN) Default type
+            sirParams.push_back(SIRParameter(param.name, paramType));
+        }
+        
+        // (AR) إنشاء دالة SIR للـ lambda
+        // (EN) Create SIR function for lambda
+        auto lambdaFunc = std::make_shared<SIRFunction>(lambdaName, SIRType::I64);
+        for (const auto& lp : sirParams) lambdaFunc->addParameter(lp);
+        
+        // (AR) حفظ السياق الحالي
+        // (EN) Save current context
+        auto savedFunction = currentFunction_;
+        auto savedBlock = currentBlock_;
+        
+        // (AR) تعيين سياق الدالة الجديدة
+        // (EN) Set new function context
+        currentFunction_ = lambdaFunc;
+        auto entryBlock = createBasicBlock("lambda_entry");
+        lambdaFunc->addBasicBlock(entryBlock);
+        currentBlock_ = entryBlock;
+        
+        enterScope();
+        
+        // (AR) تسجيل المعاملات كمتغيرات محلية
+        // (EN) Register parameters as local variables
+        for (size_t i = 0; i < lambdaExpr->parameters.size(); ++i) {
+            std::string paramReg = "%" + lambdaExpr->parameters[i].name;
+            VariableInfo paramVar;
+            paramVar.name = lambdaExpr->parameters[i].name;
+            paramVar.type = SIRType::I64;
+            paramVar.registerName = paramReg;
+            paramVar.isMutable = false;
+            paramVar.scopeLevel = currentScopeLevel_;
+            addVariable(paramVar);
+        }
+        
+        // (AR) بناء جسم الـ lambda (تعبير واحد)
+        // (EN) Build lambda body (single expression)
+        if (lambdaExpr->body) {
+            auto bodyResult = buildExpression(lambdaExpr->body.get());
+            // (AR) إرجاع النتيجة تلقائياً
+            // (EN) Automatically return the result
+            SIRInstruction retInst;
+            retInst.opcode = SIROpcode::RET;
+            retInst.operands.push_back(SIROperand::Register(bodyResult.registerName, bodyResult.type));
+            if (currentBlock_) {
+                currentBlock_->addInstruction(retInst);
+            }
+        }
+        
+        exitScope();
+        
+        // (AR) إضافة الدالة للوحدة
+        // (EN) Add function to module
+        if (module_) {
+            module_->addFunction(lambdaFunc);
+        }
+        
+        // (AR) استعادة السياق السابق
+        // (EN) Restore previous context
+        currentFunction_ = savedFunction;
+        currentBlock_ = savedBlock;
+        
+        // (AR) إرجاع مؤشر للدالة
+        // (EN) Return function pointer
+        std::string resultReg = newTempRegister();
+        BuildResult result(resultReg, SIRType::FUNCTION);
+        result.constantValue = lambdaName;
+        return result;
+    }
+    
+    // ========================================================================
+    // (AR) RangeExpr - تعبير المدى: بداية..نهاية
+    // (EN) Range expression: start..end
+    // ========================================================================
+    if (auto rangeExpr = dynamic_cast<Sad::AST::RangeExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found RangeExpr" << std::endl;
+        #endif
+        
+        // (AR) بناء بداية ونهاية المدى
+        // (EN) Build range start and end
+        auto startResult = buildExpression(rangeExpr->start.get());
+        auto endResult = buildExpression(rangeExpr->end.get());
+        
+        // (AR) تمثيل المدى كخريطة بسيطة تحتوي على بداية ونهاية
+        // (EN) Represent range as a simple struct with start and end
+        std::string rangeReg = newTempRegister();
+        SIRInstruction allocInst;
+        allocInst.opcode = SIROpcode::ALLOC;
+        allocInst.result = SIROperand::Register(rangeReg, SIRType::STRUCT);
+        allocInst.operands.push_back(SIROperand::ConstantI64(2));
+        allocInst.comment = "range alloc";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(allocInst);
+        }
+        
+        // (AR) تخزين البداية
+        // (EN) Store start
+        SIRInstruction storeStartInst;
+        storeStartInst.opcode = SIROpcode::STORE;
+        storeStartInst.operands.push_back(SIROperand::Register(startResult.registerName, startResult.type));
+        storeStartInst.operands.push_back(SIROperand::Register(rangeReg, SIRType::STRUCT));
+        storeStartInst.operands.push_back(SIROperand::ConstantString("start"));
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(storeStartInst);
+        }
+        
+        // (AR) تخزين النهاية
+        // (EN) Store end
+        SIRInstruction storeEndInst;
+        storeEndInst.opcode = SIROpcode::STORE;
+        storeEndInst.operands.push_back(SIROperand::Register(endResult.registerName, endResult.type));
+        storeEndInst.operands.push_back(SIROperand::Register(rangeReg, SIRType::STRUCT));
+        storeEndInst.operands.push_back(SIROperand::ConstantString("end"));
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(storeEndInst);
+        }
+        
+        return BuildResult(rangeReg, SIRType::STRUCT);
+    }
+    
+    // ========================================================================
+    // (AR) ListComprehensionExpr - استيعاب قائمي: [س*2 لكل س في قائمة]
+    // (EN) List comprehension: [x*2 for x in list]
+    // ========================================================================
+    if (auto listCompExpr = dynamic_cast<Sad::AST::ListComprehensionExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found ListComprehensionExpr" << std::endl;
+        #endif
+        
+        // (AR) تخصيص مصفوفة النتيجة
+        // (EN) Allocate result array
+        std::string resultArrReg = newTempRegister();
+        SIRInstruction allocInst;
+        allocInst.opcode = SIROpcode::ALLOC;
+        allocInst.result = SIROperand::Register(resultArrReg, SIRType::ARRAY);
+        allocInst.operands.push_back(SIROperand::ConstantI64(0));
+        allocInst.comment = "list comprehension result";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(allocInst);
+        }
+        
+        // (AR) بناء التعبير القابل للتكرار
+        // (EN) Build iterable expression
+        auto iterResult = buildExpression(listCompExpr->iterable.get());
+        
+        // (AR) إنشاء حلقة للتكرار (تُترجم إلى حلقة عداد)
+        // (EN) Create iteration loop (lowered to counter loop)
+        std::string idxReg = newTempRegister();
+        SIRInstruction allocIdx;
+        allocIdx.opcode = SIROpcode::ALLOC;
+        allocIdx.result = SIROperand::Register(idxReg, SIRType::I64);
+        allocIdx.operands.push_back(SIROperand::ConstantI64(1));
+        if (currentBlock_) currentBlock_->addInstruction(allocIdx);
+        
+        SIRInstruction storeZero;
+        storeZero.opcode = SIROpcode::STORE;
+        storeZero.operands.push_back(SIROperand::ConstantI64(0));
+        storeZero.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(storeZero);
+        
+        // (AR) كتل الحلقة
+        // (EN) Loop blocks
+        std::string condLabel = newLabel("lc_cond");
+        std::string bodyLabel = newLabel("lc_body");
+        std::string exitLabel = newLabel("lc_exit");
+        
+        auto condBlock = createBasicBlock(condLabel);
+        auto bodyBlock = createBasicBlock(bodyLabel);
+        auto exitBlock = createBasicBlock(exitLabel);
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
+        }
+        
+        // (AR) كتلة الشرط — مقارنة العداد مع طول القائمة
+        // (EN) Condition block — compare counter to list length
+        if (currentFunction_) currentFunction_->addBasicBlock(condBlock);
+        currentBlock_ = condBlock;
+        
+        // (AR) تحميل العداد الحالي
+        // (EN) Load current counter
+        std::string curIdxReg = newTempRegister();
+        SIRInstruction loadIdx;
+        loadIdx.opcode = SIROpcode::LOAD;
+        loadIdx.result = SIROperand::Register(curIdxReg, SIRType::I64);
+        loadIdx.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(loadIdx);
+        
+        // (AR) للتبسيط: نستخدم استدعاء طول runtime
+        // (EN) Simplified: use runtime length call
+        std::string lenReg = newTempRegister();
+        SIRInstruction callLen;
+        callLen.opcode = SIROpcode::CALL;
+        callLen.result = SIROperand::Register(lenReg, SIRType::I64);
+        callLen.operands.push_back(SIROperand::ConstantString("__sad_len"));
+        callLen.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+        if (currentBlock_) currentBlock_->addInstruction(callLen);
+        
+        std::string cmpReg = newTempRegister();
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Binary(
+                SIROpcode::LT,
+                SIROperand::Register(cmpReg, SIRType::BOOL),
+                SIROperand::Register(curIdxReg, SIRType::I64),
+                SIROperand::Register(lenReg, SIRType::I64)
+            ));
+            currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                SIROperand::Register(cmpReg, SIRType::BOOL),
+                SIROperand::Label(bodyLabel),
+                SIROperand::Label(exitLabel)
+            ));
+        }
+        
+        // (AR) كتلة الجسم
+        // (EN) Body block
+        if (currentFunction_) currentFunction_->addBasicBlock(bodyBlock);
+        currentBlock_ = bodyBlock;
+        
+        enterScope();
+        
+        // (AR) تحميل العنصر الحالي وتسجيل متغير الحلقة
+        // (EN) Load current element and register loop variable
+        std::string elemReg = newTempRegister();
+        SIRInstruction loadElem;
+        loadElem.opcode = SIROpcode::LOAD;
+        loadElem.result = SIROperand::Register(elemReg, SIRType::I64);
+        loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+        loadElem.operands.push_back(SIROperand::Register(curIdxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(loadElem);
+        
+        VariableInfo loopVar;
+        loopVar.name = listCompExpr->variable;
+        loopVar.type = SIRType::I64;
+        loopVar.registerName = elemReg;
+        loopVar.isMutable = false;
+        loopVar.scopeLevel = currentScopeLevel_;
+        addVariable(loopVar);
+        
+        // (AR) فحص الشرط (إن وجد)
+        // (EN) Check condition (if present)
+        bool hasCondition = (listCompExpr->condition != nullptr);
+        std::string storeLabel, incLabel;
+        
+        if (hasCondition) {
+            storeLabel = newLabel("lc_store");
+            incLabel = newLabel("lc_inc");
+            
+            auto condResult = buildExpression(listCompExpr->condition.get());
+            auto storeBlock2 = createBasicBlock(storeLabel);
+            auto incBlock = createBasicBlock(incLabel);
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                    SIROperand::Register(condResult.registerName, SIRType::BOOL),
+                    SIROperand::Label(storeLabel),
+                    SIROperand::Label(incLabel)
+                ));
+            }
+            
+            if (currentFunction_) currentFunction_->addBasicBlock(storeBlock2);
+            currentBlock_ = storeBlock2;
+        }
+        
+        // (AR) بناء تعبير العنصر وإضافته للمصفوفة
+        // (EN) Build element expression and append to array
+        auto elemExprResult = buildExpression(listCompExpr->element.get());
+        
+        SIRInstruction appendInst;
+        appendInst.opcode = SIROpcode::CALL;
+        appendInst.operands.push_back(SIROperand::ConstantString("__sad_array_push"));
+        appendInst.operands.push_back(SIROperand::Register(resultArrReg, SIRType::ARRAY));
+        appendInst.operands.push_back(SIROperand::Register(elemExprResult.registerName, elemExprResult.type));
+        if (currentBlock_) currentBlock_->addInstruction(appendInst);
+        
+        if (hasCondition) {
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(incLabel)));
+            }
+            // (AR) كتلة زيادة العداد
+            // (EN) Increment block  
+            auto incBlock2 = createBasicBlock(incLabel);
+            if (currentFunction_) currentFunction_->addBasicBlock(incBlock2);
+            currentBlock_ = incBlock2;
+        }
+        
+        // (AR) زيادة العداد
+        // (EN) Increment counter
+        std::string nextIdxReg = newTempRegister();
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Binary(
+                SIROpcode::ADD_I64,
+                SIROperand::Register(nextIdxReg, SIRType::I64),
+                SIROperand::Register(curIdxReg, SIRType::I64),
+                SIROperand::ConstantI64(1)
+            ));
+            
+            SIRInstruction storeIdx;
+            storeIdx.opcode = SIROpcode::STORE;
+            storeIdx.operands.push_back(SIROperand::Register(nextIdxReg, SIRType::I64));
+            storeIdx.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+            currentBlock_->addInstruction(storeIdx);
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
+        }
+        
+        exitScope();
+        
+        // (AR) كتلة الخروج
+        // (EN) Exit block
+        if (currentFunction_) currentFunction_->addBasicBlock(exitBlock);
+        currentBlock_ = exitBlock;
+        
+        return BuildResult(resultArrReg, SIRType::ARRAY);
+    }
+    
+    // ========================================================================
+    // (AR) DictComprehensionExpr - استيعاب قاموسي: {س: س**2 لكل س في قائمة}
+    // (EN) Dict comprehension: {x: x**2 for x in list}
+    // ========================================================================
+    if (auto dictCompExpr = dynamic_cast<Sad::AST::DictComprehensionExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found DictComprehensionExpr" << std::endl;
+        #endif
+        
+        // (AR) تخصيص خريطة النتيجة
+        // (EN) Allocate result map
+        std::string resultMapReg = newTempRegister();
+        SIRInstruction allocInst;
+        allocInst.opcode = SIROpcode::ALLOC;
+        allocInst.result = SIROperand::Register(resultMapReg, SIRType::STRUCT);
+        allocInst.operands.push_back(SIROperand::ConstantI64(0));
+        allocInst.comment = "dict comprehension result";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(allocInst);
+        }
+        
+        // (AR) بناء التعبير القابل للتكرار واستدعاء حلقة runtime
+        // (EN) Build iterable and invoke runtime loop
+        auto iterResult = buildExpression(dictCompExpr->iterable.get());
+        
+        // (AR) حلقة مبسطة مع runtime
+        // (EN) Simplified loop with runtime
+        SIRInstruction loopInst;
+        loopInst.opcode = SIROpcode::CALL;
+        loopInst.operands.push_back(SIROperand::ConstantString("__sad_dict_comprehension"));
+        loopInst.operands.push_back(SIROperand::Register(resultMapReg, SIRType::STRUCT));
+        loopInst.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+        loopInst.comment = "dict comprehension loop";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(loopInst);
+        }
+        
+        return BuildResult(resultMapReg, SIRType::STRUCT);
+    }
+    
+    // ========================================================================
+    // (AR) SetComprehensionExpr - استيعاب مجموعة: {س لكل س في قائمة}
+    // (EN) Set comprehension: {x for x in list}
+    // ========================================================================
+    if (auto setCompExpr = dynamic_cast<Sad::AST::SetComprehensionExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found SetComprehensionExpr" << std::endl;
+        #endif
+        
+        std::string resultSetReg = newTempRegister();
+        SIRInstruction allocInst;
+        allocInst.opcode = SIROpcode::ALLOC;
+        allocInst.result = SIROperand::Register(resultSetReg, SIRType::STRUCT);
+        allocInst.operands.push_back(SIROperand::ConstantI64(0));
+        allocInst.comment = "set comprehension result";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(allocInst);
+        }
+        
+        auto iterResult = buildExpression(setCompExpr->iterable.get());
+        
+        SIRInstruction loopInst;
+        loopInst.opcode = SIROpcode::CALL;
+        loopInst.operands.push_back(SIROperand::ConstantString("__sad_set_comprehension"));
+        loopInst.operands.push_back(SIROperand::Register(resultSetReg, SIRType::STRUCT));
+        loopInst.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+        loopInst.comment = "set comprehension loop";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(loopInst);
+        }
+        
+        return BuildResult(resultSetReg, SIRType::STRUCT);
+    }
+    
+    // ========================================================================
+    // (AR) GeneratorExpr - مولّد: (س*2 لكل س في قائمة)
+    // (EN) Generator expression: (x*2 for x in list)
+    // ========================================================================
+    if (auto genExpr = dynamic_cast<Sad::AST::GeneratorExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found GeneratorExpr" << std::endl;
+        #endif
+        
+        // (AR) المولّد يُخفّض إلى دالة مجهولة تُنشئ مصفوفة كسولة
+        // (EN) Generator is lowered to an anonymous fn producing a lazy array
+        std::string genReg = newTempRegister();
+        SIRInstruction allocInst;
+        allocInst.opcode = SIROpcode::ALLOC;
+        allocInst.result = SIROperand::Register(genReg, SIRType::FUNCTION);
+        allocInst.operands.push_back(SIROperand::ConstantI64(0));
+        allocInst.comment = "generator expression";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(allocInst);
+        }
+        
+        return BuildResult(genReg, SIRType::FUNCTION);
+    }
+    
+    // ========================================================================
+    // (AR) DecoratorExpr - مُزخرف: @decorator
+    // (EN) Decorator expression: @decorator
+    // ========================================================================
+    if (auto decoratorExpr = dynamic_cast<Sad::AST::DecoratorExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found DecoratorExpr: " << decoratorExpr->name << std::endl;
+        #endif
+        
+        // (AR) المُزخرف يُحوّل لاستدعاء دالة بالاسم
+        // (EN) Decorator is lowered to a function call by name
+        std::string resultReg = newTempRegister();
+        SIRInstruction callInst;
+        callInst.opcode = SIROpcode::CALL;
+        callInst.result = SIROperand::Register(resultReg, SIRType::FUNCTION);
+        callInst.operands.push_back(SIROperand::ConstantString(decoratorExpr->name));
+        
+        // (AR) إضافة الوسائط إن وُجدت
+        // (EN) Add arguments if present
+        if (decoratorExpr->hasArguments) {
+            for (const auto& arg : decoratorExpr->arguments) {
+                auto argResult = buildExpression(arg.get());
+                callInst.operands.push_back(SIROperand::Register(argResult.registerName, argResult.type));
+            }
+        }
+        callInst.comment = "decorator: " + decoratorExpr->name;
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(callInst);
+        }
+        
+        return BuildResult(resultReg, SIRType::FUNCTION);
+    }
+    
+    // ========================================================================
+    // (AR) BorrowExpr - استعارة: &متغير أو &mut متغير
+    // (EN) Borrow expression: &var or &mut var
+    // ========================================================================
+    if (auto borrowExpr = dynamic_cast<Sad::AST::BorrowExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found BorrowExpr: " << borrowExpr->variableName << std::endl;
+        #endif
+        
+        // (AR) البحث عن المتغير المُستعار
+        // (EN) Look up the borrowed variable
+        VariableInfo* varInfo = lookupVariable(borrowExpr->variableName);
+        std::string sourceReg = varInfo ? varInfo->registerName : "%" + borrowExpr->variableName;
+        SIRType sourceType = varInfo ? varInfo->type : SIRType::I64;
+        
+        std::string resultReg = newTempRegister();
+        SIRInstruction borrowInst;
+        // (AR) استعارة تُترجم إلى أخذ عنوان (ADDR) — SIR لا يحتوي BORROW مباشرة
+        // (EN) Borrow lowered to address-of (ADDR) — SIR has no direct BORROW opcode
+        borrowInst.opcode = SIROpcode::ADDR;
+        borrowInst.result = SIROperand::Register(resultReg, SIRType::PTR);
+        borrowInst.operands.push_back(SIROperand::Register(sourceReg, sourceType));
+        borrowInst.comment = borrowExpr->isMutable ? "borrow_mut" : "borrow";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(borrowInst);
+        }
+        
+        return BuildResult(resultReg, SIRType::PTR);
+    }
+    
+    // ========================================================================
+    // (AR) TemplateInstantiation - إنشاء نسخة من قالب: صندوق<رقم>(42)
+    // (EN) Template instantiation: Box<int>(42)
+    // ========================================================================
+    if (auto templateInst = dynamic_cast<Sad::AST::TemplateInstantiation*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found TemplateInstantiation: " 
+                  << templateInst->templateName << std::endl;
+        #endif
+        
+        // (AR) تحويل أنواع القالب إلى SIRType
+        // (EN) Convert template type arguments to SIRType
+        std::vector<SIRType> typeArgs;
+        for (const auto& arg : templateInst->typeArguments) {
+            typeArgs.push_back(astTypeToSIRType(arg));
+        }
+        
+        // (AR) محاولة إنشاء نسخة من القالب
+        // (EN) Attempt to instantiate the template
+        std::string instName = instantiateTemplate(templateInst->templateName, typeArgs);
+        
+        // (AR) استدعاء الدالة/الصنف المُنشأ بدون وسائط (القالب لا يحمل وسائط قيم)
+        // (EN) Call the instantiated function/class with no args (template has no value args)
+        std::string resultReg = newTempRegister();
+        SIRInstruction callInst = SIRInstruction::Call(
+            SIROperand::Register(resultReg, SIRType::I64),
+            SIROperand::ConstantString(instName),
+            {}
+        );
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(callInst);
+        }
+        
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // ========================================================================
+    // (AR) InlineAsmExpr - تعبير تجميع مضمّن (expressions.h:InlineAsmExpr)
+    // (EN) Inline assembly expression — emit inline asm via runtime call
+    // ========================================================================
+    if (auto inlineAsm = dynamic_cast<Sad::AST::InlineAsmExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found InlineAsmExpr" << std::endl;
+        #endif
+        
+        // (AR) تمرير كود التجميع كنص إلى دالة تشغيلية __sad_inline_asm
+        // (EN) Pass assembly code string to runtime function __sad_inline_asm
+        std::string resultReg = newTempRegister();
+        std::vector<SIROperand> args;
+        args.push_back(SIROperand::ConstantString(inlineAsm->asmCode));
+        args.push_back(SIROperand::ConstantString(inlineAsm->outputConstraints));
+        args.push_back(SIROperand::ConstantString(inlineAsm->inputConstraints));
+        args.push_back(SIROperand::ConstantString(inlineAsm->clobbers));
+        args.push_back(SIROperand::ConstantBool(inlineAsm->isVolatile));
+        
+        SIRInstruction callInst = SIRInstruction::Call(
+            SIROperand::Register(resultReg, SIRType::I64),
+            SIROperand::ConstantString("__sad_inline_asm"),
+            args
+        );
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(callInst);
+        }
+        
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // ========================================================================
+    // (AR) AwaitExpr - تعبير الانتظار (advanced_expr_nodes.h:AwaitExpr)
+    // (EN) Await expression — lowered to runtime coroutine resume call
+    // ========================================================================
+    if (auto awaitExpr = dynamic_cast<Sad::AST::AwaitExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found AwaitExpr" << std::endl;
+        #endif
+        
+        // (AR) بناء التعبير الداخلي (الوعد/المولد)
+        // (EN) Build inner expression (promise/generator)
+        auto innerResult = buildExpression(awaitExpr->expression.get());
+        
+        // (AR) استدعاء __sad_await لحل الوعد
+        // (EN) Call __sad_await to resolve the promise
+        std::string resultReg = newTempRegister();
+        std::vector<SIROperand> args;
+        args.push_back(SIROperand::Register(innerResult.registerName, innerResult.type));
+        
+        SIRInstruction callInst = SIRInstruction::Call(
+            SIROperand::Register(resultReg, innerResult.type),
+            SIROperand::ConstantString("__sad_await"),
+            args
+        );
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(callInst);
+        }
+        
+        return BuildResult(resultReg, innerResult.type);
+    }
+    
     // (AR) تعبير غير معروف - نرجع قيمة افتراضية
     // (EN) Unknown expression - return default
+    #ifndef NDEBUG
+    std::cout << "[WARNING] buildExpression: unhandled expression type: " 
+              << typeid(*expr).name() << std::endl;
+    #endif
     return BuildResult();
 }
 
@@ -3689,24 +5858,32 @@ BuildResult SIRBuilder::buildLiteral(AST::LiteralNode* literal) {
 // ============================================================================
 BuildResult SIRBuilder::buildVariableAccess(AST::VariableNode* var) {
     if (!var) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildVariableAccess: var is null!" << std::endl;
+        #endif
         return BuildResult();
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildVariableAccess: looking up variable '" << var->name << "'" << std::endl;
+    #endif
     
     // (AR) البحث عن المتغير في النطاقات (expressions.h:208 - name member)
     // (EN) Lookup variable in scopes
     VariableInfo* varInfo = lookupVariable(var->name);
     
     if (!varInfo) {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildVariableAccess: variable NOT FOUND!" << std::endl;
+        #endif
         errors_.push_back("Error: Undefined variable '" + var->name + "'");
         return BuildResult();
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildVariableAccess: found variable, registerName='" 
               << varInfo->registerName << "', type=" << static_cast<int>(varInfo->type) << std::endl;
+    #endif
     
     // (AR) إرجاع معلومات المتغير (sir_builder.h:139 - VariableInfo struct)
     // (EN) Return variable information
@@ -3753,21 +5930,27 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
         return BuildResult();
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildBinaryOp: بدء بناء عملية ثنائية" << std::endl;
+    #endif
     
     // (AR) بناء المعامل الأيسر (expressions.h:42 - left: ExprPtr)
     // (EN) Build left operand
     auto leftResult = buildExpression(binOp->left.get());
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildBinaryOp: leftResult.registerName='" << leftResult.registerName 
               << "', type=" << static_cast<int>(leftResult.type) 
               << ", isConstant=" << leftResult.isConstant << std::endl;
+    #endif
     
     // (AR) بناء المعامل الأيمن (expressions.h:44 - right: ExprPtr)
     // (EN) Build right operand
     auto rightResult = buildExpression(binOp->right.get());
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildBinaryOp: rightResult.registerName='" << rightResult.registerName 
               << "', type=" << static_cast<int>(rightResult.type) 
               << ", isConstant=" << rightResult.isConstant << std::endl;
+    #endif
     
     // ================================================================
     // (AR) تحميل المعاملات الزائد: إذا كان المعامل الأيسر كائن، استدعاء دالة العامل
@@ -3825,8 +6008,10 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
             }
             
             if (found) {
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildBinaryOp: dispatching to operator overload '" 
                           << fullOpName << "'" << std::endl;
+                #endif
                 
                 std::string resultReg = newTempRegister();
                 auto& opInfo = functionTable_[fullOpName];
@@ -3899,44 +6084,58 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
             // (EN) If operation on strings: STRING_CONCAT
             if (isStringOp) {
                 opcode = SIROpcode::STRING_CONCAT;
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildBinaryOp: عملية دمج نصوص (+)" << std::endl;
+                #endif
             } else {
                 // (AR) جمع: ADD_I64 للأعداد الصحيحة، ADD_F64 للعشرية
                 opcode = (resultType == SIRType::F64) ? SIROpcode::ADD_F64 : SIROpcode::ADD_I64;
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildBinaryOp: عملية جمع (+)" << std::endl;
+                #endif
             }
             break;
             
         case Lexer::TokenType::OP_MINUS:
             // (AR) طرح: SUB_I64 للأعداد الصحيحة، SUB_F64 للعشرية
             opcode = (resultType == SIRType::F64) ? SIROpcode::SUB_F64 : SIROpcode::SUB_I64;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية طرح (-)" << std::endl;
+            #endif
             break;
             
         case Lexer::TokenType::OP_MULTIPLY:
             // (AR) ضرب: MUL_I64 للأعداد الصحيحة، MUL_F64 للعشرية
             opcode = (resultType == SIRType::F64) ? SIROpcode::MUL_F64 : SIROpcode::MUL_I64;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية ضرب (*)" << std::endl;
+            #endif
             break;
             
         case Lexer::TokenType::OP_DIVIDE:
             // (AR) قسمة: DIV_I64 للأعداد الصحيحة، DIV_F64 للعشرية
             opcode = (resultType == SIRType::F64) ? SIROpcode::DIV_F64 : SIROpcode::DIV_I64;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية قسمة (/)" << std::endl;
+            #endif
             break;
             
         case Lexer::TokenType::OP_MODULO:
             // (AR) باقي القسمة: MOD_I64 (لا يوجد للعشري)
             opcode = SIROpcode::MOD_I64;
             resultType = SIRType::I64;  // (AR) باقي القسمة دائماً عدد صحيح
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية باقي القسمة (%)" << std::endl;
+            #endif
             break;
             
         case Lexer::TokenType::OP_POWER:
             // (AR) الأس: BUILTIN_POW (sir_types.h:223)
             opcode = SIROpcode::BUILTIN_POW;
             resultType = SIRType::F64;  // (AR) نتيجة الأس عادةً عشرية
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية الأس (**)" << std::endl;
+            #endif
             break;
         
         // ========== عمليات المقارنة (token.h:219-224) ==========
@@ -3945,10 +6144,14 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
             // (EN) Equal: EQ for numbers, STRING_CMP for strings
             if (isStringOp) {
                 opcode = SIROpcode::STRING_CMP;
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildBinaryOp: عملية مقارنة نصوص (==)" << std::endl;
+                #endif
             } else {
                 opcode = SIROpcode::EQ;
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildBinaryOp: عملية يساوي (==)" << std::endl;
+                #endif
             }
             isComparison = true;
             break;
@@ -3959,10 +6162,14 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
             if (isStringOp) {
                 // (AR) سيتم معالجة النفي لاحقاً
                 opcode = SIROpcode::STRING_CMP;
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildBinaryOp: عملية عدم تساوي نصوص (!=)" << std::endl;
+                #endif
             } else {
                 opcode = SIROpcode::NE;
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] buildBinaryOp: عملية لا يساوي (!=)" << std::endl;
+                #endif
             }
             isComparison = true;
             break;
@@ -3971,28 +6178,36 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
             // (AR) أصغر من: LT (sir_types.h:127)
             opcode = SIROpcode::LT;
             isComparison = true;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية أصغر من (<)" << std::endl;
+            #endif
             break;
             
         case Lexer::TokenType::OP_LESS_EQUAL:
             // (AR) أصغر أو يساوي: LE (sir_types.h:128)
             opcode = SIROpcode::LE;
             isComparison = true;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية أصغر أو يساوي (<=)" << std::endl;
+            #endif
             break;
             
         case Lexer::TokenType::OP_GREATER:
             // (AR) أكبر من: GT (sir_types.h:129)
             opcode = SIROpcode::GT;
             isComparison = true;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية أكبر من (>)" << std::endl;
+            #endif
             break;
             
         case Lexer::TokenType::OP_GREATER_EQUAL:
             // (AR) أكبر أو يساوي: GE (sir_types.h:130)
             opcode = SIROpcode::GE;
             isComparison = true;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية أكبر أو يساوي (>=)" << std::endl;
+            #endif
             break;
         
         // ========== العمليات المنطقية (token.h:227-228) ==========
@@ -4000,14 +6215,18 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
             // (AR) AND المنطقي: AND (sir_types.h:118)
             opcode = SIROpcode::AND;
             isComparison = true;  // (AR) النتيجة منطقية
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية AND (&&)" << std::endl;
+            #endif
             break;
             
         case Lexer::TokenType::OP_OR:
             // (AR) OR المنطقي: OR (sir_types.h:119)
             opcode = SIROpcode::OR;
             isComparison = true;  // (AR) النتيجة منطقية
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية OR (||)" << std::endl;
+            #endif
             break;
 
         // ========== العمليات البتية (token.h) ==========
@@ -4015,41 +6234,53 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
             // (AR) XOR بتّي: Xor (sir_opcodes.h)
             opcode = SIROpcode::XOR;
             resultType = SIRType::I64;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية XOR بتي (^)" << std::endl;
+            #endif
             break;
 
         case Lexer::TokenType::OP_BITWISE_AND:
             // (AR) AND بتّي: AND
             opcode = SIROpcode::AND;
             resultType = SIRType::I64;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية AND بتي (&)" << std::endl;
+            #endif
             break;
 
         case Lexer::TokenType::OP_BITWISE_OR:
             // (AR) OR بتّي: OR
             opcode = SIROpcode::OR;
             resultType = SIRType::I64;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية OR بتي (|)" << std::endl;
+            #endif
             break;
 
         case Lexer::TokenType::OP_SHIFT_LEFT:
             // (AR) إزاحة يسار: Shl
             opcode = SIROpcode::SHL;
             resultType = SIRType::I64;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يسار (<<)" << std::endl;
+            #endif
             break;
 
         case Lexer::TokenType::OP_SHIFT_RIGHT:
             // (AR) إزاحة يمين: Shr
             opcode = SIROpcode::SHR;
             resultType = SIRType::I64;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يمين (>>)" << std::endl;
+            #endif
             break;
             
         default:
             // (AR) عملية غير مدعومة
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildBinaryOp: عملية غير مدعومة: " 
                       << static_cast<int>(binOp->op) << std::endl;
+            #endif
             errors_.push_back("عملية ثنائية غير مدعومة / Unsupported binary operation");
             return BuildResult(resultReg, resultType);
     }
@@ -4103,13 +6334,19 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
     // (EN) Add instruction to current block
     if (currentBlock_) {
         currentBlock_->addInstruction(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildBinaryOp: تمت إضافة التعليمة للكتلة الحالية" << std::endl;
+        #endif
     } else {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildBinaryOp: تحذير - لا توجد كتلة حالية!" << std::endl;
+        #endif
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildBinaryOp: النتيجة في سجل " << resultReg 
               << " بنوع " << static_cast<int>(resultType) << std::endl;
+    #endif
     
     return BuildResult(resultReg, resultType);
 }
@@ -4143,13 +6380,17 @@ BuildResult SIRBuilder::buildUnaryOp(AST::UnaryOpNode* unaryOp) {
         return BuildResult();
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildUnaryOp: بدء بناء عملية أحادية" << std::endl;
+    #endif
     
     // (AR) بناء المعامل (expressions.h:81 - operand: ExprPtr)
     // (EN) Build operand
     auto operandResult = buildExpression(unaryOp->operand.get());
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildUnaryOp: operandResult.registerName='" << operandResult.registerName 
               << "', type=" << static_cast<int>(operandResult.type) << std::endl;
+    #endif
     
     // (AR) إنشاء سجل للنتيجة (sir_builder.h:511 - newTempRegister)
     // (EN) Create result register
@@ -4168,20 +6409,26 @@ BuildResult SIRBuilder::buildUnaryOp(AST::UnaryOpNode* unaryOp) {
         case Lexer::TokenType::OP_MINUS:
             // (AR) السالب: NEG (sir_types.h:115)
             opcode = SIROpcode::NEG;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildUnaryOp: عملية السالب (-)" << std::endl;
+            #endif
             break;
             
         case Lexer::TokenType::OP_NOT:
             // (AR) النفي المنطقي: NOT (sir_types.h:121)
             opcode = SIROpcode::NOT;
             resultType = SIRType::BOOL;  // (AR) النفي يُرجع قيمة منطقية
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildUnaryOp: عملية النفي (!)" << std::endl;
+            #endif
             break;
             
         default:
             // (AR) عملية غير مدعومة
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildUnaryOp: عملية غير مدعومة: " 
                       << static_cast<int>(unaryOp->op) << std::endl;
+            #endif
             errors_.push_back("عملية أحادية غير مدعومة / Unsupported unary operation");
             return BuildResult(resultReg, resultType);
     }
@@ -4214,12 +6461,18 @@ BuildResult SIRBuilder::buildUnaryOp(AST::UnaryOpNode* unaryOp) {
     // (EN) Add instruction to current block
     if (currentBlock_) {
         currentBlock_->addInstruction(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildUnaryOp: تمت إضافة التعليمة للكتلة الحالية" << std::endl;
+        #endif
     } else {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildUnaryOp: تحذير - لا توجد كتلة حالية!" << std::endl;
+        #endif
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildUnaryOp: النتيجة في سجل " << resultReg << std::endl;
+    #endif
     
     return BuildResult(resultReg, resultType);
 }
@@ -4260,7 +6513,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     // المصدر: expressions.h:210-212 - VariableExpr::name
     if (auto varExpr = dynamic_cast<Sad::AST::VariableExpr*>(call->callee.get())) {
         funcName = varExpr->name;
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: function name = '" << funcName << "'" << std::endl;
+        #endif
     } else {
         // (AR) لا ندعم استدعاءات غير مباشرة حالياً
         // (EN) We don't support indirect calls currently
@@ -4325,7 +6580,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         BuildResult argResult = buildExpression(arg.get());
         
         if (argResult.registerName.empty()) {
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildFunctionCall: failed to build argument" << std::endl;
+            #endif
             errors_.push_back("Error: Failed to build function argument");
             return BuildResult();
         }
@@ -4343,45 +6600,57 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
                 case SIRType::STRING:
                     // استخدام ConstantString (sir_types.h:353-361)
                     argOp = SIROperand::ConstantString(argResult.constantValue);
+                    #ifndef NDEBUG
                     std::cout << "[DEBUG] buildFunctionCall: added STRING constant='" 
                               << argResult.constantValue << "'" << std::endl;
+                    #endif
                     break;
                 case SIRType::I64: {
                     int64_t intVal = std::stoll(argResult.constantValue);
                     argOp = SIROperand::ConstantI64(intVal);
+                    #ifndef NDEBUG
                     std::cout << "[DEBUG] buildFunctionCall: added I64 constant=" 
                               << intVal << std::endl;
+                    #endif
                     break;
                 }
                 case SIRType::F64: {
                     double floatVal = std::stod(argResult.constantValue);
                     argOp = SIROperand::ConstantF64(floatVal);
+                    #ifndef NDEBUG
                     std::cout << "[DEBUG] buildFunctionCall: added F64 constant=" 
                               << floatVal << std::endl;
+                    #endif
                     break;
                 }
                 case SIRType::BOOL: {
                     bool boolVal = (argResult.constantValue == "true");
                     argOp = SIROperand::ConstantBool(boolVal);
+                    #ifndef NDEBUG
                     std::cout << "[DEBUG] buildFunctionCall: added BOOL constant=" 
                               << boolVal << std::endl;
+                    #endif
                     break;
                 }
                 default:
                     // للأنواع الأخرى، استخدم Register كافتراضي
                     argOp = SIROperand::Register(argResult.registerName, argResult.type);
+                    #ifndef NDEBUG
                     std::cout << "[DEBUG] buildFunctionCall: added register='" 
                               << argResult.registerName << "', type=" 
                               << static_cast<int>(argResult.type) << std::endl;
+                    #endif
                     break;
             }
         } else {
             // (AR) للمتغيرات، استخدم Register
             // (EN) For variables, use Register
             argOp = SIROperand::Register(argResult.registerName, argResult.type);
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildFunctionCall: added register='" 
                       << argResult.registerName << "', type=" 
                       << static_cast<int>(argResult.type) << std::endl;
+            #endif
         }
         
         argOperands.push_back(argOp);
@@ -4425,7 +6694,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(lenInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin طول() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -4449,7 +6720,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(convInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin لرقم() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -4473,7 +6746,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(convInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin لعشري() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::F64);
     }
     
@@ -4502,7 +6777,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(convInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin لنص() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -4517,7 +6794,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(printInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin اطبع()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);  // (AR) لا قيمة إرجاع
     }
     
@@ -4541,7 +6820,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(newlineInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin اطبع_سطر()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -4560,7 +6841,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(readInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin اقرأ() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -4589,7 +6872,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(sqrtInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin جذر() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::F64);
     }
     
@@ -4614,7 +6899,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(powInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin أس() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::F64);
     }
     
@@ -4639,7 +6926,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(absInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin مطلق() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, resultType);
     }
     
@@ -4663,7 +6952,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(roundInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin تقريب() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -4687,7 +6978,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(floorInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin أرضية() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -4711,7 +7004,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(ceilInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin سقف() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -4736,7 +7031,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(sqInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin مربع() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::F64);
     }
     
@@ -4760,7 +7057,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(sinInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin جيب() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::F64);
     }
     
@@ -4784,7 +7083,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(cosInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin جيب_تمام() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::F64);
     }
     
@@ -4808,7 +7109,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             currentBlock_->instructions.push_back(tanInst);
         }
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: builtin ظل() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::F64);
     }
     
@@ -4829,7 +7132,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -4846,7 +7151,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);  // string
         inst.operands.push_back(argOperands[1]);  // index
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -4862,7 +7169,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -4878,7 +7187,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -4895,7 +7206,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -4913,7 +7226,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[1]);
         inst.operands.push_back(argOperands[2]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -4933,7 +7248,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             inst.operands.push_back(argOperands[2]); // end (optional)
         }
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -4949,7 +7266,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -4966,7 +7285,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::ARRAY);
     }
     
@@ -4983,7 +7304,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -5000,7 +7323,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
     
@@ -5017,7 +7342,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
     
@@ -5034,7 +7361,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
 
@@ -5052,7 +7381,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5066,7 +7397,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5082,7 +7415,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -5099,7 +7434,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -5116,7 +7453,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
     
@@ -5132,7 +7471,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::ARRAY);
     }
     
@@ -5148,7 +7489,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::ARRAY);
     }
     
@@ -5164,7 +7507,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::VOID);
     }
     
@@ -5180,7 +7525,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::VOID);
     }
     
@@ -5200,7 +7547,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             inst.operands.push_back(argOperands[2]); // end (optional)
         }
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::ARRAY);
     }
 
@@ -5220,7 +7569,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -5237,7 +7588,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
     
@@ -5254,7 +7607,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
     
@@ -5270,7 +7625,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
     
@@ -5287,7 +7644,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
     
@@ -5304,7 +7663,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
     
@@ -5320,7 +7681,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
     
@@ -5336,7 +7699,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::ARRAY);
     }
     
@@ -5351,7 +7716,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_RANDOM);
         inst.result = resultOp;
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::F64);
     }
     
@@ -5364,7 +7731,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_SLEEP);
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5375,7 +7744,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             inst.operands.push_back(argOperands[0]); // exit code (optional)
         }
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5391,7 +7762,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
 
@@ -5423,7 +7796,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);  // (AR) رقم المنفذ / (EN) port number
         inst.operands.push_back(argOperands[1]);  // (AR) القيمة المكتوبة / (EN) value to write
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin منفذ_اكتب()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5442,7 +7817,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin منفذ_اقرأ() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -5460,7 +7837,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);  // (AR) عنوان الذاكرة / (EN) memory address
         inst.operands.push_back(argOperands[1]);  // (AR) القيمة / (EN) value
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin ذاكرة_اكتب()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5479,7 +7858,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin ذاكرة_اقرأ() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -5496,7 +7877,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_INTERRUPT);
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin مقاطعة()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5508,7 +7891,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     if (funcName == "توقف" || funcName == "halt" || funcName == "hlt") {
         SIRInstruction inst(SIROpcode::BUILTIN_HALT);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin توقف()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5520,7 +7905,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     if (funcName == "تعطيل_مقاطعات" || funcName == "disable_interrupts" || funcName == "cli") {
         SIRInstruction inst(SIROpcode::BUILTIN_CLI);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin تعطيل_مقاطعات()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5531,7 +7918,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     if (funcName == "تفعيل_مقاطعات" || funcName == "enable_interrupts" || funcName == "sti") {
         SIRInstruction inst(SIROpcode::BUILTIN_STI);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin تفعيل_مقاطعات()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5548,7 +7937,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_VGA_WRITE);
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin شاشة_اكتب()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5560,7 +7951,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_VGA_CLEAR);
         if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin شاشة_امسح()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5576,7 +7969,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_MEM_COPY);
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin انسخ_ذاكرة()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5592,7 +7987,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_MEM_SET);
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin املأ_ذاكرة()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5620,7 +8017,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_INIT);
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin تسلسلي_هيئ()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5636,7 +8035,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_WRITE);
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin تسلسلي_ارسل()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5655,7 +8056,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.result = resultOp;
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin تسلسلي_استقبل()" << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -5674,7 +8077,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.result = resultOp;
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin تسلسلي_جاهز()" << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
 
@@ -5690,7 +8095,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_GPIO_WRITE);
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin منفذ_رقمي_اكتب()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5709,7 +8116,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.result = resultOp;
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin منفذ_رقمي_اقرأ()" << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -5725,7 +8134,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_GPIO_MODE);
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin حدد_وضع_منفذ()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5741,7 +8152,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_TIMER_INIT);
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin مؤقت_هيئ()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5755,7 +8168,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_TIMER_READ);
         inst.result = resultOp;
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin مؤقت_قراءة()" << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -5771,7 +8186,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_TIMER_WAIT);
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin مؤقت_انتظر()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5782,7 +8199,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     if (funcName == "اعد_تشغيل" || funcName == "reset" || funcName == "reboot") {
         SIRInstruction inst(SIROpcode::BUILTIN_RESET);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin اعد_تشغيل()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5797,7 +8216,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
         inst.result = resultOp;
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin معرف_المعالج()" << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -5811,7 +8232,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_RDTSC);
         inst.result = resultOp;
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin عداد_الدورات()" << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -5822,7 +8245,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     if (funcName == "حاجز_ذاكرة" || funcName == "memory_barrier" || funcName == "mfence") {
         SIRInstruction inst(SIROpcode::BUILTIN_MFENCE);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin حاجز_ذاكرة()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5833,7 +8258,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     if (funcName == "حاجز_قراءة" || funcName == "read_barrier" || funcName == "lfence") {
         SIRInstruction inst(SIROpcode::BUILTIN_LFENCE);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin حاجز_قراءة()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5844,7 +8271,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     if (funcName == "حاجز_كتابة" || funcName == "write_barrier" || funcName == "sfence") {
         SIRInstruction inst(SIROpcode::BUILTIN_SFENCE);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin حاجز_كتابة()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5860,7 +8289,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_DMA_INIT);
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin نقل_مباشر_هيئ()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5876,7 +8307,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_DMA_START);
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin نقل_مباشر_ابدأ()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -5905,7 +8338,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             inst.operands.push_back(argOperands[1]); // optional message
         }
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5921,7 +8356,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
     
@@ -5937,7 +8374,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::BOOL);
     }
     
@@ -5948,7 +8387,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             inst.operands.push_back(argOperands[0]); // message
         }
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -5964,7 +8405,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -5981,7 +8424,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -5998,7 +8443,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -6012,7 +8459,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -6026,7 +8475,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -6040,7 +8491,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -6056,7 +8509,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
     
@@ -6067,7 +8522,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_TIMESTAMP);
         inst.result = resultOp;
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -6084,7 +8541,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -6100,7 +8559,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::STRING);
     }
 
@@ -6123,7 +8584,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
             inst.operands.push_back(argOperands[i]);
         }
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin printf() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
     
@@ -6139,7 +8602,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin malloc() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::PTR);
     }
     
@@ -6152,7 +8617,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::FFI_FREE);
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] builtin free()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
     
@@ -6444,7 +8911,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] async spawn() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6460,7 +8929,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] async await() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6469,7 +8940,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::ASYNC_YIELD);
         if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] async yield()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -6482,7 +8955,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::ASYNC_SLEEP);
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] async_sleep()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -6493,7 +8968,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::ASYNC_CREATE_FUTURE);
         inst.result = resultOp;
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] create_future() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6507,7 +8984,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] resolve_future()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -6523,7 +9002,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] get_future() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6535,7 +9016,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] create_channel() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6549,7 +9032,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] channel_send()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -6565,7 +9050,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] channel_recv() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6578,7 +9065,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_CLOSE);
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] channel_close()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -6589,7 +9078,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::ASYNC_MUTEX_CREATE);
         inst.result = resultOp;
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] create_mutex() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6602,7 +9093,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::ASYNC_MUTEX_LOCK);
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] mutex_lock()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -6615,7 +9108,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         SIRInstruction inst(SIROpcode::ASYNC_MUTEX_UNLOCK);
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] mutex_unlock()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -6631,7 +9126,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] thread_spawn() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6647,7 +9144,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] thread_join() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6663,7 +9162,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] atomic_load() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6677,7 +9178,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] atomic_store()" << std::endl;
+        #endif
         return BuildResult("", SIRType::VOID);
     }
 
@@ -6694,7 +9197,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[0]);
         inst.operands.push_back(argOperands[1]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] atomic_add() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6712,7 +9217,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.operands.push_back(argOperands[1]);
         inst.operands.push_back(argOperands[2]);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] compare_and_swap() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6724,7 +9231,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] wait_all() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6736,7 +9245,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] wait_any() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6748,7 +9259,9 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         inst.result = resultOp;
         for (auto& op : argOperands) inst.operands.push_back(op);
         if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] select() -> " << resultReg << std::endl;
+        #endif
         return BuildResult(resultReg, SIRType::I64);
     }
 
@@ -6765,8 +9278,10 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         // (AR) الدالة موجودة - استخدم نوع الإرجاع (sir_builder.h:165)
         // (EN) Function found - use return type
         returnType = it->second.returnType;
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: function found, returnType=" 
                   << static_cast<int>(returnType) << std::endl;
+        #endif
     } else {
         // (AR) الدالة غير موجودة - تحقق إذا كانت قالباً
         // (EN) Function not found - check if it's a template
@@ -6807,8 +9322,10 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         } else {
             // (AR) قد تكون دالة مدمجة غير مسجلة بعد
             // (EN) May be a builtin function not registered yet
+            #ifndef NDEBUG
             std::cout << "[DEBUG] buildFunctionCall: function '" << funcName 
                       << "' not found (no template), assuming VOID return" << std::endl;
+            #endif
         }
     }
     
@@ -6840,13 +9357,19 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     // ========================================================================
     if (currentBlock_) {
         currentBlock_->instructions.push_back(callInst);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: added CALL instruction to block" << std::endl;
+        #endif
     } else {
+        #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: WARNING - no current block!" << std::endl;
+        #endif
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildFunctionCall: returning result reg='" << resultReg 
               << "', type=" << static_cast<int>(returnType) << std::endl;
+    #endif
     
     return BuildResult(resultReg, returnType);
 }
@@ -6869,8 +9392,10 @@ BuildResult SIRBuilder::buildNewObject(AST::NewExpr* newExpr) {
         return BuildResult();
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildNewObject: creating object of class '" 
               << newExpr->className << "'" << std::endl;
+    #endif
     
     // (AR) الخطوة 1: البحث عن الصنف في الوحدة
     // (EN) Step 1: Find class in module
@@ -6947,7 +9472,9 @@ BuildResult SIRBuilder::buildNewObject(AST::NewExpr* newExpr) {
         }
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildNewObject: object created in register '" << objReg << "'" << std::endl;
+    #endif
     
     // (AR) تتبع نوع الكائن لدعم تحميل المعاملات الزائد
     // (EN) Track object type for operator overloading support
@@ -6978,8 +9505,10 @@ BuildResult SIRBuilder::buildMemberAccess(AST::MemberAccessExpr* memberExpr) {
         return BuildResult();
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildMemberAccess: accessing member '" 
               << memberExpr->memberName << "'" << std::endl;
+    #endif
     
     // (AR) الخطوة 1: بناء تعبير الكائن
     // (EN) Step 1: Build object expression
@@ -7005,7 +9534,9 @@ BuildResult SIRBuilder::buildMemberAccess(AST::MemberAccessExpr* memberExpr) {
         currentBlock_->addInstruction(loadInst);
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildMemberAccess: result in register '" << resultReg << "'" << std::endl;
+    #endif
     
     return BuildResult(resultReg, SIRType::I64);  // نوع افتراضي
 }
@@ -7026,8 +9557,10 @@ BuildResult SIRBuilder::buildMethodCall(AST::MethodCallExpr* methodCallExpr) {
         return BuildResult();
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildMethodCall: calling method '" 
               << methodCallExpr->methodName << "'" << std::endl;
+    #endif
     
     // (AR) الخطوة 1: بناء تعبير الكائن
     // (EN) Step 1: Build object expression
@@ -7063,7 +9596,9 @@ BuildResult SIRBuilder::buildMethodCall(AST::MethodCallExpr* methodCallExpr) {
     // (EN) Look up method in function table
     std::string fullMethodName = className + "." + methodCallExpr->methodName;
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildMethodCall: full method name = '" << fullMethodName << "'" << std::endl;
+    #endif
     
     // (AR) تحديد نوع الإرجاع
     // (EN) Determine return type
@@ -7119,7 +9654,9 @@ BuildResult SIRBuilder::buildMethodCall(AST::MethodCallExpr* methodCallExpr) {
         currentBlock_->addInstruction(callInst);
     }
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] buildMethodCall: result in register '" << resultReg << "'" << std::endl;
+    #endif
     
     return BuildResult(resultReg, returnType);
 }

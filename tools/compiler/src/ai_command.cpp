@@ -628,8 +628,13 @@ char* sad_ai_generate(const char* prompt) {
     // في التنفيذ الحقيقي، نستخدم المولّد الفعلي
     std::string result = "دالة مُولَّدة()\n    // كود\nنهاية\n";
     
-    char* output = new char[result.size() + 1];
-    std::strcpy(output, result.c_str());
+    // إصلاح: استخدام strncpy بدلاً من strcpy لمنع buffer overflow
+    char* output = new (std::nothrow) char[result.size() + 1];
+    if (!output) {
+        return nullptr;  // فشل التخصيص
+    }
+    std::strncpy(output, result.c_str(), result.size());
+    output[result.size()] = '\0';  // ضمان النهاية
     return output;
 }
 

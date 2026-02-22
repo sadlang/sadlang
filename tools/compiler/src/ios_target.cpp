@@ -514,6 +514,20 @@ std::optional<std::string> iOSTarget::bootSimulator(const std::string& simulator
     return "المحاكيات متاحة فقط على macOS";
 #endif
     
+    // التحقق من صحة معرف المحاكي (UUID format)
+    // UUID: 8-4-4-4-12 hex chars
+    bool validId = true;
+    for (char c : simulatorId) {
+        if (!std::isxdigit(static_cast<unsigned char>(c)) && c != '-') {
+            validId = false;
+            break;
+        }
+    }
+    
+    if (!validId || simulatorId.length() < 32) {
+        return "معرف المحاكي غير صالح";
+    }
+    
     std::string cmd = "xcrun simctl boot " + simulatorId;
     int result = std::system(cmd.c_str());
     
@@ -532,7 +546,33 @@ std::optional<std::string> iOSTarget::installOnSimulator(
     return "التثبيت على المحاكي متاح فقط على macOS";
 #endif
     
-    std::string cmd = "xcrun simctl install " + simulatorId + " " + appPath.string();
+    // التحقق من صحة معرف المحاكي
+    for (char c : simulatorId) {
+        if (!std::isxdigit(static_cast<unsigned char>(c)) && c != '-') {
+            return "معرف المحاكي غير صالح";
+        }
+    }
+    
+    // التحقق من وجود المسار
+    if (!std::filesystem::exists(appPath)) {
+        return "مسار التطبيق غير موجود";
+    }
+    
+    // التحقق من أن المسار هو .app
+    if (appPath.extension() != ".app") {
+        return "الملف ليس تطبيق iOS (.app)";
+    }
+    
+    // تنظيف المسار من الأحرف الخطرة
+    std::string safePath = appPath.string();
+    const std::string dangerous = ";|&`$(){}[]<>!";
+    for (char c : dangerous) {
+        if (safePath.find(c) != std::string::npos) {
+            return "مسار التطبيق يحتوي على أحرف غير آمنة";
+        }
+    }
+    
+    std::string cmd = "xcrun simctl install " + simulatorId + " \"" + safePath + "\"";
     int result = std::system(cmd.c_str());
     
     if (result != 0) {

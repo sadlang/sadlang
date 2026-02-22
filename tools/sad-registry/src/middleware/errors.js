@@ -1,82 +1,125 @@
 // بسم الله الرحمن الرحيم
 // =========================================================================
-// معالجة الأخطاء — Error Handling Middleware
-// =========================================================================
-//
-// @file errors.js
-//
-// الوظيفة:
-//   يوفر معالجَين للأخطاء في Express:
-//
-//   1. notFoundHandler — يُركَّب بعد كل المسارات:
-//      - إذا وصل الطلب إلى هنا = لا يوجد مسار مطابق
-//      - يميّز بين API (JSON 404) والويب (صفحة 404 HTML)
-//
-//   2. errorHandler — معالج أخطاء Express (4 معاملات):
-//      - يلتقط أي throw أو next(error) من أي مسار
-//      - يسجل الخطأ في console
-//      - يخفي تفاصيل الخطأ في الإنتاج (حماية أمنية)
-//      - يميّز بين API (JSON) والويب (HTML)
-//
-// الترتيب مهم!
-//   app.use(notFoundHandler);  // ←  يجب أن يكون بعد كل app.use('/...')
-//   app.use(errorHandler);     // ←  يجب أن يكون الأخير
-//
-// لماذا نميّز بين API والويب؟
-//   - عميل sad-pkg يتوقع JSON دائماً
-//   - المتصفح يتوقع HTML مع تنسيق مناسب
-//   - التمييز عبر req.path.startsWith('/api/')
+// معالجة الأخطاء المركزية — رسائل مفصّلة مع شرح وحلول
+// Central Error Handler — Detailed messages with explanations & solutions
 // =========================================================================
 
+const { createError, RegistryError, sendError } = require('../utils/error-codes');
+
 /**
- * معالج 404 — نقطة النهاية غير موجودة
- *
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- * @param {import('express').NextFunction} next
+ * معالج الأخطاء 404 — مسار غير موجود
  */
 function notFoundHandler(req, res, next) {
-    // تمييز بين طلبات API وطلبات الويب
+    // API requests
     if (req.path.startsWith('/api/')) {
-        res.status(404).json({
-            error: 'نقطة النهاية غير موجودة',
-            error_en: 'Endpoint not found',
-            path: req.path,
-        });
-    } else {
-        res.status(404).render('404', { 
-            message: 'الصفحة المطلوبة غير موجودة' 
+        const availableRoutes = [
+            'GET  /api/v1/                        — معلومات API',
+            'GET  /api/v1/health                   — فحص صحة الخادم',
+            'POST /api/v1/auth/register            — تسجيل حساب جديد',
+            'POST /api/v1/auth/login               — تسجيل الدخول',
+            'POST /api/v1/auth/token               — إنشاء رمز API',
+            'GET  /api/v1/packages/search?q=...    — البحث عن حزم',
+            'GET  /api/v1/packages/:name           — معلومات حزمة',
+            'GET  /api/v1/packages/:name/versions  — إصدارات حزمة',
+            'GET  /api/v1/packages/:name/:version  — معلومات إصدار',
+            'GET  /api/v1/packages/:name/:version/download — تنزيل',
+            'POST /api/v1/packages/publish         — نشر حزمة',
+            'GET  /api/v1/user/packages            — حزمي',
+            'GET  /api/v1/user/profile             — ملفي الشخصي',
+            'GET  /api/v1/stats                    — إحصائيات',
+        ];
+
+        return res.status(404).json({
+            ...createError('GEN_001', {
+                hint: `المسار "${req.method} ${req.path}" غير موجود.\n\nالمسارات المتاحة:\n${availableRoutes.join('\n')}`,
+            }),
+            requested_path: `${req.method} ${req.path}`,
+            timestamp: new Date().toISOString(),
         });
     }
+
+    // Web pages — redirect to home
+    res.status(404).render('404', {
+        title: 'الصفحة غير موجودة — 404',
+        path: req.path,
+    });
 }
 
 /**
- * معالج الأخطاء العام — 500 Internal Server Error
- *
- * ملاحظة: Express يتعرف على معالج الأخطاء بوجود 4 معاملات (err, req, res, next).
- * حذف أي معامل يجعل Express يعتبره middleware عادي!
- *
- * @param {Error} err — كائن الخطأ (يحتوي message, stack, و statusCode اختياري)
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- * @param {import('express').NextFunction} next — مطلوب حتى لو لم يُستدعى
+ * معالج أخطاء JSON التالفة
  */
-function errorHandler(err, req, res, next) {
-    console.error('❌ خطأ:', err.stack || err.message);
-
-    const statusCode = err.statusCode || 500;
-    const message = process.env.NODE_ENV === 'production' 
-        ? 'خطأ في الخادم / Server error'
-        : err.message;
-
-    if (req.path.startsWith('/api/')) {
-        res.status(statusCode).json({
-            error: message,
-            ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+function jsonErrorHandler(err, req, res, next) {
+    if (err.type === 'entity.parse.failed') {
+        return sendError(res, 'GEN_003', {
+            details: { received: err.body?.substring(0, 200) },
         });
-    } else {
-        res.status(statusCode).render('error', { message });
     }
+    next(err);
 }
 
-module.exports = { notFoundHandler, errorHandler };
+/**
+ * معالج أخطاء multer (رفع الملفات)
+ */
+function uploadErrorHandler(err, req, res, next) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+        return sendError(res, 'PUB_003');
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return sendError(res, 'PUB_004', {
+            explain: 'حقل الملف غير متوقع. استخدم حقل "package" لرفع ملف الحزمة',
+        });
+    }
+    if (err.message && err.message.includes('multer')) {
+        return sendError(res, 'PUB_001');
+    }
+    next(err);
+}
+
+/**
+ * معالج الأخطاء العام — آخر خط دفاع
+ */
+function globalErrorHandler(err, req, res, next) {
+    // إذا كان خطأ RegistryError مخصص
+    if (err instanceof RegistryError) {
+        return res.status(err.status).json({
+            ...err.toJSON(),
+            request_id: req.requestId,
+            timestamp: new Date().toISOString(),
+        });
+    }
+
+    // تسجيل الخطأ
+    const requestId = req.requestId || 'unknown';
+    console.error(`\n╔══════════════════════════════════════════════════`);
+    console.error(`║ خطأ في الخادم — Request ID: ${requestId}`);
+    console.error(`║ المسار: ${req.method} ${req.path}`);
+    console.error(`║ الوقت: ${new Date().toISOString()}`);
+    console.error(`╠──────────────────────────────────────────────────`);
+    console.error(`║ ${err.message}`);
+    if (process.env.NODE_ENV !== 'production') {
+        console.error(`║ Stack: ${err.stack}`);
+    }
+    console.error(`╚══════════════════════════════════════════════════\n`);
+
+    // استجابة للعميل
+    const isProduction = process.env.NODE_ENV === 'production';
+    const errorResponse = createError('GEN_002', {
+        ...(isProduction ? {} : {
+            explain: err.message,
+            details: { stack: err.stack?.split('\n').slice(0, 5) },
+        }),
+    });
+
+    res.status(500).json({
+        ...errorResponse,
+        request_id: requestId,
+        timestamp: new Date().toISOString(),
+    });
+}
+
+module.exports = {
+    notFoundHandler,
+    jsonErrorHandler,
+    uploadErrorHandler,
+    globalErrorHandler,
+};

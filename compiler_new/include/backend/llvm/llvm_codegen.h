@@ -155,6 +155,10 @@ struct CodeGenContext {
     // اسم الصنف الحالي في حالة البناء (فارغ خارج الباني)
     // Current constructor class name (empty outside constructors)
     std::string currentConstructorClass;
+    
+    // اسم الصنف الحالي في حالة الدالة (فارغ خارج دوال الصنف)
+    // Current method class name (empty outside class methods)
+    std::string currentMethodClass;
 };
 
 // ============================================================================

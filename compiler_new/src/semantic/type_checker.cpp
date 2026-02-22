@@ -761,6 +761,15 @@ void TypeChecker::visitInlineAsmExpr(AST::InlineAsmExpr& expr) {
     lastInferredType_ = registry_.getUnknownType();
 }
 
+void TypeChecker::visitRangeExpr(AST::RangeExpr& expr) {
+    // (AR) تعبير النطاق 1..10 — ينتج مصفوفة أرقام
+    // (EN) Range expression 1..10 — produces an array of integers
+    currentResult_.totalExpressions++;
+    if (expr.start) inferExprType(expr.start.get());
+    if (expr.end) inferExprType(expr.end.get());
+    lastInferredType_ = registry_.getUnknownType();
+}
+
 // ============================================================================
 // زيارة العبارات / Visit Statements
 // ============================================================================
@@ -1022,7 +1031,14 @@ void TypeChecker::visitFunctionDecl(AST::FunctionDecl& decl) {
     TypePtr prevReturnType = expectedReturnType_;
     
     currentFunction_ = decl.name;
-    expectedReturnType_ = dataTypeToTypePtr(decl.returnType);
+    // (AR) إذا كان نوع الإرجاع غير معروف أو NONE، لا نفحص نوع return
+    // (EN) If return type is UNKNOWN or NONE, skip return type checking
+    if (decl.returnType == Data::DataType::UNKNOWN ||
+        decl.returnType == Data::DataType::NONE) {
+        expectedReturnType_ = nullptr;
+    } else {
+        expectedReturnType_ = dataTypeToTypePtr(decl.returnType);
+    }
     
     // (AR) تسجيل الدالة بنوع دالة كامل (معاملات + إرجاع)
     TypeList paramTypes;
@@ -1094,7 +1110,14 @@ void TypeChecker::visitMethodDecl(AST::MethodDecl& decl) {
     TypePtr prevReturnType = expectedReturnType_;
     
     currentFunction_ = decl.name;
-    expectedReturnType_ = dataTypeToTypePtr(decl.returnType);
+    // (AR) إذا كان نوع الإرجاع غير معروف أو NONE، لا نفحص نوع return
+    // (EN) If return type is UNKNOWN or NONE, skip return type checking
+    if (decl.returnType == Data::DataType::UNKNOWN ||
+        decl.returnType == Data::DataType::NONE) {
+        expectedReturnType_ = nullptr;
+    } else {
+        expectedReturnType_ = dataTypeToTypePtr(decl.returnType);
+    }
     
     enterScope();
     

@@ -547,12 +547,32 @@ private:
 extern "C" {
 
 /**
+ * (AR) عدّ المتغيرات في شجرة النمط بشكل تكراري
+ * (EN) Recursively count MetaVar nodes in pattern tree
+ */
+static int count_pattern_vars(const PatternPtr& node) {
+    if (!node) return 0;
+    int count = 0;
+    if (node->kind == PatternNode::Kind::MetaVar) {
+        count = 1;
+    }
+    for (const auto& child : node->children) {
+        count += count_pattern_vars(child);
+    }
+    return count;
+}
+
+/**
  * تحليل نمط ماكرو
  */
 void* sad_parse_macro_pattern(const char* pattern) {
     static MacroPatternParser parser;
     auto result = parser.parse(pattern);
-    // في التنفيذ الحقيقي: إرجاع مؤشر للشجرة
+    if (result) {
+        // (AR) نقل ملكية الشجرة إلى المستدعي
+        // (EN) Transfer ownership of the tree to the caller
+        return new PatternPtr(std::move(result));
+    }
     return nullptr;
 }
 
@@ -560,8 +580,9 @@ void* sad_parse_macro_pattern(const char* pattern) {
  * الحصول على عدد المتغيرات في النمط
  */
 int sad_pattern_var_count(void* pattern) {
-    // TODO: تنفيذ
-    return 0;
+    if (!pattern) return 0;
+    auto* ptr = reinterpret_cast<PatternPtr*>(pattern);
+    return count_pattern_vars(*ptr);
 }
 
 } // extern "C"

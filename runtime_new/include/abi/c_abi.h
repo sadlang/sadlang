@@ -74,17 +74,27 @@ namespace ABI {
 
 /**
  * أنواع لغة ص الأساسية / Basic Sad types
+ * (AR) تم توسيع التعداد ليشمل الأنواع ذات الحجم المحدد المستخدمة في FFI
+ * (EN) Expanded enum to include sized types used in FFI marshalling
  */
 enum class SadType : uint8_t {
     Void,       // فارغ
-    Integer,    // رقم (64-bit)
-    Float,      // عشري (64-bit double)
+    Integer,    // رقم (64-bit) — اسم مستعار: Int64
+    Float,      // عشري (64-bit double) — اسم مستعار: Float64
     Boolean,    // منطقي (bool)
     String,     // نص (pointer to string)
     Array,      // مصفوفة (array descriptor)
     Pointer,    // مؤشر (raw pointer)
     Struct,     // بنية (struct)
     Function,   // دالة (function pointer)
+    // أنواع ذات حجم محدد — تُستخدم في التحويل بين Sad و C
+    // Sized types — used in Sad ↔ C marshalling
+    Int32,      // رقم 32-بت / 32-bit integer
+    UInt32,     // رقم طبيعي 32-بت / 32-bit unsigned integer
+    Int64,      // رقم 64-بت / 64-bit integer (= Integer)
+    UInt64,     // رقم طبيعي 64-بت / 64-bit unsigned integer
+    Float32,    // عشري 32-بت / 32-bit float
+    Float64,    // عشري 64-بت / 64-bit double (= Float)
     Unknown     // غير معروف
 };
 
@@ -429,17 +439,17 @@ private:
     /**
      * تعيين خطأ / Set error
      */
-    void set_error(ErrorCode code, const std::string& message);
+    void set_error(ErrorCode code, const std::string& message) const;
     
     /**
      * تسجيل معلومات تنقيح / Log debug info
      */
-    void log_debug(const std::string& message);
+    void log_debug(const std::string& message) const;
     
     // Member variables / متغيرات العضو
     CallingConvention default_convention_;
-    Error last_error_;
-    Stats stats_;
+    mutable Error last_error_;
+    mutable Stats stats_;
     bool debug_mode_;
 };
 

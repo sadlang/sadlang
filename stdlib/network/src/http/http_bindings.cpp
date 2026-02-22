@@ -16,10 +16,26 @@ using namespace sad::network::http;
 // Helper Functions
 // ==========================================
 
+/**
+ * @brief تحويل std::string إلى C-string مع تخصيص ذاكرة
+ * @note يجب على المستدعي تحرير الذاكرة باستخدام sad_free_string
+ */
 static char* string_to_c_str(const std::string& str) {
-    char* result = new char[str.length() + 1];
-    std::strcpy(result, str.c_str());
+    size_t len = str.length() + 1;
+    char* result = new (std::nothrow) char[len];
+    if (!result) {
+        return nullptr;  // فشل التخصيص
+    }
+    std::strncpy(result, str.c_str(), len);
+    result[len - 1] = '\0';  // ضمان إنهاء النص
     return result;
+}
+
+/**
+ * @brief تحرير الذاكرة المخصصة بواسطة string_to_c_str
+ */
+extern "C" void sad_free_string(char* str) {
+    delete[] str;
 }
 
 // ==========================================

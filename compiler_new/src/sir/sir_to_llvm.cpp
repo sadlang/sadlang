@@ -67,6 +67,7 @@ public:
     std::string generate(const SirModule& module) {
         output_.str("");
         output_.clear();
+        valueTypes_.clear();
         
         // تعريفات عامة
         emitHeader();
@@ -86,6 +87,25 @@ public:
     }
     
 private:
+    // (AR) خريطة أنواع القيم — تتبع نوع كل ValueId أثناء التوليد
+    // (EN) Value type map — tracks type of each ValueId during generation
+    std::map<size_t, std::shared_ptr<SirType>> valueTypes_;
+    // (AR) الحصول على نوع LLVM لقيمة معينة / (EN) Get LLVM type for a value
+    std::string getValueType(size_t id) {
+        auto it = valueTypes_.find(id);
+        if (it != valueTypes_.end() && it->second) {
+            return typeToLlvm(it->second);
+        }
+        return "i32"; // fallback
+    }
+    
+    // (AR) تسجيل نوع النتيجة / (EN) Register result type
+    void recordType(const SirInstruction& inst) {
+        if (inst.result && inst.resultType) {
+            valueTypes_[*inst.result] = inst.resultType;
+        }
+    }
+    
     // إصدار الترويسة
     void emitHeader() {
         output_ << "; LLVM IR generated from Sad SIR\n";
@@ -155,6 +175,9 @@ private:
     
     // إصدار تعليمة
     void emitInstruction(const SirInstruction& inst) {
+        // (AR) تسجيل نوع النتيجة في الخريطة / (EN) Record result type
+        recordType(inst);
+        
         switch (inst.opcode) {
             // عمليات الملكية
             case Opcode::Alloc:
@@ -242,6 +265,137 @@ private:
                 emitCall(inst);
                 break;
                 
+            // ═══════════════════════════════════════════════════════════════
+            // العمليات منخفضة المستوى (نظام التشغيل)
+            // ═══════════════════════════════════════════════════════════════
+            
+            // --- الذاكرة المباشرة ---
+            case Opcode::RawLoad8:
+                emitRawLoad(inst, "i8");
+                break;
+            case Opcode::RawLoad16:
+                emitRawLoad(inst, "i16");
+                break;
+            case Opcode::RawLoad32:
+                emitRawLoad(inst, "i32");
+                break;
+            case Opcode::RawLoad64:
+                emitRawLoad(inst, "i64");
+                break;
+            case Opcode::RawStore8:
+                emitRawStore(inst, "i8");
+                break;
+            case Opcode::RawStore16:
+                emitRawStore(inst, "i16");
+                break;
+            case Opcode::RawStore32:
+                emitRawStore(inst, "i32");
+                break;
+            case Opcode::RawStore64:
+                emitRawStore(inst, "i64");
+                break;
+                
+            // --- منافذ I/O ---
+            case Opcode::PortIn8:
+                emitPortIn(inst, "i8");
+                break;
+            case Opcode::PortIn16:
+                emitPortIn(inst, "i16");
+                break;
+            case Opcode::PortIn32:
+                emitPortIn(inst, "i32");
+                break;
+            case Opcode::PortOut8:
+                emitPortOut(inst, "i8");
+                break;
+            case Opcode::PortOut16:
+                emitPortOut(inst, "i16");
+                break;
+            case Opcode::PortOut32:
+                emitPortOut(inst, "i32");
+                break;
+                
+            // --- التحكم بالمعالج ---
+            case Opcode::Cli:
+                emitInlineAsm("cli", "", "", false);
+                break;
+            case Opcode::Sti:
+                emitInlineAsm("sti", "", "", false);
+                break;
+            case Opcode::Hlt:
+                emitInlineAsm("hlt", "", "", false);
+                break;
+            case Opcode::Pause:
+                emitInlineAsm("pause", "", "", false);
+                break;
+            case Opcode::Nop:
+                emitInlineAsm("nop", "", "", false);
+                break;
+                
+            // --- سجلات النظام ---
+            case Opcode::ReadCr0:
+                emitReadCr(inst, 0);
+                break;
+            case Opcode::ReadCr2:
+                emitReadCr(inst, 2);
+                break;
+            case Opcode::ReadCr3:
+                emitReadCr(inst, 3);
+                break;
+            case Opcode::ReadCr4:
+                emitReadCr(inst, 4);
+                break;
+            case Opcode::WriteCr0:
+                emitWriteCr(inst, 0);
+                break;
+            case Opcode::WriteCr3:
+                emitWriteCr(inst, 3);
+                break;
+            case Opcode::WriteCr4:
+                emitWriteCr(inst, 4);
+                break;
+                
+            // --- العمليات الذرية ---
+            case Opcode::AtomicLoad:
+                emitAtomicLoad(inst);
+                break;
+            case Opcode::AtomicStore:
+                emitAtomicStore(inst);
+                break;
+            case Opcode::AtomicAdd:
+                emitAtomicRmw(inst, "add");
+                break;
+            case Opcode::AtomicSub:
+                emitAtomicRmw(inst, "sub");
+                break;
+            case Opcode::AtomicExchange:
+                emitAtomicRmw(inst, "xchg");
+                break;
+            case Opcode::AtomicCmpXchg:
+                emitAtomicCmpXchg(inst);
+                break;
+                
+            // --- حواجز الذاكرة ---
+            case Opcode::MemFence:
+                output_ << "fence seq_cst";
+                break;
+            case Opcode::LoadFence:
+                output_ << "fence acquire";
+                break;
+            case Opcode::StoreFence:
+                output_ << "fence release";
+                break;
+                
+            // --- المقاطعات ---
+            case Opcode::Int:
+                emitInt(inst);
+                break;
+                
+            // --- الذاكرة الافتراضية ---
+            case Opcode::Invlpg:
+                emitInvlpg(inst);
+                break;
+                
             default:
                 output_ << "; unsupported: " << (int)inst.opcode;
                 break;
@@ -268,10 +422,11 @@ private:
         if (!inst.result || inst.operands.empty()) return;
         
         auto& valOp = std::get<ValueOperand>(inst.operands[0]);
+        std::string valType = getValueType(valOp.id);
         
         // الاستعارة في LLVM هي مجرد نسخ المؤشر
-        output_ << "%" << *inst.result << " = bitcast i32* %" 
-                << valOp.id << " to i32*";
+        output_ << "%" << *inst.result << " = bitcast " << valType << "* %" 
+                << valOp.id << " to " << valType << "*";
     }
     
     // إصدار نقل/نسخ
@@ -279,9 +434,10 @@ private:
         if (!inst.result || inst.operands.empty()) return;
         
         auto& valOp = std::get<ValueOperand>(inst.operands[0]);
+        std::string valType = getValueType(valOp.id);
         
         // في LLVM، النقل والنسخ متشابهان على مستوى IR
-        output_ << "%" << *inst.result << " = load i32, i32* %"
+        output_ << "%" << *inst.result << " = load " << valType << ", " << valType << "* %"
                 << valOp.id;
     }
     
@@ -300,9 +456,10 @@ private:
         if (!inst.result || inst.operands.empty()) return;
         
         auto& valOp = std::get<ValueOperand>(inst.operands[0]);
+        std::string valType = getValueType(valOp.id);
         
         // للأنواع البسيطة، الاستنساخ مثل النسخ
-        output_ << "%" << *inst.result << " = load i32, i32* %"
+        output_ << "%" << *inst.result << " = load " << valType << ", " << valType << "* %"
                 << valOp.id;
     }
     
@@ -317,8 +474,9 @@ private:
         if (!inst.result || inst.operands.empty()) return;
         
         auto& valOp = std::get<ValueOperand>(inst.operands[0]);
+        std::string valType = inst.resultType ? typeToLlvm(inst.resultType) : getValueType(valOp.id);
         
-        output_ << "%" << *inst.result << " = load i32, i32* %"
+        output_ << "%" << *inst.result << " = load " << valType << ", " << valType << "* %"
                 << valOp.id;
     }
     
@@ -327,8 +485,9 @@ private:
         if (!inst.result || inst.operands.empty()) return;
         
         auto& valOp = std::get<ValueOperand>(inst.operands[0]);
+        std::string valType = inst.resultType ? typeToLlvm(inst.resultType) : getValueType(valOp.id);
         
-        output_ << "%" << *inst.result << " = load i32, i32* %"
+        output_ << "%" << *inst.result << " = load " << valType << ", " << valType << "* %"
                 << valOp.id;
     }
     
@@ -338,8 +497,9 @@ private:
         
         auto& ptrOp = std::get<ValueOperand>(inst.operands[0]);
         auto& valOp = std::get<ValueOperand>(inst.operands[1]);
+        std::string valType = getValueType(valOp.id);
         
-        output_ << "store i32 %" << valOp.id << ", i32* %" << ptrOp.id;
+        output_ << "store " << valType << " %" << valOp.id << ", " << valType << "* %" << ptrOp.id;
     }
     
     // إصدار عملية ثنائية
@@ -348,8 +508,20 @@ private:
         
         auto& lhs = std::get<ValueOperand>(inst.operands[0]);
         auto& rhs = std::get<ValueOperand>(inst.operands[1]);
+        std::string valType = inst.resultType ? typeToLlvm(inst.resultType) : getValueType(lhs.id);
         
-        output_ << "%" << *inst.result << " = " << op << " i32 %"
+        // (AR) استخدام fadd/fsub/fmul/fdiv للأنواع العشرية
+        // (EN) Use fadd/fsub/fmul/fdiv for floating point types
+        std::string llvmOp = op;
+        if (valType == "float" || valType == "double") {
+            if (op == "add") llvmOp = "fadd";
+            else if (op == "sub") llvmOp = "fsub";
+            else if (op == "mul") llvmOp = "fmul";
+            else if (op == "sdiv") llvmOp = "fdiv";
+            else if (op == "srem") llvmOp = "frem";
+        }
+        
+        output_ << "%" << *inst.result << " = " << llvmOp << " " << valType << " %"
                 << lhs.id << ", %" << rhs.id;
     }
     
@@ -359,9 +531,18 @@ private:
         
         auto& lhs = std::get<ValueOperand>(inst.operands[0]);
         auto& rhs = std::get<ValueOperand>(inst.operands[1]);
+        std::string valType = getValueType(lhs.id);
         
-        output_ << "%" << *inst.result << " = icmp " << pred << " i32 %"
-                << lhs.id << ", %" << rhs.id;
+        // (AR) استخدام fcmp للأنواع العشرية مع محددات o (ordered)
+        // (EN) Use fcmp for floating types with ordered predicates
+        if (valType == "float" || valType == "double") {
+            std::string fpred = "o" + pred; // oeq, one, olt, ole, ogt, oge
+            output_ << "%" << *inst.result << " = fcmp " << fpred << " " << valType << " %"
+                    << lhs.id << ", %" << rhs.id;
+        } else {
+            output_ << "%" << *inst.result << " = icmp " << pred << " " << valType << " %"
+                    << lhs.id << ", %" << rhs.id;
+        }
     }
     
     // إصدار قفز
@@ -391,7 +572,8 @@ private:
             output_ << "ret void";
         } else {
             auto& val = std::get<ValueOperand>(inst.operands[0]);
-            output_ << "ret i32 %" << val.id;
+            std::string valType = inst.resultType ? typeToLlvm(inst.resultType) : getValueType(val.id);
+            output_ << "ret " << valType << " %" << val.id;
         }
     }
     
@@ -400,21 +582,183 @@ private:
         if (inst.operands.empty()) return;
         
         auto& func = std::get<FunctionOperand>(inst.operands[0]);
+        std::string retType = inst.resultType ? typeToLlvm(inst.resultType) : "i32";
         
         if (inst.result) {
             output_ << "%" << *inst.result << " = ";
         }
         
-        output_ << "call i32 @" << func.name << "(";
+        output_ << "call " << retType << " @" << func.name << "(";
         
         for (size_t i = 1; i < inst.operands.size(); i++) {
             if (i > 1) output_ << ", ";
             auto& arg = std::get<ValueOperand>(inst.operands[i]);
-            output_ << "i32 %" << arg.id;
+            std::string argType = getValueType(arg.id);
+            output_ << argType << " %" << arg.id;
         }
         
         output_ << ")";
     }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // العمليات منخفضة المستوى (Low-level operations for OS development)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    // --- قراءة ذاكرة مباشرة ---
+    void emitRawLoad(const SirInstruction& inst, const std::string& llvmType) {
+        if (!inst.result || inst.operands.empty()) return;
+        
+        auto& addr = std::get<ValueOperand>(inst.operands[0]);
+        // تحويل العنوان إلى مؤشر ثم القراءة منه بدون التحقق
+        output_ << "%" << *inst.result << ".ptr = inttoptr i64 %" << addr.id 
+                << " to " << llvmType << "*\n  ";
+        output_ << "%" << *inst.result << " = load volatile " << llvmType 
+                << ", " << llvmType << "* %" << *inst.result << ".ptr";
+    }
+    
+    // --- كتابة ذاكرة مباشرة ---
+    void emitRawStore(const SirInstruction& inst, const std::string& llvmType) {
+        if (inst.operands.size() < 2) return;
+        
+        auto& addr = std::get<ValueOperand>(inst.operands[0]);
+        auto& val = std::get<ValueOperand>(inst.operands[1]);
+        // تحويل العنوان إلى مؤشر ثم الكتابة إليه
+        output_ << "%tmp.ptr." << addr.id << " = inttoptr i64 %" << addr.id 
+                << " to " << llvmType << "*\n  ";
+        output_ << "store volatile " << llvmType << " %" << val.id 
+                << ", " << llvmType << "* %tmp.ptr." << addr.id;
+    }
+    
+    // --- قراءة من منفذ I/O ---
+    void emitPortIn(const SirInstruction& inst, const std::string& llvmType) {
+        if (!inst.result || inst.operands.empty()) return;
+        
+        auto& port = std::get<ValueOperand>(inst.operands[0]);
+        std::string instr;
+        if (llvmType == "i8") instr = "inb";
+        else if (llvmType == "i16") instr = "inw";
+        else instr = "inl";
+        
+        // inline assembly للقراءة من المنفذ
+        output_ << "%" << *inst.result << " = call " << llvmType 
+                << " asm sideeffect \"" << instr << " %dx, %"
+                << (llvmType == "i8" ? "al" : (llvmType == "i16" ? "ax" : "eax"))
+                << "\", \"={" << (llvmType == "i8" ? "al" : (llvmType == "i16" ? "ax" : "eax"))
+                << "},{dx}\"(i16 %" << port.id << ")";
+    }
+    
+    // --- كتابة إلى منفذ I/O ---
+    void emitPortOut(const SirInstruction& inst, const std::string& llvmType) {
+        if (inst.operands.size() < 2) return;
+        
+        auto& port = std::get<ValueOperand>(inst.operands[0]);
+        auto& val = std::get<ValueOperand>(inst.operands[1]);
+        std::string instr;
+        if (llvmType == "i8") instr = "outb";
+        else if (llvmType == "i16") instr = "outw";
+        else instr = "outl";
+        
+        output_ << "call void asm sideeffect \"" << instr << " %"
+                << (llvmType == "i8" ? "al" : (llvmType == "i16" ? "ax" : "eax"))
+                << ", %dx\", \"{" << (llvmType == "i8" ? "al" : (llvmType == "i16" ? "ax" : "eax"))
+                << "},{dx}\"(" << llvmType << " %" << val.id << ", i16 %" << port.id << ")";
+    }
+    
+    // --- تعليمة inline assembly عامة ---
+    void emitInlineAsm(const std::string& instr, const std::string& constraints,
+                       const std::string& args, bool hasSideEffects = true) {
+        output_ << "call void asm ";
+        if (hasSideEffects) output_ << "sideeffect ";
+        output_ << "\"" << instr << "\", \"" << constraints << "\"(" << args << ")";
+    }
+    
+    // --- قراءة سجل تحكم ---
+    void emitReadCr(const SirInstruction& inst, int crNum) {
+        if (!inst.result) return;
+        
+        output_ << "%" << *inst.result << " = call i64 asm sideeffect \"mov %cr" 
+                << crNum << ", $0\", \"=r\"()";
+    }
+    
+    // --- كتابة سجل تحكم ---
+    void emitWriteCr(const SirInstruction& inst, int crNum) {
+        if (inst.operands.empty()) return;
+        
+        auto& val = std::get<ValueOperand>(inst.operands[0]);
+        output_ << "call void asm sideeffect \"mov $0, %cr" << crNum 
+                << "\", \"r\"(i64 %" << val.id << ")";
+    }
+    
+    // --- تحميل ذري ---
+    void emitAtomicLoad(const SirInstruction& inst) {
+        if (!inst.result || inst.operands.empty()) return;
+        
+        auto& ptr = std::get<ValueOperand>(inst.operands[0]);
+        std::string valType = inst.resultType ? typeToLlvm(inst.resultType) : "i64";
+        
+        output_ << "%" << *inst.result << " = load atomic " << valType 
+                << ", " << valType << "* %" << ptr.id << " seq_cst";
+    }
+    
+    // --- تخزين ذري ---
+    void emitAtomicStore(const SirInstruction& inst) {
+        if (inst.operands.size() < 2) return;
+        
+        auto& ptr = std::get<ValueOperand>(inst.operands[0]);
+        auto& val = std::get<ValueOperand>(inst.operands[1]);
+        std::string valType = getValueType(val.id);
+        
+        output_ << "store atomic " << valType << " %" << val.id 
+                << ", " << valType << "* %" << ptr.id << " seq_cst";
+    }
+    
+    // --- عملية ذرية قراءة-تعديل-كتابة ---
+    void emitAtomicRmw(const SirInstruction& inst, const std::string& op) {
+        if (!inst.result || inst.operands.size() < 2) return;
+        
+        auto& ptr = std::get<ValueOperand>(inst.operands[0]);
+        auto& val = std::get<ValueOperand>(inst.operands[1]);
+        std::string valType = inst.resultType ? typeToLlvm(inst.resultType) : "i64";
+        
+        output_ << "%" << *inst.result << " = atomicrmw " << op << " " 
+                << valType << "* %" << ptr.id << ", " << valType 
+                << " %" << val.id << " seq_cst";
+    }
+    
+    // --- مقارنة وتبديل ذري ---
+    void emitAtomicCmpXchg(const SirInstruction& inst) {
+        if (!inst.result || inst.operands.size() < 3) return;
+        
+        auto& ptr = std::get<ValueOperand>(inst.operands[0]);
+        auto& expected = std::get<ValueOperand>(inst.operands[1]);
+        auto& desired = std::get<ValueOperand>(inst.operands[2]);
+        std::string valType = getValueType(expected.id);
+        
+        output_ << "%" << *inst.result << ".pair = cmpxchg " << valType 
+                << "* %" << ptr.id << ", " << valType << " %" << expected.id 
+                << ", " << valType << " %" << desired.id << " seq_cst seq_cst\n  ";
+        output_ << "%" << *inst.result << " = extractvalue {" << valType 
+                << ", i1} %" << *inst.result << ".pair, 0";
+    }
+    
+    // --- استدعاء مقاطعة ---
+    void emitInt(const SirInstruction& inst) {
+        if (inst.operands.empty()) return;
+        
+        auto& vec = std::get<ConstantOperand>(inst.operands[0]);
+        int64_t vecNum = std::get<int64_t>(vec.value);
+        output_ << "call void asm sideeffect \"int $$" << vecNum << "\", \"\"()";
+    }
+    
+    // --- إبطال صفحة TLB ---
+    void emitInvlpg(const SirInstruction& inst) {
+        if (inst.operands.empty()) return;
+        
+        auto& addr = std::get<ValueOperand>(inst.operands[0]);
+        output_ << "call void asm sideeffect \"invlpg ($0)\", \"r\"(i64 %" << addr.id << ")";
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
     
     // تحويل نوع SIR إلى نوع LLVM
     std::string typeToLlvm(const std::shared_ptr<SirType>& type) {

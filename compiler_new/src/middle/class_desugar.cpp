@@ -738,8 +738,12 @@ int sad_desugar_class(const char* class_source, char** output_out, char** error_
         std::string output = desugarer.generateCode(result);
         
         if (output_out) {
-            *output_out = new char[output.size() + 1];
-            std::strcpy(*output_out, output.c_str());
+            // إصلاح: استخدام std::nothrow و strncpy
+            *output_out = new (std::nothrow) char[output.size() + 1];
+            if (*output_out) {
+                std::strncpy(*output_out, output.c_str(), output.size());
+                (*output_out)[output.size()] = '\0';
+            }
         }
         
         return 1;
@@ -747,8 +751,12 @@ int sad_desugar_class(const char* class_source, char** output_out, char** error_
     catch (const std::exception& e) {
         if (error_out) {
             std::string msg = std::string("خطأ: ") + e.what();
-            *error_out = new char[msg.size() + 1];
-            std::strcpy(*error_out, msg.c_str());
+            // إصلاح: استخدام std::nothrow و strncpy
+            *error_out = new (std::nothrow) char[msg.size() + 1];
+            if (*error_out) {
+                std::strncpy(*error_out, msg.c_str(), msg.size());
+                (*error_out)[msg.size()] = '\0';
+            }
         }
         return 0;
     }

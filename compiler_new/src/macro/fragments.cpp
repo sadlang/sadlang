@@ -589,7 +589,9 @@ int sad_parse_fragment(const char* typeName, const char* input, char* output, in
     
     if (result.value.length() >= (size_t)maxLen) return -3;
     
-    strcpy(output, result.value.c_str());
+    // إصلاح: استخدام strncpy بدلاً من strcpy
+    std::strncpy(output, result.value.c_str(), (size_t)maxLen - 1);
+    output[maxLen - 1] = '\0';  // ضمان null-termination
     return (int)result.consumedChars;
 }
 

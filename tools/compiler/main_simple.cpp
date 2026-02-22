@@ -8,6 +8,7 @@
 #include "interpreter_core.h"
 #include "error_manager.h"
 #include "value.h"
+#include "../../interpreter_new/include/exception.h"
 
 // الآلة الافتراضية / Bytecode VM
 #include "sad_vm_compiler.h"
@@ -16,6 +17,9 @@
 
 // CLI Commands for mobile etc.
 #include "cli_commands.hpp"
+
+// UI Pipeline / خط أنابيب الواجهات الرسومية
+#include "ui/sad_ui_pipeline.hpp"
 
 #include "../../shared/utils/include/utf8_utils.h"
 
@@ -44,6 +48,13 @@ void print_help(const char* program_name) {
               << "  --vm, --آلة    تنفيذ عبر الآلة الافتراضية / Execute via Bytecode VM\n"
               << "  --vm-trace    تتبع تعليمات الآلة / Trace VM instructions\n"
               << "  --vm-disasm   فك البايت كود / Disassemble bytecode\n"
+              << "\n"
+              << "  واجهات <ملف>  توليد واجهات رسومية / Generate UI code\n"
+              << "    --منصة=X    المنصة: desktop|android|ios|web\n"
+              << "    --سطح-المكتب  سطح المكتب SDL2 / Desktop (SDL2)\n"
+              << "    --اندرويد    أندرويد Jetpack Compose\n"
+              << "    --ايفون      iOS SwiftUI\n"
+              << "    --ويب       HTML/CSS/JS\n"
               << std::endl;
 }
 
@@ -118,6 +129,121 @@ int main(int argc, char* argv[]) {
         
         sad::cli::CommandManager manager;
         return manager.run(argc, argv);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // أمر الواجهات الرسومية: sad واجهات <ملف> [--منصة=desktop|android|ios|web]
+    // UI command: sad ui <file> [--platform=desktop|android|ios|web]
+    // ═══════════════════════════════════════════════════════════════════════
+    if (arg == "ui" || arg == "\xD9\x88\xD8\xA7\xD8\xAC\xD9\x87\xD8\xA7\xD8\xAA") {
+        if (argc < 3) {
+            std::cerr << "الاستخدام / Usage: sad واجهات <ملف.ص> [--منصة=سطح-المكتب]\n";
+            std::cerr << "المنصات / Platforms: desktop|android|ios|web|سطح-المكتب|اندرويد|ايفون|ويب\n";
+            return 1;
+        }
+        
+        std::string uiFile;
+        std::string platform = "desktop";
+        bool verbose = false;
+        
+        for (int i = 2; i < argc; ++i) {
+            std::string a = argv[i];
+            if (a.find("--platform=") == 0 || a.find("--منصة=") == 0) {
+                auto eq = a.find('=');
+                if (eq != std::string::npos) platform = a.substr(eq + 1);
+            } else if (a == "--desktop" || a == "--سطح-المكتب") {
+                platform = "desktop";
+            } else if (a == "--android" || a == "--اندرويد") {
+                platform = "android";
+            } else if (a == "--ios" || a == "--ايفون") {
+                platform = "ios";
+            } else if (a == "--web" || a == "--ويب") {
+                platform = "web";
+            } else if (a == "-v" || a == "--verbose") {
+                verbose = true;
+            } else if (a[0] != '-') {
+                uiFile = a;
+            }
+        }
+        
+        if (uiFile.empty()) {
+            std::cerr << "خطأ: لم يُحدَّد ملف المصدر / Error: No source file specified\n";
+            return 1;
+        }
+        
+        // قراءة الملف
+        std::string source = read_file(uiFile);
+        
+        // تحديد المنصة
+        sad::ui::ir::TargetPlatform tp = sad::ui::ir::TargetPlatform::Desktop;
+        if (platform == "android" || platform == "اندرويد" || platform == "هاتف") {
+            tp = sad::ui::ir::TargetPlatform::Android;
+        } else if (platform == "ios" || platform == "ايفون") {
+            tp = sad::ui::ir::TargetPlatform::iOS;
+        } else if (platform == "web" || platform == "ويب") {
+            tp = sad::ui::ir::TargetPlatform::Web;
+        }
+        
+        // إعداد خط الأنابيب
+        sad::ui::ir::SadUIPipeline pipeline;
+        sad::ui::ir::PipelineConfig config;
+        config.platform = tp;
+        config.validate = true;
+        config.optimize = true;
+        config.applyTheme = true;
+        config.verbose = verbose;
+        config.theme.isRTL = true;
+        config.theme.isDarkMode = false;
+        config.theme.primaryColor = {0, 122, 255, 1.0f};
+        config.theme.secondaryColor = {52, 199, 89, 1.0f};
+        config.theme.backgroundColor = {255, 255, 255, 1.0f};
+        config.theme.surfaceColor = {242, 242, 247, 1.0f};
+        config.theme.textPrimary = {0, 0, 0, 1.0f};
+        config.theme.textSecondary = {142, 142, 147, 1.0f};
+        
+        // اسم التطبيق من اسم الملف
+        std::filesystem::path fp(uiFile);
+        std::string appName = fp.stem().u8string();
+        config.outputDir = "build_" + appName;
+        
+        pipeline.setConfig(config);
+        
+        auto result = pipeline.buildFromSource(source, appName);
+        
+        // طباعة السجل
+        for (const auto& msg : result.log) {
+            std::cout << "  [UI] " << msg << "\n";
+        }
+        
+        if (!result.success) {
+            std::cerr << "✗ فشل توليد الواجهات / UI generation failed\n";
+            for (const auto& err : result.codeGenResult.errors) {
+                std::cerr << "  " << err << "\n";
+            }
+            return 1;
+        }
+        
+        // كتابة الملفات
+        std::filesystem::create_directories(config.outputDir);
+        int written = 0;
+        for (const auto& f : result.codeGenResult.files) {
+            auto path = std::filesystem::path(config.outputDir) / f.path;
+            std::filesystem::create_directories(path.parent_path());
+            std::ofstream out(path, std::ios::binary);
+            if (out.is_open()) {
+                out << f.content;
+                out.close();
+                written++;
+                if (verbose) std::cout << "  ✓ " << f.path << "\n";
+            }
+        }
+        
+        std::cout << "\n✓ تم توليد " << written << " ملف في " << config.outputDir << "\n";
+        if (!result.codeGenResult.buildCommand.empty()) {
+            std::cout << "  أمر البناء:\n    " << result.codeGenResult.buildCommand << "\n";
+        }
+        
+        return 0;
     }
     
     // Execute file
@@ -283,6 +409,10 @@ int main(int argc, char* argv[]) {
         
         return 0;
         
+    } catch (const Sad::Interpreter::ExitException& exitEx) {
+        // (AR) خروج نظيف من البرنامج
+        // (EN) Clean program exit
+        return exitEx.getExitCode();
     } catch (const std::exception& e) {
         std::cerr << "خطأ / Error: " << e.what() << std::endl;
         return 1;

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Solution>
+	<Configurations>
+		<BuildType Name="Debug"/>
+		<BuildType Name="Release"/>
+		<BuildType Name="MinSizeRel"/>
+		<BuildType Name="RelWithDebInfo"/>
+		<Platform Name="x64"/>
+	</Configurations>
+	<Project Path="ALL_BUILD.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="58d08408-e9f0-3c22-868c-b021478c97a0" DefaultStartup="true">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+		<BuildDependency Project="sad_new_bytecode.vcxproj"/>
+		<BuildDependency Project="sad_new_frontend.vcxproj"/>
+		<BuildDependency Project="sad_new_memory.vcxproj"/>
+		<BuildDependency Project="sad_new_optimizer.vcxproj"/>
+		<BuildDependency Project="sad_new_security.vcxproj"/>
+		<BuildDependency Project="sad_new_semantic.vcxproj"/>
+		<BuildDependency Project="sad_new_tools.vcxproj"/>
+		<BuildDependency Project="sad_new_type_system.vcxproj"/>
+		<BuildDependency Project="test_build_system.vcxproj"/>
+		<BuildDependency Project="test_docs_emitter.vcxproj"/>
+		<BuildDependency Project="test_formatter.vcxproj"/>
+		<BuildDependency Project="test_security_scanner.vcxproj"/>
+		<Build Solution="Debug|*" Project="false"/>
+		<Build Solution="Release|*" Project="false"/>
+		<Build Solution="MinSizeRel|*" Project="false"/>
+		<Build Solution="RelWithDebInfo|*" Project="false"/>
+	</Project>
+	<Project Path="ZERO_CHECK.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="b582adbd-1233-3404-a33d-f5c24341d755"/>
+	<Project Path="sad_new_bytecode.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="8cffa78d-cb5b-32c2-89ac-c1a8ff06c139">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+	</Project>
+	<Project Path="sad_new_frontend.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="eb542ff9-a71e-3ad8-bd14-e19aef38ab8e">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+	</Project>
+	<Project Path="sad_new_memory.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="81f81282-1b9d-35c5-bc93-ac17dd186dae">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+	</Project>
+	<Project Path="sad_new_optimizer.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="1a674066-5d27-3c8f-89e7-1139843315e4">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+		<BuildDependency Project="sad_new_frontend.vcxproj"/>
+	</Project>
+	<Project Path="sad_new_security.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="f79e9d43-7495-3e49-94b9-79141e8822b1">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+	</Project>
+	<Project Path="sad_new_semantic.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="8cb60a73-d75f-37c1-ada5-640d7460c03d">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+		<BuildDependency Project="sad_new_type_system.vcxproj"/>
+	</Project>
+	<Project Path="sad_new_tools.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="0a9e5b61-3490-3a8c-8b10-6a1e8189dd9f">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+	</Project>
+	<Project Path="sad_new_type_system.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="d49de9f2-1187-3975-b125-ed6403215e2c">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+	</Project>
+	<Project Path="test_build_system.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="50b96162-c7ce-320f-8919-15a884dac8e7">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+		<BuildDependency Project="sad_new_tools.vcxproj"/>
+	</Project>
+	<Project Path="test_docs_emitter.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="9c75ac5f-8506-3bc6-917c-99d67475025f">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+		<BuildDependency Project="sad_new_tools.vcxproj"/>
+	</Project>
+	<Project Path="test_formatter.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="4aca2668-1196-3f35-92ec-d9ed8d59ea2b">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+		<BuildDependency Project="sad_new_tools.vcxproj"/>
+	</Project>
+	<Project Path="test_security_scanner.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="dceeadd0-2ea3-3655-a9ee-1ac04628c13b">
+		<BuildDependency Project="ZERO_CHECK.vcxproj"/>
+		<BuildDependency Project="sad_new_tools.vcxproj"/>
+	</Project>
+</Solution>

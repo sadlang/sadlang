@@ -65,12 +65,10 @@
 #include <chrono>
 #include <thread>
 
+#include "smart_panic.cpp"
+
 namespace sad {
 namespace panic {
-
-// Forward declarations
-struct معلومات_ذعر;
-enum class نوع_ذعر;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //                              استراتيجيات التعافي

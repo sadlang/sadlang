@@ -1,90 +1,64 @@
 // بسم الله الرحمن الرحيم
 // =========================================================================
-// مسار الإحصائيات — Registry Statistics Route
-// =========================================================================
-//
-// @file stats.js
-//
-// نقطة النهاية:
-//   GET /api/v1/stats
-//
-// الوصف:
-//   يُرجع إحصائيات شاملة عن المستودع في كائن JSON واحد.
-//   لا يتطلب مصادقة (عام).
-//
-// البيانات المُرجعة:
-//   - summary: الأرقام الأساسية (حزم، إصدارات، مستخدمين، تنزيلات)
-//   - popular_packages: أكثر 10 حزم تنزيلاً
-//   - newest_packages: أحدث 10 حزم
-//   - recently_updated: آخر 10 حزم مُحدّثة
-//   - categories: كل التصنيفات المتاحة
-//
-// الاستخدام في sad-pkg:
-//   sad-pkg stats → يعرض ملخص المستودع في الطرفية
+// مسارات الإحصائيات — إحصائيات السجل العامة
+// Stats Routes — Public registry statistics
 // =========================================================================
 
-const express = require('express');
-const router = express.Router();
+const { Router } = require('express');
+const { sendError } = require('../utils/error-codes');
 
-// ============================================================================
-// GET /api/v1/stats — إحصائيات عامة / General Stats
-// ============================================================================
+function createStatsRouter(db, services) {
+    const router = Router();
+    const { statsService } = services;
 
-router.get('/', (req, res) => {
-    const db = req.app.locals.db;
+    // ═══════════════════════════════════════════════════════════════
+    // GET / — إحصائيات شاملة
+    // ═══════════════════════════════════════════════════════════════
+    router.get('/', (req, res) => {
+        try {
+            const result = statsService.getFullStats();
+            res.json(result);
+        } catch (err) {
+            console.error('خطأ في الإحصائيات:', err.message);
+            sendError(res, 'GEN_002');
+        }
+    });
 
-    try {
-        const totalPackages = db.prepare('SELECT COUNT(*) as count FROM packages WHERE is_yanked = 0').get();
-        const totalVersions = db.prepare('SELECT COUNT(*) as count FROM versions WHERE is_yanked = 0').get();
-        const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users WHERE is_active = 1').get();
-        const totalDownloads = db.prepare('SELECT COALESCE(SUM(total_downloads), 0) as total FROM packages').get();
+    // ═══════════════════════════════════════════════════════════════
+    // GET /downloads — إحصائيات التنزيلات اليومية
+    // ═══════════════════════════════════════════════════════════════
+    router.get('/downloads', (req, res) => {
+        try {
+            const days = parseInt(req.query.days) || 30;
+            const downloads = statsService.getDailyDownloads(Math.min(days, 365));
+            res.json({
+                success: true,
+                period_days: days,
+                downloads,
+            });
+        } catch (err) {
+            console.error('خطأ في إحصائيات التنزيلات:', err.message);
+            sendError(res, 'GEN_002');
+        }
+    });
 
-        // أكثر الحزم تنزيلاً / Most Downloaded
-        const popular = db.prepare(`
-            SELECT p.name, p.description_ar, p.description, p.total_downloads, p.latest_version
-            FROM packages p
-            WHERE p.is_yanked = 0
-            ORDER BY p.total_downloads DESC
-            LIMIT 10
-        `).all();
+    // ═══════════════════════════════════════════════════════════════
+    // GET /categories — قائمة التصنيفات
+    // ═══════════════════════════════════════════════════════════════
+    router.get('/categories', (req, res) => {
+        try {
+            const categories = statsService.getCategories();
+            res.json({
+                success: true,
+                categories,
+            });
+        } catch (err) {
+            console.error('خطأ في التصنيفات:', err.message);
+            sendError(res, 'GEN_002');
+        }
+    });
 
-        // أحدث الحزم / Newest
-        const newest = db.prepare(`
-            SELECT p.name, p.description_ar, p.description, p.latest_version, p.created_at
-            FROM packages p
-            WHERE p.is_yanked = 0
-            ORDER BY p.created_at DESC
-            LIMIT 10
-        `).all();
+    return router;
+}
 
-        // أحدث التحديثات / Recently Updated
-        const updated = db.prepare(`
-            SELECT p.name, p.latest_version, p.updated_at
-            FROM packages p
-            WHERE p.is_yanked = 0
-            ORDER BY p.updated_at DESC
-            LIMIT 10
-        `).all();
-
-        // التصنيفات / Categories
-        const categories = db.prepare('SELECT * FROM categories ORDER BY name_ar').all();
-
-        res.json({
-            summary: {
-                total_packages: totalPackages.count,
-                total_versions: totalVersions.count,
-                total_users: totalUsers.count,
-                total_downloads: totalDownloads.total,
-            },
-            popular_packages: popular,
-            newest_packages: newest,
-            recently_updated: updated,
-            categories,
-        });
-    } catch (error) {
-        console.error('خطأ في الإحصائيات:', error.message);
-        res.status(500).json({ error: 'خطأ في الخادم' });
-    }
-});
-
-module.exports = router;
+module.exports = createStatsRouter;

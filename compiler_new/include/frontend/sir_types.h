@@ -300,6 +300,8 @@ enum class SIROpcode {
     BUILTIN_MEM_READ_16,     ///< (AR) ذاكرة_اقرأ16 / (EN) Memory read 16-bit
     BUILTIN_MEM_WRITE_32,    ///< (AR) ذاكرة_اكتب32 / (EN) Memory write 32-bit
     BUILTIN_MEM_READ_32,     ///< (AR) ذاكرة_اقرأ32 / (EN) Memory read 32-bit
+    BUILTIN_MEM_WRITE_64,    ///< (AR) ذاكرة_اكتب64 / (EN) Memory write 64-bit
+    BUILTIN_MEM_READ_64,     ///< (AR) ذاكرة_اقرأ64 / (EN) Memory read 64-bit
     BUILTIN_INTERRUPT,       ///< (AR) مقاطعة — إطلاق مقاطعة برمجية / (EN) Software interrupt (int N)
     BUILTIN_HALT,            ///< (AR) توقف — إيقاف المعالج / (EN) Halt CPU (hlt)
     BUILTIN_CLI,             ///< (AR) تعطيل_مقاطعات — تعطيل المقاطعات / (EN) Clear interrupt flag (cli)

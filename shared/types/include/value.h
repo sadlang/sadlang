@@ -198,6 +198,11 @@ public:
     ArrayType toArray() const;
     MapType toMap() const;
     
+    // (AR) إصدارات مرجعية ثابتة — تتجنب النسخ عند الحاجة للقراءة فقط
+    // (EN) Const reference versions — avoid copying when only reading
+    const ArrayType& toArrayRef() const;
+    const MapType& toMapRef() const;
+    
     /**
      * @brief (AR) الحصول على مؤشر الكائن
      * @brief (EN) Get object pointer
@@ -267,6 +272,12 @@ public:
      * @brief (EN) Remove element from map
      */
     bool remove(const std::string& key);
+    
+    /**
+     * @brief (AR) حذف عنصر من المصفوفة بالفهرس
+     * @brief (EN) Remove element from array by index
+     */
+    void remove(size_t index);
     
     /**
      * @brief (AR) مسح جميع العناصر

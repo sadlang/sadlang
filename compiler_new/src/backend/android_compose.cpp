@@ -43,6 +43,55 @@ namespace sad {
 namespace codegen {
 
 // ═══════════════════════════════════════════════════════════════════════════
+// دوال الأمان / Security Functions
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * @brief Escape string for Kotlin string literal (prevents code injection)
+ * تهريب النص لاستخدامه كنص Kotlin (يمنع حقن الكود)
+ * 
+ * @param input النص المُدخل / Input string
+ * @return النص المُهرَّب / Escaped string
+ */
+inline std::string escapeKotlinString(const std::string& input) {
+    std::string result;
+    result.reserve(input.length() * 2);  // Reserve extra space
+    
+    for (char c : input) {
+        switch (c) {
+            case '\\': result += "\\\\"; break;  // Backslash
+            case '"':  result += "\\\""; break;  // Double quote
+            case '\'': result += "\\'"; break;   // Single quote
+            case '\n': result += "\\n"; break;   // Newline
+            case '\r': result += "\\r"; break;   // Carriage return
+            case '\t': result += "\\t"; break;   // Tab
+            case '\b': result += "\\b"; break;   // Backspace
+            case '\f': result += "\\f"; break;   // Form feed
+            case '$':  result += "\\$"; break;   // Dollar sign (Kotlin string template)
+            default:
+                // Check for control characters
+                if (static_cast<unsigned char>(c) < 32) {
+                    // Use unicode escape for control chars
+                    char hex[8];
+                    std::snprintf(hex, sizeof(hex), "\\u%04x", static_cast<unsigned char>(c));
+                    result += hex;
+                } else {
+                    result += c;
+                }
+        }
+    }
+    return result;
+}
+
+/**
+ * @brief Create a safe Kotlin string literal from raw text
+ * إنشاء نص Kotlin آمن من النص الخام
+ */
+inline std::string toKotlinStringLiteral(const std::string& input) {
+    return "\"" + escapeKotlinString(input) + "\"";
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // القسم الأول: خرائط التحويل الثابتة
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -770,10 +819,11 @@ void ComposeCodeGen::generateNode(const parser::UINodePtr& node) {
 void ComposeCodeGen::generateText(const parser::UINodePtr& node) {
     std::string text = "\"\"";
     
-    // استخراج نص المحتوى
+    // استخراج نص المحتوى / Extract text content
     if (!node->constructorArgs.empty()) {
         if (std::holds_alternative<std::string>(node->constructorArgs[0])) {
-            text = "\"" + std::get<std::string>(node->constructorArgs[0]) + "\"";
+            // استخدام دالة التهريب الآمنة / Use safe escape function
+            text = toKotlinStringLiteral(std::get<std::string>(node->constructorArgs[0]));
         }
     }
     
@@ -829,7 +879,8 @@ void ComposeCodeGen::generateButton(const parser::UINodePtr& node) {
     
     if (!node->constructorArgs.empty()) {
         if (std::holds_alternative<std::string>(node->constructorArgs[0])) {
-            buttonText = "\"" + std::get<std::string>(node->constructorArgs[0]) + "\"";
+            // استخدام دالة التهريب الآمنة / Use safe escape function
+            buttonText = toKotlinStringLiteral(std::get<std::string>(node->constructorArgs[0]));
         }
     }
     
@@ -841,7 +892,8 @@ void ComposeCodeGen::generateButton(const parser::UINodePtr& node) {
     writeLine("onClick = {");
     indent();
     if (!node->actionClosure.empty()) {
-        writeLine("// " + node->actionClosure);
+        // تهريب تعليق الإجراء أيضاً / Also escape action comment
+        writeLine("// " + escapeKotlinString(node->actionClosure));
     }
     dedent();
     writeLine("},");

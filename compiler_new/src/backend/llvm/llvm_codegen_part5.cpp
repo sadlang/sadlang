@@ -443,19 +443,25 @@ llvm::Value* LLVMCodeGen::emitAlloca(std::shared_ptr<SIRInstruction> inst) {
     }
     
     // ================================================================
-    // ╪¡╪º┘ה╪⌐ 2: ╪»╪º╪«┘ה ╪º┘ה╪¿╪º┘ז┘ך - ╪¡┘ג┘ט┘ה ╪º┘ה╪╡┘ז┘ב ╪¬╪╡╪¿╪¡ GEP ┘ו┘ז self
-    // Case 2: Inside constructor - class fields become GEP from self
+    // حالة 2: داخل الباني أو دالة الصنف - حقول الصنف تصبح GEP من self
+    // Case 2: Inside constructor or method - class fields become GEP from self
     // ================================================================
-    if (!context_info_.currentConstructorClass.empty() && inst->result.has_value()) {
+    std::string activeClass;
+    if (!context_info_.currentConstructorClass.empty()) {
+        activeClass = context_info_.currentConstructorClass;
+    } else if (!context_info_.currentMethodClass.empty()) {
+        activeClass = context_info_.currentMethodClass;
+    }
+    
+    if (!activeClass.empty() && inst->result.has_value()) {
         std::string fieldName = inst->result->name;
-        // (AR) ╪Ñ╪▓╪º┘ה╪⌐ ╪¿╪º╪»╪ª╪⌐ % ╪Ñ┘ז ┘ט╪¼╪»╪¬
+        // (AR) إزالة بادئة % إن وجدت
         // (EN) Strip % prefix if present
         if (!fieldName.empty() && fieldName[0] == '%') {
             fieldName = fieldName.substr(1);
         }
         
-        const std::string& ctorClass = context_info_.currentConstructorClass;
-        auto fieldIt = context_info_.classFieldNames.find(ctorClass);
+        auto fieldIt = context_info_.classFieldNames.find(activeClass);
         if (fieldIt != context_info_.classFieldNames.end()) {
             const auto& fieldNames = fieldIt->second;
             int fieldIndex = -1;
@@ -467,7 +473,7 @@ llvm::Value* LLVMCodeGen::emitAlloca(std::shared_ptr<SIRInstruction> inst) {
             }
             
             if (fieldIndex >= 0) {
-                // (AR) ╪º╪│╪¬╪«╪»╪º┘ו GEP ┘ו┘ז self ╪¿╪»┘ה╪º┘כ ┘ו┘ז alloca ┘ו╪¡┘ה┘ך
+                // (AR) استخدام GEP من self بدلاً من alloca محلي
                 // (EN) Use GEP from self instead of local alloca
                 llvm::Value* selfPtr = nullptr;
                 auto selfIt = context_info_.namedValues.find("self");
@@ -481,14 +487,14 @@ llvm::Value* LLVMCodeGen::emitAlloca(std::shared_ptr<SIRInstruction> inst) {
                 }
                 
                 if (selfPtr) {
-                    llvm::StructType* structType = context_info_.classStructTypes[ctorClass];
+                    llvm::StructType* structType = context_info_.classStructTypes[activeClass];
                     
-                    // (AR) ╪Ñ╪░╪º ┘ד╪º┘ז self alloca╪ל ┘ז╪¡┘ו┘ס┘ה ╪º┘ה┘ג┘ך┘ו╪⌐ ┘ט┘ז╪¡┘ט┘ה┘ח╪º ┘ה┘ו╪ñ╪┤╪▒
+                    // (AR) إذا كان self alloca، نحمّله القيمة ونحولها لمؤشر
                     // (EN) If self is an alloca, load value and convert to pointer
                     llvm::Value* actualSelf = selfPtr;
                     if (auto* allocaInst = llvm::dyn_cast<llvm::AllocaInst>(selfPtr)) {
                         if (!allocaInst->getAllocatedType()->isStructTy()) {
-                            // self ┘ח┘ט alloca i64 ┘ך╪¡╪¬┘ט┘ך ┘ו╪ñ╪┤╪▒ ┘ו╪¡┘ט┘ה ptrtoint
+                            // self هو alloca i64 يحتوي مؤشر محول ptrtoint
                             // self is an i64 alloca holding a ptrtoint-ed pointer
                             llvm::Value* selfVal = builder_->CreateLoad(
                                 allocaInst->getAllocatedType(), allocaInst, "self.val");
@@ -502,8 +508,9 @@ llvm::Value* LLVMCodeGen::emitAlloca(std::shared_ptr<SIRInstruction> inst) {
                     
                     context_info_.namedValues[inst->result->name] = gep;
                     
-                    std::cout << "[DEBUG] emitAlloca: constructor field '" << fieldName
-                              << "' mapped to GEP index " << fieldIndex << std::endl;
+                    std::cout << "[DEBUG] emitAlloca: class field '" << fieldName
+                              << "' mapped to GEP index " << fieldIndex
+                              << " (class: " << activeClass << ")" << std::endl;
                     
                     return gep;
                 }
@@ -533,7 +540,11 @@ llvm::Value* LLVMCodeGen::emitAlloca(std::shared_ptr<SIRInstruction> inst) {
         }
     }
     
-    llvm::Value* result = builder_->CreateAlloca(allocType, nullptr, regName);
+    // Hoist alloca to entry block to avoid stack growth in loops
+    llvm::Function* func = builder_->GetInsertBlock()->getParent();
+    llvm::IRBuilder<> tmpBuilder(&func->getEntryBlock(),
+                                  func->getEntryBlock().begin());
+    llvm::Value* result = tmpBuilder.CreateAlloca(allocType, nullptr, regName);
     
     if (inst->result.has_value()) {
         context_info_.namedValues[inst->result->name] = result;
@@ -705,6 +716,13 @@ llvm::Value* LLVMCodeGen::emitCondBranch(std::shared_ptr<SIRInstruction> inst) {
     llvm::Value* condition = resolveOperand(inst->operands[0]);
     std::string trueLabel = inst->operands[1].name;
     std::string falseLabel = inst->operands[2].name;
+    
+    std::cout << "[DEBUG] emitCondBranch: looking for trueLabel='" << trueLabel 
+              << "', falseLabel='" << falseLabel << "'" << std::endl;
+    std::cout << "[DEBUG] emitCondBranch: registered blocks count=" << context_info_.basicBlocks.size() << std::endl;
+    for (const auto& [name, bb] : context_info_.basicBlocks) {
+        std::cout << "[DEBUG] emitCondBranch: registered block '" << name << "'" << std::endl;
+    }
     
     if (!condition) {
         reportError("Condition not found for conditional branch");

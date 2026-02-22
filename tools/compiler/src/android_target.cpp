@@ -578,12 +578,108 @@ std::string AndroidTarget::generateNativeCMake(const AndroidProjectConfig& confi
     return cmake.str();
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Security helper functions - دوال الأمان المساعدة
+// ════════════════════════════════════════════════════════════════════════════
+
+namespace {
+    /**
+     * @brief Validate device ID format (prevents command injection)
+     * التحقق من صيغة معرف الجهاز (يمنع حقن الأوامر)
+     */
+    bool isValidDeviceId(const std::string& deviceId) {
+        if (deviceId.empty()) return true;  // Empty is valid (use default)
+        
+        // Device ID should only contain alphanumeric, colon, and hyphen
+        // معرف الجهاز يجب أن يحتوي فقط على أحرف وأرقام ونقطتين وشرطة
+        for (char c : deviceId) {
+            if (!std::isalnum(static_cast<unsigned char>(c)) && c != ':' && c != '-' && c != '_') {
+                return false;
+            }
+        }
+        return deviceId.length() <= 64;  // Reasonable max length
+    }
+    
+    /**
+     * @brief Validate package name format (e.g., com.example.app)
+     * التحقق من صيغة اسم الحزمة
+     */
+    bool isValidPackageName(const std::string& pkgName) {
+        if (pkgName.empty() || pkgName.length() > 255) return false;
+        
+        // Package name: letters, digits, underscores, dots (no consecutive dots)
+        char prev = '.';
+        for (char c : pkgName) {
+            if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '.') {
+                return false;
+            }
+            if (c == '.' && prev == '.') return false;  // No consecutive dots
+            prev = c;
+        }
+        // Must not start or end with dot
+        return pkgName.front() != '.' && pkgName.back() != '.';
+    }
+    
+    /**
+     * @brief Validate activity name format
+     * التحقق من صيغة اسم النشاط
+     */
+    bool isValidActivityName(const std::string& actName) {
+        if (actName.empty() || actName.length() > 255) return false;
+        
+        // Activity: letters, digits, underscores
+        for (char c : actName) {
+            if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_') {
+                return false;
+            }
+        }
+        // Must start with letter
+        return std::isalpha(static_cast<unsigned char>(actName.front()));
+    }
+    
+    /**
+     * @brief Validate APK path is safe
+     * التحقق من أمان مسار APK
+     */
+    bool isValidApkPath(const std::filesystem::path& apkPath) {
+        std::string pathStr = apkPath.string();
+        
+        // Check for dangerous characters
+        static const std::string dangerous = ";|&$`\"'<>(){}[]!*?\n\r";
+        for (char c : pathStr) {
+            if (dangerous.find(c) != std::string::npos) {
+                return false;
+            }
+        }
+        
+        // Check for path traversal
+        if (pathStr.find("..") != std::string::npos) {
+            return false;
+        }
+        
+        // Must end with .apk
+        return apkPath.extension() == ".apk";
+    }
+}
+
 std::optional<std::string> AndroidTarget::installApk(
     const std::filesystem::path& apkPath,
     const std::string& deviceId) {
     
+    // ════════════════════════════════════════════════════════
+    // التحقق الأمني / Security validation
+    // ════════════════════════════════════════════════════════
+    
     if (!std::filesystem::exists(apkPath)) {
         return "ملف APK غير موجود: " + apkPath.string();
+    }
+    
+    if (!isValidApkPath(apkPath)) {
+        return "مسار APK غير آمن أو لا ينتهي بـ .apk";
+    }
+    
+    if (!isValidDeviceId(deviceId)) {
+        return "معرف الجهاز غير صالح. يجب أن يحتوي على أحرف وأرقام فقط.";
     }
     
     std::ostringstream cmd;
@@ -591,7 +687,7 @@ std::optional<std::string> AndroidTarget::installApk(
     if (!deviceId.empty()) {
         cmd << " -s " << deviceId;
     }
-    cmd << " install -r " << apkPath.string();
+    cmd << " install -r \"" << apkPath.string() << "\"";
     
     int result = std::system(cmd.str().c_str());
     if (result != 0) {
@@ -605,6 +701,22 @@ std::optional<std::string> AndroidTarget::runApp(
     const std::string& packageName,
     const std::string& activityName,
     const std::string& deviceId) {
+    
+    // ════════════════════════════════════════════════════════
+    // التحقق الأمني / Security validation
+    // ════════════════════════════════════════════════════════
+    
+    if (!isValidPackageName(packageName)) {
+        return "اسم الحزمة غير صالح. يجب أن يكون بصيغة com.example.app";
+    }
+    
+    if (!isValidActivityName(activityName)) {
+        return "اسم النشاط غير صالح. يجب أن يبدأ بحرف ويحتوي على أحرف وأرقام فقط.";
+    }
+    
+    if (!isValidDeviceId(deviceId)) {
+        return "معرف الجهاز غير صالح.";
+    }
     
     std::ostringstream cmd;
     cmd << "adb";

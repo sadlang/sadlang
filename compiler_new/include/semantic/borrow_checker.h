@@ -211,6 +211,7 @@ public:
     void visitSuperExpr(AST::SuperExpr& expr) override;
     void visitBorrowExpr(AST::BorrowExpr& expr) override;
     void visitInlineAsmExpr(AST::InlineAsmExpr& expr) override;
+    void visitRangeExpr(AST::RangeExpr& expr) override;
     
     // Statements / العبارات
     void visitExprStmt(AST::ExprStmt& stmt) override;
@@ -251,6 +252,8 @@ public:
     void visitOperatorDecl(AST::OperatorDecl& decl) override;
     void visitTraitDecl(AST::TraitDecl& decl) override;
     void visitImplDecl(AST::ImplDecl& decl) override;
+    void visitStructDecl(AST::StructDecl& decl) override;
+    void visitTestDecl(AST::TestDecl& decl) override;
     
 protected:
     // ==================================================================

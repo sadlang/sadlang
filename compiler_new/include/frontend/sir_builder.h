@@ -35,12 +35,15 @@
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "pattern_nodes.h"
+#include "advanced_expr_nodes.h"
+#include "property_nodes.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <stack>
+#include <optional>
 
 namespace Sad {
 namespace Compiler {
@@ -90,6 +93,7 @@ namespace AST {
     using FunctionDecl = Sad::AST::FunctionDecl;
     using ClassDecl = Sad::AST::ClassDecl;
     using TemplateFunctionDecl = Sad::AST::TemplateFunctionDecl;  // (AR) دالة قالب / (EN) Template function
+    using TemplateClassDecl = Sad::AST::TemplateClassDecl;  // (AR) صنف قالب / (EN) Template class
     using NewExpr = Sad::AST::NewExpr;
     using MemberAccessExpr = Sad::AST::MemberAccessExpr;
     using MethodCallExpr = Sad::AST::MethodCallExpr;
@@ -595,6 +599,22 @@ public:
     BuildResult buildFunctionCall(AST::FunctionCallNode* call);
     
     /**
+     * @brief (AR) معالجة استدعاء دالة مدمجة أساسية
+     * @brief (EN) Handle core builtin function call (type conv, print, math, string, array, file)
+     */
+    std::optional<BuildResult> buildBuiltinCallCore(
+        const std::string& funcName, bool isUserDefinedFunction,
+        std::vector<BuildResult>& argResults, std::vector<SIROperand>& argOperands);
+    
+    /**
+     * @brief (AR) معالجة استدعاء دالة مدمجة للنظام
+     * @brief (EN) Handle system builtin function call (hardware, GPIO, timer, atomic, async, security)
+     */
+    std::optional<BuildResult> buildBuiltinCallSystem(
+        const std::string& funcName, bool isUserDefinedFunction,
+        std::vector<BuildResult>& argResults, std::vector<SIROperand>& argOperands);
+    
+    /**
      * @brief (AR) بناء إنشاء كائن جديد
      * @brief (EN) Build new object creation
      * 
@@ -882,6 +902,10 @@ private:
     // (EN) Template function map - template name -> AST node
     std::unordered_map<std::string, AST::TemplateFunctionDecl*> templateFunctions_;
     
+    // (AR) خريطة قوالب الأصناف - اسم القالب -> AST node
+    // (EN) Template class map - template name -> AST node
+    std::unordered_map<std::string, AST::TemplateClassDecl*> templateClasses_;
+    
     // (AR) خريطة الدوال المُنشأة من القوالب - اسم_مع_أنواع -> SIR function
     // (EN) Instantiated template functions - name_with_types -> SIR function
     std::unordered_map<std::string, std::shared_ptr<SIRFunction>> instantiatedTemplates_;
@@ -907,6 +931,24 @@ private:
      * @brief (EN) Convert AST Type to SIRType
      */
     SIRType astTypeToSIRType(const Sad::Data::DataType& astType);
+    
+    /**
+     * @brief (AR) استنتاج نوع الإرجاع من جسم الدالة
+     * @brief (EN) Infer return type from function body
+     * @param body جسم الدالة / Function body
+     * @return نوع الإرجاع المُستنتج (VOID إذا لم يكن هناك return مع قيمة)
+     * 
+     * هذه الدالة تفحص جسم الدالة للبحث عن جمل return:
+     * - إذا وُجد return مع قيمة، تُرجع I64 (النوع الافتراضي)
+     * - إذا لم يُوجد return أو كان return فارغاً، تُرجع VOID
+     */
+    SIRType inferReturnTypeFromBody(const Sad::AST::Statement* body);
+    
+    /**
+     * @brief (AR) فحص إذا كانت الجملة تحتوي return مع قيمة (تعاودي)
+     * @brief (EN) Check if statement contains return with value (recursive)
+     */
+    bool hasReturnWithValue(const Sad::AST::Statement* stmt);
     
     /**
      * @brief (AR) تحويل عامل ثنائي AST إلى SIR opcode

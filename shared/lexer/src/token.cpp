@@ -289,6 +289,7 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::OP_BITWISE_OR:       return "OP_BITWISE_OR";
         case TokenType::OP_SHIFT_LEFT:       return "OP_SHIFT_LEFT";
         case TokenType::OP_SHIFT_RIGHT:      return "OP_SHIFT_RIGHT";
+        case TokenType::OP_BITWISE_NOT:      return "OP_BITWISE_NOT";
         
         // عامل الأنبوب
         case TokenType::OP_PIPE_ARROW:       return "OP_PIPE_ARROW";
@@ -312,6 +313,7 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::ARABIC_SEMICOLON:    return "ARABIC_SEMICOLON"; // U+061B spec 03_oop.md §1
         case TokenType::COLON:               return "COLON";
         case TokenType::DOT:                 return "DOT";
+        case TokenType::DOT_DOT:             return "DOT_DOT";
         case TokenType::ARROW:               return "ARROW";
         case TokenType::FAT_ARROW:           return "FAT_ARROW";
         case TokenType::QUESTION:            return "QUESTION";

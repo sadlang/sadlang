@@ -143,7 +143,7 @@ void registerBuiltinsPart1(Interpreter& interpreter) {
         return BuiltinFunctions::split(args);
     };
     
-    interpreter.getFunctionManager().registerBuiltinFunction("قسّم", split_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("قسم", split_func);
     interpreter.getFunctionManager().registerBuiltinFunction("split", split_func);
     
     auto join_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -211,6 +211,7 @@ void registerBuiltinsPart1(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("حول_رقم", to_int_func);
     interpreter.getFunctionManager().registerBuiltinFunction("to_int", to_int_func);
     interpreter.getFunctionManager().registerBuiltinFunction("int", to_int_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("عدد", to_int_func);
     
     auto to_float_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
         return BuiltinFunctions::to_float(args);
@@ -364,6 +365,7 @@ void registerBuiltinsPart1(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("substring", string_substring_func);
     interpreter.getFunctionManager().registerBuiltinFunction("substr", string_substring_func);
     interpreter.getFunctionManager().registerBuiltinFunction("قطعة", string_substring_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("قص", string_substring_func);
     
     // ✅ TODO 5: toLower / تحويل_صغير (Convert to lowercase)
     auto string_tolower_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -399,7 +401,7 @@ void registerBuiltinsPart1(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("قص_أطراف", string_trim_func);
     interpreter.getFunctionManager().registerBuiltinFunction("trim", string_trim_func);
     interpreter.getFunctionManager().registerBuiltinFunction("strip", string_trim_func);
-    interpreter.getFunctionManager().registerBuiltinFunction("قلّم", string_trim_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("قلم", string_trim_func);
     
     // ✅ TODO 8: split / تقسيم (Split string into array)
     auto string_split_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -758,7 +760,7 @@ void registerBuiltinsPart1(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("random", other_random_func);
     interpreter.getFunctionManager().registerBuiltinFunction("رقم_عشوائي", other_random_func);
     
-    // sleep - إيقاف التنفيذ مؤقتاً
+    // sleep - إيقاف التنفيذ مؤقتا
     auto other_sleep_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
         std::vector<Data::Value> plainArgs;
         for (const auto& arg : args) plainArgs.push_back(*arg);

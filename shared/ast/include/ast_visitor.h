@@ -36,6 +36,7 @@ class SetComprehensionExpr;
 class GeneratorExpr;
 class DecoratorExpr;
 class InlineAsmExpr;      // (AR) تعبير التجميع المضمّن / (EN) Inline assembly expression
+class RangeExpr;          // (AR) تعبير المدى / (EN) Range expression
 
 // OOP Expression nodes / عُقد تعابير OOP
 class NewExpr;
@@ -76,6 +77,8 @@ class PropertyDecl;
 class ConstructorDecl;
 class DestructorDecl;
 class EnumDecl;
+class StructDecl;
+class TestDecl;
 class ImportStmt;
 class FromImportStmt;  // (AR) جملة الاستيراد الانتقائي / (EN) Selective import statement
 class ExportStmt;
@@ -350,6 +353,7 @@ public:
      *      Used for: disabling interrupts, port I/O, context switching
      */
     virtual void visitInlineAsmExpr(InlineAsmExpr& expr) = 0;
+    virtual void visitRangeExpr(RangeExpr& expr) = 0;
     
     // =====================================================================
     // OOP Expression visitors / زوار تعابير OOP
@@ -645,6 +649,18 @@ public:
     virtual void visitEnumDecl(EnumDecl& decl) = 0;
     
     /**
+     * @brief Visit struct declaration node / زيارة عقدة تصريح البنية
+     * @param decl Struct declaration node
+     */
+    virtual void visitStructDecl(StructDecl& decl) = 0;
+    
+    /**
+     * @brief Visit test declaration node / زيارة عقدة تصريح الاختبار
+     * @param decl Test declaration node
+     */
+    virtual void visitTestDecl(TestDecl& decl) = 0;
+    
+    /**
      * @brief Visit import statement node / زيارة عقدة عبارة الاستيراد
      * @param stmt Import statement node
      * 
@@ -789,6 +805,7 @@ public:
     void visitGeneratorExpr(GeneratorExpr& expr) override {}
     void visitDecoratorExpr(DecoratorExpr& expr) override {}
     void visitInlineAsmExpr(InlineAsmExpr& expr) override {}
+    void visitRangeExpr(RangeExpr& expr) override {}
     
     // OOP Expression visitors / زوار تعابير OOP
     void visitNewExpr(NewExpr& expr) override {}
@@ -825,6 +842,8 @@ public:
     void visitConstructorDecl(ConstructorDecl& decl) override {}
     void visitDestructorDecl(DestructorDecl& decl) override {}
     void visitEnumDecl(EnumDecl& decl) override {}
+    void visitStructDecl(StructDecl& decl) override {}
+    void visitTestDecl(TestDecl& decl) override {}
     void visitImportStmt(ImportStmt& stmt) override {}
     void visitFromImportStmt(FromImportStmt& stmt) override {}
     void visitExportStmt(ExportStmt& stmt) override {}

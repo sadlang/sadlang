@@ -189,6 +189,7 @@ public:
     void visitSuperExpr(AST::SuperExpr& expr) override;
     void visitBorrowExpr(AST::BorrowExpr& expr) override;
     void visitInlineAsmExpr(AST::InlineAsmExpr& expr) override;
+    void visitRangeExpr(AST::RangeExpr& expr) override;
     
     // Statements / العبارات
     void visitExprStmt(AST::ExprStmt& stmt) override;

@@ -81,6 +81,7 @@
 #include <string>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <stdexcept>
 #include "value.h"
@@ -162,6 +163,18 @@ public:
      * ```
      */
     void define(const std::string& name, const Value& value);
+    
+    /**
+     * @brief (AR) تعريف ثابت جديد (لا يمكن تعديل قيمته لاحقاً)
+     * @brief (EN) Define a new constant (its value cannot be modified later)
+     */
+    void defineConst(const std::string& name, const Value& value);
+    
+    /**
+     * @brief (AR) التحقق مما إذا كان المتغير ثابتاً
+     * @brief (EN) Check if a variable is a constant
+     */
+    bool isConst(const std::string& name) const;
     
     /**
      * @brief (AR) تعيين قيمة جديدة لمتغير موجود
@@ -377,6 +390,10 @@ private:
     // نستخدم Scope* كمفتاح لربط القيم بالنطاقات
     // We use Scope* as key to associate values with scopes
     std::unordered_map<Scope*, std::unordered_map<std::string, Value>> scopeVariables_;
+    
+    // (AR) مجموعة أسماء الثوابت (المتغيرات غير القابلة للتعديل)
+    // (EN) Set of const variable names (immutable variables)
+    std::unordered_set<std::string> constVariables_;
     
     /**
      * @brief (AR) البحث عن النطاق الذي يحتوي على متغير معين

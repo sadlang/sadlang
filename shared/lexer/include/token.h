@@ -301,6 +301,7 @@ enum class TokenType {
     OP_BITWISE_OR,          ///< | OR بتّي / bitwise OR
     OP_SHIFT_LEFT,          ///< << إزاحة يسار / left shift
     OP_SHIFT_RIGHT,         ///< >> إزاحة يمين / right shift
+    OP_BITWISE_NOT,         ///< ~ NOT بتّي / bitwise NOT
     
     // ========== عامل الأنبوب / Pipeline Operator ==========
     OP_PIPE_ARROW,          ///< |> أنبوب / pipeline operator
@@ -325,6 +326,7 @@ enum class TokenType {
     COLON,                  ///< : نقطتان / colon
     DOUBLE_COLON,           ///< :: نقطتان مزدوجتان / double colon (static member access)
     DOT,                    ///< . نقطة / dot (member access)
+    DOT_DOT,                ///< .. نقطتان / double dot (range operator)
     ARROW,                  ///< -> سهم / arrow
     FAT_ARROW,              ///< => سهم عريض / fat arrow (lambda/arrow functions)
     QUESTION,               ///< ? علامة استفهام / question mark

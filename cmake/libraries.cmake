@@ -35,6 +35,10 @@ endif()
 
 add_library(sad_core STATIC ${ALL_SOURCES})
 
+if(MSVC)
+    target_compile_options(sad_core PRIVATE /FS /utf-8 /Z7)
+endif()
+
 # ربط مكتبة الرسومات / Link graphics
 if(TARGET sad_graphics)
     target_link_libraries(sad_core PRIVATE sad_graphics)

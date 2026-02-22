@@ -225,10 +225,12 @@ llvm::Value* LLVMCodeGen::emitInstruction(std::shared_ptr<SIRInstruction> inst) 
         case SIROpcode::BUILTIN_MEM_WRITE_8:
         case SIROpcode::BUILTIN_MEM_WRITE_16:
         case SIROpcode::BUILTIN_MEM_WRITE_32:
+        case SIROpcode::BUILTIN_MEM_WRITE_64:
             return emitMemWrite(inst);
         case SIROpcode::BUILTIN_MEM_READ_8:
         case SIROpcode::BUILTIN_MEM_READ_16:
         case SIROpcode::BUILTIN_MEM_READ_32:
+        case SIROpcode::BUILTIN_MEM_READ_64:
             return emitMemRead(inst);
         case SIROpcode::BUILTIN_INTERRUPT:
             return emitInterrupt(inst);

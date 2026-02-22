@@ -389,6 +389,13 @@ void BorrowChecker::visitInlineAsmExpr(AST::InlineAsmExpr& expr) {
     (void)expr;
 }
 
+void BorrowChecker::visitRangeExpr(AST::RangeExpr& expr) {
+    // (AR) تعبير النطاق — فحص التعبيرات الفرعية
+    // (EN) Range expression — check sub-expressions
+    if (expr.start) expr.start->accept(*this);
+    if (expr.end) expr.end->accept(*this);
+}
+
 // ============================================================================
 // زيارة العبارات / Visit Statements
 // ============================================================================
@@ -739,6 +746,17 @@ void BorrowChecker::visitImplDecl(AST::ImplDecl& decl) {
     for (auto& method : decl.methods) {
         if (method) method->accept(*this);
     }
+}
+
+void BorrowChecker::visitStructDecl(AST::StructDecl& decl) {
+    // (AR) فحص تصريح البنية — لا فحوصات ملكية حالياً
+    // (EN) Check struct declaration — no ownership checks currently
+}
+
+void BorrowChecker::visitTestDecl(AST::TestDecl& decl) {
+    // (AR) فحص تصريح الاختبار — تحليل جسم الاختبار
+    // (EN) Check test declaration — analyze test body
+    if (decl.body) decl.body->accept(*this);
 }
 
 // ============================================================================

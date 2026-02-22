@@ -608,6 +608,229 @@ Value builtin_db_version(const std::vector<Value>& args) {
     }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// SECURE PARAMETERIZED QUERIES - دوال الاستعلامات الآمنة المُوَسَّطَة
+// ════════════════════════════════════════════════════════════════════════════
+// هذه الدوال تمنع SQL Injection عن طريق استخدام Prepared Statements
+// These functions prevent SQL Injection by using Prepared Statements
+
+/**
+ * @brief Safely escape a string for SQL (defense in depth)
+ * تهريب النص للاستخدام في SQL (دفاع متعدد الطبقات)
+ */
+std::string escape_sql_string(const std::string& input) {
+    std::string result;
+    result.reserve(input.length() * 2);
+    
+    for (char c : input) {
+        switch (c) {
+            case '\'': result += "''"; break;      // تهريب علامة الاقتباس المفردة
+            case '\\': result += "\\\\"; break;    // تهريب الشرطة المائلة
+            case '\0': break;                       // حذف null bytes
+            case '\x1a': break;                    // حذف CTRL+Z (EOF على Windows)
+            default: result += c;
+        }
+    }
+    return result;
+}
+
+/**
+ * @brief Validate SQL query for dangerous patterns
+ * التحقق من استعلام SQL ضد الأنماط الخطرة
+ */
+bool is_sql_safe(const std::string& sql) {
+    // تحويل للحروف الصغيرة للفحص
+    std::string lower_sql = sql;
+    std::transform(lower_sql.begin(), lower_sql.end(), lower_sql.begin(), ::tolower);
+    
+    // منع UNION injection
+    if (lower_sql.find("union") != std::string::npos &&
+        lower_sql.find("select") != std::string::npos) {
+        // تحقق إضافي: هل UNION مسبوق بشيء مريب؟
+        size_t union_pos = lower_sql.find("union");
+        if (union_pos > 0) {
+            char prev = lower_sql[union_pos - 1];
+            if (prev == '\'' || prev == '"' || prev == ')' || prev == ' ' || prev == '-') {
+                // قد يكون injection
+                return false;
+            }
+        }
+    }
+    
+    // منع تعليقات SQL المستخدمة للحقن
+    if (lower_sql.find("--") != std::string::npos ||
+        lower_sql.find("/*") != std::string::npos) {
+        return false;
+    }
+    
+    // منع الأوامر الخطرة في سياقات غير متوقعة
+    std::vector<std::string> dangerous_in_select = {"drop ", "alter ", "truncate ", "grant ", "revoke "};
+    if (lower_sql.find("select") == 0) {
+        for (const auto& d : dangerous_in_select) {
+            if (lower_sql.find(d) != std::string::npos) {
+                return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * @brief Execute parameterized query safely (prevents SQL injection)
+ * تنفيذ استعلام آمن بمعاملات (يمنع حقن SQL)
+ * 
+ * @param args[0] SQL with placeholders (?)
+ * @param args[1...] Values for placeholders
+ * 
+ * Usage: db_query_safe("SELECT * FROM users WHERE id = ?", user_id)
+ * Usage: استعلم_آمن("SELECT * FROM users WHERE name = ?", اسم_المستخدم)
+ */
+Value builtin_db_query_safe(const std::vector<Value>& args) {
+    if (args.empty()) {
+        throw std::runtime_error("db_query_safe: SQL query required / يتطلب استعلام SQL");
+    }
+    
+    Database& db = get_current_db("db_query_safe");
+    std::string sql = get_string_arg(args, 0, "db_query_safe");
+    
+    // التحقق من أمان الاستعلام / Validate query safety
+    if (!is_sql_safe(sql)) {
+        throw std::runtime_error("db_query_safe: Query contains potentially dangerous patterns / الاستعلام يحتوي على أنماط خطرة محتملة");
+    }
+    
+    try {
+        // استخدام prepared statement
+        auto stmt = db.prepare(sql);
+        
+        // ربط المعاملات / Bind parameters
+        for (size_t i = 1; i < args.size(); ++i) {
+            const Value& arg = args[i];
+            
+            switch (arg.type) {
+                case ValueType::NUMBER:
+                    stmt.bind(static_cast<int>(i), static_cast<int64_t>(arg.number_val));
+                    break;
+                case ValueType::STRING:
+                    stmt.bind(static_cast<int>(i), arg.string_val);
+                    break;
+                case ValueType::BOOLEAN:
+                    stmt.bind(static_cast<int>(i), arg.bool_val ? 1LL : 0LL);
+                    break;
+                case ValueType::NULL_TYPE:
+                    stmt.bind_null(static_cast<int>(i));
+                    break;
+                default:
+                    stmt.bind(static_cast<int>(i), arg.toString());
+            }
+        }
+        
+        DbResultSet results = stmt.execute();
+        return result_set_to_value(results);
+        
+    } catch (const DatabaseException& e) {
+        throw std::runtime_error("db_query_safe: " + std::string(e.what()));
+    }
+}
+
+/**
+ * @brief Execute parameterized update/insert/delete safely
+ * تنفيذ تحديث/إدراج/حذف آمن بمعاملات
+ * 
+ * Usage: db_execute_safe("INSERT INTO users (name, age) VALUES (?, ?)", اسم, عمر)
+ * Usage: نفذ_آمن("DELETE FROM users WHERE id = ?", معرف)
+ */
+Value builtin_db_execute_safe(const std::vector<Value>& args) {
+    if (args.empty()) {
+        throw std::runtime_error("db_execute_safe: SQL query required / يتطلب استعلام SQL");
+    }
+    
+    Database& db = get_current_db("db_execute_safe");
+    std::string sql = get_string_arg(args, 0, "db_execute_safe");
+    
+    // التحقق من أمان الاستعلام / Validate query safety
+    if (!is_sql_safe(sql)) {
+        throw std::runtime_error("db_execute_safe: Query contains potentially dangerous patterns / الاستعلام يحتوي على أنماط خطرة محتملة");
+    }
+    
+    try {
+        auto stmt = db.prepare(sql);
+        
+        // ربط المعاملات / Bind parameters
+        for (size_t i = 1; i < args.size(); ++i) {
+            const Value& arg = args[i];
+            
+            switch (arg.type) {
+                case ValueType::NUMBER:
+                    stmt.bind(static_cast<int>(i), static_cast<int64_t>(arg.number_val));
+                    break;
+                case ValueType::STRING:
+                    stmt.bind(static_cast<int>(i), arg.string_val);
+                    break;
+                case ValueType::BOOLEAN:
+                    stmt.bind(static_cast<int>(i), arg.bool_val ? 1LL : 0LL);
+                    break;
+                case ValueType::NULL_TYPE:
+                    stmt.bind_null(static_cast<int>(i));
+                    break;
+                default:
+                    stmt.bind(static_cast<int>(i), arg.toString());
+            }
+        }
+        
+        int affected = stmt.execute_update();
+        
+        Value result;
+        result.type = ValueType::NUMBER;
+        result.number_val = static_cast<double>(affected);
+        return result;
+        
+    } catch (const DatabaseException& e) {
+        throw std::runtime_error("db_execute_safe: " + std::string(e.what()));
+    }
+}
+
+/**
+ * @brief Sanitize table/column name to prevent injection
+ * تنظيف اسم الجدول/العمود لمنع الحقن
+ */
+Value builtin_db_sanitize_identifier(const std::vector<Value>& args) {
+    if (args.empty()) {
+        throw std::runtime_error("db_sanitize_identifier: identifier required");
+    }
+    
+    std::string input = args[0].toString();
+    std::string result;
+    result.reserve(input.length());
+    
+    // السماح فقط بالأحرف والأرقام والشرطة السفلية والعربية
+    // Only allow letters, numbers, underscores, and Arabic
+    for (char c : input) {
+        if ((c >= 'a' && c <= 'z') ||
+            (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') ||
+            c == '_' ||
+            (static_cast<unsigned char>(c) >= 0x80)) {  // UTF-8 multi-byte
+            result += c;
+        }
+    }
+    
+    // التحقق من أن النتيجة ليست فارغة
+    if (result.empty()) {
+        throw std::runtime_error("db_sanitize_identifier: invalid identifier / معرف غير صالح");
+    }
+    
+    // التحقق من أن الاسم لا يبدأ برقم
+    if (result[0] >= '0' && result[0] <= '9') {
+        throw std::runtime_error("db_sanitize_identifier: identifier cannot start with number / المعرف لا يمكن أن يبدأ برقم");
+    }
+    
+    Value val;
+    val.type = ValueType::STRING;
+    val.string_val = result;
+    return val;
+}
+
 // ============================================================================
 // Registration Function - دالة التسجيل
 // ============================================================================
@@ -675,6 +898,21 @@ void register_database_functions(sad::interpreter::Interpreter& interp) {
     
     interp.register_builtin("db_version", builtin_db_version);
     interp.register_builtin("إصدار_قاعدة_بيانات", builtin_db_version);
+    
+    // ════════════════════════════════════════════════════════════════════════
+    // SECURE PARAMETERIZED FUNCTIONS - الدوال الآمنة المُوَسَّطَة
+    // ════════════════════════════════════════════════════════════════════════
+    // تستخدم Prepared Statements لمنع SQL Injection
+    // Use Prepared Statements to prevent SQL Injection
+    
+    interp.register_builtin("db_query_safe", builtin_db_query_safe);
+    interp.register_builtin("استعلم_آمن", builtin_db_query_safe);
+    
+    interp.register_builtin("db_execute_safe", builtin_db_execute_safe);
+    interp.register_builtin("نفذ_آمن", builtin_db_execute_safe);
+    
+    interp.register_builtin("db_sanitize_identifier", builtin_db_sanitize_identifier);
+    interp.register_builtin("نظف_معرف", builtin_db_sanitize_identifier);
 }
 
 } // namespace database

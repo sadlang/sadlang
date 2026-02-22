@@ -512,10 +512,13 @@ public:
 struct CatchClause {
     std::string exceptionVar;       ///< Exception variable name / اسم متغير الاستثناء
     Data::DataType exceptionType;   ///< Exception type / نوع الاستثناء
+    std::string exceptionTypeName;  ///< Custom exception class name / اسم صنف الاستثناء المخصص
     StmtPtr body;                   ///< Catch body / جسم الالتقاط
     
-    CatchClause(const std::string& var, Data::DataType type, StmtPtr body)
-        : exceptionVar(var), exceptionType(type), body(std::move(body)) {}
+    CatchClause(const std::string& var, Data::DataType type, StmtPtr body,
+                const std::string& typeName = "")
+        : exceptionVar(var), exceptionType(type), exceptionTypeName(typeName),
+          body(std::move(body)) {}
     
     // Copy constructor deleted (contains unique_ptr)
     CatchClause(const CatchClause&) = delete;

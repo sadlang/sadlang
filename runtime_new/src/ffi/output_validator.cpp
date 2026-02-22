@@ -54,6 +54,11 @@
 #include <sstream>
 #include <variant>
 #include <any>
+#include <cstddef>
+
+#ifdef _MSC_VER
+using ssize_t = std::ptrdiff_t;
+#endif
 
 namespace sad {
 namespace ffi {

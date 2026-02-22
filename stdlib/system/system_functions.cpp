@@ -83,13 +83,105 @@ Value SystemFunctions::changeDir(const std::vector<Value>& args) {
     }
 }
 
-// Execute command / تنفيذ أمر
+// ════════════════════════════════════════════════════════════════════════════
+// Execute command with security validation / تنفيذ أمر مع التحقق الأمني
+// ════════════════════════════════════════════════════════════════════════════
+
+namespace {
+    // قائمة الأحرف الخطرة / Dangerous characters list
+    bool containsDangerousChars(const std::string& cmd) {
+        // منع أحرف الحقن / Block injection characters
+        static const std::string dangerous = ";|&$`\\\"'<>(){}[]!#*?~\n\r";
+        for (char c : cmd) {
+            if (dangerous.find(c) != std::string::npos) {
+                return true;
+            }
+        }
+        // منع أنماط خطرة / Block dangerous patterns
+        if (cmd.find("..") != std::string::npos) return true;
+        if (cmd.find("//") != std::string::npos) return true;
+        return false;
+    }
+    
+    // قائمة الأوامر المسموحة / Allowed commands whitelist
+    std::vector<std::string> getAllowedCommands() {
+        return {
+            "ls", "dir", "echo", "pwd", "cd", "cat", "type",
+            "mkdir", "rmdir", "copy", "cp", "mv", "move",
+            "rm", "del", "touch", "date", "time", "whoami",
+            "hostname", "ping", "curl", "wget", "git", "cmake",
+            "make", "ninja", "python", "python3", "node", "npm"
+        };
+    }
+    
+    // التحقق من أن الأمر مسموح / Check if command is allowed
+    bool isCommandAllowed(const std::string& cmd) {
+        auto allowed = getAllowedCommands();
+        
+        // استخراج اسم الأمر الأول / Extract first command name
+        std::string firstWord;
+        size_t space = cmd.find(' ');
+        if (space != std::string::npos) {
+            firstWord = cmd.substr(0, space);
+        } else {
+            firstWord = cmd;
+        }
+        
+        // تحويل للحروف الصغيرة للمقارنة / Convert to lowercase for comparison
+        std::string lowerCmd = firstWord;
+        std::transform(lowerCmd.begin(), lowerCmd.end(), lowerCmd.begin(), ::tolower);
+        
+        // إزالة مسار الملف إن وجد / Remove path if present
+        size_t lastSlash = lowerCmd.find_last_of("/\\");
+        if (lastSlash != std::string::npos) {
+            lowerCmd = lowerCmd.substr(lastSlash + 1);
+        }
+        
+        // إزالة .exe إن وجد / Remove .exe if present
+        if (lowerCmd.size() > 4 && lowerCmd.substr(lowerCmd.size() - 4) == ".exe") {
+            lowerCmd = lowerCmd.substr(0, lowerCmd.size() - 4);
+        }
+        
+        for (const auto& allowed_cmd : allowed) {
+            if (lowerCmd == allowed_cmd) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
 Value SystemFunctions::execute(const std::vector<Value>& args) {
     if (args.empty()) {
-        throw std::invalid_argument("execute requires command");
+        throw std::invalid_argument("execute requires command / يتطلب أمر");
     }
     
     std::string command = args[0].toString();
+    
+    // ════════════════════════════════════════════════════════
+    // التحقق الأمني / Security validation
+    // ════════════════════════════════════════════════════════
+    
+    // 1. رفض الأوامر الفارغة / Reject empty commands
+    if (command.empty() || command.find_first_not_of(" \t\n\r") == std::string::npos) {
+        throw std::invalid_argument("Empty command / أمر فارغ");
+    }
+    
+    // 2. فحص الأحرف الخطرة / Check dangerous characters
+    if (containsDangerousChars(command)) {
+        throw std::invalid_argument("Command contains dangerous characters / الأمر يحتوي على أحرف خطرة");
+    }
+    
+    // 3. التحقق من القائمة البيضاء / Check whitelist
+    if (!isCommandAllowed(command)) {
+        throw std::invalid_argument("Command not in allowed list / الأمر ليس في القائمة المسموحة");
+    }
+    
+    // 4. تحديد طول الأمر / Limit command length
+    if (command.length() > 4096) {
+        throw std::invalid_argument("Command too long / الأمر طويل جداً");
+    }
+    
     int exitCode = std::system(command.c_str());
     
     return Value(exitCode);
@@ -124,7 +216,9 @@ Value SystemFunctions::timestamp() {
     auto duration = now.time_since_epoch();
     auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
     
-    return Value(static_cast<int>(seconds));
+    // (AR) إرجاع كعشري لتجنب طفح العدد الصحيح 32-بت (Y2038)
+    // (EN) Return as double to avoid 32-bit integer overflow (Y2038)
+    return Value(static_cast<double>(seconds));
 }
 
 // Get clock time / وقت الساعة

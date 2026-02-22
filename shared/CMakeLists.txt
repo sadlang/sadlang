@@ -16,9 +16,13 @@ add_library(sad_shared STATIC
     # Parser
     parser/src/parser_core.cpp
     parser/src/parser_core_helpers.cpp
-    parser/src/parser_core_impl.cpp
+    parser/src/parser_core_main.cpp
     parser/src/parser_core_oop.cpp
     parser/src/parser_modules.cpp
+    parser/src/parser_statements.cpp
+    parser/src/parser_expressions.cpp
+    parser/src/parser_declarations.cpp
+    parser/src/parser_advanced.cpp
     
     # AST
     ast/src/ast_node.cpp
@@ -100,7 +104,7 @@ target_compile_features(sad_shared PUBLIC cxx_std_17)
 
 # إصلاح مشكلة PDB / Fix PDB lock issue
 if(MSVC)
-    target_compile_options(sad_shared PRIVATE /FS)
+    target_compile_options(sad_shared PRIVATE /FS /utf-8)
 endif()
 
 # رسالة تأكيد

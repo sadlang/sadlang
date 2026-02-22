@@ -610,14 +610,13 @@ std::unique_ptr<PropertyDecl> ParserCore::parsePropertyDeclaration(AccessModifie
     std::cout << "[OOP] تحليل خاصية (property)\n";
 #endif
     
-    // (AR) النوع / (EN) Type
-    if (!isTypeToken(current_.getType())) {
-        error("(AR) توقع نوع الخاصية (رقم، نص، منطقي، إلخ). (EN) Expected property type (number, string, boolean, etc).");
-        synchronize();
-        return nullptr;
+    // (AR) النوع (اختياري) / (EN) Type (optional)
+    // (AR) إذا لم يكن الرمز الحالي نوعاً، نستخدم UNKNOWN
+    // (EN) If current token is not a type, use UNKNOWN
+    Data::DataType propertyType = Data::DataType::UNKNOWN;
+    if (isTypeToken(current_.getType())) {
+        propertyType = parseType();
     }
-    
-    Data::DataType propertyType = parseType();
     
     // (AR) اسم الخاصية / (EN) Property name
     Token nameToken = consume(TT::IDENTIFIER,

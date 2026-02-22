@@ -349,7 +349,7 @@ private:
     size_t threshold_;                          // العتبة الحالية
     
     mutable std::mutex gc_mutex_;               // قفل GC
-    GCStatistics stats_;                        // الإحصائيات
+    mutable GCStatistics stats_;                        // الإحصائيات
 };
 
 // ============================================================================

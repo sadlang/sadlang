@@ -16,10 +16,10 @@
  * @date 2026
  */
 
-// إعلان دالة التنسيق الموجودة في formatter.cpp
-// Declaration of formatter function from formatter.cpp
-namespace sad {
-namespace formatter {
+// إعلان دالة التنسيق الجديدة من sad_formatter.cpp
+// Declaration of formatter function from sad_formatter.cpp
+namespace Sad {
+namespace Format {
     int formatter_main(int argc, char* argv[]);
 }
 }
@@ -28,5 +28,5 @@ namespace formatter {
  * @brief نقطة الدخول الرئيسية - Main entry point
  */
 int main(int argc, char* argv[]) {
-    return sad::formatter::formatter_main(argc, argv);
+    return Sad::Format::formatter_main(argc, argv);
 }

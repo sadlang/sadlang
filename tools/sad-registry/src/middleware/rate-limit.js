@@ -1,71 +1,99 @@
 // بسم الله الرحمن الرحيم
 // =========================================================================
-// تحديد معدل الطلبات — Rate Limiting Middleware
-// =========================================================================
-//
-// @file rate-limit.js
-//
-// الوظيفة:
-//   يمنع إساءة استخدام API عبر تحديد عدد الطلبات المسموحة لكل عميل.
-//   يستخدم مكتبة express-rate-limit التي تتبع الطلبات بناءً على IP.
-//
-// المحددات الثلاثة:
-//   ┌──────────────────┬──────────────┬──────────────────────────────┐
-//   │ المحدد            │ الحد          │ الاستخدام                     │
-//   ├──────────────────┼──────────────┼──────────────────────────────┤
-//   │ generalLimiter   │ 200/15 دقيقة │ كل الطلبات                   │
-//   │ publishLimiter   │ 10/ساعة      │ نشر الحزم فقط                │
-//   │ authLimiter      │ 20/15 دقيقة  │ تسجيل الدخول/التسجيل         │
-//   └──────────────────┴──────────────┴──────────────────────────────┘
-//
-// كيف يعمل:
-//   - كل IP يحصل على "نافذة" زمنية (windowMs)
-//   - عند تجاوز الحد (max)، يُرجع 429 Too Many Requests
-//   - الرؤوس القياسية (RateLimit-*) تُفعّل ليعرف العميل الحد المتبقي
-//
-// ملاحظة:
-//   في الإنتاج خلف Nginx/reverse proxy، يجب تفعيل:
-//     app.set('trust proxy', 1)
-//   ليتعرف express-rate-limit على IP الحقيقي من X-Forwarded-For.
+// تقييد معدل الطلبات — حماية من الإساءة
+// Rate Limiting — Protection against abuse
 // =========================================================================
 
 const rateLimit = require('express-rate-limit');
+const { createError } = require('../utils/error-codes');
 
-// ─── المحدد العام (كل الطلبات) ─────────────────────────────────────────
+/**
+ * مُحدّد عام — 200 طلب / 15 دقيقة
+ */
 const generalLimiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 دقيقة
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 200,
-    message: {
-        error: 'تم تجاوز الحد المسموح من الطلبات. حاول مرة أخرى لاحقاً',
-        error_en: 'Too many requests. Please try again later.',
-        retry_after_seconds: 900,
-    },
+    windowMs: 15 * 60 * 1000,
+    max: 200,
     standardHeaders: true,
     legacyHeaders: false,
-});
+    handler: (req, res) => {
+        const retryAfter = Math.ceil(req.rateLimit.resetTime
+            ? (req.rateLimit.resetTime - Date.now()) / 1000
+            : 900);
 
-// ─── محدد النشر (publish فقط) ───────────────────────────────────────────
-// أكثر صرامة لأن النشر عملية مكلفة (رفع ملفات، كتابة في DB وStorage).
-// keyGenerator يستخدم user ID بدل IP لمنع التحايل عبر VPN.
-const publishLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // ساعة واحدة
-    max: parseInt(process.env.PUBLISH_RATE_LIMIT_MAX) || 10,
-    message: {
-        error: 'تم تجاوز الحد المسموح للنشر. حاول مرة أخرى بعد ساعة',
-        error_en: 'Publish rate limit exceeded. Try again in an hour.',
+        res.status(429).json({
+            ...createError('RATE_001', {
+                hint: `انتظر ${Math.ceil(retryAfter / 60)} دقيقة ثم حاول مرة أخرى`,
+                details: {
+                    limit: req.rateLimit.limit,
+                    remaining: req.rateLimit.remaining,
+                    retry_after_seconds: retryAfter,
+                },
+            }),
+            timestamp: new Date().toISOString(),
+        });
     },
-    keyGenerator: (req) => req.user?.id || req.ip,
+    keyGenerator: (req) => {
+        return req.headers['x-forwarded-for'] || req.ip || req.connection.remoteAddress;
+    },
 });
 
-// ─── محدد المصادقة ──────────────────────────────────────────────────────
-// يحمي من هجمات brute-force على كلمات المرور.
-// 20 محاولة / 15 دقيقة = كافٍ للاستخدام العادي مع حماية من التخمين.
+/**
+ * مُحدّد النشر — 10 طلبات / ساعة
+ */
+const publishLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+        const retryAfter = Math.ceil(req.rateLimit.resetTime
+            ? (req.rateLimit.resetTime - Date.now()) / 1000
+            : 3600);
+
+        res.status(429).json({
+            ...createError('RATE_002', {
+                hint: `انتظر ${Math.ceil(retryAfter / 60)} دقيقة ثم حاول النشر مرة أخرى`,
+                details: {
+                    limit: req.rateLimit.limit,
+                    remaining: req.rateLimit.remaining,
+                    retry_after_seconds: retryAfter,
+                },
+            }),
+            timestamp: new Date().toISOString(),
+        });
+    },
+    keyGenerator: (req) => {
+        return req.user?.id || req.headers['x-forwarded-for'] || req.ip;
+    },
+});
+
+/**
+ * مُحدّد المصادقة — 20 طلب / 15 دقيقة
+ */
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 20,
-    message: {
-        error: 'محاولات تسجيل دخول كثيرة. حاول بعد 15 دقيقة',
-        error_en: 'Too many login attempts. Try again in 15 minutes.',
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+        const retryAfter = Math.ceil(req.rateLimit.resetTime
+            ? (req.rateLimit.resetTime - Date.now()) / 1000
+            : 900);
+
+        res.status(429).json({
+            ...createError('RATE_003', {
+                hint: `حاولت المصادقة كثيراً. انتظر ${Math.ceil(retryAfter / 60)} دقيقة`,
+                details: {
+                    limit: req.rateLimit.limit,
+                    remaining: req.rateLimit.remaining,
+                    retry_after_seconds: retryAfter,
+                },
+            }),
+            timestamp: new Date().toISOString(),
+        });
+    },
+    keyGenerator: (req) => {
+        return req.headers['x-forwarded-for'] || req.ip || req.connection.remoteAddress;
     },
 });
 

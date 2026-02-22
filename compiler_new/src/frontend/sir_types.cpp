@@ -135,6 +135,30 @@ const char* sirOpcodeToString(SIROpcode opcode) {
         case SIROpcode::BUILTIN_ASSERT: return "builtin.assert";
         case SIROpcode::BUILTIN_DEBUG: return "builtin.debug";
         
+        // Hardware/OS Builtins
+        case SIROpcode::BUILTIN_PORT_WRITE:    return "builtin.port_write";
+        case SIROpcode::BUILTIN_PORT_READ:     return "builtin.port_read";
+        case SIROpcode::BUILTIN_PORT_WRITE_16: return "builtin.port_write16";
+        case SIROpcode::BUILTIN_PORT_READ_16:  return "builtin.port_read16";
+        case SIROpcode::BUILTIN_PORT_WRITE_32: return "builtin.port_write32";
+        case SIROpcode::BUILTIN_PORT_READ_32:  return "builtin.port_read32";
+        case SIROpcode::BUILTIN_MEM_WRITE_8:   return "builtin.mem_write8";
+        case SIROpcode::BUILTIN_MEM_READ_8:    return "builtin.mem_read8";
+        case SIROpcode::BUILTIN_MEM_WRITE_16:  return "builtin.mem_write16";
+        case SIROpcode::BUILTIN_MEM_READ_16:   return "builtin.mem_read16";
+        case SIROpcode::BUILTIN_MEM_WRITE_32:  return "builtin.mem_write32";
+        case SIROpcode::BUILTIN_MEM_READ_32:   return "builtin.mem_read32";
+        case SIROpcode::BUILTIN_MEM_WRITE_64:  return "builtin.mem_write64";
+        case SIROpcode::BUILTIN_MEM_READ_64:   return "builtin.mem_read64";
+        case SIROpcode::BUILTIN_VGA_WRITE:     return "builtin.vga_write";
+        case SIROpcode::BUILTIN_VGA_CLEAR:     return "builtin.vga_clear";
+        case SIROpcode::BUILTIN_INTERRUPT:     return "builtin.interrupt";
+        case SIROpcode::BUILTIN_HALT:          return "builtin.halt";
+        case SIROpcode::BUILTIN_CLI:           return "builtin.cli";
+        case SIROpcode::BUILTIN_STI:           return "builtin.sti";
+        case SIROpcode::BUILTIN_MEM_COPY:      return "builtin.mem_copy";
+        case SIROpcode::BUILTIN_MEM_SET:       return "builtin.mem_set";
+        
         default:                    return "unknown";
     }
 }

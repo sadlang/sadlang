@@ -468,9 +468,16 @@ void* Callback::trampoline_helper(void* callback_ptr, ...) {
                 arg = reinterpret_cast<void*>(static_cast<intptr_t>(va_arg(va_args, double)));
                 break;
                 
-            case ABI::SadType::Float64:
-                arg = reinterpret_cast<void*>(va_arg(va_args, double));
+            case ABI::SadType::Float64: {
+                double dval = va_arg(va_args, double);
+                // (AR) لا يمكن تحويل double إلى void* مباشرة — نستخدم memcpy
+                // (EN) Can't reinterpret_cast double to void* — use memcpy
+                void* tmp = nullptr;
+                static_assert(sizeof(double) <= sizeof(void*), "double must fit in void*");
+                std::memcpy(&tmp, &dval, sizeof(double));
+                arg = tmp;
                 break;
+            }
                 
             case ABI::SadType::Pointer:
             case ABI::SadType::String:

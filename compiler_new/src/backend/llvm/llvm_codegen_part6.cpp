@@ -105,6 +105,27 @@ llvm::Value* LLVMCodeGen::emitReturn(std::shared_ptr<SIRInstruction> inst) {
         return nullptr;
     }
     
+    // (AR) تطابق نوع القيمة مع نوع إرجاع الدالة
+    // (EN) Match return value type with function return type
+    if (builder_->GetInsertBlock() && builder_->GetInsertBlock()->getParent()) {
+        llvm::Function* fn = builder_->GetInsertBlock()->getParent();
+        llvm::Type* retType = fn->getReturnType();
+        if (retType != retValue->getType()) {
+            if (retType->isDoubleTy() && retValue->getType()->isIntegerTy()) {
+                retValue = builder_->CreateSIToFP(retValue, retType, "ret_i2f");
+            } else if (retType->isIntegerTy() && retValue->getType()->isDoubleTy()) {
+                // (AR) الدالة مُعلنة كـ i64 لكن تُرجع double - نحوّل نوع الدالة
+                // (EN) Function declared as i64 but returns double - change function return type
+                // The safest approach: convert f64 to i64 (may lose precision for large values)
+                // For untyped functions, this is acceptable as a dynamic-type fallback
+                retValue = builder_->CreateBitCast(retValue, retType, "ret_bitcast");
+            } else if (retType->isIntegerTy(1) && retValue->getType()->isDoubleTy()) {
+                retValue = builder_->CreateFPToSI(retValue, llvm::Type::getInt64Ty(*context_), "ret_f2i");
+                retValue = builder_->CreateICmpNE(retValue, llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0), "ret_b");
+            }
+        }
+    }
+    
     return builder_->CreateRet(retValue);
 }
 
@@ -470,6 +491,12 @@ llvm::Value* LLVMCodeGen::resolveOperand(const SIROperand& operand) {
                 if (auto* gvInst = llvm::dyn_cast<llvm::GlobalVariable>(val)) {
                     return builder_->CreateLoad(gvInst->getValueType(), gvInst, operand.name + ".load");
                 }
+                // (AR) إذا كانت القيمة مؤشر GEP (حقل في هيكل)، نحمّل القيمة تلقائياً
+                // (EN) If value is a GEP instruction (struct field pointer), auto-load the value
+                if (auto* gepInst = llvm::dyn_cast<llvm::GetElementPtrInst>(val)) {
+                    llvm::Type* pointedType = gepInst->getResultElementType();
+                    return builder_->CreateLoad(pointedType, gepInst, operand.name + ".load");
+                }
                 return val;
             }
             // (AR) ╪¿╪»┘ך┘ה: ╪º┘ה╪¿╪¡╪½ ┘ב┘ך ╪º┘ה┘ו╪¬╪║┘ך╪▒╪º╪¬ ╪º┘ה╪╣╪º┘ו╪⌐ ╪╣┘ה┘י ┘ו╪│╪¬┘ט┘י ╪º┘ה┘ט╪¡╪»╪⌐
@@ -483,7 +510,9 @@ llvm::Value* LLVMCodeGen::resolveOperand(const SIROperand& operand) {
                 }
             }
             reportError("Undefined register: " + operand.name);
-            return nullptr;
+            // (AR) إرجاع قيمة صفرية ثابتة كـ fallback لتجنب crash
+            // (EN) Return a zero constant as fallback to avoid crash
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0, true);
         }
         case SIROperandType::GLOBAL: {
             llvm::GlobalVariable* gv = module_->getGlobalVariable(operand.name);

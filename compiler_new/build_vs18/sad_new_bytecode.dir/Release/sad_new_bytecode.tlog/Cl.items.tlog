@@ -1,0 +1,8 @@
+C:\s\s-programming-language\compiler_new\src\bytecode\constant_pool.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_bytecode.dir\Release\constant_pool.obj
+C:\s\s-programming-language\compiler_new\src\bytecode\decoder.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_bytecode.dir\Release\decoder.obj
+C:\s\s-programming-language\compiler_new\src\bytecode\encoder.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_bytecode.dir\Release\encoder.obj
+C:\s\s-programming-language\compiler_new\src\bytecode\magic.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_bytecode.dir\Release\magic.obj
+C:\s\s-programming-language\compiler_new\src\bytecode\opcodes.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_bytecode.dir\Release\opcodes.obj
+C:\s\s-programming-language\compiler_new\src\bytecode\symbol_table.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_bytecode.dir\Release\symbol_table.obj
+C:\s\s-programming-language\compiler_new\src\bytecode\validator.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_bytecode.dir\Release\validator.obj
+C:\s\s-programming-language\compiler_new\src\bytecode\version.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_bytecode.dir\Release\version.obj

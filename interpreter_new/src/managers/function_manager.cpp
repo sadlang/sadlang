@@ -22,7 +22,7 @@ namespace Data {
 
 FunctionDefinition::FunctionDefinition(const std::string& name,
                                      const std::vector<FunctionParameter>& params,
-                                     std::shared_ptr<Parser::ASTNode> body)
+                                     std::shared_ptr<AST::ASTNode> body)
     : name_(name), type_(FunctionType::USER_DEFINED), parameters_(params), 
       body_(body), declaration_(body), functionDecl_(nullptr),
       nativeImplementation_(nullptr), returnType_("auto") {
@@ -74,7 +74,7 @@ bool FunctionDefinition::acceptsArgumentCount(size_t argCount) const {
     return argCount >= required && argCount <= total;
 }
 
-void FunctionDefinition::setFunctionDecl(std::shared_ptr<Parser::ASTNode> decl) {
+void FunctionDefinition::setFunctionDecl(std::shared_ptr<AST::ASTNode> decl) {
     // (AR) حفظ FunctionDecl للوصول لـ Parameters مع defaultValue
     // (EN) Save FunctionDecl to access Parameters with defaultValue
     functionDecl_ = decl;
@@ -150,7 +150,7 @@ FunctionManager::~FunctionManager() {
 
 void FunctionManager::defineFunction(const std::string& name,
                                     const std::vector<FunctionParameter>& params,
-                                    std::shared_ptr<Parser::ASTNode> body) {
+                                    std::shared_ptr<AST::ASTNode> body) {
     // (AR) تعريف دالة معرفة من المستخدم
     // (EN) Define user-defined function
     
@@ -204,8 +204,8 @@ void FunctionManager::defineFunction(const std::string& name,
 
 void FunctionManager::defineFunction(const std::string& name,
                                     const std::vector<FunctionParameter>& params,
-                                    std::shared_ptr<Parser::ASTNode> body,
-                                    std::shared_ptr<Parser::ASTNode> decl) {
+                                    std::shared_ptr<AST::ASTNode> body,
+                                    std::shared_ptr<AST::ASTNode> decl) {
     // (AR) تعريف دالة معرفة من المستخدم مع FunctionDecl
     // (EN) Define user-defined function with FunctionDecl
     
@@ -258,6 +258,32 @@ void FunctionManager::defineFunction(const std::string& name,
     
     // (AR) إضافة الدالة للخريطة
     // (EN) Add function to map
+    functions_[name].push_back(funcDef);
+}
+
+void FunctionManager::redefineFunction(const std::string& name,
+                                      const std::vector<FunctionParameter>& params,
+                                      std::shared_ptr<AST::ASTNode> body) {
+    // (AR) إعادة تعريف دالة موجودة — يُستخدم للمزخرفات
+    // (EN) Redefine existing function — used for decorators
+    size_t paramCount = params.size();
+    
+    auto it = functions_.find(name);
+    if (it != functions_.end()) {
+        // (AR) إزالة التعريف القديم بنفس عدد المعاملات
+        // (EN) Remove old definition with same parameter count
+        it->second.erase(
+            std::remove_if(it->second.begin(), it->second.end(),
+                          [paramCount](const auto& func) {
+                              return func->getParameterCount() == paramCount;
+                          }),
+            it->second.end()
+        );
+    }
+    
+    // (AR) إنشاء التعريف الجديد
+    // (EN) Create new definition
+    auto funcDef = std::make_shared<FunctionDefinition>(name, params, body);
     functions_[name].push_back(funcDef);
 }
 

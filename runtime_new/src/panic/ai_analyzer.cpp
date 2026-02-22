@@ -57,11 +57,10 @@
 #include <sstream>
 #include <memory>
 
+#include "smart_panic.cpp"
+
 namespace sad {
 namespace panic {
-
-// Forward declaration
-struct معلومات_ذعر;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //                              نتيجة التحليل

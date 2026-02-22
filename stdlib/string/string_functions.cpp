@@ -16,6 +16,15 @@
 #include <cctype>
 #include <stdexcept>
 
+#ifdef _WIN32
+#include <windows.h>
+// (AR) إلغاء ماكرو VOID الخاص بويندوز لتجنب التعارض
+// (EN) Undef Windows VOID macro to avoid conflict with ValueType::VOID
+#ifdef VOID
+#undef VOID
+#endif
+#endif
+
 namespace Sad {
 namespace StdLib {
 namespace String {
@@ -32,21 +41,27 @@ namespace String {
  */
 size_t StringFunctions::utf8Length(const std::string& str) {
     size_t length = 0;
-    for (size_t i = 0; i < str.length(); ) {
+    size_t strLen = str.length();
+    for (size_t i = 0; i < strLen; ) {
         unsigned char c = str[i];
-        // (AR) حساب عدد البايتات في الحرف
-        // (EN) Count bytes in character
+        size_t charBytes = 1;
+        // (AR) حساب عدد البايتات في الحرف مع التحقق من الحدود
+        // (EN) Count bytes in character with bounds checking
         if ((c & 0x80) == 0) {          // 1-byte character (ASCII)
-            i += 1;
+            charBytes = 1;
         } else if ((c & 0xE0) == 0xC0) { // 2-byte character
-            i += 2;
+            charBytes = 2;
         } else if ((c & 0xF0) == 0xE0) { // 3-byte character (Arabic, etc.)
-            i += 3;
+            charBytes = 3;
         } else if ((c & 0xF8) == 0xF0) { // 4-byte character
-            i += 4;
-        } else {
-            i += 1; // Invalid UTF-8, skip
+            charBytes = 4;
         }
+        // (AR) التحقق من أن البايتات المتبقية كافية
+        // (EN) Ensure remaining bytes are sufficient
+        if (i + charBytes > strLen) {
+            break; // Truncated UTF-8 sequence
+        }
+        i += charBytes;
         length++;
     }
     return length;
@@ -167,15 +182,29 @@ Data::Value StringFunctions::find(const std::vector<Data::Value>& args) {
     
     std::string mainStr = args[0].toString();
     std::string subStr = args[1].toString();
-    size_t startPos = 0;
+    size_t startBytePos = 0;
     
     if (args.size() == 3) {
-        startPos = static_cast<size_t>(args[2].toInt());
+        // (AR) تحويل موقع الحرف إلى موقع البايت (UTF-8)
+        // (EN) Convert character position to byte position (UTF-8)
+        size_t charIdx = static_cast<size_t>(args[2].toInt());
+        size_t byteIdx = 0;
+        size_t charCount = 0;
+        while (byteIdx < mainStr.length() && charCount < charIdx) {
+            unsigned char c = mainStr[byteIdx];
+            if ((c & 0x80) == 0) byteIdx += 1;
+            else if ((c & 0xE0) == 0xC0) byteIdx += 2;
+            else if ((c & 0xF0) == 0xE0) byteIdx += 3;
+            else if ((c & 0xF8) == 0xF0) byteIdx += 4;
+            else byteIdx += 1;
+            charCount++;
+        }
+        startBytePos = byteIdx;
     }
     
     // (AR) البحث عن النص الفرعي
     // (EN) Search for substring
-    size_t pos = mainStr.find(subStr, startPos);
+    size_t pos = mainStr.find(subStr, startBytePos);
     
     if (pos == std::string::npos) {
         return Data::Value(-1);
@@ -237,11 +266,21 @@ Data::Value StringFunctions::substring(const std::vector<Data::Value>& args) {
     validateArguments(args, 2, 3);
     
     std::string str = args[0].toString();
-    size_t start = static_cast<size_t>(args[1].toInt());
+    int startInt = args[1].toInt();
+    if (startInt < 0) {
+        throw std::invalid_argument(
+            "(AR) خطأ: فهرس البداية لا يمكن أن يكون سالباً / (EN) Start index cannot be negative");
+    }
+    size_t start = static_cast<size_t>(startInt);
     size_t length = static_cast<size_t>(-1); // -1 = to end
     
     if (args.size() == 3) {
-        length = static_cast<size_t>(args[2].toInt());
+        int lenInt = args[2].toInt();
+        if (lenInt < 0) {
+            throw std::invalid_argument(
+                "(AR) خطأ: الطول لا يمكن أن يكون سالباً / (EN) Length cannot be negative");
+        }
+        length = static_cast<size_t>(lenInt);
     }
     
     // (AR) استخراج النص مع دعم UTF-8
@@ -261,13 +300,25 @@ Data::Value StringFunctions::toLower(const std::vector<Data::Value>& args) {
     validateArguments(args, 1, 1);
     
     std::string str = args[0].toString();
+#ifdef _WIN32
+    // (AR) تحويل Unicode باستخدام Windows API
+    // (EN) Unicode conversion using Windows API
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
+    if (wlen > 1) {
+        std::wstring wstr(wlen - 1, 0);
+        MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], wlen);
+        CharLowerW(&wstr[0]);
+        int len = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+        std::string result(len - 1, 0);
+        WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &result[0], len, nullptr, nullptr);
+        return Data::Value(result);
+    }
+#endif
+    // (AR) احتياطي: تحويل ASCII فقط
+    // (EN) Fallback: ASCII-only conversion
     std::string result = str;
-    
-    // (AR) تحويل الأحرف الإنجليزية فقط
-    // (EN) Convert English letters only
     std::transform(result.begin(), result.end(), result.begin(),
                   [](unsigned char c) { return std::tolower(c); });
-    
     return Data::Value(result);
 }
 
@@ -281,13 +332,25 @@ Data::Value StringFunctions::toUpper(const std::vector<Data::Value>& args) {
     validateArguments(args, 1, 1);
     
     std::string str = args[0].toString();
+#ifdef _WIN32
+    // (AR) تحويل Unicode باستخدام Windows API
+    // (EN) Unicode conversion using Windows API
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
+    if (wlen > 1) {
+        std::wstring wstr(wlen - 1, 0);
+        MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], wlen);
+        CharUpperW(&wstr[0]);
+        int len = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+        std::string result(len - 1, 0);
+        WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &result[0], len, nullptr, nullptr);
+        return Data::Value(result);
+    }
+#endif
+    // (AR) احتياطي: تحويل ASCII فقط
+    // (EN) Fallback: ASCII-only conversion
     std::string result = str;
-    
-    // (AR) تحويل الأحرف الإنجليزية فقط
-    // (EN) Convert English letters only
     std::transform(result.begin(), result.end(), result.begin(),
                   [](unsigned char c) { return std::toupper(c); });
-    
     return Data::Value(result);
 }
 
@@ -334,6 +397,13 @@ Data::Value StringFunctions::split(const std::vector<Data::Value>& args) {
     }
     
     std::vector<Data::Value> parts;
+    
+    // (AR) إذا كان maxSplits == 0 ارجع النص كاملاً في مصفوفة واحدة
+    // (EN) If maxSplits == 0, return the whole string as a single-element array
+    if (maxSplits == 0) {
+        parts.push_back(Data::Value(str));
+        return Data::Value(parts);
+    }
     
     if (delimiter.empty()) {
         // (AR) إذا كان الفاصل فارغاً، نفصل كل حرف

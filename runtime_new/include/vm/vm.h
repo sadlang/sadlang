@@ -1,32 +1,133 @@
 /**
  * @file vm.h
- * @brief الآلة الافتراضية / Virtual Machine
- * @brief Stack-based VM for executing bytecode
- * 
+ * @brief (AR) الآلة الافتراضية لتنفيذ البايت كود — النواة التنفيذية لمكتبة runtime_new
+ * @brief (EN) Bytecode Virtual Machine — execution core of the runtime_new library
+ *
  * @details
- * (AR) آلة افتراضية تعتمد على المكدس لتنفيذ البايت كود.
- *      تدعم 106 تعليمة، إدارة إطارات الاستدعاء، وعمليات الذاكرة.
- * 
- * (EN) Stack-based virtual machine for executing bytecode.
- *      Supports 106 opcodes, call frame management, and memory operations.
- * 
- * @author SadLanguage Compiler Team
- * @date December 2025
- * @version 1.0
+ * ═══════════════════════════════════════════════════════════════════════════
+ * (AR) شرح موسّع — الآلة الافتراضية (Virtual Machine)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * ما هي الآلة الافتراضية؟
+ * ─────────────────────
+ * الآلة الافتراضية هي المُنفِّذ الفعلي لبرامج لغة ص المُترجَمة إلى بايت كود.
+ * تعمل كمعالج (processor) برمجي يقرأ التعليمات واحدة تلو الأخرى وينفذها.
+ *
+ * البنية الداخلية:
+ * ───────────────
+ *   ┌───────────────────────────────────────────────────────────┐
+ *   │                    VirtualMachine                         │
+ *   │                                                           │
+ *   │  ┌─────────────┐  ┌──────────────┐  ┌────────────────┐   │
+ *   │  │   المكدس    │  │ إطارات       │  │  الثوابت       │   │
+ *   │  │   (Stack)   │  │ الاستدعاء    │  │  (Constants)   │   │
+ *   │  │  Value[]    │  │ (CallFrames) │  │  Value[]       │   │
+ *   │  └─────────────┘  └──────────────┘  └────────────────┘   │
+ *   │                                                           │
+ *   │  ┌─────────────┐  ┌──────────────┐  ┌────────────────┐   │
+ *   │  │ المتغيرات   │  │ الدوال       │  │  جامع         │   │
+ *   │  │ العامة      │  │ المحلية      │  │  القمامة       │   │
+ *   │  │ (Globals)   │  │ (Natives)    │  │  (GC)          │   │
+ *   │  └─────────────┘  └──────────────┘  └────────────────┘   │
+ *   └───────────────────────────────────────────────────────────┘
+ *
+ * دورة التنفيذ (Fetch-Decode-Execute):
+ * ────────────────────────────────────
+ * 1. جلب (Fetch): قراءة البايت التالي من مصفوفة الكود
+ * 2. فك الترميز (Decode): تحديد نوع العملية من كود العملية (opcode)
+ * 3. التنفيذ (Execute): تنفيذ العملية على المكدس والذاكرة
+ * 4. التكرار حتى الوصول إلى OP_HALT أو خطأ
+ *
+ * التعليمات المدعومة (106 تعليمة):
+ * ────────────────────────────────
+ * - عمليات المكدس: PUSH, POP, DUP, SWAP, ROT
+ * - الحساب: ADD, SUB, MUL, DIV, MOD, NEG, POW
+ * - المقارنة: EQ, NE, LT, LE, GT, GE
+ * - المنطق: AND, OR, NOT (بتي ومنطقي)
+ * - التحكم: JUMP, JUMP_IF_TRUE, JUMP_IF_FALSE, CALL, RETURN
+ * - المتغيرات: LOAD/STORE_LOCAL, LOAD/STORE_GLOBAL
+ * - الكائنات: OBJ_NEW, OBJ_GET, OBJ_SET
+ * - النصوص: STRING_CONCAT, STRING_LEN, STRING_GET, STRING_SUBSTR
+ * - الإدخال/الإخراج: PRINT, IO_OPEN, IO_CLOSE
+ * - التحويل: CAST_INT, CAST_FLOAT, CAST_STRING, CAST_BOOL, TYPEOF
+ * - الذاكرة: ALLOC, FREE, MMAP, MUNMAP
+ *
+ * إدارة إطارات الاستدعاء (Call Frames):
+ * ─────────────────────────────────────
+ * كل استدعاء دالة يُنشئ إطار استدعاء جديد يحتوي:
+ * - مؤشر الكود (IP): الموضع الحالي في البايت كود
+ * - قاعدة المكدس (stack_base): بداية المتغيرات المحلية
+ * - عدد المعاملات ومعلومات الإرجاع
+ *
+ * جامع القمامة (Garbage Collector):
+ * ─────────────────────────────────
+ * يستخدم خوارزمية mark-and-sweep ثلاثية الألوان:
+ * - أبيض (White): كائن لم يُزَر بعد
+ * - رمادي (Gray): كائن يحتاج لمسح مراجعه
+ * - أسود (Black): كائن تم مسحه بالكامل
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * (EN) Extended Description — Virtual Machine
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Stack-based bytecode VM supporting 106 opcodes with call frame management,
+ * tri-color mark-and-sweep GC, native function binding, and debug support.
+ * Uses a fetch-decode-execute loop over a flat bytecode array.
+ *
+ * Key components: value stack, call frame stack, global variables table,
+ * native function registry, constant pool, and garbage collector.
+ *
+ * @note الاعتماديات / Dependencies: value.h (نوع القيم)، bytecode_compat.h
+ *       (أكواد العمليات والأنواع المتوافقة)
+ * @note هذا الملف يعتمد على طبقة التوافق بدلاً من استيراد ملفات المترجم مباشرة
+ *
+ * @see runtime_new/include/vm/value.h — نظام القيم
+ * @see runtime_new/include/bytecode_compat.h — طبقة التوافق
+ * @see compiler_new/include/bytecode/opcodes.h — تعريف أكواد العمليات الأصلية
+ *
+ * @author فريق لغة ص / Sad Language Team
+ * @date ديسمبر 2025 — فبراير 2026 / December 2025 — February 2026
+ * @version 2.0 — تحديث لاستخدام طبقة التوافق / Updated to use compat layer
  * @phase Phase 3: Bytecode Backend
  */
 
 #pragma once
 
+// ============================================================================
+// (AR) ملف الآلة الافتراضية — التعريف الرئيسي
+// --------------------------------------------------------------------------
+// كان هذا الملف يعتمد على includes مباشرة من:
+//   - "bytecode/opcodes.h"
+//   - "bytecode/bytecode.h"
+// لكن هذه الملفات تقع في compiler_new/include/ بمسارات مختلفة وفضاءات
+// أسماء مختلفة (Sad::Compiler::Bytecode vs Sad::Bytecode).
+// 
+// الحل: نستخدم طبقة التوافق bytecode_compat.h التي توفر:
+//   - namespace aliases (Sad::Bytecode → Sad::Compiler::Bytecode)
+//   - الأنواع المفقودة (FileHeader, BytecodeLoader, SymbolInfo)
+//   - الثوابت المفقودة (MAGIC_NUMBER, FORMAT_VERSION_*, FLAG_*)
+// 
+// (EN) This file previously included directly from:
+//   - "bytecode/opcodes.h" 
+//   - "bytecode/bytecode.h"
+// But these files live in compiler_new/include/ with different paths and
+// namespaces (Sad::Compiler::Bytecode vs Sad::Bytecode).
+// 
+// Solution: Use bytecode_compat.h compatibility layer which provides:
+//   - namespace aliases (Sad::Bytecode → Sad::Compiler::Bytecode)
+//   - missing types (FileHeader, BytecodeLoader, SymbolInfo)
+//   - missing constants (MAGIC_NUMBER, FORMAT_VERSION_*, FLAG_*)
+// ============================================================================
+
 #include "value.h"
-#include "bytecode/opcodes.h"
-#include "bytecode/bytecode.h"
+#include "bytecode_compat.h"
 #include <vector>
 #include <unordered_map>
 #include <string>
 #include <memory>
 #include <functional>
 #include <fstream>
+#include <chrono>
 
 namespace Sad {
 namespace VM {
@@ -316,6 +417,13 @@ public:
     void freeObject(Object* object);
     
     /**
+     * @brief تعليم قيمة للـ GC / Mark value for GC
+     * (AR) يعلّم القيمة وجميع الكائنات المشار إليها كمستخدمة.
+     * (EN) Marks the value and all referenced objects as reachable.
+     */
+    void markValue(const Value& value);
+    
+    /**
      * @brief تشغيل جامع القمامة / Run garbage collector
      */
     void collectGarbage();
@@ -364,6 +472,26 @@ public:
      * @brief تفعيل/تعطيل وضع التصحيح / Enable/disable debug mode
      */
     void setDebugMode(bool enable) { config_.enableDebug = enable; }
+
+    // ========================================
+    // Stack Access for GC
+    // وصول المكدس لجامع القمامة
+    // ========================================
+
+    /**
+     * @brief الحصول على مرجع للمكدس / Get stack reference (for GC root scanning)
+     */
+    const std::vector<Value>& getStack() const { return stack_; }
+
+    /**
+     * @brief الحصول على حجم المكدس / Get stack size
+     */
+    size_t getStackSize() const { return stack_.size(); }
+
+    /**
+     * @brief الحصول على مرجع للمتغيرات العامة / Get globals reference (for GC root scanning)
+     */
+    const std::vector<Value>& getGlobals() const { return globals_; }
 
 private:
     // ========================================
@@ -588,6 +716,9 @@ private:
     Object* objects_;                        ///< قائمة الكائنات / Object list
     size_t bytesAllocated_;                  ///< البايتات المخصصة / Bytes allocated
     size_t nextGC_;                          ///< العتبة التالية للـ GC / Next GC threshold
+    
+    // ملكية الوحدة المُحمَّلة من ملف / Loaded module ownership (from loadFromFile)
+    std::shared_ptr<Bytecode::BytecodeModule> loadedModule_;
     
     // Profiling
     std::chrono::high_resolution_clock::time_point startTime_; ///< وقت البدء / Start time

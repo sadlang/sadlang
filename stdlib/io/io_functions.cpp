@@ -20,6 +20,9 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#endif
+#ifdef _WIN32
+#include <windows.h>
 #include <io.h>
 // Windows.h defines VOID macro which conflicts with ValueType::VOID
 #ifdef VOID
@@ -155,7 +158,13 @@ std::string IOFunctions::processEscapeSequences(const std::string& input) {
     return result;
 }
 
-std::string IOFunctions::valueToString(const Data::Value& value) {
+std::string IOFunctions::valueToString(const Data::Value& value, int depth) {
+    // (AR) حماية من التكرار اللانهائي عند وجود كائنات دورية
+    // (EN) Guard against infinite recursion with cyclic objects
+    if (depth > 10) {
+        return "(...)";
+    }
+    
     using VT = Data::ValueType;
     
     switch (value.getType()) {
@@ -198,7 +207,7 @@ std::string IOFunctions::valueToString(const Data::Value& value) {
                 auto arr = value.toArray();
                 for (size_t i = 0; i < arr.size(); ++i) {
                     if (i > 0) oss << ", ";
-                    oss << valueToString(arr[i]);
+                    oss << valueToString(arr[i], depth + 1);
                 }
             } catch (...) {
                 oss << "...";
@@ -215,7 +224,7 @@ std::string IOFunctions::valueToString(const Data::Value& value) {
                 bool first = true;
                 for (const auto& [key, val] : map) {
                     if (!first) oss << ", ";
-                    oss << "\"" << key << "\": " << valueToString(val);
+                    oss << "\"" << key << "\": " << valueToString(val, depth + 1);
                     first = false;
                 }
             } catch (...) {
@@ -251,7 +260,7 @@ std::string IOFunctions::valueToString(const Data::Value& value) {
                 for (const auto& [key, val] : objPtr->fields) {
                     if (key.find("__") == 0) continue; // (AR) تخطي الحقول الداخلية
                     if (!first) oss << ", ";
-                    oss << key << ": " << valueToString(val);
+                    oss << key << ": " << valueToString(val, depth + 1);
                     first = false;
                 }
                 oss << "}";
@@ -439,11 +448,23 @@ Data::Value IOFunctions::clear(const std::vector<Data::Value>& args) {
     
     try {
         #ifdef _WIN32
-            // Windows system call
-            std::system("cls");
+            // (AR) استخدام Windows Console API بدلاً من std::system لتجنب ثغرات الحقن
+            // (EN) Use Windows Console API instead of std::system to avoid injection vulnerabilities
+            HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+            if (hConsole != INVALID_HANDLE_VALUE) {
+                CONSOLE_SCREEN_BUFFER_INFO csbi;
+                if (GetConsoleScreenBufferInfo(hConsole, &csbi)) {
+                    DWORD cellCount = csbi.dwSize.X * csbi.dwSize.Y;
+                    COORD homeCoords = {0, 0};
+                    DWORD count;
+                    FillConsoleOutputCharacterW(hConsole, L' ', cellCount, homeCoords, &count);
+                    FillConsoleOutputAttribute(hConsole, csbi.wAttributes, cellCount, homeCoords, &count);
+                    SetConsoleCursorPosition(hConsole, homeCoords);
+                }
+            }
         #else
-            // Unix/Linux/macOS system call
-            std::system("clear");
+            // Unix/Linux/macOS — ANSI escape
+            std::cout << "\033[2J\033[H";
         #endif
         std::cout.flush();
     } catch (const std::exception& e) {

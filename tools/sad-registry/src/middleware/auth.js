@@ -1,151 +1,145 @@
 // بسم الله الرحمن الرحيم
 // =========================================================================
-// برمجية وسيطة للمصادقة — Authentication Middleware
-// =========================================================================
-//
-// @file auth.js (middleware)
-//
-// الوظيفة:
-//   التحقق من هوية المستخدم قبل السماح بالوصول إلى نقاط النهاية المحمية.
-//
-// آليات المصادقة المدعومة (حسب الأولوية):
-//   ┌─────────────────────────────────────────────────────────────┐
-//   │ 1. JWT Bearer Token                                        │
-//   │    الرأس: Authorization: Bearer <jwt_token>                │
-//   │    يُستخدم من: واجهة الويب، التطبيقات العميلة             │
-//   │    الصلاحية: حسب JWT_EXPIRY (افتراضي 30 يوم)              │
-//   ├─────────────────────────────────────────────────────────────┤
-//   │ 2. API Token (البسيط)                                      │
-//   │    الرأس: Authorization: Bearer sad_xxxxxxxxxx             │
-//   │    يُستخدم من: sad-pkg CLI، سكربتات CI/CD                 │
-//   │    مُخزن كنص صريح في عمود api_token بجدول users            │
-//   ├─────────────────────────────────────────────────────────────┤
-//   │ 3. API Token (المتقدم / المجزّأ)                           │
-//   │    الرأس: نفس الصيغة                                      │
-//   │    مُخزن كـ SHA-256 hash في جدول api_tokens                │
-//   │    يدعم: صلاحيات محددة (scopes)، انتهاء صلاحية             │
-//   └─────────────────────────────────────────────────────────────┘
-//
-// تصدير:
-//   - authenticate(req, res, next): مصادقة إلزامية (401 عند الفشل)
-//   - optionalAuth(req, res, next): مصادقة اختيارية (null عند الفشل)
-//
-// الاستخدام في المسارات:
-//   router.get('/private', authenticate, handler);
-//   router.get('/mixed', optionalAuth, handler);
+// طبقة المصادقة الوسيطة — JWT + API Token
+// Authentication Middleware — JWT + API Token verification
 // =========================================================================
 
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { sendError } = require('../utils/error-codes');
 
-// ─── ثوابت ─────────────────────────────────────────────────────────────
-
-/** سر توقيع JWT — يجب تغييره في بيئة الإنتاج! */
-const JWT_SECRET = process.env.JWT_SECRET || 'sad-registry-default-secret';
-
-// ─── المصادقة الإلزامية ────────────────────────────────────────────────
+const JWT_SECRET = process.env.JWT_SECRET || 'sad-registry-default-secret-change-me';
 
 /**
- * مصادقة إلزامية / Required Authentication
- *
- * تتحقق من رأس Authorization وتضع كائن المستخدم في req.user.
- * ترفض الطلب بـ 401 إذا لم يتوفر رمز صالح.
- *
- * @param {import('express').Request} req — الطلب (يُقرأ منه Authorization header)
- * @param {import('express').Response} res — الاستجابة (يُرسل 401 عند الفشل)
- * @param {import('express').NextFunction} next — الانتقال للمعالج التالي
- *
- * عند النجاح يُضاف:
- *   req.user = { id, username, is_admin }
- *   req.tokenScopes = [...] (فقط مع API tokens المتقدمة)
+ * مصادقة إلزامية — يرفض الطلب إذا لم يكن مسجل الدخول
  */
-function authenticate(req, res, next) {
-    const authHeader = req.headers.authorization;
+function authenticate(db) {
+    return async (req, res, next) => {
+        const authHeader = req.headers.authorization;
 
-    if (!authHeader) {
-        return res.status(401).json({
-            error: 'مطلوب تسجيل الدخول / Authentication required',
-            hint: 'أضف رأس Authorization: Bearer <token>'
-        });
-    }
+        if (!authHeader) {
+            return sendError(res, 'AUTH_001');
+        }
 
-    const [scheme, token] = authHeader.split(' ');
-    
-    if (!token) {
-        return res.status(401).json({ error: 'رمز غير صالح / Invalid token format' });
-    }
+        // ─── محاولة JWT (Bearer token) ───
+        if (authHeader.startsWith('Bearer ')) {
+            const token = authHeader.slice(7);
+            try {
+                const decoded = jwt.verify(token, JWT_SECRET);
+                const user = db.prepare(
+                    'SELECT id, username, email, display_name, is_active, is_admin FROM users WHERE id = ?'
+                ).get(decoded.id);
 
-    const db = req.app.locals.db;
+                if (!user) {
+                    return sendError(res, 'AUTH_002', {
+                        explain: 'المستخدم المرتبط بهذا الرمز لم يعد موجوداً',
+                    });
+                }
 
-    // محاولة 1: JWT Token
-    if (scheme === 'Bearer') {
-        try {
-            const decoded = jwt.verify(token, JWT_SECRET);
-            const user = db.prepare('SELECT id, username, is_admin FROM users WHERE id = ? AND is_active = 1').get(decoded.id);
-            if (!user) {
-                return res.status(401).json({ error: 'المستخدم غير موجود أو معطل' });
+                if (!user.is_active) {
+                    return sendError(res, 'AUTH_005');
+                }
+
+                req.user = user;
+                return next();
+            } catch (err) {
+                if (err.name === 'TokenExpiredError') {
+                    return sendError(res, 'AUTH_002', {
+                        explain: 'رمز JWT منتهي الصلاحية. صلاحية الرمز الافتراضية 30 يوماً',
+                        hint: 'أعد تسجيل الدخول: sad-pkg login',
+                    });
+                }
+                return sendError(res, 'AUTH_002');
             }
-            req.user = user;
-            return next();
-        } catch (jwtError) {
-            // إذا فشل JWT، حاول كرمز API
-        }
-    }
-
-    // محاولة 2: API Token (sad_xxxxx)
-    const rawToken = scheme === 'Bearer' ? token : `${scheme} ${token}`.trim();
-    
-    if (rawToken.startsWith('sad_')) {
-        const user = db.prepare(`
-            SELECT id, username, is_admin FROM users WHERE api_token = ? AND is_active = 1
-        `).get(rawToken);
-
-        if (user) {
-            req.user = user;
-            return next();
         }
 
-        // حاول في جدول الرموز المتقدم
-        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-        const tokenRecord = db.prepare(`
-            SELECT t.user_id, t.scopes, u.username, u.is_admin
-            FROM api_tokens t
-            JOIN users u ON t.user_id = u.id
-            WHERE t.token_hash = ? AND u.is_active = 1
-              AND (t.expires_at IS NULL OR t.expires_at > datetime('now'))
-        `).get(tokenHash);
+        // ─── محاولة API Token (sad_xxxxx) ───
+        if (authHeader.startsWith('sad_')) {
+            const rawToken = authHeader;
+            const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
 
-        if (tokenRecord) {
-            db.prepare('UPDATE api_tokens SET last_used_at = datetime("now") WHERE token_hash = ?').run(tokenHash);
-            req.user = { id: tokenRecord.user_id, username: tokenRecord.username, is_admin: tokenRecord.is_admin };
-            req.tokenScopes = JSON.parse(tokenRecord.scopes || '[]');
-            return next();
+            // البحث في جدول api_tokens
+            const tokenRecord = db.prepare(`
+                SELECT at.*, u.id as uid, u.username, u.email, u.display_name, u.is_active, u.is_admin
+                FROM api_tokens at
+                JOIN users u ON at.user_id = u.id
+                WHERE at.token_hash = ? AND at.is_active = 1
+            `).get(tokenHash);
+
+            if (tokenRecord) {
+                if (!tokenRecord.is_active) {
+                    return sendError(res, 'AUTH_005');
+                }
+
+                // تحديث آخر استخدام
+                db.prepare('UPDATE api_tokens SET last_used_at = datetime("now") WHERE id = ?')
+                    .run(tokenRecord.id);
+
+                req.user = {
+                    id: tokenRecord.uid,
+                    username: tokenRecord.username,
+                    email: tokenRecord.email,
+                    display_name: tokenRecord.display_name,
+                    is_active: tokenRecord.is_active,
+                    is_admin: tokenRecord.is_admin,
+                };
+                return next();
+            }
+
+            // البحث في حقل api_token للمستخدم مباشرة
+            const user = db.prepare(
+                'SELECT id, username, email, display_name, is_active, is_admin FROM users WHERE api_token = ? AND is_active = 1'
+            ).get(rawToken);
+
+            if (user) {
+                req.user = user;
+                return next();
+            }
+
+            return sendError(res, 'AUTH_003');
         }
-    }
 
-    return res.status(401).json({
-        error: 'رمز المصادقة غير صالح أو منتهي الصلاحية',
-        error_en: 'Invalid or expired authentication token'
-    });
+        // ─── صيغة غير معروفة ───
+        return sendError(res, 'AUTH_001', {
+            explain: 'صيغة ترويسة Authorization غير معروفة. الصيغ المدعومة: "Bearer <jwt>" أو "sad_xxxx"',
+        });
+    };
 }
 
 /**
- * مصادقة اختيارية / Optional Authentication
+ * مصادقة اختيارية — لا يرفض الطلب لكن يضيف req.user إذا كان مسجل الدخول
  */
-function optionalAuth(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        req.user = null;
-        return next();
-    }
+function optionalAuth(db) {
+    return async (req, res, next) => {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            req.user = null;
+            return next();
+        }
 
-    // محاولة المصادقة بدون رفض
-    authenticate(req, res, (err) => {
-        if (err) {
+        // نستخدم نفس منطق authenticate لكن بدون رفض
+        try {
+            if (authHeader.startsWith('Bearer ')) {
+                const token = authHeader.slice(7);
+                const decoded = jwt.verify(token, JWT_SECRET);
+                const user = db.prepare(
+                    'SELECT id, username, email, display_name, is_active, is_admin FROM users WHERE id = ? AND is_active = 1'
+                ).get(decoded.id);
+                req.user = user || null;
+            } else if (authHeader.startsWith('sad_')) {
+                const user = db.prepare(
+                    'SELECT id, username, email, display_name, is_active, is_admin FROM users WHERE api_token = ? AND is_active = 1'
+                ).get(authHeader);
+                req.user = user || null;
+            } else {
+                req.user = null;
+            }
+        } catch {
             req.user = null;
         }
+
         next();
-    });
+    };
 }
 
 module.exports = { authenticate, optionalAuth };

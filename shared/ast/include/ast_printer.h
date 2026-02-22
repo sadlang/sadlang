@@ -484,6 +484,7 @@ public:
     // (AR) الدوال المفقودة من ASTVisitor / (EN) Missing ASTVisitor methods
     void visitBorrowExpr(BorrowExpr& expr) override;
     void visitInlineAsmExpr(InlineAsmExpr& expr) override;
+    void visitRangeExpr(RangeExpr& expr) override;
     void visitTemplateFunctionDecl(TemplateFunctionDecl& decl) override;
     void visitTemplateClassDecl(TemplateClassDecl& decl) override;
     void visitTemplateInstantiation(TemplateInstantiation& expr) override;

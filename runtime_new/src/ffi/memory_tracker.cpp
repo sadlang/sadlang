@@ -1,4 +1,54 @@
 /**
+ * @file memory_tracker.cpp
+ * @brief (AR) نظام تتبع ذاكرة FFI — كشف التسريبات والتحرير المزدوج
+ * @brief (EN) FFI Memory Tracker — leak detection and double-free prevention
+ *
+ * @details
+ * ═══════════════════════════════════════════════════════════════════════════
+ * (AR) شرح موسّع — نظام تتبع الذاكرة
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * الغرض من هذا الملف:
+ * ──────────────────
+ * عند استدعاء دوال C عبر FFI، تُخصَّص ذاكرة لتحويل الأنواع وتمرير
+ * المعاملات. هذا المتتبع يراقب كل عملية تخصيص (malloc/new) وتحرير
+ * (free/delete) لاكتشاف:
+ *   - تسريبات الذاكرة (Memory Leaks): تخصيص بدون تحرير
+ *   - التحرير المزدوج (Double Free): تحرير نفس العنوان مرتين
+ *   - استخدام بعد التحرير (Use After Free): الوصول لذاكرة مُحرَّرة
+ *
+ * البنية الداخلية:
+ * ───────────────
+ * - سجل التخصيصات: unordered_map<عنوان، معلومات_التخصيص>
+ *   يحتوي: العنوان، الحجم، الملف المصدري، رقم السطر، الحالة
+ * - قائمة التحريرات: تاريخ عمليات free() للتحقق من التحرير المزدوج
+ * - قفل (mutex): لدعم البرامج متعددة الخيوط (thread-safe)
+ *
+ * الاستخدام النموذجي:
+ * ─────────────────
+ *   tracker.track_allocation(ptr, size, "source.cpp", 42);
+ *   // ... استخدام الذاكرة ...
+ *   tracker.track_deallocation(ptr);
+ *   // عند انتهاء البرنامج:
+ *   auto report = tracker.generate_report();
+ *   // يعرض: عدد التسريبات، الحجم الإجمالي، مواقع التسريب
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * (EN) Extended Description — Memory Tracker
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Tracks all FFI memory allocations/deallocations to detect leaks, double-
+ * frees, and use-after-free. Thread-safe via mutex. Generates diagnostic
+ * reports with source locations and allocation sizes.
+ *
+ * @note الاعتماديات / Dependencies: <string>, <vector>, <unordered_map>,
+ *       <chrono>, <mutex>, <sstream>
+ * @see runtime_new/src/abi/c_abi.cpp — نظام ABI الذي يُخصص الذاكرة
+ * @see runtime_new/src/abi/type_marshal.cpp — تحويل الأنواع الذي يُخصص الذاكرة
+ *
+ * @author فريق لغة ص / Sad Language Team
+ * @date ديسمبر 2025 — فبراير 2026 / December 2025 — February 2026
+ * @version 1.0
+ *
  * =============================================================================
  * ملف: memory_tracker.cpp
  * الوصف: تتبع ذاكرة FFI (malloc/free tracking) - منع التسريبات
@@ -80,6 +130,7 @@
 #include <sstream>
 #include <functional>
 #include <memory>
+#include <algorithm>
 #include <atomic>
 #include <stack>
 
@@ -508,7 +559,16 @@ public:
         std::lock_guard<std::mutex> قفل(m_قفل);
         
         m_تخصيصات.clear();
-        m_إحصائيات = إحصائيات_ذاكرة{};
+        m_إحصائيات.عدد_التخصيصات.store(0);
+        m_إحصائيات.عدد_التحريرات.store(0);
+        m_إحصائيات.عدد_التخصيصات_الحالية.store(0);
+        m_إحصائيات.إجمالي_المخصص.store(0);
+        m_إحصائيات.إجمالي_المحرر.store(0);
+        m_إحصائيات.الحالي.store(0);
+        m_إحصائيات.الذروة.store(0);
+        m_إحصائيات.محاولات_تحرير_مزدوج.store(0);
+        m_إحصائيات.تحريرات_عناوين_مجهولة.store(0);
+        m_إحصائيات.التسريبات_المكتشفة.store(0);
     }
     
     /**

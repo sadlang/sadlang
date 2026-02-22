@@ -29,6 +29,15 @@ namespace Sad {
 namespace Compiler {
 namespace Bytecode {
 
+// ============================================================================
+// استيراد نوع Byte من الآلة الافتراضية / Import Byte type from VM namespace
+// (AR) نوع Byte مُعرَّف في Sad::VM (opcodes.h) لكن هذا الملف في
+//      Sad::Compiler::Bytecode — نحتاج استيراده صراحةً.
+// (EN) Byte is defined in Sad::VM (opcodes.h) but this file is in
+//      Sad::Compiler::Bytecode — we need to import it explicitly.
+// ============================================================================
+using Sad::VM::Byte;
+
 // ========================================
 // Constant Pool
 // مجمع الثوابت

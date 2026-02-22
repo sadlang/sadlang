@@ -1,0 +1,5 @@
+C:\s\s-programming-language\compiler_new\src\codegen\guard_during.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_security.dir\Release\guard_during.obj
+C:\s\s-programming-language\compiler_new\src\codegen\guard_post.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_security.dir\Release\guard_post.obj
+C:\s\s-programming-language\compiler_new\src\codegen\guard_pre.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_security.dir\Release\guard_pre.obj
+C:\s\s-programming-language\compiler_new\src\sema\permission_checker.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_security.dir\Release\permission_checker.obj
+C:\s\s-programming-language\compiler_new\src\diagnostics\permission_errors_ar.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_security.dir\Release\permission_errors_ar.obj

@@ -1,4 +1,69 @@
 /**
+ * @file smart_panic.cpp
+ * @brief (AR) نظام الذعر الذكي — التعامل التفصيلي مع الأخطاء غير المتوقعة
+ * @brief (EN) Smart Panic System — detailed handling of unexpected errors
+ *
+ * @details
+ * ═══════════════════════════════════════════════════════════════════════════
+ * (AR) شرح موسّع — نظام الذعر الذكي (Smart Panic)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * الغرض من هذا الملف:
+ * ──────────────────
+ * عندما يحدث خطأ غير متوقع (مثل فهرس خارج الحدود، قسمة على صفر،
+ * مرجع فارغ...)، بدلاً من انهيار البرنامج بصمت مع "Segmentation fault"،
+ * نظام الذعر الذكي يوفر:
+ *   - رسالة خطأ واضحة بالعربية والإنجليزية
+ *   - موقع الخطأ الدقيق (ملف، سطر، عمود)
+ *   - الكود المصدري المُسبب للخطأ
+ *   - قيم المتغيرات المحلية وقت الخطأ
+ *   - آخر N عملية قبل الخطأ (operation trace)
+ *   - تحليل السبب المحتمل وحل مقترح
+ *
+ * أنواع الذعر المدعومة:
+ * ────────────────────
+ * - OutOfBounds: فهرس خارج الحدود (مصفوفة أو نص)
+ * - DivisionByZero: قسمة على صفر
+ * - NullReference: استخدام مرجع فارغ
+ * - StackOverflow: تجاوز سعة المكدس (تكرار لا نهائي عادة)
+ * - TypeMismatch: عدم تطابق الأنواع في عملية
+ * - AssertionFailed: فشل تأكيد (assert)
+ * - OutOfMemory: نفاد الذاكرة
+ * - Custom: أنواع مُخصصة يُعرِّفها المبرمج
+ *
+ * المكونات الرئيسية:
+ * ─────────────────
+ * - PanicInfo: بنية تحتوي كل معلومات الذعر
+ * - PanicHandler: صنف يعالج الذعر ويُنسِّق الإخراج
+ * - OperationLog: سجل دائري يحفظ آخر العمليات
+ * - ErrorLocalizer: يترجم رسائل الخطأ للعربية
+ * - SuggestionEngine: يقترح حلولاً بناءً على نوع الخطأ
+ *
+ * مثال على الإخراج:
+ * ────────────────
+ *   ❌ ذعر: محاولة الوصول لفهرس خارج الحدود
+ *   📍 الموقع: main.ص سطر 42
+ *   📝 الكود: عدد = قائمة[فهرس]
+ *   📊 المتغيرات: فهرس = 100, قائمة.طول = 10
+ *   💡 الحل: تحقق من الفهرس قبل الوصول
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * (EN) Extended Description — Smart Panic System
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Replaces silent crashes with informative bilingual error reports.
+ * Provides: error message, source location, offending code, variable
+ * values, operation trace, root cause analysis, and fix suggestions.
+ * Supports 8+ panic types with customizable handlers.
+ *
+ * @note الاعتماديات / Dependencies: <string>, <vector>, <unordered_map>,
+ *       <chrono>, <functional>, <mutex>, <atomic>, <deque>
+ * @see runtime_new/include/vm/vm.h — الآلة الافتراضية التي تُطلق الذعر
+ * @see runtime_new/src/ffi/memory_tracker.cpp — يُطلق ذعر عند أخطاء الذاكرة
+ *
+ * @author فريق لغة ص / Sad Language Team
+ * @date ديسمبر 2025 — فبراير 2026 / December 2025 — February 2026
+ * @version 1.0
+ *
  * =============================================================================
  * ملف: smart_panic.cpp
  * الوصف: نظام الذعر الذكي - التعامل الذكي مع الأخطاء غير المتوقعة
@@ -66,6 +131,7 @@
 #include <chrono>
 #include <functional>
 #include <sstream>
+#include <iostream>
 #include <mutex>
 #include <memory>
 #include <atomic>

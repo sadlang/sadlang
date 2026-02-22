@@ -374,16 +374,18 @@ llvm::Value* LLVMCodeGen::emitBuiltinPrint(std::shared_ptr<SIRInstruction> inst)
         llvm::Value* v = resolveOperand(op);
         if (!v) continue;
         if (v->getType()->isPointerTy()) {
-            llvm::Value* fmt = builder_->CreateGlobalStringPtr("%s\n", "fmt.s");
+            // (AR) طباعة نص بدون سطر جديد تلقائي - SIR builder يضيف \n صراحة عند الحاجة
+            // (EN) Print string without auto-newline - SIR builder adds \n explicitly when needed
+            llvm::Value* fmt = builder_->CreateGlobalStringPtr("%s", "fmt.s");
             builder_->CreateCall(printfFunc, {fmt, v});
         } else if (v->getType()->isIntegerTy(64)) {
-            llvm::Value* fmt = builder_->CreateGlobalStringPtr("%lld\n", "fmt.d");
+            llvm::Value* fmt = builder_->CreateGlobalStringPtr("%lld", "fmt.d");
             builder_->CreateCall(printfFunc, {fmt, v});
         } else if (v->getType()->isDoubleTy()) {
-            llvm::Value* fmt = builder_->CreateGlobalStringPtr("%f\n", "fmt.f");
+            llvm::Value* fmt = builder_->CreateGlobalStringPtr("%f", "fmt.f");
             builder_->CreateCall(printfFunc, {fmt, v});
         } else {
-            llvm::Value* fmt = builder_->CreateGlobalStringPtr("%lld\n", "fmt.d");
+            llvm::Value* fmt = builder_->CreateGlobalStringPtr("%lld", "fmt.d");
             llvm::Value* conv = builder_->CreateIntCast(v, llvm::Type::getInt64Ty(*context_), true);
             builder_->CreateCall(printfFunc, {fmt, conv});
         }

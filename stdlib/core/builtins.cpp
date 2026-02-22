@@ -15,6 +15,10 @@
 #include <cmath>
 #include <algorithm>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace Sad {
 namespace StdLib {
 namespace BuiltinFunctions {
@@ -154,8 +158,14 @@ std::shared_ptr<Data::Value> remove(const std::vector<std::shared_ptr<Data::Valu
     int idx = index->toInt();
     
     if (idx >= 0 && idx < (int)array->size()) {
-        // Need to get internal array - use operator[]
-        // For now, return void
+        // (AR) إزالة العنصر بالفهرس من المصفوفة مباشرةً
+        // (EN) Remove element at index from array directly
+        array->remove(static_cast<size_t>(idx));
+    } else {
+        throw std::runtime_error(
+            "(AR) خطأ: الفهرس خارج حدود المصفوفة / "
+            "(EN) Error: Index out of array bounds"
+        );
     }
     
     return std::make_shared<Data::Value>();  // VOID
@@ -170,7 +180,22 @@ std::shared_ptr<Data::Value> str_len(const std::vector<std::shared_ptr<Data::Val
         return std::make_shared<Data::Value>(0);
     }
     
-    return std::make_shared<Data::Value>((int)args[0]->toString().length());
+    // (AR) حساب طول النص بوحدات أحرف يونيكود (وليس بايتات)
+    // (EN) Count Unicode characters (not bytes) for correct Arabic string length
+    const std::string& str = args[0]->toString();
+    int charCount = 0;
+    const unsigned char* bytes = reinterpret_cast<const unsigned char*>(str.data());
+    size_t len = str.size();
+    for (size_t i = 0; i < len; ) {
+        unsigned char b = bytes[i];
+        if (b < 0x80) { i += 1; }
+        else if ((b & 0xE0) == 0xC0) { i += 2; }
+        else if ((b & 0xF0) == 0xE0) { i += 3; }
+        else if ((b & 0xF8) == 0xF0) { i += 4; }
+        else { i += 1; } // (AR) بايت غير صالح — تخطي
+        charCount++;
+    }
+    return std::make_shared<Data::Value>(charCount);
 }
 
 std::shared_ptr<Data::Value> upper(const std::vector<std::shared_ptr<Data::Value>>& args) {
@@ -179,6 +204,21 @@ std::shared_ptr<Data::Value> upper(const std::vector<std::shared_ptr<Data::Value
     }
     
     std::string str = args[0]->toString();
+#ifdef _WIN32
+    // (AR) استخدام Windows API لتحويل يونيكود صحيح (يشمل العربية واللاتينية)
+    // (EN) Use Windows API for correct Unicode case conversion
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
+    if (wlen > 1) {
+        std::wstring wstr(wlen - 1, 0);
+        MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], wlen);
+        CharUpperW(&wstr[0]);
+        int ulen = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+        std::string result(ulen - 1, 0);
+        WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &result[0], ulen, nullptr, nullptr);
+        return std::make_shared<Data::Value>(result);
+    }
+#endif
+    // (AR) احتياطي: ASCII فقط إذا لم يكن ويندوز
     std::transform(str.begin(), str.end(), str.begin(), ::toupper);
     return std::make_shared<Data::Value>(str);
 }
@@ -189,6 +229,19 @@ std::shared_ptr<Data::Value> lower(const std::vector<std::shared_ptr<Data::Value
     }
     
     std::string str = args[0]->toString();
+#ifdef _WIN32
+    // (AR) استخدام Windows API لتحويل يونيكود صحيح
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
+    if (wlen > 1) {
+        std::wstring wstr(wlen - 1, 0);
+        MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], wlen);
+        CharLowerW(&wstr[0]);
+        int ulen = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+        std::string result(ulen - 1, 0);
+        WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &result[0], ulen, nullptr, nullptr);
+        return std::make_shared<Data::Value>(result);
+    }
+#endif
     std::transform(str.begin(), str.end(), str.begin(), ::tolower);
     return std::make_shared<Data::Value>(str);
 }
@@ -239,11 +292,22 @@ std::shared_ptr<Data::Value> split(const std::vector<std::shared_ptr<Data::Value
     std::string delimiter = args[1]->toString();
     std::vector<Data::Value> result;
     
-    // (AR) حالة خاصة: فاصل فارغ - تقسيم إلى أحرف
-    // (EN) Special case: empty delimiter - split into characters
+    // (AR) حالة خاصة: فاصل فارغ - تقسيم إلى أحرف UTF-8
+    // (EN) Special case: empty delimiter - split into UTF-8 characters
     if (delimiter.empty()) {
-        for (char c : text) {
-            result.push_back(Data::Value(std::string(1, c)));
+        size_t i = 0;
+        while (i < text.size()) {
+            unsigned char c = static_cast<unsigned char>(text[i]);
+            size_t charLen = 1;
+            if ((c & 0x80) == 0)       charLen = 1;
+            else if ((c & 0xE0) == 0xC0) charLen = 2;
+            else if ((c & 0xF0) == 0xE0) charLen = 3;
+            else if ((c & 0xF8) == 0xF0) charLen = 4;
+            
+            if (i + charLen <= text.size()) {
+                result.push_back(Data::Value(text.substr(i, charLen)));
+            }
+            i += charLen;
         }
         return std::make_shared<Data::Value>(result);
     }
@@ -458,7 +522,8 @@ std::shared_ptr<Data::Value> type_of(const std::vector<std::shared_ptr<Data::Val
 
 std::shared_ptr<Data::Value> to_int(const std::vector<std::shared_ptr<Data::Value>>& args) {
     if (args.empty() || !args[0]) {
-        return std::make_shared<Data::Value>(0);
+        throw std::runtime_error(
+            "(AR) \u062e\u0637\u0623: \u062f\u0627\u0644\u0629 \u0625\u0644\u0649_\u0631\u0642\u0645() \u062a\u062d\u062a\u0627\u062c \u0648\u0633\u064a\u0637\u0629 \u0648\u0627\u062d\u062f\u0629. (EN) Error: to_int() requires one argument.");
     }
     
     if (args[0]->isInteger()) {
@@ -469,20 +534,29 @@ std::shared_ptr<Data::Value> to_int(const std::vector<std::shared_ptr<Data::Valu
         return std::make_shared<Data::Value>((int)args[0]->toDouble());
     }
     
+    if (args[0]->isBoolean()) {
+        return std::make_shared<Data::Value>(args[0]->toBool() ? 1 : 0);
+    }
+    
     if (args[0]->isString()) {
+        const std::string& s = args[0]->toString();
         try {
-            return std::make_shared<Data::Value>(std::stoi(args[0]->toString()));
+            return std::make_shared<Data::Value>(std::stoi(s));
         } catch (...) {
-            return std::make_shared<Data::Value>(0);
+            throw std::runtime_error(
+                "(AR) \u062e\u0637\u0623: \u0644\u0627 \u064a\u0645\u0643\u0646 \u062a\u062d\u0648\u064a\u0644 '" + s + "' \u0625\u0644\u0649 \u0631\u0642\u0645. "
+                "(EN) Error: cannot convert '" + s + "' to integer.");
         }
     }
     
-    return std::make_shared<Data::Value>(0);
+    throw std::runtime_error(
+        "(AR) \u062e\u0637\u0623: \u0644\u0627 \u064a\u0645\u0643\u0646 \u062a\u062d\u0648\u064a\u0644 \u0627\u0644\u0642\u064a\u0645\u0629 \u0625\u0644\u0649 \u0631\u0642\u0645. (EN) Error: cannot convert value to integer.");
 }
 
 std::shared_ptr<Data::Value> to_float(const std::vector<std::shared_ptr<Data::Value>>& args) {
     if (args.empty() || !args[0]) {
-        return std::make_shared<Data::Value>(0.0);
+        throw std::runtime_error(
+            "(AR) \u062e\u0637\u0623: \u062f\u0627\u0644\u0629 \u0625\u0644\u0649_\u0639\u0634\u0631\u064a() \u062a\u062d\u062a\u0627\u062c \u0648\u0633\u064a\u0637\u0629 \u0648\u0627\u062d\u062f\u0629. (EN) Error: to_float() requires one argument.");
     }
     
     if (args[0]->isDouble()) {
@@ -493,15 +567,23 @@ std::shared_ptr<Data::Value> to_float(const std::vector<std::shared_ptr<Data::Va
         return std::make_shared<Data::Value>((double)args[0]->toInt());
     }
     
+    if (args[0]->isBoolean()) {
+        return std::make_shared<Data::Value>(args[0]->toBool() ? 1.0 : 0.0);
+    }
+    
     if (args[0]->isString()) {
+        const std::string& s = args[0]->toString();
         try {
-            return std::make_shared<Data::Value>(std::stod(args[0]->toString()));
+            return std::make_shared<Data::Value>(std::stod(s));
         } catch (...) {
-            return std::make_shared<Data::Value>(0.0);
+            throw std::runtime_error(
+                "(AR) \u062e\u0637\u0623: \u0644\u0627 \u064a\u0645\u0643\u0646 \u062a\u062d\u0648\u064a\u0644 '" + s + "' \u0625\u0644\u0649 \u0639\u062f\u062f \u0639\u0634\u0631\u064a. "
+                "(EN) Error: cannot convert '" + s + "' to float.");
         }
     }
     
-    return std::make_shared<Data::Value>(0.0);
+    throw std::runtime_error(
+        "(AR) \u062e\u0637\u0623: \u0644\u0627 \u064a\u0645\u0643\u0646 \u062a\u062d\u0648\u064a\u0644 \u0627\u0644\u0642\u064a\u0645\u0629 \u0625\u0644\u0649 \u0639\u062f\u062f \u0639\u0634\u0631\u064a. (EN) Error: cannot convert value to float.");
 }
 
 std::shared_ptr<Data::Value> to_string(const std::vector<std::shared_ptr<Data::Value>>& args) {

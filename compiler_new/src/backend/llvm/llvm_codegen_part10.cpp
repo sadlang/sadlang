@@ -509,7 +509,14 @@ llvm::Value* LLVMCodeGen::emitArrayNew(std::shared_ptr<SIRInstruction> inst) {
     int64_t capacity = 8; // default
     if (!inst->operands.empty()) {
         if (inst->operands[0].type == SIROperandType::CONSTANT) {
-            try { capacity = std::stoll(inst->operands[0].name); } catch (...) {}
+            try { 
+                capacity = std::stoll(inst->operands[0].name); 
+                // التحقق من أن السعة موجبة
+                if (capacity <= 0) capacity = 8;
+            } catch (const std::exception&) {
+                // فشل التحويل - استخدام القيمة الافتراضية
+                capacity = 8;
+            }
         }
     }
     

@@ -1,96 +1,53 @@
 // بسم الله الرحمن الرحيم
 // =========================================================================
-// مسارات المستخدم — User Routes
-// =========================================================================
-//
-// @file user.js
-//
-// نقاط النهاية:
-//   GET /api/v1/user/packages — حزم المستخدم الحالي (يتطلب مصادقة)
-//   GET /api/v1/user/profile  — الملف الشخصي مع الإحصائيات
-//
-// المصادقة:
-//   كل نقاط النهاية هنا تتطلب رمز JWT أو API token صالح.
-//   يُستخدم middleware authenticate لفرض ذلك.
-//
-// الاستخدام في sad-pkg:
-//   sad-pkg my-packages → GET /api/v1/user/packages
-//   sad-pkg whoami      → GET /api/v1/user/profile
+// مسارات المستخدم — الملف الشخصي والحزم
+// User Routes — Profile and packages
 // =========================================================================
 
-const express = require('express');
-const router = express.Router();
+const { Router } = require('express');
+const { sendError } = require('../utils/error-codes');
 const { authenticate } = require('../middleware/auth');
 
-// ============================================================================
-// GET /api/v1/user/packages — حزم المستخدم / User's Packages
-// ============================================================================
+function createUserRouter(db, services) {
+    const router = Router();
+    const { userService } = services;
 
-router.get('/packages', authenticate, (req, res) => {
-    const db = req.app.locals.db;
-    const userId = req.user.id;
-
-    try {
-        const packages = db.prepare(`
-            SELECT DISTINCT p.name, p.description, p.description_ar, p.latest_version,
-                   p.total_downloads, p.license, p.created_at, p.updated_at
-            FROM packages p
-            LEFT JOIN package_owners po ON p.id = po.package_id
-            WHERE p.owner_id = ? OR po.user_id = ?
-            ORDER BY p.updated_at DESC
-        `).all(userId, userId);
-
-        res.json({
-            packages: packages.map(p => ({
-                name: p.name,
-                description: p.description,
-                description_ar: p.description_ar,
-                latest_version: p.latest_version,
-                downloads: p.total_downloads,
-                license: p.license,
-                created_at: p.created_at,
-                updated_at: p.updated_at,
-            }))
-        });
-    } catch (error) {
-        console.error('خطأ في جلب حزم المستخدم:', error.message);
-        res.status(500).json({ error: 'خطأ في الخادم' });
-    }
-});
-
-// ============================================================================
-// GET /api/v1/user/profile — الملف الشخصي / Profile
-// ============================================================================
-
-router.get('/profile', authenticate, (req, res) => {
-    const db = req.app.locals.db;
-    const userId = req.user.id;
-
-    try {
-        const user = db.prepare(`
-            SELECT id, username, email, display_name, bio, avatar_url, created_at
-            FROM users WHERE id = ?
-        `).get(userId);
-
-        const packageCount = db.prepare(`
-            SELECT COUNT(*) as count FROM packages WHERE owner_id = ?
-        `).get(userId);
-
-        const totalDownloads = db.prepare(`
-            SELECT COALESCE(SUM(p.total_downloads), 0) as total
-            FROM packages p WHERE p.owner_id = ?
-        `).get(userId);
-
-        res.json({
-            ...user,
-            stats: {
-                packages: packageCount.count,
-                total_downloads: totalDownloads.total,
+    // ═══════════════════════════════════════════════════════════════
+    // GET /profile — الملف الشخصي
+    // ═══════════════════════════════════════════════════════════════
+    router.get('/profile', authenticate(db), (req, res) => {
+        try {
+            const result = userService.getProfile(req.user.id);
+            if (!result) {
+                return sendError(res, 'AUTH_002', {
+                    explain: 'لم يتم العثور على بيانات المستخدم',
+                });
             }
-        });
-    } catch (error) {
-        res.status(500).json({ error: 'خطأ في الخادم' });
-    }
-});
+            res.json(result);
+        } catch (err) {
+            console.error('خطأ في الملف الشخصي:', err.message);
+            sendError(res, 'GEN_002');
+        }
+    });
 
-module.exports = router;
+    // ═══════════════════════════════════════════════════════════════
+    // GET /packages — حزم المستخدم
+    // ═══════════════════════════════════════════════════════════════
+    router.get('/packages', authenticate(db), (req, res) => {
+        try {
+            const packages = userService.getUserPackages(req.user.id);
+            res.json({
+                success: true,
+                packages,
+                total: packages.length,
+            });
+        } catch (err) {
+            console.error('خطأ في جلب الحزم:', err.message);
+            sendError(res, 'GEN_002');
+        }
+    });
+
+    return router;
+}
+
+module.exports = createUserRouter;

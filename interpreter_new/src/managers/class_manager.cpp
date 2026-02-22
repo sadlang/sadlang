@@ -14,6 +14,7 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
+#include <mutex>
 
 namespace Sad {
 namespace Data {
@@ -24,10 +25,14 @@ namespace Data {
 
 ClassManager* ClassManager::instance_ = nullptr;
 
+// (AR) قفل للحماية من الوصول المتزامن / (EN) Mutex for thread-safe access
+static std::mutex instanceMutex_;
+
 ClassManager* ClassManager::getInstance() {
-    // (AR) الحصول على النسخة الوحيدة من المدير
-    // (EN) Get singleton instance of manager
+    // (AR) الحصول على النسخة الوحيدة من المدير — آمن للخيوط المتعددة
+    // (EN) Get singleton instance of manager — thread-safe
     
+    std::lock_guard<std::mutex> lock(instanceMutex_);
     if (!instance_) {
         instance_ = new ClassManager();
     }
@@ -35,9 +40,10 @@ ClassManager* ClassManager::getInstance() {
 }
 
 void ClassManager::resetInstance() {
-    // (AR) إعادة تعيين المدير (للاختبارات)
-    // (EN) Reset manager (for testing)
+    // (AR) إعادة تعيين المدير (للاختبارات) — آمن للخيوط المتعددة
+    // (EN) Reset manager (for testing) — thread-safe
     
+    std::lock_guard<std::mutex> lock(instanceMutex_);
     if (instance_) {
         delete instance_;
         instance_ = nullptr;
@@ -234,12 +240,25 @@ bool ClassManager::hasCircularInheritance(const std::string& className,
     // (AR) فحص الصنف الأساسي
     // (EN) Check base class
     bool hasCycle = hasCircularInheritance(classType->baseClass->name, visited);
+    if (hasCycle) {
+        visited.erase(className);
+        return true;
+    }
+    
+    // (AR) فحص الأصناف الأساسية الإضافية (الوراثة المتعددة)
+    // (EN) Check additional base classes (multiple inheritance)
+    for (auto* additionalBase : classType->getAdditionalBases()) {
+        if (additionalBase && hasCircularInheritance(additionalBase->name, visited)) {
+            visited.erase(className);
+            return true;
+        }
+    }
     
     // (AR) إزالة التمييز
     // (EN) Unmark class
     visited.erase(className);
     
-    return hasCycle;
+    return false;
 }
 
 std::vector<std::string> ClassManager::getInheritanceChain(const std::string& className) const {

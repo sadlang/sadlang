@@ -151,6 +151,18 @@ public:
      */
     bool isInGenerator() const { return inGenerator_; }
     
+    /**
+     * @brief (AR) الحصول على قيم yield المجمّعة (للتقييم الفوري للمولّدات)
+     * @brief (EN) Get collected yield values (for eager generator evaluation)
+     */
+    const std::vector<Data::Value>& getGeneratorYieldValues() const { return generatorYieldValues_; }
+    
+    /**
+     * @brief (AR) مسح قيم yield المجمّعة
+     * @brief (EN) Clear collected yield values
+     */
+    void clearGeneratorYieldValues() { generatorYieldValues_.clear(); }
+    
     // =========================================================================
     // (AR) زيارة الجُمل / (EN) Statement Visitors
     // =========================================================================
@@ -266,6 +278,20 @@ public:
      * @details تسجل الصنف في ClassManager / Registers class in ClassManager
      */
     void visitClassDecl(AST::ClassDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة تصريح صنف (عقدة ClassDeclStmt) / (EN) Visit class declaration (ClassDeclStmt node)
+     * @details تسجل الصنف في ClassManager من عقدة class_nodes.h / Registers class from class_nodes.h node
+     */
+    void visitClassDeclStmt(AST::ClassDeclStmt& node) override;
+    
+    /**
+     * @brief (AR) زيارة تصريح تعداد / (EN) Visit enum declaration
+     * @details تسجل قيم التعداد كمتغيرات / Registers enum values as variables
+     */
+    void visitEnumDecl(AST::EnumDecl& node) override;
+    void visitStructDecl(AST::StructDecl& node) override;
+    void visitTestDecl(AST::TestDecl& node) override;
     
     /**
      * @brief (AR) زيارة تصريح حقل / (EN) Visit field declaration
@@ -405,6 +431,10 @@ private:
     
     // (AR) هل نحن داخل مولّد؟ / (EN) Are we inside a generator?
     bool inGenerator_;
+    
+    // (AR) قيم yield المجمّعة (للتقييم الفوري للمولّدات)
+    // (EN) Collected yield values (for eager generator evaluation)
+    std::vector<Data::Value> generatorYieldValues_;
     
     // (AR) عداد مستوى الحلقات (للتحقق من break/continue) / (EN) Loop depth counter
     int loopDepth_;

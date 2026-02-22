@@ -857,7 +857,16 @@ public:
         for (const auto& شرط : عقد.الشروط_اللاحقة) {
             // استبدال "النتيجة" باسم المتغير الفعلي
             std::string تعبير_نصي = شرط.التعبير->إلى_نص();
-            // TODO: استبدال النتيجة باسم المتغير
+            // (AR) استبدال كل ظهور لـ "النتيجة" باسم المتغير الفعلي
+            // (EN) Replace all occurrences of "النتيجة" with the actual result variable name
+            {
+                const std::string بحث = "النتيجة";
+                size_t موقع = 0;
+                while ((موقع = تعبير_نصي.find(بحث, موقع)) != std::string::npos) {
+                    تعبير_نصي.replace(موقع, بحث.length(), اسم_النتيجة);
+                    موقع += اسم_النتيجة.length();
+                }
+            }
             
             كود << "    if (!(" << تعبير_نصي << ")) {\n";
             كود << "        throw std::runtime_error(\"";
@@ -966,6 +975,14 @@ private:
 
 extern "C" {
 
+/**
+ * (AR) هيكل العقد للواجهة C - يحتوي على نتائج التحليل
+ * (EN) Contract struct for C API - holds parsed contract results
+ */
+struct sad_contract {
+    عقد_دالة contract_data;
+};
+
 typedef struct sad_contract* sad_contract_t;
 typedef struct sad_contract_parser* sad_contract_parser_t;
 
@@ -992,13 +1009,13 @@ int sad_contract_parse(sad_contract_parser_t parser,
 }
 
 int sad_contract_get_precondition_count(sad_contract_t contract) {
-    // Placeholder
-    return 0;
+    if (!contract) return 0;
+    return static_cast<int>(contract->contract_data.الشروط_المسبقة.size());
 }
 
 int sad_contract_get_postcondition_count(sad_contract_t contract) {
-    // Placeholder
-    return 0;
+    if (!contract) return 0;
+    return static_cast<int>(contract->contract_data.الشروط_اللاحقة.size());
 }
 
 } // extern "C"

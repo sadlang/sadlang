@@ -44,10 +44,12 @@
 #include "module_resolver.h"
 #include "lexer_core.h"
 #include "parser_core.h"
+#include "class_manager.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <set>
 
 namespace Sad {
 namespace Interpreter {
@@ -98,6 +100,17 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
     // (EN) Create isolated scope for module
     scopeManager_.pushScope(Data::ScopeType::BLOCK, "module:" + module->name);
     
+    // (AR) حفظ أسماء الأصناف قبل تنفيذ الوحدة لاكتشاف الأصناف الجديدة
+    // (EN) Snapshot class names before module execution to detect new classes
+    std::set<std::string> classNamesBefore;
+    {
+        auto* classManager = Data::ClassManager::getInstance();
+        if (classManager) {
+            auto allNames = classManager->getAllClassNames();
+            classNamesBefore.insert(allNames.begin(), allNames.end());
+        }
+    }
+    
     // (AR) المرحلة 1: تنفيذ كل جمل الوحدة
     // (EN) Phase 1: Execute all module statements
     bool hasExplicitExports = false;
@@ -144,6 +157,14 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
                 moduleExports[symbolName] = Data::Value(std::string("__func__:" + symbolName));
                 continue;
             }
+            
+            // (AR) البحث عن الرمز كصنف
+            // (EN) Look for symbol as class
+            auto* classManager = Data::ClassManager::getInstance();
+            if (classManager && classManager->hasClass(symbolName)) {
+                moduleExports[symbolName] = Data::Value(std::string("__class__:" + symbolName));
+                continue;
+            }
         }
     } else {
         // (AR) لا يوجد تصدير صريح: نصدّر كل الدوال المُعرَّفة من المستخدم
@@ -171,6 +192,22 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
             }
             if (hasUserDefined) {
                 moduleExports[funcName] = Data::Value(std::string("__func__:" + funcName));
+            }
+        }
+        
+        // (AR) تصدير ضمني للأصناف المعرّفة في الوحدة
+        // (EN) Implicit export of classes defined in the module
+        {
+            auto* classManager = Data::ClassManager::getInstance();
+            if (classManager) {
+                auto allClassNames = classManager->getAllClassNames();
+                for (const auto& className : allClassNames) {
+                    // (AR) نصدّر فقط الأصناف الجديدة التي عُرِّفت أثناء تنفيذ الوحدة
+                    // (EN) Only export classes that were defined during module execution
+                    if (classNamesBefore.find(className) == classNamesBefore.end()) {
+                        moduleExports[className] = Data::Value(std::string("__class__:" + className));
+                    }
+                }
             }
         }
     }

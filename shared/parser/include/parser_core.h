@@ -178,6 +178,15 @@ private:
     AST::StmtPtr parseFunctionDecl(AST::ExprList decorators = AST::ExprList(), bool is_async = false, bool is_generator = false);
 
     /**
+     * @brief (AR) يحلل تصريح دالة خارجية (FFI).
+     *        (EN) Parses external function declaration (FFI).
+     * 
+     * @return (AR) مؤشر لعقدة تصريح الدالة الخارجية.
+     *         (EN) Pointer to external function declaration node.
+     */
+    AST::StmtPtr parseExternFunctionDecl();
+
+    /**
      * @brief (AR) يحلل تصريح صنف (class) مع الحقول والطرق.
      *        (EN) Parses class declaration with fields and methods.
      * 
@@ -425,6 +434,8 @@ private:
      *         (EN) Pointer to enum declaration node.
      */
     AST::StmtPtr parseEnumDecl();
+    AST::StmtPtr parseStructDecl();
+    AST::StmtPtr parseTestDecl();
 
     /**
      * @brief (AR) يحلل جملة استيراد (استورد module).
@@ -761,6 +772,12 @@ private:
      *         (EN) Pointer to addition/subtraction expression node.
      */
     AST::ExprPtr parseTerm();
+
+    /**
+     * @brief (AR) يحلل تعبير المدى (مثل: 1..10)
+     *        (EN) Parses range expression (e.g.: 1..10)
+     */
+    AST::ExprPtr parseRange();
 
     /**
      * @brief (AR) يحلل عوامل الضرب والقسمة (* / %).
@@ -1300,6 +1317,7 @@ private:
     Lexer::Token nextToken_;             ///< (AR) الرمز التالي للنظر المسبق (EN) Next token for lookahead
     bool panicMode_;                     ///< (AR) وضع الذعر للتعافي من الأخطاء (EN) Panic mode for error recovery
     std::string filename_;               ///< (AR) اسم الملف المصدري (EN) Source filename
+    bool pendingConst_ = false;          ///< (AR) علامة تصريح ثابت معلق (EN) Pending const declaration flag
 };
 
 } // namespace Parser

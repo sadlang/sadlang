@@ -202,6 +202,11 @@
 			"label": "Build SAD Only",
 			"type": "shell",
 			"command": "cmake --build build --config Debug --target sad 2>&1 | Select-Object -Last 60"
+		},
+		{
+			"label": "Build sadc Release",
+			"type": "shell",
+			"command": "cmake --build build --config Release --target sadc 2>&1 | Select-Object -Last 30"
 		}
 	]
 }

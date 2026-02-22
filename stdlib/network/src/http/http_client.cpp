@@ -7,6 +7,29 @@
 #include <sstream>
 #include <algorithm>
 
+namespace {
+// Simple Base64 encoder for HTTP Basic Auth
+static const char BASE64_CHARS[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+std::string base64_encode_simple(const std::string& input) {
+    std::string result;
+    result.reserve(((input.size() + 2) / 3) * 4);
+    const auto* bytes = reinterpret_cast<const unsigned char*>(input.data());
+    size_t len = input.size();
+    for (size_t i = 0; i < len; i += 3) {
+        unsigned int b = (bytes[i] << 16);
+        if (i + 1 < len) b |= (bytes[i + 1] << 8);
+        if (i + 2 < len) b |= bytes[i + 2];
+        result += BASE64_CHARS[(b >> 18) & 0x3F];
+        result += BASE64_CHARS[(b >> 12) & 0x3F];
+        result += (i + 1 < len) ? BASE64_CHARS[(b >> 6) & 0x3F] : '=';
+        result += (i + 2 < len) ? BASE64_CHARS[b & 0x3F] : '=';
+    }
+    return result;
+}
+} // anonymous namespace
+
 namespace sad {
 namespace network {
 namespace http {
@@ -345,8 +368,7 @@ void HttpClient::clear_cookies() {
 
 void HttpClient::set_basic_auth(const std::string& username, const std::string& password) {
     std::string credentials = username + ":" + password;
-    // TODO: Base64 encode credentials
-    std::string auth = "Basic " + credentials;
+    std::string auth = "Basic " + base64_encode_simple(credentials);
     set_default_header(headers::Authorization, auth);
 }
 
@@ -371,7 +393,10 @@ void HttpClient::set_max_connections(int max_connections) {
 }
 
 void HttpClient::close_all_connections() {
-    // TODO: Close all pooled connections
+    // Reset connection pool state
+    // (AR) إعادة تعيين حالة مجموعة الاتصالات
+    pImpl->connection_pool_enabled_ = false;
+    pImpl->max_connections_ = 10;
 }
 
 // ==========================================

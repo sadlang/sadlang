@@ -23,10 +23,68 @@
  * @version 2.0
  */
 
+// NOTE(#23): (AR) لا يوجد حالياً تجميع/مشاركة النصوص (string interning/pool).
+//            كل نص يُخزّن كنسخة مستقلة. يمكن إضافة string pool في المستقبل لتوفير الذاكرة.
+// NOTE(#23): (EN) No string interning/deduplication is currently implemented.
+//            Each string is stored as an independent copy. A string pool could be added later.
+//
+// NOTE(#26): (AR) MapType يستخدم std::unordered_map — ترتيب التكرار غير حتمي.
+//            إذا أراد المستخدم ترتيباً ثابتاً، يجب استخدام مصفوفة من الأزواج أو std::map.
+// NOTE(#26): (EN) MapType uses std::unordered_map — iteration order is non-deterministic.
+//            If deterministic order is needed, use an array of pairs or std::map.
+
 #include "value.h"
 #include "object_instance.h"
 #include <cmath>
 #include <iomanip>
+#include <limits>
+#include <climits>
+
+namespace {
+
+// (AR) حماية طفحان الأعداد الصحيحة — تمنع السلوك غير المحدد
+// (EN) Integer overflow protection — prevents undefined behavior
+inline bool willAddOverflow(int a, int b) {
+    if (b > 0 && a > INT_MAX - b) return true;
+    if (b < 0 && a < INT_MIN - b) return true;
+    return false;
+}
+inline bool willSubOverflow(int a, int b) {
+    if (b < 0 && a > INT_MAX + b) return true;
+    if (b > 0 && a < INT_MIN + b) return true;
+    return false;
+}
+inline bool willMulOverflow(int a, int b) {
+    if (a == 0 || b == 0) return false;
+    if (a > 0 && b > 0 && a > INT_MAX / b) return true;
+    if (a < 0 && b < 0 && a < INT_MAX / b) return true;
+    if (a > 0 && b < 0 && b < INT_MIN / a) return true;
+    if (a < 0 && b > 0 && a < INT_MIN / b) return true;
+    return false;
+}
+
+// (AR) حساب عدد أحرف UTF-8 (ليس البايتات)
+// (EN) Count UTF-8 characters (not bytes)
+inline size_t utf8CharCount(const std::string& s) {
+    size_t count = 0;
+    for (size_t i = 0; i < s.size(); ) {
+        unsigned char c = static_cast<unsigned char>(s[i]);
+        if (c < 0x80) { i += 1; }
+        else if ((c & 0xE0) == 0xC0) { i += 2; }
+        else if ((c & 0xF0) == 0xE0) { i += 3; }
+        else if ((c & 0xF8) == 0xF0) { i += 4; }
+        else { i += 1; } // invalid byte, skip
+        ++count;
+    }
+    return count;
+}
+
+// (AR) الحد الأقصى لتكرار النصوص/المصفوفات لمنع استنفاد الذاكرة
+// (EN) Max repetition limit to prevent memory exhaustion  
+static constexpr int MAX_REPETITION = 1000000;
+static constexpr size_t MAX_STRING_SIZE = 100 * 1024 * 1024; // 100MB
+
+} // anonymous namespace
 
 namespace Sad {
 namespace Data {
@@ -80,12 +138,25 @@ Value Value::clone() const {
             return Value(map);  // Creates new shared_ptr with copy
         }
         case ValueType::OBJECT: {
-            // (AR) نسخ الكائن: نُرجع نفس المؤشر المشترك (سلوك المرجع)
-            //      لأن الكائنات تُمرّر بالمرجع دائماً مثل Python/Java
-            //      للنسخ العميق، يجب استخدام دالة نسخ مخصصة
-            // (EN) Object clone: return same shared_ptr (reference behavior)
-            //      because objects are always passed by reference like Python/Java
-            //      for deep copy, use a custom copy function
+            // (AR) نسخ عميق للكائن: نُنشئ ObjectInstance جديد بنفس الحقول
+            // (EN) Deep clone for object: create new ObjectInstance with same fields
+            auto srcPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
+            if (srcPtr) {
+                // (AR) نسخ عميق بمعرف فريد جديد
+                // (EN) Deep clone with new unique object ID
+                auto newObj = std::make_shared<ObjectInstance>(srcPtr->classType, generateObjectId());
+                newObj->fields = srcPtr->fields;
+                newObj->isConstructed = srcPtr->isConstructed;
+                // (AR) نسخ الكائن الأساسي إذا وُجد
+                // (EN) Clone base instance if present
+                if (srcPtr->baseInstance) {
+                    newObj->baseInstance = std::make_unique<ObjectInstance>(
+                        srcPtr->baseInstance->classType, generateObjectId());
+                    newObj->baseInstance->fields = srcPtr->baseInstance->fields;
+                    newObj->baseInstance->isConstructed = srcPtr->baseInstance->isConstructed;
+                }
+                return Value(std::move(newObj));
+            }
             return *this;
         }
         default:
@@ -267,6 +338,33 @@ Value::MapType Value::toMap() const {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// (AR) إصدارات مرجعية ثابتة — تتجنب النسخ عندما نحتاج فقط للقراءة
+// (EN) Const reference versions — avoid copying when only reading
+// ════════════════════════════════════════════════════════════════════════
+
+const Value::ArrayType& Value::toArrayRef() const {
+    if (type_ == ValueType::ARRAY) {
+        return *std::get<std::shared_ptr<ArrayType>>(data_);
+    }
+    throwInvalidType("toArrayRef - value is not an array");
+    // (AR) لن يصل هنا أبداً بسبب الاستثناء أعلاه
+    // (EN) Never reached due to exception above
+    static const ArrayType empty;
+    return empty;
+}
+
+const Value::MapType& Value::toMapRef() const {
+    if (type_ == ValueType::MAP) {
+        return *std::get<std::shared_ptr<MapType>>(data_);
+    }
+    throwInvalidType("toMapRef - value is not a map");
+    // (AR) لن يصل هنا أبداً بسبب الاستثناء أعلاه
+    // (EN) Never reached due to exception above
+    static const MapType empty;
+    return empty;
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // (AR) دالة toObject — الحصول على مؤشر الكائن
 //      يجب أن تكون القيمة من نوع OBJECT
 //
@@ -367,12 +465,17 @@ Value Value::operator+(const Value& other) const {
         return Value(toString() + other.toString());
     }
     
-    // (AR) جمع الأعداد / (EN) Numeric addition
+    // (AR) جمع الأعداد مع حماية الطفحان / (EN) Numeric addition with overflow protection
     if (isNumeric() && other.isNumeric()) {
         if (type_ == ValueType::DOUBLE || other.type_ == ValueType::DOUBLE) {
             return Value(toDouble() + other.toDouble());
         }
-        return Value(toInt() + other.toInt());
+        int a = toInt(), b = other.toInt();
+        if (willAddOverflow(a, b)) {
+            // (AR) ترقية تلقائية إلى عشري عند الطفحان
+            return Value(static_cast<double>(a) + static_cast<double>(b));
+        }
+        return Value(a + b);
     }
     
     throwTypeMismatch("addition (+)", other);
@@ -384,7 +487,11 @@ Value Value::operator-(const Value& other) const {
         if (type_ == ValueType::DOUBLE || other.type_ == ValueType::DOUBLE) {
             return Value(toDouble() - other.toDouble());
         }
-        return Value(toInt() - other.toInt());
+        int a = toInt(), b = other.toInt();
+        if (willSubOverflow(a, b)) {
+            return Value(static_cast<double>(a) - static_cast<double>(b));
+        }
+        return Value(a - b);
     }
     
     throwTypeMismatch("subtraction (-)", other);
@@ -400,6 +507,9 @@ Value Value::operator*(const Value& other) const {
         ArrayType arr = toArray();
         int count = other.toInt();
         if (count <= 0) return Value(ArrayType{});
+        if (count > MAX_REPETITION) {
+            throw std::runtime_error("(AR) خطأ: عدد التكرار كبير جداً (" + std::to_string(count) + "). الحد الأقصى: " + std::to_string(MAX_REPETITION) + "\n(EN) Error: Repetition count too large.");
+        }
         ArrayType result;
         result.reserve(arr.size() * count);
         for (int i = 0; i < count; ++i)
@@ -407,28 +517,40 @@ Value Value::operator*(const Value& other) const {
         return Value(result);
     }
     if (other.type_ == ValueType::ARRAY && isNumeric()) {
-        // (AR) 3 * [1,2] → [1,2,1,2,1,2] (ضرب من اليسار)
         ArrayType arr = other.toArray();
         int count = toInt();
         if (count <= 0) return Value(ArrayType{});
+        if (count > MAX_REPETITION) {
+            throw std::runtime_error("(AR) خطأ: عدد التكرار كبير جداً.\n(EN) Error: Repetition count too large.");
+        }
         ArrayType result;
         result.reserve(arr.size() * count);
         for (int i = 0; i < count; ++i)
             result.insert(result.end(), arr.begin(), arr.end());
         return Value(result);
     }
-    // (AR) تكرار النصوص: "ها" * 3 → "هاهاها"
+    // (AR) تكرار النصوص مع حماية الذاكرة
     if (type_ == ValueType::STRING && other.isNumeric()) {
         std::string s = toString();
         int count = other.toInt();
+        if (count <= 0) return Value(std::string(""));
+        if (count > MAX_REPETITION || s.size() * count > MAX_STRING_SIZE) {
+            throw std::runtime_error("(AR) خطأ: تكرار النص سينتج نصاً كبيراً جداً.\n(EN) Error: String repetition would produce too large a string.");
+        }
         std::string result;
+        result.reserve(s.size() * count);
         for (int i = 0; i < count; ++i) result += s;
         return Value(result);
     }
     if (other.type_ == ValueType::STRING && isNumeric()) {
         std::string s = other.toString();
         int count = toInt();
+        if (count <= 0) return Value(std::string(""));
+        if (count > MAX_REPETITION || s.size() * count > MAX_STRING_SIZE) {
+            throw std::runtime_error("(AR) خطأ: تكرار النص سينتج نصاً كبيراً جداً.\n(EN) Error: String repetition would produce too large a string.");
+        }
         std::string result;
+        result.reserve(s.size() * count);
         for (int i = 0; i < count; ++i) result += s;
         return Value(result);
     }
@@ -437,7 +559,11 @@ Value Value::operator*(const Value& other) const {
         if (type_ == ValueType::DOUBLE || other.type_ == ValueType::DOUBLE) {
             return Value(toDouble() * other.toDouble());
         }
-        return Value(toInt() * other.toInt());
+        int a = toInt(), b = other.toInt();
+        if (willMulOverflow(a, b)) {
+            return Value(static_cast<double>(a) * static_cast<double>(b));
+        }
+        return Value(a * b);
     }
     
     throwTypeMismatch("multiplication (*)", other);
@@ -465,8 +591,8 @@ Value Value::operator/(const Value& other) const {
 }
 
 Value Value::operator%(const Value& other) const {
-    // (AR) باقي القسمة يعمل فقط مع الأعداد الصحيحة
-    // (EN) Modulus only works with integers
+    // (AR) باقي القسمة يعمل مع الأعداد الصحيحة والعشرية
+    // (EN) Modulus works with integers and doubles
     if (isInteger() && other.isInteger()) {
         int otherInt = other.toInt();
         if (otherInt == 0) {
@@ -475,6 +601,18 @@ Value Value::operator%(const Value& other) const {
             );
         }
         return Value(toInt() % otherInt);
+    }
+    
+    // (AR) دعم باقي القسمة للأعداد العشرية باستخدام fmod
+    // (EN) Support modulus for doubles using fmod
+    if (isNumeric() && other.isNumeric()) {
+        double otherD = other.toDouble();
+        if (otherD == 0.0) {
+            throw std::runtime_error(
+                "(AR) خطأ: باقي القسمة على صفر. (EN) Error: Modulus by zero."
+            );
+        }
+        return Value(std::fmod(toDouble(), otherD));
     }
     
     throwTypeMismatch("modulus (%)", other);
@@ -524,6 +662,32 @@ Value Value::operator==(const Value& other) const {
         case ValueType::VOID:
             return Value(true);
         
+        case ValueType::ARRAY: {
+            // (AR) مقارنة عنصرية للمصفوفات — [1,2] == [1,2] ترجع صحيح
+            // (EN) Element-wise array comparison — [1,2] == [1,2] returns true
+            const auto& arr1 = *std::get<std::shared_ptr<ArrayType>>(data_);
+            const auto& arr2 = *std::get<std::shared_ptr<ArrayType>>(other.data_);
+            if (arr1.size() != arr2.size()) return Value(false);
+            for (size_t i = 0; i < arr1.size(); ++i) {
+                if (!(arr1[i] == arr2[i]).toBool()) return Value(false);
+            }
+            return Value(true);
+        }
+        
+        case ValueType::MAP: {
+            // (AR) مقارنة عنصرية للقواميس
+            // (EN) Element-wise map comparison
+            const auto& map1 = *std::get<std::shared_ptr<MapType>>(data_);
+            const auto& map2 = *std::get<std::shared_ptr<MapType>>(other.data_);
+            if (map1.size() != map2.size()) return Value(false);
+            for (const auto& [key, val] : map1) {
+                auto it = map2.find(key);
+                if (it == map2.end()) return Value(false);
+                if (!(val == it->second).toBool()) return Value(false);
+            }
+            return Value(true);
+        }
+        
         case ValueType::OBJECT: {
             // (AR) مقارنة الكائنات: نقارن بالمرجع (هل هما نفس الكائن؟)
             // (EN) Object comparison: compare by reference (are they the same object?)
@@ -570,10 +734,24 @@ Value Value::operator>(const Value& other) const {
 }
 
 Value Value::operator<=(const Value& other) const {
+    // (AR) تحسين الأداء: تجنب التقييم المزدوج
+    // (EN) Performance: avoid double evaluation
+    if (isNumeric() && other.isNumeric()) {
+        return Value(toDouble() <= other.toDouble());
+    }
+    if (isString() && other.isString()) {
+        return Value(std::get<std::string>(data_) <= std::get<std::string>(other.data_));
+    }
     return Value((*this < other).toBool() || (*this == other).toBool());
 }
 
 Value Value::operator>=(const Value& other) const {
+    if (isNumeric() && other.isNumeric()) {
+        return Value(toDouble() >= other.toDouble());
+    }
+    if (isString() && other.isString()) {
+        return Value(std::get<std::string>(data_) >= std::get<std::string>(other.data_));
+    }
     return Value((*this > other).toBool() || (*this == other).toBool());
 }
 
@@ -769,7 +947,9 @@ size_t Value::size() const {
             return std::get<std::shared_ptr<MapType>>(data_)->size();
         
         case ValueType::STRING:
-            return std::get<std::string>(data_).size();
+            // (AR) إرجاع عدد الأحرف وليس البايتات — مهم للنصوص العربية
+            // (EN) Return character count not byte count — important for Arabic text
+            return utf8CharCount(std::get<std::string>(data_));
         
         default:
             throwInvalidType("size()");
@@ -824,6 +1004,22 @@ bool Value::remove(const std::string& key) {
     
     auto& map = *std::get<std::shared_ptr<MapType>>(data_);
     return map.erase(key) > 0;
+}
+
+void Value::remove(size_t index) {
+    // (AR) حذف عنصر من المصفوفة بالفهرس / (EN) Remove element from array by index
+    if (type_ != ValueType::ARRAY) {
+        throwInvalidType("remove()");
+    }
+    
+    auto& arr = *std::get<std::shared_ptr<ArrayType>>(data_);
+    if (index >= arr.size()) {
+        std::ostringstream oss;
+        oss << "(AR) الفهرس " << index << " خارج حدود المصفوفة (الحجم: " << arr.size() << ").\n"
+            << "(EN) Index " << index << " out of bounds (size: " << arr.size() << ").";
+        throw std::runtime_error(oss.str());
+    }
+    arr.erase(arr.begin() + static_cast<std::ptrdiff_t>(index));
 }
 
 void Value::clear() {

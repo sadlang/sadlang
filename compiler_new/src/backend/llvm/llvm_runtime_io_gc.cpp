@@ -235,7 +235,10 @@ const char* sad_llvm_input_cstr() {
 int64_t sad_llvm_input_int() {
     int64_t value = 0;
     prepareStdinForRead();
-    scanf("%lld", (long long*)&value);
+    // إصلاح: التحقق من نجاح scanf
+    if (scanf("%lld", (long long*)&value) != 1) {
+        value = 0;  // قيمة افتراضية عند الفشل
+    }
     // تنظيف المخزن المؤقت / Clear buffer
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
@@ -251,7 +254,10 @@ int64_t sad_llvm_input_int() {
 double sad_llvm_input_float() {
     double value = 0.0;
     prepareStdinForRead();
-    scanf("%lf", &value);
+    // إصلاح: التحقق من نجاح scanf
+    if (scanf("%lf", &value) != 1) {
+        value = 0.0;  // قيمة افتراضية عند الفشل
+    }
     // تنظيف المخزن المؤقت / Clear buffer
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
@@ -271,8 +277,15 @@ int64_t sad_llvm_file_open(void* filename, void* mode) {
     SadString* fmode = (SadString*)mode;
     
     // تحويل إلى C strings / Convert to C strings
+    // إصلاح: التحقق من نجاح malloc
     char* fname_cstr = (char*)malloc(fname->length + 1);
     char* fmode_cstr = (char*)malloc(fmode->length + 1);
+    
+    if (!fname_cstr || !fmode_cstr) {
+        free(fname_cstr);  // آمن حتى لو null
+        free(fmode_cstr);
+        return -1;  // فشل تخصيص الذاكرة
+    }
     
     memcpy(fname_cstr, fname->data, fname->length);
     fname_cstr[fname->length] = '\0';

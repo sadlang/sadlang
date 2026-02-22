@@ -292,11 +292,16 @@ public:
      * @brief (EN) Destructor - pop scope automatically
      */
     ~ScopeGuard() {
-        if (active_ && scopeToCleanup_) {
-            if (cleanupCallback_) {
-                cleanupCallback_(scopeToCleanup_);
+        try {
+            if (active_ && scopeToCleanup_) {
+                if (cleanupCallback_) {
+                    cleanupCallback_(scopeToCleanup_);
+                }
+                manager_.popScope();
             }
-            manager_.popScope();
+        } catch (...) {
+            // (AR) منع انتشار الاستثناء من المدمر لتجنب std::terminate
+            // (EN) Prevent exception propagation from destructor to avoid std::terminate
         }
     }
     

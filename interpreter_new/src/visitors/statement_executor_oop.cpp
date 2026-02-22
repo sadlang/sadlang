@@ -15,6 +15,7 @@
 #include "object_manager.h"
 #include "property_nodes.h"
 #include "declarations.h"  // For OperatorDecl
+#include "class_nodes.h"   // For ClassDeclStmt
 #include <iostream>
 
 namespace Sad {
@@ -80,17 +81,18 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
         std::cout << "\n";
         #endif
         
-        // (AR) تعيين الصنف الأساسي الأول (للتوافق مع النظام الحالي) / (EN) Set first base class (for current system compatibility)
+        // (AR) تعيين الصنف الأساسي الأول / (EN) Set first base class
         classType->baseClass = baseClasses[0];
         
-        // (AR) ملاحظة: دعم كامل للوراثة المتعددة يتطلب تحديث ClassType لتخزين vector من base classes
-        // (EN) Note: Full multiple inheritance support requires updating ClassType to store vector of base classes
+        // (AR) تخزين الأصناف الأساسية الإضافية للوراثة المتعددة
+        // (EN) Store additional base classes for multiple inheritance
         if (baseClasses.size() > 1) {
+            for (size_t i = 1; i < baseClasses.size(); ++i) {
+                classType->additionalBases.push_back(baseClasses[i]);
+            }
             #ifdef DEBUG_OOP
-            std::cout << "[OOP] تحذير: الوراثة المتعددة مدعومة جزئياً. الصنف الأول فقط '" 
-                      << node.superclasses[0] << "' سيُستخدم حالياً.\n";
-            std::cout << "[OOP] Warning: Multiple inheritance partially supported. Only first class '" 
-                      << node.superclasses[0] << "' will be used currently.\n";
+            std::cout << "[OOP] الوراثة المتعددة: " << baseClasses.size() 
+                      << " أصناف أساسية مسجلة للصنف '" << node.name << "'\\n";
             #endif
         }
     }
@@ -144,25 +146,44 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
             // For now, use nullptr for type (will be resolved later when Type system is unified)
             classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic);
             
-            // Initialize static fields with default values
+            // Initialize static fields with default values or initializer expression
             if (fieldDecl->isStatic) {
                 Value defaultValue;
-                // Use type default (initializer evaluation requires expression evaluator)
-                switch (fieldDecl->type) {
-                    case Data::DataType::INTEGER:
-                        defaultValue = Value(0);
-                        break;
-                    case Data::DataType::FLOAT:
-                        defaultValue = Value(0.0);
-                        break;
-                    case Data::DataType::STRING:
-                        defaultValue = Value("");
-                        break;
-                    case Data::DataType::BOOLEAN:
-                        defaultValue = Value(false);
-                        break;
-                    default:
+                
+                // (AR) تقييم تعبير المُهيئ إن وجد
+                // (EN) Evaluate initializer expression if present
+                if (fieldDecl->initializer) {
+                    try {
+                        fieldDecl->initializer->accept(*expressionEvaluator_);
+                        defaultValue = expressionEvaluator_->getResult();
+                    } catch (const std::exception& e) {
+                        // (AR) فشل التقييم — استخدم القيمة الافتراضية مع تحذير
+                        // (EN) Evaluation failed — fall back to type default with warning
+                        std::cerr << "[Warning] Field initializer evaluation failed: " << e.what() << std::endl;
                         defaultValue = Value();
+                    } catch (...) {
+                        std::cerr << "[Warning] Field initializer evaluation failed (unknown error)" << std::endl;
+                        defaultValue = Value();
+                    }
+                } else {
+                    // (AR) لا يوجد مُهيئ — استخدم القيمة الافتراضية للنوع
+                    // (EN) No initializer — use type default
+                    switch (fieldDecl->type) {
+                        case Data::DataType::INTEGER:
+                            defaultValue = Value(0);
+                            break;
+                        case Data::DataType::FLOAT:
+                            defaultValue = Value(0.0);
+                            break;
+                        case Data::DataType::STRING:
+                            defaultValue = Value("");
+                            break;
+                        case Data::DataType::BOOLEAN:
+                            defaultValue = Value(false);
+                            break;
+                        default:
+                            defaultValue = Value();
+                    }
                 }
                 classType->setStaticField(fieldDecl->name, defaultValue);
                 #ifdef DEBUG_OOP
@@ -302,6 +323,234 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
         std::cout << "[OOP] ⚠️ الصنف موجود مسبقاً - تم التخطي\n";
 #endif
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) معالجة مزخرفات الصنف (Class Decorators) - من الأسفل للأعلى
+    // (EN) Process class decorators - bottom to top (like Python)
+    // @مزخرف1
+    // @مزخرف2
+    // صنف ص ... نهاية
+    // → ص = مزخرف1(مزخرف2(ص))
+    // ═══════════════════════════════════════════════════════════════
+    if (!node.decorators.empty()) {
+        std::string currentClassName = node.name;
+
+        // (AR) المزخرفات تُطبّق بترتيب عكسي (الأخير أولاً)
+        // (EN) Decorators apply in reverse order (last first)
+        for (auto it = node.decorators.rbegin(); it != node.decorators.rend(); ++it) {
+            auto* decoratorExpr = dynamic_cast<AST::DecoratorExpr*>(it->get());
+            if (!decoratorExpr) continue;
+
+            // (AR) البحث عن دالة المزخرف
+            // (EN) Find decorator function
+            size_t expectedArgs = 1;
+            if (decoratorExpr->hasArguments) {
+                expectedArgs += decoratorExpr->arguments.size();
+            }
+
+            auto decoratorFunc = functionManager_.getFunction(decoratorExpr->name, expectedArgs);
+            if (!decoratorFunc) {
+                decoratorFunc = functionManager_.getFunction(decoratorExpr->name, 1);
+            }
+
+            if (decoratorFunc) {
+                // (AR) تنفيذ المزخرف: ندخل نطاق ونمرر اسم الصنف كوسيط أول
+                // (EN) Execute decorator: enter scope and pass class name as first argument
+                variableManager_.enterScope(Data::ScopeType::FUNCTION, "class_decorator_" + decoratorExpr->name);
+
+                const auto& params = decoratorFunc->getParameters();
+
+                // (AR) الوسيط الأول = اسم الصنف
+                // (EN) First argument = class name
+                if (params.size() >= 1) {
+                    variableManager_.define(params[0].name, Data::Value(currentClassName));
+                }
+
+                // (AR) بقية الوسائط = وسائط المزخرف
+                // (EN) Remaining args = decorator arguments
+                if (decoratorExpr->hasArguments && expressionEvaluator_) {
+                    for (size_t i = 0; i < decoratorExpr->arguments.size() && (i + 1) < params.size(); ++i) {
+                        decoratorExpr->arguments[i]->accept(*expressionEvaluator_);
+                        variableManager_.define(params[i + 1].name, expressionEvaluator_->getResult());
+                    }
+                }
+
+                // (AR) تنفيذ جسم المزخرف
+                // (EN) Execute decorator body
+                auto bodyNode = decoratorFunc->getBody();
+                auto bodyStmt = dynamic_cast<AST::Statement*>(bodyNode.get());
+
+                Data::Value decoratorResult;
+                try {
+                    if (bodyStmt) {
+                        auto blockStmt = dynamic_cast<AST::BlockStmt*>(bodyStmt);
+                        if (blockStmt) {
+                            for (auto& stmt : blockStmt->statements) {
+                                stmt->accept(*this);
+                                if (shouldStopExecution()) break;
+                            }
+                        } else {
+                            bodyStmt->accept(*this);
+                        }
+                        if (flowControl_ == FlowControl::RETURN) {
+                            decoratorResult = returnValue_;
+                            resetFlowControl();
+                        }
+                    } else {
+                        auto bodyExpr = dynamic_cast<AST::Expression*>(bodyNode.get());
+                        if (bodyExpr && expressionEvaluator_) {
+                            bodyExpr->accept(*expressionEvaluator_);
+                            decoratorResult = expressionEvaluator_->getResult();
+                        }
+                    }
+                } catch (...) {
+                    variableManager_.exitScope();
+                    throw;
+                }
+
+                variableManager_.exitScope();
+
+                // (AR) إذا أرجع المزخرف نصاً — يمكن استخدامه كاسم صنف جديد
+                // (EN) If decorator returned a string — can use as new class name
+                if (decoratorResult.isString()) {
+                    std::string newName = decoratorResult.toString();
+                    if (!newName.empty() && newName != currentClassName) {
+                        currentClassName = newName;
+                    }
+                }
+            } else {
+                std::cerr << "(AR) تحذير: مزخرف الصنف '" << decoratorExpr->name
+                          << "' غير معرّف / (EN) Warning: Class decorator '"
+                          << decoratorExpr->name << "' is not defined." << std::endl;
+            }
+        }
+    }
+}
+
+// ======================================================================
+// (AR) تسجيل صنف من عقدة ClassDeclStmt (class_nodes.h)
+// (EN) Register class from ClassDeclStmt node (class_nodes.h)
+// ======================================================================
+
+void StatementExecutor::visitClassDeclStmt(AST::ClassDeclStmt& node) {
+    #ifdef DEBUG_OOP
+    std::cout << "[OOP] تنفيذ تصريح صنف (ClassDeclStmt): " << node.name << "\n";
+    #endif
+    
+    auto* classManager = ClassManager::getInstance();
+    
+    // (AR) تحقق من وجود الصنف / (EN) Check if class already exists
+    if (classManager->hasClass(node.name)) {
+        auto* existingClass = classManager->getClass(node.name);
+        if (!existingClass->fields.empty() || !existingClass->methods.empty()) {
+            throw std::runtime_error("(AR) الصنف '" + node.name + "' معرّف مسبقاً. (EN) Class '" + node.name + "' is already defined.");
+        }
+    }
+    
+    auto classType = std::make_unique<ClassType>(node.name);
+    
+    // (AR) معالجة الوراثة / (EN) Handle inheritance
+    if (!node.baseClasses.empty()) {
+        std::vector<ClassType*> baseClasses;
+        for (const auto& baseName : node.baseClasses) {
+            ClassType* baseClass = classManager->getClass(baseName);
+            if (!baseClass) {
+                throw std::runtime_error(
+                    "(AR) الصنف الأساسي '" + baseName + "' غير موجود. " +
+                    "(EN) Base class '" + baseName + "' not found.");
+            }
+            baseClasses.push_back(baseClass);
+        }
+        
+        classType->baseClass = baseClasses[0];
+        
+        if (baseClasses.size() > 1) {
+            for (size_t i = 1; i < baseClasses.size(); ++i) {
+                classType->additionalBases.push_back(baseClasses[i]);
+            }
+        }
+    }
+    
+    // (AR) معالجة الحقول / (EN) Process fields
+    for (auto& field : node.fields) {
+        if (!field) continue;
+        
+        AST::Visibility vis = AST::Visibility::PUBLIC;
+        switch (field->access) {
+            case AST::AccessModifier::PUBLIC:    vis = AST::Visibility::PUBLIC; break;
+            case AST::AccessModifier::PRIVATE:   vis = AST::Visibility::PRIVATE; break;
+            case AST::AccessModifier::PROTECTED: vis = AST::Visibility::PROTECTED; break;
+        }
+        
+        classType->addField(field->name, nullptr, vis, field->isStatic);
+        
+        if (field->isStatic) {
+            Value defaultValue;
+            if (field->initializer) {
+                try {
+                    field->initializer->accept(*expressionEvaluator_);
+                    defaultValue = expressionEvaluator_->getResult();
+                } catch (...) {
+                    defaultValue = Value();
+                }
+            } else {
+                switch (field->type) {
+                    case Data::DataType::INTEGER: defaultValue = Value(0); break;
+                    case Data::DataType::FLOAT:   defaultValue = Value(0.0); break;
+                    case Data::DataType::STRING:  defaultValue = Value(""); break;
+                    case Data::DataType::BOOLEAN: defaultValue = Value(false); break;
+                    default: defaultValue = Value();
+                }
+            }
+            classType->setStaticField(field->name, defaultValue);
+        }
+    }
+    
+    // (AR) معالجة الباني / (EN) Process constructor
+    if (node.constructor) {
+        classType->constructor.reset(node.constructor.get());
+        node.constructor.release();
+    }
+    
+    // (AR) معالجة الهدام / (EN) Process destructor
+    if (node.destructor) {
+        classType->destructor.reset(node.destructor.get());
+        node.destructor.release();
+    }
+    
+    // (AR) معالجة الطرق / (EN) Process methods
+    for (auto& method : node.methods) {
+        if (!method) continue;
+        
+        AST::Visibility vis = AST::Visibility::PUBLIC;
+        switch (method->access) {
+            case AST::AccessModifier::PUBLIC:    vis = AST::Visibility::PUBLIC; break;
+            case AST::AccessModifier::PRIVATE:   vis = AST::Visibility::PRIVATE; break;
+            case AST::AccessModifier::PROTECTED: vis = AST::Visibility::PROTECTED; break;
+        }
+        
+        classType->addMethod(
+            method->name,
+            vis,
+            nullptr,
+            method->parameters,
+            method->body ? std::unique_ptr<AST::BlockStmt>(dynamic_cast<AST::BlockStmt*>(method->body.release())) : nullptr,
+            method->isStatic,
+            method->isVirtual,
+            method->isAbstract
+        );
+    }
+    
+    // (AR) تسجيل الصنف / (EN) Register class
+    if (classManager->hasClass(node.name)) {
+        // overwrite
+    }
+    
+    classManager->registerClass(std::move(classType));
+    
+    #ifdef DEBUG_OOP
+    std::cout << "[OOP] ✅ تم تسجيل الصنف (ClassDeclStmt): " << node.name << "\n";
+    #endif
 }
 
 void StatementExecutor::visitFieldDecl(AST::FieldDecl& node) {
@@ -539,6 +788,220 @@ void StatementExecutor::visitImplDecl(AST::ImplDecl& node) {
         }
         
         classManager->registerTraitImpl(node.targetType, node.traitName);
+    }
+}
+
+// ======================================================================
+// (AR) تنفيذ تصريح تعداد / (EN) Execute Enum Declaration
+// ======================================================================
+
+void StatementExecutor::visitEnumDecl(AST::EnumDecl& node) {
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) تنفيذ تعداد شامل — يدعم قيم عددية ونصية
+    //      ويوفر: اسم مؤهل (تعداد.عضو)، اسم بسيط، قيم()، يحتوي()
+    // (EN) Full enum implementation — supports int and string values
+    //      provides: qualified name (Enum.Member), simple name, values(), contains()
+    // ═══════════════════════════════════════════════════════════════
+    
+    Data::Value::MapType enumMap;
+    Data::Value::ArrayType allNames;    // (AR) كل أسماء العناصر
+    Data::Value::ArrayType allValues;   // (AR) كل قيم العناصر
+    Data::Value::MapType reverseMap;    // (AR) خريطة عكسية: قيمة → اسم
+    int autoValue = 0;
+    
+    for (auto& member : node.members) {
+        Data::Value memberVal;
+        
+        // (AR) إذا كان للعضو قيمة محددة، نقيّمها
+        // (EN) If member has explicit value, evaluate it
+        if (member.value) {
+            memberVal = evaluateExpression(*member.value);
+            if (memberVal.isInteger()) {
+                autoValue = memberVal.toInt() + 1;
+            }
+        } else {
+            // (AR) قيمة تلقائية عددية
+            // (EN) Automatic integer value
+            memberVal = Data::Value(autoValue);
+            autoValue++;
+        }
+        
+        // (AR) تسجيل باسم مؤهل (مثل: اللون.أحمر) / (EN) Register with qualified name
+        std::string qualifiedName = node.name + "." + member.name;
+        if (variableManager_.exists(qualifiedName)) {
+            variableManager_.assign(qualifiedName, memberVal);
+        } else {
+            variableManager_.define(qualifiedName, memberVal);
+        }
+        
+        // (AR) تسجيل باسم بسيط أيضاً (مثل: أحمر) / (EN) Also register with simple name
+        if (variableManager_.exists(member.name)) {
+            variableManager_.assign(member.name, memberVal);
+        } else {
+            variableManager_.define(member.name, memberVal);
+        }
+        
+        // (AR) إضافة للخرائط / (EN) Add to maps
+        enumMap[member.name] = memberVal;
+        allNames.push_back(Data::Value(member.name));
+        allValues.push_back(memberVal);
+        reverseMap[memberVal.toString()] = Data::Value(member.name);
+    }
+    
+    // (AR) إضافة حقول مساعدة للتعداد
+    // (EN) Add helper fields to enum
+    enumMap["__اسم__"] = Data::Value(node.name);           // (AR) اسم التعداد
+    enumMap["__أسماء__"] = Data::Value(allNames);           // (AR) مصفوفة الأسماء
+    enumMap["__قيم__"] = Data::Value(allValues);            // (AR) مصفوفة القيم
+    enumMap["__عكسي__"] = Data::Value(reverseMap);          // (AR) خريطة عكسية
+    enumMap["__عدد__"] = Data::Value(static_cast<int>(node.members.size())); // (AR) عدد العناصر
+    
+    // (AR) تسجيل التعداد نفسه كخريطة / (EN) Register the enum itself as a map
+    Data::Value enumValue(enumMap);
+    if (variableManager_.exists(node.name)) {
+        variableManager_.assign(node.name, enumValue);
+    } else {
+        variableManager_.define(node.name, enumValue);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) تسجيل دالة مساعدة: اسم_التعداد.قيم() — ترجع مصفوفة بأسماء العناصر
+    // (EN) Register helper: EnumName.قيم() — returns array of member names
+    // ═══════════════════════════════════════════════════════════════
+    std::string valuesFunc = node.name + ".أسماء";
+    Data::Value namesList(allNames);
+    if (variableManager_.exists(valuesFunc)) {
+        variableManager_.assign(valuesFunc, namesList);
+    } else {
+        variableManager_.define(valuesFunc, namesList);
+    }
+    
+    std::string countVar = node.name + ".عدد";
+    Data::Value countVal(static_cast<int>(node.members.size()));
+    if (variableManager_.exists(countVar)) {
+        variableManager_.assign(countVar, countVal);
+    } else {
+        variableManager_.define(countVar, countVal);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// (AR) تنفيذ البنية — بنية بيانات بسيطة بدون وراثة
+// (EN) Struct implementation — simple data structure without inheritance
+// ═══════════════════════════════════════════════════════════════════════════
+void StatementExecutor::visitStructDecl(AST::StructDecl& node) {
+    // (AR) تسجيل البنية كصنف مبسط في ClassManager
+    // (EN) Register struct as simplified class in ClassManager
+    auto* classManager = Data::ClassManager::getInstance();
+    
+    if (classManager->hasClass(node.name)) {
+        // (AR) إعادة تعريف — حذف القديم / (EN) Redefine — remove old
+        // Just allow re-registration silently
+    }
+    
+    auto classType = std::make_unique<Data::ClassType>(node.name);
+    
+    // (AR) تسجيل الحقول / (EN) Register fields
+    for (auto& field : node.fields) {
+        Data::Value defaultVal;
+        if (field.defaultValue) {
+            defaultVal = evaluateExpression(*field.defaultValue);
+        }
+        
+        classType->addField(field.name, nullptr, AST::Visibility::PUBLIC, false, defaultVal);
+    }
+    
+    // (AR) إنشاء باني تلقائي يقبل قيم الحقول
+    // (EN) Create automatic constructor accepting field values
+    std::string constructorName = node.name;
+    
+    // (AR) تسجيل الباني في FunctionManager
+    // (EN) Register constructor in FunctionManager
+    auto& funcMgr = functionManager_;
+    auto fieldsCopy = node.fields; // (AR) نسخة من الحقول للاستخدام في الباني
+    std::string structName = node.name;
+    
+    funcMgr.registerBuiltinFunction(constructorName,
+        [structName, fieldsCopy]
+        (const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+            // (AR) إنشاء نسخة جديدة من البنية
+            auto* classMgr = Data::ClassManager::getInstance();
+            auto* classType = classMgr->getClass(structName);
+            
+            std::shared_ptr<Data::ObjectInstance> instance;
+            if (classType) {
+                auto* rawObj = classType->createInstance();
+                instance = std::shared_ptr<Data::ObjectInstance>(rawObj);
+            } else {
+                // (AR) احتياطي: إنشاء كائن بسيط بدون صنف
+                instance = std::make_shared<Data::ObjectInstance>(nullptr, 0);
+            }
+            
+            // (AR) تعيين الحقول من الوسائط
+            for (size_t i = 0; i < fieldsCopy.size(); ++i) {
+                if (i < args.size() && args[i]) {
+                    instance->fields[fieldsCopy[i].name] = *args[i];
+                } else {
+                    instance->fields[fieldsCopy[i].name] = Data::Value();
+                }
+            }
+            
+            return std::make_shared<Data::Value>(instance);
+        }
+    );
+    
+    // (AR) تسجيل دوال البنية إن وجدت
+    // (EN) Register struct methods if any
+    for (auto& method : node.methods) {
+        if (method) {
+            method->accept(*this);
+        }
+    }
+    
+    classManager->registerClass(std::move(classType));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// (AR) تنفيذ اختبار — يشغل كتلة الاختبار ويطبع النتيجة
+// (EN) Test execution — runs test block and prints result
+// ═══════════════════════════════════════════════════════════════════════════
+void StatementExecutor::visitTestDecl(AST::TestDecl& node) {
+    // (AR) طباعة بداية الاختبار
+    std::string testName = node.testName;
+    
+    try {
+        // (AR) تنفيذ جسم الاختبار في نطاق جديد
+        // (EN) Execute test body in new scope
+        variableManager_.enterScope(Data::ScopeType::BLOCK, "test:" + testName);
+        
+        if (node.body) {
+            node.body->accept(*this);
+        }
+        
+        variableManager_.exitScope();
+        
+        if (node.shouldFail) {
+            // (AR) كان متوقعاً أن يفشل لكنه نجح
+            std::cout << "✗ " << testName << " (كان متوقعاً أن يفشل)" << std::endl;
+        } else {
+            std::cout << "✓ " << testName << std::endl;
+        }
+    } catch (const std::exception& e) {
+        variableManager_.exitScope();
+        
+        if (node.shouldFail) {
+            std::cout << "✓ " << testName << " (فشل كما هو متوقع)" << std::endl;
+        } else {
+            std::cout << "✗ " << testName << ": " << e.what() << std::endl;
+        }
+    } catch (...) {
+        variableManager_.exitScope();
+        
+        if (node.shouldFail) {
+            std::cout << "✓ " << testName << " (فشل كما هو متوقع)" << std::endl;
+        } else {
+            std::cout << "✗ " << testName << ": خطأ غير معروف" << std::endl;
+        }
     }
 }
 

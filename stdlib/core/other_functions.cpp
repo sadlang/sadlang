@@ -7,12 +7,14 @@
  */
 
 #include "other_functions.h"
+#include "../../interpreter_new/include/exception.h"
 #include <iostream>
 #include <string>
 #include <cstdlib>
 #include <ctime>
 #include <thread>
 #include <chrono>
+#include <random>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -125,13 +127,9 @@ Value input(const std::vector<Value>& args) {
 // =============================================================================
 
 Value random(const std::vector<Value>& args) {
-    // تهيئة مولد الأرقام العشوائية مرة واحدة
-    // Initialize random number generator once
-    static bool initialized = false;
-    if (!initialized) {
-        std::srand(static_cast<unsigned int>(std::time(nullptr)));
-        initialized = true;
-    }
+    // (AR) استخدام مولد أرقام عشوائية عالي الجودة (thread-safe)
+    // (EN) Use high-quality random number generator (thread-safe)
+    static thread_local std::mt19937 rng(std::random_device{}());
     
     // التحقق من عدد المعاملات (0، 1، أو 2)
     // Validate argument count (0, 1, or 2)
@@ -139,10 +137,11 @@ Value random(const std::vector<Value>& args) {
         return Value(0); // إرجاع 0 عند الخطأ / Return 0 on error
     }
     
-    // random() - رقم بين 0 و RAND_MAX
-    // random() - number between 0 and RAND_MAX
+    // random() - عدد عشري بين 0.0 و 1.0
+    // random() - double between 0.0 and 1.0
     if (args.size() == 0) {
-        return Value(std::rand());
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
+        return Value(dist(rng));
     }
     
     // random(max) - رقم بين 0 و max-1
@@ -150,10 +149,11 @@ Value random(const std::vector<Value>& args) {
     if (args.size() == 1) {
         int max = args[0].toInt();
         if (max <= 0) {
-            std::cerr << "خطأ / Error: random() الحد الأقصى يجب أن يكون موجباً / max must be positive" << std::endl;
-            return Value(0);
+            throw std::invalid_argument(
+                "(AR) خطأ: random() الحد الأقصى يجب أن يكون موجباً / (EN) random() max must be positive");
         }
-        return Value(std::rand() % max);
+        std::uniform_int_distribution<int> dist(0, max - 1);
+        return Value(dist(rng));
     }
     
     // random(min, max) - رقم بين min و max-1
@@ -162,12 +162,12 @@ Value random(const std::vector<Value>& args) {
     int max = args[1].toInt();
     
     if (min >= max) {
-        std::cerr << "خطأ / Error: random() الحد الأدنى يجب أن يكون أقل من الحد الأقصى / min must be less than max" << std::endl;
-        return Value(min);
+        throw std::invalid_argument(
+            "(AR) خطأ: random() الحد الأدنى يجب أن يكون أقل من الحد الأقصى / (EN) random() min must be less than max");
     }
     
-    int range = max - min;
-    return Value(min + (std::rand() % range));
+    std::uniform_int_distribution<int> dist(min, max - 1);
+    return Value(dist(rng));
 }
 
 // =============================================================================
@@ -205,7 +205,7 @@ Value exit(const std::vector<Value>& args) {
     // التحقق من عدد المعاملات (0 أو 1)
     // Validate argument count (0 or 1)
     if (!validateArgCount(args, 0, 1, "exit")) {
-        std::exit(1); // خروج مع خطأ / Exit with error
+        throw Sad::Interpreter::ExitException(1);
     }
     
     // الحصول على كود الخروج (افتراضي: 0)
@@ -215,9 +215,9 @@ Value exit(const std::vector<Value>& args) {
         exit_code = args[0].toInt();
     }
     
-    // إنهاء البرنامج
-    // Terminate program
-    std::exit(exit_code);
+    // (AR) إلقاء استثناء خروج نظيف بدلاً من std::exit() لضمان تنظيف RAII
+    // (EN) Throw clean exit exception instead of std::exit() to ensure RAII cleanup
+    throw Sad::Interpreter::ExitException(exit_code);
     
     // هذا السطر لن يُنفذ أبداً
     // This line will never execute

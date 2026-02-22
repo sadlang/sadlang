@@ -58,11 +58,10 @@
 #include <random>
 #include <cstdint>
 
+#include "smart_panic.cpp"
+
 namespace sad {
 namespace panic {
-
-// Forward declarations
-struct معلومات_ذعر;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //                              تشفير بسيط

@@ -104,7 +104,8 @@ llvm::Value* LLVMCodeGen::emitMemWrite(std::shared_ptr<SIRInstruction> inst) {
     llvm::Value* value = resolveOperand(inst->operands[1]);
     if (!addr || !value) { reportError("mem_write: failed"); return nullptr; }
     llvm::Type* valType;
-    if (inst->opcode == SIROpcode::BUILTIN_MEM_WRITE_32) valType = llvm::Type::getInt32Ty(*context_);
+    if (inst->opcode == SIROpcode::BUILTIN_MEM_WRITE_64) valType = llvm::Type::getInt64Ty(*context_);
+    else if (inst->opcode == SIROpcode::BUILTIN_MEM_WRITE_32) valType = llvm::Type::getInt32Ty(*context_);
     else if (inst->opcode == SIROpcode::BUILTIN_MEM_WRITE_16) valType = llvm::Type::getInt16Ty(*context_);
     else valType = llvm::Type::getInt8Ty(*context_);
     llvm::Value* ptr = builder_->CreateIntToPtr(addr, valType->getPointerTo(), "mem.ptr");
@@ -119,13 +120,18 @@ llvm::Value* LLVMCodeGen::emitMemRead(std::shared_ptr<SIRInstruction> inst) {
     llvm::Value* addr = resolveOperand(inst->operands[0]);
     if (!addr) { reportError("mem_read: failed"); return nullptr; }
     llvm::Type* valType;
-    if (inst->opcode == SIROpcode::BUILTIN_MEM_READ_32) valType = llvm::Type::getInt32Ty(*context_);
+    if (inst->opcode == SIROpcode::BUILTIN_MEM_READ_64) valType = llvm::Type::getInt64Ty(*context_);
+    else if (inst->opcode == SIROpcode::BUILTIN_MEM_READ_32) valType = llvm::Type::getInt32Ty(*context_);
     else if (inst->opcode == SIROpcode::BUILTIN_MEM_READ_16) valType = llvm::Type::getInt16Ty(*context_);
     else valType = llvm::Type::getInt8Ty(*context_);
     llvm::Value* ptr = builder_->CreateIntToPtr(addr, valType->getPointerTo(), "mem.ptr");
     auto* load = builder_->CreateLoad(valType, ptr, "mem.val");
     load->setVolatile(true);
-    llvm::Value* result = builder_->CreateZExt(load, llvm::Type::getInt64Ty(*context_), "mem.ext");
+    llvm::Value* result;
+    if (inst->opcode == SIROpcode::BUILTIN_MEM_READ_64)
+        result = load;  // already i64, no extension needed
+    else
+        result = builder_->CreateZExt(load, llvm::Type::getInt64Ty(*context_), "mem.ext");
     if (inst->result.has_value()) context_info_.namedValues[inst->result->name] = result;
     return result;
 }

@@ -71,6 +71,12 @@ llvm::Value* LLVMCodeGen::emitAdd(std::shared_ptr<SIRInstruction> inst) {
     // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
     llvm::Value* result = nullptr;
     if (inst->opcode == SIROpcode::ADD_F64) {
+        // (AR) تحويل i64 إلى double إذا لزم الأمر
+        // (EN) Coerce i64 operands to double for float operations
+        if (left->getType()->isIntegerTy())
+            left = builder_->CreateSIToFP(left, builder_->getDoubleTy(), "i64tof64");
+        if (right->getType()->isIntegerTy())
+            right = builder_->CreateSIToFP(right, builder_->getDoubleTy(), "i64tof64");
         // Source: builder_ is defined at llvm_codegen.h:637
         result = builder_->CreateFAdd(left, right, "addtmp");
     } else {
@@ -114,6 +120,10 @@ llvm::Value* LLVMCodeGen::emitSub(std::shared_ptr<SIRInstruction> inst) {
     
     llvm::Value* result = nullptr;
     if (inst->opcode == SIROpcode::SUB_F64) {
+        if (left->getType()->isIntegerTy())
+            left = builder_->CreateSIToFP(left, builder_->getDoubleTy(), "i64tof64");
+        if (right->getType()->isIntegerTy())
+            right = builder_->CreateSIToFP(right, builder_->getDoubleTy(), "i64tof64");
         result = builder_->CreateFSub(left, right, "subtmp");
     } else {
         result = builder_->CreateSub(left, right, "subtmp");
@@ -152,6 +162,10 @@ llvm::Value* LLVMCodeGen::emitMul(std::shared_ptr<SIRInstruction> inst) {
     
     llvm::Value* result = nullptr;
     if (inst->opcode == SIROpcode::MUL_F64) {
+        if (left->getType()->isIntegerTy())
+            left = builder_->CreateSIToFP(left, builder_->getDoubleTy(), "i64tof64");
+        if (right->getType()->isIntegerTy())
+            right = builder_->CreateSIToFP(right, builder_->getDoubleTy(), "i64tof64");
         result = builder_->CreateFMul(left, right, "multmp");
     } else {
         result = builder_->CreateMul(left, right, "multmp");
@@ -190,6 +204,10 @@ llvm::Value* LLVMCodeGen::emitDiv(std::shared_ptr<SIRInstruction> inst) {
     
     llvm::Value* result = nullptr;
     if (inst->opcode == SIROpcode::DIV_F64) {
+        if (left->getType()->isIntegerTy())
+            left = builder_->CreateSIToFP(left, builder_->getDoubleTy(), "i64tof64");
+        if (right->getType()->isIntegerTy())
+            right = builder_->CreateSIToFP(right, builder_->getDoubleTy(), "i64tof64");
         result = builder_->CreateFDiv(left, right, "divtmp");
     } else {
         result = builder_->CreateSDiv(left, right, "divtmp");
@@ -258,7 +276,14 @@ llvm::Value* LLVMCodeGen::emitNeg(std::shared_ptr<SIRInstruction> inst) {
         return nullptr;
     }
     
-    llvm::Value* result = builder_->CreateNeg(operand, "negtmp");
+    llvm::Value* result;
+    if (operand->getType()->isDoubleTy() || operand->getType()->isFloatTy()) {
+        // (AR) استخدام FNeg للأنواع العشرية
+        // (EN) Use FNeg for floating-point types
+        result = builder_->CreateFNeg(operand, "negtmp");
+    } else {
+        result = builder_->CreateNeg(operand, "negtmp");
+    }
     
     if (inst->result.has_value()) {
         context_info_.namedValues[inst->result->name] = result;
