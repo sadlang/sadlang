@@ -106,7 +106,7 @@ namespace Graphics {
         // ============================================================================
         // رسم العنصر / Draw widget
         // ============================================================================
-        void Widget::Draw(Renderer2D* renderer) {
+        void Widget::Draw(SadGraphics::Renderer2D* renderer) {
             // إذا لم يكن العنصر ظاهراً، لا نرسمه / If not visible, don't draw
             if (!m_visible) {
                 return;
@@ -114,7 +114,7 @@ namespace Graphics {
 
             // رسم الخلفية / Draw background
             Color bgColor = m_style.backgroundColor;           // لون الخلفية / Background color
-            bgColor.a = (unsigned char)(m_style.opacity * 255.0f);  // تطبيق الشفافية / Apply opacity
+            bgColor.a *= m_style.opacity;  // تطبيق الشفافية / Apply opacity
 
             // رسم مستطيل الخلفية / Draw background rectangle
             if (m_style.borderRadius > 0.0f) {
@@ -134,7 +134,7 @@ namespace Graphics {
             // رسم الحدود إذا كانت موجودة / Draw border if present
             if (m_style.borderWidth > 0.0f) {
                 Color borderColor = m_style.borderColor;  // لون الحدود / Border color
-                borderColor.a = (unsigned char)(m_style.opacity * 255.0f);  // تطبيق الشفافية / Apply opacity
+                borderColor.a *= m_style.opacity;  // تطبيق الشفافية / Apply opacity
 
                 // رسم مستطيل الحدود / Draw border rectangle
                 renderer->DrawRect(m_bounds.x, m_bounds.y, 

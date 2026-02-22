@@ -504,14 +504,33 @@ bool Password::verify_pbkdf2(const std::string& password, const std::string& has
 }
 
 std::string Password::hash_bcrypt(const std::string& password, int cost) {
-    // Simplified - production would use actual bcrypt library
+    // Format: $sad$cost$salt$hash  (PBKDF2-SHA256 based bcrypt alternative)
+    if (cost < 4) cost = 4;
+    if (cost > 31) cost = 31;
     std::string salt = generate_salt(16);
-    return hash_pbkdf2(password, salt, 1 << cost, HashAlgorithm::SHA256);
+    int iterations = 1 << cost;
+    std::string derived = hash_pbkdf2(password, salt, iterations, HashAlgorithm::SHA256);
+    return "$sad$" + std::to_string(cost) + "$" + salt + "$" + derived;
 }
 
 bool Password::verify_bcrypt(const std::string& password, const std::string& hash) {
-    // Simplified - production would extract salt from hash
-    return false; // Placeholder
+    // Parse format: $sad$cost$salt$hash
+    if (hash.substr(0, 5) != "$sad$") return false;
+    
+    size_t pos1 = 5;                           // after "$sad$"
+    size_t pos2 = hash.find('$', pos1);        // end of cost
+    if (pos2 == std::string::npos) return false;
+    
+    size_t pos3 = hash.find('$', pos2 + 1);    // end of salt
+    if (pos3 == std::string::npos) return false;
+    
+    int cost = std::stoi(hash.substr(pos1, pos2 - pos1));
+    std::string salt = hash.substr(pos2 + 1, pos3 - pos2 - 1);
+    std::string stored_hash = hash.substr(pos3 + 1);
+    
+    int iterations = 1 << cost;
+    std::string computed = hash_pbkdf2(password, salt, iterations, HashAlgorithm::SHA256);
+    return constant_time_compare(computed, stored_hash);
 }
 
 std::string Password::generate_salt(size_t length) {

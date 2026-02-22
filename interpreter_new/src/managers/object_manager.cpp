@@ -13,6 +13,7 @@
 #include "object_manager.h"
 #include "class_manager.h"
 #include <iostream>
+#include <mutex>
 #include <algorithm>
 #include <map>
 
@@ -31,8 +32,10 @@ ObjectManager::ObjectManager() {
 }
 
 ObjectManager* ObjectManager::getInstance() {
-    // (AR) الحصول على النسخة الوحيدة من المدير
-    // (EN) Get singleton instance of manager
+    // (AR) الحصول على النسخة الوحيدة من المدير (مع حماية خيوط)
+    // (EN) Get singleton instance of manager (thread-safe)
+    static std::mutex mtx;
+    std::lock_guard<std::mutex> lock(mtx);
     
     if (!instance_) {
         instance_ = new ObjectManager();
@@ -41,8 +44,10 @@ ObjectManager* ObjectManager::getInstance() {
 }
 
 void ObjectManager::resetInstance() {
-    // (AR) إعادة تعيين المدير (للاختبارات)
-    // (EN) Reset manager (for testing)
+    // (AR) إعادة تعيين المدير (مع حماية خيوط)
+    // (EN) Reset manager (thread-safe)
+    static std::mutex mtx;
+    std::lock_guard<std::mutex> lock(mtx);
     
     if (instance_) {
         delete instance_;

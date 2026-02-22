@@ -21,6 +21,9 @@ const Color Color::Yellow(1.0f, 1.0f, 0.0f, 1.0f);      // أصفر / Yellow
 const Color Color::Cyan(0.0f, 1.0f, 1.0f, 1.0f);        // سماوي / Cyan
 const Color Color::Magenta(1.0f, 0.0f, 1.0f, 1.0f);     // أرجواني / Magenta
 const Color Color::Transparent(0.0f, 0.0f, 0.0f, 0.0f); // شفاف / Transparent
+const Color Color::Gray(0.5f, 0.5f, 0.5f, 1.0f);           // رمادي / Gray
+const Color Color::LightGray(0.75f, 0.75f, 0.75f, 1.0f);   // رمادي فاتح / Light Gray
+const Color Color::DarkGray(0.25f, 0.25f, 0.25f, 1.0f);    // رمادي غامق / Dark Gray
 
 } // namespace graphics
 } // namespace sad

@@ -84,7 +84,7 @@ namespace Graphics {
             void SetCursorPosition(int pos);                    // ضبط موقع المؤشر / Set cursor position
 
             // الرسم والتحديث / Drawing and updating
-            virtual void Draw(Renderer2D* renderer) override;   // رسم حقل الإدخال / Draw input field
+            virtual void Draw(SadGraphics::Renderer2D* renderer) override;   // رسم حقل الإدخال / Draw input field
             virtual void Update(float deltaTime) override;      // تحديث / Update
 
             // معالجة الأحداث / Event handling

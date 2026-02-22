@@ -936,14 +936,220 @@ std::string xml_node_type_to_string(XmlNodeType type) {
     }
 }
 
+// ============================================================================
+// Helper: Convert XmlElement to JSON string recursively
+// ============================================================================
+static std::string element_to_json(const XmlElement& elem) {
+    std::string result = "{";
+    bool first = true;
+
+    // Tag name
+    result += "\"_name\":\"" + elem.name() + "\"";
+    first = false;
+
+    // Attributes
+    auto attrs = elem.attributes();
+    if (!attrs.empty()) {
+        result += ",\"_attributes\":{";
+        bool afirst = true;
+        for (const auto& attr : attrs) {
+            if (!afirst) result += ",";
+            result += "\"" + attr.name() + "\":\"" + attr.value() + "\"";
+            afirst = false;
+        }
+        result += "}";
+    }
+
+    // Text content
+    std::string txt = elem.text();
+    if (!txt.empty() && elem.child_count() == 0) {
+        result += ",\"_text\":\"" + txt + "\"";
+    }
+
+    // Children
+    auto kids = elem.children();
+    if (!kids.empty()) {
+        // Group children by name
+        std::map<std::string, std::vector<const XmlElement*>> groups;
+        std::vector<std::string> order;
+        for (const auto& kid : kids) {
+            std::string kname = kid.name();
+            if (groups.find(kname) == groups.end()) {
+                order.push_back(kname);
+            }
+            groups[kname].push_back(&kid);
+        }
+        for (const auto& kname : order) {
+            result += ",\"" + kname + "\":";
+            const auto& grp = groups[kname];
+            if (grp.size() == 1) {
+                result += element_to_json(*grp[0]);
+            } else {
+                result += "[";
+                for (size_t i = 0; i < grp.size(); ++i) {
+                    if (i > 0) result += ",";
+                    result += element_to_json(*grp[i]);
+                }
+                result += "]";
+            }
+        }
+    }
+
+    result += "}";
+    return result;
+}
+
 std::string xml_to_json(const XmlDocument& doc) {
-    // Simplified conversion
-    return "{}"; // Placeholder
+    const auto& root = doc.root();
+    if (root.name().empty()) return "{}";
+    std::string result = "{\"" + root.name() + "\":" + element_to_json(root) + "}";
+    return result;
+}
+
+// ============================================================================
+// Helper: Simple JSON parser for json_to_xml
+// ============================================================================
+static void skip_ws(const std::string& s, size_t& i) {
+    while (i < s.size() && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r')) ++i;
+}
+
+static std::string parse_json_string(const std::string& s, size_t& i) {
+    if (i >= s.size() || s[i] != '"') return "";
+    ++i; // skip opening "
+    std::string result;
+    while (i < s.size() && s[i] != '"') {
+        if (s[i] == '\\' && i + 1 < s.size()) {
+            ++i;
+            if (s[i] == '"') result += '"';
+            else if (s[i] == '\\') result += '\\';
+            else if (s[i] == 'n') result += '\n';
+            else if (s[i] == 't') result += '\t';
+            else result += s[i];
+        } else {
+            result += s[i];
+        }
+        ++i;
+    }
+    if (i < s.size()) ++i; // skip closing "
+    return result;
+}
+
+static std::string parse_json_value_str(const std::string& s, size_t& i) {
+    skip_ws(s, i);
+    if (i >= s.size()) return "";
+    if (s[i] == '"') return parse_json_string(s, i);
+    // Number, bool, null — read until delimiter
+    std::string result;
+    while (i < s.size() && s[i] != ',' && s[i] != '}' && s[i] != ']' && s[i] != ' ' &&
+           s[i] != '\n' && s[i] != '\r' && s[i] != '\t') {
+        result += s[i]; ++i;
+    }
+    return result;
+}
+
+// Forward declaration
+static XmlElement json_object_to_element(const std::string& tagName, const std::string& s, size_t& i);
+
+static void json_to_children(XmlElement& parent, const std::string& key, const std::string& s, size_t& i) {
+    skip_ws(s, i);
+    if (i >= s.size()) return;
+
+    if (s[i] == '{') {
+        parent.append_child(json_object_to_element(key, s, i));
+    } else if (s[i] == '[') {
+        ++i; // skip [
+        skip_ws(s, i);
+        while (i < s.size() && s[i] != ']') {
+            json_to_children(parent, key, s, i);
+            skip_ws(s, i);
+            if (i < s.size() && s[i] == ',') ++i;
+            skip_ws(s, i);
+        }
+        if (i < s.size()) ++i; // skip ]
+    } else {
+        // Primitive value — add as child element with text
+        std::string val = parse_json_value_str(s, i);
+        XmlElement child(key);
+        child.set_text(val);
+        parent.append_child(child);
+    }
+}
+
+static XmlElement json_object_to_element(const std::string& tagName, const std::string& s, size_t& i) {
+    XmlElement elem(tagName);
+    skip_ws(s, i);
+    if (i >= s.size() || s[i] != '{') return elem;
+    ++i; // skip {
+    skip_ws(s, i);
+    while (i < s.size() && s[i] != '}') {
+        std::string key = parse_json_string(s, i);
+        skip_ws(s, i);
+        if (i < s.size() && s[i] == ':') ++i;
+        skip_ws(s, i);
+
+        if (key == "_name") {
+            // Override element name
+            std::string name = parse_json_value_str(s, i);
+            elem.set_name(name);
+        } else if (key == "_text") {
+            std::string text = parse_json_value_str(s, i);
+            elem.set_text(text);
+        } else if (key == "_attributes") {
+            // Parse attributes object
+            skip_ws(s, i);
+            if (i < s.size() && s[i] == '{') {
+                ++i;
+                skip_ws(s, i);
+                while (i < s.size() && s[i] != '}') {
+                    std::string aname = parse_json_string(s, i);
+                    skip_ws(s, i);
+                    if (i < s.size() && s[i] == ':') ++i;
+                    std::string aval = parse_json_value_str(s, i);
+                    elem.set_attribute(aname, aval);
+                    skip_ws(s, i);
+                    if (i < s.size() && s[i] == ',') ++i;
+                    skip_ws(s, i);
+                }
+                if (i < s.size()) ++i; // skip }
+            }
+        } else {
+            json_to_children(elem, key, s, i);
+        }
+
+        skip_ws(s, i);
+        if (i < s.size() && s[i] == ',') ++i;
+        skip_ws(s, i);
+    }
+    if (i < s.size()) ++i; // skip }
+    return elem;
 }
 
 XmlDocument json_to_xml(const std::string& json) {
-    // Simplified conversion
-    return XmlDocument(); // Placeholder
+    XmlDocument doc;
+    size_t i = 0;
+    skip_ws(json, i);
+    if (i >= json.size() || json[i] != '{') return doc;
+    ++i; // skip outer {
+    skip_ws(json, i);
+    // Expect first key as root element name
+    std::string rootName = parse_json_string(json, i);
+    skip_ws(json, i);
+    if (i < json.size() && json[i] == ':') ++i;
+    skip_ws(json, i);
+
+    if (rootName.empty()) rootName = "root";
+
+    if (i < json.size() && json[i] == '{') {
+        XmlElement root = json_object_to_element(rootName, json, i);
+        doc.set_root(std::move(root));
+    } else {
+        // Primitive value as root text
+        std::string val = parse_json_value_str(json, i);
+        XmlElement root(rootName);
+        root.set_text(val);
+        doc.set_root(std::move(root));
+    }
+    return doc;
 }
 
 XmlElement xml_clone(const XmlElement& element) {

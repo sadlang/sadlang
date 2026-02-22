@@ -49,11 +49,11 @@ typedef struct {
 } GCContext;
 
 // السياق العام / Global context
-static GCContext gc_context = {NULL, NULL, 0, 0, 0, 0, 0, NULL, 0, 0};
+GCContext gc_context = {NULL, NULL, 0, 0, 0, 0, 0, NULL, 0, 0};
 
 // قائمة الملفات المفتوحة / Open files list
 #define MAX_OPEN_FILES 256
-static FILE* open_files[MAX_OPEN_FILES] = {NULL};
+FILE* open_files[MAX_OPEN_FILES] = {NULL};
 
 // ============================================================================
 // Internal Helper Functions / دوال مساعدة داخلية
@@ -63,7 +63,7 @@ static FILE* open_files[MAX_OPEN_FILES] = {NULL};
  * تهيئة GC
  * Initialize GC
  */
-static void gc_init() {
+void gc_init() {
     if (gc_context.objects == NULL) {
         gc_context.capacity = 1024;
         gc_context.objects = (void**)malloc(gc_context.capacity * sizeof(void*));
@@ -83,7 +83,7 @@ static void gc_init() {
  * توسيع سعة GC
  * Expand GC capacity
  */
-static void gc_expand() {
+void gc_expand() {
     gc_context.capacity *= 2;
     gc_context.objects = (void**)realloc(gc_context.objects, 
                                          gc_context.capacity * sizeof(void*));
@@ -95,7 +95,7 @@ static void gc_expand() {
  * البحث عن كائن في GC
  * Find object in GC
  */
-static int gc_find_object(void* ptr) {
+int gc_find_object(void* ptr) {
     for (uint64_t i = 0; i < gc_context.count; i++) {
         if (gc_context.objects[i] == ptr) {
             return (int)i;

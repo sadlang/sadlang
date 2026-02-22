@@ -9,6 +9,13 @@
  * - Stack trace support / دعم تتبع المكدس
  * - Bilingual error messages / رسائل خطأ ثنائية اللغة
  * - Standard exception types / أنواع الاستثناءات القياسية
+ *
+ * TODO(#27): (AR) توحيد أسلوب رسائل الخطأ — حالياً بعض الرسائل بالعربية فقط،
+ *           بعضها بالإنجليزية فقط، وبعضها ثنائية "(AR)...(EN)...".
+ *           يجب توحيد التنسيق ليكون دائماً ثنائي اللغة بنفس الصيغة.
+ * TODO(#27): (EN) Standardize error message format — currently some messages are Arabic-only,
+ *           some English-only, some bilingual "(AR)...(EN)...". Should consistently use
+ *           the same bilingual format throughout.
  * 
  * @author Sad Language Team
  * @date 2025-11-27
@@ -342,6 +349,86 @@ public:
             "KeyError",
             position
         ) {}
+};
+
+/**
+ * @class SecurityError
+ * @brief Security violation error / خطأ أمني
+ * 
+ * @details Thrown when a security policy is violated
+ *          يُرمى عند انتهاك سياسة أمنية
+ */
+class SecurityError : public SadException {
+public:
+    SecurityError(const std::string& message,
+                  const Lexer::Position& position = Lexer::Position())
+        : SadException(message, "SecurityError", position) {}
+};
+
+/**
+ * @class AssertionError
+ * @brief Assertion failure error / خطأ التأكيد
+ * 
+ * @details Thrown when an assertion (تأكد) fails
+ *          يُرمى عند فشل التأكيد
+ */
+class AssertionError : public SadException {
+public:
+    AssertionError(const std::string& message,
+                   const Lexer::Position& position = Lexer::Position())
+        : SadException(message, "AssertionError", position) {}
+    
+    explicit AssertionError(const Lexer::Position& position = Lexer::Position())
+        : SadException(
+            "(AR) فشل التأكيد / (EN) Assertion failed",
+            "AssertionError",
+            position
+        ) {}
+};
+
+/**
+ * @class PermissionError
+ * @brief Permission denied error / خطأ الأذونات
+ * 
+ * @details Thrown when an operation is denied due to insufficient permissions
+ *          يُرمى عند رفض عملية بسبب عدم كفاية الأذونات
+ */
+class PermissionError : public SadException {
+public:
+    PermissionError(const std::string& message,
+                    const Lexer::Position& position = Lexer::Position())
+        : SadException(message, "PermissionError", position) {}
+};
+
+/**
+ * @class PanicError
+ * @brief Unrecoverable panic / ذعر غير قابل للتعافي
+ * 
+ * @details Thrown on unrecoverable errors (like stack overflow, null deref)
+ *          يُرمى عند أخطاء غير قابلة للتعافي
+ */
+class PanicError : public SadException {
+public:
+    PanicError(const std::string& message,
+               const Lexer::Position& position = Lexer::Position())
+        : SadException(message, "PanicError", position) {}
+};
+
+/**
+ * @class ExitException
+ * @brief Clean program exit request / طلب خروج نظيف من البرنامج
+ * 
+ * @details Thrown by exit() builtin to propagate exit through the call stack
+ *          without calling std::exit(), allowing proper RAII cleanup.
+ *          يُرمى بواسطة دالة الخروج للانتشار عبر مكدس الاستدعاء
+ *          بدون استدعاء std::exit()، مما يسمح بتنظيف RAII الصحيح.
+ */
+class ExitException : public std::exception {
+    int exitCode_;
+public:
+    explicit ExitException(int code = 0) : exitCode_(code) {}
+    int getExitCode() const { return exitCode_; }
+    const char* what() const noexcept override { return "Program exit requested"; }
 };
 
 } // namespace Interpreter

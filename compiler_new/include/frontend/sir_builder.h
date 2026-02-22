@@ -32,11 +32,18 @@
 #include "statements.h"
 #include "declarations.h"
 #include "class_nodes.h"
+#include "module_nodes.h"
+#include "module_resolver.h"
+#include "pattern_nodes.h"
+#include "advanced_expr_nodes.h"
+#include "property_nodes.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <stack>
+#include <optional>
 
 namespace Sad {
 namespace Compiler {
@@ -84,9 +91,22 @@ namespace AST {
     using FieldDecl = Sad::AST::FieldDecl;
     using MethodDecl = Sad::AST::MethodDecl;
     using FunctionDecl = Sad::AST::FunctionDecl;
+    using ClassDecl = Sad::AST::ClassDecl;
     using TemplateFunctionDecl = Sad::AST::TemplateFunctionDecl;  // (AR) دالة قالب / (EN) Template function
+    using TemplateClassDecl = Sad::AST::TemplateClassDecl;  // (AR) صنف قالب / (EN) Template class
     using NewExpr = Sad::AST::NewExpr;
     using MemberAccessExpr = Sad::AST::MemberAccessExpr;
+    using MethodCallExpr = Sad::AST::MethodCallExpr;
+    using ThisExpr = Sad::AST::ThisExpr;
+    
+    // (AR) عقد نظام الاستيراد والتصدير / (EN) Import/Export system nodes
+    using ImportStmt = Sad::AST::ImportStmt;
+    using FromImportStmt = Sad::AST::FromImportStmt;
+    using ExportDecl = Sad::AST::ExportDecl;
+    using ExportStmt = Sad::AST::ExportStmt;
+    using TraitDecl = Sad::AST::TraitDecl;
+    using ImplDecl = Sad::AST::ImplDecl;
+    using BlockStmt = Sad::AST::BlockStmt;
     
     // Operator types - enums not classes
     using BinaryOperator = Sad::Lexer::TokenType;
@@ -394,6 +414,50 @@ public:
      */
     void buildClass(AST::ClassDeclNode* classDecl);
     
+    /**
+     * @brief (AR) بناء سمة/واجهة
+     * @brief (EN) Build trait/interface
+     * 
+     * @param traitDecl (AR) تصريح السمة / (EN) Trait declaration
+     */
+    void buildTrait(AST::TraitDecl* traitDecl);
+    
+    /**
+     * @brief (AR) بناء كتلة تنفيذ سمة
+     * @brief (EN) Build impl block
+     * 
+     * @param implDecl (AR) تصريح التنفيذ / (EN) Impl declaration
+     */
+    void buildImpl(AST::ImplDecl* implDecl);
+    
+    // ==================================================================
+    // (AR) بناء جمل الاستيراد / (EN) Building Import Statements
+    // ==================================================================
+    
+    /**
+     * @brief (AR) بناء جملة استيراد كاملة: استورد وحدة
+     * @brief (EN) Build full import statement: import module
+     * 
+     * @param importStmt (AR) عقدة الاستيراد / (EN) Import statement node
+     */
+    void buildImportStmt(AST::ImportStmt* importStmt);
+    
+    /**
+     * @brief (AR) بناء جملة استيراد انتقائي: من وحدة استورد ...
+     * @brief (EN) Build selective import statement: from module import ...
+     * 
+     * @param fromImportStmt (AR) عقدة الاستيراد الانتقائي / (EN) From-import statement node
+     */
+    void buildFromImportStmt(AST::FromImportStmt* fromImportStmt);
+    
+    /**
+     * @brief (AR) تعيين مسار الملف الحالي (لحل مسارات الاستيراد النسبية)
+     * @brief (EN) Set current file path (for resolving relative import paths)
+     * 
+     * @param filePath (AR) مسار الملف / (EN) File path
+     */
+    void setCurrentFilePath(const std::string& filePath);
+    
     // ==================================================================
     // بناء الجمل / Building Statements
     // ==================================================================
@@ -417,6 +481,18 @@ public:
      * (EN) Builds CFG with basic blocks for condition, then, and else
      */
     void buildIfStatement(AST::IfStmt* ifStmt);
+    
+    /**
+     * @brief (AR) بناء جملة match (مطابقة أنماط)
+     * @brief (EN) Build match statement (pattern matching)
+     * 
+     * @param matchStmt (AR) جملة match / (EN) Match statement
+     * 
+     * @details
+     * (AR) يحول match إلى سلسلة BR_COND باستخدام SIR الموجود
+     * (EN) Lowers match to chain of BR_COND using existing SIR
+     */
+    void buildMatchStatement(Sad::AST::MatchStmt* matchStmt);
     
     /**
      * @brief (AR) بناء حلقة while
@@ -523,6 +599,22 @@ public:
     BuildResult buildFunctionCall(AST::FunctionCallNode* call);
     
     /**
+     * @brief (AR) معالجة استدعاء دالة مدمجة أساسية
+     * @brief (EN) Handle core builtin function call (type conv, print, math, string, array, file)
+     */
+    std::optional<BuildResult> buildBuiltinCallCore(
+        const std::string& funcName, bool isUserDefinedFunction,
+        std::vector<BuildResult>& argResults, std::vector<SIROperand>& argOperands);
+    
+    /**
+     * @brief (AR) معالجة استدعاء دالة مدمجة للنظام
+     * @brief (EN) Handle system builtin function call (hardware, GPIO, timer, atomic, async, security)
+     */
+    std::optional<BuildResult> buildBuiltinCallSystem(
+        const std::string& funcName, bool isUserDefinedFunction,
+        std::vector<BuildResult>& argResults, std::vector<SIROperand>& argOperands);
+    
+    /**
      * @brief (AR) بناء إنشاء كائن جديد
      * @brief (EN) Build new object creation
      * 
@@ -539,6 +631,15 @@ public:
      * @return (AR) قيمة العضو / (EN) Member value
      */
     BuildResult buildMemberAccess(AST::MemberAccessExpr* memberExpr);
+    
+    /**
+     * @brief (AR) بناء استدعاء طريقة على كائن
+     * @brief (EN) Build method call on object
+     * 
+     * @param methodCallExpr (AR) تعبير استدعاء الطريقة / (EN) Method call expression
+     * @return (AR) نتيجة الاستدعاء / (EN) Call result
+     */
+    BuildResult buildMethodCall(AST::MethodCallExpr* methodCallExpr);
     
     /**
      * @brief (AR) بناء وصول لمتغير
@@ -770,6 +871,13 @@ private:
     std::shared_ptr<SIRFunction> currentFunction_;      ///< (AR) الدالة الحالية / (EN) Current function
     std::shared_ptr<SIRBasicBlock> currentBlock_;       ///< (AR) الكتلة الحالية / (EN) Current block
     
+    // (AR) اسم الصنف الحالي أثناء بناء دوال الصنف / (EN) Current class name during method building
+    std::string currentClassName_;
+    
+    // (AR) خريطة أسماء المتغيرات -> أسماء الأصناف التي هي كائنات منها
+    // (EN) Map variable names -> class names they are instances of
+    std::unordered_map<std::string, std::string> classInstanceTypes_;
+    
     int nextTempRegister_;                              ///< (AR) رقم السجل المؤقت التالي / (EN) Next temp register number
     int nextLabel_;                                     ///< (AR) رقم التسمية التالية / (EN) Next label number
     int currentScopeLevel_;                             ///< (AR) مستوى النطاق الحالي / (EN) Current scope level
@@ -794,12 +902,25 @@ private:
     // (EN) Template function map - template name -> AST node
     std::unordered_map<std::string, AST::TemplateFunctionDecl*> templateFunctions_;
     
+    // (AR) خريطة قوالب الأصناف - اسم القالب -> AST node
+    // (EN) Template class map - template name -> AST node
+    std::unordered_map<std::string, AST::TemplateClassDecl*> templateClasses_;
+    
     // (AR) خريطة الدوال المُنشأة من القوالب - اسم_مع_أنواع -> SIR function
     // (EN) Instantiated template functions - name_with_types -> SIR function
     std::unordered_map<std::string, std::shared_ptr<SIRFunction>> instantiatedTemplates_;
     
     // (AR) قائمة الأخطاء / (EN) Error list
     std::vector<std::string> errors_;
+    
+    // (AR) محلل الوحدات للاستيراد / (EN) Module resolver for imports
+    std::unique_ptr<Modules::ModuleResolver> moduleResolver_;
+    
+    // (AR) مسار الملف الحالي / (EN) Current file path
+    std::string currentFilePath_;
+    
+    // (AR) الوحدات التي تمت معالجتها لمنع التكرار / (EN) Processed modules to prevent duplication
+    std::unordered_set<std::string> processedModules_;
     
     // ==================================================================
     // دوال مساعدة خاصة / Private Helper Functions
@@ -810,6 +931,24 @@ private:
      * @brief (EN) Convert AST Type to SIRType
      */
     SIRType astTypeToSIRType(const Sad::Data::DataType& astType);
+    
+    /**
+     * @brief (AR) استنتاج نوع الإرجاع من جسم الدالة
+     * @brief (EN) Infer return type from function body
+     * @param body جسم الدالة / Function body
+     * @return نوع الإرجاع المُستنتج (VOID إذا لم يكن هناك return مع قيمة)
+     * 
+     * هذه الدالة تفحص جسم الدالة للبحث عن جمل return:
+     * - إذا وُجد return مع قيمة، تُرجع I64 (النوع الافتراضي)
+     * - إذا لم يُوجد return أو كان return فارغاً، تُرجع VOID
+     */
+    SIRType inferReturnTypeFromBody(const Sad::AST::Statement* body);
+    
+    /**
+     * @brief (AR) فحص إذا كانت الجملة تحتوي return مع قيمة (تعاودي)
+     * @brief (EN) Check if statement contains return with value (recursive)
+     */
+    bool hasReturnWithValue(const Sad::AST::Statement* stmt);
     
     /**
      * @brief (AR) تحويل عامل ثنائي AST إلى SIR opcode

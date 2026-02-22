@@ -10,11 +10,20 @@
 #include "interpreter_core.h"
 #include "declarations.h"
 #include "statements.h"
+#include "module_nodes.h"
 #include "error_manager.h"
 #include "source_location.h"
 #include "error_codes.h"
+
+// (AR) فاحص الأنواع المتقدم / (EN) Advanced Type Checker
+#include "../../../compiler_new/include/semantic/type_checker.h"
+
+// (AR) المكتبة القياسية / (EN) Standard Library Manager
+#include "../../../stdlib/core/stdlib_manager.h"
+
 #include <iostream>
 #include <stdexcept>
+#include <filesystem>
 
 namespace Sad {
 namespace Interpreter {
@@ -35,23 +44,58 @@ void Interpreter::initializeComponents() {
     variableManager_ = std::make_shared<Data::VariableManager>(*scopeManager_);
     functionManager_ = std::make_shared<Data::FunctionManager>();
     
+    // (AR) إنشاء مدير الملكية / (EN) Create ownership manager
+    ownershipManager_ = std::make_shared<Data::OwnershipManager>();
+    if (options_.enableOwnership) {
+        ownershipManager_->enable();
+        ownershipManager_->setArabicMessages(options_.ownershipArabicMessages);
+        ownershipManager_->setDebugMode(options_.enableDebugMode || options_.ownershipDebugMode);
+    }
+    
+    // (AR) إنشاء محلل الوحدات لنظام الاستيراد والتصدير
+    // (EN) Create module resolver for import/export system
+    moduleResolver_ = std::make_shared<Modules::ModuleResolver>();
+    
+    // (AR) إضافة مسار الملف الحالي كمسار بحث للوحدات
+    // (EN) Add current file path as module search path
+    if (!options_.currentFilePath.empty()) {
+        auto parentDir = std::filesystem::path(options_.currentFilePath).parent_path();
+        if (std::filesystem::exists(parentDir)) {
+            moduleResolver_->addSearchPath(parentDir.string());
+        }
+    }
+    
     // (AR) إنشاء منفذ العبارات أولاً / (EN) Create statement executor first
     statementExecutor_ = std::make_unique<StatementExecutor>(
         *variableManager_,
         *functionManager_,
-        *scopeManager_
+        *scopeManager_,
+        *ownershipManager_
     );
+    
+    // (AR) ربط محلل الوحدات بمنفذ العبارات
+    // (EN) Connect module resolver to statement executor
+    statementExecutor_->setModuleResolver(moduleResolver_.get());
+    statementExecutor_->setCurrentFilePath(options_.currentFilePath);
     
     // (AR) ثم إنشاء مقيّم التعابير مع مرجع لمنفذ العبارات / (EN) Then create expression evaluator with statement executor reference
     expressionEvaluator_ = std::make_unique<ExpressionEvaluator>(
         *variableManager_,
         *functionManager_,
         *scopeManager_,
-        *statementExecutor_
+        *statementExecutor_,
+        *ownershipManager_
     );
     
     // (AR) تسجيل جميع الدوال المضمنة / (EN) Register all built-in functions
     registerBuiltinFunctions(*this);
+    
+    // (AR) تسجيل دوال المكتبة القياسية (رياضيات، نصوص، مصفوفات، أنواع)
+    // (EN) Register standard library functions (math, string, array, type)
+    {
+        StdLib::StandardLibraryManager stdlibMgr(*functionManager_);
+        stdlibMgr.registerAllFunctions();
+    }
     
     if (options_.enableDebugMode) {
         std::cout << "(AR) تم تهيئة المفسر / (EN) Interpreter initialized" << std::endl;
@@ -106,11 +150,19 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
                     dynamic_cast<AST::TemplateClassDecl*>(stmt.get()) != nullptr ||
                     dynamic_cast<AST::NamespaceDecl*>(stmt.get()) != nullptr;
                 
-                // (AR) السماح بـ VarDeclStmt للمتغيرات العامة
-                // (EN) Allow VarDeclStmt for global variables
+                // (AR) السماح بالمتغيرات العامة والاستيراد والتصدير
+                // (EN) Allow global variables, import, and export statements
                 bool isGlobalVar = dynamic_cast<AST::VarDeclStmt*>(stmt.get()) != nullptr;
                 
-                if (!isDeclaration && !isGlobalVar) {
+                // (AR) السماح بجمل الاستيراد والتصدير على المستوى الأعلى
+                // (EN) Allow import/export statements at top level
+                bool isModuleStmt = 
+                    dynamic_cast<AST::ImportStmt*>(stmt.get()) != nullptr ||
+                    dynamic_cast<AST::FromImportStmt*>(stmt.get()) != nullptr ||
+                    dynamic_cast<AST::ExportDecl*>(stmt.get()) != nullptr ||
+                    dynamic_cast<AST::ExportStmt*>(stmt.get()) != nullptr;
+                
+                if (!isDeclaration && !isGlobalVar && !isModuleStmt) {
                     // (AR) جملة تنفيذية خارج الدوال - غير مسموح عند وجود main
                     // (EN) Executable statement outside functions - not allowed when main exists
                     
@@ -138,6 +190,50 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
         
         // (AR) تسجيل التصريحات (الدوال، الأصناف، المتغيرات العامة)
         // (EN) Register declarations (functions, classes, global variables)
+        
+        // ================================================================
+        // (AR) فحص الأنواع المتقدم - قبل التنفيذ
+        // (EN) Advanced type check - before execution
+        // ================================================================
+        if (options_.enableTypeCheck) {
+            if (options_.enableDebugMode) {
+                std::cout << "(AR) فحص الأنواع... / (EN) Type checking..." << std::endl;
+            }
+            
+            Sad::Semantic::TypeChecker typeChecker;
+            typeChecker.setArabicMessages(true);
+            typeChecker.setDebugMode(options_.typeCheckDebugMode);
+            typeChecker.setStrictMode(options_.typeCheckStrictMode);
+            
+            // (AR) زيارة كل جملة مباشرة / (EN) Visit each statement directly
+            for (const auto& stmt : program) {
+                if (stmt) {
+                    stmt->accept(typeChecker);
+                }
+            }
+            
+            // (AR) الحصول على النتيجة وعرض الأخطاء / (EN) Get result and display errors
+            const auto& result = typeChecker.getResult();
+            
+            if (options_.typeCheckDebugMode || !result.errors.empty()) {
+                typeChecker.printSummary();
+            }
+            
+            if (!result.errors.empty()) {
+                std::cerr << "\n❌ فحص الأنواع فشل مع " << result.errors.size() << " أخطاء\n";
+                std::cerr << "❌ Type check failed with " << result.errors.size() << " error(s)\n";
+                return ExecutionResult(false, Data::Value(), "Type check failed");
+            }
+            
+            if (options_.enableDebugMode) {
+                std::cout << "(AR) ✓ فحص الأنواع تم / (EN) ✓ Type check completed" << std::endl;
+            }
+        }
+        
+        // (AR) مسح أي أخطاء سابقة من مراحل التحليل - نبدأ تنفيذاً نظيفاً
+        // (EN) Clear any previous errors from parsing phases - start with clean execution
+        Sad::Errors::ErrorManager::getInstance().clear();
+        
         for (const auto& stmt : program) {
             // (AR) تنفيذ التصريحات فقط (تسجيل الدوال، الأصناف، المتغيرات العامة)
             // (EN) Execute declarations only (register functions, classes, global variables)
@@ -166,7 +262,7 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
             try {
                 // (AR) إنشاء نطاق جديد للدالة الرئيسية
                 // (EN) Create new scope for main function
-                scopeManager_->pushScope(Data::ScopeType::FUNCTION, "main");
+                variableManager_->enterScope(Data::ScopeType::FUNCTION, "main");
                 
                 // (AR) تنفيذ جسم الدالة مع نوع الإرجاع
                 // (EN) Execute function body with return type
@@ -191,7 +287,7 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
                 
                 // (AR) إزالة النطاق
                 // (EN) Pop scope
-                scopeManager_->popScope();
+                variableManager_->exitScope();
                 
                 if (options_.enableDebugMode) {
                     std::cout << "(AR) اكتملت الدالة الرئيسية بقيمة إرجاع: "
@@ -200,13 +296,23 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
                              << returnValue.toString() << std::endl;
                 }
                 
+                // (AR) طباعة إحصائيات التحسين العربي
+                // (EN) Print Arabic optimization statistics
+                if (options_.enableDebugMode) {
+                    // (AR) استخدام ExpressionEvaluator من StatementExecutor (الذي يُنفَّذ فعلاً)
+                    // (EN) Use ExpressionEvaluator from StatementExecutor (the one actually executing)
+                    if (statementExecutor_->getExpressionEvaluator()) {
+                        statementExecutor_->getExpressionEvaluator()->printArabicOptStats();
+                    }
+                }
+                
                 return ExecutionResult(true, returnValue);
             }
             catch (const std::exception& e) {
                 // (AR) التأكد من إزالة النطاق حتى في حالة الخطأ
                 // (EN) Ensure scope is popped even on error
                 try {
-                    scopeManager_->popScope();
+                    variableManager_->exitScope();
                 } catch (...) {
                     // (AR) تجاهل أخطاء popScope في حالة الاستثناء
                     // (EN) Ignore popScope errors during exception
@@ -223,6 +329,14 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
         if (options_.enableDebugMode) {
             std::cout << "(AR) لا توجد دالة رئيسية - الوضع القديم"
                      << " / (EN) No main function - legacy mode" << std::endl;
+        }
+        
+        // (AR) طباعة إحصائيات التحسين العربي في الوضع القديم أيضاً
+        // (EN) Print Arabic optimization statistics in legacy mode too
+        if (options_.enableDebugMode) {
+            if (statementExecutor_->getExpressionEvaluator()) {
+                statementExecutor_->getExpressionEvaluator()->printArabicOptStats();
+            }
         }
         
         return ExecutionResult(true, Data::Value());
@@ -301,6 +415,134 @@ void Interpreter::reset() {
     
     // (AR) إعادة إنشاء جميع المكونات / (EN) Recreate all components
     initializeComponents();
+}
+
+// =========================================================================
+// (AR) استدعاء دالة مستخدم من C++ — الإطار التفاعلي
+// (EN) Call user function from C++ — Reactive Framework
+// =========================================================================
+
+Data::Value Interpreter::callUserFunction(const std::string& funcName, 
+                                           const std::vector<Data::Value>& args) {
+    // ─── (AR) البحث عن الدالة بالاسم وعدد المعاملات ───
+    // ─── (EN) Find function by name and argument count ───
+    auto func = functionManager_->getFunction(funcName, args.size());
+    
+    if (!func) {
+        // (AR) بحث مرن — جرّب مع القيم الافتراضية
+        // (EN) Flexible search — try with default parameter support
+        auto allOverloads = functionManager_->getFunctionOverloads(funcName);
+        for (const auto& candidate : allOverloads) {
+            if (candidate->hasNativeImplementation()) {
+                func = candidate;
+                break;
+            }
+            if (candidate->acceptsArgumentCount(args.size())) {
+                func = candidate;
+                break;
+            }
+        }
+    }
+    
+    if (!func) {
+        throw std::runtime_error(
+            "(AR) الدالة '" + funcName + "' غير موجودة / "
+            "(EN) Function '" + funcName + "' not found"
+        );
+    }
+    
+    // ─── (AR) إذا كانت دالة مضمنة — استدعاء مباشر ───
+    // ─── (EN) If built-in — call directly ───
+    if (func->hasNativeImplementation()) {
+        std::vector<std::shared_ptr<Data::Value>> valuePtrs;
+        for (const auto& arg : args) {
+            valuePtrs.push_back(std::make_shared<Data::Value>(arg));
+        }
+        auto result = func->callNative(valuePtrs);
+        return result ? *result : Data::Value();
+    }
+    
+    // ─── (AR) التحقق من وجود جسم للدالة ───
+    // ─── (EN) Check function has body ───
+    if (!func->hasBody()) {
+        throw std::runtime_error(
+            "(AR) الدالة '" + funcName + "' ليس لها جسم / "
+            "(EN) Function '" + funcName + "' has no body"
+        );
+    }
+    
+    // ─── (AR) إنشاء نطاق جديد للدالة ───
+    // ─── (EN) Create new scope for function ───
+    variableManager_->enterScope(Data::ScopeType::FUNCTION, funcName);
+    
+    // ─── (AR) تعريف المعاملات كمتغيرات محلية ───
+    // ─── (EN) Define parameters as local variables ───
+    const auto& params = func->getParameters();
+    for (size_t i = 0; i < params.size() && i < args.size(); ++i) {
+        variableManager_->define(params[i].name, args[i]);
+    }
+    
+    // ─── (AR) معالجة المعاملات الافتراضية للناقصة ───
+    // ─── (EN) Handle default values for missing parameters ───
+    if (args.size() < params.size()) {
+        auto funcDeclNode = func->getFunctionDecl();
+        AST::FunctionDecl* astFuncDecl = nullptr;
+        if (funcDeclNode) {
+            astFuncDecl = dynamic_cast<AST::FunctionDecl*>(funcDeclNode.get());
+        }
+        
+        for (size_t i = args.size(); i < params.size(); ++i) {
+            const auto& param = params[i];
+            Data::Value defaultVal;
+            
+            if (astFuncDecl && i < astFuncDecl->parameters.size() && 
+                astFuncDecl->parameters[i].defaultValue) {
+                astFuncDecl->parameters[i].defaultValue->accept(*expressionEvaluator_);
+                defaultVal = expressionEvaluator_->getResult();
+            } else if (param.hasDefaultValue) {
+                const std::string& ds = param.defaultValue;
+                if (ds == "true" || ds == "صحيح") defaultVal = Data::Value(true);
+                else if (ds == "false" || ds == "خطأ") defaultVal = Data::Value(false);
+                else {
+                    try { defaultVal = Data::Value(std::stod(ds)); }
+                    catch (...) { defaultVal = Data::Value(ds); }
+                }
+            }
+            
+            variableManager_->define(param.name, defaultVal);
+        }
+    }
+    
+    // ─── (AR) تنفيذ جسم الدالة ───
+    // ─── (EN) Execute function body ───
+    Data::Value result;
+    try {
+        auto bodyNode = func->getBody();
+        auto bodyStmt = dynamic_cast<AST::Statement*>(bodyNode.get());
+        
+        if (bodyStmt) {
+            result = statementExecutor_->executeFunctionBody(*bodyStmt);
+        } else {
+            // (AR) جسم لامدا — تعبير
+            // (EN) Lambda body — expression
+            auto bodyExpr = dynamic_cast<AST::Expression*>(bodyNode.get());
+            if (bodyExpr) {
+                bodyExpr->accept(*expressionEvaluator_);
+                result = expressionEvaluator_->getResult();
+            }
+        }
+    } catch (...) {
+        // (AR) التأكد من إزالة النطاق حتى عند الخطأ
+        // (EN) Ensure scope is popped even on error
+        variableManager_->exitScope();
+        throw;
+    }
+    
+    // ─── (AR) إزالة نطاق الدالة ───
+    // ─── (EN) Pop function scope ───
+    variableManager_->exitScope();
+    
+    return result;
 }
 
 } // namespace Interpreter

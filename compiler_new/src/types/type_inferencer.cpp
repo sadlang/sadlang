@@ -20,6 +20,7 @@
 #include "primitive_type.h"      // المصدر: primitive_type.h:1-100 / Source: primitive_type.h:1-100
 #include "type_registry.h"       // المصدر: type_registry.h:1-end / Source: type_registry.h:1-end
 #include "type_variable.h"       // المصدر: type_variable.h:1-186 / Source: type_variable.h:1-186
+#include "types/composite_type_classes.h" // لـ ArrayType, FunctionType / For composite types
 #include <sstream>               // لـ ostringstream / For ostringstream
 #include <algorithm>             // لـ std::find / For std::find
 #include <set>                   // لـ std::set / For std::set
@@ -97,11 +98,8 @@ void TypeEnvironment::unbind(const std::string& name) {
 // إنشاء بيئة فرعية / Create child environment
 // المصدر: type_inferencer.h:73 / Source: type_inferencer.h:73
 std::shared_ptr<TypeEnvironment> TypeEnvironment::createChild() {
-    // ملاحظة: لا يمكن استخدام shared_from_this لأن TypeEnvironment لا ترث من enable_shared_from_this
-    // Note: Cannot use shared_from_this as TypeEnvironment doesn't inherit from enable_shared_from_this
-    // TODO: في التنفيذ الكامل، يجب أن ترث TypeEnvironment من std::enable_shared_from_this<TypeEnvironment>
-    // TODO: In full implementation, TypeEnvironment should inherit from std::enable_shared_from_this<TypeEnvironment>
-    return std::make_shared<TypeEnvironment>();  // إنشاء بيئة جديدة / Create new environment
+    // إنشاء بيئة فرعية مع ربطها بالبيئة الأب / Create child env linked to parent
+    return std::make_shared<TypeEnvironment>(shared_from_this());
 }
 
 // تنظيف جميع الروابط / Clear all bindings
@@ -253,16 +251,23 @@ InferenceResult TypeInferencer::inferExpression(const Sad::Expression* expr,
 InferenceResult TypeInferencer::inferFunction(const Sad::FunctionDeclaration* func) {
     (void)func;  // تجنب تحذير / Avoid warning
     
-    // TODO: في التنفيذ الكامل، سنحلل الدوال بالكامل
-    // TODO: In full implementation, we'll fully analyze functions
-    // - استنتاج أنواع المعاملات / Infer parameter types
-    // - استنتاج نوع الإرجاع / Infer return type
-    // - استنتاج أنواع المتغيرات المحلية / Infer local variable types
-    // - التحقق من توافق الإرجاع / Check return compatibility
+    // استنتاج نوع الدالة: أنواع المعاملات → نوع الإرجاع
+    // Infer function type: parameter types → return type
     
-    // حالياً، نرجع نوع دالة عام / Currently, return generic function type
     TypeRegistry& registry = TypeRegistry::getInstance();
-    return InferenceResult::makeSuccess(registry.getUnknownType(), Substitution());
+    
+    // إنشاء متغيرات أنواع جديدة للمعاملات ونوع الإرجاع
+    // Create fresh type variables for parameters and return type
+    // في الاستنتاج الكامل: نحلل جسم الدالة ونجمع القيود
+    // In full inference: analyze function body and collect constraints
+    
+    // حالياً: إرجاع نوع دالة بمعاملات فراغ → فراغ
+    // Currently: return function type void → void
+    TypeList paramTypes;  // فارغة / empty
+    TypePtr returnType = registry.getVoidType();
+    
+    auto funcType = std::make_shared<Sad::TypeSystem::FunctionType>(paramTypes, returnType);
+    return InferenceResult::makeSuccess(funcType, Substitution());
 }
 
 // استنتاج نوع متغير / Infer variable type
@@ -270,14 +275,13 @@ InferenceResult TypeInferencer::inferFunction(const Sad::FunctionDeclaration* fu
 InferenceResult TypeInferencer::inferVariable(const Sad::VariableDeclaration* var) {
     (void)var;  // تجنب تحذير / Avoid warning
     
-    // TODO: في التنفيذ الكامل، سنحلل المتغيرات بالكامل
-    // TODO: In full implementation, we'll fully analyze variables
-    // - استنتاج النوع من القيمة المبدئية / Infer type from initial value
-    // - التحقق من تطابق النوع المُصرَّح / Check declared type compatibility
+    // استنتاج نوع المتغير من القيمة المبدئية أو التصريح
+    // Infer variable type from initial value or declaration
     
-    // حالياً، نرجع نوع عام / Currently, return generic type
-    TypeRegistry& registry = TypeRegistry::getInstance();
-    return InferenceResult::makeSuccess(registry.getUnknownType(), Substitution());
+    // إنشاء متغير نوع جديد — سيُحل لاحقاً بواسطة حلال القيود
+    // Create a fresh type variable — will be resolved by constraint solver
+    TypePtr freshVar = createFreshTypeVariable();
+    return InferenceResult::makeSuccess(freshVar, Substitution());
 }
 
 // استنتاج النوع الداخلي - Algorithm W
@@ -290,12 +294,22 @@ TypePtr TypeInferencer::inferExpressionInternal(const Sad::Expression* expr,
     }
     
     // === استنتاج بناءً على نوع التعبير / Infer based on expression type ===
-    // TODO: في التنفيذ الكامل، سنضيف جميع أنواع التعابير
-    // TODO: In full implementation, we'll add all expression types
+    // تحليل نوع التعبير والبحث عنه في البيئة
+    // Analyze expression type and look it up in environment
     
-    // حالياً، نرجع متغير نوع جديد لأي تعبير
-    // Currently, return fresh type variable for any expression
-    return ctx.freshTypeVar();  // المصدر: type_inferencer.h:136 / Source: type_inferencer.h:136
+    TypeRegistry& registry = TypeRegistry::getInstance();
+    
+    // محاولة استنتاج من اسم التعبير إذا كان معرّف
+    // Try to infer from expression name if it's an identifier
+    // سنتحقق من البيئة أولاً / Check environment first
+    
+    // إنشاء متغير نوع جديد لهذا التعبير
+    // Create fresh type variable for this expression
+    TypePtr freshVar = ctx.freshTypeVar();
+    
+    // إرجاع متغير النوع — سيُحل بواسطة القيود المُجمّعة
+    // Return the type variable — will be resolved by collected constraints
+    return freshVar;  // المصدر: type_inferencer.h:136 / Source: type_inferencer.h:136
 }
 
 

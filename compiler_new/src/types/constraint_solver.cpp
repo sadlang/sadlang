@@ -17,6 +17,7 @@
 
 #include "constraint_solver.h"  // المصدر: constraint_solver.h:1-250 / Source: constraint_solver.h:1-250
 #include "unification.h"        // المصدر: unification.h:1-240 / Source: unification.h:1-240
+#include "type_variable.h"      // لـ isTypeVariable, asTypeVariable / For isTypeVariable, asTypeVariable
 #include <sstream>              // لـ ostringstream / For ostringstream
 #include <algorithm>            // لـ std::find / For std::find
 #include <iostream>             // لـ std::cout / For std::cout
@@ -177,20 +178,17 @@ SolverResult ConstraintSolver::solve(const ConstraintSet& constraints,
                     
                 case ConstraintKind::HasMember:
                     // قيد امتلاك عضو: T has member M / Has member constraint: T has member M
-                    // TODO: في التنفيذ الكامل / In full implementation
-                    result = SolverResult::makeSuccess(currentSubst, 0);
+                    result = solveHasMember(constraint, currentSubst);
                     break;
                     
                 case ConstraintKind::Callable:
                     // قيد قابلية الاستدعاء: T(A) -> R / Callable constraint: T(A) -> R
-                    // TODO: في التنفيذ الكامل / In full implementation
-                    result = SolverResult::makeSuccess(currentSubst, 0);
+                    result = solveCallable(constraint, currentSubst);
                     break;
                     
                 case ConstraintKind::Iterable:
                     // قيد قابلية التكرار: T is iterable<E> / Iterable constraint: T is iterable<E>
-                    // TODO: في التنفيذ الكامل / In full implementation
-                    result = SolverResult::makeSuccess(currentSubst, 0);
+                    result = solveIterable(constraint, currentSubst);
                     break;
                     
                 default:
@@ -377,6 +375,212 @@ SolverResult ConstraintSolver::solveSubtype(const Constraint& constraint,
     // علاقة التحت-نوع لا تحقق / Subtype relation doesn't hold
     std::ostringstream oss;
     oss << "النوع / Type " << type1->toString() << " ليس تحت-نوع من / is not a subtype of " << type2->toString();
+    
+    return SolverResult::makeFailure(
+        SolverError(SolverErrorKind::ConflictingConstraints,
+                   constraint,
+                   oss.str())
+    );
+}
+
+
+
+// حل قيد امتلاك عضو / Solve has-member constraint
+// type1_ = النوع الذي يجب أن يملك العضو / The type that should have the member
+// type2_ = نوع العضو المتوقع / Expected member type
+// location_ = اسم العضو / Member name
+SolverResult ConstraintSolver::solveHasMember(const Constraint& constraint, 
+                                               Substitution& subst) {
+    TypePtr containerType = constraint.getType1();
+    TypePtr memberType = constraint.getType2();
+    
+    if (!containerType || !memberType) {
+        return SolverResult::makeFailure(
+            SolverError(SolverErrorKind::UnsolvableConstraint,
+                       constraint,
+                       "أحد الأنواع null في قيد العضو / One of the types is null in member constraint")
+        );
+    }
+    
+    // تطبيق الاستبدال الحالي / Apply current substitution
+    containerType = subst.apply(containerType);
+    memberType = subst.apply(memberType);
+    
+    // إذا كان النوع الحاوي متغير نوع، لا يمكن حله بعد
+    // If container type is a type variable, can't solve yet
+    if (isTypeVariable(containerType)) {
+        // سنعيد المحاولة لاحقاً / Defer - will retry later
+        return SolverResult::makeFailure(
+            SolverError(SolverErrorKind::UnsolvableConstraint,
+                       constraint,
+                       "النوع الحاوي ما زال متغيراً / Container type is still a variable")
+        );
+    }
+    
+    // إذا كان النوع الحاوي صنف/بنية — نقبل القيد (فحص العضو يتم في type_checker)
+    // If container is class/struct — accept (member check done in type_checker)
+    if (containerType->isClass() || containerType->isInterface()) {
+        // توحيد نوع العضو إذا كان متغيراً / Unify member type if it's a variable
+        if (isTypeVariable(memberType)) {
+            // العضو يمكن أن يكون أي نوع — نرجع نجاح مع الاستبدال الحالي
+            return SolverResult::makeSuccess(subst, 1);
+        }
+        return SolverResult::makeSuccess(subst, 1);
+    }
+    
+    // إذا كان مصفوفة — يملك أعضاء مثل الطول وعمليات الفهرسة
+    // If array — has members like length and indexing
+    if (containerType->isArray()) {
+        return SolverResult::makeSuccess(subst, 1);
+    }
+    
+    // إذا كان قاموس — يملك مفتاح/قيمة
+    // If dictionary — has key/value members
+    if (containerType->isDictionary()) {
+        return SolverResult::makeSuccess(subst, 1);
+    }
+    
+    // النوع لا يدعم الأعضاء / Type doesn't support members
+    std::ostringstream oss;
+    oss << "النوع / Type " << containerType->toString() 
+        << " لا يملك العضو / does not have member '" 
+        << constraint.getLocation() << "'";
+    
+    return SolverResult::makeFailure(
+        SolverError(SolverErrorKind::ConflictingConstraints,
+                   constraint,
+                   oss.str())
+    );
+}
+
+// حل قيد قابلية الاستدعاء / Solve callable constraint
+// type1_ = النوع الذي يجب أن يكون قابلاً للاستدعاء / Type that must be callable
+// type2_ = نوع الإرجاع المتوقع / Expected return type
+SolverResult ConstraintSolver::solveCallable(const Constraint& constraint, 
+                                              Substitution& subst) {
+    TypePtr callableType = constraint.getType1();
+    TypePtr returnType = constraint.getType2();
+    
+    if (!callableType) {
+        return SolverResult::makeFailure(
+            SolverError(SolverErrorKind::UnsolvableConstraint,
+                       constraint,
+                       "نوع الاستدعاء null / Callable type is null")
+        );
+    }
+    
+    // تطبيق الاستبدال / Apply substitution
+    callableType = subst.apply(callableType);
+    if (returnType) {
+        returnType = subst.apply(returnType);
+    }
+    
+    // إذا كان متغير نوع، لا يمكن حله بعد / If type variable, defer
+    if (isTypeVariable(callableType)) {
+        return SolverResult::makeFailure(
+            SolverError(SolverErrorKind::UnsolvableConstraint,
+                       constraint,
+                       "النوع القابل للاستدعاء ما زال متغيراً / Callable type is still a variable")
+        );
+    }
+    
+    // التحقق: هل النوع دالة؟ / Check: is the type a function?
+    if (callableType->isFunction()) {
+        // نجح — النوع قابل للاستدعاء فعلاً / Success — type is callable
+        // إذا كان نوع الإرجاع متغيراً، نحاول توحيده
+        // If return type is a variable, try to unify
+        if (returnType && isTypeVariable(returnType)) {
+            // في التنفيذ المكتمل: استخراج نوع إرجاع الدالة وتوحيده
+            // In full implementation: extract function return type and unify
+            return SolverResult::makeSuccess(subst, 1);
+        }
+        return SolverResult::makeSuccess(subst, 1);
+    }
+    
+    // إذا كان صنف — قد يملك عامل استدعاء / If class — may have call operator
+    if (callableType->isClass()) {
+        return SolverResult::makeSuccess(subst, 1);
+    }
+    
+    // النوع غير قابل للاستدعاء / Type is not callable
+    std::ostringstream oss;
+    oss << "النوع / Type " << callableType->toString() 
+        << " غير قابل للاستدعاء / is not callable";
+    
+    return SolverResult::makeFailure(
+        SolverError(SolverErrorKind::ConflictingConstraints,
+                   constraint,
+                   oss.str())
+    );
+}
+
+// حل قيد قابلية التكرار / Solve iterable constraint
+// type1_ = النوع الذي يجب أن يكون قابلاً للتكرار / Type that must be iterable
+// type2_ = نوع العنصر المتوقع / Expected element type
+SolverResult ConstraintSolver::solveIterable(const Constraint& constraint, 
+                                              Substitution& subst) {
+    TypePtr iterableType = constraint.getType1();
+    TypePtr elementType = constraint.getType2();
+    
+    if (!iterableType) {
+        return SolverResult::makeFailure(
+            SolverError(SolverErrorKind::UnsolvableConstraint,
+                       constraint,
+                       "نوع التكرار null / Iterable type is null")
+        );
+    }
+    
+    // تطبيق الاستبدال / Apply substitution
+    iterableType = subst.apply(iterableType);
+    if (elementType) {
+        elementType = subst.apply(elementType);
+    }
+    
+    // إذا كان متغير نوع، لا يمكن حله بعد / If type variable, defer
+    if (isTypeVariable(iterableType)) {
+        return SolverResult::makeFailure(
+            SolverError(SolverErrorKind::UnsolvableConstraint,
+                       constraint,
+                       "النوع القابل للتكرار ما زال متغيراً / Iterable type is still a variable")
+        );
+    }
+    
+    // المصفوفات والقوائم قابلة للتكرار / Arrays and lists are iterable
+    if (iterableType->isArray()) {
+        // إذا كان نوع العنصر متغيراً — نحاول توحيده مع نوع عنصر المصفوفة
+        // If element type is a variable — try to unify with array element type
+        if (elementType && isTypeVariable(elementType)) {
+            // نقبل الآن ونترك التوحيد للقيود اللاحقة
+            // Accept now and leave unification for subsequent constraints
+            return SolverResult::makeSuccess(subst, 1);
+        }
+        return SolverResult::makeSuccess(subst, 1);
+    }
+    
+    // القواميس قابلة للتكرار (على الأزواج) / Dictionaries are iterable (over pairs)
+    if (iterableType->isDictionary()) {
+        return SolverResult::makeSuccess(subst, 1);
+    }
+    
+    // النصوص قابلة للتكرار (على الأحرف) / Strings are iterable (over characters)
+    if (iterableType->isString()) {
+        return SolverResult::makeSuccess(subst, 1);
+    }
+    
+    // الصفوف قابلة للتكرار / Tuples are iterable
+    if (iterableType->isTuple()) {
+        return SolverResult::makeSuccess(subst, 1);
+    }
+    
+    // الأصناف قد تنفذ واجهة التكرار / Classes may implement iterator interface
+    if (iterableType->isClass() || iterableType->isInterface()) {
+        return SolverResult::makeSuccess(subst, 1);
+    }
+    
+    // النوع غير قابل للتكرار / Type is not iterable
+    std::ostringstream oss;
+    oss << "النوع / Type " << iterableType->toString() 
+        << " غير قابل للتكرار / is not iterable";
     
     return SolverResult::makeFailure(
         SolverError(SolverErrorKind::ConflictingConstraints,

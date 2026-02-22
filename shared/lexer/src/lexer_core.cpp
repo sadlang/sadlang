@@ -60,6 +60,16 @@ LexerCore::LexerCore(const std::string& source)
 {
     DEBUG_PRINT("إنشاء محلل معجمي جديد - حجم المصدر: " + std::to_string(source_.length()) + " حرف");
     
+    // (AR) تخطي علامة ترتيب البايت UTF-8 (BOM) إن وجدت
+    // (EN) Skip UTF-8 BOM (Byte Order Mark) if present: 0xEF 0xBB 0xBF
+    if (source_.length() >= 3 &&
+        static_cast<unsigned char>(source_[0]) == 0xEF &&
+        static_cast<unsigned char>(source_[1]) == 0xBB &&
+        static_cast<unsigned char>(source_[2]) == 0xBF) {
+        current_ = 3;
+        DEBUG_PRINT("تم تخطي علامة BOM (3 بايت)");
+    }
+    
     // تهيئة جدول الكلمات المفتاحية
     KeywordTable::initialize();
     DEBUG_PRINT("تم تهيئة جدول الكلمات المفتاحية - عدد الكلمات: " + std::to_string(KeywordTable::getAllKeywords().size()));
@@ -156,7 +166,11 @@ char LexerCore::advance() {
         column_ = 1;
         DEBUG_PRINT("سطر جديد - السطر الحالي: " + std::to_string(line_));
     } else {
-        column_++;
+        // (AR) زيادة العمود فقط عند بايت بداية حرف UTF-8 (وليس بايت استمرار)
+        // (EN) Increment column only on UTF-8 lead bytes, not continuation bytes (10xxxxxx)
+        if ((static_cast<unsigned char>(c) & 0xC0) != 0x80) {
+            column_++;
+        }
     }
     
     return c;
@@ -333,7 +347,7 @@ Token LexerCore::scanNumber() {
         }
         
         // Arabic Binary: 0ثن (UTF-8: 0xD8 0xAB 0xD9 0x86)
-        if (nextByte == 0xD8 && current_ + 3 < source_.length()) {
+        if (nextByte == 0xD8 && current_ + 4 < source_.length()) {
             unsigned char byte2 = static_cast<unsigned char>(source_[current_ + 2]);
             unsigned char byte3 = static_cast<unsigned char>(source_[current_ + 3]);
             unsigned char byte4 = static_cast<unsigned char>(source_[current_ + 4]);
@@ -556,6 +570,11 @@ Token LexerCore::scanNumber() {
             }
             
             if (!hasDigitAfter) {
+                // (AR) إذا كان الحرف التالي نقطة أخرى فهذا عامل المدى (..)
+                // (EN) If next char is another dot, this is the range operator (..)
+                if (nextChar == '.') {
+                    break;  // (AR) نترك النقطتين للمحلل المعجمي / (EN) Leave dots for operator scanner
+                }
                 return makeError("رقم بصيغة خاطئة - لا يوجد أرقام بعد النقطة / Invalid number - no digits after decimal point");
             }
             
@@ -698,6 +717,14 @@ Token LexerCore::scanString() {
                     }
                     // تحويل hex إلى رقم / Convert hex to number
                     long codepoint = std::stol(hexCode, nullptr, 16);
+                    // (AR) التحقق من الحد الأقصى ليونيكود (0x10FFFF)
+                    // (EN) Validate Unicode maximum code point (0x10FFFF)
+                    if (codepoint > 0x10FFFF) {
+                        return makeError("Unicode code point يتجاوز الحد الأقصى 0x10FFFF / Unicode code point exceeds maximum 0x10FFFF");
+                    }
+                    if (codepoint < 0) {
+                        return makeError("Unicode code point غير صالح / Invalid Unicode code point");
+                    }
                     // تحويل إلى UTF-8 (full range) / Convert to UTF-8 (full range)
                     if (codepoint < 0x80) {
                         strValue += static_cast<char>(codepoint);
@@ -1054,6 +1081,25 @@ Token LexerCore::scanIdentifier() {
                 }
             }
         }
+        
+        // (AR) فحص علامات التشكيل العربية (U+064B - U+065F) — تخطيها
+        // (EN) Check Arabic diacritics (harakat) — skip them
+        // علامات التشكيل: فتحة، ضمة، كسرة، شدة، سكون، تنوين، إلخ
+        // Diacritics: FATHA, DAMMA, KASRA, SHADDA, SUKUN, TANWIN, etc.
+        // UTF-8: 0xD9 0x8B-0x9F = U+064B-U+065F
+        if (static_cast<unsigned char>(peek()) == 0xD9) {
+            if (current_ + 1 < source_.length()) {
+                unsigned char next = static_cast<unsigned char>(source_[current_ + 1]);
+                if (next >= 0x8B && next <= 0x9F) {
+                    // هذه علامة تشكيل — نتخطاها
+                    // This is a diacritic — skip it
+                    advance(); // تخطي 0xD9
+                    advance(); // تخطي البايت الثاني
+                    continue;
+                }
+            }
+        }
+        
         identifier += advance();
     }
     
@@ -1157,6 +1203,18 @@ Token LexerCore::scanOperator() {
         advance(); advance();
         return Token(TokenType::OP_OR, "||", start_position_);
     }
+    if (c == '|' && next == '>') {
+        advance(); advance();
+        return Token(TokenType::OP_PIPE_ARROW, "|>", start_position_);
+    }
+    if (c == '<' && next == '<') {
+        advance(); advance();
+        return Token(TokenType::OP_SHIFT_LEFT, "<<", start_position_);
+    }
+    if (c == '>' && next == '>') {
+        advance(); advance();
+        return Token(TokenType::OP_SHIFT_RIGHT, ">>", start_position_);
+    }
     if (c == '-' && next == '>') {
         advance(); advance();
         return Token(TokenType::ARROW, "->", start_position_);
@@ -1164,6 +1222,11 @@ Token LexerCore::scanOperator() {
     if (c == '=' && next == '>') {
         advance(); advance();
         return Token(TokenType::FAT_ARROW, "=>", start_position_);
+    }
+    // (AR) عامل المدى: نقطتان متتاليتان / (EN) Range operator: double dot
+    if (c == '.' && next == '.') {
+        advance(); advance();
+        return Token(TokenType::DOT_DOT, "..", start_position_);
     }
     
     // عوامل أحادية الحرف
@@ -1179,6 +1242,10 @@ Token LexerCore::scanOperator() {
         case '>': return Token(TokenType::OP_GREATER, ">", start_position_);
         case '!': return Token(TokenType::OP_NOT, "!", start_position_);
         case '.': return Token(TokenType::DOT, ".", start_position_);
+        case '^': return Token(TokenType::OP_XOR, "^", start_position_);
+        case '|': return Token(TokenType::OP_BITWISE_OR, "|", start_position_);
+        case '&': return Token(TokenType::AMPERSAND, "&", start_position_);
+        case '~': return Token(TokenType::OP_BITWISE_NOT, "~", start_position_);
         default:
             return makeError("عامل غير معروف / Unknown operator: " + std::string(1, c));
     }
@@ -1212,6 +1279,9 @@ Token LexerCore::scanOperator() {
  * - EN: Stores precise position for each token
  */
 Token LexerCore::nextToken() {
+    // (AR) حلقة لتخطي المسافات والتعليقات بدون تكرار دالي (يمنع تجاوز المكدس)
+    // (EN) Loop to skip whitespace and comments without recursion (prevents stack overflow)
+    while (true) {
     // تخطي المسافات
     skipWhitespace();
     
@@ -1245,7 +1315,7 @@ Token LexerCore::nextToken() {
                     advance(); // skip *
                     advance(); // skip #
                     DEBUG_PRINT("نهاية تعليق متعدد الأسطر");
-                    return nextToken(); // recurse to get next real token
+                    continue; // loop to get next real token
                 }
                 advance();
             }
@@ -1260,8 +1330,13 @@ Token LexerCore::nextToken() {
             advance();
         }
         DEBUG_PRINT("تخطي تعليق سطر واحد");
-        return nextToken(); // recurse to get next real token
+        continue; // loop to get next real token
     }
+    
+    // (AR) ليس تعليقاً — اخرج من حلقة التخطي
+    // (EN) Not a comment — break out of skip loop
+    break;
+    } // end while(true)
     
     // نهاية الملف
     if (isAtEnd()) {
@@ -1330,6 +1405,18 @@ Token LexerCore::nextToken() {
         return scanString();
     }
     
+    // (AR) فحص عامل الضرب العربي × (U+00D7, UTF-8: 0xC3 0x97) - يجب قبل scanIdentifier!
+    // (EN) Check for Arabic multiplication sign × (U+00D7, UTF-8: 0xC3 0x97) - MUST be before scanIdentifier!
+    if (static_cast<unsigned char>(c) == 0xC3 && (current_ + 1) < source_.length()) {
+        unsigned char next = static_cast<unsigned char>(source_[current_ + 1]);
+        if (next == 0x97) {
+            // × Arabic/math multiplication sign → OP_MULTIPLY
+            advance(); // consume 0xC3
+            advance(); // consume 0x97
+            return Token(TokenType::OP_MULTIPLY, "\xC3\x97", start_position_);
+        }
+    }
+
     // (AR) فحص الفاصلة والفاصلة المنقوطة العربية (UTF-8 multi-byte) - يجب أن يكون قبل scanIdentifier!
     // (EN) Check for Arabic comma and semicolon (UTF-8 multi-byte) - MUST be before scanIdentifier!
     // Spec: docs\language_spec\rules\03_oop.md §1
@@ -1482,11 +1569,18 @@ bool LexerCore::isAlpha(char c) const {
     // (EN) Check Arabic characters (UTF-8 multi-byte)
     // استبعاد الفاصلة العربية ، (0xD8 0x8C) والفاصلة المنقوطة العربية ؛ (0xD8 0x9B)
     // Exclude Arabic comma (0xD8 0x8C) and Arabic semicolon (0xD8 0x9B)
+    // استبعاد علامة الضرب × (0xC3 0x97 = U+00D7) - عامل رياضي وليس حرفاً
+    // Exclude multiplication sign × (0xC3 0x97 = U+00D7) - it's an operator, not a letter
     unsigned char uc = static_cast<unsigned char>(c);
     if (uc == 0xD8) {
         // نحتاج للتحقق من البايت التالي - لكن isAlpha لا تستطيع الوصول إليه
         // نقبل 0xD8 هنا، وسنتحقق في scanIdentifier من أن التسلسل ليس ، أو ؛
         return true;
+    }
+    if (uc == 0xC3) {
+        // 0xC3 0x97 = × (ضرب) — لا يُعدّ حرفاً، سيُعالج كعامل في nextToken
+        // It's handled as OP_MULTIPLY in nextToken before reaching isAlpha
+        return false;
     }
     return uc >= 0x80; // UTF-8 للعربية
 }

@@ -42,11 +42,14 @@
 #include "variable_manager.h"
 #include "function_manager.h"
 #include "scope_manager.h"
+#include "ownership_manager.h"
+#include "module_resolver.h"
 #include "expression_evaluator.h"
 #include <stdexcept>
 #include <string>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Sad {
 namespace Interpreter {
@@ -103,13 +106,20 @@ public:
      */
     StatementExecutor(Data::VariableManager& varMgr, 
                      Data::FunctionManager& funcMgr,
-                     Data::ScopeManager& scopeMgr);
+                     Data::ScopeManager& scopeMgr,
+                     Data::OwnershipManager& ownershipMgr);
     
     /**
      * @brief (AR) الحصول على حالة التحكم بالتدفق الحالية
      * @brief (EN) Get current flow control state
      */
     FlowControl getFlowControl() const { return flowControl_; }
+    
+    /**
+     * @brief (AR) الحصول على مُقيِّم التعابير (للإحصائيات)
+     * @brief (EN) Get expression evaluator (for statistics)
+     */
+    ExpressionEvaluator* getExpressionEvaluator() const { return expressionEvaluator_.get(); }
     
     /**
      * @brief (AR) إعادة تعيين حالة التحكم بالتدفق
@@ -140,6 +150,18 @@ public:
      * @brief (EN) Are we inside a generator?
      */
     bool isInGenerator() const { return inGenerator_; }
+    
+    /**
+     * @brief (AR) الحصول على قيم yield المجمّعة (للتقييم الفوري للمولّدات)
+     * @brief (EN) Get collected yield values (for eager generator evaluation)
+     */
+    const std::vector<Data::Value>& getGeneratorYieldValues() const { return generatorYieldValues_; }
+    
+    /**
+     * @brief (AR) مسح قيم yield المجمّعة
+     * @brief (EN) Clear collected yield values
+     */
+    void clearGeneratorYieldValues() { generatorYieldValues_.clear(); }
     
     // =========================================================================
     // (AR) زيارة الجُمل / (EN) Statement Visitors
@@ -258,6 +280,20 @@ public:
     void visitClassDecl(AST::ClassDecl& node) override;
     
     /**
+     * @brief (AR) زيارة تصريح صنف (عقدة ClassDeclStmt) / (EN) Visit class declaration (ClassDeclStmt node)
+     * @details تسجل الصنف في ClassManager من عقدة class_nodes.h / Registers class from class_nodes.h node
+     */
+    void visitClassDeclStmt(AST::ClassDeclStmt& node) override;
+    
+    /**
+     * @brief (AR) زيارة تصريح تعداد / (EN) Visit enum declaration
+     * @details تسجل قيم التعداد كمتغيرات / Registers enum values as variables
+     */
+    void visitEnumDecl(AST::EnumDecl& node) override;
+    void visitStructDecl(AST::StructDecl& node) override;
+    void visitTestDecl(AST::TestDecl& node) override;
+    
+    /**
      * @brief (AR) زيارة تصريح حقل / (EN) Visit field declaration
      * @details يعالج حقل في صنف / Processes field in class
      */
@@ -315,11 +351,71 @@ public:
      */
     void visitOperatorDecl(AST::OperatorDecl& node) override;
     
+    /**
+     * @brief (AR) زيارة تصريح واجهة/سمة / (EN) Visit trait/interface declaration
+     */
+    void visitTraitDecl(AST::TraitDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة كتلة تنفيذ واجهة / (EN) Visit impl block declaration
+     */
+    void visitImplDecl(AST::ImplDecl& node) override;
+    
+    // =========================================================================
+    // (AR) زيارة جمل الاستيراد والتصدير / (EN) Import/Export Statement Visitors
+    // =========================================================================
+    
+    /**
+     * @brief (AR) زيارة جملة استيراد وحدة كاملة / (EN) Visit full module import statement
+     * @details تحمّل وحدة كاملة وتسجل رموزها في النطاق الحالي / Loads full module and registers its symbols in current scope
+     * @example استورد رياضيات → يحمّل ملف رياضيات.ص ويسجل كل صادراته
+     * @example استورد رياضيات كـ ر → يحمّل الوحدة بالاسم المستعار "ر"
+     */
+    void visitImportStmt(AST::ImportStmt& node) override;
+    
+    /**
+     * @brief (AR) زيارة جملة استيراد انتقائي / (EN) Visit selective import statement
+     * @details تحمّل رموز محددة من وحدة / Loads specific symbols from a module
+     * @example من رياضيات استورد جذر، قوة → يحمّل فقط الدوال جذر وقوة
+     * @example من رياضيات استورد * → يحمّل كل الصادرات
+     */
+    void visitFromImportStmt(AST::FromImportStmt& node) override;
+    
+    /**
+     * @brief (AR) زيارة جملة تصدير (الإصدار الجديد) / (EN) Visit export declaration (new version)
+     * @details تنفذ التصريح الداخلي وتميّزه كمُصدَّر / Executes inner declaration and marks it as exported
+     * @example صدّر دالة حساب() → تسجل الدالة وتميّزها كمُصدَّرة
+     */
+    void visitExportDecl(AST::ExportDecl& node) override;
+    
+    /**
+     * @brief (AR) زيارة جملة تصدير (الإصدار القديم للتوافق) / (EN) Visit export statement (legacy version)
+     * @details تنفذ التصريح الداخلي وتميّزه كمُصدَّر / Executes inner declaration and marks it as exported
+     */
+    void visitExportStmt(AST::ExportStmt& node) override;
+    
+    // =========================================================================
+    // (AR) إعدادات نظام الوحدات / (EN) Module System Configuration
+    // =========================================================================
+    
+    /**
+     * @brief (AR) تعيين محلل الوحدات / (EN) Set module resolver
+     * @param resolver (AR) مؤشر لمحلل الوحدات / (EN) Pointer to module resolver
+     */
+    void setModuleResolver(Modules::ModuleResolver* resolver) { moduleResolver_ = resolver; }
+    
+    /**
+     * @brief (AR) تعيين مسار الملف الحالي / (EN) Set current file path
+     * @param path (AR) مسار الملف / (EN) File path
+     */
+    void setCurrentFilePath(const std::string& path) { currentFilePath_ = path; }
+    
 private:
     // (AR) المراجع للمديرين / (EN) Manager references
     Data::VariableManager& variableManager_;
     Data::FunctionManager& functionManager_;
     Data::ScopeManager& scopeManager_;
+    Data::OwnershipManager& ownershipManager_;
     
     // (AR) مُقيِّم التعابير / (EN) Expression evaluator
     std::unique_ptr<ExpressionEvaluator> expressionEvaluator_;
@@ -335,6 +431,10 @@ private:
     
     // (AR) هل نحن داخل مولّد؟ / (EN) Are we inside a generator?
     bool inGenerator_;
+    
+    // (AR) قيم yield المجمّعة (للتقييم الفوري للمولّدات)
+    // (EN) Collected yield values (for eager generator evaluation)
+    std::vector<Data::Value> generatorYieldValues_;
     
     // (AR) عداد مستوى الحلقات (للتحقق من break/continue) / (EN) Loop depth counter
     int loopDepth_;
@@ -360,8 +460,48 @@ private:
     // Key: template class name, Value: pointer to AST node
     std::unordered_map<std::string, AST::TemplateClassDecl*> templateClasses_;
     
+    // (AR) خريطة مصادر نسخ القوالب - لربط الأصناف الملموسة بقوالبها الأصلية
+    // (EN) Template instance sources map - links concrete class names to their template AST nodes
+    // Used for runtime lookup of constructor/method bodies (avoids ownership issues with unique_ptr)
+    std::unordered_map<std::string, AST::TemplateClassDecl*> templateInstanceSources_;
+    
     // (AR) فضاء الأسماء الحالي / (EN) Current namespace
     std::string currentNamespace_;
+    
+    // =========================================================================
+    // (AR) نظام الوحدات (الاستيراد والتصدير) / (EN) Module System (Import/Export)
+    // =========================================================================
+    
+    // (AR) محلل الوحدات - يستخدم للبحث عن الوحدات وتحميلها
+    // (EN) Module resolver - used for finding and loading modules
+    Modules::ModuleResolver* moduleResolver_ = nullptr;
+    
+    // (AR) مسار الملف الحالي - يُستخدم لحل المسارات النسبية
+    // (EN) Current file path - used for resolving relative paths
+    std::string currentFilePath_;
+    
+    // (AR) الرموز المُصدَّرة من الملف الحالي - تُملأ عند مواجهة جمل صدّر
+    // (EN) Exported symbols from current file - populated when export statements are encountered
+    std::unordered_set<std::string> exportedSymbols_;
+    
+    // (AR) الوحدات المُحمَّلة كمتغيرات Map (لنمط: استورد وحدة كـ م → م.دالة)
+    // (EN) Loaded modules as Map variables (for: import module as m → m.function)
+    // key: اسم الوحدة (أو الاسم المستعار), value: Map من أسماء الرموز إلى قيمها
+    std::unordered_map<std::string, Data::Value> loadedModuleNamespaces_;
+    
+    // (AR) ذاكرة مخبئية لصادرات الوحدات التي تم تنفيذها - لمنع إعادة التنفيذ
+    // (EN) Cache for executed module exports - prevents re-execution
+    // key: مسار الملف الكامل, value: Map الصادرات
+    std::unordered_map<std::string, Data::Value> executedModuleExports_;
+    
+    /**
+     * @brief (AR) تنفيذ AST وحدة مُحمَّلة واستخراج رموزها
+     * @brief (EN) Execute a loaded module's AST and extract its symbols
+     * 
+     * @param module (AR) مؤشر للوحدة المُحمَّلة / (EN) Pointer to loaded module
+     * @return (AR) خريطة بأسماء الرموز المُصدَّرة وقيمها / (EN) Map of exported symbol names to their values
+     */
+    Data::Value executeModuleAndExtractExports(Modules::Module* module);
     
     /**
      * @brief (AR) تقييم تعبير وإرجاع قيمته
@@ -412,6 +552,38 @@ public:
      */
     bool shouldStopExecution() const {
         return flowControl_ != FlowControl::NONE;
+    }
+    
+    /**
+     * @brief (AR) الحصول على صنف قالب بالاسم
+     * @brief (EN) Get a template class by name
+     * @param name (AR) اسم صنف القالب / (EN) Template class name
+     * @return (AR) مؤشر لعقدة صنف القالب أو nullptr / (EN) Pointer to template class node or nullptr
+     */
+    AST::TemplateClassDecl* getTemplateClass(const std::string& name) {
+        auto it = templateClasses_.find(name);
+        if (it != templateClasses_.end()) return it->second;
+        return nullptr;
+    }
+    
+    /**
+     * @brief (AR) إنشاء نسخة ملموسة من صنف قالب وتسجيلها
+     * @brief (EN) Instantiate a concrete version of a template class and register it
+     * @param templateNode (AR) عقدة صنف القالب / (EN) Template class AST node
+     * @param className (AR) اسم الصنف الملموس / (EN) Concrete class name
+     */
+    void instantiateTemplateClass(AST::TemplateClassDecl& templateNode, const std::string& className);
+    
+    /**
+     * @brief (AR) الحصول على مصدر القالب لنسخة ملموسة
+     * @brief (EN) Get the template source for a concrete instance
+     * @param className (AR) اسم الصنف الملموس / (EN) Concrete class name
+     * @return (AR) مؤشر لعقدة صنف القالب أو nullptr / (EN) Pointer to template class node or nullptr
+     */
+    AST::TemplateClassDecl* getTemplateInstanceSource(const std::string& className) {
+        auto it = templateInstanceSources_.find(className);
+        if (it != templateInstanceSources_.end()) return it->second;
+        return nullptr;
     }
 };
 

@@ -63,10 +63,13 @@ Data::Value TypeFunctions::toInt(const std::vector<Data::Value>& args) {
         int result = value.toInt();
         return Data::Value(result);
     }
-    catch (const std::exception&) {
-        // في حالة الفشل، نرجع 0
-        // On failure, return 0
-        return Data::Value(0);
+    catch (const std::exception& e) {
+        // (AR) إطلاق خطأ واضح عند فشل التحويل بدلاً من إرجاع 0 بصمت
+        // (EN) Throw descriptive error on conversion failure instead of silently returning 0
+        throw std::runtime_error(
+            "(AR) خطأ: لا يمكن تحويل القيمة من نوع '" + value.getTypeName() + 
+            "' إلى رقم صحيح / (EN) Cannot convert value of type '" + 
+            value.getTypeName() + "' to integer: " + e.what());
     }
 }
 
@@ -85,10 +88,13 @@ Data::Value TypeFunctions::toFloat(const std::vector<Data::Value>& args) {
         double result = value.toDouble();
         return Data::Value(result);
     }
-    catch (const std::exception&) {
-        // في حالة الفشل، نرجع 0.0
-        // On failure, return 0.0
-        return Data::Value(0.0);
+    catch (const std::exception& e) {
+        // (AR) إطلاق خطأ واضح عند فشل التحويل بدلاً من إرجاع 0.0 بصمت
+        // (EN) Throw descriptive error on conversion failure instead of silently returning 0.0
+        throw std::runtime_error(
+            "(AR) خطأ: لا يمكن تحويل القيمة من نوع '" + value.getTypeName() + 
+            "' إلى رقم عشري / (EN) Cannot convert value of type '" + 
+            value.getTypeName() + "' to float: " + e.what());
     }
 }
 
@@ -108,12 +114,20 @@ Data::Value TypeFunctions::toArray(const std::vector<Data::Value>& args) {
         return value;
     }
     
-    // إذا كانت نصاً، نحوله إلى مصفوفة من الأحرف
-    // If string, convert to array of characters
+    // إذا كانت نصاً، نحوله إلى مصفوفة من الأحرف (مع دعم UTF-8)
+    // If string, convert to array of characters (UTF-8 aware)
     if (value.isString()) {
         std::string str = value.toString();
-        for (char c : str) {
-            result.push_back(Data::Value(std::string(1, c)));
+        size_t i = 0;
+        while (i < str.size()) {
+            unsigned char c = static_cast<unsigned char>(str[i]);
+            size_t charLen = 1;
+            if (c >= 0xF0) charLen = 4;
+            else if (c >= 0xE0) charLen = 3;
+            else if (c >= 0xC0) charLen = 2;
+            if (i + charLen > str.size()) charLen = 1; // safety
+            result.push_back(Data::Value(str.substr(i, charLen)));
+            i += charLen;
         }
         return Data::Value(result);
     }
@@ -139,10 +153,13 @@ Data::Value TypeFunctions::toBool(const std::vector<Data::Value>& args) {
         bool result = value.toBool();
         return Data::Value(result);
     }
-    catch (const std::exception&) {
-        // في حالة الفشل، نرجع false
-        // On failure, return false
-        return Data::Value(false);
+    catch (const std::exception& e) {
+        // (AR) إطلاق خطأ واضح عند فشل التحويل بدلاً من إرجاع false بصمت
+        // (EN) Throw descriptive error on conversion failure instead of silently returning false
+        throw std::runtime_error(
+            "(AR) خطأ: لا يمكن تحويل القيمة من نوع '" + value.getTypeName() + 
+            "' إلى منطقي / (EN) Cannot convert value of type '" + 
+            value.getTypeName() + "' to boolean: " + e.what());
     }
 }
 

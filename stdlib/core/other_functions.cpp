@@ -7,12 +7,18 @@
  */
 
 #include "other_functions.h"
+#include "../../interpreter_new/include/exception.h"
 #include <iostream>
 #include <string>
 #include <cstdlib>
 #include <ctime>
 #include <thread>
 #include <chrono>
+#include <random>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace Sad {
 namespace StdLib {
@@ -38,6 +44,54 @@ static bool validateArgCount(const std::vector<Value>& args, size_t min, size_t 
 }
 
 // =============================================================================
+// Helper: Strip UTF-8 BOM / إزالة BOM من UTF-8
+// PowerShell on Windows prepends EF BB BF when piping to stdin
+// =============================================================================
+static std::string stripUtf8Bom(const std::string& str) {
+    if (str.size() >= 3 &&
+        static_cast<unsigned char>(str[0]) == 0xEF &&
+        static_cast<unsigned char>(str[1]) == 0xBB &&
+        static_cast<unsigned char>(str[2]) == 0xBF) {
+        return str.substr(3);
+    }
+    return str;
+}
+
+// =============================================================================
+// Helper: Read line from stdin with Windows support
+// On Windows console, uses ReadConsoleW to avoid SetConsoleCP(CP_UTF8) bugs
+// On pipes/files, uses std::getline and strips UTF-8 BOM
+// =============================================================================
+static bool readLineFromStdin(std::string& result) {
+#ifdef _WIN32
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD mode;
+    if (hStdin != INVALID_HANDLE_VALUE && GetConsoleMode(hStdin, &mode)) {
+        // Interactive console: use ReadConsoleW to avoid CP_UTF8 bugs
+        std::wstring wline;
+        wchar_t wch;
+        DWORD charsRead;
+        while (ReadConsoleW(hStdin, &wch, 1, &charsRead, NULL) && charsRead > 0) {
+            if (wch == L'\n') break;
+            if (wch == L'\r') continue;
+            wline += wch;
+        }
+        if (charsRead == 0 && wline.empty()) return false;
+        if (wline.empty()) { result = ""; return true; }
+        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wline.c_str(), (int)wline.size(), NULL, 0, NULL, NULL);
+        result.resize(utf8Len);
+        WideCharToMultiByte(CP_UTF8, 0, wline.c_str(), (int)wline.size(), &result[0], utf8Len, NULL, NULL);
+        return true;
+    }
+#endif
+    if (std::getline(std::cin, result)) {
+        result = stripUtf8Bom(result);
+        return true;
+    }
+    return false;
+}
+
+// =============================================================================
 // input() - قراءة مدخل من المستخدم / Read input from user
 // =============================================================================
 
@@ -56,10 +110,10 @@ Value input(const std::vector<Value>& args) {
         std::cout.flush(); // تأكد من طباعة المحث فوراً / Ensure prompt is printed immediately
     }
     
-    // قراءة سطر من المستخدم
-    // Read line from user
+    // قراءة سطر من المستخدم (مع دعم Windows الصحيح)
+    // Read line from user (with proper Windows support)
     std::string line;
-    if (std::getline(std::cin, line)) {
+    if (readLineFromStdin(line)) {
         return Value(line);
     }
     
@@ -73,13 +127,9 @@ Value input(const std::vector<Value>& args) {
 // =============================================================================
 
 Value random(const std::vector<Value>& args) {
-    // تهيئة مولد الأرقام العشوائية مرة واحدة
-    // Initialize random number generator once
-    static bool initialized = false;
-    if (!initialized) {
-        std::srand(static_cast<unsigned int>(std::time(nullptr)));
-        initialized = true;
-    }
+    // (AR) استخدام مولد أرقام عشوائية عالي الجودة (thread-safe)
+    // (EN) Use high-quality random number generator (thread-safe)
+    static thread_local std::mt19937 rng(std::random_device{}());
     
     // التحقق من عدد المعاملات (0، 1، أو 2)
     // Validate argument count (0, 1, or 2)
@@ -87,10 +137,11 @@ Value random(const std::vector<Value>& args) {
         return Value(0); // إرجاع 0 عند الخطأ / Return 0 on error
     }
     
-    // random() - رقم بين 0 و RAND_MAX
-    // random() - number between 0 and RAND_MAX
+    // random() - عدد عشري بين 0.0 و 1.0
+    // random() - double between 0.0 and 1.0
     if (args.size() == 0) {
-        return Value(std::rand());
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
+        return Value(dist(rng));
     }
     
     // random(max) - رقم بين 0 و max-1
@@ -98,10 +149,11 @@ Value random(const std::vector<Value>& args) {
     if (args.size() == 1) {
         int max = args[0].toInt();
         if (max <= 0) {
-            std::cerr << "خطأ / Error: random() الحد الأقصى يجب أن يكون موجباً / max must be positive" << std::endl;
-            return Value(0);
+            throw std::invalid_argument(
+                "(AR) خطأ: random() الحد الأقصى يجب أن يكون موجباً / (EN) random() max must be positive");
         }
-        return Value(std::rand() % max);
+        std::uniform_int_distribution<int> dist(0, max - 1);
+        return Value(dist(rng));
     }
     
     // random(min, max) - رقم بين min و max-1
@@ -110,12 +162,12 @@ Value random(const std::vector<Value>& args) {
     int max = args[1].toInt();
     
     if (min >= max) {
-        std::cerr << "خطأ / Error: random() الحد الأدنى يجب أن يكون أقل من الحد الأقصى / min must be less than max" << std::endl;
-        return Value(min);
+        throw std::invalid_argument(
+            "(AR) خطأ: random() الحد الأدنى يجب أن يكون أقل من الحد الأقصى / (EN) random() min must be less than max");
     }
     
-    int range = max - min;
-    return Value(min + (std::rand() % range));
+    std::uniform_int_distribution<int> dist(min, max - 1);
+    return Value(dist(rng));
 }
 
 // =============================================================================
@@ -153,7 +205,7 @@ Value exit(const std::vector<Value>& args) {
     // التحقق من عدد المعاملات (0 أو 1)
     // Validate argument count (0 or 1)
     if (!validateArgCount(args, 0, 1, "exit")) {
-        std::exit(1); // خروج مع خطأ / Exit with error
+        throw Sad::Interpreter::ExitException(1);
     }
     
     // الحصول على كود الخروج (افتراضي: 0)
@@ -163,9 +215,9 @@ Value exit(const std::vector<Value>& args) {
         exit_code = args[0].toInt();
     }
     
-    // إنهاء البرنامج
-    // Terminate program
-    std::exit(exit_code);
+    // (AR) إلقاء استثناء خروج نظيف بدلاً من std::exit() لضمان تنظيف RAII
+    // (EN) Throw clean exit exception instead of std::exit() to ensure RAII cleanup
+    throw Sad::Interpreter::ExitException(exit_code);
     
     // هذا السطر لن يُنفذ أبداً
     // This line will never execute

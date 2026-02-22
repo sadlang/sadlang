@@ -123,7 +123,7 @@ Object* GarbageCollector::allocate(ObjectType type, size_t size) {
     }
     
     obj->type = type;
-    obj->marked = false;
+    obj->isMarked = false;  // (AR) إصلاح: الحقل الصحيح هو isMarked وليس marked
     obj->next = nullptr;
     
     // (AR) أضف للجيل الصغير / (EN) Add to young generation
@@ -413,8 +413,11 @@ void GarbageCollector::markRoots() {
     
     // (AR) أضف كائنات المكدس كجذور / (EN) Add stack objects as roots
     if (vm_) {
-        for (size_t i = 0; i < vm_->stackTop; ++i) {
-            Value& val = vm_->stack[i];
+        // (AR) نستخدم getStack() و getGlobals() للوصول للمكدس والمتغيرات العامة
+        // (EN) Use getStack() and getGlobals() to access stack and globals
+        const auto& vmStack = vm_->getStack();
+        for (size_t i = 0; i < vmStack.size(); ++i) {
+            const Value& val = vmStack[i];
             if (val.isObject()) {
                 Object* obj = val.asObject();
                 ObjectMetadata* meta = getMetadata(obj);
@@ -447,27 +450,11 @@ void GarbageCollector::processObject(Object* obj) {
     
     // (AR) لوّن المراجع بالرمادي / (EN) Mark references as gray
     switch (obj->type) {
-        case OBJ_ARRAY: {
+        case ObjectType::OBJ_ARRAY: {
             ArrayObject* arr = static_cast<ArrayObject*>(obj);
-            if (arr->elements) {
-                for (const Value& val : *arr->elements) {
-                    if (val.isObject()) {
-                        Object* child = val.asObject();
-                        ObjectMetadata* childMeta = getMetadata(child);
-                        if (childMeta && childMeta->color == ObjectColor::WHITE) {
-                            childMeta->color = ObjectColor::GRAY;
-                            grayObjects_.push_back(child);
-                        }
-                    }
-                }
-            }
-            break;
-        }
-        
-        case OBJ_FUNCTION: {
-            FunctionObject* func = static_cast<FunctionObject*>(obj);
-            // (AR) لوّن الثوابت / (EN) Mark constants
-            for (const Value& val : func->constants) {
+            // (AR) الـ elements هو vector — نمر على عناصره مباشرة
+            // (EN) elements is a vector — iterate directly
+            for (const Value& val : arr->elements) {
                 if (val.isObject()) {
                     Object* child = val.asObject();
                     ObjectMetadata* childMeta = getMetadata(child);
@@ -480,8 +467,14 @@ void GarbageCollector::processObject(Object* obj) {
             break;
         }
         
-        case OBJ_STRING:
-        case OBJ_NATIVE:
+        case ObjectType::OBJ_FUNCTION: {
+            // (AR) FunctionObject لا يحتوي على ثوابت — لا شيء لتلوينه
+            // (EN) FunctionObject has no constants pool — nothing to mark
+            break;
+        }
+        
+        case ObjectType::OBJ_STRING:
+        case ObjectType::OBJ_NATIVE:
             // (AR) لا توجد مراجع / (EN) No references
             break;
             
@@ -574,21 +567,26 @@ void GarbageCollector::freeObject(Object* obj) {
     
     // (AR) حرّر ذاكرة الكائن حسب نوعه / (EN) Free object memory by type
     switch (obj->type) {
-        case OBJ_STRING: {
+        case ObjectType::OBJ_STRING: {
             StringObject* str = static_cast<StringObject*>(obj);
             delete[] str->chars;
             break;
         }
         
-        case OBJ_ARRAY: {
+        case ObjectType::OBJ_ARRAY: {
+            // (AR) الـ elements هو vector — ندمره بشكل صحيح
+            // (EN) elements is a vector — destroy it properly
             ArrayObject* arr = static_cast<ArrayObject*>(obj);
-            delete arr->elements;
+            arr->elements.~vector<Value>();
             break;
         }
         
-        case OBJ_FUNCTION: {
+        case ObjectType::OBJ_FUNCTION: {
+            // (AR) الـ code هو vector — ندمره بشكل صحيح
+            // (EN) code is a vector — destroy it properly
             FunctionObject* func = static_cast<FunctionObject*>(obj);
-            delete[] func->code;
+            func->code.~vector<uint8_t>();
+            func->lines.~vector<int>();
             break;
         }
         
@@ -653,20 +651,23 @@ const char* colorToString(ObjectColor color) {
 
 size_t calculateObjectSize(Object* obj) {
     switch (obj->type) {
-        case OBJ_STRING: {
+        case ObjectType::OBJ_STRING: {
             StringObject* str = static_cast<StringObject*>(obj);
             return sizeof(StringObject) + str->length + 1;
         }
-        case OBJ_ARRAY: {
+        case ObjectType::OBJ_ARRAY: {
             ArrayObject* arr = static_cast<ArrayObject*>(obj);
-            return sizeof(ArrayObject) + 
-                   (arr->elements ? arr->elements->capacity() * sizeof(Value) : 0);
+            // (AR) الـ elements هو vector — نحسب سعته الفعلية
+            // (EN) elements is a vector — calculate its actual capacity
+            return sizeof(ArrayObject) + arr->elements.capacity() * sizeof(Value);
         }
-        case OBJ_FUNCTION: {
+        case ObjectType::OBJ_FUNCTION: {
             FunctionObject* func = static_cast<FunctionObject*>(obj);
-            return sizeof(FunctionObject) + func->codeSize;
+            // (AR) الـ code هو vector — نحسب حجمه
+            // (EN) code is a vector — calculate its size
+            return sizeof(FunctionObject) + func->code.size();
         }
-        case OBJ_NATIVE:
+        case ObjectType::OBJ_NATIVE:
             return sizeof(NativeObject);
         default:
             return sizeof(Object);

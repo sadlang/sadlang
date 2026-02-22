@@ -11,7 +11,7 @@
  */
 
 #include "io/io_functions.h"
-#include "data/types/value.h"
+#include "value.h"
 #include <iostream>
 #include <sstream>
 #include <cassert>

@@ -15,6 +15,7 @@
  */
 
 #include "llvm_type_mapper.h"
+#include "llvm_type_mapper_composite.h"
 #include <stdexcept>
 
 namespace Sad {
@@ -92,17 +93,34 @@ llvm::Type* LLVMTypeMapper::mapSadType(std::shared_ptr<Type> sadType) {
         result = mapArrayType(sadType);
     }
     else if (sadType->isFunction()) {
-        // نوع دالة - يحتاج معالجة خاصة / Function type - needs special handling
-        // لا يمكن تحويله مباشرة، استخدم mapFunctionType / Cannot convert directly, use mapFunctionType
-        result = getStringPtrType(); // مؤقت: مؤشر عام / Temporary: generic pointer
+        // م-أ02: مؤشرات الدوال — نستخدم مؤشر شفاف في LLVM 15+
+        // مؤشر دالة يُمثل بـ opaque pointer
+        auto* fnPtr = dynamic_cast<FunctionPointerType*>(sadType.get());
+        if (fnPtr) {
+            // مؤشر دالة حقيقي — نُرجع مؤشر شفاف
+            result = llvm::PointerType::get(context_, 0);
+        } else {
+            // نوع دالة عام — نُرجع مؤشر شفاف
+            result = llvm::PointerType::get(context_, 0);
+        }
     }
     else if (sadType->isClass()) {
         // نوع صنف / Class type
         result = mapClassType(sadType);
     }
     else {
-        // نوع غير معروف - افتراضي i64 / Unknown type - default i64
-        result = getInt64Type();
+        // م-أ02: محاولة التحويل كنوع مركب (صف، تعداد بقيم)
+        auto* tuple = dynamic_cast<TupleType*>(sadType.get());
+        auto* taggedUnion = dynamic_cast<TaggedUnionType*>(sadType.get());
+        
+        if (tuple || taggedUnion) {
+            // إنشاء محول مركب مؤقت وتحويل النوع
+            LLVMCompositeTypeMapper compositeMapper(context_, *this);
+            result = compositeMapper.mapCompositeType(sadType);
+        } else {
+            // نوع غير معروف - افتراضي i64 / Unknown type - default i64
+            result = getInt64Type();
+        }
     }
     
     // حفظ في التخزين المؤقت / Save to cache

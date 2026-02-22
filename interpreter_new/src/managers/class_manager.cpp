@@ -14,6 +14,7 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
+#include <mutex>
 
 namespace Sad {
 namespace Data {
@@ -24,10 +25,14 @@ namespace Data {
 
 ClassManager* ClassManager::instance_ = nullptr;
 
+// (AR) قفل للحماية من الوصول المتزامن / (EN) Mutex for thread-safe access
+static std::mutex instanceMutex_;
+
 ClassManager* ClassManager::getInstance() {
-    // (AR) الحصول على النسخة الوحيدة من المدير
-    // (EN) Get singleton instance of manager
+    // (AR) الحصول على النسخة الوحيدة من المدير — آمن للخيوط المتعددة
+    // (EN) Get singleton instance of manager — thread-safe
     
+    std::lock_guard<std::mutex> lock(instanceMutex_);
     if (!instance_) {
         instance_ = new ClassManager();
     }
@@ -35,9 +40,10 @@ ClassManager* ClassManager::getInstance() {
 }
 
 void ClassManager::resetInstance() {
-    // (AR) إعادة تعيين المدير (للاختبارات)
-    // (EN) Reset manager (for testing)
+    // (AR) إعادة تعيين المدير (للاختبارات) — آمن للخيوط المتعددة
+    // (EN) Reset manager (for testing) — thread-safe
     
+    std::lock_guard<std::mutex> lock(instanceMutex_);
     if (instance_) {
         delete instance_;
         instance_ = nullptr;
@@ -63,7 +69,9 @@ bool ClassManager::registerClass(std::unique_ptr<ClassType> classType) {
         // (AR) إذا كان الصنف الموجود فارغاً (تسجيل مؤقت)، استبدله
         // (EN) If existing class is empty (temporary registration), replace it
         if (it->second->fields.empty() && it->second->methods.empty()) {
-            std::cout << "[ClassManager] تحديث التسجيل المؤقت للصنف: " << className << "\n";
+            #ifdef DEBUG_OOP
+std::cout << "[ClassManager] تحديث التسجيل المؤقت للصنف: " << className << "\n";
+#endif
             classes_[className] = std::move(classType);
             return true;
         }
@@ -232,12 +240,25 @@ bool ClassManager::hasCircularInheritance(const std::string& className,
     // (AR) فحص الصنف الأساسي
     // (EN) Check base class
     bool hasCycle = hasCircularInheritance(classType->baseClass->name, visited);
+    if (hasCycle) {
+        visited.erase(className);
+        return true;
+    }
+    
+    // (AR) فحص الأصناف الأساسية الإضافية (الوراثة المتعددة)
+    // (EN) Check additional base classes (multiple inheritance)
+    for (auto* additionalBase : classType->getAdditionalBases()) {
+        if (additionalBase && hasCircularInheritance(additionalBase->name, visited)) {
+            visited.erase(className);
+            return true;
+        }
+    }
     
     // (AR) إزالة التمييز
     // (EN) Unmark class
     visited.erase(className);
     
-    return hasCycle;
+    return false;
 }
 
 std::vector<std::string> ClassManager::getInheritanceChain(const std::string& className) const {
@@ -333,6 +354,102 @@ std::string ClassManager::getStatistics() const {
     oss << "╚═══════════════════════════════════╝\n";
     
     return oss.str();
+}
+
+// ======================================================================
+// الواجهات والسمات / Traits and Interfaces
+// ======================================================================
+
+bool ClassManager::registerTrait(TraitDefinition trait) {
+    if (traits_.find(trait.name) != traits_.end()) {
+        return false; // (AR) السمة موجودة مسبقاً
+    }
+    std::string name = trait.name;
+    traits_[name] = std::move(trait);
+    return true;
+}
+
+const TraitDefinition* ClassManager::getTrait(const std::string& traitName) const {
+    auto it = traits_.find(traitName);
+    if (it != traits_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+bool ClassManager::hasTrait(const std::string& traitName) const {
+    return traits_.find(traitName) != traits_.end();
+}
+
+bool ClassManager::validateTraitImpl(const std::string& className, const std::string& traitName) const {
+    auto* cls = const_cast<ClassManager*>(this)->getClass(className);
+    auto* trait = getTrait(traitName);
+    if (!cls || !trait) return false;
+    
+    // (AR) التحقق من أن الصنف يحتوي على جميع الدوال المطلوبة
+    for (const auto& requiredMethod : trait->requiredMethods) {
+        if (requiredMethod.hasDefaultImpl) continue; // has default, ok to skip
+        
+        bool found = false;
+        for (const auto& classMethod : cls->methods) {
+            if (classMethod.name == requiredMethod.name) {
+                found = true;
+                break;
+            }
+        }
+        // (AR) البحث في سلسلة الوراثة
+        if (!found) {
+            ClassType* parent = cls->baseClass;
+            while (parent && !found) {
+                for (const auto& m : parent->methods) {
+                    if (m.name == requiredMethod.name) {
+                        found = true;
+                        break;
+                    }
+                }
+                parent = parent->baseClass;
+            }
+        }
+        
+        if (!found) return false;
+    }
+    
+    // (AR) التحقق من السمات الأساسية أيضاً
+    for (const auto& superTrait : trait->superTraits) {
+        if (!validateTraitImpl(className, superTrait)) return false;
+    }
+    
+    return true;
+}
+
+bool ClassManager::registerTraitImpl(const std::string& className, const std::string& traitName) {
+    auto* cls = getClass(className);
+    if (!cls) return false;
+    if (!hasTrait(traitName)) return false;
+    
+    // (AR) التحقق من التنفيذ
+    if (!validateTraitImpl(className, traitName)) return false;
+    
+    // (AR) تسجيل أن الصنف ينفذ الواجهة
+    cls->implementedTraits.push_back(traitName);
+    return true;
+}
+
+bool ClassManager::classImplementsTrait(const std::string& className, const std::string& traitName) const {
+    auto it = classes_.find(className);
+    if (it == classes_.end()) return false;
+    
+    const auto& traits = it->second->implementedTraits;
+    for (const auto& t : traits) {
+        if (t == traitName) return true;
+    }
+    
+    // (AR) البحث في سلسلة الوراثة
+    if (it->second->baseClass) {
+        return classImplementsTrait(it->second->baseClass->name, traitName);
+    }
+    
+    return false;
 }
 
 } // namespace Data

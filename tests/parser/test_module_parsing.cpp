@@ -7,10 +7,10 @@
  * @date December 2025
  */
 
-#include "../../include/parser/parser_core.h"
-#include "../../include/lexer/lexer_core.h"
-#include "../../include/parser/ast/module_nodes.h"
-#include "../../include/parser/ast/ast_printer.h"
+#include "parser_core.h"
+#include "lexer_core.h"
+#include "module_nodes.h"
+#include "ast_printer.h"
 
 #include <iostream>
 #include <cassert>

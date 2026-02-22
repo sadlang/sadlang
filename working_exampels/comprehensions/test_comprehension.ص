@@ -1,0 +1,48 @@
+# اختبار comprehensions شامل
+# Comprehensive comprehension tests
+
+دالة رئيسية()
+    # === List Comprehension ===
+
+    # 1. List comprehension بسيط
+    اطبع_سطر("--- 1. list comprehension بسيط ---")
+    متغير مربعات = [ع * ع لكل ع في [1، 2، 3، 4، 5]]
+    اطبع_سطر(مربعات)
+
+    # 2. List comprehension مع شرط
+    اطبع_سطر("--- 2. list comprehension مع شرط ---")
+    متغير ارقام = [1، 2، 3، 4، 5، 6، 7، 8، 9، 10]
+    متغير زوجية = [ع لكل ع في ارقام اذا ع % 2 == 0]
+    اطبع_سطر(زوجية)
+
+    # 3. List comprehension مع مدى
+    اطبع_سطر("--- 3. list comprehension مع مدى ---")
+    متغير نتيجة = [ع * 2 لكل ع في مدى(1، 6)]
+    اطبع_سطر(نتيجة)
+
+    # 4. List comprehension مع تعبير نصي
+    اطبع_سطر("--- 4. list comprehension تحويل ---")
+    متغير مضاعف = [ع + 100 لكل ع في [5، 10، 15]]
+    اطبع_سطر(مضاعف)
+
+    # === Dict Comprehension ===
+
+    # 5. Dict comprehension بسيط
+    اطبع_سطر("--- 5. dict comprehension ---")
+    متغير بيانات = {ع: ع * ع لكل ع في [1، 2، 3، 4]}
+    اطبع_سطر(بيانات)
+
+    # 6. Dict comprehension مع شرط
+    اطبع_سطر("--- 6. dict comprehension مع شرط ---")
+    متغير بيانات_ب = {ع: ع * 10 لكل ع في [1، 2، 3، 4، 5] اذا ع > 2}
+    اطبع_سطر(بيانات_ب)
+
+    # === Set Comprehension ===
+
+    # 7. Set comprehension بسيط
+    اطبع_سطر("--- 7. set comprehension ---")
+    متغير فريدة = {ع * 3 لكل ع في [1، 2، 3]}
+    اطبع_سطر(فريدة)
+
+    ارجع 0
+نهاية

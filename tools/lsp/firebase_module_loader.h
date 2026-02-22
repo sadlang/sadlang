@@ -137,7 +137,7 @@ public:
     }
     
     json load_module_content(const std::string& module_id, const std::string& version = "latest") {
-        std::string cache_path = config_.cache_dir + "/" + module_id + "_" + version + ".sad";
+        std::string cache_path = config_.cache_dir + "/" + module_id + "_" + version + ".ص";
         
         if (fs::exists(cache_path)) {
             try {

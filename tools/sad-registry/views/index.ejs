@@ -1,0 +1,233 @@
+<%# بسم الله الرحمن الرحيم %>
+<%# ======================================================================= %>
+<%# الصفحة الرئيسية لسجل حزم لغة ص                                          %>
+<%# Main page for the Sad Language Package Registry                         %>
+<%#                                                                         %>
+<%# هذه الصفحة تعرض:                                                        %>
+<%#   1. شريط البحث الرئيسي (Hero) مع إحصائيات المستودع                     %>
+<%#   2. شبكة الحزم الأكثر شعبية (الأكثر تنزيلاً)                          %>
+<%#   3. أحدث الحزم المضافة                                                 %>
+<%#   4. شبكة التصنيفات المتاحة                                             %>
+<%#   5. خطوات البدء السريع                                                  %>
+<%#                                                                         %>
+<%# المتغيرات المتوقعة من web.js:                                           %>
+<%#   - stats: { packages, downloads, users }                               %>
+<%#   - popular: مصفوفة الحزم الأكثر تنزيلاً                                %>
+<%#   - newest: مصفوفة أحدث الحزم                                           %>
+<%#   - categories: مصفوفة التصنيفات                                        %>
+<%# ======================================================================= %>
+
+<%- include('partials/header') %>
+
+<!-- ====================================================================== -->
+<!-- قسم البطل: يعرض عنوان المستودع وحقل البحث والإحصائيات                  -->
+<!-- Hero Section: Registry title, search field, and statistics              -->
+<!-- ====================================================================== -->
+<section class="hero">
+    <div class="container">
+
+        <!-- العنوان الرئيسي / Main Title -->
+        <h1 class="hero-title">
+            سجل حزم لغة <span class="accent">ص</span>
+        </h1>
+
+        <!-- العنوان الفرعي / Subtitle -->
+        <p class="hero-subtitle">
+            اكتشف وشارك حزم لغة ص البرمجية العربية — المستودع الرسمي
+        </p>
+
+        <!-- ============================================================== -->
+        <!-- نموذج البحث: يرسل طلب GET إلى /search?q=...                   -->
+        <!-- Search Form: sends GET request to /search?q=...                -->
+        <!-- ============================================================== -->
+        <form action="/search" method="GET" class="hero-search">
+            <input 
+                type="text" 
+                name="q" 
+                class="hero-search-input" 
+                placeholder="ابحث عن حزمة... مثل: رياضيات، تشفير، هجري"
+                autocomplete="off"
+                dir="rtl"
+            >
+            <button type="submit" class="hero-search-btn">🔍 بحث</button>
+        </form>
+
+        <!-- ============================================================== -->
+        <!-- إحصائيات المستودع: تعرض عدد الحزم والتنزيلات والمطورين         -->
+        <!-- Registry Stats: shows packages, downloads, and developers count -->
+        <!-- ============================================================== -->
+        <div class="hero-stats">
+            <div class="stat-card">
+                <span class="stat-number"><%= stats.packages %></span>
+                <span class="stat-label">📦 حزمة</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number"><%= stats.downloads.toLocaleString('ar-SA') %></span>
+                <span class="stat-label">⬇️ تنزيل</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number"><%= stats.users %></span>
+                <span class="stat-label">👥 مطور</span>
+            </div>
+        </div>
+
+        <!-- أمر التثبيت السريع / Quick Install Command -->
+        <div class="hero-install">
+            <code class="install-code">sad-pkg install &lt;اسم_الحزمة&gt;</code>
+        </div>
+
+    </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- قسم الحزم الشائعة: يعرض شبكة من أكثر 12 حزمة تنزيلاً                 -->
+<!-- Popular Packages: grid of top 12 most downloaded packages              -->
+<!-- ====================================================================== -->
+<section class="section">
+    <div class="container">
+
+        <h2 class="section-title">🔥 الحزم الأكثر شعبية</h2>
+
+        <% if (popular.length > 0) { %>
+            <div class="packages-grid">
+                <% popular.forEach(function(pkg) { %>
+                    <!-- ================================================== -->
+                    <!-- بطاقة حزمة: تعرض الاسم والإصدار والوصف والتنزيلات  -->
+                    <!-- Package Card: name, version, description, downloads -->
+                    <!-- ================================================== -->
+                    <a href="/packages/<%= pkg.name %>" class="package-card">
+                        <div class="package-header">
+                            <span class="package-name"><%= pkg.name %></span>
+                            <% if (pkg.latest_version) { %>
+                                <span class="package-version">v<%= pkg.latest_version %></span>
+                            <% } %>
+                        </div>
+                        <p class="package-desc">
+                            <%= pkg.description_ar || pkg.description || 'بدون وصف' %>
+                        </p>
+                        <div class="package-footer">
+                            <span>⬇️ <%= (pkg.total_downloads || 0).toLocaleString('ar-SA') %></span>
+                            <span>👤 <%= pkg.author || 'مجهول' %></span>
+                        </div>
+                    </a>
+                <% }); %>
+            </div>
+        <% } else { %>
+            <!-- حالة فارغة: عندما لا توجد حزم بعد -->
+            <div class="empty-state">
+                <p>📦 لا توجد حزم بعد. كن أول من ينشر!</p>
+                <p><code>sad-pkg publish</code></p>
+            </div>
+        <% } %>
+
+    </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- قسم أحدث الحزم: يعرض آخر 6 حزم مضافة حسب تاريخ الإنشاء              -->
+<!-- Newest Packages: last 6 packages by creation date                      -->
+<!-- ====================================================================== -->
+<section class="section section-alt">
+    <div class="container">
+
+        <h2 class="section-title">🆕 أحدث الحزم</h2>
+
+        <% if (newest.length > 0) { %>
+            <div class="packages-list">
+                <% newest.forEach(function(pkg) { %>
+                    <!-- ================================================== -->
+                    <!-- عنصر قائمة حزمة: يظهر في شكل صف أفقي               -->
+                    <!-- Package List Item: horizontal row format            -->
+                    <!-- ================================================== -->
+                    <a href="/packages/<%= pkg.name %>" class="package-list-item">
+                        <div class="package-list-info">
+                            <span class="package-list-name"><%= pkg.name %></span>
+                            <% if (pkg.latest_version) { %>
+                                <span class="package-list-version">v<%= pkg.latest_version %></span>
+                            <% } %>
+                        </div>
+                        <p class="package-list-desc">
+                            <%= pkg.description_ar || pkg.description || 'بدون وصف' %>
+                        </p>
+                        <div class="package-list-meta">
+                            <span>👤 <%= pkg.author || 'مجهول' %></span>
+                            <% if (pkg.created_at) { %>
+                                <span>📅 <%= new Date(pkg.created_at).toLocaleDateString('ar-SA') %></span>
+                            <% } %>
+                        </div>
+                    </a>
+                <% }); %>
+            </div>
+        <% } else { %>
+            <div class="empty-state">
+                <p>لا توجد حزم جديدة حالياً</p>
+            </div>
+        <% } %>
+
+    </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- قسم التصنيفات: شبكة من بطاقات التصنيفات مع أيقونة واسم عربي وإنجليزي -->
+<!-- Categories: grid of category cards with icon and bilingual names       -->
+<!-- ====================================================================== -->
+<section class="section">
+    <div class="container">
+
+        <h2 class="section-title">📂 تصفح حسب التصنيف</h2>
+
+        <% if (categories.length > 0) { %>
+            <div class="categories-grid">
+                <% categories.forEach(function(cat) { %>
+                    <!-- ================================================== -->
+                    <!-- بطاقة تصنيف: تنقل إلى صفحة البحث مع تصفية          -->
+                    <!-- Category Card: links to search page with filter     -->
+                    <!-- ================================================== -->
+                    <a href="/search?category=<%= cat.slug %>" class="category-card">
+                        <span class="category-icon"><%= cat.icon %></span>
+                        <span class="category-name"><%= cat.name_ar %></span>
+                        <span class="category-name-en"><%= cat.name_en %></span>
+                    </a>
+                <% }); %>
+            </div>
+        <% } %>
+
+    </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- قسم البدء السريع: 3 خطوات لاستخدام مدير الحزم                         -->
+<!-- Getting Started: 3 steps to use the package manager                    -->
+<!-- ====================================================================== -->
+<section class="section section-alt">
+    <div class="container">
+
+        <h2 class="section-title">🚀 ابدأ الآن</h2>
+
+        <div class="getting-started">
+            <!-- الخطوة 1: التثبيت -->
+            <div class="step">
+                <div class="step-number">١</div>
+                <h3>ثبّت مدير الحزم</h3>
+                <p><code>sad-pkg init</code></p>
+            </div>
+
+            <!-- الخطوة 2: أضف حزمة -->
+            <div class="step">
+                <div class="step-number">٢</div>
+                <h3>أضف حزمة</h3>
+                <p><code>sad-pkg add sad-math</code></p>
+            </div>
+
+            <!-- الخطوة 3: استخدم في الكود -->
+            <div class="step">
+                <div class="step-number">٣</div>
+                <h3>استخدم في كودك</h3>
+                <p><code>استورد "sad-math"</code></p>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<%- include('partials/footer') %>

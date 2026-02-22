@@ -222,14 +222,14 @@ std::string SearchPathManager::tryFindInPath(const std::string& basePath, const 
     // محاولات البحث:
     // Search attempts:
     
-    // 1. ملف مباشر: basePath/module.s
-    std::string attempt1 = basePath + "/" + relativePath + ".s";
+    // 1. ملف مباشر: basePath/module.ص
+    std::string attempt1 = basePath + "/" + relativePath + ".\xd8\xb5";
     if (std::filesystem::exists(attempt1)) {
         return std::filesystem::absolute(attempt1).string();
     }
     
-    // 2. دليل مع init.s: basePath/module/init.s
-    std::string attempt2 = basePath + "/" + relativePath + "/init.s";
+    // 2. دليل مع init.ص: basePath/module/init.ص
+    std::string attempt2 = basePath + "/" + relativePath + "/init.\xd8\xb5";
     if (std::filesystem::exists(attempt2)) {
         return std::filesystem::absolute(attempt2).string();
     }
@@ -240,7 +240,7 @@ std::string SearchPathManager::tryFindInPath(const std::string& basePath, const 
         ? relativePath.substr(lastSlash + 1) 
         : relativePath;
     
-    std::string attempt3 = basePath + "/" + relativePath + "/" + modulePart + ".s";
+    std::string attempt3 = basePath + "/" + relativePath + "/" + modulePart + ".\xd8\xb5";
     if (std::filesystem::exists(attempt3)) {
         return std::filesystem::absolute(attempt3).string();
     }

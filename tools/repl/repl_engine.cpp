@@ -136,9 +136,29 @@ std::string REPLEngine::evaluate(const std::string& line)
             return "";
         }
         
-        // Execute الأمر الأخير للحصول على النتيجة / Execute last statement to get result
-        // Note: This is a simplified version - actual REPL needs proper execution context
-        return "تم التنفيذ بنجاح / Executed successfully";
+        // Check for parse errors / التحقق من أخطاء التحليل
+        if (parser.hasErrors()) {
+            std::string errors;
+            for (const auto& err : parser.getErrors()) {
+                if (!errors.empty()) errors += "\n";
+                errors += err;
+            }
+            return std::string("خطأ نحوي / Syntax Error: ") + errors;
+        }
+        
+        // Execute via the persistent interpreter / تنفيذ عبر المفسر الدائم
+        auto result = interpreter_->execute(ast);
+        
+        if (!result.success) {
+            return std::string("خطأ / Error: ") + result.errorMessage;
+        }
+        
+        // Return result value if not void / إرجاع القيمة إن لم تكن فارغة
+        if (result.result.getType() != Data::ValueType::VOID) {
+            return result.result.toString();
+        }
+        
+        return "";
     }
     catch (const std::exception& e) {
         return std::string("خطأ / Error: ") + e.what();

@@ -134,14 +134,8 @@ bool RenderContext::IsValid() const {
 
 /// مسح الشاشة بلون / Clear screen with color
 void RenderContext::Clear(const Color& color) {
-    // تحويل اللون من 0-255 إلى 0.0-1.0 / Convert color from 0-255 to 0.0-1.0
-    Float32 r = color.r / 255.0f;             // القناة الحمراء / Red channel
-    Float32 g = color.g / 255.0f;             // القناة الخضراء / Green channel
-    Float32 b = color.b / 255.0f;             // القناة الزرقاء / Blue channel
-    Float32 a = color.a / 255.0f;             // قناة الشفافية / Alpha channel
-    
-    // ضبط لون المسح / Set clear color
-    glClearColor(r, g, b, a);                 // تطبيق اللون / Apply color
+    // اللون بالفعل في النطاق 0.0-1.0 / Color is already in 0.0-1.0 range
+    glClearColor(color.r, color.g, color.b, color.a);  // تطبيق اللون / Apply color
     
     // مسح مخزن الألوان / Clear color buffer
     glClear(GL_COLOR_BUFFER_BIT);             // تنفيذ المسح / Execute clear
@@ -161,14 +155,8 @@ void RenderContext::ClearStencil(Int32 stencil) {
 
 /// مسح كل المخازن / Clear all buffers
 void RenderContext::ClearAll(const Color& color, Float32 depth, Int32 stencil) {
-    // تحويل اللون / Convert color
-    Float32 r = color.r / 255.0f;             // الأحمر / Red
-    Float32 g = color.g / 255.0f;             // الأخضر / Green
-    Float32 b = color.b / 255.0f;             // الأزرق / Blue
-    Float32 a = color.a / 255.0f;             // الشفافية / Alpha
-    
     // ضبط القيم / Set values
-    glClearColor(r, g, b, a);                 // لون المسح / Clear color
+    glClearColor(color.r, color.g, color.b, color.a);  // لون المسح / Clear color
     glClearDepth(depth);                      // عمق المسح / Clear depth
     glClearStencil(stencil);                  // قالب المسح / Clear stencil
     
@@ -190,11 +178,7 @@ void RenderContext::SetClearColor(const Color& color) {
     m_clearColor = color;                     // حفظ اللون / Store color
     
     // تطبيق اللون في OpenGL / Apply color in OpenGL
-    Float32 r = color.r / 255.0f;             // الأحمر / Red
-    Float32 g = color.g / 255.0f;             // الأخضر / Green
-    Float32 b = color.b / 255.0f;             // الأزرق / Blue
-    Float32 a = color.a / 255.0f;             // الشفافية / Alpha
-    glClearColor(r, g, b, a);                 // ضبط في OpenGL / Set in OpenGL
+    glClearColor(color.r, color.g, color.b, color.a);  // ضبط في OpenGL / Set in OpenGL
 }
 
 /// الحصول على لون المسح / Get clear color

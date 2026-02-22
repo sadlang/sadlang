@@ -9,6 +9,8 @@
  */
 
 #include "database/database_module.h"
+
+#ifdef HAS_SQLITE3
 #include <sqlite3.h>
 #include <sstream>
 #include <algorithm>
@@ -1026,5 +1028,7 @@ std::string format_sql(const std::string& sql) {
 } // namespace database
 } // namespace stdlib
 } // namespace sad
+
+#endif // HAS_SQLITE3
 
 // الحمد لله رب العالمين

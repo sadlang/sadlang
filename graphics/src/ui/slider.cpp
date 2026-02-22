@@ -24,10 +24,10 @@ namespace Graphics {
             , m_stepSize(0.0f)                          // بدون خطوات / No steps (continuous)
             , m_orientation(SliderOrientation::Horizontal)  // أفقي افتراضياً / Horizontal by default
             , m_thumbSize(20.0f)                        // حجم مقبض 20 بكسل / 20 pixel thumb
-            , m_trackColor(Color(200, 200, 200))        // مسار رمادي فاتح / Light gray track
-            , m_thumbColor(Color(0, 120, 215))          // مقبض أزرق / Blue thumb
-            , m_fillColor(Color(0, 120, 215))           // تعبئة زرقاء / Blue fill
-            , m_thumbHoverColor(Color(0, 160, 255))     // أزرق فاتح عند التحويم / Light blue on hover
+            , m_trackColor(Color::FromBytes(200, 200, 200))        // مسار رمادي فاتح / Light gray track
+            , m_thumbColor(Color::FromBytes(0, 120, 215))          // مقبض أزرق / Blue thumb
+            , m_fillColor(Color::FromBytes(0, 120, 215))           // تعبئة زرقاء / Blue fill
+            , m_thumbHoverColor(Color::FromBytes(0, 160, 255))     // أزرق فاتح عند التحويم / Light blue on hover
             , m_showValue(true)                         // إظهار القيمة / Show value
             , m_valueFormat("%.1f")                     // تنسيق برقم عشري / Format with decimal
             , m_isDragging(false)                       // لا يتم السحب / Not dragging
@@ -37,8 +37,8 @@ namespace Graphics {
             SetSize(200, 30);
 
             // نمط افتراضي / Default style
-            m_style.backgroundColor = Color(240, 240, 240);  // خلفية فاتحة / Light background
-            m_style.borderColor = Color(180, 180, 180);      // حدود رمادية / Gray border
+            m_style.backgroundColor = Color::FromBytes(240, 240, 240);  // خلفية فاتحة / Light background
+            m_style.borderColor = Color::FromBytes(180, 180, 180);      // حدود رمادية / Gray border
             m_style.borderWidth = 1.0f;                      // عرض حدود / Border width
             m_style.padding = 5.0f;                          // مسافة / Padding
         }
@@ -138,7 +138,7 @@ namespace Graphics {
         // ============================================================================
         // رسم المنزلق / Draw slider
         // ============================================================================
-        void Slider::Draw(Renderer2D* renderer) {
+        void Slider::Draw(SadGraphics::Renderer2D* renderer) {
             // إذا لم يكن ظاهراً / If not visible
             if (!m_visible) {
                 return;
@@ -179,7 +179,7 @@ namespace Graphics {
 
             // رسم حدود المقبض / Draw thumb border
             renderer->DrawCircle(thumbRect.GetCenter().x, thumbRect.GetCenter().y,
-                                m_thumbSize / 2.0f, Color(0, 0, 0), 2.0f);
+                                m_thumbSize / 2.0f, Color::Black, false);
 
             // إظهار القيمة إذا كان مطلوباً / Show value if required
             if (m_showValue) {

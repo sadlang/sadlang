@@ -21,6 +21,7 @@ class TernaryExpr;        // (AR) التعبير الثلاثي / (EN) Ternary e
 class LiteralExpr;
 class VariableExpr;
 class AssignExpr;
+class BorrowExpr;         // (AR) تعبير الاستعارة / (EN) Borrow expression
 class CallExpr;
 class IndexExpr;
 class MemberExpr;
@@ -34,11 +35,14 @@ class DictComprehensionExpr;
 class SetComprehensionExpr;
 class GeneratorExpr;
 class DecoratorExpr;
+class InlineAsmExpr;      // (AR) تعبير التجميع المضمّن / (EN) Inline assembly expression
+class RangeExpr;          // (AR) تعبير المدى / (EN) Range expression
 
 // OOP Expression nodes / عُقد تعابير OOP
 class NewExpr;
 class MemberAccessExpr;
 class MemberAssignExpr;
+class IndexAssignExpr;
 class MethodCallExpr;
 class ThisExpr;
 class SuperExpr;
@@ -73,6 +77,8 @@ class PropertyDecl;
 class ConstructorDecl;
 class DestructorDecl;
 class EnumDecl;
+class StructDecl;
+class TestDecl;
 class ImportStmt;
 class FromImportStmt;  // (AR) جملة الاستيراد الانتقائي / (EN) Selective import statement
 class ExportStmt;
@@ -84,6 +90,8 @@ class TemplateClassDecl;      // (AR) تصريح صنف قالب / (EN) Template
 class TemplateInstantiation;  // (AR) تنفيذ القالب / (EN) Template instantiation
 class NamespaceDecl;          // (AR) تصريح فضاء الأسماء / (EN) Namespace declaration
 class OperatorDecl;           // (AR) تصريح تحميل العامل / (EN) Operator overload declaration
+class TraitDecl;              // (AR) تصريح الواجهة/السمة / (EN) Trait/Interface declaration
+class ImplDecl;               // (AR) تصريح كتلة التنفيذ / (EN) Impl block declaration
 /**
  * @brief Abstract visitor interface for AST traversal / واجهة الزائر المجردة لاجتياز AST
  * 
@@ -176,6 +184,14 @@ public:
     virtual void visitVariableExpr(VariableExpr& expr) = 0;
     
     /**
+     * @brief Visit borrow expression node / زيارة عقدة تعبير الاستعارة
+     * @param expr Borrow expression node (e.g., &x, &متغير x)
+     * 
+     * Examples: &x, &mut counter, &اسم
+     */
+    virtual void visitBorrowExpr(BorrowExpr& expr) = 0;
+    
+    /**
      * @brief Visit assignment expression node / زيارة عقدة تعبير الإسناد
      * @param expr Assignment expression node (e.g., x = 10)
      * 
@@ -215,6 +231,14 @@ public:
      * Examples: obj.field = 10, person.name = "أحمد", شخص.اسم = "محمد"
      */
     virtual void visitMemberAssignExpr(MemberAssignExpr& expr) = 0;
+
+    /**
+     * @brief Visit index assignment expression / زيارة تعبير الإسناد بالفهرس
+     * @param expr Index assignment node (e.g., arr[0] = 5, م[1] = "قيمة")
+     *
+     * Examples: م[0] = 5, قاموس["مفتاح"] = قيمة
+     */
+    virtual void visitIndexAssignExpr(IndexAssignExpr& expr) = 0;
     
     /**
      * @brief Visit array literal expression node / زيارة عقدة تعبير المصفوفة الحرفية
@@ -318,6 +342,18 @@ public:
      * (EN) Decorators apply to functions and classes to modify their behavior
      */
     virtual void visitDecoratorExpr(DecoratorExpr& expr) = 0;
+    
+    /**
+     * @brief (AR) زيارة عقدة التجميع المضمّن — ضرورية لبرمجة أنظمة التشغيل
+     * @brief (EN) Visit inline assembly node — essential for OS development
+     * 
+     * (AR) التجميع المضمّن يسمح بكتابة أوامر المعالج مباشرة في كود لغة ص.
+     *      يُستخدم في: تعطيل المقاطعات، قراءة/كتابة المنافذ، تبديل السياق
+     * (EN) Inline asm allows writing CPU instructions directly in Sad code.
+     *      Used for: disabling interrupts, port I/O, context switching
+     */
+    virtual void visitInlineAsmExpr(InlineAsmExpr& expr) = 0;
+    virtual void visitRangeExpr(RangeExpr& expr) = 0;
     
     // =====================================================================
     // OOP Expression visitors / زوار تعابير OOP
@@ -613,6 +649,18 @@ public:
     virtual void visitEnumDecl(EnumDecl& decl) = 0;
     
     /**
+     * @brief Visit struct declaration node / زيارة عقدة تصريح البنية
+     * @param decl Struct declaration node
+     */
+    virtual void visitStructDecl(StructDecl& decl) = 0;
+    
+    /**
+     * @brief Visit test declaration node / زيارة عقدة تصريح الاختبار
+     * @param decl Test declaration node
+     */
+    virtual void visitTestDecl(TestDecl& decl) = 0;
+    
+    /**
      * @brief Visit import statement node / زيارة عقدة عبارة الاستيراد
      * @param stmt Import statement node
      * 
@@ -716,6 +764,10 @@ public:
      *   operator +(other: Fraction) -> Fraction { ... }
      */
     virtual void visitOperatorDecl(OperatorDecl& decl) = 0;
+
+    // Trait/Interface visitors / زوار الواجهات والسمات
+    virtual void visitTraitDecl(TraitDecl& decl) = 0;
+    virtual void visitImplDecl(ImplDecl& decl) = 0;
 };
 
 /**
@@ -735,11 +787,13 @@ public:
     void visitTernaryExpr(TernaryExpr& expr) override {}
     void visitLiteralExpr(LiteralExpr& expr) override {}
     void visitVariableExpr(VariableExpr& expr) override {}
+    void visitBorrowExpr(BorrowExpr& expr) override {}
     void visitAssignExpr(AssignExpr& expr) override {}
     void visitCallExpr(CallExpr& expr) override {}
     void visitIndexExpr(IndexExpr& expr) override {}
     void visitMemberExpr(MemberExpr& expr) override {}
     void visitMemberAssignExpr(MemberAssignExpr& expr) override {}
+    void visitIndexAssignExpr(IndexAssignExpr& expr) override {}
     void visitArrayExpr(ArrayExpr& expr) override {}
     void visitMapExpr(MapExpr& expr) override {}
     void visitLambdaExpr(LambdaExpr& expr) override {}
@@ -750,6 +804,8 @@ public:
     void visitSetComprehensionExpr(SetComprehensionExpr& expr) override {}
     void visitGeneratorExpr(GeneratorExpr& expr) override {}
     void visitDecoratorExpr(DecoratorExpr& expr) override {}
+    void visitInlineAsmExpr(InlineAsmExpr& expr) override {}
+    void visitRangeExpr(RangeExpr& expr) override {}
     
     // OOP Expression visitors / زوار تعابير OOP
     void visitNewExpr(NewExpr& expr) override {}
@@ -786,6 +842,8 @@ public:
     void visitConstructorDecl(ConstructorDecl& decl) override {}
     void visitDestructorDecl(DestructorDecl& decl) override {}
     void visitEnumDecl(EnumDecl& decl) override {}
+    void visitStructDecl(StructDecl& decl) override {}
+    void visitTestDecl(TestDecl& decl) override {}
     void visitImportStmt(ImportStmt& stmt) override {}
     void visitFromImportStmt(FromImportStmt& stmt) override {}
     void visitExportStmt(ExportStmt& stmt) override {}
@@ -797,6 +855,10 @@ public:
     void visitTemplateInstantiation(TemplateInstantiation& expr) override {}
     void visitNamespaceDecl(NamespaceDecl& decl) override {}
     void visitOperatorDecl(OperatorDecl& decl) override {}
+
+    // Trait/Interface visitors / زوار الواجهات والسمات
+    void visitTraitDecl(TraitDecl& decl) override {}
+    void visitImplDecl(ImplDecl& decl) override {}
 };
 
 } // namespace AST

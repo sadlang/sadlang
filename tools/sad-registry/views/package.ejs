@@ -1,0 +1,266 @@
+<%# بسم الله الرحمن الرحيم %>
+<%# ======================================================================= %>
+<%# صفحة تفاصيل الحزمة - عرض كامل لمعلومات حزمة واحدة                      %>
+<%# Package Detail Page - full view of a single package                     %>
+<%#                                                                         %>
+<%# هذه الصفحة تعرض:                                                        %>
+<%#   1. رأس الحزمة: الاسم والوصف والإصدار الأخير                          %>
+<%#   2. أمر التثبيت القابل للنسخ                                           %>
+<%#   3. الشبكة الرئيسية:                                                   %>
+<%#      - يسار: التبعيات + جدول الإصدارات                                  %>
+<%#      - يمين (شريط جانبي): إحصائيات + معلومات + مالكين                  %>
+<%#                                                                         %>
+<%# المتغيرات المتوقعة من web.js:                                           %>
+<%#   - pkg: كائن الحزمة من قاعدة البيانات                                  %>
+<%#   - versions: مصفوفة كل الإصدارات                                       %>
+<%#   - owners: مصفوفة المالكين (username, role)                            %>
+<%#   - latestVersion: كائن أحدث إصدار                                      %>
+<%#   - dependencies: كائن التبعيات { name: version_req }                   %>
+<%# ======================================================================= %>
+
+<%- include('partials/header') %>
+
+<!-- ====================================================================== -->
+<!-- محتوى صفحة تفاصيل الحزمة                                               -->
+<!-- Package Detail Page Content                                            -->
+<!-- ====================================================================== -->
+<section class="page-content">
+    <div class="container">
+
+        <!-- ============================================================== -->
+        <!-- رأس الحزمة: اسم + وصف + شارة الإصدار                          -->
+        <!-- Package Header: name + description + version badge             -->
+        <!-- ============================================================== -->
+        <div class="package-detail-header">
+            <div>
+                <!-- اسم الحزمة / Package Name -->
+                <h1 class="package-detail-name"><%= pkg.name %></h1>
+
+                <!-- الوصف: نعرض العربي أولاً، ثم الإنجليزي -->
+                <p class="package-detail-desc">
+                    <%= pkg.description_ar || pkg.description || 'بدون وصف' %>
+                </p>
+
+                <%# إذا يوجد وصف بكلا اللغتين، نعرض الإنجليزي أيضاً %>
+                <% if (pkg.description_ar && pkg.description && pkg.description_ar !== pkg.description) { %>
+                    <p class="text-muted" style="margin-top: 0.25rem; font-size: 0.9rem;">
+                        <%= pkg.description %>
+                    </p>
+                <% } %>
+            </div>
+
+            <!-- شارة الإصدار الأخير / Latest Version Badge -->
+            <% if (pkg.latest_version) { %>
+                <span class="badge">v<%= pkg.latest_version %></span>
+            <% } %>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- أمر التثبيت: يُنسخ عند النقر (عبر main.js)                     -->
+        <!-- Install Command: copies on click (via main.js)                 -->
+        <!-- ============================================================== -->
+        <div class="package-detail-install">
+            <strong>📥 التثبيت:</strong>
+            <code class="install-block">sad-pkg add <%= pkg.name %></code>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- الشبكة الرئيسية: عمودين (محتوى + شريط جانبي)                    -->
+        <!-- في الشاشات الصغيرة يتحول لعمود واحد                            -->
+        <!-- Main Grid: two columns (content + sidebar)                     -->
+        <!-- On small screens it becomes single column                      -->
+        <!-- ============================================================== -->
+        <div class="package-detail-grid">
+
+            <!-- ========================================================== -->
+            <!-- العمود الرئيسي: التبعيات ثم جدول الإصدارات                  -->
+            <!-- Main Column: dependencies then versions table              -->
+            <!-- ========================================================== -->
+            <div class="package-detail-main">
+
+                <!-- ------------------------------------------------------ -->
+                <!-- قسم التبعيات: يعرض قائمة الحزم المطلوبة                 -->
+                <!-- Dependencies Section: lists required packages           -->
+                <!-- ------------------------------------------------------ -->
+                <div class="deps-section">
+                    <h3>📎 التبعيات</h3>
+
+                    <% var depKeys = Object.keys(dependencies); %>
+                    <% if (depKeys.length > 0) { %>
+                        <ul class="deps-list">
+                            <% depKeys.forEach(function(depName) { %>
+                                <li>
+                                    <%# اسم التبعية كرابط لصفحتها %>
+                                    <a href="/packages/<%= depName %>"><%= depName %></a>
+                                    <%# متطلب الإصدار (مثلاً ^1.0.0) %>
+                                    <code><%= dependencies[depName] %></code>
+                                </li>
+                            <% }); %>
+                        </ul>
+                    <% } else { %>
+                        <p class="text-muted">لا توجد تبعيات — هذه الحزمة مستقلة 🎯</p>
+                    <% } %>
+                </div>
+
+                <!-- ------------------------------------------------------ -->
+                <!-- قسم الإصدارات: جدول يعرض كل إصدارات الحزمة              -->
+                <!-- يشمل: رقم الإصدار، عدد التنزيلات، تاريخ النشر، الحالة  -->
+                <!-- Versions Section: table of all package versions         -->
+                <!-- Includes: version number, downloads, date, status       -->
+                <!-- ------------------------------------------------------ -->
+                <div class="versions-section">
+                    <h3>🏷️ الإصدارات (<%= versions.length %>)</h3>
+
+                    <% if (versions.length > 0) { %>
+                        <table class="versions-table">
+                            <thead>
+                                <tr>
+                                    <th>الإصدار</th>
+                                    <th>التنزيلات</th>
+                                    <th>تاريخ النشر</th>
+                                    <th>الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% versions.forEach(function(ver) { %>
+                                    <tr class="<%= ver.is_yanked ? 'yanked' : '' %>">
+                                        <%# رقم الإصدار بخط monospace %>
+                                        <td><code><%= ver.version %></code></td>
+
+                                        <%# عدد تنزيلات هذا الإصدار %>
+                                        <td><%= (ver.downloads || 0).toLocaleString('ar-SA') %></td>
+
+                                        <%# تاريخ النشر بالتنسيق العربي %>
+                                        <td>
+                                            <% if (ver.created_at) { %>
+                                                <%= new Date(ver.created_at).toLocaleDateString('ar-SA') %>
+                                            <% } else { %>
+                                                —
+                                            <% } %>
+                                        </td>
+
+                                        <%# حالة الإصدار: مسحوب أم فعال %>
+                                        <td>
+                                            <% if (ver.is_yanked) { %>
+                                                <span style="color: var(--danger);">🚫 مسحوب</span>
+                                            <% } else { %>
+                                                <span style="color: var(--success);">✅ فعال</span>
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    <% } else { %>
+                        <p class="text-muted">لا توجد إصدارات</p>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- ========================================================== -->
+            <!-- الشريط الجانبي: إحصائيات + معلومات + مالكين                 -->
+            <!-- Sidebar: stats + info + owners                             -->
+            <!-- ========================================================== -->
+            <div class="package-detail-sidebar">
+
+                <!-- ------------------------------------------------------ -->
+                <!-- قسم الإحصائيات: التنزيلات الكلية + عدد الإصدارات        -->
+                <!-- Stats Section: total downloads + version count          -->
+                <!-- ------------------------------------------------------ -->
+                <div class="sidebar-section">
+                    <h4>📊 إحصائيات</h4>
+                    <dl class="stats-dl">
+                        <dt>التنزيلات الكلية:</dt>
+                        <dd><%= (pkg.total_downloads || 0).toLocaleString('ar-SA') %></dd>
+
+                        <dt>عدد الإصدارات:</dt>
+                        <dd><%= versions.length %></dd>
+
+                        <dt>تاريخ الإنشاء:</dt>
+                        <dd>
+                            <% if (pkg.created_at) { %>
+                                <%= new Date(pkg.created_at).toLocaleDateString('ar-SA') %>
+                            <% } else { %>
+                                —
+                            <% } %>
+                        </dd>
+
+                        <dt>آخر تحديث:</dt>
+                        <dd>
+                            <% if (pkg.updated_at) { %>
+                                <%= new Date(pkg.updated_at).toLocaleDateString('ar-SA') %>
+                            <% } else { %>
+                                —
+                            <% } %>
+                        </dd>
+                    </dl>
+                </div>
+
+                <!-- ------------------------------------------------------ -->
+                <!-- قسم المعلومات: الرخصة + المستودع + الصفحة               -->
+                <!-- Info Section: license + repository + homepage           -->
+                <!-- ------------------------------------------------------ -->
+                <div class="sidebar-section">
+                    <h4>📋 معلومات</h4>
+                    <dl class="stats-dl">
+                        <dt>الرخصة:</dt>
+                        <dd><%= pkg.license || 'غير محددة' %></dd>
+
+                        <% if (pkg.repository) { %>
+                            <dt>المستودع:</dt>
+                            <dd><a href="<%= pkg.repository %>" target="_blank" rel="noopener">🔗 GitHub</a></dd>
+                        <% } %>
+
+                        <% if (pkg.homepage) { %>
+                            <dt>الصفحة:</dt>
+                            <dd><a href="<%= pkg.homepage %>" target="_blank" rel="noopener">🌐 الموقع</a></dd>
+                        <% } %>
+                    </dl>
+                </div>
+
+                <!-- ------------------------------------------------------ -->
+                <!-- قسم المالكين: قائمة المستخدمين الذين يمكنهم النشر       -->
+                <!-- Owners Section: list of users who can publish           -->
+                <!-- ------------------------------------------------------ -->
+                <div class="sidebar-section">
+                    <h4>👥 المالكون</h4>
+                    <% if (owners.length > 0) { %>
+                        <ul class="owners-list">
+                            <% owners.forEach(function(owner) { %>
+                                <li>
+                                    <span><%= owner.display_name || owner.username %></span>
+                                    <span class="owner-role"><%= owner.role %></span>
+                                </li>
+                            <% }); %>
+                        </ul>
+                    <% } else { %>
+                        <p class="text-muted">👤 <%= pkg.author %></p>
+                    <% } %>
+                </div>
+
+                <!-- ------------------------------------------------------ -->
+                <!-- قسم الكلمات المفتاحية (Tags)                            -->
+                <!-- Keywords Section                                        -->
+                <!-- ------------------------------------------------------ -->
+                <% 
+                    var keywords = [];
+                    try { keywords = JSON.parse(pkg.keywords || '[]'); } catch(e) {}
+                %>
+                <% if (keywords.length > 0) { %>
+                    <div class="sidebar-section">
+                        <h4>🏷️ كلمات مفتاحية</h4>
+                        <div class="filter-tags">
+                            <% keywords.forEach(function(kw) { %>
+                                <a href="/search?q=<%= encodeURIComponent(kw) %>" class="tag"><%= kw %></a>
+                            <% }); %>
+                        </div>
+                    </div>
+                <% } %>
+
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<%- include('partials/footer') %>

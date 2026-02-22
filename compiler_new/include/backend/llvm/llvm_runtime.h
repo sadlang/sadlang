@@ -464,12 +464,20 @@ void sad_llvm_print_int(int64_t value);
 void sad_llvm_print_float(double value);
 
 /**
- * قراءة سطر من الإدخال
- * Read line from input
+ * قراءة سطر من الإدخال - تُرجع SadString*
+ * Read line from input - returns SadString*
  * 
  * @return نص / String
  */
 void* sad_llvm_input();
+
+/**
+ * قراءة سطر من الإدخال - تُرجع char* مباشرة (للتوافق مع printf)
+ * Read line from input - returns char* directly (printf compatible)
+ * 
+ * @return نص C / C string
+ */
+const char* sad_llvm_input_cstr();
 
 /**
  * قراءة عدد صحيح

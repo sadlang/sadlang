@@ -1,0 +1,181 @@
+// بسم الله الرحمن الرحيم
+// ══════════════════════════════════════════════════════════════════════════════
+// ملف: signature_help_provider.cpp
+// الوصف: مزود مساعدة التوقيع الثوري - يعرض معلمات الدالة أثناء الكتابة
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// المميزات الثورية:
+//   ✦ عرض توقيع الدالة مع تمييز المعلمة النشطة
+//   ✦ دعم التوقيعات المتعددة (overloads)
+//   ✦ توثيق markdown لكل معلمة
+//   ✦ دعم الاستدعاءات المتداخلة: دالة١(دالة٢(|))
+//   ✦ دعم الفاصلة العربية (،) والإنجليزية (,)
+//   ✦ عرض نوع الإرجاع
+//   ✦ عرض معلومات غير متزامن / مولّد
+//
+// ══════════════════════════════════════════════════════════════════════════════
+
+#include "lsp_engine.h"
+#include "arabic_utils.h"
+
+namespace sad {
+namespace lsp {
+
+SignatureHelp LspEngine::signature_help(const DocumentUri& uri, const Position& pos) {
+    SignatureHelp help;
+
+    auto doc = doc_store_->get(uri);
+    if (!doc) return help;
+
+    std::string line = doc_store_->get_line(uri, pos.line);
+    if (line.empty()) return help;
+
+    // ──── تحليل سياق الاستدعاء (يدعم التداخل) ────
+    // نبني مكدس من سياقات الاستدعاء
+    struct CallContext {
+        std::string func_name;
+        int param_index;        // فهرس المعلمة النشطة
+        int open_paren_col;     // موضع قوس الفتح
+    };
+    std::vector<CallContext> call_stack;
+
+    int col = std::min(pos.character, static_cast<int>(line.size()));
+    int paren_depth = 0;
+    int current_param = 0;
+
+    // نمسح من الموضع الحالي للخلف
+    for (int i = col - 1; i >= 0; i--) {
+        if (i >= static_cast<int>(line.size())) continue;
+        char c = line[i];
+
+        if (c == ')') {
+            paren_depth++;
+        }
+        else if (c == '(') {
+            if (paren_depth == 0) {
+                // وجدنا قوس الفتح - نقرأ اسم الدالة
+                int func_end = i;
+                int func_start = func_end - 1;
+                // نتخطى المسافات
+                while (func_start >= 0 && (line[func_start] == ' ' || line[func_start] == '\t'))
+                    func_start--;
+                // نقرأ الاسم
+                int name_end = func_start + 1;
+                while (func_start >= 0 && line[func_start] != ' ' &&
+                       line[func_start] != '\t' && line[func_start] != '(' &&
+                       line[func_start] != ',' && line[func_start] != '=' &&
+                       line[func_start] != '.') {
+                    func_start--;
+                }
+                func_start++;
+
+                if (func_start < name_end) {
+                    CallContext ctx;
+                    ctx.func_name = line.substr(func_start, name_end - func_start);
+                    ctx.param_index = current_param;
+                    ctx.open_paren_col = i;
+                    call_stack.push_back(ctx);
+                }
+                // ننتقل للمستوى الأعلى
+                current_param = 0;
+                continue;
+            }
+            paren_depth--;
+        }
+        else if (paren_depth == 0) {
+            // الفاصلة العربية أو الإنجليزية
+            if (c == ',') {
+                current_param++;
+            }
+            // الفاصلة العربية (، = 0xD8 0x8C)
+            else if (i + 1 < static_cast<int>(line.size()) &&
+                     static_cast<unsigned char>(c) == 0xD8 &&
+                     static_cast<unsigned char>(line[i+1]) == 0x8C) {
+                current_param++;
+            }
+        }
+    }
+
+    if (call_stack.empty()) return help;
+
+    // ──── بناء التوقيعات لأقرب سياق استدعاء ────
+    const auto& ctx = call_stack.front(); // أعمق سياق (أقرب للمؤشر)
+
+    auto def = index_->find_definition(ctx.func_name, uri, pos);
+    if (!def || !def->func_info) return help;
+
+    SignatureInformation sig;
+
+    // ──── بناء التوقيع بتنسيق غني ────
+    std::string label;
+
+    // مؤشرات: غير_متزامن / مولّد
+    if (def->func_info->is_async) {
+        label += "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xaa\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86 "; // غير_متزامن
+    }
+    if (def->func_info->is_generator) {
+        label += "\xd9\x85\xd9\x88\xd9\x84\xd9\x91\xd8\xaf "; // مولّد
+    }
+
+    label += def->name + "(";
+
+    bool first = true;
+    for (const auto& [pname, ptype] : def->func_info->parameters) {
+        if (!first) label += ", ";
+        first = false;
+
+        std::string param_label = pname;
+        if (!ptype.name.empty() && ptype.name != "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf") {
+            param_label += ": " + ptype.name;
+        }
+
+        // حفظ نطاق المعلمة في التسمية (لتمييزها)
+        ParameterInformation pi;
+        pi.label = param_label;
+
+        // توثيق المعلمة
+        std::string param_doc = "**" + pname + "**";
+        if (!ptype.name.empty() && ptype.name != "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf") {
+            param_doc += " (`" + ptype.name + "`)";
+        }
+        pi.documentation = param_doc;
+        sig.parameters.push_back(pi);
+
+        label += param_label;
+    }
+    label += ")";
+
+    // نوع الإرجاع
+    if (!def->func_info->return_type.name.empty() &&
+        def->func_info->return_type.name != "\xd8\xb9\xd8\xaf\xd9\x85" && // عدم
+        def->func_info->return_type.name != "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf") { // غير_محدد
+        label += " \xe2\x86\x90 " + def->func_info->return_type.name; // ←
+    }
+
+    sig.label = label;
+    sig.active_parameter = ctx.param_index;
+
+    // توثيق الدالة
+    if (!def->documentation.empty()) {
+        sig.documentation = def->documentation;
+    } else {
+        // توثيق تلقائي
+        std::string auto_doc;
+        if (def->is_builtin) {
+            auto_doc = "\xf0\x9f\x94\xa7 **دالة مدمجة**\n\n";
+        }
+        auto_doc += "`" + def->name + "` - ";
+        auto_doc += std::to_string(def->func_info->parameters.size());
+        auto_doc += " \xd9\x85\xd8\xb9\xd9\x84\xd9\x85\xd8\xa9"; // معلمة
+        sig.documentation = auto_doc;
+    }
+
+    help.signatures.push_back(sig);
+    help.active_signature = 0;
+    help.active_parameter = ctx.param_index;
+
+    return help;
+}
+
+} // namespace lsp
+} // namespace sad

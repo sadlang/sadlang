@@ -50,15 +50,19 @@
 #include "value.h"
 #include "variable_manager.h"
 #include "function_manager.h"
+#include "ownership_manager.h"
 #include "token.h"
 #include "exception.h"  // For RuntimeError, TypeError, etc.
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 
 // Forward declaration to avoid circular dependency
 namespace Sad {
 namespace Data {
     class ClassType;
+    struct OperatorOverload;
 }
 namespace Interpreter {
     class StatementExecutor;
@@ -104,11 +108,13 @@ public:
     ExpressionEvaluator(Data::VariableManager& varMgr, 
                        Data::FunctionManager& funcMgr, 
                        Data::ScopeManager& scopeMgr,
-                       StatementExecutor& executor)
+                       StatementExecutor& executor,
+                       Data::OwnershipManager& ownershipMgr)
         : variableManager_(varMgr), 
           functionManager_(funcMgr), 
           scopeManager_(scopeMgr),
           statementExecutor_(executor),
+          ownershipManager_(ownershipMgr),
           lastResult_() {}
     
     /**
@@ -160,6 +166,12 @@ public:
     void visitVariableExpr(AST::VariableExpr& node) override;
     
     /**
+     * @brief (AR) تنفيذ تعبير الاستعارة (&x، &متغير x)
+     * @brief (EN) Execute borrow expression (&x, &mut x)
+     */
+    void visitBorrowExpr(AST::BorrowExpr& node) override;
+    
+    /**
      * @brief (AR) تنفيذ تعبير 'هذا' (this)
      * @brief (EN) Execute 'this' expression
      */
@@ -189,6 +201,12 @@ public:
      * @brief (EN) Member access (obj.field)
      */
     void visitMemberExpr(AST::MemberExpr& node) override;
+    
+    /**
+     * @brief (AR) الوصول لعضو (obj.field) — عقدة class_nodes.h
+     * @brief (EN) Member access (obj.field) — class_nodes.h node
+     */
+    void visitMemberAccessExpr(AST::MemberAccessExpr& node) override;
     
     /**
      * @brief (AR) إنشاء مصفوفة ([1, 2, 3])
@@ -255,6 +273,12 @@ public:
     void visitMemberAssignExpr(AST::MemberAssignExpr& node) override;
     
     /**
+     * @brief (AR) تقييم الإسناد بالفهرس (م[0] = قيمة، قاموس["مفتاح"] = قيمة)
+     * @brief (EN) Evaluate index assignment (arr[0] = value, map["key"] = value)
+     */
+    void visitIndexAssignExpr(AST::IndexAssignExpr& node) override;
+    
+    /**
      * @brief (AR) تقييم استدعاء طريقة على كائن (obj.method(args))
      * @brief (EN) Evaluate method call on object (obj.method(args))
      */
@@ -266,12 +290,97 @@ public:
      */
     void visitTemplateInstantiation(AST::TemplateInstantiation& node) override;
     
+    /**
+     * @brief (AR) تقييم تعبير مولّد (yield expression)
+     * @brief (EN) Evaluate generator expression (yield expression)
+     */
+    void visitGeneratorExpr(AST::GeneratorExpr& node) override;
+    
+    /**
+     * @brief (AR) تقييم تعبير مزخرف (@decorator)
+     * @brief (EN) Evaluate decorator expression (@decorator)
+     */
+    void visitDecoratorExpr(AST::DecoratorExpr& node) override;
+    
+    /**
+     * @brief (AR) تقييم تعبير تجميع مضمّن (inline assembly)
+     * @brief (EN) Evaluate inline assembly expression
+     */
+    void visitInlineAsmExpr(AST::InlineAsmExpr& node) override;
+    void visitRangeExpr(AST::RangeExpr& node) override;
+    
 private:
     Data::VariableManager& variableManager_;    ///< (AR) مدير المتغيرات / (EN) Variable manager
     Data::FunctionManager& functionManager_;    ///< (AR) مدير الدوال / (EN) Function manager
     Data::ScopeManager& scopeManager_;          ///< (AR) مدير النطاقات / (EN) Scope manager
     StatementExecutor& statementExecutor_;      ///< (AR) منفذ العبارات / (EN) Statement executor
+    Data::OwnershipManager& ownershipManager_;  ///< (AR) مدير الملكية / (EN) Ownership manager
     Data::Value lastResult_;                    ///< (AR) آخر نتيجة / (EN) Last result
+    
+    // (AR) عدّاد عمق الاستدعاء لمنع الاستدعاء التكراري اللانهائي
+    // (EN) Call depth counter to prevent infinite recursion
+    size_t currentCallDepth_ = 0;
+    size_t maxCallDepth_ = 1000;
+    
+    // =====================================================================
+    // (AR) تحسين النصوص العربية / (EN) Arabic String Optimization
+    // =====================================================================
+    
+    /**
+     * @brief (AR) مُجمّع النصوص - يُخزّن النصوص المتكررة مرة واحدة فقط
+     * @brief (EN) String Pool - stores repeated strings only once
+     * 
+     * عندما يصادف المفسّر نصاً حرفياً، يفحص هل هو موجود في المُجمّع.
+     * إذا كان موجوداً، يُعيد مرجعاً للنسخة المُخزّنة بدلاً من إنشاء نسخة جديدة.
+     * هذا يوفر الذاكرة خاصةً مع النصوص العربية المتكررة.
+     */
+    std::unordered_set<std::string> stringPool_;
+    
+    /**
+     * @brief (AR) كتابة القيمة رجوعاً عبر سلسلة التعبيرات المتداخلة
+     * @brief (EN) Write value back through nested expression chain
+     * 
+     * (AR) تستخدم لدعم التعيين المتداخل العميق مثل a.b.c.d = val أو arr[0][1].x = val.
+     *      تتبع سلسلة التعبيرات للوصول للمتغير الجذري وتكتب القيمة المعدلة.
+     * (EN) Used to support deep nested assignment like a.b.c.d = val or arr[0][1].x = val.
+     *      Traces the expression chain to find the root variable and writes the modified value.
+     * 
+     * @param expr (AR) التعبير الذي نريد كتابة القيمة إليه / (EN) Expression to write value to
+     * @param value (AR) القيمة المراد كتابتها / (EN) Value to write
+     */
+    void writeBackChain(AST::Expression* expr, const Data::Value& value);
+    
+    /**
+     * @brief (AR) إحصائيات التحسين العربي للمفسّر
+     * @brief (EN) Arabic optimization statistics for interpreter
+     */
+    struct ArabicOptStats {
+        size_t totalStrings = 0;      ///< (AR) مجموع النصوص / (EN) Total strings
+        size_t pooledStrings = 0;     ///< (AR) النصوص المُدمجة / (EN) Pooled (deduplicated) strings
+        size_t poolHits = 0;          ///< (AR) عدد الإصابات / (EN) Pool hits
+        size_t arabicStrings = 0;     ///< (AR) النصوص العربية / (EN) Arabic strings
+        size_t savedBytes = 0;        ///< (AR) البايتات الموفرة / (EN) Saved bytes
+    } arabicOptStats_;
+    
+    /**
+     * @brief (AR) فحص إذا كان النص يحتوي أحرف عربية
+     * @brief (EN) Check if string contains Arabic characters
+     */
+    static bool containsArabic(const std::string& str);
+    
+    /**
+     * @brief (AR) تجميع نص في المُجمّع (intern)
+     * @brief (EN) Intern a string into the pool
+     * @return (AR) مرجع للنص المُجمّع / (EN) Reference to the pooled string
+     */
+    const std::string& internString(const std::string& str);
+    
+public:
+    /**
+     * @brief (AR) طباعة إحصائيات التحسين العربي
+     * @brief (EN) Print Arabic optimization statistics
+     */
+    void printArabicOptStats() const;
     
     /**
      * @brief (AR) تنفيذ عملية ثنائية حسابية
@@ -290,6 +399,24 @@ private:
      * @brief (EN) Execute logical operation
      */
     Data::Value evaluateLogicalOp(const Data::Value& left, Lexer::TokenType op, const Data::Value& right, const Lexer::Position& pos);
+
+    /**
+     * @brief (AR) تنفيذ عمليات البت: ^ | & << >>
+     * @brief (EN) Execute bitwise operations: ^ | & << >>
+     */
+    Data::Value evaluateBitwiseOp(const Data::Value& left, Lexer::TokenType op, const Data::Value& right, const Lexer::Position& pos);
+    
+    /**
+     * @brief (AR) تنفيذ عامل محمل زائداً على كائن
+     * @brief (EN) Execute operator overload on an object
+     * 
+     * @param left (const Data::Value&) — (AR) الكائن (الطرف الأيسر) / (EN) object (left operand)
+     * @param overload (Data::OperatorOverload&) — (AR) تعريف العامل / (EN) operator definition
+     * @param right (const Data::Value&) — (AR) الطرف الأيمن / (EN) right operand
+     * @param pos (const Lexer::Position&) — (AR) موقع في الكود / (EN) source position
+     * @return (Data::Value) — (AR) نتيجة العملية / (EN) operation result
+     */
+    Data::Value executeOperatorOverload(const Data::Value& left, Data::OperatorOverload& overload, const Data::Value& right, const Lexer::Position& pos);
     
     /**
      * @brief (AR) تحويل Token إلى Value

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الأمان — مستودع حزم لغة ص</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .severity-critical { background: #dc3545; color: white; }
+        .severity-high { background: #fd7e14; color: white; }
+        .severity-medium { background: #ffc107; color: #000; }
+        .severity-low { background: #28a745; color: white; }
+        .severity-badge { padding: 4px 12px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; }
+        .advisory-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-right: 4px solid var(--primary); }
+        .advisory-card.critical { border-right-color: #dc3545; }
+        .advisory-card.high { border-right-color: #fd7e14; }
+        .advisory-card.medium { border-right-color: #ffc107; }
+        .advisory-card.low { border-right-color: #28a745; }
+        .advisory-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .advisory-title { font-size: 1.2rem; font-weight: 600; margin: 0; }
+        .advisory-id { font-size: 0.9rem; color: #666; font-family: monospace; }
+        .advisory-meta { display: flex; gap: 20px; color: #666; font-size: 0.9rem; margin-top: 12px; }
+        .keys-section { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 40px 0; }
+        .key-card { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 12px; }
+        .key-fingerprint { font-family: monospace; font-size: 0.85rem; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 6px; word-break: break-all; }
+        .check-form { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .check-result { margin-top: 20px; padding: 20px; border-radius: 8px; }
+        .check-result.safe { background: #d4edda; border: 1px solid #c3e6cb; }
+        .check-result.vulnerable { background: #f8d7da; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <!-- شريط التنقل -->
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="navbar-brand">
+                <span class="brand-icon">ص</span>
+                <span class="brand-text">مستودع الحزم</span>
+            </a>
+            <div class="navbar-search">
+                <form id="searchForm" action="/search.html" method="GET">
+                    <input type="text" name="q" id="searchInput" placeholder="ابحث عن حزمة..." autocomplete="off" dir="auto">
+                    <button type="submit" class="btn-search">🔍</button>
+                </form>
+            </div>
+            <div class="navbar-actions">
+                <a href="/search.html" class="nav-link">استكشاف</a>
+                <a href="/organizations.html" class="nav-link">المنظمات</a>
+                <a href="/security.html" class="nav-link active">الأمان</a>
+                <a href="#" class="nav-link" id="loginBtn">تسجيل الدخول</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- القسم الرئيسي -->
+    <section class="page-header" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white;">
+        <div class="container">
+            <h1>🛡️ مركز الأمان</h1>
+            <p>استشارات أمنية، توقيعات رقمية، وفحص الثغرات</p>
+        </div>
+    </section>
+
+    <!-- فحص الحزم -->
+    <section class="check-section" style="padding: 40px 0; background: #f8f9fa;">
+        <div class="container">
+            <div class="check-form">
+                <h2>🔍 فحص حزمة</h2>
+                <p>تحقق من وجود ثغرات أمنية معروفة في حزمة معينة</p>
+                <form id="checkForm" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px;">
+                    <input type="text" id="checkPackage" placeholder="اسم الحزمة" style="flex: 2; min-width: 200px;" required>
+                    <input type="text" id="checkVersion" placeholder="الإصدار (مثال: 1.2.3)" style="flex: 1; min-width: 120px;" required>
+                    <button type="submit" class="btn btn-primary">فحص</button>
+                </form>
+                <div id="checkResult" style="display: none;"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- الاستشارات الأمنية -->
+    <section class="advisories-section" style="padding: 40px 0;">
+        <div class="container">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2 class="section-title">⚠️ الاستشارات الأمنية الأخيرة</h2>
+                <div class="filter-buttons">
+                    <button class="btn btn-small active" data-severity="all">الكل</button>
+                    <button class="btn btn-small" data-severity="critical">حرج</button>
+                    <button class="btn btn-small" data-severity="high">عالي</button>
+                    <button class="btn btn-small" data-severity="medium">متوسط</button>
+                </div>
+            </div>
+            <div id="advisoriesList">
+                <div class="advisory-card critical">
+                    <div class="advisory-header">
+                        <div>
+                            <h3 class="advisory-title">ثغرة حقن أوامر في حزمة شبكة</h3>
+                            <span class="advisory-id">SAD-2024-001</span>
+                        </div>
+                        <span class="severity-badge severity-critical">حرج</span>
+                    </div>
+                    <p>تسمح هذه الثغرة للمهاجم بحقن أوامر نظام عبر معاملات URL غير معقمة.</p>
+                    <div class="advisory-meta">
+                        <span>📦 شبكة</span>
+                        <span>⚠️ متأثر: &lt;2.1.0</span>
+                        <span>✅ مُصحح: &gt;=2.1.0</span>
+                        <span>📅 2024-01-15</span>
+                    </div>
+                </div>
+                <div class="advisory-card high">
+                    <div class="advisory-header">
+                        <div>
+                            <h3 class="advisory-title">تسرب ذاكرة في معالج JSON</h3>
+                            <span class="advisory-id">SAD-2024-002</span>
+                        </div>
+                        <span class="severity-badge severity-high">عالي</span>
+                    </div>
+                    <p>قد يؤدي معالجة ملفات JSON كبيرة إلى تسرب ذاكرة وإنهاك موارد النظام.</p>
+                    <div class="advisory-meta">
+                        <span>📦 محلل-json</span>
+                        <span>⚠️ متأثر: 1.0.0 - 1.4.2</span>
+                        <span>✅ مُصحح: &gt;=1.4.3</span>
+                        <span>📅 2024-01-10</span>
+                    </div>
+                </div>
+                <div class="advisory-card medium">
+                    <div class="advisory-header">
+                        <div>
+                            <h3 class="advisory-title">مشكلة في التحقق من الشهادات</h3>
+                            <span class="advisory-id">SAD-2024-003</span>
+                        </div>
+                        <span class="severity-badge severity-medium">متوسط</span>
+                    </div>
+                    <p>لا يتم التحقق بشكل صحيح من شهادات SSL في بعض الحالات النادرة.</p>
+                    <div class="advisory-meta">
+                        <span>📦 تشفير</span>
+                        <span>⚠️ متأثر: &lt;3.0.0</span>
+                        <span>✅ مُصحح: &gt;=3.0.0</span>
+                        <span>📅 2024-01-05</span>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 24px;">
+                <a href="/api/v1/advisories" class="btn btn-secondary">عرض جميع الاستشارات</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- مفاتيح التوقيع -->
+    <section class="keys-section">
+        <div class="container">
+            <h2 class="section-title" style="color: white;">🔑 مفاتيح التوقيع الرقمي</h2>
+            <p style="color: rgba(255,255,255,0.8); margin-bottom: 30px;">
+                وقّع حزمك رقمياً للتحقق من هويتك وضمان عدم التلاعب
+            </p>
+            
+            <div id="myKeysSection" style="display:none;">
+                <h3 style="color: white; margin-bottom: 16px;">مفاتيحي</h3>
+                <div id="myKeysList"></div>
+                <button class="btn btn-primary" id="generateKeyBtn" style="margin-top: 16px;">+ إنشاء مفتاح جديد</button>
+            </div>
+            
+            <div class="features-grid" style="margin-top: 30px;">
+                <div class="feature-card" style="background: rgba(255,255,255,0.1);">
+                    <span class="feature-icon">🔏</span>
+                    <h3 style="color: white;">توقيع تلقائي</h3>
+                    <p style="color: rgba(255,255,255,0.7);">يتم توقيع كل إصدار جديد تلقائياً بمفتاحك</p>
+                </div>
+                <div class="feature-card" style="background: rgba(255,255,255,0.1);">
+                    <span class="feature-icon">✅</span>
+                    <h3 style="color: white;">تحقق عند التثبيت</h3>
+                    <p style="color: rgba(255,255,255,0.7);">يتحقق مدير الحزم من التوقيع تلقائياً</p>
+                </div>
+                <div class="feature-card" style="background: rgba(255,255,255,0.1);">
+                    <span class="feature-icon">🛡️</span>
+                    <h3 style="color: white;">حماية سلسلة التوريد</h3>
+                    <p style="color: rgba(255,255,255,0.7);">منع التلاعب والحزم المزيفة</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- سياسة الأمان -->
+    <section class="policy-section" style="padding: 40px 0;">
+        <div class="container">
+            <h2 class="section-title">📋 سياسة الإبلاغ عن الثغرات</h2>
+            <div style="max-width: 800px; margin: 0 auto;">
+                <div class="feature-card">
+                    <h3>كيف تبلغ عن ثغرة؟</h3>
+                    <ol style="line-height: 2; padding-right: 20px;">
+                        <li>أرسل تقريراً مفصلاً إلى <strong>security@sad-lang.org</strong></li>
+                        <li>اشرح الثغرة وطريقة استغلالها</li>
+                        <li>انتظر ردنا خلال 48 ساعة</li>
+                        <li>لا تنشر الثغرة علنياً قبل إصدار التصحيح</li>
+                    </ol>
+                    <p style="margin-top: 16px; padding: 12px; background: #e8f5e9; border-radius: 8px;">
+                        🏆 نقدم مكافآت للباحثين الأمنيين الذين يكتشفون ثغرات حرجة!
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- التذييل -->
+    <footer class="footer">
+        <div class="container footer-content">
+            <div class="footer-brand">
+                <span class="brand-icon">ص</span>
+                <p>مستودع حزم لغة ص — النسخة 2.0 الثورية</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <h4>الأمان</h4>
+                    <a href="/security.html">الاستشارات</a>
+                    <a href="mailto:security@sad-lang.org">الإبلاغ</a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <p>بسم الله الرحمن الرحيم — صُنع بـ ❤️ للمطورين العرب</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/app.js"></script>
+    <script>
+        // فحص حزمة
+        document.getElementById('checkForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const pkg = document.getElementById('checkPackage').value;
+            const ver = document.getElementById('checkVersion').value;
+            const resultDiv = document.getElementById('checkResult');
+            
+            resultDiv.innerHTML = '<p>جارٍ الفحص...</p>';
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'check-result';
+            
+            try {
+                const res = await fetch(`/api/v1/packages/${encodeURIComponent(pkg)}/${encodeURIComponent(ver)}/advisories`);
+                const data = await res.json();
+                
+                if (data.vulnerable) {
+                    resultDiv.className = 'check-result vulnerable';
+                    resultDiv.innerHTML = `
+                        <h3>⚠️ توجد ثغرات معروفة!</h3>
+                        <ul>
+                            ${data.advisories.map(a => `
+                                <li>
+                                    <strong>${a.identifier}</strong>: ${a.title}
+                                    <span class="severity-badge severity-${a.severity}">${a.severity}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                        <p>ننصح بالترقية إلى إصدار أحدث.</p>
+                    `;
+                } else {
+                    resultDiv.className = 'check-result safe';
+                    resultDiv.innerHTML = `
+                        <h3>✅ لا توجد ثغرات معروفة</h3>
+                        <p>الإصدار ${ver} من ${pkg} آمن حسب قاعدة بياناتنا.</p>
+                    `;
+                }
+            } catch (e) {
+                resultDiv.className = 'check-result';
+                resultDiv.innerHTML = '<p>خطأ في الفحص. تأكد من اسم الحزمة والإصدار.</p>';
+            }
+        });
+
+        // تحميل مفاتيحي
+        async function loadMyKeys() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            
+            document.getElementById('myKeysSection').style.display = 'block';
+            
+            try {
+                const res = await fetch('/api/v1/keys', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                const list = document.getElementById('myKeysList');
+                
+                if (data.keys && data.keys.length > 0) {
+                    list.innerHTML = data.keys.map(key => `
+                        <div class="key-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong>${key.name}</strong>
+                                <span style="color: ${key.is_active ? '#28a745' : '#dc3545'}">
+                                    ${key.is_active ? '✓ نشط' : '✗ ملغى'}
+                                </span>
+                            </div>
+                            <div class="key-fingerprint" style="margin-top: 12px;">
+                                ${key.fingerprint}
+                            </div>
+                            <div style="margin-top: 8px; font-size: 0.85rem; color: rgba(255,255,255,0.6);">
+                                ${key.key_type} • أُنشئ: ${key.created_at}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    list.innerHTML = '<p style="color: rgba(255,255,255,0.7);">لا توجد مفاتيح بعد.</p>';
+                }
+            } catch (e) {
+                console.error('Error loading keys:', e);
+            }
+        }
+
+        // تصفية الاستشارات
+        document.querySelectorAll('.filter-buttons button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-buttons button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                // TODO: filter advisories by severity
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', loadMyKeys);
+    </script>
+</body>
+</html>

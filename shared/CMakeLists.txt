@@ -16,9 +16,13 @@ add_library(sad_shared STATIC
     # Parser
     parser/src/parser_core.cpp
     parser/src/parser_core_helpers.cpp
-    parser/src/parser_core_impl.cpp
+    parser/src/parser_core_main.cpp
     parser/src/parser_core_oop.cpp
     parser/src/parser_modules.cpp
+    parser/src/parser_statements.cpp
+    parser/src/parser_expressions.cpp
+    parser/src/parser_declarations.cpp
+    parser/src/parser_advanced.cpp
     
     # AST
     ast/src/ast_node.cpp
@@ -29,6 +33,10 @@ add_library(sad_shared STATIC
     ast/src/property_nodes.cpp
     ast/src/statements.cpp
     ast/src/type_nodes.cpp
+    ast/src/class_nodes.cpp          # OOP AST nodes (ThisExpr, SuperExpr, NewExpr, etc.)
+    
+    # OOP Managers (مطلوبة للمترجم sadc)
+    ${CMAKE_SOURCE_DIR}/interpreter_new/src/managers/class_manager.cpp
     
     # Types
     types/src/class_type.cpp
@@ -40,6 +48,16 @@ add_library(sad_shared STATIC
     errors/src/diagnostic.cpp
     errors/src/error_codes.cpp
     errors/src/error_manager.cpp
+    
+    # Smart Errors - Phase 15
+    errors/src/smart_errors.cpp
+    errors/src/smart_suggestions.cpp
+    errors/src/smart_type_explanations.cpp
+    errors/src/smart_multi_error.cpp
+    errors/src/smart_fix_suggestions.cpp
+    errors/src/smart_teacher_mode.cpp
+    errors/src/smart_error_recovery.cpp
+    errors/src/smart_cascade_prevention.cpp
     
     # Modules
     modules/src/dependency_graph.cpp
@@ -64,6 +82,7 @@ target_include_directories(sad_shared
         ${CMAKE_CURRENT_SOURCE_DIR}/errors/include
         ${CMAKE_CURRENT_SOURCE_DIR}/modules/include
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/include
+        ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers   # ClassManager header
 )
 
 # للتوافق مع الكود القديم
@@ -82,6 +101,11 @@ target_include_directories(sad_shared
 )
 
 target_compile_features(sad_shared PUBLIC cxx_std_17)
+
+# إصلاح مشكلة PDB / Fix PDB lock issue
+if(MSVC)
+    target_compile_options(sad_shared PRIVATE /FS /utf-8)
+endif()
 
 # رسالة تأكيد
 message(STATUS "Configured sad_shared library")

@@ -174,7 +174,7 @@ public:
     /**
      * @brief Constructor with registry URL - منشئ مع URL السجل
      */
-    explicit RegistryClient(const std::string& registry_url = "https://packages.sadlang.org")
+    explicit RegistryClient(const std::string& registry_url = "http://185.47.174.39:3000")
         : registry_url_(registry_url), http_client_() {}
 
     /**
@@ -442,9 +442,9 @@ private:
         // List of files to copy
         std::vector<std::string> files_to_copy = {
             "sad.toml",
-            "main.s",
-            "firebase.sad",
-            "package_registry.s",
+            "main.ص",
+            "firebase.ص",
+            "package_registry.ص",
             "README.md",
             "LICENSE"
         };

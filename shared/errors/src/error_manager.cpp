@@ -12,6 +12,7 @@
  */
 
 #include "error_manager.h"
+#include "smart_errors.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -80,6 +81,12 @@ void ErrorManager::reportError(ErrorCode code,
     
     Diagnostic diag(code, DiagnosticSeverity::ERROR, location,
                    message_ar, message_en);
+    
+    // Phase 15: Smart Error enrichment
+    if (smartErrorsEnabled_) {
+        diag = SmartErrorSystem::getInstance().enrichDiagnostic(diag);
+    }
+    
     sink_.add(diag);
 }
 

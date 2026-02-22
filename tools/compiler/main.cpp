@@ -4,31 +4,50 @@
 // Phase 7.2: Compiler Driver
 
 #include "compiler_driver.h"
+#include "../../shared/utils/include/utf8_utils.h"
 #include <iostream>
 #include <cstdlib>
+#include <vector>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 /**
  * @brief Main entry point / نقطة الدخول الرئيسية
  * 
  * (AR) برنامج sadc - المترجم الرئيسي للغة Sad
+ *      يدعم أسماء الملفات العربية عبر Windows Unicode API
  * 
  * أمثلة:
- * - sadc program.s -o program
- * - sadc program.s -O3 -o program_optimized
- * - sadc program.s --emit-llvm -o program.ll
- * - sadc program.s -c -o program.o
+ * - sadc program.ص -o program
+ * - sadc program.ص -O3 -o program_optimized
+ * - sadc program.ص --emit-llvm -o program.ll
+ * - sadc program.ص -c -o program.o
  * - sadc *.o -o program
  * 
  * (EN) sadc program - Main Sad language compiler
+ *      Supports Arabic filenames via Windows Unicode API
  * 
  * Examples:
- * - sadc program.s -o program
- * - sadc program.s -O3 -o program_optimized
- * - sadc program.s --emit-llvm -o program.ll
- * - sadc program.s -c -o program.o
+ * - sadc program.ص -o program
+ * - sadc program.ص -O3 -o program_optimized
+ * - sadc program.ص --emit-llvm -o program.ll
+ * - sadc program.ص -c -o program.o
  * - sadc *.o -o program
  */
 int main(int argc, char* argv[]) {
+#ifdef _WIN32
+    // (AR) الحصول على معاملات سطر الأوامر بترميز UTF-8 لدعم أسماء الملفات العربية
+    // (EN) Get UTF-8 command line args to support Arabic filenames
+    SetConsoleOutputCP(CP_UTF8);
+    auto utf8_args = sad::utf8::get_utf8_args();
+    std::vector<char*> new_argv;
+    for (auto& s : utf8_args) new_argv.push_back(s.data());
+    argc = static_cast<int>(new_argv.size());
+    argv = new_argv.data();
+#endif
+
     // Create compiler driver
     sad::driver::CompilerDriver driver;
     

@@ -48,7 +48,7 @@ void VirtualMachine::op_object_new() {
     new (&mapObj->fields) std::unordered_map<std::string, Value>();
     
     // دفع الكائن على المكدس / Push object to stack
-    push(Value::Object(mapObj));
+    push(Value::Obj(mapObj));
 }
 
 /**
@@ -435,24 +435,24 @@ void VirtualMachine::op_typeof() {
     
     const char* typeName = nullptr;
     switch (v.type) {
-        case VAL_NULL:     typeName = "null"; break;
-        case VAL_BOOL:     typeName = "bool"; break;
-        case VAL_INT:      typeName = "int"; break;
-        case VAL_FLOAT:    typeName = "float"; break;
-        case VAL_STRING:   typeName = "string"; break;
-        case VAL_ARRAY:    typeName = "array"; break;
-        case VAL_OBJECT:   typeName = "object"; break;
-        case VAL_FUNCTION: typeName = "function"; break;
-        case VAL_CLOSURE:  typeName = "closure"; break;
-        case VAL_NATIVE:   typeName = "native"; break;
-        case VAL_POINTER:  typeName = "pointer"; break;
+        case ValueType::VAL_NULL:     typeName = "null"; break;
+        case ValueType::VAL_BOOL:     typeName = "bool"; break;
+        case ValueType::VAL_INT:      typeName = "int"; break;
+        case ValueType::VAL_FLOAT:    typeName = "float"; break;
+        case ValueType::VAL_STRING:   typeName = "string"; break;
+        case ValueType::VAL_ARRAY:    typeName = "array"; break;
+        case ValueType::VAL_OBJECT:   typeName = "object"; break;
+        case ValueType::VAL_FUNCTION: typeName = "function"; break;
+        case ValueType::VAL_CLOSURE:  typeName = "closure"; break;
+        case ValueType::VAL_NATIVE:   typeName = "native"; break;
+        case ValueType::VAL_POINTER:  typeName = "pointer"; break;
         default:           typeName = "unknown"; break;
     }
     
     // (AR) أنشئ نص للنوع
     // (EN) Create type string
     StringObject* typeStr = static_cast<StringObject*>(
-        allocateObject(OBJ_STRING, sizeof(StringObject))
+        allocateObject(ObjectType::OBJ_STRING, sizeof(StringObject))
     );
     
     size_t len = std::strlen(typeName);
@@ -480,19 +480,19 @@ void VirtualMachine::op_cast_string() {
     std::ostringstream oss;
     
     switch (v.type) {
-        case VAL_NULL:
+        case ValueType::VAL_NULL:
             oss << "null";
             break;
-        case VAL_BOOL:
+        case ValueType::VAL_BOOL:
             oss << (v.asBool() ? "true" : "false");
             break;
-        case VAL_INT:
+        case ValueType::VAL_INT:
             oss << v.asInt();
             break;
-        case VAL_FLOAT:
+        case ValueType::VAL_FLOAT:
             oss << v.asFloat();
             break;
-        case VAL_STRING:
+        case ValueType::VAL_STRING:
             push(v); // Already a string
             return;
         default:
@@ -502,7 +502,7 @@ void VirtualMachine::op_cast_string() {
     
     std::string str = oss.str();
     StringObject* strObj = static_cast<StringObject*>(
-        allocateObject(OBJ_STRING, sizeof(StringObject))
+        allocateObject(ObjectType::OBJ_STRING, sizeof(StringObject))
     );
     
     strObj->length = str.length();
@@ -619,7 +619,7 @@ Object* VirtualMachine::allocateObject(ObjectType type, size_t size) {
     
     object->type = type;
     object->isMarked = false;
-    object->gcColor = GC_WHITE;
+    object->gcColor = GCColor::WHITE;
     object->next = objects_;
     objects_ = object;
     
@@ -633,19 +633,21 @@ void VirtualMachine::freeObject(Object* object) {
     if (!object) return;
     
     switch (object->type) {
-        case OBJ_STRING: {
+        case ObjectType::OBJ_STRING: {
             StringObject* str = static_cast<StringObject*>(object);
             delete[] str->chars;
             stats_.bytesFreed += str->length + sizeof(StringObject);
             break;
         }
-        case OBJ_ARRAY: {
+        case ObjectType::OBJ_ARRAY: {
+            // (AR) الـ elements هو vector — ندمره بشكل صحيح
+            // (EN) elements is a vector — destroy it properly
             ArrayObject* arr = static_cast<ArrayObject*>(object);
-            delete[] arr->elements;
-            stats_.bytesFreed += arr->capacity * sizeof(Value) + sizeof(ArrayObject);
+            arr->elements.~vector<Value>();
+            stats_.bytesFreed += sizeof(ArrayObject);
             break;
         }
-        case OBJ_MAP: {
+        case ObjectType::OBJ_MAP: {
             // تحرير خصائص الكائن / Free object properties
             MapObject* obj = static_cast<MapObject*>(object);
             
@@ -655,8 +657,8 @@ void VirtualMachine::freeObject(Object* object) {
             stats_.bytesFreed += sizeof(MapObject);
             break;
         }
-        case OBJ_OBJECT: {
-            // OBJ_OBJECT deprecated - use OBJ_MAP instead
+        case ObjectType::OBJ_OBJECT: {
+            // (AR) OBJ_OBJECT معامل كـ OBJ_MAP / (EN) OBJ_OBJECT treated as OBJ_MAP
             stats_.bytesFreed += sizeof(MapObject);
             break;
         }
@@ -721,14 +723,14 @@ void VirtualMachine::markValue(const Value& value) {
     // (AR) علِّم الكائنات المشار إليها
     // (EN) Mark referenced objects
     switch (object->type) {
-        case OBJ_ARRAY: {
+        case ObjectType::OBJ_ARRAY: {
             ArrayObject* arr = static_cast<ArrayObject*>(object);
-            for (size_t i = 0; i < arr->length; ++i) {
+            for (size_t i = 0; i < arr->elements.size(); ++i) {
                 markValue(arr->elements[i]);
             }
             break;
         }
-        case OBJ_MAP: {
+        case ObjectType::OBJ_MAP: {
             // تعليم خصائص الكائن / Mark object properties
             MapObject* obj = static_cast<MapObject*>(object);
             
@@ -738,8 +740,8 @@ void VirtualMachine::markValue(const Value& value) {
             }
             break;
         }
-        case OBJ_OBJECT: {
-            // OBJ_OBJECT deprecated - use OBJ_MAP instead
+        case ObjectType::OBJ_OBJECT: {
+            // (AR) OBJ_OBJECT معامل كـ OBJ_MAP / (EN) OBJ_OBJECT treated as OBJ_MAP
             break;
         }
         default:
@@ -841,15 +843,15 @@ double VirtualMachine::toFloat(const Value& value) {
 
 bool VirtualMachine::toBool(const Value& value) {
     switch (value.type) {
-        case VAL_NULL:
+        case ValueType::VAL_NULL:
             return false;
-        case VAL_BOOL:
+        case ValueType::VAL_BOOL:
             return value.asBool();
-        case VAL_INT:
+        case ValueType::VAL_INT:
             return value.asInt() != 0;
-        case VAL_FLOAT:
+        case ValueType::VAL_FLOAT:
             return value.asFloat() != 0.0;
-        case VAL_STRING:
+        case ValueType::VAL_STRING:
             return value.asString()->length > 0;
         default:
             return true; // Objects are truthy

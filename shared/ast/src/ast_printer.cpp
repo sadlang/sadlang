@@ -16,6 +16,7 @@
 #include "property_nodes.h"
 #include "class_nodes.h"
 #include "expressions.h"
+#include "declarations.h"        // (AR) لتعريف TemplateFunctionDecl, NamespaceDecl, OperatorDecl / (EN) For template/namespace/operator decls
 #include "advanced_expr_nodes.h"  // (AR) لتعريف AwaitExpr / (EN) For AwaitExpr definition
 #include "pattern_nodes.h"       // (AR) لتعريف MatchStmt / (EN) For MatchStmt definition - Source: pattern_nodes.h:375
 #include <sstream>
@@ -214,6 +215,14 @@ void ASTPrinter::visitMemberExpr(MemberExpr& expr) {
 void ASTPrinter::visitMemberAssignExpr(MemberAssignExpr& expr) {
     expr.object->accept(*this);
     result_ += "." + expr.member + " = ";
+    expr.value->accept(*this);
+}
+
+void ASTPrinter::visitIndexAssignExpr(IndexAssignExpr& expr) {
+    expr.object->accept(*this);
+    result_ += "[";
+    expr.index->accept(*this);
+    result_ += "] = ";
     expr.value->accept(*this);
 }
 
@@ -1064,6 +1073,89 @@ void ASTPrinter::visitClassDeclStmt(ClassDeclStmt& stmt) {
     
     indentLevel_--;
     result_ += indent() + "}\n";
+}
+
+void ASTPrinter::visitTraitDecl(TraitDecl& decl) {
+    result_ += indent() + "trait " + decl.name + " {\n";
+    indentLevel_++;
+    for (auto& method : decl.methods) {
+        result_ += indent() + "fn " + method.name + "()\n";
+    }
+    indentLevel_--;
+    result_ += indent() + "}\n";
+}
+
+void ASTPrinter::visitImplDecl(ImplDecl& decl) {
+    result_ += indent() + "impl " + decl.traitName + " for " + decl.targetType + " {\n";
+    indentLevel_++;
+    for (auto& method : decl.methods) {
+        if (method) method->accept(*this);
+    }
+    indentLevel_--;
+    result_ += indent() + "}\n";
+}
+
+// =====================================================================
+// Missing Visitor Implementations / تنفيذات الزوار المفقودة
+// =====================================================================
+
+void ASTPrinter::visitBorrowExpr(BorrowExpr& expr) {
+    result_ += "(borrow";
+    if (expr.isMutable) result_ += " mut";
+    result_ += " " + expr.variableName + ")";
+}
+
+void ASTPrinter::visitInlineAsmExpr(InlineAsmExpr& expr) {
+    result_ += indent() + "(inline_asm \"" + expr.asmCode + "\")";
+}
+
+void ASTPrinter::visitRangeExpr(RangeExpr& expr) {
+    result_ += indent() + "(range ";
+    if (expr.start) { expr.start->accept(*this); }
+    result_ += "..";
+    if (expr.end) { expr.end->accept(*this); }
+    result_ += ")";
+}
+
+void ASTPrinter::visitTemplateFunctionDecl(TemplateFunctionDecl& decl) {
+    result_ += indent() + "template_fn " + decl.name + "<";
+    for (size_t i = 0; i < decl.typeParameters.size(); i++) {
+        if (i > 0) result_ += ", ";
+        result_ += decl.typeParameters[i].name;
+    }
+    result_ += ">\n";
+}
+
+void ASTPrinter::visitTemplateClassDecl(TemplateClassDecl& decl) {
+    result_ += indent() + "template_class " + decl.name + "<";
+    for (size_t i = 0; i < decl.typeParameters.size(); i++) {
+        if (i > 0) result_ += ", ";
+        result_ += decl.typeParameters[i].name;
+    }
+    result_ += ">\n";
+}
+
+void ASTPrinter::visitTemplateInstantiation(TemplateInstantiation& expr) {
+    result_ += "(template_inst " + expr.templateName + ")";
+}
+
+void ASTPrinter::visitNamespaceDecl(NamespaceDecl& decl) {
+    result_ += indent() + "namespace " + decl.name + " {\n";
+    indentLevel_++;
+    for (auto& stmt : decl.members) {
+        if (stmt) stmt->accept(*this);
+    }
+    indentLevel_--;
+    result_ += indent() + "}\n";
+}
+
+void ASTPrinter::visitOperatorDecl(OperatorDecl& decl) {
+    result_ += indent() + "operator " + decl.operatorSymbol + "(";
+    for (size_t i = 0; i < decl.parameters.size(); i++) {
+        if (i > 0) result_ += ", ";
+        result_ += decl.parameters[i].name;
+    }
+    result_ += ")\n";
 }
 
 } // namespace AST

@@ -84,7 +84,12 @@ TextureRef ResourceManager::LoadTexture(const std::string& path,
     }
     
     // تحميل الـ texture / Load texture
-    TextureRef texture = Texture::CreateFromFile(fullPath, filter, wrap);
+    TextureRef texture = Texture::CreateFromFile(fullPath);
+    if (texture && texture->IsValid()) {
+        // تطبيق الفلتر والتغليف / Apply filter and wrap
+        texture->SetFilter(filter, filter);
+        texture->SetWrap(wrap, wrap);
+    }
     
     if (!texture || !texture->IsValid()) {  // إذا فشل التحميل / If loading failed
         std::cerr << "(AR) فشل تحميل texture: " << path 
@@ -351,7 +356,7 @@ std::shared_ptr<SadGraphics::ShaderProgram> ResourceManager::LoadShader(
     
     // إنشاء shader / Create shader
     auto shader = std::make_shared<SadGraphics::ShaderProgram>();
-    if (!shader->CompileShader(vertexCode.c_str(), fragmentCode.c_str())) {
+    if (shader->Compile(vertexCode, fragmentCode) != sad::graphics::Result::Success) {
         std::cerr << "(AR) فشل ترجمة shader / (EN) Failed to compile shader" << std::endl;
         return nullptr;
     }

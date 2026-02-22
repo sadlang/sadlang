@@ -88,7 +88,7 @@ namespace Graphics {
             void SetOnValueChange(ValueCallback callback) { m_onValueChange = callback; }  // عند تغيير القيمة / On value change
 
             // الرسم والتحديث / Drawing and updating
-            virtual void Draw(Renderer2D* renderer) override;   // رسم المنزلق / Draw slider
+            virtual void Draw(SadGraphics::Renderer2D* renderer) override;   // رسم المنزلق / Draw slider
             virtual void Update(float deltaTime) override;      // تحديث المنزلق / Update slider
 
             // معالجة الأحداث / Event handling

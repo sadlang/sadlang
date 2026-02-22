@@ -9,8 +9,9 @@
  * ============================================================================
  */
 
-#include "../include/llvm_compiler_pipeline.h"
+#include "pipeline/llvm_compiler_pipeline.h"
 #include "llvm_linker.h"
+#include "../../../shared/utils/include/utf8_utils.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -234,7 +235,32 @@ CompilationResult LLVMCompilerPipeline::compileSource(const std::string& sourceC
     if (options_.verbose) {
         std::cout << "[Pipeline] بدء الترجمة / Starting compilation...\n";
     }
-    
+
+    // ─── مرحلة صفر: فحص سمات Freestanding ───────────────────────────────────
+    // (AR) قبل أي مرحلة أخرى، نفحص الكود المصدري لوجود #![بلا_مكتبة_قياسية]
+    //      هذا الفحص سريع (بحث نصي بسيط) ولا يُشغِّل المحلل.
+    //      إذا وُجدت السمة، يُفعَّل وضع freestanding تلقائياً.
+    // (EN) Before any other stage, scan source for #![no_std] attributes.
+    //      Fast text scan — runs the freestanding codegen setup if found.
+    // ─────────────────────────────────────────────────────────────────────────
+    if (!scanForFreestandingAttributes(sourceCode)) {
+        result.errorMessage = "فشل فحص سمات Freestanding / Freestanding attribute scan failed";
+        result.errors = errors_;
+        return result;
+    }
+
+    // ─── تهيئة وضع Freestanding إذا كان مُفعَّلاً ────────────────────────────
+    if (freestandingModeActive_) {
+        if (!initializeFreestandingMode(filename)) {
+            result.errorMessage = "فشل تهيئة وضع Freestanding / Freestanding mode initialization failed";
+            result.errors = errors_;
+            return result;
+        }
+        if (options_.verbose) {
+            std::cout << "[Pipeline] ⚙ وضع بلا_مكتبة_قياسية مُفعَّل / no_std mode is active\n";
+        }
+    }
+
     // المرحلة 1: التحليل المعجمي / Stage 1: Lexical analysis
     auto stageStart = std::chrono::high_resolution_clock::now();
     if (!lexicalAnalysis(sourceCode, filename)) {
@@ -278,6 +304,23 @@ CompilationResult LLVMCompilerPipeline::compileSource(const std::string& sourceC
         result.stats.sirInstructionCount = sirModule_->getTotalInstructions();
         result.stats.functionsCount = sirModule_->getFunctionCount();
         result.stats.globalVarsCount = sirModule_->getGlobalCount();
+    }
+
+    // ─── مرحلة 4.5: التحقق النهائي من وحدة Freestanding ────────────────────
+    // (AR) بعد بناء SIR الكامل، نتحقق من اكتمال وحدة freestanding:
+    //   - وجود نقطة_دخول (مطلوب إذا no_main=true)
+    //   - وجود معالج_ذعر (اختياري — يُستخدم الافتراضي إذا غاب)
+    //   - إحصائيات توليد الكود (جمل التحكم، الحلقات...)
+    // (EN) After complete SIR building, validate freestanding unit:
+    //   - entry point present (required if no_main=true)
+    //   - panic handler (optional — default used if absent)
+    // ─────────────────────────────────────────────────────────────────────────
+    if (freestandingModeActive_) {
+        if (!finalizeFreestandingUnit()) {
+            result.errorMessage = "فشل التحقق من وحدة Freestanding / Freestanding unit validation failed";
+            result.errors = errors_;
+            return result;
+        }
     }
     
     // المرحلة 5: توليد LLVM IR / Stage 5: Code generation
@@ -714,7 +757,7 @@ llvm::Module* LLVMCompilerPipeline::getCurrentModule() {
  * قراءة ملف / Read file
  */
 std::string LLVMCompilerPipeline::readFile(const std::string& filename) {
-    std::ifstream file(filename);
+    auto file = sad::utf8::open_ifstream(filename);
     if (!file.is_open()) {
         logError("فشل فتح الملف / Failed to open file: " + filename);
         return "";
@@ -767,6 +810,254 @@ void LLVMCompilerPipeline::logWarning(const std::string& message) {
     if (options_.verbose) {
         std::cout << "[Pipeline Warning] " << message << "\n";
     }
+}
+
+// ============================================================================
+// Freestanding Mode Support — دعم وضع Freestanding (بلا مكتبة قياسية)
+// ============================================================================
+//
+// هذه الدوال تُشكِّل الطبقة التي تدمج وضع no_std في خط الترجمة.
+// تُشغَّل قبل وبعد مراحل التحليل لاكتشاف وتطبيق قيود freestanding:
+//
+//  1. scanForFreestandingAttributes()  — قبل التحليل النحوي
+//  2. initializeFreestandingMode()     — بعد الاكتشاف
+//  3. checkFreestandingSymbol()        — خلال بناء SIR (لكل رمز)
+//  4. finalizeFreestandingUnit()       — بعد بناء SIR
+//
+// This layer integrates no_std mode into the compilation pipeline.
+// Runs before/after parsing to detect and enforce freestanding constraints.
+// ============================================================================
+
+/**
+ * (AR) فحص الكود المصدري لسمات #![بلا_مكتبة_قياسية]
+ *
+ * يُشغَّل مرة واحدة قبل التحليل النحوي.
+ * يحدّث:
+ *   - options_.no_std                  ← هل وُجد #![بلا_مكتبة_قياسية]؟
+ *   - options_.no_main                 ← هل وُجد #![بلا_رئيسية]؟
+ *   - options_.abort_on_panic          ← هل وُجد #![إيقاف_عند_ذعر]؟
+ *   - options_.freestanding_entry_point ← اسم دالة #[نقطة_دخول]
+ *   - options_.freestanding_panic_handler ← اسم دالة #[معالج_ذعر]
+ *   - options_.freestanding_auto_detected ← true إذا اكتُشف تلقائياً
+ *   - freestandingModeActive_          ← true إذا وجب تفعيل الوضع
+ *
+ * (EN) Scan source code for #![no_std] attributes.
+ * Runs once before parsing. Updates options and freestandingModeActive_.
+ */
+bool LLVMCompilerPipeline::scanForFreestandingAttributes(const std::string& sourceCode) {
+    // ─── فحص المصدر لجميع سمات no_std ─────────────────────────────────────
+    noStdScanResult_ = sad::compiler::pipeline::NoStdIntegration::scanSourceForNoStd(sourceCode);
+
+    // ─── إذا وُجدت سمة بلا_مكتبة_قياسية → فعّل الوضع ─────────────────────
+    if (noStdScanResult_.hasNoStd || options_.no_std) {
+        // تحديث الخيارات التلقائي
+        if (noStdScanResult_.hasNoStd && !options_.no_std) {
+            options_.no_std = true;
+            options_.freestanding_auto_detected = true;
+        }
+        if (noStdScanResult_.hasNoMain) {
+            options_.no_main = true;
+        }
+        if (noStdScanResult_.hasAbortOnPanic) {
+            options_.abort_on_panic = true;
+        }
+
+        // استخراج أسماء الدوال المُعلَّمة من نتيجة الفحص
+        for (const auto& [سمة, دالة] : noStdScanResult_.functionAttributes) {
+            if ((سمة == "entry_point"  || سمة == sad::compiler::pipeline::سمات::نقطة_دخول)
+                && options_.freestanding_entry_point.empty())
+            {
+                options_.freestanding_entry_point = دالة;
+            }
+            else if ((سمة == "panic_handler" || سمة == sad::compiler::pipeline::سمات::معالج_ذعر)
+                     && options_.freestanding_panic_handler.empty())
+            {
+                options_.freestanding_panic_handler = دالة;
+            }
+        }
+
+        freestandingModeActive_ = true;
+
+        if (options_.verbose) {
+            std::cout << "[Freestanding] ✅ اكتُشف وضع بلا_مكتبة_قياسية / no_std mode detected\n";
+            if (!options_.freestanding_entry_point.empty()) {
+                std::cout << "[Freestanding] نقطة الدخول / Entry point: "
+                          << options_.freestanding_entry_point << "\n";
+            }
+            if (!options_.freestanding_panic_handler.empty()) {
+                std::cout << "[Freestanding] معالج الذعر / Panic handler: "
+                          << options_.freestanding_panic_handler << "\n";
+            }
+        }
+    }
+
+    // الفحص دائماً ناجح — حتى لو لم يُكتشف no_std
+    // Scan always succeeds — even if no_std was not detected
+    return true;
+}
+
+/**
+ * (AR) تهيئة وضع Freestanding بعد اكتشافه
+ *
+ * يُنشئ NoStdConfig من الخيارات المجمَّعة،
+ * ثم يُنشئ FreestandingCodeGen ويُعدِّه.
+ * يفتح وحدة الترجمة لبدء التتبع.
+ *
+ * يجب استدعاؤه بعد scanForFreestandingAttributes()
+ * وقبل أي مرحلة بناء SIR.
+ *
+ * (EN) Initialize freestanding mode after detection.
+ * Creates NoStdConfig from gathered options, then FreestandingCodeGen.
+ */
+bool LLVMCompilerPipeline::initializeFreestandingMode(const std::string& filename) {
+    if (!freestandingModeActive_) {
+        // وضع freestanding غير مُفعَّل — لا شيء للتهيئة
+        return true;
+    }
+
+    // ─── بناء إعداد NoStdConfig من خيارات المترجم ─────────────────────────
+    noStdConfig_.noStdEnabled      = true;
+    noStdConfig_.noMainEnabled     = options_.no_main;
+    noStdConfig_.abortOnPanic      = options_.abort_on_panic;
+    noStdConfig_.entryPoint        = options_.freestanding_entry_point;
+    noStdConfig_.panicHandler      = options_.freestanding_panic_handler;
+    noStdConfig_.allowAlloc        = options_.freestanding_allow_alloc;
+    noStdConfig_.allowFloat        = options_.freestanding_allow_float;
+    noStdConfig_.allowAtomics      = options_.freestanding_allow_atomics;
+    noStdConfig_.targetTriple      = options_.target_triple;
+    noStdConfig_.linkerScript      = options_.freestanding_linker_script;
+
+    // ─── إنشاء مولّد الكود لوضع freestanding ─────────────────────────────
+    freestandingCodeGen_ = std::make_unique<
+        sad::compiler::freestanding::FreestandingCodeGen>(noStdConfig_);
+
+    // ─── فتح وحدة الترجمة لبدء التتبع ────────────────────────────────────
+    auto نتيجة = freestandingCodeGen_->ابدأ_وحدة(filename);
+    if (!نتيجة.نجاح) {
+        logError("[Freestanding] فشل تهيئة الوحدة: " + نتيجة.رسالة_الخطأ_عربي);
+        return false;
+    }
+
+    if (options_.verbose) {
+        std::cout << "[Freestanding] ✅ تمت التهيئة — الوحدة: " << filename << "\n";
+        std::cout << "[Freestanding]   no_main:      " << (noStdConfig_.noMainEnabled ? "نعم" : "لا") << "\n";
+        std::cout << "[Freestanding]   abort_panic:  " << (noStdConfig_.abortOnPanic  ? "نعم" : "لا") << "\n";
+        std::cout << "[Freestanding]   allow_alloc:  " << (noStdConfig_.allowAlloc    ? "نعم" : "لا") << "\n";
+        std::cout << "[Freestanding]   هدف / target: " << noStdConfig_.targetTriple   << "\n";
+    }
+
+    return true;
+}
+
+/**
+ * (AR) التحقق النهائي من اكتمال وحدة freestanding
+ *
+ * يُشغَّل في نهاية مرحلة بناء SIR بعد معالجة جميع التعريفات.
+ * يتحقق من:
+ *   ✓ وجود نقطة_دخول   (مطلوب إذا no_main = true)
+ *   ✓ وجود معالج_ذعر   (مطلوب دائماً في freestanding)
+ *   ✓ طباعة الإحصائيات إذا verbose
+ *   ✓ طباعة التحذيرات
+ *
+ * يُتسامح مع غياب معالج_ذعر (يُستخدم الافتراضي).
+ * يُفشِل الترجمة إذا كانت no_main=true ولا توجد نقطة_دخول.
+ *
+ * (EN) Final validation of freestanding unit completeness.
+ * Runs at end of SIR building after all definitions are processed.
+ */
+bool LLVMCompilerPipeline::finalizeFreestandingUnit() {
+    if (!freestandingModeActive_ || !freestandingCodeGen_) {
+        return true; // وضع عادي — لا حاجة للتحقق
+    }
+
+    // ─── إغلاق الوحدة + التحقق ─────────────────────────────────────────────
+    auto نتيجة = freestandingCodeGen_->أنهِ_وحدة();
+
+    // ─── طباعة التحذيرات ───────────────────────────────────────────────────
+    for (const auto& تحذير : freestandingCodeGen_->احصل_على_التحذيرات()) {
+        logWarning("[Freestanding] " + تحذير);
+    }
+
+    // ─── طباعة الأخطاء ─────────────────────────────────────────────────────
+    for (const auto& خطأ : freestandingCodeGen_->احصل_على_الأخطاء()) {
+        logError("[Freestanding] " + خطأ.رسالة_الخطأ_عربي);
+    }
+
+    // ─── طباعة الإحصائيات في الوضع المفصّل ────────────────────────────────
+    if (options_.verbose) {
+        std::cout << freestandingCodeGen_->احصل_على_الإحصائيات();
+    }
+
+    // ─── تقرير النتيجة النهائية ─────────────────────────────────────────────
+    if (!نتيجة.نجاح) {
+        // نقطة الدخول مفقودة في وضع no_main — خطأ فادح
+        if (نتيجة.رمز_الخطأ ==
+            sad::compiler::freestanding::FreestandingError::نقطة_دخول_مفقودة)
+        {
+            logError(
+                "[Freestanding] ❌ نقطة الدخول مفقودة!\n"
+                "  أضف السمة #[نقطة_دخول] قبل دالة البدء:\n"
+                "  #[نقطة_دخول]\n"
+                "  لن_ترجع دالة _start() { ... }\n"
+                "\n"
+                "  أو إذا كانت دالة main موجودة، أضف #![بلا_رئيسية] في أعلى الملف."
+            );
+            return false;
+        }
+
+        // معالج الذعر مفقود — تحذير (سيُستخدم الافتراضي)
+        if (نتيجة.رمز_الخطأ ==
+            sad::compiler::freestanding::FreestandingError::معالج_ذعر_مفقود)
+        {
+            logWarning(
+                "[Freestanding] ⚠ معالج ذعر مخصص غير موجود، سيُستخدم الافتراضي.\n"
+                "  الافتراضي: حلقة لانهائية + hlt (مناسب للنواة).\n"
+                "  لتوفير معالج مخصص:\n"
+                "  #[معالج_ذعر]\n"
+                "  لن_ترجع دالة عند_الذعر(معلومات: &معلومات_ذعر) { ... }"
+            );
+            // ليس خطأ — نستمر
+        }
+    }
+
+    if (options_.verbose) {
+        std::cout << "[Freestanding] ✅ اكتمل التحقق النهائي من الوحدة\n";
+    }
+
+    return true;
+}
+
+/**
+ * (AR) فحص رمز في وضع freestanding
+ *
+ * يُستدعى خلال بناء SIR عند مصادفة دالة أو نوع.
+ * يتحقق من أن الرمز ليس من المكتبة القياسية.
+ *
+ * أمثلة على رموز مرفوضة:
+ *   "printf"     → استخدم بافر_نص + طباعة_تسلسلي()
+ *   "std::string" → استخدم عرض_نص
+ *   "malloc"     → استخدم sad_alloc()
+ *   "std::vector" → استخدم مصفوفة ثابتة
+ *
+ * @param symbolName اسم الرمز
+ * @return true إذا كان الرمز مقبولاً في وضع freestanding
+ *
+ * (EN) Check symbol in freestanding mode.
+ * Called during SIR building when encountering functions/types.
+ */
+bool LLVMCompilerPipeline::checkFreestandingSymbol(const std::string& symbolName) {
+    if (!freestandingModeActive_ || !freestandingCodeGen_) {
+        return true; // وضع عادي — كل الرموز مقبولة
+    }
+
+    // ─── فحص اسم الرمز ─────────────────────────────────────────────────────
+    auto نتيجة = freestandingCodeGen_->تحقق_من_الرمز(symbolName);
+    if (!نتيجة.نجاح) {
+        logError("[Freestanding] " + نتيجة.رسالة_الخطأ_عربي);
+        return false;
+    }
+
+    return true;
 }
 
 } // namespace LLVM

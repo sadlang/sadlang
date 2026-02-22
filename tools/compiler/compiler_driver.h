@@ -12,19 +12,46 @@
 #include <filesystem>
 #include <iostream>
 
+// AST types / أنواع شجرة AST
+#include "ast_node.h"
+#include "statements.h"
+
+// Borrow Checker / فاحص الاستعارة
+#include "semantic/borrow_checker.h"
+
+// Type Checker / فاحص الأنواع
+#include "semantic/type_checker.h"
+
+// Forward declarations outside sad::driver namespace
+namespace Sad {
+    namespace Lexer { class LexerCore; }
+    namespace Parser { class ParserCore; }
+    namespace Compiler {
+        namespace SIR { 
+            class SIRBuilder; 
+            class SIRModule;  // Forward declare SIRModule
+        }
+    }
+    namespace LLVM { class LLVMCodeGen; }  // Correct namespace for LLVMCodeGen
+}
+
+// (AR) تصريح مسبق لوحدة LLVM - نحتاجها في دالة link_object_to_executable
+// (EN) Forward declare llvm::Module - needed in link_object_to_executable
+namespace llvm { class Module; }
+
 namespace sad {
 namespace driver {
 
-// ============================================================================
-// Forward Declarations
-// ============================================================================
+// Type aliases for use in this namespace
+using Lexer = Sad::Lexer::LexerCore;
+using Parser = Sad::Parser::ParserCore;
+using SIRBuilder = Sad::Compiler::SIR::SIRBuilder;
+using SIRModule = Sad::Compiler::SIR::SIRModule;  // Add alias for SIRModule
+using LLVMCodeGen = Sad::LLVM::LLVMCodeGen;  // Correct namespace
 
-class Lexer;
-class Parser;
-class SIRBuilder;
+// Not implemented yet
 class SIROptimizer;
 class BytecodeEmitter;
-class LLVMCodeGen;
 
 // ============================================================================
 // Compilation Options / خيارات الترجمة
@@ -108,6 +135,54 @@ struct CompilerOptions {
     TargetTriple target = TargetTriple::get_host_target();
     bool freestanding = false;               // نظام مستقل / Freestanding (no OS)
     bool position_independent_code = false;  // PIC for shared libraries
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // ========== Freestanding / No-std Options - خيارات وضع بلا مكتبة ==========
+    // ──────────────────────────────────────────────────────────────────────────
+    //
+    // (AR) هذه الخيارات مخصصة لوضع Freestanding (bare-metal):
+    //   المناسب لكتابة أنظمة التشغيل، المتحكمات الدقيقة، UEFI...
+    //   تُفعَّل تلقائياً عند اكتشاف #![بلا_مكتبة_قياسية] في الكود أو
+    //   يدوياً بعلامة --freestanding من سطر الأوامر.
+    //
+    // (EN) These options are for Freestanding mode (bare-metal):
+    //   Suitable for OS kernels, microcontrollers, UEFI applications...
+    //   Auto-activated when #![no_std] is detected, or manually via --freestanding.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * (AR) تعطيل دالة main الافتراضية
+     *      يُستخدم مع freestanding لتعريف نقطة دخول مخصصة (_start)
+     *      يُفعَّل تلقائياً عند اكتشاف #![بلا_رئيسية] في الكود
+     * (EN) Disable default main() entry point
+     */
+    bool no_main = false;
+
+    /**
+     * (AR) إيقاف عند الذعر بدلاً من stack unwinding
+     *      في وضع freestanding لا يمكن استخدام استثناءات C++
+     *      يُفعَّل تلقائياً عند اكتشاف #![إيقاف_عند_ذعر] في الكود
+     * (EN) Abort on panic instead of C++ exception stack unwinding
+     */
+    bool abort_on_panic = false;
+
+    /**
+     * (AR) السماح بالتخصيص الديناميكي في وضع freestanding
+     *      يتطلب تسجيل مُخصّص مخصص (#[معالج_تخصيص] / #[alloc_error_handler])
+     *      افتراضياً: محظور لتجنب الأخطاء غير المقصودة
+     * (EN) Allow dynamic allocation in freestanding mode
+     */
+    bool allow_freestanding_alloc = false;
+
+    /**
+     * (AR) اسم دالة نقطة الدخول المخصصة
+     *      مثال: "_start", "kernel_main", "uefi_main"
+     *      يُمرَّر للرابط كـ --entry أو -e
+     * (EN) Custom entry point function name passed to linker
+     */
+    std::string freestanding_entry;
+
+    // ──────────────────────────────────────────────────────────────────────────
     
     // ========== Debug ==========
     bool debug_info = false;                 // معلومات التنقيح / Debug info (DWARF)
@@ -138,10 +213,20 @@ struct CompilerOptions {
     bool enable_bounds_check = true;         // فحص الحدود / Bounds checking
     bool enable_overflow_check = true;       // فحص الفيض / Overflow checking
     bool enable_null_check = true;           // فحص null
+    bool enable_borrow_check = true;         // فحص الاستعارة / Borrow checking
+    bool debug_borrow_check = false;         // تنقيح فحص الاستعارة / Debug borrow checker
+    bool arabic_borrow_messages = true;      // رسائل عربية / Arabic borrow messages
+    bool enable_type_check = true;           // فحص الأنواع / Type checking
+    bool debug_type_check = false;           // تنقيح فحص الأنواع / Debug type checker
+    bool strict_type_check = false;          // فحص أنواع صارم / Strict type checking
     
     // ========== Language ==========
     std::string language_standard = "sad2024"; // إصدار اللغة / Language version
     bool allow_experimental = false;         // ميزات تجريبية / Experimental features
+    
+    // ========== UI Pipeline / خط أنابيب الواجهات ==========
+    bool emit_ui = false;                    // توليد واجهات / Generate UI code
+    std::string ui_platform = "desktop";     // المنصة المستهدفة للواجهات / UI target platform
 };
 
 // ============================================================================
@@ -317,6 +402,18 @@ private:
     bool run_frontend(const std::string& file);
     
     /**
+     * @brief (AR) فحص الملكية والاستعارة على AST
+     * @brief (EN) Run ownership/borrow checking on AST
+     */
+    bool run_borrow_check(const std::string& file);
+    
+    /**
+     * @brief (AR) فحص الأنواع المتقدم على AST
+     * @brief (EN) Run advanced type checking on AST
+     */
+    bool run_type_check(const std::string& file);
+    
+    /**
      * @brief Middle-end: SIR Building + Optimization / الطبقة الوسطى
      */
     bool run_middleend();
@@ -332,10 +429,42 @@ private:
     void print_ir_if_requested();
     
     /**
+     * @brief (AR) تشغيل خط أنابيب الواجهات الرسومية
+     * @brief (EN) Run UI IR pipeline for cross-platform code generation
+     * 
+     * @param input_file ملف المصدر / Source file
+     * @param ui_platform_str المنصة المستهدفة / Target platform string
+     * @return true إذا نجح التوليد / true if generation succeeded
+     */
+    bool run_ui_pipeline(const std::string& input_file,
+                          const std::string& ui_platform_str);
+    
+    /**
      * @brief Invoke system linker
      */
     bool invoke_linker(const std::vector<std::string>& objects,
                       const std::string& output);
+    
+    /**
+     * @brief (AR) ربط ملف كائن مع مكتبة وقت التشغيل لإنتاج ملف تنفيذي
+     * @brief (EN) Link object file with runtime library to produce executable
+     * 
+     * @param obj_path مسار ملف الكائن / Object file path
+     * @param output_file مسار الملف التنفيذي الناتج / Output executable path
+     * @param module وحدة LLVM (للحصول على معلومات الهدف) / LLVM module (for target info)
+     * @return true إذا نجح الربط / true if linking succeeded
+     */
+    bool link_object_to_executable(const std::string& obj_path,
+                                   const std::string& output_file,
+                                   llvm::Module* module);
+    
+    /**
+     * @brief (AR) البحث عن أداة clang في النظام
+     * @brief (EN) Find clang tool on the system
+     * 
+     * @return مسار clang إن وُجد / Path to clang if found
+     */
+    std::optional<std::string> find_clang();
     
     /**
      * @brief Get temporary file path
@@ -356,9 +485,18 @@ private:
     std::unique_ptr<Lexer> lexer_;
     std::unique_ptr<Parser> parser_;
     std::unique_ptr<SIRBuilder> sir_builder_;
-    std::unique_ptr<SIROptimizer> optimizer_;
-    std::unique_ptr<BytecodeEmitter> bytecode_emitter_;
-    std::unique_ptr<LLVMCodeGen> llvm_codegen_;
+    std::shared_ptr<SIRModule> sir_module_;  // Store SIR module
+    // std::unique_ptr<SIROptimizer> optimizer_;  // Not implemented yet
+    // std::unique_ptr<BytecodeEmitter> bytecode_emitter_;  // Not implemented yet
+    std::unique_ptr<Sad::LLVM::LLVMCodeGen> llvm_codegen_;  // Correct namespace
+    
+    // نظام الملكية / Ownership System
+    std::unique_ptr<Sad::Semantic::BorrowChecker> borrow_checker_;
+    
+    // نظام الأنواع المتقدم / Advanced Type System
+    std::unique_ptr<Sad::Semantic::TypeChecker> type_checker_;
+    
+    Sad::AST::StmtList current_ast_;  // (AR) تخزين AST بين المراحل / (EN) Store AST between passes
     
     // Temporary files to clean up
     std::vector<std::filesystem::path> temp_files_;

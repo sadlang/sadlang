@@ -97,12 +97,29 @@ async function startLanguageServer(context: vscode.ExtensionContext) {
         
         if (!serverPath) {
             // Try to find in common locations - محاولة إيجاد في المواقع الشائعة
+            // نبحث في عدة مسارات محتملة بالترتيب:
+            //   ① مجلد الإضافة (عند التوزيع)
+            //   ② مجلد البناء المحلي (عند التطوير)
+            //   ③ في PATH (عند التثبيت العام)
+            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
             const possiblePaths = [
+                // داخل مجلد الإضافة (للتوزيع)
                 path.join(context.extensionPath, 'server', 'sad-lsp'),
                 path.join(context.extensionPath, 'server', 'sad-lsp.exe'),
-                path.join(context.extensionPath, '..', '..', 'build', 'tools', 'lsp', 'sad-lsp'),
-                path.join(context.extensionPath, '..', '..', 'build', 'tools', 'lsp', 'sad-lsp.exe'),
-                'sad-lsp', // In PATH
+                // مجلد البناء المحلي - Debug
+                path.join(workspaceRoot, 'build', 'bin', 'Debug', 'sad-lsp.exe'),
+                path.join(workspaceRoot, 'build', 'bin', 'Debug', 'sad-lsp'),
+                // مجلد البناء المحلي - Release
+                path.join(workspaceRoot, 'build', 'bin', 'Release', 'sad-lsp.exe'),
+                path.join(workspaceRoot, 'build', 'bin', 'Release', 'sad-lsp'),
+                // مجلد البناء المحلي - بدون config
+                path.join(workspaceRoot, 'build', 'bin', 'sad-lsp.exe'),
+                path.join(workspaceRoot, 'build', 'bin', 'sad-lsp'),
+                // مسار الإضافة القديم
+                path.join(context.extensionPath, '..', '..', 'build', 'bin', 'Debug', 'sad-lsp.exe'),
+                path.join(context.extensionPath, '..', '..', 'build', 'bin', 'Release', 'sad-lsp.exe'),
+                // في PATH
+                'sad-lsp',
                 'sad-lsp.exe'
             ];
 

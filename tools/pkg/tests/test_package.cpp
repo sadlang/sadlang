@@ -26,7 +26,7 @@ void test_package_creation() {
     pkg.description = "A test package";
     pkg.authors.push_back("Test Author <test@example.com>");
     pkg.license = "MIT";
-    pkg.main_file = "src/main.s";
+    pkg.main_file = "src/main.ص";
     pkg.source_dirs.push_back("src");
     
     assert(pkg.name == "test_package");
@@ -71,7 +71,7 @@ void test_package_save_load() {
     pkg1.description = "Test save/load";
     pkg1.authors.push_back("Test Author");
     pkg1.license = "MIT";
-    pkg1.main_file = "src/main.s";
+    pkg1.main_file = "src/main.ص";
     pkg1.source_dirs.push_back("src");
     pkg1.dependencies["http"] = "^1.0.0";
     
@@ -104,7 +104,7 @@ void test_package_validation() {
     Package valid_pkg;
     valid_pkg.name = "valid_package";
     valid_pkg.version = Version::parse("1.0.0");
-    valid_pkg.main_file = "src/main.s";
+    valid_pkg.main_file = "src/main.ص";
     assert(valid_pkg.is_valid());
     
     // Invalid package (no name)

@@ -313,6 +313,29 @@ std::shared_ptr<Texture> Texture::CreateBlack() {
     return texture;
 }
 
+// إنشاء texture من بيانات في الذاكرة
+// Create texture from raw memory data
+std::shared_ptr<Texture> Texture::CreateFromMemory(
+    const void* data,
+    u32 width, u32 height,
+    TextureFormat format,
+    TextureFilter minFilter,
+    TextureWrap wrap)
+{
+    TextureSpec spec;
+    spec.width = width;
+    spec.height = height;
+    spec.format = format;
+    spec.minFilter = minFilter;
+    spec.magFilter = minFilter;
+    spec.wrapS = wrap;
+    spec.wrapT = wrap;
+    spec.generateMipmaps = false;
+    
+    auto texture = std::make_shared<Texture>(spec, data);
+    return texture;
+}
+
 // إنشاء texture من ملف صورة
 // Create texture from image file
 std::shared_ptr<Texture> Texture::CreateFromFile(

@@ -1,0 +1,10 @@
+C:\s\s-programming-language\compiler_new\src\semantic\borrow_checker.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_semantic.dir\Release\borrow_checker.obj
+C:\s\s-programming-language\compiler_new\src\semantic\cascade_prevention.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_semantic.dir\Release\cascade_prevention.obj
+C:\s\s-programming-language\compiler_new\src\semantic\exhaustiveness.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_semantic.dir\Release\exhaustiveness.obj
+C:\s\s-programming-language\compiler_new\src\semantic\lifetime_analyzer.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_semantic.dir\Release\lifetime_analyzer.obj
+C:\s\s-programming-language\compiler_new\src\semantic\move_analyzer.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_semantic.dir\Release\move_analyzer.obj
+C:\s\s-programming-language\compiler_new\src\semantic\ownership_tracker.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_semantic.dir\Release\ownership_tracker.obj
+C:\s\s-programming-language\compiler_new\src\semantic\pattern_ownership.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_semantic.dir\Release\pattern_ownership.obj
+C:\s\s-programming-language\compiler_new\src\semantic\this_binding.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_semantic.dir\Release\this_binding.obj
+C:\s\s-programming-language\compiler_new\src\semantic\type_checker.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_semantic.dir\Release\type_checker.obj
+C:\s\s-programming-language\compiler_new\src\semantic\unsafe_checker.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_semantic.dir\Release\unsafe_checker.obj

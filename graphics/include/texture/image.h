@@ -187,6 +187,7 @@ private:
     u32 m_width;        // عرض الصورة - image width
     u32 m_height;       // ارتفاع الصورة - image height
     u32 m_channels;     // عدد القنوات - number of channels
+    bool m_ownedByStb;  // هل الذاكرة مخصصة بواسطة stb_image - is memory allocated by stb_image
 };
 
 // أنواع مستعارة للراحة

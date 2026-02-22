@@ -265,8 +265,8 @@ TEST(PackageTest, GetSourceFiles) {
     std::filesystem::create_directories(temp_dir / "src");
     
     // Create source files - إنشاء ملفات المصدر
-    std::ofstream(temp_dir / "src" / "main.s") << "// Test file";
-    std::ofstream(temp_dir / "src" / "utils.s") << "// Utils";
+    std::ofstream(temp_dir / "src" / "main.ص") << "// Test file";
+    std::ofstream(temp_dir / "src" / "utils.ص") << "// Utils";
     std::ofstream(temp_dir / "src" / "readme.txt") << "Not a source file";
 
     // Create package - إنشاء حزمة
@@ -277,7 +277,7 @@ TEST(PackageTest, GetSourceFiles) {
     pkg.source_dirs.push_back("src");
 
     auto source_files = pkg.get_source_files();
-    EXPECT_EQ(source_files.size(), 2);  // Only .s files
+    EXPECT_EQ(source_files.size(), 2);  // Only .ص files
 
     // Cleanup - التنظيف
     std::filesystem::remove_all(temp_dir);

@@ -202,6 +202,19 @@ void JITEngine::shutdown() {
     }
     
     // TODO: تنظيف موارد LLVM / Clean up LLVM resources
+#ifdef ENABLE_LLVM_BACKEND
+    // (AR) تنظيف خريطة الدوال المُجمّعة — يجب قبل تدمير LLVM
+    // (EN) Clean compiled functions map — must happen before LLVM destruction
+    pimpl_->compiled_functions_.clear();
+    
+    // (AR) تدمير المولّد أولاً (يعتمد على السياق)
+    // (EN) Destroy generator first (depends on context)
+    pimpl_->llvm_generator_.reset();
+    
+    // (AR) تدمير مدير السياق أخيراً (يملك LLVMContext و LLJIT)
+    // (EN) Destroy context manager last (owns LLVMContext and LLJIT)
+    pimpl_->llvm_context_mgr_.reset();
+#endif
     
     // مسح الذاكرة المؤقتة / Clear cache
     if (pimpl_->cache_) {

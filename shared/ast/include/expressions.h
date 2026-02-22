@@ -231,6 +231,45 @@ public:
 };
 
 // =========================================================================
+// Borrow Expression / تعبير الاستعارة
+// =========================================================================
+
+/**
+ * @brief Borrow expression node (e.g., &x, &متغير x) / عقدة تعبير الاستعارة
+ * 
+ * Represents borrowing a reference to a variable.
+ * يمثل استعارة مرجع لمتغير.
+ * 
+ * @example Examples / أمثلة:
+ * - Shared borrow: &x, &اسم
+ * - Mutable borrow: &متغير x, &mut name
+ */
+class BorrowExpr : public Expression {
+public:
+    std::string variableName;   ///< Variable being borrowed / المتغير المُستعار
+    bool isMutable;             ///< Whether borrow is mutable / هل الاستعارة قابلة للتعديل
+    
+    /**
+     * @brief Constructor / البناء
+     * @param varName Variable name to borrow / اسم المتغير المُستعار
+     * @param mut Whether mutable borrow / هل استعارة قابلة للتعديل
+     * @param pos Source position / الموقع في الكود
+     */
+    BorrowExpr(const std::string& varName, bool mut = false, const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), variableName(varName), isMutable(mut) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitBorrowExpr(*this);
+    }
+    
+    std::string toString() const override {
+        return (isMutable ? "&متغير " : "&") + variableName;
+    }
+    
+    Data::DataType getType() const override { return Data::DataType(0); }
+};
+
+// =========================================================================
 // Assignment Expression / تعبير الإسناد
 // =========================================================================
 
@@ -437,6 +476,39 @@ public:
 };
 
 // =========================================================================
+// (AR) تعبير إسناد الفهرس / (EN) Index Assignment Expression
+// =========================================================================
+/**
+ * @brief (AR) عقدة إسناد عبر الفهرس (مثل: م[0] = 5، قاموس["مفتاح"] = قيمة)
+ *        (EN) Index assignment expression node (e.g., arr[0] = 5, dict["key"] = value)
+ * 
+ * يمثل تعيين قيمة إلى عنصر في مصفوفة أو قاموس عبر الفهرس.
+ * Represents assigning a value to an array element or map entry by index.
+ */
+class IndexAssignExpr : public Expression {
+public:
+    ExprPtr object;         ///< (AR) الكائن المفهرس (المصفوفة/القاموس) / (EN) Indexed object
+    ExprPtr index;          ///< (AR) تعبير الفهرس / (EN) Index expression
+    ExprPtr value;          ///< (AR) القيمة المراد إسنادها / (EN) Value to assign
+
+    IndexAssignExpr(ExprPtr obj, ExprPtr idx, ExprPtr val,
+                    const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), object(std::move(obj)), index(std::move(idx)), value(std::move(val)) {}
+
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitIndexAssignExpr(*this);
+    }
+
+    std::string toString() const override {
+        return object->toString() + "[" + index->toString() + "] = " + value->toString();
+    }
+
+    Data::DataType getType() const override {
+        return value->getType();
+    }
+};
+
+// =========================================================================
 // Array Literal Expression / تعبير المصفوفة الحرفية
 // =========================================================================
 
@@ -538,44 +610,26 @@ public:
 
 /**
  * @brief Function parameter / معامل الدالة
+ * 
+ * (AR) يمثل معامل دالة مع اسمه ونوعه. عندما يكون النوع OBJECT،
+ *      يُخزَّن اسم الصنف في typeName (مثلاً: "شخص")
+ * (EN) Represents a function parameter with name and type. When type is OBJECT,
+ *      the class name is stored in typeName (e.g., "Person")
  */
 struct Parameter {
     std::string name;           ///< Parameter name / اسم المعامل
     Data::DataType type;        ///< Parameter type / نوع المعامل
-    ExprPtr defaultValue;       ///< Default value (optional) / القيمة الافتراضية
+    std::string typeName;       ///< (AR) اسم الصنف (عندما يكون النوع OBJECT) / (EN) Class name (when type is OBJECT)
+    std::shared_ptr<Expression> defaultValue;  ///< Default value (optional) / القيمة الافتراضية — shared_ptr للسماح بالنسخ الآمن
     
     Parameter(const std::string& n, Data::DataType t = Data::DataType::UNKNOWN,
-              ExprPtr def = nullptr)
-        : name(n), type(t), defaultValue(std::move(def)) {}
+              ExprPtr def = nullptr, const std::string& tn = "")
+        : name(n), type(t), typeName(tn), defaultValue(std::move(def)) {}
     
-    // Copy constructor - deep copy the defaultValue
-    Parameter(const Parameter& other)
-        : name(other.name), type(other.type) {
-        // Deep copy defaultValue if it exists
-        if (other.defaultValue) {
-            // Create a new copy by cloning (if clone method exists)
-            // For now, set to nullptr as we can't clone expressions easily
-            defaultValue = nullptr;
-        } else {
-            defaultValue = nullptr;
-        }
-    }
-    
-    // Copy assignment operator
-    Parameter& operator=(const Parameter& other) {
-        if (this != &other) {
-            name = other.name;
-            type = other.type;
-            // Deep copy defaultValue if it exists
-            if (other.defaultValue) {
-                // For now, set to nullptr as we can't clone expressions easily
-                defaultValue = nullptr;
-            } else {
-                defaultValue = nullptr;
-            }
-        }
-        return *this;
-    }
+    // (AR) النسخ آمن الآن — shared_ptr يشارك ملكية التعبير الافتراضي
+    // (EN) Copy is safe now — shared_ptr shares ownership of default expression
+    Parameter(const Parameter& other) = default;
+    Parameter& operator=(const Parameter& other) = default;
     
     // Move constructor and assignment
     Parameter(Parameter&&) = default;
@@ -922,6 +976,128 @@ public:
      */
     Data::DataType getType() const override {
         return Data::DataType::FUNCTION; // Decorators are function-like
+    }
+};
+
+// ======================================================================
+// عقدة التجميع المضمّن / Inline Assembly Expression Node
+// ======================================================================
+/**
+ * @class InlineAsmExpr
+ * @brief (AR) تعبير التجميع المضمّن — يسمح بكتابة أوامر المعالج مباشرة داخل كود لغة ص
+ * @brief (EN) Inline assembly expression — allows writing CPU instructions directly in Sad code
+ * 
+ * (AR) هذه العقدة تمثل كتلة تجميع مضمّنة. التجميع المضمّن ضروري لبرمجة أنظمة التشغيل
+ *      لأنه يسمح بتنفيذ أوامر المعالج التي لا يمكن التعبير عنها بلغة عالية المستوى.
+ *      أمثلة: قراءة/كتابة المنافذ، تعطيل المقاطعات، تبديل السياق
+ * 
+ * (EN) This node represents an inline assembly block. Inline asm is essential for
+ *      OS development as it allows executing CPU instructions that can't be expressed
+ *      in high-level code. Examples: port I/O, disabling interrupts, context switching
+ * 
+ * @example الصيغة / Syntax:
+ * @code{.s}
+ * # (AR) تجميع بسيط — تعطيل المقاطعات
+ * # (EN) Simple asm — disable interrupts
+ * تجميع { "cli" }
+ * 
+ * # (AR) تجميع مع مخرجات ومدخلات — قراءة منفذ
+ * # (EN) Asm with outputs and inputs — read port
+ * متغير قيمة = تجميع { "inb %1, %0" : "=a"(نتيجة) : "d"(منفذ) }
+ * 
+ * # (AR) تجميع متطاير — لا يُحسَّن
+ * # (EN) Volatile asm — not optimized away
+ * تجميع متطاير { "hlt" }
+ * @endcode
+ */
+class InlineAsmExpr : public Expression {
+public:
+    /// (AR) نص التجميع — الأوامر بلغة التجميع
+    /// (EN) Assembly text — the assembly instructions
+    std::string asmCode;
+    
+    /// (AR) قيود المخرجات — تحدد أين توضع النتائج (مثل "=a" لسجل eax)
+    /// (EN) Output constraints — specify where results go (e.g., "=a" for eax register)
+    std::string outputConstraints;
+    
+    /// (AR) قيود المدخلات — تحدد من أين تأتي القيم (مثل "d" لسجل edx)
+    /// (EN) Input constraints — specify where values come from (e.g., "d" for edx register)
+    std::string inputConstraints;
+    
+    /// (AR) قيود التدمير — السجلات التي يُعدّلها التجميع
+    /// (EN) Clobber constraints — registers modified by the assembly
+    std::string clobbers;
+    
+    /// (AR) هل هو متطاير؟ — إذا كان true، لن يحذفه المحسّن حتى لو بدا غير مستخدم
+    /// (EN) Is it volatile? — if true, optimizer won't remove it even if seems unused
+    bool isVolatile;
+    
+    /**
+     * @brief (AR) بناء تعبير تجميع مضمّن بسيط
+     * @brief (EN) Construct simple inline assembly expression
+     * 
+     * @param code (AR) نص التجميع / (EN) Assembly code text
+     * @param isVol (AR) هل متطاير / (EN) Is volatile
+     * @param pos (AR) الموقع في المصدر / (EN) Source position
+     */
+    InlineAsmExpr(const std::string& code, bool isVol = false,
+                  const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), asmCode(code), isVolatile(isVol) {}
+    
+    /**
+     * @brief (AR) بناء تعبير تجميع مضمّن كامل مع قيود
+     * @brief (EN) Construct full inline assembly expression with constraints
+     * 
+     * @param code (AR) نص التجميع / (EN) Assembly code text
+     * @param output (AR) قيود المخرجات / (EN) Output constraints
+     * @param input (AR) قيود المدخلات / (EN) Input constraints  
+     * @param clob (AR) السجلات المدمَّرة / (EN) Clobbered registers
+     * @param isVol (AR) هل متطاير / (EN) Is volatile
+     * @param pos (AR) الموقع / (EN) Position
+     */
+    InlineAsmExpr(const std::string& code,
+                  const std::string& output, const std::string& input,
+                  const std::string& clob, bool isVol = false,
+                  const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), asmCode(code), outputConstraints(output),
+          inputConstraints(input), clobbers(clob), isVolatile(isVol) {}
+    
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitInlineAsmExpr(*this);
+    }
+    
+    std::string toString() const override {
+        return "InlineAsm(\"" + asmCode + "\")";
+    }
+    
+    Data::DataType getType() const override {
+        return Data::DataType::INTEGER;
+    }
+};
+
+/**
+ * @brief (AR) تعبير المدى — يمثل نطاقاً عددياً (مثل 1..10)
+ * @brief (EN) Range expression — represents a numeric range (e.g. 1..10)
+ */
+class RangeExpr : public Expression {
+public:
+    ExprPtr start;    ///< (AR) بداية المدى / (EN) Start of range
+    ExprPtr end;      ///< (AR) نهاية المدى / (EN) End of range
+
+    RangeExpr(ExprPtr start, ExprPtr end,
+              const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), start(std::move(start)), end(std::move(end)) {}
+
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitRangeExpr(*this);
+    }
+
+    std::string toString() const override {
+        return start->toString() + ".." + end->toString();
+    }
+
+    Data::DataType getType() const override {
+        return Data::DataType::ARRAY;
     }
 };
 

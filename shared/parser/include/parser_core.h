@@ -178,6 +178,15 @@ private:
     AST::StmtPtr parseFunctionDecl(AST::ExprList decorators = AST::ExprList(), bool is_async = false, bool is_generator = false);
 
     /**
+     * @brief (AR) يحلل تصريح دالة خارجية (FFI).
+     *        (EN) Parses external function declaration (FFI).
+     * 
+     * @return (AR) مؤشر لعقدة تصريح الدالة الخارجية.
+     *         (EN) Pointer to external function declaration node.
+     */
+    AST::StmtPtr parseExternFunctionDecl();
+
+    /**
      * @brief (AR) يحلل تصريح صنف (class) مع الحقول والطرق.
      *        (EN) Parses class declaration with fields and methods.
      * 
@@ -185,6 +194,18 @@ private:
      *         (EN) Pointer to class declaration node.
      */
     AST::StmtPtr parseClassDecl();
+    
+    /**
+     * @brief (AR) يحلل تصريح واجهة/سمة
+     *        (EN) Parses trait/interface declaration
+     */
+    AST::StmtPtr parseTraitDecl();
+    
+    /**
+     * @brief (AR) يحلل كتلة تنفيذ سمة لصنف
+     *        (EN) Parses impl block
+     */
+    AST::StmtPtr parseImplDecl();
     
     // =====================================================================
     // (AR) تحليل القوالب والميزات المتقدمة (Phase 7B)
@@ -267,7 +288,7 @@ private:
      *         (EN) Pointer to ImportStmt node
      * 
      * @example
-     * @code{.sad}
+     * @code{.ص}
      * استورد رياضيات
      * استورد رياضيات كـ م
      * @endcode
@@ -293,7 +314,7 @@ private:
      *         (EN) Pointer to FromImportStmt node
      * 
      * @example
-     * @code{.sad}
+     * @code{.ص}
      * من رياضيات استورد جذر، قوة
      * من رياضيات استورد *
      * @endcode
@@ -319,7 +340,7 @@ private:
      *         (EN) Pointer to ExportDecl node
      * 
      * @example
-     * @code{.sad}
+     * @code{.ص}
      * صدّر دالة مضاعفة(رقم س) { إرجاع س * 2 }
      * صدّر ثابت PI = 3.14
      * @endcode
@@ -413,6 +434,8 @@ private:
      *         (EN) Pointer to enum declaration node.
      */
     AST::StmtPtr parseEnumDecl();
+    AST::StmtPtr parseStructDecl();
+    AST::StmtPtr parseTestDecl();
 
     /**
      * @brief (AR) يحلل جملة استيراد (استورد module).
@@ -538,7 +561,7 @@ private:
      * @return (AR) مؤشر لعقدة كتلة الجمل.
      *         (EN) Pointer to block statement node.
      */
-    AST::StmtPtr parseBlockStmt();
+    AST::StmtPtr parseBlockStmt(bool* closedByEnd = nullptr);
 
     /**
      * @brief (AR) يحلل جملة try-catch-finally للتعامل مع الأخطاء.
@@ -652,6 +675,18 @@ private:
     AST::ExprPtr parseAssignment();
 
     /**
+     * @brief (AR) يحلل عامل الأنبوب |> مع إزالة السكر النحوي.
+     *        (EN) Parses pipeline operator |> with desugaring.
+     * 
+     * Grammar / القواعد:
+     *   pipeline → assignment ("|>" assignment)*
+     * 
+     * @return (AR) مؤشر لعقدة تعبير الأنبوب (مُزال السكر إلى استدعاءات).
+     *         (EN) Pointer to pipeline expression (desugared to calls).
+     */
+    AST::ExprPtr parsePipeline();
+
+    /**
      * @brief (AR) يحلل التعبير الثلاثي الشرطي (ternary conditional).
      *        (EN) Parses ternary conditional expression.
      * 
@@ -694,6 +729,24 @@ private:
     AST::ExprPtr parseLogicalAnd();
 
     /**
+     * @brief (AR) يحلل عامل OR البتّي: |.
+     *        (EN) Parses bitwise OR operator: |.
+     */
+    AST::ExprPtr parseBitwiseOr();
+
+    /**
+     * @brief (AR) يحلل عامل XOR البتّي: ^.
+     *        (EN) Parses bitwise XOR operator: ^.
+     */
+    AST::ExprPtr parseBitwiseXor();
+
+    /**
+     * @brief (AR) يحلل عامل AND البتّي: &.
+     *        (EN) Parses bitwise AND operator: &.
+     */
+    AST::ExprPtr parseBitwiseAnd();
+
+    /**
      * @brief (AR) يحلل عوامل المساواة (== !=).
      *        (EN) Parses equality operators (== !=).
      * 
@@ -719,6 +772,12 @@ private:
      *         (EN) Pointer to addition/subtraction expression node.
      */
     AST::ExprPtr parseTerm();
+
+    /**
+     * @brief (AR) يحلل تعبير المدى (مثل: 1..10)
+     *        (EN) Parses range expression (e.g.: 1..10)
+     */
+    AST::ExprPtr parseRange();
 
     /**
      * @brief (AR) يحلل عوامل الضرب والقسمة (* / %).
@@ -1258,6 +1317,7 @@ private:
     Lexer::Token nextToken_;             ///< (AR) الرمز التالي للنظر المسبق (EN) Next token for lookahead
     bool panicMode_;                     ///< (AR) وضع الذعر للتعافي من الأخطاء (EN) Panic mode for error recovery
     std::string filename_;               ///< (AR) اسم الملف المصدري (EN) Source filename
+    bool pendingConst_ = false;          ///< (AR) علامة تصريح ثابت معلق (EN) Pending const declaration flag
 };
 
 } // namespace Parser

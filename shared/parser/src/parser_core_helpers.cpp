@@ -158,12 +158,22 @@ void ParserCore::advance() {
     // Fetch new nextToken_ for lookahead
     nextToken_ = lexer_.nextToken();
     
-    // Skip whitespace and comments in both current and nextToken_
-    // (AR) تجاوز المسافات والتعليقات في كل من current و nextToken_
+    // Skip whitespace, comments, and doc-comments in current_
+    // (AR) تجاوز المسافات والتعليقات والتعليقات التوثيقية في current_
     while (current_.getType() == TT::WHITESPACE || 
            current_.getType() == TT::COMMENT ||
+           current_.getType() == TT::DOC_COMMENT ||
            current_.getType() == TT::NEWLINE) {
         current_ = nextToken_;
+        nextToken_ = lexer_.nextToken();
+    }
+    
+    // Also skip whitespace in nextToken_ for correct lookahead (peekNext)
+    // (AR) أيضاً تجاوز المسافات في nextToken_ للنظر المسبق الصحيح
+    while (nextToken_.getType() == TT::WHITESPACE || 
+           nextToken_.getType() == TT::COMMENT ||
+           nextToken_.getType() == TT::DOC_COMMENT ||
+           nextToken_.getType() == TT::NEWLINE) {
         nextToken_ = lexer_.nextToken();
     }
 }
@@ -463,6 +473,11 @@ void ParserCore::error(const std::string& message) {
     enhanced_en += "\n   📍 Location: line " + std::to_string(loc.line) + 
                    ", column " + std::to_string(loc.column);
     
+    // TODO(#30): (AR) إضافة سطر الكود المصدري في رسالة الخطأ لتسهيل التصحيح
+    //            مثال: " 5 | متغير س = "   مع سهم يشير للعمود الخاطئ
+    // TODO(#30): (EN) Include source line content in error message for easier debugging
+    //            Example: " 5 | var x = "  with arrow pointing to error column
+    
     if (current_.getType() != TokenType::END_OF_FILE) {
         enhanced_ar += "\n   🔎 الرمز الحالي: '" + current_.getValue() + "'";
         enhanced_en += "\n   🔎 Current token: '" + current_.getValue() + "'";
@@ -728,6 +743,34 @@ std::vector<Parameter> ParserCore::parseTypedParameterList() {
                     paramType,
                     std::move(defaultValue)
                 );
+            } else if (check(TT::IDENTIFIER) && peekNext().getType() == TT::IDENTIFIER) {
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) صيغة نوع الصنف: "اسم_صنف اسم_معامل"
+                //      مثال: "شخص ش" أو "سيارة س"
+                //      يُعامل المعرّف الأول كاسم صنف والمعرّف الثاني كاسم المعامل
+                //
+                // (EN) Class-type syntax: "ClassName paramName"
+                //      Example: "Person p" or "Car c"
+                //      Treats first identifier as class type, second as parameter name
+                // ═══════════════════════════════════════════════════════════════
+                std::string className = current_.getValue();
+                advance();  // (AR) تخطي اسم الصنف / (EN) skip class name
+                Token paramName = consume(TT::IDENTIFIER,
+                    "(AR) توقع اسم معامل بعد اسم الصنف. (EN) Expected parameter name after class type.");
+                
+                // (AR) القيمة الافتراضية الاختيارية
+                // (EN) Optional default value
+                ExprPtr defaultValue = nullptr;
+                if (match(TT::OP_ASSIGN)) {
+                    defaultValue = parseExpression();
+                }
+                
+                parameters.emplace_back(
+                    paramName.getValue(),
+                    Data::DataType::OBJECT,
+                    std::move(defaultValue),
+                    className
+                );
             } else {
                 // Name-first syntax: "x: int"
                 // (AR) صيغة الاسم أولاً: "س: رقم"
@@ -935,8 +978,27 @@ Data::DataType ParserCore::parseGenericType(Data::DataType baseType) {
  *         (EN) true if arrow function, false otherwise.
  */
 bool ParserCore::isArrowFunction() {
-    // TODO: Temporarily disabled - needs proper implementation
-    // (AR) معطل مؤقتاً - يحتاج تنفيذ صحيح
+    // (AR) النمط 1: معرّف => تعبير (مثل: x => x * 2)
+    // (EN) Pattern 1: identifier => expression (e.g., x => x * 2)
+    if (check(TT::IDENTIFIER) && peekNext().getType() == TT::FAT_ARROW) {
+        return true;
+    }
+    
+    // (AR) النمط 2: () => تعبير (لامدا بدون معاملات)
+    // (EN) Pattern 2: () => expression (no-params lambda)
+    if (check(TT::PAREN_LEFT) && peekNext().getType() == TT::PAREN_RIGHT) {
+        // () is not a valid expression, so this must be arrow function
+        return true;
+    }
+    
+    // (AR) النمط 3: (معرّف، ...) => تعبير (تُكتشف عندما معرّف يتبعه فاصلة)
+    // (EN) Pattern 3: (identifier, ...) => expression (detected when identifier followed by comma)
+    if (check(TT::PAREN_LEFT) && peekNext().getType() == TT::IDENTIFIER) {
+        // Could be (x) => ... or (x, y) => ... or (expr)
+        // We'll handle this in parsePrimary's PAREN_LEFT section
+        // Only return true for unambiguous cases handled by parseArrowFunction
+    }
+    
     return false;
 }
 
@@ -959,10 +1021,63 @@ bool ParserCore::isArrowFunction() {
  *         (EN) Pointer to arrow function expression node (LambdaExpr).
  */
 ExprPtr ParserCore::parseArrowFunction() {
-    // TODO: Temporarily disabled - needs proper implementation
-    // (AR) معطل مؤقتاً - يحتاج تنفيذ صحيح
-    error("Arrow functions not yet implemented");
-    return nullptr;
+    std::vector<Parameter> params;
+    Lexer::Position arrowPos = current_.getPosition();
+    
+    if (check(TT::IDENTIFIER) && peekNext().getType() == TT::FAT_ARROW) {
+        // (AR) معامل واحد بدون أقواس: x => body
+        // (EN) Single parameter without parens: x => body
+        std::string paramName = current_.getValue();
+        advance(); // consume identifier
+        advance(); // consume =>
+        params.emplace_back(paramName, Data::DataType::UNKNOWN, nullptr);
+    } else if (check(TT::PAREN_LEFT)) {
+        advance(); // consume (
+        
+        // (AR) أقواس فارغة: () => body
+        // (EN) Empty parens: () => body
+        if (check(TT::PAREN_RIGHT)) {
+            advance(); // consume )
+        } else {
+            // (AR) قائمة معاملات: (x, y, z) => body
+            // (EN) Parameter list: (x, y, z) => body
+            do {
+                if (!check(TT::IDENTIFIER)) {
+                    errorBilingual(
+                        "خطأ: توقعت اسم معامل في دالة سهمية.",
+                        "Error: expected parameter name in arrow function."
+                    );
+                    return nullptr;
+                }
+                std::string paramName = current_.getValue();
+                advance(); // consume identifier
+                params.emplace_back(paramName, Data::DataType::UNKNOWN, nullptr);
+            } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));
+            
+            consume(TT::PAREN_RIGHT,
+                "(AR) توقع ')' بعد معاملات الدالة السهمية. (EN) Expected ')' after arrow function parameters.");
+        }
+        
+        consume(TT::FAT_ARROW,
+            "(AR) توقع '=>' بعد معاملات الدالة السهمية. (EN) Expected '=>' after arrow function parameters.");
+    }
+    
+    // (AR) تحليل جسم الدالة السهمية
+    // (EN) Parse arrow function body
+    auto body = parseExpression();
+    if (!body) {
+        errorBilingual(
+            "خطأ: فشل تحليل جسم الدالة السهمية.",
+            "Error: failed to parse arrow function body."
+        );
+        return nullptr;
+    }
+    
+    return std::make_unique<LambdaExpr>(
+        std::move(params),
+        std::move(body),
+        arrowPos
+    );
 }
 
 // ======================================================================

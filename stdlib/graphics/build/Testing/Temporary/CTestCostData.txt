@@ -1,0 +1,8 @@
+test_sad_graphics_basic 5 0.0152932
+test_sad_graphics_shapes 5 0.0139227
+test_sad_graphics_arabic_text 5 0.017848
+test_sad_graphics_image 5 0.0181226
+test_sad_graphics_transform 5 0.0285312
+test_sad_graphics_3d 5 0.0148204
+test_sad_graphics_animation 3 0.0208415
+---

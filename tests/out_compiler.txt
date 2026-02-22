@@ -1,0 +1,16 @@
+﻿sad.exe : 
+At line:1 char:59
++ ... ing]::UTF8; & ".\build\bin\Debug\sad.exe" "tests\test_compiler_featur ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+========================================
+  📊 (AR) ملخص التحليل / (EN) Parsing Summary
+========================================
+✓ (AR) عدد الجمل الناجحة: 10
+✓ (EN) Successful statements: 10
+========================================
+
+اختبار القسمة: 3.5المصفوفة: [1, 2, 3, 4, 5]العنصر الاول: 1~0 = -1النطاق: [1, 2, 3, 4, 5]
+

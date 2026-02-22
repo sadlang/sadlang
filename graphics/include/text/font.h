@@ -7,6 +7,7 @@
 
 #include "../core/types.h"
 #include "../texture/texture.h"
+#include "arabic_text.h"
 #include <string>
 #include <memory>
 #include <map>
@@ -71,6 +72,17 @@ public:
     // returns: نجح التوليد - Generation succeeded
     bool GenerateAtlas(u32 firstChar = 32, u32 numChars = 96);
     
+    // توليد atlas موسع مع نطاقات Unicode متعددة (يشمل العربية)
+    // Generate extended atlas with multiple Unicode ranges (includes Arabic)
+    // ranges: نطاقات Unicode / Unicode ranges
+    // returns: نجح التوليد / Generation succeeded
+    bool GenerateExtendedAtlas(const std::vector<ArabicText::UnicodeRange>& ranges);
+    
+    // توليد atlas عربي (ASCII + كل النطاقات العربية)
+    // Generate Arabic atlas (ASCII + all Arabic ranges)
+    // returns: نجح التوليد / Generation succeeded
+    bool GenerateArabicAtlas();
+    
     // الحصول على معلومات حرف - Get glyph information
     // codepoint: رمز الحرف - Character codepoint
     // returns: معلومات الحرف - Glyph info
@@ -86,6 +98,11 @@ public:
     // width: العرض (output) - Width (output)
     // height: الارتفاع (output) - Height (output)
     void MeasureText(const std::string& text, float& width, float& height) const;
+    
+    // قياس نص مع دعم UTF-8 الكامل / Measure text with full UTF-8 support
+    // يدعم العربية والإنجليزية ومتعدد اللغات / Supports Arabic, English, multilingual
+    float MeasureTextUTF8(const std::string& text) const;
+    void MeasureTextUTF8(const std::string& text, float& width, float& height) const;
     
     // التحقق من صحة الخط - Check if font is valid
     // returns: الخط صالح للاستخدام - Font is valid
@@ -130,14 +147,14 @@ public:
     // returns: shared pointer لخط افتراضي - Shared pointer to default font
     static std::shared_ptr<Font> CreateDefault(float fontSize = 24.0f);
 
-private:
-    // بناء atlas من بيانات الخط - Build atlas from font data
-    bool BuildAtlas(u32 firstChar, u32 numChars);
-    
     // الحصول على معلومات kerning - Get kerning information
     // char1, char2: الحرفان - Two characters
     // returns: مسافة kerning - Kerning distance
     float GetKerning(u32 char1, u32 char2) const;
+
+private:
+    // بناء atlas من بيانات الخط - Build atlas from font data
+    bool BuildAtlas(u32 firstChar, u32 numChars);
 
 private:
     u8* m_fontData;                     // بيانات الخط - Font data

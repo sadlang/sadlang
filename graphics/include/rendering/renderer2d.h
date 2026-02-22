@@ -169,6 +169,22 @@ public:
                  const Color& color = Color::White, Int32 segments = 32);
     
     // ==============================================================================
+    // دوال مساعدة للرسم الممتلئ / Convenience filled drawing functions
+    // ==============================================================================
+    
+    /// رسم مستطيل ممتلئ / Draw filled rectangle
+    void DrawFilledRect(Float32 x, Float32 y, Float32 width, Float32 height,
+                        const Color& color = Color::White) {
+        DrawRect(x, y, width, height, color, true);
+    }
+    
+    /// رسم دائرة ممتلئة / Draw filled circle
+    void DrawFilledCircle(Float32 x, Float32 y, Float32 radius,
+                          const Color& color = Color::White, Int32 segments = 32) {
+        DrawCircle(x, y, radius, color, true, segments);
+    }
+
+    // ==============================================================================
     // رسم النصوص / Text Drawing
     // ==============================================================================
     
@@ -203,6 +219,28 @@ public:
                          Float32 x, Float32 y,
                          Float32 alignX, Float32 alignY,
                          const Color& color = Color::White);
+    
+    /// رسم نص عربي مع تشكيل تلقائي واتجاه RTL
+    /// Draw Arabic text with automatic shaping and RTL direction
+    /// text: النص العربي (UTF-8) / Arabic text (UTF-8)
+    /// font: الخط (يجب أن يحتوي على حروف عربية) / Font (must contain Arabic glyphs)
+    /// x, y: الموقع (الزاوية العلوية اليمنى للنص العربي) / Position (top-right for Arabic)
+    /// color: لون النص / Text color
+    void DrawTextArabic(const std::string& text,
+                        const sad::graphics::FontRef& font,
+                        Float32 x, Float32 y,
+                        const Color& color = Color::White);
+    
+    /// رسم نص تلقائي الاتجاه (يكتشف عربي/إنجليزي)
+    /// Draw auto-direction text (detects Arabic/English)
+    /// text: النص (UTF-8) / Text (UTF-8)
+    /// font: الخط / Font
+    /// x, y: الموقع / Position
+    /// color: لون النص / Text color
+    void DrawTextAuto(const std::string& text,
+                      const sad::graphics::FontRef& font,
+                      Float32 x, Float32 y,
+                      const Color& color = Color::White);
     
     // ==============================================================================
     // رسم الصور والـ Textures / Drawing Images and Textures
@@ -347,6 +385,13 @@ private:
     sad::graphics::TextureRef m_currentTexture;  // الـ texture المُربوط حالياً / Currently bound texture
     bool m_textureEnabled;       // تفعيل الـ textures / Textures enabled
     
+    // حالة الدفعة / Batch state
+    DrawMode m_currentBatchMode;  // نمط الرسم الحالي للدفعة / Current batch draw mode
+    
+    // ثوابت الدفعة / Batch limits
+    static constexpr size_t MAX_BATCH_VERTICES = 65536;   // أقصى عدد رؤوس / Max vertices
+    static constexpr size_t MAX_BATCH_INDICES  = 131072;  // أقصى عدد فهارس / Max indices
+    
     // المصفوفات / Matrices
     Float32 m_projectionMatrix[16];   // مصفوفة الإسقاط / Projection matrix
     Float32 m_transformMatrix[16];    // مصفوفة التحويل / Transform matrix
@@ -368,6 +413,11 @@ private:
     /// دفع الرؤوس إلى OpenGL / Flush vertices to OpenGL
     /// mode: نمط الرسم / Draw mode
     void FlushBatch(DrawMode mode);
+    
+    /// تحضير الدفعة (فحص توافق الحالة والفيض)
+    /// Prepare batch (check state compatibility and overflow)
+    void BeginBatch(DrawMode mode, bool textured = false,
+                    const sad::graphics::TextureRef& texture = nullptr);
     
     /// إنشاء مصفوفة إسقاط / Create projection matrix
     /// left, right, bottom, top: حدود الإسقاط / Projection bounds
@@ -395,6 +445,12 @@ private:
     
     /// تفعيل/تعطيل texture mode / Enable/disable texture mode
     void SetTextureMode(bool enabled);
+    
+    /// رسم نص من رموز Unicode / Draw text from Unicode codepoints (private helper)
+    void DrawTextUTF8(const std::vector<sad::graphics::u32>& codepoints,
+                      const sad::graphics::FontRef& font,
+                      Float32 x, Float32 y,
+                      const Color& color);
 };
 
 } // namespace SadGraphics

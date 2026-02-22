@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المنظمات — مستودع حزم لغة ص</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- شريط التنقل -->
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="navbar-brand">
+                <span class="brand-icon">ص</span>
+                <span class="brand-text">مستودع الحزم</span>
+            </a>
+            <div class="navbar-search">
+                <form id="searchForm" action="/search.html" method="GET">
+                    <input type="text" name="q" id="searchInput" placeholder="ابحث عن حزمة..." autocomplete="off" dir="auto">
+                    <button type="submit" class="btn-search">🔍</button>
+                </form>
+            </div>
+            <div class="navbar-actions">
+                <a href="/search.html" class="nav-link">استكشاف</a>
+                <a href="/organizations.html" class="nav-link active">المنظمات</a>
+                <a href="/security.html" class="nav-link">الأمان</a>
+                <a href="#" class="nav-link" id="loginBtn">تسجيل الدخول</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- القسم الرئيسي -->
+    <section class="page-header">
+        <div class="container">
+            <h1>🏢 المنظمات</h1>
+            <p>أنشئ منظمة لإدارة الحزم والفرق بشكل احترافي</p>
+        </div>
+    </section>
+
+    <!-- منظماتي -->
+    <section class="my-orgs-section" id="myOrgsSection" style="display:none">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">📋 منظماتي</h2>
+                <button class="btn btn-primary" id="createOrgBtn">+ إنشاء منظمة</button>
+            </div>
+            <div class="orgs-grid" id="myOrgsGrid">
+                <div class="loading-placeholder">جارٍ التحميل...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- منظمات مميزة -->
+    <section class="featured-orgs-section">
+        <div class="container">
+            <h2 class="section-title">⭐ منظمات مميزة</h2>
+            <div class="orgs-grid" id="featuredOrgsGrid">
+                <div class="org-card">
+                    <div class="org-avatar">🏛️</div>
+                    <div class="org-info">
+                        <h3>مجتمع ص</h3>
+                        <p>المنظمة الرسمية لمطوري لغة ص</p>
+                        <span class="org-stats">15 حزمة • 8 أعضاء</span>
+                    </div>
+                    <span class="badge badge-verified">✓ موثقة</span>
+                </div>
+                <div class="org-card">
+                    <div class="org-avatar">🌐</div>
+                    <div class="org-info">
+                        <h3>شبكات عربية</h3>
+                        <p>حزم الشبكات والاتصالات</p>
+                        <span class="org-stats">7 حزم • 4 أعضاء</span>
+                    </div>
+                </div>
+                <div class="org-card">
+                    <div class="org-avatar">🔢</div>
+                    <div class="org-info">
+                        <h3>رياضيات متقدمة</h3>
+                        <p>مكتبات الحسابات الرياضية</p>
+                        <span class="org-stats">12 حزمة • 6 أعضاء</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- مزايا المنظمات -->
+    <section class="org-features">
+        <div class="container">
+            <h2 class="section-title">✨ مزايا المنظمات</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <span class="feature-icon">👥</span>
+                    <h3>إدارة الفريق</h3>
+                    <p>أضف أعضاء بصلاحيات مختلفة: مالك، مسؤول، مطور، قارئ</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">🔐</span>
+                    <h3>حزم خاصة</h3>
+                    <p>أنشئ حزم خاصة مرئية فقط لأعضاء المنظمة</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">🔑</span>
+                    <h3>مفاتيح تواقيع</h3>
+                    <p>وقّع الحزم بمفتاح المنظمة للتحقق من المصدر</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">📊</span>
+                    <h3>تحليلات متقدمة</h3>
+                    <p>احصائيات تفصيلية عن التنزيلات والاستخدام</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">🔔</span>
+                    <h3>إشعارات مركزية</h3>
+                    <p>تنبيهات الأمان والتحديثات لجميع حزم المنظمة</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">✅</span>
+                    <h3>توثيق رسمي</h3>
+                    <p>احصل على علامة التوثيق للمنظمات الموثوقة</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- نافذة إنشاء منظمة -->
+    <div class="modal-overlay" id="createOrgModal" style="display:none">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3>🏢 إنشاء منظمة جديدة</h3>
+                <button class="modal-close" id="closeOrgModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createOrgForm">
+                    <div class="form-group">
+                        <label for="orgName">اسم المنظمة (بالإنجليزية)</label>
+                        <input type="text" id="orgName" placeholder="my-org" pattern="[a-z0-9-]+" dir="ltr" required>
+                        <small>سيُستخدم في عناوين URL والحزم</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="orgDisplayName">الاسم المعروض</label>
+                        <input type="text" id="orgDisplayName" placeholder="منظمتي الرائعة" dir="auto" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="orgDescription">الوصف</label>
+                        <textarea id="orgDescription" rows="3" placeholder="وصف مختصر للمنظمة..." dir="auto"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="orgWebsite">الموقع الإلكتروني (اختياري)</label>
+                        <input type="url" id="orgWebsite" placeholder="https://example.com" dir="ltr">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelOrgBtn">إلغاء</button>
+                        <button type="submit" class="btn btn-primary">إنشاء المنظمة</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- التذييل -->
+    <footer class="footer">
+        <div class="container footer-content">
+            <div class="footer-brand">
+                <span class="brand-icon">ص</span>
+                <p>مستودع حزم لغة ص — النسخة 2.0 الثورية</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <h4>الروابط</h4>
+                    <a href="/">الرئيسية</a>
+                    <a href="/search.html">البحث</a>
+                    <a href="/security.html">الأمان</a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <p>بسم الله الرحمن الرحيم — صُنع بـ ❤️ للمطورين العرب</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/app.js"></script>
+    <script>
+        // تحميل منظماتي
+        async function loadMyOrgs() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            
+            document.getElementById('myOrgsSection').style.display = 'block';
+            
+            try {
+                const res = await fetch('/api/v1/me/organizations', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                const grid = document.getElementById('myOrgsGrid');
+                
+                if (data.organizations && data.organizations.length > 0) {
+                    grid.innerHTML = data.organizations.map(org => `
+                        <div class="org-card">
+                            <div class="org-avatar">${org.display_name.charAt(0)}</div>
+                            <div class="org-info">
+                                <h3>${org.display_name}</h3>
+                                <span class="org-name">@${org.name}</span>
+                            </div>
+                            <a href="/organizations.html?org=${org.name}" class="btn btn-small">إدارة</a>
+                        </div>
+                    `).join('');
+                } else {
+                    grid.innerHTML = '<p class="no-data">لا توجد منظمات بعد. أنشئ منظمتك الأولى!</p>';
+                }
+            } catch (e) {
+                console.error('Error loading orgs:', e);
+            }
+        }
+
+        // نافذة إنشاء منظمة
+        document.getElementById('createOrgBtn')?.addEventListener('click', () => {
+            document.getElementById('createOrgModal').style.display = 'flex';
+        });
+        
+        document.getElementById('closeOrgModal')?.addEventListener('click', () => {
+            document.getElementById('createOrgModal').style.display = 'none';
+        });
+        
+        document.getElementById('cancelOrgBtn')?.addEventListener('click', () => {
+            document.getElementById('createOrgModal').style.display = 'none';
+        });
+
+        // إنشاء منظمة
+        document.getElementById('createOrgForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('يجب تسجيل الدخول أولاً');
+                return;
+            }
+            
+            const payload = {
+                name: document.getElementById('orgName').value,
+                display_name: document.getElementById('orgDisplayName').value,
+                description: document.getElementById('orgDescription').value,
+                website: document.getElementById('orgWebsite').value
+            };
+            
+            try {
+                const res = await fetch('/api/v1/organizations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert('تم إنشاء المنظمة بنجاح!');
+                    document.getElementById('createOrgModal').style.display = 'none';
+                    loadMyOrgs();
+                } else {
+                    alert('خطأ: ' + (data.error || 'فشل في إنشاء المنظمة'));
+                }
+            } catch (e) {
+                alert('خطأ في الاتصال');
+            }
+        });
+
+        // تحميل البيانات عند فتح الصفحة
+        document.addEventListener('DOMContentLoaded', loadMyOrgs);
+    </script>
+</body>
+</html>

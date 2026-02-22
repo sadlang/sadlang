@@ -2,6 +2,7 @@
 // HTTP Cookie Implementation
 
 #include "http_cookie.h"
+#include "http_url.h"
 #include <sstream>
 #include <algorithm>
 #include <ctime>
@@ -277,12 +278,59 @@ void CookieJar::add_cookie(const Cookie& cookie) {
 std::vector<Cookie> CookieJar::get_cookies(const std::string& url) const {
     std::vector<Cookie> result;
     
-    for (const auto& [name, cookie] : pImpl->cookies_) {
-        if (!cookie.is_expired()) {
-            // TODO: Match domain and path against URL
-            // For now, return all valid cookies
-            result.push_back(cookie);
+    // Parse URL to extract host and path for matching
+    std::string url_host, url_path;
+    try {
+        URL parsed(url);
+        url_host = parsed.host();
+        url_path = parsed.path();
+        if (url_path.empty()) url_path = "/";
+        // Lowercase the host for comparison
+        std::transform(url_host.begin(), url_host.end(), url_host.begin(), ::tolower);
+    } catch (...) {
+        // If URL parsing fails, return all valid cookies (fallback)
+        for (const auto& [name, cookie] : pImpl->cookies_) {
+            if (!cookie.is_expired()) result.push_back(cookie);
         }
+        return result;
+    }
+    
+    for (const auto& [name, cookie] : pImpl->cookies_) {
+        if (cookie.is_expired()) continue;
+        
+        // Domain matching (RFC 6265 §5.1.3)
+        std::string cookie_domain = cookie.domain();
+        if (!cookie_domain.empty()) {
+            std::string cd = cookie_domain;
+            std::transform(cd.begin(), cd.end(), cd.begin(), ::tolower);
+            // Remove leading dot if present
+            if (!cd.empty() && cd[0] == '.') cd = cd.substr(1);
+            
+            // Exact match or subdomain match
+            if (url_host != cd) {
+                // Check if url_host ends with "."+cd
+                std::string suffix = "." + cd;
+                if (url_host.size() < suffix.size() ||
+                    url_host.compare(url_host.size() - suffix.size(), suffix.size(), suffix) != 0) {
+                    continue; // Domain doesn't match
+                }
+            }
+        }
+        
+        // Path matching (RFC 6265 §5.1.4)
+        std::string cookie_path = cookie.path();
+        if (cookie_path.empty()) cookie_path = "/";
+        
+        if (url_path == cookie_path) {
+            // Exact match
+        } else if (url_path.find(cookie_path) == 0 &&
+                   (cookie_path.back() == '/' || url_path[cookie_path.size()] == '/')) {
+            // url_path starts with cookie_path and next char is /
+        } else {
+            continue; // Path doesn't match
+        }
+        
+        result.push_back(cookie);
     }
     
     return result;

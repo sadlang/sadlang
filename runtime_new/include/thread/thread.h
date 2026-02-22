@@ -593,7 +593,7 @@ public:
 private:
     std::vector<std::thread> workers_;      // الخيوط العاملة
     std::queue<Task> tasks_;                // قائمة المهام
-    std::mutex mutex_;                      // قفل الحماية
+    mutable std::mutex mutex_;              // قفل الحماية
     std::condition_variable cond_;          // متغير الشرط
     std::atomic<bool> stop_;                // علم الإيقاف
     std::atomic<size_t> active_tasks_;      // المهام النشطة

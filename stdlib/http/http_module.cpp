@@ -23,6 +23,9 @@
 #include <random>
 #include <queue>
 #include <mutex>
+#include <filesystem>  // للتحقق من المسارات / For path validation
+
+namespace fs = std::filesystem;
 
 // Platform-specific includes
 #ifdef _WIN32
@@ -1094,79 +1097,124 @@ void HttpServer::serve_static(const std::string& url_prefix, const std::string& 
         HttpResponse res;
         
         // استخراج المسار النسبي / Extract relative path
-        std::string file_path = directory;
         std::string request_path = req.get_path();
         
-        // تنظيف المسار من ".." للأمان / Clean path from ".." for security
+        // ════════════════════════════════════════════════════════
+        // إصلاح أمني: منع Path Traversal (اجتياز المسار)
+        // Security fix: Prevent Path Traversal attacks
+        // ════════════════════════════════════════════════════════
+        
+        // الخطوة 1: رفض المسارات التي تحتوي على ".." صريحاً
+        // Step 1: Reject paths containing explicit ".."
         if (request_path.find("..") != std::string::npos) {
-            res.set_status(HttpStatus::BadRequest);
-            res.set_body("Bad Request: Invalid path");
+            res.set_status(HttpStatus::Forbidden);
+            res.set_body("Forbidden: Invalid path");
             return res;
         }
         
-        // بناء مسار الملف الكامل / Build full file path
-        if (!file_path.empty() && file_path.back() != '/' && file_path.back() != '\\\\') {
-            file_path += '/';
-        }
-        if (!request_path.empty() && request_path[0] == '/') {
-            request_path = request_path.substr(1);
-        }
-        file_path += request_path;
-        
-        // محاولة فتح الملف / Try to open file
-        std::ifstream file(file_path, std::ios::binary);
-        if (!file.is_open()) {
-            res.set_status(HttpStatus::NotFound);
-            res.set_body("File Not Found");
+        // الخطوة 2: رفض URL-encoded ".." patterns
+        // Step 2: Reject URL-encoded ".." patterns
+        if (request_path.find("%2e%2e") != std::string::npos ||
+            request_path.find("%2E%2E") != std::string::npos ||
+            request_path.find("%2e.") != std::string::npos ||
+            request_path.find(".%2e") != std::string::npos) {
+            res.set_status(HttpStatus::Forbidden);
+            res.set_body("Forbidden: Invalid encoded path");
             return res;
         }
         
-        // قراءة محتوى الملف / Read file content
-        std::ostringstream contents;
-        contents << file.rdbuf();
-        res.set_body(contents.str());
+        try {
+            // الخطوة 3: تطبيع المسارات والتحقق من الاحتواء
+            // Step 3: Normalize paths and verify containment
+            fs::path base_dir = fs::weakly_canonical(fs::path(directory));
+            
+            // تنظيف المسار المطلوب / Clean request path
+            if (!request_path.empty() && request_path[0] == '/') {
+                request_path = request_path.substr(1);
+            }
+            
+            fs::path file_path = fs::weakly_canonical(base_dir / request_path);
+            
+            // التحقق من أن الملف داخل المجلد الأساسي
+            // Verify file is within base directory
+            std::string base_str = base_dir.string();
+            std::string file_str = file_path.string();
+            
+            if (file_str.find(base_str) != 0) {
+                res.set_status(HttpStatus::Forbidden);
+                res.set_body("Forbidden: Path traversal detected");
+                return res;
+            }
+            
+            // فحص وجود الملف / Check file exists
+            if (!fs::exists(file_path) || !fs::is_regular_file(file_path)) {
+                res.set_status(HttpStatus::NotFound);
+                res.set_body("File Not Found");
+                return res;
+            }
+            
+            // محاولة فتح الملف / Try to open file
+            std::ifstream file(file_path, std::ios::binary);
+            if (!file.is_open()) {
+                res.set_status(HttpStatus::InternalServerError);
+                res.set_body("Failed to read file");
+                return res;
+            }
+            
+            // قراءة محتوى الملف / Read file content
+            std::ostringstream contents;
+            contents << file.rdbuf();
+            res.set_body(contents.str());
         
-        // تحديد MIME type / Determine MIME type
-        std::string ext;
-        size_t dot_pos = file_path.find_last_of('.');
-        if (dot_pos != std::string::npos) {
-            ext = file_path.substr(dot_pos);
-            // تحويل للحروف الصغيرة / Convert to lowercase
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            // تحديد MIME type / Determine MIME type
+            std::string ext;
+            std::string file_path_str = file_path.string();
+            size_t dot_pos = file_path_str.find_last_of('.');
+            if (dot_pos != std::string::npos) {
+                ext = file_path_str.substr(dot_pos);
+                // تحويل للحروف الصغيرة / Convert to lowercase
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            }
+        
+            // جدول MIME types / MIME type table
+            static const std::unordered_map<std::string, std::string> mime_types = {
+                {".html", "text/html"},
+                {".htm", "text/html"},
+                {".css", "text/css"},
+                {".js", "application/javascript"},
+                {".json", "application/json"},
+                {".xml", "application/xml"},
+                {".txt", "text/plain"},
+                {".jpg", "image/jpeg"},
+                {".jpeg", "image/jpeg"},
+                {".png", "image/png"},
+                {".gif", "image/gif"},
+                {".svg", "image/svg+xml"},
+                {".ico", "image/x-icon"},
+                {".pdf", "application/pdf"},
+                {".zip", "application/zip"},
+                {".woff", "font/woff"},
+                {".woff2", "font/woff2"},
+                {".ttf", "font/ttf"},
+                {".mp4", "video/mp4"},
+                {".mp3", "audio/mpeg"}
+            };
+        
+            auto mime_it = mime_types.find(ext);
+            if (mime_it != mime_types.end()) {
+                res.set_header("Content-Type", mime_it->second);
+            } else {
+                res.set_header("Content-Type", "application/octet-stream");
+            }
+        
+            res.set_status(HttpStatus::OK);
+            
+        } catch (const std::exception& e) {
+            // خطأ في معالجة الملف / File processing error
+            res.set_status(HttpStatus::InternalServerError);
+            res.set_body("Server error processing file");
         }
         
-        // جدول MIME types / MIME type table
-        static const std::unordered_map<std::string, std::string> mime_types = {
-            {".html", "text/html"},
-            {".htm", "text/html"},
-            {".css", "text/css"},
-            {".js", "application/javascript"},
-            {".json", "application/json"},
-            {".xml", "application/xml"},
-            {".txt", "text/plain"},
-            {".jpg", "image/jpeg"},
-            {".jpeg", "image/jpeg"},
-            {".png", "image/png"},
-            {".gif", "image/gif"},
-            {".svg", "image/svg+xml"},
-            {".ico", "image/x-icon"},
-            {".pdf", "application/pdf"},
-            {".zip", "application/zip"},
-            {".woff", "font/woff"},
-            {".woff2", "font/woff2"},
-            {".ttf", "font/ttf"},
-            {".mp4", "video/mp4"},
-            {".mp3", "audio/mpeg"}
-        };
-        
-        auto mime_it = mime_types.find(ext);
-        if (mime_it != mime_types.end()) {
-            res.set_header("Content-Type", mime_it->second);
-        } else {
-            res.set_header("Content-Type", "application/octet-stream");
-        }
-        
-        res.set_status(HttpStatus::OK);
         return res;
     };
     

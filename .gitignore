@@ -1,64 +1,74 @@
-# ======================================================================
-# .gitignore - ملفات ومجلدات يتم تجاهلها بواسطة Git
-# ======================================================================
+# ══════════════════════════════════════════════════════════════════
+# .gitignore - لغة ص / Sad Programming Language
+# ══════════════════════════════════════════════════════════════════
 
-# مجلدات البناء / Build directories
+# ── مجلدات البناء / Build directories ──
 build/
-cmake-build-*/
+build_new/
 out/
-bin/
-lib/
+cmake-build-*/
 
-# ملفات CMake المؤقتة / CMake temporary files
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-*.cmake
-
-# ملفات الكائنات والمكتبات / Object files and libraries
-*.o
-*.obj
-*.a
+# ── ملفات مُجمَّعة / Compiled files ──
+*.exe
 *.lib
+*.pdb
+*.obj
+*.o
 *.so
 *.dll
 *.dylib
-*.exe
+*.a
+*.ilk
+*.exp
 
-# ملفات Visual Studio / Visual Studio files
+# ── ملفات IDE ──
 .vs/
-*.sln
-*.vcxproj
-*.vcxproj.filters
-*.vcxproj.user
+.vscode/settings.json
+.vscode/c_cpp_properties.json
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
-
-# ملفات Visual Studio Code / VS Code files
-.vscode/
 *.code-workspace
+.idea/
 
-# ملفات المحرر / Editor files
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
+# ── CMake ──
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+_deps/
 
-# ملفات الاختبار المؤقتة / Temporary test files
-test_output/
+# ── سجلات / Logs ──
 *.log
 
-# ملفات الوثائق المولدة / Generated documentation
-docs/html/
-docs/latex/
-Doxygen/
+# ── ملفات مؤقتة / Temporary files ──
+*.tmp
+*.temp
+*.swp
+*.bak
+*.backup
+*~
 
-# ملفات النظام / System files
-.idea/
+# ── مخرجات البناء والاختبار في الجذر / Build & test output in root ──
+# (هذه الملفات يجب نقلها إلى build/ أو حذفها)
+build_*.txt
+test_*.txt
+test_*.xml
+test-results.xml
+trait_*.txt
+graphics_build.txt
+sad_debug_log.txt
+sadc_build_log*.txt
+CMakeLists.txt.new
+CMakeLists.txt.backup
+
+# ── حزم ومكتبات خارجية / External packages ──
+node_modules/
 __pycache__/
 *.pyc
-node_modules/
+.env
+
+# ── نظام التشغيل / OS files ──
+.DS_Store
+Thumbs.db
+Desktop.ini

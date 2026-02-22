@@ -11,11 +11,24 @@
  */
 
 #include "io/io_functions.h"
+#include "object_instance.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 #include <cstdlib>
 #include <vector>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#ifdef _WIN32
+#include <windows.h>
+#include <io.h>
+// Windows.h defines VOID macro which conflicts with ValueType::VOID
+#ifdef VOID
+#undef VOID
+#endif
+#endif
 
 namespace Sad {
 namespace StdLib {
@@ -24,6 +37,97 @@ namespace IO {
 // ====================================================================
 // Helper Methods
 // ====================================================================
+
+/**
+ * @brief (AR) إزالة BOM (علامة ترتيب البايت) UTF-8 من بداية النص
+ * @brief (EN) Strip UTF-8 BOM (Byte Order Mark) from the beginning of a string
+ * 
+ * PowerShell on Windows prepends a UTF-8 BOM (EF BB BF) when piping
+ * strings to stdin. This corrupts string-to-number conversions like لرقم().
+ */
+static std::string stripUtf8Bom(const std::string& str) {
+    if (str.size() >= 3 &&
+        static_cast<unsigned char>(str[0]) == 0xEF &&
+        static_cast<unsigned char>(str[1]) == 0xBB &&
+        static_cast<unsigned char>(str[2]) == 0xBF) {
+        return str.substr(3);
+    }
+    return str;
+}
+
+/**
+ * @brief (AR) قراءة سطر من stdin مع دعم Windows الصحيح
+ * @brief (EN) Read a line from stdin with proper Windows support
+ *
+ * (AR) مشكلة ConPTY (طرفية VS Code): 
+ * ConPTY يُفعّل ENABLE_VIRTUAL_TERMINAL_INPUT (0x0200) مما يجعل
+ * تسلسلات هروب ANSI (مثل رد موقع المؤشر \x1b[row;colR) تظهر كإدخال عادي.
+ * هذا يسبب قراءة بيانات وهمية بدلاً من انتظار إدخال المستخدم.
+ * 
+ * (EN) ConPTY (VS Code terminal) problem:
+ * ConPTY enables ENABLE_VIRTUAL_TERMINAL_INPUT (0x0200) which causes
+ * ANSI escape sequences (like cursor position response \x1b[row;colR) 
+ * to appear as regular stdin input. This causes phantom data reads.
+ *
+ * الحل: تعطيل VT input مؤقتاً + تنظيف المخازن المؤقتة + ضبط وضع القراءة
+ * Fix: Temporarily disable VT input + flush buffers + set proper read mode
+ */
+static bool readLineFromStdin(std::string& result) {
+    // (AR) ضمان ظهور أي نص طُبع (مثل رسالة التوجيه) قبل القراءة
+    // (EN) Ensure any printed text (like prompt) is flushed before reading
+    fflush(stdout);
+    std::cout.flush();
+    
+#ifdef _WIN32
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD oldMode = 0;
+    bool isConsole = (hStdin != INVALID_HANDLE_VALUE && GetConsoleMode(hStdin, &oldMode));
+    
+    if (isConsole) {
+        // (AR) تعطيل ENABLE_VIRTUAL_TERMINAL_INPUT لمنع تسلسلات الهروب من الظهور كإدخال
+        // (EN) Disable ENABLE_VIRTUAL_TERMINAL_INPUT to prevent escape sequences as input
+        DWORD newMode = (oldMode & ~0x0200u);
+        // (AR) ضمان: معالجة إدخال + قراءة سطر كامل + صدى الكتابة
+        // (EN) Ensure: processed input + line input + echo
+        newMode |= (ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+        SetConsoleMode(hStdin, newMode);
+        
+        // (AR) انتظار قصير ليصل أي escape sequence متأخر من ConPTY
+        // (EN) Brief wait for any late ConPTY escape sequences to arrive
+        Sleep(50);
+        
+        // (AR) تنظيف كل أحداث الإدخال المُعلّقة (بما فيها بقايا escape sequences)
+        // (EN) Drain all pending input events (including leftover escape sequences)
+        DWORD numEvents = 0;
+        while (GetNumberOfConsoleInputEvents(hStdin, &numEvents) && numEvents > 0) {
+            INPUT_RECORD irBuf[256];
+            DWORD eventsRead = 0;
+            ReadConsoleInputW(hStdin, irBuf, (numEvents < 256 ? numEvents : 256), &eventsRead);
+            if (eventsRead == 0) break;
+        }
+        
+        // (AR) تنظيف مخزن C Runtime
+        // (EN) Flush C runtime's stdin buffer
+        fflush(stdin);
+    }
+#endif
+    
+    bool ok = false;
+    if (std::getline(std::cin, result)) {
+        result = stripUtf8Bom(result);
+        ok = true;
+    }
+    
+#ifdef _WIN32
+    if (isConsole) {
+        // (AR) استعادة وضع الطرفية الأصلي
+        // (EN) Restore original console mode
+        SetConsoleMode(hStdin, oldMode);
+    }
+#endif
+    
+    return ok;
+}
 
 std::string IOFunctions::processEscapeSequences(const std::string& input) {
     /**
@@ -54,7 +158,13 @@ std::string IOFunctions::processEscapeSequences(const std::string& input) {
     return result;
 }
 
-std::string IOFunctions::valueToString(const Data::Value& value) {
+std::string IOFunctions::valueToString(const Data::Value& value, int depth) {
+    // (AR) حماية من التكرار اللانهائي عند وجود كائنات دورية
+    // (EN) Guard against infinite recursion with cyclic objects
+    if (depth > 10) {
+        return "(...)";
+    }
+    
     using VT = Data::ValueType;
     
     switch (value.getType()) {
@@ -97,7 +207,7 @@ std::string IOFunctions::valueToString(const Data::Value& value) {
                 auto arr = value.toArray();
                 for (size_t i = 0; i < arr.size(); ++i) {
                     if (i > 0) oss << ", ";
-                    oss << valueToString(arr[i]);
+                    oss << valueToString(arr[i], depth + 1);
                 }
             } catch (...) {
                 oss << "...";
@@ -114,7 +224,7 @@ std::string IOFunctions::valueToString(const Data::Value& value) {
                 bool first = true;
                 for (const auto& [key, val] : map) {
                     if (!first) oss << ", ";
-                    oss << "\"" << key << "\": " << valueToString(val);
+                    oss << "\"" << key << "\": " << valueToString(val, depth + 1);
                     first = false;
                 }
             } catch (...) {
@@ -122,6 +232,42 @@ std::string IOFunctions::valueToString(const Data::Value& value) {
             }
             oss << "}";
             return oss.str();
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) كائن (صنف) — يطبع اسم الصنف وحقوله
+        //      إذا كان الكائن يملك حقل __نص_عرض__ يستخدمه
+        //      وإلا يطبع الصنف{الحقول} بالشكل الافتراضي
+        // (EN) Object (class instance) — prints class name and fields
+        //      If object has __نص_عرض__ field, uses it
+        //      Otherwise prints ClassName{fields} as default
+        // ═══════════════════════════════════════════════════════════════
+        case VT::OBJECT: {
+            try {
+                auto objPtr = value.toObject();
+                if (!objPtr) return "(كائن فارغ)";
+                
+                // (AR) التحقق من وجود تمثيل نصي مخصص
+                // (EN) Check for custom string representation
+                auto customIt = objPtr->fields.find("__نص_عرض__");
+                if (customIt != objPtr->fields.end() && customIt->second.isString()) {
+                    return customIt->second.toString();
+                }
+                
+                std::ostringstream oss;
+                oss << objPtr->getClassName() << "{";
+                bool first = true;
+                for (const auto& [key, val] : objPtr->fields) {
+                    if (key.find("__") == 0) continue; // (AR) تخطي الحقول الداخلية
+                    if (!first) oss << ", ";
+                    oss << key << ": " << valueToString(val, depth + 1);
+                    first = false;
+                }
+                oss << "}";
+                return oss.str();
+            } catch (...) {
+                return "(كائن)";
+            }
         }
         
         default:
@@ -179,10 +325,15 @@ Data::Value IOFunctions::print(const std::vector<Data::Value>& args) {
     
     try {
         for (size_t i = 0; i < args.size(); ++i) {
-            if (i > 0) std::cout << " ";
-            std::cout << valueToString(args[i]);
+            if (i > 0) {
+                // (AR) استخدام fwrite لتجنب مشاكل ترميز Unicode على Windows
+                // (EN) Use fwrite to avoid Unicode encoding issues on Windows
+                fwrite(" ", 1, 1, stdout);
+            }
+            std::string str = valueToString(args[i]);
+            fwrite(str.c_str(), 1, str.size(), stdout);
         }
-        std::cout.flush();
+        fflush(stdout);
     } catch (const std::exception& e) {
         throw std::runtime_error(
             std::string("(AR) خطأ في طبع() / (EN) Error in print(): ") + e.what()
@@ -200,10 +351,16 @@ Data::Value IOFunctions::println(const std::vector<Data::Value>& args) {
     
     try {
         for (size_t i = 0; i < args.size(); ++i) {
-            if (i > 0) std::cout << " ";
-            std::cout << valueToString(args[i]);
+            if (i > 0) {
+                fwrite(" ", 1, 1, stdout);
+            }
+            std::string str = valueToString(args[i]);
+            fwrite(str.c_str(), 1, str.size(), stdout);
         }
-        std::cout << std::endl;
+        // (AR) إضافة سطر جديد
+        // (EN) Add newline
+        fwrite("\n", 1, 1, stdout);
+        fflush(stdout);
     } catch (const std::exception& e) {
         throw std::runtime_error(
             std::string("(AR) خطأ في طبع_سطر() / (EN) Error in println(): ") + e.what()
@@ -220,6 +377,13 @@ Data::Value IOFunctions::input(const std::vector<Data::Value>& args) {
      * 
      * إذا تم توفير معامل، يتم طباعته كرسالة موجهة قبل قراءة الإدخال
      * If an argument is provided, it's displayed as prompt before reading
+     *
+     * (AR) ملاحظة: على Windows، نستخدم ReadConsoleW للإدخال التفاعلي
+     *       لتجنب مشاكل SetConsoleCP(CP_UTF8) مع std::getline
+     *       كما نزيل BOM الذي يضيفه PowerShell عند الأنبوب
+     * (EN) Note: On Windows, we use ReadConsoleW for interactive input
+     *       to avoid SetConsoleCP(CP_UTF8) issues with std::getline
+     *       We also strip the UTF-8 BOM that PowerShell adds when piping
      */
     
     try {
@@ -230,7 +394,7 @@ Data::Value IOFunctions::input(const std::vector<Data::Value>& args) {
         }
         
         std::string input_line;
-        if (std::getline(std::cin, input_line)) {
+        if (readLineFromStdin(input_line)) {
             return Data::Value(input_line);
         } else {
             // EOF or error
@@ -260,7 +424,7 @@ Data::Value IOFunctions::readLine(const std::vector<Data::Value>& args) {
         }
         
         std::string line;
-        if (std::getline(std::cin, line)) {
+        if (readLineFromStdin(line)) {
             return Data::Value(line);
         } else {
             // EOF or error
@@ -284,11 +448,23 @@ Data::Value IOFunctions::clear(const std::vector<Data::Value>& args) {
     
     try {
         #ifdef _WIN32
-            // Windows system call
-            std::system("cls");
+            // (AR) استخدام Windows Console API بدلاً من std::system لتجنب ثغرات الحقن
+            // (EN) Use Windows Console API instead of std::system to avoid injection vulnerabilities
+            HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+            if (hConsole != INVALID_HANDLE_VALUE) {
+                CONSOLE_SCREEN_BUFFER_INFO csbi;
+                if (GetConsoleScreenBufferInfo(hConsole, &csbi)) {
+                    DWORD cellCount = csbi.dwSize.X * csbi.dwSize.Y;
+                    COORD homeCoords = {0, 0};
+                    DWORD count;
+                    FillConsoleOutputCharacterW(hConsole, L' ', cellCount, homeCoords, &count);
+                    FillConsoleOutputAttribute(hConsole, csbi.wAttributes, cellCount, homeCoords, &count);
+                    SetConsoleCursorPosition(hConsole, homeCoords);
+                }
+            }
         #else
-            // Unix/Linux/macOS system call
-            std::system("clear");
+            // Unix/Linux/macOS — ANSI escape
+            std::cout << "\033[2J\033[H";
         #endif
         std::cout.flush();
     } catch (const std::exception& e) {

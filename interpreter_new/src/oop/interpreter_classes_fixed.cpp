@@ -169,9 +169,11 @@ Data::Value executeNewExpression(Interpreter* interpreter, AST::NewExpr* node) {
         callConstructor(interpreter, object, nullptr, arguments);
     }
     
-    // إرجاع قيمة الكائن - استخدام API الصحيح
-    // Value لا يحتوي على makeObject، نحتاج طريقة بديلة
-    return Data::Value();  // TODO: إرجاع كائن
+    // إرجاع قيمة الكائن باستخدام Value(ObjectPtr)
+    // ObjectManager يُرجع مؤشراً خاماً، لكن نحتاج shared_ptr
+    // نُنشئ shared_ptr بدون deleter لأن ObjectManager يملك الكائن
+    auto objPtr = std::shared_ptr<Data::ObjectInstance>(object, [](Data::ObjectInstance*){});
+    return Data::Value(objPtr);
 }
 
 // ======================================================================
@@ -192,18 +194,28 @@ void callConstructor(Interpreter* interpreter, Data::ObjectInstance* object,
     // ScopeManager::pushScope يحتاج نوع النطاق واسم اختياري
     interpreter->getScopeManager().pushScope(Data::ScopeType::FUNCTION, "constructor");
     
-    // إذا كان الباني محدد، ربط المعاملات
-    if (constructor) {
-        const auto& params = constructor->parameters;
-        for (size_t i = 0; i < params.size() && i < arguments.size(); ++i) {
-            // استخدام define وليس setVariable
-            interpreter->getVariableManager().define(params[i].name, arguments[i]);
+    // (AR) استخدام try/catch لضمان تنظيف النطاق حتى عند حدوث استثناء
+    // (EN) Use try/catch to ensure scope cleanup even on exception
+    try {
+        // إذا كان الباني محدد، ربط المعاملات
+        if (constructor) {
+            const auto& params = constructor->parameters;
+            for (size_t i = 0; i < params.size() && i < arguments.size(); ++i) {
+                // استخدام define وليس setVariable
+                interpreter->getVariableManager().define(params[i].name, arguments[i]);
+            }
+            
+            // تنفيذ جسم الباني - body هو StmtPtr وليس vector
+            if (constructor->body) {
+                interpreter->executeStatement(*constructor->body);
+            }
         }
-        
-        // تنفيذ جسم الباني - body هو StmtPtr وليس vector
-        if (constructor->body) {
-            interpreter->executeStatement(*constructor->body);
-        }
+    } catch (...) {
+        // (AR) ضمان استعادة النطاق والكائن عند الخطأ
+        // (EN) Ensure scope and object are restored on error
+        interpreter->getScopeManager().popScope();
+        setCurrentObject(interpreter, previousObject);
+        throw;
     }
     
     // استعادة النطاق والكائن
@@ -228,19 +240,63 @@ void callDestructor(Interpreter* interpreter, Data::ObjectInstance* object) {
         return;
     }
     
-    // حفظ الكائن الحالي
+    // (AR) حفظ الكائن الحالي / (EN) Save current object
     Data::ObjectInstance* previousObject = getCurrentObject(interpreter);
     setCurrentObject(interpreter, object);
     
-    // إنشاء نطاق للهدام
+    // (AR) إنشاء نطاق للهدام / (EN) Create scope for destructor
     interpreter->getScopeManager().pushScope(Data::ScopeType::FUNCTION, "destructor");
     
-    // تنفيذ جسم الهدام
-    // TODO: الوصول لجسم الهدام من ClassType
+    // (AR) ربط حقول الكائن بالنطاق الحالي ليتاح الوصول لها عبر "هذا"
+    // (EN) Bind object fields to current scope so they are accessible via "this"
+    for (const auto& [fieldName, fieldValue] : object->fields) {
+        interpreter->getVariableManager().define(fieldName, fieldValue);
+    }
     
-    // استعادة النطاق والكائن
+    // (AR) تنفيذ جسم الهدام من ClassType
+    // (EN) Execute destructor body from ClassType
+    try {
+        if (classType->destructor && classType->destructor->body) {
+            interpreter->executeStatement(*classType->destructor->body);
+        }
+    } catch (const std::exception& e) {
+        // (AR) لا نترك استثناء الهدام يتسرب — نسجله فقط
+        // (EN) Don't let destructor exceptions propagate — just log
+        std::cerr << "(AR) خطأ في الهدام: " << e.what() 
+                  << " / (EN) Error in destructor: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "(AR) خطأ غير معروف في الهدام / (EN) Unknown error in destructor" << std::endl;
+    }
+    
+    // (AR) استعادة النطاق والكائن / (EN) Restore scope and object
     interpreter->getScopeManager().popScope();
     setCurrentObject(interpreter, previousObject);
+    
+    // (AR) استدعاء هدام الصنف الأساسي (إن وُجد)
+    // (EN) Call base class destructor (if exists)
+    if (classType->baseClass && classType->baseClass->hasDestructor()) {
+        // (AR) نعيد استخدام نفس الكائن لأن حقول الأساس موجودة فيه
+        // (EN) Reuse same object since base fields are in it
+        Data::ClassType* baseClass = classType->baseClass;
+        Data::ObjectInstance* previousObj2 = getCurrentObject(interpreter);
+        setCurrentObject(interpreter, object);
+        
+        interpreter->getScopeManager().pushScope(Data::ScopeType::FUNCTION, "base_destructor");
+        for (const auto& [fieldName, fieldValue] : object->fields) {
+            interpreter->getVariableManager().define(fieldName, fieldValue);
+        }
+        
+        try {
+            if (baseClass->destructor && baseClass->destructor->body) {
+                interpreter->executeStatement(*baseClass->destructor->body);
+            }
+        } catch (...) {
+            // (AR) لا نسمح لأخطاء الهدام بالتسرب
+        }
+        
+        interpreter->getScopeManager().popScope();
+        setCurrentObject(interpreter, previousObj2);
+    }
 }
 
 // ======================================================================
@@ -255,14 +311,21 @@ Data::Value executeFieldAccess(Interpreter* interpreter, AST::MemberAccessExpr* 
     // تقييم الكائن
     Data::Value objectValue = interpreter->evaluateExpression(*node->object);
     
-    // التحقق من نوع القيمة - Value لا يحتوي على isObject
-    // نحتاج طريقة بديلة للتحقق
+    // التحقق من أن القيمة هي كائن
+    if (!objectValue.isObject()) {
+        throw std::runtime_error("خطأ: الوصول للحقل على قيمة غير كائنية / Error: Field access on non-object value");
+    }
     
-    // استخدام memberName وليس member
+    auto objPtr = objectValue.toObject();
     std::string fieldName = node->memberName;
     
-    // TODO: الوصول للحقل من الكائن
-    return Data::Value();
+    // الوصول للحقل من الكائن
+    auto it = objPtr->fields.find(fieldName);
+    if (it != objPtr->fields.end()) {
+        return it->second;
+    }
+    
+    throw std::runtime_error("خطأ: الحقل '" + fieldName + "' غير موجود / Error: Field '" + fieldName + "' not found");
 }
 
 // ======================================================================
@@ -291,11 +354,34 @@ Data::Value executeMethodCall(Interpreter* interpreter, AST::MethodCallExpr* nod
     // تقييم الكائن
     Data::Value objectValue = interpreter->evaluateExpression(*node->object);
     
-    // استخدام methodName وليس method
+    // التحقق من أن القيمة هي كائن
+    if (!objectValue.isObject()) {
+        throw std::runtime_error("خطأ: استدعاء طريقة على قيمة غير كائنية / Error: Method call on non-object value");
+    }
+    
+    auto objPtr = objectValue.toObject();
     std::string methodName = node->methodName;
     
-    // TODO: استدعاء الطريقة
-    return Data::Value();
+    // الحصول على نوع الصنف
+    Data::ClassType* classType = objPtr->getClass();
+    if (!classType) {
+        throw std::runtime_error("خطأ: الكائن بدون صنف / Error: Object has no class");
+    }
+    
+    // البحث عن الطريقة
+    Data::ClassMethod* method = classType->findMethod(methodName);
+    if (!method) {
+        throw std::runtime_error("خطأ: الطريقة '" + methodName + "' غير موجودة / Error: Method '" + methodName + "' not found");
+    }
+    
+    // تقييم المعاملات
+    std::vector<Data::Value> arguments;
+    for (const auto& arg : node->arguments) {
+        arguments.push_back(interpreter->evaluateExpression(*arg));
+    }
+    
+    // تنفيذ الطريقة
+    return executeMethod(interpreter, objPtr.get(), method, arguments);
 }
 
 // ======================================================================
@@ -392,8 +478,9 @@ Data::Value executeThisExpression(Interpreter* interpreter, AST::ThisExpr* node)
         throw std::runtime_error("خطأ: استخدام 'هذا' خارج طريقة / Error: Using 'this' outside method");
     }
     
-    // TODO: إرجاع قيمة الكائن
-    return Data::Value();
+    // إرجاع قيمة الكائن الحالي كـ Value
+    auto objPtr = std::shared_ptr<Data::ObjectInstance>(currentObj, [](Data::ObjectInstance*){});
+    return Data::Value(objPtr);
 }
 
 // ======================================================================
@@ -418,10 +505,11 @@ Data::Value executeSuperExpression(Interpreter* interpreter, AST::SuperExpr* nod
     // إرجاع كائن الصنف الأساسي
     Data::ObjectInstance* baseInstance = currentObj->getBaseInstance();
     if (baseInstance) {
-        // TODO: إرجاع قيمة الكائن الأساسي
+        auto basePtr = std::shared_ptr<Data::ObjectInstance>(baseInstance, [](Data::ObjectInstance*){});
+        return Data::Value(basePtr);
     }
     
-    return Data::Value();
+    throw std::runtime_error("خطأ: لا يوجد مثيل للصنف الأساسي / Error: No base class instance");
 }
 
 // ======================================================================

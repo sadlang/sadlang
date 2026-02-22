@@ -1,0 +1,10 @@
+^C:\S\S_LANGUAGE\STDLIB\GRAPHICS\BUILD\CMAKEFILES\18E100A2BF2616669BC6E31CE27960FF\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/s/s_language/stdlib/graphics -BC:/s/s_language/stdlib/graphics/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/s/s_language/stdlib/graphics/build/SadGraphics.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

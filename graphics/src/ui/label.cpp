@@ -7,6 +7,8 @@
 #include "../include/rendering/renderer2d.h"       // للرسم / For rendering
 #include "../include/resources/resource_manager.h" // لإدارة الخطوط / For font management
 
+using sad::graphics::ResourceManager;
+
 namespace Graphics {
     namespace UI {
 
@@ -195,7 +197,7 @@ namespace Graphics {
         // ============================================================================
         // رسم التسمية / Draw label
         // ============================================================================
-        void Label::Draw(Renderer2D* renderer) {
+        void Label::Draw(SadGraphics::Renderer2D* renderer) {
             // إذا لم يكن ظاهراً / If not visible
             if (!m_visible) {
                 return;
@@ -215,7 +217,7 @@ namespace Graphics {
 
             // تطبيق الشفافية على اللون / Apply opacity to color
             Color finalColor = m_textColor;
-            finalColor.a = (unsigned char)(m_style.opacity * 255.0f * (m_textColor.a / 255.0f));
+            finalColor.a = m_style.opacity * m_textColor.a;
 
             // رسم النص / Draw text
             renderer->DrawText(m_text, m_font, textX, textY, finalColor);

@@ -190,7 +190,7 @@ inline double measureTime(Func&& func) {
 inline std::string createSimpleLLVMIR() {
     return R"(
 ; ModuleID = 'test_module'
-source_filename = "test.sad"
+source_filename = "test.ص"
 
 define i32 @main() {
 entry:

@@ -347,12 +347,17 @@ bool VirtualMachine::loadFromFile(const std::string& filename) {
         }
         
         // 9. تحميل الوحدة في VM / Load module into VM
-        if (!loadModule(module)) {
+        // (AR) loadModule تُعيد void — نستخدمها مباشرة ونتحقق من الخطأ
+        // (EN) loadModule returns void — call directly and check for error
+        loadedModule_ = module;  // نحتفظ بملكية المؤشر الذكي / Keep smart pointer ownership
+        loadModule(module.get());
+        
+        if (hasError()) {
             std::cerr << "[VM] Error: Failed to load module into VM\n";
             return false;
         }
         
-        if (config_.verbose) {
+        if (config_.enableDebug) {
             std::cout << "[VM] Successfully loaded bytecode file: " << filename << "\n";
             std::cout << "[VM] File size: " << fileSize << " bytes\n";
             std::cout << "[VM] Magic: 0x" << std::hex << header.magic << std::dec << "\n";
@@ -363,7 +368,6 @@ bool VirtualMachine::loadFromFile(const std::string& filename) {
             std::cout << "[VM] Symbols: " << header.symbolsCount << "\n";
             std::cout << "[VM] Compressed: " << (is_compressed ? "Yes" : "No") << "\n";
             std::cout << "[VM] Checksum: " << (calculated_checksum == stored_checksum ? "Valid" : "Invalid") << "\n";
-            loader_header.print();
         }
         
         return true;

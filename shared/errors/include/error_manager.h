@@ -102,7 +102,7 @@ public:
  * // (AR) الإبلاغ عن خطأ / (EN) Report an error
  * ErrorManager::getInstance().reportError(
  *     ErrorCode::SYN_MISSING_SEMICOLON,
- *     SourceLocation("test.s", 5, 10),
+ *     SourceLocation("test.ص", 5, 10),
  *     "متوقع ';' في نهاية الجملة",
  *     "Expected ';' at end of statement"
  * );
@@ -120,6 +120,7 @@ private:
     bool colorizeOutput_ = true;             ///< (AR) استخدام ألوان / (EN) Use colors
     size_t maxErrors_ = 100;                 ///< (AR) الحد الأقصى للأخطاء / (EN) Maximum errors
     std::string outputFile_;                 ///< (AR) ملف الإخراج / (EN) Output file
+    bool smartErrorsEnabled_ = true;         ///< Phase 15: Smart Error enrichment
     mutable std::mutex mutex_;               ///< (AR) للأمان من التزامن / (EN) For thread safety
     
     // (AR) Singleton - منع النسخ والإنشاء الخارجي
@@ -160,7 +161,7 @@ public:
      * @code
      * ErrorManager::getInstance().reportError(
      *     ErrorCode::LEX_INVALID_CHARACTER,
-     *     SourceLocation("test.s", 1, 5),
+     *     SourceLocation("test.ص", 1, 5),
      *     "رمز غير صالح '@'",
      *     "Invalid character '@'"
      * );
@@ -298,6 +299,12 @@ public:
     const std::string& getOutputFile() const { return outputFile_; }
     
     /**
+     * @brief Phase 15: Smart Error enrichment toggle
+     */
+    void setSmartErrorsEnabled(bool enabled) { smartErrorsEnabled_ = enabled; }
+    bool isSmartErrorsEnabled() const { return smartErrorsEnabled_; }
+
+    /**
      * @brief (AR) يمسح جميع التشخيصات
      *        (EN) Clears all diagnostics
      */
@@ -319,9 +326,9 @@ public:
  * @code
  * DiagnosticBuilder(ErrorCode::SYN_MISSING_SEMICOLON,
  *                   DiagnosticSeverity::ERROR,
- *                   SourceLocation("test.s", 5, 10))
+ *                   SourceLocation("test.ص", 5, 10))
  *     .withMessage("متوقع ';'", "Expected ';'")
- *     .withFixItInsert(SourceLocation("test.s", 5, 11), ";")
+ *     .withFixItInsert(SourceLocation("test.ص", 5, 11), ";")
  *     .report();
  * @endcode
  */

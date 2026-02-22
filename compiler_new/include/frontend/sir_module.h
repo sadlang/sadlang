@@ -202,6 +202,14 @@ public:
         return stringConstants_;
     }
     
+    /**
+     * @brief (AR) الحصول على قائمة الأصناف
+     * @brief (EN) Get classes list
+     */
+    const std::vector<std::shared_ptr<SIRClass>>& getClasses() const {
+        return classes_;
+    }
+    
 private:
     std::vector<std::shared_ptr<SIRFunction>> functions_;
     std::unordered_map<std::string, std::shared_ptr<SIRFunction>> functionMap_;
@@ -398,7 +406,9 @@ class SIRClass {
 public:
     std::string name;           ///< (AR) اسم الصنف / (EN) Class name
     std::string parentClass;    ///< (AR) الصنف الأب (للوراثة) / (EN) Parent class (for inheritance)
+    bool isAbstract = false;    ///< (AR) هل الصنف مجرد / (EN) Is class abstract
     std::unordered_map<std::string, SIRType> fields_;   ///< (AR) الحقول / (EN) Fields
+    std::vector<std::string> fieldOrder_;                ///< (AR) ترتيب الحقول / (EN) Field insertion order
     std::unordered_map<std::string, std::shared_ptr<SIRFunction>> methods_;  ///< (AR) الدوال / (EN) Methods
     
     /**

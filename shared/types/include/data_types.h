@@ -17,6 +17,12 @@ namespace Data {
  * These types correspond to the types defined in the language specification.
  * هذه الأنواع تتوافق مع الأنواع المعرّفة في مواصفات اللغة.
  */
+// Windows defines ERROR as a macro; undefine to avoid conflict
+// ويندوز يعرّف ERROR كماكرو؛ إلغاء التعريف لتجنب التعارض
+#ifdef ERROR
+#undef ERROR
+#endif
+
 enum class DataType {
     UNKNOWN,      ///< Unknown/unresolved type / نوع غير معروف أو غير محدد
     INTEGER,      ///< رقم / Integer (int64_t)

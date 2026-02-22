@@ -64,7 +64,7 @@ MemoryPool::MemoryPool(size_t block_size, size_t initial_blocks)
     , free_list_(nullptr)
 {
     // محاذاة حجم الكتلة / Align block size
-    block_size_ = std::max(block_size_, sizeof(BlockHeader));
+    block_size_ = (std::max)(block_size_, sizeof(BlockHeader));
     block_size_ = (block_size_ + DEFAULT_ALIGNMENT - 1) & ~(DEFAULT_ALIGNMENT - 1);
     
     // إضافة الصفحة الأولية / Add initial page

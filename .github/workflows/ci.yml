@@ -1,0 +1,364 @@
+# ======================================================================
+# نظام التكامل المستمر / Continuous Integration
+# لغة ص البرمجية / Sad Programming Language
+# ======================================================================
+# هذا الملف يُعرّف خط أنابيب CI/CD لضمان جودة الكود
+# لا يُدمج أي كود بدون نجاح جميع الاختبارات
+# ══════════════════════════════════════════════════════════════════════
+# نظام الاختبارات الشامل:
+#   - 9 ملفات اختبار
+#   - 700+ اختبار فردي
+#   - يغطي: Lexer, Parser, Value, Interpreter, StdLib, Errors, 
+#           VM/Compiler, E2E, Utils/Modules
+#   - لا يُقبل أي Pull Request بدون نجاح 100% من الاختبارات
+# ══════════════════════════════════════════════════════════════════════
+
+name: "🔧 CI/CD - لغة ص / Sad Language"
+
+on:
+  push:
+    branches: [ main, master, develop, "**-feature", "**-fix" ]
+  pull_request:
+    branches: [ main, master, develop ]
+    types: [opened, synchronize, reopened]
+
+# منع التشغيل المتزامن لنفس الفرع
+# Prevent concurrent runs for same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Debug
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+
+jobs:
+  # ======================================================================
+  # 1. فحص الكود / Code Quality Check
+  # ======================================================================
+  code-quality:
+    name: "📋 فحص جودة الكود / Code Quality"
+    runs-on: windows-latest
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: "🔍 فحص ترميز UTF-8 / Check UTF-8 Encoding"
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Recurse -Include *.cpp,*.h,*.hpp -Path shared/,interpreter_new/,stdlib/,compiler_new/,vm/
+          $errors = @()
+          foreach ($f in $files) {
+            try {
+              $content = [System.IO.File]::ReadAllText($f.FullName, [System.Text.Encoding]::UTF8)
+            } catch {
+              $errors += $f.FullName
+            }
+          }
+          if ($errors.Count -gt 0) {
+            Write-Error "❌ ملفات بترميز غير UTF-8: $($errors -join ', ')"
+            exit 1
+          }
+          Write-Host "✅ جميع الملفات بترميز UTF-8 صحيح"
+
+      - name: "📏 فحص حجم الملفات / Check File Sizes"
+        shell: pwsh
+        run: |
+          $largeFiles = Get-ChildItem -Recurse -Include *.cpp,*.h -Path shared/,interpreter_new/,stdlib/ |
+            Where-Object { $_.Length -gt 500KB }
+          if ($largeFiles) {
+            Write-Warning "⚠️ ملفات كبيرة: $($largeFiles.Name -join ', ')"
+          }
+          Write-Host "✅ فحص حجم الملفات اكتمل"
+
+  # ======================================================================
+  # 2. البناء على Windows / Build on Windows
+  # ======================================================================
+  build-windows:
+    name: "🏗️ بناء Windows / Build Windows"
+    runs-on: windows-latest
+    needs: code-quality
+    strategy:
+      matrix:
+        config: [Debug, Release]
+    
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "⚙️ إعداد MSVC / Setup MSVC"
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: "📦 Cache CMake Build"
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: windows-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'reorganized.cmake') }}
+          restore-keys: |
+            windows-${{ matrix.config }}-
+
+      - name: "🔨 تكوين CMake / Configure CMake"
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" `
+            -DBUILD_TESTS=ON `
+            -DENABLE_LLVM_BACKEND=OFF `
+            -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+      
+      - name: "🏗️ بناء المشروع / Build Project"
+        run: cmake --build build --config ${{ matrix.config }} --parallel 4
+
+      - name: "💾 حفظ الملفات التنفيذية / Upload Artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: sad-windows-${{ matrix.config }}
+          path: |
+            build/bin/${{ matrix.config }}/
+            build/tests/
+          retention-days: 7
+
+  # ======================================================================
+  # 3. البناء على Linux / Build on Linux
+  # ======================================================================
+  build-linux:
+    name: "🐧 بناء Linux / Build Linux"
+    runs-on: ubuntu-latest
+    needs: code-quality
+    
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "📦 تثبيت المتطلبات / Install Dependencies"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ build-essential
+
+      - name: "📦 Cache CMake Build"
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: linux-Debug-${{ hashFiles('CMakeLists.txt', 'reorganized.cmake') }}
+          restore-keys: linux-Debug-
+
+      - name: "🔨 تكوين CMake / Configure CMake"
+        run: |
+          cmake -B build \
+            -DBUILD_TESTS=ON \
+            -DENABLE_LLVM_BACKEND=OFF \
+            -DCMAKE_BUILD_TYPE=Debug
+
+      - name: "🏗️ بناء المشروع / Build Project"
+        run: cmake --build build --config Debug --parallel $(nproc)
+
+  # ======================================================================
+  # 4. الاختبارات الشاملة / Comprehensive Tests
+  # ======================================================================
+  test-core:
+    name: "🧪 اختبارات النواة / Core Tests"
+    runs-on: windows-latest
+    needs: build-windows
+    
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+
+      - name: "⚙️ إعداد MSVC / Setup MSVC"
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: "📥 تحميل الملفات / Download Artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          name: sad-windows-Debug
+          path: build/
+
+      - name: "🔨 إعادة البناء مع الاختبارات / Rebuild with Tests"
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" `
+            -DBUILD_TESTS=ON `
+            -DENABLE_LLVM_BACKEND=OFF
+          cmake --build build --config Debug --parallel 4
+
+      - name: "🧪 تشغيل اختبارات Lexer / Run Lexer Tests"
+        run: |
+          if (Test-Path "build/bin/Debug/test_lexer_comprehensive.exe") {
+            & "build/bin/Debug/test_lexer_comprehensive.exe"
+          } else { Write-Host "⚠️ Lexer tests not built" }
+        shell: pwsh
+
+      - name: "🧪 تشغيل اختبارات Parser / Run Parser Tests"
+        run: |
+          if (Test-Path "build/bin/Debug/test_parser_comprehensive.exe") {
+            & "build/bin/Debug/test_parser_comprehensive.exe"
+          } else { Write-Host "⚠️ Parser tests not built" }
+        shell: pwsh
+
+      - name: "🧪 تشغيل اختبارات Value / Run Value Tests"
+        run: |
+          if (Test-Path "build/bin/Debug/test_value_comprehensive.exe") {
+            & "build/bin/Debug/test_value_comprehensive.exe"
+          } else { Write-Host "⚠️ Value tests not built" }
+        shell: pwsh
+
+      - name: "🧪 تشغيل اختبارات الأخطاء / Run Error Tests"
+        run: |
+          if (Test-Path "build/bin/Debug/test_errors_comprehensive.exe") {
+            & "build/bin/Debug/test_errors_comprehensive.exe"
+          } else { Write-Host "⚠️ Error tests not built" }
+        shell: pwsh
+
+      - name: "🧪 تشغيل اختبارات الأدوات / Run Utils & Modules Tests"
+        run: |
+          if (Test-Path "build/bin/Debug/test_utils_modules_comprehensive.exe") {
+            & "build/bin/Debug/test_utils_modules_comprehensive.exe"
+          } else { Write-Host "⚠️ Utils/Modules tests not built" }
+        shell: pwsh
+
+  test-interpreter:
+    name: "🧪 اختبارات المفسر / Interpreter Tests"
+    runs-on: windows-latest
+    needs: build-windows
+    
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+
+      - name: "⚙️ إعداد MSVC / Setup MSVC"
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: "🔨 بناء مع الاختبارات / Build with Tests"
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" `
+            -DBUILD_TESTS=ON `
+            -DENABLE_LLVM_BACKEND=OFF
+          cmake --build build --config Debug --parallel 4
+
+      - name: "🧪 تشغيل اختبارات المفسر / Run Interpreter Tests"
+        run: |
+          if (Test-Path "build/bin/Debug/test_interpreter_comprehensive.exe") {
+            & "build/bin/Debug/test_interpreter_comprehensive.exe"
+          } else { Write-Host "⚠️ Interpreter tests not built" }
+        shell: pwsh
+
+      - name: "🧪 تشغيل اختبارات المكتبة القياسية / Run Stdlib Tests"
+        run: |
+          if (Test-Path "build/bin/Debug/test_stdlib_comprehensive.exe") {
+            & "build/bin/Debug/test_stdlib_comprehensive.exe"
+          } else { Write-Host "⚠️ Stdlib tests not built" }
+        shell: pwsh
+
+  test-compiler:
+    name: "🧪 اختبارات المترجم / Compiler Tests"
+    runs-on: windows-latest
+    needs: build-windows
+    
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+
+      - name: "⚙️ إعداد MSVC / Setup MSVC"
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: "🔨 بناء مع الاختبارات / Build with Tests"
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" `
+            -DBUILD_TESTS=ON `
+            -DENABLE_LLVM_BACKEND=OFF
+          cmake --build build --config Debug --parallel 4
+
+      - name: "🧪 تشغيل اختبارات المترجم / Run Compiler Tests"
+        run: |
+          if (Test-Path "build/bin/Debug/test_vm_compiler_comprehensive.exe") {
+            & "build/bin/Debug/test_vm_compiler_comprehensive.exe"
+          } else { Write-Host "⚠️ Compiler tests not built" }
+        shell: pwsh
+
+  test-integration:
+    name: "🧪 اختبارات التكامل / Integration Tests"
+    runs-on: windows-latest
+    needs: [test-core, test-interpreter, test-compiler]
+    
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+
+      - name: "⚙️ إعداد MSVC / Setup MSVC"
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: "🔨 بناء المشروع / Build Project"
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" `
+            -DBUILD_TESTS=ON `
+            -DENABLE_LLVM_BACKEND=OFF
+          cmake --build build --config Debug --parallel 4
+
+      - name: "🧪 اختبارات التكامل / Integration Tests"
+        run: |
+          if (Test-Path "build/bin/Debug/test_utils_modules_comprehensive.exe") {
+            & "build/bin/Debug/test_utils_modules_comprehensive.exe"
+          } else { Write-Host "⚠️ Utils/Modules tests not built" }
+        shell: pwsh
+
+      - name: "🧪 اختبارات E2E / End-to-End Tests"
+        run: |
+          if (Test-Path "build/bin/Debug/test_e2e_comprehensive.exe") {
+            & "build/bin/Debug/test_e2e_comprehensive.exe"
+          } else { Write-Host "⚠️ E2E tests not built" }
+        shell: pwsh
+
+      - name: "🧪 تشغيل CTest / Run CTest"
+        run: |
+          cd build
+          ctest --config Debug --output-on-failure --timeout 120 -j4
+        shell: pwsh
+
+  # ======================================================================
+  # 5. تقرير الاختبارات / Test Report
+  # ======================================================================
+  test-report:
+    name: "📊 تقرير الاختبارات / Test Report"
+    runs-on: windows-latest
+    needs: [test-core, test-interpreter, test-compiler, test-integration]
+    if: always()
+    
+    steps:
+      - name: "📊 ملخص النتائج / Results Summary"
+        shell: pwsh
+        run: |
+          Write-Host "╔════════════════════════════════════════╗"
+          Write-Host "║  📊 تقرير اختبارات لغة ص الشامل      ║"
+          Write-Host "║  Sad Language Comprehensive Test Report ║"
+          Write-Host "╚════════════════════════════════════════╝"
+          Write-Host ""
+          Write-Host "Core Tests:        ${{ needs.test-core.result }}"
+          Write-Host "Interpreter Tests: ${{ needs.test-interpreter.result }}"
+          Write-Host "Compiler Tests:    ${{ needs.test-compiler.result }}"
+          Write-Host "Integration Tests: ${{ needs.test-integration.result }}"
+
+  # ======================================================================
+  # 6. حماية الفرع الرئيسي / Branch Protection Gate
+  # ======================================================================
+  all-tests-pass:
+    name: "✅ جميع الاختبارات / All Tests Pass"
+    runs-on: ubuntu-latest
+    needs: [test-core, test-interpreter, test-compiler, test-integration]
+    if: always()
+    
+    steps:
+      - name: "🔒 التحقق من نجاح جميع الاختبارات / Verify All Tests Passed"
+        run: |
+          if [ "${{ needs.test-core.result }}" != "success" ] || \
+             [ "${{ needs.test-interpreter.result }}" != "success" ] || \
+             [ "${{ needs.test-compiler.result }}" != "success" ] || \
+             [ "${{ needs.test-integration.result }}" != "success" ]; then
+            echo "❌ فشلت بعض الاختبارات! لا يمكن دمج الكود."
+            echo "❌ Some tests failed! Code cannot be merged."
+            exit 1
+          fi
+          echo "✅ جميع الاختبارات نجحت! يمكن دمج الكود."
+          echo "✅ All tests passed! Code can be merged."

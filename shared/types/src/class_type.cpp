@@ -119,7 +119,17 @@ ClassField* ClassType::findField(const std::string& fieldName) {
     // (AR) البحث في الصنف الأساسي
     // (EN) Search in base class
     if (baseClass) {
-        return baseClass->findField(fieldName);
+        auto* result = baseClass->findField(fieldName);
+        if (result) return result;
+    }
+    
+    // (AR) البحث في الأصناف الأساسية الإضافية (وراثة متعددة)
+    // (EN) Search in additional base classes (multiple inheritance)
+    for (auto* base : additionalBases) {
+        if (base) {
+            auto* result = base->findField(fieldName);
+            if (result) return result;
+        }
     }
     
     return nullptr;
@@ -137,7 +147,17 @@ Value* ClassType::getStaticField(const std::string& fieldName) {
     // (AR) البحث في الصنف الأساسي
     // (EN) Search in base class
     if (baseClass) {
-        return baseClass->getStaticField(fieldName);
+        auto* result = baseClass->getStaticField(fieldName);
+        if (result) return result;
+    }
+    
+    // (AR) البحث في الأصناف الأساسية الإضافية
+    // (EN) Search in additional base classes
+    for (auto* base : additionalBases) {
+        if (base) {
+            auto* result = base->getStaticField(fieldName);
+            if (result) return result;
+        }
     }
     
     return nullptr;
@@ -167,7 +187,7 @@ bool ClassType::setStaticField(const std::string& fieldName, const Value& value)
 bool ClassType::addMethod(const std::string& methodName, AST::Visibility visibility,
                           Type* returnType, const std::vector<AST::Parameter>& parameters,
                           std::unique_ptr<AST::BlockStmt> body,
-                          bool isStatic, bool isVirtual) {
+                          bool isStatic, bool isVirtual, bool isAbstract) {
     // (AR) إضافة طريقة جديدة
     // (EN) Add new method
     
@@ -184,6 +204,7 @@ bool ClassType::addMethod(const std::string& methodName, AST::Visibility visibil
     method.body = std::move(body);
     method.isStatic = isStatic;
     method.isVirtual = isVirtual;
+    method.isAbstract = isAbstract;
     
     // (AR) إضافة للقائمة والفهرس
     // (EN) Add to list and index
@@ -206,7 +227,17 @@ ClassMethod* ClassType::findMethod(const std::string& methodName) {
     // (AR) البحث في الصنف الأساسي
     // (EN) Search in base class
     if (baseClass) {
-        return baseClass->findMethod(methodName);
+        auto* result = baseClass->findMethod(methodName);
+        if (result) return result;
+    }
+    
+    // (AR) البحث في الأصناف الأساسية الإضافية
+    // (EN) Search in additional base classes
+    for (auto* base : additionalBases) {
+        if (base) {
+            auto* result = base->findMethod(methodName);
+            if (result) return result;
+        }
     }
     
     return nullptr;
@@ -223,8 +254,6 @@ void ClassType::addProperty(ClassProperty property) {
     size_t index = properties.size();
     propertyIndex[property.name] = index;
     properties.push_back(std::move(property));
-    
-    std::cout << "[ClassType] أضيفت خاصية (Property): " << property.name << " للصنف " << name << "\n";
 }
 
 ClassProperty* ClassType::findProperty(const std::string& propertyName) {
@@ -239,7 +268,17 @@ ClassProperty* ClassType::findProperty(const std::string& propertyName) {
     // (AR) البحث في الصنف الأساسي
     // (EN) Search in base class
     if (baseClass) {
-        return baseClass->findProperty(propertyName);
+        auto* result = baseClass->findProperty(propertyName);
+        if (result) return result;
+    }
+    
+    // (AR) البحث في الأصناف الأساسية الإضافية
+    // (EN) Search in additional base classes
+    for (auto* base : additionalBases) {
+        if (base) {
+            auto* result = base->findProperty(propertyName);
+            if (result) return result;
+        }
     }
     
     return nullptr;
@@ -254,7 +293,80 @@ bool ClassType::hasProperty(const std::string& propertyName) const {
     }
     
     if (baseClass) {
-        return baseClass->hasProperty(propertyName);
+        if (baseClass->hasProperty(propertyName)) return true;
+    }
+    
+    // (AR) البحث في الأصناف الأساسية الإضافية
+    // (EN) Search in additional base classes
+    for (auto* base : additionalBases) {
+        if (base && base->hasProperty(propertyName)) return true;
+    }
+    
+    return false;
+}
+
+// ======================================================================
+// إدارة العوامل المحملة زائداً / Operator Overload Management
+// ======================================================================
+
+void ClassType::addOperatorOverload(OperatorOverload overload) {
+    // (AR) إضافة تحميل عامل زائد للصنف
+    // (EN) Add operator overload to class
+    
+    #ifdef DEBUG_OOP
+    std::cout << "[ClassType] أضيف تحميل عامل زائد: " << overload.operatorSymbol << " للصنف " << name << "\n";
+    #endif
+    
+    operatorOverloads.push_back(std::move(overload));
+}
+
+OperatorOverload* ClassType::findOperator(const std::string& operatorSymbol) {
+    // (AR) البحث عن تحميل عامل زائد بالرمز
+    // (EN) Find operator overload by symbol
+    
+    for (auto& op : operatorOverloads) {
+        if (op.operatorSymbol == operatorSymbol) {
+            return &op;
+        }
+    }
+    
+    // (AR) البحث في الصنف الأساسي
+    // (EN) Search in base class
+    if (baseClass) {
+        auto* result = baseClass->findOperator(operatorSymbol);
+        if (result) return result;
+    }
+    
+    // (AR) البحث في الأصناف الأساسية الإضافية
+    // (EN) Search in additional base classes
+    for (auto* base : additionalBases) {
+        if (base) {
+            auto* result = base->findOperator(operatorSymbol);
+            if (result) return result;
+        }
+    }
+    
+    return nullptr;
+}
+
+bool ClassType::hasOperator(const std::string& operatorSymbol) const {
+    // (AR) التحقق من وجود تحميل عامل زائد
+    // (EN) Check if operator overload exists
+    
+    for (const auto& op : operatorOverloads) {
+        if (op.operatorSymbol == operatorSymbol) {
+            return true;
+        }
+    }
+    
+    if (baseClass) {
+        if (baseClass->hasOperator(operatorSymbol)) return true;
+    }
+    
+    // (AR) البحث في الأصناف الأساسية الإضافية
+    // (EN) Search in additional base classes
+    for (auto* base : additionalBases) {
+        if (base && base->hasOperator(operatorSymbol)) return true;
     }
     
     return false;
@@ -293,7 +405,13 @@ bool ClassType::inheritsFrom(const ClassType* otherClass) const {
     // (AR) فحص الصنف الأساسي
     // (EN) Check base class
     if (baseClass) {
-        return baseClass->inheritsFrom(otherClass);
+        if (baseClass->inheritsFrom(otherClass)) return true;
+    }
+    
+    // (AR) فحص الأصناف الأساسية الإضافية (الوراثة المتعددة)
+    // (EN) Check additional base classes (multiple inheritance)
+    for (auto* additionalBase : additionalBases) {
+        if (additionalBase && additionalBase->inheritsFrom(otherClass)) return true;
     }
     
     return false;
@@ -309,8 +427,9 @@ ObjectInstance* ClassType::createInstance() {
     
     // (AR) إنشاء معرف فريد
     // (EN) Generate unique ID
-    static size_t nextId = 1;
-    size_t objectId = nextId++;
+    // (AR) استخدام المعرف العام المركزي بدلاً من عداد محلي مكرر
+    // (EN) Use centralized global ID generator instead of duplicate local counter
+    size_t objectId = generateObjectId();
     
     // (AR) إنشاء الكائن
     // (EN) Create object

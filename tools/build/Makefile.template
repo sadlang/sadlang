@@ -1,0 +1,250 @@
+# بسم الله الرحمن الرحيم
+# Makefile Template for Sad Language Projects
+# قالب Makefile لمشاريع لغة Sad
+# Phase 7.3: Build System Integration
+
+# ============================================================================
+# الحمد لله - Project Configuration / إعدادات المشروع
+# ============================================================================
+
+# Project name
+PROJECT_NAME = myproject
+
+# Sad compiler
+SADC = sadc
+
+# Source directory
+SRC_DIR = src
+
+# Build directory
+BUILD_DIR = build
+
+# Output directory
+BIN_DIR = bin
+
+# Test directory
+TEST_DIR = tests
+
+# ============================================================================
+# Compilation Flags / خيارات الترجمة
+# ============================================================================
+
+# Optimization level (O0, O1, O2, O3, Os, Oz)
+OPT_LEVEL = O2
+
+# Debug flag (add -g for debug info)
+DEBUG_FLAGS = 
+
+# Verbose flag (add -v for verbose output)
+VERBOSE = 
+
+# Additional flags
+SAD_FLAGS = $(OPT_LEVEL) $(DEBUG_FLAGS) $(VERBOSE)
+
+# ============================================================================
+# Source Files / ملفات المصدر
+# ============================================================================
+
+# Find all .s files in src/
+SOURCES = $(wildcard $(SRC_DIR)/*.s)
+
+# Generate object file names
+OBJECTS = $(patsubst $(SRC_DIR)/%.s,$(BUILD_DIR)/%.o,$(SOURCES))
+
+# Main executable
+TARGET = $(BIN_DIR)/$(PROJECT_NAME)
+
+# Test sources
+TEST_SOURCES = $(wildcard $(TEST_DIR)/*.s)
+TEST_TARGETS = $(patsubst $(TEST_DIR)/%.s,$(BIN_DIR)/test_%,$(TEST_SOURCES))
+
+# ============================================================================
+# الحمد لله - Build Rules / قواعد البناء
+# ============================================================================
+
+# Default target
+.PHONY: all
+all: directories $(TARGET)
+	@echo "═══════════════════════════════════════════════"
+	@echo "الحمد لله - Build complete! / البناء مكتمل!"
+	@echo "Executable: $(TARGET)"
+	@echo "═══════════════════════════════════════════════"
+
+# Create directories
+.PHONY: directories
+directories:
+	@mkdir -p $(BUILD_DIR)
+	@mkdir -p $(BIN_DIR)
+
+# Link executable
+$(TARGET): $(OBJECTS)
+	@echo "Linking executable: $(TARGET)"
+	$(SADC) $(OBJECTS) -o $(TARGET) $(SAD_FLAGS)
+
+# Compile source files to objects
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.s
+	@echo "Compiling: $<"
+	$(SADC) -c $< -o $@ $(SAD_FLAGS)
+
+# ============================================================================
+# Testing / الاختبارات
+# ============================================================================
+
+.PHONY: test
+test: $(TEST_TARGETS)
+	@echo "═══════════════════════════════════════════════"
+	@echo "الحمد لله - Running tests... / تشغيل الاختبارات..."
+	@echo "═══════════════════════════════════════════════"
+	@for test in $(TEST_TARGETS); do \
+		echo "Running: $$test"; \
+		$$test || exit 1; \
+	done
+	@echo "═══════════════════════════════════════════════"
+	@echo "الحمد لله - All tests passed! / جميع الاختبارات نجحت!"
+	@echo "═══════════════════════════════════════════════"
+
+# Compile test executables
+$(BIN_DIR)/test_%: $(TEST_DIR)/%.s
+	@echo "Compiling test: $<"
+	$(SADC) $< -o $@ $(SAD_FLAGS) -g
+
+# ============================================================================
+# Cleaning / التنظيف
+# ============================================================================
+
+.PHONY: clean
+clean:
+	@echo "Cleaning build artifacts..."
+	rm -rf $(BUILD_DIR)
+	rm -rf $(BIN_DIR)
+	@echo "الحمد لله - Clean complete! / التنظيف مكتمل!"
+
+# ============================================================================
+# Installation / التثبيت
+# ============================================================================
+
+# Installation prefix
+PREFIX = /usr/local
+
+.PHONY: install
+install: $(TARGET)
+	@echo "Installing to $(PREFIX)/bin..."
+	install -d $(PREFIX)/bin
+	install -m 755 $(TARGET) $(PREFIX)/bin/
+	@echo "الحمد لله - Installation complete! / التثبيت مكتمل!"
+
+.PHONY: uninstall
+uninstall:
+	@echo "Uninstalling from $(PREFIX)/bin..."
+	rm -f $(PREFIX)/bin/$(PROJECT_NAME)
+	@echo "الحمد لله - Uninstallation complete! / إزالة التثبيت مكتملة!"
+
+# ============================================================================
+# Development / التطوير
+# ============================================================================
+
+# Build with debug info
+.PHONY: debug
+debug: DEBUG_FLAGS = -g
+debug: OPT_LEVEL = -O0
+debug: all
+	@echo "Debug build complete!"
+
+# Build with maximum optimization
+.PHONY: release
+release: OPT_LEVEL = -O3
+release: all
+	@echo "Release build complete!"
+
+# Build with size optimization
+.PHONY: small
+small: OPT_LEVEL = -Os
+small: all
+	@echo "Size-optimized build complete!"
+
+# Run the program
+.PHONY: run
+run: $(TARGET)
+	@echo "═══════════════════════════════════════════════"
+	@echo "Running: $(TARGET)"
+	@echo "═══════════════════════════════════════════════"
+	@$(TARGET)
+
+# Check syntax (compile without linking)
+.PHONY: check
+check:
+	@echo "Checking syntax..."
+	@for src in $(SOURCES); do \
+		echo "Checking: $$src"; \
+		$(SADC) -c $$src -o /dev/null $(SAD_FLAGS) || exit 1; \
+	done
+	@echo "الحمد لله - Syntax check passed! / فحص البنية نجح!"
+
+# ============================================================================
+# Documentation / التوثيق
+# ============================================================================
+
+DOC_DIR = docs
+
+.PHONY: docs
+docs:
+	@echo "Generating documentation..."
+	@mkdir -p $(DOC_DIR)
+	@echo "الحمد لله - Documentation generated in $(DOC_DIR)"
+
+# ============================================================================
+# Help / المساعدة
+# ============================================================================
+
+.PHONY: help
+help:
+	@echo "═══════════════════════════════════════════════"
+	@echo "الحمد لله - Sad Language Makefile"
+	@echo "═══════════════════════════════════════════════"
+	@echo ""
+	@echo "Targets / الأهداف:"
+	@echo "  make              - Build project / بناء المشروع"
+	@echo "  make all          - Same as make"
+	@echo "  make debug        - Build with debug info / بناء مع معلومات التنقيح"
+	@echo "  make release      - Build with -O3 / بناء مع تحسين أقصى"
+	@echo "  make small        - Build with -Os / بناء مع تحسين الحجم"
+	@echo "  make test         - Run tests / تشغيل الاختبارات"
+	@echo "  make run          - Run executable / تشغيل البرنامج"
+	@echo "  make check        - Check syntax / فحص البنية"
+	@echo "  make clean        - Remove build artifacts / حذف مخرجات البناء"
+	@echo "  make install      - Install to $(PREFIX) / تثبيت"
+	@echo "  make uninstall    - Uninstall / إزالة التثبيت"
+	@echo "  make docs         - Generate documentation / توليد التوثيق"
+	@echo "  make help         - Show this help / عرض المساعدة"
+	@echo ""
+	@echo "Variables / المتغيرات:"
+	@echo "  SADC=<path>       - Sad compiler path / مسار المترجم"
+	@echo "  OPT_LEVEL=<O0-O3> - Optimization level / مستوى التحسين"
+	@echo "  DEBUG_FLAGS=-g    - Add debug info / إضافة معلومات التنقيح"
+	@echo "  VERBOSE=-v        - Verbose output / إخراج مفصل"
+	@echo "  PREFIX=<path>     - Installation prefix / بادئة التثبيت"
+	@echo ""
+	@echo "Examples / أمثلة:"
+	@echo "  make OPT_LEVEL=-O3"
+	@echo "  make DEBUG_FLAGS=-g VERBOSE=-v"
+	@echo "  make PREFIX=/opt/myproject install"
+	@echo ""
+	@echo "═══════════════════════════════════════════════"
+
+# ============================================================================
+# الحمد لله - Makefile complete / الملف مكتمل
+# ============================================================================
+
+# Show variables (for debugging)
+.PHONY: show
+show:
+	@echo "Project Configuration:"
+	@echo "  PROJECT_NAME = $(PROJECT_NAME)"
+	@echo "  SADC         = $(SADC)"
+	@echo "  OPT_LEVEL    = $(OPT_LEVEL)"
+	@echo "  DEBUG_FLAGS  = $(DEBUG_FLAGS)"
+	@echo "  SOURCES      = $(SOURCES)"
+	@echo "  OBJECTS      = $(OBJECTS)"
+	@echo "  TARGET       = $(TARGET)"
+	@echo "  TEST_SOURCES = $(TEST_SOURCES)"
+	@echo "  TEST_TARGETS = $(TEST_TARGETS)"

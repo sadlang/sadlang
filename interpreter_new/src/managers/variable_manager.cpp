@@ -41,13 +41,19 @@ void VariableManager::define(const std::string& name, const Value& value) {
     // (EN) Get current scope
     Scope* currentScope = scopeManager_.getCurrentScope();
     
-    // (AR) التحقق: هل المتغير معرف مسبقاً في نفس النطاق؟
-    // (EN) Check: is variable already defined in same scope?
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) السماح بإعادة تعريف المتغير في نفس النطاق (variable shadowing)
+    //      بدلاً من رمي خطأ، نقوم بتحديث القيمة مباشرة
+    //      هذا يدعم: متغير س = 5 ... متغير س = 10 في نفس دالة/كتلة
+    // (EN) Allow variable re-declaration in same scope (variable shadowing)
+    //      Instead of throwing, update value directly
+    //      This supports: var x = 5 ... var x = 10 in same function/block
+    // ═══════════════════════════════════════════════════════════════
     if (currentScope->hasVariable(name)) {
-        std::ostringstream oss;
-        oss << "(AR) المتغير '" << name << "' معرّف مسبقاً في النطاق الحالي "
-            << "(EN) Variable '" << name << "' already defined in current scope";
-        throw std::runtime_error(oss.str());
+        // (AR) المتغير موجود — نحدّث قيمته فقط
+        // (EN) Variable exists — just update its value
+        scopeVariables_[currentScope][name] = value;
+        return;
     }
     
     // (AR) تعريف المتغير في مدير النطاقات (تسجيل الاسم)
@@ -59,7 +65,27 @@ void VariableManager::define(const std::string& name, const Value& value) {
     scopeVariables_[currentScope][name] = value;
 }
 
+void VariableManager::defineConst(const std::string& name, const Value& value) {
+    // (AR) تعريف الثابت كمتغير عادي ثم تسجيله في قائمة الثوابت
+    // (EN) Define as normal variable then register in const set
+    define(name, value);
+    constVariables_.insert(name);
+}
+
+bool VariableManager::isConst(const std::string& name) const {
+    return constVariables_.count(name) > 0;
+}
+
 void VariableManager::assign(const std::string& name, const Value& value) {
+    // (AR) التحقق من أن المتغير ليس ثابتاً
+    // (EN) Check that the variable is not a constant
+    if (constVariables_.count(name) > 0) {
+        throwError(
+            "لا يمكن تعديل الثابت '" + name + "'",
+            "Cannot reassign constant '" + name + "'"
+        );
+    }
+    
     // (AR) البحث عن النطاق الذي يحتوي على المتغير
     // (EN) Find scope containing the variable
     Scope* varScope = findVariableScope(name);
@@ -162,17 +188,17 @@ void VariableManager::enterScope(ScopeType type, const std::string& name) {
 }
 
 void VariableManager::exitScope() {
-    // (AR) الحصول على النطاق الحالي قبل حذفه
-    // (EN) Get current scope before removing it
+    // (AR) التحقق من أننا لسنا في النطاق العام قبل حذف المتغيرات
+    // (EN) Verify not at global scope before erasing variables
     Scope* currentScope = scopeManager_.getCurrentScope();
     
-    // (AR) حذف جميع متغيرات هذا النطاق
-    // (EN) Delete all variables in this scope
-    scopeVariables_.erase(currentScope);
-    
-    // (AR) إزالة النطاق من المكدس
-    // (EN) Remove scope from stack
+    // (AR) إزالة النطاق أولاً — إذا فشل، لا نحذف المتغيرات
+    // (EN) Pop scope first — if it fails, don't erase variables
     scopeManager_.popScope();
+    
+    // (AR) حذف جميع متغيرات هذا النطاق بعد النجاح
+    // (EN) Delete all variables in this scope after successful pop
+    scopeVariables_.erase(currentScope);
 }
 
 // ========================================

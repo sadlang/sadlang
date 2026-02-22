@@ -19,6 +19,7 @@ Image::Image()
     , m_width(0)        // بدون عرض - no width
     , m_height(0)       // بدون ارتفاع - no height
     , m_channels(0)     // بدون قنوات - no channels
+    , m_ownedByStb(false) // ذاكرة غير مخصصة - no allocated memory
 {
 }
 
@@ -27,6 +28,7 @@ Image::Image(u32 width, u32 height, u32 channels)
     : m_width(width)
     , m_height(height)
     , m_channels(channels)
+    , m_ownedByStb(false) // ذاكرة مخصصة ب new[] - memory allocated with new[]
 {
     // تخصيص الذاكرة للبيانات - allocate memory for data
     size_t size = width * height * channels;
@@ -47,12 +49,14 @@ Image::Image(Image&& other) noexcept
     , m_width(other.m_width)        // نقل العرض - move width
     , m_height(other.m_height)      // نقل الارتفاع - move height
     , m_channels(other.m_channels)  // نقل عدد القنوات - move channels
+    , m_ownedByStb(other.m_ownedByStb) // نقل علامة الملكية - move ownership flag
 {
     // إبطال الكائن المصدر - invalidate source object
     other.m_data = nullptr;
     other.m_width = 0;
     other.m_height = 0;
     other.m_channels = 0;
+    other.m_ownedByStb = false;
 }
 
 // عامل إسناد النقل - Move assignment operator
@@ -65,12 +69,14 @@ Image& Image::operator=(Image&& other) noexcept {
         m_width = other.m_width;
         m_height = other.m_height;
         m_channels = other.m_channels;
+        m_ownedByStb = other.m_ownedByStb;
         
         // إبطال الكائن المصدر - invalidate source object
         other.m_data = nullptr;
         other.m_width = 0;
         other.m_height = 0;
         other.m_channels = 0;
+        other.m_ownedByStb = false;
     }
     return *this;
 }
@@ -105,6 +111,7 @@ bool Image::LoadFromFile(const std::string& filepath, u32 desiredChannels, bool 
     m_width = static_cast<u32>(width);
     m_height = static_cast<u32>(height);
     m_channels = desiredChannels > 0 ? desiredChannels : static_cast<u32>(channels);
+    m_ownedByStb = true; // stb_image خصصت الذاكرة - stb_image allocated memory
     
     std::cout << "Image::LoadFromFile: Successfully loaded " << filepath << std::endl;
     std::cout << "  Dimensions: " << m_width << "x" << m_height << std::endl;
@@ -150,6 +157,7 @@ bool Image::LoadFromMemory(const u8* data, size_t size, u32 desiredChannels, boo
     m_width = static_cast<u32>(width);
     m_height = static_cast<u32>(height);
     m_channels = desiredChannels > 0 ? desiredChannels : static_cast<u32>(channels);
+    m_ownedByStb = true; // stb_image خصصت الذاكرة - stb_image allocated memory
     
     return true; // نجح التحميل - loading succeeded
 }
@@ -180,11 +188,16 @@ TextureRef Image::CreateTexture(bool generateMipmaps, bool sRGB) const {
 // Release image data
 void Image::Free() {
     if (m_data) { // إذا كانت البيانات موجودة - if data exists
-        stbi_image_free(m_data); // تحرير باستخدام stb_image - free using stb_image
+        if (m_ownedByStb) {
+            stbi_image_free(m_data); // تحرير بواسطة stb - free using stb
+        } else {
+            delete[] m_data; // تحرير بواسطة delete[] - free using delete[]
+        }
         m_data = nullptr;
         m_width = 0;
         m_height = 0;
         m_channels = 0;
+        m_ownedByStb = false;
     }
 }
 
@@ -272,10 +285,11 @@ void Image::Rotate90CW() {
     }
     
     // استبدال البيانات القديمة - replace old data
-    stbi_image_free(m_data);
+    Free(); // تحرير آمن باستخدام العلامة الصحيحة - safe free using correct flag
     m_data = newData;
     m_width = newWidth;
     m_height = newHeight;
+    m_ownedByStb = false; // new[] خصصت الذاكرة - new[] allocated memory
 }
 
 // تدوير الصورة 90 درجة عكس عقارب الساعة
@@ -302,10 +316,11 @@ void Image::Rotate90CCW() {
     }
     
     // استبدال البيانات - replace data
-    stbi_image_free(m_data);
+    Free(); // تحرير آمن - safe free
     m_data = newData;
     m_width = newWidth;
     m_height = newHeight;
+    m_ownedByStb = false; // new[] خصصت الذاكرة - new[] allocated memory
 }
 
 // تحويل الصورة إلى تدرجات الرمادي
@@ -331,9 +346,10 @@ void Image::ConvertToGrayscale() {
     }
     
     // استبدال البيانات - replace data
-    stbi_image_free(m_data);
+    Free(); // تحرير آمن - safe free
     m_data = newData;
     m_channels = 1;
+    m_ownedByStb = false; // new[] خصصت الذاكرة - new[] allocated memory
 }
 
 // الحصول على لون بكسل محدد

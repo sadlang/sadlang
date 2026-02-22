@@ -46,13 +46,13 @@ void test_init_workflow() {
     pkg.version = Version::parse("0.1.0");
     pkg.description = "Test integration project";
     pkg.authors.push_back("Test Author");
-    pkg.main_file = "src/main.s";
+    pkg.main_file = "src/main.ص";
     pkg.source_dirs.push_back("src");
     
     pkg.save_to_file("sad.toml");
     
-    // Create main.s file
-    std::ofstream main_file("src/main.s");
+    // Create main.ص file
+    std::ofstream main_file("src/main.ص");
     main_file << "// بسم الله الرحمن الرحيم\n";
     main_file << "دالة رئيسية() {\n";
     main_file << "    اطبع(\"مرحباً!\");\n";
@@ -62,7 +62,7 @@ void test_init_workflow() {
     
     // Verify files were created
     assert(fs::exists("sad.toml"));
-    assert(fs::exists("src/main.s"));
+    assert(fs::exists("src/main.ص"));
     
     // Load and verify package
     Package loaded = Package::load_from_file("sad.toml");

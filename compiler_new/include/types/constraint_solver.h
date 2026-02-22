@@ -230,6 +230,21 @@ private:
     // الإرجاع / Return: نتيجة الحل / Solver result
     SolverResult solveSubtype(const Constraint& constraint, Substitution& subst);
     
+    // حل قيد امتلاك عضو / Solve has-member constraint
+    // type1 يملك عضواً باسم location_ وبنوع type2
+    // type1 has a member named location_ of type type2
+    SolverResult solveHasMember(const Constraint& constraint, Substitution& subst);
+    
+    // حل قيد قابلية الاستدعاء / Solve callable constraint
+    // type1 قابل للاستدعاء ويُرجع type2
+    // type1 is callable and returns type2
+    SolverResult solveCallable(const Constraint& constraint, Substitution& subst);
+    
+    // حل قيد قابلية التكرار / Solve iterable constraint
+    // type1 قابل للتكرار وعنصره type2
+    // type1 is iterable with element type type2
+    SolverResult solveIterable(const Constraint& constraint, Substitution& subst);
+    
     // تطبيق الاستبدال على القيود المتبقية / Apply substitution to remaining constraints
     // المعامل / Parameter: constraints - القيود / Constraints
     // المعامل / Parameter: subst - الاستبدال / Substitution

@@ -162,37 +162,66 @@ void HttpServer::static_files(const std::string& route_path, const std::string& 
             requested_path = requested_path.substr(route_path.length());
         }
         
-        // Build file path
-        fs::path file_path = fs::path(directory) / requested_path;
+        // ════════════════════════════════════════════════════════
+        // إصلاح أمني: منع Path Traversal (اجتياز المسار)
+        // ════════════════════════════════════════════════════════
         
-        if (!fs::exists(file_path) || !fs::is_regular_file(file_path)) {
-            res.set_status(HttpStatus::NotFound);
-            res.set_text("File not found");
+        // الخطوة 1: رفض المسارات التي تحتوي على ".." صريحاً
+        if (requested_path.find("..") != std::string::npos) {
+            res.set_status(HttpStatus::Forbidden);
+            res.set_text("Access denied: Invalid path");
             return;
         }
         
-        // Read file
-        std::ifstream file(file_path, std::ios::binary);
-        if (!file) {
+        // الخطوة 2: تطبيع المسارات والتحقق من أنها داخل المجلد المسموح
+        try {
+            fs::path base_dir = fs::weakly_canonical(fs::path(directory));
+            fs::path file_path = fs::weakly_canonical(base_dir / requested_path);
+            
+            // التحقق من أن الملف المطلوب داخل المجلد الأساسي
+            std::string base_str = base_dir.string();
+            std::string file_str = file_path.string();
+            
+            // يجب أن يبدأ مسار الملف بمسار المجلد الأساسي
+            if (file_str.find(base_str) != 0) {
+                res.set_status(HttpStatus::Forbidden);
+                res.set_text("Access denied: Path traversal detected");
+                return;
+            }
+            
+            if (!fs::exists(file_path) || !fs::is_regular_file(file_path)) {
+                res.set_status(HttpStatus::NotFound);
+                res.set_text("File not found");
+                return;
+            }
+            
+            // Read file
+            std::ifstream file(file_path, std::ios::binary);
+            if (!file) {
+                res.set_status(HttpStatus::InternalServerError);
+                res.set_text("Failed to read file");
+                return;
+            }
+            
+            std::string content((std::istreambuf_iterator<char>(file)),
+                               std::istreambuf_iterator<char>());
+            
+            // Set content type
+            std::string ext = file_path.extension().string();
+            if (ext == ".html") res.set_header(headers::ContentType, mime_types::TextHtml);
+            else if (ext == ".css") res.set_header(headers::ContentType, mime_types::TextCss);
+            else if (ext == ".js") res.set_header(headers::ContentType, mime_types::TextJavascript);
+            else if (ext == ".json") res.set_header(headers::ContentType, mime_types::ApplicationJson);
+            else if (ext == ".png") res.set_header(headers::ContentType, mime_types::ImagePng);
+            else if (ext == ".jpg" || ext == ".jpeg") res.set_header(headers::ContentType, mime_types::ImageJpeg);
+            else res.set_header(headers::ContentType, mime_types::ApplicationOctetStream);
+            
+            res.set_body(content);
+            
+        } catch (const std::exception& e) {
             res.set_status(HttpStatus::InternalServerError);
-            res.set_text("Failed to read file");
-            return;
+            res.set_text("Server error processing path");
         }
-        
-        std::string content((std::istreambuf_iterator<char>(file)),
-                           std::istreambuf_iterator<char>());
-        
-        // Set content type
-        std::string ext = file_path.extension().string();
-        if (ext == ".html") res.set_header(headers::ContentType, mime_types::TextHtml);
-        else if (ext == ".css") res.set_header(headers::ContentType, mime_types::TextCss);
-        else if (ext == ".js") res.set_header(headers::ContentType, mime_types::TextJavascript);
-        else if (ext == ".json") res.set_header(headers::ContentType, mime_types::ApplicationJson);
-        else if (ext == ".png") res.set_header(headers::ContentType, mime_types::ImagePng);
-        else if (ext == ".jpg" || ext == ".jpeg") res.set_header(headers::ContentType, mime_types::ImageJpeg);
-        else res.set_header(headers::ContentType, mime_types::ApplicationOctetStream);
-        
-        res.set_body(content);
     });
 }
 

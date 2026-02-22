@@ -47,8 +47,24 @@ LLVMExpressionBuilder::LLVMExpressionBuilder(llvm::LLVMContext& context,
     
     // تهيئة دعم الأصناف والـ closures / Initialize class and closure support
     classSupport_ = std::make_unique<LLVMClassSupport>(context, builder, typeMapper);
-    // TODO: Implement LLVMClosureSupport class / تطبيق كلاس LLVMClosureSupport
-    // closureSupport_ = std::make_unique<LLVMClosureSupport>(context, builder, typeMapper);
+    
+    // ========================================================================
+    // (AR) تهيئة دعم الإغلاقات (Closures)
+    //      الإغلاقات هي دوال تلتقط متغيرات من النطاق المحيط بها.
+    //      مثال في لغة ص:
+    //        متغير ع = 10
+    //        متغير دالتي = دالة(س) ارجع س + ع نهاية
+    //        # دالتي تلتقط المتغير 'ع' من النطاق الخارجي
+    //
+    //      التنفيذ: نخزن المتغيرات الملتقطة في بنية (struct) تسمى "البيئة" (environment)
+    //      ثم نمرر مؤشر البيئة مع مؤشر الدالة كزوج (closure pair)
+    //
+    // (EN) Initialize closure support
+    //      Closures are functions that capture variables from their enclosing scope.
+    //      Implementation: captured vars stored in an environment struct,
+    //      passed alongside function pointer as a closure pair.
+    // ========================================================================
+    closureSupport_ = std::make_unique<LLVMClosureSupport>(context, builder, typeMapper);
 }
 
 /**
@@ -414,10 +430,41 @@ llvm::Value* LLVMExpressionBuilder::buildClosure(
     llvm::Function* function,
     const std::vector<llvm::Value*>& capturedVars)
 {
-    // TODO: تنفيذ كامل للـ closures مع environment capturing
-    // TODO: Complete implementation of closures with environment capturing
+    // ========================================================================
+    // (AR) بناء إغلاق (Closure) — دالة مع بيئة ملتقطة
+    //
+    //      الإغلاق يتكون من جزأين:
+    //      1. مؤشر إلى الدالة نفسها (function pointer)
+    //      2. بيئة (environment) تحتوي على المتغيرات الملتقطة
+    //
+    //      إذا لم تكن هناك متغيرات ملتقطة، نعيد مؤشر الدالة مباشرة
+    //      (أي أن الدالة ليست إغلاقاً حقيقياً بل دالة عادية)
+    //
+    //      إذا وُجدت متغيرات ملتقطة، نستخدم LLVMClosureSupport لإنشاء
+    //      بنية الإغلاق الكاملة: {مؤشر_الدالة، مؤشر_البيئة}
+    //
+    // (EN) Build closure — function with captured environment
+    //      A closure consists of two parts:
+    //      1. Function pointer
+    //      2. Environment containing captured variables
+    //      If no captured vars, return bare function pointer.
+    //      Otherwise, use LLVMClosureSupport to create full closure struct.
+    // ========================================================================
     
-    // حالياً: إرجاع مؤشر الدالة فقط / Currently: Return function pointer only
+    if (capturedVars.empty()) {
+        // (AR) لا توجد متغيرات ملتقطة — نعيد مؤشر الدالة مباشرة
+        // (EN) No captured variables — return bare function pointer
+        return function;
+    }
+    
+    // (AR) استخدام LLVMClosureSupport لإنشاء الإغلاق الكامل
+    // (EN) Use LLVMClosureSupport to create full closure
+    if (closureSupport_) {
+        return closureSupport_->createClosure(function, capturedVars);
+    }
+    
+    // (AR) احتياطي — إذا لم يتوفر دعم الإغلاقات لسبب ما
+    // (EN) Fallback — if closure support unavailable for some reason
     return function;
 }
 

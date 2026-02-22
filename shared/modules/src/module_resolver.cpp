@@ -13,6 +13,7 @@
 #include "lexer_core.h"
 #include "module_nodes.h"
 #include "declarations.h"
+#include "../../utils/include/utf8_utils.h"
 
 #include <fstream>
 #include <sstream>
@@ -126,16 +127,34 @@ void ModuleResolver::initializeDefaultPaths() {
  *        (EN) Add a new search path
  */
 void ModuleResolver::addSearchPath(const std::string& path) {
+#ifdef _WIN32
+    // (AR) على ويندوز، نحوّل UTF-8 إلى wstring لتجنب مشاكل الترميز
+    // (EN) On Windows, convert UTF-8 to wstring to avoid encoding issues
+    std::filesystem::path fsPath = sad::utf8::make_path(path);
+#else
     std::filesystem::path fsPath(path);
+#endif
     
     // (AR) تحقق من وجود المسار / (EN) Check if path exists
     if (!std::filesystem::exists(fsPath)) {
-        std::cerr << "(AR) تحذير: المسار غير موجود: / (EN) Warning: Path does not exist: " 
-                  << path << std::endl;
         return;
     }
     
     // (AR) تجنب التكرار / (EN) Avoid duplicates
+    auto it = std::find(searchPaths_.begin(), searchPaths_.end(), fsPath);
+    if (it == searchPaths_.end()) {
+        searchPaths_.push_back(fsPath);
+    }
+}
+
+/**
+ * @brief (AR) إضافة مسار بحث مباشرة من filesystem::path
+ *        (EN) Add search path directly from filesystem::path
+ */
+void ModuleResolver::addSearchPathDirect(const std::filesystem::path& fsPath) {
+    if (!std::filesystem::exists(fsPath)) {
+        return;
+    }
     auto it = std::find(searchPaths_.begin(), searchPaths_.end(), fsPath);
     if (it == searchPaths_.end()) {
         searchPaths_.push_back(fsPath);
@@ -214,13 +233,16 @@ std::optional<std::filesystem::path> ModuleResolver::findModuleFile(
     // (AR) تحويل مسار الوحدة إلى مسار ملف / (EN) Convert module path to file path
     std::string filename = modulePathToFilename(modulePath);
     
-    // (AR) الامتدادات المدعومة / (EN) Supported extensions
-    std::vector<std::string> extensions = {".sad", ".sd"};
+    // (AR) الامتداد الوحيد المدعوم هو .ص / (EN) Only supported extension is .ص
+    std::vector<std::string> extensions = {".\xd8\xb5"};
     
     // (AR) البحث في المسارات / (EN) Search in paths
     for (const auto& searchPath : searchPaths_) {
         for (const auto& ext : extensions) {
-            auto fullPath = searchPath / (filename + ext);
+            // (AR) استخدام make_path لدعم أسماء الملفات العربية على ويندوز
+            // (EN) Use make_path to support Arabic filenames on Windows
+            auto filenamePath = sad::utf8::make_path(filename + ext);
+            auto fullPath = searchPath / filenamePath;
             
             if (std::filesystem::exists(fullPath)) {
                 return fullPath;
@@ -230,10 +252,11 @@ std::optional<std::filesystem::path> ModuleResolver::findModuleFile(
     
     // (AR) البحث نسبة للملف الحالي / (EN) Search relative to current file
     if (!currentFile.empty()) {
-        auto currentPath = std::filesystem::path(currentFile).parent_path();
+        auto currentPath = sad::utf8::make_path(currentFile).parent_path();
         
         for (const auto& ext : extensions) {
-            auto fullPath = currentPath / (filename + ext);
+            auto filenamePath = sad::utf8::make_path(filename + ext);
+            auto fullPath = currentPath / filenamePath;
             
             if (std::filesystem::exists(fullPath)) {
                 return fullPath;
@@ -258,9 +281,11 @@ Module* ModuleResolver::loadModule(
     
     try {
         // (AR) قراءة الملف / (EN) Read file
+        // (AR) فتح الملف باستخدام filesystem::path مباشرة لدعم الأسماء العربية
+        // (EN) Open file using filesystem::path directly to support Arabic names
         std::ifstream file(filePath);
         if (!file.is_open()) {
-            throw std::runtime_error("Cannot open file: " + filePath.string());
+            throw std::runtime_error("Cannot open module file: " + moduleName);
         }
         
         std::stringstream buffer;
@@ -287,7 +312,13 @@ Module* ModuleResolver::loadModule(
         module->fullName = moduleName;
         module->filePath = filePath;
         module->ast = std::move(ast);
+        // (AR) استخدام wstring على ويندوز لتجنب مشاكل الترميز
+        // (EN) Use wstring on Windows to avoid encoding issues
+#ifdef _WIN32
+        module->isStdlib = (filePath.wstring().find(L"stdlib") != std::wstring::npos);
+#else
         module->isStdlib = (filePath.string().find("stdlib") != std::string::npos);
+#endif
         module->isLoaded = true;
         
         // (AR) استخراج الرموز المُصدَّرة / (EN) Extract exported symbols

@@ -1,0 +1,183 @@
+# بسم الله الرحمن الرحيم
+# GitHub Actions CI/CD for Sad Language
+# GitHub Actions للغة Sad
+# Phase 7.3: Build System Integration
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ created ]
+
+env:
+  SAD_VERSION: 1.0.0
+
+jobs:
+  # ========================================================================
+  # الحمد لله - Build Job / مهمة البناء
+  # ========================================================================
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        optimization: [O2, O3]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Sad compiler
+        run: |
+          echo "الحمد لله - Setting up Sad compiler..."
+          # Download or build sadc
+          # TODO: Replace with actual installation
+      
+      - name: Build project
+        run: |
+          echo "الحمد لله - Building project with -${{ matrix.optimization }}..."
+          make OPT_LEVEL=-${{ matrix.optimization }}
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-${{ matrix.os }}-${{ matrix.optimization }}
+          path: bin/*
+
+  # ========================================================================
+  # الحمد لله - Test Job / مهمة الاختبارات
+  # ========================================================================
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: build
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-${{ matrix.os }}-O2
+      
+      - name: Run tests
+        run: |
+          echo "الحمد لله - Running tests..."
+          make test
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}
+          path: test-results/
+
+  # ========================================================================
+  # الحمد لله - Coverage Job / مهمة التغطية
+  # ========================================================================
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Generate coverage report
+        run: |
+          echo "الحمد لله - Generating coverage report..."
+          # TODO: Add coverage tool integration
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  # ========================================================================
+  # الحمد لله - Release Job / مهمة الإصدار
+  # ========================================================================
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    if: github.event_name == 'release'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Create release package
+        run: |
+          echo "الحمد لله - Creating release package..."
+          mkdir -p release
+          tar -czf release/sad-${{ env.SAD_VERSION }}-linux.tar.gz bin/
+          zip -r release/sad-${{ env.SAD_VERSION }}-windows.zip bin/
+      
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ========================================================================
+  # الحمد لله - Documentation Job / مهمة التوثيق
+  # ========================================================================
+  docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Generate docs
+        run: |
+          echo "الحمد لله - Generating documentation..."
+          make docs
+      
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+
+  # ========================================================================
+  # الحمد لله - Notify Job / مهمة الإخطار
+  # ========================================================================
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [build, test, docs]
+    if: always()
+    
+    steps:
+      - name: Notify success
+        if: success()
+        run: |
+          echo "الحمد لله - CI/CD pipeline completed successfully!"
+          echo "جميع المراحل نجحت بفضل الله! ✅"
+      
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "Pipeline failed. Please check the logs."
+          echo "فشل في إحدى المراحل. يرجى فحص السجلات."

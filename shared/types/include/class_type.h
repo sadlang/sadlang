@@ -159,6 +159,38 @@ struct ClassProperty {
 };
 
 // ======================================================================
+// بنية تحميل عامل زائد / Operator Overload Structure
+// ======================================================================
+
+/**
+ * @struct OperatorOverload
+ * @brief (AR) معلومات تحميل عامل زائد في صنف
+ * @brief (EN) Operator overload information in a class
+ * 
+ * ملاحظات إضافية:
+ * - AR: يحتوي على رمز العامل، المعاملات، نوع الإرجاع، والجسم
+ * - EN: Contains operator symbol, parameters, return type, and body
+ * 
+ * مثال:
+ * عامل +(آخر: كسر) -> كسر { ... }
+ * OperatorOverload: {operatorSymbol="+", parameters=[...], body=...}
+ */
+struct OperatorOverload {
+    std::string operatorSymbol;                 ///< (AR) رمز العامل (+, -, *, /, ==, <, ...) / (EN) operator symbol
+    std::vector<AST::Parameter> parameters;     ///< (AR) المعاملات / (EN) parameters  
+    Data::DataType returnType;                  ///< (AR) نوع الإرجاع / (EN) return type
+    std::unique_ptr<AST::Statement> body;       ///< (AR) جسم العامل / (EN) operator body
+    AST::AccessModifier access;                 ///< (AR) معدّل الوصول / (EN) access modifier
+    
+    /**
+     * @brief (AR) منشئ مع رمز العامل
+     * @brief (EN) Constructor with operator symbol
+     */
+    OperatorOverload(const std::string& op, AST::AccessModifier acc = AST::AccessModifier::PUBLIC)
+        : operatorSymbol(op), returnType(Data::DataType::UNKNOWN), access(acc) {}
+};
+
+// ======================================================================
 // صنف ClassType الرئيسي / Main ClassType Class
 // ======================================================================
 
@@ -197,7 +229,8 @@ public:
     // ──────────────────────────────────────────────────────────────────
     
     std::string name;                                           ///< (AR) اسم الصنف / (EN) class name
-    ClassType* baseClass;                                       ///< (AR) الصنف الأساسي / (EN) base class (for inheritance)
+    ClassType* baseClass;                                       ///< (AR) الصنف الأساسي الأول / (EN) primary base class
+    std::vector<ClassType*> additionalBases;                    ///< (AR) الأصناف الأساسية الإضافية (وراثة متعددة) / (EN) additional base classes (multiple inheritance)
     
     // ──────────────────────────────────────────────────────────────────
     // الأعضاء / Members
@@ -206,6 +239,7 @@ public:
     std::vector<ClassField> fields;                             ///< (AR) قائمة الخصائص / (EN) list of fields
     std::vector<ClassMethod> methods;                           ///< (AR) قائمة الطرق / (EN) list of methods
     std::vector<ClassProperty> properties;                      ///< (AR) قائمة الخصائص (Properties) / (EN) list of properties
+    std::vector<OperatorOverload> operatorOverloads;            ///< (AR) قائمة العوامل المحملة زائداً / (EN) list of operator overloads
     std::unique_ptr<AST::ConstructorDecl> constructor;          ///< (AR) الباني / (EN) constructor
     std::unique_ptr<AST::DestructorDecl> destructor;            ///< (AR) الهدام / (EN) destructor
     
@@ -217,6 +251,7 @@ public:
     std::unordered_map<std::string, size_t> methodIndex;        ///< (AR) خريطة اسم→رقم الطريقة / (EN) name→method index map
     std::unordered_map<std::string, size_t> propertyIndex;      ///< (AR) خريطة اسم→رقم Property / (EN) name→property index map
     std::unordered_map<std::string, Value> staticFields;        ///< (AR) الخصائص الثابتة / (EN) static fields values
+    std::vector<std::string> implementedTraits;                 ///< (AR) الواجهات المنفذة / (EN) implemented traits
     
     // ──────────────────────────────────────────────────────────────────
     // المنشئات / Constructors
@@ -364,7 +399,8 @@ public:
     bool addMethod(const std::string& methodName, AST::Visibility visibility,
                    Type* returnType, const std::vector<AST::Parameter>& parameters,
                    std::unique_ptr<AST::BlockStmt> body,
-                   bool isStatic = false, bool isVirtual = false);
+                   bool isStatic = false, bool isVirtual = false,
+                   bool isAbstract = false);
     
     /**
      * @brief (AR) البحث عن طريقة بالاسم
@@ -414,6 +450,40 @@ public:
      * @return (bool) — (AR) true إذا وُجدت / (EN) true if exists
      */
     bool hasProperty(const std::string& propertyName) const;
+    
+    // ──────────────────────────────────────────────────────────────────
+    // إدارة العوامل المحملة زائداً / Operator Overload Management
+    // ──────────────────────────────────────────────────────────────────
+    
+    /**
+     * @brief (AR) إضافة تحميل عامل زائد
+     * @brief (EN) Add operator overload
+     * 
+     * @param overload (OperatorOverload) — (AR) العامل المحمل / (EN) operator overload to add
+     */
+    void addOperatorOverload(OperatorOverload overload);
+    
+    /**
+     * @brief (AR) البحث عن تحميل عامل زائد بالرمز
+     * @brief (EN) Find operator overload by symbol
+     * 
+     * @param operatorSymbol (const std::string&) — (AR) رمز العامل / (EN) operator symbol (+, -, *, etc.)
+     * @return (OperatorOverload*) — (AR) مؤشر للعامل أو nullptr / (EN) pointer to overload or nullptr
+     * 
+     * ملاحظات إضافية:
+     * - AR: يبحث في الصنف الحالي ثم الأصناف الأساسية
+     * - EN: Searches in current class then base classes
+     */
+    OperatorOverload* findOperator(const std::string& operatorSymbol);
+    
+    /**
+     * @brief (AR) هل يوجد تحميل عامل زائد بهذا الرمز؟
+     * @brief (EN) Does operator overload with this symbol exist?
+     * 
+     * @param operatorSymbol (const std::string&) — (AR) رمز العامل / (EN) operator symbol
+     * @return (bool) — (AR) true إذا وُجد / (EN) true if exists
+     */
+    bool hasOperator(const std::string& operatorSymbol) const;
     
     // ──────────────────────────────────────────────────────────────────
     // الباني والهدام / Constructor and Destructor
@@ -475,6 +545,12 @@ public:
      * @return (ClassType*) — (AR) مؤشر للصنف الأساسي أو nullptr / (EN) pointer to base class or nullptr
      */
     ClassType* getBaseClass() const { return baseClass; }
+    
+    /**
+     * @brief (AR) الحصول على جميع الأصناف الأساسية الإضافية
+     * @brief (EN) Get additional base classes
+     */
+    const std::vector<ClassType*>& getAdditionalBases() const { return additionalBases; }
     
     /**
      * @brief (AR) تعيين الصنف الأساسي

@@ -294,6 +294,34 @@ public:
      */
     static Data::Value tan(const std::vector<Data::Value>& args);
 
+    // ========================================================================
+    // (AR) دوال مثلثية عكسية / (EN) Inverse Trigonometric Functions
+    // ========================================================================
+    static Data::Value asin(const std::vector<Data::Value>& args);
+    static Data::Value acos(const std::vector<Data::Value>& args);
+    static Data::Value atan(const std::vector<Data::Value>& args);
+    static Data::Value atan2(const std::vector<Data::Value>& args);
+
+    // ========================================================================
+    // (AR) دوال لوغاريتمية وأسية / (EN) Logarithmic & Exponential Functions
+    // ========================================================================
+    static Data::Value log(const std::vector<Data::Value>& args);
+    static Data::Value log2(const std::vector<Data::Value>& args);
+    static Data::Value log10(const std::vector<Data::Value>& args);
+    static Data::Value exp(const std::vector<Data::Value>& args);
+
+    // ========================================================================
+    // (AR) ثوابت رياضية / (EN) Math Constants
+    // ========================================================================
+    static Data::Value pi(const std::vector<Data::Value>& args);
+    static Data::Value e(const std::vector<Data::Value>& args);
+
+    // ========================================================================
+    // (AR) دوال عشوائية / (EN) Random Functions
+    // ========================================================================
+    static Data::Value random(const std::vector<Data::Value>& args);
+    static Data::Value randomInt(const std::vector<Data::Value>& args);
+
 private:
     /**
      * @brief (AR) التحقق من صحة المعاملات

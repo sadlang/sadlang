@@ -20,7 +20,7 @@
  * 
  * مثال الاستخدام / Usage Example:
  * ```cpp
- * LLVMDebugInfoGenerator debug_gen(module.get(), "program.sad", "/home/user/project");
+ * LLVMDebugInfoGenerator debug_gen(module.get(), "program.ص", "/home/user/project");
  * debug_gen.initialize();
  * 
  * auto func_di = debug_gen.createFunction("main", 1, false);

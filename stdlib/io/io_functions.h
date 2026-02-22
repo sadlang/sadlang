@@ -196,7 +196,7 @@ private:
      * 
      * @param value (AR) القيمة المراد طباعتها / (EN) Value to print
      */
-    static std::string valueToString(const Data::Value& value);
+    static std::string valueToString(const Data::Value& value, int depth = 0);
 
     /**
      * @brief (AR) تحويل قيمة إلى نص قابل للطباعة

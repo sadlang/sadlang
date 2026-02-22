@@ -15,6 +15,7 @@
 #include "middle/dead_code_elimination_pass.h"
 #include <queue>
 #include <algorithm>
+#include <unordered_map>
 
 namespace Sad {
 namespace Compiler {
@@ -256,8 +257,12 @@ int DeadCodeEliminationPass::removeUnreachableBlocks(SIR::SIRFunction* function)
  * @brief Compute reachable blocks
  * 
  * @details
- * (AR) يستخدم BFS من كتلة الدخول.
- * (EN) Uses BFS from entry block.
+ * (AR) يستخدم BFS من كتلة الدخول. يستنتج الخلفاء من تعليمات القفز
+ *      (BR و BR_COND) بدلاً من الاعتماد على قائمة successors المسبقة،
+ *      لأن المُبني (SIRBuilder) لا يملأ تلك القائمة حالياً.
+ * (EN) Uses BFS from entry block. Derives successors from branch
+ *      instructions (BR and BR_COND) rather than relying on pre-populated
+ *      successors list, because SIRBuilder does not populate it currently.
  */
 std::unordered_set<SIR::SIRBasicBlock*> 
 DeadCodeEliminationPass::computeReachableBlocks(SIR::SIRFunction* function) {
@@ -267,6 +272,17 @@ DeadCodeEliminationPass::computeReachableBlocks(SIR::SIRFunction* function) {
     const auto& blocks = function->getBasicBlocks();
     if (blocks.empty()) {
         return reachable;
+    }
+    
+    // ================================================================
+    // (AR) بناء خريطة اسم → كتلة لاستخدامها في حل أهداف القفز
+    // (EN) Build name→block map for resolving branch targets
+    // ================================================================
+    std::unordered_map<std::string, SIR::SIRBasicBlock*> blockMap;
+    for (const auto& block : blocks) {
+        if (block) {
+            blockMap[block->name] = block.get();
+        }
     }
     
     auto* entryBlock = blocks[0].get();
@@ -283,12 +299,45 @@ DeadCodeEliminationPass::computeReachableBlocks(SIR::SIRFunction* function) {
         auto* block = workList.front();
         workList.pop();
         
-        // الحصول على الكتل الخلفاء / Get successor blocks
-        // استخدام CFG المحفوظ في الكتلة / Use CFG stored in block
+        // ============================================================
+        // (AR) استنتاج الخلفاء من تعليمات القفز في الكتلة
+        //      نبحث عن BR (قفز غير شرطي) و BR_COND (قفز شرطي)
+        //      ونستخرج أسماء الكتل المستهدفة من المعاملات
+        // (EN) Derive successors from branch instructions in the block.
+        //      Look for BR (unconditional) and BR_COND (conditional)
+        //      and extract target block names from operands.
+        // ============================================================
+        
+        // أولاً: استخدم القائمة المسبقة إن وُجدت / First: use pre-populated list if available
         for (auto* succ : block->successors) {
             if (succ && reachable.find(succ) == reachable.end()) {
                 reachable.insert(succ);
                 workList.push(succ);
+            }
+        }
+        
+        // ثانياً: استنتج الخلفاء من التعليمات / Second: derive successors from instructions
+        for (const auto& inst : block->instructions) {
+            if (inst.opcode == SIR::SIROpcode::BR) {
+                // BR has 1 label operand: target
+                if (!inst.operands.empty() && inst.operands[0].type == SIR::SIROperandType::LABEL) {
+                    auto it = blockMap.find(inst.operands[0].name);
+                    if (it != blockMap.end() && reachable.find(it->second) == reachable.end()) {
+                        reachable.insert(it->second);
+                        workList.push(it->second);
+                    }
+                }
+            } else if (inst.opcode == SIR::SIROpcode::BR_COND) {
+                // BR_COND has operands: condition, thenLabel, elseLabel
+                for (const auto& op : inst.operands) {
+                    if (op.type == SIR::SIROperandType::LABEL) {
+                        auto it = blockMap.find(op.name);
+                        if (it != blockMap.end() && reachable.find(it->second) == reachable.end()) {
+                            reachable.insert(it->second);
+                            workList.push(it->second);
+                        }
+                    }
+                }
             }
         }
     }
@@ -316,6 +365,54 @@ bool DeadCodeEliminationPass::hasSideEffect(SIR::SIRInstruction* inst) const {
         case SIR::SIROpcode::FREE:
         case SIR::SIROpcode::MEMCPY:
         case SIR::SIROpcode::MEMSET:
+
+        // ────────────────────────────────────────────────────────────────
+        // (AR) تعليمات الإدخال/الإخراج المدمجة — لا يجب حذفها أبداً
+        // (EN) Built-in I/O instructions — must never be removed
+        // ────────────────────────────────────────────────────────────────
+        case SIR::SIROpcode::BUILTIN_PRINT:
+        case SIR::SIROpcode::BUILTIN_READ:
+
+        // ────────────────────────────────────────────────────────────────
+        // (AR) تعليمات العتاد/نظام التشغيل — لها تأثيرات جانبية حقيقية
+        // (EN) Hardware/OS builtins — have real side effects (I/O, memory-mapped, interrupts)
+        // ────────────────────────────────────────────────────────────────
+        case SIR::SIROpcode::BUILTIN_PORT_WRITE:   // outb — 8-bit I/O port write
+        case SIR::SIROpcode::BUILTIN_PORT_READ:    // inb — 8-bit I/O port read (hardware side effect)
+        case SIR::SIROpcode::BUILTIN_PORT_WRITE_16:// outw — 16-bit I/O port write
+        case SIR::SIROpcode::BUILTIN_PORT_READ_16: // inw — 16-bit I/O port read
+        case SIR::SIROpcode::BUILTIN_PORT_WRITE_32:// outl — 32-bit I/O port write
+        case SIR::SIROpcode::BUILTIN_PORT_READ_32: // inl — 32-bit I/O port read
+        case SIR::SIROpcode::BUILTIN_MEM_WRITE_8:  // volatile 8-bit memory write (e.g. MMIO)
+        case SIR::SIROpcode::BUILTIN_MEM_READ_8:   // volatile 8-bit memory read (e.g. MMIO)
+        case SIR::SIROpcode::BUILTIN_MEM_WRITE_16: // volatile 16-bit memory write
+        case SIR::SIROpcode::BUILTIN_MEM_READ_16:  // volatile 16-bit memory read
+        case SIR::SIROpcode::BUILTIN_MEM_WRITE_32: // volatile 32-bit memory write
+        case SIR::SIROpcode::BUILTIN_MEM_READ_32:  // volatile 32-bit memory read
+        case SIR::SIROpcode::BUILTIN_MEM_WRITE_64: // volatile 64-bit memory write
+        case SIR::SIROpcode::BUILTIN_MEM_READ_64:  // volatile 64-bit memory read
+        case SIR::SIROpcode::BUILTIN_VGA_WRITE:    // VGA text memory write
+        case SIR::SIROpcode::BUILTIN_VGA_CLEAR:    // VGA screen clear
+        case SIR::SIROpcode::BUILTIN_INTERRUPT:    // software interrupt (int N)
+        case SIR::SIROpcode::BUILTIN_HALT:         // halt processor (hlt)
+        case SIR::SIROpcode::BUILTIN_CLI:          // disable interrupts (cli)
+        case SIR::SIROpcode::BUILTIN_STI:          // enable interrupts (sti)
+        case SIR::SIROpcode::BUILTIN_MEM_COPY:     // memory copy (memcpy)
+        case SIR::SIROpcode::BUILTIN_MEM_SET:      // memory fill (memset)
+
+        // ────────────────────────────────────────────────────────────────
+        // (AR) تعليمات تعديل المصفوفات والكائنات
+        // (EN) Array/Object mutation instructions
+        // ────────────────────────────────────────────────────────────────
+        case SIR::SIROpcode::ARRAY_SET:
+        case SIR::SIROpcode::ARRAY_APPEND:
+        case SIR::SIROpcode::OBJECT_SET:
+
+        // ────────────────────────────────────────────────────────────────
+        // (AR) تعليمات التحكم بالبرنامج
+        // (EN) Program control instructions
+        // ────────────────────────────────────────────────────────────────
+        case SIR::SIROpcode::SWITCH:
             return true;
             
         default:
@@ -326,48 +423,28 @@ bool DeadCodeEliminationPass::hasSideEffect(SIR::SIRInstruction* inst) const {
 /**
  * @brief الحصول على السجل المعرّف
  * @brief Get defined register
+ * 
+ * (AR) بدلاً من استخدام قائمة بيضاء يدوية للأوامر التي تُعرّف سجلاً،
+ *      نستخدم فحصاً عاماً عبر hasResult(). هذا يضمن أن أي تعليمة
+ *      تُنتج نتيجة (ALLOC, LOAD, ADD, CALL, STRING_CONCAT, OBJECT_NEW, ...)
+ *      يتم إدراجها في defMap تلقائياً — مما يمنع حذفها خطأً بواسطة DCE.
+ * 
+ * (EN) Instead of a manual whitelist of opcodes that define a register,
+ *      we use a generic hasResult() check. This ensures that ANY instruction
+ *      producing a result (ALLOC, LOAD, ADD, CALL, STRING_CONCAT, OBJECT_NEW,
+ *      ...) is automatically added to defMap — preventing erroneous DCE deletion.
  */
 std::optional<std::string> DeadCodeEliminationPass::getDefinedRegister(
     SIR::SIRInstruction* inst
 ) const {
     if (!inst) return std::nullopt;
     
-    // Source: SIRInstruction::opcode is PUBLIC member at sir_instruction.h:60
-    auto opcode = inst->opcode;
-    
-    // معظم التعليمات تعرّف سجلاً / Most instructions define a register
-    switch (opcode) {
-        case SIR::SIROpcode::LOAD:
-        case SIR::SIROpcode::ADD_I64:
-        case SIR::SIROpcode::ADD_F64:
-        case SIR::SIROpcode::SUB_I64:
-        case SIR::SIROpcode::SUB_F64:
-        case SIR::SIROpcode::MUL_I64:
-        case SIR::SIROpcode::MUL_F64:
-        case SIR::SIROpcode::DIV_I64:
-        case SIR::SIROpcode::DIV_F64:
-        case SIR::SIROpcode::MOD_I64:
-        case SIR::SIROpcode::AND:
-        case SIR::SIROpcode::OR:
-        case SIR::SIROpcode::XOR:
-        case SIR::SIROpcode::NEG:
-        case SIR::SIROpcode::NOT:
-        case SIR::SIROpcode::EQ:
-        case SIR::SIROpcode::NE:
-        case SIR::SIROpcode::LT:
-        case SIR::SIROpcode::LE:
-        case SIR::SIROpcode::GT:
-        case SIR::SIROpcode::GE:
-        case SIR::SIROpcode::CALL:
-            // الحصول على اسم السجل الفعلي / Get actual register name
-            if (inst->hasResult()) {
-                return inst->result->name;
-            }
-            return std::nullopt;
-            
-        default:
-            return std::nullopt;
+    // (AR) فحص عام: أي تعليمة لها نتيجة تُعرّف سجلاً
+    // (EN) Generic check: any instruction with a result defines a register
+    if (inst->hasResult()) {
+        return inst->result->name;
     }
+    return std::nullopt;
 }
 
 /**

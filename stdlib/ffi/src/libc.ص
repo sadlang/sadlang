@@ -1,0 +1,722 @@
+/**
+ * @file libc.sad
+ * @brief (AR) ربط مكتبة C القياسية للغة "ص"
+ *        (EN) Standard C Library Bindings for Sad Language
+ * 
+ * @details
+ * (AR) هذا الملف يحتوي على روابط مكتبة C القياسية (libc).
+ *      يوفر واجهة عربية للدوال الشائعة مع أغلفة آمنة.
+ * 
+ *      الوحدات المُتضمنة:
+ *      ┌────────────────────────────────────────────────────────────┐
+ *      │ 1. stdio  - إدخال/إخراج قياسي                              │
+ *      │ 2. stdlib - دوال المكتبة القياسية                          │
+ *      │ 3. string - معالجة النصوص                                  │
+ *      │ 4. math   - الدوال الرياضية                                │
+ *      │ 5. time   - التاريخ والوقت                                 │
+ *      │ 6. memory - إدارة الذاكرة                                  │
+ *      └────────────────────────────────────────────────────────────┘
+ * 
+ *      مثال الاستخدام:
+ *      @code{.sad}
+ *      استورد "stdlib/ffi/libc"
+ *      
+ *      دالة رئيسية() {
+ *          // استخدام الدوال العربية
+ *          اطبع("مرحباً بالعالم!\n")
+ *          
+ *          // أو الدوال الأصلية
+ *          printf("Hello World!\n")
+ *      }
+ *      @endcode
+ * 
+ * (EN) This file contains Standard C Library (libc) bindings.
+ *      Provides Arabic interface for common functions with safe wrappers.
+ * 
+ * @author فريق تطوير لغة ص (Sad Language Development Team)
+ * @date 2025-01-18
+ * @version 1.0.0
+ */
+
+// ============================================================================
+//                    (AR) تعريف الأنواع الأساسية
+//                    (EN) Basic Type Definitions
+// ============================================================================
+
+/// (AR) نوع الحجم - يمثل حجم في الذاكرة
+/// (EN) Size type - represents memory size
+نوع حجم = ص_غ64
+
+/// (AR) نوع الفرق بين المؤشرات
+/// (EN) Pointer difference type
+نوع فرق_مؤشر = ص64
+
+/// (AR) نوع الوقت
+/// (EN) Time type
+نوع وقت = ص64
+
+/// (AR) مؤشر ملف - مبهم
+/// (EN) File pointer - opaque
+نوع مؤشر_ملف = *فراغ
+
+// ============================================================================
+//                    (AR) ثوابت قياسية
+//                    (EN) Standard Constants
+// ============================================================================
+
+/// (AR) مؤشر فارغ
+/// (EN) Null pointer
+ثابت فارغ: *فراغ = 0
+
+/// (AR) نهاية الملف
+/// (EN) End of file
+ثابت نهاية_الملف: ص32 = -1
+
+/// (AR) حجم المخزن المؤقت الافتراضي
+/// (EN) Default buffer size
+ثابت حجم_المخزن: حجم = 4096
+
+/// (AR) أوضاع فتح الملفات
+/// (EN) File open modes
+ثابت وضع_قراءة: *ثابت[حرف] = "r"
+ثابت وضع_كتابة: *ثابت[حرف] = "w"
+ثابت وضع_إضافة: *ثابت[حرف] = "a"
+ثابت وضع_قراءة_كتابة: *ثابت[حرف] = "r+"
+ثابت وضع_ثنائي_قراءة: *ثابت[حرف] = "rb"
+ثابت وضع_ثنائي_كتابة: *ثابت[حرف] = "wb"
+
+/// (AR) رموز الخروج
+/// (EN) Exit codes
+ثابت نجاح_الخروج: ص32 = 0
+ثابت فشل_الخروج: ص32 = 1
+
+// ============================================================================
+//                    (AR) stdio.h - إدخال/إخراج قياسي
+//                    (EN) stdio.h - Standard I/O
+// ============================================================================
+
+خارجي "C" {
+    // --- (AR) دوال الإخراج / (EN) Output functions ---
+    
+    /// (AR) طباعة منسقة إلى stdout
+    /// (EN) Formatted print to stdout
+    /// @param format (AR) نص التنسيق (EN) Format string
+    /// @return (AR) عدد الأحرف المطبوعة (EN) Number of characters printed
+    دالة printf(format: *ثابت[حرف], ...) -> ص32
+    
+    /// (AR) طباعة نص إلى stdout
+    /// (EN) Print string to stdout
+    دالة puts(s: *ثابت[حرف]) -> ص32
+    
+    /// (AR) طباعة حرف إلى stdout
+    /// (EN) Print character to stdout
+    دالة putchar(c: ص32) -> ص32
+    
+    /// (AR) طباعة منسقة إلى ملف
+    /// (EN) Formatted print to file
+    دالة fprintf(stream: مؤشر_ملف, format: *ثابت[حرف], ...) -> ص32
+    
+    /// (AR) طباعة منسقة إلى نص
+    /// (EN) Formatted print to string
+    دالة sprintf(str: *حرف, format: *ثابت[حرف], ...) -> ص32
+    
+    /// (AR) طباعة منسقة إلى نص محدود الحجم
+    /// (EN) Formatted print to sized string
+    دالة snprintf(str: *حرف, size: حجم, format: *ثابت[حرف], ...) -> ص32
+    
+    // --- (AR) دوال الإدخال / (EN) Input functions ---
+    
+    /// (AR) قراءة منسقة من stdin
+    /// (EN) Formatted read from stdin
+    دالة scanf(format: *ثابت[حرف], ...) -> ص32
+    
+    /// (AR) قراءة سطر من stdin
+    /// (EN) Read line from stdin
+    دالة gets_s(str: *حرف, size: حجم) -> *حرف
+    
+    /// (AR) قراءة حرف من stdin
+    /// (EN) Read character from stdin
+    دالة getchar() -> ص32
+    
+    /// (AR) قراءة منسقة من ملف
+    /// (EN) Formatted read from file
+    دالة fscanf(stream: مؤشر_ملف, format: *ثابت[حرف], ...) -> ص32
+    
+    /// (AR) قراءة منسقة من نص
+    /// (EN) Formatted read from string
+    دالة sscanf(str: *ثابت[حرف], format: *ثابت[حرف], ...) -> ص32
+    
+    // --- (AR) دوال الملفات / (EN) File functions ---
+    
+    /// (AR) فتح ملف
+    /// (EN) Open file
+    /// @param filename (AR) اسم الملف (EN) File name
+    /// @param mode (AR) وضع الفتح (EN) Open mode
+    /// @return (AR) مؤشر الملف أو null (EN) File pointer or null
+    #[ملك_النتيجة]
+    #[يُحرر_بـ: fclose]
+    دالة fopen(filename: *ثابت[حرف], mode: *ثابت[حرف]) -> مؤشر_ملف
+    
+    /// (AR) إغلاق ملف
+    /// (EN) Close file
+    دالة fclose(stream: مؤشر_ملف) -> ص32
+    
+    /// (AR) قراءة من ملف
+    /// (EN) Read from file
+    دالة fread(ptr: *فراغ, size: حجم, count: حجم, stream: مؤشر_ملف) -> حجم
+    
+    /// (AR) كتابة إلى ملف
+    /// (EN) Write to file
+    دالة fwrite(ptr: *ثابت[فراغ], size: حجم, count: حجم, stream: مؤشر_ملف) -> حجم
+    
+    /// (AR) قراءة سطر من ملف
+    /// (EN) Read line from file
+    دالة fgets(str: *حرف, num: ص32, stream: مؤشر_ملف) -> *حرف
+    
+    /// (AR) كتابة نص إلى ملف
+    /// (EN) Write string to file
+    دالة fputs(str: *ثابت[حرف], stream: مؤشر_ملف) -> ص32
+    
+    /// (AR) قراءة حرف من ملف
+    /// (EN) Read character from file
+    دالة fgetc(stream: مؤشر_ملف) -> ص32
+    
+    /// (AR) كتابة حرف إلى ملف
+    /// (EN) Write character to file
+    دالة fputc(c: ص32, stream: مؤشر_ملف) -> ص32
+    
+    /// (AR) تحريك موضع القراءة/الكتابة
+    /// (EN) Move read/write position
+    دالة fseek(stream: مؤشر_ملف, offset: ص64, whence: ص32) -> ص32
+    
+    /// (AR) الحصول على الموضع الحالي
+    /// (EN) Get current position
+    دالة ftell(stream: مؤشر_ملف) -> ص64
+    
+    /// (AR) العودة لبداية الملف
+    /// (EN) Return to file beginning
+    دالة rewind(stream: مؤشر_ملف)
+    
+    /// (AR) مسح المخزن المؤقت
+    /// (EN) Flush buffer
+    دالة fflush(stream: مؤشر_ملف) -> ص32
+    
+    /// (AR) التحقق من نهاية الملف
+    /// (EN) Check end of file
+    دالة feof(stream: مؤشر_ملف) -> ص32
+    
+    /// (AR) التحقق من خطأ
+    /// (EN) Check for error
+    دالة ferror(stream: مؤشر_ملف) -> ص32
+    
+    /// (AR) إزالة ملف
+    /// (EN) Remove file
+    دالة remove(filename: *ثابت[حرف]) -> ص32
+    
+    /// (AR) إعادة تسمية ملف
+    /// (EN) Rename file
+    دالة rename(oldname: *ثابت[حرف], newname: *ثابت[حرف]) -> ص32
+    
+    // --- (AR) دوال الخطأ / (EN) Error functions ---
+    
+    /// (AR) طباعة رسالة خطأ
+    /// (EN) Print error message
+    دالة perror(str: *ثابت[حرف])
+}
+
+// ============================================================================
+//                    (AR) stdlib.h - دوال المكتبة القياسية
+//                    (EN) stdlib.h - Standard Library Functions
+// ============================================================================
+
+خارجي "C" {
+    // --- (AR) تحويل النصوص / (EN) String conversion ---
+    
+    /// (AR) تحويل نص إلى عدد صحيح
+    /// (EN) Convert string to integer
+    دالة atoi(str: *ثابت[حرف]) -> ص32
+    
+    /// (AR) تحويل نص إلى عدد صحيح طويل
+    /// (EN) Convert string to long integer
+    دالة atol(str: *ثابت[حرف]) -> ص64
+    
+    /// (AR) تحويل نص إلى عدد عشري
+    /// (EN) Convert string to double
+    دالة atof(str: *ثابت[حرف]) -> عش64
+    
+    /// (AR) تحويل نص إلى عدد صحيح مع قاعدة
+    /// (EN) Convert string to long with base
+    دالة strtol(str: *ثابت[حرف], endptr: **حرف, base: ص32) -> ص64
+    
+    /// (AR) تحويل نص إلى عدد صحيح بدون إشارة
+    /// (EN) Convert string to unsigned long
+    دالة strtoul(str: *ثابت[حرف], endptr: **حرف, base: ص32) -> ص_غ64
+    
+    /// (AR) تحويل نص إلى عدد عشري
+    /// (EN) Convert string to double
+    دالة strtod(str: *ثابت[حرف], endptr: **حرف) -> عش64
+    
+    // --- (AR) إدارة الذاكرة / (EN) Memory management ---
+    
+    /// (AR) حجز ذاكرة
+    /// (EN) Allocate memory
+    /// @param size (AR) الحجم بالبايت (EN) Size in bytes
+    /// @return (AR) مؤشر للذاكرة المحجوزة (EN) Pointer to allocated memory
+    #[ملك_النتيجة]
+    #[يُحرر_بـ: free]
+    دالة malloc(size: حجم) -> *فراغ
+    
+    /// (AR) حجز ذاكرة مصفّرة
+    /// (EN) Allocate zeroed memory
+    #[ملك_النتيجة]
+    #[يُحرر_بـ: free]
+    دالة calloc(num: حجم, size: حجم) -> *فراغ
+    
+    /// (AR) إعادة حجز ذاكرة
+    /// (EN) Reallocate memory
+    #[ملك_النتيجة]
+    #[يُحرر_بـ: free]
+    دالة realloc(ptr: *فراغ, size: حجم) -> *فراغ
+    
+    /// (AR) تحرير ذاكرة
+    /// (EN) Free memory
+    دالة free(ptr: *فراغ)
+    
+    // --- (AR) أرقام عشوائية / (EN) Random numbers ---
+    
+    /// (AR) الحصول على رقم عشوائي
+    /// (EN) Get random number
+    دالة rand() -> ص32
+    
+    /// (AR) تعيين بذرة المولد العشوائي
+    /// (EN) Set random generator seed
+    دالة srand(seed: ص_غ32)
+    
+    // --- (AR) البيئة والبرنامج / (EN) Environment and program ---
+    
+    /// (AR) الحصول على متغير بيئة
+    /// (EN) Get environment variable
+    دالة getenv(name: *ثابت[حرف]) -> *حرف
+    
+    /// (AR) تنفيذ أمر نظام
+    /// (EN) Execute system command
+    دالة system(command: *ثابت[حرف]) -> ص32
+    
+    /// (AR) إنهاء البرنامج
+    /// (EN) Terminate program
+    دالة exit(status: ص32)
+    
+    /// (AR) إنهاء البرنامج فوراً
+    /// (EN) Terminate program immediately
+    دالة abort()
+    
+    /// (AR) تسجيل دالة للتنفيذ عند الخروج
+    /// (EN) Register function to run on exit
+    دالة atexit(func: دالة()) -> ص32
+    
+    // --- (AR) الفرز والبحث / (EN) Sorting and searching ---
+    
+    /// (AR) ترتيب سريع
+    /// (EN) Quick sort
+    دالة qsort(base: *فراغ, num: حجم, size: حجم, 
+              compar: دالة(*ثابت[فراغ], *ثابت[فراغ]) -> ص32)
+    
+    /// (AR) بحث ثنائي
+    /// (EN) Binary search
+    دالة bsearch(key: *ثابت[فراغ], base: *ثابت[فراغ], num: حجم, size: حجم,
+                compar: دالة(*ثابت[فراغ], *ثابت[فراغ]) -> ص32) -> *فراغ
+    
+    // --- (AR) دوال رياضية / (EN) Math functions ---
+    
+    /// (AR) القيمة المطلقة
+    /// (EN) Absolute value
+    دالة abs(n: ص32) -> ص32
+    
+    /// (AR) القيمة المطلقة (طويل)
+    /// (EN) Absolute value (long)
+    دالة labs(n: ص64) -> ص64
+}
+
+// ============================================================================
+//                    (AR) string.h - معالجة النصوص
+//                    (EN) string.h - String Handling
+// ============================================================================
+
+خارجي "C" {
+    // --- (AR) دوال النسخ / (EN) Copy functions ---
+    
+    /// (AR) نسخ نص
+    /// (EN) Copy string
+    دالة strcpy(dest: *حرف, src: *ثابت[حرف]) -> *حرف
+    
+    /// (AR) نسخ نص محدود
+    /// (EN) Copy limited string
+    دالة strncpy(dest: *حرف, src: *ثابت[حرف], num: حجم) -> *حرف
+    
+    /// (AR) نسخ ذاكرة
+    /// (EN) Copy memory
+    دالة memcpy(dest: *فراغ, src: *ثابت[فراغ], num: حجم) -> *فراغ
+    
+    /// (AR) نقل ذاكرة (آمن للتداخل)
+    /// (EN) Move memory (overlap-safe)
+    دالة memmove(dest: *فراغ, src: *ثابت[فراغ], num: حجم) -> *فراغ
+    
+    // --- (AR) دوال الدمج / (EN) Concatenation functions ---
+    
+    /// (AR) دمج نصين
+    /// (EN) Concatenate strings
+    دالة strcat(dest: *حرف, src: *ثابت[حرف]) -> *حرف
+    
+    /// (AR) دمج نصين محدود
+    /// (EN) Concatenate limited strings
+    دالة strncat(dest: *حرف, src: *ثابت[حرف], num: حجم) -> *حرف
+    
+    // --- (AR) دوال المقارنة / (EN) Comparison functions ---
+    
+    /// (AR) مقارنة نصين
+    /// (EN) Compare strings
+    دالة strcmp(str1: *ثابت[حرف], str2: *ثابت[حرف]) -> ص32
+    
+    /// (AR) مقارنة نصين محدودة
+    /// (EN) Compare limited strings
+    دالة strncmp(str1: *ثابت[حرف], str2: *ثابت[حرف], num: حجم) -> ص32
+    
+    /// (AR) مقارنة ذاكرة
+    /// (EN) Compare memory
+    دالة memcmp(ptr1: *ثابت[فراغ], ptr2: *ثابت[فراغ], num: حجم) -> ص32
+    
+    // --- (AR) دوال البحث / (EN) Search functions ---
+    
+    /// (AR) البحث عن حرف في نص
+    /// (EN) Find character in string
+    دالة strchr(str: *ثابت[حرف], c: ص32) -> *حرف
+    
+    /// (AR) البحث عن آخر حرف في نص
+    /// (EN) Find last character in string
+    دالة strrchr(str: *ثابت[حرف], c: ص32) -> *حرف
+    
+    /// (AR) البحث عن نص فرعي
+    /// (EN) Find substring
+    دالة strstr(str1: *ثابت[حرف], str2: *ثابت[حرف]) -> *حرف
+    
+    /// (AR) البحث في ذاكرة
+    /// (EN) Find in memory
+    دالة memchr(ptr: *ثابت[فراغ], value: ص32, num: حجم) -> *فراغ
+    
+    // --- (AR) دوال أخرى / (EN) Other functions ---
+    
+    /// (AR) طول النص
+    /// (EN) String length
+    دالة strlen(str: *ثابت[حرف]) -> حجم
+    
+    /// (AR) ملء ذاكرة بقيمة
+    /// (EN) Fill memory with value
+    دالة memset(ptr: *فراغ, value: ص32, num: حجم) -> *فراغ
+    
+    /// (AR) الحصول على رسالة الخطأ
+    /// (EN) Get error message
+    دالة strerror(errnum: ص32) -> *حرف
+    
+    /// (AR) نسخ نص مع حجز ذاكرة
+    /// (EN) Duplicate string
+    #[ملك_النتيجة]
+    #[يُحرر_بـ: free]
+    دالة strdup(str: *ثابت[حرف]) -> *حرف
+}
+
+// ============================================================================
+//                    (AR) math.h - الدوال الرياضية
+//                    (EN) math.h - Mathematical Functions
+// ============================================================================
+
+خارجي "C" {
+    // --- (AR) الدوال الأسية واللوغاريتمية / (EN) Exponential and logarithmic ---
+    
+    /// (AR) الأس
+    /// (EN) Exponential
+    دالة exp(x: عش64) -> عش64
+    
+    /// (AR) اللوغاريتم الطبيعي
+    /// (EN) Natural logarithm
+    دالة log(x: عش64) -> عش64
+    
+    /// (AR) اللوغاريتم العشري
+    /// (EN) Base-10 logarithm
+    دالة log10(x: عش64) -> عش64
+    
+    /// (AR) الأساس 2
+    /// (EN) Power of 2
+    دالة exp2(x: عش64) -> عش64
+    
+    /// (AR) لوغاريتم أساس 2
+    /// (EN) Base-2 logarithm
+    دالة log2(x: عش64) -> عش64
+    
+    // --- (AR) الدوال المثلثية / (EN) Trigonometric ---
+    
+    /// (AR) الجيب
+    /// (EN) Sine
+    دالة sin(x: عش64) -> عش64
+    
+    /// (AR) جيب التمام
+    /// (EN) Cosine
+    دالة cos(x: عش64) -> عش64
+    
+    /// (AR) الظل
+    /// (EN) Tangent
+    دالة tan(x: عش64) -> عش64
+    
+    /// (AR) قوس الجيب
+    /// (EN) Arc sine
+    دالة asin(x: عش64) -> عش64
+    
+    /// (AR) قوس جيب التمام
+    /// (EN) Arc cosine
+    دالة acos(x: عش64) -> عش64
+    
+    /// (AR) قوس الظل
+    /// (EN) Arc tangent
+    دالة atan(x: عش64) -> عش64
+    
+    /// (AR) قوس الظل (إحداثيتين)
+    /// (EN) Arc tangent (two arguments)
+    دالة atan2(y: عش64, x: عش64) -> عش64
+    
+    // --- (AR) الدوال الزائدية / (EN) Hyperbolic ---
+    
+    /// (AR) الجيب الزائدي
+    /// (EN) Hyperbolic sine
+    دالة sinh(x: عش64) -> عش64
+    
+    /// (AR) جيب التمام الزائدي
+    /// (EN) Hyperbolic cosine
+    دالة cosh(x: عش64) -> عش64
+    
+    /// (AR) الظل الزائدي
+    /// (EN) Hyperbolic tangent
+    دالة tanh(x: عش64) -> عش64
+    
+    // --- (AR) القوى والجذور / (EN) Power and roots ---
+    
+    /// (AR) الرفع لقوة
+    /// (EN) Power
+    دالة pow(base: عش64, exponent: عش64) -> عش64
+    
+    /// (AR) الجذر التربيعي
+    /// (EN) Square root
+    دالة sqrt(x: عش64) -> عش64
+    
+    /// (AR) الجذر التكعيبي
+    /// (EN) Cube root
+    دالة cbrt(x: عش64) -> عش64
+    
+    /// (AR) الوتر (جذر مجموع المربعات)
+    /// (EN) Hypotenuse
+    دالة hypot(x: عش64, y: عش64) -> عش64
+    
+    // --- (AR) التقريب / (EN) Rounding ---
+    
+    /// (AR) السقف (أصغر عدد صحيح أكبر أو يساوي)
+    /// (EN) Ceiling
+    دالة ceil(x: عش64) -> عش64
+    
+    /// (AR) الأرضية (أكبر عدد صحيح أصغر أو يساوي)
+    /// (EN) Floor
+    دالة floor(x: عش64) -> عش64
+    
+    /// (AR) التقريب لأقرب عدد صحيح
+    /// (EN) Round to nearest integer
+    دالة round(x: عش64) -> عش64
+    
+    /// (AR) القطع (إزالة الجزء العشري)
+    /// (EN) Truncate
+    دالة trunc(x: عش64) -> عش64
+    
+    // --- (AR) دوال أخرى / (EN) Other functions ---
+    
+    /// (AR) القيمة المطلقة
+    /// (EN) Absolute value
+    دالة fabs(x: عش64) -> عش64
+    
+    /// (AR) باقي القسمة
+    /// (EN) Remainder
+    دالة fmod(numer: عش64, denom: عش64) -> عش64
+    
+    /// (AR) الجزء الصحيح والكسري
+    /// (EN) Integer and fractional parts
+    دالة modf(x: عش64, iptr: *عش64) -> عش64
+}
+
+// ============================================================================
+//                    (AR) time.h - التاريخ والوقت
+//                    (EN) time.h - Date and Time
+// ============================================================================
+
+/// (AR) بنية الوقت المجزأ
+/// (EN) Broken-down time structure
+بنية وقت_مجزأ {
+    الثواني: ص32       // ثواني بعد الدقيقة (0-60)
+    الدقائق: ص32       // دقائق بعد الساعة (0-59)
+    الساعات: ص32       // ساعات بعد منتصف الليل (0-23)
+    اليوم: ص32         // يوم الشهر (1-31)
+    الشهر: ص32         // شهر السنة (0-11)
+    السنة: ص32         // سنوات منذ 1900
+    يوم_الأسبوع: ص32   // أيام منذ الأحد (0-6)
+    يوم_السنة: ص32     // أيام منذ 1 يناير (0-365)
+    توقيت_صيفي: ص32    // علامة التوقيت الصيفي
+}
+
+خارجي "C" {
+    /// (AR) الحصول على الوقت الحالي
+    /// (EN) Get current time
+    دالة time(timer: *وقت) -> وقت
+    
+    /// (AR) حساب الفرق بين وقتين
+    /// (EN) Compute difference between times
+    دالة difftime(end: وقت, beginning: وقت) -> عش64
+    
+    /// (AR) تحويل وقت مجزأ إلى time_t
+    /// (EN) Convert broken-down time to time_t
+    دالة mktime(timeptr: *وقت_مجزأ) -> وقت
+    
+    /// (AR) تحويل إلى وقت محلي
+    /// (EN) Convert to local time
+    دالة localtime(timer: *ثابت[وقت]) -> *وقت_مجزأ
+    
+    /// (AR) تحويل إلى توقيت عالمي
+    /// (EN) Convert to UTC
+    دالة gmtime(timer: *ثابت[وقت]) -> *وقت_مجزأ
+    
+    /// (AR) تحويل إلى نص
+    /// (EN) Convert to string
+    دالة asctime(timeptr: *ثابت[وقت_مجزأ]) -> *حرف
+    
+    /// (AR) تحويل time_t إلى نص
+    /// (EN) Convert time_t to string
+    دالة ctime(timer: *ثابت[وقت]) -> *حرف
+    
+    /// (AR) تنسيق الوقت
+    /// (EN) Format time
+    دالة strftime(str: *حرف, maxsize: حجم, format: *ثابت[حرف], 
+                 timeptr: *ثابت[وقت_مجزأ]) -> حجم
+}
+
+// ============================================================================
+//                    (AR) الأغلفة الآمنة
+//                    (EN) Safe Wrappers
+// ============================================================================
+
+/// (AR) غلاف آمن لـ malloc
+/// (EN) Safe wrapper for malloc
+/// @return (AR) نتيجة<*فراغ> بدلاً من مؤشر قد يكون null
+دالة احجز_ذاكرة_آمن(الحجم: حجم) -> نتيجة<غلاف_آمن<*فراغ>>
+    ثابت مؤشر = malloc(الحجم)
+    إذا مؤشر == فارغ {
+        إرجاع خطأ("فشل حجز الذاكرة")
+    }
+    إرجاع نجاح(غلاف_آمن(مؤشر, free))
+نهاية
+
+/// (AR) غلاف آمن لـ fopen
+/// (EN) Safe wrapper for fopen
+دالة افتح_ملف_آمن(المسار: *ثابت[حرف], الوضع: *ثابت[حرف]) -> نتيجة<غلاف_آمن<مؤشر_ملف>>
+    ثابت ملف = fopen(المسار, الوضع)
+    إذا ملف == فارغ {
+        إرجاع خطأ("فشل فتح الملف")
+    }
+    إرجاع نجاح(غلاف_آمن(ملف, fclose))
+نهاية
+
+/// (AR) غلاف آمن لقراءة ملف كامل
+/// (EN) Safe wrapper for reading entire file
+دالة اقرأ_ملف_كامل(المسار: *ثابت[حرف]) -> نتيجة<غلاف_آمن<*حرف>>
+    // فتح الملف
+    ثابت ملف = fopen(المسار, "rb")
+    إذا ملف == فارغ {
+        إرجاع خطأ("فشل فتح الملف للقراءة")
+    }
+    
+    // الحصول على حجم الملف
+    fseek(ملف, 0, 2)  // SEEK_END
+    ثابت الحجم = ftell(ملف)
+    fseek(ملف, 0, 0)  // SEEK_SET
+    
+    // حجز ذاكرة
+    ثابت محتوى = malloc(الحجم + 1)
+    إذا محتوى == فارغ {
+        fclose(ملف)
+        إرجاع خطأ("فشل حجز الذاكرة")
+    }
+    
+    // قراءة المحتوى
+    ثابت مقروء = fread(محتوى, 1, الحجم, ملف)
+    fclose(ملف)
+    
+    // إضافة نهاية النص
+    محتوى[مقروء] = 0
+    
+    إرجاع نجاح(غلاف_آمن(محتوى, free))
+نهاية
+
+/// (AR) غلاف آمن لنسخ النص
+/// (EN) Safe wrapper for string duplication
+دالة انسخ_نص_آمن(النص: *ثابت[حرف]) -> نتيجة<غلاف_آمن<*حرف>>
+    ثابت نسخة = strdup(النص)
+    إذا نسخة == فارغ {
+        إرجاع خطأ("فشل نسخ النص")
+    }
+    إرجاع نجاح(غلاف_آمن(نسخة, free))
+نهاية
+
+// ============================================================================
+//                    (AR) دوال مساعدة عربية
+//                    (EN) Arabic Helper Functions
+// ============================================================================
+
+/// (AR) طباعة نص
+/// (EN) Print text
+دالة اطبع(النص: *ثابت[حرف])
+    printf("%s", النص)
+نهاية
+
+/// (AR) طباعة سطر
+/// (EN) Print line
+دالة اطبع_سطر(النص: *ثابت[حرف])
+    puts(النص)
+نهاية
+
+/// (AR) طباعة رقم
+/// (EN) Print number
+دالة اطبع_رقم(الرقم: ص64)
+    printf("%lld", الرقم)
+نهاية
+
+/// (AR) طباعة عدد عشري
+/// (EN) Print float
+دالة اطبع_عشري(الرقم: عش64)
+    printf("%f", الرقم)
+نهاية
+
+/// (AR) قراءة سطر من المستخدم
+/// (EN) Read line from user
+دالة اقرأ_سطر(الذاكرة: *حرف, الحجم: حجم) -> *حرف
+    إرجاع fgets(الذاكرة, الحجم, stdin)
+نهاية
+
+/// (AR) الحصول على الوقت الحالي بالثواني
+/// (EN) Get current time in seconds
+دالة الآن() -> وقت
+    إرجاع time(فارغ)
+نهاية
+
+/// (AR) توليد رقم عشوائي
+/// (EN) Generate random number
+دالة عشوائي() -> ص32
+    إرجاع rand()
+نهاية
+
+/// (AR) توليد رقم عشوائي في نطاق
+/// (EN) Generate random number in range
+دالة عشوائي_نطاق(الحد_الأدنى: ص32, الحد_الأقصى: ص32) -> ص32
+    إرجاع الحد_الأدنى + (rand() % (الحد_الأقصى - الحد_الأدنى + 1))
+نهاية

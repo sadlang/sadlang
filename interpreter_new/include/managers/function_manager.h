@@ -83,12 +83,10 @@
 
 #include "value.h"
 
-// Forward declarations for AST nodes
+// (AR) تصريحات أمامية لعقد AST / (EN) Forward declarations for AST nodes
 namespace Sad {
-namespace Parser {
-    class ASTNode;
-}
 namespace AST {
+    class ASTNode;
     struct Parameter;
 }
 }
@@ -109,16 +107,23 @@ enum class FunctionType {
 /**
  * @brief (AR) معلومات عن معامل دالة
  * @brief (EN) Function parameter information
+ * 
+ * (AR) يحتوي على اسم المعامل، نوعه، وإذا كان النوع صنفاً (OBJECT)
+ *      يُخزَّن اسم الصنف في typeName لفحص النوع في وقت التشغيل.
+ * (EN) Contains parameter name, type, and if the type is a class (OBJECT),
+ *      the class name is stored in typeName for runtime type checking.
  */
 struct FunctionParameter {
     std::string name;           ///< (AR) اسم المعامل / (EN) Parameter name
     std::string type;           ///< (AR) نوع المعامل (اختياري) / (EN) Parameter type (optional)
+    std::string typeName;       ///< (AR) اسم الصنف عندما يكون النوع كائن / (EN) Class name when type is object
     bool hasDefaultValue;       ///< (AR) هل له قيمة افتراضية؟ / (EN) Has default value?
     std::string defaultValue;   ///< (AR) القيمة الافتراضية / (EN) Default value
     
     FunctionParameter(const std::string& n = "", const std::string& t = "", 
-                     bool hasDefault = false, const std::string& defVal = "")
-        : name(n), type(t), hasDefaultValue(hasDefault), defaultValue(defVal) {}
+                     bool hasDefault = false, const std::string& defVal = "",
+                     const std::string& tn = "")
+        : name(n), type(t), typeName(tn), hasDefaultValue(hasDefault), defaultValue(defVal) {}
 };
 
 /**
@@ -133,7 +138,7 @@ public:
      */
     FunctionDefinition(const std::string& name,
                       const std::vector<FunctionParameter>& params,
-                      std::shared_ptr<Parser::ASTNode> body);
+                      std::shared_ptr<AST::ASTNode> body);
     
     /**
      * @brief (AR) إنشاء تعريف دالة مضمنة
@@ -150,7 +155,7 @@ public:
     size_t getParameterCount() const { return parameters_.size(); }
     size_t getRequiredParameterCount() const;
     
-    std::shared_ptr<Parser::ASTNode> getBody() const { return body_; }
+    std::shared_ptr<AST::ASTNode> getBody() const { return body_; }
     bool hasBody() const { return body_ != nullptr; }
     
     /**
@@ -202,13 +207,13 @@ public:
      * @brief (AR) تخزين FunctionDecl الأصلي (للوصول لـ Parameters مع ExprPtr)
      * @brief (EN) Store original FunctionDecl (for Parameters with ExprPtr access)
      */
-    void setFunctionDecl(std::shared_ptr<Parser::ASTNode> decl);
+    void setFunctionDecl(std::shared_ptr<AST::ASTNode> decl);
     
     /**
      * @brief (AR) الحصول على FunctionDecl الأصلي
      * @brief (EN) Get original FunctionDecl
      */
-    std::shared_ptr<Parser::ASTNode> getFunctionDecl() const { return functionDecl_; }
+    std::shared_ptr<AST::ASTNode> getFunctionDecl() const { return functionDecl_; }
     
     /**
      * @brief (AR) التحقق إذا كانت الدالة مولد
@@ -222,16 +227,48 @@ public:
      */
     void setIsGenerator(bool isGen) { isGenerator_ = isGen; }
     
+    /**
+     * @brief (AR) التحقق إذا كانت الدالة غير متزامنة
+     * @brief (EN) Check if function is async
+     */
+    bool isAsync() const { return isAsync_; }
+    
+    /**
+     * @brief (AR) تعيين علامة الدالة غير المتزامنة
+     * @brief (EN) Set async flag
+     */
+    void setIsAsync(bool isAsync) { isAsync_ = isAsync; }
+    
+    /**
+     * @brief (AR) تعيين المتغيرات الملتقطة (للإغلاقات/لامدا)
+     * @brief (EN) Set captured variables (for closures/lambda)
+     */
+    void setCaptures(const std::unordered_map<std::string, Data::Value>& caps) { captures_ = caps; }
+    
+    /**
+     * @brief (AR) الحصول على المتغيرات الملتقطة
+     * @brief (EN) Get captured variables
+     */
+    const std::unordered_map<std::string, Data::Value>& getCaptures() const { return captures_; }
+    
+    /**
+     * @brief (AR) هل لديها متغيرات ملتقطة؟
+     * @brief (EN) Does it have captured variables?
+     */
+    bool hasCaptures() const { return !captures_.empty(); }
+    
 private:
     std::string name_;                              ///< (AR) اسم الدالة / (EN) Function name
     FunctionType type_;                             ///< (AR) نوع الدالة / (EN) Function type
     std::vector<FunctionParameter> parameters_;     ///< (AR) قائمة المعاملات / (EN) Parameter list
-    std::shared_ptr<Parser::ASTNode> body_;        ///< (AR) جسم الدالة (AST) / (EN) Function body (AST)
-    std::shared_ptr<Parser::ASTNode> declaration_;  ///< (AR) التصريح الأصلي (للوصول للـ defaults) / (EN) Original declaration (for defaults access)
-    std::shared_ptr<Parser::ASTNode> functionDecl_;  ///< (AR) FunctionDecl الأصلي (للوصول لـ Parameters) / (EN) Original FunctionDecl (for Parameters access)
+    std::shared_ptr<AST::ASTNode> body_;        ///< (AR) جسم الدالة (AST) / (EN) Function body (AST)
+    std::shared_ptr<AST::ASTNode> declaration_;  ///< (AR) التصريح الأصلي (للوصول للـ defaults) / (EN) Original declaration (for defaults access)
+    std::shared_ptr<AST::ASTNode> functionDecl_;  ///< (AR) FunctionDecl الأصلي (للوصول لـ Parameters) / (EN) Original FunctionDecl (for Parameters access)
     std::function<std::shared_ptr<Data::Value>(const std::vector<std::shared_ptr<Data::Value>>&)> nativeImplementation_;   ///< (AR) تنفيذ أصلي (للدوال المضمنة) / (EN) Native implementation (for built-in)
     std::string returnType_;                        ///< (AR) نوع الإرجاع / (EN) Return type
     bool isGenerator_ = false;                      ///< (AR) هل هذه دالة مولد؟ / (EN) Is this a generator function?
+    bool isAsync_ = false;                            ///< (AR) هل هذه دالة غير متزامنة؟ / (EN) Is this an async function?
+    std::unordered_map<std::string, Data::Value> captures_;  ///< (AR) المتغيرات الملتقطة للإغلاقات / (EN) Captured variables for closures
 };
 
 /**
@@ -289,7 +326,7 @@ public:
      */
     void defineFunction(const std::string& name,
                        const std::vector<FunctionParameter>& params,
-                       std::shared_ptr<Parser::ASTNode> body);
+                       std::shared_ptr<AST::ASTNode> body);
     
     /**
      * @brief (AR) تعريف دالة جديدة مع FunctionDecl (للوصول لـ default parameters)
@@ -304,8 +341,8 @@ public:
      */
     void defineFunction(const std::string& name,
                        const std::vector<FunctionParameter>& params,
-                       std::shared_ptr<Parser::ASTNode> body,
-                       std::shared_ptr<Parser::ASTNode> decl);
+                       std::shared_ptr<AST::ASTNode> body,
+                       std::shared_ptr<AST::ASTNode> decl);
     
     /**
      * @brief (AR) تعريف دالة مضمنة
@@ -354,6 +391,21 @@ public:
      */
     std::shared_ptr<FunctionDefinition> getFunction(const std::string& name, 
                                                    size_t argCount) const;
+    
+    /**
+     * @brief (AR) إعادة تعريف دالة موجودة (للمزخرفات)
+     * @brief (EN) Redefine existing function (for decorators)
+     * 
+     * (AR) يستبدل تعريف دالة موجودة بتعريف جديد. يُستخدم عند تطبيق المزخرفات.
+     * (EN) Replaces existing function definition with new one. Used when applying decorators.
+     * 
+     * @param name (AR) اسم الدالة / (EN) Function name
+     * @param params (AR) المعاملات الجديدة / (EN) New parameters
+     * @param body (AR) الجسم الجديد / (EN) New body
+     */
+    void redefineFunction(const std::string& name,
+                         const std::vector<FunctionParameter>& params,
+                         std::shared_ptr<AST::ASTNode> body);
     
     /**
      * @brief (AR) التحقق من وجود دالة

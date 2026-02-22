@@ -15,13 +15,14 @@
 #include <sstream>
 #include <iostream>
 #include <algorithm>
+#include <atomic>
 
 namespace Sad {
 namespace Data {
 
 // عداد عام لتوليد معرفات فريدة
 // Global counter for generating unique IDs
-static size_t globalObjectIdCounter = 1;
+static std::atomic<size_t> globalObjectIdCounter{1};
 
 // ======================================================================
 // المنشئات والهدامات / Constructors and Destructors
@@ -73,7 +74,10 @@ bool ObjectInstance::setField(const std::string& fieldName, const Value& value) 
     // (EN) Check if field exists in class definition
     ClassField* fieldDef = classType->findField(fieldName);
     if (!fieldDef) {
-        return false;
+        // (AR) حقل ديناميكي — السماح بإنشائه مباشرة
+        // (EN) Dynamic field — allow direct creation
+        fields[fieldName] = value;
+        return true;
     }
     
     // (AR) فحص أن الخاصية ليست ثابتة
@@ -117,11 +121,15 @@ std::vector<std::string> ObjectInstance::getFieldNames() const {
         names.push_back(pair.first);
     }
     
-    // (AR) إضافة خصائص الكائن الأساسي
-    // (EN) Add base object fields
+    // (AR) إضافة خصائص الكائن الأساسي (مع إزالة التكرار)
+    // (EN) Add base object fields (deduplicated)
     if (baseInstance) {
         auto baseNames = baseInstance->getFieldNames();
-        names.insert(names.end(), baseNames.begin(), baseNames.end());
+        for (const auto& baseName : baseNames) {
+            if (std::find(names.begin(), names.end(), baseName) == names.end()) {
+                names.push_back(baseName);
+            }
+        }
     }
     
     return names;
@@ -150,11 +158,15 @@ ClassMethod* ObjectInstance::getMethod(const std::string& methodName) {
 // ======================================================================
 
 bool ObjectInstance::isInstanceOf(const std::string& className) const {
-    // (AR) فحص نوع الكائن
-    // (EN) Check object type
+    // (AR) فحص نوع الكائن — يمشي على سلسلة الوراثة كاملة
+    // (EN) Check object type — walks the full inheritance chain
     
-    return classType->name == className || 
-           (classType->baseClass && classType->inheritsFrom(classType->baseClass));
+    const ClassType* current = classType;
+    while (current) {
+        if (current->name == className) return true;
+        current = current->baseClass;
+    }
+    return false;
 }
 
 bool ObjectInstance::isInstanceOf(const ClassType* cls) const {
@@ -297,9 +309,10 @@ bool compareObjects(const ObjectInstance* obj1, const ObjectInstance* obj2) {
         auto it = obj2->fields.find(pair.first);
         if (it == obj2->fields.end()) return false;
         
-        // (AR) مقارنة القيم (يحتاج تنفيذ Value::operator==)
-        // (EN) Compare values (needs Value::operator== implementation)
-        // if (pair.second != it->second) return false;
+        // (AR) مقارنة القيم باستخدام operator==
+        // (EN) Compare values using operator==
+        Value cmpResult = (pair.second == it->second);
+        if (!cmpResult.toBool()) return false;
     }
     
     // (AR) مقارنة الكائنات الأساسية

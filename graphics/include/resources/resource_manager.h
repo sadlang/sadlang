@@ -138,8 +138,8 @@ public:
     /// wrap: نوع الـ wrapping / Wrap type
     /// Returns: مؤشر للـ texture / Pointer to texture
     TextureRef LoadTexture(const std::string& path,
-                          TextureFilter filter = TextureFilter::Linear,
-                          TextureWrap wrap = TextureWrap::Repeat);
+                          TextureFilter filter = TextureFilter::LINEAR,
+                          TextureWrap wrap = TextureWrap::REPEAT);
     
     /// الحصول على texture محمّل / Get loaded texture
     /// path: مسار الملف / File path
@@ -224,7 +224,7 @@ public:
     
     /// ضبط حد الذاكرة / Set memory limit
     /// limit: الحد بالبايت / Limit in bytes
-    void SetMemoryLimit(size_t limit) { m_memoryLimit = limit; }
+    void SetMemoryLimit(size_t limit) { m_memoryLimit = limit; m_stats.memoryLimit = limit; }
     
     /// الحصول على حد الذاكرة / Get memory limit
     /// Returns: الحد بالبايت / Limit in bytes

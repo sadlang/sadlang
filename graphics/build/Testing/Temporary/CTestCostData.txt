@@ -1,0 +1,6 @@
+CoreTypes 2 0.00760635
+ColorSystem 2 0.00656795
+ResourceManager 2 0.0084525
+UIWidgets 2 0.00829185
+ArabicText 1 0.0167205
+---

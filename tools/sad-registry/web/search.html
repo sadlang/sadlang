@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بحث — مستودع حزم لغة ص</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- ═══════════════════════════════════════════════════════════════
+         شريط التنقل
+    ═══════════════════════════════════════════════════════════════ -->
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <a href="/" class="navbar-brand">
+                <span class="brand-icon">ص</span>
+                <span class="brand-text">مستودع الحزم</span>
+            </a>
+            <div class="navbar-search">
+                <form id="searchForm" action="/search.html" method="GET">
+                    <input type="text" name="q" id="searchInput"
+                           placeholder="ابحث عن حزمة..."
+                           autocomplete="off" dir="auto">
+                    <button type="submit" class="btn-search">🔍</button>
+                </form>
+            </div>
+            <div class="navbar-actions">
+                <a href="/" class="nav-link">الرئيسية</a>
+                <a href="#" class="nav-link" id="loginBtn">تسجيل الدخول</a>
+                <a href="#" class="nav-link btn-publish" id="publishBtn">نشر حزمة</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         محتوى البحث
+    ═══════════════════════════════════════════════════════════════ -->
+    <main class="search-page">
+        <div class="container">
+            <!-- عنوان البحث -->
+            <div class="search-header" id="searchHeader">
+                <h1>استكشاف الحزم</h1>
+            </div>
+
+            <!-- معلومات النتائج -->
+            <p class="search-info" id="searchInfo"></p>
+
+            <!-- مرشحات البحث -->
+            <div class="search-filters">
+                <button class="filter-btn active" data-sort="relevance">الأكثر صلة</button>
+                <button class="filter-btn" data-sort="downloads">الأكثر تنزيلاً</button>
+                <button class="filter-btn" data-sort="recent">الأحدث</button>
+                <button class="filter-btn" data-sort="name">أبجدي</button>
+            </div>
+
+            <!-- نتائج البحث -->
+            <div class="search-results" id="searchResults">
+                <div class="loading-placeholder">جارٍ البحث...</div>
+            </div>
+
+            <!-- ترقيم الصفحات -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         التذييل
+    ═══════════════════════════════════════════════════════════════ -->
+    <footer class="footer">
+        <div class="footer-bottom">
+            <div class="container">
+                <p>بسم الله الرحمن الرحيم — صُنع بـ ❤️ للمطورين العرب</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- نافذة تسجيل الدخول -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">تسجيل الدخول</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="authForm">
+                    <div class="form-group" id="usernameGroup" style="display:none">
+                        <label for="authUsername">اسم المستخدم</label>
+                        <input type="text" id="authUsername" placeholder="اسم المستخدم" dir="auto">
+                    </div>
+                    <div class="form-group">
+                        <label for="authEmail">البريد الإلكتروني</label>
+                        <input type="email" id="authEmail" placeholder="بريد@مثال.com" dir="ltr">
+                    </div>
+                    <div class="form-group">
+                        <label for="authPassword">كلمة المرور</label>
+                        <input type="password" id="authPassword" placeholder="كلمة المرور" dir="ltr">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full" id="authSubmit">دخول</button>
+                </form>
+                <p class="auth-toggle">
+                    <span id="authToggleText">ليس لديك حساب؟</span>
+                    <a href="#" id="authToggle">إنشاء حساب جديد</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+
+    <!-- سكربت مرشحات البحث -->
+    <script>
+        // التعامل مع أزرار الترشيح
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // تحديث الحالة النشطة
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // تحديث URL وإعادة البحث
+                const params = new URLSearchParams(window.location.search);
+                params.set('sort', btn.dataset.sort);
+                params.set('page', '1');
+                window.location.search = params.toString();
+            });
+        });
+
+        // تحديد الزر النشط حالياً
+        const currentSort = new URLSearchParams(window.location.search).get('sort') || 'relevance';
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.sort === currentSort);
+        });
+    </script>
+</body>
+</html>

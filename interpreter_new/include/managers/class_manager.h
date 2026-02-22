@@ -28,9 +28,46 @@
 #include <unordered_set>
 #include <memory>
 #include <vector>
+#include <functional>
 
 namespace Sad {
 namespace Data {
+
+// ======================================================================
+// بنية تعريف الواجهة/السمة / Trait Definition Structure
+// ======================================================================
+
+/**
+ * @brief (AR) تمثيل دالة مطلوبة في واجهة
+ * @brief (EN) Required method in a trait/interface
+ */
+struct TraitMethodInfo {
+    std::string name;                           ///< (AR) اسم الدالة / (EN) method name
+    std::vector<DataType> paramTypes;           ///< (AR) أنواع المعاملات / (EN) parameter types
+    DataType returnType;                        ///< (AR) نوع الإرجاع / (EN) return type
+    bool hasDefaultImpl;                        ///< (AR) هل لها تنفيذ افتراضي / (EN) has default implementation
+    
+    TraitMethodInfo() : returnType(DataType::NONE), hasDefaultImpl(false) {}
+    TraitMethodInfo(const std::string& n, DataType ret, bool hasDef = false)
+        : name(n), returnType(ret), hasDefaultImpl(hasDef) {}
+    TraitMethodInfo(TraitMethodInfo&&) = default;
+    TraitMethodInfo& operator=(TraitMethodInfo&&) = default;
+    TraitMethodInfo(const TraitMethodInfo&) = default;
+    TraitMethodInfo& operator=(const TraitMethodInfo&) = default;
+};
+
+/**
+ * @brief (AR) تعريف واجهة/سمة
+ * @brief (EN) Trait/Interface definition
+ */
+struct TraitDefinition {
+    std::string name;                               ///< (AR) اسم السمة / (EN) trait name
+    std::vector<TraitMethodInfo> requiredMethods;    ///< (AR) الدوال المطلوبة / (EN) required methods
+    std::vector<std::string> superTraits;            ///< (AR) السمات الأساسية / (EN) parent traits
+    
+    TraitDefinition() = default;
+    explicit TraitDefinition(const std::string& n) : name(n) {}
+};
 
 // ======================================================================
 // صنف ClassManager الرئيسي / Main ClassManager Class
@@ -301,6 +338,46 @@ public:
      */
     std::string getStatistics() const;
 
+    // ──────────────────────────────────────────────────────────────────
+    // الواجهات والسمات / Traits and Interfaces
+    // ──────────────────────────────────────────────────────────────────
+    
+    /**
+     * @brief (AR) تسجيل واجهة/سمة جديدة
+     * @brief (EN) Register a new trait/interface
+     */
+    bool registerTrait(TraitDefinition trait);
+    
+    /**
+     * @brief (AR) الحصول على تعريف واجهة
+     * @brief (EN) Get trait definition
+     */
+    const TraitDefinition* getTrait(const std::string& traitName) const;
+    
+    /**
+     * @brief (AR) هل الواجهة موجودة؟
+     * @brief (EN) Does trait exist?
+     */
+    bool hasTrait(const std::string& traitName) const;
+    
+    /**
+     * @brief (AR) التحقق من أن الصنف ينفذ جميع دوال الواجهة
+     * @brief (EN) Verify class implements all trait methods
+     */
+    bool validateTraitImpl(const std::string& className, const std::string& traitName) const;
+    
+    /**
+     * @brief (AR) تسجيل أن صنفاً ينفذ واجهة
+     * @brief (EN) Register that a class implements a trait
+     */
+    bool registerTraitImpl(const std::string& className, const std::string& traitName);
+    
+    /**
+     * @brief (AR) هل الصنف ينفذ واجهة معينة؟
+     * @brief (EN) Does class implement a specific trait?
+     */
+    bool classImplementsTrait(const std::string& className, const std::string& traitName) const;
+
 private:
     // ──────────────────────────────────────────────────────────────────
     // البيانات الخاصة / Private Data
@@ -317,6 +394,12 @@ private:
      * - EN: Value: smart pointer to class
      */
     std::unordered_map<std::string, std::unique_ptr<ClassType>> classes_;
+    
+    /**
+     * @brief (AR) خريطة الواجهات المسجلة
+     * @brief (EN) Map of registered traits
+     */
+    std::unordered_map<std::string, TraitDefinition> traits_;
     
     /**
      * @brief (AR) المدير المفرد الوحيد

@@ -8,26 +8,32 @@
  *   خط أنابيب متكامل لترجمة كود لغة ص إلى native code باستخدام LLVM.
  *   يربط جميع مكونات المترجم: Parser → Type Checker → SIR → LLVM → Executable
  * 
+ *   الجديد: دعم كامل لوضع Freestanding (بلا مكتبة قياسية)
+ *   عند اكتشاف #![بلا_مكتبة_قياسية] يُفعَّل تلقائياً:
+ *     - رفض رموز المكتبة القياسية
+ *     - التحقق من وجود نقطة دخول ومعالج ذعر
+ *     - توليد كود مناسب للـ bare-metal
+ * 
  *   Integrated pipeline for compiling Sad code to native code using LLVM.
  *   Connects all compiler components: Parser → Type Checker → SIR → LLVM → Executable
  * 
  * المسار (Pipeline):
- *   .s file → Lexer → Parser → AST → (Type Checker) → SIR Builder → 
- *   LLVM CodeGen → Optimizer → Object File → Linker → Executable
+ *   .ص file → Lexer → Parser → AST → [فحص no_std] → (Type Checker) → SIR Builder → 
+ *   [FreestandingCodeGen] → LLVM CodeGen → Optimizer → Object File → Linker → Executable
  * 
  * الاستخدام (Usage):
  *   ```cpp
  *   LLVMCompilerPipeline pipeline;
  *   pipeline.initialize();
- *   auto result = pipeline.compile("program.s");
+ *   auto result = pipeline.compile("kernel.ص");
  *   if (result.success) {
- *       pipeline.emitExecutable("program.exe");
+ *       pipeline.emitExecutable("kernel.bin");
  *   }
  *   ```
  * 
  * المؤلف (Author): SadLanguage Compiler Team
  * التاريخ (Date): January 4, 2026
- * الإصدار (Version): 1.0.0
+ * الإصدار (Version): 1.1.0 — دعم Freestanding
  * ============================================================================
  */
 
@@ -40,13 +46,32 @@
 #include <chrono>
 
 // Sad Components - مكونات لغة ص
-#include "../../../../include/lexer/lexer_core.h"
-#include "../../../../include/parser/parser_core.h"
-#include "../../../../compiler/frontend/type_checker/include/type_checker.h"
-#include "../../../../compiler/frontend/include/sir_builder.h"
-#include "../../../../compiler/backends/llvm/llvm_codegen.h"
-#include "../../../../compiler/backends/llvm/llvm_optimizer.h"
-#include "../../../../compiler/include/compiler_options.h"
+// (AR) مسارات التضمين مُعدّلة لتعمل مع مسارات CMake
+// (EN) Include paths adjusted to work with CMake include directories
+#include "lexer_core.h"
+#include "parser_core.h"
+// (AR) تصريح مسبق لفاحص الأنواع — التنفيذ مُعطّل حالياً (قيد التطوير)
+// (EN) Forward declaration for TypeChecker — implementation currently disabled (WIP)
+namespace Sad { namespace Semantic { class TypeChecker; } }
+#include "frontend/sir_builder.h"
+#include "backend/llvm/llvm_codegen.h"
+#include "backend/llvm/llvm_optimizer.h"
+#include "pipeline/compiler_options.h"
+
+// ─── دعم وضع Freestanding (بلا مكتبة قياسية) ──────────────────────────────
+// هذه الرؤوس تُوفِّر:
+//   - NoStdIntegration: فحص المصدر لسمات #![بلا_مكتبة_قياسية]
+//   - NoStdModeManager: إدارة وضع no_std
+//   - FreestandingCodeGen: توليد كود متوافق مع bare-metal
+// ---
+// Freestanding mode support headers provide:
+//   - NoStdIntegration: scan source for #![no_std] attributes
+//   - NoStdModeManager: manage no_std mode
+//   - FreestandingCodeGen: generate bare-metal compatible code
+// ─────────────────────────────────────────────────────────────────────────────
+#include "pipeline/no_std_integration.h"
+#include "pipeline/no_std_mode.h"
+#include "pipeline/freestanding_codegen.h"
 
 namespace Sad {
 namespace Compiler {
@@ -298,6 +323,68 @@ private:
      * @return true إذا نجحت / true if succeeded
      */
     bool emission(const std::string& outputType, const std::string& filename);
+
+    // ─── مراحل Freestanding ────────────────────────────────────────────────
+
+    /**
+     * (AR) فحص الكود المصدري لسمات #![بلا_مكتبة_قياسية]
+     *      يُشغَّل قبل مرحلة التحليل النحوي
+     *      يُحدِّث options_.no_std و freestandingModeActive_
+     *
+     *      السمات التي يبحث عنها:
+     *        #![بلا_مكتبة_قياسية]  أو  #![no_std]
+     *        #![بلا_رئيسية]        أو  #![no_main]
+     *        #![إيقاف_عند_ذعر]     أو  #![abort_on_panic]
+     *        #[نقطة_دخول]          أو  #[entry_point]
+     *        #[معالج_ذعر]          أو  #[panic_handler]
+     *
+     * @param sourceCode الكود المصدري للفحص
+     * @return true دائماً (الفحص لا يُفشِل الترجمة، فقط يُعدِّل الحالة)
+     *
+     * (EN) Scan source code for #![no_std] attributes
+     *      Runs before parsing stage
+     *      Updates options_.no_std and freestandingModeActive_
+     */
+    bool scanForFreestandingAttributes(const std::string& sourceCode);
+
+    /**
+     * (AR) تهيئة وضع Freestanding بعد اكتشافه
+     *      يُنشئ FreestandingCodeGen ويُعدِّه بالإعدادات المكتشفة
+     *      يُسجِّل وحدة الترجمة لبدء التتبع
+     *
+     * @param filename اسم الملف المصدري (للتشخيص)
+     * @return true إذا نجحت التهيئة
+     *
+     * (EN) Initialize freestanding mode after detection
+     *      Creates FreestandingCodeGen with discovered settings
+     */
+    bool initializeFreestandingMode(const std::string& filename);
+
+    /**
+     * (AR) التحقق النهائي من اكتمال وحدة freestanding
+     *      يتحقق من:
+     *        ✓ وجود نقطة_دخول (#[نقطة_دخول] أو #[entry_point])
+     *        ✓ وجود معالج_ذعر (#[معالج_ذعر] أو #[panic_handler])
+     *        ✓ عدم وجود استخدامات محظورة لرموز المكتبة القياسية
+     *
+     *      يُشغَّل في نهاية مرحلة بناء SIR
+     *
+     * @return true إذا نجح التحقق
+     *
+     * (EN) Final validation of freestanding unit completeness
+     */
+    bool finalizeFreestandingUnit();
+
+    /**
+     * (AR) فحص الرمز في وضع freestanding
+     *      يُشغَّل عند مصادفة رمز أثناء بناء SIR
+     *
+     * @param symbolName اسم الرمز المراد فحصه
+     * @return true إذا كان الرمز مقبولاً
+     *
+     * (EN) Check symbol in freestanding mode
+     */
+    bool checkFreestandingSymbol(const std::string& symbolName);
     
     // ========================================================================
     // Helper Functions - الدوال المساعدة
@@ -344,9 +431,50 @@ private:
     // المكونات / Components
     std::unique_ptr<Lexer::LexerCore> lexer_;
     std::unique_ptr<Parser::ParserCore> parser_;
-    std::unique_ptr<TypeChecker::TypeChecker> typeChecker_;
+    // (AR) فاحص الأنواع — مُعطّل حالياً (قيد التطوير)
+    // (EN) Type checker — currently disabled (under development)
+    // std::unique_ptr<Sad::Semantic::TypeChecker> typeChecker_;
     std::unique_ptr<SIR::SIRBuilder> sirBuilder_;
     std::unique_ptr<Sad::LLVM::LLVMCodeGen> codeGen_;
+
+    // ─── مكونات وضع Freestanding ────────────────────────────────────────────
+    // هذه المكونات تُنشأ فقط عند تفعيل وضع no_std
+    // (تلقائياً عند اكتشاف #![بلا_مكتبة_قياسية] في الكود المصدري)
+    //
+    // Freestanding mode components — created only when no_std is active
+    // (auto-activated when #![no_std] is detected in source)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * (AR) نتيجة فحص المصدر لسمات no_std
+     *      تحتوي: هل وُجد #![بلا_مكتبة_قياسية]؟ اسم نقطة الدخول؟ المعالج؟
+     * (EN) Result of scanning source for no_std attributes
+     */
+    sad::compiler::pipeline::NoStdScanResult noStdScanResult_;
+
+    /**
+     * (AR) إعدادات وضع no_std المُعدَّة من نتيجة الفحص
+     *      تُمرَّر لـ FreestandingCodeGen
+     * (EN) no_std configuration built from scan result
+     */
+    sad::compiler::pipeline::NoStdConfig noStdConfig_;
+
+    /**
+     * (AR) مولّد الكود الخاص بوضع freestanding
+     *      يتولى:
+     *        - توليد تسميات كتل LLVM IR الصحيحة
+     *        - التحقق من الأنواع والرموز المحظورة
+     *        - تتبع اكتمال الوحدة (نقطة_دخول، معالج_ذعر)
+     * (EN) Code generator for freestanding mode
+     */
+    std::unique_ptr<sad::compiler::freestanding::FreestandingCodeGen> freestandingCodeGen_;
+
+    /**
+     * (AR) هل وضع freestanding مُفعَّل للوحدة الحالية؟
+     *      يُحدَّث بعد مرحلة فحص المصدر
+     * (EN) Is freestanding mode active for the current unit?
+     */
+    bool freestandingModeActive_ = false;
     
     // البيانات المؤقتة / Temporary data
     std::vector<Lexer::Token> tokens_;
