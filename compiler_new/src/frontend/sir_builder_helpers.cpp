@@ -248,54 +248,111 @@ SIRType SIRBuilder::inferReturnTypeFromBody(const Sad::AST::Statement* body) {
         return SIRType::VOID;
     }
     
-    // (AR) حاول تحديد نوع التعبير المُرجع
-    // (EN) Try to determine the type of the returned expression
-    const Sad::AST::Expression* retExpr = findFirstReturnExpr(body);
-    if (retExpr) {
-        // (AR) Helper lambda لاستنتاج نوع تعبير بشكل تعاودي
-        // (EN) Recursive helper to infer expression type
-        std::function<SIRType(const Sad::AST::Expression*)> inferExprType;
-        inferExprType = [&](const Sad::AST::Expression* expr) -> SIRType {
-            if (!expr) return SIRType::I64;
-            
-            // Check if it's a literal
-            if (auto lit = dynamic_cast<const Sad::AST::LiteralExpr*>(expr)) {
-                auto tt = lit->token.getType();
-                if (tt == Sad::Lexer::TokenType::NUMBER_DOUBLE) return SIRType::F64;
-                if (tt == Sad::Lexer::TokenType::STRING_LITERAL) return SIRType::PTR;
-                if (tt == Sad::Lexer::TokenType::LITERAL_TRUE ||
-                    tt == Sad::Lexer::TokenType::LITERAL_FALSE) return SIRType::BOOL;
-                return SIRType::I64;
-            }
-            // Check binary expression - if either operand is F64, result is F64
-            if (auto bin = dynamic_cast<const Sad::AST::BinaryExpr*>(expr)) {
-                SIRType left = inferExprType(bin->left.get());
-                SIRType right = inferExprType(bin->right.get());
-                if (left == SIRType::STRING || right == SIRType::STRING) return SIRType::PTR;
-                if (left == SIRType::F64 || right == SIRType::F64) return SIRType::F64;
-                return left;
-            }
-            // Unary negation preserves type
-            if (auto unary = dynamic_cast<const Sad::AST::UnaryExpr*>(expr)) {
-                return inferExprType(unary->operand.get());
-            }
-            // Check DataType from expression (if available)
-            auto dtype = expr->getType();
-            if (dtype == Sad::Data::DataType::FLOAT) return SIRType::F64;
-            if (dtype == Sad::Data::DataType::BOOLEAN) return SIRType::BOOL;
-            if (dtype == Sad::Data::DataType::STRING) return SIRType::PTR;
-            return SIRType::I64;
-        };
+    // (AR) Helper lambda لاستنتاج نوع تعبير بشكل تعاودي
+    // (EN) Recursive helper to infer expression type
+    std::function<SIRType(const Sad::AST::Expression*)> inferExprType;
+    inferExprType = [&](const Sad::AST::Expression* expr) -> SIRType {
+        if (!expr) return SIRType::I64;
         
-        SIRType inferredType = inferExprType(retExpr);
-        if (inferredType != SIRType::I64) {
-            return inferredType;
+        // Check if it's a literal
+        if (auto lit = dynamic_cast<const Sad::AST::LiteralExpr*>(expr)) {
+            auto tt = lit->token.getType();
+            if (tt == Sad::Lexer::TokenType::NUMBER_DOUBLE) return SIRType::F64;
+            // (AR) النصوص تُرجع STRING وليس PTR
+            // (EN) String literals return STRING not PTR
+            if (tt == Sad::Lexer::TokenType::STRING_LITERAL) return SIRType::STRING;
+            if (tt == Sad::Lexer::TokenType::LITERAL_TRUE ||
+                tt == Sad::Lexer::TokenType::LITERAL_FALSE) return SIRType::BOOL;
+            return SIRType::I64;
+        }
+        // Check array expressions
+        if (dynamic_cast<const Sad::AST::ArrayExpr*>(expr)) return SIRType::ARRAY;
+        // Check binary expression - if either operand is F64, result is F64
+        if (auto bin = dynamic_cast<const Sad::AST::BinaryExpr*>(expr)) {
+            SIRType left = inferExprType(bin->left.get());
+            SIRType right = inferExprType(bin->right.get());
+            if (left == SIRType::STRING || right == SIRType::STRING) return SIRType::STRING;
+            if (left == SIRType::F64 || right == SIRType::F64) return SIRType::F64;
+            // (AR) عمليات المقارنة تُرجع BOOL
+            // (EN) Comparison operators return BOOL
+            switch (bin->op) {
+                case Sad::Lexer::TokenType::OP_EQUAL:
+                case Sad::Lexer::TokenType::OP_NOT_EQUAL:
+                case Sad::Lexer::TokenType::OP_LESS:
+                case Sad::Lexer::TokenType::OP_GREATER:
+                case Sad::Lexer::TokenType::OP_LESS_EQUAL:
+                case Sad::Lexer::TokenType::OP_GREATER_EQUAL:
+                case Sad::Lexer::TokenType::OP_AND:
+                case Sad::Lexer::TokenType::OP_OR:
+                    return SIRType::BOOL;
+                default:
+                    break;
+            }
+            return left;
+        }
+        // Unary negation preserves type, NOT returns BOOL
+        if (auto unary = dynamic_cast<const Sad::AST::UnaryExpr*>(expr)) {
+            switch (unary->op) {
+                case Sad::Lexer::TokenType::OP_NOT:
+                    return SIRType::BOOL;
+                default:
+                    break;
+            }
+            return inferExprType(unary->operand.get());
+        }
+        // Check DataType from expression (if available)
+        auto dtype = expr->getType();
+        if (dtype == Sad::Data::DataType::FLOAT) return SIRType::F64;
+        if (dtype == Sad::Data::DataType::BOOLEAN) return SIRType::BOOL;
+        if (dtype == Sad::Data::DataType::STRING) return SIRType::STRING;
+        if (dtype == Sad::Data::DataType::ARRAY) return SIRType::ARRAY;
+        if (dtype == Sad::Data::DataType::OBJECT) return SIRType::STRUCT;
+        if (dtype == Sad::Data::DataType::MAP) return SIRType::MAP;
+        return SIRType::I64;
+    };
+    
+    // (AR) جمع أنواع جميع عبارات الإرجاع وتوحيدها
+    // (EN) Collect types from ALL return statements and unify them
+    std::function<void(const Sad::AST::Statement*, std::vector<SIRType>&)> collectReturnTypes;
+    collectReturnTypes = [&](const Sad::AST::Statement* stmt, std::vector<SIRType>& types) {
+        if (!stmt) return;
+        if (auto ret = dynamic_cast<const Sad::AST::ReturnStmt*>(stmt)) {
+            if (ret->value) {
+                types.push_back(inferExprType(ret->value.get()));
+            }
+            return;
+        }
+        if (auto block = dynamic_cast<const Sad::AST::BlockStmt*>(stmt)) {
+            for (auto& s : block->statements) collectReturnTypes(s.get(), types);
+        }
+        if (auto ifStmt = dynamic_cast<const Sad::AST::IfStmt*>(stmt)) {
+            collectReturnTypes(ifStmt->thenBranch.get(), types);
+            if (ifStmt->elseBranch) collectReturnTypes(ifStmt->elseBranch.get(), types);
+        }
+    };
+    
+    std::vector<SIRType> returnTypes;
+    collectReturnTypes(body, returnTypes);
+    
+    if (returnTypes.empty()) return SIRType::I64;
+    
+    // (AR) توحيد الأنواع: I64+F64→F64, STRING+أي→STRING, وإلا→نوع الأول
+    // (EN) Unify types: I64+F64→F64, STRING+any→STRING, else→first type
+    SIRType unified = returnTypes[0];
+    for (size_t i = 1; i < returnTypes.size(); ++i) {
+        if (unified == returnTypes[i]) continue;
+        // (AR) توسيع: I64→F64
+        if ((unified == SIRType::I64 && returnTypes[i] == SIRType::F64) ||
+            (unified == SIRType::F64 && returnTypes[i] == SIRType::I64)) {
+            unified = SIRType::F64;
+        }
+        // (AR) أي مع STRING → STRING
+        else if (unified == SIRType::STRING || returnTypes[i] == SIRType::STRING) {
+            unified = SIRType::STRING;
         }
     }
     
-    // (AR) الافتراضي: عدد صحيح
-    // (EN) Default: integer
-    return SIRType::I64;
+    return unified;
 }
 
 // ============================================================================
@@ -828,12 +885,27 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         auto objResult = buildExpression(indexExpr->object.get());
         auto idxResult = buildExpression(indexExpr->index.get());
         
-        // (AR) تعليمة Take للوصول بالفهرس
-        // (EN) Take instruction for indexed access
+        // (AR) استنتاج نوع النتيجة: إذا كان الكائن مصفوفة وعنصره مصفوفة → ARRAY، وإلا → نوع العنصر
+        // (EN) Infer result type: if object is array with array elements → ARRAY, else → elementType
+        SIRType resultType = SIRType::I64;
+        if (objResult.type == SIRType::ARRAY) {
+            if (objResult.elementType == SIRType::ARRAY) {
+                resultType = SIRType::ARRAY;
+            } else if (objResult.elementType != SIRType::VOID) {
+                resultType = objResult.elementType;
+            }
+        } else if (objResult.type == SIRType::STRING) {
+            resultType = SIRType::STRING;
+        } else if (objResult.type == SIRType::MAP) {
+            resultType = SIRType::I64;
+        }
+        
+        // (AR) تعليمة Load للوصول بالفهرس
+        // (EN) Load instruction for indexed access
         std::string resultReg = newTempRegister();
         SIRInstruction takeInst;
         takeInst.opcode = SIROpcode::LOAD;
-        takeInst.result = SIROperand::Register(resultReg, SIRType::I64);
+        takeInst.result = SIROperand::Register(resultReg, resultType);
         takeInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
         takeInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
         takeInst.comment = "index access";
@@ -842,7 +914,13 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
             currentBlock_->addInstruction(takeInst);
         }
         
-        return BuildResult(resultReg, SIRType::I64);
+        BuildResult result(resultReg, resultType);
+        // (AR) إذا كان العنصر مصفوفة، نرث نوع العنصر الداخلي
+        // (EN) If element is array, inherit the inner element type (for chained indexing)
+        if (resultType == SIRType::ARRAY) {
+            result.elementType = SIRType::I64;  // default inner element type
+        }
+        return result;
     }
     
     // ========================================================================
@@ -931,12 +1009,21 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         
         // (AR) تخزين العناصر واحداً تلو الآخر
         // (EN) Store elements one by one
+        SIRType inferredElementType = SIRType::VOID;
         for (size_t i = 0; i < arrayExpr->elements.size(); ++i) {
             auto elemResult = buildExpression(arrayExpr->elements[i].get());
             
+            // (AR) استنتاج نوع العنصر من العنصر الأول
+            // (EN) Infer element type from first element
+            if (i == 0) {
+                inferredElementType = elemResult.type;
+            }
+            
             // (AR) تجسيد الثوابت قبل تخزينها (نفس الإصلاح المُطبَّق على MapExpr)
+            //      ملاحظة: عناصر المصفوفات المتداخلة (ARRAY) لا تحتاج تجسيداً — هي بالفعل في سجلات
             // (EN) Materialize constants before storing (same fix applied to MapExpr)
-            if (elemResult.isConstant && currentBlock_) {
+            //      Note: Nested array elements (ARRAY type) don't need materialization — already in registers
+            if (elemResult.isConstant && elemResult.type != SIRType::ARRAY && currentBlock_) {
                 std::string reg = newTempRegister();
                 elemResult.registerName = reg;
                 SIRInstruction moveInst(SIROpcode::MOVE);
@@ -968,11 +1055,10 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         }
         
         BuildResult result(arrReg, SIRType::ARRAY);
-        if (!arrayExpr->elements.empty()) {
-            // (AR) استنتاج نوع العنصر من العنصر الأول
-            // (EN) Infer element type from first element
-            auto firstElem = buildExpression(arrayExpr->elements[0].get());
-            result.elementType = firstElem.type;
+        // (AR) استنتاج نوع العنصر من العنصر الأول (تم حفظه في الحلقة أعلاه)
+        // (EN) Infer element type from first element (saved during loop above)
+        if (inferredElementType != SIRType::VOID) {
+            result.elementType = inferredElementType;
         }
         return result;
     }

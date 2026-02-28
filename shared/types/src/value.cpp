@@ -44,22 +44,22 @@ namespace {
 
 // (AR) حماية طفحان الأعداد الصحيحة — تمنع السلوك غير المحدد
 // (EN) Integer overflow protection — prevents undefined behavior
-inline bool willAddOverflow(int a, int b) {
-    if (b > 0 && a > INT_MAX - b) return true;
-    if (b < 0 && a < INT_MIN - b) return true;
+inline bool willAddOverflow(int64_t a, int64_t b) {
+    if (b > 0 && a > INT64_MAX - b) return true;
+    if (b < 0 && a < INT64_MIN - b) return true;
     return false;
 }
-inline bool willSubOverflow(int a, int b) {
-    if (b < 0 && a > INT_MAX + b) return true;
-    if (b > 0 && a < INT_MIN + b) return true;
+inline bool willSubOverflow(int64_t a, int64_t b) {
+    if (b < 0 && a > INT64_MAX + b) return true;
+    if (b > 0 && a < INT64_MIN + b) return true;
     return false;
 }
-inline bool willMulOverflow(int a, int b) {
+inline bool willMulOverflow(int64_t a, int64_t b) {
     if (a == 0 || b == 0) return false;
-    if (a > 0 && b > 0 && a > INT_MAX / b) return true;
-    if (a < 0 && b < 0 && a < INT_MAX / b) return true;
-    if (a > 0 && b < 0 && b < INT_MIN / a) return true;
-    if (a < 0 && b > 0 && a < INT_MIN / b) return true;
+    if (a > 0 && b > 0 && a > INT64_MAX / b) return true;
+    if (a < 0 && b < 0 && a < INT64_MAX / b) return true;
+    if (a > 0 && b < 0 && b < INT64_MIN / a) return true;
+    if (a < 0 && b > 0 && a < INT64_MIN / b) return true;
     return false;
 }
 
@@ -95,7 +95,9 @@ namespace Data {
 
 Value::Value() : type_(ValueType::VOID), data_(std::monostate{}) {}
 
-Value::Value(int val) : type_(ValueType::INTEGER), data_(val) {}
+Value::Value(int val) : type_(ValueType::INTEGER), data_(static_cast<int64_t>(val)) {}
+
+Value::Value(int64_t val) : type_(ValueType::INTEGER), data_(val) {}
 
 Value::Value(double val) : type_(ValueType::DOUBLE), data_(val) {}
 
@@ -171,7 +173,7 @@ Value Value::clone() const {
 int Value::toInt() const {
     switch (type_) {
         case ValueType::INTEGER:
-            return std::get<int>(data_);
+            return static_cast<int>(std::get<int64_t>(data_));
         
         case ValueType::DOUBLE:
             return static_cast<int>(std::get<double>(data_));
@@ -193,10 +195,35 @@ int Value::toInt() const {
     return 0;
 }
 
+int64_t Value::toInt64() const {
+    switch (type_) {
+        case ValueType::INTEGER:
+            return std::get<int64_t>(data_);
+        
+        case ValueType::DOUBLE:
+            return static_cast<int64_t>(std::get<double>(data_));
+        
+        case ValueType::BOOLEAN:
+            return std::get<bool>(data_) ? 1LL : 0LL;
+        
+        case ValueType::STRING: {
+            try {
+                return std::stoll(std::get<std::string>(data_));
+            } catch (...) {
+                throwInvalidType("toInt64 - cannot convert string to integer");
+            }
+        }
+        
+        case ValueType::VOID:
+            throwInvalidType("toInt64 - cannot convert void to integer");
+    }
+    return 0;
+}
+
 double Value::toDouble() const {
     switch (type_) {
         case ValueType::INTEGER:
-            return static_cast<double>(std::get<int>(data_));
+            return static_cast<double>(std::get<int64_t>(data_));
         
         case ValueType::DOUBLE:
             return std::get<double>(data_);
@@ -221,7 +248,7 @@ double Value::toDouble() const {
 std::string Value::toString() const {
     switch (type_) {
         case ValueType::INTEGER:
-            return std::to_string(std::get<int>(data_));
+            return std::to_string(std::get<int64_t>(data_));
         
         case ValueType::DOUBLE: {
             std::ostringstream oss;
@@ -281,7 +308,7 @@ std::string Value::toString() const {
 bool Value::toBool() const {
     switch (type_) {
         case ValueType::INTEGER:
-            return std::get<int>(data_) != 0;
+            return std::get<int64_t>(data_) != 0;
         
         case ValueType::DOUBLE:
             return std::get<double>(data_) != 0.0;
@@ -362,6 +389,31 @@ const Value::MapType& Value::toMapRef() const {
     // (EN) Never reached due to exception above
     static const MapType empty;
     return empty;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// (AR) إصدارات قابلة للتعديل — تعديل المصفوفة/الخريطة مباشرة بدون نسخ
+// (EN) Mutable reference versions — modify array/map in-place without copying
+// ════════════════════════════════════════════════════════════════════════
+
+Value::ArrayType& Value::toArrayMut() {
+    if (type_ == ValueType::ARRAY) {
+        return *std::get<std::shared_ptr<ArrayType>>(data_);
+    }
+    throwInvalidType("toArrayMut - value is not an array");
+    // (AR) لن يصل هنا أبداً بسبب الاستثناء أعلاه
+    static ArrayType dummy;
+    return dummy;
+}
+
+Value::MapType& Value::toMapMut() {
+    if (type_ == ValueType::MAP) {
+        return *std::get<std::shared_ptr<MapType>>(data_);
+    }
+    throwInvalidType("toMapMut - value is not a map");
+    // (AR) لن يصل هنا أبداً بسبب الاستثناء أعلاه
+    static MapType dummy;
+    return dummy;
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -648,7 +700,7 @@ Value Value::operator==(const Value& other) const {
     
     switch (type_) {
         case ValueType::INTEGER:
-            return Value(std::get<int>(data_) == std::get<int>(other.data_));
+            return Value(std::get<int64_t>(data_) == std::get<int64_t>(other.data_));
         
         case ValueType::DOUBLE:
             return Value(std::abs(std::get<double>(data_) - std::get<double>(other.data_)) < 1e-10);
@@ -778,7 +830,7 @@ Value Value::operator!() const {
 Value& Value::operator++() {
     // (AR) زيادة قبلية / (EN) Pre-increment
     if (isInteger()) {
-        data_ = std::get<int>(data_) + 1;
+        data_ = std::get<int64_t>(data_) + 1;
     } else if (isDouble()) {
         data_ = std::get<double>(data_) + 1.0;
     } else {
@@ -797,7 +849,7 @@ Value Value::operator++(int) {
 Value& Value::operator--() {
     // (AR) نقصان قبلي / (EN) Pre-decrement
     if (isInteger()) {
-        data_ = std::get<int>(data_) - 1;
+        data_ = std::get<int64_t>(data_) - 1;
     } else if (isDouble()) {
         data_ = std::get<double>(data_) - 1.0;
     } else {

@@ -1729,6 +1729,150 @@ void registerBuiltinsPart10(Interpreter& interpreter) {
     fm.registerBuiltinFunction("نص_يونيكود", unicode_codepoints_fn);
     fm.registerBuiltinFunction("unicode_codepoints", unicode_codepoints_fn);
 
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) 16. دوال المصفوفات متعددة الأبعاد (matrix / multidimensional)
+    // (EN) 16. Multidimensional array (matrix) functions
+    // ═══════════════════════════════════════════════════════════════════
+
+    // مصفوفة_جديدة / matrix_new — إنشاء مصفوفة بأبعاد محددة مملوءة بقيمة افتراضية
+    // Usage: مصفوفة_جديدة(صفوف، أعمدة) → zeros matrix
+    //        مصفوفة_جديدة(صفوف، أعمدة، قيمة) → filled matrix
+    //        مصفوفة_جديدة(صفوف، أعمدة، أعماق) → 3D zeros
+    //        مصفوفة_جديدة(صفوف، أعمدة، أعماق، قيمة) → 3D filled
+    auto matrix_new_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.size() < 2) throw std::runtime_error("(AR) مصفوفة_جديدة تتطلب بُعدين على الأقل (صفوف، أعمدة). (EN) matrix_new requires at least 2 dimensions.");
+        int64_t rows = args[0]->toInt();
+        int64_t cols = args[1]->toInt();
+        if (rows <= 0 || cols <= 0) throw std::runtime_error("(AR) الأبعاد يجب أن تكون موجبة. (EN) Dimensions must be positive.");
+
+        // (AR) تحقق من وجود بُعد ثالث (3D)
+        if (args.size() >= 3 && args[2]->isNumeric() && args[2]->toInt() > 0 && (args.size() < 4 || args[3]->isNumeric())) {
+            // (AR) 3D mode — if args[2] is a positive int and args[3] isn't a non-numeric fill value
+            // Check: is args[2] an actual dimension or a fill value?
+            // If args.size() == 3, it could be either 3D-zeros or 2D-filled
+            // Convention: if args[2] > 0 and args.size() == 4, treat as 3D(rows, cols, depth, fill)
+            if (args.size() >= 4) {
+                int64_t depth = args[2]->toInt();
+                Data::Value fillVal = *args[3];
+                Data::Value::ArrayType result;
+                for (int64_t i = 0; i < rows; ++i) {
+                    Data::Value::ArrayType plane;
+                    for (int64_t j = 0; j < cols; ++j) {
+                        Data::Value::ArrayType row;
+                        for (int64_t k = 0; k < depth; ++k) {
+                            row.push_back(fillVal);
+                        }
+                        plane.push_back(Data::Value(row));
+                    }
+                    result.push_back(Data::Value(plane));
+                }
+                return makeArrayVal(result);
+            }
+            // args.size() == 3: treat it as 2D with fill value
+        }
+        
+        // (AR) 2D mode
+        Data::Value fillVal(static_cast<int64_t>(0));
+        if (args.size() >= 3) {
+            fillVal = *args[2];
+        }
+        Data::Value::ArrayType result;
+        for (int64_t i = 0; i < rows; ++i) {
+            Data::Value::ArrayType row;
+            for (int64_t j = 0; j < cols; ++j) {
+                row.push_back(fillVal);
+            }
+            result.push_back(Data::Value(row));
+        }
+        return makeArrayVal(result);
+    };
+    fm.registerBuiltinFunction("مصفوفة_جديدة", matrix_new_fn);
+    fm.registerBuiltinFunction("matrix_new", matrix_new_fn);
+    fm.registerBuiltinFunction("matrix", matrix_new_fn);
+
+    // مصفوفة_وحدة / identity_matrix — إنشاء مصفوفة وحدة n×n
+    auto identity_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.empty() || !args[0]->isNumeric()) throw std::runtime_error("(AR) مصفوفة_وحدة تتطلب حجم المصفوفة. (EN) identity_matrix requires size.");
+        int64_t n = args[0]->toInt();
+        if (n <= 0) throw std::runtime_error("(AR) الحجم يجب أن يكون موجباً. (EN) Size must be positive.");
+        Data::Value::ArrayType result;
+        for (int64_t i = 0; i < n; ++i) {
+            Data::Value::ArrayType row;
+            for (int64_t j = 0; j < n; ++j) {
+                row.push_back(Data::Value(static_cast<int64_t>(i == j ? 1 : 0)));
+            }
+            result.push_back(Data::Value(row));
+        }
+        return makeArrayVal(result);
+    };
+    fm.registerBuiltinFunction("مصفوفة_وحدة", identity_fn);
+    fm.registerBuiltinFunction("identity_matrix", identity_fn);
+
+    // نطاق_مصفوفة / arange — إنشاء مصفوفة أرقام متتالية [start, start+1, ..., end-1]
+    auto arange_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.empty()) throw std::runtime_error("(AR) نطاق_مصفوفة تتطلب معاملاً واحداً على الأقل. (EN) arange requires at least one argument.");
+        int64_t start = 0, end = 0, step = 1;
+        if (args.size() == 1) {
+            end = args[0]->toInt();
+        } else if (args.size() >= 2) {
+            start = args[0]->toInt();
+            end = args[1]->toInt();
+            if (args.size() >= 3) step = args[2]->toInt();
+        }
+        if (step == 0) throw std::runtime_error("(AR) الخطوة لا يمكن أن تكون صفراً. (EN) Step cannot be zero.");
+        Data::Value::ArrayType result;
+        if (step > 0) {
+            for (int64_t i = start; i < end; i += step) result.push_back(Data::Value(i));
+        } else {
+            for (int64_t i = start; i > end; i += step) result.push_back(Data::Value(i));
+        }
+        return makeArrayVal(result);
+    };
+    fm.registerBuiltinFunction("نطاق_مصفوفة", arange_fn);
+    fm.registerBuiltinFunction("نطاق", arange_fn);
+    fm.registerBuiltinFunction("arange", arange_fn);
+    fm.registerBuiltinFunction("range", arange_fn);
+
+    // أبعاد / shape — إرجاع أبعاد مصفوفة كدالة مستقلة
+    auto shape_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.empty() || !args[0]->isArray()) throw std::runtime_error("(AR) أبعاد تتطلب مصفوفة. (EN) shape requires an array.");
+        Data::Value::ArrayType dims;
+        const Data::Value::ArrayType* current = &args[0]->toArrayRef();
+        while (true) {
+            dims.push_back(Data::Value(static_cast<int64_t>(current->size())));
+            if (!current->empty() && (*current)[0].isArray()) {
+                current = &((*current)[0].toArrayRef());
+            } else {
+                break;
+            }
+        }
+        return makeArrayVal(dims);
+    };
+    fm.registerBuiltinFunction("أبعاد_مصفوفة", shape_fn);
+    fm.registerBuiltinFunction("shape", shape_fn);
+
+    // قلب_محوري / transpose — تبديل صفوف وأعمدة مصفوفة ثنائية الأبعاد
+    auto transpose_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.empty() || !args[0]->isArray()) throw std::runtime_error("(AR) قلب_محوري تتطلب مصفوفة ثنائية الأبعاد. (EN) transpose requires a 2D array.");
+        const auto& arr = args[0]->toArrayRef();
+        if (arr.empty()) return makeArrayVal(Data::Value::ArrayType{});
+        if (!arr[0].isArray()) throw std::runtime_error("(AR) قلب_محوري تعمل على مصفوفات ثنائية الأبعاد فقط. (EN) transpose only works on 2D arrays.");
+        size_t rows = arr.size();
+        size_t cols = arr[0].toArrayRef().size();
+        Data::Value::ArrayType result;
+        for (size_t c = 0; c < cols; ++c) {
+            Data::Value::ArrayType newRow;
+            for (size_t r = 0; r < rows; ++r) {
+                const auto& row = arr[r].toArrayRef();
+                newRow.push_back(c < row.size() ? row[c] : Data::Value());
+            }
+            result.push_back(Data::Value(newRow));
+        }
+        return makeArrayVal(result);
+    };
+    fm.registerBuiltinFunction("قلب_محوري", transpose_fn);
+    fm.registerBuiltinFunction("transpose", transpose_fn);
+
 } // registerBuiltinsPart10
 
 } // namespace Interpreter

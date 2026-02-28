@@ -25,6 +25,14 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/vm/CMakeLists.txt")
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
+# وقت التشغيل الجديد / Runtime New (VM, Memory, Thread, FFI, ABI)
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/runtime_new/CMakeLists.txt")
+    add_subdirectory(runtime_new)
+    message(STATUS "✓ وقت التشغيل الجديد / Runtime New: VM, Memory, Thread, FFI, ABI, Exception, Sandbox")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
 # مكتبة النواة / Core Library (sad_core)
 # ──────────────────────────────────────────────────────────────────────
 # (AR) مصادر freestanding تُضاف فقط عند الطلب (تحتوي على معرّفات عربية غير مدعومة في MSVC)
@@ -44,6 +52,14 @@ if(TARGET sad_graphics)
     target_link_libraries(sad_core PRIVATE sad_graphics)
     target_compile_definitions(sad_core PRIVATE HAS_GRAPHICS)
     target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/graphics/third_party)
+endif()
+
+# ربط وقت التشغيل الجديد / Link runtime_new
+if(TARGET sad_rt_runtime)
+    target_link_libraries(sad_core PRIVATE sad_rt_runtime)
+    target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/runtime_new/include)
+    target_compile_definitions(sad_core PRIVATE HAS_RUNTIME_NEW)
+    message(STATUS "✓ ربط runtime_new بالمفسر / Linked runtime_new to interpreter")
 endif()
 
 # SQLite3 (اختياري) / SQLite3 (optional)

@@ -451,9 +451,9 @@ BuildResult SIRBuilder::buildNewObject(AST::NewExpr* newExpr) {
     // (EN) Track object type for operator overloading support
     classInstanceTypes_[objReg] = newExpr->className;
     
-    // (AR) إرجاع مؤشر للكائن مع اسم الصنف
-    // (EN) Return pointer to object with class name
-    BuildResult result(objReg, SIRType::I64);
+    // (AR) إرجاع مؤشر للكائن مع اسم الصنف — نوع STRUCT وليس I64
+    // (EN) Return pointer to object with class name — STRUCT type not I64
+    BuildResult result(objReg, SIRType::STRUCT);
     result.className = newExpr->className;
     return result;
 }
@@ -489,10 +489,25 @@ BuildResult SIRBuilder::buildMemberAccess(AST::MemberAccessExpr* memberExpr) {
     // (EN) Step 2: Create member access instruction
     std::string resultReg = newTempRegister();
     
+    // (AR) محاولة استنتاج نوع العضو من جدول الأصناف
+    // (EN) Try to infer member type from class table
+    SIRType memberType = SIRType::I64;  // (AR) افتراضي
+    if (!objResult.className.empty()) {
+        auto classIt = classTable_.find(objResult.className);
+        if (classIt != classTable_.end()) {
+            auto& sirClass = classIt->second;
+            // (AR) البحث عن نوع الحقل في الصنف (fields_ هي unordered_map<string, SIRType>)
+            auto fieldIt = sirClass->fields_.find(memberExpr->memberName);
+            if (fieldIt != sirClass->fields_.end()) {
+                memberType = fieldIt->second;
+            }
+        }
+    }
+    
     if (currentBlock_) {
         SIRInstruction loadInst;
         loadInst.opcode = SIROpcode::LOAD;
-        loadInst.result = SIROperand::Register(resultReg, SIRType::I64); // نوع افتراضي، سيتم تحديده لاحقاً
+        loadInst.result = SIROperand::Register(resultReg, memberType);
         
         // (AR) المعامل الأول: الكائن
         // (EN) First operand: object
@@ -506,10 +521,13 @@ BuildResult SIRBuilder::buildMemberAccess(AST::MemberAccessExpr* memberExpr) {
     }
     
     #ifndef NDEBUG
-    std::cout << "[DEBUG] buildMemberAccess: result in register '" << resultReg << "'" << std::endl;
+    std::cout << "[DEBUG] buildMemberAccess: result in register '" << resultReg 
+              << "' with type " << sirTypeToString(memberType) << std::endl;
     #endif
     
-    return BuildResult(resultReg, SIRType::I64);  // نوع افتراضي
+    BuildResult result(resultReg, memberType);
+    result.className = objResult.className;
+    return result;
 }
 
 // ============================================================================

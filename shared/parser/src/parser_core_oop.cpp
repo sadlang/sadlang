@@ -93,18 +93,46 @@ std::unique_ptr<FieldDecl> ParserCore::parseFieldDeclaration(AccessModifier acce
     std::cout << "[OOP] تحليل حقل\n";
 #endif
     
-    // (AR) النوع / (EN) Type
-    // Check if current token is a type token
-    if (!isTypeToken(current_.getType())) {
-        error("(AR) توقع نوع الحقل (رقم، نص، منطقي، إلخ). (EN) Expected field type (number, string, boolean, etc).");
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) النوع — يدعم كلاً من الأنواع الأساسية والأصناف المخصصة
+    //      الأصناف المخصصة تُكتب كـ IDENTIFIER وتُعامل كنوع OBJECT
+    //      مثال: رقم س          → نوع أساسي
+    //            خريطة_بت خ     → صنف مخصص (نوع OBJECT)
+    //
+    // (EN) Type — supports both primitive types and custom classes
+    //      Custom classes are written as IDENTIFIER and treated as OBJECT type
+    //      Example: رقم س          → primitive type
+    //               Bitmap bm      → custom class (OBJECT type)
+    // ═══════════════════════════════════════════════════════════════════
+    
+    Token typeToken = current_;
+    Data::DataType fieldType;
+    std::string typeName;
+    
+    if (isTypeToken(current_.getType())) {
+        // (AR) نوع أساسي: رقم، نص، منطقي، إلخ
+        // (EN) Primitive type: number, string, boolean, etc.
+        advance(); // consume type
+        typeName = typeToken.getValue();
+        fieldType = mapTokenTypeToDataType(typeToken.getType());
+    } else if (check(TT::IDENTIFIER)) {
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) إصلاح المشكلة 11: دعم الأصناف المخصصة كأنواع للحقول
+        //      مثال: خريطة_بت الخريطة — نقبل الاسم كنوع OBJECT
+        //      التحقق من وجود الصنف يحدث لاحقاً في المدقق الدلالي
+        //
+        // (EN) Fix issue 11: support custom classes as field types
+        //      Example: Bitmap myMap — accept name as OBJECT type
+        //      Class existence checking happens later in semantic checker
+        // ═══════════════════════════════════════════════════════════════
+        advance(); // consume class name
+        typeName = typeToken.getValue();
+        fieldType = Data::DataType::OBJECT; // Custom class → OBJECT type
+    } else {
+        error("(AR) توقع نوع الحقل (رقم، نص، منطقي، أو اسم صنف مخصص). (EN) Expected field type (number, string, boolean, or custom class name).");
         synchronize();
         return nullptr;
     }
-    
-    Token typeToken = current_;
-    advance(); // consume type
-    std::string typeName = typeToken.getValue();
-    Data::DataType fieldType = mapTokenTypeToDataType(typeToken.getType());
     
     // (AR) الاسم / (EN) Name
     Token nameToken = consume(TT::IDENTIFIER,
@@ -161,8 +189,23 @@ std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
     if (isTypeToken(current_.getType())) {
         // Has return type: رقم احصل_الرصيد()
         returnType = parseType();
-        nameToken = consume(TT::IDENTIFIER,
-            "(AR) توقع اسم الطريقة بعد نوع الإرجاع. (EN) Expected method name after return type.");
+        // (AR) دعم الكلمات المفتاحية الناعمة كأسماء طرق (مثل: احصل، عيّن)
+        // (EN) Support soft keywords as method names (e.g., احصل, عيّن)
+        if (check(TT::IDENTIFIER)) {
+            nameToken = current_;
+            advance();
+        } else if (isKeywordUsableAsName(current_.getType())) {
+            nameToken = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+            advance();
+        } else {
+            nameToken = consume(TT::IDENTIFIER,
+                "(AR) توقع اسم الطريقة بعد نوع الإرجاع. (EN) Expected method name after return type.");
+        }
+    } else if (isKeywordUsableAsName(current_.getType())) {
+        // (AR) كلمة مفتاحية ناعمة كاسم طريقة (مثل: دالة احصل())
+        // (EN) Soft keyword as method name (e.g., function احصل())
+        nameToken = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+        advance();
     } else {
         // No return type (void method): احصل_الرصيد()
         nameToken = consume(TT::IDENTIFIER,

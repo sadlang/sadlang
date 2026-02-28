@@ -19,8 +19,12 @@ target_link_libraries(sad PRIVATE
     sad_websocket
     sad_mobile
     sad_graphics
-    sad_rt_runtime
 )
+
+# (AR) ربط مكتبة وقت التشغيل إذا تم بناؤها / (EN) Link runtime if built
+if(TARGET sad_rt_runtime)
+    target_link_libraries(sad PRIVATE sad_rt_runtime)
+endif()
 
 # ربط مكتبة الواجهات الرسومية / Link UI IR library
 if(TARGET sad_ui_ir)

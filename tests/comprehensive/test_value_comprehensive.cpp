@@ -656,7 +656,7 @@ int main() {
     SAD_TEST("VEDGE03: الوصول لفهرس خارج النطاق", {
         Value::ArrayType arr = {Value(1)};
         Value v(arr);
-        SAD_ASSERT_THROWS(v[(size_t)10], std::runtime_error);
+        SAD_ASSERT_THROWS(v[(size_t)10], std::out_of_range);
     });
 
     SAD_TEST("VEDGE04: pop من مصفوفة فارغة", {

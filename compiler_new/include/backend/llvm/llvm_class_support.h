@@ -61,6 +61,8 @@ struct ClassInfo {
     std::unordered_map<std::string, llvm::Function*> methods;  ///< الدوال / Methods
     ClassInfo* baseClass;                                ///< الصنف الأساسي / Base class
     bool hasVirtualMethods;                              ///< يحتوي دوال افتراضية؟ / Has virtual methods?
+    int64_t typeId = -1;                                 ///< معرّف النوع لـ RTTI / Type ID for RTTI
+    llvm::GlobalVariable* typeIdGlobal = nullptr;        ///< متغير RTTI العام / RTTI global variable
 };
 
 // ============================================================================
@@ -216,8 +218,14 @@ public:
                          ClassInfo* derivedClass);
     
     /**
-     * التحقق من نوع الكائن
-     * Check object type
+     * التحقق من نوع الكائن (RTTI)
+     * Check object type (Runtime Type Information)
+     * 
+     * @details
+     * (AR) يولّد كود LLVM IR يقارن معرّف نوع الكائن مع سلسلة الوراثة.
+     *      يدعم الوراثة: (هل الكائن من نوع X أو أي صنف يرث من X؟)
+     * (EN) Generates LLVM IR that compares object's type ID with inheritance chain.
+     *      Supports inheritance: Is object of type X or any class inheriting from X?
      */
     llvm::Value* instanceof(llvm::Value* object, ClassInfo* classInfo);
     
@@ -231,6 +239,7 @@ private:
     LLVMTypeMapper* typeMapper_;                              ///< محول الأنواع / Type mapper
     
     std::unordered_map<std::string, std::unique_ptr<ClassInfo>> classes_;  ///< الأصناف المُعرّفة / Defined classes
+    int64_t nextTypeId_ = 1;                                  ///< معرّف النوع التالي / Next type ID
     
     // ========================================================================
     // دوال مساعدة / Helper Functions
@@ -253,6 +262,16 @@ private:
      * Calculate field offset with inheritance
      */
     unsigned calculateFieldOffset(ClassInfo* classInfo, const std::string& fieldName);
+
+    /**
+     * إنشاء معرّف نوع RTTI عام / Create RTTI type ID global
+     */
+    void emitTypeId(ClassInfo* classInfo, llvm::Module* module);
+
+    /**
+     * التحقق من سلسلة الوراثة / Check if classA is subclass of classB
+     */
+    bool isSubclassOf(ClassInfo* classA, ClassInfo* classB);
 };
 
 // ============================================================================

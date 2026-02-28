@@ -203,7 +203,20 @@ llvm::Type* LLVMTypeMapper::mapSIRType(Compiler::SIR::SIRType sirType) {
             // دالة - يحتاج توقيع / Function - needs signature
             // افتراضي: مؤشر دالة / Default: function pointer
             return getStringPtrType();
-            
+
+        case Compiler::SIR::SIRType::MAP:
+            // قاموس/خريطة — مؤشر لبنية وقت التشغيل
+            // Dictionary/map — pointer to runtime struct
+            return getStringPtrType();
+
+        case Compiler::SIR::SIRType::BYTE:
+            // بايت (8-bit) / Byte (8-bit unsigned)
+            return llvm::Type::getInt8Ty(context_);
+
+        case Compiler::SIR::SIRType::ERROR:
+            // خطأ — مؤشر لبنية الخطأ / Error — pointer to error struct
+            return getStringPtrType();
+
         default:
             // نوع غير معروف - افتراضي i64 / Unknown type - default i64
             return getInt64Type();

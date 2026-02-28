@@ -117,34 +117,32 @@ Value ExpressionEvaluator::tokenToValue(const Token& token) {
         case TokenType::NUMBER_INTEGER: {
             std::string value = token.getValue();
             
-            // (AR) تحويل آمن من stoll إلى int مع فحص النطاق
-            // (EN) Safe stoll→int conversion with range check
-            auto safeToIntOrDouble = [](long long val) -> Value {
-                if (val >= INT_MIN && val <= INT_MAX)
-                    return Value(static_cast<int>(val));
-                return Value(static_cast<double>(val));
+            // (AR) تحويل آمن من stoll إلى int64_t (كل الأعداد الصحيحة تبقى صحيحة)
+            // (EN) Safe stoll→int64_t conversion (all integers stay as integers)
+            auto safeToInt64 = [](long long val) -> Value {
+                return Value(static_cast<int64_t>(val));
             };
             
             try {
                 // Binary: 0b1010
                 if (value.size() > 2 && value[0] == '0' && (value[1] == 'b' || value[1] == 'B')) {
-                    return safeToIntOrDouble(std::stoll(value.substr(2), nullptr, 2));
+                    return safeToInt64(std::stoll(value.substr(2), nullptr, 2));
                 }
                 
                 // Octal: 0o17
                 if (value.size() > 2 && value[0] == '0' && (value[1] == 'o' || value[1] == 'O')) {
-                    return safeToIntOrDouble(std::stoll(value.substr(2), nullptr, 8));
+                    return safeToInt64(std::stoll(value.substr(2), nullptr, 8));
                 }
                 
                 // Hexadecimal: 0xFF
                 if (value.size() > 2 && value[0] == '0' && (value[1] == 'x' || value[1] == 'X')) {
-                    return safeToIntOrDouble(std::stoll(value.substr(2), nullptr, 16));
+                    return safeToInt64(std::stoll(value.substr(2), nullptr, 16));
                 }
                 
                 // Decimal: 42 — use stoll for range safety
                 {
                     long long parsed = std::stoll(value);
-                    return safeToIntOrDouble(parsed);
+                    return safeToInt64(parsed);
                 }
             } catch (const std::invalid_argument&) {
                 Sad::Errors::ErrorManager::getInstance().reportError(
@@ -562,7 +560,7 @@ void ExpressionEvaluator::visitBinaryExpr(BinaryExpr& node) {
         case TokenType::KEYWORD_IN: {
             bool found = false;
             if (right.isArray()) {
-                for (const auto& el : right.toArray()) {
+                for (const auto& el : right.toArrayRef()) {
                     if ((left == el).toBool()) { found = true; break; }
                 }
             } else if (right.isMap()) {
@@ -850,8 +848,8 @@ Value ExpressionEvaluator::evaluateComparisonOp(const Value& left, TokenType op,
     // (AR) مقارنة عميقة للمصفوفات / (EN) Deep array comparison
     if (left.isArray() && right.isArray()) {
         if (op == TokenType::OP_EQUAL || op == TokenType::OP_NOT_EQUAL) {
-            const auto& lArr = left.toArray();
-            const auto& rArr = right.toArray();
+            const auto& lArr = left.toArrayRef();
+            const auto& rArr = right.toArrayRef();
             bool equal = (lArr.size() == rArr.size());
             if (equal) {
                 for (size_t i = 0; i < lArr.size(); ++i) {

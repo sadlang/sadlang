@@ -108,6 +108,13 @@ endif()
 # Phase 95: T1044-T1047
 # ============================================================================
 file(GLOB PANIC_SOURCES "src/panic/*.cpp")
+# (AR) استبعاد الملفات التي تتضمن smart_panic.cpp لتجنب تعريفات مكررة (ODR)
+# (EN) Exclude files that #include smart_panic.cpp to avoid multiple definition linker errors
+list(REMOVE_ITEM PANIC_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/panic/ai_analyzer.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/panic/encrypted_reporter.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/panic/recovery.cpp"
+)
 if(PANIC_SOURCES)
     add_library(sad_rt_panic STATIC ${PANIC_SOURCES})
     target_include_directories(sad_rt_panic
@@ -167,3 +174,39 @@ endif()
 
 message(STATUS "Configured sad_rt_runtime library (vm, memory, thread, ffi, exception, abi, panic, sandbox)")
 
+# ============================================================================
+# Freestanding Low-Level Runtime — مكتبة وقت التشغيل بلا نظام تشغيل
+# (AR) تُبنى فقط عند الطلب. تحتوي على تنفيذات sad_ll_* لوضع --freestanding
+#      يمكن ترجمتها مع cross-compiler لأي منصة (x86_64, ARM, RISC-V)
+# (EN) Built only on request. Contains sad_ll_* implementations for --freestanding mode
+#      Can be cross-compiled for any platform (x86_64, ARM, RISC-V)
+# ============================================================================
+set(FREESTANDING_SOURCES
+    freestanding/sad_lowlevel_rt.c
+    freestanding/sad_core.cpp
+    freestanding/sad_panic.cpp
+    freestanding/sad_allocator.cpp
+    freestanding/sad_bump_allocator.cpp
+    freestanding/sad_port_io.cpp
+)
+
+# Only build freestanding target when explicitly requested
+option(BUILD_FREESTANDING_RT "Build freestanding low-level runtime" OFF)
+if(BUILD_FREESTANDING_RT)
+    add_library(sad_rt_freestanding STATIC ${FREESTANDING_SOURCES})
+    target_include_directories(sad_rt_freestanding
+        PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/freestanding
+    )
+    # Freestanding compilation flags
+    if(MSVC)
+        target_compile_options(sad_rt_freestanding PRIVATE /utf-8 /GS- /FS)
+        target_compile_definitions(sad_rt_freestanding PRIVATE _NO_CRT_STDIO_INLINE)
+    else()
+        target_compile_options(sad_rt_freestanding PRIVATE
+            -ffreestanding -nostdlib -fno-exceptions -fno-rtti
+            -mno-red-zone -fno-stack-protector
+        )
+    endif()
+    message(STATUS "Configured sad_rt_freestanding library (bare-metal low-level runtime)")
+endif()

@@ -536,8 +536,12 @@ llvm::Value* LLVMCodeGen::emitArrayNew(std::shared_ptr<SIRInstruction> inst) {
     llvm::Value* capGep = builder_->CreateStructGEP(arrTy, arrPtr, 1, "arr.cap.gep");
     builder_->CreateStore(llvm::ConstantInt::get(getInt64Type(), capacity), capGep);
     
-    // Allocate data buffer: capacity * 8 bytes (i64 elements)
-    llvm::Value* dataSize = llvm::ConstantInt::get(getInt64Type(), capacity * 8);
+    // Allocate data buffer: capacity * sizeof(ptr) bytes (pointer-width elements for nested array support)
+    // (AR) تخصيص مخزن البيانات: السعة × حجم المؤشر (لدعم المصفوفات المتداخلة)
+    auto* ptrSize = llvm::ConstantExpr::getSizeOf(llvm::PointerType::getUnqual(*context_));
+    llvm::Value* dataSize = builder_->CreateMul(
+        llvm::ConstantInt::get(getInt64Type(), capacity), 
+        builder_->CreateIntCast(ptrSize, getInt64Type(), false), "arr.data.size");
     llvm::Value* dataPtr = builder_->CreateCall(mallocFunc, {dataSize}, "arr.data");
     llvm::Value* dataGep = builder_->CreateStructGEP(arrTy, arrPtr, 2, "arr.data.gep");
     builder_->CreateStore(dataPtr, dataGep);
@@ -566,9 +570,33 @@ llvm::Value* LLVMCodeGen::emitArrayGet(std::shared_ptr<SIRInstruction> inst) {
     llvm::Value* dataPtr = builder_->CreateLoad(
         llvm::PointerType::getUnqual(*context_), dataGep, "arr.data");
     
-    // GEP to element
-    llvm::Value* elemPtr = builder_->CreateGEP(getInt64Type(), dataPtr, {index}, "arr.elem");
-    llvm::Value* result = builder_->CreateLoad(getInt64Type(), elemPtr, "arr.get");
+    // (AR) تحديد نوع العنصر: إذا كان نوع النتيجة ARRAY أو PTR → حمِّل كمؤشر (ptr)
+    //      وإلا حمِّل كـ i64 (عدد صحيح / عشري مُحوَّل)
+    // (EN) Determine element type: if result is ARRAY/PTR → load as ptr (for nested arrays)
+    //      otherwise load as i64 (integer / bitcasted float)
+    bool isNestedArray = false;
+    if (inst->result.has_value()) {
+        auto resultType = inst->result->dataType;
+        if (resultType == SIRType::ARRAY || resultType == SIRType::PTR || 
+            resultType == SIRType::STRUCT || resultType == SIRType::STRING) {
+            isNestedArray = true;
+        }
+    }
+    
+    llvm::Value* result;
+    if (isNestedArray) {
+        // (AR) العنصر مؤشر (مصفوفة متداخلة / نص / بنية)
+        // (EN) Element is a pointer (nested array / string / struct)
+        llvm::Value* elemPtr = builder_->CreateGEP(
+            llvm::PointerType::getUnqual(*context_), dataPtr, {index}, "arr.elem.ptr");
+        result = builder_->CreateLoad(
+            llvm::PointerType::getUnqual(*context_), elemPtr, "arr.get.ptr");
+    } else {
+        // (AR) العنصر i64 (رقم / منطقي)
+        // (EN) Element is i64 (number / boolean)
+        llvm::Value* elemPtr = builder_->CreateGEP(getInt64Type(), dataPtr, {index}, "arr.elem");
+        result = builder_->CreateLoad(getInt64Type(), elemPtr, "arr.get");
+    }
     
     if (inst->result.has_value()) {
         context_info_.namedValues[inst->result->name] = result;
@@ -595,9 +623,26 @@ llvm::Value* LLVMCodeGen::emitArraySet(std::shared_ptr<SIRInstruction> inst) {
     llvm::Value* dataPtr = builder_->CreateLoad(
         llvm::PointerType::getUnqual(*context_), dataGep, "arr.data");
     
-    // GEP to element and store
-    llvm::Value* elemPtr = builder_->CreateGEP(getInt64Type(), dataPtr, {index}, "arr.elem");
-    builder_->CreateStore(value, elemPtr);
+    // (AR) تحديد نوع العنصر: إذا كانت القيمة مؤشراً (مصفوفة/نص/بنية) → خزِّن كمؤشر
+    // (EN) Determine element type: if value is pointer type → store as pointer
+    bool isPointerValue = value->getType()->isPointerTy();
+    
+    if (isPointerValue) {
+        // (AR) تخزين مؤشر (مصفوفة متداخلة / نص / بنية)
+        // (EN) Store pointer (nested array / string / struct)
+        llvm::Value* elemPtr = builder_->CreateGEP(
+            llvm::PointerType::getUnqual(*context_), dataPtr, {index}, "arr.elem.ptr");
+        builder_->CreateStore(value, elemPtr);
+    } else {
+        // (AR) تخزين قيمة i64
+        // (EN) Store i64 value
+        // (AR) تحويل القيمة إلى i64 إذا لزم الأمر
+        if (!value->getType()->isIntegerTy(64)) {
+            value = builder_->CreateIntCast(value, getInt64Type(), true, "arr.elem.cast");
+        }
+        llvm::Value* elemPtr = builder_->CreateGEP(getInt64Type(), dataPtr, {index}, "arr.elem");
+        builder_->CreateStore(value, elemPtr);
+    }
     
     return value;
 }

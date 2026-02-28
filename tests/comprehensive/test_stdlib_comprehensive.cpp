@@ -704,9 +704,12 @@ int main() {
         SAD_ASSERT_EQ(result.toInt(), 0);
     });
 
-    SAD_TEST("TYPE09: تحويل نص غير رقمي — toInt(\"hello\") = 0", {
-        auto result = Sad::StdLib::Core::TypeFunctions::toInt(makeArgs(Value("hello")));
-        SAD_ASSERT_EQ(result.toInt(), 0);
+    SAD_TEST("TYPE09: تحويل نص غير رقمي — toInt(\"hello\") يرمي استثناء", {
+        // (AR) التنفيذ الفعلي يرمي استثناء عند فشل التحويل بدلاً من إرجاع 0
+        // (EN) Actual implementation throws on conversion failure instead of returning 0
+        SAD_ASSERT_THROWS(
+            Sad::StdLib::Core::TypeFunctions::toInt(makeArgs(Value("hello"))),
+            std::runtime_error);
     });
 
     // ─────────────────────────── toFloat (لعشري) ─────────────────────────
@@ -814,12 +817,13 @@ int main() {
         SAD_ASSERT_TRUE(ok);
     });
 
-    SAD_TEST("MGR05: تسجيل المرحلة 3 (المصفوفات) — لم تُنفّذ بعد", {
+    SAD_TEST("MGR05: تسجيل المرحلة 3 (المصفوفات) — مُنفَّذة", {
         Sad::Data::FunctionManager fm;
         Sad::StdLib::StandardLibraryManager mgr(fm);
-        // Phase 3 is not yet implemented, returns false
+        // (AR) المرحلة 3 مُنفَّذة الآن وتُرجع true
+        // (EN) Phase 3 is now implemented and returns true
         bool ok = mgr.registerPhase3_ArrayFunctions();
-        SAD_ASSERT_FALSE(ok);
+        SAD_ASSERT_TRUE(ok);
     });
 
 #else

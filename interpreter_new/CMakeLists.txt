@@ -33,8 +33,9 @@ add_library(sad_new_interpreter STATIC
     # OOP - تم إصلاحه!
     src/oop/interpreter_classes_fixed.cpp
     
-    # Builtins - تم إعادة تفعيله
-    src/builtins/builtin_registry.cpp
+    # NOTE: builtin_registry.cpp is NOT included here because it references
+    # 34 part files that are compiled in sad_core (cmake/sources.cmake).
+    # The sad_new_interpreter library provides the interpreter core only.
 )
 
 target_include_directories(sad_new_interpreter
@@ -44,6 +45,9 @@ target_include_directories(sad_new_interpreter
         ${CMAKE_CURRENT_SOURCE_DIR}/include/visitors
         ${CMAKE_CURRENT_SOURCE_DIR}/include/managers
         ${CMAKE_CURRENT_SOURCE_DIR}/include/builtins
+        # stdlib headers needed by builtin_registry.cpp
+        ${CMAKE_SOURCE_DIR}/stdlib/core
+        ${CMAKE_SOURCE_DIR}/stdlib
 )
 
 # للتوافق مع الكود القديم

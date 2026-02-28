@@ -1281,6 +1281,15 @@ private:
     bool isTypeToken(Lexer::TokenType tokenType);
     
     /**
+     * @brief (AR) هل الكلمة المفتاحية يمكن استخدامها كمعرّف (اسم دالة أو معامل)؟
+     *        (EN) Can this keyword be used as an identifier (function/parameter name)?
+     * 
+     * @param tokenType (AR) نوع الرمز (EN) Token type
+     * @return (AR) true إذا كانت كلمة مفتاحية يمكن استخدامها كاسم (EN) true if keyword usable as name
+     */
+    bool isKeywordUsableAsName(Lexer::TokenType tokenType);
+    
+    /**
      * @brief (AR) التحقق من أن المعرّف هو اسم صنف مسجّل
      *        (EN) Checks if identifier is a registered class name
      * 

@@ -45,6 +45,7 @@
 #include "lexer_core.h"
 #include "parser_core.h"
 #include "class_manager.h"
+#include "builtin_module_registry.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -255,6 +256,34 @@ void StatementExecutor::visitImportStmt(AST::ImportStmt& node) {
     // (EN) Determine effective name (alias or module name)
     std::string effectiveName = node.getEffectiveName();
     
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) التحقق من الوحدات المُضمّنة أولاً (تحميل كسول)
+    // (EN) Check builtin modules first (lazy loading)
+    // ═══════════════════════════════════════════════════════════════
+    auto& builtinRegistry = BuiltinModuleRegistry::getInstance();
+    if (builtinRegistry.isBuiltinModule(fullModuleName)) {
+        // (AR) تحميل الوحدة المُضمّنة (يسجّل الدوال في FunctionManager)
+        // (EN) Load builtin module (registers functions in FunctionManager)
+        builtinRegistry.loadModule(fullModuleName);
+        
+        // (AR) بناء خريطة الصادرات من الدوال المسجلة
+        // (EN) Build exports map from registered functions
+        Data::Value::MapType exportsMap;
+        for (const auto& funcName : builtinRegistry.getExportedFunctions(fullModuleName)) {
+            exportsMap[funcName] = Data::Value(std::string("__func__:" + funcName));
+        }
+        
+        Data::Value moduleExports(exportsMap);
+        loadedModuleNamespaces_[effectiveName] = moduleExports;
+        
+        if (variableManager_.exists(effectiveName)) {
+            variableManager_.assign(effectiveName, moduleExports);
+        } else {
+            variableManager_.define(effectiveName, moduleExports);
+        }
+        return;
+    }
+    
     // (AR) استخدام ModuleResolver للبحث عن الوحدة وتحميلها
     // (EN) Use ModuleResolver to find and load module
     Modules::Module* module = moduleResolver_->resolveModule(
@@ -316,6 +345,41 @@ void StatementExecutor::visitFromImportStmt(AST::FromImportStmt& node) {
     // (AR) بناء الاسم الكامل للوحدة
     // (EN) Build full module name
     std::string fullModuleName = node.getFullModuleName();
+    
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) التحقق من الوحدات المُضمّنة أولاً (تحميل كسول)
+    // (EN) Check builtin modules first (lazy loading)
+    // ═══════════════════════════════════════════════════════════════
+    auto& builtinRegistry = BuiltinModuleRegistry::getInstance();
+    if (builtinRegistry.isBuiltinModule(fullModuleName)) {
+        builtinRegistry.loadModule(fullModuleName);
+        
+        // (AR) بناء خريطة الصادرات
+        // (EN) Build exports map
+        Data::Value::MapType exportsMap;
+        for (const auto& funcName : builtinRegistry.getExportedFunctions(fullModuleName)) {
+            exportsMap[funcName] = Data::Value(std::string("__func__:" + funcName));
+        }
+        
+        if (node.isWildcard) {
+            // (AR) من وحدة استورد * — الدوال مسجلة بالفعل في FunctionManager
+            // (EN) from module import * — functions already registered in FunctionManager
+            // No additional action needed since functions are globally available
+        } else {
+            // (AR) استيراد انتقائي — التحقق من وجود الأسماء المطلوبة
+            // (EN) Selective import — verify requested names exist
+            for (const auto& item : node.items) {
+                if (exportsMap.find(item.name) == exportsMap.end()) {
+                    throw ExecutionError(
+                        "\u062e\u0637\u0623: \u0627\u0644\u0631\u0645\u0632 '" + item.name + 
+                        "' \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f \u0641\u064a \u0627\u0644\u0648\u062d\u062f\u0629 \u0627\u0644\u0645\u0636\u0645\u0646\u0629 '" + fullModuleName + "'\n"
+                        "Error: Symbol '" + item.name + "' not found in builtin module '" + fullModuleName + "'"
+                    );
+                }
+            }
+        }
+        return;
+    }
     
     // (AR) تحميل الوحدة
     // (EN) Load module

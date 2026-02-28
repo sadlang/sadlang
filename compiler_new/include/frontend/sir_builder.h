@@ -922,6 +922,46 @@ private:
     // (AR) الوحدات التي تمت معالجتها لمنع التكرار / (EN) Processed modules to prevent duplication
     std::unordered_set<std::string> processedModules_;
     
+    // ══════════════════════════════════════════════════════════════════
+    // (AR) ذاكرة مخبئية لنتائج SIR المُجمَّعة من الوحدات المستوردة
+    // (EN) Cache for compiled SIR artifacts from imported modules
+    // ══════════════════════════════════════════════════════════════════
+    
+    /**
+     * @brief (AR) نتائج SIR المُجمَّعة من وحدة مستوردة
+     *        (EN) Compiled SIR artifacts from an imported module
+     */
+    struct ModuleSIRArtifacts {
+        std::vector<std::shared_ptr<SIRFunction>> functions;   ///< (AR) الدوال / (EN) Functions
+        std::vector<std::shared_ptr<SIRGlobalVariable>> globals; ///< (AR) المتغيرات العامة / (EN) Globals
+        std::vector<std::shared_ptr<SIRClass>> classes;        ///< (AR) الأصناف / (EN) Classes
+        std::unordered_map<std::string, FunctionInfo> functionTable; ///< (AR) جدول الدوال / (EN) Function table
+        std::vector<std::string> exportedSymbols;              ///< (AR) الرموز المُصدَّرة فقط / (EN) Exported symbols only
+    };
+    
+    /// (AR) خريطة الوحدات المُجمَّعة: اسم_الوحدة → نتائج SIR
+    /// (EN) Compiled module cache: module_name → SIR artifacts
+    std::unordered_map<std::string, ModuleSIRArtifacts> moduleCache_;
+    
+    /**
+     * @brief (AR) تجميع وحدة وحفظها في الذاكرة المخبئية
+     *        (EN) Compile module and save to cache
+     * @param fullModuleName (AR) الاسم الكامل / (EN) Full module name
+     * @param module (AR) الوحدة المحملة / (EN) Loaded module
+     * @return (AR) مؤشر لنتائج SIR المخبئية / (EN) Pointer to cached SIR artifacts
+     */
+    ModuleSIRArtifacts* compileAndCacheModule(const std::string& fullModuleName,
+                                              Modules::Module* module);
+    
+    /**
+     * @brief (AR) دمج نتائج SIR المخبئية في الوحدة الحالية
+     *        (EN) Merge cached SIR artifacts into current module
+     * @param artifacts (AR) النتائج المخبئية / (EN) Cached artifacts
+     * @param filter (AR) مرشح الرموز (فارغ = كل شيء) / (EN) Symbol filter (empty = all)
+     */
+    void mergeCachedArtifacts(const ModuleSIRArtifacts& artifacts,
+                              const std::unordered_set<std::string>& filter = {});
+    
     // ==================================================================
     // دوال مساعدة خاصة / Private Helper Functions
     // ==================================================================

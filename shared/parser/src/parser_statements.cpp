@@ -208,9 +208,13 @@ StmtPtr ParserCore::parseReturnStmt() {
     // (AR) قيمة الإرجاع الاختيارية
     ExprPtr value = nullptr;
     
-    // Parse return value if present (not semicolon)
-    // (AR) تحليل قيمة الإرجاع إذا كانت موجودة (ليست فاصلة منقوطة)
-    if (!check(TT::SEMICOLON) && !check(TT::ARABIC_SEMICOLON)) {
+    // Parse return value if present (not semicolon, end keyword, or newline)
+    // (AR) تحليل قيمة الإرجاع إذا كانت موجودة (ليست فاصلة منقوطة أو نهاية أو سطر جديد)
+    // (AR) إصلاح المشكلة 10: السماح بـ "ارجع" بدون قيمة قبل "نهاية" أو "وإلا"
+    if (!check(TT::SEMICOLON) && !check(TT::ARABIC_SEMICOLON) &&
+        !check(TT::KEYWORD_END) && !check(TT::KEYWORD_ELSE) &&
+        !check(TT::KEYWORD_ELSE_IF) && !check(TT::KEYWORD_CATCH) &&
+        !check(TT::KEYWORD_FINALLY) && !isAtEnd()) {
         value = parseExpression();
     }
     

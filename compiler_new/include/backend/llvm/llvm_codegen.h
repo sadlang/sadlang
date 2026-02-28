@@ -680,6 +680,217 @@ public:
     llvm::Value* emitAsyncWaitAny(std::shared_ptr<SIRInstruction> inst);      // انتظر_أي
     llvm::Value* emitAsyncSelect(std::shared_ptr<SIRInstruction> inst);       // اختر_قناة
     
+    // ================================================================
+    // Section 15: عمليات وحدات نظام التشغيل المتقدمة / Advanced OS Module Operations
+    // (AR) دعم المترجم للمكتبة المنخفضة المستوى الكاملة (19 وحدة)
+    // (EN) Compiler support for the full low-level library (19 modules)
+    // ================================================================
+    
+    // 15a. وحدة المعالج المتقدمة / Advanced CPU Module (8)
+    llvm::Value* emitLowlevelCpuGetInfo(std::shared_ptr<SIRInstruction> inst);      // معلومات_المعالج
+    llvm::Value* emitLowlevelCpuGetFeatures(std::shared_ptr<SIRInstruction> inst);  // ميزات_المعالج
+    llvm::Value* emitLowlevelCpuReadMSR(std::shared_ptr<SIRInstruction> inst);      // اقرأ_سجل_نموذج
+    llvm::Value* emitLowlevelCpuWriteMSR(std::shared_ptr<SIRInstruction> inst);     // اكتب_سجل_نموذج
+    llvm::Value* emitLowlevelCpuReadCR(std::shared_ptr<SIRInstruction> inst);       // اقرأ_سجل_تحكم
+    llvm::Value* emitLowlevelCpuWriteCR(std::shared_ptr<SIRInstruction> inst);      // اكتب_سجل_تحكم
+    llvm::Value* emitLowlevelCpuInvlpg(std::shared_ptr<SIRInstruction> inst);       // ابطل_صفحة
+    llvm::Value* emitLowlevelCpuGetReport(std::shared_ptr<SIRInstruction> inst);    // تقرير_المعالج
+    
+    // 15b. وحدة GDT (3)
+    llvm::Value* emitLowlevelGdtInit(std::shared_ptr<SIRInstruction> inst);         // هيئ_جدول_واصفات
+    llvm::Value* emitLowlevelGdtLoad(std::shared_ptr<SIRInstruction> inst);         // حمل_جدول_واصفات
+    llvm::Value* emitLowlevelGdtGetReport(std::shared_ptr<SIRInstruction> inst);    // تقرير_واصفات
+    
+    // 15c. وحدة الترحيل / Paging (5)
+    llvm::Value* emitLowlevelPagingInit(std::shared_ptr<SIRInstruction> inst);      // هيئ_ترحيل
+    llvm::Value* emitLowlevelPagingMap(std::shared_ptr<SIRInstruction> inst);       // رحل_صفحة
+    llvm::Value* emitLowlevelPagingUnmap(std::shared_ptr<SIRInstruction> inst);     // الغ_ترحيل
+    llvm::Value* emitLowlevelPagingFlushTlb(std::shared_ptr<SIRInstruction> inst);  // افرغ_ذاكرة_ترجمة
+    llvm::Value* emitLowlevelPagingGetReport(std::shared_ptr<SIRInstruction> inst); // تقرير_ترحيل
+    
+    // 15d. وحدة المقاطعات المتقدمة / Advanced Interrupts/IDT (5)
+    llvm::Value* emitLowlevelIdtInit(std::shared_ptr<SIRInstruction> inst);         // هيئ_جدول_مقاطعات
+    llvm::Value* emitLowlevelIdtLoad(std::shared_ptr<SIRInstruction> inst);         // حمل_جدول_مقاطعات
+    llvm::Value* emitLowlevelIdtRegisterIsr(std::shared_ptr<SIRInstruction> inst);  // سجل_معالج_مقاطعة
+    llvm::Value* emitLowlevelIdtEnableIrq(std::shared_ptr<SIRInstruction> inst);    // فعل_طلب_مقاطعة
+    llvm::Value* emitLowlevelIdtGetReport(std::shared_ptr<SIRInstruction> inst);    // تقرير_مقاطعات
+    
+    // 15e. وحدة PCI (5)
+    llvm::Value* emitLowlevelPciEnumerate(std::shared_ptr<SIRInstruction> inst);    // عدد_أجهزة_ناقل
+    llvm::Value* emitLowlevelPciReadConfig(std::shared_ptr<SIRInstruction> inst);   // اقرأ_اعدادات_ناقل
+    llvm::Value* emitLowlevelPciWriteConfig(std::shared_ptr<SIRInstruction> inst);  // اكتب_اعدادات_ناقل
+    llvm::Value* emitLowlevelPciGetDeviceCount(std::shared_ptr<SIRInstruction> inst); // عدد_الأجهزة
+    llvm::Value* emitLowlevelPciGetReport(std::shared_ptr<SIRInstruction> inst);    // تقرير_ناقل
+    
+    // 15f. وحدة DMA المتقدمة (4)
+    llvm::Value* emitLowlevelDmaInit(std::shared_ptr<SIRInstruction> inst);         // هيئ_نقل_مباشر
+    llvm::Value* emitLowlevelDmaTransfer(std::shared_ptr<SIRInstruction> inst);     // ابدأ_نقل
+    llvm::Value* emitLowlevelDmaStatus(std::shared_ptr<SIRInstruction> inst);       // حالة_نقل
+    llvm::Value* emitLowlevelDmaGetReport(std::shared_ptr<SIRInstruction> inst);    // تقرير_نقل
+    
+    // 15g. وحدة الشاشة / Framebuffer (8)
+    llvm::Value* emitLowlevelFbInit(std::shared_ptr<SIRInstruction> inst);          // هيئ_شاشة
+    llvm::Value* emitLowlevelFbSetPixel(std::shared_ptr<SIRInstruction> inst);      // ارسم_نقطة
+    llvm::Value* emitLowlevelFbDrawRect(std::shared_ptr<SIRInstruction> inst);      // ارسم_مستطيل
+    llvm::Value* emitLowlevelFbFillRect(std::shared_ptr<SIRInstruction> inst);      // املأ_مستطيل
+    llvm::Value* emitLowlevelFbDrawLine(std::shared_ptr<SIRInstruction> inst);      // ارسم_خط
+    llvm::Value* emitLowlevelFbDrawString(std::shared_ptr<SIRInstruction> inst);    // ارسم_نص
+    llvm::Value* emitLowlevelFbClear(std::shared_ptr<SIRInstruction> inst);         // امسح_شاشة
+    llvm::Value* emitLowlevelFbGetReport(std::shared_ptr<SIRInstruction> inst);     // تقرير_شاشة
+    
+    // 15h. وحدة ACPI (4)
+    llvm::Value* emitLowlevelAcpiInit(std::shared_ptr<SIRInstruction> inst);        // هيئ_طاقة
+    llvm::Value* emitLowlevelAcpiFindTable(std::shared_ptr<SIRInstruction> inst);   // ابحث_جدول_طاقة
+    llvm::Value* emitLowlevelAcpiShutdown(std::shared_ptr<SIRInstruction> inst);    // اطفئ
+    llvm::Value* emitLowlevelAcpiGetReport(std::shared_ptr<SIRInstruction> inst);   // تقرير_طاقة
+    
+    // 15i. وحدة التزامن / Sync (8)
+    llvm::Value* emitLowlevelSpinlockInit(std::shared_ptr<SIRInstruction> inst);    // هيئ_قفل_دوار
+    llvm::Value* emitLowlevelSpinlockLock(std::shared_ptr<SIRInstruction> inst);    // اقفل_دوار
+    llvm::Value* emitLowlevelSpinlockUnlock(std::shared_ptr<SIRInstruction> inst);  // افتح_قفل_دوار
+    llvm::Value* emitLowlevelMutexInit(std::shared_ptr<SIRInstruction> inst);       // هيئ_كابح
+    llvm::Value* emitLowlevelMutexLock(std::shared_ptr<SIRInstruction> inst);       // اقفل_كابح
+    llvm::Value* emitLowlevelMutexUnlock(std::shared_ptr<SIRInstruction> inst);     // افتح_كابح
+    llvm::Value* emitLowlevelSemaphoreInit(std::shared_ptr<SIRInstruction> inst);   // هيئ_اشارة
+    llvm::Value* emitLowlevelBarrierInit(std::shared_ptr<SIRInstruction> inst);     // هيئ_حاجز
+    
+    // 15j. وحدة المجدول / Scheduler (6)
+    llvm::Value* emitLowlevelSchedInit(std::shared_ptr<SIRInstruction> inst);       // هيئ_مجدول
+    llvm::Value* emitLowlevelSchedCreateProc(std::shared_ptr<SIRInstruction> inst); // انشئ_عملية
+    llvm::Value* emitLowlevelSchedCreateThread(std::shared_ptr<SIRInstruction> inst); // انشئ_خيط_نواة
+    llvm::Value* emitLowlevelSchedYield(std::shared_ptr<SIRInstruction> inst);      // تنازل
+    llvm::Value* emitLowlevelSchedSleep(std::shared_ptr<SIRInstruction> inst);      // نوم_مجدول
+    llvm::Value* emitLowlevelSchedGetReport(std::shared_ptr<SIRInstruction> inst);  // تقرير_مجدول
+    
+    // 15k. وحدة الإقلاع / Boot (3)
+    llvm::Value* emitLowlevelBootGetInfo(std::shared_ptr<SIRInstruction> inst);     // معلومات_اقلاع
+    llvm::Value* emitLowlevelBootGetMemoryMap(std::shared_ptr<SIRInstruction> inst);// خريطة_ذاكرة_اقلاع
+    llvm::Value* emitLowlevelBootGetReport(std::shared_ptr<SIRInstruction> inst);   // تقرير_اقلاع
+    
+    // 15l. وحدة نظام الملفات / VFS (7)
+    llvm::Value* emitLowlevelVfsMount(std::shared_ptr<SIRInstruction> inst);        // حمل_قرص
+    llvm::Value* emitLowlevelVfsUnmount(std::shared_ptr<SIRInstruction> inst);      // افصل_قرص
+    llvm::Value* emitLowlevelVfsOpen(std::shared_ptr<SIRInstruction> inst);         // افتح_ملف_نواة
+    llvm::Value* emitLowlevelVfsRead(std::shared_ptr<SIRInstruction> inst);         // اقرأ_ملف_نواة
+    llvm::Value* emitLowlevelVfsWrite(std::shared_ptr<SIRInstruction> inst);        // اكتب_ملف_نواة
+    llvm::Value* emitLowlevelVfsClose(std::shared_ptr<SIRInstruction> inst);        // اغلق_ملف_نواة
+    llvm::Value* emitLowlevelVfsGetReport(std::shared_ptr<SIRInstruction> inst);    // تقرير_ملفات
+    
+    // 15m. وحدة APIC (5)
+    llvm::Value* emitLowlevelApicInit(std::shared_ptr<SIRInstruction> inst);        // هيئ_متحكم_مقاطعات
+    llvm::Value* emitLowlevelApicSendEoi(std::shared_ptr<SIRInstruction> inst);     // ارسل_نهاية_مقاطعة
+    llvm::Value* emitLowlevelApicSendIpi(std::shared_ptr<SIRInstruction> inst);     // ارسل_مقاطعة_معالج
+    llvm::Value* emitLowlevelApicSetTimer(std::shared_ptr<SIRInstruction> inst);    // اضبط_مؤقت_متحكم
+    llvm::Value* emitLowlevelApicGetReport(std::shared_ptr<SIRInstruction> inst);   // تقرير_متحكم_مقاطعات
+    
+    // 15n. وحدة HPET (4)
+    llvm::Value* emitLowlevelHpetInit(std::shared_ptr<SIRInstruction> inst);        // هيئ_مؤقت_دقيق
+    llvm::Value* emitLowlevelHpetRead(std::shared_ptr<SIRInstruction> inst);        // اقرأ_مؤقت_دقيق
+    llvm::Value* emitLowlevelHpetSleep(std::shared_ptr<SIRInstruction> inst);       // نوم_دقيق
+    llvm::Value* emitLowlevelHpetGetReport(std::shared_ptr<SIRInstruction> inst);   // تقرير_مؤقت_دقيق
+    
+    // 15o. وحدة استدعاءات النظام / Syscall (4)
+    llvm::Value* emitLowlevelSyscallInit(std::shared_ptr<SIRInstruction> inst);     // هيئ_استدعاءات
+    llvm::Value* emitLowlevelSyscallRegister(std::shared_ptr<SIRInstruction> inst); // سجل_استدعاء
+    llvm::Value* emitLowlevelSyscallInvoke(std::shared_ptr<SIRInstruction> inst);   // نفذ_استدعاء
+    llvm::Value* emitLowlevelSyscallGetReport(std::shared_ptr<SIRInstruction> inst);// تقرير_استدعاءات
+    
+    // 15p. عمليات الذاكرة المتقدمة / Advanced Memory (4)
+    llvm::Value* emitLowlevelMemAllocPhys(std::shared_ptr<SIRInstruction> inst);    // خصص_فيزيائي
+    llvm::Value* emitLowlevelMemFreePhys(std::shared_ptr<SIRInstruction> inst);     // حرر_فيزيائي
+    llvm::Value* emitLowlevelMemMapRegion(std::shared_ptr<SIRInstruction> inst);    // رحل_منطقة
+    llvm::Value* emitLowlevelMemGetReport(std::shared_ptr<SIRInstruction> inst);    // تقرير_ذاكرة_نواة
+    
+    // =================================================================
+    // القسم 16: بروتوكول UEFI / UEFI Boot Protocol (37 دالة)
+    // =================================================================
+
+    // 16a. التهيئة والتحكم (5)
+    llvm::Value* emitLowlevelUefiInit(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiExitBootServices(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiIsInitialized(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiBsExited(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiResetSystem(std::shared_ptr<SIRInstruction> inst);
+
+    // 16b. إدارة الذاكرة (7)
+    llvm::Value* emitLowlevelUefiAllocPages(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiFreePages(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiAllocPool(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiFreePool(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiGetMemoryMap(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiGetMemmapKey(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiTotalMemory(std::shared_ptr<SIRInstruction> inst);
+
+    // 16c. بروتوكول الرسوميات GOP (10)
+    llvm::Value* emitLowlevelUefiInitGop(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiSetGopMode(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiQueryGopMode(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiGopModeCount(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiCurrentGopMode(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiFramebufferBase(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiFramebufferSize(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiFillScreen(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiDrawRect(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiGopBlt(std::shared_ptr<SIRInstruction> inst);
+
+    // 16d. خدمات وقت التشغيل (4)
+    llvm::Value* emitLowlevelUefiGetTime(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiSetTime(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiGetVariable(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiSetVariable(std::shared_ptr<SIRInstruction> inst);
+
+    // 16e. نظام الملفات (6)
+    llvm::Value* emitLowlevelUefiOpenVolume(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiOpenFile(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiReadFile(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiWriteFile(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiCloseFile(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiFileInfo(std::shared_ptr<SIRInstruction> inst);
+
+    // 16f. بروتوكولات ومعلومات (5)
+    llvm::Value* emitLowlevelUefiLocateProtocol(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiRevision(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiVendor(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiFwRevision(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelUefiReport(std::shared_ptr<SIRInstruction> inst);
+
+    // --- القسم 17: ACPI الموسّع / Extended ACPI ---
+    llvm::Value* emitLowlevelAcpiInitFull(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiInitRsdp(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiEnable(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiDisable(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiIsInitialized(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiVersion(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiReboot(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiSleep(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiDelayUs(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiReadPmTimer(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiIsPm32bit(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiProcessorCount(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiLocalApicAddr(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelAcpiEcamBase(std::shared_ptr<SIRInstruction> inst);
+
+    // --- القسم 18: APIC الموسّع / Extended APIC ---
+    llvm::Value* emitLowlevelApicSupported(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicX2Supported(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicId(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicIoCount(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicInitTimer(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicStartTimer(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicStopTimer(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicTimerCount(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicCalibrate(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicSetPriority(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicDisablePic(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicMaskIrq(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicUnmaskIrq(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicRouteIrq(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicSendIpiAll(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicSendInitIpi(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicSendSipi(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicWaitDelivery(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitLowlevelApicInitIo(std::shared_ptr<SIRInstruction> inst);
+
     // Helper for declaring runtime functions
     llvm::Function* declareRuntimeFunction(const std::string& name, 
                                           llvm::Type* returnType,

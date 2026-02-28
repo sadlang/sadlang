@@ -1,0 +1,214 @@
+; ══════════════════════════════════════════════════════════════════════════════
+; تبديل_السياق.تراب - تبديل سياق المهام لنواة خلية النحل
+; ══════════════════════════════════════════════════════════════════════════════
+; الوصف: حفظ واستعادة سياق المهمة الكامل عند التبديل بين العمليات
+; المعمارية: x86_64
+; ══════════════════════════════════════════════════════════════════════════════
+
+bits 64
+default rel
+
+; ──────────────────────────────────────────────────────────────────────────────
+; ثوابت بنية السياق
+; ──────────────────────────────────────────────────────────────────────────────
+; ترتيب السجلات في بنية السياق (إزاحات)
+CTX_RAX     equ 0
+CTX_RBX     equ 8
+CTX_RCX     equ 16
+CTX_RDX     equ 24
+CTX_RSI     equ 32
+CTX_RDI     equ 40
+CTX_RBP     equ 48
+CTX_RSP     equ 56
+CTX_R8      equ 64
+CTX_R9      equ 72
+CTX_R10     equ 80
+CTX_R11     equ 88
+CTX_R12     equ 96
+CTX_R13     equ 104
+CTX_R14     equ 112
+CTX_R15     equ 120
+CTX_RIP     equ 128
+CTX_RFLAGS  equ 136
+CTX_CS      equ 144
+CTX_SS      equ 152
+CTX_DS      equ 160
+CTX_ES      equ 168
+CTX_FS      equ 176
+CTX_GS      equ 184
+CTX_FS_BASE equ 192
+CTX_GS_BASE equ 200
+CTX_CR3     equ 208
+CTX_FPU     equ 216     ; بداية حالة FPU/SSE/AVX (512 بايت)
+CTX_SIZE    equ 728     ; الحجم الكامل
+
+; MSR
+MSR_FS_BASE         equ 0xC0000100
+MSR_GS_BASE         equ 0xC0000101
+MSR_KERNEL_GS_BASE  equ 0xC0000102
+
+; ──────────────────────────────────────────────────────────────────────────────
+; الرموز المصدّرة
+; ──────────────────────────────────────────────────────────────────────────────
+global تبديل_السياق
+global حفظ_السياق
+global استعادة_السياق
+global تبديل_مهمة
+global القفز_إلى_مهمة
+
+; ══════════════════════════════════════════════════════════════════════════════
+; قسم النص
+; ══════════════════════════════════════════════════════════════════════════════
+section .text
+
+; ──────────────────────────────────────────────────────────────────────────────
+; حفظ_السياق - حفظ سياق المهمة الحالية
+; المدخلات: rdi = مؤشر إلى بنية السياق
+; ──────────────────────────────────────────────────────────────────────────────
+حفظ_السياق:
+    ; حفظ السجلات العامة
+    mov [rdi + CTX_RAX], rax
+    mov [rdi + CTX_RBX], rbx
+    mov [rdi + CTX_RCX], rcx
+    mov [rdi + CTX_RDX], rdx
+    mov [rdi + CTX_RSI], rsi
+    mov [rdi + CTX_RDI], rdi
+    mov [rdi + CTX_RBP], rbp
+    mov [rdi + CTX_RSP], rsp
+    mov [rdi + CTX_R8],  r8
+    mov [rdi + CTX_R9],  r9
+    mov [rdi + CTX_R10], r10
+    mov [rdi + CTX_R11], r11
+    mov [rdi + CTX_R12], r12
+    mov [rdi + CTX_R13], r13
+    mov [rdi + CTX_R14], r14
+    mov [rdi + CTX_R15], r15
+
+    ; حفظ الأعلام
+    pushfq
+    pop qword [rdi + CTX_RFLAGS]
+
+    ; حفظ عنوان الإرجاع كـ RIP
+    mov rax, [rsp]
+    mov [rdi + CTX_RIP], rax
+
+    ; حفظ سجلات القطاعات
+    mov ax, cs
+    movzx rax, ax
+    mov [rdi + CTX_CS], rax
+    mov ax, ss
+    movzx rax, ax
+    mov [rdi + CTX_SS], rax
+    mov ax, ds
+    movzx rax, ax
+    mov [rdi + CTX_DS], rax
+    mov ax, es
+    movzx rax, ax
+    mov [rdi + CTX_ES], rax
+
+    ; حفظ قواعد FS/GS
+    push rcx
+    push rdx
+    mov ecx, MSR_FS_BASE
+    rdmsr
+    shl rdx, 32
+    or rax, rdx
+    mov [rdi + CTX_FS_BASE], rax
+
+    mov ecx, MSR_GS_BASE
+    rdmsr
+    shl rdx, 32
+    or rax, rdx
+    mov [rdi + CTX_GS_BASE], rax
+    pop rdx
+    pop rcx
+
+    ; حفظ CR3
+    mov rax, cr3
+    mov [rdi + CTX_CR3], rax
+
+    ; حفظ حالة FPU/SSE
+    lea rax, [rdi + CTX_FPU]
+    fxsave [rax]
+
+    ; استعادة rax
+    mov rax, [rdi + CTX_RAX]
+    ret
+
+; ──────────────────────────────────────────────────────────────────────────────
+; استعادة_السياق - استعادة سياق مهمة
+; المدخلات: rdi = مؤشر إلى بنية السياق
+; ──────────────────────────────────────────────────────────────────────────────
+استعادة_السياق:
+    ; استعادة CR3 (جدول الصفحات)
+    mov rax, [rdi + CTX_CR3]
+    mov cr3, rax
+
+    ; استعادة حالة FPU/SSE
+    lea rax, [rdi + CTX_FPU]
+    fxrstor [rax]
+
+    ; استعادة قواعد FS/GS
+    push rcx
+    push rdx
+    mov rax, [rdi + CTX_FS_BASE]
+    mov rdx, rax
+    shr rdx, 32
+    mov ecx, MSR_FS_BASE
+    wrmsr
+
+    mov rax, [rdi + CTX_GS_BASE]
+    mov rdx, rax
+    shr rdx, 32
+    mov ecx, MSR_GS_BASE
+    wrmsr
+    pop rdx
+    pop rcx
+
+    ; استعادة السجلات العامة
+    mov rbx, [rdi + CTX_RBX]
+    mov rcx, [rdi + CTX_RCX]
+    mov rdx, [rdi + CTX_RDX]
+    mov rsi, [rdi + CTX_RSI]
+    mov rbp, [rdi + CTX_RBP]
+    mov r8,  [rdi + CTX_R8]
+    mov r9,  [rdi + CTX_R9]
+    mov r10, [rdi + CTX_R10]
+    mov r11, [rdi + CTX_R11]
+    mov r12, [rdi + CTX_R12]
+    mov r13, [rdi + CTX_R13]
+    mov r14, [rdi + CTX_R14]
+    mov r15, [rdi + CTX_R15]
+    mov rsp, [rdi + CTX_RSP]
+
+    ; استعادة الأعلام
+    push qword [rdi + CTX_RFLAGS]
+    popfq
+
+    mov rax, [rdi + CTX_RAX]
+    mov rdi, [rdi + CTX_RDI]
+    ret
+
+; ──────────────────────────────────────────────────────────────────────────────
+; تبديل_مهمة - تبديل من مهمة إلى أخرى
+; المدخلات: rdi = مؤشر سياق المهمة الحالية
+;           rsi = مؤشر سياق المهمة التالية
+; ──────────────────────────────────────────────────────────────────────────────
+تبديل_مهمة:
+    ; حفظ سياق المهمة الحالية
+    call حفظ_السياق
+
+    ; تبديل إلى المهمة الجديدة
+    mov rdi, rsi
+    call استعادة_السياق
+    ret
+
+; ──────────────────────────────────────────────────────────────────────────────
+; القفز_إلى_مهمة - القفز مباشرة إلى مهمة (أول تنفيذ)
+; المدخلات: rdi = مؤشر سياق المهمة
+; ──────────────────────────────────────────────────────────────────────────────
+القفز_إلى_مهمة:
+    call استعادة_السياق
+    ; القفز إلى RIP المحفوظ
+    mov rax, [rdi + CTX_RIP]
+    jmp rax

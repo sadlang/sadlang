@@ -1,0 +1,4 @@
+﻿متغير ن = acpi_shutdown()
+اطبع_سطر("acpi_shutdown = " + ن)
+متغير ن2 = acpi_reboot()
+اطبع_سطر("acpi_reboot = " + ن2)

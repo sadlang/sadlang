@@ -1,0 +1,329 @@
+/**
+ * @file builtin_registry_part37.cpp
+ * @brief (AR) وحدة FFI — محاكاة الاتصال بالمكتبات الخارجية
+ * @brief (EN) FFI module — self-contained stub simulation
+ */
+
+#include "interpreter_core.h"
+#include "value.h"
+
+#include <sstream>
+#include <unordered_map>
+#include <string>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
+
+namespace Sad {
+namespace Interpreter {
+
+// Self-contained FFI stub using platform-native library loading
+namespace {
+    struct StubLibrary {
+        std::string path;
+#ifdef _WIN32
+        HMODULE handle = nullptr;
+#else
+        void* handle = nullptr;
+#endif
+        bool loaded = false;
+
+        StubLibrary(const std::string& p) : path(p) {
+#ifdef _WIN32
+            handle = LoadLibraryA(p.c_str());
+            loaded = (handle != nullptr);
+#else
+            handle = dlopen(p.c_str(), RTLD_LAZY);
+            loaded = (handle != nullptr);
+#endif
+        }
+
+        ~StubLibrary() {
+#ifdef _WIN32
+            if (handle) FreeLibrary(handle);
+#else
+            if (handle) dlclose(handle);
+#endif
+        }
+
+        bool isLoaded() const { return loaded; }
+        const std::string& getPath() const { return path; }
+
+        bool hasSymbol(const std::string& name) const {
+            if (!handle) return false;
+#ifdef _WIN32
+            return GetProcAddress(handle, name.c_str()) != nullptr;
+#else
+            return dlsym(handle, name.c_str()) != nullptr;
+#endif
+        }
+
+        void* getSymbol(const std::string& name) const {
+            if (!handle) return nullptr;
+#ifdef _WIN32
+            return reinterpret_cast<void*>(GetProcAddress(handle, name.c_str()));
+#else
+            return dlsym(handle, name.c_str());
+#endif
+        }
+    };
+
+    static std::unordered_map<uint64_t, std::shared_ptr<StubLibrary>> g_libraries;
+    static uint64_t g_nextLibId = 1;
+}
+
+void registerBuiltinsPart37(Interpreter& interpreter) {
+    auto& fm = interpreter.getFunctionManager();
+
+    // (1) مكتبة_حمل / ffi_load
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            if (args.empty()) return std::make_shared<Data::Value>(-1.0);
+            std::string path = args[0]->toString();
+            try {
+                auto lib = std::make_shared<StubLibrary>(path);
+                if (!lib->isLoaded()) return std::make_shared<Data::Value>(-1.0);
+                uint64_t id = g_nextLibId++;
+                g_libraries[id] = lib;
+                return std::make_shared<Data::Value>(static_cast<double>(id));
+            } catch (...) {
+                return std::make_shared<Data::Value>(-1.0);
+            }
+        };
+        fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xad\xd9\x85\xd9\x84", f); // مكتبة_حمل
+        fm.registerBuiltinFunction("ffi_load", f);
+    }
+
+    // (2) مكتبة_أفرغ / ffi_unload
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            if (args.empty()) return std::make_shared<Data::Value>(false);
+            uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
+            return std::make_shared<Data::Value>(g_libraries.erase(id) > 0);
+        };
+        fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xa3\xd9\x81\xd8\xb1\xd8\xba", f); // مكتبة_أفرغ
+        fm.registerBuiltinFunction("ffi_unload", f);
+    }
+
+    // (3) مكتبة_دالة / ffi_get_func
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            if (args.size() < 2) return std::make_shared<Data::Value>(false);
+            uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
+            std::string funcName = args[1]->toString();
+            auto it = g_libraries.find(libId);
+            if (it == g_libraries.end()) return std::make_shared<Data::Value>(false);
+            bool hasFunc = it->second->hasSymbol(funcName);
+            return std::make_shared<Data::Value>(hasFunc);
+        };
+        fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9", f); // مكتبة_دالة
+        fm.registerBuiltinFunction("ffi_get_func", f);
+    }
+
+    // (4) مكتبة_استدع / ffi_call
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            if (args.size() < 2) return std::make_shared<Data::Value>(false);
+            uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
+            std::string funcName = args[1]->toString();
+            auto it = g_libraries.find(libId);
+            if (it == g_libraries.end())
+                return std::make_shared<Data::Value>(std::string("خطأ: مكتبة غير موجودة"));
+            if (!it->second->hasSymbol(funcName))
+                return std::make_shared<Data::Value>(std::string("خطأ: دالة غير موجودة: " + funcName));
+            auto* rawFunc = reinterpret_cast<void(*)()>(it->second->getSymbol(funcName));
+            if (rawFunc) {
+                rawFunc();
+                return std::make_shared<Data::Value>(true);
+            }
+            return std::make_shared<Data::Value>(false);
+        };
+        fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9", f); // مكتبة_استدع
+        fm.registerBuiltinFunction("ffi_call", f);
+    }
+
+    // (5) مكتبة_استدع_رقم / ffi_call_int
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            if (args.size() < 2) return std::make_shared<Data::Value>(-1.0);
+            uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
+            std::string funcName = args[1]->toString();
+            auto it = g_libraries.find(libId);
+            if (it == g_libraries.end()) return std::make_shared<Data::Value>(-1.0);
+            auto* rawFunc = reinterpret_cast<int(*)()>(it->second->getSymbol(funcName));
+            if (rawFunc) {
+                int result = rawFunc();
+                return std::make_shared<Data::Value>(static_cast<double>(result));
+            }
+            return std::make_shared<Data::Value>(-1.0);
+        };
+        fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9_\xd8\xb1\xd9\x82\xd9\x85", f); // مكتبة_استدع_رقم
+        fm.registerBuiltinFunction("ffi_call_int", f);
+    }
+
+    // (6) مكتبة_استدع_نص / ffi_call_string
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            if (args.size() < 2) return std::make_shared<Data::Value>(std::string(""));
+            uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
+            std::string funcName = args[1]->toString();
+            auto it = g_libraries.find(libId);
+            if (it == g_libraries.end()) return std::make_shared<Data::Value>(std::string(""));
+            auto* rawFunc = reinterpret_cast<const char*(*)()>(it->second->getSymbol(funcName));
+            if (rawFunc) {
+                const char* result = rawFunc();
+                return std::make_shared<Data::Value>(std::string(result ? result : ""));
+            }
+            return std::make_shared<Data::Value>(std::string(""));
+        };
+        fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9_\xd9\x86\xd8\xb5", f); // مكتبة_استدع_نص
+        fm.registerBuiltinFunction("ffi_call_string", f);
+    }
+
+    // (7) مكتبة_رمز / ffi_has_symbol
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            if (args.size() < 2) return std::make_shared<Data::Value>(false);
+            uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
+            std::string symbol = args[1]->toString();
+            auto it = g_libraries.find(libId);
+            if (it == g_libraries.end()) return std::make_shared<Data::Value>(false);
+            return std::make_shared<Data::Value>(it->second->hasSymbol(symbol));
+        };
+        fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xb1\xd9\x85\xd8\xb2", f); // مكتبة_رمز
+        fm.registerBuiltinFunction("ffi_has_symbol", f);
+    }
+
+    // (8) مكتبة_مسار / ffi_path
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            if (args.empty()) return std::make_shared<Data::Value>(std::string(""));
+            uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
+            auto it = g_libraries.find(libId);
+            if (it == g_libraries.end()) return std::make_shared<Data::Value>(std::string(""));
+            return std::make_shared<Data::Value>(it->second->getPath());
+        };
+        fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1", f); // مكتبة_مسار
+        fm.registerBuiltinFunction("ffi_path", f);
+    }
+
+    // (9) مكتبة_قائمة / ffi_list
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            std::vector<Data::Value> result;
+            for (auto& [id, lib] : g_libraries) {
+                result.push_back(Data::Value(static_cast<double>(id)));
+            }
+            return std::make_shared<Data::Value>(result);
+        };
+        fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9", f); // مكتبة_قائمة
+        fm.registerBuiltinFunction("ffi_list", f);
+    }
+
+    // (10) مكتبة_عدد / ffi_count
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            return std::make_shared<Data::Value>(static_cast<double>(g_libraries.size()));
+        };
+        fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xb9\xd8\xaf\xd8\xaf", f); // مكتبة_عدد
+        fm.registerBuiltinFunction("ffi_count", f);
+    }
+
+    // (11) نوع_حجم / type_size
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            if (args.empty()) return std::make_shared<Data::Value>(0.0);
+            std::string typeName = args[0]->toString();
+            size_t size = 0;
+            if (typeName == "int" || typeName == "عدد_صحيح") size = sizeof(int);
+            else if (typeName == "long" || typeName == "عدد_طويل") size = sizeof(long long);
+            else if (typeName == "float" || typeName == "عشري") size = sizeof(float);
+            else if (typeName == "double" || typeName == "عشري_مزدوج") size = sizeof(double);
+            else if (typeName == "char" || typeName == "حرف") size = sizeof(char);
+            else if (typeName == "pointer" || typeName == "مؤشر") size = sizeof(void*);
+            else if (typeName == "bool" || typeName == "منطقي") size = sizeof(bool);
+            return std::make_shared<Data::Value>(static_cast<double>(size));
+        };
+        fm.registerBuiltinFunction("\xd9\x86\xd9\x88\xd8\xb9_\xd8\xad\xd8\xac\xd9\x85", f); // نوع_حجم
+        fm.registerBuiltinFunction("type_size", f);
+    }
+
+    // (12) نوع_محاذاة / type_alignment
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            if (args.empty()) return std::make_shared<Data::Value>(0.0);
+            std::string typeName = args[0]->toString();
+            size_t align = 0;
+            if (typeName == "int") align = alignof(int);
+            else if (typeName == "long") align = alignof(long long);
+            else if (typeName == "double") align = alignof(double);
+            else if (typeName == "pointer") align = alignof(void*);
+            else align = 1;
+            return std::make_shared<Data::Value>(static_cast<double>(align));
+        };
+        fm.registerBuiltinFunction("\xd9\x86\xd9\x88\xd8\xb9_\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9", f); // نوع_محاذاة
+        fm.registerBuiltinFunction("type_alignment", f);
+    }
+
+    // (13) نوع_مؤشر / pointer_size
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+            return std::make_shared<Data::Value>(static_cast<double>(sizeof(void*) * 8));
+        };
+        fm.registerBuiltinFunction("\xd9\x86\xd9\x88\xd8\xb9_\xd9\x85\xd8\xa4\xd8\xb4\xd8\xb1", f); // نوع_مؤشر
+        fm.registerBuiltinFunction("pointer_size", f);
+    }
+
+    // (14) منصة / platform
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+#ifdef _WIN32
+            return std::make_shared<Data::Value>(std::string("ويندوز"));
+#elif __APPLE__
+            return std::make_shared<Data::Value>(std::string("ماك"));
+#elif __linux__
+            return std::make_shared<Data::Value>(std::string("لينكس"));
+#else
+            return std::make_shared<Data::Value>(std::string("غير معروف"));
+#endif
+        };
+        fm.registerBuiltinFunction("\xd9\x85\xd9\x86\xd8\xb5\xd8\xa9", f); // منصة
+        fm.registerBuiltinFunction("platform", f);
+    }
+
+    // (15) امتداد_مكتبة / lib_extension
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
+            -> std::shared_ptr<Data::Value> {
+#ifdef _WIN32
+            return std::make_shared<Data::Value>(std::string(".dll"));
+#elif __APPLE__
+            return std::make_shared<Data::Value>(std::string(".dylib"));
+#else
+            return std::make_shared<Data::Value>(std::string(".so"));
+#endif
+        };
+        fm.registerBuiltinFunction("\xd8\xa7\xd9\x85\xd8\xaa\xd8\xaf\xd8\xa7\xd8\xaf_\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9", f); // امتداد_مكتبة
+        fm.registerBuiltinFunction("lib_extension", f);
+    }
+}
+
+} // namespace Interpreter
+} // namespace Sad

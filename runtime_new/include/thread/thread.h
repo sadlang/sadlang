@@ -1,23 +1,58 @@
 /*
  * بسم الله الرحمن الرحيم
- * ================================
- * نظام إدارة الخيوط / Thread Management System
- * ================================
- * 
- * نظام متقدم لإدارة الخيوط والتزامن للغة Sad
- * Advanced threading and synchronization system for Sad language
- * 
- * الميزات / Features:
- * - Thread creation and management
- * - Thread pools for efficient execution
- * - Synchronization primitives (mutex, rwlock, semaphore)
- * - Condition variables
- * - Thread-local storage
- * - Lock-free atomic operations
- * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * ملف: thread.h
+ * الوصف: نظام إدارة الخيوط والتزامن المتقدم للغة ص
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * الغرض من هذا الملف:
+ * ──────────────────
+ * يوفر هذا الملف نظاماً شاملاً لإدارة الخيوط (Threads) والتزامن
+ * (Synchronization) لوقت تشغيل لغة ص. يغلّف آليات نظام التشغيل
+ * بواجهة عربية/إنجليزية موحدة تعمل على Windows وLinux وmacOS.
+ *
+ * المكونات الرئيسية:
+ * ─────────────────
+ * - Thread: فئة الخيط الأساسية — إنشاء وبدء وإيقاف وانتظار الخيوط
+ *   تدعم: الأولويات (5 مستويات)، ربط بمعالج محدد (CPU affinity)،
+ *   الفصل (detach)، وطلب الإيقاف الآمن (cooperative stop)
+ * - ThreadPool: تجمع خيوط لتنفيذ المهام بكفاءة — يعيد استخدام
+ *   الخيوط بدلاً من إنشاء وتدمير خيط لكل مهمة
+ * - Mutex: قفل تبادلي (mutual exclusion) لحماية البيانات المشتركة
+ * - RWLock: قفل قراءة/كتابة — يسمح بقراءة متعددة أو كتابة واحدة
+ * - Semaphore: إشارة ضوئية للتحكم بالوصول لعدد محدود من الموارد
+ * - ConditionVariable: متغير شرطي — انتظر حتى يتحقق شرط معين
+ * - ThreadLocal: تخزين محلي للخيط — كل خيط له نسخته الخاصة
+ * - AtomicOps: عمليات ذرية بدون أقفال (lock-free)
+ * - ThreadState: حالات الخيط (مُنشأ، يعمل، محجوب، نائم، منتهٍ)
+ * - ThreadPriority: أولويات الخيط (أدنى، منخفضة، عادية، عالية، أعلى)
+ *
+ * الموقع في البنية العامة:
+ * ───────────────────────
+ *   runtime_new/
+ *   ├── memory/ ← إدارة الذاكرة (المخصص + جامع القمامة)
+ *   ├── vm/ ← الآلة الافتراضية
+ *   ├── [thread/ — هذا الملف] ← إدارة الخيوط والتزامن
+ *   ├── ffi/ ← الاتصال بالمكتبات الخارجية
+ *   └── exception/ ← معالجة الاستثناءات
+ *
+ * أمثلة الاستخدام (من كود ص):
+ * ──────────────────────────
+ *   متغير خ = خيط_جديد(دالة() اطبع("مرحباً من خيط!") نهاية)
+ *   خ.ابدأ()
+ *   خ.انتظر()
+ *
+ * الاعتماديات:
+ * ──────────
+ * - <thread>, <mutex>, <condition_variable>: مكتبة C++ القياسية للخيوط
+ * - <atomic>: للعمليات الذرية بدون أقفال
+ * - <chrono>: لعمليات النوم والمهل الزمنية
+ * - <queue>: لقائمة انتظار المهام في ThreadPool
+ *
  * @file runtime/thread/thread.h
  * @author SadLang Compiler Team
  * @date December 2025
+ * ═══════════════════════════════════════════════════════════════════════════
  */
 
 #ifndef SAD_RUNTIME_THREAD_H
@@ -468,6 +503,26 @@ public:
             std::unique_lock<std::mutex>(lock.mutex()->native()), 
             duration
         ) == std::cv_status::no_timeout;
+    }
+
+    /**
+     * الانتظار لفترة مع شرط / Wait for duration with predicate
+     */
+    template<typename Rep, typename Period, typename Predicate>
+    bool wait_for(UniqueLock& lock,
+                  const std::chrono::duration<Rep, Period>& duration,
+                  Predicate pred) {
+        auto end = std::chrono::steady_clock::now() + duration;
+        while (!pred()) {
+            auto remaining = end - std::chrono::steady_clock::now();
+            if (remaining <= std::chrono::duration<Rep, Period>::zero()) {
+                return pred();
+            }
+            if (!wait_for(lock, std::chrono::duration_cast<std::chrono::duration<Rep, Period>>(remaining))) {
+                return pred();
+            }
+        }
+        return true;
     }
     
     /**

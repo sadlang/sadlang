@@ -89,6 +89,12 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async, bool i
         auto tok = current_;
         advance();
         name = Token(TT::IDENTIFIER, tok.getValue(), tok.getPosition());
+    } else if (isKeywordUsableAsName(current_.getType())) {
+        // (AR) كلمة مفتاحية ناعمة مستخدمة كاسم دالة (مثلاً: دالة احصل(...))
+        // (EN) Soft keyword used as function name (e.g., function احصل(...))
+        auto tok = current_;
+        advance();
+        name = Token(TT::IDENTIFIER, tok.getValue(), tok.getPosition());
     } else {
         // Expect function name (for regular functions)
         // (AR) توقع اسم الدالة (للدوال العادية)

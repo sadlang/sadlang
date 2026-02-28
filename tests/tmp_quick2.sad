@@ -1,0 +1,2 @@
+﻿متغير نتيجة = acpi_init()
+اطبع_سطر("acpi_init returned: " + نتيجة)

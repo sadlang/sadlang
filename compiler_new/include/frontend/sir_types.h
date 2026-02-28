@@ -60,7 +60,10 @@ enum class SIRType {
     ARRAY,      ///< مصفوفة / array
     STRING,     ///< نص / string
     STRUCT,     ///< بنية/كائن / struct/object
-    FUNCTION    ///< دالة / function pointer
+    FUNCTION,   ///< دالة / function pointer
+    MAP,        ///< قاموس/خريطة / dictionary/map
+    BYTE,       ///< بايت (8-bit) / byte
+    ERROR       ///< خطأ / error type
 };
 
 /**
@@ -78,6 +81,9 @@ inline const char* sirTypeToString(SIRType type) {
         case SIRType::STRING:   return "string";
         case SIRType::STRUCT:   return "struct";
         case SIRType::FUNCTION: return "function";
+        case SIRType::MAP:      return "map";
+        case SIRType::BYTE:     return "byte";
+        case SIRType::ERROR:    return "error";
         default:                return "unknown";
     }
 }
@@ -412,6 +418,239 @@ enum class SIROpcode {
     ASYNC_WAIT_ALL,      ///< انتظر_الكل / wait_all — wait for all tasks
     ASYNC_WAIT_ANY,      ///< انتظر_أي / wait_any — wait for any task
     ASYNC_SELECT,        ///< اختر_قناة / select — select on multiple channels
+
+    // ========================================================================
+    // Section 15: عمليات وحدات نظام التشغيل المتقدمة / Advanced OS Module Operations
+    // ========================================================================
+    // (AR) هذا القسم يضيف دعم المترجم للمكتبة المنخفضة المستوى الكاملة (19 وحدة)
+    //      للعمل في وضع بدون نظام تشغيل (freestanding/bare-metal)
+    // (EN) This section adds compiler support for the full low-level library (19 modules)
+    //      for freestanding/bare-metal OS development
+
+    // --- 15a. وحدة المعالج المتقدمة / Advanced CPU Module (8) ---
+    LOWLEVEL_CPU_GET_INFO,       ///< معلومات_المعالج / cpu_get_info — get full CPU info struct
+    LOWLEVEL_CPU_GET_FEATURES,   ///< ميزات_المعالج / cpu_get_features — get CPU feature flags
+    LOWLEVEL_CPU_READ_MSR,       ///< اقرأ_سجل_نموذج / read_msr — read model-specific register
+    LOWLEVEL_CPU_WRITE_MSR,      ///< اكتب_سجل_نموذج / write_msr — write model-specific register
+    LOWLEVEL_CPU_READ_CR,        ///< اقرأ_سجل_تحكم / read_cr — read control register (0-4)
+    LOWLEVEL_CPU_WRITE_CR,       ///< اكتب_سجل_تحكم / write_cr — write control register (0,3,4)
+    LOWLEVEL_CPU_INVLPG,         ///< ابطل_صفحة / invlpg — invalidate TLB entry
+    LOWLEVEL_CPU_GET_REPORT,     ///< تقرير_المعالج / cpu_report — full CPU diagnostic report
+
+    // --- 15b. وحدة GDT / GDT Module (3) ---
+    LOWLEVEL_GDT_INIT,           ///< هيئ_جدول_واصفات / gdt_init — initialize GDT
+    LOWLEVEL_GDT_LOAD,           ///< حمل_جدول_واصفات / gdt_load — load GDT register (lgdt)
+    LOWLEVEL_GDT_GET_REPORT,     ///< تقرير_واصفات / gdt_report — GDT diagnostic report
+
+    // --- 15c. وحدة الترحيل / Paging Module (5) ---
+    LOWLEVEL_PAGING_INIT,        ///< هيئ_ترحيل / paging_init — initialize paging
+    LOWLEVEL_PAGING_MAP,         ///< رحل_صفحة / paging_map — map virtual to physical page
+    LOWLEVEL_PAGING_UNMAP,       ///< الغ_ترحيل / paging_unmap — unmap a virtual page
+    LOWLEVEL_PAGING_FLUSH_TLB,   ///< افرغ_ذاكرة_ترجمة / paging_flush_tlb — flush entire TLB
+    LOWLEVEL_PAGING_GET_REPORT,  ///< تقرير_ترحيل / paging_report — paging diagnostic report
+
+    // --- 15d. وحدة المقاطعات المتقدمة / Advanced Interrupts Module (5) ---
+    LOWLEVEL_IDT_INIT,           ///< هيئ_جدول_مقاطعات / idt_init — initialize IDT
+    LOWLEVEL_IDT_LOAD,           ///< حمل_جدول_مقاطعات / idt_load — load IDT register (lidt)
+    LOWLEVEL_IDT_REGISTER_ISR,   ///< سجل_معالج_مقاطعة / register_isr — register ISR handler
+    LOWLEVEL_IDT_ENABLE_IRQ,     ///< فعل_طلب_مقاطعة / enable_irq — enable IRQ line
+    LOWLEVEL_IDT_GET_REPORT,     ///< تقرير_مقاطعات / idt_report — interrupt diagnostic report
+
+    // --- 15e. وحدة PCI / PCI Module (5) ---
+    LOWLEVEL_PCI_ENUMERATE,      ///< عدد_أجهزة_ناقل / pci_enumerate — enumerate PCI devices
+    LOWLEVEL_PCI_READ_CONFIG,    ///< اقرأ_اعدادات_ناقل / pci_read_config — read PCI config register
+    LOWLEVEL_PCI_WRITE_CONFIG,   ///< اكتب_اعدادات_ناقل / pci_write_config — write PCI config register
+    LOWLEVEL_PCI_GET_DEVICE_COUNT, ///< عدد_الأجهزة / pci_device_count — get PCI device count
+    LOWLEVEL_PCI_GET_REPORT,     ///< تقرير_ناقل / pci_report — PCI diagnostic report
+
+    // --- 15f. وحدة DMA المتقدمة / Advanced DMA Module (4) ---
+    LOWLEVEL_DMA_INIT,           ///< هيئ_نقل_مباشر / dma_init_full — initialize DMA controller
+    LOWLEVEL_DMA_TRANSFER,       ///< ابدأ_نقل / dma_transfer — start DMA transfer
+    LOWLEVEL_DMA_STATUS,         ///< حالة_نقل / dma_status — check DMA transfer status
+    LOWLEVEL_DMA_GET_REPORT,     ///< تقرير_نقل / dma_report — DMA diagnostic report
+
+    // --- 15g. وحدة الشاشة / Framebuffer Module (8) ---
+    LOWLEVEL_FB_INIT,            ///< هيئ_شاشة / fb_init — initialize framebuffer
+    LOWLEVEL_FB_SET_PIXEL,       ///< ارسم_نقطة / fb_set_pixel — set pixel (x, y, color)
+    LOWLEVEL_FB_DRAW_RECT,       ///< ارسم_مستطيل / fb_draw_rect — draw rectangle outline
+    LOWLEVEL_FB_FILL_RECT,       ///< املأ_مستطيل / fb_fill_rect — fill rectangle
+    LOWLEVEL_FB_DRAW_LINE,       ///< ارسم_خط / fb_draw_line — draw line
+    LOWLEVEL_FB_DRAW_STRING,     ///< ارسم_نص / fb_draw_string — draw text string
+    LOWLEVEL_FB_CLEAR,           ///< امسح_شاشة / fb_clear — clear framebuffer
+    LOWLEVEL_FB_GET_REPORT,      ///< تقرير_شاشة / fb_report — framebuffer diagnostic report
+
+    // --- 15h. وحدة ACPI / ACPI Module (4) ---
+    LOWLEVEL_ACPI_INIT,          ///< هيئ_طاقة / acpi_init — initialize ACPI
+    LOWLEVEL_ACPI_FIND_TABLE,    ///< ابحث_جدول_طاقة / acpi_find_table — find ACPI table
+    LOWLEVEL_ACPI_SHUTDOWN,      ///< اطفئ / acpi_shutdown — power off system
+    LOWLEVEL_ACPI_GET_REPORT,    ///< تقرير_طاقة / acpi_report — ACPI diagnostic report
+
+    // --- 15i. وحدة التزامن / Sync Module (8) ---
+    LOWLEVEL_SPINLOCK_INIT,      ///< هيئ_قفل_دوار / spinlock_init — init spinlock
+    LOWLEVEL_SPINLOCK_LOCK,      ///< اقفل_دوار / spinlock_lock — acquire spinlock
+    LOWLEVEL_SPINLOCK_UNLOCK,    ///< افتح_قفل_دوار / spinlock_unlock — release spinlock
+    LOWLEVEL_MUTEX_INIT,         ///< هيئ_كابح / mutex_init — init mutex
+    LOWLEVEL_MUTEX_LOCK,         ///< اقفل_كابح / mutex_lock — acquire mutex
+    LOWLEVEL_MUTEX_UNLOCK,       ///< افتح_كابح / mutex_unlock — release mutex
+    LOWLEVEL_SEMAPHORE_INIT,     ///< هيئ_اشارة / semaphore_init — init semaphore
+    LOWLEVEL_BARRIER_INIT,       ///< هيئ_حاجز / barrier_init — init barrier
+
+    // --- 15j. وحدة المجدول / Scheduler Module (6) ---
+    LOWLEVEL_SCHED_INIT,         ///< هيئ_مجدول / sched_init — initialize scheduler
+    LOWLEVEL_SCHED_CREATE_PROC,  ///< انشئ_عملية / sched_create_process — create process
+    LOWLEVEL_SCHED_CREATE_THREAD,///< انشئ_خيط_نواة / sched_create_thread — create kernel thread
+    LOWLEVEL_SCHED_YIELD,        ///< تنازل / sched_yield — yield current thread
+    LOWLEVEL_SCHED_SLEEP,        ///< نوم_مجدول / sched_sleep — sleep thread (ms)
+    LOWLEVEL_SCHED_GET_REPORT,   ///< تقرير_مجدول / sched_report — scheduler diagnostic report
+
+    // --- 15k. وحدة الإقلاع / Boot Module (3) ---
+    LOWLEVEL_BOOT_GET_INFO,      ///< معلومات_اقلاع / boot_info — get boot information
+    LOWLEVEL_BOOT_GET_MEMORY_MAP,///< خريطة_ذاكرة_اقلاع / boot_memory_map — get boot memory map
+    LOWLEVEL_BOOT_GET_REPORT,    ///< تقرير_اقلاع / boot_report — boot diagnostic report
+
+    // --- 15l. وحدة نظام الملفات الافتراضي / VFS Module (7) ---
+    LOWLEVEL_VFS_MOUNT,          ///< حمل_قرص / vfs_mount — mount filesystem
+    LOWLEVEL_VFS_UNMOUNT,        ///< افصل_قرص / vfs_unmount — unmount filesystem
+    LOWLEVEL_VFS_OPEN,           ///< افتح_ملف / vfs_open — open file
+    LOWLEVEL_VFS_READ,           ///< اقرأ_ملف_نواة / vfs_read — read from file
+    LOWLEVEL_VFS_WRITE,          ///< اكتب_ملف_نواة / vfs_write — write to file
+    LOWLEVEL_VFS_CLOSE,          ///< اغلق_ملف_نواة / vfs_close — close file
+    LOWLEVEL_VFS_GET_REPORT,     ///< تقرير_ملفات / vfs_report — VFS diagnostic report
+
+    // --- 15m. وحدة APIC / APIC Module (5) ---
+    LOWLEVEL_APIC_INIT,          ///< هيئ_متحكم_مقاطعات / apic_init — initialize APIC
+    LOWLEVEL_APIC_SEND_EOI,      ///< ارسل_نهاية_مقاطعة / apic_send_eoi — send End-Of-Interrupt
+    LOWLEVEL_APIC_SEND_IPI,      ///< ارسل_مقاطعة_معالج / apic_send_ipi — send inter-processor interrupt
+    LOWLEVEL_APIC_SET_TIMER,     ///< اضبط_مؤقت_متحكم / apic_set_timer — configure APIC timer
+    LOWLEVEL_APIC_GET_REPORT,    ///< تقرير_متحكم_مقاطعات / apic_report — APIC diagnostic report
+
+    // --- 15n. وحدة HPET / HPET Module (4) ---
+    LOWLEVEL_HPET_INIT,          ///< هيئ_مؤقت_دقيق / hpet_init — initialize HPET timer
+    LOWLEVEL_HPET_READ,          ///< اقرأ_مؤقت_دقيق / hpet_read — read HPET counter
+    LOWLEVEL_HPET_SLEEP,         ///< نوم_دقيق / hpet_sleep — precision sleep (nanoseconds)
+    LOWLEVEL_HPET_GET_REPORT,    ///< تقرير_مؤقت_دقيق / hpet_report — HPET diagnostic report
+
+    // --- 15o. وحدة استدعاءات النظام / Syscall Module (4) ---
+    LOWLEVEL_SYSCALL_INIT,       ///< هيئ_استدعاءات / syscall_init — initialize SYSCALL/SYSRET
+    LOWLEVEL_SYSCALL_REGISTER,   ///< سجل_استدعاء / syscall_register — register syscall handler
+    LOWLEVEL_SYSCALL_INVOKE,     ///< نفذ_استدعاء / syscall_invoke — invoke syscall by number
+    LOWLEVEL_SYSCALL_GET_REPORT, ///< تقرير_استدعاءات / syscall_report — syscall diagnostic report
+
+    // --- 15p. عمليات الذاكرة المتقدمة / Advanced Memory Operations (4) ---
+    LOWLEVEL_MEM_ALLOC_PHYS,     ///< خصص_فيزيائي / alloc_physical — allocate physical memory frame
+    LOWLEVEL_MEM_FREE_PHYS,      ///< حرر_فيزيائي / free_physical — free physical memory frame
+    LOWLEVEL_MEM_MAP_REGION,     ///< رحل_منطقة / map_region — map memory region (MMIO)
+    LOWLEVEL_MEM_GET_REPORT,     ///< تقرير_ذاكرة_نواة / mem_report — memory diagnostic report
+
+    // =================================================================
+    // القسم 16: بروتوكول الإقلاع الموحد UEFI / UEFI Boot Protocol
+    // =================================================================
+
+    // --- 16a. التهيئة والتحكم / Initialization & Control (5) ---
+    LOWLEVEL_UEFI_INIT,               ///< uefi_تهيئة / uefi_initialize — initialize UEFI environment
+    LOWLEVEL_UEFI_EXIT_BOOT_SERVICES, ///< uefi_إنهاء_خدمات_إقلاع / uefi_exit_boot_services — exit boot services
+    LOWLEVEL_UEFI_IS_INITIALIZED,     ///< uefi_هل_مهيأ / uefi_is_initialized — check if UEFI initialized
+    LOWLEVEL_UEFI_BS_EXITED,          ///< uefi_خدمات_إقلاع_منتهية / uefi_boot_services_exited
+    LOWLEVEL_UEFI_RESET_SYSTEM,       ///< uefi_إعادة_تشغيل / uefi_reset_system — reset/shutdown
+
+    // --- 16b. إدارة الذاكرة / Memory Services (7) ---
+    LOWLEVEL_UEFI_ALLOC_PAGES,        ///< uefi_تخصيص_صفحات / uefi_allocate_pages
+    LOWLEVEL_UEFI_FREE_PAGES,         ///< uefi_تحرير_صفحات / uefi_free_pages
+    LOWLEVEL_UEFI_ALLOC_POOL,         ///< uefi_تخصيص_كتلة / uefi_allocate_pool
+    LOWLEVEL_UEFI_FREE_POOL,          ///< uefi_تحرير_كتلة / uefi_free_pool
+    LOWLEVEL_UEFI_GET_MEMORY_MAP,     ///< uefi_خريطة_ذاكرة / uefi_get_memory_map
+    LOWLEVEL_UEFI_GET_MEMMAP_KEY,     ///< uefi_مفتاح_خريطة / uefi_get_memory_map_key
+    LOWLEVEL_UEFI_TOTAL_MEMORY,       ///< uefi_ذاكرة_متاحة / uefi_total_memory
+
+    // --- 16c. بروتوكول الرسوميات GOP / Graphics Output Protocol (10) ---
+    LOWLEVEL_UEFI_INIT_GOP,           ///< uefi_تهيئة_رسوميات / uefi_init_gop
+    LOWLEVEL_UEFI_SET_GOP_MODE,       ///< uefi_تعيين_وضع_رسوميات / uefi_set_gop_mode
+    LOWLEVEL_UEFI_QUERY_GOP_MODE,     ///< uefi_استعلام_وضع / uefi_query_gop_mode
+    LOWLEVEL_UEFI_GOP_MODE_COUNT,     ///< uefi_عدد_أوضاع_رسوميات / uefi_gop_mode_count
+    LOWLEVEL_UEFI_CURRENT_GOP_MODE,   ///< uefi_وضع_رسوميات_حالي / uefi_current_gop_mode
+    LOWLEVEL_UEFI_FRAMEBUFFER_BASE,   ///< uefi_عنوان_إطار / uefi_framebuffer_base
+    LOWLEVEL_UEFI_FRAMEBUFFER_SIZE,   ///< uefi_حجم_إطار / uefi_framebuffer_size
+    LOWLEVEL_UEFI_FILL_SCREEN,        ///< uefi_ملء_شاشة / uefi_fill_screen
+    LOWLEVEL_UEFI_DRAW_RECT,          ///< uefi_رسم_مستطيل / uefi_draw_rect
+    LOWLEVEL_UEFI_GOP_BLT,            ///< uefi_blt / uefi_gop_blt — raw BLT operation
+
+    // --- 16d. خدمات وقت التشغيل / Runtime Services (4) ---
+    LOWLEVEL_UEFI_GET_TIME,           ///< uefi_الوقت / uefi_get_time
+    LOWLEVEL_UEFI_SET_TIME,           ///< uefi_تعيين_وقت / uefi_set_time
+    LOWLEVEL_UEFI_GET_VARIABLE,       ///< uefi_قراءة_متغير / uefi_get_variable
+    LOWLEVEL_UEFI_SET_VARIABLE,       ///< uefi_كتابة_متغير / uefi_set_variable
+
+    // --- 16e. نظام الملفات / File System (6) ---
+    LOWLEVEL_UEFI_OPEN_VOLUME,        ///< uefi_فتح_وحدة_تخزين / uefi_open_volume
+    LOWLEVEL_UEFI_OPEN_FILE,          ///< uefi_فتح_ملف / uefi_open_file
+    LOWLEVEL_UEFI_READ_FILE,          ///< uefi_قراءة_ملف / uefi_read_file
+    LOWLEVEL_UEFI_WRITE_FILE,         ///< uefi_كتابة_ملف / uefi_write_file
+    LOWLEVEL_UEFI_CLOSE_FILE,         ///< uefi_إغلاق_ملف / uefi_close_file
+    LOWLEVEL_UEFI_FILE_INFO,          ///< uefi_معلومات_ملف / uefi_file_info
+
+    // --- 16f. بروتوكولات ومعلومات / Protocols & System Info (5) ---
+    LOWLEVEL_UEFI_LOCATE_PROTOCOL,    ///< uefi_بحث_بروتوكول / uefi_locate_protocol
+    LOWLEVEL_UEFI_REVISION,           ///< uefi_إصدار / uefi_revision
+    LOWLEVEL_UEFI_VENDOR,             ///< uefi_بائع / uefi_firmware_vendor
+    LOWLEVEL_UEFI_FW_REVISION,        ///< uefi_إصدار_بائع / uefi_firmware_revision
+    LOWLEVEL_UEFI_REPORT,             ///< uefi_تقرير / uefi_report — comprehensive report
+
+    // ============================================================================
+    // القسم 17: ACPI الموسّع / Extended ACPI (Section 17)
+    // ============================================================================
+
+    // --- 17a. تهيئة وتفعيل ACPI / ACPI Init & Control (6) ---
+    LOWLEVEL_ACPI_INIT_FULL,          ///< acpi_تهيئة / acpi_init — full initialization
+    LOWLEVEL_ACPI_INIT_RSDP,          ///< acpi_تهيئة_من_rsdp / acpi_init_from_rsdp
+    LOWLEVEL_ACPI_ENABLE,             ///< acpi_تفعيل / acpi_enable
+    LOWLEVEL_ACPI_DISABLE,            ///< acpi_تعطيل / acpi_disable
+    LOWLEVEL_ACPI_IS_INITIALIZED,     ///< acpi_هل_مهيأ / acpi_is_initialized
+    LOWLEVEL_ACPI_VERSION,            ///< acpi_إصدار / acpi_version
+
+    // --- 17b. إدارة الطاقة / Power Management (3) ---
+    LOWLEVEL_ACPI_REBOOT,             ///< acpi_إعادة_تشغيل / acpi_reboot
+    LOWLEVEL_ACPI_SLEEP,              ///< acpi_نوم / acpi_sleep — enter sleep state
+    LOWLEVEL_ACPI_DELAY_US,           ///< acpi_تأخير / acpi_delay_us — microsecond delay
+
+    // --- 17c. مؤقت ومعالجات / Timer & Processors (4) ---
+    LOWLEVEL_ACPI_READ_PM_TIMER,      ///< acpi_قراءة_مؤقت / acpi_read_pm_timer
+    LOWLEVEL_ACPI_IS_PM_32BIT,        ///< acpi_مؤقت_32بت / acpi_is_pm_timer_32bit
+    LOWLEVEL_ACPI_PROCESSOR_COUNT,    ///< acpi_عدد_معالجات / acpi_processor_count
+    LOWLEVEL_ACPI_LOCAL_APIC_ADDR,    ///< acpi_عنوان_apic / acpi_local_apic_address
+
+    // --- 17d. PCIe ECAM ---
+    LOWLEVEL_ACPI_ECAM_BASE,          ///< acpi_ecam_قاعدة / acpi_ecam_base
+
+    // ============================================================================
+    // القسم 18: APIC الموسّع / Extended APIC (Section 18)
+    // ============================================================================
+
+    // --- 18a. استعلام ومعلومات / Query & Info (4) ---
+    LOWLEVEL_APIC_SUPPORTED,          ///< apic_مدعوم / apic_supported
+    LOWLEVEL_APIC_X2_SUPPORTED,       ///< apic_x2_مدعوم / apic_x2_supported
+    LOWLEVEL_APIC_ID,                 ///< apic_معرّف / apic_id
+    LOWLEVEL_APIC_IO_COUNT,           ///< apic_عدد_io / apic_io_count
+
+    // --- 18b. مؤقت APIC / APIC Timer (5) ---
+    LOWLEVEL_APIC_INIT_TIMER,         ///< apic_تهيئة_مؤقت / apic_init_timer
+    LOWLEVEL_APIC_START_TIMER,        ///< apic_بدء_مؤقت / apic_start_timer
+    LOWLEVEL_APIC_STOP_TIMER,         ///< apic_إيقاف_مؤقت / apic_stop_timer
+    LOWLEVEL_APIC_TIMER_COUNT,        ///< apic_عداد_مؤقت / apic_timer_count
+    LOWLEVEL_APIC_CALIBRATE,          ///< apic_معايرة_مؤقت / apic_calibrate_timer
+
+    // --- 18c. أولوية ومقاطعات / Priority & Interrupts (5) ---
+    LOWLEVEL_APIC_SET_PRIORITY,       ///< apic_أولوية_مهمة / apic_set_priority
+    LOWLEVEL_APIC_DISABLE_PIC,        ///< apic_عطّل_pic / apic_disable_pic
+    LOWLEVEL_APIC_MASK_IRQ,           ///< apic_قناع_irq / apic_mask_irq
+    LOWLEVEL_APIC_UNMASK_IRQ,         ///< apic_إلغاء_قناع_irq / apic_unmask_irq
+    LOWLEVEL_APIC_ROUTE_IRQ,          ///< apic_وجّه_irq / apic_route_irq
+
+    // --- 18d. IPI متقدم / Advanced IPI (5) ---
+    LOWLEVEL_APIC_SEND_IPI_ALL,       ///< apic_أرسل_للكل / apic_send_ipi_all
+    LOWLEVEL_APIC_SEND_INIT_IPI,      ///< apic_أرسل_init / apic_send_init
+    LOWLEVEL_APIC_SEND_SIPI,          ///< apic_أرسل_sipi / apic_send_sipi
+    LOWLEVEL_APIC_WAIT_DELIVERY,      ///< apic_انتظر_تسليم / apic_wait_delivery
+    LOWLEVEL_APIC_INIT_IO,            ///< apic_تهيئة_io / apic_init_io
 };
 
 /**

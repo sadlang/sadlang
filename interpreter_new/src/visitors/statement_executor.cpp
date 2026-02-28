@@ -301,7 +301,7 @@ void StatementExecutor::visitForRangeStmt(AST::ForRangeStmt& node) {
     
     // (AR) التكرار حسب نوع المجموعة / (EN) Iterate based on collection type
     if (iterable.isArray()) {
-        const auto& arr = iterable.toArray();
+        const auto& arr = iterable.toArrayRef();
         
         for (size_t i = 0; i < arr.size(); i++) {
             // (AR) تحديث أو تعريف متغير الحلقة / (EN) Update or define loop variable

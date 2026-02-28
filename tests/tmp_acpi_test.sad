@@ -1,0 +1,4 @@
+متغير ن = acpi_init()
+اطبع_سطر("acpi_init = " + ن)
+متغير ن2 = acpi_is_initialized()
+اطبع_سطر("acpi_is_initialized = " + ن2)

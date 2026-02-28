@@ -42,26 +42,48 @@ void VariableManager::define(const std::string& name, const Value& value) {
     Scope* currentScope = scopeManager_.getCurrentScope();
     
     // ═══════════════════════════════════════════════════════════════
-    // (AR) السماح بإعادة تعريف المتغير في نفس النطاق (variable shadowing)
-    //      بدلاً من رمي خطأ، نقوم بتحديث القيمة مباشرة
-    //      هذا يدعم: متغير س = 5 ... متغير س = 10 في نفس دالة/كتلة
-    // (EN) Allow variable re-declaration in same scope (variable shadowing)
-    //      Instead of throwing, update value directly
-    //      This supports: var x = 5 ... var x = 10 in same function/block
+    // (AR) إصلاح المشكلة 2: منع shadowing داخل الحلقات والكتل
+    //      إذا كان المتغير موجوداً في نطاق أعلى (parent scope)،
+    //      نُحدّث قيمته بدلاً من إنشاء متغير جديد يُخفيه.
+    //      هذا يُصلح: متغير عداد = عداد + 1 داخل بينما
+    // (EN) Fix issue #2: Prevent shadowing inside loops and blocks
+    //      If variable exists in parent scope, update it instead of
+    //      creating a new one that shadows it.
     // ═══════════════════════════════════════════════════════════════
+    
+    // (AR) أولاً: تحقق من النطاق الحالي
+    // (EN) First: check current scope
     if (currentScope->hasVariable(name)) {
-        // (AR) المتغير موجود — نحدّث قيمته فقط
-        // (EN) Variable exists — just update its value
+        // (AR) المتغير موجود في النطاق الحالي — نحدّث قيمته فقط
+        // (EN) Variable exists in current scope — just update its value
         scopeVariables_[currentScope][name] = value;
         return;
     }
     
-    // (AR) تعريف المتغير في مدير النطاقات (تسجيل الاسم)
-    // (EN) Define variable in scope manager (register name)
-    scopeManager_.declareVariable(name);
+    // (AR) ثانياً: تحقق من النطاقات الأعلى (parent scopes)
+    //      إذا وجدنا المتغير، نحدّثه بدلاً من إنشاء جديد
+    // (EN) Second: check parent scopes
+    //      If we find the variable, update it instead of creating new
+    Scope* parentScope = currentScope->getParent();
+    while (parentScope != nullptr) {
+        auto scopeIt = scopeVariables_.find(parentScope);
+        if (scopeIt != scopeVariables_.end()) {
+            auto varIt = scopeIt->second.find(name);
+            if (varIt != scopeIt->second.end()) {
+                // (AR) وجدنا المتغير في نطاق أعلى — نحدّثه!
+                //      هذا يُصلح: متغير عداد = عداد + 1 داخل حلقة
+                // (EN) Found variable in parent scope — update it!
+                //      This fixes: var counter = counter + 1 inside loop
+                varIt->second = value;
+                return;
+            }
+        }
+        parentScope = parentScope->getParent();
+    }
     
-    // (AR) حفظ القيمة في الخريطة
-    // (EN) Store value in map
+    // (AR) المتغير جديد — أنشئه في النطاق الحالي
+    // (EN) Variable is new — create it in current scope
+    scopeManager_.declareVariable(name);
     scopeVariables_[currentScope][name] = value;
 }
 
@@ -86,53 +108,52 @@ void VariableManager::assign(const std::string& name, const Value& value) {
         );
     }
     
-    // (AR) البحث عن النطاق الذي يحتوي على المتغير
-    // (EN) Find scope containing the variable
-    Scope* varScope = findVariableScope(name);
+    // (AR) البحث المباشر عن المتغير وتحديثه — بحث واحد بدلاً من اثنين
+    // (EN) Direct variable lookup and update — single pass instead of two
+    Scope* scope = scopeManager_.getCurrentScope();
+    
+    while (scope != nullptr) {
+        auto scopeIt = scopeVariables_.find(scope);
+        if (scopeIt != scopeVariables_.end()) {
+            auto varIt = scopeIt->second.find(name);
+            if (varIt != scopeIt->second.end()) {
+                varIt->second = value;
+                return;
+            }
+        }
+        scope = scope->getParent();
+    }
     
     // (AR) إذا لم يُعثر على المتغير، رمي خطأ
     // (EN) If variable not found, throw error
-    if (varScope == nullptr) {
-        throwError(
-            "المتغير '" + name + "' غير معرّف",
-            "Variable '" + name + "' not defined"
-        );
-    }
-    
-    // (AR) تحديث القيمة
-    // (EN) Update value
-    scopeVariables_[varScope][name] = value;
+    throwError(
+        "المتغير '" + name + "' غير معرّف",
+        "Variable '" + name + "' not defined"
+    );
 }
 
 Value VariableManager::get(const std::string& name) const {
-    // (AR) البحث عن النطاق الذي يحتوي على المتغير
-    // (EN) Find scope containing the variable
-    Scope* varScope = findVariableScope(name);
+    // (AR) البحث المباشر عن المتغير بدون استدعاء مزدوج — تحسين أداء
+    // (EN) Direct variable lookup without double-call — performance optimization
+    
+    Scope* scope = scopeManager_.getCurrentScope();
+    
+    while (scope != nullptr) {
+        auto scopeIt = scopeVariables_.find(scope);
+        if (scopeIt != scopeVariables_.end()) {
+            auto varIt = scopeIt->second.find(name);
+            if (varIt != scopeIt->second.end()) {
+                return varIt->second;
+            }
+        }
+        scope = scope->getParent();
+    }
     
     // (AR) إذا لم يُعثر على المتغير، رمي خطأ
     // (EN) If variable not found, throw error
-    if (varScope == nullptr) {
-        throwError(
-            "المتغير '" + name + "' غير معرّف",
-            "Variable '" + name + "' not defined"
-        );
-    }
-    
-    // (AR) إرجاع القيمة
-    // (EN) Return value
-    auto scopeIt = scopeVariables_.find(varScope);
-    if (scopeIt != scopeVariables_.end()) {
-        auto varIt = scopeIt->second.find(name);
-        if (varIt != scopeIt->second.end()) {
-            return varIt->second;
-        }
-    }
-    
-    // (AR) هذا لا يجب أن يحدث (تناقض داخلي)
-    // (EN) This should never happen (internal inconsistency)
     throwError(
-        "خطأ داخلي: المتغير '" + name + "' موجود في النطاق لكن بدون قيمة",
-        "Internal error: Variable '" + name + "' exists in scope but has no value"
+        "المتغير '" + name + "' غير معرّف",
+        "Variable '" + name + "' not defined"
     );
     
     // (AR) لن نصل هنا أبداً

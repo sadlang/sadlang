@@ -9,9 +9,17 @@
 #include <windows.h>
 #endif
 
-/* إعداد UTF-8 على ويندوز */
+/* إعداد UTF-8 على ويندوز / UTF-8 setup on Windows */
+#ifdef _MSC_VER
+/* MSVC: استخدم CRT initializer بدلاً من __attribute__((constructor)) */
+static void sad_runtime_init(void);
+#pragma section(".CRT$XCU", read)
+__declspec(allocate(".CRT$XCU")) void (*sad_runtime_init_ptr)(void) = sad_runtime_init;
+static void sad_runtime_init(void) {
+#else
 __attribute__((constructor))
 void sad_runtime_init(void) {
+#endif
 #ifdef _WIN32
     SetConsoleOutputCP(65001);
     SetConsoleCP(65001);

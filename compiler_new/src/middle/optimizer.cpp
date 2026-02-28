@@ -18,6 +18,8 @@
 #include "middle/cse_pass.h"
 #include "middle/copy_propagation_pass.h"
 #include "middle/register_coalescing_pass.h"
+#include "middle/licm_pass.h"
+#include "middle/strength_reduction_pass.h"
 #include <iostream>
 #include <iomanip>
 #include <chrono>
@@ -297,8 +299,8 @@ void Optimizer::addLevel1Passes() {
  * @brief Add level 2 passes
  * 
  * @details
- * (AR) تحسينات قياسية: CSE ونشر النسخ.
- * (EN) Standard optimizations: CSE and copy propagation.
+ * (AR) تحسينات قياسية: CSE ونشر النسخ وتقليل القوة.
+ * (EN) Standard optimizations: CSE, copy propagation, and strength reduction.
  */
 void Optimizer::addLevel2Passes() {
     // القضاء على التعبيرات الفرعية المشتركة / Common Subexpression Elimination
@@ -306,6 +308,9 @@ void Optimizer::addLevel2Passes() {
     
     // نشر النسخ / Copy Propagation
     addPass(std::make_unique<CopyPropagationPass>());
+    
+    // تقليل القوة / Strength Reduction (x * 8 → x << 3, etc.)
+    addPass(std::make_unique<StrengthReductionPass>());
     
     // إزالة الكود الميت (عدواني) / Dead Code Elimination (aggressive)
     addPass(std::make_unique<DeadCodeEliminationPass>());
@@ -316,10 +321,13 @@ void Optimizer::addLevel2Passes() {
  * @brief Add level 3 passes
  * 
  * @details
- * (AR) تحسينات عدوانية: دمج السجلات.
- * (EN) Aggressive optimizations: register coalescing.
+ * (AR) تحسينات عدوانية: دمج السجلات ونقل الكود الثابت خارج الحلقة.
+ * (EN) Aggressive optimizations: register coalescing and LICM.
  */
 void Optimizer::addLevel3Passes() {
+    // نقل الكود الثابت خارج الحلقة / Loop Invariant Code Motion
+    addPass(std::make_unique<LICMPass>());
+    
     // دمج السجلات / Register Coalescing
     addPass(std::make_unique<RegisterCoalescingPass>());
     

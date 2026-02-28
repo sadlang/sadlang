@@ -12,6 +12,9 @@
 #include <sstream>
 #include <iomanip>
 #include <cstring>
+
+#if __has_include(<openssl/evp.h>)
+#define HAS_OPENSSL 1
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 #include <openssl/md5.h>
@@ -21,7 +24,11 @@
 #include <openssl/pem.h>
 #include <openssl/rand.h>
 #include <openssl/err.h>
+#else
+#define HAS_OPENSSL 0
+#endif
 
+#if HAS_OPENSSL
 namespace sad {
 namespace stdlib {
 namespace crypto {
@@ -811,5 +818,6 @@ void secure_wipe(std::string& data) {
 } // namespace crypto
 } // namespace stdlib
 } // namespace sad
+#endif // HAS_OPENSSL
 
 // الحمد لله رب العالمين

@@ -76,6 +76,26 @@ set(INTERPRETER_SOURCES
     interpreter_new/src/builtins/builtin_registry_part16.cpp
     interpreter_new/src/builtins/builtin_registry_part17.cpp
     interpreter_new/src/builtins/builtin_registry_part18.cpp
+    interpreter_new/src/builtins/builtin_registry_part19.cpp
+    interpreter_new/src/builtins/builtin_registry_part20.cpp
+    interpreter_new/src/builtins/builtin_registry_part21.cpp
+    interpreter_new/src/builtins/builtin_registry_part22.cpp
+    interpreter_new/src/builtins/builtin_registry_part23.cpp
+    interpreter_new/src/builtins/builtin_registry_part24.cpp
+    interpreter_new/src/builtins/builtin_registry_part25.cpp
+    interpreter_new/src/builtins/builtin_registry_part26.cpp
+    interpreter_new/src/builtins/builtin_registry_part27.cpp
+    interpreter_new/src/builtins/builtin_registry_part28.cpp
+    interpreter_new/src/builtins/builtin_registry_part29.cpp
+    interpreter_new/src/builtins/builtin_registry_part30.cpp
+    interpreter_new/src/builtins/builtin_registry_part31.cpp
+    interpreter_new/src/builtins/builtin_registry_part32.cpp
+    interpreter_new/src/builtins/builtin_registry_part33.cpp
+    interpreter_new/src/builtins/builtin_registry_part34.cpp
+    interpreter_new/src/builtins/builtin_registry_part35.cpp
+    interpreter_new/src/builtins/builtin_registry_part36.cpp
+    interpreter_new/src/builtins/builtin_registry_part37.cpp
+    interpreter_new/src/builtins/builtin_registry_part38.cpp
     interpreter_new/src/visitors/expression_evaluator_core.cpp
     interpreter_new/src/visitors/expression_evaluator_calls.cpp
     interpreter_new/src/visitors/expression_evaluator_oop.cpp
@@ -186,8 +206,14 @@ set(STDLIB_SOURCES
     stdlib/graphics/sad_prayer.cpp
     stdlib/graphics/sad_hijri.cpp
     stdlib/graphics/sad_android.cpp
+    stdlib/graphics/sad_ecs_binding.cpp
+    stdlib/graphics/sad_state_profiler.cpp
+    stdlib/graphics/sad_serialization_resources.cpp
+    stdlib/graphics/sad_framebuffer_binding.cpp
+    stdlib/graphics/sad_renderer3d_atlas.cpp
+    stdlib/graphics/sad_shapes_postfx.cpp
     stdlib/system/system_functions.cpp
-    stdlib/mobile/mobile_module.cpp
+
 )
 
 # ──────────────────────────────────────────────────────────────────────
@@ -207,6 +233,27 @@ set(LOW_LEVEL_SOURCES
     stdlib/low_level/src/interrupts.cpp
     stdlib/low_level/src/io_ports.cpp
     stdlib/low_level/src/memory_map.cpp
+    stdlib/low_level/src/cpu.cpp
+    stdlib/low_level/src/gdt.cpp
+    stdlib/low_level/src/paging.cpp
+    stdlib/low_level/src/pci.cpp
+    stdlib/low_level/src/dma.cpp
+    stdlib/low_level/src/framebuffer.cpp
+    stdlib/low_level/src/acpi.cpp
+    stdlib/low_level/src/sync.cpp
+    stdlib/low_level/src/scheduler.cpp
+    stdlib/low_level/src/boot.cpp
+    stdlib/low_level/src/vfs.cpp
+    stdlib/low_level/src/apic.cpp
+    stdlib/low_level/src/hpet.cpp
+    stdlib/low_level/src/syscall.cpp
+    stdlib/low_level/src/uefi.cpp
+    stdlib/low_level/src/usb.cpp
+    stdlib/low_level/src/nvme.cpp
+    stdlib/low_level/src/network_stack.cpp
+    stdlib/low_level/src/audio.cpp
+    stdlib/low_level/src/timer.cpp
+    stdlib/low_level/src/serial.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────

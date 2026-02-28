@@ -1,21 +1,59 @@
 /*
  * بسم الله الرحمن الرحيم
- * ================================
- * نظام تكامل C ABI / C ABI Integration System
- * ================================
- * 
- * يوفر توافق كامل بين لغة ص (Sad) ولغة C
- * Provides full compatibility between Sad language and C
- * 
- * المكونات الأساسية / Core Components:
- * - Calling conventions (x64, ARM64, etc.)
- * - Type marshalling (Sad ↔ C)
- * - Struct layout compatibility
- * - Variadic function support
- * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * ملف: c_abi.h
+ * الوصف: نظام تكامل واجهة التطبيقات الثنائية (C ABI) للغة ص
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * الغرض من هذا الملف:
+ * ──────────────────
+ * يوفر الجسر بين لغة ص ولغة C على مستوى الواجهة الثنائية (ABI).
+ * يسمح لبرامج ص باستدعاء دوال C الأصلية والعكس، مع ضمان
+ * التوافق الكامل في تمثيل البيانات وأنماط الاستدعاء.
+ *
+ * المكونات الرئيسية:
+ * ─────────────────
+ * - SadType: تعداد أنواع لغة ص الأساسية (Void, Integer, Float, Boolean,
+ *   String, Array, Pointer, Struct, Function) + أنواع ذات حجم محدد
+ *   (Int32, UInt32, Int64, UInt64, Float32, Float64) لـ FFI
+ * - CType: تعداد أنواع C المقابلة (int8_t → uint64_t، float، double،
+ *   pointer، array، struct، function)
+ * - CallingConvention: أنماط الاستدعاء المدعومة:
+ *   • SystemV_x64: Linux/macOS/BSD (المعاملات في rdi, rsi, rdx...)
+ *   • Microsoft_x64: Windows (المعاملات في rcx, rdx, r8, r9)
+ *   • ARM64_AAPCS: معمارية ARM 64-بت
+ *   • CDefault, Stdcall, Fastcall, Vectorcall
+ * - TypeInfo: معلومات النوع (الحجم، المحاذاة، هل مؤشر/مصفوفة/بنية)
+ * - ArrayDescriptor: واصف المصفوفة لنقلها بين Sad و C
+ * - StringDescriptor: واصف النص (المؤشر، الطول، الملكية)
+ * - StructDescriptor: واصف البنية (الحقول، الحجم، المحاذاة)
+ * - FunctionSignature: توقيع الدالة (نوع الإرجاع، المعاملات، نمط الاستدعاء)
+ * - CABI: الفئة الرئيسية لتحويل المعاملات والقيم المرجعة
+ *
+ * الموقع في البنية العامة:
+ * ───────────────────────
+ *   runtime_new/
+ *   ├── abi/
+ *   │   ├── [c_abi.h — هذا الملف] ← واجهة ABI الأساسية
+ *   │   └── type_marshal.h ← تحويل الأنواع بين Sad و C
+ *   └── ffi/
+ *       └── ffi.h ← يبني فوق c_abi.h لتحميل المكتبات واستدعاء الدوال
+ *
+ * كشف المنصة والمعمارية:
+ * ─────────────────────
+ * يكشف تلقائياً: Windows/Linux/macOS و x64/ARM64/x86
+ * ويعرّف وحدات ماكرو التصدير/الاستيراد المناسبة
+ * (SAD_ABI_EXPORT, SAD_ABI_IMPORT, SAD_CALLING_CONV)
+ *
+ * الاعتماديات:
+ * ──────────
+ * - <stdarg.h>: لدعم الدوال متغيرة المعاملات (variadic)
+ * - <cstdint>, <cstddef>: للأنواع ذات الحجم المحدد
+ *
  * @file runtime/abi/c_abi.h
  * @author SadLang Compiler Team
  * @date December 2025
+ * ═══════════════════════════════════════════════════════════════════════════
  */
 
 #ifndef SAD_RUNTIME_C_ABI_H

@@ -120,7 +120,8 @@ public:
     // (EN) Constructors — each value type has its own constructor
     // ══════════════════════════════════════════════════════════════════
     Value();                                    ///< (AR) إنشاء قيمة فارغة VOID / (EN) Create VOID value
-    explicit Value(int val);                    ///< (AR) إنشاء قيمة رقم صحيح / (EN) Create INTEGER value
+    explicit Value(int val);                    ///< (AR) إنشاء قيمة رقم صحيح / (EN) Create INTEGER value (32-bit, auto-promoted to 64-bit)
+    explicit Value(int64_t val);                 ///< (AR) إنشاء قيمة رقم صحيح 64-bit / (EN) Create INTEGER value (64-bit)
     explicit Value(double val);                 ///< (AR) إنشاء قيمة رقم عشري / (EN) Create DOUBLE value
     Value(const std::string& val);              ///< (AR) إنشاء قيمة نصية / (EN) Create STRING value (non-explicit for literals)
     Value(const char* val);                     ///< (AR) إنشاء قيمة نصية من C-string / (EN) Create STRING from C-string
@@ -192,6 +193,7 @@ public:
     // (EN) Type conversion — convert value to a specific type
     // ══════════════════════════════════════════════════════════════════
     int toInt() const;
+    int64_t toInt64() const;
     double toDouble() const;
     std::string toString() const;
     bool toBool() const;
@@ -202,6 +204,11 @@ public:
     // (EN) Const reference versions — avoid copying when only reading
     const ArrayType& toArrayRef() const;
     const MapType& toMapRef() const;
+    
+    // (AR) إصدارات مرجعية قابلة للتعديل — تعديل المصفوفة/الخريطة مباشرة بدون نسخ
+    // (EN) Mutable reference versions — modify array/map in-place without copying
+    ArrayType& toArrayMut();
+    MapType& toMapMut();
     
     /**
      * @brief (AR) الحصول على مؤشر الكائن
@@ -369,7 +376,7 @@ private:
      */
     std::variant<
         std::monostate,                              // VOID
-        int,                                         // INTEGER
+        int64_t,                                     // INTEGER (64-bit)
         double,                                      // DOUBLE
         std::string,                                 // STRING
         bool,                                        // BOOLEAN

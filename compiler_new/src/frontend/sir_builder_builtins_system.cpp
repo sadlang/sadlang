@@ -1521,6 +1521,1180 @@ std::optional<BuildResult> SIRBuilder::buildBuiltinCallSystem(
         return BuildResult(resultReg, SIRType::I64);
     }
 
+    // ========================================================================
+    // Section 15: عمليات وحدات نظام التشغيل المتقدمة / Advanced OS Modules
+    // (AR) دعم المكتبة المنخفضة المستوى الكاملة (19 وحدة) لوضع بدون نظام تشغيل
+    // (EN) Full low-level library support (19 modules) for freestanding/bare-metal
+    // ========================================================================
+
+    // ─── 15a. وحدة المعالج المتقدمة / Advanced CPU Module ───
+    if (funcName == "معلومات_المعالج" || funcName == "cpu_get_info") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_GET_INFO);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "ميزات_المعالج" || funcName == "cpu_get_features") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_GET_FEATURES);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "اقرأ_سجل_نموذج" || funcName == "read_msr") {
+        if (argResults.empty()) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_READ_MSR);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "اكتب_سجل_نموذج" || funcName == "write_msr") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_WRITE_MSR);
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "اقرأ_سجل_تحكم" || funcName == "read_cr") {
+        if (argResults.empty()) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_READ_CR);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "اكتب_سجل_تحكم" || funcName == "write_cr") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_WRITE_CR);
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "ابطل_صفحة" || funcName == "invlpg") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_INVLPG);
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "تقرير_المعالج" || funcName == "cpu_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15b. وحدة GDT ───
+    if (funcName == "هيئ_جدول_واصفات" || funcName == "gdt_init") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_INIT);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "حمل_جدول_واصفات" || funcName == "gdt_load") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_LOAD);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "تقرير_واصفات" || funcName == "gdt_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15c. وحدة الترحيل / Paging ───
+    if (funcName == "هيئ_ترحيل" || funcName == "paging_init") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_INIT);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "رحل_صفحة" || funcName == "paging_map") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_MAP);
+        inst.operands.push_back(argOperands[0]); // virtual address
+        inst.operands.push_back(argOperands[1]); // physical address
+        if (argResults.size() > 2) inst.operands.push_back(argOperands[2]); // flags
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "الغ_ترحيل" || funcName == "paging_unmap") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_UNMAP);
+        inst.operands.push_back(argOperands[0]); // virtual address
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "افرغ_ذاكرة_ترجمة" || funcName == "paging_flush_tlb") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_FLUSH_TLB);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "تقرير_ترحيل" || funcName == "paging_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15d. وحدة المقاطعات المتقدمة / Advanced Interrupts (IDT) ───
+    if (funcName == "هيئ_جدول_مقاطعات" || funcName == "idt_init") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_INIT);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "حمل_جدول_مقاطعات" || funcName == "idt_load") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_LOAD);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "سجل_معالج_مقاطعة" || funcName == "register_isr") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_REGISTER_ISR);
+        inst.operands.push_back(argOperands[0]); // ISR number
+        inst.operands.push_back(argOperands[1]); // handler function ptr
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "فعل_طلب_مقاطعة" || funcName == "enable_irq") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_ENABLE_IRQ);
+        inst.operands.push_back(argOperands[0]); // IRQ number
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "تقرير_مقاطعات" || funcName == "idt_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15e. وحدة PCI ───
+    if (funcName == "عدد_أجهزة_ناقل" || funcName == "pci_enumerate") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_ENUMERATE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "اقرأ_اعدادات_ناقل" || funcName == "pci_read_config") {
+        if (argResults.size() < 4) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_READ_CONFIG);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]); // bus
+        inst.operands.push_back(argOperands[1]); // device
+        inst.operands.push_back(argOperands[2]); // function
+        inst.operands.push_back(argOperands[3]); // offset
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "اكتب_اعدادات_ناقل" || funcName == "pci_write_config") {
+        if (argResults.size() < 5) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_WRITE_CONFIG);
+        inst.operands.push_back(argOperands[0]); // bus
+        inst.operands.push_back(argOperands[1]); // device
+        inst.operands.push_back(argOperands[2]); // function
+        inst.operands.push_back(argOperands[3]); // offset
+        inst.operands.push_back(argOperands[4]); // value
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "عدد_الأجهزة" || funcName == "pci_device_count") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_GET_DEVICE_COUNT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "تقرير_ناقل" || funcName == "pci_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15f. وحدة DMA المتقدمة ───
+    if (funcName == "هيئ_نقل_مباشر" || funcName == "dma_init_full") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_INIT);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "ابدأ_نقل" || funcName == "dma_transfer") {
+        if (argResults.size() < 3) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_TRANSFER);
+        inst.operands.push_back(argOperands[0]); // source
+        inst.operands.push_back(argOperands[1]); // destination
+        inst.operands.push_back(argOperands[2]); // size
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "حالة_نقل" || funcName == "dma_status") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_STATUS);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "تقرير_نقل" || funcName == "dma_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15g. وحدة الشاشة / Framebuffer ───
+    if (funcName == "هيئ_شاشة" || funcName == "fb_init") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_FB_INIT);
+        inst.operands.push_back(argOperands[0]); // width
+        inst.operands.push_back(argOperands[1]); // height
+        if (argResults.size() > 2) inst.operands.push_back(argOperands[2]); // bpp
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "ارسم_نقطة" || funcName == "fb_set_pixel") {
+        if (argResults.size() < 3) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_FB_SET_PIXEL);
+        inst.operands.push_back(argOperands[0]); // x
+        inst.operands.push_back(argOperands[1]); // y
+        inst.operands.push_back(argOperands[2]); // color
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "ارسم_مستطيل" || funcName == "fb_draw_rect") {
+        if (argResults.size() < 5) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_FB_DRAW_RECT);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "املأ_مستطيل" || funcName == "fb_fill_rect") {
+        if (argResults.size() < 5) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_FB_FILL_RECT);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "ارسم_خط" || funcName == "fb_draw_line") {
+        if (argResults.size() < 5) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_FB_DRAW_LINE);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "ارسم_نص" || funcName == "fb_draw_string") {
+        if (argResults.size() < 3) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_FB_DRAW_STRING);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "امسح_شاشة" || funcName == "fb_clear") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_FB_CLEAR);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]); // color (optional)
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "تقرير_شاشة" || funcName == "fb_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_FB_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15h. وحدة ACPI ───
+    if (funcName == "هيئ_طاقة" || funcName == "acpi_init") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_INIT);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "ابحث_جدول_طاقة" || funcName == "acpi_find_table") {
+        if (argResults.empty()) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_FIND_TABLE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]); // table signature
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "اطفئ" || funcName == "acpi_shutdown") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_SHUTDOWN);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "تقرير_طاقة" || funcName == "acpi_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15i. وحدة التزامن / Sync ───
+    if (funcName == "هيئ_قفل_دوار" || funcName == "spinlock_init") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SPINLOCK_INIT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "اقفل_دوار" || funcName == "spinlock_lock") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SPINLOCK_LOCK);
+        inst.operands.push_back(argOperands[0]); // lock ptr
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "افتح_قفل_دوار" || funcName == "spinlock_unlock") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SPINLOCK_UNLOCK);
+        inst.operands.push_back(argOperands[0]); // lock ptr
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "هيئ_كابح" || funcName == "mutex_init") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_MUTEX_INIT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "اقفل_كابح" || funcName == "mutex_lock") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_MUTEX_LOCK);
+        inst.operands.push_back(argOperands[0]); // mutex ptr
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "افتح_كابح" || funcName == "mutex_unlock") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_MUTEX_UNLOCK);
+        inst.operands.push_back(argOperands[0]); // mutex ptr
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "هيئ_اشارة" || funcName == "semaphore_init") {
+        if (argResults.empty()) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SEMAPHORE_INIT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]); // count
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "هيئ_حاجز" || funcName == "barrier_init") {
+        if (argResults.empty()) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_BARRIER_INIT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]); // count
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+
+    // ─── 15j. وحدة المجدول / Scheduler ───
+    if (funcName == "هيئ_مجدول" || funcName == "sched_init") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SCHED_INIT);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "انشئ_عملية" || funcName == "sched_create_process") {
+        if (argResults.empty()) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SCHED_CREATE_PROC);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]); // name
+        if (argResults.size() > 1) inst.operands.push_back(argOperands[1]); // priority
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64); // PID
+    }
+    if (funcName == "انشئ_خيط_نواة" || funcName == "sched_create_thread") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SCHED_CREATE_THREAD);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]); // name
+        inst.operands.push_back(argOperands[1]); // entry function
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64); // TID
+    }
+    if (funcName == "تنازل" || funcName == "sched_yield") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SCHED_YIELD);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "نوم_مجدول" || funcName == "sched_sleep") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SCHED_SLEEP);
+        inst.operands.push_back(argOperands[0]); // milliseconds
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "تقرير_مجدول" || funcName == "sched_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SCHED_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15k. وحدة الإقلاع / Boot ───
+    if (funcName == "معلومات_اقلاع" || funcName == "boot_info") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_BOOT_GET_INFO);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "خريطة_ذاكرة_اقلاع" || funcName == "boot_memory_map") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_BOOT_GET_MEMORY_MAP);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "تقرير_اقلاع" || funcName == "boot_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_BOOT_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15l. وحدة نظام الملفات الافتراضي / VFS ───
+    if (funcName == "حمل_قرص" || funcName == "vfs_mount") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_VFS_MOUNT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]); // device
+        inst.operands.push_back(argOperands[1]); // mount point
+        if (argResults.size() > 2) inst.operands.push_back(argOperands[2]); // fs type
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "افصل_قرص" || funcName == "vfs_unmount") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_VFS_UNMOUNT);
+        inst.operands.push_back(argOperands[0]); // mount point
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "افتح_ملف_نواة" || funcName == "vfs_open") {
+        if (argResults.empty()) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_VFS_OPEN);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]); // path
+        if (argResults.size() > 1) inst.operands.push_back(argOperands[1]); // flags
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64); // fd
+    }
+    if (funcName == "اقرأ_ملف_نواة" || funcName == "vfs_read") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_VFS_READ);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]); // fd
+        inst.operands.push_back(argOperands[1]); // buffer/size
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64); // bytes read
+    }
+    if (funcName == "اكتب_ملف_نواة" || funcName == "vfs_write") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_VFS_WRITE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]); // fd
+        inst.operands.push_back(argOperands[1]); // data
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64); // bytes written
+    }
+    if (funcName == "اغلق_ملف_نواة" || funcName == "vfs_close") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_VFS_CLOSE);
+        inst.operands.push_back(argOperands[0]); // fd
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "تقرير_ملفات" || funcName == "vfs_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_VFS_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15m. وحدة APIC ───
+    if (funcName == "هيئ_متحكم_مقاطعات" || funcName == "apic_init") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_INIT);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "ارسل_نهاية_مقاطعة" || funcName == "apic_send_eoi") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_EOI);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "ارسل_مقاطعة_معالج" || funcName == "apic_send_ipi") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_IPI);
+        inst.operands.push_back(argOperands[0]); // target CPU
+        inst.operands.push_back(argOperands[1]); // vector
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "اضبط_مؤقت_متحكم" || funcName == "apic_set_timer") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SET_TIMER);
+        inst.operands.push_back(argOperands[0]); // divisor
+        inst.operands.push_back(argOperands[1]); // count
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "تقرير_متحكم_مقاطعات" || funcName == "apic_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15n. وحدة HPET ───
+    if (funcName == "هيئ_مؤقت_دقيق" || funcName == "hpet_init") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_HPET_INIT);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "اقرأ_مؤقت_دقيق" || funcName == "hpet_read") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_HPET_READ);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "نوم_دقيق" || funcName == "hpet_sleep") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_HPET_SLEEP);
+        inst.operands.push_back(argOperands[0]); // nanoseconds
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "تقرير_مؤقت_دقيق" || funcName == "hpet_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_HPET_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15o. وحدة استدعاءات النظام / Syscall ───
+    if (funcName == "هيئ_استدعاءات" || funcName == "syscall_init") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SYSCALL_INIT);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "سجل_استدعاء" || funcName == "syscall_register") {
+        if (argResults.size() < 2) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SYSCALL_REGISTER);
+        inst.operands.push_back(argOperands[0]); // syscall number
+        inst.operands.push_back(argOperands[1]); // handler function
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "نفذ_استدعاء" || funcName == "syscall_invoke") {
+        if (argResults.empty()) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SYSCALL_INVOKE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "تقرير_استدعاءات" || funcName == "syscall_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_SYSCALL_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── 15p. عمليات الذاكرة المتقدمة / Advanced Memory ───
+    if (funcName == "خصص_فيزيائي" || funcName == "alloc_physical") {
+        if (argResults.empty()) return BuildResult("", SIRType::I64);
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_MEM_ALLOC_PHYS);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        inst.operands.push_back(argOperands[0]); // size
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64); // physical address
+    }
+    if (funcName == "حرر_فيزيائي" || funcName == "free_physical") {
+        if (argResults.empty()) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_MEM_FREE_PHYS);
+        inst.operands.push_back(argOperands[0]); // physical address
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "رحل_منطقة" || funcName == "map_region") {
+        if (argResults.size() < 3) return BuildResult("", SIRType::VOID);
+        SIRInstruction inst(SIROpcode::LOWLEVEL_MEM_MAP_REGION);
+        inst.operands.push_back(argOperands[0]); // physical address
+        inst.operands.push_back(argOperands[1]); // virtual address
+        inst.operands.push_back(argOperands[2]); // size
+        if (argResults.size() > 3) inst.operands.push_back(argOperands[3]); // flags
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "تقرير_ذاكرة_نواة" || funcName == "mem_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_MEM_GET_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // =================================================================
+    // القسم 16: بروتوكول الإقلاع الموحد UEFI / UEFI Boot Protocol
+    // =================================================================
+
+    // --- 16a. التهيئة والتحكم ---
+    if (funcName == "uefi_تهيئة" || funcName == "uefi_initialize") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_INIT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_إنهاء_خدمات_إقلاع" || funcName == "uefi_exit_boot_services") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_EXIT_BOOT_SERVICES);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]); // map key
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_هل_مهيأ" || funcName == "uefi_is_initialized") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_IS_INITIALIZED);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_خدمات_إقلاع_منتهية" || funcName == "uefi_boot_services_exited") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_BS_EXITED);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_إعادة_تشغيل" || funcName == "uefi_reset_system") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_RESET_SYSTEM);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]); // reset type
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // --- 16b. إدارة الذاكرة ---
+    if (funcName == "uefi_تخصيص_صفحات" || funcName == "uefi_allocate_pages") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_ALLOC_PAGES);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_تحرير_صفحات" || funcName == "uefi_free_pages") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FREE_PAGES);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_تخصيص_كتلة" || funcName == "uefi_allocate_pool") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_ALLOC_POOL);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_تحرير_كتلة" || funcName == "uefi_free_pool") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FREE_POOL);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_خريطة_ذاكرة" || funcName == "uefi_get_memory_map") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_GET_MEMORY_MAP);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+    if (funcName == "uefi_مفتاح_خريطة" || funcName == "uefi_get_memory_map_key") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_GET_MEMMAP_KEY);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_ذاكرة_متاحة" || funcName == "uefi_total_memory") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_TOTAL_MEMORY);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+
+    // --- 16c. بروتوكول الرسوميات GOP ---
+    if (funcName == "uefi_تهيئة_رسوميات" || funcName == "uefi_init_gop") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_INIT_GOP);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_تعيين_وضع_رسوميات" || funcName == "uefi_set_gop_mode") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_SET_GOP_MODE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_استعلام_وضع" || funcName == "uefi_query_gop_mode") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_QUERY_GOP_MODE);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+    if (funcName == "uefi_عدد_أوضاع_رسوميات" || funcName == "uefi_gop_mode_count") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_GOP_MODE_COUNT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_وضع_رسوميات_حالي" || funcName == "uefi_current_gop_mode") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_CURRENT_GOP_MODE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_عنوان_إطار" || funcName == "uefi_framebuffer_base") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FRAMEBUFFER_BASE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_حجم_إطار" || funcName == "uefi_framebuffer_size") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FRAMEBUFFER_SIZE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_ملء_شاشة" || funcName == "uefi_fill_screen") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FILL_SCREEN);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op); // r, g, b
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_رسم_مستطيل" || funcName == "uefi_draw_rect") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_DRAW_RECT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op); // x, y, w, h, r, g, b
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_blt" || funcName == "uefi_gop_blt") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_GOP_BLT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+
+    // --- 16d. خدمات وقت التشغيل ---
+    if (funcName == "uefi_الوقت" || funcName == "uefi_get_time") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_GET_TIME);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+    if (funcName == "uefi_تعيين_وقت" || funcName == "uefi_set_time") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_SET_TIME);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_قراءة_متغير" || funcName == "uefi_get_variable") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_GET_VARIABLE);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]); // var name
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+    if (funcName == "uefi_كتابة_متغير" || funcName == "uefi_set_variable") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_SET_VARIABLE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op); // name, value, [attrs]
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+
+    // --- 16e. نظام الملفات ---
+    if (funcName == "uefi_فتح_وحدة_تخزين" || funcName == "uefi_open_volume") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_OPEN_VOLUME);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_فتح_ملف" || funcName == "uefi_open_file") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_OPEN_FILE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_قراءة_ملف" || funcName == "uefi_read_file") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_READ_FILE);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+    if (funcName == "uefi_كتابة_ملف" || funcName == "uefi_write_file") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_WRITE_FILE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        for (auto& op : argOperands) inst.operands.push_back(op);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_إغلاق_ملف" || funcName == "uefi_close_file") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_CLOSE_FILE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_معلومات_ملف" || funcName == "uefi_file_info") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FILE_INFO);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // --- 16f. بروتوكولات ومعلومات ---
+    if (funcName == "uefi_بحث_بروتوكول" || funcName == "uefi_locate_protocol") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_LOCATE_PROTOCOL);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_إصدار" || funcName == "uefi_revision") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_REVISION);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+    if (funcName == "uefi_بائع" || funcName == "uefi_firmware_vendor") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_VENDOR);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+    if (funcName == "uefi_إصدار_بائع" || funcName == "uefi_firmware_revision") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_FW_REVISION);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "uefi_تقرير" || funcName == "uefi_report") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_UEFI_REPORT);
+        inst.result = SIROperand::Register(r, SIRType::STRING);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::STRING);
+    }
+
+    // ─── القسم 17: ACPI الموسّع / Extended ACPI ───
+
+    // 17a: تهيئة وتفعيل
+    if (funcName == "acpi_تهيئة" || funcName == "acpi_init") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_INIT_FULL);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "acpi_تهيئة_من_rsdp" || funcName == "acpi_init_from_rsdp") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_INIT_RSDP);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "acpi_تفعيل" || funcName == "acpi_enable") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_ENABLE);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "acpi_تعطيل" || funcName == "acpi_disable") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_DISABLE);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "acpi_هل_مهيأ" || funcName == "acpi_is_initialized") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_IS_INITIALIZED);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "acpi_إصدار" || funcName == "acpi_version") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_VERSION);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+
+    // 17b: إدارة الطاقة
+    if (funcName == "acpi_إعادة_تشغيل" || funcName == "acpi_reboot") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_REBOOT);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "acpi_نوم" || funcName == "acpi_sleep") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_SLEEP);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "acpi_تأخير" || funcName == "acpi_delay_us") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_DELAY_US);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // 17c: مؤقت ومعالجات
+    if (funcName == "acpi_قراءة_مؤقت" || funcName == "acpi_read_pm_timer") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_READ_PM_TIMER);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "acpi_مؤقت_32بت" || funcName == "acpi_is_pm_timer_32bit") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_IS_PM_32BIT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "acpi_عدد_معالجات" || funcName == "acpi_processor_count") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_PROCESSOR_COUNT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "acpi_عنوان_apic" || funcName == "acpi_local_apic_address") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_LOCAL_APIC_ADDR);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+
+    // 17d: PCIe ECAM
+    if (funcName == "acpi_ecam_قاعدة" || funcName == "acpi_ecam_base") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_ECAM_BASE);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (argOperands.size() > 1) inst.operands.push_back(argOperands[1]);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+
+    // ─── القسم 18: APIC الموسّع / Extended APIC ───
+
+    // 18a: استعلام ومعلومات
+    if (funcName == "apic_مدعوم" || funcName == "apic_supported") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SUPPORTED);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "apic_x2_مدعوم" || funcName == "apic_x2_supported") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_X2_SUPPORTED);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "apic_معرّف" || funcName == "apic_id") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_ID);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "apic_عدد_io" || funcName == "apic_io_count") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_IO_COUNT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+
+    // 18b: مؤقت APIC
+    if (funcName == "apic_تهيئة_مؤقت" || funcName == "apic_init_timer") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_INIT_TIMER);
+        for (auto& a : argOperands) inst.operands.push_back(a);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "apic_بدء_مؤقت" || funcName == "apic_start_timer") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_START_TIMER);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "apic_إيقاف_مؤقت" || funcName == "apic_stop_timer") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_STOP_TIMER);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "apic_عداد_مؤقت" || funcName == "apic_timer_count") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_TIMER_COUNT);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+    if (funcName == "apic_معايرة_مؤقت" || funcName == "apic_calibrate_timer") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_CALIBRATE);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+
+    // 18c: أولوية ومقاطعات
+    if (funcName == "apic_أولوية_مهمة" || funcName == "apic_set_priority") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SET_PRIORITY);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "apic_عطّل_pic" || funcName == "apic_disable_pic") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_DISABLE_PIC);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "apic_قناع_irq" || funcName == "apic_mask_irq") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_MASK_IRQ);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "apic_إلغاء_قناع_irq" || funcName == "apic_unmask_irq") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_UNMASK_IRQ);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "apic_وجّه_irq" || funcName == "apic_route_irq") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_ROUTE_IRQ);
+        for (auto& a : argOperands) inst.operands.push_back(a);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+
+    // 18d: IPI متقدم
+    if (funcName == "apic_أرسل_للكل" || funcName == "apic_send_ipi_all") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_IPI_ALL);
+        for (auto& a : argOperands) inst.operands.push_back(a);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "apic_أرسل_init" || funcName == "apic_send_init") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_INIT_IPI);
+        if (!argOperands.empty()) inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "apic_أرسل_sipi" || funcName == "apic_send_sipi") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_SEND_SIPI);
+        for (auto& a : argOperands) inst.operands.push_back(a);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "apic_انتظر_تسليم" || funcName == "apic_wait_delivery") {
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_WAIT_DELIVERY);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
+    }
+    if (funcName == "apic_تهيئة_io" || funcName == "apic_init_io") {
+        std::string r = newTempRegister();
+        SIRInstruction inst(SIROpcode::LOWLEVEL_APIC_INIT_IO);
+        for (auto& a : argOperands) inst.operands.push_back(a);
+        inst.result = SIROperand::Register(r, SIRType::I64);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(r, SIRType::I64);
+    }
+
     // Not a system builtin
     return std::nullopt;
 }

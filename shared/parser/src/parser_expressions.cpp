@@ -225,6 +225,34 @@ ExprPtr ParserCore::parseAssignment() {
                     auto innerCopy = std::make_unique<ThisExpr>();
                     readObj = std::make_unique<MemberExpr>(std::move(innerCopy), objMem->member, opToken.getPosition());
                 }
+            } else if (auto* objIdx = dynamic_cast<IndexExpr*>(memberPtr->object.get())) {
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) إصلاح المشكلة 16: دعم مصفوفة[فهرس].حقل += قيمة
+                //      مثال: العمليات[فهرس].أبناء += [قيمة_جديدة]
+                //
+                // (EN) Fix issue 16: Support array[index].field += value
+                //      Example: processes[idx].children += [newValue]
+                // ═══════════════════════════════════════════════════════════════
+                ExprPtr readArrObj;
+                ExprPtr readArrIdx;
+                
+                // Rebuild the array object reference
+                if (auto* arrVar = dynamic_cast<VariableExpr*>(objIdx->object.get())) {
+                    readArrObj = std::make_unique<VariableExpr>(arrVar->name, opToken.getPosition());
+                }
+                
+                // Rebuild the index
+                if (auto* idxLit = dynamic_cast<LiteralExpr*>(objIdx->index.get())) {
+                    readArrIdx = std::make_unique<LiteralExpr>(idxLit->token);
+                } else if (auto* idxVar = dynamic_cast<VariableExpr*>(objIdx->index.get())) {
+                    readArrIdx = std::make_unique<VariableExpr>(idxVar->name, opToken.getPosition());
+                }
+                
+                if (readArrObj && readArrIdx) {
+                    readObj = std::make_unique<IndexExpr>(
+                        std::move(readArrObj), std::move(readArrIdx), opToken.getPosition()
+                    );
+                }
             }
             if (readObj) {
                 auto readMember = std::make_unique<MemberExpr>(
@@ -627,8 +655,19 @@ ExprPtr ParserCore::parsePostfix() {
         else if (match(TT::DOT)) {
             // Member access or method call
             // (AR) الوصول لعضو أو استدعاء طريقة
-            Token member = consume(TT::IDENTIFIER, 
-                "(AR) توقع اسم عضو بعد '.'. (EN) Expected member name after '.'.");
+            // (AR) دعم الكلمات المفتاحية الناعمة كأسماء أعضاء (مثل: كائن.احصل())
+            // (EN) Support soft keywords as member names (e.g., obj.احصل())
+            Token member(TT::IDENTIFIER, "", Lexer::Position());
+            if (check(TT::IDENTIFIER)) {
+                member = current_;
+                advance();
+            } else if (isKeywordUsableAsName(current_.getType()) || isTypeToken(current_.getType())) {
+                member = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+                advance();
+            } else {
+                member = consume(TT::IDENTIFIER, 
+                    "(AR) توقع اسم عضو بعد '.'. (EN) Expected member name after '.'.");
+            }
             
             // Check if this is a method call: obj.method()
             if (check(TT::PAREN_LEFT)) {
@@ -908,6 +947,16 @@ ExprPtr ParserCore::parsePrimary() {
     // (AR) كلمات أنواع مستخدمة كتعبيرات (مثلاً نص(...) كاستدعاء دالة)
     // This allows type names to be used as function names in expression position
     if (isTypeToken(current_.getType())) {
+        auto tok = current_;
+        advance();
+        return std::make_unique<VariableExpr>(tok.getValue(), tok.getPosition());
+    }
+
+    // (AR) كلمات مفتاحية ناعمة مستخدمة كتعبيرات (مثلاً احصل(...)، نوع، حجم)
+    // (EN) Soft keywords used as expressions (e.g., احصل(...), نوع, حجم)
+    // This allows keywords like احصل (KEYWORD_GET), نوع (KEYWORD_TYPENAME),
+    // حجم (KEYWORD_SIZEOF) etc. to be used as identifiers in expression position
+    if (isKeywordUsableAsName(current_.getType())) {
         auto tok = current_;
         advance();
         return std::make_unique<VariableExpr>(tok.getValue(), tok.getPosition());

@@ -430,9 +430,9 @@ void ExpressionEvaluator::writeBackChain(AST::Expression* expr, const Data::Valu
         Value parentValue = lastResult_;
         
         if (parentValue.isMap()) {
-            auto parentMap = parentValue.toMap();
-            parentMap[memberExpr->member] = value;
-            writeBackChain(memberExpr->object.get(), Value(parentMap));
+            // (AR) تعديل مباشر عبر shared_ptr — بدون نسخ!
+            // (EN) Direct mutation via shared_ptr — no copying!
+            parentValue.toMapMut()[memberExpr->member] = value;
         } else if (parentValue.isObject()) {
             auto parentObj = parentValue.toObject();
             if (parentObj) {
@@ -444,8 +444,8 @@ void ExpressionEvaluator::writeBackChain(AST::Expression* expr, const Data::Valu
         return;
     }
     
-    // (AR) الحالة 3: container[index] ← نقرأ الحاوية، نحدّث العنصر، ثم نكتب رجوعاً
-    // (EN) Case 3: container[index] → read container, update element, write back recursively
+    // (AR) الحالة 3: container[index] ← تعديل مباشر عبر shared_ptr
+    // (EN) Case 3: container[index] → direct mutation via shared_ptr (O(1) per level)
     if (auto* indexExpr = dynamic_cast<IndexExpr*>(expr)) {
         indexExpr->object->accept(*this);
         Value containerValue = lastResult_;
@@ -454,17 +454,17 @@ void ExpressionEvaluator::writeBackChain(AST::Expression* expr, const Data::Valu
         Value idxValue = lastResult_;
         
         if (containerValue.isArray()) {
-            auto arr = containerValue.toArray();
+            // (AR) تعديل مباشر — المصفوفة مخزّنة كـ shared_ptr
+            // (EN) Direct mutation — array is stored as shared_ptr
+            auto& arr = containerValue.toArrayMut();
             int idx = idxValue.toInt();
             if (idx < 0) idx = static_cast<int>(arr.size()) + idx;
             if (idx >= 0 && idx < static_cast<int>(arr.size())) {
                 arr[idx] = value;
-                writeBackChain(indexExpr->object.get(), Value(arr));
             }
         } else if (containerValue.isMap()) {
-            auto map = containerValue.toMap();
-            map[idxValue.toString()] = value;
-            writeBackChain(indexExpr->object.get(), Value(map));
+            // (AR) تعديل مباشر على الخريطة
+            containerValue.toMapMut()[idxValue.toString()] = value;
         }
         return;
     }

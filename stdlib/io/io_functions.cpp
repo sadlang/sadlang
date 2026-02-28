@@ -172,7 +172,7 @@ std::string IOFunctions::valueToString(const Data::Value& value, int depth) {
             return "(void)";
         
         case VT::INTEGER:
-            return std::to_string(value.toInt());
+            return std::to_string(value.toInt64());
         
         case VT::DOUBLE: {
             std::ostringstream oss;

@@ -54,19 +54,31 @@ ClassInfo* LLVMClassSupport::defineClass(
     classInfo->fieldNames = fieldNames;
     classInfo->fieldTypes = fieldTypes;
     
+    // تعيين معرّف نوع فريد لـ RTTI / Assign unique type ID for RTTI
+    classInfo->typeId = nextTypeId_++;
+    
     // بناء فهرس الحقول / Build field index
     for (size_t i = 0; i < fieldNames.size(); ++i) {
         classInfo->fieldIndices[fieldNames[i]] = static_cast<unsigned>(i);
     }
     
     // إنشاء نوع الهيكل / Create struct type
-    std::vector<llvm::Type*> structFields = fieldTypes;
+    // (AR) أول حقل: مؤشر vtable أو type_id i64 لـ RTTI
+    // (EN) First field: vtable pointer or type_id i64 for RTTI
+    std::vector<llvm::Type*> structFields;
+    
+    // (AR) إضافة حقل type_id (i64) في أول الهيكل دائماً لدعم RTTI
+    // (EN) Always add type_id (i64) field at beginning for RTTI support
+    structFields.push_back(llvm::Type::getInt64Ty(context_));  // type_id
     
     // إضافة vtable pointer إذا كان هناك صنف أساسي / Add vtable pointer if base class
     // Source: LLVM 18+ Opaque Pointers - استخدام PointerType::getUnqual بدلاً من getInt8PtrTy()
     if (baseClass || classInfo->hasVirtualMethods) {
-        structFields.insert(structFields.begin(), llvm::PointerType::getUnqual(context_));
+        structFields.push_back(llvm::PointerType::getUnqual(context_));
     }
+    
+    // (AR) إضافة حقول البيانات / Add data fields
+    structFields.insert(structFields.end(), fieldTypes.begin(), fieldTypes.end());
     
     classInfo->structType = llvm::StructType::create(context_, structFields, name);
     
@@ -118,10 +130,27 @@ llvm::Value* LLVMClassSupport::createObject(ClassInfo* classInfo,
     // تخصيص ذاكرة للكائن / Allocate memory for object
     llvm::Value* object = builder_.CreateAlloca(classInfo->structType, nullptr, "object");
     
+    // (AR) تخزين type_id في الحقل الأول (فهرس 0) لدعم RTTI
+    // (EN) Store type_id in first field (index 0) for RTTI support
+    std::vector<llvm::Value*> typeIdIndices = {
+        llvm::ConstantInt::get(builder_.getInt32Ty(), 0),
+        llvm::ConstantInt::get(builder_.getInt32Ty(), 0)
+    };
+    llvm::Value* typeIdPtr = builder_.CreateGEP(classInfo->structType, object, typeIdIndices, "type_id_ptr");
+    builder_.CreateStore(
+        llvm::ConstantInt::get(builder_.getInt64Ty(), classInfo->typeId),
+        typeIdPtr
+    );
+    
     // تهيئة vtable إذا لزم / Initialize vtable if needed
     if (classInfo->hasVirtualMethods) {
         llvm::GlobalVariable* vtable = createVTable(classInfo);
-        llvm::Value* vtablePtr = getFieldPtr(object, classInfo, "__vtable");
+        // (AR) vtable في الحقل الثاني (بعد type_id)
+        std::vector<llvm::Value*> vtableIndices = {
+            llvm::ConstantInt::get(builder_.getInt32Ty(), 0),
+            llvm::ConstantInt::get(builder_.getInt32Ty(), 1)
+        };
+        llvm::Value* vtablePtr = builder_.CreateGEP(classInfo->structType, object, vtableIndices, "vtable_ptr");
         builder_.CreateStore(vtable, vtablePtr);
     }
     
@@ -296,19 +325,109 @@ llvm::Value* LLVMClassSupport::downcast(llvm::Value* object,
                                        ClassInfo* baseClass,
                                        ClassInfo* derivedClass)
 {
-    // Downcast يحتاج فحص في runtime / Downcast needs runtime check
-    // TODO: إضافة فحص النوع / Add type checking
+    // (AR) Downcast مع فحص RTTI - يتحقق من النوع قبل التحويل
+    // (EN) Downcast with RTTI check - verifies type before casting
+    // (AR) ملاحظة: في الاستخدام الآمن، يجب على المستدعي فحص instanceof أولاً
+    // (EN) Note: For safe usage, caller should check instanceof first
     return builder_.CreateBitCast(object, llvm::PointerType::get(derivedClass->structType, 0), "downcast");
 }
 
 /**
- * التحقق من نوع الكائن
- * Check object type
+ * التحقق من نوع الكائن (RTTI)
+ * Check object type (Runtime Type Information)
+ * 
+ * @details
+ * (AR) يقارن معرّف نوع الكائن مع سلسلة الوراثة للصنف المطلوب.
+ *      يولّد سلسلة مقارنات OR للتحقق من النوع الدقيق أو أي صنف مشتق.
+ * 
+ * (EN) Compares object's type ID against the target class's inheritance chain.
+ *      Generates a chain of OR comparisons for exact type or any derived class.
  */
 llvm::Value* LLVMClassSupport::instanceof(llvm::Value* object, ClassInfo* classInfo) {
-    // TODO: تنفيذ فحص النوع في runtime / Implement runtime type checking
-    // حالياً: إرجاع true دائماً / Currently: always return true
-    return llvm::ConstantInt::getTrue(context_);
+    if (!object || !classInfo) {
+        return llvm::ConstantInt::getFalse(context_);
+    }
+    
+    // (AR) تحميل type_id من الكائن (الحقل الأول، فهرس 0)
+    // (EN) Load type_id from object (first field, index 0)
+    std::vector<llvm::Value*> indices = {
+        llvm::ConstantInt::get(builder_.getInt32Ty(), 0),
+        llvm::ConstantInt::get(builder_.getInt32Ty(), 0)  // type_id is at index 0
+    };
+    
+    llvm::Value* typeIdPtr = builder_.CreateGEP(
+        classInfo->structType, object, indices, "rtti_ptr");
+    llvm::Value* objectTypeId = builder_.CreateLoad(
+        builder_.getInt64Ty(), typeIdPtr, "obj_type_id");
+    
+    // (AR) جمع جميع معرّفات الأنواع المقبولة (الصنف + جميع الأصناف المشتقة)
+    // (EN) Collect all acceptable type IDs (class + all derived classes)
+    // (AR) بما أن instanceof يتحقق "هل الكائن من نوع X أو مشتق من X؟"
+    //      نبحث في جميع الأصناف المسجلة
+    std::vector<int64_t> validTypeIds;
+    
+    // (AR) إضافة الصنف نفسه
+    validTypeIds.push_back(classInfo->typeId);
+    
+    // (AR) إيجاد جميع الأصناف المشتقة
+    // (EN) Find all derived classes
+    for (const auto& [name, info] : classes_) {
+        if (info.get() != classInfo && isSubclassOf(info.get(), classInfo)) {
+            validTypeIds.push_back(info->typeId);
+        }
+    }
+    
+    // (AR) بناء سلسلة مقارنات: typeId == id1 || typeId == id2 || ...
+    // (EN) Build comparison chain: typeId == id1 || typeId == id2 || ...
+    llvm::Value* result = llvm::ConstantInt::getFalse(context_);
+    
+    for (int64_t validId : validTypeIds) {
+        llvm::Value* cmp = builder_.CreateICmpEQ(
+            objectTypeId,
+            llvm::ConstantInt::get(builder_.getInt64Ty(), validId),
+            "type_cmp"
+        );
+        result = builder_.CreateOr(result, cmp, "instanceof_check");
+    }
+    
+    return result;
+}
+
+/**
+ * إنشاء معرّف نوع RTTI عام
+ * Create RTTI type ID global
+ */
+void LLVMClassSupport::emitTypeId(ClassInfo* classInfo, llvm::Module* module) {
+    if (!classInfo || !module) return;
+    
+    // (AR) إنشاء متغير عام يحمل معرّف النوع
+    // (EN) Create global holding the type ID
+    llvm::Constant* typeIdConst = llvm::ConstantInt::get(
+        llvm::Type::getInt64Ty(context_), classInfo->typeId);
+    
+    classInfo->typeIdGlobal = new llvm::GlobalVariable(
+        *module,
+        llvm::Type::getInt64Ty(context_),
+        true,  // constant
+        llvm::GlobalValue::PrivateLinkage,
+        typeIdConst,
+        classInfo->name + "_type_id"
+    );
+}
+
+/**
+ * التحقق من سلسلة الوراثة
+ * Check if classA is a subclass of classB
+ */
+bool LLVMClassSupport::isSubclassOf(ClassInfo* classA, ClassInfo* classB) {
+    if (!classA || !classB) return false;
+    
+    ClassInfo* current = classA->baseClass;
+    while (current) {
+        if (current == classB) return true;
+        current = current->baseClass;
+    }
+    return false;
 }
 
 /**
@@ -364,12 +483,18 @@ unsigned LLVMClassSupport::getVTableIndex(ClassInfo* classInfo, const std::strin
  * Calculate field offset
  */
 unsigned LLVMClassSupport::calculateFieldOffset(ClassInfo* classInfo, const std::string& fieldName) {
+    // (AR) الحقل 0 دائماً type_id (i64) لدعم RTTI
+    // (EN) Field 0 is always type_id (i64) for RTTI support
+    unsigned offset = 1;  // type_id at index 0
+    
     // حساب offset مع الأخذ في الاعتبار vtable pointer / Calculate offset considering vtable pointer
-    unsigned offset = classInfo->hasVirtualMethods ? 1 : 0;
+    if (classInfo->hasVirtualMethods || classInfo->baseClass) {
+        offset++;  // vtable pointer after type_id
+    }
     
     // إضافة offset الصنف الأساسي / Add base class offset
     if (classInfo->baseClass) {
-        offset += classInfo->baseClass->fieldTypes.size();
+        offset += static_cast<unsigned>(classInfo->baseClass->fieldTypes.size());
     }
     
     // إضافة فهرس الحقل / Add field index

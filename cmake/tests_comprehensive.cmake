@@ -83,9 +83,12 @@ target_sources(test_stdlib_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/stdlib/core/type_functions.cpp
     ${CMAKE_SOURCE_DIR}/stdlib/core/stdlib_manager.cpp
     ${CMAKE_SOURCE_DIR}/stdlib/io/io_functions.cpp
+    ${CMAKE_SOURCE_DIR}/stdlib/string/string_functions.cpp
+    ${CMAKE_SOURCE_DIR}/stdlib/math/math_functions.cpp
     ${CMAKE_SOURCE_DIR}/interpreter_new/src/managers/function_manager.cpp)
 target_include_directories(test_stdlib_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/stdlib ${CMAKE_SOURCE_DIR}/stdlib/core)
+    ${CMAKE_SOURCE_DIR}/stdlib ${CMAKE_SOURCE_DIR}/stdlib/core
+    ${CMAKE_SOURCE_DIR}/stdlib/string ${CMAKE_SOURCE_DIR}/stdlib/math)
 
 # 6. الأخطاء الذكية / Smart Errors Tests (38 tests)
 add_comprehensive_test(test_errors_comprehensive test_errors_comprehensive.cpp)

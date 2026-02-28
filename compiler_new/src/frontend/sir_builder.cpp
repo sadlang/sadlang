@@ -4353,13 +4353,26 @@ SIRType SIRBuilder::astTypeToSIRType(const Sad::Data::DataType& type) {
             return SIRType::STRUCT;
         case Data::DataType::NONE:
             return SIRType::VOID;
+        case Data::DataType::MAP:
+            // (AR) قاموس/خريطة / (EN) dictionary/map
+            return SIRType::MAP;
+        case Data::DataType::BYTE:
+            // (AR) بايت / (EN) byte (8-bit unsigned)
+            return SIRType::BYTE;
+        case Data::DataType::ERROR:
+            // (AR) خطأ / (EN) error type
+            return SIRType::ERROR;
+        case Data::DataType::TUPLE:
+            // (AR) صف — يُمثّل كمصفوفة حالياً / (EN) tuple — represented as array
+            return SIRType::ARRAY;
+        case Data::DataType::ENUM:
+            // (AR) تعداد — يُمثّل كرقم صحيح / (EN) enum — represented as integer
+            return SIRType::I64;
         case Data::DataType::UNKNOWN:
-            // (AR) نوع غير معروف - سيتم استنتاجه من التعبير
-            // (EN) Unknown type - will be inferred from expression
-            return SIRType::I64;  // Default, will be overwritten by type inference
+            // (AR) نوع غير معروف — يُستنتج من التعبير
+            // (EN) Unknown type — inferred from expression
+            return SIRType::I64;
         default:
-            // (AR) أنواع أخرى (MAP, TUPLE, ENUM, BYTE, ERROR)
-            // (EN) Other types (MAP, TUPLE, ENUM, BYTE, ERROR)
             return SIRType::I64;  // Fallback
     }
 }
@@ -4686,10 +4699,23 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         // (EN) Step 2: Create member access instruction
         std::string resultReg = newTempRegister();
         
+        // (AR) محاولة استنتاج نوع العضو من جدول الأصناف
+        // (EN) Try to infer member type from class table
+        SIRType memberType = SIRType::I64;
+        if (!objResult.className.empty()) {
+            auto classIt = classTable_.find(objResult.className);
+            if (classIt != classTable_.end()) {
+                auto fieldIt = classIt->second->fields_.find(memberExpr->member);
+                if (fieldIt != classIt->second->fields_.end()) {
+                    memberType = fieldIt->second;
+                }
+            }
+        }
+        
         if (currentBlock_) {
             SIRInstruction loadInst;
             loadInst.opcode = SIROpcode::LOAD;
-            loadInst.result = SIROperand::Register(resultReg, SIRType::I64);
+            loadInst.result = SIROperand::Register(resultReg, memberType);
             
             // (AR) المعامل الأول: الكائن
             // (EN) First operand: object
@@ -4702,7 +4728,9 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
             currentBlock_->addInstruction(loadInst);
         }
         
-        return BuildResult(resultReg, SIRType::I64);
+        BuildResult result(resultReg, memberType);
+        result.className = objResult.className;
+        return result;
     }
     
     // (AR) MemberAccessExpr - الوصول لعضو في كائن (class_nodes.h:206)
@@ -4797,6 +4825,17 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         currentBlock_ = elseBlock;
         auto falseResult = buildExpression(ternaryExpr->falseExpr.get());
         std::string falseReg = falseResult.registerName;
+        
+        // (AR) توحيد أنواع الفرعين: مثلاً I64+F64→F64
+        // (EN) Unify types from both branches: e.g. I64+F64→F64
+        if (resultType != falseResult.type) {
+            if ((resultType == SIRType::I64 && falseResult.type == SIRType::F64) ||
+                (resultType == SIRType::F64 && falseResult.type == SIRType::I64)) {
+                resultType = SIRType::F64;
+            } else if (resultType == SIRType::STRING || falseResult.type == SIRType::STRING) {
+                resultType = SIRType::STRING;
+            }
+        }
         
         if (currentBlock_) {
             currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
@@ -9954,6 +9993,21 @@ void SIRBuilder::buildImportStmt(AST::ImportStmt* importStmt) {
     // (AR) التحقق مما إذا تمت معالجة الوحدة بالفعل
     // (EN) Check if module was already processed
     if (processedModules_.count(fullModuleName)) {
+        // ══════════════════════════════════════════════════════════════
+        // (AR) تحسين: إذا كانت الوحدة مخبئية، ندمج النتائج مباشرة
+        //      بدلاً من إعادة تحليل AST
+        // (EN) Optimization: If module is cached, merge results directly
+        //      instead of re-parsing AST
+        // ══════════════════════════════════════════════════════════════
+        auto cacheIt = moduleCache_.find(fullModuleName);
+        if (cacheIt != moduleCache_.end()) {
+            // (AR) الوحدة موجودة في الذاكرة المخبئية — لا حاجة لإعادة البناء
+            // (EN) Module exists in cache — no need to rebuild
+            #ifndef NDEBUG
+            std::cout << "[IMPORT-CACHE] Module '" << fullModuleName 
+                      << "' already processed and cached, skipping." << std::endl;
+            #endif
+        }
         return;
     }
     
@@ -9976,60 +10030,38 @@ void SIRBuilder::buildImportStmt(AST::ImportStmt* importStmt) {
     // (EN) Mark module as processed
     processedModules_.insert(fullModuleName);
     
-    // (AR) معالجة كل تصريح في الوحدة
-    // (EN) Process each declaration in module
-    for (const auto& stmt : module->ast) {
-        if (!stmt) continue;
+    // ══════════════════════════════════════════════════════════════════
+    // (AR) تحسين: تجميع الوحدة وتخزينها في الذاكرة المخبئية
+    // (EN) Optimization: Compile module and store in cache
+    // ══════════════════════════════════════════════════════════════════
+    ModuleSIRArtifacts* cached = compileAndCacheModule(fullModuleName, module);
+    if (cached) {
+        // (AR) دمج جميع الرموز المُصدَّرة فقط في الوحدة الحالية
+        // (EN) Merge only exported symbols into current module
+        mergeCachedArtifacts(*cached);
         
-        // (AR) استخراج الدوال (المُصدَّرة أو غير المُصدَّرة)
-        // (EN) Extract functions (exported or not)
-        AST::FunctionDecl* funcDecl = nullptr;
-        AST::VarDeclStmt* varDecl = nullptr;
-        AST::ClassDecl* classDecl = nullptr;
-        
-        // (AR) تحقق من تصدير صريح (ExportDecl)
-        // (EN) Check for explicit export (ExportDecl)
-        if (auto exportDecl = dynamic_cast<AST::ExportDecl*>(stmt.get())) {
-            if (exportDecl->declaration) {
-                funcDecl = dynamic_cast<AST::FunctionDecl*>(exportDecl->declaration.get());
-                varDecl = dynamic_cast<AST::VarDeclStmt*>(exportDecl->declaration.get());
-                classDecl = dynamic_cast<AST::ClassDecl*>(exportDecl->declaration.get());
-            }
-        }
-        // (AR) تحقق من تصدير قديم (ExportStmt)
-        // (EN) Check for legacy export (ExportStmt)
-        else if (auto exportStmt = dynamic_cast<AST::ExportStmt*>(stmt.get())) {
-            if (exportStmt->declaration) {
-                funcDecl = dynamic_cast<AST::FunctionDecl*>(exportStmt->declaration.get());
-                varDecl = dynamic_cast<AST::VarDeclStmt*>(exportStmt->declaration.get());
-                classDecl = dynamic_cast<AST::ClassDecl*>(exportStmt->declaration.get());
-            }
-        }
-        // (AR) دالة عادية (بدون تصدير صريح)
-        // (EN) Regular function (no explicit export)
-        else {
-            funcDecl = dynamic_cast<AST::FunctionDecl*>(stmt.get());
-            varDecl = dynamic_cast<AST::VarDeclStmt*>(stmt.get());
-            classDecl = dynamic_cast<AST::ClassDecl*>(stmt.get());
-        }
-        
-        // (AR) بناء SIR للتصريحات المُكتشفة
-        // (EN) Build SIR for discovered declarations
-        if (funcDecl) {
-            buildFunction(funcDecl);
-        }
-        if (varDecl) {
-            buildGlobalVariable(varDecl);
-        }
-        if (classDecl) {
-            buildClass(classDecl);
-        }
+        #ifndef NDEBUG
+        std::cout << "[IMPORT-CACHE] Module '" << fullModuleName 
+                  << "' compiled and cached: " << cached->functions.size() << " functions, "
+                  << cached->globals.size() << " globals, "
+                  << cached->classes.size() << " classes" << std::endl;
+        #endif
     }
 }
 
 /**
  * @brief (AR) معالجة استيراد انتقائي: من وحدة استورد ...
  * @brief (EN) Process selective import: from module import ...
+ * 
+ * @details
+ * (AR) تحسينات:
+ *      1. ذاكرة مخبئية للوحدات المُجمَّعة — لا يُعاد بناء SIR
+ *      2. تصفية الرموز المُصدَّرة — فقط ما طُلب
+ *      3. دعم الأسماء المستعارة (كـ)
+ * (EN) Improvements:
+ *      1. Compiled module cache — SIR not rebuilt
+ *      2. Exported symbol filtering — only what's requested
+ *      3. Alias support (كـ / as)
  */
 void SIRBuilder::buildFromImportStmt(AST::FromImportStmt* fromImportStmt) {
     if (!fromImportStmt) return;
@@ -10040,8 +10072,51 @@ void SIRBuilder::buildFromImportStmt(AST::FromImportStmt* fromImportStmt) {
     
     std::string fullModuleName = fromImportStmt->getFullModuleName();
     
-    // (AR) التحقق مما إذا تمت معالجة الوحدة بالفعل
-    // (EN) Check if module was already processed
+    // ══════════════════════════════════════════════════════════════════
+    // (AR) تحسين: التحقق من الذاكرة المخبئية أولاً
+    // (EN) Optimization: Check cache first
+    // ══════════════════════════════════════════════════════════════════
+    auto cacheIt = moduleCache_.find(fullModuleName);
+    if (cacheIt != moduleCache_.end()) {
+        // (AR) الوحدة مخبئية — دمج الرموز المطلوبة فقط
+        // (EN) Module cached — merge only requested symbols
+        
+        std::unordered_set<std::string> requestedSymbols;
+        bool isWildcard = fromImportStmt->isWildcard;
+        
+        if (!isWildcard) {
+            for (const auto& item : fromImportStmt->items) {
+                requestedSymbols.insert(item.name);
+            }
+        }
+        
+        mergeCachedArtifacts(cacheIt->second, requestedSymbols);
+        
+        // (AR) تطبيق الأسماء المستعارة (كـ / as)
+        // (EN) Apply aliases (كـ / as)
+        if (!isWildcard) {
+            for (const auto& item : fromImportStmt->items) {
+                if (item.alias.has_value() && item.alias.value() != item.name) {
+                    // (AR) البحث عن الرمز الأصلي في جدول الدوال وتسجيله بالاسم المستعار
+                    // (EN) Find original symbol in function table and register with alias
+                    auto funcIt = functionTable_.find(item.name);
+                    if (funcIt != functionTable_.end()) {
+                        functionTable_[item.alias.value()] = funcIt->second;
+                        functionTable_[item.alias.value()].name = item.alias.value();
+                    }
+                }
+            }
+        }
+        
+        #ifndef NDEBUG
+        std::cout << "[IMPORT-CACHE] From-import '" << fullModuleName 
+                  << "' served from cache" << (isWildcard ? " (wildcard)" : "") << std::endl;
+        #endif
+        return;
+    }
+    
+    // (AR) التحقق مما إذا تمت معالجة الوحدة بالفعل (بدون ذاكرة مخبئية)
+    // (EN) Check if module was already processed (without cache)
     if (processedModules_.count(fullModuleName)) {
         return;
     }
@@ -10063,19 +10138,82 @@ void SIRBuilder::buildFromImportStmt(AST::FromImportStmt* fromImportStmt) {
     
     processedModules_.insert(fullModuleName);
     
-    // (AR) جمع أسماء الرموز المطلوبة (للاستيراد الانتقائي)
-    // (EN) Collect requested symbol names (for selective import)
-    std::unordered_set<std::string> requestedSymbols;
-    bool isWildcard = fromImportStmt->isWildcard;
-    
-    if (!isWildcard) {
-        for (const auto& item : fromImportStmt->items) {
-            requestedSymbols.insert(item.name);
+    // ══════════════════════════════════════════════════════════════════
+    // (AR) تجميع الوحدة وتخزينها في الذاكرة المخبئية
+    // (EN) Compile module and store in cache
+    // ══════════════════════════════════════════════════════════════════
+    ModuleSIRArtifacts* cached = compileAndCacheModule(fullModuleName, module);
+    if (cached) {
+        // (AR) جمع أسماء الرموز المطلوبة (للاستيراد الانتقائي)
+        // (EN) Collect requested symbol names (for selective import)
+        std::unordered_set<std::string> requestedSymbols;
+        bool isWildcard = fromImportStmt->isWildcard;
+        
+        if (!isWildcard) {
+            for (const auto& item : fromImportStmt->items) {
+                requestedSymbols.insert(item.name);
+            }
         }
+        
+        // (AR) دمج الرموز المطلوبة من الذاكرة المخبئية
+        // (EN) Merge requested symbols from cache
+        mergeCachedArtifacts(*cached, requestedSymbols);
+        
+        // (AR) تطبيق الأسماء المستعارة (كـ / as)
+        // (EN) Apply aliases (كـ / as)
+        if (!isWildcard) {
+            for (const auto& item : fromImportStmt->items) {
+                if (item.alias.has_value() && item.alias.value() != item.name) {
+                    auto funcIt = functionTable_.find(item.name);
+                    if (funcIt != functionTable_.end()) {
+                        functionTable_[item.alias.value()] = funcIt->second;
+                        functionTable_[item.alias.value()].name = item.alias.value();
+                    }
+                }
+            }
+        }
+        
+        #ifndef NDEBUG
+        std::cout << "[IMPORT-CACHE] From-import '" << fullModuleName 
+                  << "' compiled and cached: " << cached->functions.size() << " functions"
+                  << (isWildcard ? " (wildcard)" : "") << std::endl;
+        #endif
+    }
+}
+
+// ============================================================================
+// compileAndCacheModule - تجميع وحدة من AST وتخزين النتائج
+// ============================================================================
+// (AR) يعالج AST الوحدة مرة واحدة فقط ويخزن النتائج (دوال، متغيرات، أصناف)
+//      في الذاكرة المخبئية. الاستيرادات اللاحقة تستخدم النتائج المخبئية مباشرة.
+// (EN) Processes module AST exactly once and stores results (functions, globals,
+//      classes) in cache. Subsequent imports use cached results directly.
+// ============================================================================
+SIRBuilder::ModuleSIRArtifacts* SIRBuilder::compileAndCacheModule(
+    const std::string& fullModuleName, Modules::Module* module) 
+{
+    if (!module) return nullptr;
+    
+    // (AR) التحقق من وجود الوحدة في الذاكرة المخبئية
+    // (EN) Check if module is already cached
+    auto existingIt = moduleCache_.find(fullModuleName);
+    if (existingIt != moduleCache_.end()) {
+        return &existingIt->second;
     }
     
-    // (AR) معالجة تصريحات الوحدة
-    // (EN) Process module declarations
+    // (AR) إنشاء سجل جديد في الذاكرة المخبئية
+    // (EN) Create new cache record
+    ModuleSIRArtifacts artifacts;
+    
+    // (AR) حفظ حالة السياق الحالي قبل تجميع الوحدة
+    // (EN) Save current context before compiling module
+    auto savedFunction = currentFunction_;
+    auto savedBlock = currentBlock_;
+    auto savedClassName = currentClassName_;
+    int savedScopeLevel = currentScopeLevel_;
+    
+    // (AR) معالجة كل تصريح في وحدة AST
+    // (EN) Process each declaration in module AST
     for (const auto& stmt : module->ast) {
         if (!stmt) continue;
         
@@ -10083,7 +10221,15 @@ void SIRBuilder::buildFromImportStmt(AST::FromImportStmt* fromImportStmt) {
         AST::VarDeclStmt* varDecl = nullptr;
         AST::ClassDecl* classDecl = nullptr;
         bool isExported = false;
+        std::string symbolName;
         
+        // ══════════════════════════════════════════════════════════════
+        // (AR) تحسين: تتبع حالة التصدير لكل رمز
+        // (EN) Improvement: Track export status for each symbol
+        // ══════════════════════════════════════════════════════════════
+        
+        // (AR) تحقق من تصدير صريح (ExportDecl)
+        // (EN) Check for explicit export (ExportDecl)
         if (auto exportDecl = dynamic_cast<AST::ExportDecl*>(stmt.get())) {
             isExported = true;
             if (exportDecl->declaration) {
@@ -10091,43 +10237,181 @@ void SIRBuilder::buildFromImportStmt(AST::FromImportStmt* fromImportStmt) {
                 varDecl = dynamic_cast<AST::VarDeclStmt*>(exportDecl->declaration.get());
                 classDecl = dynamic_cast<AST::ClassDecl*>(exportDecl->declaration.get());
             }
-        } else if (auto exportStmt = dynamic_cast<AST::ExportStmt*>(stmt.get())) {
+        }
+        // (AR) تحقق من تصدير قديم (ExportStmt)
+        // (EN) Check for legacy export (ExportStmt)
+        else if (auto exportStmt = dynamic_cast<AST::ExportStmt*>(stmt.get())) {
             isExported = true;
             if (exportStmt->declaration) {
                 funcDecl = dynamic_cast<AST::FunctionDecl*>(exportStmt->declaration.get());
                 varDecl = dynamic_cast<AST::VarDeclStmt*>(exportStmt->declaration.get());
                 classDecl = dynamic_cast<AST::ClassDecl*>(exportStmt->declaration.get());
             }
-        } else {
+        }
+        // (AR) دالة/متغير/صنف عادي (بدون تصدير صريح)
+        //      نعتبر جميع الرموز في الوحدة مُصدَّرة ضمنياً
+        //      (للتوافق مع السلوك الحالي)
+        // (EN) Regular function/var/class (no explicit export)
+        //      Consider all module symbols implicitly exported
+        //      (for backward compatibility with current behavior)
+        else {
             funcDecl = dynamic_cast<AST::FunctionDecl*>(stmt.get());
             varDecl = dynamic_cast<AST::VarDeclStmt*>(stmt.get());
             classDecl = dynamic_cast<AST::ClassDecl*>(stmt.get());
+            isExported = true;  // (AR) توافق عكسي / (EN) backward compat
         }
         
-        // (AR) تحديد ما إذا كان الرمز مطلوباً
-        // (EN) Determine if symbol is requested
-        std::string symbolName;
+        // (AR) استخراج اسم الرمز
+        // (EN) Extract symbol name
         if (funcDecl) symbolName = funcDecl->name;
         else if (varDecl) symbolName = varDecl->name;
         else if (classDecl) symbolName = classDecl->name;
         else continue;
         
-        // (AR) في حالة الاستيراد الانتقائي، نتحقق من أن الرمز مطلوب
-        // (EN) For selective import, check if symbol is requested
-        if (!isWildcard && requestedSymbols.find(symbolName) == requestedSymbols.end()) {
-            continue;
-        }
-        
-        // (AR) بناء SIR
-        // (EN) Build SIR
+        // (AR) بناء SIR وتخزين في الذاكرة المخبئية
+        // (EN) Build SIR and store in cache
         if (funcDecl) {
             buildFunction(funcDecl);
+            // (AR) استخراج الدالة المُجمَّعة من الوحدة
+            // (EN) Extract compiled function from module
+            auto sirFunc = module_->getFunction(funcDecl->name);
+            if (sirFunc) {
+                artifacts.functions.push_back(sirFunc);
+            }
+            // (AR) استخراج معلومات الدالة من الجدول
+            // (EN) Extract function info from table
+            auto funcIt = functionTable_.find(funcDecl->name);
+            if (funcIt != functionTable_.end()) {
+                artifacts.functionTable[funcDecl->name] = funcIt->second;
+            }
         }
         if (varDecl) {
             buildGlobalVariable(varDecl);
+            auto sirGlobal = module_->getGlobalVariable(varDecl->name);
+            if (sirGlobal) {
+                artifacts.globals.push_back(sirGlobal);
+            }
         }
         if (classDecl) {
             buildClass(classDecl);
+            auto sirClass = module_->getClass(classDecl->name);
+            if (sirClass) {
+                artifacts.classes.push_back(sirClass);
+            }
+        }
+        
+        // (AR) تسجيل الرمز المُصدَّر
+        // (EN) Record exported symbol
+        if (isExported && !symbolName.empty()) {
+            artifacts.exportedSymbols.push_back(symbolName);
+        }
+    }
+    
+    // (AR) استعادة السياق السابق
+    // (EN) Restore previous context
+    currentFunction_ = savedFunction;
+    currentBlock_ = savedBlock;
+    currentClassName_ = savedClassName;
+    currentScopeLevel_ = savedScopeLevel;
+    
+    // (AR) تخزين النتائج في الذاكرة المخبئية وإرجاع مؤشر
+    // (EN) Store results in cache and return pointer
+    moduleCache_[fullModuleName] = std::move(artifacts);
+    return &moduleCache_[fullModuleName];
+}
+
+// ============================================================================
+// mergeCachedArtifacts - دمج نتائج SIR المخبئية في الوحدة الحالية
+// ============================================================================
+// (AR) يدمج الدوال والمتغيرات والأصناف من الذاكرة المخبئية في الوحدة الحالية.
+//      إذا كان filter فارغاً، يدمج جميع الرموز المُصدَّرة.
+//      إذا كان filter غير فارغ، يدمج فقط الرموز المطلوبة.
+// (EN) Merges functions, globals, and classes from cache into current module.
+//      If filter is empty, merges all exported symbols.
+//      If filter is non-empty, merges only requested symbols.
+// ============================================================================
+void SIRBuilder::mergeCachedArtifacts(
+    const ModuleSIRArtifacts& artifacts,
+    const std::unordered_set<std::string>& filter)
+{
+    bool filterActive = !filter.empty();
+    
+    // (AR) بناء مجموعة الرموز المُصدَّرة للتحقق السريع
+    // (EN) Build exported symbols set for fast lookup
+    std::unordered_set<std::string> exportedSet(
+        artifacts.exportedSymbols.begin(),
+        artifacts.exportedSymbols.end());
+    
+    // (AR) دمج الدوال
+    // (EN) Merge functions
+    for (const auto& func : artifacts.functions) {
+        if (!func) continue;
+        const std::string& name = func->getName();
+        
+        // (AR) تحقق من الفلتر: إذا كان هناك فلتر، لا تدمج إلا ما طُلب
+        // (EN) Check filter: if active, only merge requested symbols
+        if (filterActive && filter.find(name) == filter.end()) {
+            continue;
+        }
+        
+        // (AR) تحقق من أن الرمز مُصدَّر
+        // (EN) Check that symbol is exported
+        if (!exportedSet.empty() && exportedSet.find(name) == exportedSet.end()) {
+            continue;
+        }
+        
+        // (AR) تحقق من عدم وجود تكرار في الوحدة الحالية
+        // (EN) Check for duplicates in current module
+        if (!module_->getFunction(name)) {
+            module_->addFunction(func);
+        }
+    }
+    
+    // (AR) دمج جدول الدوال (لحل الاستدعاءات)
+    // (EN) Merge function table (for call resolution)
+    for (const auto& [name, info] : artifacts.functionTable) {
+        if (filterActive && filter.find(name) == filter.end()) {
+            continue;
+        }
+        if (!exportedSet.empty() && exportedSet.find(name) == exportedSet.end()) {
+            continue;
+        }
+        if (functionTable_.find(name) == functionTable_.end()) {
+            functionTable_[name] = info;
+        }
+    }
+    
+    // (AR) دمج المتغيرات العامة
+    // (EN) Merge global variables
+    for (const auto& global : artifacts.globals) {
+        if (!global) continue;
+        const std::string& name = global->getName();
+        
+        if (filterActive && filter.find(name) == filter.end()) {
+            continue;
+        }
+        if (!exportedSet.empty() && exportedSet.find(name) == exportedSet.end()) {
+            continue;
+        }
+        if (!module_->getGlobalVariable(name)) {
+            module_->addGlobalVariable(global);
+        }
+    }
+    
+    // (AR) دمج الأصناف
+    // (EN) Merge classes
+    for (const auto& cls : artifacts.classes) {
+        if (!cls) continue;
+        const std::string& name = cls->name;
+        
+        if (filterActive && filter.find(name) == filter.end()) {
+            continue;
+        }
+        if (!exportedSet.empty() && exportedSet.find(name) == exportedSet.end()) {
+            continue;
+        }
+        if (!module_->getClass(name)) {
+            module_->addClass(cls);
         }
     }
 }

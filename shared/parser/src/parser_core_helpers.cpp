@@ -774,8 +774,19 @@ std::vector<Parameter> ParserCore::parseTypedParameterList() {
             } else {
                 // Name-first syntax: "x: int"
                 // (AR) صيغة الاسم أولاً: "س: رقم"
-                Token paramName = consume(TT::IDENTIFIER, 
-                    "(AR) توقع اسم معامل. (EN) Expected parameter name.");
+                // (AR) دعم الكلمات المفتاحية الناعمة كأسماء معاملات (مثل: نوع، حجم، احصل)
+                // (EN) Support soft keywords as parameter names (e.g., نوع, حجم, احصل)
+                Token paramName(TT::IDENTIFIER, "", Lexer::Position());
+                if (check(TT::IDENTIFIER)) {
+                    paramName = current_;
+                    advance();
+                } else if (isKeywordUsableAsName(current_.getType()) || isTypeToken(current_.getType())) {
+                    paramName = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+                    advance();
+                } else {
+                    paramName = consume(TT::IDENTIFIER, 
+                        "(AR) توقع اسم معامل. (EN) Expected parameter name.");
+                }
                 
                 // Optional type annotation: name : type
                 // (AR) تصريح النوع الاختياري: اسم : نوع
@@ -1104,6 +1115,58 @@ bool ParserCore::isTypeToken(TokenType tokenType) {
            tokenType == TT::TYPE_NULL ||
            tokenType == TT::TYPE_ARRAY ||
            tokenType == TT::TYPE_MAP;
+}
+
+// ======================================================================
+// (AR) هل الكلمة المفتاحية يمكن استخدامها كمعرّف (اسم دالة أو معامل)؟
+// (EN) Can this keyword be used as an identifier (function/parameter name)?
+// ======================================================================
+bool ParserCore::isKeywordUsableAsName(TokenType tokenType) {
+    using TT = TokenType;
+    // (AR) نرفض فقط الكلمات البنيوية الصلبة التي تتعارض مع بنية اللغة
+    // (EN) Only reject hard structural keywords that conflict with language structure
+    switch (tokenType) {
+        // (AR) كلمات بنية الكتل / (EN) Block structure keywords
+        case TT::KEYWORD_FUNCTION:
+        case TT::KEYWORD_CLASS:
+        case TT::KEYWORD_END:
+        case TT::KEYWORD_CONSTRUCTOR:
+        case TT::KEYWORD_DESTRUCTOR:
+        case TT::KEYWORD_MAIN:
+        // (AR) التحكم في التدفق / (EN) Control flow
+        case TT::KEYWORD_IF:
+        case TT::KEYWORD_ELSE:
+        case TT::KEYWORD_ELSE_IF:
+        case TT::KEYWORD_WHILE:
+        case TT::KEYWORD_FOR:
+        case TT::KEYWORD_RETURN:
+        case TT::KEYWORD_RETURNS:
+        // (AR) المتغيرات / (EN) Variables
+        case TT::KEYWORD_VAR:
+        case TT::KEYWORD_CONST:
+        case TT::KEYWORD_LET:
+        // (AR) الأخطاء / (EN) Error handling
+        case TT::KEYWORD_TRY:
+        case TT::KEYWORD_CATCH:
+        case TT::KEYWORD_THROW:
+        case TT::KEYWORD_FINALLY:
+        // (AR) الاستيراد / (EN) Modules
+        case TT::KEYWORD_IMPORT:
+        case TT::KEYWORD_FROM:
+        case TT::KEYWORD_AS:
+        case TT::KEYWORD_EXPORT:
+        // (AR) الكائنات / (EN) Objects
+        case TT::KEYWORD_NEW:
+        case TT::KEYWORD_THIS:
+        case TT::KEYWORD_SUPER:
+            return false;
+        default:
+            // (AR) جميع الكلمات الأخرى (احصل، عيّن، نوع، حجم، إلخ) يمكن استخدامها كأسماء
+            // (EN) All other keywords (get, set, typename, sizeof, etc.) can be used as names
+            // (AR) نتحقق أنها كلمة مفتاحية وليست رمزاً آخر
+            // (EN) Verify it's actually a keyword, not some other token
+            return tokenType >= TT::KEYWORD_FUNCTION && tokenType <= TT::KEYWORD_COMPTIME;
+    }
 }
 
 Data::DataType ParserCore::mapTokenTypeToDataType(TokenType tokenType) {
