@@ -21,6 +21,7 @@
 #include "ownership_manager.h"
 #include "exception.h"
 #include "async_runtime.h"  // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
+#include "suggestions.h"    // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
 #include <atomic>
 #include <cmath>
 #include <climits>
@@ -37,6 +38,13 @@ namespace Interpreter {
 using namespace Data;
 using namespace AST;
 using namespace Lexer;
+
+// (AR) دالة مساعدة للحصول على اسم الملف من مدير الأخطاء
+// (EN) Helper function to get filename from error manager
+static inline std::string getSourceFilename() {
+    const auto& fn = Sad::Errors::ErrorManager::getInstance().getSourceFilename();
+    return fn.empty() ? "<input>" : fn;
+}
 
 
 // =========================================================================
@@ -57,7 +65,7 @@ void ExpressionEvaluator::visitUnaryExpr(UnaryExpr& node) {
             } else {
                 Sad::Errors::ErrorManager::getInstance().reportError(
                     Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                     "السالب يتطلب قيمة رقمية",
                     "Negation requires numeric value"
                 );
@@ -73,7 +81,7 @@ void ExpressionEvaluator::visitUnaryExpr(UnaryExpr& node) {
             if (!operand.isNumeric()) {
                 Sad::Errors::ErrorManager::getInstance().reportError(
                     Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                     "الموجب يتطلب قيمة رقمية",
                     "Positive requires numeric value"
                 );
@@ -93,7 +101,8 @@ void ExpressionEvaluator::visitUnaryExpr(UnaryExpr& node) {
                 newVal = Value(operand.toDouble() + 1.0);
             } else {
                 throw Interpreter::SadException(
-                    "(AR) ++ يتطلب قيمة رقمية / (EN) ++ requires numeric value",
+                    "(AR) العامل ++ يتطلب قيمة رقمية، ولكن القيمة من نوع '" + operand.getTypeName() + "'. "
+                    "(EN) ++ requires numeric value, but got type '" + operand.getTypeName() + "'.",
                     "TypeError", node.position);
             }
             // (AR) تحديث المتغير إذا كان المعامل متغيراً
@@ -115,7 +124,8 @@ void ExpressionEvaluator::visitUnaryExpr(UnaryExpr& node) {
                 newVal = Value(operand.toDouble() - 1.0);
             } else {
                 throw Interpreter::SadException(
-                    "(AR) -- يتطلب قيمة رقمية / (EN) -- requires numeric value",
+                    "(AR) العامل -- يتطلب قيمة رقمية، ولكن القيمة من نوع '" + operand.getTypeName() + "'. "
+                    "(EN) -- requires numeric value, but got type '" + operand.getTypeName() + "'.",
                     "TypeError", node.position);
             }
             // (AR) تحديث المتغير إذا كان المعامل متغيراً
@@ -143,7 +153,7 @@ void ExpressionEvaluator::visitUnaryExpr(UnaryExpr& node) {
         default:
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                 "عملية أحادية غير مدعومة",
                 "Unsupported unary operation"
             );
@@ -215,6 +225,20 @@ void ExpressionEvaluator::visitMapExpr(MapExpr& node) {
     
     // تقييم كل زوج مفتاح-قيمة / Evaluate each key-value pair
     for (auto& pair : node.pairs) {
+        // (AR) التحقق من spread / (EN) Check for spread
+        if (pair.isSpread()) {
+            // (AR) spread: دمج الخريطة المُنتشرة مع الخريطة الحالية
+            // (EN) spread: merge the spread map into current map
+            pair.value->accept(*this);
+            Value spreadVal = lastResult_;
+            if (spreadVal.isMap()) {
+                for (const auto& [k, v] : spreadVal.toMapRef()) {
+                    map[k] = v;
+                }
+            }
+            continue;
+        }
+        
         // تقييم المفتاح / Evaluate key
         pair.key->accept(*this);
         std::string key = lastResult_.toString();
@@ -244,18 +268,20 @@ void ExpressionEvaluator::visitIndexExpr(IndexExpr& node) {
     
     if (obj.isArray()) {
         // فهرسة مصفوفة / Array indexing
-        if (!index.isInteger()) {
+        // (AR) قبول الأعداد العشرية التي تمثل أعداداً صحيحة (مثل 4.0) أو اقتطاعها (مثل 4.5 → 4)
+        // (EN) Accept doubles that represent whole numbers (e.g. 4.0) or truncate them (e.g. 4.5 → 4)
+        if (!index.isNumeric()) {
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                "فهرس المصفوفة يجب أن يكون رقم صحيح",
-                "Array index must be integer"
+                Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                "فهرس المصفوفة يجب أن يكون رقماً",
+                "Array index must be a number"
             );
             lastResult_ = Value();
             return;
         }
         
-        int idx = index.toInt();
+        int idx = index.isInteger() ? index.toInt() : static_cast<int>(index.toDouble());
         const Value::ArrayType& arr = obj.toArrayRef();
         
         // (AR) دعم الفهرسة السالبة على نمط بايثون: -1 = آخر عنصر
@@ -263,9 +289,10 @@ void ExpressionEvaluator::visitIndexExpr(IndexExpr& node) {
         if (idx < 0) idx = static_cast<int>(arr.size()) + idx;
         
         if (idx < 0 || idx >= static_cast<int>(arr.size())) {
+            int sz = static_cast<int>(arr.size());
             throw IndexOutOfRangeError(
-                "(AR) الفهرس " + std::to_string(idx) + " خارج النطاق (الحجم: " + std::to_string(arr.size()) + ") / " +
-                "(EN) Index " + std::to_string(idx) + " out of range (size: " + std::to_string(arr.size()) + ")",
+                "(AR) الفهرس " + std::to_string(idx) + " خارج النطاق. الفهارس الصالحة: 0 إلى " + std::to_string(sz - 1) + " (أو -" + std::to_string(sz) + " إلى -1). الحجم: " + std::to_string(sz) + " / " +
+                "(EN) Index " + std::to_string(idx) + " out of range. Valid indices: 0 to " + std::to_string(sz - 1) + " (or -" + std::to_string(sz) + " to -1). Size: " + std::to_string(sz),
                 node.position
             );
         }
@@ -274,15 +301,15 @@ void ExpressionEvaluator::visitIndexExpr(IndexExpr& node) {
         
     } else if (obj.isMap()) {
         // فهرسة قاموس / Map indexing
+        // (AR) في حالة عدم وجود المفتاح، نُرجع عدم (null) بدلاً من خطأ
+        // (EN) If key doesn't exist, return null instead of throwing error
         std::string key = index.toString();
         const Value::MapType& map = obj.toMapRef();
         
         auto it = map.find(key);
         if (it == map.end()) {
-            throw KeyError(
-                "(AR) المفتاح '" + key + "' غير موجود / (EN) Key '" + key + "' not found",
-                node.position
-            );
+            lastResult_ = Value();  // null / عدم
+            return;
         }
         
         lastResult_ = it->second;
@@ -323,7 +350,7 @@ void ExpressionEvaluator::visitIndexExpr(IndexExpr& node) {
     } else {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "الفهرسة تعمل فقط على المصفوفات والقواميس والنصوص",
             "Indexing works only on arrays, maps, and strings"
         );
@@ -680,11 +707,8 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
                         if (arguments.size() == baseCtor->parameters.size()) {
                             for (size_t i = 0; i < baseCtor->parameters.size(); ++i) {
                                 const auto& pname = baseCtor->parameters[i].name;
-                                if (variableManager_.exists(pname)) {
-                                    variableManager_.assign(pname, arguments[i]);
-                                } else {
-                                    variableManager_.define(pname, arguments[i]);
-                                }
+                                // (AR) تحسين أداء: بحث واحد / (EN) Performance: single lookup
+                                variableManager_.defineOrAssign(pname, arguments[i]);
                             }
                             // (AR) تعيين الصنف المنفذ حالياً لدعم السلسلة (A→B→C)
                             // (EN) Set executing class for chained super calls (A→B→C)
@@ -693,11 +717,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
                             Value previousVal;
                             if (hadPrevious) previousVal = variableManager_.get("__executing_constructor_class__");
                             
-                            if (variableManager_.exists("__executing_constructor_class__")) {
-                                variableManager_.assign("__executing_constructor_class__", Value(baseClassName));
-                            } else {
-                                variableManager_.define("__executing_constructor_class__", Value(baseClassName));
-                            }
+                            variableManager_.defineOrAssign("__executing_constructor_class__", Value(baseClassName));
                             
                             try {
                                 baseCtor->body->accept(statementExecutor_);
@@ -812,11 +832,25 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
                 return;
             }
             
+            // (AR) دالة غير معرّفة — مع اقتراح "هل قصدت؟"
+            // (EN) Undefined function — with "Did you mean?" suggestion
+            std::string msgAr = "الدالة '" + funcName + "' غير معرفة بعدد معاملات " + std::to_string(arguments.size());
+            std::string msgEn = "Function '" + funcName + "' not defined with " + std::to_string(arguments.size()) + " parameters";
+            
+            // (AR) بحث عن أسماء دوال مشابهة / (EN) Search for similar function names
+            auto availableFuncs = functionManager_.getFunctionNames();
+            Sad::Errors::SuggestionEngine sugEngine;
+            auto similar = sugEngine.findSimilarSymbols(funcName, availableFuncs);
+            if (!similar.empty()) {
+                msgAr += " — هل قصدت: '" + similar[0] + "'؟";
+                msgEn += " — Did you mean: '" + similar[0] + "'?";
+            }
+            
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
-                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                "الدالة '" + funcName + "' غير معرفة بعدد معاملات " + std::to_string(arguments.size()),
-                "Function '" + funcName + "' not defined with " + std::to_string(arguments.size()) + " parameters"
+                Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                msgAr,
+                msgEn
             );
             lastResult_ = Value();
             return;
@@ -825,8 +859,12 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
     
     // (AR) التحقق من وجود تنفيذ أصلي (دالة مضمنة) / (EN) Check for native implementation (built-in function)
     if (func->hasNativeImplementation()) {
-        // (AR) تحويل القيم إلى ValuePtr / (EN) Convert values to ValuePtr
+        // ═══════════════════════════════════════════════════════════
+        // (AR) تحسين أداء: حجز الذاكرة مسبقاً للمؤشرات
+        // (EN) Performance: pre-reserve memory for argument pointers
+        // ═══════════════════════════════════════════════════════════
         std::vector<std::shared_ptr<Data::Value>> valuePtrs;
+        valuePtrs.reserve(arguments.size());
         for (const auto& arg : arguments) {
             valuePtrs.push_back(std::make_shared<Data::Value>(arg));
         }
@@ -847,7 +885,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
     if (!func->hasBody()) {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
-            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "الدالة '" + funcName + "' ليس لها جسم",
             "Function '" + funcName + "' has no body"
         );
@@ -890,7 +928,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
             variableManager_.exitScope();
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT,
-                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                 "معامل إلزامي مفقود: " + param.name,
                 "Required parameter missing: " + param.name
             );
@@ -1119,7 +1157,7 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
             variableManager_.exitScope();
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
-                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                 "جسم الدالة فارغ",
                 "Function body is null"
             );

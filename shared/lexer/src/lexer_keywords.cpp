@@ -50,8 +50,7 @@ void KeywordTable::initialize() {
     // (AR) كلمة 'دالة' لتعريف الدوال - الأساس في اللغة
     // (EN) 'function' keyword for function definitions - language foundation
     keywords_["دالة"] = TokenType::KEYWORD_FUNCTION;
-    keywords_["function"] = TokenType::KEYWORD_FUNCTION;
-    keywords_["func"] = TokenType::KEYWORD_FUNCTION;
+ 
     
     // (AR) كلمة 'رئيسية' للدالة الرئيسية - نقطة الدخول للبرنامج
     // (EN) 'main' keyword for main function - program entry point
@@ -62,8 +61,6 @@ void KeywordTable::initialize() {
     // (EN) 'return' keyword for returning values from functions
     
     keywords_["ارجع"] = TokenType::KEYWORD_RETURN;
-    keywords_["\xd8\xa5\xd8\xb1\xd8\xac\xd8\xa7\xd8\xb9"] = TokenType::KEYWORD_RETURN;  // إرجاع (with hamza under alef)
-    
     
     // (AR) كلمة 'ترجع' لتحديد نوع الإرجاع (في القوالب والدوال)
     // (EN) 'returns' keyword for return type specification (templates & functions)
@@ -75,7 +72,7 @@ void KeywordTable::initialize() {
     // (AR) كلمة 'تعداد' لتعريف التعدادات - المواصفة 01_types.md
     // (EN) 'enum' keyword for enum declarations - spec 01_types.md
     keywords_["تعداد"] = TokenType::KEYWORD_ENUM;
-    keywords_["enum"] = TokenType::KEYWORD_ENUM;
+
     
     // (AR) كلمة 'يرث' للوراثة - المواصفة 03_oop.md القسم 1 و 2
     // (EN) 'inherits' keyword for inheritance - spec 03_oop.md §1,2
@@ -93,20 +90,12 @@ void KeywordTable::initialize() {
     // (AR) كلمات الباني/المنشئ - تم توحيدها جميعاً على KEYWORD_CONSTRUCTOR
     // (EN) Constructor keywords - unified to KEYWORD_CONSTRUCTOR
     // ─────────────────────────────────────────────────────────────────────────
-    keywords_["باني"] = TokenType::KEYWORD_CONSTRUCTOR;        // (AR) الكلمة الأساسية للباني
-    keywords_["بناء"] = TokenType::KEYWORD_CONSTRUCTOR;        // (AR) مرادف: بناء
-    keywords_["منشئ"] = TokenType::KEYWORD_CONSTRUCTOR;        // (AR) مرادف: منشئ
-    keywords_["constructor"] = TokenType::KEYWORD_CONSTRUCTOR; // (EN) English alternative
-    keywords_["مدمر"] = TokenType::KEYWORD_DESTRUCTOR;         // Destructor
-    keywords_["هادم"] = TokenType::KEYWORD_DESTRUCTOR;         // Alternative destructor keyword
-   
+    keywords_["باني"] = TokenType::KEYWORD_CONSTRUCTOR;       // (AR) الباني الرئيسي
+    keywords_["منشئ"] = TokenType::KEYWORD_CONSTRUCTOR;       // (AR) بديل: منشئ
+    keywords_["بناء"] = TokenType::KEYWORD_CONSTRUCTOR;       // (AR) بديل: بناء
+
     keywords_["الأساس"] = TokenType::KEYWORD_SUPER;           // Super/base class
-    keywords_["الاساس"] = TokenType::KEYWORD_SUPER;           // Super/base class (without hamza)
-    keywords_["أساس"] = TokenType::KEYWORD_SUPER;             // Super/base class (without ال)
-    keywords_["اساس"] = TokenType::KEYWORD_SUPER;             // Super/base class (without ال and hamza)
-    keywords_["أصل"] = TokenType::KEYWORD_SUPER;              // Super/base class (parent/origin)
-    keywords_["super"] = TokenType::KEYWORD_SUPER;             // Super/base class (English)
-  
+ 
  
     
     DEBUG_PRINT("تمت إضافة 16 كلمة: الدوال والبنيات (عربي + إنجليزي)");
@@ -127,20 +116,17 @@ void KeywordTable::initialize() {
    
     keywords_["لكل"] = TokenType::KEYWORD_FOR;
 
-    keywords_["توقف"] = TokenType::KEYWORD_BREAK;
-    keywords_["اخرج"] = TokenType::KEYWORD_BREAK;             // (AR) اخرج من الحلقة / (EN) break alias
-    keywords_["break"] = TokenType::KEYWORD_BREAK;             // (EN) break
-    
-    keywords_["استمر"] = TokenType::KEYWORD_CONTINUE;
-    keywords_["تابع"] = TokenType::KEYWORD_CONTINUE;           // (AR) تابع الحلقة / (EN) continue alias
-    keywords_["continue"] = TokenType::KEYWORD_CONTINUE;       // (EN) continue
+
+    keywords_["استمر"] = TokenType::KEYWORD_CONTINUE;       // (EN) continue
    
     
     DEBUG_PRINT("تمت إضافة 14 كلمة: التحكم في التدفق (عربي + إنجليزي)");
     
     // ========== الكلمات المفتاحية - Switch/Case ==========
     // Keywords - Switch/Case (spec 04_syntax.md)
-    keywords_["حالة"] = TokenType::KEYWORD_CASE;
+    // ملاحظة: 'حالة' كلمة سياقية — يمكن استخدامها كاسم متغير
+    // Note: 'حالة' is contextual — can be used as variable name
+    // keywords_["حالة"] = TokenType::KEYWORD_CASE;  // REMOVED: contextual keyword
    
     keywords_["عندما"] = TokenType::KEYWORD_WHEN;
 
@@ -159,6 +145,7 @@ void KeywordTable::initialize() {
     // ========== الكلمات المفتاحية - Async/Await (Phase 2) ==========
     // Keywords - Async/Await
     keywords_["غير_متزامن"] = TokenType::KEYWORD_ASYNC;  // (AR) دالة غير متزامنة / (EN) Async function
+    keywords_["غير_متزامنة"] = TokenType::KEYWORD_ASYNC; // (AR) صيغة المؤنث: دالة غير_متزامنة → async method
 
     keywords_["انتظر"] = TokenType::KEYWORD_AWAIT;        // (AR) انتظار نتيجة / (EN) Await result
 
@@ -181,6 +168,7 @@ void KeywordTable::initialize() {
     keywords_["ارمي"] = TokenType::KEYWORD_THROW;
  
     keywords_["أخيراً"] = TokenType::KEYWORD_FINALLY;
+    keywords_["أخيرا"] = TokenType::KEYWORD_FINALLY;  // (AR) بدون تنوين / (EN) Without tanween — lexer strips diacritics
  
     
     DEBUG_PRINT("تمت إضافة 2 كلمات: معالجة الأخطاء");
@@ -197,7 +185,7 @@ void KeywordTable::initialize() {
     // Keywords - Inheritance (spec 04_syntax.md)
     // NOTE: 'يرث' already registered as KEYWORD_INHERITS at line 59
     keywords_["\xD9\x85\xD8\xAC\xD8\xB1\xD8\xAF"] = TokenType::KEYWORD_ABSTRACT; // مجرد
-    keywords_["abstract"] = TokenType::KEYWORD_ABSTRACT;
+    keywords_["مجرد"] = TokenType::KEYWORD_ABSTRACT;
     // NOTE: virtual removed - conflicts with DEFAULT (افتراضي)
     
     DEBUG_PRINT("تمت إضافة 2 كلمة: الوراثة (abstract)");
@@ -211,6 +199,7 @@ void KeywordTable::initialize() {
     keywords_["كـ"] = TokenType::KEYWORD_AS;    // for "import X as Y"
 
     keywords_["صدّر"] = TokenType::KEYWORD_EXPORT;
+    keywords_["صدر"] = TokenType::KEYWORD_EXPORT;   // (AR) بدون تشكيل — الحروف المجردة بعد تجريد الشدة
   
     // NOTE: module and package removed - not in spec
     
@@ -223,14 +212,12 @@ void KeywordTable::initialize() {
     keywords_["ثابت"] = TokenType::KEYWORD_CONST;
     
     keywords_["ساكن"] = TokenType::KEYWORD_STATIC;
+    keywords_["ثابتة"] = TokenType::KEYWORD_STATIC;  // (AR) صيغة المؤنث: دالة ثابتة → static method
   
     
     // Properties (Phase 6.3)
     keywords_["خاصية"] = TokenType::KEYWORD_PROPERTY;
 
-    keywords_["احصل"] = TokenType::KEYWORD_GET;
-    keywords_["عيّن"] = TokenType::KEYWORD_SET;
-   
     
     DEBUG_PRINT("تمت إضافة 10 كلمات: المتغيرات والخصائص");
     
@@ -295,7 +282,11 @@ void KeywordTable::initialize() {
     // Templates (Phase 7B.1)
     keywords_["قالب"] = TokenType::KEYWORD_TEMPLATE;      // (AR) لتعريف القوالب / (EN) template keyword
 
-    keywords_["نوع"] = TokenType::KEYWORD_TYPENAME;       // (AR) معامل النوع / (EN) typename
+    // (AR) 'نوع' كلمة سياقية — لا تُسجل في جدول الكلمات المحجوزة
+    //      لتسمح باستخدامها كأسماء معاملات/متغيرات (مثل: دالة سجّل(نوع، بيانات))
+    // (EN) 'نوع' is contextual — NOT registered in keyword table
+    //      to allow use as parameter/variable names (e.g., function register(type, data))
+    // keywords_["نوع"] = TokenType::KEYWORD_TYPENAME;    // DISABLED: contextual keyword
 
     
     // Namespaces (Phase 7B.5)
@@ -308,94 +299,19 @@ void KeywordTable::initialize() {
  
     
     DEBUG_PRINT("تمت إضافة 10 كلمات: ميزات C++");
-    
-    // ================================================================
-    // (AR) ميزات برمجة أنظمة التشغيل — OS Development Features
-    // (EN) OS Development Features (Phase 8)
-    // ================================================================
-    // (AR) هذا القسم يضيف الكلمات المفتاحية اللازمة لبرمجة أنظمة التشغيل
-    //      والتعامل المباشر مع العتاد (Hardware) والذاكرة
-    // (EN) This section adds keywords needed for OS development
-    //      and direct hardware/memory interaction
-    
-    // (AR) كلمة 'تجميع' للتجميع المضمّن — يسمح بكتابة أوامر المعالج مباشرة
-    // (EN) 'asm' keyword for inline assembly — allows writing CPU instructions directly
-    keywords_["تجميع"] = TokenType::KEYWORD_ASM;
-
-    
-    // (AR) كلمة 'متطاير' — تمنع المترجم من تحسين عمليات القراءة/الكتابة
-    //      ضرورية عند التعامل مع سجلات العتاد (hardware registers)
-    // (EN) 'volatile' — prevents compiler from optimizing read/write operations
-    keywords_["متطاير"] = TokenType::KEYWORD_VOLATILE;
    
-    
-    // (AR) كلمة 'خارجي' — تصريح بوجود رمز معرّف في مكان آخر (ربط خارجي)
-    // (EN) 'extern' — declares symbol defined elsewhere (external linkage)
-    keywords_["خارجي"] = TokenType::KEYWORD_EXTERN;
-
-    
-    // (AR) كلمة 'حجم' — تعيد حجم النوع بالبايتات (مثل sizeof في C)
-    // (EN) 'sizeof' — returns type size in bytes
-    keywords_["حجم"] = TokenType::KEYWORD_SIZEOF;
-
-    
-    // (AR) كلمة 'غير_آمن' — كتلة تسمح بالعمليات الخطرة (وصول مباشر للذاكرة)
-    // (EN) 'unsafe' — block that allows dangerous operations (raw memory access)
-    keywords_["غير_آمن"] = TokenType::KEYWORD_UNSAFE;
-
-    
-    // (AR) كلمة 'محزوم' — بنية بلا حشو بين الحقول (للتوافق مع بنيات العتاد)
-    // (EN) 'packed' — struct without padding (for hardware structure compatibility)
-    keywords_["محزوم"] = TokenType::KEYWORD_PACKED;
-
-    
-    // (AR) كلمة 'بلا_رجوع' — دالة لا ترجع أبداً (مثل حلقة النواة الرئيسية)
-    // (EN) 'noreturn' — function that never returns (like kernel main loop)
-    keywords_["بلا_رجوع"] = TokenType::KEYWORD_NORETURN;
- 
-    
-    // (AR) كلمة 'عارية' — دالة بدون مقدمة/خاتمة (لمعالجات المقاطعات)
-    // (EN) 'naked' — function without prologue/epilogue (for interrupt handlers)
-    keywords_["عارية"] = TokenType::KEYWORD_NAKED;
-    
-    
-    // (AR) كلمة 'سجل' — تلميح لتخزين المتغير في سجل المعالج
-    // (EN) 'register' — hint to store variable in CPU register
-    keywords_["سجل"] = TokenType::KEYWORD_REGISTER;
- 
-    
-    // (AR) كلمة 'قسم' — تحديد قسم في ملف الكائن (مثل .text, .data, .bss)
-    // (EN) 'section' — specify section in object file
-    keywords_["قسم"] = TokenType::KEYWORD_SECTION;
-  
-    
-    DEBUG_PRINT("تمت إضافة 20 كلمة: ميزات برمجة أنظمة التشغيل");
-    
-    // ================================================================
-    // (AR) كلمات مفتاحية نظام النحلة — BeeOS Keywords (Phase 9)
-    // (EN) BeeOS development keywords for building an Arabic OS
-    // ================================================================
-    // (AR) هذا القسم يضيف الكلمات المفتاحية اللازمة لبناء نظام النحلة
-    //      تشمل: الملكية، البنى، السمات، الاختبار، الذريات، الوحدات
-    
-    // (AR) كلمة 'دع' — تعريف متغير مع نظام الملكية (بديل لـ 'متغير' مع دلالة Rust-like)
-    // (EN) 'let' — variable declaration with ownership semantics
-    keywords_["دع"] = TokenType::KEYWORD_LET;
-
-    
     // (AR) كلمة 'بنية' — تعريف بنية بيانات بسبطة بدون وراثة (مثل struct في C/Rust)
     // (EN) 'struct' — plain data structure without inheritance
     keywords_["بنية"] = TokenType::KEYWORD_STRUCT;
  
     
-    // (AR) كلمة 'سمة' — تعريف واجهة/سمة (مثل trait في Rust)
-    // (EN) 'trait' — trait/interface definition
+    // (AR) كلمة 'سمة' — تعريف سمة (مثل trait في Rust)
+    // (EN) 'trait' — trait definition  
+    // ملاحظة: 'واجهة' كلمة سياقية وليست محجوزة — يمكن استخدامها كاسم صنف/متغير
+    // Note: 'واجهة' is a contextual keyword — can be used as class/variable name
     keywords_["سمة"] = TokenType::KEYWORD_TRAIT;
-    keywords_["واجهة"] = TokenType::KEYWORD_TRAIT;  // (AR) بديل: واجهة = interface
-    keywords_["interface"] = TokenType::KEYWORD_TRAIT;
-    keywords_["trait"] = TokenType::KEYWORD_TRAIT;
+    // keywords_["واجهة"] = TokenType::KEYWORD_TRAIT;  // REMOVED: contextual keyword
 
-    
     // (AR) كلمة 'نفّذ' — تنفيذ سمة لنوع معين (مثل impl في Rust)
     // (EN) 'impl' — implement trait for a type
     keywords_["نفّذ"] = TokenType::KEYWORD_IMPL;

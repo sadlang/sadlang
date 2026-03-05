@@ -137,34 +137,39 @@ StmtPtr ParserCore::parseForStmt() {
     // (EN) Parentheses optional: both forms accepted
     bool hasParen = match(TT::PAREN_LEFT);
 
-    // Parse loop variable
-    // (AR) تحليل متغير الحلقة — يسمح بالمعرّفات وكلمات الأنواع (رقم، عشري، نص...)
-    // (EN) Loop variable: accept identifiers and type keywords (رقم، عشري، نص...)
-    bool isTypeKeyword = check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || 
-                         check(TT::TYPE_STRING)  || check(TT::TYPE_BOOLEAN) ||
-                         check(TT::TYPE_ARRAY)   || check(TT::TYPE_MAP)     ||
-                         check(TT::TYPE_ANY);
-    if (isTypeKeyword) {
-        // (AR) قبول كلمة النوع كاسم متغير حلقة
-        // نحرّك المؤشر ونحفظ الرمز
-        Token saved = current_;
+    // (AR) تحليل متغير الحلقة — يسمح بالمعرّفات وكلمات الأنواع والكلمات المفتاحية كأسماء
+    // (EN) Loop variable: accept identifiers, type keywords, and keywords-as-names
+    Token var(TT::IDENTIFIER, "", Lexer::Position());
+    if (check(TT::IDENTIFIER)) {
+        var = current_;
         advance();
-        // نعيد تعيين var بعد الاستهلاك
-        Token var = saved;
-        // (AR) توقع كلمة 'في'
-        if (!match(TT::KEYWORD_IN)) {
-            errorExpectedToken("كلمة 'في'", "keyword 'في' (in)", "في حلقة for", "in for loop");
-        }
-        auto collection = parseExpression();
-        if (hasParen) {
-            consume(TT::PAREN_RIGHT, "(AR) توقع ')' بعد مجموعة for. (EN) Expected ')' after for collection.");
-        }
-        auto body = parseBlockStmt();
-        return std::make_unique<ForRangeStmt>(
-            var.getValue(), std::move(collection), std::move(body), "", var.getPosition());
+    } else if (isTypeToken(current_.getType()) || isTokenUsableAsName(current_.getType())) {
+        // (AR) قبول كلمة النوع أو المفتاحية كاسم متغير حلقة (مثل: لكل خطأ في ...)
+        // (EN) Accept type keyword or reserved word as loop variable (e.g., for error in ...)
+        var = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+        advance();
+    } else {
+        var = consume(TT::IDENTIFIER, 
+            "(AR) توقع اسم متغير الحلقة. (EN) Expected loop variable name.");
     }
-    Token var = consume(TT::IDENTIFIER, 
-        "(AR) توقع اسم متغير الحلقة. (EN) Expected loop variable name.");
+    
+    // (AR) دعم تفكيك المتغيرات: لكل فهرس، عنصر في مجموعة
+    // (EN) Support destructuring: for index, value in collection
+    std::string valueVariable = "";
+    if (match(TT::COMMA) || match(TT::ARABIC_COMMA)) {
+        Token valVar(TT::IDENTIFIER, "", Lexer::Position());
+        if (check(TT::IDENTIFIER)) {
+            valVar = current_;
+            advance();
+        } else if (isTypeToken(current_.getType()) || isTokenUsableAsName(current_.getType())) {
+            valVar = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+            advance();
+        } else {
+            valVar = consume(TT::IDENTIFIER,
+                "(AR) توقع اسم المتغير الثاني. (EN) Expected second variable name.");
+        }
+        valueVariable = valVar.getValue();
+    }
     
     // Expect 'in' keyword (Arabic: في)
     // (AR) توقع كلمة 'في'
@@ -192,7 +197,7 @@ StmtPtr ParserCore::parseForStmt() {
         var.getValue(),
         std::move(collection),
         std::move(body),
-        "",
+        valueVariable,
         var.getPosition()
     );
 }
@@ -325,7 +330,9 @@ StmtPtr ParserCore::parseWithStmt() {
     // (EN) Parse body of with block
     std::vector<StmtPtr> bodyStatements;
     
-    while (!check(TT::KEYWORD_END_WITH) && !check(TT::KEYWORD_END) && !isAtEnd()) {
+    while (!check(TT::KEYWORD_END_WITH) && !check(TT::KEYWORD_END) &&
+           !(check(TT::IDENTIFIER) && current_.getValue() == "نهاية_استخدام") &&
+           !isAtEnd()) {
         StmtPtr stmt = parseStatement();
         if (stmt) {
             bodyStatements.push_back(std::move(stmt));
@@ -335,7 +342,10 @@ StmtPtr ParserCore::parseWithStmt() {
     // (AR) استهلاك 'نهاية_استخدام' أو 'نهاية'
     // (EN) Consume 'end_with' or 'end'
     if (!match(TT::KEYWORD_END_WITH)) {
-        if (!match(TT::KEYWORD_END)) {
+        // (AR) دعم كلمة سياقية: نهاية_استخدام كمُعرّف
+        if (check(TT::IDENTIFIER) && current_.getValue() == "نهاية_استخدام") {
+            advance();
+        } else if (!match(TT::KEYWORD_END)) {
             error("(AR) توقع 'نهاية_استخدام' أو 'نهاية' لإنهاء كتلة الاستخدام. "
                   "(EN) Expected 'end_with' or 'end' to close with block.");
             return nullptr;
@@ -489,9 +499,9 @@ StmtPtr ParserCore::parseTryStmt() {
     // (AR) تحليل بنود catch
     std::vector<CatchClause> catchClauses;
     while (match(TT::KEYWORD_CATCH)) {
-        consume(TT::PAREN_LEFT, 
-            "(AR) توقع '(' بعد 'امسك'. (EN) Expected '(' after 'catch'.");
-        
+        // (AR) الأقواس اختيارية: امسك (خطأ) أو امسك خطأ
+        // (EN) Parentheses optional: catch (error) or catch error
+        bool hasCatchParen = match(TT::PAREN_LEFT);
         
         // (AR) قراءة نوع الاستثناء (اختياري) ثم اسم المتغير
         // (EN) Read optional exception type then variable name
@@ -500,23 +510,41 @@ StmtPtr ParserCore::parseTryStmt() {
         Data::DataType exceptionType = Data::DataType::UNKNOWN;
         std::string exceptionTypeName = "";
         
-        Token firstToken = consume(TT::IDENTIFIER, 
-            "(AR) توقع اسم متغير الاستثناء. (EN) Expected exception variable name.");
+        // (AR) دعم الكلمات المفتاحية كأسماء استثناء (مثل: امسك خطأ)
+        // (EN) Support keywords as exception variable names (e.g., catch error)
+        Token firstToken(TT::IDENTIFIER, "", Lexer::Position());
+        if (check(TT::IDENTIFIER)) {
+            firstToken = current_;
+            advance();
+        } else if (isTokenUsableAsName(current_.getType())) {
+            firstToken = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+            advance();
+        } else {
+            firstToken = consume(TT::IDENTIFIER, 
+                "(AR) توقع اسم متغير الاستثناء. (EN) Expected exception variable name.");
+        }
         
         // (AR) إذا كان هناك معرّف آخر قبل ')' فالأول هو النوع والثاني هو المتغير
         // (EN) If there's another identifier before ')' then first is type, second is variable
         Token exceptionVar = firstToken;
-        if (check(TT::IDENTIFIER)) {
+        if (check(TT::IDENTIFIER) || isTokenUsableAsName(current_.getType())) {
             // (AR) الرمز الأول هو اسم نوع الاستثناء المخصص
             // (EN) First token is custom exception type name
             exceptionTypeName = firstToken.getValue();
             exceptionType = Data::DataType::OBJECT;
-            exceptionVar = consume(TT::IDENTIFIER, 
-                "(AR) توقع اسم متغير الاستثناء. (EN) Expected exception variable name.");
+            if (check(TT::IDENTIFIER)) {
+                exceptionVar = current_;
+                advance();
+            } else {
+                exceptionVar = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+                advance();
+            }
         }
         
-        consume(TT::PAREN_RIGHT, 
-            "(AR) توقع ')' بعد متغير الاستثناء. (EN) Expected ')' after exception variable.");
+        if (hasCatchParen) {
+            consume(TT::PAREN_RIGHT, 
+                "(AR) توقع ')' بعد متغير الاستثناء. (EN) Expected ')' after exception variable.");
+        }
         
         // Parse catch body using Arabic syntax
         // (AR) تحليل جسم catch باستخدام الصيغة العربية
@@ -591,19 +619,22 @@ StmtPtr ParserCore::parseSwitchStmt() {
     // (AR) حفظ الموقع للإبلاغ عن الأخطاء
     Token startToken = previous();
     
-    // Expect opening parenthesis
-    // (AR) توقع قوس الفتح
-    consume(TT::PAREN_LEFT,
-        "(AR) توقع '(' بعد 'حالة'. (EN) Expected '(' after 'case'.");
+    // Parentheses are optional: both forms accepted
+    // (AR) الأقواس اختيارية: يُقبل كلا الشكلين:
+    //   حالة (تعبير)   <- بأقواس
+    //   حالة تعبير     <- بدون أقواس
+    bool hasParen = match(TT::PAREN_LEFT);
     
     // Parse switch expression
     // (AR) تحليل تعبير switch
     auto expr = parseExpression();
     
-    // Expect closing parenthesis
-    // (AR) توقع قوس الإغلاق
-    consume(TT::PAREN_RIGHT,
-        "(AR) توقع ')' بعد تعبير الحالة. (EN) Expected ')' after case expression.");
+    // Close paren if opened
+    // (AR) إغلاق القوس إذا فُتح
+    if (hasParen) {
+        consume(TT::PAREN_RIGHT,
+            "(AR) توقع ')' بعد تعبير الحالة. (EN) Expected ')' after case expression.");
+    }
     
     // Parse case branches
     // (AR) تحليل فروع الحالات
@@ -618,16 +649,30 @@ StmtPtr ParserCore::parseSwitchStmt() {
             // (AR) تحليل قيمة الحالة
             auto caseValue = parseExpression();
             
-            consume(TT::COLON,
-                "(AR) توقع ':' بعد قيمة الحالة. (EN) Expected ':' after case value.");
+            // (AR) النقطتان ':' اختيارية بعد قيمة الحالة
+            // (EN) Colon ':' is optional after case value
+            match(TT::COLON);
             
-            // Parse case body (single statement or block)
-            // (AR) تحليل جسم الحالة (جملة واحدة أو كتلة)
+            // (AR) تحليل جسم الحالة — جمل متعددة حتى عندما/افتراضي/نهاية التالية
+            // (EN) Parse case body — multiple statements until next when/default/end
+            std::vector<StmtPtr> bodyStmts;
+            while (!check(TT::KEYWORD_WHEN) && !check(TT::KEYWORD_DEFAULT) && 
+                   !check(TT::KEYWORD_END) && !isAtEnd()) {
+                auto stmt = parseStatement();
+                if (stmt) {
+                    bodyStmts.push_back(std::move(stmt));
+                } else {
+                    synchronize();
+                }
+            }
+            
+            // (AR) تغليف الجمل في كتلة واحدة
+            // (EN) Wrap statements in a single block
             StmtPtr caseBody;
-            if (check(TT::BRACE_LEFT)) {
-                caseBody = parseBlockStmt();
+            if (bodyStmts.size() == 1) {
+                caseBody = std::move(bodyStmts[0]);
             } else {
-                caseBody = parseStatement();
+                caseBody = std::make_unique<BlockStmt>(std::move(bodyStmts));
             }
             
             // Add case branch
@@ -637,15 +682,26 @@ StmtPtr ParserCore::parseSwitchStmt() {
         } else if (match(TT::KEYWORD_DEFAULT)) {
             // Parse default case
             // (AR) تحليل الحالة الافتراضية
-            consume(TT::COLON,
-                "(AR) توقع ':' بعد افتراضي. (EN) Expected ':' after default.");
+            // (AR) النقطتان ':' اختيارية
+            // (EN) Colon ':' is optional
+            match(TT::COLON);
             
-            // Parse default body
-            // (AR) تحليل جسم الحالة الافتراضية
-            if (check(TT::BRACE_LEFT)) {
-                defaultCase = parseBlockStmt();
+            // (AR) تحليل جسم الحالة الافتراضية — جمل متعددة
+            // (EN) Parse default body — multiple statements
+            std::vector<StmtPtr> defaultStmts;
+            while (!check(TT::KEYWORD_END) && !isAtEnd()) {
+                auto stmt = parseStatement();
+                if (stmt) {
+                    defaultStmts.push_back(std::move(stmt));
+                } else {
+                    synchronize();
+                }
+            }
+            
+            if (defaultStmts.size() == 1) {
+                defaultCase = std::move(defaultStmts[0]);
             } else {
-                defaultCase = parseStatement();
+                defaultCase = std::make_unique<BlockStmt>(std::move(defaultStmts));
             }
             
             // Default must be last, so break

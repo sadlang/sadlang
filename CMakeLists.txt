@@ -105,6 +105,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/interpreter_new/include/visitors
     ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers
     ${CMAKE_SOURCE_DIR}/interpreter_new/include/builtins
+    ${CMAKE_SOURCE_DIR}/interpreter_new/include/debug
     ${CMAKE_SOURCE_DIR}/compiler_new/include
     ${CMAKE_SOURCE_DIR}/compiler_new/include/frontend
     ${CMAKE_SOURCE_DIR}/compiler_new/include/backend

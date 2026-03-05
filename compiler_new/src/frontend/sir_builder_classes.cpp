@@ -115,6 +115,14 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
             // (AR) تحويل النوع وإضافة الحقل
             // (EN) Convert type and add field
             SIRType fieldType = astTypeToSIRType(fieldDecl->type);
+            
+            // (AR) الحقول الديناميكية (UNKNOWN/OBJECT) تُخزن كمؤشرات لدعم أي نوع
+            // (EN) Dynamically-typed fields (UNKNOWN/OBJECT) stored as PTR to support any value type
+            if (fieldDecl->type == Data::DataType::UNKNOWN || 
+                fieldDecl->type == Data::DataType::OBJECT) {
+                fieldType = SIRType::PTR;
+            }
+            
             sirClass->addField(fieldDecl->name, fieldType);
         }
         
@@ -131,10 +139,55 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
             
             for (const auto& param : ctorDecl->parameters) {
                 SIRType paramType = astTypeToSIRType(param.type);
+                #ifndef NDEBUG
+                std::cout << "[DEBUG] buildClass: constructor param '" << param.name 
+                          << "' AST type=" << static_cast<int>(param.type) 
+                          << " -> SIR type=" << static_cast<int>(paramType) << std::endl;
+                #endif
                 sirCtor->addParameter(SIRParameter(param.name, paramType));
             }
             
             sirClass->addMethod(sirCtor);
+            
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) استنتاج أنواع الحقول: مسح جسم الباني لبناء خريطة معامل→حقل
+            // (EN) Field type inference: scan constructor body for param→field mapping
+            // ═══════════════════════════════════════════════════════════════
+            if (ctorDecl->body) {
+                auto* blockStmt = dynamic_cast<AST::BlockStmt*>(ctorDecl->body.get());
+                if (blockStmt) {
+                    for (const auto& stmt : blockStmt->statements) {
+                        auto* exprStmt = dynamic_cast<AST::ExprStmt*>(stmt.get());
+                        if (exprStmt && exprStmt->expression) {
+                            auto* memberAssign = dynamic_cast<AST::MemberAssignExpr*>(exprStmt->expression.get());
+                            if (memberAssign && dynamic_cast<AST::ThisExpr*>(memberAssign->object.get())) {
+                                // (AR) هذا.حقل = تعبير — تتبع العلاقة
+                                // (EN) this.field = expr — track the relationship
+                                auto* varExpr = dynamic_cast<AST::VariableExpr*>(memberAssign->value.get());
+                                if (varExpr) {
+                                    // (AR) هذا.حقل = معامل → تسجيل في الخريطة
+                                    // (EN) this.field = param → record mapping
+                                    sirClass->paramToFieldMap_[varExpr->name] = memberAssign->member;
+                                }
+                                // (AR) هذا.حقل = قيمة_حرفية → تحديث نوع الحقل مباشرة
+                                // (EN) this.field = literal → update field type directly
+                                auto* literal = dynamic_cast<AST::LiteralExpr*>(memberAssign->value.get());
+                                if (literal) {
+                                    const std::string& fieldName = memberAssign->member;
+                                    auto tokenType = literal->token.getType();
+                                    if (tokenType == Sad::Lexer::TokenType::NUMBER_INTEGER) {
+                                        sirClass->fields_[fieldName] = SIRType::I64;
+                                    } else if (tokenType == Sad::Lexer::TokenType::NUMBER_DOUBLE) {
+                                        sirClass->fields_[fieldName] = SIRType::F64;
+                                    } else if (tokenType == Sad::Lexer::TokenType::STRING_LITERAL) {
+                                        sirClass->fields_[fieldName] = SIRType::STRING;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             
             // (AR) بناء جسم الباني
             // (EN) Build constructor body
@@ -225,9 +278,92 @@ void SIRBuilder::buildClass(AST::ClassDeclNode* classDecl) {
                     std::vector<SIROperand> superArgOperands;
                     superArgOperands.push_back(SIROperand::Register("%self", SIRType::I64)); // self
                     
-                    for (auto& arg : ctorDecl->superArgs) {
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) بناء خريطة وسائط الأساس → معاملات الباني
+                    // (EN) Build super arg mapping: classify each as param ref or constant
+                    // ═══════════════════════════════════════════════════════════════
+                    for (int superIdx = 0; superIdx < static_cast<int>(ctorDecl->superArgs.size()); superIdx++) {
+                        auto& arg = ctorDecl->superArgs[superIdx];
+                        
+                        // (AR) تصنيف وسيط الأساس: متغير (مرجع لمعامل) أو ثابت
+                        // (EN) Classify super arg: variable (param ref) or constant
+                        auto* varExpr = dynamic_cast<AST::VariableExpr*>(arg.get());
+                        if (varExpr) {
+                            sirClass->superParamMapping_[superIdx] = varExpr->name;
+                        }
+                        auto* literal = dynamic_cast<AST::LiteralExpr*>(arg.get());
+                        if (literal) {
+                            auto tokenType = literal->token.getType();
+                            if (tokenType == Sad::Lexer::TokenType::NUMBER_INTEGER) {
+                                sirClass->superConstantMapping_[superIdx] = {SIRType::I64, literal->token.getValue()};
+                            } else if (tokenType == Sad::Lexer::TokenType::NUMBER_DOUBLE) {
+                                sirClass->superConstantMapping_[superIdx] = {SIRType::F64, literal->token.getValue()};
+                            } else if (tokenType == Sad::Lexer::TokenType::STRING_LITERAL) {
+                                sirClass->superConstantMapping_[superIdx] = {SIRType::STRING, literal->token.getValue()};
+                            }
+                        }
+                        
                         BuildResult argResult = buildExpression(arg.get());
-                        superArgOperands.push_back(SIROperand::Register(argResult.registerName, argResult.type));
+                        // (AR) تحويل النتيجة الثابتة إلى SIROperand::Constant
+                        // (EN) Convert constant result to SIROperand::Constant
+                        if (argResult.isConstant) {
+                            if (argResult.type == SIRType::I64) {
+                                int64_t val = 0;
+                                try { val = std::stoll(argResult.constantValue); } catch (...) {}
+                                superArgOperands.push_back(SIROperand::ConstantI64(val));
+                            } else if (argResult.type == SIRType::F64) {
+                                double val = 0.0;
+                                try { val = std::stod(argResult.constantValue); } catch (...) {}
+                                superArgOperands.push_back(SIROperand::ConstantF64(val));
+                            } else if (argResult.type == SIRType::STRING) {
+                                superArgOperands.push_back(SIROperand::ConstantString(argResult.constantValue));
+                            } else if (argResult.type == SIRType::BOOL) {
+                                superArgOperands.push_back(SIROperand::ConstantBool(argResult.constantValue == "true"));
+                            } else {
+                                superArgOperands.push_back(SIROperand::Register(argResult.registerName, argResult.type));
+                            }
+                        } else {
+                            superArgOperands.push_back(SIROperand::Register(argResult.registerName, argResult.type));
+                        }
+                    }
+                    
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) نشر ثوابت وسائط الأساس إلى حقول الأب
+                    // (EN) Propagate constant super args to parent field types
+                    // ═══════════════════════════════════════════════════════════════
+                    if (!sirClass->superConstantMapping_.empty()) {
+                        auto parentSirClass = module_->getClass(parentClass);
+                        if (parentSirClass) {
+                            // (AR) الحصول على معاملات باني الأب
+                            // (EN) Get parent constructor params
+                            std::string parentCtorMethodName = parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+                            auto parentCtor = parentSirClass->getMethod(parentCtorMethodName);
+                            if (parentCtor) {
+                                const auto& parentParams = parentCtor->getParameters();
+                                for (auto& [superIdx, typeAndVal] : sirClass->superConstantMapping_) {
+                                    int parentParamIdx = superIdx + 1; // +1 (skip self)
+                                    if (parentParamIdx < static_cast<int>(parentParams.size())) {
+                                        const std::string& parentParamName = parentParams[parentParamIdx].name;
+                                        auto pFieldIt = parentSirClass->paramToFieldMap_.find(parentParamName);
+                                        if (pFieldIt != parentSirClass->paramToFieldMap_.end()) {
+                                            const std::string& parentFieldName = pFieldIt->second;
+                                            auto currentFieldType = parentSirClass->fields_.find(parentFieldName);
+                                            if (currentFieldType != parentSirClass->fields_.end() &&
+                                                currentFieldType->second == SIRType::PTR) {
+                                                SIRType newType = typeAndVal.first;
+                                                if (newType == SIRType::STRING) newType = SIRType::PTR; // string is ptr
+                                                parentSirClass->fields_[parentFieldName] = newType;
+                                                // (AR) تحديث أيضاً في الصنف الابن (الحقول الموروثة)
+                                                // (EN) Also update in child class (inherited fields)
+                                                if (sirClass->fields_.count(parentFieldName)) {
+                                                    sirClass->fields_[parentFieldName] = newType;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     
                     // (AR) إصدار تعليمة CALL لباني الأب
@@ -772,11 +908,11 @@ void SIRBuilder::buildImpl(AST::ImplDecl* implDecl) {
     std::string className = implDecl->targetType;
     #ifndef NDEBUG
     std::cout << "[DEBUG] buildImpl: implementing";
-    #endif
     if (!implDecl->traitName.empty()) {
         std::cout << " trait '" << implDecl->traitName << "'";
     }
     std::cout << " for class '" << className << "'" << std::endl;
+    #endif
     
     // (AR) البحث عن الصنف المستهدف في وحدة SIR
     // (EN) Find target class in SIR module

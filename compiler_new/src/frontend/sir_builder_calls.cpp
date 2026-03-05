@@ -55,6 +55,7 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     if (!call) {
         return BuildResult();
     }
+    std::cerr << "[EXC-DBG] buildFunctionCall entered" << std::endl;
     
     // ========================================================================
     // (AR) الخطوة 1: استخراج اسم الدالة من callee
@@ -223,18 +224,28 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     // This prevents builtins from shadowing user-defined functions with same name
     // ========================================================================
     bool isUserDefinedFunction = (functionTable_.find(funcName) != functionTable_.end());
+    std::cerr << "[EXC-DBG] buildFunctionCall: funcName='" << funcName 
+              << "' isUserDefined=" << isUserDefinedFunction << std::endl;
     
     // (AR) دالة طول() - STRING_LEN للنصوص، ARRAY_LEN للمصفوفات
     // (EN) length() function - STRING_LEN for strings, ARRAY_LEN for arrays
     
     // ========================================================================
-    // (AR) ״§„״×״­‚‚ …† ״§„״¯ˆ״§„ ״§„…״¯…״¬״© (…‚״³…״© ״¥„‰ …„†)
+    // (AR) ״§„״×״­‚‚ …† ״§„״¯ˆ״§„ ״§„…״¯…״¬״© (…‚״³…״© ״¥„‰ …„†)
     // (EN) Check builtin functions (split into two files)
     // ========================================================================
     auto builtinResult = buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands);
-    if (builtinResult.has_value()) return builtinResult.value();
+    if (builtinResult.has_value()) {
+        std::cerr << "[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=" 
+                  << static_cast<int>(builtinResult.value().type) << std::endl;
+        return builtinResult.value();
+    }
     builtinResult = buildBuiltinCallSystem(funcName, isUserDefinedFunction, argResults, argOperands);
-    if (builtinResult.has_value()) return builtinResult.value();
+    if (builtinResult.has_value()) {
+        std::cerr << "[EXC-DBG] buildFunctionCall: handled by BuiltinSystem! type="
+                  << static_cast<int>(builtinResult.value().type) << std::endl;
+        return builtinResult.value();
+    }
 
     // ========================================================================
     // (AR) الخطوة 3: البحث عن الدالة والحصول على نوع الإرجاع
@@ -249,6 +260,41 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         // (AR) الدالة موجودة - استخدم نوع الإرجاع (sir_builder.h:165)
         // (EN) Function found - use return type
         returnType = it->second.returnType;
+        std::cerr << "[EXC-DBG] buildFunctionCall: found '" << funcName 
+                  << "' retType=" << static_cast<int>(returnType) << std::endl;
+        
+        // ================================================================
+        // (AR) استنتاج أنواع المعاملات من موقع الاستدعاء
+        //      إذا كان المعامل I64 (افتراضي/غير محدد) والوسيط STRING/F64/BOOL
+        //      نحدّث نوع المعامل ليطابق نوع الوسيط الفعلي
+        // (EN) Infer parameter types from call-site arguments
+        //      If param is I64 (default/unknown) and arg is STRING/F64/BOOL,
+        //      update param type to match actual arg type
+        // ================================================================
+        auto& funcInfo = it->second;
+        for (size_t i = 0; i < argResults.size() && i < funcInfo.parameters.size(); i++) {
+            SIRType argType = argResults[i].type;
+            SIRType& paramType = funcInfo.parameters[i].type;
+            
+            if (paramType == SIRType::I64 && argType == SIRType::STRING) {
+                // (AR) تحديث إلى STRING — المعامل يستقبل نصوصاً
+                // (EN) Update to STRING — parameter receives strings
+                paramType = SIRType::STRING;
+                if (funcInfo.sirFunction && i < funcInfo.sirFunction->parameters.size()) {
+                    funcInfo.sirFunction->parameters[i].type = SIRType::STRING;
+                }
+            } else if (paramType == SIRType::STRING && argType == SIRType::I64) {
+                // (AR) تعارض: المعامل سبق تحديثه إلى STRING لكن يُستدعى بـ I64
+                //      نعيده إلى I64 (النوع الشامل الافتراضي)
+                // (EN) Conflict: param was updated to STRING but called with I64
+                //      Revert to I64 (default catch-all type)
+                paramType = SIRType::I64;
+                if (funcInfo.sirFunction && i < funcInfo.sirFunction->parameters.size()) {
+                    funcInfo.sirFunction->parameters[i].type = SIRType::I64;
+                }
+            }
+        }
+        
         #ifndef NDEBUG
         std::cout << "[DEBUG] buildFunctionCall: function found, returnType=" 
                   << static_cast<int>(returnType) << std::endl;
@@ -337,6 +383,29 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
         #endif
     }
     
+    // ========================================================================
+    // (AR) الخطوة 6: إذا كانت الدالة مولّد، أضف GENERATOR_CONSUME لجمع القيم
+    // (EN) Step 6: If callee is a generator, add GENERATOR_CONSUME to collect values
+    // ========================================================================
+    if (it != functionTable_.end() && it->second.isGenerator) {
+        std::cerr << "[GEN] Emitting GENERATOR_CONSUME for generator '" << funcName << "'" << std::endl;
+        
+        // (AR) CALL أعاد المقبض (PTR) — الآن نستهلكه
+        // (EN) CALL returned the handle (PTR) — now consume it
+        std::string consumeReg = newTempRegister();
+        SIRInstruction consumeInst;
+        consumeInst.opcode = SIROpcode::GENERATOR_CONSUME;
+        consumeInst.result = SIROperand::Register(consumeReg, SIRType::I64);
+        consumeInst.operands.push_back(SIROperand::Register(resultReg, SIRType::PTR));
+        consumeInst.comment = "consume generator yields";
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(consumeInst);
+        }
+        
+        return BuildResult(consumeReg, SIRType::I64);
+    }
+    
     #ifndef NDEBUG
     std::cout << "[DEBUG] buildFunctionCall: returning result reg='" << resultReg 
               << "', type=" << static_cast<int>(returnType) << std::endl;
@@ -392,7 +461,7 @@ BuildResult SIRBuilder::buildNewObject(AST::NewExpr* newExpr) {
     
     // (AR) الخطوة 3: استدعاء دالة البناء (constructor) إن وجدت
     // (EN) Step 3: Call constructor if exists
-    std::string constructorName = newExpr->className + ".بناء";
+    std::string constructorName = newExpr->className + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
     auto constructor = sirClass->getMethod(constructorName);
     
     if (constructor || !newExpr->arguments.empty()) {
@@ -440,6 +509,112 @@ BuildResult SIRBuilder::buildNewObject(AST::NewExpr* newExpr) {
                 callInst.operands.push_back(arg);
             }
             currentBlock_->addInstruction(callInst);
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) استنتاج أنواع الحقول من أنواع الوسائط الفعلية
+        // (EN) Infer field types from actual argument types at call site
+        // ═══════════════════════════════════════════════════════════════
+        if (constructor) {
+            const auto& params = constructor->getParameters();
+            // params[0] = self, params[1..N] = user params
+            // args[0] = self, args[1..N] = user args
+            
+            // (AR) بناء خريطة: اسم_المعامل → نوع_الوسيط
+            // (EN) Build map: paramName → argType
+            std::unordered_map<std::string, SIRType> paramTypes;
+            for (size_t i = 1; i < params.size() && i < args.size(); i++) {
+                paramTypes[params[i].name] = args[i].dataType;
+            }
+            
+            // (AR) تحديث حقول الصنف الحالي
+            // (EN) Update current class fields
+            if (!sirClass->paramToFieldMap_.empty()) {
+                for (auto& [paramName, argType] : paramTypes) {
+                    auto fieldIt = sirClass->paramToFieldMap_.find(paramName);
+                    if (fieldIt != sirClass->paramToFieldMap_.end()) {
+                        const std::string& fieldName = fieldIt->second;
+                        auto currentType = sirClass->fields_.find(fieldName);
+                        if (currentType != sirClass->fields_.end() && 
+                            currentType->second == SIRType::PTR &&
+                            argType != SIRType::PTR && argType != SIRType::VOID) {
+                            sirClass->fields_[fieldName] = argType;
+                            #ifndef NDEBUG
+                            std::cout << "[DEBUG] buildNewObject: inferred field '" << fieldName
+                                      << "' type=" << static_cast<int>(argType) 
+                                      << " from arg '" << paramName << "'" << std::endl;
+                            #endif
+                        }
+                    }
+                }
+            }
+            
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) نشر أنواع الوسائط عبر سلسلة الوراثة (super constructor chain)
+            // (EN) Propagate arg types through inheritance chain (super ctor chain)
+            // ═══════════════════════════════════════════════════════════════
+            auto currentClass = sirClass;
+            auto currentParamTypes = paramTypes;
+            
+            while (currentClass && !currentClass->parentClass.empty() && 
+                   !currentClass->superParamMapping_.empty()) {
+                auto parentSirClass = module_->getClass(currentClass->parentClass);
+                if (!parentSirClass) break;
+                
+                // (AR) الحصول على معاملات باني الأب
+                // (EN) Get parent constructor params
+                std::string parentCtorName = currentClass->parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+                auto parentCtor = parentSirClass->getMethod(parentCtorName);
+                if (!parentCtor) break;
+                
+                const auto& parentParams = parentCtor->getParameters();
+                
+                // (AR) بناء خريطة أنواع معاملات الأب من superParamMapping
+                // (EN) Build parent param types from superParamMapping
+                std::unordered_map<std::string, SIRType> parentParamTypes;
+                for (auto& [superIdx, childParamName] : currentClass->superParamMapping_) {
+                    int parentIdx = superIdx + 1; // +1 (skip self)
+                    if (parentIdx < static_cast<int>(parentParams.size())) {
+                        auto it = currentParamTypes.find(childParamName);
+                        if (it != currentParamTypes.end()) {
+                            parentParamTypes[parentParams[parentIdx].name] = it->second;
+                        }
+                    }
+                }
+                
+                // (AR) تحديث حقول الأب باستخدام paramToFieldMap
+                // (EN) Update parent fields using paramToFieldMap
+                for (auto& [parentParamName, inferredType] : parentParamTypes) {
+                    auto fieldIt = parentSirClass->paramToFieldMap_.find(parentParamName);
+                    if (fieldIt != parentSirClass->paramToFieldMap_.end()) {
+                        const std::string& fieldName = fieldIt->second;
+                        auto currentFldType = parentSirClass->fields_.find(fieldName);
+                        if (currentFldType != parentSirClass->fields_.end() &&
+                            currentFldType->second == SIRType::PTR &&
+                            inferredType != SIRType::PTR && inferredType != SIRType::VOID) {
+                            parentSirClass->fields_[fieldName] = inferredType;
+                            // (AR) تحديث أيضاً في الأبناء (الحقول الموروثة)
+                            // (EN) Also update in children (inherited fields)
+                            if (sirClass->fields_.count(fieldName)) {
+                                sirClass->fields_[fieldName] = inferredType;
+                            }
+                            if (currentClass->fields_.count(fieldName)) {
+                                currentClass->fields_[fieldName] = inferredType;
+                            }
+                            #ifndef NDEBUG
+                            std::cout << "[DEBUG] buildNewObject: propagated field '" << fieldName
+                                      << "' type=" << static_cast<int>(inferredType)
+                                      << " to parent '" << parentSirClass->name << "'" << std::endl;
+                            #endif
+                        }
+                    }
+                }
+                
+                // (AR) انتقل للأب التالي
+                // (EN) Move to next parent
+                currentClass = parentSirClass;
+                currentParamTypes = parentParamTypes;
+            }
         }
     }
     
@@ -626,6 +801,81 @@ BuildResult SIRBuilder::buildMethodCall(AST::MethodCallExpr* methodCallExpr) {
         } else {
             args.push_back(SIROperand::Register(argResult.registerName, argResult.type));
         }
+    }
+    
+    // ========================================================================
+    // (AR) الخطوة 3.5: فحص الطرق المضمنة للمصفوفات
+    // (EN) Step 3.5: Check for builtin array methods
+    // ========================================================================
+    std::string methodName = methodCallExpr->methodName;
+    
+    // (AR) أضف / push - إضافة عنصر للمصفوفة
+    // (EN) append / push - add element to array
+    if (methodName == "أضف" || methodName == "اضف" || 
+        methodName == "push" || methodName == "append") {
+        std::string resultReg = newTempRegister();
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_APPEND);
+        inst.result = SIROperand::Register(resultReg, SIRType::VOID);
+        // (AR) المعامل الأول: المصفوفة، الثاني: العنصر المُضاف
+        // (EN) First operand: array, Second: element to add
+        inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+        if (args.size() > 1) {
+            inst.operands.push_back(args[1]); // (AR) العنصر (args[0] هو self)
+        }
+        if (currentBlock_) {
+            currentBlock_->instructions.push_back(inst);
+        }
+        return BuildResult(resultReg, SIRType::VOID);
+    }
+    
+    // (AR) حجم / size - الحصول على حجم المصفوفة
+    // (EN) size / length - get array size
+    if (methodName == "حجم" || methodName == "طول" ||
+        methodName == "size" || methodName == "length" || methodName == "len") {
+        std::string resultReg = newTempRegister();
+        SIRInstruction inst(SIROpcode::ARRAY_LEN);
+        inst.result = SIROperand::Register(resultReg, SIRType::I64);
+        inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // (AR) أزل / pop - إزالة آخر عنصر
+    // (EN) pop / remove - remove last element
+    if (methodName == "أزل" || methodName == "ازل" ||
+        methodName == "pop" || methodName == "remove_last") {
+        std::string resultReg = newTempRegister();
+        SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REMOVE);
+        inst.result = SIROperand::Register(resultReg, SIRType::I64); // (AR) العنصر المُزال
+        inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // (AR) فارغة / empty - التحقق إذا كانت المصفوفة فارغة
+    // (EN) empty / is_empty - check if array is empty
+    // (AR) نستخدم ARRAY_LEN ونقارن بـ 0
+    // (EN) Use ARRAY_LEN and compare with 0
+    if (methodName == "فارغة" || methodName == "فارغ" ||
+        methodName == "empty" || methodName == "is_empty") {
+        // (AR) الخطوة 1: الحصول على الحجم
+        // (EN) Step 1: Get size
+        std::string sizeReg = newTempRegister();
+        SIRInstruction sizeInst(SIROpcode::ARRAY_LEN);
+        sizeInst.result = SIROperand::Register(sizeReg, SIRType::I64);
+        sizeInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+        if (currentBlock_) currentBlock_->instructions.push_back(sizeInst);
+        
+        // (AR) الخطوة 2: مقارنة size == 0
+        // (EN) Step 2: Compare size == 0
+        std::string resultReg = newTempRegister();
+        SIRInstruction cmpInst(SIROpcode::EQ);
+        cmpInst.result = SIROperand::Register(resultReg, SIRType::BOOL);
+        cmpInst.operands.push_back(SIROperand::Register(sizeReg, SIRType::I64));
+        cmpInst.operands.push_back(SIROperand::ConstantI64(0));
+        if (currentBlock_) currentBlock_->instructions.push_back(cmpInst);
+        
+        return BuildResult(resultReg, SIRType::BOOL);
     }
     
     // (AR) الخطوة 4: إنشاء تعليمة CALL

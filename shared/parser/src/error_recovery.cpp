@@ -87,8 +87,6 @@ enum class TokenType {
     KEYWORD_FALSE,       // خطأ
     KEYWORD_NULL,        // عدم
     KEYWORD_MATCH,       // طابق
-    KEYWORD_ASYNC,       // متزامن
-    KEYWORD_AWAIT,       // انتظر
     
     // المعرفات والقيم
     IDENTIFIER,

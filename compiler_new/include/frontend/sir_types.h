@@ -285,6 +285,22 @@ enum class SIROpcode {
     BUILTIN_EXIT,            ///< اخرج / Exit
     BUILTIN_TYPE_OF,         ///< النوع / Type of
     
+    // Type checking functions (4)
+    BUILTIN_IS_INTEGER,      ///< هو_رقم / Is integer
+    BUILTIN_IS_FLOAT,        ///< هو_عشري / Is float
+    BUILTIN_IS_STRING,       ///< هو_نص / Is string
+    BUILTIN_IS_ARRAY,        ///< هو_مصفوفة / Is array
+    
+    // Additional conversion functions (1)
+    BUILTIN_TO_BOOL,         ///< لمنطقي / To boolean
+    
+    // Additional IO functions (2)
+    BUILTIN_READ_LINE,       ///< قراءة_سطر / Read line
+    BUILTIN_CLEAR_SCREEN,    ///< مسح_الشاشة / Clear screen
+    
+    // Additional math/collection functions (1)
+    BUILTIN_SUM,             ///< جمع / Sum of array
+    
     // ==========================================
     // 11. عمليات برمجة أنظمة التشغيل / OS Development Operations
     // ==========================================
@@ -418,6 +434,16 @@ enum class SIROpcode {
     ASYNC_WAIT_ALL,      ///< انتظر_الكل / wait_all — wait for all tasks
     ASYNC_WAIT_ANY,      ///< انتظر_أي / wait_any — wait for any task
     ASYNC_SELECT,        ///< اختر_قناة / select — select on multiple channels
+
+    // ========================================================================
+    // Section 14b: LLVM Coroutine Opcodes / تعليمات كوروتين LLVM
+    // ========================================================================
+    // (AR) تعليمات خاصة لدعم غير_متزامن/انتظر عبر LLVM Coroutines
+    // (EN) Special opcodes for async/await via LLVM Coroutines
+    CORO_SUSPEND,        ///< انتظر / await — suspend coroutine at await point
+    CORO_RETURN,         ///< ارجع من كوروتين / return from coroutine — store result in promise
+    GENERATOR_YIELD,     ///< أنتج / yield — yield value from generator (store in promise + non-final suspend)
+    GENERATOR_CONSUME,   ///< استهلاك مولد / consume generator — resume-loop collecting all yields
 
     // ========================================================================
     // Section 15: عمليات وحدات نظام التشغيل المتقدمة / Advanced OS Module Operations
@@ -651,6 +677,145 @@ enum class SIROpcode {
     LOWLEVEL_APIC_SEND_SIPI,          ///< apic_أرسل_sipi / apic_send_sipi
     LOWLEVEL_APIC_WAIT_DELIVERY,      ///< apic_انتظر_تسليم / apic_wait_delivery
     LOWLEVEL_APIC_INIT_IO,            ///< apic_تهيئة_io / apic_init_io
+    
+    // ============================================================================
+    // القسم 19: عمليات أندرويد / Android Operations (Section 19)
+    // ============================================================================
+    // (AR) هذا القسم يضيف دعم المترجم لمنصة أندرويد بشكل أصلي
+    //      بدون استخدام Java أو Kotlin — كل شيء بلغة ص
+    // (EN) This section adds compiler support for native Android platform
+    //      without Java or Kotlin — everything in Sad language
+    
+    // --- 19a. إدارة الذاكرة / Memory Management (2) ---
+    ANDROID_ALLOC,                    ///< خصص_اندرويد / android_alloc — allocate memory
+    ANDROID_FREE,                     ///< حرر_اندرويد / android_free — free memory
+    
+    // --- 19b. النصوص / Strings (6) ---
+    ANDROID_STRING_CREATE,            ///< نص_جديد_اندرويد / android_string_create
+    ANDROID_STRING_CONCAT,            ///< دمج_نص_اندرويد / android_string_concat
+    ANDROID_STRING_LENGTH,            ///< طول_نص_اندرويد / android_string_length
+    ANDROID_STRING_SUBSTR,            ///< جزء_نص_اندرويد / android_string_substr
+    ANDROID_STRING_COMPARE,           ///< قارن_نص_اندرويد / android_string_compare
+    ANDROID_STRING_FREE,              ///< حرر_نص_اندرويد / android_string_free
+    
+    // --- 19c. المصفوفات / Arrays (7) ---
+    ANDROID_ARRAY_CREATE,             ///< مصفوفة_جديدة_اندرويد / android_array_create
+    ANDROID_ARRAY_GET,                ///< عنصر_مصفوفة_اندرويد / android_array_get
+    ANDROID_ARRAY_SET,                ///< عين_عنصر_مصفوفة_اندرويد / android_array_set
+    ANDROID_ARRAY_LENGTH,             ///< طول_مصفوفة_اندرويد / android_array_length
+    ANDROID_ARRAY_PUSH,               ///< اضف_عنصر_اندرويد / android_array_push
+    ANDROID_ARRAY_POP,                ///< احذف_اخر_اندرويد / android_array_pop
+    ANDROID_ARRAY_FREE,               ///< حرر_مصفوفة_اندرويد / android_array_free
+    
+    // --- 19d. الخرائط / Maps (7) ---
+    ANDROID_MAP_CREATE,               ///< خريطة_جديدة_اندرويد / android_map_create
+    ANDROID_MAP_GET,                  ///< قيمة_خريطة_اندرويد / android_map_get
+    ANDROID_MAP_SET,                  ///< عين_قيمة_خريطة_اندرويد / android_map_set
+    ANDROID_MAP_HAS,                  ///< موجود_خريطة_اندرويد / android_map_has
+    ANDROID_MAP_DELETE,               ///< احذف_من_خريطة_اندرويد / android_map_delete
+    ANDROID_MAP_SIZE,                 ///< حجم_خريطة_اندرويد / android_map_size
+    ANDROID_MAP_FREE,                 ///< حرر_خريطة_اندرويد / android_map_free
+    
+    // --- 19e. الشبكات / Network (8) ---
+    ANDROID_NET_CONNECT,              ///< اتصل_شبكة_اندرويد / android_net_connect
+    ANDROID_NET_SEND,                 ///< ارسل_شبكة_اندرويد / android_net_send
+    ANDROID_NET_RECV,                 ///< استقبل_شبكة_اندرويد / android_net_recv
+    ANDROID_NET_CLOSE,                ///< اغلق_شبكة_اندرويد / android_net_close
+    ANDROID_HTTP_REQUEST,             ///< طلب_http_اندرويد / android_http_request
+    ANDROID_WS_CONNECT,               ///< اتصل_ويب_سوكت_اندرويد / android_ws_connect
+    ANDROID_WS_SEND,                  ///< ارسل_ويب_سوكت_اندرويد / android_ws_send
+    ANDROID_WS_RECV,                  ///< استقبل_ويب_سوكت_اندرويد / android_ws_recv
+    
+    // --- 19f. الخيوط والقنوات / Threads & Channels (8) ---
+    ANDROID_THREAD_CREATE,            ///< انشئ_خيط_اندرويد / android_thread_create
+    ANDROID_THREAD_JOIN,              ///< انضم_خيط_اندرويد / android_thread_join
+    ANDROID_MUTEX_CREATE,             ///< انشئ_قفل_اندرويد / android_mutex_create
+    ANDROID_MUTEX_LOCK,               ///< اقفل_اندرويد / android_mutex_lock
+    ANDROID_MUTEX_UNLOCK,             ///< افتح_قفل_اندرويد / android_mutex_unlock
+    ANDROID_CHANNEL_CREATE,           ///< انشئ_قناة_اندرويد / android_channel_create
+    ANDROID_CHANNEL_SEND,             ///< ارسل_قناة_اندرويد / android_channel_send
+    ANDROID_CHANNEL_RECV,             ///< استقبل_قناة_اندرويد / android_channel_recv
+    
+    // --- 19g. واجهة المستخدم / UI (8) ---
+    ANDROID_UI_INIT,                  ///< هيئ_واجهة_اندرويد / android_ui_init
+    ANDROID_UI_CREATE_WIDGET,         ///< انشئ_عنصر_اندرويد / android_ui_create_widget
+    ANDROID_UI_SET_TEXT,              ///< عين_نص_عنصر_اندرويد / android_ui_set_text
+    ANDROID_UI_SET_CALLBACK,          ///< عين_دالة_استدعاء_اندرويد / android_ui_set_callback
+    ANDROID_UI_SHOW,                  ///< اظهر_عنصر_اندرويد / android_ui_show
+    ANDROID_UI_HIDE,                  ///< اخف_عنصر_اندرويد / android_ui_hide
+    ANDROID_UI_UPDATE,                ///< حدث_واجهة_اندرويد / android_ui_update
+    ANDROID_UI_RUN,                   ///< شغل_واجهة_اندرويد / android_ui_run
+    
+    // --- 19h. الطباعة والتنقيح / Logging (2) ---
+    ANDROID_LOG,                      ///< سجل_اندرويد / android_log — Android logcat
+    ANDROID_PRINT,                    ///< اطبع_اندرويد / android_print — console print
+
+    // =====================================================================
+    // 20. نظام الواجهة الموحد / Unified UI System (sad_ui.h)
+    // =====================================================================
+    // (AR) أوامر إنشاء العناصر المرئية — كل دالة ترجع مؤشراً لعنصر SadWidget*
+    // (EN) Widget factory builtins — each returns a SadWidget* pointer
+
+    // --- 20a. مصانع العناصر / Widget Factories (20) ---
+    BUILTIN_UI_COLUMN,                ///< عمود() / sad_column() — حاوية عمودية
+    BUILTIN_UI_ROW,                   ///< صف() / sad_row() — حاوية أفقية
+    BUILTIN_UI_STACK,                 ///< مكدس() / sad_stack() — تراكب عناصر
+    BUILTIN_UI_CONTAINER,             ///< حاوية() / sad_container() — حاوية عامة
+    BUILTIN_UI_TEXT,                   ///< نص_عرض(نص) / sad_text(text) — عنصر نصي
+    BUILTIN_UI_TEXT_STYLED,           ///< نص_منسق(نص,حجم,لون) / sad_text_styled(text,size,color) — نص بتنسيق
+    BUILTIN_UI_BUTTON,                ///< زر(عنوان,دالة,بيانات) / sad_button(label,cb,data)
+    BUILTIN_UI_BUTTON_VARIANT,        ///< زر_نوع(عنوان,نوع,لون,دالة,بيانات) / sad_button_variant(...)
+    BUILTIN_UI_ICON_BUTTON,           ///< زر_ايقونة(ايقونة,دالة,بيانات) / sad_icon_button(icon,cb,data)
+    BUILTIN_UI_FAB,                   ///< زر_عائم(ايقونة,لون,دالة,بيانات) / sad_fab(icon,color,cb,data)
+    BUILTIN_UI_TEXT_FIELD,            ///< حقل_نص(تلميح,دالة,بيانات) / sad_text_field(hint,cb,data)
+    BUILTIN_UI_CHECKBOX,              ///< مربع_تحقق(دالة,بيانات) / sad_checkbox(cb,data)
+    BUILTIN_UI_SWITCH,                ///< مبدل(دالة,بيانات) / sad_switch_toggle(cb,data)
+    BUILTIN_UI_SLIDER,                ///< منزلق(حد_أدنى,حد_أقصى,دالة,بيانات) / sad_slider(min,max,cb,data)
+    BUILTIN_UI_CARD,                  ///< بطاقة() / sad_card()
+    BUILTIN_UI_SCAFFOLD,              ///< هيكل() / sad_scaffold()
+    BUILTIN_UI_APP_BAR,               ///< شريط_تطبيق(عنوان) / sad_app_bar(title)
+    BUILTIN_UI_SPACER,                ///< فاصل() / sad_spacer()
+    BUILTIN_UI_DIVIDER,               ///< خط_فاصل() / sad_divider()
+    BUILTIN_UI_DIALOG,                ///< حوار(عنوان,رسالة) / sad_dialog(title,msg)
+
+    // --- 20b. إدارة الشجرة / Tree Management (3) ---
+    BUILTIN_UI_ADD_CHILD,             ///< أضف_ابن(أب,ابن) / sad_add_child(parent,child)
+    BUILTIN_UI_REMOVE_CHILD,          ///< أزل_ابن(أب,ابن) / sad_remove_child(parent,child)
+    BUILTIN_UI_CLEAR_CHILDREN,        ///< امسح_الأبناء(عنصر) / sad_clear_children(widget)
+
+    // --- 20c. ضبط الخصائص / Property Setters (12) ---
+    BUILTIN_UI_SET_TEXT,              ///< عين_النص(عنصر,نص) / sad_set_text(w,text)
+    BUILTIN_UI_SET_SIZE,              ///< عين_الحجم(عنصر,عرض,ارتفاع) / sad_set_size(w,w,h)
+    BUILTIN_UI_SET_FLEX,              ///< عين_المرونة(عنصر,مرونة) / sad_set_flex(w,flex)
+    BUILTIN_UI_SET_BACKGROUND,        ///< عين_الخلفية(عنصر,أحمر,أخضر,أزرق,شفافية) / sad_set_background(w,r,g,b,a)
+    BUILTIN_UI_SET_FOREGROUND,        ///< عين_اللون(عنصر,أحمر,أخضر,أزرق,شفافية) / sad_set_foreground(w,r,g,b,a)
+    BUILTIN_UI_SET_SPACING,           ///< عين_التباعد(عنصر,تباعد) / sad_set_spacing(w,spacing)
+    BUILTIN_UI_SET_PADDING,           ///< عين_الحشوة(عنصر,فوق,يمين,تحت,يسار) / sad_set_padding(w,t,r,b,l)
+    BUILTIN_UI_SET_ALIGNMENT,         ///< عين_المحاذاة(عنصر,رئيسية,فرعية) / sad_set_alignment(w,main,cross)
+    BUILTIN_UI_SET_BORDER,            ///< عين_الحدود(عنصر,عرض,أحمر,أخضر,أزرق,شفافية) / sad_set_border(w,width) + color
+    BUILTIN_UI_SET_ELEVATION,         ///< عين_الارتفاع(عنصر,ارتفاع) / sad_set_elevation(w,elev)
+    BUILTIN_UI_SET_OPACITY,           ///< عين_الشفافية(عنصر,شفافية) / sad_set_opacity(w,opacity)
+    BUILTIN_UI_SET_VISIBILITY,        ///< عين_الظهور(عنصر,مرئي) / sad_set_visibility(w,visible)
+
+    // --- 20d. إدارة التطبيق / App Management (5) ---
+    BUILTIN_UI_APP_CREATE,            ///< انشئ_تطبيق() / sad_app_create()
+    BUILTIN_UI_APP_SET_ROOT,          ///< عين_الجذر(تطبيق,عنصر) / sad_app_set_root(app,widget)
+    BUILTIN_UI_APP_LAYOUT,            ///< خطط(تطبيق,عرض,ارتفاع) / sad_app_layout(app,w,h)
+    BUILTIN_UI_APP_RENDER,            ///< ارسم(تطبيق) / sad_app_render(app)
+    BUILTIN_UI_APP_DESTROY,           ///< دمر_تطبيق(تطبيق) / sad_app_destroy(app)
+    BUILTIN_UI_WIDGET_DESTROY,        ///< دمر_عنصر(عنصر) / sad_widget_destroy(widget)
+    
+    // ==========================================
+    // التوجيهات / Directives (@حجم, @ذري, etc.)
+    // ==========================================
+    Sizeof,          ///< @حجم(نوع) / sizeof(type) — get size of type in bytes
+    AtomicLoad,      ///< @ذري(تحميل, ptr) / atomic load
+    AtomicStore,     ///< @ذري(تخزين, ptr, val) / atomic store
+    AtomicAdd,       ///< @ذري(إضافة, ptr, val) / atomic add
+    AtomicSub,       ///< @ذري(طرح, ptr, val) / atomic sub
+    AtomicExchange,  ///< @ذري(تبادل, ptr, val) / atomic exchange
+    AtomicCmpXchg,   ///< @ذري(مقارنة_وتبديل, ptr, exp, des) / atomic CAS
+    Nop              ///< لا عملية (markers) / No operation (for markers)
 };
 
 /**

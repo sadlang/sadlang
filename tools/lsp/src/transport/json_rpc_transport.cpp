@@ -351,6 +351,9 @@ json JsonRpcTransport::handle_request(const std::string& method, const json& par
         // شجرة الاستدعاءات
         result["capabilities"]["callHierarchyProvider"] = caps.call_hierarchy_provider;
 
+        // شجرة الأنواع (الوراثة)
+        result["capabilities"]["typeHierarchyProvider"] = caps.type_hierarchy_provider;
+
         // روابط المستند
         if (caps.document_link_provider) {
             result["capabilities"]["documentLinkProvider"] = {
@@ -868,6 +871,86 @@ json JsonRpcTransport::handle_request(const std::string& method, const json& par
                 ranges.push_back(range_to_json(r));
             }
             j["fromRanges"] = ranges;
+            arr.push_back(j);
+        }
+        return arr;
+    }
+
+    // ════════════════════════════════════════════════════
+    //  شجرة الأنواع (Type Hierarchy)
+    // ════════════════════════════════════════════════════
+
+    if (method == "textDocument/prepareTypeHierarchy") {
+        auto uri = params["textDocument"]["uri"].get<std::string>();
+        auto pos = parse_position(params["position"]);
+
+        auto items = engine_.type_hierarchy_prepare(uri, pos);
+
+        json arr = json::array();
+        for (const auto& item : items) {
+            json j;
+            j["name"] = item.name;
+            j["kind"] = static_cast<int>(item.kind);
+            j["detail"] = item.detail;
+            j["uri"] = item.uri;
+            j["range"] = range_to_json(item.range);
+            j["selectionRange"] = range_to_json(item.selection_range);
+            arr.push_back(j);
+        }
+        return arr;
+    }
+
+    if (method == "typeHierarchy/supertypes") {
+        TypeHierarchyItem item;
+        if (params.contains("item")) {
+            const auto& it = params["item"];
+            item.name = it.value("name", "");
+            item.kind = static_cast<SymbolKind>(it.value("kind", 5));
+            item.detail = it.value("detail", "");
+            item.uri = it.value("uri", "");
+            if (it.contains("range")) item.range = parse_range(it["range"]);
+            if (it.contains("selectionRange")) item.selection_range = parse_range(it["selectionRange"]);
+        }
+
+        auto supertypes = engine_.type_hierarchy_supertypes(item);
+
+        json arr = json::array();
+        for (const auto& t : supertypes) {
+            json j;
+            j["name"] = t.name;
+            j["kind"] = static_cast<int>(t.kind);
+            j["detail"] = t.detail;
+            j["uri"] = t.uri;
+            j["range"] = range_to_json(t.range);
+            j["selectionRange"] = range_to_json(t.selection_range);
+            arr.push_back(j);
+        }
+        return arr;
+    }
+
+    if (method == "typeHierarchy/subtypes") {
+        TypeHierarchyItem item;
+        if (params.contains("item")) {
+            const auto& it = params["item"];
+            item.name = it.value("name", "");
+            item.kind = static_cast<SymbolKind>(it.value("kind", 5));
+            item.detail = it.value("detail", "");
+            item.uri = it.value("uri", "");
+            if (it.contains("range")) item.range = parse_range(it["range"]);
+            if (it.contains("selectionRange")) item.selection_range = parse_range(it["selectionRange"]);
+        }
+
+        auto subtypes = engine_.type_hierarchy_subtypes(item);
+
+        json arr = json::array();
+        for (const auto& t : subtypes) {
+            json j;
+            j["name"] = t.name;
+            j["kind"] = static_cast<int>(t.kind);
+            j["detail"] = t.detail;
+            j["uri"] = t.uri;
+            j["range"] = range_to_json(t.range);
+            j["selectionRange"] = range_to_json(t.selection_range);
             arr.push_back(j);
         }
         return arr;

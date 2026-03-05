@@ -43,7 +43,11 @@ std::optional<BuildResult> SIRBuilder::buildBuiltinCallCore(
     bool isUserDefinedFunction,
     std::vector<BuildResult>& argResults,
     std::vector<SIROperand>& argOperands) {
-    if (!isUserDefinedFunction && (funcName == "طول" || funcName == "length")) {
+    // (AR) إذا كانت الدالة معرّفة من المستخدم، لا تعامل كدالة مضمنة
+    // (EN) If function is user-defined, skip all builtins
+    if (isUserDefinedFunction) return std::nullopt;
+    
+    if (funcName == "طول" || funcName == "length") {
         if (argResults.size() != 1) {
             errors_.push_back("Error: طول() requires exactly 1 argument");
             return BuildResult();
@@ -686,10 +690,10 @@ std::optional<BuildResult> SIRBuilder::buildBuiltinCallCore(
     if (funcName == "يبدأ_ب" || funcName == "startsWith" || funcName == "starts_with") {
         if (argResults.size() < 2) {
             std::cerr << "[Error] دالة يبدأ_ب تتطلب معاملين (نص, بادئة)" << std::endl;
-            return BuildResult("", SIRType::BOOL);
+            return BuildResult("", SIRType::I64);
         }
         std::string resultReg = newTempRegister();
-        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
         SIRInstruction inst(SIROpcode::BUILTIN_STRING_STARTS_WITH);
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
@@ -698,17 +702,17 @@ std::optional<BuildResult> SIRBuilder::buildBuiltinCallCore(
         #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
         #endif
-        return BuildResult(resultReg, SIRType::BOOL);
+        return BuildResult(resultReg, SIRType::I64);
     }
     
     // 11. ينتهي_ب / endsWith
     if (funcName == "ينتهي_ب" || funcName == "endsWith" || funcName == "ends_with") {
         if (argResults.size() < 2) {
             std::cerr << "[Error] دالة ينتهي_ب تتطلب معاملين (نص, لاحقة)" << std::endl;
-            return BuildResult("", SIRType::BOOL);
+            return BuildResult("", SIRType::I64);
         }
         std::string resultReg = newTempRegister();
-        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
         SIRInstruction inst(SIROpcode::BUILTIN_STRING_ENDS_WITH);
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
@@ -717,17 +721,17 @@ std::optional<BuildResult> SIRBuilder::buildBuiltinCallCore(
         #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
         #endif
-        return BuildResult(resultReg, SIRType::BOOL);
+        return BuildResult(resultReg, SIRType::I64);
     }
     
     // 12. يحتوي_على / contains
     if (funcName == "يحتوي_على" || funcName == "contains" || funcName == "includes") {
         if (argResults.size() < 2) {
             std::cerr << "[Error] دالة يحتوي_على تتطلب معاملين (نص, نص للبحث عنه)" << std::endl;
-            return BuildResult("", SIRType::BOOL);
+            return BuildResult("", SIRType::I64);
         }
         std::string resultReg = newTempRegister();
-        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::BOOL);
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
         SIRInstruction inst(SIROpcode::BUILTIN_STRING_CONTAINS);
         inst.result = resultOp;
         inst.operands.push_back(argOperands[0]);
@@ -736,15 +740,15 @@ std::optional<BuildResult> SIRBuilder::buildBuiltinCallCore(
         #ifndef NDEBUG
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
         #endif
-        return BuildResult(resultReg, SIRType::BOOL);
+        return BuildResult(resultReg, SIRType::I64);
     }
 
     // ========================================================================
     // Array Functions (10 functions)
     // ========================================================================
     
-    // 1. إضافة_عنصر / append
-    if (funcName == "إضافة_عنصر" || funcName == "append" || funcName == "push" || funcName == "add") {
+    // 1. إضافة_عنصر / append / أضف
+    if (funcName == "إضافة_عنصر" || funcName == "append" || funcName == "push" || funcName == "add" || funcName == "أضف") {
         if (argResults.size() < 2) {
             std::cerr << "[Error] دالة إضافة_عنصر تتطلب معاملين (مصفوفة, عنصر)" << std::endl;
             return BuildResult("", SIRType::VOID);
@@ -759,8 +763,8 @@ std::optional<BuildResult> SIRBuilder::buildBuiltinCallCore(
         return BuildResult("", SIRType::VOID);
     }
     
-    // 2. إزالة_عنصر / remove
-    if (funcName == "إزالة_عنصر" || funcName == "remove" || funcName == "delete" || funcName == "pop") {
+    // 2. إزالة_عنصر / remove / أزل
+    if (funcName == "إزالة_عنصر" || funcName == "remove" || funcName == "delete" || funcName == "pop" || funcName == "أزل") {
         if (argResults.size() < 2) {
             std::cerr << "[Error] دالة إزالة_عنصر تتطلب معاملين (مصفوفة, فهرس)" << std::endl;
             return BuildResult("", SIRType::VOID);
@@ -1138,6 +1142,161 @@ std::optional<BuildResult> SIRBuilder::buildBuiltinCallCore(
         std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
         #endif
         return BuildResult(resultReg, SIRType::STRING);
+    }
+
+    // ========================================================================
+    // Math Functions - أكبر/أصغر/جمع (3 functions)
+    // ========================================================================
+    
+    // أكبر / max - الأكبر من قيمتين
+    if (funcName == "أكبر" || funcName == "max" || funcName == "maximum") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة أكبر تتطلب معاملين" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_MAX);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // أصغر / min - الأصغر من قيمتين
+    if (funcName == "أصغر" || funcName == "min" || funcName == "minimum") {
+        if (argResults.size() < 2) {
+            std::cerr << "[Error] دالة أصغر تتطلب معاملين" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_MIN);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        inst.operands.push_back(argOperands[1]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // جمع / sum - مجموع عناصر مصفوفة
+    if (funcName == "جمع" || funcName == "sum") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة جمع تتطلب معامل واحد (مصفوفة)" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_SUM);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // ========================================================================
+    // Type Checking Functions (4 functions)
+    // ========================================================================
+    
+    // هو_رقم / هو_رقم_صحيح / is_int
+    if (funcName == "هو_رقم" || funcName == "هو_رقم_صحيح" || funcName == "is_int" || funcName == "isInt") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة هو_رقم تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_IS_INTEGER);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // هو_عشري / هو_رقم_عشري / is_float
+    if (funcName == "هو_عشري" || funcName == "هو_رقم_عشري" || funcName == "is_float" || funcName == "isFloat") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة هو_عشري تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_IS_FLOAT);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // هو_نص / is_string / isString
+    if (funcName == "هو_نص" || funcName == "is_string" || funcName == "isString") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة هو_نص تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_IS_STRING);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+    
+    // هو_مصفوفة / is_array / isArray
+    if (funcName == "هو_مصفوفة" || funcName == "is_array" || funcName == "isArray") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة هو_مصفوفة تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_IS_ARRAY);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // ========================================================================
+    // Additional Conversion Functions
+    // ========================================================================
+    
+    // لمنطقي / to_bool
+    if (funcName == "لمنطقي" || funcName == "to_bool" || funcName == "bool") {
+        if (argResults.empty()) {
+            std::cerr << "[Error] دالة لمنطقي تتطلب معامل واحد" << std::endl;
+            return BuildResult("", SIRType::I64);
+        }
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::I64);
+        SIRInstruction inst(SIROpcode::BUILTIN_TO_BOOL);
+        inst.result = resultOp;
+        inst.operands.push_back(argOperands[0]);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
+    // ========================================================================
+    // Additional IO Functions
+    // ========================================================================
+    
+    // قراءة_سطر / readLine
+    if (funcName == "قراءة_سطر" || funcName == "readLine" || funcName == "read_line") {
+        std::string resultReg = newTempRegister();
+        SIROperand resultOp = SIROperand::Register(resultReg, SIRType::STRING);
+        SIRInstruction inst(SIROpcode::BUILTIN_READ_LINE);
+        inst.result = resultOp;
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult(resultReg, SIRType::STRING);
+    }
+    
+    // مسح_الشاشة / clear / cls
+    if (funcName == "مسح_الشاشة" || funcName == "clear" || funcName == "cls") {
+        SIRInstruction inst(SIROpcode::BUILTIN_CLEAR_SCREEN);
+        if (currentBlock_) currentBlock_->instructions.push_back(inst);
+        return BuildResult("", SIRType::VOID);
     }
 
     // ========================================================================

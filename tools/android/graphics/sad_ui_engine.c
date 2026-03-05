@@ -6,6 +6,7 @@
  */
 
 #include "sad_ui_engine.h"
+#include "sad_arabic_text.h"
 
 #include <android/native_window.h>
 #include <android/log.h>
@@ -14,6 +15,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_NO_STDIO  // نستخدم fopen يدوياً
+#define STBI_NO_HDR
+#define STBI_NO_LINEAR
+#include "stb_image.h"
 
 #define LOG_TAG "SadUI"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -92,6 +100,7 @@ typedef struct {
     // الشيدرز
     GLuint shaderProgram;
     GLuint textShaderProgram;
+    GLuint imageShaderProgram;    // شيدر الصور
     
     // الـ VBO و VAO
     GLuint quadVAO;
@@ -129,12 +138,24 @@ typedef struct {
     SadWidgetId focusedWidget;
     float lastTouchX, lastTouchY;
     
+    // تحسين الأداء — إعادة الرسم عند الحاجة فقط
+    bool needsRedraw;     // يحتاج إعادة رسم
+    bool needsLayout;     // يحتاج إعادة حساب التخطيط
+    uint32_t frameCount;  // عداد الإطارات
+    float fpsTimer;       // مؤقت FPS
+    int fps;              // FPS الحالي
+    
     // حالة التهيئة
     bool initialized;
     
 } SadUIContext;
 
 static SadUIContext g_ctx = {0};
+
+// تصريحات مسبقة
+static void render_image_widget(SadWidget* widget);
+static void apply_animation_to_widget(SadWidget* w, SadAnimState* anim);
+static float apply_easing(float t, SadEasing easing);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  الشيدرز (Shaders)
@@ -207,6 +228,53 @@ static const char* FRAGMENT_SHADER =
     "    }\n"
     "    \n"
     "    FragColor = vec4(color.rgb, color.a * alpha);\n"
+    "}\n";
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  شيدر الصور (Image Shader)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static const char* IMAGE_VERTEX_SHADER =
+    "#version 300 es\n"
+    "layout(location = 0) in vec2 aPos;\n"
+    "layout(location = 1) in vec2 aTexCoord;\n"
+    "out vec2 vTexCoord;\n"
+    "uniform mat4 uProjection;\n"
+    "uniform vec4 uRect;\n"
+    "void main() {\n"
+    "    vec2 pos = uRect.xy + aPos * uRect.zw;\n"
+    "    gl_Position = uProjection * vec4(pos, 0.0, 1.0);\n"
+    "    vTexCoord = aTexCoord;\n"
+    "}\n";
+
+static const char* IMAGE_FRAGMENT_SHADER =
+    "#version 300 es\n"
+    "precision highp float;\n"
+    "in vec2 vTexCoord;\n"
+    "out vec4 FragColor;\n"
+    "uniform sampler2D uTexture;\n"
+    "uniform float uOpacity;\n"
+    "uniform vec4 uBorderRadius;\n"
+    "uniform vec4 uRect;\n"
+    "\n"
+    "float roundedBoxSDF(vec2 p, vec2 size, vec4 radius) {\n"
+    "    vec2 q = abs(p) - size;\n"
+    "    float r = 0.0;\n"
+    "    if (p.x > 0.0 && p.y > 0.0) r = radius.y;\n"
+    "    else if (p.x <= 0.0 && p.y > 0.0) r = radius.x;\n"
+    "    else if (p.x <= 0.0 && p.y <= 0.0) r = radius.w;\n"
+    "    else r = radius.z;\n"
+    "    return length(max(q - vec2(r), 0.0)) + min(max(q.x - r, q.y - r), 0.0) - r;\n"
+    "}\n"
+    "\n"
+    "void main() {\n"
+    "    vec4 texColor = texture(uTexture, vTexCoord);\n"
+    "    vec2 size = uRect.zw * 0.5;\n"
+    "    vec2 center = vec2(0.5);\n"
+    "    vec2 p = (vTexCoord - center) * uRect.zw;\n"
+    "    float dist = roundedBoxSDF(p, size - vec2(0.5), uBorderRadius);\n"
+    "    float alpha = 1.0 - smoothstep(-1.0, 1.0, dist);\n"
+    "    FragColor = vec4(texColor.rgb, texColor.a * alpha * uOpacity);\n"
     "}\n";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -482,6 +550,15 @@ bool sadui_init(void* window) {
     g_ctx.uGradientEnd = glGetUniformLocation(g_ctx.shaderProgram, "uGradientEnd");
     g_ctx.uGradientAngle = glGetUniformLocation(g_ctx.shaderProgram, "uGradientAngle");
     
+    // إنشاء شيدر الصور
+    g_ctx.imageShaderProgram = create_shader_program(IMAGE_VERTEX_SHADER, IMAGE_FRAGMENT_SHADER);
+    if (!g_ctx.imageShaderProgram) {
+        LOGE("Failed to create image shader program");
+        // ليست خطأ حرجة — نستمر بدون دعم الصور
+    } else {
+        LOGI("Image shader created successfully");
+    }
+    
     // إنشاء الهندسة
     setup_quad_geometry();
     
@@ -573,6 +650,8 @@ SadWidgetId sadui_create(SadWidgetType type) {
             widget->style.textColor = g_ctx.currentTheme.onPrimary;
             widget->style.borderRadius = sadui_corners(g_ctx.currentTheme.cornerRadiusMedium);
             widget->layout.padding = sadui_edges(16);
+            widget->style.hasShadow = true;
+            widget->style.shadow = (SadShadow){0, 2, 6, 0, 0x00000030};
             break;
             
         case SAD_WIDGET_OUTLINED_BUTTON:
@@ -590,6 +669,35 @@ SadWidgetId sadui_create(SadWidgetType type) {
             widget->style.hasShadow = true;
             widget->style.shadow = (SadShadow){0, 4, 8, 0, 0x00000040};
             widget->layout.padding = sadui_edges(16);
+            break;
+            
+        case SAD_WIDGET_FAB:
+            widget->style.backgroundColor = 0xEADDFFFF;  // MD3 primary-container
+            widget->style.textColor = 0x21005DFF;         // MD3 on-primary-container
+            widget->style.borderRadius = sadui_corners(16);
+            widget->layout.padding = sadui_edges(16);
+            widget->style.hasShadow = true;
+            widget->style.shadow = (SadShadow){0, 4, 12, 0, 0x00000050};
+            break;
+            
+        case SAD_WIDGET_CHIP:
+            widget->style.backgroundColor = 0xE8DEF8FF;  // MD3 secondary-container
+            widget->style.textColor = 0x1D192BFF;         // MD3 on-secondary-container
+            widget->style.borderRadius = sadui_corners(8);
+            widget->layout.padding = (SadEdges){8, 12, 8, 12};
+            widget->style.fontSize = 14;
+            break;
+            
+        case SAD_WIDGET_DIVIDER:
+            widget->style.backgroundColor = 0xCAC4D0FF;  // MD3 outline-variant
+            widget->layout.width = (SadSize){SAD_SIZE_FILL, 0};
+            widget->layout.height = (SadSize){SAD_SIZE_FIXED, 1};
+            break;
+            
+        case SAD_WIDGET_PROGRESS:
+            widget->layout.width = (SadSize){SAD_SIZE_FILL, 0};
+            widget->layout.height = (SadSize){SAD_SIZE_FIXED, 4};
+            widget->value = 0.0f;
             break;
             
         case SAD_WIDGET_TEXT:
@@ -653,6 +761,7 @@ void sadui_add_child(SadWidgetId parentId, SadWidgetId childId) {
     
     parent->children[parent->childCount++] = child;
     child->parent = parent;
+    sadui_invalidate_layout();  // إضافة عنصر تتطلب إعادة حساب التخطيط
 }
 
 void sadui_set_root(SadWidgetId id) {
@@ -665,6 +774,7 @@ void sadui_set_text(SadWidgetId id, const char* text) {
     
     if (w->text) free(w->text);
     w->text = text ? strdup(text) : NULL;
+    sadui_invalidate();  // تغيير النص يتطلب إعادة رسم
 }
 
 const char* sadui_get_text(SadWidgetId id) {
@@ -679,12 +789,18 @@ void sadui_set_layout(SadWidgetId id, const SadLayout* layout) {
 
 void sadui_set_style(SadWidgetId id, const SadStyle* style) {
     SadWidget* w = get_widget(id);
-    if (w && style) w->style = *style;
+    if (w && style) {
+        w->style = *style;
+        sadui_invalidate();  // تغيير الأنماط يتطلب إعادة رسم
+    }
 }
 
 void sadui_set_value(SadWidgetId id, float value) {
     SadWidget* w = get_widget(id);
-    if (w) w->value = value;
+    if (w) {
+        w->value = value;
+        sadui_invalidate();  // تغيير القيمة يتطلب إعادة رسم
+    }
 }
 
 float sadui_get_value(SadWidgetId id) {
@@ -699,7 +815,10 @@ void sadui_set_enabled(SadWidgetId id, bool enabled) {
 
 void sadui_set_visible(SadWidgetId id, bool visible) {
     SadWidget* w = get_widget(id);
-    if (w) w->visible = visible;
+    if (w) {
+        w->visible = visible;
+        sadui_invalidate_layout();  // تغيير الرؤية يتطلب إعادة حساب التخطيط
+    }
 }
 
 void sadui_set_checked(SadWidgetId id, bool checked) {
@@ -777,6 +896,40 @@ const SadTheme* sadui_theme_dark(void) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  تحسين الأداء — نظام Dirty Flags
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void sadui_invalidate(void) {
+    g_ctx.needsRedraw = true;
+}
+
+void sadui_invalidate_widget(SadWidgetId widget) {
+    (void)widget; // TODO: تتبع العناصر المتغيرة فقط
+    g_ctx.needsRedraw = true;
+}
+
+void sadui_invalidate_layout(void) {
+    g_ctx.needsLayout = true;
+    g_ctx.needsRedraw = true;
+}
+
+bool sadui_needs_redraw(void) {
+    return g_ctx.needsRedraw;
+}
+
+bool sadui_needs_layout(void) {
+    return g_ctx.needsLayout;
+}
+
+int sadui_get_fps(void) {
+    return g_ctx.fps;
+}
+
+uint32_t sadui_get_frame_count(void) {
+    return g_ctx.frameCount;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  الرسم
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -795,7 +948,42 @@ static void render_rect(SadRect rect, const SadStyle* style) {
     create_projection_matrix(projection, (float)g_ctx.screenWidth, (float)g_ctx.screenHeight);
     glUniformMatrix4fv(g_ctx.uProjection, 1, GL_FALSE, projection);
     
-    // المستطيل
+    // رسم الظل (طبقات متعددة للتأثير الناعم)
+    if (style->hasShadow && style->shadow.blur > 0) {
+        glUniform1i(g_ctx.uHasGradient, 0);
+        glUniform1i(g_ctx.uHasBorder, 0);
+        
+        // 3 طبقات ظل بأحجام متزايدة وشفافية متناقصة
+        float blur = style->shadow.blur;
+        float shadowColor[4];
+        color_to_vec4(style->shadow.color, shadowColor);
+        
+        for (int layer = 2; layer >= 0; layer--) {
+            float expand = blur * (0.3f + layer * 0.35f);
+            float alpha = shadowColor[3] * (0.15f / (layer + 1));
+            
+            SadRect shadowRect = {
+                rect.x + style->shadow.offsetX - expand,
+                rect.y + style->shadow.offsetY - expand,
+                rect.width + expand * 2,
+                rect.height + expand * 2
+            };
+            
+            glUniform4f(g_ctx.uRect, shadowRect.x, shadowRect.y, shadowRect.width, shadowRect.height);
+            float sc[4] = {shadowColor[0], shadowColor[1], shadowColor[2], alpha};
+            glUniform4fv(g_ctx.uColor, 1, sc);
+            
+            // زوايا مستديرة للظل أكبر قليلاً
+            float sr = style->borderRadius.topLeft + expand * 0.5f;
+            glUniform4f(g_ctx.uBorderRadius, sr, sr, sr, sr);
+            
+            glBindVertexArray(g_ctx.quadVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+            glBindVertexArray(0);
+        }
+    }
+    
+    // المستطيل الأصلي
     glUniform4f(g_ctx.uRect, rect.x, rect.y, rect.width, rect.height);
     
     // اللون
@@ -846,6 +1034,10 @@ static void compute_layout(SadWidget* widget, SadRect available) {
     float width = available.width;
     float height = available.height;
     
+    // كثافة الشاشة لحسابات WRAP
+    float density = g_ctx.screenWidth / 411.0f;
+    if (density < 1.0f) density = 1.0f;
+    
     switch (widget->layout.width.mode) {
         case SAD_SIZE_FIXED:
             width = widget->layout.width.value;
@@ -856,11 +1048,27 @@ static void compute_layout(SadWidget* widget, SadRect available) {
         case SAD_SIZE_FILL:
             width = available.width;
             break;
-        default:
-            width = 100;  // افتراضي مؤقت
+        default: {
+            // WRAP: حساب الحجم بناء على المحتوى
+            if (widget->text && widget->text[0] != '\0') {
+                SadFontHandle defaultFont = sad_font_get_default();
+                if (defaultFont) {
+                    SadTextOptions opts = {0};
+                    float baseFontSize = widget->style.fontSize > 0 ? widget->style.fontSize : 16.0f;
+                    opts.fontSize = baseFontSize * density;
+                    opts.enableShaping = true;
+                    SadTextMetrics m = sad_text_measure(defaultFont, widget->text, &opts, 0);
+                    width = m.width + widget->layout.padding.left + widget->layout.padding.right + 16;
+                }
+            } else {
+                width = available.width;  // حاويات WRAP تأخذ عرض الأب
+            }
             break;
+        }
     }
     
+    // ارتفاع مبدئي (سيتم تحديثه لـ WRAP بعد حساب الأبناء)
+    bool heightIsWrap = false;
     switch (widget->layout.height.mode) {
         case SAD_SIZE_FIXED:
             height = widget->layout.height.value;
@@ -871,9 +1079,25 @@ static void compute_layout(SadWidget* widget, SadRect available) {
         case SAD_SIZE_FILL:
             height = available.height;
             break;
-        default:
-            height = 50;  // افتراضي مؤقت
+        default: {
+            if (widget->text && widget->text[0] != '\0') {
+                SadFontHandle defaultFont = sad_font_get_default();
+                if (defaultFont) {
+                    SadTextOptions opts = {0};
+                    float baseFontSize = widget->style.fontSize > 0 ? widget->style.fontSize : 16.0f;
+                    opts.fontSize = baseFontSize * density;
+                    opts.enableShaping = true;
+                    SadTextMetrics m = sad_text_measure(defaultFont, widget->text, &opts, 0);
+                    height = m.height + widget->layout.padding.top + widget->layout.padding.bottom + 8;
+                }
+            } else if (widget->childCount > 0) {
+                heightIsWrap = true;
+                height = available.height;  // مؤقت، سيُحدّث بعد حساب الأبناء
+            } else {
+                height = 60 * density;
+            }
             break;
+        }
     }
     
     widget->computedRect = (SadRect){
@@ -916,7 +1140,44 @@ static void compute_layout(SadWidget* widget, SadRect available) {
                 compute_layout(child, childAvail);
                 offset += child->computedRect.width + widget->layout.gap;
             } else {
-                compute_layout(child, childArea);
+                // حاويات أخرى (Card, Container...) — رص عمودي افتراضي
+                childAvail = (SadRect){
+                    childArea.x,
+                    childArea.y + offset,
+                    childArea.width,
+                    childArea.height - offset
+                };
+                compute_layout(child, childAvail);
+                offset += child->computedRect.height + widget->layout.gap;
+            }
+        }
+        
+        // تحديث ارتفاع WRAP بعد حساب جميع الأبناء
+        if (heightIsWrap && offset > 0) {
+            float totalChildHeight = offset - widget->layout.gap; // طرح آخر gap
+            float newHeight = totalChildHeight + widget->layout.padding.top + widget->layout.padding.bottom;
+            widget->computedRect.height = newHeight;
+        }
+        
+        // محاذاة المحور الثانوي (crossAxis) — لجميع أنواع الحاويات
+        if (widget->layout.crossAxis == SAD_ALIGN_CENTER) {
+            for (int i = 0; i < widget->childCount; i++) {
+                SadWidget* child = widget->children[i];
+                // Column والحاويات الأخرى: محاذاة أفقية مركزية
+                if (widget->type != SAD_WIDGET_ROW) {
+                    float childW = child->computedRect.width;
+                    float parentW = widget->computedRect.width - widget->layout.padding.left - widget->layout.padding.right;
+                    if (childW < parentW) {
+                        child->computedRect.x = widget->computedRect.x + widget->layout.padding.left + (parentW - childW) / 2.0f;
+                    }
+                } else {
+                    // Row: محاذاة عمودية مركزية
+                    float childH = child->computedRect.height;
+                    float parentH = widget->computedRect.height - widget->layout.padding.top - widget->layout.padding.bottom;
+                    if (childH < parentH) {
+                        child->computedRect.y = widget->computedRect.y + widget->layout.padding.top + (parentH - childH) / 2.0f;
+                    }
+                }
             }
         }
     }
@@ -925,9 +1186,101 @@ static void compute_layout(SadWidget* widget, SadRect available) {
 static void render_widget(SadWidget* widget) {
     if (!widget || !widget->visible) return;
     
-    // رسم الخلفية
+    // تطبيق الرسوم المتحركة على المكون
+    for (int i = 0; i < g_ctx.animationCount; i++) {
+        SadAnimState* anim = &g_ctx.animations[i];
+        if (anim->active && anim->widget == widget->id) {
+            apply_animation_to_widget(widget, anim);
+        }
+    }
+    
+    // رسم الخلفية مع تأثير الضغط
     if ((widget->style.backgroundColor & 0xFF) != 0 || widget->style.borderWidth > 0) {
-        render_rect(widget->computedRect, &widget->style);
+        SadStyle drawStyle = widget->style;
+        
+        // تأثير بصري عند الضغط (تعتيم اللون + رفع الظل)
+        if (widget->pressed && widget->enabled) {
+            uint32_t bg = drawStyle.backgroundColor;
+            uint8_t r = (bg >> 24) & 0xFF;
+            uint8_t g = (bg >> 16) & 0xFF;
+            uint8_t b = (bg >> 8) & 0xFF;
+            uint8_t a = bg & 0xFF;
+            r = (uint8_t)(r * 0.8f);
+            g = (uint8_t)(g * 0.8f);
+            b = (uint8_t)(b * 0.8f);
+            drawStyle.backgroundColor = (r << 24) | (g << 16) | (b << 8) | a;
+            
+            // رفع الظل عند الضغط
+            if (drawStyle.hasShadow) {
+                drawStyle.shadow.blur *= 1.5f;
+                drawStyle.shadow.offsetY *= 1.5f;
+            }
+        }
+        
+        render_rect(widget->computedRect, &drawStyle);
+    }
+    
+    // رسم الصورة لمكونات الصورة
+    if (widget->type == SAD_WIDGET_IMAGE || widget->type == SAD_WIDGET_AVATAR) {
+        render_image_widget(widget);
+    }
+    
+    // رسم النص للمكونات النصية
+    if (widget->text && widget->text[0] != '\0') {
+        SadFontHandle defaultFont = sad_font_get_default();
+        if (defaultFont) {
+            // حساب كثافة الشاشة لتكبير الخط بشكل مناسب
+            float density = g_ctx.screenWidth / 411.0f;
+            if (density < 1.0f) density = 1.0f;
+            
+            SadTextOptions opts = {0};
+            float baseFontSize = widget->style.fontSize > 0 ? widget->style.fontSize : 16.0f;
+            opts.fontSize = baseFontSize * density;
+            opts.textColor = widget->style.textColor;
+            opts.rtl = widget->layout.rtl;
+            opts.enableShaping = true;
+            opts.enableKerning = true;
+            opts.lineSpacing = 1.2f;
+            
+            float textX = widget->computedRect.x + widget->layout.padding.left;
+            float textY = widget->computedRect.y + widget->layout.padding.top;
+            
+            sad_text_draw(defaultFont, widget->text, textX, textY, &opts);
+        }
+    }
+    
+    // رسم عناصر Material Design الخاصة
+    if (widget->type == SAD_WIDGET_DIVIDER) {
+        float density = g_ctx.screenWidth / 411.0f;
+        if (density < 1.0f) density = 1.0f;
+        SadRect divRect = widget->computedRect;
+        divRect.height = 1.0f * density;  // خط رفيع بكثافة الشاشة
+        SadStyle divStyle = {0};
+        divStyle.backgroundColor = 0xCAC4D0FF; // MD3 outline-variant
+        divStyle.opacity = 1.0f;
+        render_rect(divRect, &divStyle);
+    }
+    
+    if (widget->type == SAD_WIDGET_PROGRESS && widget->value >= 0) {
+        float density = g_ctx.screenWidth / 411.0f;
+        if (density < 1.0f) density = 1.0f;
+        // خلفية شريط التقدم
+        SadRect bgRect = widget->computedRect;
+        bgRect.height = 4.0f * density;
+        SadStyle bgStyle = {0};
+        bgStyle.backgroundColor = 0xE8DEF8FF;  // MD3 secondary-container
+        bgStyle.opacity = 1.0f;
+        bgStyle.borderRadius = sadui_corners(2.0f * density);
+        render_rect(bgRect, &bgStyle);
+        // الجزء المملوء
+        SadRect fillRect = bgRect;
+        float progress = widget->value > 1.0f ? 1.0f : widget->value;
+        fillRect.width = bgRect.width * progress;
+        SadStyle fillStyle = {0};
+        fillStyle.backgroundColor = g_ctx.currentTheme.primary;
+        fillStyle.opacity = 1.0f;
+        fillStyle.borderRadius = sadui_corners(2.0f * density);
+        render_rect(fillRect, &fillStyle);
     }
     
     // رسم الأبناء
@@ -939,11 +1292,22 @@ static void render_widget(SadWidget* widget) {
 void sadui_render(float deltaTime) {
     if (!g_ctx.initialized || !g_ctx.rootWidget) return;
     
-    // تحديث الرسوم المتحركة
+    // تحديث عداد FPS
+    g_ctx.fpsTimer += deltaTime;
+    g_ctx.frameCount++;
+    if (g_ctx.fpsTimer >= 1.0f) {
+        g_ctx.fps = g_ctx.frameCount;
+        g_ctx.frameCount = 0;
+        g_ctx.fpsTimer = 0.0f;
+    }
+    
+    // تحديث الرسوم المتحركة — يُلغي الصحة تلقائيًا
+    bool hasActiveAnimations = false;
     for (int i = 0; i < g_ctx.animationCount; i++) {
         SadAnimState* anim = &g_ctx.animations[i];
         if (!anim->active) continue;
         
+        hasActiveAnimations = true;
         anim->elapsed += deltaTime * 1000;
         if (anim->elapsed < anim->config.delay) continue;
         
@@ -961,9 +1325,25 @@ void sadui_render(float deltaTime) {
         anim->progress = t;
     }
     
-    // حساب التخطيط
-    SadRect screen = {0, 0, (float)g_ctx.screenWidth, (float)g_ctx.screenHeight};
-    compute_layout(g_ctx.rootWidget, screen);
+    // الرسوم المتحركة تتطلب إعادة رسم مستمرة
+    if (hasActiveAnimations) {
+        g_ctx.needsRedraw = true;
+    }
+    
+    // تحسين: لا ترسم إذا لم تتغير الواجهة
+    // (معطّل مؤقتًا لضمان التوافقية — فعّل بحذر)
+    // if (!g_ctx.needsRedraw && !hasActiveAnimations) return;
+    
+    // حساب التخطيط (فقط إذا تغير)
+    if (g_ctx.needsLayout) {
+        SadRect screen = {0, 0, (float)g_ctx.screenWidth, (float)g_ctx.screenHeight};
+        compute_layout(g_ctx.rootWidget, screen);
+        g_ctx.needsLayout = false;
+    } else {
+        // لا زلنا بحاجة لحساب التخطيط دائمًا حاليًا
+        SadRect screen = {0, 0, (float)g_ctx.screenWidth, (float)g_ctx.screenHeight};
+        compute_layout(g_ctx.rootWidget, screen);
+    }
     
     // مسح الشاشة
     float bgColor[4];
@@ -974,6 +1354,9 @@ void sadui_render(float deltaTime) {
     // رسم شجرة المكونات
     render_widget(g_ctx.rootWidget);
     
+    // إعادة تعيين علم الرسم
+    g_ctx.needsRedraw = false;
+    
     // تبديل البفرز
     eglSwapBuffers(g_ctx.display, g_ctx.surface);
 }
@@ -982,22 +1365,63 @@ void sadui_render(float deltaTime) {
 //  معالجة اللمس
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/** هل المكون تفاعلي؟ */
+static bool widget_is_interactive(SadWidget* w) {
+    if (!w) return false;
+    if (w->onClick || w->onGesture || w->onTouch) return true;
+    switch (w->type) {
+        case SAD_WIDGET_BUTTON:
+        case SAD_WIDGET_ICON_BUTTON:
+        case SAD_WIDGET_FAB:
+        case SAD_WIDGET_OUTLINED_BUTTON:
+        case SAD_WIDGET_CHECKBOX:
+        case SAD_WIDGET_SWITCH:
+        case SAD_WIDGET_RADIO:
+        case SAD_WIDGET_SLIDER:
+        case SAD_WIDGET_TEXT_FIELD:
+        case SAD_WIDGET_PASSWORD:
+        case SAD_WIDGET_TEXTAREA:
+        case SAD_WIDGET_DROPDOWN:
+            return true;
+        default:
+            return false;
+    }
+}
+
 static SadWidget* hit_test(SadWidget* widget, float x, float y) {
     if (!widget || !widget->visible) return NULL;
     
-    // فحص الأبناء أولاً (من الأمام للخلف)
+    // فحص الحدود أولاً — لا نتعمّق إذا النقطة خارج المكون
+    SadRect r = widget->computedRect;
+    if (x < r.x || x >= r.x + r.width || y < r.y || y >= r.y + r.height) {
+        return NULL;
+    }
+    
+    // فحص الأبناء (من الأمام للخلف)
     for (int i = widget->childCount - 1; i >= 0; i--) {
         SadWidget* hit = hit_test(widget->children[i], x, y);
         if (hit) return hit;
     }
     
-    // فحص هذا المكون
-    SadRect r = widget->computedRect;
-    if (x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height) {
+    // إرجاع هذا المكون فقط إذا كان تفاعلياً
+    if (widget_is_interactive(widget)) {
         return widget;
     }
     
     return NULL;
+}
+
+/** بحث عن أعمق مكون (تفاعلي أو لا) تحت النقطة */
+static SadWidget* hit_test_any(SadWidget* widget, float x, float y) {
+    if (!widget || !widget->visible) return NULL;
+    SadRect r = widget->computedRect;
+    if (x < r.x || x >= r.x + r.width || y < r.y || y >= r.y + r.height)
+        return NULL;
+    for (int i = widget->childCount - 1; i >= 0; i--) {
+        SadWidget* hit = hit_test_any(widget->children[i], x, y);
+        if (hit) return hit;
+    }
+    return widget;
 }
 
 void sadui_handle_touch(SadTouchEvent* event) {
@@ -1006,18 +1430,54 @@ void sadui_handle_touch(SadTouchEvent* event) {
     SadWidget* target = hit_test(g_ctx.rootWidget, event->x, event->y);
     
     switch (event->action) {
-        case SAD_TOUCH_DOWN:
-            if (target && target->enabled) {
-                target->pressed = true;
-                g_ctx.pressedWidget = target->id;
+        case SAD_TOUCH_DOWN: {
+            SadWidget* handler = target;
+            
+            // إذا لم نجد مكوناً تفاعلياً، ابحث عن أي مكون ثم اصعد للوالد التفاعلي
+            if (!handler) {
+                SadWidget* leaf = hit_test_any(g_ctx.rootWidget, event->x, event->y);
+                if (leaf) {
+                    LOGI("لمس: hit_test_any وجد مكون %u نوع=%d نص='%s' rect=(%.0f,%.0f,%.0f,%.0f)",
+                         leaf->id, leaf->type, leaf->text ? leaf->text : "?",
+                         leaf->computedRect.x, leaf->computedRect.y, 
+                         leaf->computedRect.width, leaf->computedRect.height);
+                    while (leaf && !widget_is_interactive(leaf)) {
+                        leaf = leaf->parent;
+                    }
+                    handler = leaf;
+                }
+            }
+            
+            if (handler && handler->enabled) {
+                handler->pressed = true;
+                g_ctx.pressedWidget = handler->id;
                 g_ctx.lastTouchX = event->x;
                 g_ctx.lastTouchY = event->y;
+                LOGI("لمس: DOWN على مكون %u نوع=%d نص='%s' rect=(%.0f,%.0f,%.0f,%.0f)",
+                     handler->id, handler->type,
+                     handler->text ? handler->text : "?",
+                     handler->computedRect.x, handler->computedRect.y,
+                     handler->computedRect.width, handler->computedRect.height);
                 
-                if (target->onTouch) {
-                    target->onTouch(target->id, event, target->onTouchData);
+                if (handler->onTouch) {
+                    handler->onTouch(handler->id, event, handler->onTouchData);
+                }
+            } else {
+                LOGI("لمس: DOWN لا يوجد مكون تفاعلي عند (%.0f,%.0f)", event->x, event->y);
+                // طباعة جميع المكونات التفاعلية ومواقعها للتصحيح
+                for (int i = 0; i < g_ctx.widgetCount; i++) {
+                    SadWidget* w = g_ctx.widgets[i];
+                    if (w && widget_is_interactive(w)) {
+                        LOGI("  مكون تفاعلي: id=%u نوع=%d نص='%s' rect=(%.0f,%.0f,%.0f,%.0f) onClick=%s",
+                             w->id, w->type, w->text ? w->text : "?",
+                             w->computedRect.x, w->computedRect.y,
+                             w->computedRect.width, w->computedRect.height,
+                             w->onClick ? "نعم" : "لا");
+                    }
                 }
             }
             break;
+        }
             
         case SAD_TOUCH_UP:
             if (g_ctx.pressedWidget) {
@@ -1026,8 +1486,14 @@ void sadui_handle_touch(SadTouchEvent* event) {
                     pressed->pressed = false;
                     
                     // إذا كان اللمس لا يزال فوق المكون، فهو نقرة
-                    if (target && target->id == pressed->id && pressed->onClick) {
-                        pressed->onClick(pressed->id, pressed->onClickData);
+                    if (pressed->onClick) {
+                        SadRect r = pressed->computedRect;
+                        if (event->x >= r.x && event->x < r.x + r.width &&
+                            event->y >= r.y && event->y < r.y + r.height) {
+                            LOGI("نقرة! تنفيذ onClick لمكون %u نص='%s'",
+                                 pressed->id, pressed->text ? pressed->text : "?");
+                            pressed->onClick(pressed->id, pressed->onClickData);
+                        }
                     }
                     
                     if (pressed->onTouch) {
@@ -1062,6 +1528,118 @@ void sadui_handle_touch(SadTouchEvent* event) {
 // ═══════════════════════════════════════════════════════════════════════════════
 //  الرسوم المتحركة
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// دوال Easing
+static float apply_easing(float t, SadEasing easing) {
+    switch (easing) {
+        case SAD_EASE_LINEAR:
+            return t;
+        case SAD_EASE_IN:
+            return t * t;
+        case SAD_EASE_OUT:
+            return t * (2.0f - t);
+        case SAD_EASE_IN_OUT:
+            return t < 0.5f ? 2.0f * t * t : -1.0f + (4.0f - 2.0f * t) * t;
+        case SAD_EASE_ELASTIC: {
+            if (t == 0 || t == 1) return t;
+            return powf(2.0f, -10.0f * t) * sinf((t * 10.0f - 0.75f) * (float)(2.0 * M_PI / 3.0)) + 1.0f;
+        }
+        case SAD_EASE_BOUNCE: {
+            if (t < 1.0f / 2.75f) {
+                return 7.5625f * t * t;
+            } else if (t < 2.0f / 2.75f) {
+                float t2 = t - 1.5f / 2.75f;
+                return 7.5625f * t2 * t2 + 0.75f;
+            } else if (t < 2.5f / 2.75f) {
+                float t2 = t - 2.25f / 2.75f;
+                return 7.5625f * t2 * t2 + 0.9375f;
+            } else {
+                float t2 = t - 2.625f / 2.75f;
+                return 7.5625f * t2 * t2 + 0.984375f;
+            }
+        }
+        case SAD_EASE_BACK: {
+            float c1 = 1.70158f;
+            float c3 = c1 + 1.0f;
+            return 1.0f + c3 * powf(t - 1.0f, 3.0f) + c1 * powf(t - 1.0f, 2.0f);
+        }
+        case SAD_EASE_SPRING: {
+            float decay = 4.0f;
+            float frequency = 6.0f;
+            return 1.0f - expf(-decay * t) * cosf(frequency * t * (float)M_PI);
+        }
+        default:
+            return t;
+    }
+}
+
+// تطبيق الرسوم المتحركة على المكون
+static void apply_animation_to_widget(SadWidget* w, SadAnimState* anim) {
+    if (!w || !anim || !anim->active) return;
+    
+    float progress = apply_easing(anim->progress, anim->config.easing);
+    
+    switch (anim->config.type) {
+        case SAD_ANIM_FADE:
+            w->style.opacity = progress;
+            break;
+            
+        case SAD_ANIM_SLIDE_UP:
+            w->computedRect.y -= (1.0f - progress) * 50.0f;
+            break;
+            
+        case SAD_ANIM_SLIDE_DOWN:
+            w->computedRect.y += (1.0f - progress) * 50.0f;
+            break;
+            
+        case SAD_ANIM_SLIDE_LEFT:
+            w->computedRect.x -= (1.0f - progress) * 50.0f;
+            break;
+            
+        case SAD_ANIM_SLIDE_RIGHT:
+            w->computedRect.x += (1.0f - progress) * 50.0f;
+            break;
+            
+        case SAD_ANIM_SCALE:
+            // يُطبّق في الرسم
+            break;
+            
+        case SAD_ANIM_ROTATE:
+            // TODO: يحتاج shader rotation
+            break;
+            
+        case SAD_ANIM_BOUNCE:
+            w->computedRect.y -= sinf(progress * (float)M_PI) * 20.0f;
+            break;
+            
+        case SAD_ANIM_SHAKE: {
+            float shake = sinf(progress * 20.0f * (float)M_PI) * (1.0f - progress) * 10.0f;
+            w->computedRect.x += shake;
+            break;
+        }
+            
+        case SAD_ANIM_PULSE: {
+            float scale = 1.0f + sinf(progress * (float)M_PI) * 0.1f;
+            float dx = w->computedRect.width * (1.0f - scale) * 0.5f;
+            float dy = w->computedRect.height * (1.0f - scale) * 0.5f;
+            w->computedRect.x += dx;
+            w->computedRect.y += dy;
+            w->computedRect.width *= scale;
+            w->computedRect.height *= scale;
+            break;
+        }
+            
+        case SAD_ANIM_CUSTOM: {
+            // استخدام fromValue/toValue
+            float value = anim->config.fromValue + progress * (anim->config.toValue - anim->config.fromValue);
+            w->style.opacity = value; // مثال
+            break;
+        }
+            
+        default:
+            break;
+    }
+}
 
 SadAnimId sadui_animate(SadWidgetId widget, const SadAnimation* anim) {
     if (!anim || g_ctx.animationCount >= SADUI_MAX_ANIMATIONS) return 0;
@@ -1099,28 +1677,22 @@ void sadui_stop_all_animations(SadWidgetId widget) {
 //  دوال المساعدة
 // ═══════════════════════════════════════════════════════════════════════════════
 
-SadEdgeInsets sadui_edges(float all) {
-    return (SadEdgeInsets){all, all, all, all};
+/* sadui_edges / sadui_corners — defined as static inline in sad_ui_engine.h */
+
+SadEdges sadui_edges_vh(float vertical, float horizontal) {
+    return (SadEdges){vertical, horizontal, vertical, horizontal};
 }
 
-SadEdgeInsets sadui_edges_vh(float vertical, float horizontal) {
-    return (SadEdgeInsets){vertical, horizontal, vertical, horizontal};
+SadEdges sadui_edges_ltrb(float left, float top, float right, float bottom) {
+    return (SadEdges){top, right, bottom, left};
 }
 
-SadEdgeInsets sadui_edges_ltrb(float left, float top, float right, float bottom) {
-    return (SadEdgeInsets){top, right, bottom, left};
+SadCorners sadui_corners_top(float top) {
+    return (SadCorners){top, top, 0, 0};
 }
 
-SadCornerRadius sadui_corners(float all) {
-    return (SadCornerRadius){all, all, all, all};
-}
-
-SadCornerRadius sadui_corners_top(float top) {
-    return (SadCornerRadius){top, top, 0, 0};
-}
-
-SadCornerRadius sadui_corners_bottom(float bottom) {
-    return (SadCornerRadius){0, 0, bottom, bottom};
+SadCorners sadui_corners_bottom(float bottom) {
+    return (SadCorners){0, 0, bottom, bottom};
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1154,14 +1726,16 @@ void sadcanvas_clear(SadColor color) {
     glClear(GL_COLOR_BUFFER_BIT);
 }
 
-void sadcanvas_draw_rect(SadRect rect, SadColor color) {
+void sadcanvas_draw_rect(SadCanvas ctx, SadRect rect, SadColor color) {
+    (void)ctx;
     SadStyle style = {0};
     style.backgroundColor = color;
     style.opacity = 1.0f;
     render_rect(rect, &style);
 }
 
-void sadcanvas_draw_rect_rounded(SadRect rect, SadColor color, float radius) {
+void sadcanvas_draw_rounded_rect(SadCanvas ctx, SadRect rect, float radius, SadColor color) {
+    (void)ctx;
     SadStyle style = {0};
     style.backgroundColor = color;
     style.opacity = 1.0f;
@@ -1169,7 +1743,8 @@ void sadcanvas_draw_rect_rounded(SadRect rect, SadColor color, float radius) {
     render_rect(rect, &style);
 }
 
-void sadcanvas_draw_circle(float cx, float cy, float radius, SadColor color) {
+void sadcanvas_draw_circle(SadCanvas ctx, float cx, float cy, float radius, SadColor color) {
+    (void)ctx;
     SadRect rect = {cx - radius, cy - radius, radius * 2, radius * 2};
     SadStyle style = {0};
     style.backgroundColor = color;
@@ -1178,13 +1753,14 @@ void sadcanvas_draw_circle(float cx, float cy, float radius, SadColor color) {
     render_rect(rect, &style);
 }
 
-void sadcanvas_draw_ellipse(float cx, float cy, float rx, float ry, SadColor color) {
+void sadcanvas_draw_ellipse(SadCanvas ctx, float cx, float cy, float rx, float ry, SadColor color) {
+    (void)ctx;
     // نرسم مستطيل بزوايا مستديرة كبيرة جداً
     SadRect rect = {cx - rx, cy - ry, rx * 2, ry * 2};
     SadStyle style = {0};
     style.backgroundColor = color;
     style.opacity = 1.0f;
-    style.borderRadius = (SadCornerRadius){rx, rx, rx, rx};
+    style.borderRadius = (SadCorners){rx, rx, rx, rx};
     render_rect(rect, &style);
 }
 
@@ -1228,7 +1804,8 @@ static void ensure_line_shader(void) {
     glBindVertexArray(0);
 }
 
-void sadcanvas_draw_line(float x1, float y1, float x2, float y2, SadColor color, float width) {
+void sadcanvas_draw_line(SadCanvas ctx, float x1, float y1, float x2, float y2, float width, SadColor color) {
+    (void)ctx;
     ensure_line_shader();
     
     glUseProgram(g_lineProgram);
@@ -1253,8 +1830,10 @@ void sadcanvas_draw_line(float x1, float y1, float x2, float y2, SadColor color,
     glBindVertexArray(0);
 }
 
-void sadcanvas_draw_arc(float cx, float cy, float r, float startAngle, float endAngle, 
-                        SadColor color, float width) {
+void sadcanvas_draw_arc(SadCanvas ctx, float cx, float cy, float r, float startAngle, float endAngle, 
+                        SadColor color) {
+    (void)ctx;
+    float width = 2.0f; /* default width */
     ensure_line_shader();
     
     glUseProgram(g_lineProgram);
@@ -1291,7 +1870,7 @@ void sadcanvas_draw_arc(float cx, float cy, float r, float startAngle, float end
     free(verts);
 }
 
-void sadcanvas_draw_polygon(const SadPoint* points, int count, SadColor fillColor, 
+void sadcanvas_draw_polygon(const SadVec2* points, int count, SadColor fillColor, 
                             SadColor strokeColor, float strokeWidth) {
     if (!points || count < 3) return;
     
@@ -1332,7 +1911,8 @@ void sadcanvas_draw_polygon(const SadPoint* points, int count, SadColor fillColo
     }
 }
 
-void sadcanvas_draw_path(const SadPoint* points, int count, SadColor color, float width, bool closed) {
+void sadcanvas_draw_path(SadCanvas ctx, SadVec2* points, int count, float width, SadColor color, bool closed) {
+    (void)ctx;
     if (!points || count < 2) return;
     
     ensure_line_shader();
@@ -1496,7 +2076,8 @@ void sadui_set_default_font(SadFontId fontId) {
 }
 
 // رسم النص (مبسط حالياً - يحتاج تكامل stb_truetype للعربية الكاملة)
-void sadcanvas_draw_text(const char* text, float x, float y, SadColor color, float size) {
+void sadcanvas_draw_text(SadCanvas ctx, const char* text, float x, float y, float size, SadColor color) {
+    (void)ctx;
     if (!text || !*text) return;
     
     // TODO: تنفيذ رسم النص الكامل مع دعم العربية
@@ -1544,14 +2125,42 @@ static int g_imageCount = 0;
 static SadImageId g_nextImageId = 1;
 
 SadImageId sadui_load_image(const char* path) {
-    // TODO: تحميل صورة من ملف (PNG, JPG) باستخدام stb_image
+    if (!path || g_imageCount >= MAX_IMAGES) return 0;
     
-    if (g_imageCount >= MAX_IMAGES) return 0;
+    // قراءة الملف إلى الذاكرة
+    FILE* f = fopen(path, "rb");
+    if (!f) {
+        LOGE("تعذر فتح ملف الصورة: %s", path);
+        return 0;
+    }
+    fseek(f, 0, SEEK_END);
+    long fileSize = ftell(f);
+    fseek(f, 0, SEEK_SET);
     
+    unsigned char* fileData = (unsigned char*)malloc(fileSize);
+    if (!fileData) {
+        fclose(f);
+        LOGE("تعذر تخصيص ذاكرة لملف الصورة: %ld bytes", fileSize);
+        return 0;
+    }
+    fread(fileData, 1, fileSize, f);
+    fclose(f);
+    
+    // فك تشفير الصورة باستخدام stb_image
+    int w, h, channels;
+    unsigned char* pixels = stbi_load_from_memory(fileData, (int)fileSize, &w, &h, &channels, 4);
+    free(fileData);
+    
+    if (!pixels) {
+        LOGE("تعذر فك تشفير الصورة: %s — %s", path, stbi_failure_reason());
+        return 0;
+    }
+    
+    // إنشاء texture OpenGL
     SadImageData* img = &g_images[g_imageCount++];
     img->id = g_nextImageId++;
-    img->width = 100;  // placeholder
-    img->height = 100;
+    img->width = w;
+    img->height = h;
     
     glGenTextures(1, &img->textureId);
     glBindTexture(GL_TEXTURE_2D, img->textureId);
@@ -1559,20 +2168,43 @@ SadImageId sadui_load_image(const char* path) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     
-    // placeholder أبيض
-    unsigned char white[] = {255, 255, 255, 255};
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white);
-    
+    stbi_image_free(pixels);
     img->loaded = true;
     
-    LOGD("Loaded image (placeholder): %s -> id=%d", path ? path : "null", img->id);
+    LOGI("تم تحميل الصورة: %s (%dx%d) → id=%d", path, w, h, img->id);
     return img->id;
 }
 
 SadImageId sadui_load_image_from_memory(const void* data, int size) {
-    // TODO: تحميل من الذاكرة
-    return sadui_load_image(NULL);
+    if (!data || size <= 0 || g_imageCount >= MAX_IMAGES) return 0;
+    
+    int w, h, channels;
+    unsigned char* pixels = stbi_load_from_memory((const unsigned char*)data, size, &w, &h, &channels, 4);
+    if (!pixels) {
+        LOGE("تعذر فك تشفير الصورة من الذاكرة: %s", stbi_failure_reason());
+        return 0;
+    }
+    
+    SadImageData* img = &g_images[g_imageCount++];
+    img->id = g_nextImageId++;
+    img->width = w;
+    img->height = h;
+    
+    glGenTextures(1, &img->textureId);
+    glBindTexture(GL_TEXTURE_2D, img->textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    
+    stbi_image_free(pixels);
+    img->loaded = true;
+    
+    LOGI("تم تحميل صورة من الذاكرة (%dx%d) → id=%d", w, h, img->id);
+    return img->id;
 }
 
 void sadui_unload_image(SadImageId imageId) {
@@ -1602,14 +2234,110 @@ void sadui_get_image_size(SadImageId imageId, int* width, int* height) {
     if (height) *height = 0;
 }
 
-void sadcanvas_draw_image(SadImageId imageId, SadRect dest) {
-    // TODO: رسم الصورة
-    // حالياً نرسم مربعاً رمادياً
-    sadcanvas_draw_rect(dest, 0x808080FF);
+void sadcanvas_draw_image(SadCanvas ctx, int imageId, SadRect dest) {
+    (void)ctx;
+    if (!g_ctx.imageShaderProgram) return;
+    
+    // البحث عن بيانات الصورة
+    SadImageData* img = NULL;
+    for (int i = 0; i < g_imageCount; i++) {
+        if (g_images[i].id == imageId && g_images[i].loaded) {
+            img = &g_images[i];
+            break;
+        }
+    }
+    if (!img) return;
+    
+    // استخدام شيدر الصور
+    glUseProgram(g_ctx.imageShaderProgram);
+    
+    GLint uProj = glGetUniformLocation(g_ctx.imageShaderProgram, "uProjection");
+    GLint uRectI = glGetUniformLocation(g_ctx.imageShaderProgram, "uRect");
+    GLint uTex = glGetUniformLocation(g_ctx.imageShaderProgram, "uTexture");
+    GLint uOp = glGetUniformLocation(g_ctx.imageShaderProgram, "uOpacity");
+    GLint uBR = glGetUniformLocation(g_ctx.imageShaderProgram, "uBorderRadius");
+    
+    // مصفوفة الإسقاط
+    float proj[16] = {0};
+    proj[0] = 2.0f / g_ctx.screenWidth;
+    proj[5] = -2.0f / g_ctx.screenHeight;
+    proj[10] = -1.0f;
+    proj[12] = -1.0f;
+    proj[13] = 1.0f;
+    proj[15] = 1.0f;
+    glUniformMatrix4fv(uProj, 1, GL_FALSE, proj);
+    
+    glUniform4f(uRectI, dest.x, dest.y, dest.width, dest.height);
+    glUniform1f(uOp, 1.0f);
+    glUniform4f(uBR, 0, 0, 0, 0);
+    
+    // ربط texture الصورة
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, img->textureId);
+    glUniform1i(uTex, 0);
+    
+    glBindVertexArray(g_ctx.quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+    
+    // العودة للشيدر الأساسي
+    glUseProgram(g_ctx.shaderProgram);
 }
 
-void sadcanvas_draw_image_region(SadImageId imageId, SadRect src, SadRect dest) {
-    sadcanvas_draw_image(imageId, dest);
+/** رسم جزء من صورة */
+void sadcanvas_draw_image_region(SadCanvas ctx, int imageId, SadRect src, SadRect dest) {
+    // حالياً نرسم الصورة كاملة — يمكن إضافة دعم UV لاحقاً
+    sadcanvas_draw_image(ctx, imageId, dest);
+}
+
+/** رسم صورة من widget — دالة داخلية للمحرك */
+static void render_image_widget(SadWidget* widget) {
+    if (!widget || !g_ctx.imageShaderProgram) return;
+    
+    int imageId = (int)widget->value;
+    SadImageData* img = NULL;
+    for (int i = 0; i < g_imageCount; i++) {
+        if (g_images[i].id == imageId && g_images[i].loaded) {
+            img = &g_images[i];
+            break;
+        }
+    }
+    if (!img) return;
+    
+    glUseProgram(g_ctx.imageShaderProgram);
+    
+    GLint uProj = glGetUniformLocation(g_ctx.imageShaderProgram, "uProjection");
+    GLint uRectI = glGetUniformLocation(g_ctx.imageShaderProgram, "uRect");
+    GLint uTex = glGetUniformLocation(g_ctx.imageShaderProgram, "uTexture");
+    GLint uOp = glGetUniformLocation(g_ctx.imageShaderProgram, "uOpacity");
+    GLint uBR = glGetUniformLocation(g_ctx.imageShaderProgram, "uBorderRadius");
+    
+    float proj[16] = {0};
+    proj[0] = 2.0f / g_ctx.screenWidth;
+    proj[5] = -2.0f / g_ctx.screenHeight;
+    proj[10] = -1.0f;
+    proj[12] = -1.0f;
+    proj[13] = 1.0f;
+    proj[15] = 1.0f;
+    glUniformMatrix4fv(uProj, 1, GL_FALSE, proj);
+    
+    SadRect r = widget->computedRect;
+    glUniform4f(uRectI, r.x, r.y, r.width, r.height);
+    glUniform1f(uOp, widget->style.opacity);
+    glUniform4f(uBR, widget->style.borderRadius.topLeft,
+                widget->style.borderRadius.topRight,
+                widget->style.borderRadius.bottomRight,
+                widget->style.borderRadius.bottomLeft);
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, img->textureId);
+    glUniform1i(uTex, 0);
+    
+    glBindVertexArray(g_ctx.quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+    
+    glUseProgram(g_ctx.shaderProgram);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1640,7 +2368,7 @@ SadWidgetId sadui_heading(const char* text) {
     return h;
 }
 
-SadWidgetId sadui_image(SadImageId imageId) {
+SadWidgetId sadui_image(int imageId) {
     SadWidgetId img = sadui_create(SAD_WIDGET_IMAGE);
     if (img) {
         SadWidget* w = get_widget(img);
@@ -1667,8 +2395,24 @@ SadWidgetId sadui_container(void) {
     return sadui_create(SAD_WIDGET_CONTAINER);
 }
 
+SadWidgetId sadui_divider(void) {
+    return sadui_create(SAD_WIDGET_DIVIDER);
+}
+
+SadWidgetId sadui_chip(const char* text) {
+    SadWidgetId c = sadui_create(SAD_WIDGET_CHIP);
+    if (c && text) sadui_set_text(c, text);
+    return c;
+}
+
+SadWidgetId sadui_fab(const char* text) {
+    SadWidgetId f = sadui_create(SAD_WIDGET_FAB);
+    if (f && text) sadui_set_text(f, text);
+    return f;
+}
+
 SadWidgetId sadui_scrollable(SadScrollDirection direction) {
-    SadWidgetId scroll = sadui_create(SAD_WIDGET_SCROLL_VIEW);
+    SadWidgetId scroll = sadui_create(SAD_WIDGET_SCROLL);
     // TODO: تعيين اتجاه التمرير
     return scroll;
 }

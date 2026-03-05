@@ -7,6 +7,8 @@
 
 #include "sad_android_bridge_v2.h"
 #include "sad_ui_engine.h"
+#include "sad_arabic_text.h"
+#include "sad_gestures.h"
 
 #include <android/looper.h>
 #include <android/native_window_jni.h>
@@ -31,6 +33,7 @@ static SadAndroidApp g_app = {0};
 static SadAppMode g_mode = SAD_APP_MODE_SIMPLE;
 static pthread_t g_mainThread;
 static int g_threadStarted = 0;
+static SadGestureDetector* g_gestures = NULL;
 
 // Pipe لالتقاط stdout
 static int g_capturePipe[2];
@@ -77,6 +80,25 @@ static double get_current_time(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  نظام الإيماءات
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static void gesture_callback(const SadGestureInfo* info, void* userData) {
+    const char* name = sadgest_type_name_ar(info->type);
+    LOGI("إيماءة: %s (x=%.0f, y=%.0f)", name, info->x, info->y);
+}
+
+static void init_gestures(void) {
+    if (g_gestures) return;
+    g_gestures = sadgest_create();
+    if (g_gestures) {
+        // تفعيل callback عام لجميع الإيماءات
+        sadgest_set_callback(g_gestures, gesture_callback, NULL);
+        LOGI("Gesture system initialized");
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -141,6 +163,47 @@ static void run_ui_mode(void) {
     int screenWidth, screenHeight;
     sadui_get_screen_size(&screenWidth, &screenHeight);
     LOGI("Screen: %dx%d", screenWidth, screenHeight);
+    
+    // حساب كثافة الشاشة (نسبة تقريبية بناء على عرض الشاشة)
+    // 1080p → density ≈ 2.625, 720p → 2.0, 1440p → 3.5
+    float density = screenWidth / 411.0f;  // 411 dp هو العرض الأساسي
+    if (density < 1.0f) density = 1.0f;
+    LOGI("Screen density: %.2f", density);
+    
+    // تهيئة نظام النصوص وتحميل خط نظامي
+    if (sad_font_init()) {
+        sad_text_set_screen_size(screenWidth, screenHeight);
+        
+        // حجم الخط بالبكسل يأخذ الكثافة بالاعتبار
+        float baseFontSize = 48.0f * density;
+        
+        // محاولة تحميل خطوط نظامية من Android
+        static const char* fontPaths[] = {
+            "/system/fonts/NotoSansArabic-Regular.ttf",
+            "/system/fonts/NotoNaskhArabic-Regular.ttf",
+            "/system/fonts/DroidSansArabic.ttf",
+            "/system/fonts/NotoSans-Regular.ttf",
+            "/system/fonts/Roboto-Regular.ttf",
+            "/system/fonts/DroidSans.ttf",
+            NULL
+        };
+        
+        SadFontHandle loadedFont = 0;
+        for (int i = 0; fontPaths[i]; i++) {
+            loadedFont = sad_font_load(fontPaths[i], baseFontSize);
+            if (loadedFont) {
+                LOGI("Font loaded: %s at size %.0f", fontPaths[i], baseFontSize);
+                sad_font_set_default(loadedFont);
+                break;
+            }
+        }
+        if (!loadedFont) {
+            LOGE("No system font found!");
+        }
+    }
+    
+    // تهيئة نظام الإيماءات
+    init_gestures();
     
     // استدعاء دالة إعداد الواجهة من كود المستخدم
     if (__sad_ui_main) {
@@ -228,6 +291,27 @@ static void run_ui_mode(void) {
                     
                     sadui_handle_touch(&touchEvent);
                     
+                    // تمرير اللمس لنظام الإيماءات
+                    if (g_gestures) {
+                        SadTouchPoint tp = {0};
+                        tp.id = touchEvent.pointerId;
+                        tp.x = x;
+                        tp.y = y;
+                        tp.pressure = 1.0f;
+                        struct timeval tv;
+                        gettimeofday(&tv, NULL);
+                        tp.timestamp = (int64_t)tv.tv_sec * 1000 + (int64_t)tv.tv_usec / 1000;
+                        
+                        int gestAction;
+                        switch (action) {
+                            case AMOTION_EVENT_ACTION_DOWN:  gestAction = 0; break;
+                            case AMOTION_EVENT_ACTION_UP:    gestAction = 1; break;
+                            case AMOTION_EVENT_ACTION_MOVE:  gestAction = 2; break;
+                            default:                         gestAction = 3; break;
+                        }
+                        sadgest_process_touch(g_gestures, gestAction, &tp, 1, tp.timestamp);
+                    }
+                    
                     // استدعاء دالة المستخدم
                     if (__sad_ui_touch) {
                         __sad_ui_touch(action, x, y);
@@ -258,6 +342,10 @@ static void run_ui_mode(void) {
     }
     
     // إغلاق المحرك
+    if (g_gestures) {
+        sadgest_destroy(g_gestures);
+        g_gestures = NULL;
+    }
     sadui_shutdown();
 }
 
@@ -272,6 +360,11 @@ static void* main_thread_func(void* arg) {
     }
     
     if (!g_app.running) return NULL;
+    
+    // كشف الوضع تلقائياً: إذا عُرّفت __sad_ui_main نفعّل وضع الواجهة
+    if (__sad_ui_main) {
+        g_mode = SAD_APP_MODE_UI;
+    }
     
     // تشغيل الوضع المناسب
     if (g_mode == SAD_APP_MODE_UI) {

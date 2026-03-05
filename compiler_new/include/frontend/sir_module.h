@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include <memory>
 
 namespace Sad {
@@ -257,7 +258,10 @@ struct SIRParameter {
 class SIRFunction {
 public:
     std::string name;                   ///< (AR) اسم الدالة / (EN) Function name
+    std::string linkName;               ///< (AR) اسم الربط الخارجي (FFI) / (EN) FFI link name (empty = use function name)
     SIRType returnType;                 ///< (AR) نوع الإرجاع / (EN) Return type
+    bool isCoroutine = false;           ///< (AR) دالة غير متزامنة (كوروتين) / (EN) Async function (coroutine)
+    bool isGenerator = false;           ///< (AR) دالة مولّد / (EN) Generator function
     std::vector<SIRParameter> parameters;   ///< (AR) المعاملات / (EN) Parameters
     std::vector<std::shared_ptr<SIRBasicBlock>> basicBlocks; ///< (AR) الكتل الأساسية / (EN) Basic blocks
     
@@ -312,6 +316,12 @@ public:
      * @brief (EN) Get function name
      */
     const std::string& getName() const { return name; }
+    
+    /**
+     * @brief (AR) الحصول على اسم الربط الخارجي (أو اسم الدالة إذا لم يُحدد)
+     * @brief (EN) Get the link name (or function name if not specified)
+     */
+    const std::string& getLinkName() const { return linkName.empty() ? name : linkName; }
     
     /**
      * @brief (AR) الحصول على نوع الإرجاع
@@ -410,6 +420,23 @@ public:
     std::unordered_map<std::string, SIRType> fields_;   ///< (AR) الحقول / (EN) Fields
     std::vector<std::string> fieldOrder_;                ///< (AR) ترتيب الحقول / (EN) Field insertion order
     std::unordered_map<std::string, std::shared_ptr<SIRFunction>> methods_;  ///< (AR) الدوال / (EN) Methods
+    
+    /// (AR) خريطة ربط معاملات الباني بالحقول (لاستنتاج الأنواع)
+    /// (EN) Constructor param → field mapping (for type inference)
+    /// e.g., if constructor has هذا.الاسم = اسم, then: "اسم" → "الاسم"
+    std::unordered_map<std::string, std::string> paramToFieldMap_;
+    
+    /// (AR) ربط وسائط الأساس بمعاملات الباني (لتتبع أنواع حقول الأب)
+    /// (EN) Super arg → child param mapping (for parent field type propagation)
+    /// Maps parent ctor param index (0-based, excl self) → child ctor param name
+    /// e.g., الأساس(ضلع, ضلع) → {0: "ضلع", 1: "ضلع"}
+    std::map<int, std::string> superParamMapping_;
+    
+    /// (AR) ثوابت وسائط الأساس (لتحديث أنواع حقول الأب مباشرةً)
+    /// (EN) Super arg constants (to update parent field types directly)
+    /// Maps parent ctor param index (0-based, excl self) → {type, value}
+    /// e.g., الأساس("مستطيل") → {0: {STRING, "مستطيل"}}
+    std::map<int, std::pair<SIRType, std::string>> superConstantMapping_;
     
     /**
      * @brief (AR) منشئ الصنف

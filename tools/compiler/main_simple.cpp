@@ -9,6 +9,7 @@
 #include "error_manager.h"
 #include "value.h"
 #include "../../interpreter_new/include/exception.h"
+#include "../../interpreter_new/include/debug/debug_server.h"
 
 // الآلة الافتراضية / Bytecode VM
 #include "sad_vm_compiler.h"
@@ -48,6 +49,7 @@ void print_help(const char* program_name) {
               << "  --vm, --آلة    تنفيذ عبر الآلة الافتراضية / Execute via Bytecode VM\n"
               << "  --vm-trace    تتبع تعليمات الآلة / Trace VM instructions\n"
               << "  --vm-disasm   فك البايت كود / Disassemble bytecode\n"
+              << "  --debug-server خادم التصحيح (DAP) / Debug server mode (DAP)\n"
               << "\n"
               << "  واجهات <ملف>  توليد واجهات رسومية / Generate UI code\n"
               << "    --منصة=X    المنصة: desktop|android|ios|web\n"
@@ -262,6 +264,7 @@ int main(int argc, char* argv[]) {
         bool useVM = false;
         bool vmTrace = false;
         bool vmDisasm = false;
+        bool useDebugServer = false;
         std::string filename;
         for (int i = 1; i < argc; ++i) {
             std::string a = argv[i];
@@ -298,6 +301,8 @@ int main(int argc, char* argv[]) {
                 vmDisasm = true;
             } else if (a == "--opt-stats" || a == "-v") {
                 showOptStats = true;
+            } else if (a == "--debug-server") {
+                useDebugServer = true;
             } else if (a[0] != '-') {
                 filename = a;
             }
@@ -312,6 +317,10 @@ int main(int argc, char* argv[]) {
         
         // Clear error manager
         Sad::Errors::ErrorManager::getInstance().clear();
+        
+        // (AR) حفظ كود المصدر لعرض الأسطر في رسائل الخطأ
+        // (EN) Store source code for displaying lines in error messages
+        Sad::Errors::ErrorManager::getInstance().setSourceCode(source, filename);
         
         // Lexer - create lexer and tokenize
         Sad::Lexer::LexerCore lexer(source);
@@ -370,6 +379,45 @@ int main(int argc, char* argv[]) {
         }
         
         // ===================================================================
+        // وضع خادم التصحيح: DAP debug server mode
+        // Debug Server Mode: JSON protocol over stdin/stdout
+        // ===================================================================
+        if (useDebugServer) {
+            Sad::Interpreter::InterpreterOptions options;
+            options.enableDebugMode = false;
+            options.printResults = false;
+            options.currentFilePath = filename;
+            
+            Sad::Interpreter::Interpreter interpreter(options);
+            
+            // (AR) إنشاء خادم التصحيح وربطه بالمفسر
+            // (EN) Create debug server and connect to interpreter
+            Sad::Debug::DebugServer debugServer;
+            debugServer.setInterpreterRefs(
+                &interpreter.getVariableManager(),
+                &interpreter.getFunctionManager(),
+                &interpreter.getScopeManager()
+            );
+            debugServer.setInterpreter(&interpreter);
+            Sad::Debug::DebugServer::setInstance(&debugServer);
+            
+            // (AR) تشغيل خادم التصحيح (سيقرأ الأوامر في خيط منفصل)
+            // (EN) Start debug server (will read commands in separate thread)
+            debugServer.run(filename);
+            
+            // (AR) تنفيذ البرنامج — الخطافات ستوقف التنفيذ عند نقاط التوقف
+            // (EN) Execute program — hooks will pause at breakpoints
+            auto result = interpreter.execute(program);
+            
+            // (AR) إرسال حدث الانتهاء
+            // (EN) Send terminated event
+            debugServer.sendEvent("terminated");
+            debugServer.sendEvent("exited", "{\"exitCode\":" + std::to_string(result.success ? 0 : 1) + "}");
+            
+            return result.success ? 0 : 1;
+        }
+        
+        // ===================================================================
         // الوضع العادي: تنفيذ شجرة AST مباشرة
         // Normal Mode: Tree-walking interpreter
         // ===================================================================
@@ -402,7 +450,41 @@ int main(int argc, char* argv[]) {
             if (Sad::Errors::ErrorManager::getInstance().hasErrors()) {
                 Sad::Errors::ErrorManager::getInstance().printAll();
             } else {
-                std::cerr << "خطأ في التنفيذ / Runtime Error: " << result.errorMessage << std::endl;
+                // (AR) عرض خطأ وقت التشغيل مع سطر الكود المصدري
+                // (EN) Display runtime error with source code line
+                std::cerr << "\033[91m\033[1m❌ خطأ في التنفيذ / Runtime Error:\033[0m " << result.errorMessage << std::endl;
+                
+                // (AR) محاولة استخراج رقم السطر من رسالة الخطأ (at LINE:COL)
+                // (EN) Try to extract line number from error message (at LINE:COL)
+                std::string msg = result.errorMessage;
+                size_t atPos = msg.rfind("at ");
+                if (atPos != std::string::npos) {
+                    std::string posStr = msg.substr(atPos + 3);
+                    size_t colonPos = posStr.find(':');
+                    if (colonPos != std::string::npos) {
+                        try {
+                            int lineNum = std::stoi(posStr.substr(0, colonPos));
+                            int colNum = std::stoi(posStr.substr(colonPos + 1));
+                            const std::string& src = Sad::Errors::ErrorManager::getInstance().getSourceCode();
+                            if (!src.empty() && lineNum > 0) {
+                                // (AR) استخراج السطر من الكود المصدري
+                                // (EN) Extract line from source code
+                                std::istringstream srcStream(src);
+                                std::string srcLine;
+                                int currentLine = 0;
+                                while (std::getline(srcStream, srcLine)) {
+                                    currentLine++;
+                                    if (currentLine == lineNum) {
+                                        std::cerr << "\033[36m" << "  " << lineNum << " │ " << srcLine << "\033[0m" << std::endl;
+                                        std::cerr << "  " << std::string(std::to_string(lineNum).length(), ' ') << " │ "
+                                                  << std::string(colNum > 0 ? colNum - 1 : 0, ' ') << "\033[91m\033[1m^ هنا\033[0m" << std::endl;
+                                        break;
+                                    }
+                                }
+                            }
+                        } catch(...) {}
+                    }
+                }
             }
             return 1;
         }
@@ -414,7 +496,7 @@ int main(int argc, char* argv[]) {
         // (EN) Clean program exit
         return exitEx.getExitCode();
     } catch (const std::exception& e) {
-        std::cerr << "خطأ / Error: " << e.what() << std::endl;
+        std::cerr << "\033[91m\033[1m❌ خطأ / Error:\033[0m " << e.what() << std::endl;
         return 1;
     }
 }

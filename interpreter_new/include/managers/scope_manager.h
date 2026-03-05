@@ -89,6 +89,17 @@ public:
     std::string debugString() const;
     std::string getTypeName() const;
     
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) إعادة تهيئة النطاق لإعادة استخدامه من المجمع
+    // (EN) Reset scope for reuse from pool
+    // ═══════════════════════════════════════════════════════════════
+    void reset(ScopeType type, const std::string& name, Scope* parent) {
+        type_ = type;
+        name_ = name;
+        parent_ = parent;
+        variables_.clear();
+    }
+    
 private:
     ScopeType type_;
     std::string name_;
@@ -252,6 +263,15 @@ private:
     Scope* globalScope_;                    ///< (AR) النطاق العام / (EN) Global scope
     Scope* currentScope_;                   ///< (AR) النطاق الحالي / (EN) Current scope
     std::vector<std::unique_ptr<Scope>> scopeStack_;  ///< (AR) مكدس النطاقات / (EN) Scope stack
+    
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) مجمع النطاقات — يُعيد استخدام كائنات Scope بدلاً من 
+    //      تخصيص/تحرير الذاكرة في كل استدعاء دالة أو كتلة
+    // (EN) Scope pool — reuses Scope objects instead of 
+    //      heap alloc/dealloc on every function call or block
+    // ═══════════════════════════════════════════════════════════════
+    std::vector<std::unique_ptr<Scope>> scopePool_;  ///< (AR) مجمع النطاقات المعاد تدويرها / (EN) Recycled scope pool
+    static constexpr size_t MAX_POOL_SIZE = 32;      ///< (AR) الحد الأقصى لحجم المجمع / (EN) Maximum pool size
     
     /**
      * @brief (AR) رمي خطأ ثنائي اللغة

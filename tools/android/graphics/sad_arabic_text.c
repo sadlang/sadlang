@@ -133,6 +133,10 @@ static GLuint g_textShader = 0;
 static GLuint g_textVAO = 0;
 static GLuint g_textVBO = 0;
 
+// أبعاد الشاشة لمصفوفة الإسقاط
+static int g_screenWidth = 1080;
+static int g_screenHeight = 2400;
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  الشيدرز
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -186,6 +190,16 @@ static void create_shaders(void) {
     glAttachShader(g_textShader, vs);
     glAttachShader(g_textShader, fs);
     glLinkProgram(g_textShader);
+    
+    GLint linkOk;
+    glGetProgramiv(g_textShader, GL_LINK_STATUS, &linkOk);
+    if (!linkOk) {
+        char log[512];
+        glGetProgramInfoLog(g_textShader, 512, NULL, log);
+        LOGE("Text shader link error: %s", log);
+    } else {
+        LOGI("Text shader linked OK, program=%u", g_textShader);
+    }
     
     glDeleteShader(vs);
     glDeleteShader(fs);
@@ -314,9 +328,12 @@ static SadGlyphInfo* get_glyph(SadFontInternal* font, uint32_t codepoint) {
                           font->scale, font->scale, glyphIndex);
     
     // تحديث texture
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, font->atlasWidth);
     glBindTexture(GL_TEXTURE_2D, font->atlasTexture);
     glTexSubImage2D(GL_TEXTURE_2D, 0, font->atlasX, font->atlasY, w, h,
                     GL_RED, GL_UNSIGNED_BYTE, dest);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     
     // حفظ الإحداثيات
     glyph->x0 = (float)font->atlasX / font->atlasWidth;
@@ -410,6 +427,7 @@ SadFontHandle sad_font_load_memory(const void* data, int dataSize, float size) {
     font->atlasRowHeight = 0;
     
     // إنشاء texture
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glGenTextures(1, &font->atlasTexture);
     glBindTexture(GL_TEXTURE_2D, font->atlasTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, font->atlasWidth, font->atlasHeight, 
@@ -541,11 +559,10 @@ int sad_arabic_shape_text(const char* input, uint32_t* output, int outputSize) {
     
     const char* p = input;
     while (*p && len < outputSize - 1) {
-        len += decode_utf8(p, &codepoints[len]);
-        int bytes = 1;
-        if ((*p & 0xE0) == 0xC0) bytes = 2;
-        else if ((*p & 0xF0) == 0xE0) bytes = 3;
-        else if ((*p & 0xF8) == 0xF0) bytes = 4;
+        uint32_t cp;
+        int bytes = decode_utf8(p, &cp);
+        codepoints[len] = cp;
+        len++;
         p += bytes;
     }
     
@@ -618,7 +635,7 @@ void sad_text_draw(SadFontHandle fontHandle, const char* text,
     
     SadFontInternal* font = get_font(fontHandle);
     if (!font) font = get_font(g_defaultFont);
-    if (!font) return;
+    if (!font) { LOGE("sad_text_draw: no font!"); return; }
     
     float scale = options ? options->fontSize / font->fontSize : 1.0f;
     float r = 1.0f, g = 1.0f, b = 1.0f, a = 1.0f;
@@ -635,10 +652,23 @@ void sad_text_draw(SadFontHandle fontHandle, const char* text,
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     glUseProgram(g_textShader);
+    
+    // تعيين مصفوفة الإسقاط (orthographic)
+    float projection[16];
+    memset(projection, 0, sizeof(projection));
+    projection[0]  =  2.0f / g_screenWidth;
+    projection[5]  = -2.0f / g_screenHeight;  // Y مقلوب
+    projection[10] = -1.0f;
+    projection[12] = -1.0f;
+    projection[13] =  1.0f;
+    projection[15] =  1.0f;
+    glUniformMatrix4fv(glGetUniformLocation(g_textShader, "projection"), 1, GL_FALSE, projection);
+    
     glUniform4f(glGetUniformLocation(g_textShader, "textColor"), r, g, b, a);
     
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, font->atlasTexture);
+    glUniform1i(glGetUniformLocation(g_textShader, "text"), 0);
     
     glBindVertexArray(g_textVAO);
     
@@ -729,4 +759,9 @@ SadTextOptions sad_text_options_latin(float fontSize) {
     opts.enableKerning = true;
     opts.textColor = 0x000000FF;
     return opts;
+}
+
+void sad_text_set_screen_size(int width, int height) {
+    g_screenWidth = width;
+    g_screenHeight = height;
 }

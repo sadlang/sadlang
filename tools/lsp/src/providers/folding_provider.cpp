@@ -35,6 +35,47 @@ static const std::string KW_FOR      = "\xd9\x84\xd9\x83\xd9\x84";         // ل
 static const std::string KW_TRY      = "\xd8\xad\xd8\xa7\xd9\x88\xd9\x84"; // حاول
 static const std::string KW_END      = "\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9"; // نهاية
 static const std::string KW_IMPORT   = "\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x88\xd8\xb1\xd8\xaf"; // استورد
+static const std::string KW_MATCH    = "\xd8\xb7\xd8\xa7\xd8\xa8\xd9\x82"; // طابق
+static const std::string KW_ENUM     = "\xd8\xaa\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf"; // تعداد
+static const std::string KW_STRUCT   = "\xd8\xa8\xd9\x86\xd9\x8a\xd8\xa9"; // بنية
+static const std::string KW_TRAIT    = "\xd8\xb3\xd9\x85\xd8\xa9";         // سمة
+
+/// الكلمات المفتاحية التي تفتح كتلة "نهاية"
+static const std::vector<std::string> BLOCK_KEYWORDS = {
+    KW_FUNC, KW_CLASS, KW_IF, KW_WHILE, KW_FOR,
+    KW_TRY, KW_MATCH, KW_ENUM, KW_STRUCT, KW_TRAIT
+};
+
+/// هل السطر يبدأ بكلمة مفتاحية تفتح كتلة؟ (فحص بداية السطر فقط)
+static std::string find_block_keyword_at_start(const std::string& line) {
+    // التخطي المسافات البادئة
+    size_t start = 0;
+    while (start < line.size() && (line[start] == ' ' || line[start] == '\t'))
+        start++;
+    if (start >= line.size()) return "";
+
+    std::string trimmed = line.substr(start);
+    for (const auto& kw : BLOCK_KEYWORDS) {
+        if (trimmed.find(kw) == 0) {
+            // نتأكد أن الكلمة ليست جزءاً من كلمة أطول
+            if (trimmed.size() == kw.size() ||
+                trimmed[kw.size()] == ' ' || trimmed[kw.size()] == '\t' ||
+                trimmed[kw.size()] == '(') {
+                return kw;
+            }
+        }
+    }
+    return "";
+}
+
+/// هل السطر يبدأ بـ "نهاية"؟
+static bool starts_with_end(const std::string& line) {
+    size_t start = 0;
+    while (start < line.size() && (line[start] == ' ' || line[start] == '\t'))
+        start++;
+    std::string trimmed = line.substr(start);
+    return trimmed.find(KW_END) == 0;
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  تنفيذ نطاقات الطي
@@ -48,7 +89,38 @@ std::vector<FoldingRange> LspEngine::folding_ranges(const DocumentUri& uri) {
 
     auto lines = arabic::split_lines(doc->content);
 
-    // ──── ١. طي كتل الأقواس المتعرجة { } ────
+    // ──── ١. طي كتل التعليقات #* ... *# ────
+    {
+        int block_comment_start = -1;
+        for (int i = 0; i < static_cast<int>(lines.size()); i++) {
+            const auto& line = lines[i];
+            if (block_comment_start < 0) {
+                // البحث عن بداية تعليق كتلة #* أو #**
+                if (line.find("#*") != std::string::npos) {
+                    // نتأكد أنه ليس في نفس السطر (تعليق واحد في سطر)
+                    if (line.find("*#") == std::string::npos ||
+                        line.find("*#") <= line.find("#*") + 1) {
+                        block_comment_start = i;
+                    }
+                }
+            } else {
+                // البحث عن نهاية *#
+                if (line.find("*#") != std::string::npos) {
+                    if (i > block_comment_start) {
+                        FoldingRange fr;
+                        fr.start_line = block_comment_start;
+                        fr.end_line = i;
+                        fr.kind = FoldingRangeKind::Comment;
+                        fr.collapsed_text = "#* ... *#";
+                        ranges.push_back(fr);
+                    }
+                    block_comment_start = -1;
+                }
+            }
+        }
+    }
+
+    // ──── ٢. طي كتل الأقواس المتعرجة { } ────
     // نستخدم مكدس (stack) لتتبع الأقواس المتعرجة
     std::vector<int> brace_stack; // أرقام أسطر فتح الأقواس
 
@@ -80,8 +152,8 @@ std::vector<FoldingRange> LspEngine::folding_ranges(const DocumentUri& uri) {
         }
     }
 
-    // ──── ٢. طي كتل "نهاية" ────
-    // نبحث عن الكلمات المفتاحية التي تفتح كتلة ونربطها بـ "نهاية"
+    // ──── ٣. طي كتل "نهاية" ────
+    // نبحث عن الكلمات المفتاحية في بداية السطر فقط ونربطها بـ "نهاية"
     struct BlockStart {
         int line;
         std::string keyword;
@@ -90,35 +162,18 @@ std::vector<FoldingRange> LspEngine::folding_ranges(const DocumentUri& uri) {
 
     for (int i = 0; i < static_cast<int>(lines.size()); i++) {
         const auto& line = lines[i];
-        std::string trimmed;
-        for (char c : line) {
-            if (c != ' ' && c != '\t' && c != '\r') trimmed += c;
-            else if (!trimmed.empty()) break;
-        }
 
-        // فتح كتلة
-        if (line.find(KW_FUNC) != std::string::npos ||
-            line.find(KW_CLASS) != std::string::npos ||
-            line.find(KW_IF) != std::string::npos ||
-            line.find(KW_WHILE) != std::string::npos ||
-            line.find(KW_FOR) != std::string::npos ||
-            line.find(KW_TRY) != std::string::npos) {
-
+        // فحص فتح كتلة — الكلمة يجب أن تكون في بداية السطر
+        std::string kw = find_block_keyword_at_start(line);
+        if (!kw.empty()) {
             // نتأكد أن السطر لا يحتوي على "{" (تمت معالجته أعلاه)
             if (line.find('{') == std::string::npos) {
-                std::string kw;
-                if (line.find(KW_FUNC) != std::string::npos) kw = KW_FUNC;
-                else if (line.find(KW_CLASS) != std::string::npos) kw = KW_CLASS;
-                else if (line.find(KW_IF) != std::string::npos) kw = KW_IF;
-                else if (line.find(KW_WHILE) != std::string::npos) kw = KW_WHILE;
-                else if (line.find(KW_FOR) != std::string::npos) kw = KW_FOR;
-                else if (line.find(KW_TRY) != std::string::npos) kw = KW_TRY;
                 block_stack.push_back({i, kw});
             }
         }
 
-        // إغلاق كتلة بـ "نهاية"
-        if (line.find(KW_END) != std::string::npos && !block_stack.empty()) {
+        // إغلاق كتلة بـ "نهاية" — فقط إذا كانت في بداية السطر
+        if (starts_with_end(line) && !block_stack.empty()) {
             auto start = block_stack.back();
             block_stack.pop_back();
 
@@ -152,7 +207,7 @@ std::vector<FoldingRange> LspEngine::folding_ranges(const DocumentUri& uri) {
         }
     }
 
-    // ──── ٣. طي كتل التعليقات المتتالية ────
+    // ──── ٤. طي كتل التعليقات المتتالية (سطر واحد # فقط) ────
     {
         int comment_start = -1;
         for (int i = 0; i < static_cast<int>(lines.size()); i++) {
@@ -189,11 +244,15 @@ std::vector<FoldingRange> LspEngine::folding_ranges(const DocumentUri& uri) {
         }
     }
 
-    // ──── ٤. طي كتل الاستيرادات المتتالية ────
+    // ──── ٥. طي كتل الاستيرادات المتتالية ────
     {
         int import_start = -1;
         for (int i = 0; i < static_cast<int>(lines.size()); i++) {
-            bool is_import = (lines[i].find(KW_IMPORT) != std::string::npos);
+            // فحص أن السطر يبدأ بـ "استورد" (ليس في أي مكان)
+            size_t s = 0;
+            while (s < lines[i].size() && (lines[i][s] == ' ' || lines[i][s] == '\t')) s++;
+            std::string trimmed_import = lines[i].substr(s);
+            bool is_import = (trimmed_import.find(KW_IMPORT) == 0);
 
             if (is_import) {
                 if (import_start < 0) import_start = i;

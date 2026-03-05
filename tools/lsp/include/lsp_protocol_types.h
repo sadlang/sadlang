@@ -518,6 +518,26 @@ struct CallHierarchyOutgoingCall {
 };
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║        شجرة الأنواع - Type Hierarchy                                     ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
+//
+// تعرض شجرة الوراثة لصنف أو سمة:
+//   صنف حيوان ← الأب
+//     ├── صنف كلب ← ابن
+//     └── صنف قط ← ابن
+//
+
+/// عنصر في شجرة الأنواع
+struct TypeHierarchyItem {
+    std::string name;                            // اسم الصنف/السمة
+    SymbolKind kind;                             // النوع (Class, Interface, Struct)
+    std::string detail;                          // تفاصيل (الأب، السمات المنفذة)
+    DocumentUri uri;                             // الملف
+    Range range;                                 // النطاق الكامل
+    Range selection_range;                       // نطاق الاسم
+};
+
+// ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║        روابط المستند - Document Links                                     ║
 // ╚═══════════════════════════════════════════════════════════════════════════╝
 //
@@ -576,6 +596,7 @@ struct ServerCapabilities {
     bool selection_range_provider = true;             // نطاق التحديد الذكي
     bool code_lens_provider = true;                   // عدسات الكود
     bool call_hierarchy_provider = true;              // شجرة الاستدعاءات
+    bool type_hierarchy_provider = true;              // شجرة الأنواع (الوراثة)
     bool document_link_provider = true;               // روابط المستند
     bool document_on_type_formatting_provider_enabled = true; // تنسيق أثناء الكتابة
 

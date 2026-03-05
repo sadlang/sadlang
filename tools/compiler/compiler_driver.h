@@ -109,6 +109,37 @@ struct TargetTriple {
     
     // Get default target for current host
     static TargetTriple get_host_target();
+
+    // ──────────────────────────────────────────────────────────────────────
+    // (AR) هل الهدف هو أندرويد؟ يتحقق من وجود "android" في نظام التشغيل
+    //      أو البيئة (مثل aarch64-linux-android24)
+    // (EN) Is target Android? Checks for "android" in os or environment
+    // ──────────────────────────────────────────────────────────────────────
+    bool is_android() const {
+        return os.find("android") != std::string::npos ||
+               environment.find("android") != std::string::npos;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // (AR) الحصول على مستوى Android API من الثلاثي (مثل 24 من android24)
+    // (EN) Get Android API level from triple (e.g., 24 from android24)
+    // ──────────────────────────────────────────────────────────────────────
+    int get_android_api_level() const {
+        // (AR) ابحث عن "android" متبوعاً برقم في os أو environment
+        auto extract_api = [](const std::string& s) -> int {
+            auto pos = s.find("android");
+            if (pos != std::string::npos) {
+                std::string num = s.substr(pos + 7); // بعد "android"
+                if (!num.empty() && std::isdigit(num[0])) {
+                    return std::stoi(num);
+                }
+            }
+            return 0;
+        };
+        int level = extract_api(os);
+        if (level == 0) level = extract_api(environment);
+        return level > 0 ? level : 24; // افتراضي API 24 (Android 7.0)
+    }
 };
 
 /**
@@ -465,6 +496,36 @@ private:
      * @return مسار clang إن وُجد / Path to clang if found
      */
     std::optional<std::string> find_clang();
+
+    /**
+     * @brief (AR) البحث عن clang الخاص بـ Android NDK
+     * @brief (EN) Find Android NDK's clang for cross-compilation
+     * 
+     * @return مسار NDK clang إن وُجد / Path to NDK clang if found
+     */
+    std::optional<std::string> find_android_ndk_clang();
+
+    /**
+     * @brief (AR) الحصول على مسار sysroot لـ Android NDK
+     * @brief (EN) Get Android NDK sysroot path from clang path
+     * 
+     * @param ndk_clang مسار clang في NDK / Path to NDK clang
+     * @return مسار sysroot / Sysroot path
+     */
+    std::string get_android_sysroot(const std::string& ndk_clang);
+
+    /**
+     * @brief (AR) ربط ملف كائن لأندرويد
+     * @brief (EN) Link object file for Android target
+     * 
+     * (AR) يستخدم NDK clang مع sysroot ومكتبات أندرويد المناسبة.
+     *      ينتج ملف .so (مكتبة مشتركة) أو ملف تنفيذي حسب الإعدادات.
+     * (EN) Uses NDK clang with proper sysroot and Android libraries.
+     *      Produces .so (shared library) or executable based on settings.
+     */
+    bool link_android_executable(const std::string& obj_path,
+                                 const std::string& output_file,
+                                 llvm::Module* module);
     
     /**
      * @brief Get temporary file path
@@ -579,6 +640,81 @@ std::optional<std::string> find_system_linker();
  */
 std::string get_default_output_name(const std::string& input_file,
                                    OutputType output_type);
+
+// ============================================================================
+// Android Build Support / دعم بناء أندرويد
+// ============================================================================
+
+/**
+ * @brief handleBuildAndroidCommand - معالجة أمر build android
+ * 
+ * (AR) يعالج أمر: sadc build android <ملف.ص>
+ * (EN) Handles command: sadc build android <file.sad>
+ * 
+ * @param argc عدد الوسائط / Argument count
+ * @param argv مصفوفة الوسائط / Argument array
+ * @return كود الخروج (0 = نجاح) / Exit code (0 = success)
+ */
+int handleBuildAndroidCommand(int argc, char* argv[]);
+
+// ============================================================================
+// UI Generation Support / دعم توليد الواجهات
+// ============================================================================
+
+/**
+ * @brief handleUICommand - معالجة أمر ui generate
+ * 
+ * (AR) يعالج أمر: sadc ui generate <منصة>
+ * (EN) Handles command: sadc ui generate <platform>
+ * 
+ * @param argc عدد الوسائط / Argument count
+ * @param argv مصفوفة الوسائط / Argument array
+ * @return كود الخروج (0 = نجاح) / Exit code (0 = success)
+ */
+int handleUICommand(int argc, char* argv[]);
+
+/**
+ * @brief handlePkgCommand - معالجة أوامر إدارة الحزم
+ * 
+ * (AR) يعالج أوامر: sadc pkg <أمر>
+ *      - sadc pkg install <حزمة>  -- تثبيت حزمة
+ *      - sadc pkg list            -- سرد الحزم
+ *      - sadc pkg sync            -- مزامنة من sad.toml
+ *      - sadc pkg search <نص>     -- بحث
+ * 
+ * (EN) Handles commands: sadc pkg <command>
+ *      - sadc pkg install <pkg>   -- Install package
+ *      - sadc pkg list            -- List packages
+ *      - sadc pkg sync            -- Sync from sad.toml
+ *      - sadc pkg search <query>  -- Search
+ * 
+ * @param argc عدد الوسائط / Argument count
+ * @param argv مصفوفة الوسائط / Argument array
+ * @return كود الخروج (0 = نجاح) / Exit code (0 = success)
+ */
+int handlePkgCommand(int argc, char* argv[]);
+
+/**
+ * @brief getPackageKotlinBridges - الحصول على Kotlin Bridges لحزمة
+ * 
+ * (AR) يُرجع قائمة مسارات ملفات Kotlin التي تربط الحزمة بنظام Android
+ * (EN) Returns list of Kotlin file paths that bridge the package to Android
+ * 
+ * @param pkgName اسم الحزمة / Package name
+ * @return قائمة مسارات الملفات / List of file paths
+ */
+std::vector<std::string> getPackageKotlinBridges(const std::string& pkgName);
+
+/**
+ * @brief getPackageGradleDeps - الحصول على اعتماديات Gradle لحزمة
+ * 
+ * (AR) يُرجع قائمة اعتماديات Gradle المطلوبة للحزمة (مثل: okhttp:4.12.0)
+ * (EN) Returns list of Gradle dependencies required by the package
+ * 
+ * @param pkgName اسم الحزمة / Package name
+ * @return قائمة الاعتماديات / List of dependencies
+ */
+std::vector<std::string> getPackageGradleDeps(const std::string& pkgName);
 
 } // namespace driver
 } // namespace sad

@@ -52,6 +52,16 @@ llvm::Value* LLVMCodeGen::emitReturn(std::shared_ptr<SIRInstruction> inst) {
     
     // Source: SIROpcode::RET_VOID is at sir_types.h:158
     if (inst->opcode == SIROpcode::RET_VOID) {
+        // (AR) إذا كانت الدالة ترجع قيمة (ليست void)، نرجع قيمة افتراضية
+        //      هذا يحدث في الكود الميت بعد ارمي (throw)
+        // (EN) If function returns a value (not void), return a default value
+        //      This happens in dead code after throw statements
+        if (builder_->GetInsertBlock() && builder_->GetInsertBlock()->getParent()) {
+            llvm::Type* retType = builder_->GetInsertBlock()->getParent()->getReturnType();
+            if (!retType->isVoidTy()) {
+                return builder_->CreateRet(llvm::Constant::getNullValue(retType));
+            }
+        }
         return builder_->CreateRetVoid();
     }
     
@@ -456,14 +466,28 @@ llvm::Value* LLVMCodeGen::resolveOperand(const SIROperand& operand) {
             }
         }
         case SIROperandType::REGISTER: {
+            // (AR) تخطي السجلات بأسماء فارغة — ناتجة عن تعبيرات غير محلولة في SIR
+            // (EN) Skip registers with empty names — caused by unresolved expressions in SIR
+            if (operand.name.empty()) {
+                return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0, true);
+            }
             auto it = context_info_.namedValues.find(operand.name);
             if (it != context_info_.namedValues.end() && it->second != nullptr) {
                 llvm::Value* val = it->second;
                 // (AR) ╪Ñ╪░╪º ┘ד╪º┘ז ╪º┘ה┘ז┘ט╪╣ ┘ז╪╡╪ל ┘ה╪º ┘ז╪¡┘ו┘ס┘ה - ┘ז┘ן╪▒╪¼╪╣ ╪º┘ה┘ו╪ñ╪┤╪▒ ┘ו╪¿╪º╪┤╪▒╪⌐
                 // (EN) If data type is STRING, don't load - return pointer directly
-                // ┘ה╪ú┘ז ╪º┘ה┘ז╪╡ ╪╣╪¿╪º╪▒╪⌐ ╪╣┘ז ┘ו╪ñ╪┤╪▒ i8* ┘ט┘ה╪º ┘ז╪▒┘ך╪» ╪¬╪¡┘ו┘ך┘ה ╪º┘ה╪¿╪º┘ך╪¬ ╪º┘ה╪ú┘ט┘ה ┘ו┘ז┘ח
-                // Because string is an i8* pointer and we don't want to load the first byte
+                // (AR) النص عبارة عن مؤشر i8* — إذا كان alloca نحمّل المؤشر المخزّن
+                //      وإلا نرجع المؤشر مباشرة (مثل GlobalStringPtr)
+                // (EN) String is an i8* pointer — if it's an alloca, load the stored pointer
+                //      otherwise return the pointer as-is (e.g. GlobalStringPtr)
                 if (operand.dataType == SIRType::STRING) {
+                    if (auto* allocaInst = llvm::dyn_cast<llvm::AllocaInst>(val)) {
+                        // (AR) alloca يحتوي مؤشر نص — نحمّل المؤشر المخزّن
+                        // (EN) Alloca holds a string pointer — load the stored pointer
+                        return builder_->CreateLoad(
+                            allocaInst->getAllocatedType(), allocaInst, 
+                            operand.name + ".load");
+                    }
                     return val;  // Return the pointer as-is
                 }
                 
@@ -499,12 +523,23 @@ llvm::Value* LLVMCodeGen::resolveOperand(const SIROperand& operand) {
                 }
                 return val;
             }
-            // (AR) ╪¿╪»┘ך┘ה: ╪º┘ה╪¿╪¡╪½ ┘ב┘ך ╪º┘ה┘ו╪¬╪║┘ך╪▒╪º╪¬ ╪º┘ה╪╣╪º┘ו╪⌐ ╪╣┘ה┘י ┘ו╪│╪¬┘ט┘י ╪º┘ה┘ט╪¡╪»╪⌐
+            // (AR) بديل: البحث في المتغيرات العامة على مستوى الوحدة
             // (EN) Fallback: search in module-level global variables
-            // namedValues ┘ך┘ן┘ו╪│╪¡ ╪╣┘ז╪» ╪»╪«┘ט┘ה ┘ד┘ה ╪»╪º┘ה╪⌐╪ל ┘ה╪░╪º ┘ז╪¿╪¡╪½ ┘ו╪¿╪º╪┤╪▒╪⌐ ┘ב┘ך ╪º┘ה┘ט╪¡╪»╪⌐
+            // namedValues يُمسح عند دخول كل دالة، لذا نبحث مباشرة في الوحدة
             // namedValues is cleared on each function entry, so search module directly
             {
-                llvm::GlobalVariable* gv = module_->getGlobalVariable(operand.name);
+                // (AR) إزالة % من بداية الاسم إذا وجدت (السجلات تبدأ بـ % لكن المتغيرات العامة لا)
+                // (EN) Strip % prefix if present (registers start with % but globals don't)
+                std::string globalName = operand.name;
+                if (!globalName.empty() && globalName[0] == '%') {
+                    globalName = globalName.substr(1);
+                }
+                llvm::GlobalVariable* gv = module_->getGlobalVariable(globalName);
+                if (!gv) {
+                    // (AR) محاولة بالاسم الأصلي أيضاً
+                    // (EN) Try with original name too
+                    gv = module_->getGlobalVariable(operand.name);
+                }
                 if (gv) {
                     return builder_->CreateLoad(gv->getValueType(), gv, operand.name + ".load");
                 }
@@ -560,7 +595,7 @@ llvm::Value* LLVMCodeGen::emitStringConcat(std::shared_ptr<SIRInstruction> inst)
     llvm::Type* rightTy = right->getType();
     
     // Ensure both operands are string pointers
-    // If one is an integer, convert it to string using snprintf
+    // If one is an integer, convert it to string using sprintf
     auto ensureString = [&](llvm::Value* val, llvm::Type* ty, const SIROperand& op) -> llvm::Value* {
         if (ty->isPointerTy()) {
             return val; // Already a string pointer
@@ -572,24 +607,21 @@ llvm::Value* LLVMCodeGen::emitStringConcat(std::shared_ptr<SIRInstruction> inst)
             llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 32),
             "strbuf");
         
-        // Declare snprintf if not already declared
-        llvm::FunctionType* snprintfType = llvm::FunctionType::get(
+        // Declare sprintf if not already declared
+        llvm::FunctionType* sprintfType = llvm::FunctionType::get(
             llvm::Type::getInt32Ty(*context_),
             {llvm::PointerType::getUnqual(*context_),
-             llvm::Type::getInt64Ty(*context_),
              llvm::PointerType::getUnqual(*context_)},
             true);
-        llvm::FunctionCallee snprintfFn = module_->getOrInsertFunction("snprintf", snprintfType);
+        llvm::FunctionCallee sprintfFn = module_->getOrInsertFunction("sprintf", sprintfType);
         
         if (ty->isIntegerTy()) {
             llvm::Value* fmt = builder_->CreateGlobalStringPtr("%lld", "int.fmt");
-            llvm::Value* size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 32);
             llvm::Value* val64 = builder_->CreateIntCast(val, llvm::Type::getInt64Ty(*context_), true);
-            builder_->CreateCall(snprintfFn, {buf, size, fmt, val64});
+            builder_->CreateCall(sprintfFn, {buf, fmt, val64});
         } else if (ty->isDoubleTy()) {
             llvm::Value* fmt = builder_->CreateGlobalStringPtr("%g", "float.fmt");
-            llvm::Value* size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 32);
-            builder_->CreateCall(snprintfFn, {buf, size, fmt, val});
+            builder_->CreateCall(sprintfFn, {buf, fmt, val});
         }
         return buf;
     };

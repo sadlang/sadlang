@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file error_manager.cpp
  * @brief (AR) تطبيق المدير المركزي للأخطاء
  *        (EN) Implementation of central error manager
@@ -176,66 +176,66 @@ void ErrorManager::printAll(Language lang, bool colorize) const {
     const std::string BOLD = colorize ? "\033[1m" : "";
     const std::string RESET = colorize ? "\033[0m" : "";
     
-    std::cout << BOLD << "═══════════════════════════════════════════════\n";
-    std::cout << "  ";
+    std::cerr << BOLD << "═══════════════════════════════════════════════\n";
+    std::cerr << "  ";
     
     if (lang == Language::ARABIC) {
-        std::cout << "تقرير التشخيص";
+        std::cerr << "تقرير التشخيص";
     } else {
-        std::cout << "Diagnostic Report";
+        std::cerr << "Diagnostic Report";
     }
     
-    std::cout << "\n";
-    std::cout << "═══════════════════════════════════════════════\n";
-    std::cout << RESET;
+    std::cerr << "\n";
+    std::cerr << "═══════════════════════════════════════════════\n";
+    std::cerr << RESET;
     
     // (AR) عرض كل تشخيص
     // (EN) Display each diagnostic
     for (size_t i = 0; i < diagnostics.size(); i++) {
-        std::cout << diagnostics[i].format(lang, colorize, "");
+        std::cerr << diagnostics[i].format(lang, colorize, sourceCode_);
         
         if (i < diagnostics.size() - 1) {
-            std::cout << "\n";
-            std::cout << "───────────────────────────────────────────────\n";
-            std::cout << "\n";
+            std::cerr << "\n";
+            std::cerr << "───────────────────────────────────────────────\n";
+            std::cerr << "\n";
         }
     }
     
     // (AR) الملخص النهائي
     // (EN) Final summary
-    std::cout << "\n";
-    std::cout << BOLD << "═══════════════════════════════════════════════\n";
+    std::cerr << "\n";
+    std::cerr << BOLD << "═══════════════════════════════════════════════\n";
     
     size_t errorCount = sink_.getErrorCount();
     size_t warningCount = sink_.getWarningCount();
     
     if (errorCount > 0) {
         const std::string RED = colorize ? "\033[91m" : "";
-        std::cout << RED << "❌ " << errorCount;
+        std::cerr << RED << "❌ " << errorCount;
         if (lang == Language::ARABIC) {
-            std::cout << " خطأ";
+            std::cerr << " خطأ";
         } else {
-            std::cout << " error(s)";
+            std::cerr << " error(s)";
         }
-        std::cout << RESET + BOLD;
+        std::cerr << RESET + BOLD;
     }
     
     if (warningCount > 0) {
-        if (errorCount > 0) std::cout << "  ";
+        if (errorCount > 0) std::cerr << "  ";
         
         const std::string YELLOW = colorize ? "\033[93m" : "";
-        std::cout << YELLOW << "⚠️  " << warningCount;
+        std::cerr << YELLOW << "⚠️  " << warningCount;
         if (lang == Language::ARABIC) {
-            std::cout << " تحذير";
+            std::cerr << " تحذير";
         } else {
-            std::cout << " warning(s)";
+            std::cerr << " warning(s)";
         }
-        std::cout << RESET + BOLD;
+        std::cerr << RESET + BOLD;
     }
     
-    std::cout << "\n";
-    std::cout << "═══════════════════════════════════════════════\n";
-    std::cout << RESET;
+    std::cerr << "\n";
+    std::cerr << "═══════════════════════════════════════════════\n";
+    std::cerr << RESET;
 }
 
 /**

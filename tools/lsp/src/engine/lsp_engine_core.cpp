@@ -39,15 +39,27 @@ LspEngine::LspEngine()
     , index_(std::make_unique<SymbolIndex>())
 {
     // تهيئة جدول الكلمات المفتاحية للتحليل المعجمي
-    // يجب أن يتم مرة واحدة فقط عند بدء البرنامج
     Sad::Lexer::KeywordTable::initialize();
+
+    // بدء خيط التأخير (debouncing)
+    start_debounce_thread();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  المدمر: تنظيف الموارد
 // ══════════════════════════════════════════════════════════════════════════════
 
-LspEngine::~LspEngine() = default;
+LspEngine::~LspEngine() {
+    // إيقاف خيط التأخير
+    {
+        std::lock_guard<std::mutex> lock(debounce_mutex_);
+        debounce_running_ = false;
+    }
+    debounce_cv_.notify_all();
+    if (debounce_thread_ && debounce_thread_->joinable()) {
+        debounce_thread_->join();
+    }
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  تهيئة الخادم: إعداد القدرات المدعومة
@@ -139,8 +151,11 @@ ServerCapabilities LspEngine::initialize(const std::string& root_uri) {
     caps.selection_range_provider = true;
 
     // ──── شجرة الاستدعاءات (Call Hierarchy) ────
-    // إظهار من يستدعي الدالة (واردة) وماذا تستدعي (صادرة)
     caps.call_hierarchy_provider = true;
+
+    // ──── شجرة الأنواع (Type Hierarchy) ────
+    // إظهار شجرة الوراثة — الآباء والأبناء
+    caps.type_hierarchy_provider = true;
 
     // ──── روابط المستند (Document Links) ────
     // جعل مسارات الاستيراد قابلة للنقر
@@ -177,11 +192,12 @@ void LspEngine::did_open(const TextDocumentItem& item) {
 void LspEngine::did_change(const DocumentUri& uri,
                            const std::vector<TextDocumentContentChangeEvent>& changes,
                            int version) {
-    // ① تطبيق التغييرات على المستند
+    // ① تطبيق التغييرات على المستند (فوري)
     doc_store_->update(uri, changes, version);
 
-    // ② إعادة التحليل ونشر النتائج
-    analyze_and_publish(uri);
+    // ② جدولة إعادة التحليل بعد تأخير (debouncing)
+    // هذا يمنع إعادة التحليل عند كل ضغطة مفتاح
+    schedule_analysis(uri);
 }
 
 void LspEngine::did_close(const DocumentUri& uri) {
@@ -206,7 +222,75 @@ void LspEngine::set_diagnostics_publisher(DiagnosticsPublisher publisher) {
 }
 
 ServerInfo LspEngine::get_server_info() const {
-    return ServerInfo{};
+    ServerInfo info;
+    info.name = "خادم لغة ص";
+    info.version = "2.1.0";
+    return info;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  آلية التأخير (Debouncing)
+//  تمنع إعادة التحليل عند كل ضغطة مفتاح — تنتظر 200ms بعد آخر تغيير
+// ══════════════════════════════════════════════════════════════════════════════
+
+void LspEngine::schedule_analysis(const DocumentUri& uri) {
+    {
+        std::lock_guard<std::mutex> lock(debounce_mutex_);
+        pending_analysis_[uri] = std::chrono::steady_clock::now();
+    }
+    debounce_cv_.notify_one();
+}
+
+void LspEngine::start_debounce_thread() {
+    debounce_running_ = true;
+    debounce_thread_ = std::make_unique<std::thread>([this]() {
+        while (true) {
+            std::vector<std::string> uris_to_analyze;
+
+            {
+                std::unique_lock<std::mutex> lock(debounce_mutex_);
+
+                // انتظر حتى يصل طلب أو نتوقف
+                debounce_cv_.wait(lock, [this]() {
+                    return !debounce_running_ || !pending_analysis_.empty();
+                });
+
+                if (!debounce_running_) break;
+
+                // انتظر DEBOUNCE_MS ثم تحقق من الطلبات المعلقة
+                auto deadline = std::chrono::steady_clock::now() 
+                    + std::chrono::milliseconds(DEBOUNCE_MS);
+
+                debounce_cv_.wait_until(lock, deadline, [this]() {
+                    return !debounce_running_;
+                });
+
+                if (!debounce_running_) break;
+
+                // اجمع URIs التي مر عليها DEBOUNCE_MS منذ آخر تغيير
+                auto now = std::chrono::steady_clock::now();
+                for (auto it = pending_analysis_.begin(); it != pending_analysis_.end();) {
+                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        now - it->second).count();
+                    if (elapsed >= DEBOUNCE_MS) {
+                        uris_to_analyze.push_back(it->first);
+                        it = pending_analysis_.erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
+            }
+
+            // حلل خارج القفل
+            for (const auto& uri : uris_to_analyze) {
+                try {
+                    analyze_and_publish(uri);
+                } catch (...) {
+                    // تجنب انهيار الخيط بسبب استثناء غير متوقع
+                }
+            }
+        }
+    });
 }
 
 } // namespace lsp

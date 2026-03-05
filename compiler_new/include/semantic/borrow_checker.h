@@ -255,6 +255,13 @@ public:
     void visitStructDecl(AST::StructDecl& decl) override;
     void visitTestDecl(AST::TestDecl& decl) override;
     
+    // Low-level visitor stubs (required by ASTVisitor)
+    void visitUnsafeBlockStmt(AST::UnsafeBlockStmt& stmt) override {}
+    void visitComptimeBlockStmt(AST::ComptimeBlockStmt& stmt) override {}
+    void visitSizeofExpr(AST::SizeofExpr& expr) override {}
+    void visitAtomicExpr(AST::AtomicExpr& expr) override {}
+    void visitVolatileVarDeclStmt(AST::VolatileVarDeclStmt& stmt) override {}
+    
 protected:
     // ==================================================================
     // دوال مساعدة / Helper Functions

@@ -25,16 +25,8 @@ if(BUILD_LSP_SERVER)
         FetchContent_MakeAvailable(json)
     endif()
 
-    # خادم LSP القديم (للتوافق) / Legacy LSP server
-    add_executable(sad-lsp tools/lsp/main.cpp)
-    target_include_directories(sad-lsp PRIVATE
-        ${CMAKE_SOURCE_DIR}/tools/lsp ${CMAKE_SOURCE_DIR}/include)
-    target_link_libraries(sad-lsp PRIVATE nlohmann_json::nlohmann_json sad_core)
-    set_target_properties(sad-lsp PROPERTIES
-        OUTPUT_NAME "sad-lsp" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-    if(MSVC)
-        target_compile_options(sad-lsp PRIVATE /utf-8)
-    endif()
+    # خادم LSP القديم تم دمجه في الجديد — تم حذفه
+    # Legacy LSP server merged into the new one — removed
 
     # خادم LSP الجديد / New LSP Server
     if(EXISTS "${CMAKE_SOURCE_DIR}/tools/lsp/CMakeLists.txt")
@@ -47,7 +39,6 @@ if(BUILD_LSP_SERVER)
     endif()
 
     # تثبيت / Installation
-    install(TARGETS sad-lsp RUNTIME DESTINATION bin COMPONENT tools)
     if(TARGET sad-lsp-server)
         install(TARGETS sad-lsp-server RUNTIME DESTINATION bin COMPONENT tools)
     endif()
@@ -55,7 +46,7 @@ if(BUILD_LSP_SERVER)
         install(TARGETS sad-fmt RUNTIME DESTINATION bin COMPONENT tools)
     endif()
 
-    message(STATUS "✓ خادم LSP / LSP Server: sad-lsp + sad-lsp-server")
+    message(STATUS "✓ خادم LSP / LSP Server: sad-lsp-server")
     message(STATUS "✓ أداة التنسيق / Formatter: sad-fmt")
 endif()
 

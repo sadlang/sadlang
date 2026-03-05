@@ -419,6 +419,14 @@ llvm::Value* LLVMCodeGen::emitInstruction(std::shared_ptr<SIRInstruction> inst) 
         case SIROpcode::ASYNC_WAIT_ANY:       return emitAsyncWaitAny(inst);
         case SIROpcode::ASYNC_SELECT:         return emitAsyncSelect(inst);
 
+        // ===== LLVM Coroutine Opcodes =====
+        case SIROpcode::CORO_SUSPEND:         return emitCoroSuspend(inst);
+        case SIROpcode::CORO_RETURN:          return emitCoroReturn(inst);
+
+        // ===== Generator Opcodes =====
+        case SIROpcode::GENERATOR_YIELD:      return emitGeneratorYield(inst);
+        case SIROpcode::GENERATOR_CONSUME:    return emitGeneratorConsume(inst);
+
         // ===== Missing Control Flow =====
         case SIROpcode::SWITCH:
             return emitSwitch(inst);
@@ -594,6 +602,24 @@ llvm::Value* LLVMCodeGen::emitInstruction(std::shared_ptr<SIRInstruction> inst) 
             return emitBuiltinDebug(inst);
         case SIROpcode::BUILTIN_TYPE_OF:
             return emitBuiltinTypeOf(inst);
+        
+        // ===== New stdlib builtins =====
+        case SIROpcode::BUILTIN_IS_INTEGER:
+            return emitBuiltinIsType(inst, "integer");
+        case SIROpcode::BUILTIN_IS_FLOAT:
+            return emitBuiltinIsType(inst, "float");
+        case SIROpcode::BUILTIN_IS_STRING:
+            return emitBuiltinIsType(inst, "string");
+        case SIROpcode::BUILTIN_IS_ARRAY:
+            return emitBuiltinIsType(inst, "array");
+        case SIROpcode::BUILTIN_TO_BOOL:
+            return emitBuiltinToBool(inst);
+        case SIROpcode::BUILTIN_READ_LINE:
+            return emitBuiltinReadLine(inst);
+        case SIROpcode::BUILTIN_CLEAR_SCREEN:
+            return emitBuiltinClearScreen(inst);
+        case SIROpcode::BUILTIN_SUM:
+            return emitBuiltinSum(inst);
 
         // ====================================================================
         // Section 15: Low-Level OS Module Operations (85 opcodes)
@@ -805,6 +831,116 @@ llvm::Value* LLVMCodeGen::emitInstruction(std::shared_ptr<SIRInstruction> inst) 
         case SIROpcode::LOWLEVEL_APIC_SEND_SIPI:        return emitLowlevelApicSendSipi(inst);
         case SIROpcode::LOWLEVEL_APIC_WAIT_DELIVERY:    return emitLowlevelApicWaitDelivery(inst);
         case SIROpcode::LOWLEVEL_APIC_INIT_IO:          return emitLowlevelApicInitIo(inst);
+
+        // ====================================================================
+        // القسم 19: عمليات أندرويد / Android Operations
+        // ====================================================================
+#ifdef ENABLE_ANDROID_CODEGEN
+        case SIROpcode::ANDROID_ALLOC:            return emitAndroidAlloc(inst);
+        case SIROpcode::ANDROID_FREE:             return emitAndroidFree(inst);
+        case SIROpcode::ANDROID_STRING_CREATE:    return emitAndroidStringCreate(inst);
+        case SIROpcode::ANDROID_STRING_CONCAT:    return emitAndroidStringConcat(inst);
+        case SIROpcode::ANDROID_STRING_LENGTH:    return emitAndroidStringLength(inst);
+        case SIROpcode::ANDROID_STRING_SUBSTR:    return emitAndroidStringSubstr(inst);
+        case SIROpcode::ANDROID_STRING_COMPARE:   return emitAndroidStringCompare(inst);
+        case SIROpcode::ANDROID_STRING_FREE:      return emitAndroidStringFree(inst);
+        case SIROpcode::ANDROID_ARRAY_CREATE:     return emitAndroidArrayCreate(inst);
+        case SIROpcode::ANDROID_ARRAY_GET:        return emitAndroidArrayGet(inst);
+        case SIROpcode::ANDROID_ARRAY_SET:        return emitAndroidArraySet(inst);
+        case SIROpcode::ANDROID_ARRAY_LENGTH:     return emitAndroidArrayLength(inst);
+        case SIROpcode::ANDROID_ARRAY_PUSH:       return emitAndroidArrayPush(inst);
+        case SIROpcode::ANDROID_ARRAY_POP:        return emitAndroidArrayPop(inst);
+        case SIROpcode::ANDROID_ARRAY_FREE:       return emitAndroidArrayFree(inst);
+        case SIROpcode::ANDROID_MAP_CREATE:       return emitAndroidMapCreate(inst);
+        case SIROpcode::ANDROID_MAP_GET:          return emitAndroidMapGet(inst);
+        case SIROpcode::ANDROID_MAP_SET:          return emitAndroidMapSet(inst);
+        case SIROpcode::ANDROID_MAP_HAS:          return emitAndroidMapHas(inst);
+        case SIROpcode::ANDROID_MAP_DELETE:       return emitAndroidMapDelete(inst);
+        case SIROpcode::ANDROID_MAP_SIZE:         return emitAndroidMapSize(inst);
+        case SIROpcode::ANDROID_MAP_FREE:         return emitAndroidMapFree(inst);
+        case SIROpcode::ANDROID_NET_CONNECT:      return emitAndroidNetConnect(inst);
+        case SIROpcode::ANDROID_NET_SEND:         return emitAndroidNetSend(inst);
+        case SIROpcode::ANDROID_NET_RECV:         return emitAndroidNetRecv(inst);
+        case SIROpcode::ANDROID_NET_CLOSE:        return emitAndroidNetClose(inst);
+        case SIROpcode::ANDROID_HTTP_REQUEST:     return emitAndroidHttpRequest(inst);
+        case SIROpcode::ANDROID_WS_CONNECT:       return emitAndroidWsConnect(inst);
+        case SIROpcode::ANDROID_WS_SEND:          return emitAndroidWsSend(inst);
+        case SIROpcode::ANDROID_WS_RECV:          return emitAndroidWsRecv(inst);
+        case SIROpcode::ANDROID_THREAD_CREATE:    return emitAndroidThreadCreate(inst);
+        case SIROpcode::ANDROID_THREAD_JOIN:      return emitAndroidThreadJoin(inst);
+        case SIROpcode::ANDROID_MUTEX_CREATE:     return emitAndroidMutexCreate(inst);
+        case SIROpcode::ANDROID_MUTEX_LOCK:       return emitAndroidMutexLock(inst);
+        case SIROpcode::ANDROID_MUTEX_UNLOCK:     return emitAndroidMutexUnlock(inst);
+        case SIROpcode::ANDROID_CHANNEL_CREATE:   return emitAndroidChannelCreate(inst);
+        case SIROpcode::ANDROID_CHANNEL_SEND:     return emitAndroidChannelSend(inst);
+        case SIROpcode::ANDROID_CHANNEL_RECV:     return emitAndroidChannelRecv(inst);
+        case SIROpcode::ANDROID_UI_INIT:          return emitAndroidUiInit(inst);
+        case SIROpcode::ANDROID_UI_CREATE_WIDGET: return emitAndroidUiCreateWidget(inst);
+        case SIROpcode::ANDROID_UI_SET_TEXT:      return emitAndroidUiSetText(inst);
+        case SIROpcode::ANDROID_UI_SET_CALLBACK:  return emitAndroidUiSetCallback(inst);
+        case SIROpcode::ANDROID_UI_SHOW:          return emitAndroidUiShow(inst);
+        case SIROpcode::ANDROID_UI_HIDE:          return emitAndroidUiHide(inst);
+        case SIROpcode::ANDROID_UI_UPDATE:        return emitAndroidUiUpdate(inst);
+        case SIROpcode::ANDROID_UI_RUN:           return emitAndroidUiRun(inst);
+        case SIROpcode::ANDROID_LOG:              return emitAndroidLog(inst);
+        case SIROpcode::ANDROID_PRINT:            return emitAndroidPrint(inst);
+#endif // ENABLE_ANDROID_CODEGEN
+
+        // ====================================================================
+        // القسم 20: نظام الواجهة الموحد / Unified UI System (Always enabled)
+        // ====================================================================
+        case SIROpcode::BUILTIN_UI_COLUMN:        return emitUiColumn(inst);
+        case SIROpcode::BUILTIN_UI_ROW:           return emitUiRow(inst);
+        case SIROpcode::BUILTIN_UI_STACK:         return emitUiStack(inst);
+        case SIROpcode::BUILTIN_UI_CONTAINER:     return emitUiContainer(inst);
+        case SIROpcode::BUILTIN_UI_TEXT:           return emitUiText(inst);
+        case SIROpcode::BUILTIN_UI_TEXT_STYLED:   return emitUiTextStyled(inst);
+        case SIROpcode::BUILTIN_UI_BUTTON:        return emitUiButton(inst);
+        case SIROpcode::BUILTIN_UI_BUTTON_VARIANT:return emitUiButtonVariant(inst);
+        case SIROpcode::BUILTIN_UI_ICON_BUTTON:   return emitUiIconButton(inst);
+        case SIROpcode::BUILTIN_UI_FAB:           return emitUiFab(inst);
+        case SIROpcode::BUILTIN_UI_TEXT_FIELD:    return emitUiTextField(inst);
+        case SIROpcode::BUILTIN_UI_CHECKBOX:      return emitUiCheckbox(inst);
+        case SIROpcode::BUILTIN_UI_SWITCH:        return emitUiSwitch(inst);
+        case SIROpcode::BUILTIN_UI_SLIDER:        return emitUiSlider(inst);
+        case SIROpcode::BUILTIN_UI_CARD:          return emitUiCard(inst);
+        case SIROpcode::BUILTIN_UI_SCAFFOLD:      return emitUiScaffold(inst);
+        case SIROpcode::BUILTIN_UI_APP_BAR:       return emitUiAppBar(inst);
+        case SIROpcode::BUILTIN_UI_SPACER:        return emitUiSpacer(inst);
+        case SIROpcode::BUILTIN_UI_DIVIDER:       return emitUiDivider(inst);
+        case SIROpcode::BUILTIN_UI_DIALOG:        return emitUiDialog(inst);
+        case SIROpcode::BUILTIN_UI_ADD_CHILD:     return emitUiAddChild(inst);
+        case SIROpcode::BUILTIN_UI_REMOVE_CHILD:  return emitUiRemoveChild(inst);
+        case SIROpcode::BUILTIN_UI_CLEAR_CHILDREN:return emitUiClearChildren(inst);
+        case SIROpcode::BUILTIN_UI_SET_TEXT:      return emitUiSetText(inst);
+        case SIROpcode::BUILTIN_UI_SET_SIZE:      return emitUiSetSize(inst);
+        case SIROpcode::BUILTIN_UI_SET_FLEX:      return emitUiSetFlex(inst);
+        case SIROpcode::BUILTIN_UI_SET_BACKGROUND:return emitUiSetBackground(inst);
+        case SIROpcode::BUILTIN_UI_SET_FOREGROUND:return emitUiSetForeground(inst);
+        case SIROpcode::BUILTIN_UI_SET_SPACING:   return emitUiSetSpacing(inst);
+        case SIROpcode::BUILTIN_UI_SET_PADDING:   return emitUiSetPadding(inst);
+        case SIROpcode::BUILTIN_UI_SET_ALIGNMENT: return emitUiSetAlignment(inst);
+        case SIROpcode::BUILTIN_UI_SET_BORDER:    return emitUiSetBorder(inst);
+        case SIROpcode::BUILTIN_UI_SET_ELEVATION: return emitUiSetElevation(inst);
+        case SIROpcode::BUILTIN_UI_SET_OPACITY:   return emitUiSetOpacity(inst);
+        case SIROpcode::BUILTIN_UI_SET_VISIBILITY:return emitUiSetVisibility(inst);
+        case SIROpcode::BUILTIN_UI_APP_CREATE:    return emitUiAppCreate(inst);
+        case SIROpcode::BUILTIN_UI_APP_SET_ROOT:  return emitUiAppSetRoot(inst);
+        case SIROpcode::BUILTIN_UI_APP_LAYOUT:    return emitUiAppLayout(inst);
+        case SIROpcode::BUILTIN_UI_APP_RENDER:    return emitUiAppRender(inst);
+        case SIROpcode::BUILTIN_UI_APP_DESTROY:   return emitUiAppDestroy(inst);
+        case SIROpcode::BUILTIN_UI_WIDGET_DESTROY:return emitUiWidgetDestroy(inst);
+
+        // ====================================================================
+        // القسم 21: التوجيهات / Directives (@حجم, @ذري)
+        // ====================================================================
+        case SIROpcode::Sizeof:                  return emitSizeof(inst);
+        case SIROpcode::AtomicLoad:              return emitAtomicLoad(inst);
+        case SIROpcode::AtomicStore:             return emitAtomicStore(inst);
+        case SIROpcode::AtomicAdd:               return emitAtomicAdd(inst);
+        case SIROpcode::AtomicSub:               return emitAtomicSub(inst);
+        case SIROpcode::AtomicExchange:          return emitAtomicExchange(inst);
+        case SIROpcode::AtomicCmpXchg:           return emitAtomicCmpXchg(inst);
 
         default:
             reportError("Unsupported opcode: " + std::to_string(static_cast<int>(inst->opcode)));

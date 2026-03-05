@@ -16,6 +16,7 @@
 #include "property_nodes.h"
 #include "declarations.h"  // For OperatorDecl
 #include "class_nodes.h"   // For ClassDeclStmt
+#include "exception.h"     // For RuntimeError
 #include <iostream>
 
 namespace Sad {
@@ -45,7 +46,7 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
         // If it's a temporary registration (empty class), we'll replace it
         // (AR) إذا كان تسجيلاً مؤقتاً (صنف فارغ)، سنستبدله
         if (!existingClass->fields.empty() || !existingClass->methods.empty()) {
-            throw std::runtime_error("(AR) الصنف '" + node.name + "' معرّف مسبقاً. (EN) Class '" + node.name + "' is already defined.");
+            throw RuntimeError("(AR) الصنف '" + node.name + "' معرّف مسبقاً. (EN) Class '" + node.name + "' is already defined.", node.position);
         }
         #ifdef DEBUG_OOP
 
@@ -68,9 +69,9 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
         for (const auto& baseName : node.superclasses) {
             ClassType* baseClass = classManager->getClass(baseName);
             if (!baseClass) {
-                throw std::runtime_error(
+                throw RuntimeError(
                     "(AR) الصنف الأساسي '" + baseName + "' غير موجود. " +
-                    "(EN) Base class '" + baseName + "' not found.");
+                    "(EN) Base class '" + baseName + "' not found.", node.position);
             }
             baseClasses.push_back(baseClass);
             #ifdef DEBUG_OOP
@@ -143,58 +144,62 @@ void StatementExecutor::visitClassDecl(AST::ClassDecl& node) {
                     break;
             }
             
-            // For now, use nullptr for type (will be resolved later when Type system is unified)
-            classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic);
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) إصلاح: تقييم القيمة الافتراضية لجميع الحقول (ثابتة وغير ثابتة)
+            // (EN) Fix: Evaluate default value for all fields (static and non-static)
+            // ═══════════════════════════════════════════════════════════════
+            Value defaultValue;
             
-            // Initialize static fields with default values or initializer expression
-            if (fieldDecl->isStatic) {
-                Value defaultValue;
-                
-                // (AR) تقييم تعبير المُهيئ إن وجد
-                // (EN) Evaluate initializer expression if present
-                if (fieldDecl->initializer) {
-                    try {
-                        fieldDecl->initializer->accept(*expressionEvaluator_);
-                        defaultValue = expressionEvaluator_->getResult();
-                    } catch (const std::exception& e) {
-                        // (AR) فشل التقييم — استخدم القيمة الافتراضية مع تحذير
-                        // (EN) Evaluation failed — fall back to type default with warning
-                        std::cerr << "[Warning] Field initializer evaluation failed: " << e.what() << std::endl;
-                        defaultValue = Value();
-                    } catch (...) {
-                        std::cerr << "[Warning] Field initializer evaluation failed (unknown error)" << std::endl;
-                        defaultValue = Value();
-                    }
-                } else {
-                    // (AR) لا يوجد مُهيئ — استخدم القيمة الافتراضية للنوع
-                    // (EN) No initializer — use type default
-                    switch (fieldDecl->type) {
-                        case Data::DataType::INTEGER:
-                            defaultValue = Value(0);
-                            break;
-                        case Data::DataType::FLOAT:
-                            defaultValue = Value(0.0);
-                            break;
-                        case Data::DataType::STRING:
-                            defaultValue = Value("");
-                            break;
-                        case Data::DataType::BOOLEAN:
-                            defaultValue = Value(false);
-                            break;
-                        default:
-                            defaultValue = Value();
-                    }
+            // (AR) تقييم تعبير المُهيئ إن وجد
+            // (EN) Evaluate initializer expression if present
+            if (fieldDecl->initializer) {
+                try {
+                    fieldDecl->initializer->accept(*expressionEvaluator_);
+                    defaultValue = expressionEvaluator_->getResult();
+                } catch (const std::exception& e) {
+                    // (AR) فشل التقييم — استخدم القيمة الافتراضية مع تحذير
+                    // (EN) Evaluation failed — fall back to type default with warning
+                    std::cerr << "[Warning] Field initializer evaluation failed: " << e.what() << std::endl;
+                    defaultValue = Value();
+                } catch (...) {
+                    std::cerr << "[Warning] Field initializer evaluation failed (unknown error)" << std::endl;
+                    defaultValue = Value();
                 }
+            } else {
+                // (AR) لا يوجد مُهيئ — استخدم القيمة الافتراضية للنوع
+                // (EN) No initializer — use type default
+                switch (fieldDecl->type) {
+                    case Data::DataType::INTEGER:
+                        defaultValue = Value(0);
+                        break;
+                    case Data::DataType::FLOAT:
+                        defaultValue = Value(0.0);
+                        break;
+                    case Data::DataType::STRING:
+                        defaultValue = Value("");
+                        break;
+                    case Data::DataType::BOOLEAN:
+                        defaultValue = Value(false);
+                        break;
+                    default:
+                        defaultValue = Value();
+                }
+            }
+            
+            // (AR) تمرير القيمة الافتراضية عند إضافة الحقل
+            // (EN) Pass default value when adding field
+            classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic, defaultValue);
+            
+            // Initialize static fields with their values
+            if (fieldDecl->isStatic) {
                 classType->setStaticField(fieldDecl->name, defaultValue);
                 #ifdef DEBUG_OOP
-
                 std::cout << "[OOP]   - حقل ثابت: " << fieldDecl->name << " = " << defaultValue.toString() << "\n";
-#endif
+                #endif
             } else {
                 #ifdef DEBUG_OOP
-
-                std::cout << "[OOP]   - حقل: " << fieldDecl->name << "\n";
-#endif
+                std::cout << "[OOP]   - حقل: " << fieldDecl->name << " = " << defaultValue.toString() << "\n";
+                #endif
             }
         }
         // Store constructor
@@ -443,7 +448,7 @@ void StatementExecutor::visitClassDeclStmt(AST::ClassDeclStmt& node) {
     if (classManager->hasClass(node.name)) {
         auto* existingClass = classManager->getClass(node.name);
         if (!existingClass->fields.empty() || !existingClass->methods.empty()) {
-            throw std::runtime_error("(AR) الصنف '" + node.name + "' معرّف مسبقاً. (EN) Class '" + node.name + "' is already defined.");
+            throw RuntimeError("(AR) الصنف '" + node.name + "' معرّف مسبقاً. (EN) Class '" + node.name + "' is already defined.", node.position);
         }
     }
     
@@ -455,9 +460,9 @@ void StatementExecutor::visitClassDeclStmt(AST::ClassDeclStmt& node) {
         for (const auto& baseName : node.baseClasses) {
             ClassType* baseClass = classManager->getClass(baseName);
             if (!baseClass) {
-                throw std::runtime_error(
+                throw RuntimeError(
                     "(AR) الصنف الأساسي '" + baseName + "' غير موجود. " +
-                    "(EN) Base class '" + baseName + "' not found.");
+                    "(EN) Base class '" + baseName + "' not found.", node.position);
             }
             baseClasses.push_back(baseClass);
         }
@@ -482,26 +487,33 @@ void StatementExecutor::visitClassDeclStmt(AST::ClassDeclStmt& node) {
             case AST::AccessModifier::PROTECTED: vis = AST::Visibility::PROTECTED; break;
         }
         
-        classType->addField(field->name, nullptr, vis, field->isStatic);
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) إصلاح: تقييم القيمة الافتراضية لجميع الحقول
+        // (EN) Fix: Evaluate default value for all fields
+        // ═══════════════════════════════════════════════════════════════
+        Value defaultValue;
+        if (field->initializer) {
+            try {
+                field->initializer->accept(*expressionEvaluator_);
+                defaultValue = expressionEvaluator_->getResult();
+            } catch (...) {
+                defaultValue = Value();
+            }
+        } else {
+            switch (field->type) {
+                case Data::DataType::INTEGER: defaultValue = Value(0); break;
+                case Data::DataType::FLOAT:   defaultValue = Value(0.0); break;
+                case Data::DataType::STRING:  defaultValue = Value(""); break;
+                case Data::DataType::BOOLEAN: defaultValue = Value(false); break;
+                default: defaultValue = Value();
+            }
+        }
+        
+        // (AR) تمرير القيمة الافتراضية عند إضافة الحقل
+        // (EN) Pass default value when adding field
+        classType->addField(field->name, nullptr, vis, field->isStatic, defaultValue);
         
         if (field->isStatic) {
-            Value defaultValue;
-            if (field->initializer) {
-                try {
-                    field->initializer->accept(*expressionEvaluator_);
-                    defaultValue = expressionEvaluator_->getResult();
-                } catch (...) {
-                    defaultValue = Value();
-                }
-            } else {
-                switch (field->type) {
-                    case Data::DataType::INTEGER: defaultValue = Value(0); break;
-                    case Data::DataType::FLOAT:   defaultValue = Value(0.0); break;
-                    case Data::DataType::STRING:  defaultValue = Value(""); break;
-                    case Data::DataType::BOOLEAN: defaultValue = Value(false); break;
-                    default: defaultValue = Value();
-                }
-            }
             classType->setStaticField(field->name, defaultValue);
         }
     }
@@ -722,9 +734,9 @@ void StatementExecutor::visitTraitDecl(AST::TraitDecl& node) {
     // (AR) تسجيل الواجهة في مدير الأصناف
     // (EN) Register trait in class manager
     if (!classManager->registerTrait(std::move(traitDef))) {
-        throw std::runtime_error(
+        throw RuntimeError(
             "(AR) الواجهة '" + node.name + "' معرّفة مسبقاً. "
-            "(EN) Trait '" + node.name + "' is already defined.");
+            "(EN) Trait '" + node.name + "' is already defined.", node.position);
     }
 }
 
@@ -739,9 +751,9 @@ void StatementExecutor::visitImplDecl(AST::ImplDecl& node) {
     // (EN) Verify target class exists
     ClassType* targetClass = classManager->getClass(node.targetType);
     if (!targetClass) {
-        throw std::runtime_error(
+        throw RuntimeError(
             "(AR) الصنف '" + node.targetType + "' غير معرّف. "
-            "(EN) Class '" + node.targetType + "' is not defined.");
+            "(EN) Class '" + node.targetType + "' is not defined.", node.position);
     }
     
     // (AR) إضافة الدوال من كتلة التنفيذ إلى الصنف
@@ -776,15 +788,15 @@ void StatementExecutor::visitImplDecl(AST::ImplDecl& node) {
     // (EN) If there's a specific trait, validate and register it
     if (!node.traitName.empty()) {
         if (!classManager->hasTrait(node.traitName)) {
-            throw std::runtime_error(
+            throw RuntimeError(
                 "(AR) الواجهة '" + node.traitName + "' غير معرّفة. "
-                "(EN) Trait '" + node.traitName + "' is not defined.");
+                "(EN) Trait '" + node.traitName + "' is not defined.", node.position);
         }
         
         if (!classManager->validateTraitImpl(node.targetType, node.traitName)) {
-            throw std::runtime_error(
+            throw RuntimeError(
                 "(AR) الصنف '" + node.targetType + "' لا ينفذ جميع دوال الواجهة '" + node.traitName + "'. "
-                "(EN) Class '" + node.targetType + "' does not implement all methods of trait '" + node.traitName + "'.");
+                "(EN) Class '" + node.targetType + "' does not implement all methods of trait '" + node.traitName + "'.", node.position);
         }
         
         classManager->registerTraitImpl(node.targetType, node.traitName);
@@ -828,18 +840,11 @@ void StatementExecutor::visitEnumDecl(AST::EnumDecl& node) {
         
         // (AR) تسجيل باسم مؤهل (مثل: اللون.أحمر) / (EN) Register with qualified name
         std::string qualifiedName = node.name + "." + member.name;
-        if (variableManager_.exists(qualifiedName)) {
-            variableManager_.assign(qualifiedName, memberVal);
-        } else {
-            variableManager_.define(qualifiedName, memberVal);
-        }
+        // (AR) تحسين أداء: بحث واحد / (EN) Performance: single lookup
+        variableManager_.defineOrAssign(qualifiedName, memberVal);
         
         // (AR) تسجيل باسم بسيط أيضاً (مثل: أحمر) / (EN) Also register with simple name
-        if (variableManager_.exists(member.name)) {
-            variableManager_.assign(member.name, memberVal);
-        } else {
-            variableManager_.define(member.name, memberVal);
-        }
+        variableManager_.defineOrAssign(member.name, memberVal);
         
         // (AR) إضافة للخرائط / (EN) Add to maps
         enumMap[member.name] = memberVal;
@@ -858,11 +863,7 @@ void StatementExecutor::visitEnumDecl(AST::EnumDecl& node) {
     
     // (AR) تسجيل التعداد نفسه كخريطة / (EN) Register the enum itself as a map
     Data::Value enumValue(enumMap);
-    if (variableManager_.exists(node.name)) {
-        variableManager_.assign(node.name, enumValue);
-    } else {
-        variableManager_.define(node.name, enumValue);
-    }
+    variableManager_.defineOrAssign(node.name, enumValue);
     
     // ═══════════════════════════════════════════════════════════════
     // (AR) تسجيل دالة مساعدة: اسم_التعداد.قيم() — ترجع مصفوفة بأسماء العناصر
@@ -870,19 +871,11 @@ void StatementExecutor::visitEnumDecl(AST::EnumDecl& node) {
     // ═══════════════════════════════════════════════════════════════
     std::string valuesFunc = node.name + ".أسماء";
     Data::Value namesList(allNames);
-    if (variableManager_.exists(valuesFunc)) {
-        variableManager_.assign(valuesFunc, namesList);
-    } else {
-        variableManager_.define(valuesFunc, namesList);
-    }
+    variableManager_.defineOrAssign(valuesFunc, namesList);
     
     std::string countVar = node.name + ".عدد";
     Data::Value countVal(static_cast<int>(node.members.size()));
-    if (variableManager_.exists(countVar)) {
-        variableManager_.assign(countVar, countVal);
-    } else {
-        variableManager_.define(countVar, countVal);
-    }
+    variableManager_.defineOrAssign(countVar, countVal);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

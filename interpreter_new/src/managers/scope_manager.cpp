@@ -86,12 +86,26 @@ ScopeManager::~ScopeManager() {
 }
 
 void ScopeManager::pushScope(ScopeType type, const std::string& name) {
-    // Create new scope with current scope as parent
-    auto newScopePtr = std::make_unique<Scope>(type, name, currentScope_);
-    Scope* newScope = newScopePtr.get();
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) تحسين أداء: إعادة استخدام النطاقات من المجمع بدلاً
+    //      من تخصيص ذاكرة جديدة في كل مرة
+    // (EN) Performance: reuse scopes from pool instead of
+    //      allocating new memory each time
+    // ═══════════════════════════════════════════════════════════════
+    std::unique_ptr<Scope> scopePtr;
     
-    // Add to stack and update current
-    scopeStack_.push_back(std::move(newScopePtr));
+    if (!scopePool_.empty()) {
+        // (AR) إعادة استخدام نطاق من المجمع / (EN) Reuse scope from pool
+        scopePtr = std::move(scopePool_.back());
+        scopePool_.pop_back();
+        scopePtr->reset(type, name, currentScope_);
+    } else {
+        // (AR) إنشاء نطاق جديد / (EN) Create new scope
+        scopePtr = std::make_unique<Scope>(type, name, currentScope_);
+    }
+    
+    Scope* newScope = scopePtr.get();
+    scopeStack_.push_back(std::move(scopePtr));
     currentScope_ = newScope;
 }
 
@@ -116,7 +130,13 @@ void ScopeManager::popScope() {
     // Update current scope to parent
     currentScope_ = currentScope_->getParent();
     
-    // Remove from stack
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) تحسين أداء: إرجاع النطاق للمجمع بدلاً من تحريره
+    // (EN) Performance: return scope to pool instead of freeing
+    // ═══════════════════════════════════════════════════════════════
+    if (scopePool_.size() < MAX_POOL_SIZE) {
+        scopePool_.push_back(std::move(scopeStack_.back()));
+    }
     scopeStack_.pop_back();
 }
 

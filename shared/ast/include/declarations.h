@@ -46,6 +46,7 @@ public:
     bool is_async;                  ///< Is async function? / دالة غير متزامنة؟
     bool isGenerator;               ///< Is generator function? / دالة مولد؟ (Phase 7)
     bool isExtern;                  ///< Is external function? / دالة خارجية؟ (FFI)
+    std::string linkName;           ///< FFI link name (empty = use function name) / اسم الربط الخارجي
     ExprList decorators;            ///< Decorators (@decorator) / المُزخرِفات
     
     /**
@@ -65,7 +66,7 @@ public:
                  const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
           returnType(retType), body(std::move(body)), isExported(exported),
-          isMainFunction(false), is_async(async_func), isGenerator(generator), isExtern(false), decorators() {}
+          isMainFunction(false), is_async(async_func), isGenerator(generator), isExtern(false), linkName(), decorators() {}
     
     /**
      * @brief Constructor with decorators / البناء مع مُزخرِفات
@@ -85,7 +86,7 @@ public:
                  const Lexer::Position& pos = Lexer::Position())
         : Statement(pos), name(name), parameters(std::move(params)),
           returnType(retType), body(std::move(body)), isExported(exported),
-          isMainFunction(false), is_async(async_func), isGenerator(generator), isExtern(false), decorators(std::move(decs)) {}
+          isMainFunction(false), is_async(async_func), isGenerator(generator), isExtern(false), linkName(), decorators(std::move(decs)) {}
     
     void accept(ASTVisitor& visitor) override {
         visitor.visitFunctionDecl(*this);

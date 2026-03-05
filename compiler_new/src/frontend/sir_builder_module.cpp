@@ -132,9 +132,99 @@ std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode* program) {
             // (EN) sirFunction pointer will be updated later in buildFunction
             funcInfo.sirFunction = nullptr;
             functionTable_[funcDecl->name] = funcInfo;
+            std::cerr << "[EXC-DBG] Phase1: registered func '" << funcDecl->name 
+                      << "' retType=" << static_cast<int>(funcInfo.returnType)
+                      << " AST-retType=" << static_cast<int>(funcDecl->returnType) << std::endl;
         }
     }
     
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) المرحلة 1.5: تسجيل المتغيرات العامة مسبقاً في نطاق عام ثابت
+    // (EN) Phase 1.5: Pre-register global variables in a persistent global scope
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) هذا النطاق يبقى طوال بناء الوحدة حتى تستطيع الدوال الوصول للمتغيرات العامة
+    // (EN) This scope persists throughout module building so functions can access globals
+    enterScope(); // (AR) النطاق العام - سيبقى حتى نهاية buildModule
+    
+    for (const auto& stmt : *program) {
+        if (!stmt) continue;
+        
+        // (AR) استخراج VarDeclStmt مباشرة أو من داخل ExportDecl/ExportStmt
+        // (EN) Extract VarDeclStmt directly or from inside ExportDecl/ExportStmt
+        Sad::AST::VarDeclStmt* varDecl = nullptr;
+        
+        varDecl = dynamic_cast<Sad::AST::VarDeclStmt*>(stmt.get());
+        
+        if (!varDecl) {
+            if (auto exportDecl = dynamic_cast<Sad::AST::ExportDecl*>(stmt.get())) {
+                if (exportDecl->declaration) {
+                    varDecl = dynamic_cast<Sad::AST::VarDeclStmt*>(exportDecl->declaration.get());
+                }
+            }
+        }
+        if (!varDecl) {
+            if (auto exportStmt = dynamic_cast<Sad::AST::ExportStmt*>(stmt.get())) {
+                if (exportStmt->declaration) {
+                    varDecl = dynamic_cast<Sad::AST::VarDeclStmt*>(exportStmt->declaration.get());
+                }
+            }
+        }
+        
+        if (varDecl) {
+            // (AR) تسجيل المتغير العام في النطاق العام
+            // (EN) Register global variable in global scope
+            SIRType varType = astTypeToSIRType(varDecl->type);
+            
+            VariableInfo globalVarInfo;
+            globalVarInfo.name = varDecl->name;
+            globalVarInfo.type = varType;
+            globalVarInfo.registerName = "%" + varDecl->name;
+            globalVarInfo.isGlobal = true;
+            globalVarInfo.isMutable = !varDecl->isConst;
+            globalVarInfo.scopeLevel = 0;
+            addVariable(globalVarInfo);
+            
+            // (AR) إضافة المتغير العام أيضاً لوحدة SIR حتى ينشئ LLVM CodeGen متغيرات عامة حقيقية
+            // (EN) Also add global variable to SIR module so LLVM CodeGen creates real LLVM globals
+            auto sirGlobal = std::make_shared<SIRGlobalVariable>(varDecl->name, varType);
+            sirGlobal->isConstant = varDecl->isConst;
+            
+            // (AR) استخراج القيمة الأولية إذا كانت ثابتاً حرفياً
+            // (EN) Extract initial value if it's a literal constant
+            if (varDecl->initializer) {
+                if (auto* litExpr = dynamic_cast<Sad::AST::LiteralExpr*>(varDecl->initializer.get())) {
+                    const auto& token = litExpr->token;
+                    std::string value = token.getValue();
+                    Lexer::TokenType tokenType = token.getType();
+                    
+                    if (tokenType == Lexer::TokenType::NUMBER_INTEGER) {
+                        // (AR) تحويل الأعداد الست عشرية/الثمانية/الثنائية إلى عشرية
+                        // (EN) Normalize hex/octal/binary literals to decimal
+                        if (value.size() > 2 && value[0] == '0') {
+                            char prefix = value[1];
+                            if (prefix == 'x' || prefix == 'X') {
+                                value = std::to_string(static_cast<int64_t>(std::stoull(value, nullptr, 16)));
+                            } else if (prefix == 'o' || prefix == 'O') {
+                                value = std::to_string(static_cast<int64_t>(std::stoull(value.substr(2), nullptr, 8)));
+                            } else if (prefix == 'b' || prefix == 'B') {
+                                value = std::to_string(static_cast<int64_t>(std::stoull(value.substr(2), nullptr, 2)));
+                            }
+                        }
+                        sirGlobal->initialValue = value;
+                    } else if (tokenType == Lexer::TokenType::NUMBER_DOUBLE) {
+                        sirGlobal->initialValue = value;
+                    } else if (tokenType == Lexer::TokenType::LITERAL_TRUE) {
+                        sirGlobal->initialValue = "1";
+                    } else if (tokenType == Lexer::TokenType::LITERAL_FALSE) {
+                        sirGlobal->initialValue = "0";
+                    }
+                }
+            }
+            
+            module_->addGlobalVariable(sirGlobal);
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     // (AR) المرحلة الثانية: بناء التصريحات وجمع الجمل التنفيذية
     // (EN) Phase 2: Build declarations and collect executable statements
@@ -335,6 +425,10 @@ std::shared_ptr<SIRModule> SIRBuilder::buildModule(AST::ProgramNode* program) {
         currentBlock_ = prevBlock;
     }
     
+    // (AR) الخروج من النطاق العام الذي أنشأناه في المرحلة 1.5
+    // (EN) Exit the global scope we created in Phase 1.5
+    exitScope();
+    
     return module_;
 }
 
@@ -392,6 +486,35 @@ void SIRBuilder::buildFunction(AST::FunctionDeclNode* funcDecl) {
     // (AR) إنشاء دالة SIR جديدة (sir_module.h:235 - SIRFunction constructor)
     // (EN) Create new SIR function
     auto sirFunction = std::make_shared<SIRFunction>(funcDecl->name, returnType);
+    std::cerr << "[EXC-DBG] buildFunction: '" << funcDecl->name 
+              << "' inferred retType=" << static_cast<int>(returnType) << std::endl;
+    
+    // (AR) إذا كانت دالة غير متزامنة، اجعلها كوروتين
+    // (EN) If async function, mark as coroutine
+    if (funcDecl->is_async) {
+        sirFunction->isCoroutine = true;
+        // (AR) الكوروتين يُرجع مؤشراً (handle) بدلاً من القيمة مباشرة
+        // (EN) Coroutine returns a pointer (handle) instead of direct value
+        sirFunction->returnType = SIRType::PTR;
+        std::cerr << "[CORO] Function '" << funcDecl->name << "' marked as coroutine" << std::endl;
+    }
+    
+    // (AR) إذا كانت دالة مولّد، اجعلها كوروتين أيضاً
+    // (EN) If generator function, also mark as coroutine
+    if (funcDecl->isGenerator) {
+        sirFunction->isCoroutine = true;
+        sirFunction->isGenerator = true;
+        // (AR) المولّد يُرجع مؤشراً (handle) — المستهلك يجمع القيم
+        // (EN) Generator returns a pointer (handle) — consumer collects values
+        sirFunction->returnType = SIRType::PTR;
+        std::cerr << "[GEN] Function '" << funcDecl->name << "' marked as generator" << std::endl;
+    }
+    
+    // (AR) تعيين اسم الربط الخارجي (FFI) إذا كان محدداً
+    // (EN) Set FFI link name if specified
+    if (!funcDecl->linkName.empty()) {
+        sirFunction->linkName = funcDecl->linkName;
+    }
     
     // (AR) إضافة المعاملات (declarations.h:44 - parameters: vector<Parameter>)
     // (EN) Add parameters
@@ -455,20 +578,42 @@ void SIRBuilder::buildFunction(AST::FunctionDeclNode* funcDecl) {
     
     // (AR) التأكد من وجود terminator في نهاية الدالة
     // (EN) Ensure function has a terminator at the end
-    // إذا كانت الدالة void ولا يوجد return صريح، نضيف RET_VOID
-    // If function is void and has no explicit return, add RET_VOID
-    if (currentBlock_ && !currentBlock_->instructions.empty()) {
-        const auto& lastInst = currentBlock_->instructions.back();
-        if (lastInst.opcode != SIROpcode::RET && lastInst.opcode != SIROpcode::RET_VOID) {
-            // (AR) لا يوجد return - نضيف واحداً
-            // (EN) No return - add one
+    // (AR) الكوروتينات لا تحتاج terminator إضافي - الخاتمة تتكفل بذلك
+    // (EN) Coroutines don't need extra terminators - epilogue handles it
+    if (!sirFunction->isCoroutine) {
+        // إذا كانت الدالة void ولا يوجد return صريح، نضيف RET_VOID
+        // If function is void and has no explicit return, add RET_VOID
+        if (currentBlock_ && !currentBlock_->instructions.empty()) {
+            const auto& lastInst = currentBlock_->instructions.back();
+            if (lastInst.opcode != SIROpcode::RET && lastInst.opcode != SIROpcode::RET_VOID
+                && lastInst.opcode != SIROpcode::CORO_RETURN) {
+                // (AR) لا يوجد return - نضيف واحداً
+                // (EN) No return - add one
+                if (returnType == SIRType::VOID) {
+                    SIRInstruction retInst;
+                    retInst.opcode = SIROpcode::RET_VOID;
+                    currentBlock_->addInstruction(retInst);
+                } else {
+                    // (AR) للدوال غير void، نضيف return بقيمة افتراضية
+                    // (EN) For non-void functions, add return with default value
+                    SIRInstruction retInst;
+                    retInst.opcode = SIROpcode::RET;
+                    if (returnType == SIRType::STRING) {
+                        retInst.operands.push_back(SIROperand::ConstantString(""));
+                    } else {
+                        retInst.operands.push_back(SIROperand::ConstantI64(0));
+                    }
+                    currentBlock_->addInstruction(retInst);
+                }
+            }
+        } else if (currentBlock_ && currentBlock_->instructions.empty()) {
+            // (AR) الدالة فارغة - نضيف return
+            // (EN) Empty function - add return
             if (returnType == SIRType::VOID) {
                 SIRInstruction retInst;
                 retInst.opcode = SIROpcode::RET_VOID;
                 currentBlock_->addInstruction(retInst);
             } else {
-                // (AR) للدوال غير void، نضيف return بقيمة افتراضية
-                // (EN) For non-void functions, add return with default value
                 SIRInstruction retInst;
                 retInst.opcode = SIROpcode::RET;
                 if (returnType == SIRType::STRING) {
@@ -478,23 +623,6 @@ void SIRBuilder::buildFunction(AST::FunctionDeclNode* funcDecl) {
                 }
                 currentBlock_->addInstruction(retInst);
             }
-        }
-    } else if (currentBlock_ && currentBlock_->instructions.empty()) {
-        // (AR) الدالة فارغة - نضيف return
-        // (EN) Empty function - add return
-        if (returnType == SIRType::VOID) {
-            SIRInstruction retInst;
-            retInst.opcode = SIROpcode::RET_VOID;
-            currentBlock_->addInstruction(retInst);
-        } else {
-            SIRInstruction retInst;
-            retInst.opcode = SIROpcode::RET;
-            if (returnType == SIRType::STRING) {
-                retInst.operands.push_back(SIROperand::ConstantString(""));
-            } else {
-                retInst.operands.push_back(SIROperand::ConstantI64(0));
-            }
-            currentBlock_->addInstruction(retInst);
         }
     }
     
@@ -512,6 +640,7 @@ void SIRBuilder::buildFunction(AST::FunctionDeclNode* funcDecl) {
         funcInfo.returnType = returnType;
         funcInfo.parameters = sirFunction->getParameters();
         funcInfo.sirFunction = sirFunction;
+        funcInfo.isGenerator = sirFunction->isGenerator;
         functionTable_[funcDecl->name] = funcInfo;
     }
     

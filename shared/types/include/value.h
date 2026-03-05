@@ -124,10 +124,13 @@ public:
     explicit Value(int64_t val);                 ///< (AR) إنشاء قيمة رقم صحيح 64-bit / (EN) Create INTEGER value (64-bit)
     explicit Value(double val);                 ///< (AR) إنشاء قيمة رقم عشري / (EN) Create DOUBLE value
     Value(const std::string& val);              ///< (AR) إنشاء قيمة نصية / (EN) Create STRING value (non-explicit for literals)
+    Value(std::string&& val);                   ///< (AR) إنشاء قيمة نصية بنقل / (EN) Create STRING value (move)
     Value(const char* val);                     ///< (AR) إنشاء قيمة نصية من C-string / (EN) Create STRING from C-string
     explicit Value(bool val);                   ///< (AR) إنشاء قيمة منطقية / (EN) Create BOOLEAN value
     explicit Value(const ArrayType& val);       ///< (AR) إنشاء مصفوفة / (EN) Create ARRAY value
+    explicit Value(ArrayType&& val);            ///< (AR) إنشاء مصفوفة بنقل / (EN) Create ARRAY value (move)
     explicit Value(const MapType& val);         ///< (AR) إنشاء قاموس / (EN) Create MAP value
+    explicit Value(MapType&& val);              ///< (AR) إنشاء قاموس بنقل / (EN) Create MAP value (move)
     
     /**
      * @brief (AR) إنشاء قيمة كائن من مؤشر مشترك لـ ObjectInstance
@@ -204,6 +207,17 @@ public:
     // (EN) Const reference versions — avoid copying when only reading
     const ArrayType& toArrayRef() const;
     const MapType& toMapRef() const;
+    
+    /**
+     * @brief (AR) إرجاع مرجع ثابت للنص — يتجنب نسخ النص عند القراءة فقط
+     * @brief (EN) Return const reference to string — avoids string copy when only reading
+     * 
+     * (AR) يعمل فقط مع قيم من نوع STRING. للأنواع الأخرى استخدم toString()
+     * (EN) Only works with STRING values. For other types use toString()
+     * 
+     * @throws std::bad_variant_access (AR) إذا لم يكن النوع STRING / (EN) if type is not STRING
+     */
+    const std::string& toStringRef() const;
     
     // (AR) إصدارات مرجعية قابلة للتعديل — تعديل المصفوفة/الخريطة مباشرة بدون نسخ
     // (EN) Mutable reference versions — modify array/map in-place without copying

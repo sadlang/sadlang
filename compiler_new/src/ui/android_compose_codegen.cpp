@@ -131,15 +131,21 @@ std::string AndroidComposeCodeGen::generateScreenKt(
 ) {
     std::ostringstream ss;
 
-    ss << "package " << packageName << ".ui\n\n";
+    ss << "package " << packageName << "\n\n";
 
     // الاستيرادات
+    ss << "import android.os.Bundle\n";
+    ss << "import androidx.activity.ComponentActivity\n";
+    ss << "import androidx.activity.compose.setContent\n";
+    ss << "import androidx.compose.foundation.background\n";
     ss << "import androidx.compose.foundation.layout.*\n";
     ss << "import androidx.compose.foundation.lazy.*\n";
+    ss << "import androidx.compose.foundation.shape.RoundedCornerShape\n";
     ss << "import androidx.compose.material3.*\n";
     ss << "import androidx.compose.runtime.*\n";
     ss << "import androidx.compose.ui.*\n";
     ss << "import androidx.compose.ui.Modifier\n";
+    ss << "import androidx.compose.ui.draw.clip\n";
     ss << "import androidx.compose.ui.graphics.Color\n";
     ss << "import androidx.compose.ui.text.font.FontWeight\n";
     ss << "import androidx.compose.ui.unit.dp\n";
@@ -212,12 +218,26 @@ void AndroidComposeCodeGen::emitComposable(
             textContent = *s;
         }
     }
+    
+    // تحويل \(var) إلى Kotlin string interpolation ${var}
+    std::string ktText = textContent;
+    size_t pos = 0;
+    while ((pos = ktText.find("\\(", pos)) != std::string::npos) {
+        size_t end = ktText.find(")", pos);
+        if (end != std::string::npos) {
+            std::string varName = ktText.substr(pos + 2, end - pos - 2);
+            ktText.replace(pos, end - pos + 1, "$" + varName);
+            pos += varName.size() + 1;
+        } else {
+            break;
+        }
+    }
 
     switch (node->type) {
         // === العرض ===
         case WidgetType::Text:
             ss << p << "Text(\n";
-            ss << p << "    text = \"" << textContent << "\",\n";
+            ss << p << "    text = \"" << ktText << "\",\n";
             if (node->style.fontSize.has_value()) {
                 ss << p << "    fontSize = " << *node->style.fontSize << ".sp,\n";
             }

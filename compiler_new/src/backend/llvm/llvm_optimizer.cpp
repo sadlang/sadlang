@@ -16,8 +16,20 @@
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
 #include <llvm/Transforms/Scalar/DCE.h>
 #include <llvm/Transforms/Scalar/LICM.h>
+#include <llvm/Transforms/Scalar/LoopUnrollPass.h>
+#include <llvm/Transforms/Scalar/TailRecursionElimination.h>
+#include <llvm/Transforms/Scalar/Reassociate.h>
+#include <llvm/Transforms/Scalar/MemCpyOptimizer.h>
+#include <llvm/Transforms/Scalar/CorrelatedValuePropagation.h>
+#include <llvm/Transforms/Scalar/EarlyCSE.h>
+#include <llvm/Transforms/Scalar/LoopDeletion.h>
+#include <llvm/Transforms/Scalar/LoopRotation.h>
+#include <llvm/Transforms/Scalar/IndVarSimplify.h>
 #include <llvm/Transforms/Utils/LoopUtils.h>  // لـ createFunctionToLoopPassAdaptor / For createFunctionToLoopPassAdaptor
 #include <llvm/Transforms/IPO/GlobalDCE.h>
+#include <llvm/Transforms/IPO/DeadArgumentElimination.h>
+#include <llvm/Transforms/IPO/GlobalOpt.h>
+#include <llvm/Transforms/IPO/FunctionAttrs.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/Timer.h>
 #include <chrono>
@@ -185,7 +197,15 @@ std::vector<std::string> LLVMOptimizer::getAvailablePasses() const {
         "mem2reg",          // Promote Memory to Register
         "constprop",        // Constant Propagation
         "ipsccp",           // Interprocedural Sparse Conditional Constant Propagation
-        "vectorize"         // Vectorization
+        "vectorize",        // Vectorization
+        "early-cse",        // Early Common Subexpression Elimination
+        "reassociate",      // Reassociate Expressions
+        "memcpyopt",        // Memory Copy Optimization
+        "correlated-propagation", // Correlated Value Propagation
+        "globalopt",        // Global Variable Optimization
+        "loop-rotate",      // Loop Rotation
+        "loop-delete",      // Loop Deletion
+        "indvars"           // Induction Variable Simplification
     };
 }
 
@@ -337,6 +357,12 @@ void LLVMOptimizer::addBasicOptimizations() {
         function_pm_->addPass(llvm::DCEPass());
     }
     
+    // EarlyCSE: حذف التعابير المشتركة المبكر / Early common subexpression elimination
+    // خفيف الوزن وفعال جداً / Lightweight and very effective
+    if (isPassEnabled("early-cse")) {
+        function_pm_->addPass(llvm::EarlyCSEPass(/*UseMemorySSA=*/true));
+    }
+    
     // Mem2Reg: ترقية الذاكرة إلى سجلات / Promote memory to registers
     // هذا Pass مهم جداً لتحسين الأداء / This pass is critical for performance
     if (isPassEnabled("mem2reg")) {
@@ -360,6 +386,11 @@ void LLVMOptimizer::addStandardOptimizations() {
     }
     
     // تمريرات على مستوى الدالة / Function-level passes
+    
+    // Reassociate: إعادة ترتيب العمليات الحسابية للتحسين / Reassociate expressions
+    if (isPassEnabled("reassociate")) {
+        function_pm_->addPass(llvm::ReassociatePass());
+    }
     
     // GVN: ترقيم القيم العامة / Global value numbering
     if (isPassEnabled("gvn")) {
@@ -399,15 +430,48 @@ void LLVMOptimizer::addAggressiveOptimizations() {
     if (!module_pm_ || !function_pm_) return;
     
     // ============================================================================
-    // REMOVED: DeadArgumentEliminationPass - not available in LLVM 15+
-    // REMOVED: LoopUnrollPass - API changed in LLVM 15+
-    // REMOVED: TailCallElimPass - not available in LLVM 15+
-    // TODO: Update to use new LLVM 15+ pass pipeline when needed
+    // (AR) التحسينات العدوانية في LLVM 18 — تمريرات IPO ودالة كاملة
+    // (EN) Aggressive optimizations in LLVM 18 — IPO and full-function passes
     // ============================================================================
     
-    // Vectorization: التجميع / Vectorize code
-    if (isPassEnabled("vectorize")) {
-        // Vectorization passes would be added here
+    // DeadArgumentElimination: حذف وسائط الدوال غير المستخدمة / Remove unused function arguments
+    if (isPassEnabled("deadargelim")) {
+        module_pm_->addPass(llvm::DeadArgumentEliminationPass());
+    }
+    
+    // GlobalOpt: تحسينات عامة على المتغيرات والدوال العامة / Global variable/function optimizations
+    if (isPassEnabled("globalopt")) {
+        module_pm_->addPass(llvm::GlobalOptPass());
+    }
+    
+    // TailCallElim: تحويل الاستدعاءات الذيلية / Tail call elimination
+    if (isPassEnabled("tailcallelim")) {
+        function_pm_->addPass(llvm::TailCallElimPass());
+    }
+    
+    // Reassociate: إعادة ترتيب العمليات الحسابية / Reassociate arithmetic expressions
+    if (isPassEnabled("reassociate")) {
+        function_pm_->addPass(llvm::ReassociatePass());
+    }
+    
+    // MemCpyOpt: تحسين عمليات نسخ الذاكرة / Optimize memcpy/memmove operations
+    if (isPassEnabled("memcpyopt")) {
+        function_pm_->addPass(llvm::MemCpyOptPass());
+    }
+    
+    // CorrelatedValuePropagation: نشر القيم المرتبطة / Correlated value propagation
+    if (isPassEnabled("correlated-propagation")) {
+        function_pm_->addPass(llvm::CorrelatedValuePropagationPass());
+    }
+    
+    // LoopUnroll: فك الحلقات / Unroll loops
+    if (isPassEnabled("loop-unroll")) {
+        llvm::LoopPassManager loop_pm;
+        loop_pm.addPass(llvm::IndVarSimplifyPass());
+        loop_pm.addPass(llvm::LoopRotatePass());
+        loop_pm.addPass(llvm::LoopDeletionPass());
+        function_pm_->addPass(llvm::createFunctionToLoopPassAdaptor(std::move(loop_pm)));
+        function_pm_->addPass(llvm::LoopUnrollPass());
     }
     
     // إعادة تشغيل GVN و InstCombine / Re-run GVN and InstCombine
@@ -416,6 +480,11 @@ void LLVMOptimizer::addAggressiveOptimizations() {
     }
     if (isPassEnabled("instcombine")) {
         function_pm_->addPass(llvm::InstCombinePass());
+    }
+    
+    // SimplifyCFG نهائي بعد كل التحسينات / Final SimplifyCFG after all optimizations
+    if (isPassEnabled("simplifycfg")) {
+        function_pm_->addPass(llvm::SimplifyCFGPass());
     }
     
     // تحسينات مخصصة للغة العربية / Custom Arabic optimizations
@@ -448,7 +517,8 @@ void LLVMOptimizer::addSizeOptimizations(bool aggressive) {
     
     if (aggressive) {
         // تحسينات إضافية لتقليل الحجم / Additional size optimizations
-        // REMOVED: DeadArgumentEliminationPass - not available in LLVM 15+
+        // إزالة وسائط الدوال غير المستخدمة / Remove unused function arguments
+        module_pm_->addPass(llvm::DeadArgumentEliminationPass());
     }
 }
 

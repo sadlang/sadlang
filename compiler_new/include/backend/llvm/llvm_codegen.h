@@ -72,9 +72,6 @@
 
 // Sad LLVM Components (مكونات Sad LLVM)
 #include "llvm_type_mapper.h"
-#include "llvm_control_flow.h"
-#include "llvm_expression_builder.h"
-#include "llvm_memory_manager.h"
 #include "llvm_optimizer.h"  // إضافة محسّن LLVM / Add LLVM optimizer
 
 // Sad SIR Components (مكونات Sad SIR)
@@ -158,6 +155,19 @@ struct CodeGenContext {
     
     // اسم الصنف الحالي في حالة الدالة (فارغ خارج دوال الصنف)
     // Current method class name (empty outside class methods)
+    
+    // ================================================================
+    // دعم الكوروتين / Coroutine Support
+    // ================================================================
+    bool isCoroutineFunction = false;          ///< هل الدالة الحالية كوروتين
+    bool isGeneratorFunction = false;          ///< هل الدالة الحالية مولّد
+    llvm::Value* coroHandle = nullptr;         ///< مقبض الكوروتين الحالي
+    llvm::Value* coroPromise = nullptr;        ///< مؤشر الوعد (promise) للقيمة المُرجعة
+    llvm::Value* coroId = nullptr;             ///< token من coro.id
+    llvm::BasicBlock* coroCleanupBB = nullptr; ///< كتلة تنظيف الكوروتين
+    llvm::BasicBlock* coroSuspendBB = nullptr; ///< كتلة تعليق الكوروتين
+    llvm::BasicBlock* coroFinalBB = nullptr;   ///< كتلة الإنهاء النهائي
+    int coroSuspendCount = 0;                  ///< عداد نقاط التعليق
     std::string currentMethodClass;
 };
 
@@ -240,6 +250,22 @@ public:
      * @return مؤشر للوحدة / Pointer to module
      */
     llvm::Module* getModule() const { return module_.get(); }
+    
+    /**
+     * الحصول على مُنشئ التعليمات
+     * Get IR builder
+     * 
+     * @return مؤشر للبانِي / Pointer to IR builder
+     */
+    llvm::IRBuilder<>* getBuilder() const { return builder_.get(); }
+    
+    /**
+     * الحصول على سياق LLVM
+     * Get LLVM context
+     * 
+     * @return مؤشر للسياق / Pointer to context
+     */
+    llvm::LLVMContext* getContext() const { return context_.get(); }
     
     /**
      * التحقق من صحة الوحدة
@@ -565,6 +591,13 @@ public:
     llvm::Value* emitBuiltinExit(std::shared_ptr<SIRInstruction> inst);
     llvm::Value* emitBuiltinTypeOf(std::shared_ptr<SIRInstruction> inst);
     
+    // New stdlib builtins - دوال المكتبة القياسية الجديدة
+    llvm::Value* emitBuiltinIsType(std::shared_ptr<SIRInstruction> inst, const std::string& typeName);
+    llvm::Value* emitBuiltinToBool(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitBuiltinReadLine(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitBuiltinClearScreen(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitBuiltinSum(std::shared_ptr<SIRInstruction> inst);
+    
     // ================================================================
     // عمليات برمجة أنظمة التشغيل — OS Development Operations
     // ================================================================
@@ -679,6 +712,20 @@ public:
     llvm::Value* emitAsyncWaitAll(std::shared_ptr<SIRInstruction> inst);      // انتظر_الكل
     llvm::Value* emitAsyncWaitAny(std::shared_ptr<SIRInstruction> inst);      // انتظر_أي
     llvm::Value* emitAsyncSelect(std::shared_ptr<SIRInstruction> inst);       // اختر_قناة
+    
+    // ================================================================
+    // Section 14b: LLVM Coroutine Emit Functions / دوال إصدار الكوروتين
+    // ================================================================
+    void emitCoroutinePreamble(std::shared_ptr<SIRFunction> sirFunc, llvm::Function* llvmFunc);
+    void emitCoroutineEpilogue();
+    llvm::Value* emitCoroSuspend(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitCoroReturn(std::shared_ptr<SIRInstruction> inst);
+    
+    // ================================================================
+    // Section 14c: Generator Emit Functions / دوال إصدار المولّد
+    // ================================================================
+    llvm::Value* emitGeneratorYield(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitGeneratorConsume(std::shared_ptr<SIRInstruction> inst);
     
     // ================================================================
     // Section 15: عمليات وحدات نظام التشغيل المتقدمة / Advanced OS Module Operations
@@ -1148,15 +1195,6 @@ private:
     // Type Mapper (محول الأنواع) - NEW
     std::unique_ptr<LLVMTypeMapper> typeMapper_;
     
-    // Control Flow Manager (مدير تدفق التحكم) - NEW
-    std::unique_ptr<LLVMControlFlow> controlFlow_;
-    
-    // Expression Builder (بناء التعابير) - NEW
-    std::unique_ptr<LLVMExpressionBuilder> expressionBuilder_;
-    
-    // Memory Manager (مدير الذاكرة) - NEW
-    std::unique_ptr<LLVMMemoryManager> memoryManager_;
-    
     // Optimizer (محسّن LLVM) - NEW Phase 1.1.3
     std::unique_ptr<sad::LLVMOptimizer> optimizer_;
     
@@ -1207,6 +1245,153 @@ private:
      * Set current block
      */
     void setCurrentBlock(llvm::BasicBlock* block) { context_info_.currentBlock = block; }
+    
+    // ========================================================================
+    // القسم 20: دوال Android Runtime
+    // Section 20: Android Runtime Functions
+    // ========================================================================
+    
+    /**
+     * استدعاء دالة Runtime خارجية لأندرويد
+     * Call an external Android runtime function
+     * 
+     * @param funcName اسم الدالة / Function name
+     * @param retType نوع القيمة المُرجعة / Return type
+     * @param argTypes أنواع المعاملات / Argument types
+     * @param argValues قيم المعاملات / Argument values
+     * @return القيمة المُرجعة من الدالة / Return value
+     */
+    llvm::Value* emitAndroidRuntimeCall(
+        const std::string& funcName,
+        llvm::Type* retType,
+        const std::vector<llvm::Type*>& argTypes,
+        const std::vector<llvm::Value*>& argValues);
+    
+    // 20a. إدارة الذاكرة / Memory Management
+    llvm::Value* emitAndroidAlloc(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidFree(std::shared_ptr<SIRInstruction> inst);
+    
+    // 20b. النصوص / Strings
+    llvm::Value* emitAndroidStringCreate(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidStringConcat(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidStringLength(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidStringSubstr(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidStringCompare(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidStringFree(std::shared_ptr<SIRInstruction> inst);
+    
+    // 20c. المصفوفات / Arrays
+    llvm::Value* emitAndroidArrayCreate(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidArrayGet(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidArraySet(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidArrayLength(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidArrayPush(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidArrayPop(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidArrayFree(std::shared_ptr<SIRInstruction> inst);
+    
+    // 20d. الخرائط / Maps
+    llvm::Value* emitAndroidMapCreate(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidMapGet(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidMapSet(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidMapHas(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidMapDelete(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidMapSize(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidMapFree(std::shared_ptr<SIRInstruction> inst);
+    
+    // 20e. الشبكات / Network
+    llvm::Value* emitAndroidNetConnect(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidNetSend(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidNetRecv(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidNetClose(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidHttpRequest(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidWsConnect(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidWsSend(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidWsRecv(std::shared_ptr<SIRInstruction> inst);
+    
+    // 20f. الخيوط / Threading
+    llvm::Value* emitAndroidThreadCreate(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidThreadJoin(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidMutexCreate(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidMutexLock(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidMutexUnlock(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidChannelCreate(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidChannelSend(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidChannelRecv(std::shared_ptr<SIRInstruction> inst);
+    
+    // 20g. واجهة المستخدم / UI
+    llvm::Value* emitAndroidUiInit(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidUiCreateWidget(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidUiSetText(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidUiSetCallback(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidUiShow(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidUiHide(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidUiUpdate(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidUiRun(std::shared_ptr<SIRInstruction> inst);
+    
+    // 20h. الطباعة والتنقيح / Logging
+    llvm::Value* emitAndroidLog(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitAndroidPrint(std::shared_ptr<SIRInstruction> inst);
+
+    // =====================================================================
+    // 21. نظام الواجهة الموحد / Unified UI System (sad_ui.h)
+    // =====================================================================
+    // 21a. مصانع العناصر / Widget Factories
+    llvm::Value* emitUiColumn(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiRow(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiStack(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiContainer(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiText(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiTextStyled(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiButton(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiButtonVariant(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiIconButton(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiFab(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiTextField(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiCheckbox(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSwitch(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSlider(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiCard(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiScaffold(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiAppBar(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSpacer(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiDivider(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiDialog(std::shared_ptr<SIRInstruction> inst);
+    // 21b. إدارة الشجرة / Tree Management
+    llvm::Value* emitUiAddChild(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiRemoveChild(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiClearChildren(std::shared_ptr<SIRInstruction> inst);
+    // 21c. ضبط الخصائص / Property Setters
+    llvm::Value* emitUiSetText(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSetSize(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSetFlex(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSetBackground(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSetForeground(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSetSpacing(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSetPadding(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSetAlignment(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSetBorder(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSetElevation(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSetOpacity(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiSetVisibility(std::shared_ptr<SIRInstruction> inst);
+    // 21d. إدارة التطبيق / App Management
+    llvm::Value* emitUiAppCreate(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiAppSetRoot(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiAppLayout(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiAppRender(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiAppDestroy(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value* emitUiWidgetDestroy(std::shared_ptr<SIRInstruction> inst);
+    
+    // ================================================================
+    // Section 21: التوجيهات / Directives (@حجم, @ذري)
+    // (AR) دعم توجيهات اللغة منخفضة المستوى
+    // (EN) Support for low-level language directives
+    // ================================================================
+    llvm::Value* emitSizeof(std::shared_ptr<SIRInstruction> inst);        // @حجم
+    llvm::Value* emitAtomicLoad(std::shared_ptr<SIRInstruction> inst);    // @ذري(تحميل)
+    llvm::Value* emitAtomicStore(std::shared_ptr<SIRInstruction> inst);   // @ذري(تخزين)
+    llvm::Value* emitAtomicAdd(std::shared_ptr<SIRInstruction> inst);     // @ذري(إضافة)
+    llvm::Value* emitAtomicSub(std::shared_ptr<SIRInstruction> inst);     // @ذري(طرح)
+    llvm::Value* emitAtomicExchange(std::shared_ptr<SIRInstruction> inst);// @ذري(تبادل)
+    llvm::Value* emitAtomicCmpXchg(std::shared_ptr<SIRInstruction> inst); // @ذري(مقارنة_وتبديل)
 };
 
 } // namespace LLVM

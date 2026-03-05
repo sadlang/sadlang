@@ -103,6 +103,9 @@ Value::Value(double val) : type_(ValueType::DOUBLE), data_(val) {}
 
 Value::Value(const std::string& val) : type_(ValueType::STRING), data_(val) {}
 
+// (AR) منشئ نقل النص — يتجنب نسخ النص عند النقل / (EN) String move constructor — avoids copy on move
+Value::Value(std::string&& val) : type_(ValueType::STRING), data_(std::move(val)) {}
+
 Value::Value(const char* val) : type_(ValueType::STRING), data_(std::string(val)) {}
 
 Value::Value(bool val) : type_(ValueType::BOOLEAN), data_(val) {}
@@ -110,8 +113,16 @@ Value::Value(bool val) : type_(ValueType::BOOLEAN), data_(val) {}
 Value::Value(const ArrayType& val) 
     : type_(ValueType::ARRAY), data_(std::make_shared<ArrayType>(val)) {}
 
+// (AR) منشئ نقل المصفوفة — يتجنب نسخ العناصر / (EN) Array move constructor — avoids element copy
+Value::Value(ArrayType&& val) 
+    : type_(ValueType::ARRAY), data_(std::make_shared<ArrayType>(std::move(val))) {}
+
 Value::Value(const MapType& val) 
     : type_(ValueType::MAP), data_(std::make_shared<MapType>(val)) {}
+
+// (AR) منشئ نقل القاموس — يتجنب نسخ العناصر / (EN) Map move constructor — avoids element copy
+Value::Value(MapType&& val) 
+    : type_(ValueType::MAP), data_(std::make_shared<MapType>(std::move(val))) {}
 
 // ════════════════════════════════════════════════════════════════════════
 // (AR) منشئ الكائن — يُنشئ قيمة من نوع OBJECT تحمل مؤشراً مشتركاً
@@ -391,6 +402,17 @@ const Value::MapType& Value::toMapRef() const {
     return empty;
 }
 
+const std::string& Value::toStringRef() const {
+    if (type_ == ValueType::STRING) {
+        return std::get<std::string>(data_);
+    }
+    // (AR) رمي خطأ إذا لم يكن النوع نصاً / (EN) Throw if not a string type
+    throwInvalidType("toStringRef - value is not a string");
+    // (AR) لن يصل هنا أبداً / (EN) Never reached
+    static const std::string empty;
+    return empty;
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // (AR) إصدارات قابلة للتعديل — تعديل المصفوفة/الخريطة مباشرة بدون نسخ
 // (EN) Mutable reference versions — modify array/map in-place without copying
@@ -492,29 +514,41 @@ Value Value::operator+(const Value& other) const {
     //      Element append: [1,2] + 3 → [1,2,3]
     // ═══════════════════════════════════════════════════════════════════
     if (type_ == ValueType::ARRAY) {
-        ArrayType result = toArray();
+        // (AR) تحسين أداء: استخدام المرجع + reserve + move
+        // (EN) Performance: use ref + reserve + move
+        const auto& srcArr = toArrayRef();
+        ArrayType result;
         if (other.type_ == ValueType::ARRAY) {
-            // (AR) دمج مصفوفتين
-            ArrayType otherArr = other.toArray();
+            const auto& otherArr = other.toArrayRef();
+            result.reserve(srcArr.size() + otherArr.size());
+            result.insert(result.end(), srcArr.begin(), srcArr.end());
             result.insert(result.end(), otherArr.begin(), otherArr.end());
         } else {
-            // (AR) إضافة عنصر واحد للمصفوفة
+            result.reserve(srcArr.size() + 1);
+            result.insert(result.end(), srcArr.begin(), srcArr.end());
             result.push_back(other);
         }
-        return Value(result);
+        return Value(std::move(result));
     }
     if (other.type_ == ValueType::ARRAY) {
         // (AR) إضافة عنصر في بداية المصفوفة: 0 + [1,2] → [0,1,2]
+        const auto& otherArr = other.toArrayRef();
         ArrayType result;
+        result.reserve(1 + otherArr.size());
         result.push_back(*this);
-        ArrayType otherArr = other.toArray();
         result.insert(result.end(), otherArr.begin(), otherArr.end());
-        return Value(result);
+        return Value(std::move(result));
     }
     
     // (AR) جمع النصوص / (EN) String concatenation
     if (type_ == ValueType::STRING || other.type_ == ValueType::STRING) {
-        return Value(toString() + other.toString());
+        // (AR) تحسين أداء: استخدام reserve + append بدلاً من operator+
+        // (EN) Performance: use reserve + append instead of operator+
+        std::string s1 = toString();
+        std::string s2 = other.toString();
+        s1.reserve(s1.size() + s2.size());
+        s1.append(s2);
+        return Value(std::move(s1));
     }
     
     // (AR) جمع الأعداد مع حماية الطفحان / (EN) Numeric addition with overflow protection

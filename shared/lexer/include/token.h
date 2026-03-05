@@ -104,92 +104,113 @@ struct Position {
  * - EN: Each Arabic keyword has its own token type
  */
 enum class TokenType {
-    // ========== الكلمات المفتاحية - تعريف الدوال والبنيات / Keywords - Functions & Structures ==========
-    KEYWORD_FUNCTION,       ///< دالة / function
-    KEYWORD_MAIN,           ///< رئيسية / main (نقطة الدخول الرئيسية للبرنامج / program entry point)
-    KEYWORD_RETURN,         ///< إرجاع / return
-    KEYWORD_RETURNS,        ///< ترجع / returns (return type specifier)
-    KEYWORD_CLASS,          ///< صنف / class
-    KEYWORD_INHERITS,       ///< يرث / inherits (NEW: spec 03_oop.md §1,2 - inheritance keyword)
-    KEYWORD_END,            ///< نهاية / end (NEW: spec 03_oop.md §1 - class/block terminator)
-    KEYWORD_NEW,            ///< جديد / new
-    KEYWORD_THIS,           ///< هذا / this
+    // ╔═════════════════════════════════════════════════════════════════════╗
+    // ║  نظام الكلمات المحجوزة — 40 كلمة فقط                              ║
+    // ║  Reserved Keywords System — Only 40 keywords                      ║
+    // ║                                                                   ║
+    // ║  الكلمات المسجلة فعلياً في المحلل المعجمي: 40 + 3 عوامل منطقية     ║
+    // ║  الرموز الأخرى (KEYWORD_ASYNC, KEYWORD_PROPERTY, TYPE_*, ...)      ║
+    // ║  تبقى في enum لكن المحلل المعجمي لا ينتجها —                       ║
+    // ║  المحلل النحوي يتعرف عليها سياقياً كمُعرّفات                       ║
+    // ║                                                                   ║
+    // ║  ✅ محجوزة (40): دالة، ارجع، صنف، بنية، تعداد، يرث، نهاية،         ║
+    // ║     جديد، هذا، باني، الأساس، إذا، وإلا، بينما، لكل، في،           ║
+    // ║     توقف، استمر، طابق، عندما، افتراضي، حاول، امسك، ارمي،          ║
+    // ║     أخيراً، عام، خاص، محمي، مجرد، استورد، من، كـ، صدّر،            ║
+    // ║     متغير، ثابت، ساكن، خارجي، صحيح، خطأ، لاشيء                    ║
+    // ║  ⚡ عوامل (3): و، أو، ليس                                         ║
+    // ║  🔄 سياقية: خاصية، هدم، عامل، احصل، عيّن، غير_متزامن،             ║
+    // ║     انتظر، لامدا، مولد، قالب، فضاء، سمة، نفّذ، اختبر، حالة        ║
+    // ║  📝 أنواع مدمجة (كمعرّفات): رقم، عشري، نص، منطقي، فراغ،            ║
+    // ║     عدم، مصفوفة، خريطة، أي                                        ║
+    // ╚═════════════════════════════════════════════════════════════════════╝
+
+    // ========== [محجوزة] بنيات — الدوال والأصناف / [RESERVED] Structures ==========
+    KEYWORD_FUNCTION,       ///< ✅ دالة / function
+    KEYWORD_MAIN,           ///< 🔄 رئيسية / main — سياقية (contextual: identifier "رئيسية")
+    KEYWORD_RETURN,         ///< ✅ ارجع / return
+    KEYWORD_RETURNS,        ///< 🔄 ترجع / returns — سياقية (contextual)
+    KEYWORD_CLASS,          ///< ✅ صنف / class
+    KEYWORD_INHERITS,       ///< ✅ يرث / inherits
+    KEYWORD_END,            ///< ✅ نهاية / end
+    KEYWORD_NEW,            ///< ✅ جديد / new
+    KEYWORD_THIS,           ///< ✅ هذا / this
     // ─────────────────────────────────────────────────────────────────────────
     // (AR) كلمة الباني الموحدة - تشمل: باني، منشئ، بناء، constructor
     // (EN) Unified constructor keyword - includes: باني، منشئ، بناء، constructor
     // ─────────────────────────────────────────────────────────────────────────
-    KEYWORD_CONSTRUCTOR,    ///< باني/منشئ/بناء / constructor
-    KEYWORD_DESTRUCTOR,     ///< مدمر / destructor
-    KEYWORD_SUPER,          ///< الأساس / super (base class)
+    KEYWORD_CONSTRUCTOR,    ///< ✅ باني / constructor
+    KEYWORD_DESTRUCTOR,     ///< 🔄 هدم / destructor — سياقية (contextual: identifier "هدم")
+    KEYWORD_SUPER,          ///< ✅ الأساس / super (base class)
     
-    // ========== الكلمات المفتاحية - التحكم في التدفق / Keywords - Control Flow ==========
-    KEYWORD_IF,             ///< إذا / if
-    KEYWORD_ELSE,           ///< وإلا / else
-    KEYWORD_ELSE_IF,        ///< وإلا_إذا / else if
-    KEYWORD_WHILE,          ///< بينما / while
-    KEYWORD_FOR,            ///< لكل / for
-    KEYWORD_IN,             ///< في / in
-    KEYWORD_BREAK,          ///< اخرج / break
-    KEYWORD_CONTINUE,       ///< استمر / continue
+    // ========== [محجوزة] التحكم في التدفق / [RESERVED] Control Flow ==========
+    KEYWORD_IF,             ///< ✅ إذا / if
+    KEYWORD_ELSE,           ///< ✅ وإلا / else
+    KEYWORD_ELSE_IF,        ///< 🔄 وإلا_إذا — يُنتج عبر كلمتين منفصلتين (legacy token)
+    KEYWORD_WHILE,          ///< ✅ بينما / while
+    KEYWORD_FOR,            ///< ✅ لكل / for
+    KEYWORD_IN,             ///< ✅ في / in
+    KEYWORD_BREAK,          ///< ✅ توقف / break
+    KEYWORD_CONTINUE,       ///< ✅ استمر / continue
     
-    // ========== الكلمات المفتاحية - Switch/Case (spec 04_syntax.md) ==========
-    KEYWORD_CASE,           ///< حالة / case (switch statement)
-    KEYWORD_WHEN,           ///< عندما / when (alternative for case)
-    KEYWORD_DEFAULT,        ///< افتراضي / default (switch default case)
+    // ========== [محجوزة+سياقية] التفريع / [RESERVED+CONTEXTUAL] Switch/Match ==========
+    KEYWORD_CASE,           ///< 🔄 حالة / case — سياقية (contextual: identifier "حالة")
+    KEYWORD_WHEN,           ///< ✅ عندما / when
+    KEYWORD_DEFAULT,        ///< ✅ افتراضي / default
     
-    // ========== الكلمات المفتاحية - Pattern Matching (Phase 2) ==========
-    KEYWORD_MATCH,          ///< طابق / match (pattern matching)
+    // ========== [محجوزة] المطابقة / [RESERVED] Pattern Matching ==========
+    KEYWORD_MATCH,          ///< ✅ طابق / match
     
-    // ========== الكلمات المفتاحية - Async/Await (Phase 2) ==========
-    KEYWORD_ASYNC,          ///< غير_متزامن / async
-    KEYWORD_AWAIT,          ///< انتظر / await
+    // ========== [سياقية] Async/Await / [CONTEXTUAL] Async/Await ==========
+    KEYWORD_ASYNC,          ///< 🔄 غير_متزامن / async — سياقية
+    KEYWORD_AWAIT,          ///< 🔄 انتظر / await — سياقية
     
-    // ========== الكلمات المفتاحية - التعامل مع الأخطاء / Keywords - Error Handling ==========
-    KEYWORD_TRY,            ///< حاول / try (spec 05_python_features.md)
-    KEYWORD_CATCH,          ///< امسك / catch (spec 05_python_features.md)
-    KEYWORD_THROW,          ///< ارمِ / throw (spec 05_python_features.md)
-    KEYWORD_FINALLY,        ///< أخيراً / finally (spec 05_python_features.md)
+    // ========== [محجوزة] الأخطاء / [RESERVED] Error Handling ==========
+    KEYWORD_TRY,            ///< ✅ حاول / try
+    KEYWORD_CATCH,          ///< ✅ امسك / catch
+    KEYWORD_THROW,          ///< ✅ ارمي / throw
+    KEYWORD_FINALLY,        ///< ✅ أخيراً / finally
     
-    // ========== الكلمات المفتاحية - التحكم بالوصول / Keywords - Access Control ==========
-    KEYWORD_PUBLIC,         ///< عام / public
-    KEYWORD_PRIVATE,        ///< خاص / private
-    KEYWORD_PROTECTED,      ///< محمي / protected
+    // ========== [محجوزة] الوصول / [RESERVED] Access Control ==========
+    KEYWORD_PUBLIC,         ///< ✅ عام / public
+    KEYWORD_PRIVATE,        ///< ✅ خاص / private
+    KEYWORD_PROTECTED,      ///< ✅ محمي / protected
     
-    // ========== الكلمات المفتاحية - الوراثة / Keywords - Inheritance ==========
-    KEYWORD_EXTENDS,        ///< يرث / extends (same as KEYWORD_INHERITS - spec 04_syntax.md)
-    KEYWORD_ABSTRACT,       ///< مجرد / abstract (abstract class/method)
+    // ========== [legacy] الوراثة الإضافية / [LEGACY] Extra Inheritance ==========
+    KEYWORD_EXTENDS,        ///< 🔄 legacy (alias for KEYWORD_INHERITS)
+    KEYWORD_ABSTRACT,       ///< ✅ مجرد / abstract
     // NOTE: virtual removed - conflicts with DEFAULT keyword (افتراضي)
     
-    // ========== الكلمات المفتاحية - الوحدات / Keywords - Modules (spec 08_modules_and_ffi.md) ==========
-    KEYWORD_IMPORT,         ///< استورد / import
-    KEYWORD_FROM,           ///< من / from (for "from X import Y")
-    KEYWORD_AS,             ///< كـ / as (for "import X as Y")
-    KEYWORD_EXPORT,         ///< صدّر / export
+    // ========== [محجوزة] الوحدات / [RESERVED] Modules ==========
+    KEYWORD_IMPORT,         ///< ✅ استورد / import
+    KEYWORD_FROM,           ///< ✅ من / from
+    KEYWORD_AS,             ///< ✅ كـ / as
+    KEYWORD_EXPORT,         ///< ✅ صدّر / export
     // NOTE: module and package keywords removed - not in spec
     
-    // ========== الكلمات المفتاحية - المتغيرات / Keywords - Variables ==========
-    KEYWORD_VAR,            ///< متغير / var (variable declaration with auto type detection)
-    KEYWORD_CONST,          ///< ثابت / const (spec 04_syntax.md - not "const" but "static" semantics)
-    KEYWORD_STATIC,         ///< ساكن / static (spec 04_syntax.md)
-    KEYWORD_PROPERTY,       ///< خاصية / property (Phase 6.3 - Properties/Getters/Setters)
-    KEYWORD_GET,            ///< احصل / get (Phase 6.3 - Property getter)
-    KEYWORD_SET,            ///< عيّن / set (Phase 6.3 - Property setter)
-    KEYWORD_ENUM,           ///< تعداد / enum (spec 01_types.md)
+    // ========== [محجوزة+سياقية] المتغيرات / [RESERVED+CONTEXTUAL] Variables ==========
+    KEYWORD_VAR,            ///< ✅ متغير / var
+    KEYWORD_CONST,          ///< ✅ ثابت / const
+    KEYWORD_STATIC,         ///< ✅ ساكن / static
+    KEYWORD_PROPERTY,       ///< 🔄 خاصية / property — سياقية
+    KEYWORD_GET,            ///< 🔄 احصل / get — سياقية
+    KEYWORD_SET,            ///< 🔄 عيّن / set — سياقية
+    KEYWORD_ENUM,           ///< ✅ تعداد / enum
     
-    // ========== ميزات Python المدعومة / Supported Python Features (spec 05_python_features.md) ==========
-    KEYWORD_LAMBDA,         ///< لامدا / lambda (anonymous functions)
-    KEYWORD_YIELD,          ///< اعطِ / yield (generators)
-    KEYWORD_GENERATOR,      ///< مولد / generator (generator functions - Phase 7)
-    KEYWORD_WITH,           ///< باستخدام / with (context managers - Phase 7)
-    KEYWORD_END_WITH,       ///< نهاية_استخدام / end_with (context manager terminator - Phase 7)
+    // ========== [سياقية] ميزات Python / [CONTEXTUAL] Python Features ==========
+    KEYWORD_LAMBDA,         ///< 🔄 لامدا / lambda — سياقية
+    KEYWORD_YIELD,          ///< 🔄 أنتج / yield — سياقية
+    KEYWORD_GENERATOR,      ///< 🔄 مولد / generator — سياقية
+    KEYWORD_WITH,           ///< 🔄 باستخدام / with — سياقية
+    KEYWORD_END_WITH,       ///< 🔄 نهاية_استخدام / end_with — سياقية
     // NOTE: Decorators (@) are Phase 2 - not yet implemented
     
-    // ========== ميزات C++ المدعومة / Supported C++ Features (Phase 7B) ==========
-    KEYWORD_TEMPLATE,       ///< قالب / template (generic types - Phase 7B.1)
-    KEYWORD_TYPENAME,       ///< نوع / typename (type parameter - Phase 7B.1)
-    KEYWORD_NAMESPACE,      ///< فضاء / namespace (namespaces - Phase 7B.5)
-    KEYWORD_END_NAMESPACE,  ///< نهاية_فضاء / end_namespace (namespace terminator - Phase 7B.5)
-    KEYWORD_OPERATOR,       ///< عامل / operator (operator overloading - Phase 7B.4)
+    // ========== [سياقية] ميزات C++ / [CONTEXTUAL] C++ Features ==========
+    KEYWORD_TEMPLATE,       ///< 🔄 قالب / template — سياقية
+    KEYWORD_TYPENAME,       ///< 🔄 نوع / typename — سياقية
+    KEYWORD_NAMESPACE,      ///< 🔄 فضاء / namespace — سياقية
+    KEYWORD_END_NAMESPACE,  ///< 🔄 نهاية_فضاء / end_namespace — سياقية
+    KEYWORD_OPERATOR,       ///< 🔄 عامل / operator — سياقية
     
     // ========== ميزات برمجة أنظمة التشغيل / OS Development Features (Phase 8) ==========
     // (AR) هذا القسم يضيف دعم كتابة أنظمة التشغيل والبرمجة منخفضة المستوى
@@ -240,16 +261,20 @@ enum class TokenType {
     TYPE_I32,               ///< ص32 / i32 (عدد صحيح 32-بت بإشارة / signed 32-bit)
     TYPE_PTR,               ///< مؤشر / ptr (مؤشر خام - raw pointer for memory addresses)
     
-    // ========== أنواع البيانات الأساسية / Basic Data Types ==========
-    TYPE_INTEGER,           ///< رقم / integer
-    TYPE_DOUBLE,            ///< عشري / double/float
-    TYPE_STRING,            ///< نص / string
-    TYPE_BOOLEAN,           ///< منطقي / boolean
-    TYPE_VOID,              ///< فراغ / void
-    TYPE_NULL,              ///< عدم / null
-    TYPE_ARRAY,             ///< مصفوفة / array
-    TYPE_MAP,               ///< خريطة / map
-    TYPE_ANY,               ///< أي / any (accepts any type - spec 01_types.md, 04_syntax.md)
+    // ========== [مدمجة] أنواع البيانات — لم تعد محجوزة / [BUILT-IN] Types — No longer reserved ==========
+    // (AR) المحلل المعجمي لا ينتج هذه الرموز بعد الآن
+    //      المحلل النحوي يتعرف على أسماء الأنواع سياقياً عبر IDENTIFIER
+    // (EN) Lexer no longer produces these tokens
+    //      Parser recognizes type names contextually via IDENTIFIER
+    TYPE_INTEGER,           ///< 📝 رقم / integer — مُعرّف مدمج
+    TYPE_DOUBLE,            ///< 📝 عشري / double — مُعرّف مدمج
+    TYPE_STRING,            ///< 📝 نص / string — مُعرّف مدمج
+    TYPE_BOOLEAN,           ///< 📝 منطقي / boolean — مُعرّف مدمج
+    TYPE_VOID,              ///< 📝 فراغ / void — مُعرّف مدمج
+    TYPE_NULL,              ///< 📝 عدم / null — مُعرّف مدمج
+    TYPE_ARRAY,             ///< 📝 مصفوفة / array — مُعرّف مدمج
+    TYPE_MAP,               ///< 📝 خريطة / map — مُعرّف مدمج
+    TYPE_ANY,               ///< 📝 أي / any — مُعرّف مدمج
     
     // ========== القيم الحرفية / Literal Values ==========
     LITERAL_TRUE,           ///< صحيح / true
@@ -281,6 +306,7 @@ enum class TokenType {
     OP_MINUS_ASSIGN,        ///< -= طرح وتعيين / subtract and assign
     OP_MULTIPLY_ASSIGN,     ///< *= ضرب وتعيين / multiply and assign
     OP_DIVIDE_ASSIGN,       ///< /= قسمة وتعيين / divide and assign
+    OP_MODULO_ASSIGN,       ///< %= باقي قسمة وتعيين / modulo and assign
     
     // ========== عوامل المقارنة / Comparison Operators ==========
     OP_EQUAL,               ///< == يساوي / equal to
@@ -327,6 +353,7 @@ enum class TokenType {
     DOUBLE_COLON,           ///< :: نقطتان مزدوجتان / double colon (static member access)
     DOT,                    ///< . نقطة / dot (member access)
     DOT_DOT,                ///< .. نقطتان / double dot (range operator)
+    ELLIPSIS,               ///< ... ثلاث نقاط / ellipsis (spread operator)
     ARROW,                  ///< -> سهم / arrow
     FAT_ARROW,              ///< => سهم عريض / fat arrow (lambda/arrow functions)
     QUESTION,               ///< ? علامة استفهام / question mark

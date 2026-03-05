@@ -22,6 +22,7 @@
 #include "lexer_core.h"
 #include "parser_core.h"
 #include "pattern_nodes.h"
+#include "directive_nodes.h"
 #include "../../../shared/utils/include/utf8_utils.h"
 #include <stdexcept>
 #include <iostream>
@@ -129,7 +130,10 @@ SIRType SIRBuilder::astTypeToSIRType(const Sad::Data::DataType& type) {
         case Data::DataType::FUNCTION:
             return SIRType::FUNCTION;
         case Data::DataType::OBJECT:
-            return SIRType::STRUCT;
+            // (AR) كائن - في الغالب معامل بدون نوع صريح
+            // (EN) Object - usually a parameter without explicit type
+            // في LLVM، نستخدم i64 لتمرير المؤشرات/القيم
+            return SIRType::I64;
         case Data::DataType::NONE:
             return SIRType::VOID;
         case Data::DataType::UNKNOWN:
@@ -885,6 +889,23 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         auto objResult = buildExpression(indexExpr->object.get());
         auto idxResult = buildExpression(indexExpr->index.get());
         
+        // (AR) تجسيد الفهرس إذا كان ثابتاً
+        // (EN) Materialize index if constant
+        if (idxResult.isConstant && currentBlock_) {
+            std::string reg = newTempRegister();
+            idxResult.registerName = reg;
+            SIRInstruction moveInst(SIROpcode::MOVE);
+            moveInst.result = SIROperand::Register(reg, idxResult.type);
+            if (idxResult.type == SIRType::F64) {
+                moveInst.operands.push_back(SIROperand::ConstantF64(std::stod(idxResult.constantValue)));
+            } else {
+                try { moveInst.operands.push_back(SIROperand::ConstantI64(std::stoll(idxResult.constantValue))); }
+                catch (...) { moveInst.operands.push_back(SIROperand::ConstantI64(0)); }
+            }
+            currentBlock_->addInstruction(moveInst);
+            idxResult.isConstant = false;
+        }
+        
         // (AR) استنتاج نوع النتيجة: إذا كان الكائن مصفوفة وعنصره مصفوفة → ARRAY، وإلا → نوع العنصر
         // (EN) Infer result type: if object is array with array elements → ARRAY, else → elementType
         SIRType resultType = SIRType::I64;
@@ -900,15 +921,15 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
             resultType = SIRType::I64;
         }
         
-        // (AR) تعليمة Load للوصول بالفهرس
-        // (EN) Load instruction for indexed access
+        // (AR) تعليمة ARRAY_GET للوصول بالفهرس
+        // (EN) ARRAY_GET instruction for indexed access
         std::string resultReg = newTempRegister();
         SIRInstruction takeInst;
-        takeInst.opcode = SIROpcode::LOAD;
+        takeInst.opcode = SIROpcode::ARRAY_GET;
         takeInst.result = SIROperand::Register(resultReg, resultType);
         takeInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
         takeInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
-        takeInst.comment = "index access";
+        takeInst.comment = "array element get";
         
         if (currentBlock_) {
             currentBlock_->addInstruction(takeInst);
@@ -936,6 +957,27 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         // (EN) Build object expression and value
         auto objResult = buildExpression(memberAssignExpr->object.get());
         auto valResult = buildExpression(memberAssignExpr->value.get());
+        
+        // (AR) تجسيد القيمة إذا كانت ثابتة (مثل نص حرفي)
+        // (EN) Materialize value if constant (e.g., string literal)
+        if (valResult.isConstant && currentBlock_) {
+            std::string reg = newTempRegister();
+            SIRInstruction moveInst(SIROpcode::MOVE);
+            moveInst.result = SIROperand::Register(reg, valResult.type);
+            if (valResult.type == SIRType::STRING) {
+                moveInst.operands.push_back(SIROperand::ConstantString(valResult.constantValue));
+            } else if (valResult.type == SIRType::F64) {
+                moveInst.operands.push_back(SIROperand::ConstantF64(std::stod(valResult.constantValue)));
+            } else if (valResult.type == SIRType::BOOL) {
+                moveInst.operands.push_back(SIROperand::ConstantBool(valResult.constantValue == "true" || valResult.constantValue == "1"));
+            } else {
+                try { moveInst.operands.push_back(SIROperand::ConstantI64(std::stoll(valResult.constantValue))); }
+                catch (...) { moveInst.operands.push_back(SIROperand::ConstantI64(0)); }
+            }
+            currentBlock_->addInstruction(moveInst);
+            valResult.registerName = reg;
+            valResult.isConstant = false;
+        }
         
         // (AR) تعليمة STORE لتخزين القيمة في العضو
         // (EN) STORE instruction to store value in member
@@ -968,14 +1010,52 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         auto idxResult = buildExpression(indexAssignExpr->index.get());
         auto valResult = buildExpression(indexAssignExpr->value.get());
         
-        // (AR) تعليمة STORE لتخزين القيمة في موضع الفهرس
-        // (EN) STORE instruction to store value at index position
+        // (AR) تجسيد الفهرس إذا كان ثابتاً
+        // (EN) Materialize index if constant
+        if (idxResult.isConstant && currentBlock_) {
+            std::string reg = newTempRegister();
+            idxResult.registerName = reg;
+            SIRInstruction moveInst(SIROpcode::MOVE);
+            moveInst.result = SIROperand::Register(reg, idxResult.type);
+            if (idxResult.type == SIRType::F64) {
+                moveInst.operands.push_back(SIROperand::ConstantF64(std::stod(idxResult.constantValue)));
+            } else {
+                try { moveInst.operands.push_back(SIROperand::ConstantI64(std::stoll(idxResult.constantValue))); }
+                catch (...) { moveInst.operands.push_back(SIROperand::ConstantI64(0)); }
+            }
+            currentBlock_->addInstruction(moveInst);
+            idxResult.isConstant = false;
+        }
+        
+        // (AR) تجسيد القيمة إذا كانت ثابتة
+        // (EN) Materialize value if constant
+        if (valResult.isConstant && currentBlock_) {
+            std::string reg = newTempRegister();
+            valResult.registerName = reg;
+            SIRInstruction moveInst(SIROpcode::MOVE);
+            moveInst.result = SIROperand::Register(reg, valResult.type);
+            if (valResult.type == SIRType::STRING) {
+                moveInst.operands.push_back(SIROperand::ConstantString(valResult.constantValue));
+            } else if (valResult.type == SIRType::F64) {
+                moveInst.operands.push_back(SIROperand::ConstantF64(std::stod(valResult.constantValue)));
+            } else if (valResult.type == SIRType::BOOL) {
+                moveInst.operands.push_back(SIROperand::ConstantBool(valResult.constantValue == "true" || valResult.constantValue == "1"));
+            } else {
+                try { moveInst.operands.push_back(SIROperand::ConstantI64(std::stoll(valResult.constantValue))); }
+                catch (...) { moveInst.operands.push_back(SIROperand::ConstantI64(0)); }
+            }
+            currentBlock_->addInstruction(moveInst);
+            valResult.isConstant = false;
+        }
+        
+        // (AR) تعليمة ARRAY_SET لتخزين القيمة في موضع الفهرس
+        // (EN) ARRAY_SET instruction to store value at index position
         SIRInstruction storeInst;
-        storeInst.opcode = SIROpcode::STORE;
-        storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+        storeInst.opcode = SIROpcode::ARRAY_SET;
         storeInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
         storeInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
-        storeInst.comment = "index assign";
+        storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+        storeInst.comment = "array element set";
         
         if (currentBlock_) {
             currentBlock_->addInstruction(storeInst);
@@ -998,10 +1078,11 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         // (EN) Allocate new array
         std::string arrReg = newTempRegister();
         SIRInstruction allocInst;
-        allocInst.opcode = SIROpcode::ALLOC;
+        allocInst.opcode = SIROpcode::ARRAY_NEW;
         allocInst.result = SIROperand::Register(arrReg, SIRType::ARRAY);
         allocInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(arrayExpr->elements.size())));
-        allocInst.comment = "array alloc [" + std::to_string(arrayExpr->elements.size()) + "]";
+        allocInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(arrayExpr->elements.size())));
+        allocInst.comment = "array new [" + std::to_string(arrayExpr->elements.size()) + "]";
         
         if (currentBlock_) {
             currentBlock_->addInstruction(allocInst);
@@ -1043,10 +1124,10 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
             }
             
             SIRInstruction storeInst;
-            storeInst.opcode = SIROpcode::STORE;
-            storeInst.operands.push_back(SIROperand::Register(elemResult.registerName, elemResult.type));
+            storeInst.opcode = SIROpcode::ARRAY_SET;
             storeInst.operands.push_back(SIROperand::Register(arrReg, SIRType::ARRAY));
             storeInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i)));
+            storeInst.operands.push_back(SIROperand::Register(elemResult.registerName, elemResult.type));
             storeInst.comment = "array[" + std::to_string(i) + "] = ...";
             
             if (currentBlock_) {
@@ -1786,36 +1867,190 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
     
     // ========================================================================
     // (AR) AwaitExpr - تعبير الانتظار (advanced_expr_nodes.h:AwaitExpr)
-    // (EN) Await expression — lowered to runtime coroutine resume call
+    // (EN) Await expression — lowered to LLVM coroutine suspend/resume
     // ========================================================================
     if (auto awaitExpr = dynamic_cast<Sad::AST::AwaitExpr*>(expr)) {
         #ifndef NDEBUG
         std::cout << "[DEBUG] buildExpression: found AwaitExpr" << std::endl;
         #endif
         
-        // (AR) بناء التعبير الداخلي (الوعد/المولد)
-        // (EN) Build inner expression (promise/generator)
+        // (AR) بناء التعبير الداخلي (استدعاء دالة غير متزامنة → يُرجع handle)
+        // (EN) Build inner expression (async function call → returns coroutine handle)
         auto innerResult = buildExpression(awaitExpr->expression.get());
         
-        // (AR) استدعاء __sad_await لحل الوعد
-        // (EN) Call __sad_await to resolve the promise
+        // (AR) إصدار تعليمة CORO_SUSPEND: انتظر الكوروتين الداخلي
+        // (EN) Emit CORO_SUSPEND: await the inner coroutine
         std::string resultReg = newTempRegister();
-        std::vector<SIROperand> args;
-        args.push_back(SIROperand::Register(innerResult.registerName, innerResult.type));
-        
-        SIRInstruction callInst = SIRInstruction::Call(
-            SIROperand::Register(resultReg, innerResult.type),
-            SIROperand::ConstantString("__sad_await"),
-            args
-        );
+        SIRInstruction suspendInst;
+        suspendInst.opcode = SIROpcode::CORO_SUSPEND;
+        suspendInst.result = SIROperand::Register(resultReg, SIRType::I64);
+        suspendInst.operands.push_back(SIROperand::Register(innerResult.registerName, innerResult.type));
         
         if (currentBlock_) {
-            currentBlock_->addInstruction(callInst);
+            currentBlock_->addInstruction(suspendInst);
         }
         
-        return BuildResult(resultReg, innerResult.type);
+        return BuildResult(resultReg, SIRType::I64);
     }
     
+    // ========================================================================
+    // (AR) SizeofExpr - @حجم(نوع) - حجم النوع بالبايتات
+    // (EN) Sizeof expression - @حجم(type) - size of type in bytes
+    // ========================================================================
+    if (auto sizeofExpr = dynamic_cast<Sad::AST::SizeofExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found SizeofExpr for type: " 
+                  << sizeofExpr->typeName << std::endl;
+        #endif
+        
+        // (AR) تحديد الحجم بناءً على اسم النوع
+        // (EN) Determine size based on type name
+        std::string typeName = sizeofExpr->typeName;
+        int64_t typeSize = 8; // (AR) القيمة الافتراضية / (EN) Default value
+        
+        if (typeName == "رقم" || typeName == "عدد" || typeName == "صحيح" || 
+            typeName == "i64" || typeName == "int" || typeName == "integer") {
+            typeSize = 8;
+        } else if (typeName == "عشري" || typeName == "حقيقي" || 
+                   typeName == "f64" || typeName == "float" || typeName == "double") {
+            typeSize = 8;
+        } else if (typeName == "منطقي" || typeName == "bool" || typeName == "boolean") {
+            typeSize = 1;
+        } else if (typeName == "نص" || typeName == "string" || typeName == "str") {
+            typeSize = 32; // (AR) حجم بنية النص / (EN) String struct size
+        } else if (typeName == "مصفوفة" || typeName == "array") {
+            typeSize = 24; // (AR) حجم بنية المصفوفة / (EN) Array struct size
+        } else if (typeName == "خريطة" || typeName == "map") {
+            typeSize = 24; // (AR) حجم بنية الخريطة / (EN) Map struct size
+        } else if (typeName == "i8" || typeName == "char" || typeName == "حرف") {
+            typeSize = 1;
+        } else if (typeName == "i16" || typeName == "short") {
+            typeSize = 2;
+        } else if (typeName == "i32" || typeName == "f32") {
+            typeSize = 4;
+        }
+        
+        // (AR) إنشاء تعليمة Sizeof
+        // (EN) Create Sizeof instruction
+        std::string resultReg = newTempRegister();
+        SIRInstruction sizeofInst;
+        sizeofInst.opcode = SIROpcode::Sizeof;
+        sizeofInst.result = SIROperand::Register(resultReg, SIRType::I64);
+        sizeofInst.operands.push_back(SIROperand::ConstantI64(typeSize));
+        sizeofInst.operands.push_back(SIROperand::ConstantString(typeName));
+        sizeofInst.comment = "@حجم(" + typeName + ") = " + std::to_string(typeSize);
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(sizeofInst);
+        }
+        
+        // (AR) إرجاع القيمة كثابت
+        // (EN) Return value as constant
+        BuildResult result(resultReg, SIRType::I64);
+        result.isConstant = true;
+        result.constantValue = std::to_string(typeSize);
+        return result;
+    }
+    
+    // ========================================================================
+    // (AR) AtomicExpr - @ذري(عملية، معاملات...) - عملية ذرية
+    // (EN) Atomic expression - @ذري(op, args...) - atomic operation
+    // ========================================================================
+    if (auto atomicExpr = dynamic_cast<Sad::AST::AtomicExpr*>(expr)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] buildExpression: found AtomicExpr, operation: " 
+                  << atomicExpr->operation << std::endl;
+        #endif
+        
+        std::string op = atomicExpr->operation;
+        std::string resultReg = newTempRegister();
+        
+        // (AR) بناء المعاملات
+        // (EN) Build operands
+        std::vector<BuildResult> operandResults;
+        for (const auto& operand : atomicExpr->operands) {
+            operandResults.push_back(buildExpression(operand.get()));
+        }
+        
+        SIRInstruction atomicInst;
+        
+        // (AR) تحديد نوع العملية الذرية
+        // (EN) Determine atomic operation type
+        if (op == "تحميل" || op == "load") {
+            atomicInst.opcode = SIROpcode::AtomicLoad;
+            atomicInst.result = SIROperand::Register(resultReg, SIRType::I64);
+            if (!operandResults.empty()) {
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[0].registerName, operandResults[0].type));
+            }
+            atomicInst.comment = "@ذري(تحميل)";
+        } else if (op == "تخزين" || op == "store") {
+            atomicInst.opcode = SIROpcode::AtomicStore;
+            atomicInst.result = SIROperand::Register(resultReg, SIRType::VOID);
+            if (operandResults.size() >= 2) {
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[0].registerName, operandResults[0].type));
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[1].registerName, operandResults[1].type));
+            }
+            atomicInst.comment = "@ذري(تخزين)";
+        } else if (op == "جمع" || op == "add") {
+            atomicInst.opcode = SIROpcode::AtomicAdd;
+            atomicInst.result = SIROperand::Register(resultReg, SIRType::I64);
+            if (operandResults.size() >= 2) {
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[0].registerName, operandResults[0].type));
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[1].registerName, operandResults[1].type));
+            }
+            atomicInst.comment = "@ذري(جمع)";
+        } else if (op == "طرح" || op == "sub") {
+            atomicInst.opcode = SIROpcode::AtomicSub;
+            atomicInst.result = SIROperand::Register(resultReg, SIRType::I64);
+            if (operandResults.size() >= 2) {
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[0].registerName, operandResults[0].type));
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[1].registerName, operandResults[1].type));
+            }
+            atomicInst.comment = "@ذري(طرح)";
+        } else if (op == "تبديل" || op == "exchange" || op == "xchg") {
+            atomicInst.opcode = SIROpcode::AtomicExchange;
+            atomicInst.result = SIROperand::Register(resultReg, SIRType::I64);
+            if (operandResults.size() >= 2) {
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[0].registerName, operandResults[0].type));
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[1].registerName, operandResults[1].type));
+            }
+            atomicInst.comment = "@ذري(تبديل)";
+        } else if (op == "قارن_وبدل" || op == "cmpxchg" || op == "cas") {
+            atomicInst.opcode = SIROpcode::AtomicCmpXchg;
+            atomicInst.result = SIROperand::Register(resultReg, SIRType::I64);
+            if (operandResults.size() >= 3) {
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[0].registerName, operandResults[0].type));
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[1].registerName, operandResults[1].type));
+                atomicInst.operands.push_back(
+                    SIROperand::Register(operandResults[2].registerName, operandResults[2].type));
+            }
+            atomicInst.comment = "@ذري(قارن_وبدل)";
+        } else {
+            // (AR) عملية غير معروفة - نستخدم AtomicLoad كافتراضي
+            // (EN) Unknown operation - use AtomicLoad as default
+            atomicInst.opcode = SIROpcode::AtomicLoad;
+            atomicInst.result = SIROperand::Register(resultReg, SIRType::I64);
+            atomicInst.comment = "@ذري(" + op + ")";
+        }
+        
+        if (currentBlock_) {
+            currentBlock_->addInstruction(atomicInst);
+        }
+        
+        return BuildResult(resultReg, SIRType::I64);
+    }
+
     // (AR) تعبير غير معروف - نرجع قيمة افتراضية
     // (EN) Unknown expression - return default
     #ifndef NDEBUG

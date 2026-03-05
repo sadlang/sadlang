@@ -111,8 +111,11 @@ std::vector<SymbolReference> SymbolIndex::find_references(
     // ملاحظة: المراجع يتم جمعها في مرحلة التحليل
     for (const auto& [uri, refs] : doc_references_) {
         for (const auto& ref : refs) {
-            // نضيف المرجع إذا كان نفس الرمز
-            results.push_back(ref);
+            // نضيف المرجع فقط إذا كان نفس الرمز (فلترة بالاسم)
+            std::string ref_normalized = arabic::normalize_arabic(ref.name);
+            if (ref.name == name || ref_normalized == normalized) {
+                results.push_back(ref);
+            }
         }
     }
 
@@ -122,6 +125,7 @@ std::vector<SymbolReference> SymbolIndex::find_references(
             if (sym.normalized_name == normalized || sym.name == name) {
                 SymbolReference ref;
                 ref.uri = sym.uri;
+                ref.name = sym.name;
                 ref.range = sym.name_range;
                 ref.is_declaration = true;
                 results.push_back(ref);

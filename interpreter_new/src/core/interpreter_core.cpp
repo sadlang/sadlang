@@ -16,7 +16,9 @@
 #include "error_codes.h"
 
 // (AR) فاحص الأنواع المتقدم / (EN) Advanced Type Checker
+#ifndef __EMSCRIPTEN__
 #include "../../../compiler_new/include/semantic/type_checker.h"
+#endif
 
 // (AR) المكتبة القياسية / (EN) Standard Library Manager
 #include "../../../stdlib/core/stdlib_manager.h"
@@ -195,6 +197,7 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
         // (AR) فحص الأنواع المتقدم - قبل التنفيذ
         // (EN) Advanced type check - before execution
         // ================================================================
+#ifndef __EMSCRIPTEN__
         if (options_.enableTypeCheck) {
             if (options_.enableDebugMode) {
                 std::cout << "(AR) فحص الأنواع... / (EN) Type checking..." << std::endl;
@@ -229,6 +232,7 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
                 std::cout << "(AR) ✓ فحص الأنواع تم / (EN) ✓ Type check completed" << std::endl;
             }
         }
+#endif // __EMSCRIPTEN__
         
         // (AR) مسح أي أخطاء سابقة من مراحل التحليل - نبدأ تنفيذاً نظيفاً
         // (EN) Clear any previous errors from parsing phases - start with clean execution

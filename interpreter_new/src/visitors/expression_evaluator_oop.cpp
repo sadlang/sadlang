@@ -176,9 +176,20 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
     
     // (AR) تهيئة جميع الحقول غير الثابتة في الكائن
     // (EN) Initialize all non-static fields in the object
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) الآن نستخدم defaultValue من ClassField بدلاً من Value() فارغة
+    //      هذا يدعم تحديد قيم افتراضية للحقول في تعريف الصنف
+    //      مثال: عام متغير الاسم: نص = "محمد"
+    // (EN) Now using defaultValue from ClassField instead of empty Value()
+    //      This supports default field values in class definition
+    //      Example: public var name: string = "محمد"
+    // ═══════════════════════════════════════════════════════════════════
     for (const auto& field : allFields) {
         if (field.isStatic) continue;
-        objectInstance->fields[field.name] = Value();  // قيمة افتراضية VOID
+        
+        // (AR) استخدام القيمة الافتراضية المُخزّنة في ClassField
+        // (EN) Use the default value stored in ClassField
+        objectInstance->fields[field.name] = field.defaultValue;
     }
     
     #ifdef DEBUG_OOP
@@ -289,11 +300,8 @@ void ExpressionEvaluator::visitNewExpr(NewExpr& node) {
                 if (args.size() == ctor->parameters.size()) {
                     for (size_t i = 0; i < ctor->parameters.size(); ++i) {
                         const auto& pname = ctor->parameters[i].name;
-                        if (variableManager_.exists(pname)) {
-                            variableManager_.assign(pname, args[i]);
-                        } else {
-                            variableManager_.define(pname, args[i]);
-                        }
+                        // (AR) تحسين أداء: بحث واحد / (EN) Performance: single lookup
+                        variableManager_.defineOrAssign(pname, args[i]);
                     }
                 }
                 
@@ -1536,11 +1544,25 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     // فحص الوصول (Phase 6.1: Access Modifiers)
     checkMemberAccess(method->visibility, node.methodName, classType);
     
-    // التحقق من عدد المعاملات
-    if (node.arguments.size() != method->parameters.size()) {
-        std::string errMsg = "(AR) عدد المعاملات غير متطابق. توقع " + 
-            std::to_string(method->parameters.size()) + " لكن حصل على " + 
-            std::to_string(node.arguments.size()) + ". ";
+    // حساب عدد المعاملات المطلوبة (التي ليس لها قيم افتراضية)
+    // (AR) Count required parameters (without default values)
+    size_t requiredParams = 0;
+    for (const auto& param : method->parameters) {
+        if (!param.defaultValue) requiredParams++;
+    }
+    
+    // التحقق من عدد المعاملات - يجب أن يكون على الأقل المعاملات المطلوبة
+    // وليس أكثر من إجمالي المعاملات
+    if (node.arguments.size() < requiredParams || 
+        node.arguments.size() > method->parameters.size()) {
+        std::string errMsg = "(AR) عدد المعاملات غير متطابق. توقع ";
+        if (requiredParams == method->parameters.size()) {
+            errMsg += std::to_string(method->parameters.size());
+        } else {
+            errMsg += std::to_string(requiredParams) + " إلى " + 
+                     std::to_string(method->parameters.size());
+        }
+        errMsg += " لكن حصل على " + std::to_string(node.arguments.size()) + ". ";
         errMsg += "(EN) Argument count mismatch.";
         throw RuntimeError(errMsg, node.position);
     }
@@ -1555,9 +1577,17 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     // إنشاء scope جديد للطريقة
     variableManager_.enterScope(Data::ScopeType::FUNCTION, node.methodName);
     
-    // ربط المعاملات بالقيم
+    // ربط المعاملات بالقيم أو القيم الافتراضية
+    // (AR) Bind parameters to values or default values
     for (size_t i = 0; i < method->parameters.size(); ++i) {
-        variableManager_.define(method->parameters[i].name, argValues[i]);
+        if (i < argValues.size()) {
+            // (AR) استخدام القيمة المُمررة
+            variableManager_.define(method->parameters[i].name, argValues[i]);
+        } else if (method->parameters[i].defaultValue) {
+            // (AR) استخدام القيمة الافتراضية - نقيّمها الآن
+            method->parameters[i].defaultValue->accept(*this);
+            variableManager_.define(method->parameters[i].name, lastResult_);
+        }
     }
     
     // إضافة حقول الكائن للـ scope (محاكاة 'this') - فقط للطرق غير الثابتة
@@ -1609,6 +1639,7 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     }
     
     Value returnValue;
+    bool hadExplicitReturn = false;
     try {
         if (methodBody) {
             methodBody->accept(statementExecutor_);
@@ -1616,6 +1647,7 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
             // التحقق من وجود return
             if (statementExecutor_.getFlowControl() == FlowControl::RETURN) {
                 returnValue = statementExecutor_.getReturnValue();
+                hadExplicitReturn = true;
                 statementExecutor_.resetFlowControl();
             }
             
@@ -1700,15 +1732,17 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     std::cout << "[OOP] ✅ تم تنفيذ الطريقة: " << node.methodName << "\n";
 #endif
     // ═══════════════════════════════════════════════════════════════════
-    // (AR) إرجاع ضمني لـ 'هذا': إذا لم تُرجع الدالة قيمة صريحة
+    // (AR) إرجاع ضمني لـ 'هذا': إذا لم تُرجع الدالة قيمة صريحة (بدون ارجع)
     //      ولم تكن الدالة ثابتة، نُرجع الكائن نفسه تلقائياً
     //      لدعم تسلسل الاستدعاءات: كائن.دالة1().دالة2().دالة3()
+    //      ملاحظة: إذا كان هناك 'ارجع لاشيء' صريح، فنُرجع لاشيء.
     //
-    // (EN) Implicit 'this' return: if method has no explicit return
-    //      and is not static, automatically return the object itself
+    // (EN) Implicit 'this' return: if method has no explicit return statement
+    //      (no ارجع at all), and is not static, automatically return the object
     //      to support method chaining: obj.method1().method2().method3()
+    //      Note: if there's an explicit 'ارجع لاشيء', we return لاشيء.
     // ═══════════════════════════════════════════════════════════════════
-    if (returnValue.isVoid() && !isStaticCall) {
+    if (!hadExplicitReturn && !isStaticCall) {
         lastResult_ = objectValue;
     } else {
         lastResult_ = returnValue;

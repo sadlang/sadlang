@@ -262,6 +262,22 @@ inline std::filesystem::path get_executable_dir() {
     return exe_path.parent_path();
 }
 
+#elif defined(__EMSCRIPTEN__)
+
+/**
+ * @brief WASM stub: no command line args
+ */
+inline std::vector<std::string> get_utf8_args() {
+    return {};
+}
+
+/**
+ * @brief WASM stub: return current path
+ */
+inline std::filesystem::path get_executable_dir() {
+    return std::filesystem::current_path();
+}
+
 #else
 
 /**

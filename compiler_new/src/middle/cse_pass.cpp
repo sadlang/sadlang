@@ -266,6 +266,49 @@ bool CSEPass::hasSideEffects(SIR::SIROpcode opcode) {
         // Built-in functions
         case SIR::SIROpcode::BUILTIN_PRINT:
         case SIR::SIROpcode::BUILTIN_READ:
+        
+        // Unified UI (all have side effects — allocate or mutate widgets)
+        case SIR::SIROpcode::BUILTIN_UI_COLUMN:
+        case SIR::SIROpcode::BUILTIN_UI_ROW:
+        case SIR::SIROpcode::BUILTIN_UI_STACK:
+        case SIR::SIROpcode::BUILTIN_UI_CONTAINER:
+        case SIR::SIROpcode::BUILTIN_UI_TEXT:
+        case SIR::SIROpcode::BUILTIN_UI_TEXT_STYLED:
+        case SIR::SIROpcode::BUILTIN_UI_BUTTON:
+        case SIR::SIROpcode::BUILTIN_UI_BUTTON_VARIANT:
+        case SIR::SIROpcode::BUILTIN_UI_ICON_BUTTON:
+        case SIR::SIROpcode::BUILTIN_UI_FAB:
+        case SIR::SIROpcode::BUILTIN_UI_TEXT_FIELD:
+        case SIR::SIROpcode::BUILTIN_UI_CHECKBOX:
+        case SIR::SIROpcode::BUILTIN_UI_SWITCH:
+        case SIR::SIROpcode::BUILTIN_UI_SLIDER:
+        case SIR::SIROpcode::BUILTIN_UI_CARD:
+        case SIR::SIROpcode::BUILTIN_UI_SCAFFOLD:
+        case SIR::SIROpcode::BUILTIN_UI_APP_BAR:
+        case SIR::SIROpcode::BUILTIN_UI_SPACER:
+        case SIR::SIROpcode::BUILTIN_UI_DIVIDER:
+        case SIR::SIROpcode::BUILTIN_UI_DIALOG:
+        case SIR::SIROpcode::BUILTIN_UI_ADD_CHILD:
+        case SIR::SIROpcode::BUILTIN_UI_REMOVE_CHILD:
+        case SIR::SIROpcode::BUILTIN_UI_CLEAR_CHILDREN:
+        case SIR::SIROpcode::BUILTIN_UI_SET_TEXT:
+        case SIR::SIROpcode::BUILTIN_UI_SET_SIZE:
+        case SIR::SIROpcode::BUILTIN_UI_SET_FLEX:
+        case SIR::SIROpcode::BUILTIN_UI_SET_BACKGROUND:
+        case SIR::SIROpcode::BUILTIN_UI_SET_FOREGROUND:
+        case SIR::SIROpcode::BUILTIN_UI_SET_SPACING:
+        case SIR::SIROpcode::BUILTIN_UI_SET_PADDING:
+        case SIR::SIROpcode::BUILTIN_UI_SET_ALIGNMENT:
+        case SIR::SIROpcode::BUILTIN_UI_SET_BORDER:
+        case SIR::SIROpcode::BUILTIN_UI_SET_ELEVATION:
+        case SIR::SIROpcode::BUILTIN_UI_SET_OPACITY:
+        case SIR::SIROpcode::BUILTIN_UI_SET_VISIBILITY:
+        case SIR::SIROpcode::BUILTIN_UI_APP_CREATE:
+        case SIR::SIROpcode::BUILTIN_UI_APP_SET_ROOT:
+        case SIR::SIROpcode::BUILTIN_UI_APP_LAYOUT:
+        case SIR::SIROpcode::BUILTIN_UI_APP_RENDER:
+        case SIR::SIROpcode::BUILTIN_UI_APP_DESTROY:
+        case SIR::SIROpcode::BUILTIN_UI_WIDGET_DESTROY:
             return true;
             
         default:

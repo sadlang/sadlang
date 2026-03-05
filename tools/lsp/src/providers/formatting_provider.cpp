@@ -29,13 +29,21 @@ namespace lsp {
 //  دوال مساعدة للتنسيق
 // ══════════════════════════════════════════════════════════════════════════════
 
-static const std::string KW_FUNC   = "\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9";
-static const std::string KW_CLASS  = "\xd8\xb5\xd9\x86\xd9\x81";
-static const std::string KW_ELSE   = "\xd9\x88\xd8\xa5\xd9\x84\xd8\xa7";
-static const std::string KW_CATCH  = "\xd8\xa7\xd9\x85\xd8\xb3\xd9\x83";
-static const std::string KW_FINALLY = "\xd8\xa3\xd8\xae\xd9\x8a\xd8\xb1\xd8\xa7\xd9\x8b";
-static const std::string KW_END   = "\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9";
-static const std::string KW_DO    = "\xd8\xa3\xd8\xb9\xd9\x85\xd9\x84";
+static const std::string KW_FUNC    = "\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9";      // دالة
+static const std::string KW_CLASS   = "\xd8\xb5\xd9\x86\xd9\x81";              // صنف
+static const std::string KW_ELSE    = "\xd9\x88\xd8\xa5\xd9\x84\xd8\xa7";      // وإلا
+static const std::string KW_CATCH   = "\xd8\xa7\xd9\x85\xd8\xb3\xd9\x83";      // امسك
+static const std::string KW_FINALLY = "\xd8\xa3\xd8\xae\xd9\x8a\xd8\xb1\xd8\xa7\xd9\x8b"; // أخيراً
+static const std::string KW_END     = "\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9"; // نهاية
+static const std::string KW_DO      = "\xd8\xa3\xd8\xb9\xd9\x85\xd9\x84";      // أعمل
+static const std::string KW_IF      = "\xd8\xa5\xd8\xb0\xd8\xa7";              // إذا
+static const std::string KW_WHILE   = "\xd8\xa8\xd9\x8a\xd9\x86\xd9\x85\xd8\xa7"; // بينما
+static const std::string KW_FOR     = "\xd9\x84\xd9\x83\xd9\x84";              // لكل
+static const std::string KW_TRY     = "\xd8\xad\xd8\xa7\xd9\x88\xd9\x84";      // حاول
+static const std::string KW_MATCH   = "\xd8\xb7\xd8\xa7\xd8\xa8\xd9\x82";      // طابق
+static const std::string KW_ENUM    = "\xd8\xaa\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf"; // تعداد
+static const std::string KW_STRUCT  = "\xd8\xa8\xd9\x86\xd9\x8a\xd8\xa9";      // بنية
+static const std::string KW_TRAIT   = "\xd8\xb3\xd9\x85\xd8\xa9";              // سمة
 
 /// إزالة المسافات البادئة
 static std::string trim_leading(const std::string& line) {
@@ -53,6 +61,26 @@ static std::string trim_trailing(const std::string& line) {
     return line.substr(0, end);
 }
 
+/// هل السطر يبدأ بكلمة تفتح كتلة "نهاية"؟
+static bool starts_with_block_keyword(const std::string& trimmed) {
+    // الكلمات التي تفتح كتلة تنتهي بـ "نهاية"
+    static const std::vector<std::string> block_keywords = {
+        KW_FUNC, KW_CLASS, KW_IF, KW_WHILE, KW_FOR,
+        KW_TRY, KW_MATCH, KW_ENUM, KW_STRUCT, KW_TRAIT
+    };
+    for (const auto& kw : block_keywords) {
+        if (trimmed.find(kw) == 0) {
+            // نتأكد أن الكلمة ليست جزءاً من كلمة أطول
+            if (trimmed.size() == kw.size() ||
+                trimmed[kw.size()] == ' ' || trimmed[kw.size()] == '\t' ||
+                trimmed[kw.size()] == '(') {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 /// هل السطر يفتح كتلة جديدة؟
 static bool opens_block(const std::string& trimmed) {
     if (trimmed.empty()) return false;
@@ -60,6 +88,8 @@ static bool opens_block(const std::string& trimmed) {
     if (trimmed.size() >= KW_DO.size() &&
         trimmed.substr(trimmed.size() - KW_DO.size()) == KW_DO)
         return true;
+    // كتل "نهاية" — الكلمات المفتاحية التي تفتح كتلة
+    if (starts_with_block_keyword(trimmed)) return true;
     return false;
 }
 
@@ -167,12 +197,22 @@ static std::string format_operators(const std::string& line) {
             continue;
         }
 
+        // ──── ** (أس) ────
+        if (c == '*' && next == '*') {
+            if (!result.empty() && result.back() != ' ') result += ' ';
+            result += "**";
+            i++;
+            if (i + 1 < line.size() && line[i + 1] != ' ') result += ' ';
+            continue;
+        }
+
         // ──── + - * / % مع مسافات ────
-        if ((c == '+' || c == '*' || c == '/' || c == '%') &&
-            next != '=' && c != '/' /* ليس تعليقاً */) {
+        if ((c == '+' || c == '-' || c == '*' || c == '/' || c == '%') &&
+            next != '=' && next != '>' /* ليس سهماً */) {
             // نتأكد أنه ليس أحادياً
             bool is_binary = !result.empty() && result.back() != '(' &&
-                              result.back() != ',' && result.back() != '=';
+                              result.back() != ',' && result.back() != '=' &&
+                              result.back() != ' ';
             if (is_binary) {
                 if (!result.empty() && result.back() != ' ') result += ' ';
                 result += c;
@@ -181,13 +221,19 @@ static std::string format_operators(const std::string& line) {
             }
         }
 
-        // ──── فاصلة: مسافة بعدها ────
-        if (c == ',' || (static_cast<unsigned char>(c) == 0xD8 && i + 1 < line.size() &&
-            static_cast<unsigned char>(line[i+1]) == 0x8C)) {
+        // ──── فاصلة: مسافة بعدها (عربية ولاتينية) ────
+        if (c == ',') {
             result += c;
-            if (c == ',') {
-                if (i + 1 < line.size() && line[i + 1] != ' ') result += ' ';
-            }
+            if (i + 1 < line.size() && line[i + 1] != ' ') result += ' ';
+            continue;
+        }
+        // فاصلة عربية ، (U+060C = 0xD8 0x8C)
+        if (static_cast<unsigned char>(c) == 0xD8 && i + 1 < line.size() &&
+            static_cast<unsigned char>(line[i+1]) == 0x8C) {
+            result += c;
+            result += line[i+1];
+            i++;
+            if (i + 1 < line.size() && line[i + 1] != ' ') result += ' ';
             continue;
         }
 
@@ -210,8 +256,36 @@ static std::string format_lines(const std::vector<std::string>& lines,
     bool prev_was_empty = false;
     bool prev_was_definition = false;
 
+    bool in_block_comment = false;
+
     for (int i = start; i <= end && i < static_cast<int>(lines.size()); i++) {
         std::string trimmed = trim_trailing(trim_leading(lines[i]));
+
+        // ──── تتبع تعليقات الكتلة #* ... *# ────
+        if (in_block_comment) {
+            // داخل تعليق كتلة — لا نغير المسافة البادئة ولا العوامل
+            formatted += make_indent(indent_level, options);
+            formatted += trimmed;
+            formatted += "\n";
+            if (trimmed.find("*#") != std::string::npos) {
+                in_block_comment = false;
+            }
+            prev_was_empty = false;
+            prev_was_definition = false;
+            continue;
+        }
+        if (trimmed.find("#*") != std::string::npos) {
+            // بداية تعليق كتلة
+            formatted += make_indent(indent_level, options);
+            formatted += trimmed;
+            formatted += "\n";
+            if (trimmed.find("*#") == std::string::npos) {
+                in_block_comment = true;
+            }
+            prev_was_empty = false;
+            prev_was_definition = false;
+            continue;
+        }
 
         // ──── الأسطر الفارغة ────
         if (trimmed.empty()) {

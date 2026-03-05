@@ -53,21 +53,27 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async, bool i
     bool isMain = false;
     Token name(TT::IDENTIFIER, "", Lexer::Position());  // (AR) تعريف name مسبقاً / (EN) Define name upfront
     
-    // Check if next token is a type keyword (before function name)
+    // Check if next token is a type keyword or built-in type identifier (before function name)
     // (AR) التحقق إذا كان الرمز التالي هو نوع (قبل اسم الدالة)
     // BUT only if it's NOT followed by '(' — otherwise the type keyword IS the function name
-    // e.g., "دالة نص مربع(...)" = return type string, name مربع
-    //       "دالة نص(...)"       = function named نص (no return type)
-    if ((check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || 
-         check(TT::TYPE_STRING) || check(TT::TYPE_BOOLEAN) ||
-         check(TT::TYPE_ARRAY) || check(TT::TYPE_MAP)) &&
+    if (isTypeToken(current_.getType()) &&
         nextToken_.getType() != TT::PAREN_LEFT) {
         returnType = parseType();
     }
     
-    // (AR) التحقق إذا كانت الدالة الرئيسية (قبل توقع اسم الدالة)
-    // (EN) Check if this is the main function (before expecting function name)
-    if (check(TT::KEYWORD_MAIN)) {
+    // ─────────────────────────────────────────────────────────────────────
+    // (AR) دعم 'غير_متزامنة' / 'غير_متزامن' بعد 'دالة': دالة غير_متزامنة اسم()
+    // (EN) Support 'async' after 'function': function async name()
+    // ─────────────────────────────────────────────────────────────────────
+    if (check(TT::KEYWORD_ASYNC)) {
+        is_async = true;
+        advance(); // consume 'غير_متزامنة' / 'غير_متزامن'
+    }
+    
+    // (AR) التحقق إذا كانت الدالة الرئيسية (كلمة سياقية — لم تعد محجوزة)
+    // (EN) Check if this is the main function (contextual — no longer reserved)
+    if (check(TT::KEYWORD_MAIN) || 
+        (check(TT::IDENTIFIER) && current_.getValue() == "رئيسية")) {
         // (AR) هذه هي الدالة الرئيسية - استخدام رمز KEYWORD_MAIN
         // (EN) This is the main function - consume KEYWORD_MAIN token
         Token mainToken = current_;  // (AR) حفظ الرمز قبل advance / (EN) Save token before advance
@@ -89,7 +95,7 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async, bool i
         auto tok = current_;
         advance();
         name = Token(TT::IDENTIFIER, tok.getValue(), tok.getPosition());
-    } else if (isKeywordUsableAsName(current_.getType())) {
+    } else if (isTokenUsableAsName(current_.getType())) {
         // (AR) كلمة مفتاحية ناعمة مستخدمة كاسم دالة (مثلاً: دالة احصل(...))
         // (EN) Soft keyword used as function name (e.g., function احصل(...))
         auto tok = current_;
@@ -271,15 +277,13 @@ StmtPtr ParserCore::parseFunctionDecl(ExprList decorators, bool is_async, bool i
  * @return (AR) مؤشر على عقدة تصريح الدالة الخارجية
  *         (EN) Pointer to external function declaration node
  */
-StmtPtr ParserCore::parseExternFunctionDecl() {
+StmtPtr ParserCore::parseExternFunctionDecl(const std::string& linkName) {
     // (AR) نوع الإرجاع الاختياري قبل اسم الدالة
     // (EN) Optional return type before function name
     Data::DataType returnType = Data::DataType::UNKNOWN;
     
-    // Check if next token is a type keyword (before function name)
-    if ((check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || 
-         check(TT::TYPE_STRING) || check(TT::TYPE_BOOLEAN) ||
-         check(TT::TYPE_ARRAY) || check(TT::TYPE_MAP)) &&
+    // Check if next token is a type keyword or built-in type identifier (before function name)
+    if (isTypeToken(current_.getType()) &&
         nextToken_.getType() != TT::PAREN_LEFT) {
         returnType = parseType();
     }
@@ -315,6 +319,7 @@ StmtPtr ParserCore::parseExternFunctionDecl() {
         name.getPosition()
     );
     funcDecl->isExtern = true;  // (AR) علامة الدالة الخارجية / (EN) Mark as external
+    funcDecl->linkName = linkName; // (AR) اسم الربط الخارجي (FFI) / (EN) FFI link name
     return funcDecl;
 }
 
@@ -379,12 +384,54 @@ StmtPtr ParserCore::parseClassDecl() {
         AccessModifier access = parseModifiers(isStatic, isVirtual, isAbstract);
         
         // Check if it's a property (starts with 'خاصية' or 'property')
-        if (check(TT::KEYWORD_PROPERTY)) {
+        if (check(TT::KEYWORD_PROPERTY) || (check(TT::IDENTIFIER) && current_.getValue() == "خاصية")) {
             advance(); // consume 'خاصية'
-            auto property = parsePropertyDeclaration(access, isStatic);
-            if (property) {
-                members.push_back(std::move(property));
+            
+            // (AR) التحقق من النوع المدمج بعد 'خاصية' (مثال: خاصية نص الاسم)
+            // (EN) Check for built-in type after 'خاصية' (e.g., خاصية نص الاسم)
+            if (isTypeToken(current_.getType())) {
+                // (AR) خاصية بنوع — تحقق هل هناك احصل/عيّن (getter/setter)
+                // (EN) Typed property — check if getter/setter follows
+                auto property = parsePropertyDeclaration(access, isStatic);
+                if (property) {
+                    members.push_back(std::move(property));
+                }
+            } else if (check(TT::IDENTIFIER)) {
+                // (AR) خاصية اسم — حقل بسيط بنوع ديناميكي (OBJECT)
+                // (EN) خاصية name — simple field with dynamic type (OBJECT)
+                Token fieldName = peek();
+                advance();
+                ExprPtr initializer = nullptr;
+                if (match(TT::OP_ASSIGN)) {
+                    initializer = parseExpression();
+                }
+                matchAny({TT::SEMICOLON, TT::ARABIC_SEMICOLON});
+                auto field = std::make_unique<FieldDecl>(
+                    fieldName.getValue(), Data::DataType::OBJECT,
+                    std::move(initializer), access, isStatic, fieldName.getPosition());
+                members.push_back(std::move(field));
+            } else {
+                error("(AR) توقع نوع أو اسم بعد 'خاصية'. (EN) Expected type or name after 'خاصية'.");
+                advance();
             }
+            continue;
+        }
+        
+        // (AR) دعم غير_متزامن/غير_متزامنة قبل دالة: غير_متزامن دالة طريقة()
+        // (EN) Support async before function: async function method()
+        if (check(TT::KEYWORD_ASYNC)) {
+            advance(); // consume 'غير_متزامن' / 'غير_متزامنة'
+            if (check(TT::KEYWORD_FUNCTION)) {
+                advance(); // consume 'دالة'
+                auto method = parseMethodDeclaration(access, isStatic, isVirtual, isAbstract);
+                if (method) {
+                    // TODO: set isAsync when MethodDecl supports it
+                    members.push_back(std::move(method));
+                }
+                continue;
+            }
+            // (AR) إذا لم يتبعها 'دالة'، ربما خطأ
+            error("(AR) توقع 'دالة' بعد 'غير_متزامن'. (EN) Expected 'function' after 'async'.");
             continue;
         }
         
@@ -420,7 +467,7 @@ StmtPtr ParserCore::parseClassDecl() {
         }
         
         // Check for destructor (keyword 'مدمر')
-        if (check(TT::KEYWORD_DESTRUCTOR)) {
+        if (check(TT::KEYWORD_DESTRUCTOR) || (check(TT::IDENTIFIER) && current_.getValue() == "هدم")) {
             auto destructor = parseDestructorDeclaration(className, access);
             if (destructor) {
                 members.push_back(std::move(destructor));
@@ -430,7 +477,7 @@ StmtPtr ParserCore::parseClassDecl() {
         
         // Check for operator overload (keyword 'عامل')
         // (AR) التحقق من تحميل العامل الزائد / (EN) Check for operator overload
-        if (check(TT::KEYWORD_OPERATOR)) {
+        if (check(TT::KEYWORD_OPERATOR) || (check(TT::IDENTIFIER) && current_.getValue() == "عامل")) {
             advance(); // consume 'عامل'
             auto operatorDecl = parseOperatorDecl();
             if (operatorDecl) {
@@ -444,18 +491,86 @@ StmtPtr ParserCore::parseClassDecl() {
         }
         
         // ─────────────────────────────────────────────────────────────
-        // (AR) دعم 'متغير' داخل الصنف: عام متغير اسم = قيمة
-        // (EN) Support 'var' inside class: public var name = value
+        // (AR) دعم 'ثابت' داخل الصنف: ثابت اسم = قيمة
+        // (EN) Support 'const' inside class: const name = value
+        // ─────────────────────────────────────────────────────────────
+        if (check(TT::KEYWORD_CONST)) {
+            advance(); // consume 'ثابت'
+            // (AR) دعم الكلمات المفتاحية والحروف المحجوزة كأسماء حقول (مثل: ثابت افتراضي = ...)
+            // (EN) Accept keywords/literals as field names (e.g., const default = ...)
+            Token fieldName(TT::IDENTIFIER, "", Lexer::Position());
+            if (check(TT::IDENTIFIER)) {
+                fieldName = current_;
+                advance();
+            } else if (isTokenUsableAsName(current_.getType())) {
+                fieldName = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+                advance();
+            } else {
+                error("(AR) توقعت اسم حقل بعد 'ثابت'. (EN) Expected field name after 'const'.");
+                advance();
+                continue;
+            }
+            
+            ExprPtr initializer = nullptr;
+            if (match(TT::OP_ASSIGN)) {
+                initializer = parseExpression();
+            }
+            matchAny({TT::SEMICOLON, TT::ARABIC_SEMICOLON});
+            
+            auto field = std::make_unique<FieldDecl>(
+                fieldName.getValue(), Data::DataType::UNKNOWN,
+                std::move(initializer), access, true, fieldName.getPosition());
+            members.push_back(std::move(field));
+            continue;
+        }
+        
+        // ─────────────────────────────────────────────────────────────
+        // (AR) دعم 'متغير' داخل الصنف: عام متغير اسم: نوع = قيمة
+        // (EN) Support 'var' inside class: public var name: type = value
         // ─────────────────────────────────────────────────────────────
         if (check(TT::KEYWORD_VAR)) {
             advance(); // consume 'متغير'
-            if (!check(TT::IDENTIFIER)) {
+            // (AR) دعم الكلمات المفتاحية والحروف المحجوزة كأسماء حقول (مثل: متغير خطأ = ...)
+            // (EN) Accept keywords/literals as field names (e.g., var error = ...)
+            Token fieldName(TT::IDENTIFIER, "", Lexer::Position());
+            if (check(TT::IDENTIFIER)) {
+                fieldName = current_;
+                advance();
+            } else if (isTokenUsableAsName(current_.getType())) {
+                fieldName = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+                advance();
+            } else {
                 error("(AR) توقعت اسم حقل بعد 'متغير'. (EN) Expected field name after 'var'.");
                 advance();
                 continue;
             }
-            Token fieldName = peek();
-            advance();
+            
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) دعم تحديد النوع: متغير اسم: نوع [= قيمة]
+            // (EN) Support type annotation: var name: type [= value]
+            // ═══════════════════════════════════════════════════════════════
+            Data::DataType fieldType = Data::DataType::UNKNOWN;
+            std::string typeName;
+            
+            if (match(TT::COLON)) {
+                // (AR) نوع محدد: متغير اسم: نوع
+                // (EN) Explicit type: var name: type
+                if (isTypeToken(current_.getType())) {
+                    // (AR) نوع أساسي: رقم، نص، منطقي، إلخ
+                    Token typeToken = current_;
+                    advance();
+                    typeName = typeToken.getValue();
+                    fieldType = mapTokenTypeToDataType(typeToken.getType());
+                } else if (check(TT::IDENTIFIER)) {
+                    // (AR) صنف مخصص
+                    Token typeToken = current_;
+                    advance();
+                    typeName = typeToken.getValue();
+                    fieldType = Data::DataType::OBJECT;
+                } else {
+                    error("(AR) توقعت نوع الحقل بعد ':'. (EN) Expected field type after ':'.");
+                }
+            }
             
             ExprPtr initializer = nullptr;
             if (match(TT::OP_ASSIGN)) {
@@ -465,7 +580,7 @@ StmtPtr ParserCore::parseClassDecl() {
             matchAny({TT::SEMICOLON, TT::ARABIC_SEMICOLON});
             
             auto field = std::make_unique<FieldDecl>(
-                fieldName.getValue(), Data::DataType::UNKNOWN,
+                fieldName.getValue(), fieldType,
                 std::move(initializer), access, isStatic, fieldName.getPosition());
             members.push_back(std::move(field));
             continue;
@@ -536,7 +651,9 @@ StmtPtr ParserCore::parseVarDecl() {
     
     // Check if we have type-first syntax: TYPE IDENTIFIER = value;
     // (AR) التحقق من صيغة النوع أولاً: نوع معرّف = قيمة;
-    if (isTypeToken(current_.getType())) {
+    // (AR) لكن فقط إذا كان بعد النوع معرّف — وإلا النوع هو اسم المتغير
+    // (EN) BUT only if there's an IDENTIFIER after the type — otherwise the type IS the var name
+    if (isTypeToken(current_.getType()) && peekNext().getType() == TT::IDENTIFIER) {
         // Format 2: TYPE IDENTIFIER = value;
         // Current token is already a type token (TYPE_INTEGER, TYPE_STRING, etc.)
         // (AR) الصيغة 2: نوع معرّف = قيمة;
@@ -556,6 +673,11 @@ StmtPtr ParserCore::parseVarDecl() {
         }
         
         name = peek();
+        advance();
+    } else if (isTypeToken(current_.getType())) {
+        // (AR) كلمة نوع مستخدمة كاسم متغير: متغير نص = "hello"
+        // (EN) Type keyword used as variable name: var text = "hello"
+        name = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
         advance();
     } else if (check(TT::IDENTIFIER)) {
         // Check if this identifier is a class name (for class-typed variables)
@@ -986,13 +1108,9 @@ StmtPtr ParserCore::parseTraitDecl() {
             // (AR) نوع الإرجاع (اختياري قبل الاسم)
             Data::DataType returnType = Data::DataType::NONE;
             
-            // (AR) التحقق من نوع الإرجاع
-            if (check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || 
-                check(TT::TYPE_STRING) || check(TT::TYPE_BOOLEAN)) {
-                if (match(TT::TYPE_INTEGER)) returnType = Data::DataType::INTEGER;
-                else if (match(TT::TYPE_DOUBLE)) returnType = Data::DataType::FLOAT;
-                else if (match(TT::TYPE_STRING)) returnType = Data::DataType::STRING;
-                else if (match(TT::TYPE_BOOLEAN)) returnType = Data::DataType::BOOLEAN;
+            // (AR) التحقق من نوع الإرجاع (دعم الأنواع كمُعرّفات مدمجة)
+            if (isTypeToken(current_.getType())) {
+                returnType = parseType();
             }
             
             // (AR) اسم الدالة

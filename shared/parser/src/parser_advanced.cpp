@@ -180,6 +180,47 @@ ExprPtr ParserCore::parseMapLiteral() {
         return std::make_unique<MapExpr>(std::vector<MapPair>{}, previous().getPosition());
     }
     
+    // (AR) التحقق من spread كأول عنصر / (EN) Check for spread as first element
+    if (check(TT::ELLIPSIS)) {
+        advance(); // consume '...'
+        auto spreadExpr = parseTernary();
+        if (!spreadExpr) {
+            errorBilingual(
+                "خطأ: توقعت تعبيراً بعد '...' في الخريطة.",
+                "Error: expected expression after '...' in map."
+            );
+            return nullptr;
+        }
+        
+        // (AR) خريطة تبدأ بـ spread — تُعامل كـ map literal مع spread
+        // (EN) Map starting with spread — treat as map literal with spread
+        std::vector<MapPair> pairs;
+        pairs.emplace_back(std::move(spreadExpr)); // spread: key=nullptr
+        
+        // (AR) تحليل المزيد من الأزواج
+        while (matchAny({TT::COMMA, TT::ARABIC_COMMA})) {
+            if (check(TT::BRACE_RIGHT)) break;
+            
+            if (check(TT::ELLIPSIS)) {
+                advance();
+                auto nextSpread = parseTernary();
+                if (nextSpread) pairs.emplace_back(std::move(nextSpread));
+                continue;
+            }
+            
+            auto key = parseTernary();
+            if (!key) break;
+            if (!check(TT::COLON) && !check(TT::OP_ASSIGN)) break;
+            advance();
+            auto value = parseExpression();
+            if (!value) break;
+            pairs.emplace_back(std::move(key), std::move(value));
+        }
+        
+        consume(TT::BRACE_RIGHT, "(AR) توقعت '}' (EN) Expected '}'");
+        return std::make_unique<MapExpr>(std::move(pairs), previous().getPosition());
+    }
+    
     // Parse first expression using parseTernary to avoid consuming 'for' keyword
     // (AR) تحليل التعبير الأول باستخدام parseTernary لتجنب استهلاك 'for'
     auto firstKey = parseTernary();
@@ -266,16 +307,16 @@ ExprPtr ParserCore::parseMapLiteral() {
         );
     }
     
-    // Check if this is a dict (has colon) or set (no colon)
-    // (AR) التحقق إذا كان dict (له :) أو set (بدون :)
-    if (!check(TT::COLON)) {
+    // Check if this is a dict (has colon or =) or set (no colon)
+    // (AR) التحقق إذا كان dict (له : أو =) أو set (بدون :)
+    if (!check(TT::COLON) && !check(TT::OP_ASSIGN)) {
         errorBilingual(
             "خطأ: توقعت ':' بعد مفتاح الخريطة. الصيغة: {مفتاح: قيمة، ...}. لـ Set Comprehension استخدم: {expr for x in list}",
             "Error: expected ':' after map key. Format: {key: value, ...}. For Set Comprehension use: {expr for x in list}"
         );
         return nullptr;
     }
-    consume(TT::COLON, "");
+    advance(); // consume ':' or '='
     
     // Parse first value expression using parseTernary to avoid consuming 'for'
     // (AR) تحليل تعبير القيمة باستخدام parseTernary لتجنب استهلاك 'for'
@@ -380,7 +421,24 @@ ExprPtr ParserCore::parseMapLiteral() {
             break; // Trailing comma is allowed
         }
         
-        auto key = parseExpression();
+        // (AR) التحقق من spread operator (...) / (EN) Check for spread operator
+        if (check(TT::ELLIPSIS)) {
+            advance(); // consume '...'
+            auto spreadExpr = parseTernary();
+            if (!spreadExpr) {
+                errorBilingual(
+                    "خطأ: توقعت تعبيراً بعد '...' في الخريطة.",
+                    "Error: expected expression after '...' in map."
+                );
+                return nullptr;
+            }
+            pairs.emplace_back(std::move(spreadExpr)); // spread: key=nullptr
+            continue;
+        }
+        
+        // (AR) استخدم parseTernary بدلاً من parseExpression لتجنب تفسير = كإسناد
+        // (EN) Use parseTernary instead of parseExpression to avoid = being parsed as assignment
+        auto key = parseTernary();
         if (!key) {
             errorBilingual(
                 "خطأ: فشل تحليل مفتاح إضافي في الخريطة.",
@@ -389,14 +447,14 @@ ExprPtr ParserCore::parseMapLiteral() {
             return nullptr;
         }
         
-        if (!check(TT::COLON)) {
+        if (!check(TT::COLON) && !check(TT::OP_ASSIGN)) {
             errorBilingual(
                 "خطأ: توقعت ':' بعد مفتاح الخريطة. هل نسيت الفاصلة قبل المفتاح التالي؟",
                 "Error: expected ':' after map key. Did you forget the colon before the value?"
             );
             return nullptr;
         }
-        consume(TT::COLON, "");
+        advance(); // consume ':' or '='
         
         auto value = parseExpression();
         if (!value) {
@@ -465,7 +523,8 @@ StmtPtr ParserCore::parseMatchStmt() {
     };
     
     while (!isMatchEnd() && !isAtEnd()) {
-        if (check(TT::KEYWORD_CASE) || check(TT::KEYWORD_WHEN)) {
+        if (check(TT::KEYWORD_CASE) || check(TT::KEYWORD_WHEN) ||
+            (check(TT::IDENTIFIER) && current_.getValue() == "حالة")) {
             cases.push_back(parseCaseClause());
         } else if (match(TT::KEYWORD_DEFAULT)) {
             // (AR) تحليل الحالة الافتراضية — تعامل كـ WildcardPattern
@@ -546,7 +605,8 @@ StmtPtr ParserCore::parseMatchStmt() {
 AST::CaseClause ParserCore::parseCaseClause() {
     // Consume 'case' or 'عندما'
     // (AR) استهلاك 'حالة' أو 'عندما'
-    if (!match(TT::KEYWORD_CASE) && !match(TT::KEYWORD_WHEN)) {
+    if (!match(TT::KEYWORD_CASE) && !match(TT::KEYWORD_WHEN) &&
+        !(check(TT::IDENTIFIER) && current_.getValue() == "حالة" && (advance(), true))) {
         errorBilingual(
             "خطأ: توقعت 'حالة' أو 'عندما'",
             "Error: Expected 'case' or 'when'"
@@ -595,6 +655,7 @@ AST::CaseClause ParserCore::parseCaseClause() {
     std::vector<StmtPtr> body;
     
     while (!check(TT::KEYWORD_CASE) && !check(TT::KEYWORD_WHEN) && !check(TT::KEYWORD_DEFAULT) && !check(TT::KEYWORD_END) && 
+           !(check(TT::IDENTIFIER) && current_.getValue() == "حالة") &&
            !check(TT::BRACE_RIGHT) && !isAtEnd()) {
         auto stmt = parseDeclaration();
         if (stmt) {
@@ -623,6 +684,12 @@ std::unique_ptr<AST::Pattern> ParserCore::parsePattern() {
         return std::make_unique<AST::WildcardPattern>();
     }
     
+    // Struct pattern: { field: pattern, ... }
+    // (AR) نمط بنية: { حقل: نمط، ... }
+    if (check(TT::BRACE_LEFT)) {
+        return parseStructPattern();
+    }
+    
     // List pattern: [...]
     // (AR) نمط قائمة: [...]
     if (check(TT::BRACKET_LEFT)) {
@@ -635,6 +702,22 @@ std::unique_ptr<AST::Pattern> ParserCore::parsePattern() {
     
     if (!primary) {
         return nullptr;
+    }
+    
+    // Check for binding pattern: name @ pattern
+    // (AR) التحقق من نمط الربط: اسم @ نمط
+    if (check(TT::AT_SIGN)) {
+        // (AR) primary يجب أن يكون VariablePattern
+        auto* varPat = dynamic_cast<AST::VariablePattern*>(primary.get());
+        if (varPat) {
+            std::string bindName = varPat->name;
+            advance();  // consume @
+            auto innerPattern = parsePattern();
+            if (innerPattern) {
+                return std::make_unique<AST::BindingPattern>(
+                    bindName, std::move(innerPattern));
+            }
+        }
     }
     
     // Check for OR pattern: a | b | c (using OP_OR)
@@ -663,23 +746,46 @@ std::unique_ptr<AST::Pattern> ParserCore::parsePattern() {
 }
 
 /**
- * @brief (AR) يحلل نمط أساسي (literal, variable, wildcard)
- *        (EN) Parses primary pattern (literal, variable, wildcard)
+ * @brief (AR) يحلل نمط أساسي (literal, variable, wildcard, range)
+ *        (EN) Parses primary pattern (literal, variable, wildcard, range)
  */
 std::unique_ptr<AST::Pattern> ParserCore::parsePrimaryPattern() {
-    // Number literal (INTEGER or DOUBLE)
-    // (AR) قيمة رقمية حرفية
-    if (check(TT::NUMBER_INTEGER)) {
+    // Number literal (INTEGER or DOUBLE) — may be start of range
+    // (AR) قيمة رقمية حرفية — قد تكون بداية نطاق
+    if (check(TT::NUMBER_INTEGER) || check(TT::NUMBER_DOUBLE)) {
         Token token = current_;
         advance();
         double value = std::stod(token.getValue());
-        return std::make_unique<AST::LiteralPattern>(Data::Value(value));
-    }
-    
-    if (check(TT::NUMBER_DOUBLE)) {
-        Token token = current_;
-        advance();
-        double value = std::stod(token.getValue());
+        
+        // Check for range pattern: 1..10 or 1..=10
+        // (AR) التحقق من نمط نطاق: 1..10 أو 1..=10
+        if (check(TT::DOT_DOT)) {
+            advance();  // consume ..
+            bool inclusive = false;
+            
+            // Check for ..= (inclusive)
+            if (check(TT::OP_ASSIGN)) {
+                advance();
+                inclusive = true;
+            }
+            
+            // Parse end value
+            if (!check(TT::NUMBER_INTEGER) && !check(TT::NUMBER_DOUBLE)) {
+                errorBilingual(
+                    "خطأ: توقعت رقم بعد '..' في نمط النطاق",
+                    "Error: Expected number after '..' in range pattern"
+                );
+                return nullptr;
+            }
+            
+            Token endToken = current_;
+            advance();
+            double endValue = std::stod(endToken.getValue());
+            
+            return std::make_unique<AST::RangePattern>(
+                Data::Value(value), Data::Value(endValue), inclusive);
+        }
+        
         return std::make_unique<AST::LiteralPattern>(Data::Value(value));
     }
     
@@ -801,6 +907,76 @@ std::unique_ptr<AST::Pattern> ParserCore::parseListPattern() {
         has_rest,
         rest_name
     );
+}
+
+/**
+ * @brief (AR) يحلل نمط بنية/صنف { حقل: نمط، ... }
+ *        (EN) Parses struct/class pattern { field: pattern, ... }
+ */
+std::unique_ptr<AST::Pattern> ParserCore::parseStructPattern() {
+    if (!match(TT::BRACE_LEFT)) {
+        errorBilingual(
+            "خطأ: توقعت '{' لبداية نمط البنية",
+            "Error: Expected '{' for struct pattern"
+        );
+        return nullptr;
+    }
+    
+    std::vector<std::pair<std::string, std::unique_ptr<AST::Pattern>>> fields;
+    
+    // Empty struct: {}
+    // (AR) بنية فارغة: {}
+    if (check(TT::BRACE_RIGHT)) {
+        advance();
+        return std::make_unique<AST::StructPattern>("", std::move(fields));
+    }
+    
+    // Parse fields
+    // (AR) تحليل الحقول
+    do {
+        // Field name
+        // (AR) اسم الحقل
+        if (!check(TT::IDENTIFIER)) {
+            errorBilingual(
+                "خطأ: توقعت اسم حقل في نمط البنية",
+                "Error: Expected field name in struct pattern"
+            );
+            return nullptr;
+        }
+        
+        std::string fieldName = current_.getValue();
+        advance();
+        
+        // Colon
+        // (AR) نقطتان
+        if (!match(TT::COLON)) {
+            // (AR) إذا لم يوجد :، نفترض أن اسم الحقل هو أيضاً المتغير
+            // (EN) If no :, assume field name is also the variable
+            fields.push_back({
+                fieldName, 
+                std::make_unique<AST::VariablePattern>(fieldName)
+            });
+        } else {
+            // Parse field pattern
+            // (AR) تحليل نمط الحقل
+            auto fieldPattern = parsePattern();
+            if (!fieldPattern) {
+                return nullptr;
+            }
+            fields.push_back({fieldName, std::move(fieldPattern)});
+        }
+        
+    } while (matchAny({TT::COMMA, TT::ARABIC_COMMA}));
+    
+    if (!match(TT::BRACE_RIGHT)) {
+        errorBilingual(
+            "خطأ: توقعت '}' في نهاية نمط البنية",
+            "Error: Expected '}' at end of struct pattern"
+        );
+        return nullptr;
+    }
+    
+    return std::make_unique<AST::StructPattern>("", std::move(fields));
 }
 
 // ======================================================================
@@ -1147,7 +1323,7 @@ StmtPtr ParserCore::parseTemplateDecl() {
             //   ج) خاصية اسم            — حقل بنوع ديناميكي (OBJECT)
             //   د) خاصية نوع اسم        — حقل بنوع مدمج (بدون getter/setter)
             // ─────────────────────────────────────────────────────────────
-            if (check(TT::KEYWORD_PROPERTY)) {
+            if (check(TT::KEYWORD_PROPERTY) || (check(TT::IDENTIFIER) && current_.getValue() == "خاصية")) {
                 advance(); // (AR) استهلاك 'خاصية'
                 
                 // (AR) الحالة (أ): التالي هو معامل نوع قالب (مثل: خاصية ت محتوى)
@@ -1230,14 +1406,14 @@ StmtPtr ParserCore::parseTemplateDecl() {
             // ─────────────────────────────────────────────────────────────
             // (AR) [4] التحقق من دالة الهدم (KEYWORD_DESTRUCTOR = هدم)
             // ─────────────────────────────────────────────────────────────
-            if (check(TT::KEYWORD_DESTRUCTOR)) {
+            if (check(TT::KEYWORD_DESTRUCTOR) || (check(TT::IDENTIFIER) && current_.getValue() == "هدم")) {
                 return parseDestructorDeclaration(className, access);
             }
             
             // ─────────────────────────────────────────────────────────────
             // (AR) [5] التحقق من تحميل العوامل الزائد (KEYWORD_OPERATOR = عامل)
             // ─────────────────────────────────────────────────────────────
-            if (check(TT::KEYWORD_OPERATOR)) {
+            if (check(TT::KEYWORD_OPERATOR) || (check(TT::IDENTIFIER) && current_.getValue() == "عامل")) {
                 advance(); // (AR) استهلاك 'عامل'
                 auto operatorDecl = parseOperatorDecl();
                 if (operatorDecl) {
@@ -1404,13 +1580,16 @@ StmtPtr ParserCore::parseNamespaceDecl() {
     } else {
         // (AR) صيغة بدون أقواس: فضاء اسم ... نهاية_فضاء
         // (EN) No-brace syntax
-        while (!check(TT::KEYWORD_END_NAMESPACE) && !check(TT::KEYWORD_END) && !isAtEnd()) {
+        while (!check(TT::KEYWORD_END_NAMESPACE) && !check(TT::KEYWORD_END) &&
+               !(check(TT::IDENTIFIER) && current_.getValue() == "نهاية_فضاء") &&
+               !isAtEnd()) {
             auto decl = parseDeclaration();
             if (decl) {
                 members.push_back(std::move(decl));
             }
         }
-        if (!match(TT::KEYWORD_END_NAMESPACE) && !match(TT::KEYWORD_END)) {
+        if (!match(TT::KEYWORD_END_NAMESPACE) && !match(TT::KEYWORD_END) &&
+            !(check(TT::IDENTIFIER) && current_.getValue() == "نهاية_فضاء" && (advance(), true))) {
             errorBilingual(
                 "خطأ نحوي: توقعت 'نهاية_فضاء' لإنهاء فضاء الأسماء",
                 "Syntax error: Expected 'end_namespace' to close namespace"

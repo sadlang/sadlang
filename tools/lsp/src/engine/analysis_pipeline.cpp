@@ -431,12 +431,38 @@ static void collect_references(
         }
         if (first_non_space < line.size() && line[first_non_space] == '#') continue;
 
+        // ──── بناء خريطة المناطق داخل النصوص المقتبسة ────
+        // نحدد أي أجزاء من السطر داخل "..." أو '...'
+        std::vector<bool> in_string_map(line.size(), false);
+        {
+            bool in_str = false;
+            char str_char = 0;
+            for (size_t j = 0; j < line.size(); j++) {
+                if (!in_str && (line[j] == '"' || line[j] == '\'')) {
+                    in_str = true;
+                    str_char = line[j];
+                    in_string_map[j] = true;
+                } else if (in_str) {
+                    in_string_map[j] = true;
+                    if (line[j] == str_char && (j == 0 || line[j-1] != '\\')) {
+                        in_str = false;
+                    }
+                }
+            }
+        }
+
         // ──── البحث عن كل رمز معروف في السطر ────
         for (const auto& [name, sym] : known_symbols) {
             size_t search_pos = 0;
             while (search_pos < line.size()) {
                 size_t found = line.find(name, search_pos);
                 if (found == std::string::npos) break;
+
+                // ──── تخطي التطابقات داخل النصوص المقتبسة ────
+                if (found < in_string_map.size() && in_string_map[found]) {
+                    search_pos = found + name.size();
+                    continue;
+                }
 
                 // ──── التحقق من حدود الكلمة ────
                 // نتأكد أن الاسم ليس جزءاً من كلمة أطول
@@ -468,6 +494,7 @@ static void collect_references(
                     // ──── إنشاء المرجع وإضافته ────
                     SymbolReference ref;
                     ref.uri = uri;
+                    ref.name = name;
                     ref.range.start = {i, static_cast<int>(found)};
                     ref.range.end = {i, static_cast<int>(end_pos)};
                     ref.is_declaration = is_definition;

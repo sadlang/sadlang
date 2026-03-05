@@ -2,7 +2,7 @@
   "name": "sad-language",
   "displayName": "Sad Language Support (لغة ص)",
   "description": "دعم كامل للغة ص - Full Language Support for Sad Programming Language",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "publisher": "sad-language",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -25,7 +25,9 @@
     "لغة ص"
   ],
   "activationEvents": [
-    "onLanguage:sad"
+    "onLanguage:sad",
+    "onView:sadFeatures",
+    "onView:sadQuickActions"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -54,12 +56,115 @@
         "path": "./syntaxes/sad.tmLanguage.json"
       }
     ],
+    "themes": [
+      {
+        "label": "سمة لغة ص الداكنة — Sad Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/sad-dark-theme.json"
+      },
+      {
+        "label": "سمة لغة ص الفاتحة — Sad Light",
+        "uiTheme": "vs",
+        "path": "./themes/sad-light-theme.json"
+      }
+    ],
     "snippets": [
       {
         "language": "sad",
         "path": "./snippets/sad.json"
       }
     ],
+    "debuggers": [
+      {
+        "type": "sad",
+        "languages": [
+          "sad"
+        ],
+        "label": "مصحح لغة ص — Sad Debugger",
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "مسار ملف .ص المراد تصحيحه / Path to the .ص file to debug",
+                "default": "${file}"
+              },
+              "interpreter": {
+                "type": "string",
+                "description": "مسار المفسر (sad.exe) / Path to interpreter (sad.exe)",
+                "default": ""
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "التوقف عند نقطة الدخول / Stop at entry point",
+                "default": true
+              },
+              "cwd": {
+                "type": "string",
+                "description": "مجلد العمل / Working directory",
+                "default": "${workspaceFolder}"
+              },
+              "env": {
+                "type": "object",
+                "description": "متغيرات البيئة / Environment variables",
+                "default": {}
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "sad",
+            "request": "launch",
+            "name": "تصحيح ملف ص / Debug Sad File",
+            "program": "${file}",
+            "stopOnEntry": true
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "ص: تصحيح ملف / Sad: Debug File",
+            "description": "تشغيل وتصحيح ملف لغة ص / Launch and debug a Sad file",
+            "body": {
+              "type": "sad",
+              "request": "launch",
+              "name": "تصحيح ${2:ملف ص}",
+              "program": "^\"\\${file}\"",
+              "stopOnEntry": true
+            }
+          }
+        ]
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "sad"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sad-explorer",
+          "title": "لغة ص — Sad Language",
+          "icon": "images/sidebar-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "sad-explorer": [
+        {
+          "id": "sadQuickActions",
+          "name": "⚡ إجراءات سريعة"
+        },
+        {
+          "id": "sadFeatures",
+          "name": "📋 جميع الميزات"
+        }
+      ]
+    },
     "configuration": {
       "title": "Sad Language",
       "properties": {
@@ -97,6 +202,36 @@
           "type": "boolean",
           "default": true,
           "description": "استخدام المسافات بدلاً من التاب / Use spaces instead of tabs"
+        },
+        "sad.interpreter.path": {
+          "type": "string",
+          "default": "",
+          "description": "مسار مفسر لغة ص / Path to the sad interpreter executable (sad.exe)"
+        },
+        "sad.compiler.path": {
+          "type": "string",
+          "default": "",
+          "description": "مسار مترجم لغة ص / Path to the sad compiler executable (sadc.exe)"
+        },
+        "sad.execution.mode": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "interpreter",
+            "compiler"
+          ],
+          "enumDescriptions": [
+            "اسأل كل مرة عند التشغيل / Ask every time when running",
+            "استخدم المفسر دائماً (sad.exe) / Always use interpreter",
+            "استخدم المترجم دائماً (sadc.exe) / Always use compiler"
+          ],
+          "default": "ask",
+          "description": "وضع التنفيذ الافتراضي / Default execution mode"
+        },
+        "sad.rtl.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "تفعيل اتجاه النص من اليمين لليسار تلقائياً / Enable RTL text direction automatically for .ص files"
         }
       }
     },
@@ -110,6 +245,648 @@
         "command": "sad.showOutputChannel",
         "title": "عرض سجل الخادم / Show Server Log",
         "category": "Sad"
+      },
+      {
+        "command": "sad.runFile",
+        "title": "تشغيل الملف الحالي / Run Current File",
+        "category": "Sad",
+        "icon": "$(play)"
+      },
+      {
+        "command": "sad.runWithInterpreter",
+        "title": "تشغيل بالمفسر / Run with Interpreter",
+        "category": "Sad",
+        "icon": "$(play)"
+      },
+      {
+        "command": "sad.runWithCompiler",
+        "title": "ترجمة وتشغيل / Compile and Run",
+        "category": "Sad",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "sad.switchExecutionMode",
+        "title": "تبديل وضع التنفيذ / Switch Execution Mode",
+        "category": "Sad",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "sad.newFile",
+        "title": "ملف ص جديد / New Sad File",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.generateDoc",
+        "title": "توليد التوثيق التلقائي / Generate Documentation",
+        "category": "Sad",
+        "icon": "$(book)"
+      },
+      {
+        "command": "sad.showAST",
+        "title": "عرض شجرة AST / Show AST Explorer",
+        "category": "Sad",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "sad.debug",
+        "title": "تصحيح الملف الحالي / Debug Current File",
+        "category": "Sad",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "sad.translateToSad",
+        "title": "ترجمة Python إلى ص / Translate Python to Sad",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.translateToPython",
+        "title": "ترجمة ص إلى Python / Translate Sad to Python",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.translateAuto",
+        "title": "ترجمة تلقائية / Auto Translate",
+        "category": "Sad",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "sad.previewGraphics",
+        "title": "معاينة الرسوميات / Preview Graphics",
+        "category": "Sad",
+        "icon": "$(symbol-color)"
+      },
+      {
+        "command": "sad.openTutorial",
+        "title": "المساعد التعليمي / Open Tutorial",
+        "category": "Sad",
+        "icon": "$(mortar-board)"
+      },
+      {
+        "command": "sad.analyzePerformance",
+        "title": "تحليل الأداء / Analyze Performance",
+        "category": "Sad",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "sad.refreshTests",
+        "title": "تحديث الاختبارات / Refresh Tests",
+        "category": "Sad",
+        "icon": "$(testing-refresh-tests)"
+      },
+      {
+        "command": "sad.toggleRTL",
+        "title": "تبديل اتجاه النص RTL/LTR — Toggle Text Direction",
+        "category": "Sad",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "sad.forceRTL",
+        "title": "فرض RTL — Force Right-to-Left",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.forceLTR",
+        "title": "فرض LTR — Force Left-to-Right",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.openRTLPanel",
+        "title": "فتح لوحة RTL — Open RTL Panel",
+        "category": "Sad",
+        "icon": "$(arrow-right)"
+      },
+      {
+        "command": "sad.watchVariable",
+        "title": "مراقبة متغير / Watch Variable",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.showVariablePanel",
+        "title": "لوحة المتغيرات / Variable Panel",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.runSelection",
+        "title": "تشغيل النص المحدد / Run Selection",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.runLine",
+        "title": "تشغيل السطر الحالي / Run Current Line",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.runToCursor",
+        "title": "تشغيل حتى المؤشر / Run to Cursor",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.clearInlineResults",
+        "title": "مسح النتائج المضمنة / Clear Inline Results",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.showCallHierarchy",
+        "title": "هرمية الاستدعاءات / Call Hierarchy",
+        "category": "Sad",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "sad.showDependencyGraph",
+        "title": "رسم الاعتمادات / Dependency Graph",
+        "category": "Sad",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "sad.analyzeComplexity",
+        "title": "تحليل التعقيد / Analyze Complexity",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.organizeImports",
+        "title": "تنظيم الاستيرادات / Organize Imports",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.removeUnusedImports",
+        "title": "إزالة الاستيرادات غير المستخدمة / Remove Unused Imports",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.addImport",
+        "title": "إضافة استيراد / Add Import",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.generateSnippet",
+        "title": "توليد قصاصة من الاختيار / Generate Snippet from Selection",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.wrapWithSnippet",
+        "title": "تغليف بقصاصة / Wrap with Snippet",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.insertColor",
+        "title": "إدراج لون / Insert Color",
+        "category": "Sad",
+        "icon": "$(symbol-color)"
+      },
+      {
+        "command": "sad.showDashboard",
+        "title": "لوحة قيادة المشروع / Project Dashboard",
+        "category": "Sad",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "sad.toggleBookmark",
+        "title": "إضافة/إزالة علامة / Toggle Bookmark",
+        "category": "Sad",
+        "icon": "$(bookmark)"
+      },
+      {
+        "command": "sad.toggleBookmarkWithLabel",
+        "title": "علامة بوصف / Bookmark with Label",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.listBookmarks",
+        "title": "قائمة العلامات / List Bookmarks",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.nextBookmark",
+        "title": "العلامة التالية / Next Bookmark",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.prevBookmark",
+        "title": "العلامة السابقة / Previous Bookmark",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.clearBookmarks",
+        "title": "مسح العلامات / Clear Bookmarks",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.showBookmarkPanel",
+        "title": "لوحة العلامات / Bookmark Panel",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.showTimeline",
+        "title": "الخط الزمني للكود / Code Timeline",
+        "category": "Sad",
+        "icon": "$(history)"
+      },
+      {
+        "command": "sad.fileHistory",
+        "title": "تاريخ الملف / File History",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.lineHistory",
+        "title": "تاريخ السطر / Line History",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.smartRename",
+        "title": "إعادة تسمية ذكية / Smart Rename",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.renameSymbol",
+        "title": "معالج إعادة التسمية / Rename Symbol Wizard",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.batchRename",
+        "title": "إعادة تسمية جماعية / Batch Rename",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.openTerminal",
+        "title": "فتح طرفية ص / Open Sad Terminal",
+        "category": "Sad",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "sad.runInTerminal",
+        "title": "تشغيل في الطرفية / Run in Terminal",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.runSelectionInTerminal",
+        "title": "تشغيل الاختيار في الطرفية / Run Selection in Terminal",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.terminalHistory",
+        "title": "تاريخ الطرفية / Terminal History",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.newProject",
+        "title": "مشروع جديد / New Project",
+        "category": "Sad",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "sad.addModule",
+        "title": "إضافة وحدة / Add Module",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.addTest",
+        "title": "إضافة ملف اختبار / Add Test File",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.minimapSummary",
+        "title": "ملخص الخريطة المصغرة / Minimap Summary",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.previewDocs",
+        "title": "معاينة التوثيق / Preview Documentation",
+        "category": "Sad",
+        "icon": "$(book)"
+      },
+      {
+        "command": "sad.exportDocs",
+        "title": "تصدير التوثيق / Export Documentation",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.generateFileDoc",
+        "title": "توليد رأس التوثيق / Generate File Doc Header",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.shareCode",
+        "title": "مشاركة الكود / Share Code",
+        "category": "Sad",
+        "icon": "$(link)"
+      },
+      {
+        "command": "sad.shareSelection",
+        "title": "مشاركة النص المحدد / Share Selection",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.stopSharing",
+        "title": "إيقاف المشاركة / Stop Sharing",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.copyCodeAsImage",
+        "title": "نسخ الكود كصورة / Copy Code as Image",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.exportCodeSnippet",
+        "title": "تصدير مقطع كود / Export Code Snippet",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.aiSuggest",
+        "title": "اقتراحات المساعد الذكي / AI Suggestions",
+        "category": "Sad",
+        "icon": "$(lightbulb)"
+      },
+      {
+        "command": "sad.aiFix",
+        "title": "إصلاح ذكي / AI Fix Error",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.aiExplain",
+        "title": "شرح الكود / Explain Code",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.aiGenerate",
+        "title": "توليد كود / Generate Code",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.aiRefactor",
+        "title": "إعادة هيكلة / Refactor Code",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.openDatabase",
+        "title": "فتح قاعدة بيانات / Open Database",
+        "category": "Sad",
+        "icon": "$(database)"
+      },
+      {
+        "command": "sad.newDatabase",
+        "title": "قاعدة بيانات جديدة / New Database",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.insertDbSnippet",
+        "title": "إدراج قالب قاعدة بيانات / Insert DB Snippet",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.foldFunctions",
+        "title": "طي الدوال / Fold Functions",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.foldClasses",
+        "title": "طي الأصناف / Fold Classes",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.foldComments",
+        "title": "طي التعليقات / Fold Comments",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.foldImports",
+        "title": "طي الاستيرادات / Fold Imports",
+        "category": "Sad"
+      },
+      {
+        "command": "sad.goToSymbol",
+        "title": "انتقل إلى رمز / Go to Symbol",
+        "category": "Sad",
+        "icon": "$(symbol-method)"
+      },
+      {
+        "command": "sad.commandCenter",
+        "title": "🎯 لوحة التحكم / Command Center",
+        "category": "Sad",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "sad.quickCommand",
+        "title": "⚡ بحث سريع / Quick Command",
+        "category": "Sad",
+        "icon": "$(search)"
+      },
+      {
+        "command": "sad.refreshSidebar",
+        "title": "تحديث الشريط الجانبي / Refresh Sidebar",
+        "category": "Sad",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "editor/title/run": [
+        {
+          "command": "sad.runFile",
+          "when": "resourceLangId == sad",
+          "group": "navigation@1"
+        },
+        {
+          "command": "sad.runWithInterpreter",
+          "when": "resourceLangId == sad",
+          "group": "1_run@1"
+        },
+        {
+          "command": "sad.runWithCompiler",
+          "when": "resourceLangId == sad",
+          "group": "1_run@2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "sad.refreshSidebar",
+          "when": "view == sadFeatures",
+          "group": "navigation"
+        },
+        {
+          "command": "sad.commandCenter",
+          "when": "view == sadQuickActions",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configurationDefaults": {
+      "[sad]": {
+        "editor.unicodeHighlight.ambiguousCharacters": false,
+        "editor.unicodeHighlight.nonBasicASCII": false,
+        "editor.wordSeparators": "`~!@#$%^&*()-=+[{]}\\|;:'\",.<>/?",
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.autoClosingBrackets": "always",
+        "editor.suggest.showKeywords": true,
+        "editor.unicodeBidi": "plaintext",
+        "editor.renderControlCharacters": true,
+        "editor.wordWrap": "on"
+      }
+    },
+    "keybindings": [
+      {
+        "command": "sad.runFile",
+        "key": "f5",
+        "when": "resourceLangId == sad && !inDebugMode"
+      },
+      {
+        "command": "sad.restartServer",
+        "key": "ctrl+shift+r",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.generateDoc",
+        "key": "ctrl+shift+d",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.showAST",
+        "key": "ctrl+shift+a",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.translateAuto",
+        "key": "ctrl+shift+t",
+        "when": "resourceLangId == sad || resourceLangId == python"
+      },
+      {
+        "command": "sad.previewGraphics",
+        "key": "ctrl+shift+g",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.openTutorial",
+        "key": "ctrl+shift+l",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.toggleRTL",
+        "key": "ctrl+shift+;",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.toggleBookmark",
+        "key": "ctrl+f2",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.nextBookmark",
+        "key": "f2",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.smartRename",
+        "key": "f6",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.runSelection",
+        "key": "ctrl+shift+enter",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.organizeImports",
+        "key": "ctrl+shift+o",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.showDashboard",
+        "key": "ctrl+shift+p ctrl+d",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.goToSymbol",
+        "key": "ctrl+shift+.",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.openTerminal",
+        "key": "ctrl+shift+`",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.shareCode",
+        "key": "ctrl+shift+s",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.commandCenter",
+        "key": "ctrl+shift+p ctrl+c",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.quickCommand",
+        "key": "ctrl+shift+p ctrl+q",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.analyzeComplexity",
+        "key": "ctrl+shift+p ctrl+a",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.showCallHierarchy",
+        "key": "ctrl+shift+h",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.showDependencyGraph",
+        "key": "ctrl+shift+p ctrl+g",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.reviewCode",
+        "key": "ctrl+shift+p ctrl+r",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.previewDocs",
+        "key": "ctrl+shift+p ctrl+m",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.showTimeline",
+        "key": "ctrl+shift+p ctrl+t",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.prevBookmark",
+        "key": "shift+f2",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.showBookmarkPanel",
+        "key": "ctrl+shift+f2",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.runLine",
+        "key": "ctrl+shift+e",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.newProject",
+        "key": "ctrl+shift+n",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.wrapWithSnippet",
+        "key": "ctrl+shift+w",
+        "when": "resourceLangId == sad && editorHasSelection"
+      },
+      {
+        "command": "sad.runInTerminal",
+        "key": "ctrl+f5",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.aiExplain",
+        "key": "ctrl+shift+p ctrl+e",
+        "when": "resourceLangId == sad"
+      },
+      {
+        "command": "sad.copyCodeAsImage",
+        "key": "ctrl+shift+p ctrl+i",
+        "when": "resourceLangId == sad"
       }
     ]
   },
@@ -123,6 +900,8 @@
     "package": "vsce package"
   },
   "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.70.0",
     "@typescript-eslint/eslint-plugin": "^5.30.0",
@@ -132,6 +911,11 @@
     "vsce": "^2.10.0"
   },
   "dependencies": {
-    "vscode-languageclient": "^8.0.2"
+    "arabic-reshaper": "^1.1.0",
+    "node-pty": "^1.1.0",
+    "sad-language": "file:",
+    "string-direction": "^0.1.2",
+    "vscode-languageclient": "^8.0.2",
+    "xterm": "^5.3.0"
   }
 }

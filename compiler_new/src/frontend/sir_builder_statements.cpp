@@ -22,6 +22,7 @@
 #include "lexer_core.h"
 #include "parser_core.h"
 #include "pattern_nodes.h"
+#include "directive_nodes.h"
 #include "../../../shared/utils/include/utf8_utils.h"
 #include <stdexcept>
 #include <iostream>
@@ -349,26 +350,105 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
         std::cout << "[DEBUG] Found TryStmt" << std::endl;
         #endif
         
-        // (AR) إنشاء كتل: try، catch، finally، exit
-        // (EN) Create blocks: try, catch, finally, exit
+        bool hasFinally = (tryStmt->finallyBlock != nullptr);
+        size_t numClauses = tryStmt->catchClauses.size();
+        
+        // (AR) إنشاء كتل: try، catch dispatch، finally، exit
+        // (EN) Create blocks: try, catch dispatch, finally, exit
         std::string tryLabel = newLabel("try_body");
-        std::string catchLabel = newLabel("catch_body");
+        std::string catchSetupLabel = newLabel("catch_setup");
         std::string finallyLabel = newLabel("finally_body");
         std::string exitLabel = newLabel("try_exit");
         
         auto tryBlock = createBasicBlock(tryLabel);
-        auto catchBlock = createBasicBlock(catchLabel);
+        auto catchSetupBlock = createBasicBlock(catchSetupLabel);
         auto finallyBlock = createBasicBlock(finallyLabel);
         auto exitBlock = createBasicBlock(exitLabel);
         
-        // (AR) القفز إلى كتلة try
-        // (EN) Jump to try block
-        if (currentBlock_) {
-            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(tryLabel)));
+        // (AR) كتل إضافية لـ finally الموثوق
+        // (EN) Extra blocks for reliable finally
+        std::string finallyRethrowLabel, catchSecondaryLabel;
+        std::shared_ptr<SIRBasicBlock> finallyRethrowBlock = nullptr;
+        std::shared_ptr<SIRBasicBlock> catchSecondaryBlock = nullptr;
+        if (hasFinally) {
+            finallyRethrowLabel = newLabel("finally_rethrow");
+            catchSecondaryLabel = newLabel("catch_secondary");
+            finallyRethrowBlock = createBasicBlock(finallyRethrowLabel);
+            catchSecondaryBlock = createBasicBlock(catchSecondaryLabel);
         }
         
-        // (AR) بناء كتلة try
-        // (EN) Build try block
+        // (AR) إنشاء كتل لكل catch clause — type check و body
+        // (EN) Create blocks for each catch clause — type check and body
+        std::vector<std::string> catchCheckLabels;
+        std::vector<std::string> catchBodyLabels;
+        std::vector<std::shared_ptr<SIRBasicBlock>> catchCheckBlocks;
+        std::vector<std::shared_ptr<SIRBasicBlock>> catchBodyBlocks;
+        // (AR) كتلة "لا تطابق" — إعادة رمي إذا لم يطابق أي catch
+        // (EN) "no match" block — rethrow if no clause matched
+        std::string noMatchLabel = newLabel("catch_no_match");
+        auto noMatchBlock = createBasicBlock(noMatchLabel);
+        
+        for (size_t i = 0; i < numClauses; ++i) {
+            std::string checkLabel = newLabel("catch_check_" + std::to_string(i));
+            std::string bodyLabel = newLabel("catch_body_" + std::to_string(i));
+            catchCheckLabels.push_back(checkLabel);
+            catchBodyLabels.push_back(bodyLabel);
+            catchCheckBlocks.push_back(createBasicBlock(checkLabel));
+            catchBodyBlocks.push_back(createBasicBlock(bodyLabel));
+        }
+        
+        // ================================================================
+        // (AR) الإعداد: jmpbuf + setjmp
+        // (EN) Setup: jmpbuf + setjmp
+        // ================================================================
+        std::string jmpbufReg = newTempRegister();
+        {
+            SIRInstruction allocInst;
+            allocInst.opcode = SIROpcode::CALL;
+            allocInst.result = SIROperand::Register(jmpbufReg, SIRType::PTR);
+            allocInst.operands.push_back(SIROperand::Function("__sad_alloc_jmpbuf"));
+            allocInst.comment = "allocate jmpbuf for try/catch";
+            if (currentBlock_) currentBlock_->addInstruction(allocInst);
+        }
+        {
+            SIRInstruction pushInst;
+            pushInst.opcode = SIROpcode::CALL;
+            pushInst.operands.push_back(SIROperand::Function("__sad_push_handler"));
+            pushInst.operands.push_back(SIROperand::Register(jmpbufReg, SIRType::PTR));
+            pushInst.comment = "push exception handler";
+            if (currentBlock_) currentBlock_->addInstruction(pushInst);
+        }
+        std::string setjmpResultReg = newTempRegister();
+        {
+            SIRInstruction setjmpInst;
+            setjmpInst.opcode = SIROpcode::CALL;
+            setjmpInst.result = SIROperand::Register(setjmpResultReg, SIRType::I64);
+            setjmpInst.operands.push_back(SIROperand::Function("__sad_setjmp"));
+            setjmpInst.operands.push_back(SIROperand::Register(jmpbufReg, SIRType::PTR));
+            setjmpInst.comment = "setjmp: 0=normal, 1=exception";
+            if (currentBlock_) currentBlock_->addInstruction(setjmpInst);
+        }
+        std::string cmpReg = newTempRegister();
+        {
+            SIRInstruction cmpInst = SIRInstruction::Binary(
+                SIROpcode::NE,
+                SIROperand::Register(cmpReg, SIRType::BOOL),
+                SIROperand::Register(setjmpResultReg, SIRType::I64),
+                SIROperand::ConstantI64(0));
+            if (currentBlock_) currentBlock_->addInstruction(cmpInst);
+        }
+        {
+            SIRInstruction brInst = SIRInstruction::BranchCond(
+                SIROperand::Register(cmpReg, SIRType::BOOL),
+                SIROperand::Label(catchSetupLabel),
+                SIROperand::Label(tryLabel));
+            if (currentBlock_) currentBlock_->addInstruction(brInst);
+        }
+        
+        // ================================================================
+        // (AR) كتلة try
+        // (EN) Try block
+        // ================================================================
         if (currentFunction_) currentFunction_->addBasicBlock(tryBlock);
         currentBlock_ = tryBlock;
         
@@ -378,64 +458,364 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
         }
         exitScope();
         
-        // (AR) في النهاية العادية: اذهب لـ finally ثم exit
-        // (EN) Normal end: go to finally then exit
-        std::string normalDest = tryStmt->finallyBlock ? finallyLabel : exitLabel;
+        {
+            SIRInstruction popInst;
+            popInst.opcode = SIROpcode::CALL;
+            popInst.operands.push_back(SIROperand::Function("__sad_pop_handler"));
+            popInst.comment = "pop handler after successful try";
+            if (currentBlock_) currentBlock_->addInstruction(popInst);
+        }
         if (currentBlock_) {
-            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(normalDest)));
+            currentBlock_->addInstruction(SIRInstruction::Branch(
+                SIROperand::Label(hasFinally ? finallyLabel : exitLabel)));
         }
         
-        // (AR) بناء كتل catch
-        // (EN) Build catch blocks
-        if (currentFunction_) currentFunction_->addBasicBlock(catchBlock);
-        currentBlock_ = catchBlock;
+        // ================================================================
+        // (AR) كتلة catch_setup — إزالة المعالج الأول + إعداد معالج ثانوي لـ finally
+        // (EN) catch_setup — pop primary handler + setup secondary for finally
+        // ================================================================
+        if (currentFunction_) currentFunction_->addBasicBlock(catchSetupBlock);
+        currentBlock_ = catchSetupBlock;
         
-        for (auto& catchClause : tryStmt->catchClauses) {
+        {
+            SIRInstruction popInst;
+            popInst.opcode = SIROpcode::CALL;
+            popInst.operands.push_back(SIROperand::Function("__sad_pop_handler"));
+            popInst.comment = "pop primary handler at catch entry";
+            if (currentBlock_) currentBlock_->addInstruction(popInst);
+        }
+        
+        if (hasFinally) {
+            // (AR) دفع معالج ثانوي يحمي catch — لضمان تنفيذ finally
+            // (EN) Push secondary handler protecting catch — guarantees finally runs
+            std::string jmpbuf2Reg = newTempRegister();
+            {
+                SIRInstruction allocInst;
+                allocInst.opcode = SIROpcode::CALL;
+                allocInst.result = SIROperand::Register(jmpbuf2Reg, SIRType::PTR);
+                allocInst.operands.push_back(SIROperand::Function("__sad_alloc_jmpbuf"));
+                allocInst.comment = "allocate secondary jmpbuf for finally protection";
+                if (currentBlock_) currentBlock_->addInstruction(allocInst);
+            }
+            {
+                SIRInstruction pushInst;
+                pushInst.opcode = SIROpcode::CALL;
+                pushInst.operands.push_back(SIROperand::Function("__sad_push_handler"));
+                pushInst.operands.push_back(SIROperand::Register(jmpbuf2Reg, SIRType::PTR));
+                pushInst.comment = "push secondary handler for finally";
+                if (currentBlock_) currentBlock_->addInstruction(pushInst);
+            }
+            std::string setjmp2Reg = newTempRegister();
+            {
+                SIRInstruction setjmpInst;
+                setjmpInst.opcode = SIROpcode::CALL;
+                setjmpInst.result = SIROperand::Register(setjmp2Reg, SIRType::I64);
+                setjmpInst.operands.push_back(SIROperand::Function("__sad_setjmp"));
+                setjmpInst.operands.push_back(SIROperand::Register(jmpbuf2Reg, SIRType::PTR));
+                setjmpInst.comment = "secondary setjmp: exception inside catch → finally_rethrow";
+                if (currentBlock_) currentBlock_->addInstruction(setjmpInst);
+            }
+            std::string cmp2Reg = newTempRegister();
+            {
+                SIRInstruction cmpInst = SIRInstruction::Binary(
+                    SIROpcode::NE,
+                    SIROperand::Register(cmp2Reg, SIRType::BOOL),
+                    SIROperand::Register(setjmp2Reg, SIRType::I64),
+                    SIROperand::ConstantI64(0));
+                if (currentBlock_) currentBlock_->addInstruction(cmpInst);
+            }
+            {
+                // (AR) إذا استثناء داخل catch → finally_rethrow
+                // (EN) If exception inside catch → finally_rethrow
+                SIRInstruction brInst = SIRInstruction::BranchCond(
+                    SIROperand::Register(cmp2Reg, SIRType::BOOL),
+                    SIROperand::Label(finallyRethrowLabel),
+                    SIROperand::Label(numClauses > 0 ? catchCheckLabels[0] : noMatchLabel));
+                if (currentBlock_) currentBlock_->addInstruction(brInst);
+            }
+        } else {
+            // (AR) بدون finally — اذهب مباشرة لفحص الأنواع
+            // (EN) No finally — go directly to type checks
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::Branch(
+                    SIROperand::Label(numClauses > 0 ? catchCheckLabels[0] : noMatchLabel)));
+            }
+        }
+        
+        // ================================================================
+        // (AR) كتل فحص النوع لكل catch clause
+        // (EN) Type check blocks for each catch clause
+        // ================================================================
+        for (size_t i = 0; i < numClauses; ++i) {
+            auto& clause = tryStmt->catchClauses[i];
+            
+            if (currentFunction_) currentFunction_->addBasicBlock(catchCheckBlocks[i]);
+            currentBlock_ = catchCheckBlocks[i];
+            
+            if (clause.exceptionType == Sad::Data::DataType::UNKNOWN) {
+                // (AR) catch-all: يطابق أي استثناء — اذهب مباشرة للجسم
+                // (EN) Catch-all: matches any exception — go directly to body
+                if (currentBlock_) {
+                    currentBlock_->addInstruction(SIRInstruction::Branch(
+                        SIROperand::Label(catchBodyLabels[i])));
+                }
+            } else if (clause.exceptionType == Sad::Data::DataType::ERROR) {
+                // (AR) مطابقة نوع ERROR — قارن مع "خطأ"
+                // (EN) Match ERROR type — compare with "خطأ"
+                std::string excTypeReg = newTempRegister();
+                {
+                    SIRInstruction getTypeInst;
+                    getTypeInst.opcode = SIROpcode::CALL;
+                    getTypeInst.result = SIROperand::Register(excTypeReg, SIRType::STRING);
+                    getTypeInst.operands.push_back(SIROperand::Function("__sad_get_exception_type"));
+                    getTypeInst.comment = "get exception type for matching";
+                    if (currentBlock_) currentBlock_->addInstruction(getTypeInst);
+                }
+                std::string matchReg = newTempRegister();
+                {
+                    SIRInstruction cmpInst;
+                    cmpInst.opcode = SIROpcode::CALL;
+                    cmpInst.result = SIROperand::Register(matchReg, SIRType::I64);
+                    cmpInst.operands.push_back(SIROperand::Function("__sad_str_equals"));
+                    cmpInst.operands.push_back(SIROperand::Register(excTypeReg, SIRType::STRING));
+                    cmpInst.operands.push_back(SIROperand::ConstantString("\xd8\xae\xd8\xb7\xd8\xa3")); // "خطأ"
+                    cmpInst.comment = "compare exception type with ERROR";
+                    if (currentBlock_) currentBlock_->addInstruction(cmpInst);
+                }
+                std::string nextTarget = (i + 1 < numClauses) ? catchCheckLabels[i + 1] : noMatchLabel;
+                {
+                    SIRInstruction brInst = SIRInstruction::BranchCond(
+                        SIROperand::Register(matchReg, SIRType::BOOL),
+                        SIROperand::Label(catchBodyLabels[i]),
+                        SIROperand::Label(nextTarget));
+                    if (currentBlock_) currentBlock_->addInstruction(brInst);
+                }
+            } else if (clause.exceptionType == Sad::Data::DataType::OBJECT) {
+                // (AR) مطابقة نوع كائن مخصص — قارن مع اسم الصنف
+                // (EN) Match custom object type — compare with class name
+                std::string typeName = clause.exceptionTypeName;
+                if (typeName.empty()) typeName = clause.exceptionVar;
+                
+                std::string excTypeReg = newTempRegister();
+                {
+                    SIRInstruction getTypeInst;
+                    getTypeInst.opcode = SIROpcode::CALL;
+                    getTypeInst.result = SIROperand::Register(excTypeReg, SIRType::STRING);
+                    getTypeInst.operands.push_back(SIROperand::Function("__sad_get_exception_type"));
+                    getTypeInst.comment = "get exception type for object matching";
+                    if (currentBlock_) currentBlock_->addInstruction(getTypeInst);
+                }
+                std::string matchReg = newTempRegister();
+                {
+                    SIRInstruction cmpInst;
+                    cmpInst.opcode = SIROpcode::CALL;
+                    cmpInst.result = SIROperand::Register(matchReg, SIRType::I64);
+                    cmpInst.operands.push_back(SIROperand::Function("__sad_str_equals"));
+                    cmpInst.operands.push_back(SIROperand::Register(excTypeReg, SIRType::STRING));
+                    cmpInst.operands.push_back(SIROperand::ConstantString(typeName));
+                    cmpInst.comment = "compare exception type with " + typeName;
+                    if (currentBlock_) currentBlock_->addInstruction(cmpInst);
+                }
+                std::string nextTarget = (i + 1 < numClauses) ? catchCheckLabels[i + 1] : noMatchLabel;
+                {
+                    SIRInstruction brInst = SIRInstruction::BranchCond(
+                        SIROperand::Register(matchReg, SIRType::BOOL),
+                        SIROperand::Label(catchBodyLabels[i]),
+                        SIROperand::Label(nextTarget));
+                    if (currentBlock_) currentBlock_->addInstruction(brInst);
+                }
+            } else {
+                // (AR) نوع غير معروف — يعامل كـ catch-all
+                // (EN) Unknown type — treated as catch-all
+                if (currentBlock_) {
+                    currentBlock_->addInstruction(SIRInstruction::Branch(
+                        SIROperand::Label(catchBodyLabels[i])));
+                }
+            }
+        }
+        
+        // ================================================================
+        // (AR) كتل أجسام catch
+        // (EN) Catch body blocks
+        // ================================================================
+        std::string catchExitDest = hasFinally ? finallyLabel : exitLabel;
+        
+        for (size_t i = 0; i < numClauses; ++i) {
+            auto& clause = tryStmt->catchClauses[i];
+            
+            if (currentFunction_) currentFunction_->addBasicBlock(catchBodyBlocks[i]);
+            currentBlock_ = catchBodyBlocks[i];
+            
             enterScope();
             
-            // (AR) تسجيل متغير الاستثناء
-            // (EN) Register exception variable
-            if (!catchClause.exceptionVar.empty()) {
+            if (!clause.exceptionVar.empty()) {
+                std::string exAllocReg = "%" + clause.exceptionVar;
                 std::string exReg = newTempRegister();
+                
+                {
+                    SIRInstruction allocInst;
+                    allocInst.opcode = SIROpcode::ALLOC;
+                    allocInst.result = SIROperand::Register(exAllocReg, SIRType::STRING);
+                    if (currentBlock_) currentBlock_->addInstruction(allocInst);
+                }
+                {
+                    SIRInstruction loadExInst;
+                    loadExInst.opcode = SIROpcode::CALL;
+                    loadExInst.result = SIROperand::Register(exReg, SIRType::STRING);
+                    loadExInst.operands.push_back(SIROperand::Function("__sad_get_exception"));
+                    loadExInst.comment = "load caught exception into " + clause.exceptionVar;
+                    if (currentBlock_) currentBlock_->addInstruction(loadExInst);
+                }
+                {
+                    SIRInstruction storeInst;
+                    storeInst.opcode = SIROpcode::STORE;
+                    storeInst.operands.push_back(SIROperand::Register(exReg, SIRType::STRING));
+                    storeInst.operands.push_back(SIROperand::Register(exAllocReg, SIRType::STRING));
+                    if (currentBlock_) currentBlock_->addInstruction(storeInst);
+                }
+                
                 VariableInfo exVar;
-                exVar.name = catchClause.exceptionVar;
+                exVar.name = clause.exceptionVar;
                 exVar.type = SIRType::STRING;
-                exVar.registerName = exReg;
+                exVar.registerName = exAllocReg;
                 exVar.isMutable = false;
                 exVar.scopeLevel = currentScopeLevel_;
                 addVariable(exVar);
-                
-                // (AR) تعليمة خاصة لتحميل الاستثناء
-                // (EN) Special instruction to load exception
-                SIRInstruction loadExInst;
-                loadExInst.opcode = SIROpcode::CALL;
-                loadExInst.result = SIROperand::Register(exReg, SIRType::STRING);
-                loadExInst.operands.push_back(SIROperand::ConstantString("__sad_get_exception"));
-                loadExInst.comment = "load caught exception into " + catchClause.exceptionVar;
-                if (currentBlock_) currentBlock_->addInstruction(loadExInst);
             }
             
-            if (catchClause.body) {
-                buildStatement(catchClause.body.get());
+            if (clause.body) {
+                buildStatement(clause.body.get());
             }
             
             exitScope();
+            
+            // (AR) إزالة المعالج الثانوي قبل الخروج (إذا وجد)
+            // (EN) Pop secondary handler before exit (if exists)
+            if (hasFinally) {
+                SIRInstruction popInst;
+                popInst.opcode = SIROpcode::CALL;
+                popInst.operands.push_back(SIROperand::Function("__sad_pop_handler"));
+                popInst.comment = "pop secondary handler after catch body";
+                if (currentBlock_) currentBlock_->addInstruction(popInst);
+            }
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::Branch(
+                    SIROperand::Label(catchExitDest)));
+            }
         }
         
-        if (currentBlock_) {
-            currentBlock_->addInstruction(SIRInstruction::Branch(
-                SIROperand::Label(tryStmt->finallyBlock ? finallyLabel : exitLabel)));
+        // ================================================================
+        // (AR) كتلة "لا تطابق" — إعادة رمي الاستثناء
+        // (EN) "No match" block — rethrow exception
+        // ================================================================
+        if (currentFunction_) currentFunction_->addBasicBlock(noMatchBlock);
+        currentBlock_ = noMatchBlock;
+        
+        if (hasFinally) {
+            // (AR) إزالة المعالج الثانوي ثم تنفيذ finally ثم إعادة الرمي
+            // (EN) Pop secondary handler, run finally, then rethrow
+            {
+                SIRInstruction popInst;
+                popInst.opcode = SIROpcode::CALL;
+                popInst.operands.push_back(SIROperand::Function("__sad_pop_handler"));
+                popInst.comment = "pop secondary handler before rethrow";
+                if (currentBlock_) currentBlock_->addInstruction(popInst);
+            }
+            // (AR) تنفيذ finally ثم إعادة رمي
+            // (EN) Run finally then rethrow
+            if (tryStmt->finallyBlock) {
+                enterScope();
+                buildStatement(tryStmt->finallyBlock.get());
+                exitScope();
+            }
+            // (AR) إعادة رمي الاستثناء الحالي
+            // (EN) Re-throw current exception
+            {
+                SIRInstruction rethrowInst;
+                rethrowInst.opcode = SIROpcode::CALL;
+                rethrowInst.operands.push_back(SIROperand::Function("__sad_raise_current"));
+                rethrowInst.comment = "rethrow unmatched exception after finally";
+                if (currentBlock_) currentBlock_->addInstruction(rethrowInst);
+            }
+            // (AR) كتلة ميتة
+            // (EN) Dead block
+            std::string deadLabel = newLabel("dead_after_nomatch");
+            auto deadBlock = createBasicBlock(deadLabel);
+            if (currentFunction_) currentFunction_->addBasicBlock(deadBlock);
+            currentBlock_ = deadBlock;
+        } else {
+            // (AR) بدون finally — إعادة رمي مباشرة
+            // (EN) Without finally — direct rethrow
+            {
+                SIRInstruction rethrowInst;
+                rethrowInst.opcode = SIROpcode::CALL;
+                rethrowInst.operands.push_back(SIROperand::Function("__sad_raise_current"));
+                rethrowInst.comment = "rethrow unmatched exception";
+                if (currentBlock_) currentBlock_->addInstruction(rethrowInst);
+            }
+            std::string deadLabel = newLabel("dead_after_nomatch");
+            auto deadBlock = createBasicBlock(deadLabel);
+            if (currentFunction_) currentFunction_->addBasicBlock(deadBlock);
+            currentBlock_ = deadBlock;
         }
         
-        // (AR) بناء كتلة finally
-        // (EN) Build finally block
-        if (tryStmt->finallyBlock) {
+        // ================================================================
+        // (AR) كتلة finally_rethrow — استثناء داخل catch + تنفيذ finally + إعادة رمي
+        // (EN) finally_rethrow — exception inside catch + run finally + rethrow
+        // ================================================================
+        if (hasFinally && finallyRethrowBlock) {
+            if (currentFunction_) currentFunction_->addBasicBlock(finallyRethrowBlock);
+            currentBlock_ = finallyRethrowBlock;
+            
+            // (AR) إزالة المعالج الثانوي
+            // (EN) Pop secondary handler
+            {
+                SIRInstruction popInst;
+                popInst.opcode = SIROpcode::CALL;
+                popInst.operands.push_back(SIROperand::Function("__sad_pop_handler"));
+                popInst.comment = "pop secondary handler in finally_rethrow";
+                if (currentBlock_) currentBlock_->addInstruction(popInst);
+            }
+            
+            // (AR) تنفيذ كود finally
+            // (EN) Execute finally code
+            if (tryStmt->finallyBlock) {
+                enterScope();
+                buildStatement(tryStmt->finallyBlock.get());
+                exitScope();
+            }
+            
+            // (AR) إعادة رمي الاستثناء
+            // (EN) Rethrow exception
+            {
+                SIRInstruction rethrowInst;
+                rethrowInst.opcode = SIROpcode::CALL;
+                rethrowInst.operands.push_back(SIROperand::Function("__sad_raise_current"));
+                rethrowInst.comment = "rethrow exception after finally";
+                if (currentBlock_) currentBlock_->addInstruction(rethrowInst);
+            }
+            // (AR) كتلة ميتة
+            // (EN) Dead block
+            std::string deadLabel = newLabel("dead_after_finally_rethrow");
+            auto deadRethrowBlock = createBasicBlock(deadLabel);
+            if (currentFunction_) currentFunction_->addBasicBlock(deadRethrowBlock);
+            currentBlock_ = deadRethrowBlock;
+        }
+        
+        // ================================================================
+        // (AR) كتلة finally — المسار العادي
+        // (EN) Finally block — normal path
+        // ================================================================
+        if (hasFinally) {
             if (currentFunction_) currentFunction_->addBasicBlock(finallyBlock);
             currentBlock_ = finallyBlock;
             
-            enterScope();
-            buildStatement(tryStmt->finallyBlock.get());
-            exitScope();
+            if (tryStmt->finallyBlock) {
+                enterScope();
+                buildStatement(tryStmt->finallyBlock.get());
+                exitScope();
+            }
             
             if (currentBlock_) {
                 currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(exitLabel)));
@@ -465,25 +845,41 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
             exResult = buildExpression(raiseStmt->exception.get());
         }
         
-        // (AR) استدعاء دالة runtime لرفع الاستثناء
-        // (EN) Call runtime function to raise exception
+        // (AR) استدعاء دالة runtime لرفع الاستثناء مع النوع
+        // (EN) Call runtime function to raise exception with type
+        // (AR) الصيغة: __sad_raise(type, msg) — إذا كان كائناً نستخدم اسم الصنف، وإلا "خطأ"
+        // (EN) Format: __sad_raise(type, msg) — use class name if object, else "خطأ"
         SIRInstruction raiseInst;
         raiseInst.opcode = SIROpcode::CALL;
-        raiseInst.operands.push_back(SIROperand::ConstantString("__sad_raise"));
-        if (!exResult.registerName.empty()) {
+        raiseInst.operands.push_back(SIROperand::Function("__sad_raise"));
+        
+        // (AR) تحديد نوع الاستثناء: إذا كان NewExpr نستخدم اسم الصنف
+        // (EN) Determine exception type: if NewExpr, use class name
+        std::string exceptionTypeName = "\xd8\xae\xd8\xb7\xd8\xa3"; // "خطأ" default
+        if (raiseStmt->exception) {
+            if (auto* newExpr = dynamic_cast<Sad::AST::NewExpr*>(raiseStmt->exception.get())) {
+                exceptionTypeName = newExpr->className;
+            }
+        }
+        raiseInst.operands.push_back(SIROperand::ConstantString(exceptionTypeName));
+        
+        // (AR) الوسيط الثاني: رسالة الاستثناء
+        // (EN) Second arg: exception message
+        if (exResult.isConstant && exResult.type == SIRType::STRING) {
+            raiseInst.operands.push_back(SIROperand::ConstantString(exResult.constantValue));
+        } else if (!exResult.registerName.empty()) {
             raiseInst.operands.push_back(SIROperand::Register(exResult.registerName, exResult.type));
         }
-        raiseInst.comment = "raise exception";
+        raiseInst.comment = "raise exception (type + message)";
         
         if (currentBlock_) {
             currentBlock_->addInstruction(raiseInst);
         }
         
-        // (AR) بعد الرفع، لا يمكن الوصول لهذه النقطة
-        // (EN) After raise, this point is unreachable — emit ret void as terminator
-        if (currentBlock_) {
-            currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
-        }
+        // (AR) بعد الرفع، لا يمكن الوصول لهذه النقطة — كتلة للكود الميت
+        // (EN) After raise, this point is unreachable — dead code block
+        // (AR) لا نصدر RET_VOID لأن __sad_raise يستدعي longjmp فلا يعود أبداً
+        // (EN) No RET_VOID because __sad_raise calls longjmp and never returns
         
         // (AR) كتلة جديدة للكود بعد raise (كود ميت)
         // (EN) New block for code after raise (dead code)
@@ -508,16 +904,28 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
             valResult = buildExpression(yieldStmt->value.get());
         }
         
-        // (AR) استدعاء دالة runtime للـ yield
-        // (EN) Call runtime yield function
+        // (AR) إنشاء تعليمة GENERATOR_YIELD لتخزين القيمة في الوعد + التعليق
+        // (EN) Create GENERATOR_YIELD instruction to store value in promise + suspend
         SIRInstruction yieldInst;
-        yieldInst.opcode = SIROpcode::CALL;
-        yieldInst.operands.push_back(SIROperand::ConstantString(
-            yieldStmt->isYieldFrom ? "__sad_yield_from" : "__sad_yield"));
-        if (!valResult.registerName.empty()) {
+        yieldInst.opcode = SIROpcode::GENERATOR_YIELD;
+        // (AR) أولوية: الثابت أولاً، ثم السجل
+        // (EN) Priority: constant first, then register
+        if (valResult.isConstant && !valResult.constantValue.empty()) {
+            if (valResult.type == SIRType::STRING) {
+                yieldInst.operands.push_back(SIROperand::ConstantString(valResult.constantValue));
+            } else if (valResult.type == SIRType::F64) {
+                yieldInst.operands.push_back(SIROperand::ConstantF64(std::stod(valResult.constantValue)));
+            } else {
+                yieldInst.operands.push_back(SIROperand::ConstantI64(std::stoll(valResult.constantValue)));
+            }
+        } else if (!valResult.registerName.empty()) {
             yieldInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+        } else {
+            // (AR) أنتج بدون قيمة — ينتج 0
+            // (EN) yield without value — yields 0
+            yieldInst.operands.push_back(SIROperand::ConstantI64(0));
         }
-        yieldInst.comment = yieldStmt->isYieldFrom ? "yield from" : "yield";
+        yieldInst.comment = "yield";
         
         if (currentBlock_) {
             currentBlock_->addInstruction(yieldInst);
@@ -1101,6 +1509,71 @@ void SIRBuilder::buildStatement(AST::Statement* stmt) {
             currentFunction_ = savedFunction;
             currentBlock_ = savedBlock;
             module_->addFunction(setterFunc);
+        }
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) UnsafeBlockStmt - @غير_آمن ... نهاية
+    // (EN) Unsafe block statement - @غير_آمن ... نهاية
+    // ========================================================================
+    if (auto unsafeStmt = dynamic_cast<Sad::AST::UnsafeBlockStmt*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found UnsafeBlockStmt with " 
+                  << unsafeStmt->body.size() << " statements" << std::endl;
+        #endif
+        
+        // (AR) تنفيذ جميع الجمل داخل الكتلة غير الآمنة
+        // (EN) Execute all statements inside the unsafe block
+        for (const auto& innerStmt : unsafeStmt->body) {
+            if (innerStmt) {
+                buildStatement(innerStmt.get());
+            }
+        }
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) ComptimeBlockStmt - @وقت_الترجمة ... نهاية
+    // (EN) Compile-time block statement - @وقت_الترجمة ... نهاية
+    // ========================================================================
+    if (auto comptimeStmt = dynamic_cast<Sad::AST::ComptimeBlockStmt*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found ComptimeBlockStmt with " 
+                  << comptimeStmt->body.size() << " statements" << std::endl;
+        #endif
+        
+        // (AR) في وقت الترجمة، نقوم فقط بمعالجة الجمل (يمكن توسيعها لاحقاً)
+        // (EN) At compile time, we just process the statements (can be extended later)
+        for (const auto& innerStmt : comptimeStmt->body) {
+            if (innerStmt) {
+                buildStatement(innerStmt.get());
+            }
+        }
+        return;
+    }
+    
+    // ========================================================================
+    // (AR) VolatileVarDeclStmt - @متطاير متغير
+    // (EN) Volatile variable declaration - @متطاير متغير
+    // ========================================================================
+    if (auto volatileDecl = dynamic_cast<Sad::AST::VolatileVarDeclStmt*>(stmt)) {
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] Found VolatileVarDeclStmt" << std::endl;
+        #endif
+        
+        // (AR) استخراج VarDeclStmt من declaration
+        // (EN) Extract VarDeclStmt from declaration
+        if (volatileDecl->declaration) {
+            if (auto varDecl = dynamic_cast<Sad::AST::VarDeclStmt*>(volatileDecl->declaration.get())) {
+                // (AR) بناء المتغير العادي مع تعليق volatile
+                // (EN) Build normal variable with volatile comment
+                buildLocalVariable(varDecl);
+            } else {
+                // (AR) إذا لم يكن VarDeclStmt، نعالج كجملة عادية
+                // (EN) If not VarDeclStmt, process as normal statement
+                buildStatement(volatileDecl->declaration.get());
+            }
         }
         return;
     }

@@ -753,6 +753,15 @@ BuildResult SIRBuilder::buildUnaryOp(AST::UnaryOpNode* unaryOp) {
             #endif
             break;
             
+        case Lexer::TokenType::OP_BITWISE_NOT:
+            // (AR) النفي البتّي: NOT (sir_types.h:134)
+            opcode = SIROpcode::NOT;
+            // (AR) النتيجة بنفس نوع المعامل (عدد صحيح)
+            #ifndef NDEBUG
+            std::cout << "[DEBUG] buildUnaryOp: عملية النفي البتّي (~)" << std::endl;
+            #endif
+            break;
+            
         default:
             // (AR) عملية غير مدعومة
             #ifndef NDEBUG

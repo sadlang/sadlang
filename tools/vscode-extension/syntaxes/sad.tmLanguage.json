@@ -4,11 +4,18 @@
   "scopeName": "source.sad",
   "patterns": [
     { "include": "#comments" },
-    { "include": "#keywords" },
-    { "include": "#types" },
-    { "include": "#constants" },
     { "include": "#strings" },
     { "include": "#numbers" },
+    { "include": "#keywords-control" },
+    { "include": "#keywords-declaration" },
+    { "include": "#keywords-oop" },
+    { "include": "#keywords-module" },
+    { "include": "#keywords-access" },
+    { "include": "#keywords-variable" },
+    { "include": "#keywords-contextual" },
+    { "include": "#types" },
+    { "include": "#constants" },
+    { "include": "#logical-operators" },
     { "include": "#functions" },
     { "include": "#operators" }
   ],
@@ -16,70 +23,55 @@
     "comments": {
       "patterns": [
         {
-          "name": "comment.line.number-sign.sad",
-          "match": "#.*$"
+          "name": "comment.block.documentation.sad",
+          "begin": "#\\*\\*",
+          "end": "\\*\\*#",
+          "beginCaptures": { "0": { "name": "punctuation.definition.comment.begin.sad" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.comment.end.sad" } }
         },
         {
           "name": "comment.block.sad",
           "begin": "#\\*",
-          "end": "\\*#"
+          "end": "\\*#",
+          "beginCaptures": { "0": { "name": "punctuation.definition.comment.begin.sad" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.comment.end.sad" } }
+        },
+        {
+          "name": "comment.line.documentation.sad",
+          "match": "##.*$"
+        },
+        {
+          "name": "comment.line.number-sign.sad",
+          "match": "#(?!\\*).*$"
         }
       ]
     },
-    "keywords": {
-      "patterns": [
-        {
-          "name": "keyword.control.sad",
-          "match": "\\b(إذا|وإلا|بينما|لـ|من|إلى|أعمل|نهاية|إرجاع|استمرار|توقف|في)\\b"
-        },
-        {
-          "name": "keyword.control.sad",
-          "match": "\\b(if|else|while|for|from|to|do|end|return|continue|break|in)\\b"
-        },
-        {
-          "name": "keyword.other.sad",
-          "match": "\\b(دالة|صنف|جديد|هذا|ثابت|متغير)\\b"
-        },
-        {
-          "name": "keyword.other.sad",
-          "match": "\\b(function|class|new|this|const|var)\\b"
-        }
-      ]
-    },
-    "types": {
-      "patterns": [
-        {
-          "name": "storage.type.sad",
-          "match": "\\b(رقم|عشري|نص|منطقي|مصفوفة|قاموس|فارغ)\\b"
-        },
-        {
-          "name": "storage.type.sad",
-          "match": "\\b(number|float|string|boolean|array|dict|void)\\b"
-        }
-      ]
-    },
-    "constants": {
-      "patterns": [
-        {
-          "name": "constant.language.sad",
-          "match": "\\b(صحيح|خطأ|لاشيء)\\b"
-        },
-        {
-          "name": "constant.language.sad",
-          "match": "\\b(true|false|null|none)\\b"
-        }
-      ]
-    },
+
     "strings": {
       "patterns": [
         {
           "name": "string.quoted.double.sad",
           "begin": "\"",
           "end": "\"",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.sad" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.sad" } },
           "patterns": [
             {
               "name": "constant.character.escape.sad",
-              "match": "\\\\(n|t|r|\\\\|\")"
+              "match": "\\\\[ntrfvab0\\\\\"']"
+            },
+            {
+              "name": "constant.character.escape.unicode.sad",
+              "match": "\\\\u[0-9a-fA-F]{4}"
+            },
+            {
+              "comment": "String interpolation \\{expr}",
+              "name": "meta.interpolation.sad",
+              "begin": "\\\\\\{",
+              "end": "\\}",
+              "beginCaptures": { "0": { "name": "punctuation.section.interpolation.begin.sad" } },
+              "endCaptures": { "0": { "name": "punctuation.section.interpolation.end.sad" } },
+              "patterns": [{ "include": "source.sad" }]
             }
           ]
         },
@@ -87,72 +79,239 @@
           "name": "string.quoted.single.sad",
           "begin": "'",
           "end": "'",
+          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.sad" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.string.end.sad" } },
           "patterns": [
             {
               "name": "constant.character.escape.sad",
-              "match": "\\\\(n|t|r|\\\\|')"
+              "match": "\\\\[ntrfvab0\\\\\"']"
             }
           ]
         }
       ]
     },
+
     "numbers": {
       "patterns": [
         {
-          "name": "constant.numeric.float.sad",
-          "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
-        },
-        {
-          "name": "constant.numeric.integer.sad",
-          "match": "\\b\\d+\\b"
-        },
-        {
           "name": "constant.numeric.hex.sad",
-          "match": "\\b0[xX][0-9a-fA-F]+\\b"
+          "match": "\\b0[xX][0-9a-fA-F_]+\\b"
         },
         {
           "name": "constant.numeric.binary.sad",
-          "match": "\\b0[bB][01]+\\b"
+          "match": "\\b0[bB][01_]+\\b"
+        },
+        {
+          "name": "constant.numeric.octal.sad",
+          "match": "\\b0[oO][0-7_]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.sad",
+          "match": "\\b\\d[\\d_]*\\.\\d[\\d_]*([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.sad",
+          "match": "\\b\\d[\\d_]*\\b"
         }
       ]
     },
+
+    "keywords-control": {
+      "patterns": [
+        {
+          "comment": "Control flow: إذا وإلا بينما لكل في توقف استمر ارجع",
+          "name": "keyword.control.sad",
+          "match": "\\b(إذا|اذا|وإلا|والا|بينما|لكل|في|توقف|استمر|ارجع)\\b"
+        },
+        {
+          "comment": "Pattern matching: طابق عندما افتراضي",
+          "name": "keyword.control.match.sad",
+          "match": "\\b(طابق|عندما|افتراضي)\\b"
+        },
+        {
+          "comment": "Error handling: حاول امسك ارمي أخيراً",
+          "name": "keyword.control.exception.sad",
+          "match": "\\b(حاول|امسك|ارمي|أخيراً|اخيرا)\\b"
+        }
+      ]
+    },
+
+    "keywords-declaration": {
+      "patterns": [
+        {
+          "comment": "Declarations: دالة صنف بنية تعداد نهاية",
+          "name": "keyword.declaration.sad",
+          "match": "\\b(دالة|صنف|بنية|تعداد|نهاية)\\b"
+        }
+      ]
+    },
+
+    "keywords-oop": {
+      "patterns": [
+        {
+          "comment": "OOP: يرث جديد هذا باني الأساس",
+          "name": "keyword.other.oop.sad",
+          "match": "\\b(يرث|جديد|هذا|باني|الأساس|الاساس)\\b"
+        }
+      ]
+    },
+
+    "keywords-module": {
+      "patterns": [
+        {
+          "comment": "Modules: استورد من كـ صدّر",
+          "name": "keyword.control.import.sad",
+          "match": "\\b(استورد|من|كـ|صدّر|صدر)\\b"
+        }
+      ]
+    },
+
+    "keywords-access": {
+      "patterns": [
+        {
+          "comment": "Access modifiers: عام خاص محمي مجرد",
+          "name": "keyword.other.access.sad",
+          "match": "\\b(عام|خاص|محمي|مجرد)\\b"
+        }
+      ]
+    },
+
+    "keywords-variable": {
+      "patterns": [
+        {
+          "comment": "Variable declarations: متغير ثابت ساكن خارجي",
+          "name": "keyword.other.variable.sad",
+          "match": "\\b(متغير|ثابت|ساكن|خارجي)\\b"
+        }
+      ]
+    },
+
+    "keywords-contextual": {
+      "patterns": [
+        {
+          "comment": "Async: غير_متزامن انتظر",
+          "name": "keyword.other.async.sad",
+          "match": "\\b(غير_متزامن|انتظر)\\b"
+        },
+        {
+          "comment": "Lambda/generator: لامدا أنتج مولد",
+          "name": "keyword.other.lambda.sad",
+          "match": "\\b(لامدا|أنتج|انتج|مولد)\\b"
+        },
+        {
+          "comment": "Traits/interfaces: سمة واجهة نفّذ نفذ",
+          "name": "keyword.other.trait.sad",
+          "match": "\\b(سمة|واجهة|نفّذ|نفذ)\\b"
+        },
+        {
+          "comment": "Resource management: باستخدام نهاية_استخدام",
+          "name": "keyword.control.using.sad",
+          "match": "\\b(باستخدام|نهاية_استخدام)\\b"
+        },
+        {
+          "comment": "Namespace: فضاء نهاية_فضاء قالب",
+          "name": "keyword.other.namespace.sad",
+          "match": "\\b(فضاء|نهاية_فضاء|قالب)\\b"
+        },
+        {
+          "comment": "OOP contextual: خاصية احصل عيّن هدم عامل رئيسية حالة اختبر",
+          "name": "keyword.other.contextual.sad",
+          "match": "\\b(خاصية|احصل|عيّن|عين|هدم|عامل|رئيسية|حالة|اختبر)\\b"
+        }
+      ]
+    },
+
+    "types": {
+      "patterns": [
+        {
+          "comment": "Built-in type names: رقم عشري نص منطقي فراغ عدم مصفوفة خريطة أي",
+          "name": "support.type.sad",
+          "match": "\\b(رقم|عشري|نص|منطقي|فراغ|عدم|مصفوفة|خريطة|أي)\\b"
+        }
+      ]
+    },
+
+    "constants": {
+      "patterns": [
+        {
+          "comment": "Language constants: صحيح خطأ لاشيء",
+          "name": "constant.language.sad",
+          "match": "\\b(صحيح|خطأ|لاشيء)\\b"
+        }
+      ]
+    },
+
+    "logical-operators": {
+      "patterns": [
+        {
+          "comment": "Arabic logical operators: و أو ليس",
+          "name": "keyword.operator.logical.arabic.sad",
+          "match": "\\b(و|أو|ليس)\\b"
+        }
+      ]
+    },
+
     "functions": {
       "patterns": [
         {
+          "comment": "Function calls — Arabic or Latin identifier followed by (",
           "name": "entity.name.function.sad",
-          "match": "\\b[\\u0600-\\u06FF\\w]+(?=\\s*\\()"
+          "match": "(?<![.])\\b[\\u0600-\\u06FF\\u0750-\\u077F\\w_][\\u0600-\\u06FF\\u0750-\\u077F\\w\\d_]*(?=\\s*\\()"
         },
         {
+          "comment": "Built-in functions",
           "name": "support.function.builtin.sad",
-          "match": "\\b(اطبع|أدخل|طول|نوع|نطاق|خريطة|فلتر|جمع|فرز)\\b"
-        },
-        {
-          "name": "support.function.builtin.sad",
-          "match": "\\b(print|input|len|type|range|map|filter|sum|sort)\\b"
+          "match": "\\b(اطبع|اطبع_سطر|أدخل|ادخل|طول|نوع|نطاق)\\b"
         }
       ]
     },
+
     "operators": {
       "patterns": [
         {
-          "name": "keyword.operator.arithmetic.sad",
-          "match": "\\+|\\-|\\*|\\/|%|\\^"
+          "comment": "Power operator **",
+          "name": "keyword.operator.arithmetic.power.sad",
+          "match": "\\*\\*"
         },
         {
+          "comment": "Compound assignment: += -= *= /= %=",
+          "name": "keyword.operator.assignment.compound.sad",
+          "match": "\\+=|-=|\\*=|/=|%="
+        },
+        {
+          "comment": "Comparison: == != <= >= < >",
           "name": "keyword.operator.comparison.sad",
-          "match": "==|!=|<|>|<=|>="
+          "match": "==|!=|<=|>=|<|>"
         },
         {
+          "comment": "Logical: && ||",
           "name": "keyword.operator.logical.sad",
-          "match": "\\b(و|أو|ليس)\\b"
+          "match": "&&|\\|\\|"
         },
         {
-          "name": "keyword.operator.logical.sad",
-          "match": "\\b(and|or|not)\\b"
+          "comment": "Logical NOT: !",
+          "name": "keyword.operator.logical.not.sad",
+          "match": "!"
         },
         {
+          "comment": "Arrow: ->",
+          "name": "keyword.operator.arrow.sad",
+          "match": "->"
+        },
+        {
+          "comment": "Ternary: ? :",
+          "name": "keyword.operator.ternary.sad",
+          "match": "\\?|:"
+        },
+        {
+          "comment": "Assignment: =",
           "name": "keyword.operator.assignment.sad",
-          "match": "=|\\+=|\\-=|\\*=|\\/="
+          "match": "(?<![=!<>])=(?!=)"
+        },
+        {
+          "comment": "Arithmetic: + - * / %",
+          "name": "keyword.operator.arithmetic.sad",
+          "match": "\\+|-|\\*|/|%"
         }
       ]
     }

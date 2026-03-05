@@ -39,6 +39,10 @@ endif()
 file(GLOB FRONTEND_SOURCES "src/frontend/*.cpp")
 file(GLOB FRONTEND_HEADERS "include/frontend/*.h")
 
+# (AR) استبعاد الملف القديم sir_builder.cpp لتجنب التكرار مع الملفات المقسمة
+# (EN) Exclude legacy sir_builder.cpp to avoid duplication with split files
+list(FILTER FRONTEND_SOURCES EXCLUDE REGEX "sir_builder\\.cpp$")
+
 add_library(sad_new_frontend STATIC ${FRONTEND_SOURCES})
 
 target_include_directories(sad_new_frontend
@@ -141,6 +145,14 @@ if(LLVM_FOUND)
             ${LLVM_INCLUDE_DIRS}
     )
 
+    # ════════════════════════════════════════════════════════════════════
+    # (AR) مكونات LLVM المطلوبة:
+    #   - X86: للمضيف (ويندوز/لينكس x86_64)
+    #   - AArch64: لأندرويد ARM64 و macOS Apple Silicon
+    #   - ARM: لأندرويد ARM 32-bit (armeabi-v7a)
+    #   - WebAssembly: لتطبيقات الويب
+    #   - native: للمضيف الحالي
+    # ════════════════════════════════════════════════════════════════════
     llvm_map_components_to_libnames(llvm_libs
         Core
         Support
@@ -149,10 +161,26 @@ if(LLVM_FOUND)
         ExecutionEngine
         OrcJIT
         MCJIT
+        # X86 — المضيف
         X86CodeGen
         X86AsmParser
         X86Desc
         X86Info
+        # AArch64 — أندرويد ARM64 + macOS Apple Silicon
+        AArch64CodeGen
+        AArch64AsmParser
+        AArch64Desc
+        AArch64Info
+        # ARM — أندرويد 32-bit
+        ARMCodeGen
+        ARMAsmParser
+        ARMDesc
+        ARMInfo
+        # WebAssembly
+        WebAssemblyCodeGen
+        WebAssemblyAsmParser
+        WebAssemblyDesc
+        WebAssemblyInfo
         native
     )
 

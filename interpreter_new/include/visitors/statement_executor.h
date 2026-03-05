@@ -362,6 +362,28 @@ public:
     void visitImplDecl(AST::ImplDecl& node) override;
     
     // =========================================================================
+    // (AR) زوار التوجيهات @ / (EN) @ Directive Visitors
+    // =========================================================================
+    
+    /**
+     * @brief (AR) @غير_آمن ... نهاية — كتلة غير آمنة
+     * @brief (EN) @unsafe block
+     */
+    void visitUnsafeBlockStmt(AST::UnsafeBlockStmt& node) override;
+    
+    /**
+     * @brief (AR) @وقت_الترجمة ... نهاية — كتلة تنفيذ وقت الترجمة
+     * @brief (EN) @comptime block
+     */
+    void visitComptimeBlockStmt(AST::ComptimeBlockStmt& node) override;
+    
+    /**
+     * @brief (AR) @متطاير — إعلان متغير متطاير
+     * @brief (EN) @volatile variable declaration
+     */
+    void visitVolatileVarDeclStmt(AST::VolatileVarDeclStmt& node) override;
+    
+    // =========================================================================
     // (AR) زيارة جمل الاستيراد والتصدير / (EN) Import/Export Statement Visitors
     // =========================================================================
     

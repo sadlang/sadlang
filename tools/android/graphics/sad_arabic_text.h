@@ -238,6 +238,11 @@ SadTextOptions sad_text_options_arabic(float fontSize);
  */
 SadTextOptions sad_text_options_latin(float fontSize);
 
+/**
+ * تعيين أبعاد الشاشة لمصفوفة الإسقاط في رسم النصوص
+ */
+void sad_text_set_screen_size(int width, int height);
+
 #ifdef __cplusplus
 }
 #endif

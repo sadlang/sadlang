@@ -561,6 +561,14 @@ struct MapPair {
     MapPair(ExprPtr k, ExprPtr v)
         : key(std::move(k)), value(std::move(v)) {}
     
+    // (AR) باني spread — عندما يكون key=nullptr و value=spread_expr
+    // (EN) Spread constructor — when key=nullptr and value=spread_expr  
+    explicit MapPair(ExprPtr spreadExpr)
+        : key(nullptr), value(std::move(spreadExpr)) {}
+    
+    // (AR) هل هذا spread؟ / (EN) Is this a spread?
+    bool isSpread() const { return key == nullptr && value != nullptr; }
+    
     // Copy constructor deleted (contains unique_ptr)
     MapPair(const MapPair&) = delete;
     MapPair& operator=(const MapPair&) = delete;
@@ -689,17 +697,28 @@ public:
 class LambdaExpr : public Expression {
 public:
     std::vector<Parameter> parameters; ///< Parameters / المعاملات
-    ExprPtr body;                      ///< Lambda body / جسم Lambda
+    ExprPtr body;                      ///< Lambda body (single expr) / جسم Lambda (تعبير واحد)
+    StmtPtr blockBody;                 ///< Block body for anonymous functions / جسم كتلي للدوال المجهولة
     
     /**
-     * @brief Constructor / البناء
+     * @brief Constructor with expression body / البناء بجسم تعبير
      * @param params Parameter list / قائمة المعاملات
      * @param body Body expression / تعبير الجسم
      * @param pos Source position / الموقع في الكود
      */
     LambdaExpr(std::vector<Parameter> params, ExprPtr body, 
                const Lexer::Position& pos = Lexer::Position())
-        : Expression(pos), parameters(std::move(params)), body(std::move(body)) {}
+        : Expression(pos), parameters(std::move(params)), body(std::move(body)), blockBody(nullptr) {}
+    
+    /**
+     * @brief Constructor with block body (anonymous function) / البناء بجسم كتلي (دالة مجهولة)
+     * @param params Parameter list / قائمة المعاملات
+     * @param block Block body / جسم الكتلة
+     * @param pos Source position / الموقع في الكود
+     */
+    LambdaExpr(std::vector<Parameter> params, StmtPtr block,
+               const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), parameters(std::move(params)), body(nullptr), blockBody(std::move(block)) {}
     
     void accept(ASTVisitor& visitor) override {
         visitor.visitLambdaExpr(*this);

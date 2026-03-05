@@ -276,11 +276,8 @@ void StatementExecutor::visitImportStmt(AST::ImportStmt& node) {
         Data::Value moduleExports(exportsMap);
         loadedModuleNamespaces_[effectiveName] = moduleExports;
         
-        if (variableManager_.exists(effectiveName)) {
-            variableManager_.assign(effectiveName, moduleExports);
-        } else {
-            variableManager_.define(effectiveName, moduleExports);
-        }
+        // (AR) تحسين أداء: بحث واحد / (EN) Performance: single lookup
+        variableManager_.defineOrAssign(effectiveName, moduleExports);
         return;
     }
     
@@ -319,11 +316,7 @@ void StatementExecutor::visitImportStmt(AST::ImportStmt& node) {
         
         // (AR) تسجيل كمتغير Map
         // (EN) Register as Map variable
-        if (variableManager_.exists(effectiveName)) {
-            variableManager_.assign(effectiveName, moduleExports);
-        } else {
-            variableManager_.define(effectiveName, moduleExports);
-        }
+        variableManager_.defineOrAssign(effectiveName, moduleExports);
     }
 }
 
@@ -427,11 +420,7 @@ void StatementExecutor::visitFromImportStmt(AST::FromImportStmt& node) {
             
             // (AR) تسجيل المتغير
             // (EN) Register variable
-            if (variableManager_.exists(name)) {
-                variableManager_.assign(name, value);
-            } else {
-                variableManager_.define(name, value);
-            }
+            variableManager_.defineOrAssign(name, value);
         }
         
     } else {
@@ -474,11 +463,7 @@ void StatementExecutor::visitFromImportStmt(AST::FromImportStmt& node) {
                 
                 // (AR) متغير - تسجيل بالاسم الفعلي
                 // (EN) Variable - register with effective name
-                if (variableManager_.exists(importedName)) {
-                    variableManager_.assign(importedName, value);
-                } else {
-                    variableManager_.define(importedName, value);
-                }
+                variableManager_.defineOrAssign(importedName, value);
                 
             } else {
                 // (AR) غير موجود في الخريطة - نتحقق من FunctionManager

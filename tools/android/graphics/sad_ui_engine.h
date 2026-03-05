@@ -45,6 +45,15 @@ extern "C" {
 typedef uint32_t SadColor;      // لون RGBA (0xRRGGBBAA)
 typedef uint32_t SadWidgetId;   // معرّف العنصر
 typedef uint32_t SadAnimId;     // معرّف الحركة
+typedef int32_t  SadFontId;     // معرّف الخط
+typedef int32_t  SadImageId;    // معرّف الصورة
+
+/** اتجاه التمرير */
+typedef enum {
+    SAD_SCROLL_VERTICAL = 0,
+    SAD_SCROLL_HORIZONTAL,
+    SAD_SCROLL_BOTH
+} SadScrollDirection;
 
 // ألوان جاهزة
 #define SAD_COLOR_TRANSPARENT   0x00000000
@@ -167,10 +176,54 @@ typedef enum {
     SAD_WIDGET_DRAWER,         // درج جانبي
     SAD_WIDGET_TABS,           // علامات تبويب
     
-    // الرسم
+    // الرسم والتطبيقات المتقدمة
     SAD_WIDGET_CANVAS,         // لوحة رسم
     SAD_WIDGET_CHART,          // مخطط بياني
     
+    // 40+ مكون إضافي (متقدمات وتخطيطات وشاشات تفاعلية)
+    SAD_WIDGET_GRID,                 // شبكة (Grid)
+    SAD_WIDGET_LIST_VIEW,            // قائمة متقدمة (ListView)
+    SAD_WIDGET_MAP,                  // خريطة تفاعلية (Map)
+    SAD_WIDGET_VIDEO_PLAYER,         // مشغل فيديو
+    SAD_WIDGET_AUDIO_PLAYER,         // مشغل صوت
+    SAD_WIDGET_WEB_VIEW,             // متصفح ويب مضمن
+    SAD_WIDGET_CAMERA_PREVIEW,       // معاينة الكاميرا
+    SAD_WIDGET_PDF_VIEWER,           // عارض ملفات PDF
+    SAD_WIDGET_DATE_PICKER,          // منتقي التاريخ
+    SAD_WIDGET_TIME_PICKER,          // منتقي الوقت
+    SAD_WIDGET_CALENDAR,             // تقويم شامل
+    SAD_WIDGET_COLOR_PICKER,         // منتقي الألوان
+    SAD_WIDGET_ACCORDION,            // طيات متداخلة (Accordion)
+    SAD_WIDGET_STEPPER,              // متتبع خطوات (Stepper)
+    SAD_WIDGET_BREADCRUMB,           // فتات الخبز للتنقل (Breadcrumb)
+    SAD_WIDGET_CAROUSEL,             // دائرة عرض الصور/المحتوى
+    SAD_WIDGET_RATING_BAR,           // شريط تقييم النجوم
+    SAD_WIDGET_KNOB,                 // مقبض دوار (Knob)
+    SAD_WIDGET_GAUGE,                // مؤشر قياس (Gauge)
+    SAD_WIDGET_TOGGLE_BUTTON_GROUP,  // مجموعة أزرار التبديل
+    SAD_WIDGET_SEGMENTED_CONTROL,    // تحكم مجزأ (Segmented Control)
+    SAD_WIDGET_SLIDING_PANEL,        // لوحة منزلقة
+    SAD_WIDGET_SPLIT_PANE,           // لوحة مقسومة قابلة للسحب
+    SAD_WIDGET_TREE_VIEW,            // عرض شجري (Tree View)
+    SAD_WIDGET_TABLE,                // جدول بسيط
+    SAD_WIDGET_DATA_GRID,            // شبكة بيانات متقدمة (Data Grid)
+    SAD_WIDGET_RICH_TEXT,            // نص غني بالتنسيقات
+    SAD_WIDGET_MARKDOWN_VIEWER,      // عارض ماركداون (Markdown)
+    SAD_WIDGET_CODE_EDITOR,          // محرر نصوص برمجية مع تلوين
+    SAD_WIDGET_SIGNATURE_PAD,        // لوحة توقيع إلكتروني
+    SAD_WIDGET_QR_SCANNER,           // قارئ رموز QR
+    SAD_WIDGET_BARCODE_SCANNER,      // قارئ باركود
+    SAD_WIDGET_LOTTIE_ANIMATION,     // رسوم Lottie المتحركة
+    SAD_WIDGET_VOICE_RECORDER,       // مسجل صوت مع واجهة
+    SAD_WIDGET_WAVEFORM,             // موجة صوتية (Waveform)
+    SAD_WIDGET_RADAR_CHART,          // مخطط راداري
+    SAD_WIDGET_PIE_CHART,            // مخطط دائري
+    SAD_WIDGET_HEATMAP,              // خريطة حرارية (Heatmap)
+    SAD_WIDGET_PULL_TO_REFRESH,      // السحب للتحديث
+    SAD_WIDGET_SPEED_DIAL,           // أزرار سريعة الطلب متفرعة
+    SAD_WIDGET_CONTEXT_MENU,         // قائمة سياقية (كليك يمين/لمس مطول)
+    SAD_WIDGET_EXPANDABLE_LIST,      // قائمة قابلة للتوسيع
+
     SAD_WIDGET_COUNT
 } SadWidgetType;
 
@@ -526,6 +579,76 @@ void sadui_stop_animation(SadAnimId anim);
 void sadui_stop_all_animations(SadWidgetId widget);
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  دوال مساعدة للرسوم المتحركة
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** رسم متحرك: ظهور تدريجي */
+static inline SadAnimId sadui_fade_in(SadWidgetId widget, float durationMs) {
+    SadAnimation anim = {0};
+    anim.type = SAD_ANIM_FADE;
+    anim.duration = durationMs;
+    anim.easing = SAD_EASE_OUT;
+    return sadui_animate(widget, &anim);
+}
+
+/** رسم متحرك: اختفاء تدريجي */
+static inline SadAnimId sadui_fade_out(SadWidgetId widget, float durationMs) {
+    SadAnimation anim = {0};
+    anim.type = SAD_ANIM_FADE;
+    anim.duration = durationMs;
+    anim.easing = SAD_EASE_IN;
+    anim.reverse = true;
+    return sadui_animate(widget, &anim);
+}
+
+/** رسم متحرك: انزلاق للأعلى */
+static inline SadAnimId sadui_slide_up(SadWidgetId widget, float durationMs) {
+    SadAnimation anim = {0};
+    anim.type = SAD_ANIM_SLIDE_UP;
+    anim.duration = durationMs;
+    anim.easing = SAD_EASE_OUT;
+    return sadui_animate(widget, &anim);
+}
+
+/** رسم متحرك: انزلاق للأسفل */
+static inline SadAnimId sadui_slide_down(SadWidgetId widget, float durationMs) {
+    SadAnimation anim = {0};
+    anim.type = SAD_ANIM_SLIDE_DOWN;
+    anim.duration = durationMs;
+    anim.easing = SAD_EASE_OUT;
+    return sadui_animate(widget, &anim);
+}
+
+/** رسم متحرك: ارتداد */
+static inline SadAnimId sadui_bounce(SadWidgetId widget, float durationMs) {
+    SadAnimation anim = {0};
+    anim.type = SAD_ANIM_BOUNCE;
+    anim.duration = durationMs;
+    anim.easing = SAD_EASE_BOUNCE;
+    return sadui_animate(widget, &anim);
+}
+
+/** رسم متحرك: اهتزاز */
+static inline SadAnimId sadui_shake(SadWidgetId widget, float durationMs) {
+    SadAnimation anim = {0};
+    anim.type = SAD_ANIM_SHAKE;
+    anim.duration = durationMs;
+    anim.easing = SAD_EASE_LINEAR;
+    return sadui_animate(widget, &anim);
+}
+
+/** رسم متحرك: نبض */
+static inline SadAnimId sadui_pulse(SadWidgetId widget, float durationMs) {
+    SadAnimation anim = {0};
+    anim.type = SAD_ANIM_PULSE;
+    anim.duration = durationMs;
+    anim.easing = SAD_EASE_OUT;
+    anim.loop = true;
+    anim.repeatCount = -1;
+    return sadui_animate(widget, &anim);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  الثيمات
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -648,29 +771,34 @@ void sadcanvas_draw_gradient(SadCanvas ctx, SadRect rect, SadGradient gradient);
  * @param path مسار ملف الخط (TTF)
  * @return معرّف الخط أو -1 عند الفشل
  */
-int sadui_load_font(const char* path);
+SadFontId sadui_load_font(const char* path, float size);
 
 /**
  * تحميل صورة
  * @param path مسار ملف الصورة
  * @return معرّف الصورة أو -1 عند الفشل
  */
-int sadui_load_image(const char* path);
+SadImageId sadui_load_image(const char* path);
 
 /**
  * تحميل صورة من الذاكرة
  */
-int sadui_load_image_memory(const uint8_t* data, int size);
+SadImageId sadui_load_image_memory(const uint8_t* data, int size);
 
 /**
  * تحرير خط
  */
-void sadui_unload_font(int fontId);
+void sadui_unload_font(SadFontId fontId);
 
 /**
  * تحرير صورة
  */
-void sadui_unload_image(int imageId);
+void sadui_unload_image(SadImageId imageId);
+
+/**
+ * الحصول على أبعاد صورة محمّلة
+ */
+void sadui_get_image_size(SadImageId imageId, int* width, int* height);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  دوال مساعدة
@@ -731,6 +859,77 @@ static inline SadEdges sadui_edges(float all) {
 static inline SadCorners sadui_corners(float all) {
     return (SadCorners){all, all, all, all};
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  دوال إنشاء مكونات سريعة (Convenience Widgets)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  تحسين الأداء — نظام Dirty Flags
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * تحديد أن الواجهة تحتاج إعادة رسم
+ * استدعِ هذه عند تغيير أي عنصر مرئي
+ */
+void sadui_invalidate(void);
+
+/**
+ * تحديد أن عنصر معين يحتاج إعادة رسم
+ */
+void sadui_invalidate_widget(SadWidgetId widget);
+
+/**
+ * تحديد أن التخطيط يحتاج إعادة حساب
+ * استدعِ هذه عند تغيير أحجام أو مواقع
+ */
+void sadui_invalidate_layout(void);
+
+/**
+ * التحقق من الحاجة لإعادة الرسم
+ * @return true إذا كانت الواجهة بحاجة لإعادة رسم
+ */
+bool sadui_needs_redraw(void);
+
+/**
+ * التحقق من الحاجة لإعادة حساب التخطيط
+ */
+bool sadui_needs_layout(void);
+
+/**
+ * الحصول على عدد الإطارات في الثانية (FPS)
+ */
+int sadui_get_fps(void);
+
+/**
+ * الحصول على عداد الإطارات الكلي
+ */
+uint32_t sadui_get_frame_count(void);
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  دوال إنشاء مكونات سريعة (Convenience Widgets)
+// ─────────────────────────────────────────────────────────────────────────────
+
+SadWidgetId sadui_button(const char* text);
+SadWidgetId sadui_text(const char* text);
+SadWidgetId sadui_heading(const char* text);
+SadWidgetId sadui_image(int imageId);
+SadWidgetId sadui_card(void);
+SadWidgetId sadui_column(void);
+SadWidgetId sadui_row(void);
+SadWidgetId sadui_container(void);
+SadWidgetId sadui_scrollable(SadScrollDirection direction);
+SadWidgetId sadui_textfield(const char* placeholder);
+SadWidgetId sadui_checkbox(const char* label, bool checked);
+SadWidgetId sadui_slider(float min, float max, float value);
+SadWidgetId sadui_progress(float value);
+SadWidgetId sadui_divider(void);
+SadWidgetId sadui_chip(const char* text);
+SadWidgetId sadui_fab(const char* text);
+SadEdges    sadui_edges_vh(float vertical, float horizontal);
+SadEdges    sadui_edges_ltrb(float left, float top, float right, float bottom);
+SadCorners  sadui_corners_top(float top);
+SadCorners  sadui_corners_bottom(float bottom);
 
 #ifdef __cplusplus
 }

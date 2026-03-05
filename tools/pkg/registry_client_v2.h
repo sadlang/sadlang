@@ -945,7 +945,7 @@ public:
      */
     std::vector<std::string> search(const std::string& query, int limit = 20) {
         auto response = http_.get(
-            registry_url_ + "/api/v1/search?q=" + url_encode(query) +
+            registry_url_ + "/api/v1/packages/search?q=" + url_encode(query) +
             "&limit=" + std::to_string(limit));
 
         std::vector<std::string> results;

@@ -397,6 +397,7 @@ void ExpressionEvaluator::visitMemberAccessExpr(MemberAccessExpr& node) {
     // (AR) معالجة الحقل العادي / (EN) Handle regular field
     checkMemberAccess(field->visibility, node.memberName, classType);
     
+    
     auto it = fields.find(node.memberName);
     if (it == fields.end()) {
         std::string errMsg = "(AR) الحقل '" + node.memberName + "' غير موجود في الكائن. ";
@@ -745,15 +746,15 @@ void ExpressionEvaluator::visitIndexAssignExpr(IndexAssignExpr& node) {
     // الخطوة 4: التعامل مع المصفوفات
     // ==========================================
     if (objectValue.isArray()) {
-        if (!indexValue.isInteger()) {
+        if (!indexValue.isNumeric()) {
             throw RuntimeError(
-                "(AR) فهرس المصفوفة يجب أن يكون عددًا صحيحًا. "
-                "(EN) Array index must be an integer.",
+                "(AR) فهرس المصفوفة يجب أن يكون رقماً. "
+                "(EN) Array index must be a number.",
                 node.position);
         }
 
         auto arr = objectValue.toArray();
-        int idx = indexValue.toInt();
+        int idx = indexValue.isInteger() ? indexValue.toInt() : static_cast<int>(indexValue.toDouble());
         int size = static_cast<int>(arr.size());
 
         // دعم الفهارس السالبة: -1 = آخر عنصر، -2 = ما قبل الأخير...
@@ -827,11 +828,9 @@ void ExpressionEvaluator::visitWalrusExpr(WalrusExpr& node) {
     
     // (AR) محاولة تعيين القيمة للمتغير — أو تعريفه إن لم يوجد
     // (EN) Try to assign value to variable — or define it if not found
-    if (variableManager_.exists(node.variable)) {
-        variableManager_.assign(node.variable, assignedValue);
-    } else {
-        variableManager_.define(node.variable, assignedValue);
-    }
+    // (AR) تحسين أداء: بحث واحد بدلاً من اثنين
+    // (EN) Performance: single lookup instead of two
+    variableManager_.defineOrAssign(node.variable, assignedValue);
     
     // (AR) إرجاع القيمة المُعيّنة (هذا هو سلوك Walrus)
     // (EN) Return the assigned value (this is walrus behavior)
@@ -874,10 +873,20 @@ void ExpressionEvaluator::visitLambdaExpr(LambdaExpr& node) {
     
     // (AR) تحويل جسم Lambda إلى ASTNode — upcast آمن
     // (EN) Convert lambda body to ASTNode — safe upcast
-    std::shared_ptr<AST::ASTNode> bodyNode(
-        static_cast<AST::ASTNode*>(node.body.get()),
-        [](AST::ASTNode*) {}  // Empty deleter - AST owns the memory
-    );
+    // (AR) إذا كان جسم كتلي (دالة مجهولة)، استخدمه. وإلا استخدم التعبير.
+    // (EN) If block body (anonymous function), use it. Otherwise use expression body.
+    std::shared_ptr<AST::ASTNode> bodyNode;
+    if (node.blockBody) {
+        bodyNode = std::shared_ptr<AST::ASTNode>(
+            static_cast<AST::ASTNode*>(node.blockBody.get()),
+            [](AST::ASTNode*) {}  // Empty deleter - AST owns the memory
+        );
+    } else {
+        bodyNode = std::shared_ptr<AST::ASTNode>(
+            static_cast<AST::ASTNode*>(node.body.get()),
+            [](AST::ASTNode*) {}  // Empty deleter - AST owns the memory
+        );
+    }
     
     // (AR) تسجيل Lambda كدالة في FunctionManager
     // (EN) Register lambda as function in FunctionManager
@@ -1339,13 +1348,9 @@ void ExpressionEvaluator::visitGeneratorExpr(GeneratorExpr& node) {
         variableManager_.enterScope(Data::ScopeType::BLOCK, "__generator__");
         
         for (const auto& item : arr) {
-            // (AR) تعريف متغير الحلقة
-            // (EN) Define loop variable
-            if (variableManager_.exists(node.variable)) {
-                variableManager_.assign(node.variable, item);
-            } else {
-                variableManager_.define(node.variable, item);
-            }
+            // (AR) تعريف أو تحديث متغير الحلقة — بحث واحد
+            // (EN) Define or update loop variable — single lookup
+            variableManager_.defineOrAssign(node.variable, item);
             
             // (AR) التحقق من الشرط (إن وُجد)
             // (EN) Check condition (if exists)
@@ -1372,11 +1377,8 @@ void ExpressionEvaluator::visitGeneratorExpr(GeneratorExpr& node) {
         variableManager_.enterScope(Data::ScopeType::BLOCK, "__generator__");
         
         for (const auto& [key, val] : mapVal) {
-            if (variableManager_.exists(node.variable)) {
-                variableManager_.assign(node.variable, Data::Value(key));
-            } else {
-                variableManager_.define(node.variable, Data::Value(key));
-            }
+            // (AR) تحسين أداء: بحث واحد / (EN) Performance: single lookup
+            variableManager_.defineOrAssign(node.variable, Data::Value(key));
             
             if (node.condition) {
                 node.condition->accept(*this);

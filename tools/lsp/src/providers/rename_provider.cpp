@@ -37,7 +37,12 @@ static bool is_reserved_name(const std::string& name) {
     try {
         Sad::Lexer::KeywordTable::initialize();
         if (Sad::Lexer::KeywordTable::isKeyword(name)) return true;
-    } catch (...) {}
+    } catch (const std::exception& e) {
+        // فشل تهيئة جدول الكلمات المفتاحية — نتجاهل ونستمر
+        (void)e; // تجنب تحذير المتغير غير المستخدم
+    } catch (...) {
+        // خطأ غير معروف أثناء فحص الكلمات المفتاحية
+    }
     return false;
 }
 

@@ -539,6 +539,7 @@ bool LLVMCompilerPipeline::codeGeneration() {
         // توليد LLVM Module من SIR / Generate LLVM module from SIR
         // ملاحظة: generate() تتحقق من الـ module داخلياً قبل إرجاعه
         // Note: generate() verifies the module internally before returning
+        
         llvmModule_ = codeGen_->generate(sirModule_);
         
         if (!llvmModule_) {

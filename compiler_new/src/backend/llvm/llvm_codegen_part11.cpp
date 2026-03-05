@@ -643,8 +643,9 @@ llvm::Value* LLVMCodeGen::emitBuiltinStringStartsWith(std::shared_ptr<SIRInstruc
     auto* strncmpType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy, i64Ty}, false);
     auto strncmpFunc = module_->getOrInsertFunction("strncmp", strncmpType);
     llvm::Value* cmp = builder_->CreateCall(strncmpFunc, {str, prefix, prefLen}, "starts.cmp");
-    llvm::Value* result = builder_->CreateICmpEQ(cmp, 
+    llvm::Value* cmpBool = builder_->CreateICmpEQ(cmp, 
         llvm::ConstantInt::get(i32Ty, 0), "starts_with");
+    llvm::Value* result = builder_->CreateZExt(cmpBool, i64Ty, "starts_with.i64");
     
     if (inst->result.has_value()) {
         context_info_.namedValues[inst->result->name] = result;
@@ -675,8 +676,9 @@ llvm::Value* LLVMCodeGen::emitBuiltinStringEndsWith(std::shared_ptr<SIRInstructi
     auto* strcmpType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
     auto strcmpFunc = module_->getOrInsertFunction("strcmp", strcmpType);
     llvm::Value* cmp = builder_->CreateCall(strcmpFunc, {endPtr, suffix}, "ends.cmp");
-    llvm::Value* result = builder_->CreateICmpEQ(cmp, 
+    llvm::Value* cmpBool = builder_->CreateICmpEQ(cmp, 
         llvm::ConstantInt::get(i32Ty, 0), "ends_with");
+    llvm::Value* result = builder_->CreateZExt(cmpBool, i64Ty, "ends_with.i64");
     
     if (inst->result.has_value()) {
         context_info_.namedValues[inst->result->name] = result;
@@ -696,8 +698,9 @@ llvm::Value* LLVMCodeGen::emitBuiltinStringContains(std::shared_ptr<SIRInstructi
     auto* strstrType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
     auto strstrFunc = module_->getOrInsertFunction("strstr", strstrType);
     llvm::Value* found = builder_->CreateCall(strstrFunc, {str, substr}, "found");
-    llvm::Value* result = builder_->CreateICmpNE(found,
+    llvm::Value* cmpBool = builder_->CreateICmpNE(found,
         llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*context_)), "contains");
+    llvm::Value* result = builder_->CreateZExt(cmpBool, getInt64Type(), "contains.i64");
     
     if (inst->result.has_value()) {
         context_info_.namedValues[inst->result->name] = result;

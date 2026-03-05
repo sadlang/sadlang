@@ -370,6 +370,10 @@ llvm::Function* LLVMCodeGen::emitFunctionPrototype(std::shared_ptr<SIRFunction> 
     // Source: SIRFunction::getName() is at sir_module.h:306
     std::string funcName = sirFunc->getName();
     
+    // (AR) استخدام اسم الربط الخارجي (FFI) إذا كان محدداً
+    // (EN) Use FFI link name for the LLVM symbol if specified
+    std::string llvmSymbolName = sirFunc->getLinkName();
+    
     // Source: SIRFunction::returnType is PUBLIC member at sir_module.h:251
     SIRType returnSIRType = sirFunc->returnType;
     
@@ -449,7 +453,7 @@ llvm::Function* LLVMCodeGen::emitFunctionPrototype(std::shared_ptr<SIRFunction> 
     llvm::Function* llvmFunc = llvm::Function::Create(
         funcType,
         llvm::Function::ExternalLinkage,
-        funcName,
+        llvmSymbolName,
         module_.get()
     );
     
@@ -462,6 +466,14 @@ llvm::Function* LLVMCodeGen::emitFunctionPrototype(std::shared_ptr<SIRFunction> 
             arg.setName(params[idx].name);
         }
         idx++;
+    }
+    
+    // (AR) إذا كانت الدالة كوروتين، أضف سمة presplitcoroutine
+    // (EN) If function is coroutine, add presplitcoroutine attribute
+    // MUST use enum attribute, not string attribute, for CoroSplit to recognize
+    if (sirFunc->isCoroutine) {
+        llvmFunc->addFnAttr(llvm::Attribute::PresplitCoroutine);
+        std::cerr << "[CORO] Added presplitcoroutine to '" << funcName << "'" << std::endl;
     }
     
     return llvmFunc;
@@ -504,8 +516,14 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
     size_t ctorPos = funcName.find(ctorSuffix);
     if (ctorPos != std::string::npos) {
         context_info_.currentConstructorClass = funcName.substr(0, ctorPos);
+        #ifndef NDEBUG
         std::cout << "[DEBUG] emitFunctionBody: detected constructor for class '"
                   << context_info_.currentConstructorClass << "'" << std::endl;
+        #endif
+        // (AR) تسجيل %self في objectClassMap للباني
+        // (EN) Register %self in objectClassMap for constructor
+        context_info_.objectClassMap["%self"] = context_info_.currentConstructorClass;
+        context_info_.objectClassMap["self"] = context_info_.currentConstructorClass;
     } else {
         // ================================================================
         // كشف الدوال (Methods): إذا كان الاسم يحتوي على "." والبادئة صنف معروف
@@ -516,8 +534,14 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
             std::string prefix = funcName.substr(0, dotPos);
             if (context_info_.classStructTypes.find(prefix) != context_info_.classStructTypes.end()) {
                 context_info_.currentMethodClass = prefix;
+                #ifndef NDEBUG
                 std::cout << "[DEBUG] emitFunctionBody: detected method for class '"
                           << context_info_.currentMethodClass << "'" << std::endl;
+                #endif
+                // (AR) تسجيل %self في objectClassMap للدالة
+                // (EN) Register %self in objectClassMap for method
+                context_info_.objectClassMap["%self"] = context_info_.currentMethodClass;
+                context_info_.objectClassMap["self"] = context_info_.currentMethodClass;
             }
         }
     }
@@ -566,8 +590,6 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
         }
     }
     
-    std::cout << "[DEBUG] emitFunctionBody: discovered " << allLabels.size() << " labels (including referenced)" << std::endl;
-    
     // Create LLVM blocks for ALL discovered labels
     // FIX: Create "entry" block first so it's the LLVM function entry point
     if (allLabels.count("entry")) {
@@ -577,7 +599,9 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
     }
     for (const auto& labelName : allLabels) {
         if (labelName == "entry") continue;  // already created
+        #ifndef NDEBUG
         std::cout << "[DEBUG] emitFunctionBody: creating block '" << labelName << "'" << std::endl;
+        #endif
         
         llvm::BasicBlock* llvmBlock = llvm::BasicBlock::Create(
             *context_,  // Source: context_ is at llvm_codegen.h:631
@@ -591,26 +615,16 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
     // Phase 2: Add parameters to named values (after blocks are created)
     emitFunctionParameters(sirFunc, llvmFunc);
     
-    // DEBUG: Dump SIR blocks and instructions
-    std::cout << "\n[SIR-DUMP] Function: " << sirFunc->getName() << std::endl;
-    for (const auto& sirBlock : basicBlocks) {
-        if (!sirBlock) continue;
-        std::cout << "[SIR-DUMP]   Block '" << sirBlock->name << "' addr=" << (void*)sirBlock.get()
-                  << " has " << sirBlock->instructions.size() << " instructions:" << std::endl;
-        for (size_t i = 0; i < sirBlock->instructions.size(); i++) {
-            const auto& inst = sirBlock->instructions[i];
-            std::cout << "[SIR-DUMP]     [" << i << "] opcode=" << static_cast<int>(inst.opcode);
-            if (inst.result.has_value()) {
-                std::cout << " result=" << inst.result->name;
-            }
-            for (size_t j = 0; j < inst.operands.size(); j++) {
-                std::cout << " op" << j << "=(" << static_cast<int>(inst.operands[j].type) 
-                          << ":" << inst.operands[j].name << ")";
-            }
-            std::cout << std::endl;
-        }
+    // (AR) إذا كانت كوروتين، أضف مقدمة الكوروتين (coro.id, coro.begin...)
+    // (EN) If coroutine, emit coroutine preamble
+    if (sirFunc->isCoroutine) {
+        context_info_.isCoroutineFunction = true;
+        context_info_.isGeneratorFunction = sirFunc->isGenerator;
+        emitCoroutinePreamble(sirFunc, llvmFunc);
+    } else {
+        context_info_.isCoroutineFunction = false;
+        context_info_.isGeneratorFunction = false;
     }
-    std::cout << "[SIR-DUMP] End function\n" << std::endl;
     
     // Phase 2: Emit instructions for each block
     for (const auto& sirBlock : basicBlocks) {
@@ -626,6 +640,14 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
         }
         
         llvm::BasicBlock* llvmBlock = it->second;
+        
+        // (AR) للكوروتينات: تعليمات الكتلة entry تُوضع في coro.init.resume
+        // (EN) For coroutines: entry block instructions go into coro.init.resume
+        // The entry block already has preamble + initial suspend (terminated by switch).
+        // Body instructions must go into the init resume block instead.
+        if (context_info_.isCoroutineFunction && blockName == "entry" && context_info_.currentBlock) {
+            llvmBlock = context_info_.currentBlock;  // coro.init.resume
+        }
         
         // ╪¬╪╣┘ך┘ך┘ז ┘ז┘ג╪╖╪⌐ ╪º┘ה╪Ñ╪»╪▒╪º╪¼
         // Set insertion point
@@ -648,20 +670,42 @@ void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::F
     
     // ========================================================================
     // Phase 3: Ensure ALL basic blocks have terminators
-    // FIX: Some blocks (then_X, merge_X) may be empty if the SIR builder
-    // didn't generate instructions for them. Add appropriate terminators.
+    // FIX: Iterate ALL function blocks (not just SIR-named ones) to catch
+    // dynamically-created blocks (gen.yield.X.resume, await.X.cont, etc.)
+    // IMPORTANT: Skip coroutine infrastructure blocks (coro.final, coro.cleanup,
+    // coro.suspend) — those get their terminators from emitCoroutineEpilogue().
     // ========================================================================
-    for (auto& [blockName, llvmBlock] : context_info_.basicBlocks) {
-        if (!llvmBlock->getTerminator()) {
-            builder_->SetInsertPoint(llvmBlock);
-            // If function returns void, add ret void
-            if (llvmFunc->getReturnType()->isVoidTy()) {
+    for (auto& llvmBlock : *llvmFunc) {
+        if (!llvmBlock.getTerminator()) {
+            // (AR) تخطي كتل البنية التحتية للكوروتين — الخاتمة تعالجها
+            // (EN) Skip coroutine infrastructure blocks — epilogue handles them
+            if (sirFunc->isCoroutine) {
+                std::string bname = llvmBlock.getName().str();
+                if (bname == "coro.final" || bname == "coro.cleanup" || bname == "coro.suspend") {
+                    continue;  // Epilogue will add terminators to these
+                }
+            }
+            
+            builder_->SetInsertPoint(&llvmBlock);
+            // (AR) للكوروتين/المولد: الكتل بدون terminator تقفز لـ coroFinalBB
+            // (EN) For coroutine/generator: unterminated blocks branch to coroFinalBB
+            if (sirFunc->isCoroutine && context_info_.coroFinalBB) {
+                builder_->CreateBr(context_info_.coroFinalBB);
+            } else if (llvmFunc->getReturnType()->isVoidTy()) {
                 builder_->CreateRetVoid();
             } else {
                 // Return default value for non-void functions
                 builder_->CreateRet(llvm::Constant::getNullValue(llvmFunc->getReturnType()));
             }
         }
+    }
+    
+    // (AR) إذا كانت كوروتين، أضف خاتمة الكوروتين (تنظيف + تعليق)
+    // (EN) If coroutine, emit epilogue (cleanup + suspend blocks)
+    if (sirFunc->isCoroutine) {
+        emitCoroutineEpilogue();
+        context_info_.isCoroutineFunction = false;
+        context_info_.isGeneratorFunction = false;
     }
 }
 

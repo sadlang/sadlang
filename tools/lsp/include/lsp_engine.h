@@ -64,6 +64,8 @@
 #include <shared_mutex>
 #include <functional>
 #include <chrono>
+#include <thread>
+#include <condition_variable>
 
 namespace sad {
 namespace lsp {
@@ -144,6 +146,7 @@ struct AnalyzedSymbol {
 struct SymbolReference {
     DocumentUri uri;                 // الملف
     Range range;                     // النطاق
+    std::string name;                // اسم الرمز المرجعي
     bool is_write = false;           // هل هو كتابة (تعديل)؟
     bool is_declaration = false;     // هل هو تعريف؟
 };
@@ -418,6 +421,18 @@ public:
     std::vector<CallHierarchyOutgoingCall> call_hierarchy_outgoing(
         const CallHierarchyItem& item);
 
+    /// شجرة الأنواع: تحضير عنصر
+    std::vector<TypeHierarchyItem> type_hierarchy_prepare(
+        const DocumentUri& uri, const Position& pos);
+
+    /// شجرة الأنواع: الأنواع الفوقية (supertypes — الآباء والسمات المنفذة)
+    std::vector<TypeHierarchyItem> type_hierarchy_supertypes(
+        const TypeHierarchyItem& item);
+
+    /// شجرة الأنواع: الأنواع الفرعية (subtypes — الأبناء والمنفذون)
+    std::vector<TypeHierarchyItem> type_hierarchy_subtypes(
+        const TypeHierarchyItem& item);
+
     /// روابط المستند: جعل مسارات الاستيراد قابلة للنقر
     std::vector<DocumentLink> document_links(const DocumentUri& uri);
 
@@ -441,8 +456,24 @@ private:
     DiagnosticsPublisher diagnostics_publisher_;
     std::string root_uri_;
 
+    // ──── آلية التأخير (Debouncing) ────
+    // تمنع إعادة التحليل عند كل ضغطة مفتاح
+    // تنتظر 200ms بعد آخر تغيير قبل التحليل
+    mutable std::mutex debounce_mutex_;
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> pending_analysis_;
+    std::unique_ptr<std::thread> debounce_thread_;
+    std::condition_variable debounce_cv_;
+    bool debounce_running_ = false;
+    static constexpr int DEBOUNCE_MS = 200;
+
     /// تحليل مستند ونشر النتائج
     void analyze_and_publish(const DocumentUri& uri);
+
+    /// بدء خيط التأخير
+    void start_debounce_thread();
+
+    /// جدولة تحليل مؤجل
+    void schedule_analysis(const DocumentUri& uri);
 };
 
 } // namespace lsp

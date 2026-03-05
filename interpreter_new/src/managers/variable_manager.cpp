@@ -43,12 +43,18 @@ void VariableManager::define(const std::string& name, const Value& value) {
     
     // ═══════════════════════════════════════════════════════════════
     // (AR) إصلاح المشكلة 2: منع shadowing داخل الحلقات والكتل
-    //      إذا كان المتغير موجوداً في نطاق أعلى (parent scope)،
+    //      إذا كان المتغير موجوداً في نطاق أعلى (parent scope) ضمن
+    //      حدود الدالة الحالية (بدون تجاوز FUNCTION scope)،
     //      نُحدّث قيمته بدلاً من إنشاء متغير جديد يُخفيه.
     //      هذا يُصلح: متغير عداد = عداد + 1 داخل بينما
+    //      ملاحظة: لا نتجاوز حدود FUNCTION scope لحماية متغيرات الدوال
+    //              المتداخلة من التداخل مع بعضها.
     // (EN) Fix issue #2: Prevent shadowing inside loops and blocks
-    //      If variable exists in parent scope, update it instead of
+    //      If variable exists in parent scope within the current function
+    //      boundary (without crossing FUNCTION scope), update it instead of
     //      creating a new one that shadows it.
+    //      Note: Do not cross FUNCTION scope boundaries to protect nested
+    //            function variables from interfering with each other.
     // ═══════════════════════════════════════════════════════════════
     
     // (AR) أولاً: تحقق من النطاق الحالي
@@ -60,19 +66,24 @@ void VariableManager::define(const std::string& name, const Value& value) {
         return;
     }
     
-    // (AR) ثانياً: تحقق من النطاقات الأعلى (parent scopes)
-    //      إذا وجدنا المتغير، نحدّثه بدلاً من إنشاء جديد
-    // (EN) Second: check parent scopes
-    //      If we find the variable, update it instead of creating new
+    // (AR) ثانياً: تحقق من النطاقات الأعلى ضمن حدود الدالة الحالية فقط
+    //      نتوقف عند أول FUNCTION scope نصطدم به (حد الدالة)
+    // (EN) Second: check parent scopes ONLY within current function boundary
+    //      Stop at the first FUNCTION scope encountered (function boundary)
     Scope* parentScope = currentScope->getParent();
     while (parentScope != nullptr) {
+        // (AR) توقف عند حدود الدالة — لا تُحدّث متغيرات نطاقات دالة أخرى
+        // (EN) Stop at function boundary — don't update vars belonging to another function
+        if (parentScope->isFunction()) {
+            break;
+        }
         auto scopeIt = scopeVariables_.find(parentScope);
         if (scopeIt != scopeVariables_.end()) {
             auto varIt = scopeIt->second.find(name);
             if (varIt != scopeIt->second.end()) {
-                // (AR) وجدنا المتغير في نطاق أعلى — نحدّثه!
+                // (AR) وجدنا المتغير في نطاق أعلى ضمن نفس الدالة — نحدّثه!
                 //      هذا يُصلح: متغير عداد = عداد + 1 داخل حلقة
-                // (EN) Found variable in parent scope — update it!
+                // (EN) Found variable in parent scope within same function — update it!
                 //      This fixes: var counter = counter + 1 inside loop
                 varIt->second = value;
                 return;
@@ -132,9 +143,39 @@ void VariableManager::assign(const std::string& name, const Value& value) {
     );
 }
 
-Value VariableManager::get(const std::string& name) const {
+void VariableManager::defineOrAssign(const std::string& name, const Value& value) {
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) بحث واحد في سلسلة النطاقات — يُلغي نمط exists()+assign()/define()
+    //      الذي يمشي السلسلة مرتين. يُحسّن أداء الحلقات والوحدات بشكل كبير.
+    // (EN) Single scope chain traversal — eliminates exists()+assign()/define()
+    //      pattern that walks chain twice. Significantly improves loop/module performance.
+    // ═══════════════════════════════════════════════════════════════
+    Scope* scope = scopeManager_.getCurrentScope();
+    
+    while (scope != nullptr) {
+        auto scopeIt = scopeVariables_.find(scope);
+        if (scopeIt != scopeVariables_.end()) {
+            auto varIt = scopeIt->second.find(name);
+            if (varIt != scopeIt->second.end()) {
+                // (AR) وجدنا المتغير — نحدّث قيمته / (EN) Found var — update value
+                varIt->second = value;
+                return;
+            }
+        }
+        scope = scope->getParent();
+    }
+    
+    // (AR) لم نجده — نعرّفه في النطاق الحالي / (EN) Not found — define in current scope
+    Scope* currentScope = scopeManager_.getCurrentScope();
+    scopeManager_.declareVariable(name);
+    scopeVariables_[currentScope][name] = value;
+}
+
+const Value& VariableManager::get(const std::string& name) const {
     // (AR) البحث المباشر عن المتغير بدون استدعاء مزدوج — تحسين أداء
     // (EN) Direct variable lookup without double-call — performance optimization
+    // (AR) إرجاع مرجع ثابت بدلاً من نسخة — يوفر ~72 بايت لكل قراءة
+    // (EN) Return const reference instead of copy — saves ~72 bytes per read
     
     Scope* scope = scopeManager_.getCurrentScope();
     
@@ -156,9 +197,30 @@ Value VariableManager::get(const std::string& name) const {
         "Variable '" + name + "' not defined"
     );
     
-    // (AR) لن نصل هنا أبداً
-    // (EN) Never reached
-    return Value();
+    // (AR) لن نصل هنا أبداً — ثابت ساكن لتجنب تحذيرات المترجم
+    // (EN) Never reached — static const for compiler warning suppression
+    static const Value emptyValue;
+    return emptyValue;
+}
+
+const Value* VariableManager::tryGet(const std::string& name) const {
+    // (AR) بحث واحد في سلسلة النطاقات — أسرع من exists() + get()
+    // (EN) Single scope-chain traversal — faster than exists() + get()
+    
+    Scope* scope = scopeManager_.getCurrentScope();
+    
+    while (scope != nullptr) {
+        auto scopeIt = scopeVariables_.find(scope);
+        if (scopeIt != scopeVariables_.end()) {
+            auto varIt = scopeIt->second.find(name);
+            if (varIt != scopeIt->second.end()) {
+                return &(varIt->second);
+            }
+        }
+        scope = scope->getParent();
+    }
+    
+    return nullptr;
 }
 
 bool VariableManager::exists(const std::string& name) const {

@@ -16,6 +16,7 @@
 
 #include "parser_core.h"
 #include "advanced_expr_nodes.h"
+#include "directive_nodes.h"
 #include "class_manager.h"
 #include <iostream>
 #include <sstream>
@@ -170,13 +171,14 @@ ExprPtr ParserCore::parseAssignment() {
     }
     
     // ========================================================================
-    // (AR) عمليات الإسناد المركبة: += -= *= /=
-    // (EN) Compound assignment operators: += -= *= /=
+    // (AR) عمليات الإسناد المركبة: += -= *= /= %=
+    // (EN) Compound assignment operators: += -= *= /= %=
     // تحويل نحوي: x += y → x = x + y
     // Desugaring: x += y → x = x + y
     // ========================================================================
     if (check(TT::OP_PLUS_ASSIGN) || check(TT::OP_MINUS_ASSIGN) ||
-        check(TT::OP_MULTIPLY_ASSIGN) || check(TT::OP_DIVIDE_ASSIGN)) {
+        check(TT::OP_MULTIPLY_ASSIGN) || check(TT::OP_DIVIDE_ASSIGN) ||
+        check(TT::OP_MODULO_ASSIGN)) {
         
         Token opToken = current_;
         advance(); // consume the compound operator
@@ -190,6 +192,7 @@ ExprPtr ParserCore::parseAssignment() {
             case TT::OP_MINUS_ASSIGN:    binOp = TT::OP_MINUS; break;
             case TT::OP_MULTIPLY_ASSIGN: binOp = TT::OP_MULTIPLY; break;
             case TT::OP_DIVIDE_ASSIGN:   binOp = TT::OP_DIVIDE; break;
+            case TT::OP_MODULO_ASSIGN:   binOp = TT::OP_MODULO; break;
             default:                     binOp = TT::OP_PLUS; break;
         }
         
@@ -578,7 +581,7 @@ ExprPtr ParserCore::parseFactor() {
  */
 ExprPtr ParserCore::parseUnary() {
     // (AR) تحليل عامل الاستعارة & / (EN) Parse borrow operator &
-    if (match(TT::AMPERSAND)) {
+    if (match(TT::OP_BITWISE_AND)) {
         auto pos = previous().getPosition();
         // (AR) التحقق من &متغير / &mut (استعارة قابلة للتعديل)
         // (EN) Check for &متغير / &mut (mutable borrow)
@@ -652,6 +655,28 @@ ExprPtr ParserCore::parsePostfix() {
                 previous().getPosition()
             );
         }
+        else if (check(TT::BRACE_LEFT)) {
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) دعم خريطة{...} — خريطة حرفية مكتوبة بنوع
+            //      مثال: خريطة{"مفتاح": "قيمة"} أو خريطة{}
+            //      فقط إذا كان التعبير السابق هو VariableExpr بقيمة نوع
+            // (EN) Support map{...} — typed map literal
+            //      Example: map{"key": "value"} or map{}
+            //      Only if previous expression is a VariableExpr from a type token
+            // ═══════════════════════════════════════════════════════════════
+            if (auto* varExpr = dynamic_cast<VariableExpr*>(expr.get())) {
+                std::string name = varExpr->name;
+                if (name == "خريطة" || name == "مصفوفة" || name == "map") {
+                    advance(); // consume '{'
+                    auto mapResult = parseMapLiteral();
+                    if (mapResult) {
+                        expr = std::move(mapResult);
+                    }
+                    continue;
+                }
+            }
+            break; // Not a typed literal, exit postfix loop
+        }
         else if (match(TT::DOT)) {
             // Member access or method call
             // (AR) الوصول لعضو أو استدعاء طريقة
@@ -661,7 +686,7 @@ ExprPtr ParserCore::parsePostfix() {
             if (check(TT::IDENTIFIER)) {
                 member = current_;
                 advance();
-            } else if (isKeywordUsableAsName(current_.getType()) || isTypeToken(current_.getType())) {
+            } else if (isTokenUsableAsName(current_.getType())) {
                 member = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                 advance();
             } else {
@@ -716,9 +741,55 @@ ExprPtr ParserCore::parsePostfix() {
  *        (EN) Parses primary expressions: numbers, strings, variables.
  */
 ExprPtr ParserCore::parsePrimary() {
-    // Await expression: await expr
-    // (AR) تعبير الانتظار: انتظر تعبير
-    if (match(TT::KEYWORD_AWAIT)) {
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) تعبير إذا كتعبير (inline if-expression / ternary)
+    //      الصيغة: إذا (شرط) قيمة_صح وإلا قيمة_خطأ
+    //      أو:    إذا (شرط) ثم قيمة_صح وإلا قيمة_خطأ
+    // (EN) If-expression (inline if / ternary):
+    //      syntax: if (cond) true_val else false_val
+    //      or:     if (cond) then true_val else false_val
+    // ═══════════════════════════════════════════════════════════════════
+    if (check(TT::KEYWORD_IF)) {
+        auto ifPos = current_.getPosition();
+        advance(); // consume 'إذا'
+        
+        // (AR) تحليل الشرط (مع أو بدون أقواس)
+        ExprPtr condition;
+        if (match(TT::PAREN_LEFT)) {
+            condition = parseExpression();
+            consume(TT::PAREN_RIGHT, "(AR) توقع ')' بعد شرط إذا. (EN) Expected ')' after if condition.");
+        } else {
+            condition = parseLogicalOr(); // parse condition without parens
+        }
+        
+        // (AR) تخطي 'ثم' الاختياري
+        if (check(TT::IDENTIFIER) && current_.getValue() == "ثم") {
+            advance(); // consume optional 'ثم'
+        }
+        
+        // (AR) القيمة الصحيحة
+        auto trueExpr = parseLogicalOr();
+        
+        // (AR) توقع 'وإلا'
+        if (!match(TT::KEYWORD_ELSE)) {
+            errorBilingual(
+                "خطأ: توقع 'وإلا' في تعبير إذا.",
+                "Error: expected 'else' in if-expression."
+            );
+            return nullptr;
+        }
+        
+        // (AR) القيمة الخاطئة
+        auto falseExpr = parseLogicalOr();
+        
+        return std::make_unique<TernaryExpr>(
+            std::move(condition), std::move(trueExpr), std::move(falseExpr), ifPos);
+    }
+    
+    // Await expression: await expr (contextual keyword)
+    // (AR) تعبير الانتظار (كلمة سياقية — لم تعد محجوزة)
+    if (match(TT::KEYWORD_AWAIT) ||
+        (check(TT::IDENTIFIER) && current_.getValue() == "انتظر" && (advance(), true))) {
         Token awaitToken = previous();
         auto expr = parseTernary();  // (AR) تحليل تعبير ذو أولوية أعلى / (EN) Parse higher precedence expression
         if (!expr) {
@@ -732,8 +803,13 @@ ExprPtr ParserCore::parsePrimary() {
     }
     
     // OOP: new expression for object instantiation
-    // (AR) تعبير جديد لإنشاء كائن
-    if (match(TT::KEYWORD_NEW)) {
+    // (AR) تعبير جديد لإنشاء كائن — فقط إذا تبعه اسم صنف (معرّف أو <)
+    //      وإلا يُعامل كمعرّف عادي (مثلاً: معامل دالة اسمه "جديد")
+    // (EN) Only treat as new-expression if followed by class name (IDENTIFIER or <)
+    //      Otherwise treat as regular identifier (e.g., parameter named "جديد")
+    if (check(TT::KEYWORD_NEW) && 
+        (peekNext().getType() == TT::IDENTIFIER || peekNext().getType() == TT::OP_LESS)) {
+        advance(); // consume KEYWORD_NEW
         return parseNewExpr();
     }
     
@@ -744,15 +820,56 @@ ExprPtr ParserCore::parsePrimary() {
     }
     
     // OOP: super expression for base class
-    // (AR) تعبير الأساس للصنف الأب
-    if (match(TT::KEYWORD_SUPER)) {
+    // (AR) تعبير الأساس للصنف الأب — فقط إذا تبعه '.' (وصول عضو)
+    //      وإلا يُعامل كمعرّف عادي (مثلاً: معامل دالة اسمه "أساس")
+    // (EN) Only treat as super-expression if followed by '.' (member access)
+    //      Otherwise treat as regular identifier (e.g., parameter named "أساس")
+    if (check(TT::KEYWORD_SUPER) && peekNext().getType() == TT::DOT) {
+        advance(); // consume KEYWORD_SUPER
         return std::make_unique<SuperExpr>();
     }
     
-    // Lambda expression: lambda x: x + 1
-    // (AR) تعبير لامدا
-    if (match(TT::KEYWORD_LAMBDA)) {
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) تعبيرات التوجيهات @: @حجم(نوع)، @ذري(عملية, ...)، @تجميع("code")
+    // (EN) @ directive expressions: @حجم(type), @ذري(op, ...), @تجميع("code")
+    // ═══════════════════════════════════════════════════════════════════
+    if (check(TT::AT_SIGN)) {
+        auto dirExpr = parseDirectiveExpr();
+        if (dirExpr) return dirExpr;
+    }
+
+    // Lambda expression (contextual keyword)
+    // (AR) تعبير لامدا (كلمة سياقية — لم تعد محجوزة)
+    if (match(TT::KEYWORD_LAMBDA) ||
+        (check(TT::IDENTIFIER) && current_.getValue() == "لامدا" && (advance(), true))) {
         return parseLambda();
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) دالة مجهولة في موضع تعبير: دالة(معاملات) جسم نهاية
+    //      تُستخدم كـ callback مثل: foo(دالة(س) اطبع(س) نهاية)
+    // (EN) Anonymous function expression: function(params) body end
+    //      Used as callback: foo(function(x) print(x) end)
+    // ═══════════════════════════════════════════════════════════════════
+    if (check(TT::KEYWORD_FUNCTION) && peekNext().getType() == TT::PAREN_LEFT) {
+        auto funcPos = current_.getPosition();
+        advance(); // consume 'دالة'
+        
+        // (AR) تحليل المعاملات
+        consume(TT::PAREN_LEFT, "(AR) توقع '(' بعد 'دالة'. (EN) Expected '(' after 'function'.");
+        auto params = parseTypedParameterList();
+        consume(TT::PAREN_RIGHT, "(AR) توقع ')' بعد المعاملات. (EN) Expected ')' after parameters.");
+        
+        // (AR) تحليل جسم الدالة ككتلة
+        auto body = parseBlockStmt();
+        
+        // (AR) تحويل المعاملات إلى LambdaExpr
+        // (EN) Convert to LambdaExpr (anonymous function)
+        return std::make_unique<LambdaExpr>(
+            std::move(params),
+            std::move(body),
+            funcPos
+        );
     }
     
     // Arrow function: (x, y) => x + y  OR  x => x * 2
@@ -952,11 +1069,11 @@ ExprPtr ParserCore::parsePrimary() {
         return std::make_unique<VariableExpr>(tok.getValue(), tok.getPosition());
     }
 
-    // (AR) كلمات مفتاحية ناعمة مستخدمة كتعبيرات (مثلاً احصل(...)، نوع، حجم)
-    // (EN) Soft keywords used as expressions (e.g., احصل(...), نوع, حجم)
+    // (AR) كلمات مفتاحية ناعمة مستخدمة كتعبيرات (مثلاً احصل(...)، نوع، حجم، من، استورد)
+    // (EN) Soft keywords used as expressions (e.g., احصل(...), نوع, حجم, من, استورد)
     // This allows keywords like احصل (KEYWORD_GET), نوع (KEYWORD_TYPENAME),
-    // حجم (KEYWORD_SIZEOF) etc. to be used as identifiers in expression position
-    if (isKeywordUsableAsName(current_.getType())) {
+    // من (KEYWORD_FROM), استورد (KEYWORD_IMPORT) etc. to be used as identifiers in expression position
+    if (isTokenUsableAsName(current_.getType())) {
         auto tok = current_;
         advance();
         return std::make_unique<VariableExpr>(tok.getValue(), tok.getPosition());

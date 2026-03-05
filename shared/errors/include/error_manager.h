@@ -121,6 +121,8 @@ private:
     size_t maxErrors_ = 100;                 ///< (AR) الحد الأقصى للأخطاء / (EN) Maximum errors
     std::string outputFile_;                 ///< (AR) ملف الإخراج / (EN) Output file
     bool smartErrorsEnabled_ = true;         ///< Phase 15: Smart Error enrichment
+    std::string sourceCode_;                 ///< (AR) كود المصدر للعرض في الأخطاء / (EN) Source code for error display
+    std::string sourceFilename_;             ///< (AR) اسم ملف المصدر / (EN) Source filename
     mutable std::mutex mutex_;               ///< (AR) للأمان من التزامن / (EN) For thread safety
     
     // (AR) Singleton - منع النسخ والإنشاء الخارجي
@@ -140,6 +142,23 @@ public:
      * @return (AR) مرجع للنسخة الوحيدة / (EN) Reference to singleton instance
      */
     static ErrorManager& getInstance();
+    
+    /**
+     * @brief (AR) يحدد كود المصدر لعرض الأسطر في رسائل الخطأ
+     *        (EN) Sets source code for displaying lines in error messages
+     */
+    void setSourceCode(const std::string& source, const std::string& filename = "") {
+        std::lock_guard<std::mutex> lock(mutex_);
+        sourceCode_ = source;
+        sourceFilename_ = filename;
+    }
+    
+    /**
+     * @brief (AR) يرجع كود المصدر المحفوظ
+     *        (EN) Returns stored source code
+     */
+    const std::string& getSourceCode() const { return sourceCode_; }
+    const std::string& getSourceFilename() const { return sourceFilename_; }
     
     // ====================================================================
     // (AR) إضافة التشخيصات / (EN) Adding Diagnostics

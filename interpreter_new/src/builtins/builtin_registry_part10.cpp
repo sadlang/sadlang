@@ -76,6 +76,40 @@ void registerBuiltinsPart10(Interpreter& interpreter) {
     auto& fm = interpreter.getFunctionManager();
 
     // ═══════════════════════════════════════════════════════════════════
+    // 0. منشئات الأنواع / Type Constructors
+    // (AR) دوال إنشاء أنواع البيانات الأساسية
+    // ═══════════════════════════════════════════════════════════════════
+
+    // خريطة() — إنشاء خريطة فارغة أو من أزواج
+    auto map_constructor_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        Data::Value::MapType map;
+        // إذا لم تُعطَ وسائط، أرجع خريطة فارغة
+        if (args.empty()) {
+            return makeMapVal(map);
+        }
+        // إذا أُعطيت وسائط زوجية (مفتاح، قيمة، مفتاح، قيمة...)
+        if (args.size() % 2 == 0) {
+            for (size_t i = 0; i < args.size(); i += 2) {
+                map[args[i]->toString()] = *args[i + 1];
+            }
+        }
+        return makeMapVal(map);
+    };
+    fm.registerBuiltinFunction("خريطة", map_constructor_fn);
+    fm.registerBuiltinFunction("map", map_constructor_fn);
+
+    // مصفوفة() — إنشاء مصفوفة فارغة أو من عناصر
+    auto array_constructor_fn = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        Data::Value::ArrayType arr;
+        for (const auto& arg : args) {
+            arr.push_back(*arg);
+        }
+        return makeArrayVal(arr);
+    };
+    fm.registerBuiltinFunction("مصفوفة", array_constructor_fn);
+    fm.registerBuiltinFunction("array", array_constructor_fn);
+
+    // ═══════════════════════════════════════════════════════════════════
     // 1. عمليات الخرائط / Map Operations
     // (AR) إصلاح نقطة ضعف رقم 1: عدم وجود دوال للتعامل مع الخرائط
     // ═══════════════════════════════════════════════════════════════════

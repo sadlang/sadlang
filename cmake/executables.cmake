@@ -121,6 +121,8 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         tools/compiler/compiler_driver_frontend.cpp
         tools/compiler/compiler_driver_backend.cpp
         tools/compiler/compiler_driver_ui.cpp
+        tools/compiler/compiler_driver_android.cpp
+        tools/compiler/compiler_driver_pkg.cpp
     )
 
     target_include_directories(sadc PRIVATE

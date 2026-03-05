@@ -93,7 +93,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     // read_lines - قراءة أسطر الملف
     auto fs_read_lines_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("read_lines requires file path");
+        if (args.empty()) throw std::runtime_error("(AR) اقرأ_أسطر تتطلب مسار الملف / (EN) read_lines requires file path");
         std::string path = args[0]->toString();
         auto lines = sad::stdlib::filesystem::read_lines(path);
         std::vector<Data::Value> result;
@@ -109,7 +109,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     // append_to_file - إضافة إلى ملف
     auto fs_append_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.size() < 2) throw std::runtime_error("append_to_file requires path and content");
+        if (args.size() < 2) throw std::runtime_error("(AR) أضف_إلى_ملف تتطلب مسار ومحتوى / (EN) append_to_file requires path and content");
         std::string path = args[0]->toString();
         std::string content = args[1]->toString();
         sad::stdlib::filesystem::append_to_file(path, content);
@@ -122,7 +122,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     // copy_file - نسخ ملف
     auto fs_copy_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.size() < 2) throw std::runtime_error("copy_file requires source and destination");
+        if (args.size() < 2) throw std::runtime_error("(AR) انسخ_ملف تتطلب مصدراً ووجهة / (EN) copy_file requires source and destination");
         std::string source = args[0]->toString();
         std::string dest = args[1]->toString();
         bool overwrite = args.size() > 2 ? args[2]->toBool() : false;
@@ -136,7 +136,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     // move_file - نقل ملف
     auto fs_move_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.size() < 2) throw std::runtime_error("move_file requires source and destination");
+        if (args.size() < 2) throw std::runtime_error("(AR) انقل_ملف تتطلب مصدراً ووجهة / (EN) move_file requires source and destination");
         std::string source = args[0]->toString();
         std::string dest = args[1]->toString();
         sad::stdlib::filesystem::move_file(source, dest);
@@ -149,7 +149,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     // delete_file - حذف ملف
     auto fs_delete_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("delete_file requires file path");
+        if (args.empty()) throw std::runtime_error("(AR) احذف_ملف تتطلب مسار الملف / (EN) delete_file requires file path");
         std::string path = args[0]->toString();
         bool result = sad::stdlib::filesystem::delete_file(path);
         return std::make_shared<Data::Value>(result);
@@ -161,7 +161,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     // create_directory - إنشاء مجلد
     auto fs_create_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("create_directory requires path");
+        if (args.empty()) throw std::runtime_error("(AR) أنشئ_مجلد تتطلب مسار المجلد / (EN) create_directory requires path");
         std::string path = args[0]->toString();
         bool recursive = args.size() > 1 ? args[1]->toBool() : true;
         bool result = sad::stdlib::filesystem::create_directory(path, recursive);
@@ -174,7 +174,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     // list_directory - سرد محتويات مجلد
     auto fs_list_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("list_directory requires path");
+        if (args.empty()) throw std::runtime_error("(AR) اسرد_مجلد تتطلب مسار المجلد / (EN) list_directory requires path");
         std::string path = args[0]->toString();
         auto entries = sad::stdlib::filesystem::list_directory(path);
         std::vector<Data::Value> result;
@@ -190,7 +190,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     // remove_directory - حذف مجلد
     auto fs_remove_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("remove_directory requires path");
+        if (args.empty()) throw std::runtime_error("(AR) احذف_مجلد تتطلب مسار المجلد / (EN) remove_directory requires path");
         std::string path = args[0]->toString();
         bool recursive = args.size() > 1 ? args[1]->toBool() : false;
         bool result = sad::stdlib::filesystem::remove_directory(path, recursive);
@@ -203,7 +203,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     // is_file - هل هو ملف
     auto fs_is_file_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("is_file requires path");
+        if (args.empty()) throw std::runtime_error("(AR) هل_ملف تتطلب مسار الملف / (EN) is_file requires path");
         std::string path = args[0]->toString();
         bool result = sad::stdlib::filesystem::is_file(path);
         return std::make_shared<Data::Value>(result);
@@ -214,7 +214,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     // is_directory - هل هو مجلد
     auto fs_is_dir_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
-        if (args.empty()) throw std::runtime_error("is_directory requires path");
+        if (args.empty()) throw std::runtime_error("(AR) هل_مجلد تتطلب مسار المجلد / (EN) is_directory requires path");
         std::string path = args[0]->toString();
         bool result = sad::stdlib::filesystem::is_directory(path);
         return std::make_shared<Data::Value>(result);

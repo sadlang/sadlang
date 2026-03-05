@@ -16,6 +16,7 @@
 
 #include "parser_core.h"
 #include "advanced_expr_nodes.h"
+#include "directive_nodes.h"
 #include "class_manager.h"
 #include <iostream>
 #include <sstream>
@@ -290,6 +291,17 @@ std::vector<std::string> ParserCore::getErrors() const {
  *        (EN) Parses single declaration (function, class, variable, import, export).
  */
 StmtPtr ParserCore::parseDeclaration() {
+    // ══════════════════════════════════════════════════════════════════
+    // (AR) التحقق من التوجيهات @ (directives) قبل المُزخرِفات
+    // (EN) Check for @ directives before decorators
+    // ══════════════════════════════════════════════════════════════════
+    if (check(TT::AT_SIGN)) {
+        auto directiveResult = tryParseDirective();
+        if (directiveResult) {
+            return directiveResult;
+        }
+    }
+
     // (AR) التحقق من المُزخرِفات قبل التصريح
     // (EN) Check for decorators before declaration
     ExprList decorators;
@@ -333,29 +345,48 @@ StmtPtr ParserCore::parseDeclaration() {
         if (!decorators.empty()) {
             error("(AR) المُزخرِفات لا تُستخدم مع الدوال الخارجية. (EN) Decorators cannot be used with extern functions.");
         }
-        // (AR) توقع 'دالة' بعد 'خارجي'
-        // (EN) Expect 'function' after 'extern'
+        // (AR) تحليل اسم الربط الاختياري: خارجي("اسم_الربط") دالة ...
+        // (EN) Parse optional link name: extern("link_name") function ...
+        std::string ffiLinkName;
+        if (check(TT::PAREN_LEFT)) {
+            advance(); // (AR) استهلاك '(' / (EN) consume '('
+            Token linkNameToken = consume(TT::STRING_LITERAL,
+                "(AR) خطأ نحوي: توقع نص حرفي لاسم الربط بين الأقواس.\n"
+                "مثال: خارجي(\"c_function_name\") دالة ...\n"
+                "(EN) Syntax error: expected string literal for link name inside parentheses.\n"
+                "Example: extern(\"c_function_name\") function ...");
+            ffiLinkName = linkNameToken.getValue();
+            consume(TT::PAREN_RIGHT,
+                "(AR) خطأ نحوي: توقع ')' بعد اسم الربط.\n"
+                "(EN) Syntax error: expected ')' after link name.");
+        }
+        // (AR) توقع 'دالة' بعد 'خارجي' أو بعد 'خارجي("...")'
+        // (EN) Expect 'function' after 'extern' or after 'extern("...")'
         if (!match(TT::KEYWORD_FUNCTION)) {
             error("(AR) خطأ نحوي: توقع 'دالة' بعد 'خارجي'. (EN) Syntax error: expected 'function' after 'extern'.");
             return nullptr;
         }
-        return parseExternFunctionDecl();
+        return parseExternFunctionDecl(ffiLinkName);
     }
     
-    // (AR) دالة غير متزامنة / (EN) Async function
-    if (match(TT::KEYWORD_ASYNC)) {
+    // (AR) دالة غير متزامنة (كلمة سياقية — لم تعد محجوزة)
+    // (EN) Async function (contextual keyword — no longer reserved)
+    if (match(TT::KEYWORD_ASYNC) ||
+        (check(TT::IDENTIFIER) && current_.getValue() == "غير_متزامن" && peekNext().getType() == TT::KEYWORD_FUNCTION)) {
+        if (check(TT::IDENTIFIER) && current_.getValue() == "غير_متزامن") advance(); // consume contextual
         if (!check(TT::KEYWORD_FUNCTION)) {
             error("(AR) خطأ نحوي: يجب أن تتبع 'غير_متزامن' بـ 'دالة'. (EN) Syntax error: 'async' must be followed by 'function'.");
             return nullptr;
         }
         advance(); // (AR) استهلاك 'دالة' / (EN) consume 'function'
-        return parseFunctionDecl(std::move(decorators), true, false); // (AR) تمرير is_async=true / (EN) pass is_async=true
+        return parseFunctionDecl(std::move(decorators), true, false);
     }
     
     if (match(TT::KEYWORD_FUNCTION)) {
-        // (AR) التحقق إذا كانت دالة مولد: دالة مولد اسم()
-        // (EN) Check if generator function: function generator name()
-        bool isGenerator = match(TT::KEYWORD_GENERATOR);
+        // (AR) التحقق إذا كانت دالة مولد (كلمة سياقية)
+        // (EN) Check if generator function (contextual keyword)
+        bool isGenerator = match(TT::KEYWORD_GENERATOR) ||
+                          (check(TT::IDENTIFIER) && current_.getValue() == "مولد" && (advance(), true));
         return parseFunctionDecl(std::move(decorators), false, isGenerator);
     }
     
@@ -363,7 +394,8 @@ StmtPtr ParserCore::parseDeclaration() {
     // (AR) دعم القوالب (Templates - Phase 7B)
     // (EN) Template support (Phase 7B)
     // ======================================================================
-    if (match(TT::KEYWORD_TEMPLATE)) {
+    if (match(TT::KEYWORD_TEMPLATE) ||
+        (check(TT::IDENTIFIER) && current_.getValue() == "قالب" && (advance(), true))) {
         if (!decorators.empty()) {
             error("(AR) المُزخرِفات للقوالب غير مدعومة بعد. (EN) Template decorators not yet supported.");
         }
@@ -372,7 +404,8 @@ StmtPtr ParserCore::parseDeclaration() {
     
     // (AR) دعم فضاء الأسماء (Namespaces - Phase 7B.5)
     // (EN) Namespace support (Phase 7B.5)
-    if (match(TT::KEYWORD_NAMESPACE)) {
+    if (match(TT::KEYWORD_NAMESPACE) ||
+        (check(TT::IDENTIFIER) && current_.getValue() == "فضاء" && (advance(), true))) {
         if (!decorators.empty()) {
             error("(AR) المُزخرِفات لفضاء الأسماء غير مدعومة. (EN) Namespace decorators not supported.");
         }
@@ -406,7 +439,9 @@ StmtPtr ParserCore::parseDeclaration() {
     // (AR) دعم الواجهات/السمات: سمة اسم_الواجهة ... نهاية
     // (EN) Interface/Trait support: trait TraitName ... end
     // ═══════════════════════════════════════════════════════════════════
-    if (match(TT::KEYWORD_TRAIT)) {
+    if (match(TT::KEYWORD_TRAIT) ||
+        (check(TT::IDENTIFIER) && current_.getValue() == "سمة" && (advance(), true)) ||
+        (check(TT::IDENTIFIER) && current_.getValue() == "واجهة" && (advance(), true))) {
         return parseTraitDecl();
     }
     
@@ -414,7 +449,8 @@ StmtPtr ParserCore::parseDeclaration() {
     // (AR) دعم تنفيذ الواجهات: نفّذ اسم_الواجهة لـ اسم_الصنف ... نهاية
     // (EN) Impl block: impl TraitName for ClassName ... end
     // ═══════════════════════════════════════════════════════════════════
-    if (match(TT::KEYWORD_IMPL)) {
+    if (match(TT::KEYWORD_IMPL) ||
+        (check(TT::IDENTIFIER) && (current_.getValue() == "نفّذ" || current_.getValue() == "نفذ") && (advance(), true))) {
         return parseImplDecl();
     }
     
@@ -516,7 +552,8 @@ StmtPtr ParserCore::parseDeclaration() {
         return parseStructDecl();
     }
     
-    if (match(TT::KEYWORD_TEST)) {
+    if (match(TT::KEYWORD_TEST) ||
+        (check(TT::IDENTIFIER) && current_.getValue() == "اختبر" && (advance(), true))) {
         if (!decorators.empty()) {
             error("(AR) المُزخرِفات لا تُستخدم مع الاختبارات. (EN) Decorators cannot be used with tests.");
         }
@@ -612,7 +649,8 @@ StmtPtr ParserCore::parseStatement() {
         return parseForStmt();
     }
     
-    if (match(TT::KEYWORD_CASE)) {
+    if (match(TT::KEYWORD_CASE) ||
+        (check(TT::IDENTIFIER) && current_.getValue() == "حالة" && (advance(), true))) {
         return parseSwitchStmt();
     }
     
@@ -624,11 +662,13 @@ StmtPtr ParserCore::parseStatement() {
         return parseReturnStmt();
     }
     
-    if (match(TT::KEYWORD_YIELD)) {
+    if (match(TT::KEYWORD_YIELD) ||
+        (check(TT::IDENTIFIER) && (current_.getValue() == "أنتج" || current_.getValue() == "اعطِ") && (advance(), true))) {
         return parseYieldStmt();
     }
     
-    if (match(TT::KEYWORD_WITH)) {
+    if (match(TT::KEYWORD_WITH) ||
+        (check(TT::IDENTIFIER) && current_.getValue() == "باستخدام" && (advance(), true))) {
         return parseWithStmt();
     }
     
@@ -667,9 +707,9 @@ StmtPtr ParserCore::parseStatement() {
             return block;
         }
         
-        // Check if followed by colon (map syntax)
-        if (check(TT::COLON)) {
-            consume(TT::COLON, "Expected :");
+        // Check if followed by colon or = (map syntax)
+        if (check(TT::COLON) || check(TT::OP_ASSIGN)) {
+            advance(); // consume ':' or '='
             
             // Parse first value
             ExprPtr firstValue = parseExpression();
@@ -715,8 +755,16 @@ StmtPtr ParserCore::parseStatement() {
             while (match(TT::COMMA) || match(TT::ARABIC_COMMA)) {
                 if (check(TT::BRACE_RIGHT)) break;
                 
-                auto key = parseExpression();
-                consume(TT::COLON, "Expected :");
+                // (AR) استخدم parseTernary لتجنب تفسير = كإسناد
+                auto key = parseTernary();
+                if (!check(TT::COLON) && !check(TT::OP_ASSIGN)) {
+                    errorBilingual(
+                        "خطأ: توقعت ':' أو '=' بعد مفتاح الخريطة.",
+                        "Error: expected ':' or '=' after map key."
+                    );
+                    return nullptr;
+                }
+                advance(); // consume ':' or '='
                 auto value = parseExpression();
                 pairs.emplace_back(std::move(key), std::move(value));
             }
@@ -769,6 +817,243 @@ StmtPtr ParserCore::parseStatement() {
 // (AR) تحليل التصريحات / (EN) Declaration Parsing
 // ======================================================================
 
+// ======================================================================
+// (AR) تحليل التوجيهات @ / (EN) @ Directive Parsing
+// ======================================================================
+
+/**
+ * @brief (AR) محاولة تحليل توجيه @ — يعيد nullptr إذا لم يكن توجيهاً
+ * @brief (EN) Try parsing an @ directive — returns nullptr if not a directive
+ * 
+ * (AR) الأسماء المعروفة: غير_آمن، وقت_الترجمة، متطاير، تجميع، حجم، ذري
+ * (EN) Known names: غير_آمن, وقت_الترجمة, متطاير, تجميع, حجم, ذري
+ */
+StmtPtr ParserCore::tryParseDirective() {
+    // (AR) نتحقق أن الرمز الحالي هو @ والتالي هو معرّف أو كلمة مفتاحية بأحد أسماء التوجيهات
+    // (EN) Check current is @ and next is an identifier/keyword with a known directive name
+    if (!check(TT::AT_SIGN)) return nullptr;
+
+    // (AR) النظر المسبق: ما بعد @ يجب أن يكون معرّفاً أو كلمة مفتاحية خاصة
+    const auto& next = peekNext();
+    TT nextType = next.getType();
+    
+    // (AR) قائمة الكلمات المفتاحية المسموحة كتوجيهات
+    // (EN) List of keywords allowed as directives
+    bool isDirectiveKeyword = (nextType == TT::KEYWORD_UNSAFE ||
+                               nextType == TT::KEYWORD_COMPTIME ||
+                               nextType == TT::KEYWORD_VOLATILE ||
+                               nextType == TT::KEYWORD_SIZEOF ||
+                               nextType == TT::KEYWORD_ATOMIC ||
+                               nextType == TT::KEYWORD_ASM);
+    
+    if (nextType != TT::IDENTIFIER && !isDirectiveKeyword) return nullptr;
+
+    const std::string& name = next.getValue();
+
+    // ─── @غير_آمن ... نهاية ───
+    if (nextType == TT::KEYWORD_UNSAFE || name == "غير_آمن") {
+        auto pos = current_.getPosition();
+        advance(); // consume @
+        advance(); // consume غير_آمن
+
+        StmtList body;
+        while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE)) {
+            auto stmt = parseDeclaration();
+            if (stmt) body.push_back(std::move(stmt));
+        }
+        consume(TT::KEYWORD_END,
+            "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق كتلة @غير_آمن.\n"
+            "(EN) Syntax error: expected 'نهاية' to close @غير_آمن block.");
+
+        return std::make_unique<UnsafeBlockStmt>(std::move(body), pos);
+    }
+
+    // ─── @وقت_الترجمة ... نهاية ───
+    if (nextType == TT::KEYWORD_COMPTIME || name == "وقت_الترجمة") {
+        auto pos = current_.getPosition();
+        advance(); // consume @
+        advance(); // consume وقت_الترجمة
+
+        StmtList body;
+        while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE)) {
+            auto stmt = parseDeclaration();
+            if (stmt) body.push_back(std::move(stmt));
+        }
+        consume(TT::KEYWORD_END,
+            "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق كتلة @وقت_الترجمة.\n"
+            "(EN) Syntax error: expected 'نهاية' to close @وقت_الترجمة block.");
+
+        return std::make_unique<ComptimeBlockStmt>(std::move(body), pos);
+    }
+
+    // ─── @متطاير متغير/ثابت ... ───
+    if (nextType == TT::KEYWORD_VOLATILE || name == "متطاير") {
+        auto pos = current_.getPosition();
+        advance(); // consume @
+        advance(); // consume متطاير
+
+        // (AR) التالي يجب أن يكون إعلان متغير (متغير أو ثابت)
+        // (EN) Next must be a variable declaration (var or const)
+        if (!check(TT::KEYWORD_VAR) && !check(TT::KEYWORD_CONST)) {
+            error("(AR) خطأ نحوي: توقع 'متغير' أو 'ثابت' بعد @متطاير.\n"
+                  "(EN) Syntax error: expected 'متغير' or 'ثابت' after @متطاير.");
+            return nullptr;
+        }
+
+        auto decl = parseDeclaration();
+        return std::make_unique<VolatileVarDeclStmt>(std::move(decl), pos);
+    }
+
+    // ─── @تجميع("code") — inline assembly statement ───
+    if (nextType == TT::KEYWORD_ASM || name == "تجميع") {
+        auto pos = current_.getPosition();
+        advance(); // consume @
+        advance(); // consume تجميع
+        
+        consume(TT::PAREN_LEFT,
+            "(AR) خطأ نحوي: توقع '(' بعد @تجميع.\n"
+            "(EN) Syntax error: expected '(' after @تجميع.");
+        
+        Token asmCode = consume(TT::STRING_LITERAL,
+            "(AR) خطأ نحوي: توقع نص التجميع كنص حرفي.\n"
+            "(EN) Syntax error: expected assembly code as string literal.");
+        
+        // (AR) تحليل اختياري: المخرجات والمدخلات والقيود
+        // (EN) Optional: output constraints, input constraints, clobbers
+        std::string output, input, clobbers;
+        bool isVolatile = false;
+
+        if (match(TT::COMMA)) {
+            // (AR) وسيط ثاني: قيود المخرجات أو "متطاير"
+            if (check(TT::STRING_LITERAL)) {
+                output = current_.getValue();
+                advance();
+            } else if (check(TT::IDENTIFIER) && current_.getValue() == "متطاير") {
+                isVolatile = true;
+                advance();
+            }
+        }
+        if (match(TT::COMMA)) {
+            if (check(TT::STRING_LITERAL)) {
+                input = current_.getValue();
+                advance();
+            }
+        }
+        if (match(TT::COMMA)) {
+            if (check(TT::STRING_LITERAL)) {
+                clobbers = current_.getValue();
+                advance();
+            }
+        }
+
+        consume(TT::PAREN_RIGHT,
+            "(AR) خطأ نحوي: توقع ')' لإغلاق @تجميع.\n"
+            "(EN) Syntax error: expected ')' to close @تجميع.");
+        
+        auto asmExpr = std::make_unique<InlineAsmExpr>(
+            asmCode.getValue(), output, input, clobbers, isVolatile, pos);
+        
+        // (AR) نلفه في ExprStmt
+        // (EN) Wrap in ExprStmt
+        return std::make_unique<ExprStmt>(std::move(asmExpr));
+    }
+
+    // ─── @حجم(type) و @ذري(op, ...) — تعبيرات → نلفها في ExprStmt ───
+    if (nextType == TT::KEYWORD_SIZEOF || name == "حجم" ||
+        nextType == TT::KEYWORD_ATOMIC || name == "ذري") {
+        auto expr = parseDirectiveExpr();
+        if (expr) {
+            return std::make_unique<ExprStmt>(std::move(expr));
+        }
+    }
+
+    // (AR) ليس توجيهاً معروفاً — تُرجع nullptr ليتم التعامل معه كمُزخرِف
+    // (EN) Not a known directive — return nullptr so it's treated as a decorator
+    return nullptr;
+}
+
+/**
+ * @brief (AR) تحليل تعبير @ — @حجم(نوع) أو @ذري(عملية, ...)
+ * @brief (EN) Parse @ expression — @حجم(type) or @ذري(op, ...)
+ */
+ExprPtr ParserCore::parseDirectiveExpr() {
+    if (!check(TT::AT_SIGN)) return nullptr;
+
+    const auto& next = peekNext();
+    TT nextType = next.getType();
+    
+    // ─── @حجم(نوع) ───
+    // (AR) التحقق من KEYWORD_SIZEOF أو معرّف "حجم"
+    // (EN) Check for KEYWORD_SIZEOF or identifier "حجم"
+    if (nextType == TT::KEYWORD_SIZEOF || 
+        (nextType == TT::IDENTIFIER && next.getValue() == "حجم")) {
+        auto pos = current_.getPosition();
+        advance(); // consume @
+        advance(); // consume حجم
+
+        consume(TT::PAREN_LEFT,
+            "(AR) خطأ نحوي: توقع '(' بعد @حجم.\n"
+            "(EN) Syntax error: expected '(' after @حجم.");
+
+        // (AR) اسم النوع: معرّف أو كلمة نوع
+        std::string typeName;
+        if (check(TT::IDENTIFIER)) {
+            typeName = current_.getValue();
+            advance();
+        } else {
+            // (AR) محاولة قراءة اسم النوع من أي رمز
+            typeName = current_.getValue();
+            advance();
+        }
+
+        consume(TT::PAREN_RIGHT,
+            "(AR) خطأ نحوي: توقع ')' بعد اسم النوع في @حجم.\n"
+            "(EN) Syntax error: expected ')' after type name in @حجم.");
+
+        return std::make_unique<SizeofExpr>(typeName, pos);
+    }
+
+    // ─── @ذري(عملية, وسائط...) ───
+    // (AR) التحقق من KEYWORD_ATOMIC أو معرّف "ذري"
+    // (EN) Check for KEYWORD_ATOMIC or identifier "ذري"
+    if (nextType == TT::KEYWORD_ATOMIC || 
+        (nextType == TT::IDENTIFIER && next.getValue() == "ذري")) {
+        auto pos = current_.getPosition();
+        advance(); // consume @
+        advance(); // consume ذري
+
+        consume(TT::PAREN_LEFT,
+            "(AR) خطأ نحوي: توقع '(' بعد @ذري.\n"
+            "(EN) Syntax error: expected '(' after @ذري.");
+
+        // (AR) أول وسيط: اسم العملية (معرّف)
+        // (EN) First arg: operation name (identifier)
+        std::string opName;
+        if (check(TT::IDENTIFIER)) {
+            opName = current_.getValue();
+            advance();
+        } else {
+            error("(AR) خطأ نحوي: توقع اسم العملية بعد @ذري(.\n"
+                  "(EN) Syntax error: expected operation name after @ذري(.");
+            return nullptr;
+        }
+
+        // (AR) بقية الوسائط: تعبيرات مفصولة بفاصلة
+        // (EN) Remaining args: comma-separated expressions
+        ExprList operands;
+        while (match(TT::COMMA) || match(TT::ARABIC_COMMA)) {
+            operands.push_back(parseExpression());
+        }
+
+        consume(TT::PAREN_RIGHT,
+            "(AR) خطأ نحوي: توقع ')' لإغلاق @ذري.\n"
+            "(EN) Syntax error: expected ')' to close @ذري.");
+
+        return std::make_unique<AtomicExpr>(opName, std::move(operands), pos);
+    }
+
+    return nullptr;
+}
 
 } // namespace Parser
 } // namespace Sad

@@ -15,12 +15,14 @@
 #include "class_nodes.h"
 #include "expressions.h"
 #include "advanced_expr_nodes.h" // For AwaitExpr
+#include "directive_nodes.h"    // For SizeofExpr, AtomicExpr
 #include "class_manager.h"
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
 #include "exception.h"
 #include "async_runtime.h"  // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
+#include "suggestions.h"    // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
 #include <atomic>
 #include <cmath>
 #include <climits>
@@ -37,6 +39,13 @@ namespace Interpreter {
 using namespace Data;
 using namespace AST;
 using namespace Lexer;
+
+// (AR) دالة مساعدة للحصول على اسم الملف من مدير الأخطاء
+// (EN) Helper function to get filename from error manager
+static inline std::string getSourceFilename() {
+    const auto& fn = Sad::Errors::ErrorManager::getInstance().getSourceFilename();
+    return fn.empty() ? "<input>" : fn;
+}
 
 
 // =========================================================================
@@ -109,7 +118,17 @@ void ExpressionEvaluator::printArabicOptStats() const {
 // =========================================================================
 
 void ExpressionEvaluator::visitLiteralExpr(LiteralExpr& node) {
-    lastResult_ = tokenToValue(node.token);
+    // (AR) استخدام ذاكرة التخزين المؤقت — يمنع إعادة تحليل stoll/stod في الحلقات
+    // (EN) Use cache — prevents re-parsing stoll/stod in loops
+    const void* key = static_cast<const void*>(&node);
+    auto it = literalCache_.find(key);
+    if (it != literalCache_.end()) {
+        lastResult_ = it->second;
+        return;
+    }
+    Value val = tokenToValue(node.token);
+    literalCache_[key] = val;
+    lastResult_ = std::move(val);
 }
 
 Value ExpressionEvaluator::tokenToValue(const Token& token) {
@@ -147,7 +166,7 @@ Value ExpressionEvaluator::tokenToValue(const Token& token) {
             } catch (const std::invalid_argument&) {
                 Sad::Errors::ErrorManager::getInstance().reportError(
                     Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation("<input>", 1, 1),
+                    Sad::Errors::SourceLocation(getSourceFilename(), 1, 1),
                     "تنسيق عدد غير صالح: " + value,
                     "Invalid number format: " + value
                 );
@@ -155,7 +174,7 @@ Value ExpressionEvaluator::tokenToValue(const Token& token) {
             } catch (const std::out_of_range&) {
                 Sad::Errors::ErrorManager::getInstance().reportError(
                     Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation("<input>", 1, 1),
+                    Sad::Errors::SourceLocation(getSourceFilename(), 1, 1),
                     "العدد خارج النطاق: " + value,
                     "Number out of range: " + value
                 );
@@ -169,7 +188,7 @@ Value ExpressionEvaluator::tokenToValue(const Token& token) {
             } catch (const std::invalid_argument&) {
                 Sad::Errors::ErrorManager::getInstance().reportError(
                     Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation("<input>", 1, 1),
+                    Sad::Errors::SourceLocation(getSourceFilename(), 1, 1),
                     "تنسيق عدد عشري غير صالح: " + token.getValue(),
                     "Invalid float format: " + token.getValue()
                 );
@@ -177,7 +196,7 @@ Value ExpressionEvaluator::tokenToValue(const Token& token) {
             } catch (const std::out_of_range&) {
                 Sad::Errors::ErrorManager::getInstance().reportError(
                     Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation("<input>", 1, 1),
+                    Sad::Errors::SourceLocation(getSourceFilename(), 1, 1),
                     "العدد العشري خارج النطاق: " + token.getValue(),
                     "Float out of range: " + token.getValue()
                 );
@@ -200,7 +219,7 @@ Value ExpressionEvaluator::tokenToValue(const Token& token) {
         default:
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation("<input>", 1, 1),
+                Sad::Errors::SourceLocation(getSourceFilename(), 1, 1),
                 "نوع رمز غير مدعوم: " + token.getValue(),
                 "Unsupported token type: " + token.getValue()
             );
@@ -213,41 +232,47 @@ Value ExpressionEvaluator::tokenToValue(const Token& token) {
 // =========================================================================
 
 void ExpressionEvaluator::visitVariableExpr(VariableExpr& node) {
-    // التحقق من وجود المتغير
-    // Check if variable exists
-    if (!variableManager_.exists(node.name)) {
+    // (AR) بحث واحد بدلاً من exists() + get() — تحسين أداء مهم
+    // (EN) Single lookup instead of exists() + get() — important performance optimization
+    const Value* varPtr = variableManager_.tryGet(node.name);
+    
+    if (!varPtr) {
         // التحقق من وجود صنف بهذا الاسم (للوصول الثابت)
         // Check if class exists with this name (for static access)
         auto* classManager = Data::ClassManager::getInstance();
         ClassType* classType = classManager->getClass(node.name);
         
         if (classType) {
-            // إرجاع اسم الصنف كـ string للتعامل معه في MemberExpr/MethodCallExpr
-            // Return class name as string to be handled in MemberExpr/MethodCallExpr
             lastResult_ = Value(node.name);
             return;
         }
         
-        // ═══════════════════════════════════════════════════════════════
         // (AR) التحقق من وجود دالة بهذا الاسم — دوال من الدرجة الأولى
-        //      عندما يُستخدم اسم دالة كقيمة (مثلاً: متغير د = جمع)
-        //      نُرجع اسم الدالة كـ string لاستخدامه في الاستدعاء لاحقاً
-        //
         // (EN) Check if a function exists with this name — first-class functions
-        //      When a function name is used as a value (e.g., var f = sum)
-        //      return the function name as string for later invocation
-        // ═══════════════════════════════════════════════════════════════
         if (functionManager_.hasFunction(node.name)) {
             lastResult_ = Value(node.name);
             return;
         }
         
-        // متغير غير معرّف
+        // متغير غير معرّف — مع اقتراح "هل قصدت؟"
+        // (EN) Undefined variable — with "Did you mean?" suggestion
+        std::string msgAr = "متغير غير معرّف: " + node.name;
+        std::string msgEn = "Undefined variable: " + node.name;
+        
+        // (AR) بحث عن أسماء مشابهة / (EN) Search for similar names
+        auto availableNames = variableManager_.getVariableNames();
+        Sad::Errors::SuggestionEngine sugEngine;
+        auto similar = sugEngine.findSimilarSymbols(node.name, availableNames);
+        if (!similar.empty()) {
+            msgAr += " — هل قصدت: '" + similar[0] + "'؟";
+            msgEn += " — Did you mean: '" + similar[0] + "'?";
+        }
+        
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-            "متغير غير معرّف: " + node.name,
-            "Undefined variable: " + node.name
+            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            msgAr,
+            msgEn
         );
         lastResult_ = Value(); // Return null
         return;
@@ -266,7 +291,9 @@ void ExpressionEvaluator::visitVariableExpr(VariableExpr& node) {
         }
     }
     
-    lastResult_ = variableManager_.get(node.name);
+    // (AR) استخدام المؤشر الذي حصلنا عليه من tryGet — بدون بحث ثانٍ
+    // (EN) Use the pointer we got from tryGet — no second lookup
+    lastResult_ = *varPtr;
 }
 
 void ExpressionEvaluator::visitBorrowExpr(BorrowExpr& node) {
@@ -274,7 +301,7 @@ void ExpressionEvaluator::visitBorrowExpr(BorrowExpr& node) {
     if (!variableManager_.exists(node.variableName)) {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1 \xD8\xBA\xD9\x8A\xD8\xB1 \xD9\x85\xD8\xB9\xD8\xB1\xD9\x91\xD9\x81: " + node.variableName,
             "Undefined variable: " + node.variableName
         );
@@ -314,7 +341,7 @@ void ExpressionEvaluator::visitThisExpr(ThisExpr& node) {
     } else {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "(AR) 'هذا' غير متاح في هذا السياق. (EN) 'this' is not available in this context.",
             "'this' keyword used outside of class context"
         );
@@ -354,7 +381,7 @@ void ExpressionEvaluator::visitSuperExpr(SuperExpr& node) {
         }
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "(AR) 'الأساس' غير متاح - الصنف لا يرث من صنف آخر. (EN) 'super' not available - class does not inherit.",
             "'super' keyword used in class without base class"
         );
@@ -362,7 +389,7 @@ void ExpressionEvaluator::visitSuperExpr(SuperExpr& node) {
     } else {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_UNDEFINED_VARIABLE,
-            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "(AR) 'الأساس' غير متاح في هذا السياق. (EN) 'super' is not available in this context.",
             "'super' keyword used outside of class context or class without base"
         );
@@ -450,7 +477,7 @@ void ExpressionEvaluator::visitBinaryExpr(BinaryExpr& node) {
     // ═══════════════════════════════════════════════════════════════════
     if (node.op == TokenType::OP_AND) {
         node.left->accept(*this);
-        Value left = lastResult_;
+        Value left = std::move(lastResult_);
         if (!left.toBool()) {
             lastResult_ = Value(false);
             return;
@@ -471,13 +498,15 @@ void ExpressionEvaluator::visitBinaryExpr(BinaryExpr& node) {
         return;
     }
     
-    // تقييم الطرف الأيسر / Evaluate left operand
+    // (AR) تقييم الطرف الأيسر مع نقل القيمة بدلاً من نسخها
+    // (EN) Evaluate left operand with move instead of copy
     node.left->accept(*this);
-    Value left = lastResult_;
+    Value left = std::move(lastResult_);
     
-    // تقييم الطرف الأيمن / Evaluate right operand
+    // (AR) تقييم الطرف الأيمن مع نقل القيمة
+    // (EN) Evaluate right operand with move
     node.right->accept(*this);
-    Value right = lastResult_;
+    Value right = std::move(lastResult_);
     
     // ═══════════════════════════════════════════════════════════════════
     // (AR) فحص تحميل العامل الزائد على الكائنات — يدعم OBJECT و MAP
@@ -571,7 +600,8 @@ void ExpressionEvaluator::visitBinaryExpr(BinaryExpr& node) {
                 found = (right.toString().find(left.toString()) != std::string::npos);
             } else {
                 throw RuntimeError(
-                    "(AR) عامل 'في' يتطلب مصفوفة أو خريطة أو نص على اليمين. (EN) 'in' operator requires array, map, or string on the right.",
+                    "(AR) عامل 'في' يتطلب مصفوفة أو خريطة أو نص على اليمين، ولكن الموجود من نوع '" + right.getTypeName() + "'. "
+                    "(EN) 'in' operator requires array, map, or string on right side, but got type '" + right.getTypeName() + "'.",
                     node.position
                 );
             }
@@ -579,14 +609,30 @@ void ExpressionEvaluator::visitBinaryExpr(BinaryExpr& node) {
             break;
         }
         
-        default:
+        default: {
+            // (AR) حساب رمز العامل للرسالة المحسنة
+            // (EN) Compute operator symbol for improved message
+            std::string opStr = "?";
+            switch (node.op) {
+                case TokenType::OP_PLUS: opStr = "+"; break;
+                case TokenType::OP_MINUS: opStr = "-"; break;
+                case TokenType::OP_MULTIPLY: opStr = "*"; break;
+                case TokenType::OP_DIVIDE: opStr = "/"; break;
+                case TokenType::OP_MODULO: opStr = "%"; break;
+                case TokenType::OP_POWER: opStr = "**"; break;
+                case TokenType::OP_XOR: opStr = "^"; break;
+                default: break;
+            }
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
-                "عملية ثنائية غير مدعومة",
-                "Unsupported binary operation"
+                Sad::Errors::SourceLocation(
+                    Sad::Errors::ErrorManager::getInstance().getSourceFilename().empty() ? "<input>" : Sad::Errors::ErrorManager::getInstance().getSourceFilename(),
+                    static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                "العملية '" + opStr + "' غير مدعومة بين نوعي '" + left.getTypeName() + "' و '" + right.getTypeName() + "'",
+                "Operation '" + opStr + "' not supported between types '" + left.getTypeName() + "' and '" + right.getTypeName() + "'"
             );
             lastResult_ = Value(); // Return null
+        }
     }
 }
 
@@ -626,7 +672,7 @@ Value ExpressionEvaluator::evaluateArithmeticOp(const Value& left, TokenType op,
     if (!left.isNumeric() || !right.isNumeric()) {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-            Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+            Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
             "العمليات الحسابية تتطلب قيم رقمية",
             "Arithmetic operations require numeric values"
         );
@@ -727,7 +773,7 @@ Value ExpressionEvaluator::evaluateArithmeticOp(const Value& left, TokenType op,
     
     Sad::Errors::ErrorManager::getInstance().reportError(
         Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-        Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+        Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
         "عملية حسابية غير مدعومة",
         "Unsupported arithmetic operation"
     );
@@ -752,7 +798,7 @@ Value ExpressionEvaluator::evaluateComparisonOp(const Value& left, TokenType op,
             default:
                 Sad::Errors::ErrorManager::getInstance().reportError(
                     Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+                    Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
                     "لا يمكن استخدام عمليات المقارنة (<، >، <=، >=) مع null. استخدم == أو != فقط",
                     "Cannot use comparison operators (<, >, <=, >=) with null. Use == or != only"
                 );
@@ -783,7 +829,7 @@ Value ExpressionEvaluator::evaluateComparisonOp(const Value& left, TokenType op,
         if (op == TokenType::OP_NOT_EQUAL) return Value(true);
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-            Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+            Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
             "لا يمكن مقارنة أنواع مختلفة",
             "Cannot compare different types"
         );
@@ -837,7 +883,7 @@ Value ExpressionEvaluator::evaluateComparisonOp(const Value& left, TokenType op,
             default:
                 Sad::Errors::ErrorManager::getInstance().reportError(
                     Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                    Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+                    Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
                     "فقط == و != مسموح بهما للقيم المنطقية",
                     "Only == and != allowed for boolean values"
                 );
@@ -881,7 +927,7 @@ Value ExpressionEvaluator::evaluateComparisonOp(const Value& left, TokenType op,
     
     Sad::Errors::ErrorManager::getInstance().reportError(
         Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-        Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+        Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
         "عملية مقارنة غير مدعومة",
         "Unsupported comparison operation"
     );
@@ -902,7 +948,7 @@ Value ExpressionEvaluator::evaluateLogicalOp(const Value& left, TokenType op, co
         default:
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+                Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
                 "عملية منطقية غير مدعومة",
                 "Unsupported logical operation"
             );
@@ -918,7 +964,7 @@ Value ExpressionEvaluator::evaluateBitwiseOp(const Value& left, TokenType op, co
     if (!left.isNumeric() || !right.isNumeric()) {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-            Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+            Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
             "عمليات البت تتطلب قيم صحيحة",
             "Bitwise operations require integer values"
         );
@@ -957,7 +1003,7 @@ Value ExpressionEvaluator::evaluateBitwiseOp(const Value& left, TokenType op, co
         default:
             Sad::Errors::ErrorManager::getInstance().reportError(
                 Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-                Sad::Errors::SourceLocation("<expression>", pos.line, pos.column),
+                Sad::Errors::SourceLocation(getSourceFilename(), pos.line, pos.column),
                 "عملية بت غير مدعومة",
                 "Unsupported bitwise operation"
             );
@@ -1046,6 +1092,147 @@ Value ExpressionEvaluator::executeOperatorOverload(const Value& left, Data::Oper
     
     variableManager_.exitScope();
     return returnValue;
+}
+
+// ======================================================================
+// (AR) زوار التوجيهات التعبيرية @ — Expression Directive Visitors
+// ======================================================================
+
+/**
+ * @brief (AR) @حجم(نوع) — يُرجع حجم النوع بالبايتات
+ * @brief (EN) @sizeof(type) — returns size of type in bytes
+ */
+void ExpressionEvaluator::visitSizeofExpr(AST::SizeofExpr& expr) {
+    // (AR) خريطة أحجام الأنواع الأساسية
+    // (EN) Basic type size map
+    static const std::unordered_map<std::string, int64_t> typeSizes = {
+        {"رقم", 8},      // int64_t = 8 bytes
+        {"عشري", 8},     // double = 8 bytes
+        {"نص", 32},      // std::string (approx)
+        {"منطقي", 1},    // bool = 1 byte
+        {"فراغ", 0},     // void = 0
+        {"عدم", 0},      // null = 0
+        {"مصفوفة", 24},  // vector (approx)
+        {"خريطة", 48},   // map (approx)
+        {"أي", 72},      // Value variant (approx)
+        // Sized integer types
+        {"u8", 1}, {"i8", 1},
+        {"u16", 2}, {"i16", 2},
+        {"u32", 4}, {"i32", 4},
+        {"u64", 8}, {"i64", 8},
+        {"usize", 8}, {"isize", 8},
+        {"ptr", 8},
+    };
+
+    auto it = typeSizes.find(expr.typeName);
+    if (it != typeSizes.end()) {
+        lastResult_ = Data::Value(it->second);
+    } else {
+        // (AR) نوع غير معروف — نرجع 0
+        // (EN) Unknown type — return 0
+        lastResult_ = Data::Value(static_cast<int64_t>(0));
+    }
+}
+
+/**
+ * @brief (AR) @ذري(عملية, ...) — عمليات ذرية
+ * @brief (EN) @atomic(op, ...) — atomic operations
+ * 
+ * (AR) في المفسر: نحاكي العمليات الذرية بدون قفل حقيقي
+ *      لأن المفسر أحادي الخيط. القيمة الحقيقية تكون في المترجم.
+ * (EN) In interpreter: simulate atomic ops without real locking
+ *      because interpreter is single-threaded. Real value is in compiler.
+ */
+void ExpressionEvaluator::visitAtomicExpr(AST::AtomicExpr& expr) {
+    const std::string& op = expr.operation;
+    
+    if (op == "تحميل" || op == "load") {
+        // @ذري(تحميل, متغير) — قراءة ذرية
+        if (!expr.operands.empty()) {
+            expr.operands[0]->accept(*this);
+            // lastResult_ already set
+        } else {
+            lastResult_ = Data::Value(static_cast<int64_t>(0));
+        }
+    }
+    else if (op == "تخزين" || op == "store") {
+        // @ذري(تخزين, متغير, قيمة) — كتابة ذرية
+        if (expr.operands.size() >= 2) {
+            // (AR) نحسب القيمة
+            expr.operands[1]->accept(*this);
+            Data::Value val = lastResult_;
+            
+            // (AR) نحصل على اسم المتغير ونعيّنه
+            if (auto* varExpr = dynamic_cast<AST::VariableExpr*>(expr.operands[0].get())) {
+                variableManager_.assign(varExpr->name, std::move(val));
+            }
+            lastResult_ = Data::Value(static_cast<int64_t>(0));
+        }
+    }
+    else if (op == "إضافة" || op == "add") {
+        // @ذري(إضافة, متغير, قيمة) — إضافة ذرية
+        if (expr.operands.size() >= 2) {
+            expr.operands[0]->accept(*this);
+            Data::Value current = lastResult_;
+            expr.operands[1]->accept(*this);
+            Data::Value addend = lastResult_;
+            
+            if (current.isInteger() && addend.isInteger()) {
+                int64_t newVal = current.toInt64() + addend.toInt64();
+                lastResult_ = Data::Value(newVal);
+                
+                // (AR) تحديث المتغير
+                if (auto* varExpr = dynamic_cast<AST::VariableExpr*>(expr.operands[0].get())) {
+                    variableManager_.assign(varExpr->name, Data::Value(newVal));
+                }
+            }
+        }
+    }
+    else if (op == "طرح" || op == "sub") {
+        // @ذري(طرح, متغير, قيمة) — طرح ذري
+        if (expr.operands.size() >= 2) {
+            expr.operands[0]->accept(*this);
+            Data::Value current = lastResult_;
+            expr.operands[1]->accept(*this);
+            Data::Value subtrahend = lastResult_;
+            
+            if (current.isInteger() && subtrahend.isInteger()) {
+                int64_t newVal = current.toInt64() - subtrahend.toInt64();
+                lastResult_ = Data::Value(newVal);
+                
+                if (auto* varExpr = dynamic_cast<AST::VariableExpr*>(expr.operands[0].get())) {
+                    variableManager_.assign(varExpr->name, Data::Value(newVal));
+                }
+            }
+        }
+    }
+    else if (op == "مقارنة_وتبديل" || op == "compare_and_swap" || op == "cas") {
+        // @ذري(مقارنة_وتبديل, متغير, متوقع, جديد)
+        if (expr.operands.size() >= 3) {
+            expr.operands[0]->accept(*this);
+            Data::Value current = lastResult_;
+            expr.operands[1]->accept(*this);
+            Data::Value expected = lastResult_;
+            expr.operands[2]->accept(*this);
+            Data::Value newVal = lastResult_;
+            
+            // (AR) مقارنة وتبديل: إذا القيمة الحالية == المتوقعة، نضع الجديدة
+            if (current.isInteger() && expected.isInteger() && newVal.isInteger()) {
+                if (current.toInt64() == expected.toInt64()) {
+                    if (auto* varExpr = dynamic_cast<AST::VariableExpr*>(expr.operands[0].get())) {
+                        variableManager_.assign(varExpr->name, Data::Value(newVal.toInt64()));
+                    }
+                    lastResult_ = Data::Value(true); // (AR) نجح / (EN) succeeded
+                } else {
+                    lastResult_ = Data::Value(false); // (AR) فشل / (EN) failed
+                }
+            }
+        }
+    }
+    else {
+        // (AR) عملية ذرية غير معروفة
+        lastResult_ = Data::Value(static_cast<int64_t>(0));
+    }
 }
 
 } // namespace Interpreter

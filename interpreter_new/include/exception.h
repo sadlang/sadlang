@@ -28,7 +28,9 @@
 #include <exception>
 #include <string>
 #include <vector>
+#include <optional>
 #include "token.h"  // For Position struct
+#include "value.h"  // For Data::Value — carrying thrown objects
 
 namespace Sad {
 namespace Interpreter {
@@ -56,6 +58,7 @@ protected:
     std::string type_;          ///< Exception type name / اسم نوع الاستثناء
     std::vector<std::string> stackTrace_;  ///< Stack trace frames / إطارات تتبع المكدس
     Lexer::Position position_;  ///< Source position / موضع المصدر
+    std::optional<Data::Value> thrownValue_;  ///< (AR) القيمة المرمية (كائن أو غيره) / (EN) The thrown value (object or other)
     
 public:
     /**
@@ -117,6 +120,24 @@ public:
      */
     Lexer::Position getPosition() const { return position_; }
     
+    /**
+     * @brief (AR) تعيين القيمة المرمية (كائن أو غيره) / (EN) Set the thrown value (object or other)
+     * @param val القيمة المرمية / the thrown value
+     */
+    void setThrownValue(const Data::Value& val) { thrownValue_ = val; }
+    
+    /**
+     * @brief (AR) هل يحمل هذا الاستثناء قيمة مرمية؟ / (EN) Does this exception carry a thrown value?
+     * @return true إذا كانت القيمة موجودة / true if value is present
+     */
+    bool hasThrownValue() const { return thrownValue_.has_value(); }
+    
+    /**
+     * @brief (AR) الحصول على القيمة المرمية / (EN) Get the thrown value
+     * @return القيمة المرمية / the thrown value
+     */
+    const Data::Value& getThrownValue() const { return thrownValue_.value(); }
+
     /**
      * @brief Add a stack frame to the trace
      *        إضافة إطار مكدس إلى التتبع

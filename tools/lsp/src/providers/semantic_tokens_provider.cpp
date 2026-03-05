@@ -37,7 +37,7 @@ namespace lsp {
 static int token_to_semantic_type(Sad::Lexer::TokenType type) {
     using TT = Sad::Lexer::TokenType;
     switch (type) {
-        // أنواع البيانات → type
+        // أنواع البيانات → type (legacy — المحلل المعجمي لا ينتجها بعد الآن)
         case TT::TYPE_INTEGER: case TT::TYPE_DOUBLE: case TT::TYPE_STRING:
         case TT::TYPE_BOOLEAN: case TT::TYPE_VOID: case TT::TYPE_NULL:
         case TT::TYPE_ARRAY: case TT::TYPE_MAP: case TT::TYPE_ANY:
@@ -45,22 +45,33 @@ static int token_to_semantic_type(Sad::Lexer::TokenType type) {
         case TT::TYPE_I8: case TT::TYPE_I16: case TT::TYPE_I32: case TT::TYPE_I64:
             return static_cast<int>(SemanticTokenType::Type);
 
-        // الكلمات المفتاحية → keyword
-        case TT::KEYWORD_FUNCTION: case TT::KEYWORD_RETURN: case TT::KEYWORD_RETURNS:
+        // الكلمات المفتاحية المحجوزة (40) → keyword
+        case TT::KEYWORD_FUNCTION: case TT::KEYWORD_RETURN:
         case TT::KEYWORD_CLASS: case TT::KEYWORD_NEW: case TT::KEYWORD_THIS:
-        case TT::KEYWORD_IF: case TT::KEYWORD_ELSE: case TT::KEYWORD_ELSE_IF:
+        case TT::KEYWORD_IF: case TT::KEYWORD_ELSE:
         case TT::KEYWORD_WHILE: case TT::KEYWORD_FOR: case TT::KEYWORD_IN:
         case TT::KEYWORD_BREAK: case TT::KEYWORD_CONTINUE:
+        case TT::KEYWORD_MATCH: case TT::KEYWORD_WHEN: case TT::KEYWORD_DEFAULT:
         case TT::KEYWORD_TRY: case TT::KEYWORD_CATCH: case TT::KEYWORD_THROW:
         case TT::KEYWORD_FINALLY: case TT::KEYWORD_IMPORT: case TT::KEYWORD_FROM:
         case TT::KEYWORD_AS: case TT::KEYWORD_EXPORT:
-        case TT::KEYWORD_VAR: case TT::KEYWORD_CONST:
-        case TT::KEYWORD_ASYNC: case TT::KEYWORD_AWAIT:
-        case TT::KEYWORD_LAMBDA: case TT::KEYWORD_YIELD:
-        case TT::KEYWORD_MATCH: case TT::KEYWORD_CASE:
-        case TT::KEYWORD_INHERITS: case TT::KEYWORD_EXTENDS:
+        case TT::KEYWORD_VAR: case TT::KEYWORD_CONST: case TT::KEYWORD_STATIC:
+        case TT::KEYWORD_EXTERN:
+        case TT::KEYWORD_STRUCT: case TT::KEYWORD_ENUM:
+        case TT::KEYWORD_INHERITS: case TT::KEYWORD_ABSTRACT:
+        case TT::KEYWORD_CONSTRUCTOR: case TT::KEYWORD_SUPER:
         case TT::KEYWORD_PUBLIC: case TT::KEYWORD_PRIVATE: case TT::KEYWORD_PROTECTED:
         case TT::KEYWORD_END:
+        // الكلمات السياقية (legacy tokens — نادراً ما تُنتَج)
+        case TT::KEYWORD_RETURNS: case TT::KEYWORD_ELSE_IF:
+        case TT::KEYWORD_ASYNC: case TT::KEYWORD_AWAIT:
+        case TT::KEYWORD_LAMBDA: case TT::KEYWORD_YIELD:
+        case TT::KEYWORD_CASE: case TT::KEYWORD_EXTENDS:
+        case TT::KEYWORD_PROPERTY: case TT::KEYWORD_OPERATOR:
+            return static_cast<int>(SemanticTokenType::Keyword);
+
+        // القيم المنطقية والعدم → keyword
+        case TT::LITERAL_TRUE: case TT::LITERAL_FALSE: case TT::LITERAL_NULL:
             return static_cast<int>(SemanticTokenType::Keyword);
 
         // أرقام → number
@@ -173,7 +184,28 @@ SemanticTokensData LspEngine::semantic_tokens_full(const DocumentUri& uri) {
 
             // تحسين نوع المعرّف بناءً على الفهرس
             if (token.getType() == Sad::Lexer::TokenType::IDENTIFIER) {
-                auto it = symbol_map.find(token.getValue());
+                const std::string& val = token.getValue();
+                
+                // (AR) تلوين أسماء الأنواع المدمجة كأنواع (لم تعد محجوزة)
+                // (EN) Color built-in type names as types (no longer reserved)
+                if (val == "رقم" || val == "عشري" || val == "نص" ||
+                    val == "منطقي" || val == "فراغ" || val == "عدم" ||
+                    val == "مصفوفة" || val == "خريطة" || val == "أي") {
+                    semantic_type = static_cast<int>(SemanticTokenType::Type);
+                }
+                // (AR) تلوين الكلمات السياقية ككلمات مفتاحية
+                // (EN) Color contextual keywords as keywords
+                else if (val == "خاصية" || val == "هدم" || val == "عامل" ||
+                         val == "احصل" || val == "عيّن" || val == "غير_متزامن" ||
+                         val == "انتظر" || val == "لامدا" || val == "مولد" ||
+                         val == "قالب" || val == "فضاء" || val == "سمة" ||
+                         val == "واجهة" || val == "نفّذ" || val == "نفذ" ||
+                         val == "اختبر" || val == "حالة" || val == "أنتج" ||
+                         val == "باستخدام" || val == "رئيسية") {
+                    semantic_type = static_cast<int>(SemanticTokenType::Keyword);
+                }
+                
+                auto it = symbol_map.find(val);
                 if (it != symbol_map.end()) {
                     const auto& sym = *(it->second);
                     switch (sym.kind) {
@@ -264,16 +296,60 @@ SemanticTokensData LspEngine::semantic_tokens_full(const DocumentUri& uri) {
             prev_start = t.start;
         }
 
+    } catch (const std::exception& e) {
+        // إذا فشل التحليل المعجمي، نرجع بيانات فارغة مع تسجيل الخطأ
+        (void)e; // TODO: log("semantic_tokens failed: " + std::string(e.what()));
     } catch (...) {
-        // إذا فشل التحليل المعجمي، نرجع بيانات فارغة
+        // خطأ غير معروف أثناء التحليل المعجمي
     }
 
     return data;
 }
 
 SemanticTokensData LspEngine::semantic_tokens_range(const DocumentUri& uri, const Range& range) {
-    // نرجع كل الرموز - العميل يصفي حسب النطاق
-    return semantic_tokens_full(uri);
+    // (AR) الحصول على كل الرموز ثم تصفية النطاق المطلوب فقط
+    // (EN) Get all tokens then filter to the requested range only
+    auto full_data = semantic_tokens_full(uri);
+
+    if (full_data.data.empty()) return full_data;
+
+    // فك ترميز delta → مواقع مطلقة → تصفية → إعادة ترميز delta
+    SemanticTokensData filtered;
+    int abs_line = 0;
+    int abs_start = 0;
+    int prev_line = 0;
+    int prev_start = 0;
+
+    for (size_t i = 0; i + 4 < full_data.data.size(); i += 5) {
+        int delta_line = full_data.data[i];
+        int delta_start = full_data.data[i + 1];
+        int length = full_data.data[i + 2];
+        int type = full_data.data[i + 3];
+        int modifiers = full_data.data[i + 4];
+
+        // حساب الموقع المطلق
+        abs_line += delta_line;
+        abs_start = (delta_line == 0) ? (abs_start + delta_start) : delta_start;
+
+        // تصفية: هل الرمز داخل النطاق المطلوب؟
+        if (abs_line >= range.start.line && abs_line <= range.end.line) {
+            // حساب delta من آخر رمز مُضاف
+            int new_delta_line = abs_line - prev_line;
+            int new_delta_start = (new_delta_line == 0) ? (abs_start - prev_start) : abs_start;
+            if (new_delta_start < 0) new_delta_start = 0;
+
+            filtered.data.push_back(new_delta_line);
+            filtered.data.push_back(new_delta_start);
+            filtered.data.push_back(length);
+            filtered.data.push_back(type);
+            filtered.data.push_back(modifiers);
+
+            prev_line = abs_line;
+            prev_start = abs_start;
+        }
+    }
+
+    return filtered;
 }
 
 } // namespace lsp

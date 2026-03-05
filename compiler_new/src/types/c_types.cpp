@@ -98,20 +98,30 @@ FFI::CTypePtr CTypeMapper::sadToC(TypePtr sadType) const {
         return std::make_shared<FFI::CBasicTypeImpl>(cBasic);
     }
     
-    // (AR) نوع المؤشر / (EN) Pointer type
-    // TODO: Implement when pointer type API is available
-    // if (sadType->getKind() == TypeKind::Pointer) {
-    //     TypePtr pointeeType = sadType->getPointeeType();
-    //     return sadPointerToC(pointeeType);
-    // }
-    
     // (AR) نوع المصفوفة / (EN) Array type
-    // TODO: Implement when array type API is available
-    // if (sadType->getKind() == TypeKind::Array) {
-    //     TypePtr elemType = sadType->getElementType();
-    //     size_t size = sadType->getArraySize();
-    //     return sadArrayToC(elemType, size);
-    // }
+    if (auto* arrayType = dynamic_cast<ArrayType*>(sadType.get())) {
+        TypePtr elemType = arrayType->getElementType();
+        if (arrayType->isFixedSize()) {
+            return sadArrayToC(elemType, *arrayType->getFixedSize());
+        } else {
+            // (AR) مصفوفة ديناميكية = مؤشر للعنصر
+            // (EN) Dynamic array = pointer to element
+            return sadPointerToC(elemType);
+        }
+    }
+    
+    // (AR) نوع الصف (Tuple) / (EN) Tuple type
+    if (auto* tupleType = dynamic_cast<TupleType*>(sadType.get())) {
+        // (AR) الصف يُحوّل إلى بنية C
+        // (EN) Tuple converts to C struct
+        CStructBuilder builder("_sad_tuple_" + std::to_string(tupleType->getArity()), "صف");
+        const auto& elements = tupleType->getElementTypes();
+        for (size_t i = 0; i < elements.size(); ++i) {
+            FFI::CTypePtr fieldType = sadToC(elements[i]);
+            builder.addField("_" + std::to_string(i), fieldType, "عنصر_" + std::to_string(i));
+        }
+        return builder.build();
+    }
     
     // (AR) نوع البنية / (EN) Struct type
     // TODO: StructType doesn't inherit from Type yet - enable when unified
@@ -173,14 +183,18 @@ FFI::CBasicType CTypeMapper::primitiveKindToCBasic(TypeKind kind) const {
         case TypeKind::Boolean:
             return FFI::CBasicType::BOOL;
             
-        // (AR) أعداد صحيحة موقّعة / (EN) Signed integers
+        // (AR) أعداد صحيحة / (EN) Integers
         case TypeKind::Integer:
             return FFI::CBasicType::INT;
-        // Note: TypeKind doesn't have specific INT64, using generic Integer
             
-        // Note: Current TypeKind doesn't have specific unsigned/float/char/size types
-        // Using generic TypeKind::Integer for all integers for now
-        // TODO: Extend TypeKind or use specialized type checking
+        // (AR) أعداد عشرية / (EN) Floats
+        case TypeKind::Float:
+            return FFI::CBasicType::DOUBLE;
+            
+        // (AR) نص / (EN) String — تحويل إلى const char*
+        case TypeKind::String:
+            // String يُحوّل في sadToC لمعالجة خاصة
+            return FFI::CBasicType::CHAR;
             
         default:
             throw std::runtime_error(
@@ -346,19 +360,16 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
             sadKind = TypeKind::Void;
             break;
             
-        // (AR) حرف / (EN) Character
+        // (AR) حرف / (EN) Character — حرف C هو عدد صحيح 8-بت
         case FFI::CBasicType::CHAR:
-            sadKind = TypeKind::String;
+            sadKind = TypeKind::Integer;
             break;
             
         // (AR) أعداد صحيحة موقّعة / (EN) Signed integers
         case FFI::CBasicType::SCHAR:
-            sadKind = TypeKind::Integer;
-            break;
         case FFI::CBasicType::SHORT:
-            sadKind = TypeKind::Integer;
-            break;
         case FFI::CBasicType::INT:
+        case FFI::CBasicType::LONGLONG:
             sadKind = TypeKind::Integer;
             break;
         case FFI::CBasicType::LONG:
@@ -371,47 +382,22 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
              *      - Windows (even 64-bit): 32 bits
              *      - Linux/macOS (64-bit): 64 bits
              */
-            if (options_.isWindows) {
-                sadKind = TypeKind::Integer;  // (AR) Windows: long = 32 بت
-            } else if (options_.is64Bit) {
-                sadKind = TypeKind::Integer;  // (AR) Unix 64-bit: long = 64 بت
-            } else {
-                sadKind = TypeKind::Integer;  // (AR) 32-bit: long = 32 بت
-            }
-            break;
-        case FFI::CBasicType::LONGLONG:
             sadKind = TypeKind::Integer;
             break;
             
         // (AR) أعداد صحيحة غير موقّعة / (EN) Unsigned integers
         case FFI::CBasicType::UCHAR:
-            sadKind = TypeKind::Integer;
-            break;
         case FFI::CBasicType::USHORT:
-            sadKind = TypeKind::Integer;
-            break;
         case FFI::CBasicType::UINT:
-            sadKind = TypeKind::Integer;
-            break;
         case FFI::CBasicType::ULONG:
-            if (options_.isWindows) {
-                sadKind = TypeKind::Integer;
-            } else if (options_.is64Bit) {
-                sadKind = TypeKind::Integer;
-            } else {
-                sadKind = TypeKind::Integer;
-            }
-            break;
         case FFI::CBasicType::ULONGLONG:
             sadKind = TypeKind::Integer;
             break;
             
         // (AR) أعداد عشرية / (EN) Floating point
         case FFI::CBasicType::FLOAT:
-            sadKind = TypeKind::Integer;
-            break;
         case FFI::CBasicType::DOUBLE:
-            sadKind = TypeKind::Integer;
+            sadKind = TypeKind::Float;
             break;
         case FFI::CBasicType::LONGDOUBLE:
             /*
@@ -421,12 +407,12 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
              * (EN) long double: use FLOAT64 as approximation
              *      (actual size varies: 80/128 bits)
              */
-            sadKind = TypeKind::Integer;
+            sadKind = TypeKind::Float;
             break;
             
         // (AR) منطقي / (EN) Boolean
         case FFI::CBasicType::BOOL:
-            sadKind = TypeKind::Integer;
+            sadKind = TypeKind::Boolean;
             break;
             
         // (AR) أنواع الحجم / (EN) Size types

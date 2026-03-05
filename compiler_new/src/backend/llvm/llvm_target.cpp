@@ -17,6 +17,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
+#include <cstdlib>
 
 namespace sad {
 
@@ -489,25 +491,128 @@ bool LLVMTargetManager::verifyModule(llvm::Module* module) {
 
 /**
  * استدعاء الرابط / Invoke linker
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * (AR) الربط حسب المنصة الهدف:
+ *   • ويندوز: link.exe + msvcrt.lib + kernel32.lib
+ *   • لينكس/ماك: clang + libm + libpthread
+ *   • أندرويد: NDK clang + sysroot + liblog + libandroid + libsad_runtime
+ * ═══════════════════════════════════════════════════════════════════════
  */
 bool LLVMTargetManager::linkExecutable(const std::string& object_file, const std::string& executable_file,
                                        const CodeGenOptions& options) {
-    // تحديد الرابط المناسب حسب النظام / Determine appropriate linker for system
+    // تحليل الهدف لتحديد المنصة
+    llvm::Triple triple(target_triple_);
+    
     std::string linker_cmd;
     
-    #ifdef _WIN32
-        // استخدام link.exe على Windows / Use link.exe on Windows
-        linker_cmd = "link.exe /OUT:" + executable_file + " " + object_file;
+    if (triple.isAndroid() || triple.getEnvironment() == llvm::Triple::Android) {
+        // ════════════════════════════════════════════════════════════════
+        // (AR) ربط لأندرويد عبر NDK
+        // ════════════════════════════════════════════════════════════════
+        // نبحث عن clang الخاص بالـ NDK ونستخدمه مع الأعلام المناسبة:
+        //   --target=aarch64-linux-android24
+        //   --sysroot=<NDK>/toolchains/llvm/prebuilt/<host>/sysroot
+        //   -fPIC -shared (لمكتبة .so) أو بدونها (لملف تنفيذي)
+        //   -llog -landroid -lm (مكتبات أندرويد الأساسية)
+        // ════════════════════════════════════════════════════════════════
         
-        // إضافة مكتبات runtime إذا لزم الأمر / Add runtime libraries if needed
-        linker_cmd += " /DEFAULTLIB:msvcrt.lib /DEFAULTLIB:kernel32.lib";
-    #else
-        // استخدام clang أو gcc على Unix / Use clang or gcc on Unix
-        linker_cmd = "clang -o " + executable_file + " " + object_file;
+        // البحث عن NDK
+        std::string ndk_path;
+        std::vector<std::string> ndk_search;
         
-        // إضافة مكتبات runtime / Add runtime libraries
-        linker_cmd += " -lm -lpthread";
-    #endif
+        if (auto* p = std::getenv("ANDROID_NDK_HOME")) ndk_search.push_back(p);
+        if (auto* p = std::getenv("ANDROID_NDK")) ndk_search.push_back(p);
+        if (auto* sdk = std::getenv("ANDROID_SDK_ROOT")) {
+            ndk_search.push_back(std::string(sdk) + "/ndk");
+        }
+        #ifdef _WIN32
+        if (auto* local = std::getenv("LOCALAPPDATA")) {
+            ndk_search.push_back(std::string(local) + "\\Android\\Sdk\\ndk");
+        }
+        #endif
+        
+        for (const auto& path : ndk_search) {
+            namespace fs = std::filesystem;
+            try {
+                if (fs::exists(path)) {
+                    auto prebuilt = fs::path(path) / "toolchains" / "llvm" / "prebuilt";
+                    if (fs::exists(prebuilt)) {
+                        ndk_path = path;
+                        break;
+                    }
+                    // تحقق من المجلدات الفرعية (إصدارات NDK)
+                    if (fs::is_directory(path)) {
+                        for (const auto& entry : fs::directory_iterator(path)) {
+                            if (entry.is_directory()) {
+                                auto sub = entry.path() / "toolchains" / "llvm" / "prebuilt";
+                                if (fs::exists(sub)) {
+                                    ndk_path = entry.path().string();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (!ndk_path.empty()) break;
+                }
+            } catch (...) {}
+        }
+        
+        if (ndk_path.empty()) {
+            std::cerr << "خطأ: لم يتم العثور على Android NDK / Error: Android NDK not found" << std::endl;
+            std::cerr << "حدّد مسار NDK عبر: ANDROID_NDK_HOME أو ANDROID_NDK" << std::endl;
+            return false;
+        }
+        
+        // بناء مسار toolchain
+        #ifdef _WIN32
+        std::string host_tag = "windows-x86_64";
+        std::string exe_ext = ".exe";
+        #elif __APPLE__
+        std::string host_tag = "darwin-x86_64";
+        std::string exe_ext = "";
+        #else
+        std::string host_tag = "linux-x86_64";
+        std::string exe_ext = "";
+        #endif
+        
+        namespace fs = std::filesystem;
+        auto toolchain = fs::path(ndk_path) / "toolchains" / "llvm" / "prebuilt" / host_tag;
+        auto ndk_clang = (toolchain / "bin" / ("clang" + exe_ext)).string();
+        auto sysroot = (toolchain / "sysroot").string();
+        
+        // تحديد نوع الإخراج
+        bool is_shared = (executable_file.find(".so") != std::string::npos);
+        
+        linker_cmd = "\"" + ndk_clang + "\"";
+        linker_cmd += " --target=" + target_triple_;
+        linker_cmd += " --sysroot=\"" + sysroot + "\"";
+        linker_cmd += " -o \"" + executable_file + "\"";
+        linker_cmd += " \"" + object_file + "\"";
+        
+        if (is_shared) {
+            linker_cmd += " -shared -fPIC";
+            linker_cmd += " -Wl,--build-id -Wl,--no-undefined";
+        }
+        
+        // مكتبات أندرويد الأساسية
+        linker_cmd += " -llog -landroid -lm -lc";
+        
+        // مكتبة وقت التشغيل (sad_android_runtime) إذا وُجدت
+        // TODO: البحث عن libsad_android_runtime.a في مسارات معروفة
+        
+    } else {
+        // ════════════════════════════════════════════════════════════════
+        // (AR) الربط العادي — ويندوز أو يونكس
+        // ════════════════════════════════════════════════════════════════
+        #ifdef _WIN32
+            linker_cmd = "link.exe /OUT:" + executable_file + " " + object_file;
+            linker_cmd += " /DEFAULTLIB:msvcrt.lib /DEFAULTLIB:kernel32.lib";
+        #else
+            linker_cmd = "clang -o " + executable_file + " " + object_file;
+            linker_cmd += " -lm -lpthread";
+        #endif
+    }
     
     if (options.verbose) {
         std::cout << "تشغيل الرابط / Running linker: " << linker_cmd << std::endl;

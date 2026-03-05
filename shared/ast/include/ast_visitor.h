@@ -38,6 +38,13 @@ class DecoratorExpr;
 class InlineAsmExpr;      // (AR) تعبير التجميع المضمّن / (EN) Inline assembly expression
 class RangeExpr;          // (AR) تعبير المدى / (EN) Range expression
 
+// Directive nodes / عُقد التوجيهات @
+class UnsafeBlockStmt;    // (AR) @غير_آمن / (EN) @unsafe block
+class ComptimeBlockStmt;  // (AR) @وقت_الترجمة / (EN) @comptime block
+class SizeofExpr;         // (AR) @حجم / (EN) @sizeof expression
+class AtomicExpr;         // (AR) @ذري / (EN) @atomic expression
+class VolatileVarDeclStmt; // (AR) @متطاير / (EN) @volatile declaration
+
 // OOP Expression nodes / عُقد تعابير OOP
 class NewExpr;
 class MemberAccessExpr;
@@ -354,6 +361,40 @@ public:
      */
     virtual void visitInlineAsmExpr(InlineAsmExpr& expr) = 0;
     virtual void visitRangeExpr(RangeExpr& expr) = 0;
+
+    // =====================================================================
+    // Directive visitors / زوار التوجيهات @
+    // =====================================================================
+    
+    /**
+     * @brief (AR) @غير_آمن — كتلة غير آمنة
+     * @brief (EN) @unsafe — unsafe block statement
+     */
+    virtual void visitUnsafeBlockStmt(UnsafeBlockStmt& stmt) = 0;
+    
+    /**
+     * @brief (AR) @وقت_الترجمة — كتلة تنفيذ وقت الترجمة
+     * @brief (EN) @comptime — compile-time execution block
+     */
+    virtual void visitComptimeBlockStmt(ComptimeBlockStmt& stmt) = 0;
+    
+    /**
+     * @brief (AR) @حجم(نوع) — حجم النوع
+     * @brief (EN) @sizeof(type) — size of type expression
+     */
+    virtual void visitSizeofExpr(SizeofExpr& expr) = 0;
+    
+    /**
+     * @brief (AR) @ذري(عملية, ...) — عملية ذرية
+     * @brief (EN) @atomic(op, ...) — atomic operation expression
+     */
+    virtual void visitAtomicExpr(AtomicExpr& expr) = 0;
+    
+    /**
+     * @brief (AR) @متطاير — إعلان متغير متطاير
+     * @brief (EN) @volatile — volatile variable declaration
+     */
+    virtual void visitVolatileVarDeclStmt(VolatileVarDeclStmt& stmt) = 0;
     
     // =====================================================================
     // OOP Expression visitors / زوار تعابير OOP
@@ -806,6 +847,13 @@ public:
     void visitDecoratorExpr(DecoratorExpr& expr) override {}
     void visitInlineAsmExpr(InlineAsmExpr& expr) override {}
     void visitRangeExpr(RangeExpr& expr) override {}
+    
+    // Directive visitors / زوار التوجيهات @
+    void visitUnsafeBlockStmt(UnsafeBlockStmt& stmt) override {}
+    void visitComptimeBlockStmt(ComptimeBlockStmt& stmt) override {}
+    void visitSizeofExpr(SizeofExpr& expr) override {}
+    void visitAtomicExpr(AtomicExpr& expr) override {}
+    void visitVolatileVarDeclStmt(VolatileVarDeclStmt& stmt) override {}
     
     // OOP Expression visitors / زوار تعابير OOP
     void visitNewExpr(NewExpr& expr) override {}

@@ -666,10 +666,7 @@ void ParserCore::synchronize() {
             case TT::KEYWORD_IF:
             case TT::KEYWORD_WHILE:
             case TT::KEYWORD_RETURN:
-            case TT::TYPE_INTEGER:
-            case TT::TYPE_DOUBLE:
-            case TT::TYPE_STRING:
-            case TT::TYPE_BOOLEAN:
+            case TT::KEYWORD_VAR:
                 std::cerr << "✓ (AR) تم التعافي عند بداية تصريح/جملة جديدة (تجاوز " << tokens_skipped << " رمز)\n";
                 std::cerr << "✓ (EN) Recovered at new declaration/statement (skipped " << tokens_skipped << " tokens)\n\n";
                 return;
@@ -722,14 +719,26 @@ std::vector<Parameter> ParserCore::parseTypedParameterList() {
             
             // Check if next token is a type keyword (type-first syntax: "رقم س")
             // (AR) تحقق إذا كان الرمز التالي كلمة مفتاحية لنوع (صيغة النوع أولاً: "رقم س")
-            if (check(TT::TYPE_INTEGER) || check(TT::TYPE_DOUBLE) || check(TT::TYPE_STRING) || 
-                check(TT::TYPE_BOOLEAN) || check(TT::TYPE_VOID) || check(TT::TYPE_NULL) ||
-                check(TT::TYPE_ARRAY) || check(TT::TYPE_MAP)) {
+            // (AR) لكن فقط إذا كان بعده معرّف — وإلا يُعامل كاسم معامل
+            // (EN) BUT only if followed by an identifier — otherwise treat as param name
+            if (isTypeToken(current_.getType()) && 
+                peekNext().getType() == TT::IDENTIFIER) {
                 // Type-first syntax: "int x"
                 // (AR) صيغة النوع أولاً: "رقم س"
                 paramType = parseType();
-                Token paramName = consume(TT::IDENTIFIER, 
-                    "(AR) توقع اسم معامل بعد النوع. (EN) Expected parameter name after type.");
+                // (AR) دعم استخدام الكلمات المفتاحية الناعمة كأسماء معاملات بعد النوع
+                // (EN) Support soft keywords as parameter names after type annotation
+                Token paramName(TT::IDENTIFIER, "", Lexer::Position());
+                if (check(TT::IDENTIFIER)) {
+                    paramName = current_;
+                    advance();
+                } else if (isTokenUsableAsName(current_.getType())) {
+                    paramName = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+                    advance();
+                } else {
+                    paramName = consume(TT::IDENTIFIER, 
+                        "(AR) توقع اسم معامل بعد النوع. (EN) Expected parameter name after type.");
+                }
                 
                 // Optional default value: type name = value
                 // (AR) القيمة الافتراضية الاختيارية: نوع اسم = قيمة
@@ -755,8 +764,19 @@ std::vector<Parameter> ParserCore::parseTypedParameterList() {
                 // ═══════════════════════════════════════════════════════════════
                 std::string className = current_.getValue();
                 advance();  // (AR) تخطي اسم الصنف / (EN) skip class name
-                Token paramName = consume(TT::IDENTIFIER,
-                    "(AR) توقع اسم معامل بعد اسم الصنف. (EN) Expected parameter name after class type.");
+                // (AR) دعم الكلمات المفتاحية الناعمة كأسماء معاملات بعد اسم الصنف
+                // (EN) Support soft keywords as parameter names after class type
+                Token paramName(TT::IDENTIFIER, "", Lexer::Position());
+                if (check(TT::IDENTIFIER)) {
+                    paramName = current_;
+                    advance();
+                } else if (isTokenUsableAsName(current_.getType())) {
+                    paramName = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+                    advance();
+                } else {
+                    paramName = consume(TT::IDENTIFIER,
+                        "(AR) توقع اسم معامل بعد اسم الصنف. (EN) Expected parameter name after class type.");
+                }
                 
                 // (AR) القيمة الافتراضية الاختيارية
                 // (EN) Optional default value
@@ -780,7 +800,7 @@ std::vector<Parameter> ParserCore::parseTypedParameterList() {
                 if (check(TT::IDENTIFIER)) {
                     paramName = current_;
                     advance();
-                } else if (isKeywordUsableAsName(current_.getType()) || isTypeToken(current_.getType())) {
+                } else if (isTokenUsableAsName(current_.getType()) || isTypeToken(current_.getType())) {
                     paramName = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                     advance();
                 } else {
@@ -861,58 +881,48 @@ ExprList ParserCore::parseArgumentList() {
 Data::DataType ParserCore::parseType() {
     using DT = Data::DataType;
     
-    // ========== الأنواع الأساسية - العربية ==========
-    // Basic Types - Arabic
+    // ========== الأنواع الأساسية - من رموز TYPE_* ==========
+    // Basic Types - from TYPE_* tokens (legacy support)
     
-    if (match(TT::TYPE_INTEGER)) {
-        // "رقم" → INTEGER
-        return DT::INTEGER;
-    }
-    
-    if (match(TT::TYPE_DOUBLE)) {
-        // "عشري" → FLOAT
-        return DT::FLOAT;
-    }
-    
-    if (match(TT::TYPE_STRING)) {
-        // "نص" → STRING
-        return DT::STRING;
-    }
-    
-    if (match(TT::TYPE_BOOLEAN)) {
-        // "منطقي" → BOOLEAN
-        return DT::BOOLEAN;
-    }
-    
-    if (match(TT::TYPE_VOID)) {
-        // "فراغ" → NONE
-        return DT::NONE;
-    }
-    
-    if (match(TT::TYPE_NULL)) {
-        // "عدم" / "null" → NONE
-        return DT::NONE;
-    }
-    
-    // ========== الأنواع المركبة ==========
-    // Composite Types
+    if (match(TT::TYPE_INTEGER))  return DT::INTEGER;
+    if (match(TT::TYPE_DOUBLE))   return DT::FLOAT;
+    if (match(TT::TYPE_STRING))   return DT::STRING;
+    if (match(TT::TYPE_BOOLEAN))  return DT::BOOLEAN;
+    if (match(TT::TYPE_VOID))     return DT::NONE;
+    if (match(TT::TYPE_NULL))     return DT::NONE;
     
     if (match(TT::TYPE_ARRAY)) {
-        // "مصفوفة" / "array" → ARRAY
-        // Check for generic type: Array<int>
-        if (check(TT::OP_LESS)) {
-            return parseGenericType(DT::ARRAY);
-        }
+        if (check(TT::OP_LESS)) return parseGenericType(DT::ARRAY);
         return DT::ARRAY;
     }
-    
     if (match(TT::TYPE_MAP)) {
-        // "قاموس" / "dict" / "map" → MAP
-        // Check for generic type: Map<string, int>
-        if (check(TT::OP_LESS)) {
-            return parseGenericType(DT::MAP);
-        }
+        if (check(TT::OP_LESS)) return parseGenericType(DT::MAP);
         return DT::MAP;
+    }
+    
+    // ========== الأنواع كمُعرّفات مدمجة ==========
+    // Built-in type identifiers (no longer reserved keywords)
+    // (AR) أنواع البيانات أصبحت مُعرّفات عادية يتعرف عليها المحلل سياقياً
+    if (check(TT::IDENTIFIER)) {
+        const std::string& name = current_.getValue();
+        DT resolved = DT::UNKNOWN;
+        if      (name == "رقم")     resolved = DT::INTEGER;
+        else if (name == "عشري")    resolved = DT::FLOAT;
+        else if (name == "نص")      resolved = DT::STRING;
+        else if (name == "منطقي")   resolved = DT::BOOLEAN;
+        else if (name == "فراغ")    resolved = DT::NONE;
+        else if (name == "عدم")     resolved = DT::NONE;
+        else if (name == "مصفوفة")  resolved = DT::ARRAY;
+        else if (name == "خريطة")   resolved = DT::MAP;
+        else if (name == "أي")      resolved = DT::OBJECT;
+        
+        if (resolved != DT::UNKNOWN) {
+            advance(); // consume the identifier
+            if ((resolved == DT::ARRAY || resolved == DT::MAP) && check(TT::OP_LESS)) {
+                return parseGenericType(resolved);
+            }
+            return resolved;
+        }
     }
     
     // ========== Type not found ==========
@@ -1105,16 +1115,33 @@ ExprPtr ParserCore::parseArrowFunction() {
 bool ParserCore::isTypeToken(TokenType tokenType) {
     using TT = TokenType;
     
-    // Basic data types
-    // (AR) أنواع البيانات الأساسية
-    return tokenType == TT::TYPE_INTEGER ||
-           tokenType == TT::TYPE_DOUBLE ||
-           tokenType == TT::TYPE_STRING ||
-           tokenType == TT::TYPE_BOOLEAN ||
-           tokenType == TT::TYPE_VOID ||
-           tokenType == TT::TYPE_NULL ||
-           tokenType == TT::TYPE_ARRAY ||
-           tokenType == TT::TYPE_MAP;
+    // (AR) أنواع البيانات من رموز TYPE_* (دعم قديم)
+    // (EN) TYPE_* tokens (legacy support)
+    if (tokenType == TT::TYPE_INTEGER || tokenType == TT::TYPE_DOUBLE ||
+        tokenType == TT::TYPE_STRING  || tokenType == TT::TYPE_BOOLEAN ||
+        tokenType == TT::TYPE_VOID    || tokenType == TT::TYPE_NULL ||
+        tokenType == TT::TYPE_ARRAY   || tokenType == TT::TYPE_MAP) {
+        return true;
+    }
+    
+    // (AR) أنواع البيانات كمُعرّفات مدمجة — فقط عندما يليها معرّف آخر (اسم متغير)
+    //      هذا يمنع الالتباس بين "رقم" كاسم نوع و"رقم" كاسم متغير
+    // (EN) Built-in type identifiers — only when followed by another identifier (var name)
+    //      This prevents ambiguity between "رقم" as type and "رقم" as variable name
+    if (tokenType == TT::IDENTIFIER) {
+        const std::string& name = current_.getValue();
+        bool isTypeName = (name == "رقم" || name == "عشري" || name == "نص" ||
+                           name == "منطقي" || name == "فراغ" || name == "عدم" ||
+                           name == "مصفوفة" || name == "خريطة" || name == "أي");
+        if (isTypeName) {
+            // (AR) تحقق من أن الرمز التالي هو معرّف (اسم متغير/حقل)
+            // (EN) Check that next token is an identifier (var/field name)
+            TokenType nextType = peekNext().getType();
+            return nextType == TT::IDENTIFIER;
+        }
+    }
+    
+    return false;
 }
 
 // ======================================================================
@@ -1123,28 +1150,29 @@ bool ParserCore::isTypeToken(TokenType tokenType) {
 // ======================================================================
 bool ParserCore::isKeywordUsableAsName(TokenType tokenType) {
     using TT = TokenType;
-    // (AR) نرفض فقط الكلمات البنيوية الصلبة التي تتعارض مع بنية اللغة
-    // (EN) Only reject hard structural keywords that conflict with language structure
+    // (AR) بعد تقليص الكلمات المفتاحية إلى 40، نرفض فقط الكلمات البنيوية
+    // (EN) After reducing to 40 keywords, only reject structural keywords
     switch (tokenType) {
         // (AR) كلمات بنية الكتل / (EN) Block structure keywords
         case TT::KEYWORD_FUNCTION:
         case TT::KEYWORD_CLASS:
         case TT::KEYWORD_END:
         case TT::KEYWORD_CONSTRUCTOR:
-        case TT::KEYWORD_DESTRUCTOR:
-        case TT::KEYWORD_MAIN:
+        case TT::KEYWORD_STRUCT:
+        case TT::KEYWORD_ENUM:
         // (AR) التحكم في التدفق / (EN) Control flow
         case TT::KEYWORD_IF:
         case TT::KEYWORD_ELSE:
-        case TT::KEYWORD_ELSE_IF:
         case TT::KEYWORD_WHILE:
         case TT::KEYWORD_FOR:
         case TT::KEYWORD_RETURN:
-        case TT::KEYWORD_RETURNS:
+        case TT::KEYWORD_MATCH:
+        case TT::KEYWORD_WHEN:
+        case TT::KEYWORD_DEFAULT:
         // (AR) المتغيرات / (EN) Variables
         case TT::KEYWORD_VAR:
         case TT::KEYWORD_CONST:
-        case TT::KEYWORD_LET:
+        case TT::KEYWORD_STATIC:
         // (AR) الأخطاء / (EN) Error handling
         case TT::KEYWORD_TRY:
         case TT::KEYWORD_CATCH:
@@ -1156,16 +1184,64 @@ bool ParserCore::isKeywordUsableAsName(TokenType tokenType) {
         case TT::KEYWORD_AS:
         case TT::KEYWORD_EXPORT:
         // (AR) الكائنات / (EN) Objects
-        case TT::KEYWORD_NEW:
         case TT::KEYWORD_THIS:
-        case TT::KEYWORD_SUPER:
+        case TT::KEYWORD_INHERITS:
+        case TT::KEYWORD_ABSTRACT:
+        // (AR) أخرى / (EN) Others
+        case TT::KEYWORD_EXTERN:
+        case TT::KEYWORD_BREAK:
+        case TT::KEYWORD_CONTINUE:
+        case TT::KEYWORD_IN:
             return false;
+        // (AR) جديد وأساس — يمكن استخدامها كأسماء معاملات/متغيرات
+        // (EN) NEW and SUPER — allowed as parameter/variable names
+        case TT::KEYWORD_NEW:
+        case TT::KEYWORD_SUPER:
+            return true;
         default:
-            // (AR) جميع الكلمات الأخرى (احصل، عيّن، نوع، حجم، إلخ) يمكن استخدامها كأسماء
-            // (EN) All other keywords (get, set, typename, sizeof, etc.) can be used as names
-            // (AR) نتحقق أنها كلمة مفتاحية وليست رمزاً آخر
-            // (EN) Verify it's actually a keyword, not some other token
+            // (AR) الكلمات المفتاحية غير المسجلة في الـ 40 (لن يُنتجها المعجم بعد الآن)
+            //      لكن نحافظ على التوافق مع الأنواع القديمة في token.h
+            // (EN) Keywords not in the 40 (lexer won't produce them anymore)
+            //      but maintain compatibility with legacy types in token.h
             return tokenType >= TT::KEYWORD_FUNCTION && tokenType <= TT::KEYWORD_COMPTIME;
+    }
+}
+
+// ======================================================================
+// (AR) هل الرمز يمكن استخدامه كاسم في سياقات محددة (بعد نقطة، اسم دالة، معامل، إلخ)؟
+// (EN) Can this token be used as a name in specific contexts (after dot, method name, param, etc.)?
+// ======================================================================
+bool ParserCore::isTokenUsableAsName(TokenType tokenType) {
+    // (AR) أولاً: تحقق من isKeywordUsableAsName
+    if (isKeywordUsableAsName(tokenType)) return true;
+    // (AR) ثانياً: تحقق من أنواع البيانات
+    if (isTypeToken(tokenType)) return true;
+    
+    using TT = TokenType;
+    switch (tokenType) {
+        // (AR) الحروف المحجوزة — تُستخدم كأسماء خواص/دوال (مثل: ألوان.خطأ، دالة صحيح())
+        // (EN) Literals — used as property/method names (e.g., colors.error, function true())
+        case TT::LITERAL_TRUE:    // صحيح
+        case TT::LITERAL_FALSE:   // خطأ
+        case TT::LITERAL_NULL:    // لاشيء
+        // (AR) كلمات مفتاحية تُستخدم كأسماء في stdlib (ارجع كاسم دالة، افتراضي كاسم حقل، إلخ)
+        // (EN) Keywords used as names in stdlib (return as method name, default as field name, etc.)
+        case TT::KEYWORD_RETURN:  // ارجع
+        case TT::KEYWORD_DEFAULT: // افتراضي
+        case TT::KEYWORD_FROM:    // من
+        case TT::KEYWORD_IN:     // في
+        case TT::KEYWORD_EXPORT: // صدّر
+        case TT::KEYWORD_IMPORT: // استورد
+        case TT::KEYWORD_CONSTRUCTOR: // باني
+        case TT::KEYWORD_THROW:  // ارمي
+        case TT::KEYWORD_CATCH:  // امسك
+        case TT::KEYWORD_CLASS:  // صنف (for functions like صنّف)
+        case TT::KEYWORD_ABSTRACT: // مجرد
+        case TT::OP_AND:         // و (used as method name like .و())
+        case TT::OP_OR:          // أو (used as method name like .أو())
+            return true;
+        default:
+            return false;
     }
 }
 

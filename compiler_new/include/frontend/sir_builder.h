@@ -107,6 +107,9 @@ namespace AST {
     using TraitDecl = Sad::AST::TraitDecl;
     using ImplDecl = Sad::AST::ImplDecl;
     using BlockStmt = Sad::AST::BlockStmt;
+    using MemberAssignExpr = Sad::AST::MemberAssignExpr;
+    using VariableExpr = Sad::AST::VariableExpr;
+    using LiteralExpr = Sad::AST::LiteralExpr;
     
     // Operator types - enums not classes
     using BinaryOperator = Sad::Lexer::TokenType;
@@ -172,13 +175,14 @@ struct VariableInfo {
     std::string registerName;      ///< (AR) اسم السجل / (EN) Register name
     bool isGlobal;                 ///< (AR) متغير عام؟ / (EN) Is global?
     bool isMutable;                ///< (AR) قابل للتعديل؟ / (EN) Is mutable?
+    bool isVolatile;               ///< (AR) متطاير؟ / (EN) Is volatile?
     int scopeLevel;                ///< (AR) مستوى النطاق / (EN) Scope level
     
     /**
      * @brief (AR) منشئ افتراضي
      * @brief (EN) Default constructor
      */
-    VariableInfo() : type(SIRType::VOID), isGlobal(false), isMutable(true), scopeLevel(0) {}
+    VariableInfo() : type(SIRType::VOID), isGlobal(false), isMutable(true), isVolatile(false), scopeLevel(0) {}
 };
 
 /**
@@ -190,6 +194,7 @@ struct FunctionInfo {
     SIRType returnType;                        ///< (AR) نوع الإرجاع / (EN) Return type
     std::vector<SIRParameter> parameters;      ///< (AR) المعاملات / (EN) Parameters
     std::shared_ptr<SIRFunction> sirFunction;  ///< (AR) مؤشر لدالة SIR / (EN) Pointer to SIR function
+    bool isGenerator = false;                  ///< (AR) دالة مولّد / (EN) Generator function
     
     /**
      * @brief (AR) منشئ افتراضي

@@ -181,7 +181,7 @@ void BorrowChecker::visitUnaryExpr(AST::UnaryExpr& expr) {
 
     // (AR) معالجة عامل المرجع & (استعارة)
     // (EN) Handle reference operator & (borrow)
-    if (expr.op == Lexer::TokenType::AMPERSAND) {
+    if (expr.op == Lexer::TokenType::OP_BITWISE_AND) {
         // (AR) تحقق: هل المعامل متغير يمكن استعارته؟
         // (EN) Check: is operand a variable we can borrow?
         if (auto* varExpr = dynamic_cast<AST::VariableExpr*>(expr.operand.get())) {
@@ -840,6 +840,14 @@ void BorrowChecker::analyzeFunctionCall(AST::CallExpr* call) {
 }
 
 bool BorrowChecker::isCopyType(const std::string& typeName) const {
+    // (AR) الأنواع غير المحددة أو غير المعروفة تُعتبر قابلة للنسخ افتراضياً
+    // (EN) Unknown/unspecified/none types default to copy — safe for ص language
+    // (AR) لغة ص لا تدعم نقل الملكية مثل Rust، لذا الأنواع غير المحددة تُنسخ
+    // (EN) S language doesn't have Rust-like move semantics, so unresolved types are copy
+    if (typeName.empty() || typeName == "unknown" || typeName == "لاشيء") {
+        return true;
+    }
+
     // (AR) التحقق من القائمة
     // (EN) Check the list
     if (copyTypes_.find(typeName) != copyTypes_.end()) {

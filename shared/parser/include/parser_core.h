@@ -184,7 +184,7 @@ private:
      * @return (AR) مؤشر لعقدة تصريح الدالة الخارجية.
      *         (EN) Pointer to external function declaration node.
      */
-    AST::StmtPtr parseExternFunctionDecl();
+    AST::StmtPtr parseExternFunctionDecl(const std::string& linkName = "");
 
     /**
      * @brief (AR) يحلل تصريح صنف (class) مع الحقول والطرق.
@@ -902,6 +902,26 @@ private:
     AST::ExprPtr parseDecorator();
 
     /**
+     * @brief (AR) محاولة تحليل توجيه @ (directive) — يُرجع nullptr إذا لم يكن توجيهاً معروفاً
+     *        (EN) Try parsing an @ directive — returns nullptr if not a known directive
+     * 
+     * التوجيهات المدعومة / Supported directives:
+     * - @غير_آمن ... نهاية — unsafe block
+     * - @وقت_الترجمة ... نهاية — comptime block
+     * - @متطاير متغير ... — volatile variable
+     * - @تجميع("code") — inline assembly
+     * - @حجم(type) — sizeof
+     * - @ذري(op, ...) — atomic operation
+     */
+    AST::StmtPtr tryParseDirective();
+
+    /**
+     * @brief (AR) تحليل تعبير @ (توجيه تعبيري) — @حجم، @ذري، @تجميع
+     *        (EN) Parse @ expression directive — @sizeof, @atomic, @asm
+     */
+    AST::ExprPtr parseDirectiveExpr();
+
+    /**
      * @brief (AR) يحلل arrow function: (x, y) => x + y.
      *        (EN) Parses arrow function: (x, y) => x + y.
      * 
@@ -1001,6 +1021,15 @@ private:
      *         (EN) Unique pointer to list pattern
      */
     std::unique_ptr<AST::Pattern> parseListPattern();
+
+    /**
+     * @brief (AR) يحلل نمط بنية/صنف { حقل: نمط، ... }
+     *        (EN) Parses struct/class pattern { field: pattern, ... }
+     * 
+     * @return (AR) مؤشر فريد لنمط البنية
+     *         (EN) Unique pointer to struct pattern
+     */
+    std::unique_ptr<AST::Pattern> parseStructPattern();
 
     /**
      * @brief (AR) يحلل فرع case واحد
@@ -1288,6 +1317,19 @@ private:
      * @return (AR) true إذا كانت كلمة مفتاحية يمكن استخدامها كاسم (EN) true if keyword usable as name
      */
     bool isKeywordUsableAsName(Lexer::TokenType tokenType);
+    
+    /**
+     * @brief (AR) هل الرمز يمكن استخدامه كاسم (أعم من isKeywordUsableAsName)؟
+     *        يشمل: المعرّفات، الكلمات المفتاحية الناعمة، الحروف المحجوزة (صحيح/خطأ/لاشيء)،
+     *        والكلمات المفتاحية الشائعة المستخدمة كأسماء (ارجع، افتراضي، من).
+     *        (EN) Can this token be used as a name (broader than isKeywordUsableAsName)?
+     *        Includes: identifiers, soft keywords, literals (true/false/null),
+     *        and common keywords used as names (return, default, from).
+     * 
+     * @param tokenType (AR) نوع الرمز (EN) Token type
+     * @return (AR) true إذا كان يمكن استخدامه كاسم (EN) true if usable as name
+     */
+    bool isTokenUsableAsName(Lexer::TokenType tokenType);
     
     /**
      * @brief (AR) التحقق من أن المعرّف هو اسم صنف مسجّل

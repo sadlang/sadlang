@@ -1187,6 +1187,10 @@ Token LexerCore::scanOperator() {
         advance(); advance();
         return Token(TokenType::OP_DIVIDE_ASSIGN, "/=", start_position_);
     }
+    if (c == '%' && next == '=') {
+        advance(); advance();
+        return Token(TokenType::OP_MODULO_ASSIGN, "%=", start_position_);
+    }
     if (c == '+' && next == '+') {
         advance(); advance();
         return Token(TokenType::OP_INCREMENT, "++", start_position_);
@@ -1223,9 +1227,14 @@ Token LexerCore::scanOperator() {
         advance(); advance();
         return Token(TokenType::FAT_ARROW, "=>", start_position_);
     }
-    // (AR) عامل المدى: نقطتان متتاليتان / (EN) Range operator: double dot
+    // (AR) عامل المدى أو الانتشار / (EN) Range or spread operator
     if (c == '.' && next == '.') {
         advance(); advance();
+        // (AR) تحقق من النقطة الثالثة للـ spread / (EN) Check for third dot for spread
+        if (peek() == '.') {
+            advance();
+            return Token(TokenType::ELLIPSIS, "...", start_position_);
+        }
         return Token(TokenType::DOT_DOT, "..", start_position_);
     }
     
@@ -1244,7 +1253,7 @@ Token LexerCore::scanOperator() {
         case '.': return Token(TokenType::DOT, ".", start_position_);
         case '^': return Token(TokenType::OP_XOR, "^", start_position_);
         case '|': return Token(TokenType::OP_BITWISE_OR, "|", start_position_);
-        case '&': return Token(TokenType::AMPERSAND, "&", start_position_);
+        case '&': return Token(TokenType::OP_BITWISE_AND, "&", start_position_);
         case '~': return Token(TokenType::OP_BITWISE_NOT, "~", start_position_);
         default:
             return makeError("عامل غير معروف / Unknown operator: " + std::string(1, c));
@@ -1310,14 +1319,20 @@ Token LexerCore::nextToken() {
             advance(); // skip #
             advance(); // skip *
             
+            bool comment_closed = false;
             while (!isAtEnd()) {
                 if (peek() == '*' && peekNext() == '#') {
                     advance(); // skip *
                     advance(); // skip #
                     DEBUG_PRINT("نهاية تعليق متعدد الأسطر");
-                    continue; // loop to get next real token
+                    comment_closed = true;
+                    break; // exit inner while loop
                 }
                 advance();
+            }
+            
+            if (comment_closed) {
+                continue; // continue outer while(true) to get next real token
             }
             
             throw std::runtime_error("تعليق متعدد الأسطر غير مغلق - Multi-line comment not closed at " 

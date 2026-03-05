@@ -176,8 +176,10 @@ llvm::Value* LLVMCodeGen::emitLoad(std::shared_ptr<SIRInstruction> inst) {
         std::string objRegName = inst->operands[0].name;
         std::string fieldName = inst->operands[1].name;
         
+        #ifndef NDEBUG
         std::cout << "[DEBUG] emitLoad: field access " << objRegName 
                   << "." << fieldName << std::endl;
+        #endif
         
         // (AR) ╪º┘ה╪¿╪¡╪½ ╪╣┘ז ╪º╪│┘ו ╪º┘ה╪╡┘ז┘ב
         // (EN) Look up class name
@@ -234,22 +236,25 @@ llvm::Value* LLVMCodeGen::emitLoad(std::shared_ptr<SIRInstruction> inst) {
                         }
                     }
                     
-                    // (AR) GEP ┘ה┘ה┘ט╪╡┘ט┘ה ┘ה┘ה╪¡┘ג┘ה
+                    // (AR) GEP للوصول للحقل
                     // (EN) GEP to access field
                     llvm::Value* gep = builder_->CreateStructGEP(
                         structType, objPtr, fieldIndex, fieldName + "_gep");
                     
-                    // (AR) ╪¬╪¡┘ו┘ך┘ה ┘ג┘ך┘ו╪⌐ ╪º┘ה╪¡┘ג┘ה
-                    // (EN) Load field value
+                    // (AR) تحميل قيمة الحقل بالنوع الصحيح
+                    // (EN) Load field value with correct type
+                    llvm::Type* fieldType = structType->getElementType(fieldIndex);
                     llvm::Value* result = builder_->CreateLoad(
-                        getInt64Type(), gep, fieldName + ".val");
+                        fieldType, gep, fieldName + ".val");
                     
                     if (inst->result.has_value()) {
                         context_info_.namedValues[inst->result->name] = result;
                     }
                     
+                    #ifndef NDEBUG
                     std::cout << "[DEBUG] emitLoad: field '" << fieldName 
                               << "' loaded via GEP index " << fieldIndex << std::endl;
+                    #endif
                     
                     return result;
                 } else {
@@ -261,8 +266,10 @@ llvm::Value* LLVMCodeGen::emitLoad(std::shared_ptr<SIRInstruction> inst) {
         
         // (AR) ╪Ñ╪░╪º ┘ה┘ו ┘ז╪¼╪» ┘ו╪╣┘ה┘ט┘ו╪º╪¬ ╪º┘ה╪╡┘ז┘ב╪ל ┘ז╪¬╪º╪¿╪╣ ┘ד╪¬╪¡┘ו┘ך┘ה ╪╣╪º╪»┘ך
         // (EN) If class info not found, fall through to regular load
+        #ifndef NDEBUG
         std::cout << "[DEBUG] emitLoad: no class info for " << objRegName 
                   << ", falling back to regular load" << std::endl;
+        #endif
     }
     
     // ================================================================
@@ -290,14 +297,21 @@ llvm::Value* LLVMCodeGen::emitLoad(std::shared_ptr<SIRInstruction> inst) {
         return ptr;
     }
     
-    // (AR) ╪¬╪¡╪»┘ך╪» ┘ז┘ט╪╣ ╪º┘ה╪¬╪¡┘ו┘ך┘ה ┘ו┘ז ┘ז┘ט╪╣ SIR
-    // (EN) Determine load type from SIR type
+    // (AR) تحديد نوع التحميل: الأولوية لنوع الـ alloca (يعكس نوع المعامل الفعلي بعد الاستنتاج)
+    //      ثم يُستخدم نوع SIR كاحتياطي
+    // (EN) Determine load type: prefer alloca type (reflects actual param type after inference)
+    //      then fall back to SIR operand type
     llvm::Type* loadType = getInt64Type();  // default
-    if (inst->operands[0].dataType == SIRType::F64) {
+    if (auto* allocaInst = llvm::dyn_cast<llvm::AllocaInst>(ptr)) {
+        // (AR) نوع الـ alloca هو الأدق — يعكس أي تحديث لأنواع المعاملات
+        // (EN) Alloca type is most accurate — reflects any parameter type updates
+        loadType = allocaInst->getAllocatedType();
+    } else if (inst->operands[0].dataType == SIRType::F64) {
         loadType = getDoubleType();
     } else if (inst->operands[0].dataType == SIRType::BOOL) {
         loadType = llvm::Type::getInt1Ty(*context_);
-    } else if (inst->operands[0].dataType == SIRType::STRING) {
+    } else if (inst->operands[0].dataType == SIRType::STRING ||
+               inst->operands[0].dataType == SIRType::PTR) {
         loadType = llvm::PointerType::getUnqual(*context_);
     }
     
@@ -333,12 +347,129 @@ llvm::Value* LLVMCodeGen::emitStore(std::shared_ptr<SIRInstruction> inst) {
         return nullptr;
     }
     
-    // (AR) ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ╪º┘ה┘ג┘ך┘ו╪⌐ ╪º┘ה┘ו╪▒╪º╪» ╪¬╪«╪▓┘ך┘ז┘ח╪º
+    // ================================================================
+    // (AR) حالة member assign: 3 operands = (قيمة، كائن، اسم_الحقل)
+    // (EN) Member assign case: 3 operands = (value, object, field_name)
+    // SIR: store %اسم, %self, "الاسم"
+    // ================================================================
+    if (inst->operands.size() >= 3) {
+        llvm::Value* value = resolveOperand(inst->operands[0]);
+        if (!value) {
+            reportError("emitStore: cannot resolve value operand: " + inst->operands[0].name);
+            return nullptr;
+        }
+        
+        const std::string& objName = inst->operands[1].name;
+        std::string fieldName = inst->operands[2].name;
+        
+        // إزالة علامات التنصيص إن وجدت
+        if (!fieldName.empty() && fieldName.front() == '"') {
+            fieldName = fieldName.substr(1);
+        }
+        if (!fieldName.empty() && fieldName.back() == '"') {
+            fieldName = fieldName.substr(0, fieldName.size() - 1);
+        }
+        
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] emitStore: member assign " << objName << "." << fieldName << std::endl;
+        #endif
+        
+        // البحث عن الكائن في namedValues
+        auto objIt = context_info_.namedValues.find(objName);
+        if (objIt == context_info_.namedValues.end()) {
+            reportError("emitStore: object not found: " + objName);
+            return nullptr;
+        }
+        llvm::Value* objPtr = objIt->second;
+        
+        // ================================================================
+        // (AR) إذا كان objPtr من نوع alloca i64، يجب تحميل القيمة وتحويلها لمؤشر
+        // (EN) If objPtr is alloca i64, load the value and convert to pointer
+        // ================================================================
+        if (auto* allocaInst = llvm::dyn_cast<llvm::AllocaInst>(objPtr)) {
+            if (allocaInst->getAllocatedType()->isIntegerTy(64)) {
+                // تحميل قيمة i64 من alloca
+                llvm::Value* ptrVal = builder_->CreateLoad(getInt64Type(), allocaInst, objName + ".ptrval");
+                // تحويل i64 إلى ptr
+                objPtr = builder_->CreateIntToPtr(ptrVal, llvm::PointerType::get(*context_, 0), objName + ".objptr");
+                #ifndef NDEBUG
+                std::cout << "[DEBUG] emitStore: converted i64 to ptr for " << objName << std::endl;
+                #endif
+            }
+        }
+        
+        // البحث عن اسم الصنف في objectClassMap
+        std::string className;
+        auto classIt = context_info_.objectClassMap.find(objName);
+        if (classIt != context_info_.objectClassMap.end()) {
+            className = classIt->second;
+        } else {
+            reportError("emitStore: no class info for object: " + objName);
+            return nullptr;
+        }
+        
+        // البحث عن نوع الهيكل
+        auto structIt = context_info_.classStructTypes.find(className);
+        if (structIt == context_info_.classStructTypes.end()) {
+            reportError("emitStore: struct type not found for class: " + className);
+            return nullptr;
+        }
+        llvm::StructType* structType = structIt->second;
+        
+        // البحث عن ترتيب الحقل
+        auto fieldNamesIt = context_info_.classFieldNames.find(className);
+        if (fieldNamesIt == context_info_.classFieldNames.end()) {
+            reportError("emitStore: field names not found for class: " + className);
+            return nullptr;
+        }
+        
+        const auto& fieldNames = fieldNamesIt->second;
+        int fieldIndex = -1;
+        for (size_t i = 0; i < fieldNames.size(); i++) {
+            if (fieldNames[i] == fieldName) {
+                fieldIndex = static_cast<int>(i);
+                break;
+            }
+        }
+        
+        if (fieldIndex < 0) {
+            reportError("emitStore: field '" + fieldName + "' not found in class: " + className);
+            return nullptr;
+        }
+        
+        // إنشاء GEP للحقل
+        llvm::Value* gep = builder_->CreateStructGEP(structType, objPtr, fieldIndex, fieldName + "_gep");
+        
+        // تحويل النوع إذا لزم الأمر
+        llvm::Type* fieldType = structType->getElementType(fieldIndex);
+        if (value->getType() != fieldType) {
+            if (value->getType()->isIntegerTy() && fieldType->isIntegerTy()) {
+                value = builder_->CreateIntCast(value, fieldType, true, "cast");
+            } else if (value->getType()->isPointerTy() && fieldType->isIntegerTy(64)) {
+                value = builder_->CreatePtrToInt(value, fieldType, "ptr2int");
+            } else if (value->getType()->isIntegerTy() && fieldType->isPointerTy()) {
+                value = builder_->CreateIntToPtr(value, fieldType, "int2ptr");
+            }
+        }
+        
+        auto* storeResult = builder_->CreateStore(value, gep);
+        #ifndef NDEBUG
+        std::cout << "[DEBUG] emitStore: field '" << fieldName << "' stored via GEP index " << fieldIndex << std::endl;
+        #endif
+        return storeResult;
+    }
+    
+    // ================================================================
+    // (AR) حالة تخزين عادية: 2 operands
+    // (EN) Normal store case: 2 operands  
+    // ================================================================
+    
+    // (AR) احصل على القيمة المراد تخزينها
     // (EN) Get value to store - use resolveOperand for all types
     llvm::Value* value = resolveOperand(inst->operands[0]);
     const auto& valueOp = inst->operands[0];
     
-    // (AR) ╪º┘ה╪¡╪╡┘ט┘ה ╪╣┘ה┘י ╪º┘ה┘ו╪ñ╪┤╪▒ ┘ה┘ה╪¬╪«╪▓┘ך┘ז ┘ב┘ך┘ח
+    // (AR) احصل على المؤشر للتخزين فيه
     // (EN) Get pointer to store into
     const std::string& ptrName = inst->operands[1].name;
     llvm::Value* ptr = nullptr;
@@ -360,8 +491,21 @@ llvm::Value* LLVMCodeGen::emitStore(std::shared_ptr<SIRInstruction> inst) {
     }
     
     if (!value || !ptr) {
-        reportError("Operands not found for store: value=" + valueOp.name + ", ptr=" + ptrName);
-        return nullptr;
+        // (AR) إذا لم نجد المؤشر، ننشئ alloca جديداً — متغير محلي لم يُصرَّح عنه بتعليمة ALLOCA منفصلة
+        // (EN) If pointer not found, create a new alloca — local variable without prior ALLOCA instruction
+        if (value && !ptr && !ptrName.empty()) {
+            llvm::Function* currentFunc = builder_->GetInsertBlock()->getParent();
+            llvm::IRBuilder<> entryBuilder(&currentFunc->getEntryBlock(), 
+                                            currentFunc->getEntryBlock().begin());
+            llvm::Type* allocType = value->getType()->isPointerTy() ? getInt64Type() : value->getType();
+            llvm::AllocaInst* newAlloca = entryBuilder.CreateAlloca(allocType, nullptr, ptrName);
+            context_info_.namedValues[ptrName] = newAlloca;
+            ptr = newAlloca;
+        }
+        if (!value || !ptr) {
+            reportError("Operands not found for store: value=" + valueOp.name + ", ptr=" + ptrName);
+            return nullptr;
+        }
     }
     
     // ================================================================
@@ -388,9 +532,11 @@ llvm::Value* LLVMCodeGen::emitStore(std::shared_ptr<SIRInstruction> inst) {
     if (context_info_.objectClassMap.count(valueOp.name) &&
         !context_info_.objectClassMap.count(ptrName)) {
         context_info_.objectClassMap[ptrName] = context_info_.objectClassMap[valueOp.name];
+        #ifndef NDEBUG
         std::cout << "[DEBUG] emitStore: propagated class '" 
                   << context_info_.objectClassMap[valueOp.name] 
                   << "' from " << valueOp.name << " to " << ptrName << std::endl;
+        #endif
     }
     
     // ┘ו-╪ú03: ┘ב╪¡╪╡ ╪Ñ╪░╪º ┘ד╪º┘ז ╪º┘ה┘ו╪¬╪║┘ך╪▒ ┘ו╪¬╪╖╪º┘ך╪▒╪º┘כ (volatile) Γאפ ┘ה╪│╪¼┘ה╪º╪¬ ╪º┘ה╪ú╪¼┘ח╪▓╪⌐ MMIO
@@ -435,8 +581,10 @@ llvm::Value* LLVMCodeGen::emitAlloca(std::shared_ptr<SIRInstruction> inst) {
                 context_info_.objectClassMap[inst->result->name] = className;
             }
             
+            #ifndef NDEBUG
             std::cout << "[DEBUG] emitAlloca: allocated struct for class '"
                       << className << "' in register '" << regName << "'" << std::endl;
+            #endif
             
             return result;
         }
@@ -508,9 +656,11 @@ llvm::Value* LLVMCodeGen::emitAlloca(std::shared_ptr<SIRInstruction> inst) {
                     
                     context_info_.namedValues[inst->result->name] = gep;
                     
+                    #ifndef NDEBUG
                     std::cout << "[DEBUG] emitAlloca: class field '" << fieldName
                               << "' mapped to GEP index " << fieldIndex
                               << " (class: " << activeClass << ")" << std::endl;
+                    #endif
                     
                     return gep;
                 }
@@ -532,6 +682,9 @@ llvm::Value* LLVMCodeGen::emitAlloca(std::shared_ptr<SIRInstruction> inst) {
                 allocType = llvm::Type::getInt1Ty(*context_);
                 break;
             case SIRType::STRING:
+            case SIRType::PTR:
+                // (AR) أنواع المؤشرات: النصوص ومؤشرات UI widgets
+                // (EN) Pointer types: strings and UI widget pointers
                 allocType = llvm::PointerType::getUnqual(*context_);
                 break;
             default:
@@ -597,14 +750,43 @@ llvm::Value* LLVMCodeGen::emitMove(std::shared_ptr<SIRInstruction> inst) {
                 return nullptr;
         }
     } else {
-        // (AR) ╪│╪¼┘ה - ╪º┘ה╪¿╪¡╪½ ┘ב┘ך namedValues
+        // (AR) سجل - البحث في namedValues
         // (EN) Register - lookup in namedValues
-        value = context_info_.namedValues[srcOp.name];
+        auto it = context_info_.namedValues.find(srcOp.name);
+        if (it != context_info_.namedValues.end()) {
+            value = it->second;
+        }
+        
+        // (AR) إذا لم نجد في namedValues، نبحث في المتغيرات العامة
+        // (EN) If not found in namedValues, search global variables
+        if (!value && !srcOp.name.empty()) {
+            // (AR) إزالة % من بداية الاسم إذا وجدت
+            // (EN) Strip % prefix from name if present
+            std::string globalName = srcOp.name;
+            if (!globalName.empty() && globalName[0] == '%') {
+                globalName = globalName.substr(1);
+            }
+            llvm::GlobalVariable* gv = module_->getGlobalVariable(globalName);
+            if (gv) {
+                value = gv;  // (AR) استخدام المتغير العام مباشرة كمؤشر
+            }
+        }
     }
     
     if (!value) {
-        reportError("Source value not found for move: " + srcOp.name);
-        return nullptr;
+        // (AR) قيمة المصدر غير موجودة، إنشاء alloca بديل
+        // (EN) Source value not found, create fallback alloca
+        if (!srcOp.name.empty()) {
+            llvm::Function* currentFunc = builder_->GetInsertBlock()->getParent();
+            llvm::IRBuilder<> entryBuilder(&currentFunc->getEntryBlock(), 
+                                            currentFunc->getEntryBlock().begin());
+            llvm::AllocaInst* newAlloca = entryBuilder.CreateAlloca(getInt64Type(), nullptr, srcOp.name);
+            context_info_.namedValues[srcOp.name] = newAlloca;
+            value = newAlloca;
+        } else {
+            reportError("Source value not found for move: " + srcOp.name);
+            return nullptr;
+        }
     }
     
     // (AR) ╪¬╪«╪▓┘ך┘ז ╪º┘ה┘ג┘ך┘ו╪⌐ ┘ב┘ך ╪│╪¼┘ה ╪º┘ה┘ז╪¬┘ך╪¼╪⌐
@@ -717,16 +899,29 @@ llvm::Value* LLVMCodeGen::emitCondBranch(std::shared_ptr<SIRInstruction> inst) {
     std::string trueLabel = inst->operands[1].name;
     std::string falseLabel = inst->operands[2].name;
     
+    #ifndef NDEBUG
     std::cout << "[DEBUG] emitCondBranch: looking for trueLabel='" << trueLabel 
               << "', falseLabel='" << falseLabel << "'" << std::endl;
     std::cout << "[DEBUG] emitCondBranch: registered blocks count=" << context_info_.basicBlocks.size() << std::endl;
     for (const auto& [name, bb] : context_info_.basicBlocks) {
         std::cout << "[DEBUG] emitCondBranch: registered block '" << name << "'" << std::endl;
     }
+    #endif
     
     if (!condition) {
         reportError("Condition not found for conditional branch");
         return nullptr;
+    }
+    
+    // (AR) التأكد من أن الشرط من نوع i1 — LLVM CreateCondBr يتطلب i1
+    //      إذا كان الشرط i64 أو غيره، نقارنه بالصفر لتحويله إلى i1
+    // (EN) Ensure condition is i1 — LLVM CreateCondBr requires i1
+    //      If condition is i64 or other type, compare != 0 to convert to i1
+    if (!condition->getType()->isIntegerTy(1)) {
+        condition = builder_->CreateICmpNE(
+            condition, 
+            llvm::ConstantInt::get(condition->getType(), 0), 
+            "tobool");
     }
     
     auto trueIt = context_info_.basicBlocks.find(trueLabel);
@@ -767,11 +962,378 @@ llvm::Value* LLVMCodeGen::emitCall(std::shared_ptr<SIRInstruction> inst) {
         }
     }
     
+    // ================================================================
+    // (AR) معالجة دوال runtime الاستثناءات (setjmp/longjmp)
+    // (EN) Handle exception runtime functions (setjmp/longjmp based)
+    // ================================================================
+    
+    if (funcName == "__sad_alloc_jmpbuf") {
+        // (AR) تخصيص jmpbuf في كتلة الدخول (256 بايت لـ Windows x64)
+        // (EN) Allocate jmpbuf in entry block (256 bytes for Windows x64)
+        auto* currentBB = builder_->GetInsertBlock();
+        auto* currentFunc = currentBB->getParent();
+        auto& entryBB = currentFunc->getEntryBlock();
+        
+        llvm::IRBuilder<> entryBuilder(&entryBB, entryBB.begin());
+        auto* jmpbufType = llvm::ArrayType::get(llvm::Type::getInt8Ty(*context_), 256);
+        auto* jmpbuf = entryBuilder.CreateAlloca(jmpbufType, nullptr, "jmpbuf");
+        jmpbuf->setAlignment(llvm::Align(16));
+        
+        llvm::Value* result = jmpbuf;
+        if (inst->result.has_value()) {
+            context_info_.namedValues[inst->result->name] = result;
+        }
+        return result;
+    }
+    
+    if (funcName == "__sad_push_handler") {
+        // (AR) دفع jmpbuf إلى مكدس المعالجات — نأخذ المؤشر مباشرة بدون تحميل
+        // (EN) Push jmpbuf onto handler stack — get pointer directly without loading
+        llvm::Value* jmpbufPtr = nullptr;
+        if (inst->operands.size() > 1) {
+            auto it = context_info_.namedValues.find(inst->operands[1].name);
+            if (it != context_info_.namedValues.end()) jmpbufPtr = it->second;
+        }
+        if (!jmpbufPtr) return nullptr;
+        
+        auto* ptrType = llvm::PointerType::getUnqual(*context_);
+        auto* i32Type = llvm::Type::getInt32Ty(*context_);
+        
+        auto* handlerStack = module_->getNamedGlobal("__sad_handler_stack");
+        if (!handlerStack) {
+            auto* arrType = llvm::ArrayType::get(ptrType, 64);
+            handlerStack = new llvm::GlobalVariable(
+                *module_, arrType, false, llvm::GlobalValue::InternalLinkage,
+                llvm::ConstantAggregateZero::get(arrType), "__sad_handler_stack");
+        }
+        
+        auto* handlerCount = module_->getNamedGlobal("__sad_handler_count");
+        if (!handlerCount) {
+            handlerCount = new llvm::GlobalVariable(
+                *module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
+                llvm::ConstantInt::get(i32Type, 0), "__sad_handler_count");
+        }
+        
+        llvm::Value* count = builder_->CreateLoad(i32Type, handlerCount, "handler_count");
+        auto* arrType = llvm::ArrayType::get(ptrType, 64);
+        llvm::Value* slot = builder_->CreateGEP(arrType, handlerStack,
+            {builder_->getInt32(0), count}, "handler_slot");
+        builder_->CreateStore(jmpbufPtr, slot);
+        llvm::Value* newCount = builder_->CreateAdd(count, builder_->getInt32(1), "new_count");
+        builder_->CreateStore(newCount, handlerCount);
+        
+        llvm::Value* dummy = llvm::ConstantInt::get(getInt64Type(), 0);
+        if (inst->result.has_value()) {
+            context_info_.namedValues[inst->result->name] = dummy;
+        }
+        return dummy;
+    }
+    
+    if (funcName == "__sad_setjmp") {
+        // (AR) استدعاء _setjmp — نأخذ المؤشر مباشرة بدون تحميل
+        // (EN) Call _setjmp — get pointer directly without loading
+        llvm::Value* jmpbufPtr = nullptr;
+        if (inst->operands.size() > 1) {
+            auto it = context_info_.namedValues.find(inst->operands[1].name);
+            if (it != context_info_.namedValues.end()) jmpbufPtr = it->second;
+        }
+        if (!jmpbufPtr) return nullptr;
+        
+        auto* ptrType = llvm::PointerType::getUnqual(*context_);
+        auto* i32Type = llvm::Type::getInt32Ty(*context_);
+        
+        auto* setjmpFuncType = llvm::FunctionType::get(i32Type, {ptrType, ptrType}, false);
+        auto setjmpCallee = module_->getOrInsertFunction("_setjmp", setjmpFuncType);
+        if (auto* setjmpFunc = llvm::dyn_cast<llvm::Function>(setjmpCallee.getCallee())) {
+            setjmpFunc->addFnAttr(llvm::Attribute::ReturnsTwice);
+        }
+        
+        llvm::Value* nullPtr = llvm::ConstantPointerNull::get(ptrType);
+        llvm::Value* result32 = builder_->CreateCall(setjmpCallee, {jmpbufPtr, nullPtr}, "setjmp_result");
+        llvm::Value* result = builder_->CreateSExt(result32, getInt64Type(), "setjmp_result64");
+        
+        if (inst->result.has_value()) {
+            context_info_.namedValues[inst->result->name] = result;
+        }
+        return result;
+    }
+    
+    if (funcName == "__sad_pop_handler") {
+        // (AR) إزالة آخر معالج من المكدس
+        // (EN) Pop last handler from handler stack
+        auto* i32Type = llvm::Type::getInt32Ty(*context_);
+        
+        auto* handlerCount = module_->getNamedGlobal("__sad_handler_count");
+        if (!handlerCount) {
+            handlerCount = new llvm::GlobalVariable(
+                *module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
+                llvm::ConstantInt::get(i32Type, 0), "__sad_handler_count");
+        }
+        
+        llvm::Value* count = builder_->CreateLoad(i32Type, handlerCount, "handler_count");
+        llvm::Value* newCount = builder_->CreateSub(count, builder_->getInt32(1), "new_count");
+        builder_->CreateStore(newCount, handlerCount);
+        
+        llvm::Value* dummy = llvm::ConstantInt::get(getInt64Type(), 0);
+        if (inst->result.has_value()) {
+            context_info_.namedValues[inst->result->name] = dummy;
+        }
+        return dummy;
+    }
+    
+    if (funcName == "__sad_raise") {
+        // (AR) رفع استثناء: تخزين النوع والرسالة + longjmp إلى آخر معالج
+        // (EN) Raise exception: store type+message + longjmp to last handler
+        // (AR) الصيغة: __sad_raise(type, msg) — إذا وسيط واحد فقط: type = "خطأ"
+        // (EN) Format: __sad_raise(type, msg) — if single arg: type defaults to "خطأ"
+        llvm::Value* excType = nullptr;
+        llvm::Value* msg = nullptr;
+        
+        if (args.size() >= 2) {
+            excType = args[0];
+            msg = args[1];
+        } else if (args.size() == 1) {
+            excType = getConstantString("\xd8\xae\xd8\xb7\xd8\xa3"); // "خطأ"
+            msg = args[0];
+        }
+        
+        auto* ptrType = llvm::PointerType::getUnqual(*context_);
+        auto* i32Type = llvm::Type::getInt32Ty(*context_);
+        
+        // (AR) تخزين نوع الاستثناء في متغير عام
+        // (EN) Store exception type in global
+        auto* exceptionType = module_->getNamedGlobal("__sad_exception_type");
+        if (!exceptionType) {
+            exceptionType = new llvm::GlobalVariable(
+                *module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
+                llvm::ConstantPointerNull::get(ptrType), "__sad_exception_type");
+        }
+        if (excType) {
+            builder_->CreateStore(excType, exceptionType);
+        }
+        
+        // (AR) تخزين رسالة الاستثناء في متغير عام
+        // (EN) Store exception message in global
+        auto* exceptionMsg = module_->getNamedGlobal("__sad_exception_msg");
+        if (!exceptionMsg) {
+            exceptionMsg = new llvm::GlobalVariable(
+                *module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
+                llvm::ConstantPointerNull::get(ptrType), "__sad_exception_msg");
+        }
+        if (msg) {
+            builder_->CreateStore(msg, exceptionMsg);
+        }
+        
+        // (AR) تحميل jmpbuf من مكدس المعالجات
+        // (EN) Load jmpbuf from handler stack
+        auto* handlerStack = module_->getNamedGlobal("__sad_handler_stack");
+        if (!handlerStack) {
+            auto* arrType = llvm::ArrayType::get(ptrType, 64);
+            handlerStack = new llvm::GlobalVariable(
+                *module_, arrType, false, llvm::GlobalValue::InternalLinkage,
+                llvm::ConstantAggregateZero::get(arrType), "__sad_handler_stack");
+        }
+        
+        auto* handlerCount = module_->getNamedGlobal("__sad_handler_count");
+        if (!handlerCount) {
+            handlerCount = new llvm::GlobalVariable(
+                *module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
+                llvm::ConstantInt::get(i32Type, 0), "__sad_handler_count");
+        }
+        
+        llvm::Value* count = builder_->CreateLoad(i32Type, handlerCount, "handler_count");
+        llvm::Value* idx = builder_->CreateSub(count, builder_->getInt32(1), "handler_idx");
+        
+        auto* arrType = llvm::ArrayType::get(ptrType, 64);
+        llvm::Value* slot = builder_->CreateGEP(arrType, handlerStack,
+            {builder_->getInt32(0), idx}, "handler_slot");
+        llvm::Value* jmpbuf = builder_->CreateLoad(ptrType, slot, "jmpbuf");
+        
+        // (AR) استدعاء longjmp — لا يعود أبداً
+        // (EN) Call longjmp — never returns
+        auto* longjmpFuncType = llvm::FunctionType::get(
+            llvm::Type::getVoidTy(*context_), {ptrType, i32Type}, false);
+        auto longjmpCallee = module_->getOrInsertFunction("longjmp", longjmpFuncType);
+        if (auto* longjmpFunc = llvm::dyn_cast<llvm::Function>(longjmpCallee.getCallee())) {
+            longjmpFunc->addFnAttr(llvm::Attribute::NoReturn);
+        }
+        
+        builder_->CreateCall(longjmpCallee, {jmpbuf, builder_->getInt32(1)});
+        builder_->CreateUnreachable();
+        
+        // (AR) كتلة ميتة مع unreachable كـ terminator
+        // (EN) Dead block with unreachable as terminator
+        auto* deadBlock = llvm::BasicBlock::Create(
+            *context_, "dead.after_raise", builder_->GetInsertBlock()->getParent());
+        builder_->SetInsertPoint(deadBlock);
+        builder_->CreateUnreachable();
+        
+        llvm::Value* dummy = llvm::ConstantInt::get(getInt64Type(), 0);
+        if (inst->result.has_value()) {
+            context_info_.namedValues[inst->result->name] = dummy;
+        }
+        return dummy;
+    }
+    
+    if (funcName == "__sad_raise_current") {
+        // (AR) إعادة رمي الاستثناء الحالي — يقرأ النوع والرسالة من المتغيرات العامة
+        // (EN) Re-throw current exception — reads type/msg from globals, calls longjmp
+        auto* ptrType = llvm::PointerType::getUnqual(*context_);
+        auto* i32Type = llvm::Type::getInt32Ty(*context_);
+        
+        // (AR) لا نغيّر المتغيرات العامة — نستخدم ما هو مخزن فعلاً
+        // (EN) Don't modify globals — use what's already stored
+        
+        auto* handlerStack = module_->getNamedGlobal("__sad_handler_stack");
+        if (!handlerStack) {
+            auto* arrType = llvm::ArrayType::get(ptrType, 64);
+            handlerStack = new llvm::GlobalVariable(
+                *module_, arrType, false, llvm::GlobalValue::InternalLinkage,
+                llvm::ConstantAggregateZero::get(arrType), "__sad_handler_stack");
+        }
+        
+        auto* handlerCount = module_->getNamedGlobal("__sad_handler_count");
+        if (!handlerCount) {
+            handlerCount = new llvm::GlobalVariable(
+                *module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
+                llvm::ConstantInt::get(i32Type, 0), "__sad_handler_count");
+        }
+        
+        llvm::Value* count = builder_->CreateLoad(i32Type, handlerCount, "handler_count");
+        llvm::Value* idx = builder_->CreateSub(count, builder_->getInt32(1), "handler_idx");
+        
+        auto* arrType = llvm::ArrayType::get(ptrType, 64);
+        llvm::Value* slot = builder_->CreateGEP(arrType, handlerStack,
+            {builder_->getInt32(0), idx}, "handler_slot");
+        llvm::Value* jmpbuf = builder_->CreateLoad(ptrType, slot, "jmpbuf");
+        
+        auto* longjmpFuncType = llvm::FunctionType::get(
+            llvm::Type::getVoidTy(*context_), {ptrType, i32Type}, false);
+        auto longjmpCallee = module_->getOrInsertFunction("longjmp", longjmpFuncType);
+        if (auto* longjmpFunc = llvm::dyn_cast<llvm::Function>(longjmpCallee.getCallee())) {
+            longjmpFunc->addFnAttr(llvm::Attribute::NoReturn);
+        }
+        
+        builder_->CreateCall(longjmpCallee, {jmpbuf, builder_->getInt32(1)});
+        builder_->CreateUnreachable();
+        
+        auto* deadBlock = llvm::BasicBlock::Create(
+            *context_, "dead.after_rethrow", builder_->GetInsertBlock()->getParent());
+        builder_->SetInsertPoint(deadBlock);
+        builder_->CreateUnreachable();
+        
+        llvm::Value* dummy = llvm::ConstantInt::get(getInt64Type(), 0);
+        if (inst->result.has_value()) {
+            context_info_.namedValues[inst->result->name] = dummy;
+        }
+        return dummy;
+    }
+    
+    if (funcName == "__sad_get_exception") {
+        // (AR) تحميل رسالة الاستثناء المحفوظة
+        // (EN) Load stored exception message
+        auto* ptrType = llvm::PointerType::getUnqual(*context_);
+        
+        auto* exceptionMsg = module_->getNamedGlobal("__sad_exception_msg");
+        if (!exceptionMsg) {
+            exceptionMsg = new llvm::GlobalVariable(
+                *module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
+                llvm::ConstantPointerNull::get(ptrType), "__sad_exception_msg");
+        }
+        
+        llvm::Value* result = builder_->CreateLoad(ptrType, exceptionMsg, "exception_msg");
+        if (inst->result.has_value()) {
+            context_info_.namedValues[inst->result->name] = result;
+        }
+        return result;
+    }
+    
+    if (funcName == "__sad_get_exception_type") {
+        // (AR) تحميل نوع الاستثناء المحفوظ
+        // (EN) Load stored exception type
+        auto* ptrType = llvm::PointerType::getUnqual(*context_);
+        
+        auto* exceptionType = module_->getNamedGlobal("__sad_exception_type");
+        if (!exceptionType) {
+            exceptionType = new llvm::GlobalVariable(
+                *module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
+                llvm::ConstantPointerNull::get(ptrType), "__sad_exception_type");
+        }
+        
+        llvm::Value* result = builder_->CreateLoad(ptrType, exceptionType, "exception_type");
+        if (inst->result.has_value()) {
+            context_info_.namedValues[inst->result->name] = result;
+        }
+        return result;
+    }
+    
+    if (funcName == "__sad_str_equals") {
+        // (AR) مقارنة نصين — يستدعي strcmp ويعيد 1 إذا متساويين، 0 إذا لا
+        // (EN) Compare two strings — calls strcmp, returns 1 if equal, 0 if not
+        if (args.size() < 2) return nullptr;
+        
+        auto* ptrType = llvm::PointerType::getUnqual(*context_);
+        auto* i32Type = llvm::Type::getInt32Ty(*context_);
+        
+        auto* strcmpFuncType = llvm::FunctionType::get(i32Type, {ptrType, ptrType}, false);
+        auto strcmpCallee = module_->getOrInsertFunction("strcmp", strcmpFuncType);
+        
+        llvm::Value* cmpResult = builder_->CreateCall(strcmpCallee, {args[0], args[1]}, "strcmp_result");
+        llvm::Value* isEqual = builder_->CreateICmpEQ(cmpResult, builder_->getInt32(0), "str_eq");
+        llvm::Value* result = builder_->CreateZExt(isEqual, getInt64Type(), "str_eq_i64");
+        
+        if (inst->result.has_value()) {
+            context_info_.namedValues[inst->result->name] = result;
+        }
+        return result;
+    }
+    
     llvm::Function* callee = nullptr;
     auto funcIt = context_info_.functions.find(funcName);
     if (funcIt != context_info_.functions.end()) {
         callee = funcIt->second;
-    } else {
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) بحث سلسلة الوراثة: إذا لم نجد الدالة وكانت استدعاء طريقة (className.method)
+    //      نبحث في الأصناف الأب حتى نجد التعريف
+    // (EN) Inheritance chain lookup: if method not found and name contains '.'
+    //      walk parent classes via classParentMap to find the definition
+    // ═══════════════════════════════════════════════════════════════
+    if (!callee) {
+        auto dotPos = funcName.find('.');
+        if (dotPos != std::string::npos) {
+            std::string className = funcName.substr(0, dotPos);
+            std::string methodName = funcName.substr(dotPos + 1);
+            std::string searchClass = className;
+            while (!searchClass.empty()) {
+                auto parentIt = context_info_.classParentMap.find(searchClass);
+                if (parentIt != context_info_.classParentMap.end() && !parentIt->second.empty()) {
+                    searchClass = parentIt->second;
+                    std::string parentMethodName = searchClass + "." + methodName;
+                    auto parentFuncIt = context_info_.functions.find(parentMethodName);
+                    if (parentFuncIt != context_info_.functions.end()) {
+                        callee = parentFuncIt->second;
+                        // (AR) حفظ في السياق لتسريع الاستدعاءات اللاحقة
+                        // (EN) Cache for future calls
+                        context_info_.functions[funcName] = callee;
+                        break;
+                    }
+                    // (AR) محاولة البحث في LLVM module مباشرة
+                    // (EN) Try searching LLVM module directly
+                    callee = module_->getFunction(parentMethodName);
+                    if (callee) {
+                        context_info_.functions[funcName] = callee;
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (!callee) {
         // =====================================================================
         // (AR) ╪»╪╣┘ו ╪º┘ה╪▒╪¿╪╖ ╪╣╪¿╪▒ ╪º┘ה┘ו┘ה┘ב╪º╪¬: ╪Ñ┘ז╪┤╪º╪í ╪¬╪╡╪▒┘ך╪¡ ╪«╪º╪▒╪¼┘ך ┘ה┘ה╪»╪º┘ה╪⌐
         // (EN) Cross-file linking support: create extern declaration for function

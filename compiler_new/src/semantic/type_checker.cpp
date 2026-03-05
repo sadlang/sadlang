@@ -516,7 +516,9 @@ void TypeChecker::visitCallExpr(AST::CallExpr& expr) {
     if (calleeType && calleeType->getKind() == TypeKind::Function) {
         auto* fnType = static_cast<FunctionType*>(calleeType.get());
         TypePtr retType = fnType->getReturnType();
-        lastInferredType_ = retType ? retType : registry_.getVoidType();
+        // (AR) إذا لم يُحدَّد نوع الإرجاع، نفترض رقم (مثل int في C)
+        // (EN) If return type is unspecified, default to integer (like C's implicit int)
+        lastInferredType_ = retType ? retType : registry_.getIntegerType();
     } else {
         lastInferredType_ = calleeType ? calleeType : registry_.getUnknownType();
     }
@@ -1031,11 +1033,17 @@ void TypeChecker::visitFunctionDecl(AST::FunctionDecl& decl) {
     TypePtr prevReturnType = expectedReturnType_;
     
     currentFunction_ = decl.name;
-    // (AR) إذا كان نوع الإرجاع غير معروف أو NONE، لا نفحص نوع return
-    // (EN) If return type is UNKNOWN or NONE, skip return type checking
+    // (AR) إذا كان نوع الإرجاع غير معروف أو NONE
+    // (EN) If return type is UNKNOWN or NONE
     if (decl.returnType == Data::DataType::UNKNOWN ||
         decl.returnType == Data::DataType::NONE) {
-        expectedReturnType_ = nullptr;
+        if (decl.isExtern) {
+            // (AR) الدوال الخارجية بدون نوع إرجاع تُفترض رقم (I64)
+            // (EN) Extern functions without return type default to integer
+            expectedReturnType_ = registry_.getIntegerType();
+        } else {
+            expectedReturnType_ = nullptr;
+        }
     } else {
         expectedReturnType_ = dataTypeToTypePtr(decl.returnType);
     }

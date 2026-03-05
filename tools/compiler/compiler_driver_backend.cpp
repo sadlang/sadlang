@@ -38,6 +38,14 @@
 // (EN) Bitcode writer - for .bc file output
 #include <llvm/Bitcode/BitcodeWriter.h>
 
+// (AR) تمريرات الكوروتين LLVM - لدعم غير_متزامن/انتظر
+// (EN) LLVM Coroutine passes - for async/await support
+#include <llvm/Passes/PassBuilder.h>
+#include <llvm/Transforms/Coroutines/CoroEarly.h>
+#include <llvm/Transforms/Coroutines/CoroSplit.h>
+#include <llvm/Transforms/Coroutines/CoroElide.h>
+#include <llvm/Transforms/Coroutines/CoroCleanup.h>
+
 // Windows API for paths
 #ifdef _WIN32
 #include <windows.h>
@@ -269,6 +277,7 @@ bool CompilerDriver::run_backend() {
             // (EN) Step 2: Generate LLVM IR from SIR
             // Note: generate() moves module ownership but targetMachine_ persists
             // ================================================================
+            
             auto llvm_module = (*llvm_codegen_).generate(sir_module_);
             if (!llvm_module) {
                 diagnostics_.report_fatal("فشل توليد LLVM IR / Failed to generate LLVM IR");
@@ -293,6 +302,59 @@ bool CompilerDriver::run_backend() {
                 
                 if (options_.verbose) {
                     arabic_pass.printStats();
+                }
+            }
+            
+            // ================================================================
+            // (AR) الخطوة 2.6: تشغيل تمريرات الكوروتين (لدعم غير_متزامن/انتظر)
+            // ================================================================
+            // (EN) Step 2.6: Run coroutine passes (for async/await support)
+            // This transforms coroutine intrinsics into state machine code
+            // Required before lli can execute the IR
+            // ================================================================
+            {
+                // Check if module has any coroutines (presplitcoroutine attribute)
+                bool hasCoroutines = false;
+                for (auto& F : *llvm_module) {
+                    if (F.hasFnAttribute(llvm::Attribute::PresplitCoroutine)) {
+                        hasCoroutines = true;
+                        break;
+                    }
+                }
+                
+                if (hasCoroutines) {
+                    llvm::LoopAnalysisManager LAM;
+                    llvm::FunctionAnalysisManager FAM;
+                    llvm::CGSCCAnalysisManager CGAM;
+                    llvm::ModuleAnalysisManager MAM;
+                    
+                    llvm::PassBuilder PB;
+                    PB.registerModuleAnalyses(MAM);
+                    PB.registerCGSCCAnalyses(CGAM);
+                    PB.registerFunctionAnalyses(FAM);
+                    PB.registerLoopAnalyses(LAM);
+                    PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+                    
+                    llvm::ModulePassManager MPM;
+                    MPM.addPass(llvm::CoroEarlyPass());
+                    
+                    // CoroSplit requires CGSCC pass manager
+                    llvm::CGSCCPassManager CGPM;
+                    CGPM.addPass(llvm::CoroSplitPass());
+                    MPM.addPass(llvm::createModuleToPostOrderCGSCCPassAdaptor(std::move(CGPM)));
+                    
+                    MPM.addPass(llvm::CoroCleanupPass());
+                    
+                    // Also run CoroElide at function level
+                    llvm::FunctionPassManager FPM;
+                    FPM.addPass(llvm::CoroElidePass());
+                    MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+                    
+                    MPM.run(*llvm_module, MAM);
+                    
+                    if (options_.verbose) {
+                        std::cerr << "[CORO] Coroutine passes completed successfully" << std::endl;
+                    }
                 }
             }
             
@@ -717,6 +779,139 @@ void CompilerDriver::cleanup_temp_files() {
 //   2. متغير البيئة PATH
 //   3. بجوار الملف التنفيذي sadc.exe
 //   4. مسارات Visual Studio المعروفة
+// ============================================================================
+// (AR) البحث عن أداة Clang الخاصة بـ Android NDK
+// ============================================================================
+// تبحث عن clang داخل Android NDK لاستخدامه في الترجمة المتقاطعة.
+// تبحث في:
+//   1. متغيرات البيئة: ANDROID_NDK_HOME, ANDROID_NDK, ANDROID_SDK_ROOT
+//   2. المسارات الشائعة على كل نظام تشغيل
+//   3. تتحقق من وجود clang في مسار toolchains/llvm/prebuilt
+// ============================================================================
+// (EN) Find Android NDK Clang for cross-compilation
+// Searches environment variables and common paths for NDK clang.
+// ============================================================================
+std::optional<std::string> CompilerDriver::find_android_ndk_clang() {
+    namespace fs = std::filesystem;
+
+    // (AR) تحديد وسم المضيف (host tag) حسب نظام التشغيل الحالي
+    // (EN) Determine host tag based on current OS
+    #ifdef _WIN32
+    const std::string host_tag = "windows-x86_64";
+    const std::string clang_name = "clang.exe";
+    #elif defined(__APPLE__)
+    const std::string host_tag = "darwin-x86_64";
+    const std::string clang_name = "clang";
+    #else
+    const std::string host_tag = "linux-x86_64";
+    const std::string clang_name = "clang";
+    #endif
+
+    // (AR) جمع مسارات NDK المحتملة
+    // (EN) Collect candidate NDK paths
+    std::vector<std::string> ndk_candidates;
+
+    // (AR) 1. متغيرات البيئة
+    const char* env_vars[] = {"ANDROID_NDK_HOME", "ANDROID_NDK", "NDK_HOME"};
+    for (const auto& var : env_vars) {
+        const char* val = std::getenv(var);
+        if (val && std::strlen(val) > 0) {
+            ndk_candidates.push_back(val);
+        }
+    }
+
+    // (AR) 2. عبر ANDROID_SDK_ROOT أو ANDROID_HOME
+    const char* sdk_vars[] = {"ANDROID_SDK_ROOT", "ANDROID_HOME"};
+    for (const auto& var : sdk_vars) {
+        const char* val = std::getenv(var);
+        if (val && std::strlen(val) > 0) {
+            std::string sdk_path = val;
+            // (AR) ابحث عن أحدث إصدار NDK
+            fs::path ndk_dir = fs::path(sdk_path) / "ndk";
+            if (fs::exists(ndk_dir) && fs::is_directory(ndk_dir)) {
+                std::string latest_version;
+                for (const auto& entry : fs::directory_iterator(ndk_dir)) {
+                    if (entry.is_directory()) {
+                        std::string name = entry.path().filename().string();
+                        if (name > latest_version) {
+                            latest_version = name;
+                        }
+                    }
+                }
+                if (!latest_version.empty()) {
+                    ndk_candidates.push_back((ndk_dir / latest_version).string());
+                }
+            }
+        }
+    }
+
+    // (AR) 3. المسارات الشائعة
+    #ifdef _WIN32
+    const char* localappdata = std::getenv("LOCALAPPDATA");
+    if (localappdata) {
+        fs::path sdk_ndk = fs::path(localappdata) / "Android" / "Sdk" / "ndk";
+        if (fs::exists(sdk_ndk) && fs::is_directory(sdk_ndk)) {
+            std::string latest;
+            for (const auto& entry : fs::directory_iterator(sdk_ndk)) {
+                if (entry.is_directory()) {
+                    std::string name = entry.path().filename().string();
+                    if (name > latest) latest = name;
+                }
+            }
+            if (!latest.empty()) {
+                ndk_candidates.push_back((sdk_ndk / latest).string());
+            }
+        }
+    }
+    ndk_candidates.push_back("C:\\Android\\ndk");
+    ndk_candidates.push_back("C:\\android-ndk");
+    #else
+    ndk_candidates.push_back("/opt/android-ndk");
+    const char* home = std::getenv("HOME");
+    if (home) {
+        ndk_candidates.push_back(std::string(home) + "/Android/Sdk/ndk");
+        ndk_candidates.push_back(std::string(home) + "/android-ndk");
+    }
+    #endif
+
+    // (AR) البحث عن clang في كل مسار NDK
+    // (EN) Search for clang in each NDK candidate
+    for (const auto& ndk_path : ndk_candidates) {
+        fs::path toolchain = fs::path(ndk_path) / "toolchains" / "llvm" / "prebuilt" / host_tag / "bin";
+        fs::path clang_path = toolchain / clang_name;
+        
+        if (fs::exists(clang_path)) {
+            if (options_.verbose) {
+                std::cerr << "  تم العثور على Android NDK clang: " << clang_path.string() << "\n";
+                std::cerr << "  Found Android NDK clang at: " << clang_path.string() << "\n";
+            }
+            return clang_path.string();
+        }
+    }
+
+    if (options_.verbose) {
+        std::cerr << "  تحذير: لم يتم العثور على Android NDK clang\n";
+        std::cerr << "  Warning: Android NDK clang not found\n";
+        std::cerr << "  عيّن ANDROID_NDK_HOME أو ثبّت Android NDK\n";
+    }
+    return std::nullopt;
+}
+
+// ============================================================================
+// (AR) الحصول على مسار sysroot لـ Android NDK
+// ============================================================================
+// (EN) Get Android NDK sysroot path from clang path
+// ============================================================================
+std::string CompilerDriver::get_android_sysroot(const std::string& ndk_clang) {
+    namespace fs = std::filesystem;
+    // clang يكون في: <ndk>/toolchains/llvm/prebuilt/<host>/bin/clang
+    // sysroot يكون في: <ndk>/toolchains/llvm/prebuilt/<host>/sysroot
+    fs::path clang_dir = fs::path(ndk_clang).parent_path();  // bin/
+    fs::path prebuilt_dir = clang_dir.parent_path();          // <host>/
+    fs::path sysroot = prebuilt_dir / "sysroot";
+    return sysroot.string();
+}
+
 //
 // Clang ضروري لربط ملفات الكائن وإنتاج ملفات تنفيذية
 // لأنه يعرف تلقائياً أين توجد مكتبات النظام ومكتبات C
@@ -837,6 +1032,334 @@ std::optional<std::string> CompilerDriver::find_clang() {
 }
 
 // ============================================================================
+// (AR) ربط ملف كائن لأندرويد باستخدام NDK clang
+// ============================================================================
+// هذه الدالة تقوم بالترجمة المتقاطعة لأندرويد:
+//   1. تبحث عن NDK clang (ليس clang العادي)
+//   2. تستخدم --target و --sysroot لأندرويد
+//   3. تولّد ملف runtime مخصص لأندرويد (يستخدم __android_log_print)
+//   4. تربط مع مكتبات أندرويد: -llog -landroid -lm -lc
+//   5. تنتج .so (مكتبة مشتركة) لتحميلها في NativeActivity
+// ============================================================================
+// (EN) Link object file for Android using NDK clang
+// Cross-compilation to Android ARM64 with proper sysroot and libraries.
+// ============================================================================
+bool CompilerDriver::link_android_executable(const std::string& obj_path,
+                                              const std::string& output_file,
+                                              llvm::Module* module) {
+    // ================================================================
+    // (AR) الخطوة 1: البحث عن NDK clang
+    // (EN) Step 1: Find Android NDK clang
+    // ================================================================
+    auto ndk_clang_opt = find_android_ndk_clang();
+
+    if (!ndk_clang_opt) {
+        diagnostics_.report_fatal(
+            "لم يتم العثور على Android NDK clang\n"
+            "Android NDK clang not found\n"
+            "ثبّت Android NDK وعيّن ANDROID_NDK_HOME\n"
+            "Install Android NDK and set ANDROID_NDK_HOME\n"
+            "تحميل: https://developer.android.com/ndk/downloads"
+        );
+        return false;
+    }
+
+    std::string ndk_clang = *ndk_clang_opt;
+    std::string sysroot = get_android_sysroot(ndk_clang);
+    std::string target_triple = options_.target.to_string();
+    int api_level = options_.target.get_android_api_level();
+
+    if (options_.verbose) {
+        std::cerr << "\n  ══════════════════════════════════════════════\n";
+        std::cerr << "  ربط لأندرويد / Linking for Android\n";
+        std::cerr << "  الهدف / Target: " << target_triple << "\n";
+        std::cerr << "  مستوى API / API Level: " << api_level << "\n";
+        std::cerr << "  NDK clang: " << ndk_clang << "\n";
+        std::cerr << "  Sysroot: " << sysroot << "\n";
+        std::cerr << "  ══════════════════════════════════════════════\n";
+    }
+
+    // ================================================================
+    // (AR) الخطوة 2: تحديد نوع الإخراج
+    // (EN) Step 2: Determine output type
+    // ================================================================
+    // (AR) أندرويد يستخدم NativeActivity — الإخراج الافتراضي .so
+    //      إلا إذا طلب المستخدم ملف تنفيذي صراحةً
+    // (EN) Android uses NativeActivity — default output is .so
+    //      unless user explicitly requested an executable
+    bool output_shared = true;
+    std::string actual_output = output_file;
+
+    // (AR) إذا انتهى الاسم بـ .so فهو مكتبة مشتركة
+    //      وإلا نضيف .so إذا لم ينتهِ بامتداد آخر
+    if (output_file.size() >= 3 && output_file.substr(output_file.size() - 3) == ".so") {
+        output_shared = true;
+    } else if (output_file.find('.') == std::string::npos) {
+        // (AR) لا امتداد — ربما يريد ملف تنفيذي (للاختبار على الجهاز عبر adb)
+        output_shared = false;
+    }
+
+    // ================================================================
+    // (AR) الخطوة 3: إنشاء ملف runtime لأندرويد
+    // (EN) Step 3: Create Android-specific runtime file
+    // ================================================================
+    auto temp_runtime = get_temp_file(".c");
+    temp_files_.push_back(temp_runtime);
+
+    std::ofstream rt_file(temp_runtime);
+    if (rt_file.is_open()) {
+        rt_file << R"(
+/* ============================================================================
+ * Sad Language - Android Runtime / مكتبة وقت التشغيل لأندرويد
+ * ============================================================================
+ * هذا الملف يُنشأ تلقائياً بواسطة مترجم Sad لتوفير الدوال
+ * الأساسية اللازمة لتشغيل البرنامج على أندرويد.
+ * ============================================================================ */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifdef __ANDROID__
+  #include <android/log.h>
+  #define SAD_LOG_TAG "SadLang"
+  #define SAD_LOGI(...) __android_log_print(ANDROID_LOG_INFO, SAD_LOG_TAG, __VA_ARGS__)
+  #define SAD_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, SAD_LOG_TAG, __VA_ARGS__)
+#else
+  #define SAD_LOGI(...) fprintf(stdout, __VA_ARGS__)
+  #define SAD_LOGE(...) fprintf(stderr, __VA_ARGS__)
+#endif
+
+/* ============================================================================
+ * دوال الإدخال / Input Functions (محدودة على أندرويد)
+ * ============================================================================ */
+
+const char* sad_llvm_input(void) {
+    /* (AR) على أندرويد، الإدخال يأتي من واجهة المستخدم وليس stdin */
+    static char buffer[4096];
+    buffer[0] = '\0';
+    #ifndef __ANDROID__
+    if (fgets(buffer, sizeof(buffer), stdin)) {
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len-1] == '\n') buffer[len-1] = '\0';
+        return buffer;
+    }
+    #endif
+    SAD_LOGI("sad_llvm_input: تحذير - الإدخال غير متاح على أندرويد بدون واجهة\n");
+    return "";
+}
+
+long long sad_llvm_input_int(void) {
+    SAD_LOGI("sad_llvm_input_int: تحذير - الإدخال غير متاح على أندرويد بدون واجهة\n");
+    return 0;
+}
+
+double sad_llvm_input_float(void) {
+    SAD_LOGI("sad_llvm_input_float: تحذير - الإدخال غير متاح على أندرويد بدون واجهة\n");
+    return 0.0;
+}
+
+/* ============================================================================
+ * دوال الذاكرة / Memory Functions
+ * ============================================================================ */
+
+void* sad_llvm_alloc(unsigned long long size) {
+    const unsigned long long MAX_ALLOC = 1ULL << 30;
+    if (size == 0 || size > MAX_ALLOC) {
+        SAD_LOGE("[sad] تحذير: طلب تخصيص غير صالح: %llu بايت\n", size);
+        return NULL;
+    }
+    void* ptr = malloc((size_t)size);
+    if (!ptr) {
+        SAD_LOGE("[sad] خطأ: فشل تخصيص %llu بايت\n", size);
+    }
+    return ptr;
+}
+
+void sad_llvm_free(void* ptr) {
+    if (ptr) free(ptr);
+}
+
+/* ============================================================================
+ * دوال النصوص / String Functions
+ * ============================================================================ */
+
+void* sad_llvm_string_new(const char* data, unsigned long long length) {
+    if (!data || length > (1ULL << 30)) return NULL;
+    char* str = (char*)malloc((size_t)(length + 1));
+    if (!str) return NULL;
+    memcpy(str, data, (size_t)length);
+    str[length] = '\0';
+    return str;
+}
+
+void* sad_llvm_string_from_cstr(const char* cstr) {
+    if (!cstr) return NULL;
+    size_t len = strlen(cstr);
+    char* str = (char*)malloc(len + 1);
+    if (!str) return NULL;
+    memcpy(str, cstr, len + 1);
+    return str;
+}
+
+unsigned long long sad_llvm_string_length(void* str) {
+    if (!str) return 0;
+    return (unsigned long long)strlen((const char*)str);
+}
+
+void sad_llvm_print_string(void* str) {
+    if (str) {
+        #ifdef __ANDROID__
+        __android_log_print(ANDROID_LOG_INFO, "SadLang", "%s", (const char*)str);
+        #else
+        printf("%s", (const char*)str);
+        #endif
+    }
+}
+
+/* ============================================================================
+ * دوال الأمان / Security Functions
+ * ============================================================================ */
+
+#include <time.h>
+
+void sad_security_assert(int condition, const char* msg) {
+    if (!condition) {
+        SAD_LOGE("[ASSERT FAILED] %s\n", msg ? msg : "assertion failed");
+        abort();
+    }
+}
+
+void sad_security_panic(const char* msg) {
+    SAD_LOGE("[PANIC] %s\n", msg ? msg : "panic");
+    abort();
+}
+
+long long sad_security_hash(const char* str) {
+    if (!str) return 0;
+    unsigned long long hash = 14695981039346656037ULL;
+    while (*str) {
+        hash ^= (unsigned char)*str++;
+        hash *= 1099511628211ULL;
+    }
+    return (long long)hash;
+}
+
+long long sad_security_timestamp(void) {
+    return (long long)time(NULL);
+}
+
+long long sad_security_secure_random(long long min_val, long long max_val) {
+    static int seeded = 0;
+    if (!seeded) { srand((unsigned int)time(NULL)); seeded = 1; }
+    if (min_val >= max_val) return min_val;
+    long long range = max_val - min_val + 1;
+    return min_val + (long long)(rand() % (int)range);
+}
+
+)";
+        rt_file.close();
+
+        if (options_.verbose) {
+            std::cerr << "  استخدام runtime أندرويد مؤقت: " << temp_runtime.string() << "\n";
+        }
+    }
+
+    // ================================================================
+    // (AR) الخطوة 4: بناء أمر الربط
+    // (EN) Step 4: Build link command
+    // ================================================================
+    std::string command = "\"" + ndk_clang + "\"";
+
+    // (AR) تحديد الهدف (target triple) ومسار sysroot
+    command += " --target=" + target_triple;
+    command += " --sysroot=\"" + sysroot + "\"";
+
+    // (AR) إضافة ملف الكائن
+    command += " \"" + obj_path + "\"";
+
+    // (AR) إضافة ملف runtime الأندرويد
+    command += " \"" + temp_runtime.string() + "\"";
+
+    // (AR) تحديد ملف الإخراج
+    command += " -o \"" + actual_output + "\"";
+
+    // (AR) أعلام المكتبة المشتركة
+    if (output_shared) {
+        command += " -shared -fPIC";
+        command += " -Wl,--build-id";         // معرف بناء لأندرويد
+        command += " -Wl,--no-undefined";     // اكتشاف الرموز المفقودة
+        command += " -Wl,-soname,lib" + std::filesystem::path(actual_output).stem().string() + ".so";
+    }
+
+    // (AR) مكتبات أندرويد الأساسية
+    command += " -llog";      // __android_log_print
+    command += " -landroid";  // NativeActivity, AAssetManager
+    command += " -lm";       // دوال الرياضيات
+    command += " -lc";       // مكتبة C القياسية
+    command += " -ldl";      // dlopen/dlsym
+
+    // (AR) تعطيل التحذيرات غير الضرورية
+    command += " -w";
+
+    // (AR) إضافة مسارات ومكتبات المستخدم
+    for (const auto& path : options_.library_paths) {
+        command += " -L\"" + path + "\"";
+    }
+    for (const auto& lib : options_.libraries) {
+        command += " -l" + lib;
+    }
+
+    // (AR) الربط الثابت إذا طُلب
+    if (options_.link_static) {
+        command += " -static";
+    }
+
+    if (options_.verbose) {
+        std::cerr << "\n  أمر ربط أندرويد / Android link command:\n  " << command << "\n\n";
+    }
+
+    // ================================================================
+    // (AR) الخطوة 5: تنفيذ أمر الربط
+    // (EN) Step 5: Execute link command
+    // ================================================================
+    #ifdef _WIN32
+    int result = std::system(("\"" + command + "\"").c_str());
+    #else
+    int result = std::system(command.c_str());
+    #endif
+
+    if (result != 0) {
+        diagnostics_.report_fatal(
+            "فشل ربط ملف أندرويد (رمز الخطأ: " + std::to_string(result) + ")\n"
+            "Android linking failed (error code: " + std::to_string(result) + ")\n"
+            "تأكد من:\n"
+            "  1. تثبيت Android NDK بشكل صحيح\n"
+            "  2. تعيين ANDROID_NDK_HOME\n"
+            "  3. أن الهدف " + target_triple + " مدعوم في NDK\n"
+            "Make sure:\n"
+            "  1. Android NDK is properly installed\n"
+            "  2. ANDROID_NDK_HOME is set\n"
+            "  3. Target " + target_triple + " is supported by NDK"
+        );
+        return false;
+    }
+
+    // (AR) طباعة معلومات النجاح
+    if (options_.verbose) {
+        std::cerr << "  ✓ تم ربط ملف أندرويد بنجاح: " << actual_output << "\n";
+        if (output_shared) {
+            std::cerr << "  نوع الإخراج: مكتبة مشتركة (.so)\n";
+            std::cerr << "  لاستخدامها: انسخها إلى مجلد jniLibs/arm64-v8a/ في مشروع أندرويد\n";
+        } else {
+            std::cerr << "  نوع الإخراج: ملف تنفيذي\n";
+            std::cerr << "  للاختبار: adb push " << actual_output << " /data/local/tmp/\n";
+        }
+    }
+
+    return true;
+}
+
+// ============================================================================
 // (AR) ربط ملف كائن مع مكتبة وقت التشغيل لإنتاج ملف تنفيذي
 // ============================================================================
 // هذه الدالة تنفذ المرحلة الأخيرة من الترجمة: أخذ ملف الكائن (.obj)
@@ -866,6 +1389,14 @@ std::optional<std::string> CompilerDriver::find_clang() {
 bool CompilerDriver::link_object_to_executable(const std::string& obj_path,
                                                 const std::string& output_file,
                                                 llvm::Module* module) {
+    // ================================================================
+    // (AR) فحص: هل الهدف هو أندرويد؟
+    // (EN) Check: Is the target Android?
+    // ================================================================
+    if (options_.target.is_android()) {
+        return link_android_executable(obj_path, output_file, module);
+    }
+
     // ================================================================
     // (AR) الخطوة 1: البحث عن أداة الربط (clang أو link.exe)
     // (EN) Step 1: Find linker tool (clang or link.exe)
@@ -1705,6 +2236,18 @@ bool CommandLineParser::parse_option(const std::string& arg, CompilerOptions& op
     } else if (arg == "--android" || arg == "--اندرويد") {
         options.emit_ui = true;
         options.ui_platform = "android";
+        // ────────────────────────────────────────────────────────────────
+        // (AR) عند تفعيل وضع أندرويد، نعيّن الهدف تلقائياً إلى ARM64
+        //      إذا لم يُحدَّد هدف آخر يدوياً بـ --target=
+        // (EN) When Android mode is activated, auto-set target to ARM64
+        //      if no other target was manually specified via --target=
+        // ────────────────────────────────────────────────────────────────
+        if (!options.target.is_android()) {
+            auto android_triple = TargetTriple::parse("aarch64-linux-android" + std::to_string(24));
+            if (android_triple) {
+                options.target = *android_triple;
+            }
+        }
     } else if (arg == "--ios" || arg == "--ايفون") {
         options.emit_ui = true;
         options.ui_platform = "ios";

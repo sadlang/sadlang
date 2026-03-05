@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "../lsp_types.h"
+#include "../../include/lsp_protocol_types.h"
 #include <string>
 #include <vector>
 #include <map>

@@ -51,6 +51,33 @@ void SIRBuilder::buildReturnStatement(AST::ReturnStmt* retStmt) {
         return;
     }
     
+    // (AR) إذا كنا داخل كوروتين، نستخدم CORO_RETURN بدلاً من RET
+    // (EN) Inside a coroutine, use CORO_RETURN instead of RET
+    if (currentFunction_ && currentFunction_->isCoroutine && retStmt->value) {
+        BuildResult valueResult = buildExpression(retStmt->value.get());
+        SIRInstruction coroRet;
+        coroRet.opcode = SIROpcode::CORO_RETURN;
+        if (valueResult.isConstant && !valueResult.constantValue.empty()) {
+            switch (valueResult.type) {
+                case SIRType::I64:
+                    coroRet.operands.push_back(SIROperand::ConstantI64(std::stoll(valueResult.constantValue)));
+                    break;
+                case SIRType::F64:
+                    coroRet.operands.push_back(SIROperand::ConstantF64(std::stod(valueResult.constantValue)));
+                    break;
+                case SIRType::STRING:
+                    coroRet.operands.push_back(SIROperand::ConstantString(valueResult.constantValue));
+                    break;
+                default:
+                    coroRet.operands.push_back(SIROperand::Register(valueResult.registerName, valueResult.type));
+            }
+        } else {
+            coroRet.operands.push_back(SIROperand::Register(valueResult.registerName, valueResult.type));
+        }
+        if (currentBlock_) currentBlock_->addInstruction(coroRet);
+        return;
+    }
+    
     // (AR) ReturnStmt::value: ExprPtr (statements.h:268)
     // (EN) Build return instruction
     if (retStmt->value) {
@@ -345,6 +372,9 @@ void SIRBuilder::buildLocalVariable(AST::VarDeclStmt* varDecl) {
         return;
     }
     
+    std::cerr << "[EXC-DBG] buildLocalVariable: name='" << varDecl->name 
+              << "' type=" << static_cast<int>(varDecl->type) << std::endl;
+    
     // (AR) تحويل النوع (VarDeclStmt::type: Data::DataType, line 77)
     // (EN) Convert type
     SIRType varType = astTypeToSIRType(varDecl->type);
@@ -366,7 +396,13 @@ void SIRBuilder::buildLocalVariable(AST::VarDeclStmt* varDecl) {
     bool hasInitializer = varDecl->initializer && currentBlock_;
     
     if (hasInitializer) {
+        std::cerr << "[EXC-DBG]   building initializer, expr type=" 
+                  << typeid(*varDecl->initializer).name() << std::endl;
         initResult = buildExpression(varDecl->initializer.get());
+        std::cerr << "[EXC-DBG]   initResult: reg='" << initResult.registerName 
+                  << "' type=" << static_cast<int>(initResult.type) 
+                  << " isConst=" << initResult.isConstant 
+                  << " constVal='" << initResult.constantValue << "'" << std::endl;
         
         // (AR) استنتاج النوع من التعبير إذا كان النوع غير معروف
         // (EN) Infer type from expression if type is unknown
@@ -394,19 +430,28 @@ void SIRBuilder::buildLocalVariable(AST::VarDeclStmt* varDecl) {
     // (AR) توليد تعليمة STORE لإسناد القيمة الأولية
     // (EN) Generate STORE instruction to assign initial value
     if (hasInitializer) {
+        // (AR) تحقق: هل القيمة ثابتة يمكن استخدامها مباشرة؟
+        // (EN) Check: is the value a usable constant?
+        bool useConstant = initResult.isConstant && (
+            initResult.type == SIRType::STRING ||
+            !initResult.constantValue.empty()
+        );
+        
+        // (AR) تخطي STORE إذا لم تكن القيمة ثابتة ولا في سجل صالح
+        //      هذا يحدث عند فشل buildExpression (مثلاً: متغير غير معرّف)
+        // (EN) Skip STORE if value is neither a usable constant nor in a valid register.
+        //      This happens when buildExpression fails (e.g., undefined variable).
+        if (!useConstant && initResult.registerName.empty()) {
+            // Just register the variable without initialization
+            addVariable(varInfo);
+            return;
+        }
+        
         SIRInstruction storeInst;
         storeInst.opcode = SIROpcode::STORE;
         
         // (AR) المعامل الأول: القيمة المراد تخزينها
         // (EN) First operand: value to store
-        // (AR) إذا كانت القيمة ثابتة: نستخدم الثوابت مباشرة
-        //      للنصوص نسمح بالنصوص الفارغة أيضاً (isEmpty != isConstant)
-        // (EN) If value is constant: use literals directly
-        //      For strings: allow empty strings (empty string is still a constant)
-        bool useConstant = initResult.isConstant && (
-            initResult.type == SIRType::STRING ||
-            !initResult.constantValue.empty()
-        );
         if (useConstant) {
             // (AR) القيمة ثابتة - تحويلها لثابت SIR
             // (EN) Value is constant - convert to SIR constant
@@ -532,7 +577,18 @@ void SIRBuilder::buildIfStatement(AST::IfStmt* ifStmt) {
     // المصدر: sir_instruction.h:190-197 - SIRInstruction::BranchCond()
     // المصدر: sir_types.h:366-372 - SIROperand::Label()
     // ========================================================================
-    SIROperand condOp = SIROperand::Register(condResult.registerName, condResult.type);
+    // (AR) إذا كان الشرط ثابتاً منطقياً (صحيح/خطأ)، نستخدم ConstantBool بدلاً من Register
+    //      لتجنب توليد سجل غير معرّف في LLVM IR
+    // (EN) If condition is a boolean constant (true/false), use ConstantBool instead of Register
+    //      to avoid generating an undefined register in LLVM IR
+    SIROperand condOp;
+    if (condResult.isConstant && condResult.type == SIRType::BOOL) {
+        condOp = SIROperand::ConstantBool(condResult.constantValue == "true" || condResult.constantValue == "1");
+    } else if (condResult.isConstant && condResult.type == SIRType::I64) {
+        condOp = SIROperand::ConstantI64(std::stoll(condResult.constantValue));
+    } else {
+        condOp = SIROperand::Register(condResult.registerName, condResult.type);
+    }
     SIROperand thenLabelOp = SIROperand::Label(thenLabel);
     SIROperand elseLabelOp = SIROperand::Label(elseLabel);
     
@@ -1257,7 +1313,18 @@ void SIRBuilder::buildWhileLoop(AST::WhileStmt* whileLoop) {
     // (EN) Step 4: Generate conditional branch instruction
     // المصدر: sir_instruction.h:190-197 - SIRInstruction::BranchCond()
     // ========================================================================
-    SIROperand condOp = SIROperand::Register(condResult.registerName, condResult.type);
+    // (AR) إذا كان الشرط ثابتاً منطقياً (صحيح/خطأ)، نستخدم ConstantBool بدلاً من Register
+    //      لتجنب توليد سجل غير معرّف في LLVM IR
+    // (EN) If condition is a boolean constant (true/false), use ConstantBool instead of Register
+    //      to avoid generating an undefined register in LLVM IR
+    SIROperand condOp;
+    if (condResult.isConstant && condResult.type == SIRType::BOOL) {
+        condOp = SIROperand::ConstantBool(condResult.constantValue == "true" || condResult.constantValue == "1");
+    } else if (condResult.isConstant && condResult.type == SIRType::I64) {
+        condOp = SIROperand::ConstantI64(std::stoll(condResult.constantValue));
+    } else {
+        condOp = SIROperand::Register(condResult.registerName, condResult.type);
+    }
     SIROperand bodyLabelOp = SIROperand::Label(bodyLabel);
     SIROperand exitLabelOp = SIROperand::Label(exitLabel);
     
@@ -1452,7 +1519,16 @@ void SIRBuilder::buildForLoop(AST::ForStmt* forLoop) {
         if (!condResult.registerName.empty()) {
             // (AR) توليد BR شرطي لـ body أو exit
             // (EN) Generate conditional BR to body or exit
-            SIROperand condOp = SIROperand::Register(condResult.registerName, condResult.type);
+            // (AR) إذا كان الشرط ثابتاً منطقياً، نستخدم ConstantBool بدلاً من Register
+            // (EN) If condition is a boolean constant, use ConstantBool instead of Register
+            SIROperand condOp;
+            if (condResult.isConstant && condResult.type == SIRType::BOOL) {
+                condOp = SIROperand::ConstantBool(condResult.constantValue == "true" || condResult.constantValue == "1");
+            } else if (condResult.isConstant && condResult.type == SIRType::I64) {
+                condOp = SIROperand::ConstantI64(std::stoll(condResult.constantValue));
+            } else {
+                condOp = SIROperand::Register(condResult.registerName, condResult.type);
+            }
             SIRInstruction brCondInst = SIRInstruction::BranchCond(condOp, bodyLabelOp, exitLabelOp);
             
             if (currentBlock_) {
@@ -1664,9 +1740,11 @@ void SIRBuilder::buildForRangeLoop(AST::ForRangeStmt* forRange) {
     std::string loopVarAllocName = "%" + forRange->variable;
 
     // ALLOC the loop variable slot
+    // (AR) نستخدم I64 لأن عناصر المصفوفة مخزنة كـ i64
+    // (EN) Use I64 because array elements are stored as i64
     {
         SIRInstruction allocLoop(SIROpcode::ALLOC);
-        allocLoop.result = SIROperand::Register(loopVarAllocName, SIRType::PTR);
+        allocLoop.result = SIROperand::Register(loopVarAllocName, SIRType::I64);
         if (currentBlock_) currentBlock_->instructions.push_back(allocLoop);
     }
 
@@ -1675,7 +1753,7 @@ void SIRBuilder::buildForRangeLoop(AST::ForRangeStmt* forRange) {
     VariableInfo varInfo;
     varInfo.name = forRange->variable;
     varInfo.registerName = loopVarAllocName;
-    varInfo.type = SIRType::PTR;
+    varInfo.type = SIRType::I64;
     varInfo.isMutable = true;
     
     addVariable(varInfo);
@@ -1759,10 +1837,12 @@ void SIRBuilder::buildForRangeLoop(AST::ForRangeStmt* forRange) {
     }
 
     // ARRAY_GET: loopVar = iterable[loadedIdx]
+    // (AR) نوع النتيجة I64 لأن عناصر المصفوفة مخزنة كـ i64
+    // (EN) Result type I64 because array elements are stored as i64
     std::string elemReg = newTempRegister();
     {
         SIRInstruction loadElem(SIROpcode::ARRAY_GET);
-        loadElem.result = SIROperand::Register(elemReg, SIRType::PTR);
+        loadElem.result = SIROperand::Register(elemReg, SIRType::I64);
         loadElem.operands.push_back(iterOp);
         loadElem.operands.push_back(SIROperand::Register(loadedIdxBody, SIRType::I64));
         if (currentBlock_) currentBlock_->instructions.push_back(loadElem);
@@ -1771,8 +1851,8 @@ void SIRBuilder::buildForRangeLoop(AST::ForRangeStmt* forRange) {
     // STORE element into loop variable slot
     {
         SIRInstruction storeElem(SIROpcode::STORE);
-        storeElem.operands.push_back(SIROperand::Register(elemReg, SIRType::PTR));
-        storeElem.operands.push_back(SIROperand::Register(loopVarAllocName, SIRType::PTR));
+        storeElem.operands.push_back(SIROperand::Register(elemReg, SIRType::I64));
+        storeElem.operands.push_back(SIROperand::Register(loopVarAllocName, SIRType::I64));
         if (currentBlock_) currentBlock_->instructions.push_back(storeElem);
     }
     

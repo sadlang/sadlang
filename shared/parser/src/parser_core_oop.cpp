@@ -186,7 +186,28 @@ std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
     
     // Check if next token is a type (keyword like رقم، نص) or identifier (for method name)
     Token nameToken = current_; // Initialize with current for line number tracking
-    if (isTypeToken(current_.getType())) {
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) معالجة المعدلات التي تأتي بعد 'دالة' (مثل: دالة ثابتة طريقة())
+    //      الصيغة: دالة [ثابتة|ساكن] [غير_متزامن|غير_متزامنة] اسم_الطريقة()
+    // (EN) Handle modifiers after 'function' (e.g., function static method())
+    //      Syntax: function [static] [async] method_name()
+    // ═══════════════════════════════════════════════════════════════════
+    if (check(TT::KEYWORD_STATIC)) {
+        isStatic = true;
+        advance(); // consume 'ثابتة' / 'ساكن'
+    }
+    if (check(TT::KEYWORD_ASYNC)) {
+        advance(); // consume 'غير_متزامنة' / 'غير_متزامن' (parsed but ignored for now)
+    }
+    
+    // (AR) التمييز بين نوع الإرجاع واسم الطريقة:
+    //      دالة نص احصل() — نص هو نوع الإرجاع لأن يليه معرّف "احصل"
+    //      دالة نص()      — نص هو اسم الطريقة لأن يليه "("
+    // (EN) Distinguish return type from method name:
+    //      function string getName() — string is return type (followed by identifier)
+    //      function text()           — text is method name (followed by "(")
+    if (isTypeToken(current_.getType()) && peekNext().getType() == TT::IDENTIFIER) {
         // Has return type: رقم احصل_الرصيد()
         returnType = parseType();
         // (AR) دعم الكلمات المفتاحية الناعمة كأسماء طرق (مثل: احصل، عيّن)
@@ -194,16 +215,21 @@ std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
         if (check(TT::IDENTIFIER)) {
             nameToken = current_;
             advance();
-        } else if (isKeywordUsableAsName(current_.getType())) {
+        } else if (isTokenUsableAsName(current_.getType())) {
             nameToken = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
             advance();
         } else {
             nameToken = consume(TT::IDENTIFIER,
                 "(AR) توقع اسم الطريقة بعد نوع الإرجاع. (EN) Expected method name after return type.");
         }
-    } else if (isKeywordUsableAsName(current_.getType())) {
-        // (AR) كلمة مفتاحية ناعمة كاسم طريقة (مثل: دالة احصل())
-        // (EN) Soft keyword as method name (e.g., function احصل())
+    } else if (isTypeToken(current_.getType()) && peekNext().getType() == TT::PAREN_LEFT) {
+        // (AR) نوع مدمج كاسم طريقة: دالة نص() — نص هو اسم الطريقة
+        // (EN) Built-in type as method name: function text() — text is method name
+        nameToken = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
+        advance();
+    } else if (isTokenUsableAsName(current_.getType())) {
+        // (AR) كلمة مفتاحية/حرف محجوز كاسم طريقة (مثل: دالة ارجع())
+        // (EN) Keyword/literal as method name (e.g., function ارجع())
         nameToken = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
         advance();
     } else {
@@ -240,27 +266,53 @@ std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
             // ─────────────────────────────────────────────────────────────
             Data::DataType paramType = Data::DataType::OBJECT;
             
-            if (isTypeToken(current_.getType())) {
-                // (AR) نوع صريح مدمج (رقم، نص، منطقي، إلخ)
+            // (AR) تحقق: هل هذا نوع مدمج متبوع بمعرّف؟ أم أنه اسم معامل فقط؟
+            // (EN) Check: is this a built-in type followed by identifier? Or just a param name?
+            // مثال "نص اسم" vs "foo(نص)" حيث نص هو اسم المعامل
+            bool isTypeFollowedByName = isTypeToken(current_.getType()) && 
+                (peekNext().getType() == TT::IDENTIFIER || 
+                 isTokenUsableAsName(peekNext().getType()));
+            
+            if (isTypeFollowedByName) {
+                // (AR) نوع صريح مدمج (رقم، نص، منطقي، إلخ) متبوع باسم المعامل
                 paramType = parseType();
                 Token paramToken = consume(TT::IDENTIFIER,
                     "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
-                parameters.push_back(Parameter(paramToken.getValue(), paramType, nullptr));
-            } else if (check(TT::IDENTIFIER)) {
+                // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
+                ExprPtr defaultValue = nullptr;
+                if (match(TT::OP_ASSIGN)) {
+                    defaultValue = parseExpression();
+                }
+                parameters.push_back(Parameter(paramToken.getValue(), paramType, std::move(defaultValue)));
+            } else if (check(TT::IDENTIFIER) || isTokenUsableAsName(current_.getType()) || isTypeToken(current_.getType())) {
+                // (AR) معرّف أو كلمة مفتاحية مستخدمة كاسم أو نوع مدمج كاسم معامل
+                // (EN) Identifier, keyword-as-name, or built-in type as param name
                 // (AR) التحقق: هل هذا معرّف متبوع بمعرّف آخر؟ (أي: نوع_صنف اسم)
                 // (EN) Check: is this identifier followed by another? (i.e. class_type name)
+                // (AR) ملاحظة: نفحص isTokenUsableAsName لدعم الكلمات المفتاحية مثل "من"/"و"/"أو" كأسماء معاملات
                 Token firstToken = current_;
                 // (AR) نتحقق من الرمز التالي: إذا كان معرّفاً أيضاً فهذا "نوع اسم"
-                if (peekNext().getType() == TT::IDENTIFIER) {
+                TokenType nextType = peekNext().getType();
+                if (nextType == TT::IDENTIFIER || isTokenUsableAsName(nextType)) {
                     // (AR) صيغة: نوع_صنف اسم_المعامل (مثل: شخص ش)
                     advance(); // (AR) استهلاك اسم النوع
                     Token paramToken = current_;
                     advance(); // (AR) استهلاك اسم المعامل
-                    parameters.push_back(Parameter(paramToken.getValue(), Data::DataType::OBJECT, nullptr));
+                    // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
+                    ExprPtr defaultValue = nullptr;
+                    if (match(TT::OP_ASSIGN)) {
+                        defaultValue = parseExpression();
+                    }
+                    parameters.push_back(Parameter(paramToken.getValue(), Data::DataType::OBJECT, std::move(defaultValue)));
                 } else {
                     // (AR) صيغة: اسم_المعامل فقط (بدون نوع)
                     advance();
-                    parameters.push_back(Parameter(firstToken.getValue(), paramType, nullptr));
+                    // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
+                    ExprPtr defaultValue = nullptr;
+                    if (match(TT::OP_ASSIGN)) {
+                        defaultValue = parseExpression();
+                    }
+                    parameters.push_back(Parameter(firstToken.getValue(), paramType, std::move(defaultValue)));
                 }
             } else {
                 // (AR) نوع المعامل / (EN) Parameter type
@@ -270,7 +322,12 @@ std::unique_ptr<MethodDecl> ParserCore::parseMethodDeclaration(
                 Token paramToken = consume(TT::IDENTIFIER,
                     "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
                 
-                parameters.push_back(Parameter(paramToken.getValue(), paramType, nullptr));
+                // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
+                ExprPtr defaultValue = nullptr;
+                if (match(TT::OP_ASSIGN)) {
+                    defaultValue = parseExpression();
+                }
+                parameters.push_back(Parameter(paramToken.getValue(), paramType, std::move(defaultValue)));
             }
             
             // Spec: docs\language_spec\rules\03_oop.md §1 - param_list ::= param ((',' | '،') param)*
@@ -343,26 +400,49 @@ std::unique_ptr<ConstructorDecl> ParserCore::parseConstructorDeclaration(const s
         "(AR) توقع '(' بعد اسم الباني. (EN) Expected '(' after constructor name.");
     
     std::vector<Parameter> parameters;
+    std::vector<std::string> thisParams; // (AR) معاملات هذا. للتعيين التلقائي / (EN) this-params for auto-assignment
     if (!check(TT::PAREN_RIGHT)) {
         do {
             // (AR) نوع المعامل (اختياري) / (EN) Parameter type (optional)
-            // (AR) ندعم صيغتين: باني(رقم س) أو باني(س) بدون نوع
-            // (EN) Support two forms: constructor(int x) or constructor(x) without type
+            // (AR) ندعم ثلاث صيغ: باني(رقم س) أو باني(س) أو باني(هذا.س)
+            // (EN) Support three forms: constructor(int x) or constructor(x) or constructor(this.x)
             Data::DataType paramType = Data::DataType::OBJECT;
+            ExprPtr defaultValue = nullptr;
             
-            if (isTypeToken(current_.getType())) {
+            if (check(TT::KEYWORD_THIS) && peekNext().getType() == TT::DOT) {
+                // (AR) صيغة اختصار: باني(هذا.اسم) — تعيين تلقائي للخاصية
+                // (EN) Shorthand: constructor(this.name) — auto-assign to field
+                advance(); // consume 'هذا'
+                advance(); // consume '.'
+                Token paramToken = consume(TT::IDENTIFIER,
+                    "(AR) توقع اسم الخاصية بعد 'هذا.'. (EN) Expected field name after 'this.'.");
+                // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
+                if (match(TT::OP_ASSIGN)) {
+                    defaultValue = parseExpression();
+                }
+                parameters.push_back(Parameter(paramToken.getValue(), paramType, std::move(defaultValue)));
+                thisParams.push_back(paramToken.getValue());
+            } else if (isTypeToken(current_.getType())) {
                 // (AR) نوع صريح موجود / (EN) Explicit type present
                 paramType = parseType();
                 Token paramToken = consume(TT::IDENTIFIER,
                     "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
-                parameters.push_back(Parameter(paramToken.getValue(), paramType, nullptr));
+                // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
+                if (match(TT::OP_ASSIGN)) {
+                    defaultValue = parseExpression();
+                }
+                parameters.push_back(Parameter(paramToken.getValue(), paramType, std::move(defaultValue)));
             } else if (check(TT::IDENTIFIER)) {
                 // (AR) لا يوجد نوع صريح - نعتبره OBJECT (ديناميكي)
                 // (EN) No explicit type - treat as OBJECT (dynamic)
                 // هذا يدعم أصناف القوالب حيث نوع المعامل هو معامل قالب
                 Token paramToken = current_;
                 advance();
-                parameters.push_back(Parameter(paramToken.getValue(), paramType, nullptr));
+                // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
+                if (match(TT::OP_ASSIGN)) {
+                    defaultValue = parseExpression();
+                }
+                parameters.push_back(Parameter(paramToken.getValue(), paramType, std::move(defaultValue)));
             } else {
                 error("(AR) توقع نوع أو اسم المعامل. (EN) Expected parameter type or name.");
                 break;
@@ -438,9 +518,16 @@ std::unique_ptr<ConstructorDecl> ParserCore::parseConstructorDeclaration(const s
     // (AR) التحقق من استدعاء أساس() في بداية جسم الباني (بدون نقطتين)
     // (EN) Check for super() call at the start of constructor body (without colon)
     // يدعم: أساس(args) أو الأساس(args) كأول تعليمة في الباني
+    // (AR) أيضاً يدعم: أساس.باني(args) كصيغة بديلة
+    // (EN) Also supports: super.constructor(args) as alternative syntax
     if (superArgs.empty() && check(TT::KEYWORD_SUPER)) {
-        advance(); // consume 'أساس' / 'الأساس'
-        if (check(TT::PAREN_LEFT)) {
+        // (AR) نتحقق من الرمز التالي قبل الاستهلاك لتجنب استهلاك خاطئ
+        // (EN) Check next token before consuming to avoid wrong consumption
+        auto nextType = peekNext().getType();
+        if (nextType == TT::PAREN_LEFT) {
+            // (AR) صيغة: أساس(args)
+            // (EN) Syntax: super(args)
+            advance(); // consume 'أساس'
             advance(); // consume '('
             if (!check(TT::PAREN_RIGHT)) {
                 do {
@@ -450,11 +537,57 @@ std::unique_ptr<ConstructorDecl> ParserCore::parseConstructorDeclaration(const s
             consume(TT::PAREN_RIGHT,
                 "(AR) توقع ')' بعد معاملات أساس(). "
                 "(EN) Expected ')' after super() arguments.");
+        } else if (nextType == TT::DOT) {
+            // (AR) صيغة: أساس.باني(args)
+            // (EN) Syntax: super.constructor(args)
+            advance(); // consume 'أساس'
+            advance(); // consume '.'
+            // (AR) توقع كلمة 'باني' بعد 'أساس.'
+            // (EN) Expect 'constructor' keyword after 'super.'
+            if (check(TT::KEYWORD_CONSTRUCTOR)) {
+                advance(); // consume 'باني'
+                consume(TT::PAREN_LEFT,
+                    "(AR) توقع '(' بعد 'أساس.باني'. (EN) Expected '(' after 'super.constructor'.");
+                if (!check(TT::PAREN_RIGHT)) {
+                    do {
+                        superArgs.push_back(parseExpression());
+                    } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));
+                }
+                consume(TT::PAREN_RIGHT,
+                    "(AR) توقع ')' بعد معاملات أساس.باني(). "
+                    "(EN) Expected ')' after super.constructor() arguments.");
+            } else {
+                // (AR) أساس. متبوعة بشيء آخر — سيتم تحليلها في جسم الباني
+                // (EN) super. followed by something else — will be parsed in body
+                // (AR) نعيد الموضع إلى ما قبل أساس.
+                // (EN) Rewind position back before super.
+                // NOTE: Can't easily rewind, so we leave it to body parsing
+                // The body parser will see the remaining tokens
+            }
         }
+        // (AR) إذا لم يكن ( أو . بعد أساس، لا نستهلكها — تُترك لتحليل الجسم
+        // (EN) If neither ( nor . after super, don't consume — leave for body parsing
     }
     
     // (AR) جسم الباني / (EN) Constructor body
     StmtPtr body = parseBlockStmt();
+    
+    // (AR) إدراج جمل تعيين تلقائي لمعاملات هذا.خاصية
+    // (EN) Inject auto-assignment statements for this.property parameters
+    // باني(هذا.اسم، هذا.عمر) → يُضاف تلقائياً: هذا.اسم = اسم; هذا.عمر = عمر
+    if (!thisParams.empty()) {
+        auto* block = dynamic_cast<BlockStmt*>(body.get());
+        if (block) {
+            for (auto it = thisParams.rbegin(); it != thisParams.rend(); ++it) {
+                auto thisExpr = std::make_unique<ThisExpr>();
+                auto valueExpr = std::make_unique<VariableExpr>(*it, Lexer::Position());
+                auto assignExpr = std::make_unique<MemberAssignExpr>(
+                    std::move(thisExpr), *it, std::move(valueExpr), Lexer::Position());
+                auto stmt = std::make_unique<ExprStmt>(std::move(assignExpr));
+                block->statements.insert(block->statements.begin(), std::move(stmt));
+            }
+        }
+    }
     
     return std::make_unique<ConstructorDecl>(std::move(parameters), std::move(body),
                                               std::move(superArgs));
@@ -673,7 +806,7 @@ std::unique_ptr<PropertyDecl> ParserCore::parsePropertyDeclaration(AccessModifie
     
     // (AR) كتلة القراءة (getter) - إلزامية / (EN) Getter block - required
     std::unique_ptr<GetterBlock> getter = nullptr;
-    if (!matchAny({TT::KEYWORD_GET})) {
+    if (!matchAny({TT::KEYWORD_GET}) && !(check(TT::IDENTIFIER) && current_.getValue() == "احصل" && (advance(), true))) {
         error("(AR) توقع 'احصل' (get) بعد اسم الخاصية. (EN) Expected 'احصل' (get) after property name.");
         synchronize();
         return nullptr;
@@ -698,7 +831,7 @@ std::unique_ptr<PropertyDecl> ParserCore::parsePropertyDeclaration(AccessModifie
     
     // (AR) كتلة الكتابة (setter) - اختيارية / (EN) Setter block - optional
     std::unique_ptr<SetterBlock> setter = nullptr;
-    if (matchAny({TT::KEYWORD_SET})) {
+    if (matchAny({TT::KEYWORD_SET}) || (check(TT::IDENTIFIER) && current_.getValue() == "عيّن" && (advance(), true))) {
         // (AR) معامل setter / (EN) Setter parameter
         consume(TT::PAREN_LEFT,
             "(AR) توقع '(' بعد 'عيّن'. (EN) Expected '(' after 'set'.");

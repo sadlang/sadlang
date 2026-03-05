@@ -60,6 +60,9 @@ add_library(sad_lsp_engine STATIC
     # شجرة الاستدعاءات - من يستدعي من
     src/providers/call_hierarchy_provider.cpp
     
+    # شجرة الأنواع - الوراثة (الآباء والأبناء)
+    src/providers/type_hierarchy_provider.cpp
+    
     # روابط المستند - مسارات الاستيراد القابلة للنقر
     src/providers/document_links_provider.cpp
     

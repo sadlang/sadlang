@@ -48,6 +48,49 @@ int main(int argc, char* argv[]) {
     argv = new_argv.data();
 #endif
 
+    // ════════════════════════════════════════════════════════════════════════
+    // (AR) معالجة أمر build android
+    //      الاستخدام: sadc build android [خيارات] <ملف.ص>
+    // (EN) Handle build android command
+    //      Usage: sadc build android [options] <file.sad>
+    // ════════════════════════════════════════════════════════════════════════
+    if (argc >= 3) {
+        std::string arg1 = argv[1];
+        std::string arg2 = argv[2];
+        
+        // دعم الأمر بالعربية والإنجليزية
+        if ((arg1 == "build" || arg1 == u8"بناء") &&
+            (arg2 == "android" || arg2 == u8"أندرويد" || arg2 == u8"اندرويد")) {
+            return sad::driver::handleBuildAndroidCommand(argc, argv);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // (AR) معالجة أمر ui generate
+    //      الاستخدام: sadc ui generate <منصة> [خيارات]
+    // (EN) Handle UI generation command
+    //      Usage: sadc ui generate <platform> [options]
+    // ════════════════════════════════════════════════════════════════════════
+    if (argc >= 2) {
+        std::string arg1 = argv[1];
+        if (arg1 == "ui" || arg1 == u8"واجهة") {
+            return sad::driver::handleUICommand(argc, argv);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // (AR) معالجة أوامر إدارة الحزم
+    //      الاستخدام: sadc pkg <أمر> [خيارات]
+    // (EN) Handle package management commands
+    //      Usage: sadc pkg <command> [options]
+    // ════════════════════════════════════════════════════════════════════════
+    if (argc >= 2) {
+        std::string arg1 = argv[1];
+        if (arg1 == "pkg" || arg1 == u8"حزم") {
+            return sad::driver::handlePkgCommand(argc, argv);
+        }
+    }
+
     // Create compiler driver
     sad::driver::CompilerDriver driver;
     

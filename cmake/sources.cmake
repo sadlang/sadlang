@@ -104,6 +104,7 @@ set(INTERPRETER_SOURCES
     interpreter_new/src/visitors/statement_executor_oop.cpp
     interpreter_new/src/visitors/statement_executor_modules.cpp
     interpreter_new/src/exception.cpp
+    interpreter_new/src/debug/debug_server.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────

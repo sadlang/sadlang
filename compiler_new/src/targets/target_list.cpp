@@ -59,6 +59,8 @@
 #include <sstream>
 #include <iostream>
 #include <algorithm>
+#include <filesystem>
+#include <cstdlib>
 
 namespace sad::targets {
 
@@ -442,13 +444,75 @@ private:
         });
         
         // Android ARM64
-        registerTarget({
-            .triple = {Architecture::ARM64, OperatingSystem::Android, Environment::Android, "unknown"},
-            .displayName = "Android ARM64",
-            .displayNameArabic = "أندرويد",
-            .available = false,
-            .requiredTools = {"aarch64-linux-android-clang"}
-        });
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) كشف NDK تلقائياً — إذا وُجد NDK صالح، يصبح الهدف متاحاً
+        // (EN) Auto-detect NDK — if valid NDK found, target becomes available
+        // ═══════════════════════════════════════════════════════════════
+        {
+            bool android_available = false;
+            std::string ndk_toolchain_path;
+            
+            // البحث عن NDK في متغيرات البيئة والمسارات المعروفة
+            std::vector<std::string> ndk_search_paths;
+            
+            if (auto* p = std::getenv("ANDROID_NDK_HOME")) ndk_search_paths.push_back(p);
+            if (auto* p = std::getenv("ANDROID_NDK")) ndk_search_paths.push_back(p);
+            if (auto* sdk = std::getenv("ANDROID_SDK_ROOT")) {
+                ndk_search_paths.push_back(std::string(sdk) + "/ndk");
+                ndk_search_paths.push_back(std::string(sdk) + "/ndk-bundle");
+            }
+            #ifdef _WIN32
+            if (auto* local = std::getenv("LOCALAPPDATA")) {
+                ndk_search_paths.push_back(std::string(local) + "\\Android\\Sdk\\ndk");
+            }
+            ndk_search_paths.push_back("C:\\Android\\ndk");
+            #else
+            if (auto* home = std::getenv("HOME")) {
+                ndk_search_paths.push_back(std::string(home) + "/Android/Sdk/ndk");
+                ndk_search_paths.push_back(std::string(home) + "/Library/Android/sdk/ndk");
+            }
+            ndk_search_paths.push_back("/opt/android-ndk");
+            #endif
+            
+            for (const auto& search_path : ndk_search_paths) {
+                try {
+                    if (std::filesystem::exists(search_path)) {
+                        // التحقق من وجود toolchains/llvm/prebuilt
+                        auto prebuilt = std::filesystem::path(search_path) / "toolchains" / "llvm" / "prebuilt";
+                        if (std::filesystem::exists(prebuilt)) {
+                            android_available = true;
+                            ndk_toolchain_path = search_path;
+                            break;
+                        }
+                        // قد يكون مجلد يحتوي على إصدارات فرعية
+                        if (std::filesystem::is_directory(search_path)) {
+                            for (const auto& entry : std::filesystem::directory_iterator(search_path)) {
+                                if (entry.is_directory()) {
+                                    auto sub_prebuilt = entry.path() / "toolchains" / "llvm" / "prebuilt";
+                                    if (std::filesystem::exists(sub_prebuilt)) {
+                                        android_available = true;
+                                        ndk_toolchain_path = entry.path().string();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (android_available) break;
+                    }
+                } catch (...) {
+                    // تجاهل أخطاء نظام الملفات
+                }
+            }
+            
+            registerTarget({
+                .triple = {Architecture::ARM64, OperatingSystem::Android, Environment::Android, "unknown"},
+                .displayName = "Android ARM64",
+                .displayNameArabic = "أندرويد",
+                .available = android_available,
+                .toolchainPath = ndk_toolchain_path,
+                .requiredTools = {"aarch64-linux-android-clang"}
+            });
+        }
         
         // WebAssembly
         registerTarget({

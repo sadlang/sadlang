@@ -70,9 +70,6 @@ namespace LLVM {
  *   - targetMachine_ (line 640): llvm::TargetMachine*
  *   - context_info_ (line 643): CodeGenContext
  *   - typeMapper_ (line 646): std::unique_ptr<LLVMTypeMapper>
- *   - controlFlow_ (line 649): std::unique_ptr<LLVMControlFlow>
- *   - expressionBuilder_ (line 652): std::unique_ptr<LLVMExpressionBuilder>
- *   - memoryManager_ (line 655): std::unique_ptr<LLVMMemoryManager>
  *   - optimizer_ (line 657): std::unique_ptr<sad::LLVMOptimizer>
  *   - optimizationLevel_ (line 660): sad::OptimizationLevel
  *   - autoOptimize_ (line 661): bool
@@ -86,9 +83,6 @@ LLVMCodeGen::LLVMCodeGen()
     , targetMachine_(nullptr)        // Source: llvm_codegen.h:640
     , context_info_()                // Source: llvm_codegen.h:643
     , typeMapper_(nullptr)           // Source: llvm_codegen.h:646
-    , controlFlow_(nullptr)          // Source: llvm_codegen.h:649
-    , expressionBuilder_(nullptr)    // Source: llvm_codegen.h:652
-    , memoryManager_(nullptr)        // Source: llvm_codegen.h:655
     , optimizer_(nullptr)            // Source: llvm_codegen.h:657
     , optimizationLevel_(sad::OptimizationLevel::O0)  // Source: llvm_codegen.h:660
     , autoOptimize_(false)           // Source: llvm_codegen.h:661
@@ -119,9 +113,6 @@ LLVMCodeGen::~LLVMCodeGen() {
     //   - module_ (line 634)
     //   - builder_ (line 637)
     //   - typeMapper_ (line 646)
-    //   - controlFlow_ (line 649)
-    //   - expressionBuilder_ (line 652)
-    //   - memoryManager_ (line 655)
     //   - optimizer_ (line 657)
     
     // targetMachine_ is raw pointer but owned by LLVM
@@ -632,8 +623,10 @@ void LLVMCodeGen::preprocessClasses(std::shared_ptr<SIRModule> sirModule) {
         // (EN) Register inheritance relationship
         if (!sirClass->parentClass.empty()) {
             context_info_.classParentMap[className] = sirClass->parentClass;
+            #ifndef NDEBUG
             std::cout << "[DEBUG] preprocessClasses: '" << className 
                       << "' inherits from '" << sirClass->parentClass << "'" << std::endl;
+            #endif
         }
         
         // (AR) ╪¼┘ו╪╣ ╪ú┘ז┘ט╪º╪╣ ╪º┘ה╪¡┘ג┘ט┘ה ╪¿╪º┘ה╪¬╪▒╪¬┘ך╪¿
@@ -687,8 +680,10 @@ void LLVMCodeGen::preprocessClasses(std::shared_ptr<SIRModule> sirModule) {
             context_info_.classStructTypes[className] = structType;
             context_info_.classFieldNames[className] = fieldNames;
             
+            #ifndef NDEBUG
             std::cout << "[DEBUG] preprocessClasses: created struct type for class '"
                       << className << "' with " << fieldNames.size() << " fields" << std::endl;
+            #endif
         }
     }
 }

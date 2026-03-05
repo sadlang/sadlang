@@ -159,6 +159,107 @@ const char* sirOpcodeToString(SIROpcode opcode) {
         case SIROpcode::BUILTIN_MEM_COPY:      return "builtin.mem_copy";
         case SIROpcode::BUILTIN_MEM_SET:       return "builtin.mem_set";
         
+        // Android Operations (48 opcodes)
+        // 19a: Memory
+        case SIROpcode::ANDROID_ALLOC:            return "android.alloc";
+        case SIROpcode::ANDROID_FREE:             return "android.free";
+        // 19b: Strings
+        case SIROpcode::ANDROID_STRING_CREATE:    return "android.string.create";
+        case SIROpcode::ANDROID_STRING_CONCAT:    return "android.string.concat";
+        case SIROpcode::ANDROID_STRING_LENGTH:    return "android.string.length";
+        case SIROpcode::ANDROID_STRING_SUBSTR:    return "android.string.substr";
+        case SIROpcode::ANDROID_STRING_COMPARE:   return "android.string.compare";
+        case SIROpcode::ANDROID_STRING_FREE:      return "android.string.free";
+        // 19c: Arrays
+        case SIROpcode::ANDROID_ARRAY_CREATE:     return "android.array.create";
+        case SIROpcode::ANDROID_ARRAY_GET:        return "android.array.get";
+        case SIROpcode::ANDROID_ARRAY_SET:        return "android.array.set";
+        case SIROpcode::ANDROID_ARRAY_LENGTH:     return "android.array.length";
+        case SIROpcode::ANDROID_ARRAY_PUSH:       return "android.array.push";
+        case SIROpcode::ANDROID_ARRAY_POP:        return "android.array.pop";
+        case SIROpcode::ANDROID_ARRAY_FREE:       return "android.array.free";
+        // 19d: Maps
+        case SIROpcode::ANDROID_MAP_CREATE:       return "android.map.create";
+        case SIROpcode::ANDROID_MAP_GET:          return "android.map.get";
+        case SIROpcode::ANDROID_MAP_SET:          return "android.map.set";
+        case SIROpcode::ANDROID_MAP_HAS:          return "android.map.has";
+        case SIROpcode::ANDROID_MAP_DELETE:       return "android.map.delete";
+        case SIROpcode::ANDROID_MAP_SIZE:         return "android.map.size";
+        case SIROpcode::ANDROID_MAP_FREE:         return "android.map.free";
+        // 19e: Network
+        case SIROpcode::ANDROID_NET_CONNECT:      return "android.net.connect";
+        case SIROpcode::ANDROID_NET_SEND:         return "android.net.send";
+        case SIROpcode::ANDROID_NET_RECV:         return "android.net.recv";
+        case SIROpcode::ANDROID_NET_CLOSE:        return "android.net.close";
+        case SIROpcode::ANDROID_HTTP_REQUEST:     return "android.http.request";
+        case SIROpcode::ANDROID_WS_CONNECT:       return "android.ws.connect";
+        case SIROpcode::ANDROID_WS_SEND:          return "android.ws.send";
+        case SIROpcode::ANDROID_WS_RECV:          return "android.ws.recv";
+        // 19f: Threads
+        case SIROpcode::ANDROID_THREAD_CREATE:    return "android.thread.create";
+        case SIROpcode::ANDROID_THREAD_JOIN:      return "android.thread.join";
+        case SIROpcode::ANDROID_MUTEX_CREATE:     return "android.mutex.create";
+        case SIROpcode::ANDROID_MUTEX_LOCK:       return "android.mutex.lock";
+        case SIROpcode::ANDROID_MUTEX_UNLOCK:     return "android.mutex.unlock";
+        case SIROpcode::ANDROID_CHANNEL_CREATE:   return "android.channel.create";
+        case SIROpcode::ANDROID_CHANNEL_SEND:     return "android.channel.send";
+        case SIROpcode::ANDROID_CHANNEL_RECV:     return "android.channel.recv";
+        // 19g: UI
+        case SIROpcode::ANDROID_UI_INIT:          return "android.ui.init";
+        case SIROpcode::ANDROID_UI_CREATE_WIDGET: return "android.ui.create_widget";
+        case SIROpcode::ANDROID_UI_SET_TEXT:      return "android.ui.set_text";
+        case SIROpcode::ANDROID_UI_SET_CALLBACK:  return "android.ui.set_callback";
+        case SIROpcode::ANDROID_UI_SHOW:          return "android.ui.show";
+        case SIROpcode::ANDROID_UI_HIDE:          return "android.ui.hide";
+        case SIROpcode::ANDROID_UI_UPDATE:        return "android.ui.update";
+        case SIROpcode::ANDROID_UI_RUN:           return "android.ui.run";
+        // 19h: Logging
+        case SIROpcode::ANDROID_LOG:              return "android.log";
+        case SIROpcode::ANDROID_PRINT:            return "android.print";
+        
+        // 20: Unified UI System
+        case SIROpcode::BUILTIN_UI_COLUMN:        return "ui.column";
+        case SIROpcode::BUILTIN_UI_ROW:           return "ui.row";
+        case SIROpcode::BUILTIN_UI_STACK:         return "ui.stack";
+        case SIROpcode::BUILTIN_UI_CONTAINER:     return "ui.container";
+        case SIROpcode::BUILTIN_UI_TEXT:           return "ui.text";
+        case SIROpcode::BUILTIN_UI_TEXT_STYLED:   return "ui.text_styled";
+        case SIROpcode::BUILTIN_UI_BUTTON:        return "ui.button";
+        case SIROpcode::BUILTIN_UI_BUTTON_VARIANT:return "ui.button_variant";
+        case SIROpcode::BUILTIN_UI_ICON_BUTTON:   return "ui.icon_button";
+        case SIROpcode::BUILTIN_UI_FAB:           return "ui.fab";
+        case SIROpcode::BUILTIN_UI_TEXT_FIELD:    return "ui.text_field";
+        case SIROpcode::BUILTIN_UI_CHECKBOX:      return "ui.checkbox";
+        case SIROpcode::BUILTIN_UI_SWITCH:        return "ui.switch";
+        case SIROpcode::BUILTIN_UI_SLIDER:        return "ui.slider";
+        case SIROpcode::BUILTIN_UI_CARD:          return "ui.card";
+        case SIROpcode::BUILTIN_UI_SCAFFOLD:      return "ui.scaffold";
+        case SIROpcode::BUILTIN_UI_APP_BAR:       return "ui.app_bar";
+        case SIROpcode::BUILTIN_UI_SPACER:        return "ui.spacer";
+        case SIROpcode::BUILTIN_UI_DIVIDER:       return "ui.divider";
+        case SIROpcode::BUILTIN_UI_DIALOG:        return "ui.dialog";
+        case SIROpcode::BUILTIN_UI_ADD_CHILD:     return "ui.add_child";
+        case SIROpcode::BUILTIN_UI_REMOVE_CHILD:  return "ui.remove_child";
+        case SIROpcode::BUILTIN_UI_CLEAR_CHILDREN:return "ui.clear_children";
+        case SIROpcode::BUILTIN_UI_SET_TEXT:      return "ui.set_text";
+        case SIROpcode::BUILTIN_UI_SET_SIZE:      return "ui.set_size";
+        case SIROpcode::BUILTIN_UI_SET_FLEX:      return "ui.set_flex";
+        case SIROpcode::BUILTIN_UI_SET_BACKGROUND:return "ui.set_background";
+        case SIROpcode::BUILTIN_UI_SET_FOREGROUND:return "ui.set_foreground";
+        case SIROpcode::BUILTIN_UI_SET_SPACING:   return "ui.set_spacing";
+        case SIROpcode::BUILTIN_UI_SET_PADDING:   return "ui.set_padding";
+        case SIROpcode::BUILTIN_UI_SET_ALIGNMENT: return "ui.set_alignment";
+        case SIROpcode::BUILTIN_UI_SET_BORDER:    return "ui.set_border";
+        case SIROpcode::BUILTIN_UI_SET_ELEVATION: return "ui.set_elevation";
+        case SIROpcode::BUILTIN_UI_SET_OPACITY:   return "ui.set_opacity";
+        case SIROpcode::BUILTIN_UI_SET_VISIBILITY:return "ui.set_visibility";
+        case SIROpcode::BUILTIN_UI_APP_CREATE:    return "ui.app_create";
+        case SIROpcode::BUILTIN_UI_APP_SET_ROOT:  return "ui.app_set_root";
+        case SIROpcode::BUILTIN_UI_APP_LAYOUT:    return "ui.app_layout";
+        case SIROpcode::BUILTIN_UI_APP_RENDER:    return "ui.app_render";
+        case SIROpcode::BUILTIN_UI_APP_DESTROY:   return "ui.app_destroy";
+        case SIROpcode::BUILTIN_UI_WIDGET_DESTROY:return "ui.widget_destroy";
+
         default:                    return "unknown";
     }
 }

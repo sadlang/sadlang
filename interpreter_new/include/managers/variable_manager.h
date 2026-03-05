@@ -201,6 +201,23 @@ public:
     void assign(const std::string& name, const Value& value);
     
     /**
+     * @brief (AR) تعريف أو تعيين — بحث واحد في سلسلة النطاقات
+     * @brief (EN) Define or assign — single scope chain traversal
+     * 
+     * (AR) إذا كان المتغير موجوداً في أي نطاق، يُحدّث قيمته.
+     *      وإلا يُعرّفه في النطاق الحالي. يُلغي الحاجة لـ exists()+assign()/define()
+     *      مما يُقلل بحث سلسلة النطاقات من مرتين إلى مرة واحدة.
+     * 
+     * (EN) If variable exists in any scope, updates its value.
+     *      Otherwise defines it in current scope. Eliminates the need for
+     *      exists()+assign()/define(), reducing scope chain traversal from 2x to 1x.
+     * 
+     * @param name (AR) اسم المتغير / (EN) Variable name
+     * @param value (AR) القيمة / (EN) Value to set
+     */
+    void defineOrAssign(const std::string& name, const Value& value);
+    
+    /**
      * @brief (AR) الحصول على قيمة متغير
      * @brief (EN) Get variable value
      * 
@@ -223,7 +240,19 @@ public:
      * assert(val.toInt() == 42);
      * ```
      */
-    Value get(const std::string& name) const;
+    const Value& get(const std::string& name) const;
+    
+    /**
+     * @brief (AR) محاولة الحصول على مؤشر لقيمة المتغير — بحث واحد بدلاً من exists+get
+     * @brief (EN) Try to get pointer to variable value — single lookup instead of exists+get
+     * 
+     * (AR) أسرع من استدعاء exists() ثم get() لأنه يمشي سلسلة النطاقات مرة واحدة فقط
+     * (EN) Faster than calling exists() then get() because it walks scope chain only once
+     * 
+     * @param name (AR) اسم المتغير / (EN) Variable name
+     * @return (AR) مؤشر للقيمة أو nullptr إذا لم يُعثر عليه / (EN) Pointer to value or nullptr if not found
+     */
+    const Value* tryGet(const std::string& name) const;
     
     /**
      * @brief (AR) التحقق من وجود متغير

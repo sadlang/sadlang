@@ -9,6 +9,9 @@
 
 #include "parser_core.h"
 #include "module_nodes.h"
+#include "declarations.h"
+#include "expressions.h"
+#include "statements.h"
 
 namespace Sad {
 namespace Parser {
@@ -42,24 +45,44 @@ StmtPtr ParserCore::parseImportStmt() {
     // (AR) تحليل مسار الوحدة / (EN) Parse module path
     std::vector<std::string> modulePath;
     
-    if (!check(TT::IDENTIFIER)) {
+    // (AR) دعم الاستيراد بالنص المقتبس: استورد "وحدة"
+    // (EN) Support string-quoted import: import "module"
+    if (check(TT::STRING_LITERAL)) {
+        std::string quotedPath = current_.getValue();
+        advance();
+        // (AR) تقسيم المسار على "." أو "/" أو "\"
+        // (EN) Split path on "." or "/" or "\"
+        size_t start = 0;
+        for (size_t i = 0; i <= quotedPath.size(); ++i) {
+            if (i == quotedPath.size() || quotedPath[i] == '.' || 
+                quotedPath[i] == '/' || quotedPath[i] == '\\') {
+                if (i > start) {
+                    modulePath.push_back(quotedPath.substr(start, i - start));
+                }
+                start = i + 1;
+            }
+        }
+        if (modulePath.empty()) {
+            modulePath.push_back(quotedPath);
+        }
+    } else if (!check(TT::IDENTIFIER)) {
         error("(AR) متوقع اسم وحدة بعد 'استورد'. (EN) Expected module name after 'import'.");
         return nullptr;
-    }
-    
-    modulePath.push_back(current_.getValue());
-    advance();
-    
-    // (AR) تحليل المسارات المتداخلة (وحدة.فرعية.متداخلة)
-    // (EN) Parse nested paths (module.sub.nested)
-    while (match(TT::DOT)) {
-        if (!check(TT::IDENTIFIER)) {
-            error("(AR) متوقع اسم وحدة بعد '.'. (EN) Expected module name after '.'.");
-            return nullptr;
-        }
-        
+    } else {
         modulePath.push_back(current_.getValue());
         advance();
+    
+        // (AR) تحليل المسارات المتداخلة (وحدة.فرعية.متداخلة)
+        // (EN) Parse nested paths (module.sub.nested)
+        while (match(TT::DOT)) {
+            if (!check(TT::IDENTIFIER)) {
+                error("(AR) متوقع اسم وحدة بعد '.'. (EN) Expected module name after '.'.");
+                return nullptr;
+            }
+            
+            modulePath.push_back(current_.getValue());
+            advance();
+        }
     }
     
     // (AR) تحليل الاسم المستعار الاختياري / (EN) Parse optional alias
@@ -99,6 +122,7 @@ StmtPtr ParserCore::parseImportStmt() {
  *   من وحدة استورد عنصر1، عنصر2
  *   من وحدة استورد عنصر كـ اسم
  *   من وحدة استورد *
+ *   من "وحدة" استورد عنصر
  * 
  * Grammar / القواعد:
  *   FromImportStmt := 'من' ModulePath 'استورد' ImportItems
@@ -111,23 +135,43 @@ StmtPtr ParserCore::parseFromImportStmt() {
     // (AR) تحليل مسار الوحدة / (EN) Parse module path
     std::vector<std::string> modulePath;
     
-    if (!check(TT::IDENTIFIER)) {
+    // (AR) دعم الاستيراد بالنص المقتبس: من "وحدة" استورد ...
+    // (EN) Support string-quoted import: from "module" import ...
+    if (check(TT::STRING_LITERAL)) {
+        std::string quotedPath = current_.getValue();
+        advance();
+        // (AR) تقسيم المسار على "." أو "/" أو "\"
+        // (EN) Split path on "." or "/" or "\"
+        size_t start = 0;
+        for (size_t i = 0; i <= quotedPath.size(); ++i) {
+            if (i == quotedPath.size() || quotedPath[i] == '.' || 
+                quotedPath[i] == '/' || quotedPath[i] == '\\') {
+                if (i > start) {
+                    modulePath.push_back(quotedPath.substr(start, i - start));
+                }
+                start = i + 1;
+            }
+        }
+        if (modulePath.empty()) {
+            modulePath.push_back(quotedPath);
+        }
+    } else if (!check(TT::IDENTIFIER)) {
         error("(AR) متوقع اسم وحدة بعد 'من'. (EN) Expected module name after 'from'.");
         return nullptr;
-    }
-    
-    modulePath.push_back(current_.getValue());
-    advance();
-    
-    // (AR) تحليل المسارات المتداخلة / (EN) Parse nested paths
-    while (match(TT::DOT)) {
-        if (!check(TT::IDENTIFIER)) {
-            error("(AR) متوقع اسم وحدة بعد '.'. (EN) Expected module name after '.'.");
-            return nullptr;
-        }
-        
+    } else {
         modulePath.push_back(current_.getValue());
         advance();
+    
+        // (AR) تحليل المسارات المتداخلة / (EN) Parse nested paths
+        while (match(TT::DOT)) {
+            if (!check(TT::IDENTIFIER)) {
+                error("(AR) متوقع اسم وحدة بعد '.'. (EN) Expected module name after '.'.");
+                return nullptr;
+            }
+            
+            modulePath.push_back(current_.getValue());
+            advance();
+        }
     }
     
     // (AR) يجب أن تتبعها كلمة 'استورد' / (EN) Must be followed by 'import'
@@ -235,9 +279,51 @@ StmtPtr ParserCore::parseExportDecl() {
         // صدّر ثابت ... - Const keyword consumed, now parse variable
         declaration = parseVarDecl();
     }
+    else if (match(TT::KEYWORD_VAR)) {
+        // صدّر متغير ... - Var keyword consumed, now parse variable
+        declaration = parseVarDecl();
+    }
     else if (isTypeToken(current_.getType())) {
         // صدّر رقم س = ... - Type token, parse as variable declaration
         declaration = parseVarDecl();
+    }
+    else if (check(TT::IDENTIFIER)) {
+        // صدّر اسم = قيمة - Export alias assignment
+        // (AR) دعم تصدير الأسماء المستعارة: صدّر اسم = وحدة.عضو
+        // (EN) Support export alias: export name = module.member
+        Token nameToken = current_;
+        advance();
+        
+        if (match(TT::OP_ASSIGN)) {
+            // (AR) تحليل التعبير على اليمين
+            // (EN) Parse the RHS expression
+            ExprPtr value = parseExpression();
+            if (!value) {
+                error("(AR) متوقع قيمة بعد '=' في تصدير الإسناد. (EN) Expected value after '=' in export assignment.");
+                return nullptr;
+            }
+            
+            // (AR) إنشاء تصريح ثابت ضمني / (EN) Create implicit const declaration
+            declaration = std::make_unique<VarDeclStmt>(
+                nameToken.getValue(),
+                Data::DataType::UNKNOWN,  // (AR) سيُستنتج من القيمة
+                std::move(value),
+                true,  // isConst = true
+                nameToken.getPosition()
+            );
+        } else {
+            // (AR) صدّر اسم — بدون قيمة
+            // (EN) export name — without value (re-export)
+            // Create a variable reference to the identifier
+            auto varRef = std::make_unique<VariableExpr>(nameToken.getValue(), nameToken.getPosition());
+            declaration = std::make_unique<VarDeclStmt>(
+                nameToken.getValue(),
+                Data::DataType::UNKNOWN,
+                std::move(varRef),
+                true,
+                nameToken.getPosition()
+            );
+        }
     }
     else {
         error(

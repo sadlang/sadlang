@@ -309,6 +309,22 @@ public:
     void visitInlineAsmExpr(AST::InlineAsmExpr& node) override;
     void visitRangeExpr(AST::RangeExpr& node) override;
     
+    // =========================================================================
+    // (AR) زوار التوجيهات التعبيرية @ / (EN) @ Expression Directive Visitors
+    // =========================================================================
+    
+    /**
+     * @brief (AR) @حجم(نوع) — حجم النوع بالبايتات
+     * @brief (EN) @sizeof(type) — size of type in bytes
+     */
+    void visitSizeofExpr(AST::SizeofExpr& node) override;
+    
+    /**
+     * @brief (AR) @ذري(عملية, ...) — عملية ذرية
+     * @brief (EN) @atomic(op, ...) — atomic operation
+     */
+    void visitAtomicExpr(AST::AtomicExpr& node) override;
+    
 private:
     Data::VariableManager& variableManager_;    ///< (AR) مدير المتغيرات / (EN) Variable manager
     Data::FunctionManager& functionManager_;    ///< (AR) مدير الدوال / (EN) Function manager
@@ -316,6 +332,10 @@ private:
     StatementExecutor& statementExecutor_;      ///< (AR) منفذ العبارات / (EN) Statement executor
     Data::OwnershipManager& ownershipManager_;  ///< (AR) مدير الملكية / (EN) Ownership manager
     Data::Value lastResult_;                    ///< (AR) آخر نتيجة / (EN) Last result
+    
+    // (AR) ذاكرة تخزين مؤقت للقيم الحرفية المحلّلة — يمنع إعادة التحليل في الحلقات
+    // (EN) Cache for parsed literal values — prevents re-parsing in loops
+    std::unordered_map<const void*, Data::Value> literalCache_;
     
     // (AR) عدّاد عمق الاستدعاء لمنع الاستدعاء التكراري اللانهائي
     // (EN) Call depth counter to prevent infinite recursion

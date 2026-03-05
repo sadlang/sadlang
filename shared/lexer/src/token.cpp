@@ -269,6 +269,7 @@ std::string Token::typeToString(TokenType type) {
         case TokenType::OP_MINUS_ASSIGN:     return "OP_MINUS_ASSIGN";
         case TokenType::OP_MULTIPLY_ASSIGN:  return "OP_MULTIPLY_ASSIGN";
         case TokenType::OP_DIVIDE_ASSIGN:    return "OP_DIVIDE_ASSIGN";
+        case TokenType::OP_MODULO_ASSIGN:    return "OP_MODULO_ASSIGN";
         
         // عوامل المقارنة
         case TokenType::OP_EQUAL:            return "OP_EQUAL";

@@ -10,15 +10,43 @@
 #include "statement_executor.h"
 #include "declarations.h"
 #include "pattern_nodes.h"
+#include "directive_nodes.h"
 #include "error_manager.h"
 #include "exception.h"
 #include "object_instance.h"
+#include "debug_server.h"
+#include "class_manager.h"
 #include <iostream>
 #include <sstream>
 #include <map>
 
 namespace Sad {
 namespace Interpreter {
+
+// (AR) دالة مساعدة للحصول على اسم الملف من مدير الأخطاء
+// (EN) Helper function to get filename from error manager
+static inline std::string getSourceFilename() {
+    const auto& fn = Sad::Errors::ErrorManager::getInstance().getSourceFilename();
+    return fn.empty() ? "<input>" : fn;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// (AR) خطاف التصحيح — يُستدعى قبل تنفيذ كل جملة
+// (EN) Debug hook — called before each statement execution
+// ═══════════════════════════════════════════════════════════════
+static inline void debugHook(const Sad::Lexer::Position& pos) {
+    auto* dbg = Sad::Debug::DebugServer::getInstance();
+    if (dbg && dbg->isConnected()) {
+        dbg->onBeforeStatement(
+            getSourceFilename(),
+            static_cast<int>(pos.line),
+            static_cast<int>(pos.column)
+        );
+        if (dbg->shouldStop()) {
+            throw std::runtime_error("تم فصل المصحح / Debugger disconnected");
+        }
+    }
+}
 
 // =========================================================================
 // (AR) البناء والإعداد / (EN) Construction and Setup
@@ -59,11 +87,15 @@ Data::Value StatementExecutor::evaluateExpression(AST::Expression& expr) {
 // =========================================================================
 
 void StatementExecutor::visitExprStmt(AST::ExprStmt& node) {
+    // (AR) خطاف التصحيح / (EN) Debug hook
+    debugHook(node.position);
     // (AR) تنفيذ التعبير وتجاهل النتيجة / (EN) Execute expression and ignore result
     evaluateExpression(*node.expression);
 }
 
 void StatementExecutor::visitVarDeclStmt(AST::VarDeclStmt& node) {
+    // (AR) خطاف التصحيح / (EN) Debug hook
+    debugHook(node.position);
     // (AR) تقييم القيمة الابتدائية إن وُجدت / (EN) Evaluate initializer if present
     Data::Value value;
     
@@ -168,6 +200,9 @@ void StatementExecutor::visitBlockStmt(AST::BlockStmt& node) {
     
     // (AR) تنفيذ جميع الجمل في الكتلة / (EN) Execute all statements in block
     for (auto& stmt : node.statements) {
+        // (AR) خطاف التصحيح لكل جملة / (EN) Debug hook for each statement
+        debugHook(stmt->position);
+        
         stmt->accept(*this);
         
         // (AR) إيقاف التنفيذ إذا كان هناك تحكم بالتدفق / (EN) Stop if flow control active
@@ -186,6 +221,8 @@ void StatementExecutor::visitBlockStmt(AST::BlockStmt& node) {
 // =========================================================================
 
 void StatementExecutor::visitIfStmt(AST::IfStmt& node) {
+    // (AR) خطاف التصحيح / (EN) Debug hook
+    debugHook(node.position);
     // (AR) تقييم الشرط / (EN) Evaluate condition
     Data::Value condition = evaluateExpression(*node.condition);
     
@@ -198,6 +235,8 @@ void StatementExecutor::visitIfStmt(AST::IfStmt& node) {
 }
 
 void StatementExecutor::visitWhileStmt(AST::WhileStmt& node) {
+    // (AR) خطاف التصحيح / (EN) Debug hook
+    debugHook(node.position);
     // (AR) زيادة عمق الحلقة / (EN) Increase loop depth
     loopDepth_++;
     
@@ -303,48 +342,62 @@ void StatementExecutor::visitForRangeStmt(AST::ForRangeStmt& node) {
     if (iterable.isArray()) {
         const auto& arr = iterable.toArrayRef();
         
-        for (size_t i = 0; i < arr.size(); i++) {
-            // (AR) تحديث أو تعريف متغير الحلقة / (EN) Update or define loop variable
-            if (variableManager_.exists(node.variable)) {
-                variableManager_.assign(node.variable, arr[i]);
-            } else {
-                variableManager_.define(node.variable, arr[i]);
-            }
-            
-            // (AR) تنفيذ جسم الحلقة / (EN) Execute loop body
+        // ═══════════════════════════════════════════════════════════
+        // (AR) تحسين أداء: تعريف متغير الحلقة مرة واحدة قبل التكرار
+        //      ثم تحديثه فقط داخل الحلقة — يُلغي بحث exists() المزدوج
+        // (EN) Performance: define loop var once before loop,
+        //      then assign inside — eliminates double exists() lookup
+        // ═══════════════════════════════════════════════════════════
+        if (!arr.empty()) {
+            variableManager_.define(node.variable, arr[0]);
             node.body->accept(*this);
             
-            // (AR) معالجة التحكم بالتدفق / (EN) Handle flow control
-            if (flowControl_ == FlowControl::BREAK) {
-                flowControl_ = FlowControl::NONE;
-                break;
-            }
-            if (flowControl_ == FlowControl::CONTINUE) {
-                flowControl_ = FlowControl::NONE;
-                continue;
-            }
-            if (flowControl_ == FlowControl::RETURN) {
-                break;
+            if (flowControl_ == FlowControl::BREAK) { flowControl_ = FlowControl::NONE; }
+            else if (flowControl_ == FlowControl::RETURN) { /* handled below */ }
+            else {
+                if (flowControl_ == FlowControl::CONTINUE) { flowControl_ = FlowControl::NONE; }
+                
+                for (size_t i = 1; i < arr.size(); i++) {
+                    variableManager_.assign(node.variable, arr[i]);
+                    
+                    // (AR) تنفيذ جسم الحلقة / (EN) Execute loop body
+                    node.body->accept(*this);
+                    
+                    // (AR) معالجة التحكم بالتدفق / (EN) Handle flow control
+                    if (flowControl_ == FlowControl::BREAK) {
+                        flowControl_ = FlowControl::NONE;
+                        break;
+                    }
+                    if (flowControl_ == FlowControl::CONTINUE) {
+                        flowControl_ = FlowControl::NONE;
+                        continue;
+                    }
+                    if (flowControl_ == FlowControl::RETURN) {
+                        break;
+                    }
+                }
             }
         }
     }
     else if (iterable.isMap()) {
         const auto& map = iterable.toMap();
         
+        // ═══════════════════════════════════════════════════════════
+        // (AR) تحسين أداء: تعريف قبل الحلقة ثم تحديث فقط
+        // (EN) Performance: define before loop, then assign only
+        // ═══════════════════════════════════════════════════════════
+        bool firstIteration = true;
         for (const auto& [key, value] : map) {
-            // (AR) تحديث أو تعريف متغير المفتاح / (EN) Update or define key variable
-            if (variableManager_.exists(node.variable)) {
-                variableManager_.assign(node.variable, Data::Value(key));
-            } else {
+            if (firstIteration) {
                 variableManager_.define(node.variable, Data::Value(key));
-            }
-            
-            // (AR) تحديث أو تعريف متغير القيمة إن وُجد / (EN) Update or define value variable if present
-            if (!node.valueVar.empty()) {
-                if (variableManager_.exists(node.valueVar)) {
-                    variableManager_.assign(node.valueVar, value);
-                } else {
+                if (!node.valueVar.empty()) {
                     variableManager_.define(node.valueVar, value);
+                }
+                firstIteration = false;
+            } else {
+                variableManager_.assign(node.variable, Data::Value(key));
+                if (!node.valueVar.empty()) {
+                    variableManager_.assign(node.valueVar, value);
                 }
             }
             
@@ -366,53 +419,66 @@ void StatementExecutor::visitForRangeStmt(AST::ForRangeStmt& node) {
         }
     }
     else if (iterable.isString()) {
-        // (AR) التكرار على أحرف النص مع دعم UTF-8
-        // (EN) Iterate over string characters with UTF-8 support
-        std::string text = iterable.toString();
+        // ═══════════════════════════════════════════════════════════
+        // (AR) تحسين أداء: بناء مصفوفة الأحرف UTF-8 مرة واحدة
+        //      ثم التكرار عبرها — يُلغي substr و exists() المزدوج
+        // (EN) Performance: build UTF-8 char array once,
+        //      then iterate — eliminates substr + double exists()
+        // ═══════════════════════════════════════════════════════════
+        const std::string& text = iterable.toString();
+        
+        // (AR) بناء مصفوفة الأحرف مسبقاً / (EN) Pre-build character array
+        std::vector<std::string> chars;
         const unsigned char* bytes = reinterpret_cast<const unsigned char*>(text.data());
         size_t len = text.size();
-        size_t i = 0;
+        size_t pos = 0;
+        chars.reserve(len); // (AR) حجز أقصى عدد ممكن / (EN) Reserve max possible count
         
-        while (i < len) {
-            // (AR) تحديد طول الحرف UTF-8 / (EN) Determine UTF-8 character byte length
+        while (pos < len) {
             size_t charLen = 1;
-            unsigned char b = bytes[i];
+            unsigned char b = bytes[pos];
             if (b >= 0xF0) charLen = 4;
             else if (b >= 0xE0) charLen = 3;
             else if (b >= 0xC0) charLen = 2;
-            
-            if (i + charLen > len) charLen = len - i; // (AR) حماية الحدود
-            std::string ch = text.substr(i, charLen);
-            i += charLen;
-            
-            // (AR) تحديث أو تعريف متغير الحلقة / (EN) Update or define loop variable
-            if (variableManager_.exists(node.variable)) {
-                variableManager_.assign(node.variable, Data::Value(ch));
-            } else {
-                variableManager_.define(node.variable, Data::Value(ch));
-            }
-            
-            // (AR) تنفيذ جسم الحلقة / (EN) Execute loop body
+            if (pos + charLen > len) charLen = len - pos;
+            chars.push_back(text.substr(pos, charLen));
+            pos += charLen;
+        }
+        
+        // (AR) التكرار مع تعريف مرة واحدة / (EN) Iterate with define-once pattern
+        if (!chars.empty()) {
+            variableManager_.define(node.variable, Data::Value(chars[0]));
             node.body->accept(*this);
             
-            // (AR) معالجة التحكم بالتدفق / (EN) Handle flow control
-            if (flowControl_ == FlowControl::BREAK) {
-                flowControl_ = FlowControl::NONE;
-                break;
-            }
-            if (flowControl_ == FlowControl::CONTINUE) {
-                flowControl_ = FlowControl::NONE;
-                continue;
-            }
-            if (flowControl_ == FlowControl::RETURN) {
-                break;
+            if (flowControl_ == FlowControl::BREAK) { flowControl_ = FlowControl::NONE; }
+            else if (flowControl_ == FlowControl::RETURN) { /* handled below */ }
+            else {
+                if (flowControl_ == FlowControl::CONTINUE) { flowControl_ = FlowControl::NONE; }
+                
+                for (size_t i = 1; i < chars.size(); i++) {
+                    variableManager_.assign(node.variable, Data::Value(std::move(chars[i])));
+                    
+                    node.body->accept(*this);
+                    
+                    if (flowControl_ == FlowControl::BREAK) {
+                        flowControl_ = FlowControl::NONE;
+                        break;
+                    }
+                    if (flowControl_ == FlowControl::CONTINUE) {
+                        flowControl_ = FlowControl::NONE;
+                        continue;
+                    }
+                    if (flowControl_ == FlowControl::RETURN) {
+                        break;
+                    }
+                }
             }
         }
     }
     else {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "نوع غير قابل للتكرار",
             "Non-iterable type"
         );
@@ -514,7 +580,7 @@ void StatementExecutor::visitBreakStmt(AST::BreakStmt& node) {
     if (!isInLoop()) {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "'اخرج' خارج حلقة",
             "'break' outside loop"
         );
@@ -530,7 +596,7 @@ void StatementExecutor::visitContinueStmt(AST::ContinueStmt& node) {
     if (!isInLoop()) {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "'تابع' خارج حلقة",
             "'continue' outside loop"
         );
@@ -550,7 +616,7 @@ void StatementExecutor::visitYieldStmt(AST::YieldStmt& node) {
     if (!inGenerator_) {
         Sad::Errors::ErrorManager::getInstance().reportError(
             Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
-            Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+            Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
             "(AR) 'أنتج' (yield) يستخدم فقط داخل الدوال المولّدة.\n"
             "الحل: استخدم 'دالة مولّد' بدلاً من 'دالة' لتعريف المولّد.",
             "(EN) 'yield' can only be used inside generator functions.\n"
@@ -569,7 +635,7 @@ void StatementExecutor::visitYieldStmt(AST::YieldStmt& node) {
             if (!iterable.isArray()) {
                 Sad::Errors::ErrorManager::getInstance().reportError(
                     Sad::Errors::ErrorCode::RUN_INVALID_CAST,
-                    Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
+                    Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)),
                     "(AR) 'yield from' يتطلب قيمة قابلة للتكرار (مصفوفة).",
                     "(EN) 'yield from' requires an iterable value (array)."
                 );
@@ -653,7 +719,7 @@ void StatementExecutor::visitWithStmt(AST::WithStmt& node) {
     
     try {
         node.body->accept(*this);
-    } catch (const Interpreter::SadException& e) {
+    } catch (const SadException& e) {
         exceptionOccurred = true;
         exceptionMessage = e.getMessage();
     } catch (...) {
@@ -706,13 +772,31 @@ void StatementExecutor::visitWithStmt(AST::WithStmt& node) {
     
     // (AR) إعادة رمي الاستثناء إذا لم يُعالج / (EN) Re-throw exception if not handled
     if (exceptionOccurred && !exceptionMessage.empty()) {
-        throw Interpreter::SadException(exceptionMessage, "WithError");
+        throw SadException(exceptionMessage, "WithError");
     }
 }
 
 // =========================================================================
 // (AR) تنفيذ معالجة الاستثناءات / (EN) Exception Handling Visitors
 // =========================================================================
+
+// =========================================================================
+// (AR) مساعد: مطابقة نوع الاستثناء مع دعم الوراثة
+// (EN) Helper: Match exception type with inheritance support
+// =========================================================================
+static bool isExceptionTypeOrSubclass(const std::string& exceptionType, const std::string& catchTypeName) {
+    // (AR) مطابقة مباشرة / (EN) Direct match
+    if (exceptionType == catchTypeName) return true;
+    
+    // (AR) بحث في سلسلة الوراثة / (EN) Walk inheritance chain
+    auto* classMgr = Data::ClassManager::getInstance();
+    auto* cls = classMgr->getClass(exceptionType);
+    while (cls && cls->getBaseClass()) {
+        cls = cls->getBaseClass();
+        if (cls->name == catchTypeName) return true;
+    }
+    return false;
+}
 
 void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
     // (AR) حارس RAII لضمان تنفيذ كتلة finally دائماً — حتى عند إعادة رفع الاستثناء
@@ -723,7 +807,7 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
         // (AR) تنفيذ كتلة المحاولة / (EN) Execute try block
         node.tryBlock->accept(*this);
     }
-    catch (const Interpreter::SadException& e) {
+    catch (const SadException& e) {
         // (AR) البحث عن بند التقاط مناسب مع مطابقة نوع الاستثناء
         // (EN) Find matching catch clause with exception type matching
         bool caught = false;
@@ -743,10 +827,10 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
                 typeMatches = (exType == "RuntimeError" || exType == "Error" ||
                                exType == "خطأ" || exType == "خطأ_تشغيل" || exType.empty());
             } else if (catchClause.exceptionType == Data::DataType::OBJECT) {
-                // (AR) مطابقة نوع كائن مخصص — نقارن اسم النوع المخصص مع نوع الاستثناء
-                // (EN) Match custom object type — compare custom type name with exception type
+                // (AR) مطابقة نوع كائن مخصص مع دعم الوراثة
+                // (EN) Match custom object type with inheritance support
                 if (!catchClause.exceptionTypeName.empty()) {
-                    typeMatches = (catchClause.exceptionTypeName == exType);
+                    typeMatches = isExceptionTypeOrSubclass(exType, catchClause.exceptionTypeName);
                 } else {
                     typeMatches = (!catchClause.exceptionVar.empty() &&
                                    (catchClause.exceptionVar == exType ||
@@ -761,8 +845,14 @@ void StatementExecutor::visitTryStmt(AST::TryStmt& node) {
             variableManager_.enterScope(Data::ScopeType::BLOCK);
             
             if (!catchClause.exceptionVar.empty()) {
-                variableManager_.define(catchClause.exceptionVar, 
-                    Data::Value(e.getMessage()));
+                // (AR) إذا كان الاستثناء يحمل كائناً أصلياً — نربطه ككائن
+                // (EN) If exception carries original object — bind as object
+                if (e.hasThrownValue()) {
+                    variableManager_.define(catchClause.exceptionVar, e.getThrownValue());
+                } else {
+                    variableManager_.define(catchClause.exceptionVar, 
+                        Data::Value(e.getMessage()));
+                }
             }
             
             catchClause.body->accept(*this);
@@ -910,11 +1000,15 @@ void StatementExecutor::visitRaiseStmt(AST::RaiseStmt& node) {
                 if (field) message = field->toString();
             }
         }
-        throw Interpreter::SadException(message, typeName, node.position);
+        // (AR) نُنشئ استثناء يحمل الكائن الأصلي — حتى يمكن ربطه في catch كـ كائن
+        // (EN) Create exception carrying the original object — so catch can bind it as object
+        SadException exc(message, typeName, node.position);
+        exc.setThrownValue(exceptionValue);
+        throw exc;
     }
     
     // (AR) رفع الاستثناء كخطأ تشغيل عادي / (EN) Raise as regular runtime error
-    throw Interpreter::RuntimeError(
+    throw RuntimeError(
         exceptionValue.toString(),
         node.position
     );
@@ -1240,6 +1334,14 @@ Data::Value StatementExecutor::executeFunctionBodyWithReturnType(
     currentFunctionReturnType_ = returnType;
     currentFunctionName_ = functionName;
     
+    // (AR) إخطار خادم التصحيح بدخول دالة / (EN) Notify debug server of function entry
+    {
+        auto* dbg = Sad::Debug::DebugServer::getInstance();
+        if (dbg && dbg->isConnected()) {
+            dbg->onFunctionEnter(functionName, getSourceFilename(), static_cast<int>(body.position.line));
+        }
+    }
+    
     // (AR) إعادة تعيين الحالة / (EN) Reset state
     flowControl_ = FlowControl::NONE;
     returnValue_ = Data::Value();
@@ -1277,6 +1379,14 @@ Data::Value StatementExecutor::executeFunctionBodyWithReturnType(
     returnValue_ = previousReturnValue;
     currentFunctionReturnType_ = previousReturnType;
     currentFunctionName_ = previousFunctionName;
+    
+    // (AR) إخطار خادم التصحيح بخروج دالة / (EN) Notify debug server of function exit
+    {
+        auto* dbg = Sad::Debug::DebugServer::getInstance();
+        if (dbg && dbg->isConnected()) {
+            dbg->onFunctionExit();
+        }
+    }
     
     return result;
 }
@@ -1320,7 +1430,7 @@ void StatementExecutor::visitOperatorDecl(AST::OperatorDecl& node) {
     // (EN) Register operator overload — throws error if appears outside class context
     // (AR) ملاحظة: التسجيل الفعلي يتم في visitClassDecl عند تحليل أعضاء الصنف.
     // (EN) Note: Actual registration happens in visitClassDecl when parsing class members.
-    throw Interpreter::RuntimeError(
+    throw RuntimeError(
         "(AR) لا يمكن تعريف عامل محمّل زائداً خارج صنف: '" + node.operatorSymbol + "' / "
         "(EN) Cannot define operator overload outside a class: '" + node.operatorSymbol + "'",
         node.position
@@ -1438,6 +1548,67 @@ void StatementExecutor::visitTemplateClassDecl(AST::TemplateClassDecl& node) {
     // (AR) حفظ مؤشر للعقدة الأصلية في خريطة القوالب
     // (EN) Store pointer to original AST node in template map
     templateClasses_[node.name] = &node;
+}
+
+// ======================================================================
+// (AR) زوار التوجيهات @ — Directive Visitors
+// ======================================================================
+
+/**
+ * @brief (AR) @غير_آمن — ينفذ الجسم في وضع غير آمن (بدون قيود)
+ * @brief (EN) @unsafe — executes body in unsafe mode (no restrictions)
+ * 
+ * (AR) في المفسر، هذا ينفذ الجسم مباشرة. القيود الحقيقية تكون في المترجم.
+ * (EN) In interpreter, this just executes the body. Real restrictions are in compiler.
+ */
+void StatementExecutor::visitUnsafeBlockStmt(AST::UnsafeBlockStmt& node) {
+    // (AR) تنفيذ جسم الكتلة في نطاق جديد
+    // (EN) Execute block body in a new scope
+    variableManager_.enterScope(Data::ScopeType::BLOCK);
+    
+    for (auto& stmt : node.body) {
+        if (stmt) {
+            stmt->accept(*this);
+        }
+    }
+    
+    variableManager_.exitScope();
+}
+
+/**
+ * @brief (AR) @وقت_الترجمة — ينفذ الجسم فوراً (في المفسر: تنفيذ عادي)
+ * @brief (EN) @comptime — executes body immediately (in interpreter: normal execution)
+ * 
+ * (AR) في المفسر: يُنفَّذ كأي كتلة عادية. في المترجم: يُنفَّذ وقت الترجمة.
+ * (EN) In interpreter: runs as a normal block. In compiler: evaluated at compile time.
+ */
+void StatementExecutor::visitComptimeBlockStmt(AST::ComptimeBlockStmt& node) {
+    // (AR) نفس سلوك الكتلة العادية في المفسر
+    // (EN) Same behavior as regular block in interpreter
+    variableManager_.enterScope(Data::ScopeType::BLOCK);
+    
+    for (auto& stmt : node.body) {
+        if (stmt) {
+            stmt->accept(*this);
+        }
+    }
+    
+    variableManager_.exitScope();
+}
+
+/**
+ * @brief (AR) @متطاير — يعلن متغيراً مع تعليمات volatile
+ * @brief (EN) @volatile — declares a variable with volatile semantics
+ * 
+ * (AR) في المفسر: يُعلن المتغير بشكل عادي. الفائدة الحقيقية في المترجم (يمنع التحسين).
+ * (EN) In interpreter: declares variable normally. Real benefit is in compiler (prevents optimization).
+ */
+void StatementExecutor::visitVolatileVarDeclStmt(AST::VolatileVarDeclStmt& node) {
+    // (AR) ننفذ الإعلان الأصلي
+    // (EN) Execute the underlying declaration
+    if (node.declaration) {
+        node.declaration->accept(*this);
+    }
 }
 
 } // namespace Interpreter
