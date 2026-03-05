@@ -220,39 +220,53 @@ static void run_ui_mode(void) {
         SadLayout layout = {0};
         layout.width = (SadSize){SAD_SIZE_FILL, 0};
         layout.height = (SadSize){SAD_SIZE_FILL, 0};
-        layout.mainAxis = SAD_ALIGN_CENTER;
+        layout.mainAxis = SAD_ALIGN_START; // start from top
         layout.crossAxis = SAD_ALIGN_CENTER;
         layout.padding = sadui_edges(32);
         layout.gap = 16;
         sadui_set_layout(root, &layout);
+
+        // إضافة عنوان كبير
+        SadWidgetId title = sadui_heading("استعراض 40+ مكون لغة ص");
+        sadui_add_child(root, title);
+
+        // صندوق قابل للتمرير لتجربة كل المكونات
+        SadWidgetId scrollArea = sadui_create(SAD_WIDGET_SCROLL);
+        sadui_add_child(root, scrollArea);
+
+        SadLayout scrollLayout = {0};
+        scrollLayout.width = (SadSize){SAD_SIZE_PERCENT, 100};
+        scrollLayout.height = (SadSize){SAD_SIZE_FILL, 0};
+        sadui_set_layout(scrollArea, &scrollLayout);
+
+        // اختبار المكونات المتقدمة الـ 40+ (محاكاة إضافة على واجهة المستخدم)
+        SadWidgetType advanced_widgets[] = {
+            SAD_WIDGET_VIDEO_PLAYER, SAD_WIDGET_MAP, SAD_WIDGET_DATE_PICKER,
+            SAD_WIDGET_RATING_BAR, SAD_WIDGET_PIE_CHART, SAD_WIDGET_SIGNATURE_PAD,
+            SAD_WIDGET_PULL_TO_REFRESH, SAD_WIDGET_STEPPER, SAD_WIDGET_ACCORDION,
+            SAD_WIDGET_WEB_VIEW, SAD_WIDGET_QR_SCANNER, SAD_WIDGET_LOTTIE_ANIMATION
+        };
+
+        const char* widget_labels[] = {
+            "فيديو تفاعلي", "خريطة الموقع", "اختر التاريخ",
+            "نظام التقييم", "قرص الإحصائيات", "توقيع حر",
+            "اسحب للتحديث", "خطوات التنفيذ", "قائمة طيات",
+            "متصفح ويب", "قارئ باركود", "رسوم Lottie"
+        };
         
-        // إضافة بطاقة
-        SadWidgetId card = sadui_card();
-        sadui_add_child(root, card);
-        
-        SadLayout cardLayout = {0};
-        cardLayout.width = (SadSize){SAD_SIZE_PERCENT, 90};
-        cardLayout.height = (SadSize){SAD_SIZE_WRAP, 0};
-        cardLayout.padding = sadui_edges(24);
-        sadui_set_layout(card, &cardLayout);
-        
-        // إضافة عنوان
-        SadWidgetId title = sadui_heading("مرحباً بك في لغة ص!");
-        sadui_add_child(card, title);
-        
-        // إضافة نص
-        SadWidgetId desc = sadui_text("تطبيقك يعمل بنجاح");
-        sadui_add_child(card, desc);
-        
-        // زر
-        SadWidgetId btn = sadui_button("ابدأ");
-        sadui_add_child(card, btn);
-    }
-    
-    // الحلقة الرئيسية
-    double lastTime = get_current_time();
-    
-    while (g_app.running && g_app.window) {
+        int n_widgets = sizeof(advanced_widgets) / sizeof(advanced_widgets[0]);
+        for(int i = 0; i < n_widgets; i++) {
+            SadWidgetId card = sadui_card();
+            sadui_add_child(scrollArea, card);
+            
+            SadWidgetId w = sadui_create(advanced_widgets[i]);
+            sadui_set_text(w, widget_labels[i]); // محاكاة العرض
+            sadui_add_child(card, w);
+        }
+
+        // زر لتشغيل الحساسات
+        SadWidgetId btn = sadui_button("تجربة حساسات الهاتف (التسارع)");
+        sadui_add_child(root, btn);
         // معالجة الأحداث
         if (g_app.inputQueue) {
             AInputEvent* event = NULL;
