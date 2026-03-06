@@ -1,0 +1,133 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// build.gradle.template - قالب Gradle لتطبيقات ص على أندرويد
+// Gradle Build Template for Sad Android Applications  
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// الاستخدام / Usage:
+// استبدل المتغيرات التالية بقيمك الخاصة:
+// {{PACKAGE_NAME}} - اسم الحزمة
+// {{MIN_SDK}} - الحد الأدنى للإصدار
+// {{TARGET_SDK}} - الإصدار المستهدف
+// {{VERSION_CODE}} - رقم الإصدار
+// {{VERSION_NAME}} - اسم الإصدار
+// {{NDK_ABI_FILTERS}} - أنواع المعالجات المستهدفة
+//
+// ═══════════════════════════════════════════════════════════════════════════
+
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace '{{PACKAGE_NAME}}'
+    compileSdk {{TARGET_SDK}}
+
+    defaultConfig {
+        applicationId '{{PACKAGE_NAME}}'
+        minSdk {{MIN_SDK}}
+        targetSdk {{TARGET_SDK}}
+        versionCode {{VERSION_CODE}}
+        versionName '{{VERSION_NAME}}'
+
+        // المعالجات المدعومة
+        ndk {
+            abiFilters {{NDK_ABI_FILTERS}}
+        }
+        
+        // CMake لبناء الكود الأصلي
+        externalNativeBuild {
+            cmake {
+                cppFlags '-std=c++17 -fexceptions -frtti'
+                arguments '-DANDROID_STL=c++_shared'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            
+            // توقيع Release
+            signingConfig signingConfigs.release
+        }
+        debug {
+            debuggable true
+            jniDebuggable true
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // إعدادات CMake للكود الأصلي
+    // ═══════════════════════════════════════════════════════════════════
+    externalNativeBuild {
+        cmake {
+            path file('CMakeLists.txt')
+            version '3.22.1'
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // مسارات المصادر
+    // ═══════════════════════════════════════════════════════════════════
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // خيارات الحزم
+    // ═══════════════════════════════════════════════════════════════════
+    packagingOptions {
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+        pickFirst 'lib/x86_64/libc++_shared.so'
+        pickFirst 'lib/x86/libc++_shared.so'
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // تكوين التوقيع
+    // ═══════════════════════════════════════════════════════════════════
+    signingConfigs {
+        release {
+            // غيّر هذه القيم لتوقيع Release
+            // storeFile file('keystore.jks')
+            // storePassword 'your_store_password'
+            // keyAlias 'your_key_alias'
+            // keyPassword 'your_key_password'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // تعطيل Java لأن التطبيق أصلي بالكامل
+    buildFeatures {
+        aidl false
+        renderScript false
+        resValues false
+        shaders false
+    }
+}
+
+dependencies {
+    // لا نحتاج تبعيات Java لأن التطبيق أصلي بالكامل
+    // No Java dependencies needed - pure native app
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// مهام مخصصة / Custom Tasks
+// ═══════════════════════════════════════════════════════════════════════════
+
+// مهمة لنسخ ملفات ص إلى assets
+task copySadAssets(type: Copy) {
+    from 'src/main/sad'
+    into 'src/main/assets/sad'
+    include '**/*.ص'
+    include '**/*.sad'
+}
+
+preBuild.dependsOn copySadAssets

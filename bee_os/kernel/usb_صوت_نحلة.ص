@@ -1,0 +1,948 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# usb_صوت_نحلة.ص — تعريف صوت USB لنظام نحلة
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# USB Audio Class 1.0 driver — Control, Streaming, Mixer
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── دوال خارجية ───
+خارجي دالة sad_ll_port_inb(port)
+خارجي دالة sad_ll_port_outb(port، val)
+خارجي دالة sad_ll_mem_read8(addr)
+خارجي دالة sad_ll_mem_write8(addr، val)
+خارجي دالة sad_ll_mem_read16(addr)
+خارجي دالة sad_ll_mem_write16(addr، val)
+خارجي دالة sad_ll_mem_read32(addr)
+خارجي دالة sad_ll_mem_write32(addr، val)
+خارجي دالة sad_ll_serial_write_char(port، ch)
+خارجي دالة sad_ll_kmalloc(حجم_طلب)
+خارجي دالة sad_ll_memset(عنوان، قيمة، حجم_منطقة)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ثوابت
+# ═══════════════════════════════════════════════════════════════════════════════
+ثابت COM1 = 1016
+
+# ─── USB Audio Class codes ───
+ثابت UAC_CLASS = 1              # Audio class code
+ثابت UAC_SUBCLASS_CONTROL = 1   # AudioControl interface
+ثابت UAC_SUBCLASS_STREAM = 2    # AudioStreaming interface
+ثابت UAC_SUBCLASS_MIDI = 3      # MIDIStreaming interface
+
+# ─── Audio Control descriptor subtypes ───
+ثابت UAC_AC_HEADER = 1
+ثابت UAC_AC_INPUT_TERMINAL = 2
+ثابت UAC_AC_OUTPUT_TERMINAL = 3
+ثابت UAC_AC_MIXER_UNIT = 4
+ثابت UAC_AC_SELECTOR_UNIT = 5
+ثابت UAC_AC_FEATURE_UNIT = 6
+ثابت UAC_AC_PROCESSING_UNIT = 7
+ثابت UAC_AC_EXTENSION_UNIT = 8
+
+# ─── Audio Streaming descriptor subtypes ───
+ثابت UAC_AS_GENERAL = 1
+ثابت UAC_AS_FORMAT_TYPE = 2
+ثابت UAC_AS_FORMAT_SPECIFIC = 3
+
+# ─── Terminal types ───
+ثابت UAC_TT_USB_STREAMING = 257     # 0x0101: USB streaming
+ثابت UAC_TT_SPEAKER = 769           # 0x0301: Speaker
+ثابت UAC_TT_HEADPHONES = 770        # 0x0302: Headphones
+ثابت UAC_TT_MICROPHONE = 513        # 0x0201: Microphone
+ثابت UAC_TT_DESKTOP_MIC = 514       # 0x0202: Desktop Mic
+ثابت UAC_TT_LINE_CONNECTOR = 1538   # 0x0602: Line connector
+ثابت UAC_TT_SPDIF = 1539            # 0x0603: S/PDIF
+ثابت UAC_TT_HDMI = 1541             # 0x0605: HDMI
+
+# ─── Feature Unit controls ───
+ثابت UAC_FU_MUTE = 1
+ثابت UAC_FU_VOLUME = 2
+ثابت UAC_FU_BASS = 3
+ثابت UAC_FU_MID = 4
+ثابت UAC_FU_TREBLE = 5
+ثابت UAC_FU_EQUALIZER = 6
+ثابت UAC_FU_AGC = 7
+ثابت UAC_FU_DELAY = 8
+ثابت UAC_FU_BASS_BOOST = 9
+ثابت UAC_FU_LOUDNESS = 10
+
+# ─── Audio requests ───
+ثابت UAC_SET_CUR = 1
+ثابت UAC_GET_CUR = 129    # 0x81
+ثابت UAC_SET_MIN = 2
+ثابت UAC_GET_MIN = 130    # 0x82
+ثابت UAC_SET_MAX = 3
+ثابت UAC_GET_MAX = 131    # 0x83
+ثابت UAC_SET_RES = 4
+ثابت UAC_GET_RES = 132    # 0x84
+
+# ─── Sample rates ───
+ثابت UAC_RATE_8000 = 8000
+ثابت UAC_RATE_11025 = 11025
+ثابت UAC_RATE_16000 = 16000
+ثابت UAC_RATE_22050 = 22050
+ثابت UAC_RATE_32000 = 32000
+ثابت UAC_RATE_44100 = 44100
+ثابت UAC_RATE_48000 = 48000
+ثابت UAC_RATE_96000 = 96000
+
+# ─── Format types ───
+ثابت UAC_FORMAT_PCM = 1
+ثابت UAC_FORMAT_PCM8 = 2
+ثابت UAC_FORMAT_IEEE_FLOAT = 3
+ثابت UAC_FORMAT_ALAW = 4
+ثابت UAC_FORMAT_MULAW = 5
+
+# Max devices
+ثابت UAC_MAX_DEVICES = 4
+ثابت UAC_MAX_TERMINALS = 16
+ثابت UAC_MAX_FEATURES = 8
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# قاعدة بيانات أجهزة الصوت (4 أجهزة)
+# ═══════════════════════════════════════════════════════════════════════════════
+# dev_present[i]
+متغير uac_present_0 = 0
+متغير uac_present_1 = 0
+متغير uac_present_2 = 0
+متغير uac_present_3 = 0
+
+# USB device address
+متغير uac_addr_0 = 0
+متغير uac_addr_1 = 0
+متغير uac_addr_2 = 0
+متغير uac_addr_3 = 0
+
+# Control interface number
+متغير uac_ctrl_iface_0 = 0
+متغير uac_ctrl_iface_1 = 0
+متغير uac_ctrl_iface_2 = 0
+متغير uac_ctrl_iface_3 = 0
+
+# Streaming interface number (output)
+متغير uac_stream_out_iface_0 = 0
+متغير uac_stream_out_iface_1 = 0
+متغير uac_stream_out_iface_2 = 0
+متغير uac_stream_out_iface_3 = 0
+
+# Streaming interface number (input)
+متغير uac_stream_in_iface_0 = 0
+متغير uac_stream_in_iface_1 = 0
+متغير uac_stream_in_iface_2 = 0
+متغير uac_stream_in_iface_3 = 0
+
+# Streaming endpoint (output)
+متغير uac_ep_out_0 = 0
+متغير uac_ep_out_1 = 0
+متغير uac_ep_out_2 = 0
+متغير uac_ep_out_3 = 0
+
+# Streaming endpoint (input)
+متغير uac_ep_in_0 = 0
+متغير uac_ep_in_1 = 0
+متغير uac_ep_in_2 = 0
+متغير uac_ep_in_3 = 0
+
+# Max packet size
+متغير uac_maxpkt_out_0 = 0
+متغير uac_maxpkt_out_1 = 0
+متغير uac_maxpkt_out_2 = 0
+متغير uac_maxpkt_out_3 = 0
+
+متغير uac_maxpkt_in_0 = 0
+متغير uac_maxpkt_in_1 = 0
+متغير uac_maxpkt_in_2 = 0
+متغير uac_maxpkt_in_3 = 0
+
+# Audio spec version
+متغير uac_version_0 = 0
+متغير uac_version_1 = 0
+متغير uac_version_2 = 0
+متغير uac_version_3 = 0
+
+# Number of channels
+متغير uac_channels_0 = 2
+متغير uac_channels_1 = 2
+متغير uac_channels_2 = 2
+متغير uac_channels_3 = 2
+
+# Bit resolution
+متغير uac_bits_0 = 16
+متغير uac_bits_1 = 16
+متغير uac_bits_2 = 16
+متغير uac_bits_3 = 16
+
+# Sample rate
+متغير uac_rate_0 = 44100
+متغير uac_rate_1 = 44100
+متغير uac_rate_2 = 44100
+متغير uac_rate_3 = 44100
+
+# Format tag
+متغير uac_format_0 = 1
+متغير uac_format_1 = 1
+متغير uac_format_2 = 1
+متغير uac_format_3 = 1
+
+# Streaming active
+متغير uac_streaming_0 = 0
+متغير uac_streaming_1 = 0
+متغير uac_streaming_2 = 0
+متغير uac_streaming_3 = 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Terminal database (16 terminals across all devices)
+# ═══════════════════════════════════════════════════════════════════════════════
+# term_id[i]
+متغير term_id_0 = 0
+متغير term_id_1 = 0
+متغير term_id_2 = 0
+متغير term_id_3 = 0
+متغير term_id_4 = 0
+متغير term_id_5 = 0
+متغير term_id_6 = 0
+متغير term_id_7 = 0
+متغير term_id_8 = 0
+متغير term_id_9 = 0
+متغير term_id_10 = 0
+متغير term_id_11 = 0
+متغير term_id_12 = 0
+متغير term_id_13 = 0
+متغير term_id_14 = 0
+متغير term_id_15 = 0
+
+# term_type[i]
+متغير term_type_0 = 0
+متغير term_type_1 = 0
+متغير term_type_2 = 0
+متغير term_type_3 = 0
+متغير term_type_4 = 0
+متغير term_type_5 = 0
+متغير term_type_6 = 0
+متغير term_type_7 = 0
+متغير term_type_8 = 0
+متغير term_type_9 = 0
+متغير term_type_10 = 0
+متغير term_type_11 = 0
+متغير term_type_12 = 0
+متغير term_type_13 = 0
+متغير term_type_14 = 0
+متغير term_type_15 = 0
+
+# term_direction: 0=input, 1=output
+متغير term_dir_0 = 0
+متغير term_dir_1 = 0
+متغير term_dir_2 = 0
+متغير term_dir_3 = 0
+متغير term_dir_4 = 0
+متغير term_dir_5 = 0
+متغير term_dir_6 = 0
+متغير term_dir_7 = 0
+متغير term_dir_8 = 0
+متغير term_dir_9 = 0
+متغير term_dir_10 = 0
+متغير term_dir_11 = 0
+متغير term_dir_12 = 0
+متغير term_dir_13 = 0
+متغير term_dir_14 = 0
+متغير term_dir_15 = 0
+
+# term_channels
+متغير term_ch_0 = 0
+متغير term_ch_1 = 0
+متغير term_ch_2 = 0
+متغير term_ch_3 = 0
+متغير term_ch_4 = 0
+متغير term_ch_5 = 0
+متغير term_ch_6 = 0
+متغير term_ch_7 = 0
+متغير term_ch_8 = 0
+متغير term_ch_9 = 0
+متغير term_ch_10 = 0
+متغير term_ch_11 = 0
+متغير term_ch_12 = 0
+متغير term_ch_13 = 0
+متغير term_ch_14 = 0
+متغير term_ch_15 = 0
+
+# term_device_id — which UAC device owns this terminal
+متغير term_dev_0 = 0
+متغير term_dev_1 = 0
+متغير term_dev_2 = 0
+متغير term_dev_3 = 0
+متغير term_dev_4 = 0
+متغير term_dev_5 = 0
+متغير term_dev_6 = 0
+متغير term_dev_7 = 0
+متغير term_dev_8 = 0
+متغير term_dev_9 = 0
+متغير term_dev_10 = 0
+متغير term_dev_11 = 0
+متغير term_dev_12 = 0
+متغير term_dev_13 = 0
+متغير term_dev_14 = 0
+متغير term_dev_15 = 0
+
+متغير uac_term_count = 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Feature Unit database (8 units)
+# ═══════════════════════════════════════════════════════════════════════════════
+متغير fu_id_0 = 0
+متغير fu_id_1 = 0
+متغير fu_id_2 = 0
+متغير fu_id_3 = 0
+متغير fu_id_4 = 0
+متغير fu_id_5 = 0
+متغير fu_id_6 = 0
+متغير fu_id_7 = 0
+
+# fu_source — source unit ID
+متغير fu_src_0 = 0
+متغير fu_src_1 = 0
+متغير fu_src_2 = 0
+متغير fu_src_3 = 0
+متغير fu_src_4 = 0
+متغير fu_src_5 = 0
+متغير fu_src_6 = 0
+متغير fu_src_7 = 0
+
+# fu_controls — bitmask of available controls
+متغير fu_ctrl_0 = 0
+متغير fu_ctrl_1 = 0
+متغير fu_ctrl_2 = 0
+متغير fu_ctrl_3 = 0
+متغير fu_ctrl_4 = 0
+متغير fu_ctrl_5 = 0
+متغير fu_ctrl_6 = 0
+متغير fu_ctrl_7 = 0
+
+# fu_device — which UAC device
+متغير fu_dev_0 = 0
+متغير fu_dev_1 = 0
+متغير fu_dev_2 = 0
+متغير fu_dev_3 = 0
+متغير fu_dev_4 = 0
+متغير fu_dev_5 = 0
+متغير fu_dev_6 = 0
+متغير fu_dev_7 = 0
+
+# Current volume (0-255 mapped)
+متغير fu_vol_0 = 128
+متغير fu_vol_1 = 128
+متغير fu_vol_2 = 128
+متغير fu_vol_3 = 128
+متغير fu_vol_4 = 128
+متغير fu_vol_5 = 128
+متغير fu_vol_6 = 128
+متغير fu_vol_7 = 128
+
+# Mute state
+متغير fu_mute_0 = 0
+متغير fu_mute_1 = 0
+متغير fu_mute_2 = 0
+متغير fu_mute_3 = 0
+متغير fu_mute_4 = 0
+متغير fu_mute_5 = 0
+متغير fu_mute_6 = 0
+متغير fu_mute_7 = 0
+
+متغير uac_fu_count = 0
+
+# ─── إحصائيات ───
+متغير uac_device_count = 0
+متغير uac_packets_sent = 0
+متغير uac_packets_received = 0
+متغير uac_errors = 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الطباعة
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة uac_serial_اطبع(رسالة)
+    متغير i = 0 + 0
+    بينما (i < 80)
+        متغير ch = sad_ll_mem_read8(رسالة + i) + 0
+        إذا (ch == 0) ارجع 0 نهاية
+        sad_ll_serial_write_char(COM1، ch)
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية
+
+دالة uac_serial_رقم(ن)
+    متغير val = ن + 0
+    إذا (val < 0)
+        sad_ll_serial_write_char(COM1، 45)
+        val = 0 - val
+    نهاية
+    إذا (val >= 100000)
+        متغير d6 = val / 100000
+        sad_ll_serial_write_char(COM1، 48 + d6)
+        val = val - (d6 * 100000)
+    نهاية
+    إذا (val >= 10000)
+        متغير d5 = val / 10000
+        sad_ll_serial_write_char(COM1، 48 + d5)
+        val = val - (d5 * 10000)
+    والا_اذا (ن >= 100000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 1000)
+        متغير d4 = val / 1000
+        sad_ll_serial_write_char(COM1، 48 + d4)
+        val = val - (d4 * 1000)
+    والا_اذا (ن >= 10000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 100)
+        متغير d3 = val / 100
+        sad_ll_serial_write_char(COM1، 48 + d3)
+        val = val - (d3 * 100)
+    والا_اذا (ن >= 1000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 10)
+        متغير d2 = val / 10
+        sad_ll_serial_write_char(COM1، 48 + d2)
+        val = val - (d2 * 10)
+    والا_اذا (ن >= 100)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    sad_ll_serial_write_char(COM1، 48 + val)
+    ارجع 0
+نهاية
+
+دالة uac_serial_سطر()
+    sad_ll_serial_write_char(COM1، 13)
+    sad_ll_serial_write_char(COM1، 10)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Device DB accessors
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uac_get_present(d)
+    إذا (d == 0) ارجع uac_present_0 + 0 نهاية
+    إذا (d == 1) ارجع uac_present_1 + 0 نهاية
+    إذا (d == 2) ارجع uac_present_2 + 0 نهاية
+    إذا (d == 3) ارجع uac_present_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uac_set_present(d، val)
+    إذا (d == 0) uac_present_0 = val + 0 نهاية
+    إذا (d == 1) uac_present_1 = val + 0 نهاية
+    إذا (d == 2) uac_present_2 = val + 0 نهاية
+    إذا (d == 3) uac_present_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uac_set_addr(d، val)
+    إذا (d == 0) uac_addr_0 = val + 0 نهاية
+    إذا (d == 1) uac_addr_1 = val + 0 نهاية
+    إذا (d == 2) uac_addr_2 = val + 0 نهاية
+    إذا (d == 3) uac_addr_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة uac_get_addr(d)
+    إذا (d == 0) ارجع uac_addr_0 + 0 نهاية
+    إذا (d == 1) ارجع uac_addr_1 + 0 نهاية
+    إذا (d == 2) ارجع uac_addr_2 + 0 نهاية
+    إذا (d == 3) ارجع uac_addr_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة uac_get_channels(d)
+    إذا (d == 0) ارجع uac_channels_0 + 0 نهاية
+    إذا (d == 1) ارجع uac_channels_1 + 0 نهاية
+    إذا (d == 2) ارجع uac_channels_2 + 0 نهاية
+    إذا (d == 3) ارجع uac_channels_3 + 0 نهاية
+    ارجع 2
+نهاية
+
+صدّر دالة uac_set_channels(d، val)
+    إذا (d == 0) uac_channels_0 = val + 0 نهاية
+    إذا (d == 1) uac_channels_1 = val + 0 نهاية
+    إذا (d == 2) uac_channels_2 = val + 0 نهاية
+    إذا (d == 3) uac_channels_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة uac_get_bits(d)
+    إذا (d == 0) ارجع uac_bits_0 + 0 نهاية
+    إذا (d == 1) ارجع uac_bits_1 + 0 نهاية
+    إذا (d == 2) ارجع uac_bits_2 + 0 نهاية
+    إذا (d == 3) ارجع uac_bits_3 + 0 نهاية
+    ارجع 16
+نهاية
+
+صدّر دالة uac_set_bits(d، val)
+    إذا (d == 0) uac_bits_0 = val + 0 نهاية
+    إذا (d == 1) uac_bits_1 = val + 0 نهاية
+    إذا (d == 2) uac_bits_2 = val + 0 نهاية
+    إذا (d == 3) uac_bits_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة uac_get_rate(d)
+    إذا (d == 0) ارجع uac_rate_0 + 0 نهاية
+    إذا (d == 1) ارجع uac_rate_1 + 0 نهاية
+    إذا (d == 2) ارجع uac_rate_2 + 0 نهاية
+    إذا (d == 3) ارجع uac_rate_3 + 0 نهاية
+    ارجع 44100
+نهاية
+
+صدّر دالة uac_set_rate(d، val)
+    إذا (d == 0) uac_rate_0 = val + 0 نهاية
+    إذا (d == 1) uac_rate_1 = val + 0 نهاية
+    إذا (d == 2) uac_rate_2 = val + 0 نهاية
+    إذا (d == 3) uac_rate_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة uac_get_streaming(d)
+    إذا (d == 0) ارجع uac_streaming_0 + 0 نهاية
+    إذا (d == 1) ارجع uac_streaming_1 + 0 نهاية
+    إذا (d == 2) ارجع uac_streaming_2 + 0 نهاية
+    إذا (d == 3) ارجع uac_streaming_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uac_set_streaming(d، val)
+    إذا (d == 0) uac_streaming_0 = val + 0 نهاية
+    إذا (d == 1) uac_streaming_1 = val + 0 نهاية
+    إذا (d == 2) uac_streaming_2 = val + 0 نهاية
+    إذا (d == 3) uac_streaming_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Terminal DB accessors
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة uac_set_term_id(t، val)
+    إذا (t == 0) term_id_0 = val + 0 نهاية
+    إذا (t == 1) term_id_1 = val + 0 نهاية
+    إذا (t == 2) term_id_2 = val + 0 نهاية
+    إذا (t == 3) term_id_3 = val + 0 نهاية
+    إذا (t == 4) term_id_4 = val + 0 نهاية
+    إذا (t == 5) term_id_5 = val + 0 نهاية
+    إذا (t == 6) term_id_6 = val + 0 نهاية
+    إذا (t == 7) term_id_7 = val + 0 نهاية
+    إذا (t == 8) term_id_8 = val + 0 نهاية
+    إذا (t == 9) term_id_9 = val + 0 نهاية
+    إذا (t == 10) term_id_10 = val + 0 نهاية
+    إذا (t == 11) term_id_11 = val + 0 نهاية
+    إذا (t == 12) term_id_12 = val + 0 نهاية
+    إذا (t == 13) term_id_13 = val + 0 نهاية
+    إذا (t == 14) term_id_14 = val + 0 نهاية
+    إذا (t == 15) term_id_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uac_set_term_type(t، val)
+    إذا (t == 0) term_type_0 = val + 0 نهاية
+    إذا (t == 1) term_type_1 = val + 0 نهاية
+    إذا (t == 2) term_type_2 = val + 0 نهاية
+    إذا (t == 3) term_type_3 = val + 0 نهاية
+    إذا (t == 4) term_type_4 = val + 0 نهاية
+    إذا (t == 5) term_type_5 = val + 0 نهاية
+    إذا (t == 6) term_type_6 = val + 0 نهاية
+    إذا (t == 7) term_type_7 = val + 0 نهاية
+    إذا (t == 8) term_type_8 = val + 0 نهاية
+    إذا (t == 9) term_type_9 = val + 0 نهاية
+    إذا (t == 10) term_type_10 = val + 0 نهاية
+    إذا (t == 11) term_type_11 = val + 0 نهاية
+    إذا (t == 12) term_type_12 = val + 0 نهاية
+    إذا (t == 13) term_type_13 = val + 0 نهاية
+    إذا (t == 14) term_type_14 = val + 0 نهاية
+    إذا (t == 15) term_type_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uac_set_term_dir(t، val)
+    إذا (t == 0) term_dir_0 = val + 0 نهاية
+    إذا (t == 1) term_dir_1 = val + 0 نهاية
+    إذا (t == 2) term_dir_2 = val + 0 نهاية
+    إذا (t == 3) term_dir_3 = val + 0 نهاية
+    إذا (t == 4) term_dir_4 = val + 0 نهاية
+    إذا (t == 5) term_dir_5 = val + 0 نهاية
+    إذا (t == 6) term_dir_6 = val + 0 نهاية
+    إذا (t == 7) term_dir_7 = val + 0 نهاية
+    إذا (t == 8) term_dir_8 = val + 0 نهاية
+    إذا (t == 9) term_dir_9 = val + 0 نهاية
+    إذا (t == 10) term_dir_10 = val + 0 نهاية
+    إذا (t == 11) term_dir_11 = val + 0 نهاية
+    إذا (t == 12) term_dir_12 = val + 0 نهاية
+    إذا (t == 13) term_dir_13 = val + 0 نهاية
+    إذا (t == 14) term_dir_14 = val + 0 نهاية
+    إذا (t == 15) term_dir_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uac_set_term_ch(t، val)
+    إذا (t == 0) term_ch_0 = val + 0 نهاية
+    إذا (t == 1) term_ch_1 = val + 0 نهاية
+    إذا (t == 2) term_ch_2 = val + 0 نهاية
+    إذا (t == 3) term_ch_3 = val + 0 نهاية
+    إذا (t == 4) term_ch_4 = val + 0 نهاية
+    إذا (t == 5) term_ch_5 = val + 0 نهاية
+    إذا (t == 6) term_ch_6 = val + 0 نهاية
+    إذا (t == 7) term_ch_7 = val + 0 نهاية
+    إذا (t == 8) term_ch_8 = val + 0 نهاية
+    إذا (t == 9) term_ch_9 = val + 0 نهاية
+    إذا (t == 10) term_ch_10 = val + 0 نهاية
+    إذا (t == 11) term_ch_11 = val + 0 نهاية
+    إذا (t == 12) term_ch_12 = val + 0 نهاية
+    إذا (t == 13) term_ch_13 = val + 0 نهاية
+    إذا (t == 14) term_ch_14 = val + 0 نهاية
+    إذا (t == 15) term_ch_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uac_set_term_dev(t، val)
+    إذا (t == 0) term_dev_0 = val + 0 نهاية
+    إذا (t == 1) term_dev_1 = val + 0 نهاية
+    إذا (t == 2) term_dev_2 = val + 0 نهاية
+    إذا (t == 3) term_dev_3 = val + 0 نهاية
+    إذا (t == 4) term_dev_4 = val + 0 نهاية
+    إذا (t == 5) term_dev_5 = val + 0 نهاية
+    إذا (t == 6) term_dev_6 = val + 0 نهاية
+    إذا (t == 7) term_dev_7 = val + 0 نهاية
+    إذا (t == 8) term_dev_8 = val + 0 نهاية
+    إذا (t == 9) term_dev_9 = val + 0 نهاية
+    إذا (t == 10) term_dev_10 = val + 0 نهاية
+    إذا (t == 11) term_dev_11 = val + 0 نهاية
+    إذا (t == 12) term_dev_12 = val + 0 نهاية
+    إذا (t == 13) term_dev_13 = val + 0 نهاية
+    إذا (t == 14) term_dev_14 = val + 0 نهاية
+    إذا (t == 15) term_dev_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Feature Unit accessors
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة uac_set_fu_id(f، val)
+    إذا (f == 0) fu_id_0 = val + 0 نهاية
+    إذا (f == 1) fu_id_1 = val + 0 نهاية
+    إذا (f == 2) fu_id_2 = val + 0 نهاية
+    إذا (f == 3) fu_id_3 = val + 0 نهاية
+    إذا (f == 4) fu_id_4 = val + 0 نهاية
+    إذا (f == 5) fu_id_5 = val + 0 نهاية
+    إذا (f == 6) fu_id_6 = val + 0 نهاية
+    إذا (f == 7) fu_id_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uac_set_fu_src(f، val)
+    إذا (f == 0) fu_src_0 = val + 0 نهاية
+    إذا (f == 1) fu_src_1 = val + 0 نهاية
+    إذا (f == 2) fu_src_2 = val + 0 نهاية
+    إذا (f == 3) fu_src_3 = val + 0 نهاية
+    إذا (f == 4) fu_src_4 = val + 0 نهاية
+    إذا (f == 5) fu_src_5 = val + 0 نهاية
+    إذا (f == 6) fu_src_6 = val + 0 نهاية
+    إذا (f == 7) fu_src_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uac_set_fu_ctrl(f، val)
+    إذا (f == 0) fu_ctrl_0 = val + 0 نهاية
+    إذا (f == 1) fu_ctrl_1 = val + 0 نهاية
+    إذا (f == 2) fu_ctrl_2 = val + 0 نهاية
+    إذا (f == 3) fu_ctrl_3 = val + 0 نهاية
+    إذا (f == 4) fu_ctrl_4 = val + 0 نهاية
+    إذا (f == 5) fu_ctrl_5 = val + 0 نهاية
+    إذا (f == 6) fu_ctrl_6 = val + 0 نهاية
+    إذا (f == 7) fu_ctrl_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uac_set_fu_dev(f، val)
+    إذا (f == 0) fu_dev_0 = val + 0 نهاية
+    إذا (f == 1) fu_dev_1 = val + 0 نهاية
+    إذا (f == 2) fu_dev_2 = val + 0 نهاية
+    إذا (f == 3) fu_dev_3 = val + 0 نهاية
+    إذا (f == 4) fu_dev_4 = val + 0 نهاية
+    إذا (f == 5) fu_dev_5 = val + 0 نهاية
+    إذا (f == 6) fu_dev_6 = val + 0 نهاية
+    إذا (f == 7) fu_dev_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة uac_get_volume(f)
+    إذا (f == 0) ارجع fu_vol_0 + 0 نهاية
+    إذا (f == 1) ارجع fu_vol_1 + 0 نهاية
+    إذا (f == 2) ارجع fu_vol_2 + 0 نهاية
+    إذا (f == 3) ارجع fu_vol_3 + 0 نهاية
+    إذا (f == 4) ارجع fu_vol_4 + 0 نهاية
+    إذا (f == 5) ارجع fu_vol_5 + 0 نهاية
+    إذا (f == 6) ارجع fu_vol_6 + 0 نهاية
+    إذا (f == 7) ارجع fu_vol_7 + 0 نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة uac_set_volume(f، val)
+    إذا (val < 0) val = 0 نهاية
+    إذا (val > 255) val = 255 نهاية
+    إذا (f == 0) fu_vol_0 = val + 0 نهاية
+    إذا (f == 1) fu_vol_1 = val + 0 نهاية
+    إذا (f == 2) fu_vol_2 = val + 0 نهاية
+    إذا (f == 3) fu_vol_3 = val + 0 نهاية
+    إذا (f == 4) fu_vol_4 = val + 0 نهاية
+    إذا (f == 5) fu_vol_5 = val + 0 نهاية
+    إذا (f == 6) fu_vol_6 = val + 0 نهاية
+    إذا (f == 7) fu_vol_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة uac_get_mute(f)
+    إذا (f == 0) ارجع fu_mute_0 + 0 نهاية
+    إذا (f == 1) ارجع fu_mute_1 + 0 نهاية
+    إذا (f == 2) ارجع fu_mute_2 + 0 نهاية
+    إذا (f == 3) ارجع fu_mute_3 + 0 نهاية
+    إذا (f == 4) ارجع fu_mute_4 + 0 نهاية
+    إذا (f == 5) ارجع fu_mute_5 + 0 نهاية
+    إذا (f == 6) ارجع fu_mute_6 + 0 نهاية
+    إذا (f == 7) ارجع fu_mute_7 + 0 نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة uac_set_mute(f، val)
+    إذا (f == 0) fu_mute_0 = val + 0 نهاية
+    إذا (f == 1) fu_mute_1 = val + 0 نهاية
+    إذا (f == 2) fu_mute_2 = val + 0 نهاية
+    إذا (f == 3) fu_mute_3 = val + 0 نهاية
+    إذا (f == 4) fu_mute_4 = val + 0 نهاية
+    إذا (f == 5) fu_mute_5 = val + 0 نهاية
+    إذا (f == 6) fu_mute_6 = val + 0 نهاية
+    إذا (f == 7) fu_mute_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تسجيل terminal
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uac_add_terminal(dev_id، tid، ttype، direction، channels)
+    متغير idx = uac_term_count + 0
+    إذا (idx >= 16) ارجع 0 - 1 نهاية
+
+    uac_set_term_id(idx، tid)
+    uac_set_term_type(idx، ttype)
+    uac_set_term_dir(idx، direction)
+    uac_set_term_ch(idx، channels)
+    uac_set_term_dev(idx، dev_id)
+
+    uac_serial_اطبع("[UAC] Terminal ")
+    uac_serial_رقم(tid + 0)
+    uac_serial_اطبع(" type=")
+    uac_serial_رقم(ttype + 0)
+    إذا (direction == 0) uac_serial_اطبع(" IN")
+    والا uac_serial_اطبع(" OUT") نهاية
+    uac_serial_اطبع(" ch=")
+    uac_serial_رقم(channels + 0)
+    uac_serial_سطر()
+
+    uac_term_count = uac_term_count + 1
+    ارجع idx + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تسجيل Feature Unit
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uac_add_feature_unit(dev_id، fid، source، controls)
+    متغير idx = uac_fu_count + 0
+    إذا (idx >= 8) ارجع 0 - 1 نهاية
+
+    uac_set_fu_id(idx، fid)
+    uac_set_fu_src(idx، source)
+    uac_set_fu_ctrl(idx، controls)
+    uac_set_fu_dev(idx، dev_id)
+
+    uac_serial_اطبع("[UAC] Feature Unit ")
+    uac_serial_رقم(fid + 0)
+    uac_serial_اطبع(" src=")
+    uac_serial_رقم(source + 0)
+    uac_serial_اطبع(" ctrl=")
+    uac_serial_رقم(controls + 0)
+    uac_serial_سطر()
+
+    uac_fu_count = uac_fu_count + 1
+    ارجع idx + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تسجيل جهاز صوتي
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uac_register_device(usb_addr، ctrl_iface، out_iface، in_iface، out_ep، in_ep)
+    متغير idx = uac_device_count + 0
+    إذا (idx >= 4) ارجع 0 - 1 نهاية
+
+    uac_set_present(idx، 1)
+    uac_set_addr(idx، usb_addr)
+
+    إذا (idx == 0)
+        uac_ctrl_iface_0 = ctrl_iface + 0
+        uac_stream_out_iface_0 = out_iface + 0
+        uac_stream_in_iface_0 = in_iface + 0
+        uac_ep_out_0 = out_ep + 0
+        uac_ep_in_0 = in_ep + 0
+    نهاية
+    إذا (idx == 1)
+        uac_ctrl_iface_1 = ctrl_iface + 0
+        uac_stream_out_iface_1 = out_iface + 0
+        uac_stream_in_iface_1 = in_iface + 0
+        uac_ep_out_1 = out_ep + 0
+        uac_ep_in_1 = in_ep + 0
+    نهاية
+    إذا (idx == 2)
+        uac_ctrl_iface_2 = ctrl_iface + 0
+        uac_stream_out_iface_2 = out_iface + 0
+        uac_stream_in_iface_2 = in_iface + 0
+        uac_ep_out_2 = out_ep + 0
+        uac_ep_in_2 = in_ep + 0
+    نهاية
+    إذا (idx == 3)
+        uac_ctrl_iface_3 = ctrl_iface + 0
+        uac_stream_out_iface_3 = out_iface + 0
+        uac_stream_in_iface_3 = in_iface + 0
+        uac_ep_out_3 = out_ep + 0
+        uac_ep_in_3 = in_ep + 0
+    نهاية
+
+    uac_serial_اطبع("[UAC] Device ")
+    uac_serial_رقم(idx + 0)
+    uac_serial_اطبع(" registered at USB addr ")
+    uac_serial_رقم(usb_addr + 0)
+    uac_serial_سطر()
+
+    uac_device_count = uac_device_count + 1
+    ارجع idx + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# بدء الدفق
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uac_start_stream(dev)
+    إذا (dev >= uac_device_count) ارجع 0 - 1 نهاية
+    إذا (uac_get_present(dev) == 0) ارجع 0 - 2 نهاية
+
+    uac_set_streaming(dev، 1)
+
+    uac_serial_اطبع("[UAC] Stream started: dev=")
+    uac_serial_رقم(dev + 0)
+    uac_serial_اطبع(" rate=")
+    uac_serial_رقم(uac_get_rate(dev) + 0)
+    uac_serial_اطبع(" bits=")
+    uac_serial_رقم(uac_get_bits(dev) + 0)
+    uac_serial_اطبع(" ch=")
+    uac_serial_رقم(uac_get_channels(dev) + 0)
+    uac_serial_سطر()
+
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# إيقاف الدفق
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uac_stop_stream(dev)
+    إذا (dev >= uac_device_count) ارجع 0 - 1 نهاية
+    uac_set_streaming(dev، 0)
+    uac_serial_اطبع("[UAC] Stream stopped: dev=")
+    uac_serial_رقم(dev + 0)
+    uac_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# حجم مخزن الحزمة (frame size)
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uac_calc_frame_size(dev)
+    متغير ch = uac_get_channels(dev) + 0
+    متغير bits = uac_get_bits(dev) + 0
+    متغير bytes_per_sample = bits / 8
+    ارجع ch * bytes_per_sample
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# حجم مخزن ملي ثانية واحدة
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uac_calc_ms_buffer(dev)
+    متغير rate = uac_get_rate(dev) + 0
+    متغير frame = uac_calc_frame_size(dev) + 0
+    # samples per ms = rate / 1000
+    متغير samples_per_ms = rate / 1000
+    ارجع samples_per_ms * frame
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تقرير USB Audio
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uac_تقرير()
+    uac_serial_اطبع("═══ [UAC] تقرير صوت USB ═══")
+    uac_serial_سطر()
+
+    uac_serial_اطبع("  أجهزة: ")
+    uac_serial_رقم(uac_device_count + 0)
+    uac_serial_سطر()
+
+    uac_serial_اطبع("  terminals: ")
+    uac_serial_رقم(uac_term_count + 0)
+    uac_serial_سطر()
+
+    uac_serial_اطبع("  feature units: ")
+    uac_serial_رقم(uac_fu_count + 0)
+    uac_serial_سطر()
+
+    متغير d = 0 + 0
+    بينما (d < uac_device_count)
+        إذا (uac_get_present(d) == 1)
+            uac_serial_اطبع("  Dev ")
+            uac_serial_رقم(d + 0)
+            uac_serial_اطبع(": ")
+            uac_serial_رقم(uac_get_rate(d) + 0)
+            uac_serial_اطبع("Hz ")
+            uac_serial_رقم(uac_get_bits(d) + 0)
+            uac_serial_اطبع("bit ")
+            uac_serial_رقم(uac_get_channels(d) + 0)
+            uac_serial_اطبع("ch")
+            إذا (uac_get_streaming(d) == 1)
+                uac_serial_اطبع(" [PLAYING]")
+            نهاية
+            uac_serial_سطر()
+        نهاية
+        d = d + 1
+    نهاية
+
+    uac_serial_اطبع("  حزم مرسلة: ")
+    uac_serial_رقم(uac_packets_sent + 0)
+    uac_serial_اطبع(" مستقبلة: ")
+    uac_serial_رقم(uac_packets_received + 0)
+    uac_serial_اطبع(" أخطاء: ")
+    uac_serial_رقم(uac_errors + 0)
+    uac_serial_سطر()
+
+    uac_serial_اطبع("═══════════════════════════════════")
+    uac_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تهيئة USB Audio
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uac_هيئ()
+    uac_serial_اطبع("[UAC] تهيئة نظام صوت USB...")
+    uac_serial_سطر()
+
+    uac_serial_اطبع("[UAC] جاهز — في انتظار أجهزة")
+    uac_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دورة USB Audio
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uac_دورة()
+    ارجع 0
+نهاية

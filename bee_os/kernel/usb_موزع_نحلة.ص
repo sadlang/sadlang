@@ -1,0 +1,913 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# usb_موزع_نحلة.ص — تعريف موزعات USB (Hubs) لنظام نحلة
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# USB Hub Driver — port power, device attach/detach, status change
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── دوال خارجية (FFI) ───
+خارجي دالة sad_ll_mem_read8(addr)
+خارجي دالة sad_ll_mem_write8(addr، val)
+خارجي دالة sad_ll_mem_read32(addr)
+خارجي دالة sad_ll_mem_write32(addr، val)
+خارجي دالة sad_ll_serial_write_char(port، ch)
+خارجي دالة sad_ll_kmalloc(حجم_طلب)
+خارجي دالة sad_ll_memset(عنوان، قيمة، حجم_منطقة)
+خارجي دالة sad_ll_memcpy(هدف، مصدر، حجم_نقل)
+خارجي دالة sad_ll_timer_get_ticks()
+
+# ─── دوال خارجية من UHCI ───
+خارجي دالة uhci_control_transfer(hc_idx، dev_addr، setup_buf، data_buf، data_len)
+خارجي دالة uhci_interrupt_transfer(hc_idx، dev_addr، endpoint، buf، buf_len)
+
+# ─── دوال خارجية من USB Core ───
+خارجي دالة usb_build_setup(buf، bmRequestType، bRequest، wValue، wIndex، wLength)
+خارجي دالة usb_register_device(hc_idx، port، speed، dev_class، proto، vid، pid)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ثوابت
+# ═══════════════════════════════════════════════════════════════════════════════
+ثابت COM1 = 1016
+
+# أقصى عدد موزعات
+ثابت MAX_HUBS = 8
+# أقصى عدد منافذ لكل موزع
+ثابت MAX_PORTS_PER_HUB = 8
+
+# ─── USB Hub Class Requests ───
+# bmRequestType for hub class requests
+ثابت HUB_REQ_TYPE_GET = 160     # 0xA0: Device-to-Host, Class, Device
+ثابت HUB_REQ_TYPE_SET = 32      # 0x20: Host-to-Device, Class, Device
+ثابت PORT_REQ_TYPE_GET = 163    # 0xA3: Device-to-Host, Class, Other
+ثابت PORT_REQ_TYPE_SET = 35     # 0x23: Host-to-Device, Class, Other
+ثابت PORT_REQ_TYPE_CLR = 35     # 0x23: same for clear
+
+# ─── bRequest ───
+ثابت GET_STATUS = 0
+ثابت CLEAR_FEATURE = 1
+ثابت SET_FEATURE = 3
+ثابت GET_DESCRIPTOR = 6
+
+# ─── Hub Features ───
+ثابت C_HUB_LOCAL_POWER = 0
+ثابت C_HUB_OVER_CURRENT = 1
+
+# ─── Port Features ───
+ثابت PORT_CONNECTION = 0
+ثابت PORT_ENABLE = 1
+ثابت PORT_SUSPEND = 2
+ثابت PORT_OVER_CURRENT = 3
+ثابت PORT_RESET = 4
+ثابت PORT_POWER = 8
+ثابت PORT_LOW_SPEED = 9
+
+ثابت C_PORT_CONNECTION = 16
+ثابت C_PORT_ENABLE = 17
+ثابت C_PORT_SUSPEND = 18
+ثابت C_PORT_OVER_CURRENT = 19
+ثابت C_PORT_RESET = 20
+
+# ─── Port Status bits ───
+ثابت PORT_STATUS_CONNECTION = 1
+ثابت PORT_STATUS_ENABLED = 2
+ثابت PORT_STATUS_SUSPENDED = 4
+ثابت PORT_STATUS_OVERCURRENT = 8
+ثابت PORT_STATUS_RESET = 16
+ثابت PORT_STATUS_POWERED = 256     # 0x100 bit 8
+ثابت PORT_STATUS_LOW_SPEED = 512   # 0x200 bit 9
+ثابت PORT_STATUS_HIGH_SPEED = 1024 # 0x400 bit 10
+
+# Port Status Change bits (upper 16 bits)
+ثابت PORT_CHANGE_CONNECTION = 1
+ثابت PORT_CHANGE_ENABLE = 2
+ثابت PORT_CHANGE_SUSPEND = 4
+ثابت PORT_CHANGE_OVERCURRENT = 8
+ثابت PORT_CHANGE_RESET = 16
+
+# Hub Descriptor Type
+ثابت HUB_DESC_TYPE = 41     # 0x29
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# قاعدة بيانات الموزعات
+# ═══════════════════════════════════════════════════════════════════════════════
+# حالة كل موزع
+متغير hub_active_0 = 0
+متغير hub_active_1 = 0
+متغير hub_active_2 = 0
+متغير hub_active_3 = 0
+متغير hub_active_4 = 0
+متغير hub_active_5 = 0
+متغير hub_active_6 = 0
+متغير hub_active_7 = 0
+
+# متحكم المضيف
+متغير hub_hc_0 = 0
+متغير hub_hc_1 = 0
+متغير hub_hc_2 = 0
+متغير hub_hc_3 = 0
+متغير hub_hc_4 = 0
+متغير hub_hc_5 = 0
+متغير hub_hc_6 = 0
+متغير hub_hc_7 = 0
+
+# عنوان USB
+متغير hub_addr_0 = 0
+متغير hub_addr_1 = 0
+متغير hub_addr_2 = 0
+متغير hub_addr_3 = 0
+متغير hub_addr_4 = 0
+متغير hub_addr_5 = 0
+متغير hub_addr_6 = 0
+متغير hub_addr_7 = 0
+
+# عدد المنافذ
+متغير hub_num_ports_0 = 0
+متغير hub_num_ports_1 = 0
+متغير hub_num_ports_2 = 0
+متغير hub_num_ports_3 = 0
+متغير hub_num_ports_4 = 0
+متغير hub_num_ports_5 = 0
+متغير hub_num_ports_6 = 0
+متغير hub_num_ports_7 = 0
+
+# خصائص الطاقة
+متغير hub_pwr_delay_0 = 0     # Power on delay × 2ms
+متغير hub_pwr_delay_1 = 0
+متغير hub_pwr_delay_2 = 0
+متغير hub_pwr_delay_3 = 0
+متغير hub_pwr_delay_4 = 0
+متغير hub_pwr_delay_5 = 0
+متغير hub_pwr_delay_6 = 0
+متغير hub_pwr_delay_7 = 0
+
+# نقطة نهاية Status Change
+متغير hub_sc_ep_0 = 1
+متغير hub_sc_ep_1 = 1
+متغير hub_sc_ep_2 = 1
+متغير hub_sc_ep_3 = 1
+متغير hub_sc_ep_4 = 1
+متغير hub_sc_ep_5 = 1
+متغير hub_sc_ep_6 = 1
+متغير hub_sc_ep_7 = 1
+
+# حالة المنافذ: 8 موزعات × 8 منافذ = 64 إدخال
+# كل منفذ: device_addr (0=فارغ), speed
+متغير port_dev_00 = 0
+متغير port_dev_01 = 0
+متغير port_dev_02 = 0
+متغير port_dev_03 = 0
+متغير port_dev_04 = 0
+متغير port_dev_05 = 0
+متغير port_dev_06 = 0
+متغير port_dev_07 = 0
+متغير port_dev_10 = 0
+متغير port_dev_11 = 0
+متغير port_dev_12 = 0
+متغير port_dev_13 = 0
+متغير port_dev_14 = 0
+متغير port_dev_15 = 0
+متغير port_dev_16 = 0
+متغير port_dev_17 = 0
+متغير port_dev_20 = 0
+متغير port_dev_21 = 0
+متغير port_dev_22 = 0
+متغير port_dev_23 = 0
+متغير port_dev_24 = 0
+متغير port_dev_25 = 0
+متغير port_dev_26 = 0
+متغير port_dev_27 = 0
+متغير port_dev_30 = 0
+متغير port_dev_31 = 0
+متغير port_dev_32 = 0
+متغير port_dev_33 = 0
+متغير port_dev_34 = 0
+متغير port_dev_35 = 0
+متغير port_dev_36 = 0
+متغير port_dev_37 = 0
+
+# عدد الموزعات المسجلة
+متغير hub_count = 0
+# مخازن مؤقتة
+متغير hub_setup_buf = 0     # 8 بايت
+متغير hub_data_buf = 0      # 64 بايت
+
+# إحصائيات
+متغير hub_attach_count = 0
+متغير hub_detach_count = 0
+متغير hub_poll_count = 0
+متغير hub_errors = 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الطباعة
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة hub_serial_اطبع(رسالة)
+    متغير i = 0 + 0
+    بينما (i < 80)
+        متغير ch = sad_ll_mem_read8(رسالة + i) + 0
+        إذا (ch == 0) ارجع 0 نهاية
+        sad_ll_serial_write_char(COM1، ch)
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية
+
+دالة hub_serial_رقم(ن)
+    متغير val = ن + 0
+    إذا (val < 0)
+        sad_ll_serial_write_char(COM1، 45)
+        val = 0 - val
+    نهاية
+    إذا (val >= 10000)
+        متغير d5 = val / 10000
+        sad_ll_serial_write_char(COM1، 48 + d5)
+        val = val - (d5 * 10000)
+    نهاية
+    إذا (val >= 1000)
+        متغير d4 = val / 1000
+        sad_ll_serial_write_char(COM1، 48 + d4)
+        val = val - (d4 * 1000)
+    والا_اذا (ن >= 10000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 100)
+        متغير d3 = val / 100
+        sad_ll_serial_write_char(COM1، 48 + d3)
+        val = val - (d3 * 100)
+    والا_اذا (ن >= 1000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 10)
+        متغير d2 = val / 10
+        sad_ll_serial_write_char(COM1، 48 + d2)
+        val = val - (d2 * 10)
+    والا_اذا (ن >= 100)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    sad_ll_serial_write_char(COM1، 48 + val)
+    ارجع 0
+نهاية
+
+دالة hub_serial_hex8(val)
+    متغير hi = val / 16
+    متغير lo = val % 16
+    إذا (hi < 10) sad_ll_serial_write_char(COM1، 48 + hi)
+    والا sad_ll_serial_write_char(COM1، 55 + hi) نهاية
+    إذا (lo < 10) sad_ll_serial_write_char(COM1، 48 + lo)
+    والا sad_ll_serial_write_char(COM1، 55 + lo) نهاية
+    ارجع 0
+نهاية
+
+دالة hub_serial_سطر()
+    sad_ll_serial_write_char(COM1، 13)
+    sad_ll_serial_write_char(COM1، 10)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الوصول لقاعدة بيانات الموزعات
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة hub_get_active(idx)
+    إذا (idx == 0) ارجع hub_active_0 + 0 نهاية
+    إذا (idx == 1) ارجع hub_active_1 + 0 نهاية
+    إذا (idx == 2) ارجع hub_active_2 + 0 نهاية
+    إذا (idx == 3) ارجع hub_active_3 + 0 نهاية
+    إذا (idx == 4) ارجع hub_active_4 + 0 نهاية
+    إذا (idx == 5) ارجع hub_active_5 + 0 نهاية
+    إذا (idx == 6) ارجع hub_active_6 + 0 نهاية
+    إذا (idx == 7) ارجع hub_active_7 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة hub_set_active(idx، val)
+    إذا (idx == 0) hub_active_0 = val + 0 نهاية
+    إذا (idx == 1) hub_active_1 = val + 0 نهاية
+    إذا (idx == 2) hub_active_2 = val + 0 نهاية
+    إذا (idx == 3) hub_active_3 = val + 0 نهاية
+    إذا (idx == 4) hub_active_4 = val + 0 نهاية
+    إذا (idx == 5) hub_active_5 = val + 0 نهاية
+    إذا (idx == 6) hub_active_6 = val + 0 نهاية
+    إذا (idx == 7) hub_active_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة hub_get_hc(idx)
+    إذا (idx == 0) ارجع hub_hc_0 + 0 نهاية
+    إذا (idx == 1) ارجع hub_hc_1 + 0 نهاية
+    إذا (idx == 2) ارجع hub_hc_2 + 0 نهاية
+    إذا (idx == 3) ارجع hub_hc_3 + 0 نهاية
+    إذا (idx == 4) ارجع hub_hc_4 + 0 نهاية
+    إذا (idx == 5) ارجع hub_hc_5 + 0 نهاية
+    إذا (idx == 6) ارجع hub_hc_6 + 0 نهاية
+    إذا (idx == 7) ارجع hub_hc_7 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة hub_set_hc(idx، val)
+    إذا (idx == 0) hub_hc_0 = val + 0 نهاية
+    إذا (idx == 1) hub_hc_1 = val + 0 نهاية
+    إذا (idx == 2) hub_hc_2 = val + 0 نهاية
+    إذا (idx == 3) hub_hc_3 = val + 0 نهاية
+    إذا (idx == 4) hub_hc_4 = val + 0 نهاية
+    إذا (idx == 5) hub_hc_5 = val + 0 نهاية
+    إذا (idx == 6) hub_hc_6 = val + 0 نهاية
+    إذا (idx == 7) hub_hc_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة hub_get_addr(idx)
+    إذا (idx == 0) ارجع hub_addr_0 + 0 نهاية
+    إذا (idx == 1) ارجع hub_addr_1 + 0 نهاية
+    إذا (idx == 2) ارجع hub_addr_2 + 0 نهاية
+    إذا (idx == 3) ارجع hub_addr_3 + 0 نهاية
+    إذا (idx == 4) ارجع hub_addr_4 + 0 نهاية
+    إذا (idx == 5) ارجع hub_addr_5 + 0 نهاية
+    إذا (idx == 6) ارجع hub_addr_6 + 0 نهاية
+    إذا (idx == 7) ارجع hub_addr_7 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة hub_set_addr(idx، val)
+    إذا (idx == 0) hub_addr_0 = val + 0 نهاية
+    إذا (idx == 1) hub_addr_1 = val + 0 نهاية
+    إذا (idx == 2) hub_addr_2 = val + 0 نهاية
+    إذا (idx == 3) hub_addr_3 = val + 0 نهاية
+    إذا (idx == 4) hub_addr_4 = val + 0 نهاية
+    إذا (idx == 5) hub_addr_5 = val + 0 نهاية
+    إذا (idx == 6) hub_addr_6 = val + 0 نهاية
+    إذا (idx == 7) hub_addr_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة hub_get_num_ports(idx)
+    إذا (idx == 0) ارجع hub_num_ports_0 + 0 نهاية
+    إذا (idx == 1) ارجع hub_num_ports_1 + 0 نهاية
+    إذا (idx == 2) ارجع hub_num_ports_2 + 0 نهاية
+    إذا (idx == 3) ارجع hub_num_ports_3 + 0 نهاية
+    إذا (idx == 4) ارجع hub_num_ports_4 + 0 نهاية
+    إذا (idx == 5) ارجع hub_num_ports_5 + 0 نهاية
+    إذا (idx == 6) ارجع hub_num_ports_6 + 0 نهاية
+    إذا (idx == 7) ارجع hub_num_ports_7 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة hub_set_num_ports(idx، val)
+    إذا (idx == 0) hub_num_ports_0 = val + 0 نهاية
+    إذا (idx == 1) hub_num_ports_1 = val + 0 نهاية
+    إذا (idx == 2) hub_num_ports_2 = val + 0 نهاية
+    إذا (idx == 3) hub_num_ports_3 = val + 0 نهاية
+    إذا (idx == 4) hub_num_ports_4 = val + 0 نهاية
+    إذا (idx == 5) hub_num_ports_5 = val + 0 نهاية
+    إذا (idx == 6) hub_num_ports_6 = val + 0 نهاية
+    إذا (idx == 7) hub_num_ports_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة hub_get_pwr_delay(idx)
+    إذا (idx == 0) ارجع hub_pwr_delay_0 + 0 نهاية
+    إذا (idx == 1) ارجع hub_pwr_delay_1 + 0 نهاية
+    إذا (idx == 2) ارجع hub_pwr_delay_2 + 0 نهاية
+    إذا (idx == 3) ارجع hub_pwr_delay_3 + 0 نهاية
+    إذا (idx == 4) ارجع hub_pwr_delay_4 + 0 نهاية
+    إذا (idx == 5) ارجع hub_pwr_delay_5 + 0 نهاية
+    إذا (idx == 6) ارجع hub_pwr_delay_6 + 0 نهاية
+    إذا (idx == 7) ارجع hub_pwr_delay_7 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة hub_set_pwr_delay(idx، val)
+    إذا (idx == 0) hub_pwr_delay_0 = val + 0 نهاية
+    إذا (idx == 1) hub_pwr_delay_1 = val + 0 نهاية
+    إذا (idx == 2) hub_pwr_delay_2 = val + 0 نهاية
+    إذا (idx == 3) hub_pwr_delay_3 = val + 0 نهاية
+    إذا (idx == 4) hub_pwr_delay_4 = val + 0 نهاية
+    إذا (idx == 5) hub_pwr_delay_5 = val + 0 نهاية
+    إذا (idx == 6) hub_pwr_delay_6 = val + 0 نهاية
+    إذا (idx == 7) hub_pwr_delay_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# منافذ الموزعات — set/get device on port
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة hub_get_port_dev(hub_idx، port)
+    إذا (hub_idx == 0)
+        إذا (port == 0) ارجع port_dev_00 + 0 نهاية
+        إذا (port == 1) ارجع port_dev_01 + 0 نهاية
+        إذا (port == 2) ارجع port_dev_02 + 0 نهاية
+        إذا (port == 3) ارجع port_dev_03 + 0 نهاية
+        إذا (port == 4) ارجع port_dev_04 + 0 نهاية
+        إذا (port == 5) ارجع port_dev_05 + 0 نهاية
+        إذا (port == 6) ارجع port_dev_06 + 0 نهاية
+        إذا (port == 7) ارجع port_dev_07 + 0 نهاية
+    نهاية
+    إذا (hub_idx == 1)
+        إذا (port == 0) ارجع port_dev_10 + 0 نهاية
+        إذا (port == 1) ارجع port_dev_11 + 0 نهاية
+        إذا (port == 2) ارجع port_dev_12 + 0 نهاية
+        إذا (port == 3) ارجع port_dev_13 + 0 نهاية
+        إذا (port == 4) ارجع port_dev_14 + 0 نهاية
+        إذا (port == 5) ارجع port_dev_15 + 0 نهاية
+        إذا (port == 6) ارجع port_dev_16 + 0 نهاية
+        إذا (port == 7) ارجع port_dev_17 + 0 نهاية
+    نهاية
+    إذا (hub_idx == 2)
+        إذا (port == 0) ارجع port_dev_20 + 0 نهاية
+        إذا (port == 1) ارجع port_dev_21 + 0 نهاية
+        إذا (port == 2) ارجع port_dev_22 + 0 نهاية
+        إذا (port == 3) ارجع port_dev_23 + 0 نهاية
+        إذا (port == 4) ارجع port_dev_24 + 0 نهاية
+        إذا (port == 5) ارجع port_dev_25 + 0 نهاية
+        إذا (port == 6) ارجع port_dev_26 + 0 نهاية
+        إذا (port == 7) ارجع port_dev_27 + 0 نهاية
+    نهاية
+    إذا (hub_idx == 3)
+        إذا (port == 0) ارجع port_dev_30 + 0 نهاية
+        إذا (port == 1) ارجع port_dev_31 + 0 نهاية
+        إذا (port == 2) ارجع port_dev_32 + 0 نهاية
+        إذا (port == 3) ارجع port_dev_33 + 0 نهاية
+        إذا (port == 4) ارجع port_dev_34 + 0 نهاية
+        إذا (port == 5) ارجع port_dev_35 + 0 نهاية
+        إذا (port == 6) ارجع port_dev_36 + 0 نهاية
+        إذا (port == 7) ارجع port_dev_37 + 0 نهاية
+    نهاية
+    ارجع 0
+نهاية
+
+دالة hub_set_port_dev(hub_idx، port، val)
+    إذا (hub_idx == 0)
+        إذا (port == 0) port_dev_00 = val + 0 نهاية
+        إذا (port == 1) port_dev_01 = val + 0 نهاية
+        إذا (port == 2) port_dev_02 = val + 0 نهاية
+        إذا (port == 3) port_dev_03 = val + 0 نهاية
+        إذا (port == 4) port_dev_04 = val + 0 نهاية
+        إذا (port == 5) port_dev_05 = val + 0 نهاية
+        إذا (port == 6) port_dev_06 = val + 0 نهاية
+        إذا (port == 7) port_dev_07 = val + 0 نهاية
+    نهاية
+    إذا (hub_idx == 1)
+        إذا (port == 0) port_dev_10 = val + 0 نهاية
+        إذا (port == 1) port_dev_11 = val + 0 نهاية
+        إذا (port == 2) port_dev_12 = val + 0 نهاية
+        إذا (port == 3) port_dev_13 = val + 0 نهاية
+        إذا (port == 4) port_dev_14 = val + 0 نهاية
+        إذا (port == 5) port_dev_15 = val + 0 نهاية
+        إذا (port == 6) port_dev_16 = val + 0 نهاية
+        إذا (port == 7) port_dev_17 = val + 0 نهاية
+    نهاية
+    إذا (hub_idx == 2)
+        إذا (port == 0) port_dev_20 = val + 0 نهاية
+        إذا (port == 1) port_dev_21 = val + 0 نهاية
+        إذا (port == 2) port_dev_22 = val + 0 نهاية
+        إذا (port == 3) port_dev_23 = val + 0 نهاية
+        إذا (port == 4) port_dev_24 = val + 0 نهاية
+        إذا (port == 5) port_dev_25 = val + 0 نهاية
+        إذا (port == 6) port_dev_26 = val + 0 نهاية
+        إذا (port == 7) port_dev_27 = val + 0 نهاية
+    نهاية
+    إذا (hub_idx == 3)
+        إذا (port == 0) port_dev_30 = val + 0 نهاية
+        إذا (port == 1) port_dev_31 = val + 0 نهاية
+        إذا (port == 2) port_dev_32 = val + 0 نهاية
+        إذا (port == 3) port_dev_33 = val + 0 نهاية
+        إذا (port == 4) port_dev_34 = val + 0 نهاية
+        إذا (port == 5) port_dev_35 = val + 0 نهاية
+        إذا (port == 6) port_dev_36 = val + 0 نهاية
+        إذا (port == 7) port_dev_37 = val + 0 نهاية
+    نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# طلبات USB Hub Class
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# GET HUB DESCRIPTOR
+صدّر دالة hub_get_descriptor(hub_idx)
+    إذا (hub_get_active(hub_idx) == 0) ارجع 0 - 1 نهاية
+
+    متغير hc = hub_get_hc(hub_idx) + 0
+    متغير addr = hub_get_addr(hub_idx) + 0
+
+    # Setup: GET_DESCRIPTOR (Class, Device-to-Host)
+    # bmRequestType=0xA0, bRequest=6, wValue=0x2900 (Hub descriptor), wIndex=0, wLength=8
+    متغير wValue = HUB_DESC_TYPE * 256   # 0x29 << 8 = 0x2900
+
+    usb_build_setup(hub_setup_buf، HUB_REQ_TYPE_GET، GET_DESCRIPTOR، wValue، 0، 8)
+
+    sad_ll_memset(hub_data_buf، 0، 16)
+    متغير result = uhci_control_transfer(hc، addr، hub_setup_buf، hub_data_buf، 8) + 0
+
+    إذا (result >= 0)
+        # Parse Hub Descriptor
+        # Byte 0: bDescLength
+        # Byte 1: bDescriptorType (0x29)
+        # Byte 2: bNbrPorts
+        # Byte 3-4: wHubCharacteristics
+        # Byte 5: bPwrOn2PwrGood (in 2ms intervals)
+        # Byte 6: bHubContrCurrent
+
+        متغير num_ports = sad_ll_mem_read8(hub_data_buf + 2) + 0
+        متغير pwr_delay = sad_ll_mem_read8(hub_data_buf + 5) + 0
+
+        إذا (num_ports > MAX_PORTS_PER_HUB) num_ports = MAX_PORTS_PER_HUB نهاية
+
+        hub_set_num_ports(hub_idx، num_ports)
+        hub_set_pwr_delay(hub_idx، pwr_delay)
+
+        hub_serial_اطبع("[HUB] Hub #")
+        hub_serial_رقم(hub_idx + 0)
+        hub_serial_اطبع(" ports=")
+        hub_serial_رقم(num_ports + 0)
+        hub_serial_اطبع(" pwr_delay=")
+        hub_serial_رقم(pwr_delay * 2)
+        hub_serial_اطبع("ms")
+        hub_serial_سطر()
+    والا
+        hub_errors = hub_errors + 1
+    نهاية
+
+    ارجع result + 0
+نهاية
+
+# GET PORT STATUS
+صدّر دالة hub_get_port_status(hub_idx، port)
+    إذا (hub_get_active(hub_idx) == 0) ارجع 0 - 1 نهاية
+
+    متغير hc = hub_get_hc(hub_idx) + 0
+    متغير addr = hub_get_addr(hub_idx) + 0
+
+    # bmRequestType=0xA3, bRequest=0 (GET_STATUS), wValue=0, wIndex=port, wLength=4
+    usb_build_setup(hub_setup_buf، PORT_REQ_TYPE_GET، GET_STATUS، 0، port، 4)
+
+    sad_ll_memset(hub_data_buf، 0، 4)
+    متغير result = uhci_control_transfer(hc، addr، hub_setup_buf، hub_data_buf، 4) + 0
+
+    إذا (result >= 0)
+        # Port Status (2 bytes, little-endian) + Port Change (2 bytes)
+        متغير status_lo = sad_ll_mem_read8(hub_data_buf) + 0
+        متغير status_hi = sad_ll_mem_read8(hub_data_buf + 1) + 0
+        متغير change_lo = sad_ll_mem_read8(hub_data_buf + 2) + 0
+        متغير port_status = status_lo + (status_hi * 256)
+        متغير port_change = change_lo + 0
+
+        ارجع port_status + (port_change * 65536)
+    نهاية
+
+    hub_errors = hub_errors + 1
+    ارجع 0 - 1
+نهاية
+
+# SET PORT FEATURE
+صدّر دالة hub_set_port_feature(hub_idx، port، feature)
+    إذا (hub_get_active(hub_idx) == 0) ارجع 0 - 1 نهاية
+
+    متغير hc = hub_get_hc(hub_idx) + 0
+    متغير addr = hub_get_addr(hub_idx) + 0
+
+    usb_build_setup(hub_setup_buf، PORT_REQ_TYPE_SET، SET_FEATURE، feature، port، 0)
+    متغير result = uhci_control_transfer(hc، addr، hub_setup_buf، 0، 0) + 0
+    ارجع result + 0
+نهاية
+
+# CLEAR PORT FEATURE
+صدّر دالة hub_clear_port_feature(hub_idx، port، feature)
+    إذا (hub_get_active(hub_idx) == 0) ارجع 0 - 1 نهاية
+
+    متغير hc = hub_get_hc(hub_idx) + 0
+    متغير addr = hub_get_addr(hub_idx) + 0
+
+    usb_build_setup(hub_setup_buf، PORT_REQ_TYPE_CLR، CLEAR_FEATURE، feature، port، 0)
+    متغير result = uhci_control_transfer(hc، addr، hub_setup_buf، 0، 0) + 0
+    ارجع result + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تشغيل طاقة المنافذ
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة hub_power_on_ports(hub_idx)
+    إذا (hub_get_active(hub_idx) == 0) ارجع 0 - 1 نهاية
+
+    متغير num_ports = hub_get_num_ports(hub_idx) + 0
+    متغير pwr_delay = hub_get_pwr_delay(hub_idx) + 0
+
+    hub_serial_اطبع("[HUB] Powering on ")
+    hub_serial_رقم(num_ports + 0)
+    hub_serial_اطبع(" ports on hub #")
+    hub_serial_رقم(hub_idx + 0)
+    hub_serial_سطر()
+
+    متغير p = 1 + 0  # USB ports start at 1
+    بينما (p <= num_ports)
+        hub_set_port_feature(hub_idx، p، PORT_POWER)
+        p = p + 1
+    نهاية
+
+    # انتظار استقرار الطاقة
+    # pwr_delay × 2ms, use timer ticks
+    متغير wait_ticks = pwr_delay * 2 + 10
+    متغير start = sad_ll_timer_get_ticks() + 0
+    بينما ((sad_ll_timer_get_ticks() - start) < wait_ticks)
+        # انتظار
+    نهاية
+
+    hub_serial_اطبع("[HUB] All ports powered on")
+    hub_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# إعادة تعيين منفذ
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة hub_port_reset(hub_idx، port)
+    hub_serial_اطبع("[HUB] Resetting port ")
+    hub_serial_رقم(port + 0)
+    hub_serial_اطبع(" on hub #")
+    hub_serial_رقم(hub_idx + 0)
+    hub_serial_سطر()
+
+    # Set PORT_RESET feature
+    hub_set_port_feature(hub_idx، port، PORT_RESET)
+
+    # انتظار اكتمال إعادة التعيين (تحقق من C_PORT_RESET)
+    متغير timeout = 100 + 0
+    متغير reset_done = 0 + 0
+
+    بينما (timeout > 0)
+        متغير status_change = hub_get_port_status(hub_idx، port) + 0
+        إذا (status_change < 0)
+            hub_errors = hub_errors + 1
+            ارجع 0 - 1
+        نهاية
+
+        # Change bits are in upper 16 bits
+        متغير change = status_change / 65536
+        إذا ((change / PORT_CHANGE_RESET) % 2 == 1)
+            reset_done = 1
+            اخرج
+        نهاية
+
+        timeout = timeout - 1
+    نهاية
+
+    إذا (reset_done == 0)
+        hub_serial_اطبع("[HUB] Port reset timeout")
+        hub_serial_سطر()
+        ارجع 0 - 2
+    نهاية
+
+    # مسح علم التغيير
+    hub_clear_port_feature(hub_idx، port، C_PORT_RESET)
+
+    hub_serial_اطبع("[HUB] Port ")
+    hub_serial_رقم(port + 0)
+    hub_serial_اطبع(" reset complete")
+    hub_serial_سطر()
+
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# معالجة توصيل جهاز جديد
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة hub_handle_attach(hub_idx، port)
+    hub_serial_اطبع("[HUB] Device attached hub #")
+    hub_serial_رقم(hub_idx + 0)
+    hub_serial_اطبع(" port ")
+    hub_serial_رقم(port + 0)
+    hub_serial_سطر()
+
+    # إعادة تعيين المنفذ
+    متغير reset_result = hub_port_reset(hub_idx، port) + 0
+    إذا (reset_result < 0)
+        ارجع 0 - 1
+    نهاية
+
+    # قراءة الحالة لمعرفة السرعة
+    متغير status = hub_get_port_status(hub_idx، port) + 0
+    إذا (status < 0) ارجع 0 - 2 نهاية
+
+    متغير port_status = status % 65536
+
+    متغير speed = 1     # full speed افتراضي
+    إذا ((port_status / PORT_STATUS_LOW_SPEED) % 2 == 1)
+        speed = 0     # low speed
+    نهاية
+    إذا ((port_status / PORT_STATUS_HIGH_SPEED) % 2 == 1)
+        speed = 2     # high speed
+    نهاية
+
+    # تسجيل الجهاز في USB Core
+    متغير hc = hub_get_hc(hub_idx) + 0
+    متغير new_dev = usb_register_device(hc، port، speed، 0، 0، 0، 0) + 0
+    إذا (new_dev >= 0)
+        hub_set_port_dev(hub_idx، port - 1، new_dev + 1)
+        hub_attach_count = hub_attach_count + 1
+
+        hub_serial_اطبع("[HUB] Registered device #")
+        hub_serial_رقم(new_dev + 0)
+        hub_serial_اطبع(" speed=")
+        hub_serial_رقم(speed + 0)
+        hub_serial_سطر()
+    والا
+        hub_serial_اطبع("[HUB] Failed to register device")
+        hub_serial_سطر()
+        hub_errors = hub_errors + 1
+    نهاية
+
+    # مسح علم تغيير الاتصال
+    hub_clear_port_feature(hub_idx، port، C_PORT_CONNECTION)
+
+    ارجع new_dev + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# معالجة فصل جهاز
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة hub_handle_detach(hub_idx، port)
+    hub_serial_اطبع("[HUB] Device detached hub #")
+    hub_serial_رقم(hub_idx + 0)
+    hub_serial_اطبع(" port ")
+    hub_serial_رقم(port + 0)
+    hub_serial_سطر()
+
+    hub_set_port_dev(hub_idx، port - 1، 0)
+    hub_detach_count = hub_detach_count + 1
+
+    # مسح أعلام التغيير
+    hub_clear_port_feature(hub_idx، port، C_PORT_CONNECTION)
+    hub_clear_port_feature(hub_idx، port، C_PORT_ENABLE)
+
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# استقصاء الموزع (Poll for status changes)
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة hub_poll(hub_idx)
+    إذا (hub_get_active(hub_idx) == 0) ارجع 0 نهاية
+
+    hub_poll_count = hub_poll_count + 1
+
+    متغير num_ports = hub_get_num_ports(hub_idx) + 0
+    متغير changes = 0 + 0
+
+    متغير p = 1 + 0
+    بينما (p <= num_ports)
+        متغير status_change = hub_get_port_status(hub_idx، p) + 0
+
+        إذا (status_change >= 0)
+            متغير port_status = status_change % 65536
+            متغير port_change = status_change / 65536
+
+            # تحقق من تغيير الاتصال
+            إذا ((port_change / PORT_CHANGE_CONNECTION) % 2 == 1)
+                # جهاز جديد متصل أو مفصول
+                إذا ((port_status / PORT_STATUS_CONNECTION) % 2 == 1)
+                    hub_handle_attach(hub_idx، p)
+                والا
+                    hub_handle_detach(hub_idx، p)
+                نهاية
+                changes = changes + 1
+            نهاية
+
+            # تحقق من تجاوز التيار
+            إذا ((port_change / PORT_CHANGE_OVERCURRENT) % 2 == 1)
+                hub_serial_اطبع("[HUB] Overcurrent on port ")
+                hub_serial_رقم(p + 0)
+                hub_serial_سطر()
+                hub_clear_port_feature(hub_idx، p، C_PORT_OVER_CURRENT)
+                hub_errors = hub_errors + 1
+            نهاية
+        نهاية
+
+        p = p + 1
+    نهاية
+
+    ارجع changes + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تسجيل موزع جديد
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة hub_register(hc_idx، dev_addr)
+    إذا (hub_count >= MAX_HUBS)
+        hub_serial_اطبع("[HUB] Max hubs reached")
+        hub_serial_سطر()
+        ارجع 0 - 1
+    نهاية
+
+    متغير idx = hub_count + 0
+    hub_set_active(idx، 1)
+    hub_set_hc(idx، hc_idx)
+    hub_set_addr(idx، dev_addr)
+
+    hub_serial_اطبع("[HUB] Registered hub #")
+    hub_serial_رقم(idx + 0)
+    hub_serial_اطبع(" addr=")
+    hub_serial_رقم(dev_addr + 0)
+    hub_serial_سطر()
+
+    # الحصول على Hub Descriptor
+    hub_get_descriptor(idx)
+
+    # تشغيل طاقة المنافذ
+    hub_power_on_ports(idx)
+
+    # فحص أولي للمنافذ
+    hub_poll(idx)
+
+    hub_count = hub_count + 1
+    ارجع idx + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تقرير الموزعات
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة hub_تقرير()
+    hub_serial_اطبع("═══ [HUB] تقرير الموزعات ═══")
+    hub_serial_سطر()
+
+    hub_serial_اطبع("  موزعات مسجلة: ")
+    hub_serial_رقم(hub_count + 0)
+    hub_serial_سطر()
+
+    متغير h = 0 + 0
+    بينما (h < hub_count)
+        إذا (hub_get_active(h) == 1)
+            hub_serial_اطبع("  Hub #")
+            hub_serial_رقم(h + 0)
+            hub_serial_اطبع(" addr=")
+            hub_serial_رقم(hub_get_addr(h) + 0)
+            hub_serial_اطبع(" ports=")
+            hub_serial_رقم(hub_get_num_ports(h) + 0)
+            hub_serial_سطر()
+
+            # عرض حالة المنافذ
+            متغير np = hub_get_num_ports(h) + 0
+            متغير pp = 0 + 0
+            بينما (pp < np)
+                متغير dev = hub_get_port_dev(h، pp) + 0
+                إذا (dev > 0)
+                    hub_serial_اطبع("    Port ")
+                    hub_serial_رقم(pp + 1)
+                    hub_serial_اطبع(": device #")
+                    hub_serial_رقم(dev + 0)
+                    hub_serial_سطر()
+                نهاية
+                pp = pp + 1
+            نهاية
+        نهاية
+        h = h + 1
+    نهاية
+
+    hub_serial_اطبع("  أجهزة متصلة: ")
+    hub_serial_رقم(hub_attach_count + 0)
+    hub_serial_اطبع("  مفصولة: ")
+    hub_serial_رقم(hub_detach_count + 0)
+    hub_serial_سطر()
+
+    hub_serial_اطبع("  استقصاءات: ")
+    hub_serial_رقم(hub_poll_count + 0)
+    hub_serial_اطبع("  أخطاء: ")
+    hub_serial_رقم(hub_errors + 0)
+    hub_serial_سطر()
+
+    hub_serial_اطبع("═══════════════════════════════════")
+    hub_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تهيئة الموزعات
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة hub_هيئ()
+    hub_serial_اطبع("[HUB] تهيئة تعريفات الموزعات...")
+    hub_serial_سطر()
+
+    hub_setup_buf = sad_ll_kmalloc(16) + 0
+    hub_data_buf = sad_ll_kmalloc(64) + 0
+    sad_ll_memset(hub_setup_buf، 0، 16)
+    sad_ll_memset(hub_data_buf، 0، 64)
+
+    hub_count = 0
+    hub_attach_count = 0
+    hub_detach_count = 0
+    hub_poll_count = 0
+    hub_errors = 0
+
+    hub_serial_اطبع("[HUB] جاهز")
+    hub_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دورة الموزعات
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة hub_دورة()
+    متغير h = 0 + 0
+    بينما (h < hub_count)
+        hub_poll(h)
+        h = h + 1
+    نهاية
+    ارجع 0
+نهاية

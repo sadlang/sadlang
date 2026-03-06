@@ -303,7 +303,11 @@ bool RenderContext::CreateContext() {
     }
     
     // تحميل دوال OpenGL عبر GLAD / Load OpenGL functions via GLAD
-    if (!gladLoadGL()) {                      // إذا فشل التحميل / If loading failed
+    #ifndef EMSCRIPTEN
+    if (!gladLoadGL()) {
+#else
+    if (false) {
+#endif                      // إذا فشل التحميل / If loading failed
         SDL_GL_DeleteContext(m_glContext);    // حذف السياق / Delete context
         m_glContext = nullptr;                // إعادة التهيئة / Reset
         return false;                         // إرجاع فشل / Return failure

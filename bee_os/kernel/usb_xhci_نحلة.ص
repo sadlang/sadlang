@@ -1,0 +1,1192 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# usb_xhci_نحلة.ص — تعريف متحكم xHCI (USB 3.0) لنظام نحلة
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# xHCI Host Controller Interface — USB 3.0/3.1 support
+# MMIO registers, Device Context, Transfer Ring, Event Ring, Command Ring
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── دوال خارجية (FFI) ───
+خارجي دالة sad_ll_mem_read8(addr)
+خارجي دالة sad_ll_mem_write8(addr، val)
+خارجي دالة sad_ll_mem_read32(addr)
+خارجي دالة sad_ll_mem_write32(addr، val)
+خارجي دالة sad_ll_serial_write_char(port، ch)
+خارجي دالة sad_ll_kmalloc(حجم_طلب)
+خارجي دالة sad_ll_memset(عنوان، قيمة، حجم_منطقة)
+خارجي دالة sad_ll_memcpy(هدف، مصدر، حجم_نقل)
+خارجي دالة sad_ll_timer_get_ticks()
+
+# ─── دوال خارجية من PCI ───
+خارجي دالة pci_find_usb_controller(start_idx)
+خارجي دالة pci_get_usb_type(pci_idx)
+خارجي دالة pci_get_bar0(pci_idx)
+خارجي دالة pci_get_irq(pci_idx)
+خارجي دالة pci_enable_bus_master(pci_idx)
+خارجي دالة pci_bar_address(bar_val)
+
+# ─── دوال خارجية من USB Core ───
+خارجي دالة usb_register_device(hc_idx، port، speed، dev_class، proto، vid، pid)
+خارجي دالة usb_build_setup(buf، bmRequestType، bRequest، wValue، wIndex، wLength)
+خارجي دالة usb_parse_device_descriptor(buf، usb_idx)
+خارجي دالة usb_classify_device(usb_idx)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ثوابت
+# ═══════════════════════════════════════════════════════════════════════════════
+ثابت COM1 = 1016
+ثابت XHCI_MAX_HC = 4
+ثابت XHCI_MAX_PORTS = 16
+ثابت XHCI_MAX_SLOTS = 32
+ثابت XHCI_MAX_TRB_RING = 64     # عدد TRBs في كل حلقة
+
+# ─── Capability Register Offsets ───
+ثابت XHCI_CAP_CAPLENGTH = 0       # 1 byte: Capability Register Length
+ثابت XHCI_CAP_HCIVERSION = 2      # 2 bytes: Interface Version
+ثابت XHCI_CAP_HCSPARAMS1 = 4      # 4 bytes: Structural Parameters 1
+ثابت XHCI_CAP_HCSPARAMS2 = 8      # 4 bytes: Structural Parameters 2
+ثابت XHCI_CAP_HCSPARAMS3 = 12     # 0x0C
+ثابت XHCI_CAP_HCCPARAMS1 = 16     # 0x10
+ثابت XHCI_CAP_DBOFF = 20          # 0x14: Doorbell Offset
+ثابت XHCI_CAP_RTSOFF = 24         # 0x18: Runtime Register Space Offset
+ثابت XHCI_CAP_HCCPARAMS2 = 28     # 0x1C
+
+# ─── Operational Register Offsets (from cap_length) ───
+ثابت XHCI_OP_USBCMD = 0           # USB Command
+ثابت XHCI_OP_USBSTS = 4           # USB Status
+ثابت XHCI_OP_PAGESIZE = 8         # Page Size
+ثابت XHCI_OP_DNCTRL = 20          # 0x14: Device Notification Control
+ثابت XHCI_OP_CRCR = 24            # 0x18: Command Ring Control (64-bit)
+ثابت XHCI_OP_DCBAAP = 48          # 0x30: Device Context Base Address Array Pointer (64-bit)
+ثابت XHCI_OP_CONFIG = 56          # 0x38: Configure
+
+# ─── Port Register Offsets (from op_base + 0x400) ───
+ثابت XHCI_PORTSC_OFFSET = 1024    # 0x400: Port Status and Control base
+ثابت XHCI_PORTSC_SIZE = 16        # 0x10: Each port register set is 16 bytes
+
+# ─── USBCMD bits ───
+ثابت XHCI_CMD_RUN = 1             # Run/Stop
+ثابت XHCI_CMD_HCRST = 2           # Host Controller Reset
+ثابت XHCI_CMD_INTE = 4            # Interrupter Enable
+ثابت XHCI_CMD_HSEE = 8            # Host System Error Enable
+
+# ─── USBSTS bits ───
+ثابت XHCI_STS_HCH = 1             # HC Halted
+ثابت XHCI_STS_HSE = 4             # Host System Error
+ثابت XHCI_STS_EINT = 8            # Event Interrupt
+ثابت XHCI_STS_PCD = 16            # Port Change Detect
+ثابت XHCI_STS_CNR = 2048          # 0x800: Controller Not Ready
+
+# ─── PORTSC bits ───
+ثابت PORTSC_CCS = 1               # Current Connect Status
+ثابت PORTSC_PED = 2               # Port Enabled/Disabled
+ثابت PORTSC_OCA = 8               # Over-Current Active
+ثابت PORTSC_PR = 16               # Port Reset (0x10)
+ثابت PORTSC_PP = 512              # Port Power (0x200)  bit 9
+ثابت PORTSC_SPEED_MASK = 15360    # 0x3C00: bits 13:10 for port speed
+ثابت PORTSC_CSC = 131072          # 0x20000: Connect Status Change  bit 17
+ثابت PORTSC_PRC = 2097152         # 0x200000: Port Reset Change  bit 21
+ثابت PORTSC_WRC = 524288          # 0x80000: Warm Port Reset Change  bit 19
+
+# ─── Port Speed values (bits 13:10) ───
+ثابت XHCI_SPEED_FULL = 1
+ثابت XHCI_SPEED_LOW = 2
+ثابت XHCI_SPEED_HIGH = 3
+ثابت XHCI_SPEED_SUPER = 4
+
+# ─── TRB Types ───
+ثابت TRB_NORMAL = 1
+ثابت TRB_SETUP = 2
+ثابت TRB_DATA = 3
+ثابت TRB_STATUS = 4
+ثابت TRB_LINK = 6
+ثابت TRB_ENABLE_SLOT = 9
+ثابت TRB_DISABLE_SLOT = 10
+ثابت TRB_ADDRESS_DEVICE = 11
+ثابت TRB_CONFIG_EP = 12
+ثابت TRB_EVAL_CONTEXT = 13
+ثابت TRB_RESET_EP = 14
+ثابت TRB_NOOP = 23
+ثابت TRB_TRANSFER_EVENT = 32
+ثابت TRB_COMMAND_COMPLETE = 33
+ثابت TRB_PORT_STATUS_CHANGE = 34
+ثابت TRB_HOST_CONTROLLER = 37
+
+# ─── TRB Completion Codes ───
+ثابت TRB_CC_SUCCESS = 1
+ثابت TRB_CC_SHORT_PACKET = 13
+ثابت TRB_CC_STALL = 6
+ثابت TRB_CC_USB_ERROR = 5
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# قاعدة بيانات المتحكمات xHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+# عنوان MMIO الأساسي
+متغير xhci_base_0 = 0
+متغير xhci_base_1 = 0
+متغير xhci_base_2 = 0
+متغير xhci_base_3 = 0
+
+# Capability Length
+متغير xhci_cap_len_0 = 0
+متغير xhci_cap_len_1 = 0
+متغير xhci_cap_len_2 = 0
+متغير xhci_cap_len_3 = 0
+
+# عنوان Op base (base + cap_length)
+متغير xhci_op_base_0 = 0
+متغير xhci_op_base_1 = 0
+متغير xhci_op_base_2 = 0
+متغير xhci_op_base_3 = 0
+
+# Doorbell offset
+متغير xhci_db_off_0 = 0
+متغير xhci_db_off_1 = 0
+متغير xhci_db_off_2 = 0
+متغير xhci_db_off_3 = 0
+
+# Runtime offset
+متغير xhci_rt_off_0 = 0
+متغير xhci_rt_off_1 = 0
+متغير xhci_rt_off_2 = 0
+متغير xhci_rt_off_3 = 0
+
+# عدد المنافذ
+متغير xhci_num_ports_0 = 0
+متغير xhci_num_ports_1 = 0
+متغير xhci_num_ports_2 = 0
+متغير xhci_num_ports_3 = 0
+
+# أقصى عدد Slots
+متغير xhci_max_slots_0 = 0
+متغير xhci_max_slots_1 = 0
+متغير xhci_max_slots_2 = 0
+متغير xhci_max_slots_3 = 0
+
+# PCI index
+متغير xhci_pci_idx_0 = 0
+متغير xhci_pci_idx_1 = 0
+متغير xhci_pci_idx_2 = 0
+متغير xhci_pci_idx_3 = 0
+
+# IRQ
+متغير xhci_irq_0 = 0
+متغير xhci_irq_1 = 0
+متغير xhci_irq_2 = 0
+متغير xhci_irq_3 = 0
+
+# نشط؟
+متغير xhci_active_0 = 0
+متغير xhci_active_1 = 0
+متغير xhci_active_2 = 0
+متغير xhci_active_3 = 0
+
+# عدد المتحكمات
+متغير xhci_count = 0
+
+# ─── Command Ring ───
+متغير xhci_cmd_ring_0 = 0
+متغير xhci_cmd_ring_1 = 0
+متغير xhci_cmd_ring_2 = 0
+متغير xhci_cmd_ring_3 = 0
+
+# Enqueue pointer (index into TRB array)
+متغير xhci_cmd_enq_0 = 0
+متغير xhci_cmd_enq_1 = 0
+متغير xhci_cmd_enq_2 = 0
+متغير xhci_cmd_enq_3 = 0
+
+# Cycle bit state
+متغير xhci_cmd_cycle_0 = 1
+متغير xhci_cmd_cycle_1 = 1
+متغير xhci_cmd_cycle_2 = 1
+متغير xhci_cmd_cycle_3 = 1
+
+# ─── Event Ring ───
+متغير xhci_evt_ring_0 = 0
+متغير xhci_evt_ring_1 = 0
+متغير xhci_evt_ring_2 = 0
+متغير xhci_evt_ring_3 = 0
+
+# Dequeue pointer
+متغير xhci_evt_deq_0 = 0
+متغير xhci_evt_deq_1 = 0
+متغير xhci_evt_deq_2 = 0
+متغير xhci_evt_deq_3 = 0
+
+# Event cycle bit
+متغير xhci_evt_cycle_0 = 1
+متغير xhci_evt_cycle_1 = 1
+متغير xhci_evt_cycle_2 = 1
+متغير xhci_evt_cycle_3 = 1
+
+# ─── DCBAA (Device Context Base Address Array) ───
+متغير xhci_dcbaa_0 = 0
+متغير xhci_dcbaa_1 = 0
+متغير xhci_dcbaa_2 = 0
+متغير xhci_dcbaa_3 = 0
+
+# ─── Event Ring Segment Table ───
+متغير xhci_erst_0 = 0
+متغير xhci_erst_1 = 0
+متغير xhci_erst_2 = 0
+متغير xhci_erst_3 = 0
+
+# ─── Scratchpad buffer ───
+متغير xhci_scratch_0 = 0
+متغير xhci_scratch_1 = 0
+متغير xhci_scratch_2 = 0
+متغير xhci_scratch_3 = 0
+
+# إحصائيات
+متغير xhci_commands_sent = 0
+متغير xhci_events_received = 0
+متغير xhci_errors = 0
+متغير xhci_devices_found = 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الطباعة
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة xhci_serial_اطبع(رسالة)
+    متغير i = 0 + 0
+    بينما (i < 80)
+        متغير ch = sad_ll_mem_read8(رسالة + i) + 0
+        إذا (ch == 0) ارجع 0 نهاية
+        sad_ll_serial_write_char(COM1، ch)
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_serial_رقم(ن)
+    متغير val = ن + 0
+    إذا (val < 0)
+        sad_ll_serial_write_char(COM1، 45)
+        val = 0 - val
+    نهاية
+    إذا (val >= 10000)
+        متغير d5 = val / 10000
+        sad_ll_serial_write_char(COM1، 48 + d5)
+        val = val - (d5 * 10000)
+    نهاية
+    إذا (val >= 1000)
+        متغير d4 = val / 1000
+        sad_ll_serial_write_char(COM1، 48 + d4)
+        val = val - (d4 * 1000)
+    والا_اذا (ن >= 10000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 100)
+        متغير d3 = val / 100
+        sad_ll_serial_write_char(COM1، 48 + d3)
+        val = val - (d3 * 100)
+    والا_اذا (ن >= 1000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 10)
+        متغير d2 = val / 10
+        sad_ll_serial_write_char(COM1، 48 + d2)
+        val = val - (d2 * 10)
+    والا_اذا (ن >= 100)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    sad_ll_serial_write_char(COM1، 48 + val)
+    ارجع 0
+نهاية
+
+دالة xhci_serial_hex8(val)
+    متغير hi = val / 16
+    متغير lo = val % 16
+    إذا (hi < 10) sad_ll_serial_write_char(COM1، 48 + hi)
+    والا sad_ll_serial_write_char(COM1، 55 + hi) نهاية
+    إذا (lo < 10) sad_ll_serial_write_char(COM1، 48 + lo)
+    والا sad_ll_serial_write_char(COM1، 55 + lo) نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_serial_hex32(val)
+    xhci_serial_hex8(val / 16777216)
+    xhci_serial_hex8((val / 65536) % 256)
+    xhci_serial_hex8((val / 256) % 256)
+    xhci_serial_hex8(val % 256)
+    ارجع 0
+نهاية
+
+دالة xhci_serial_سطر()
+    sad_ll_serial_write_char(COM1، 13)
+    sad_ll_serial_write_char(COM1، 10)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الوصول لقاعدة بيانات المتحكمات
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة xhci_get_base(idx)
+    إذا (idx == 0) ارجع xhci_base_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_base_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_base_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_base_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_base(idx، val)
+    إذا (idx == 0) xhci_base_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_base_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_base_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_base_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_op_base(idx)
+    إذا (idx == 0) ارجع xhci_op_base_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_op_base_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_op_base_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_op_base_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_op_base(idx، val)
+    إذا (idx == 0) xhci_op_base_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_op_base_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_op_base_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_op_base_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_num_ports(idx)
+    إذا (idx == 0) ارجع xhci_num_ports_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_num_ports_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_num_ports_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_num_ports_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_num_ports(idx، val)
+    إذا (idx == 0) xhci_num_ports_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_num_ports_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_num_ports_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_num_ports_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_max_slots(idx)
+    إذا (idx == 0) ارجع xhci_max_slots_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_max_slots_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_max_slots_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_max_slots_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_max_slots(idx، val)
+    إذا (idx == 0) xhci_max_slots_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_max_slots_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_max_slots_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_max_slots_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_active(idx)
+    إذا (idx == 0) ارجع xhci_active_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_active_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_active_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_active_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_active(idx، val)
+    إذا (idx == 0) xhci_active_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_active_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_active_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_active_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_cmd_ring(idx)
+    إذا (idx == 0) ارجع xhci_cmd_ring_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_cmd_ring_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_cmd_ring_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_cmd_ring_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_cmd_ring(idx، val)
+    إذا (idx == 0) xhci_cmd_ring_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_cmd_ring_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_cmd_ring_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_cmd_ring_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_cmd_enq(idx)
+    إذا (idx == 0) ارجع xhci_cmd_enq_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_cmd_enq_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_cmd_enq_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_cmd_enq_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_cmd_enq(idx، val)
+    إذا (idx == 0) xhci_cmd_enq_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_cmd_enq_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_cmd_enq_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_cmd_enq_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_cmd_cycle(idx)
+    إذا (idx == 0) ارجع xhci_cmd_cycle_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_cmd_cycle_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_cmd_cycle_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_cmd_cycle_3 + 0 نهاية
+    ارجع 1
+نهاية
+
+دالة xhci_set_cmd_cycle(idx، val)
+    إذا (idx == 0) xhci_cmd_cycle_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_cmd_cycle_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_cmd_cycle_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_cmd_cycle_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_evt_ring(idx)
+    إذا (idx == 0) ارجع xhci_evt_ring_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_evt_ring_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_evt_ring_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_evt_ring_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_evt_ring(idx، val)
+    إذا (idx == 0) xhci_evt_ring_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_evt_ring_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_evt_ring_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_evt_ring_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_evt_deq(idx)
+    إذا (idx == 0) ارجع xhci_evt_deq_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_evt_deq_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_evt_deq_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_evt_deq_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_evt_deq(idx، val)
+    إذا (idx == 0) xhci_evt_deq_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_evt_deq_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_evt_deq_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_evt_deq_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_dcbaa(idx)
+    إذا (idx == 0) ارجع xhci_dcbaa_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_dcbaa_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_dcbaa_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_dcbaa_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_dcbaa(idx، val)
+    إذا (idx == 0) xhci_dcbaa_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_dcbaa_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_dcbaa_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_dcbaa_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_db_off(idx)
+    إذا (idx == 0) ارجع xhci_db_off_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_db_off_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_db_off_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_db_off_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_db_off(idx، val)
+    إذا (idx == 0) xhci_db_off_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_db_off_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_db_off_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_db_off_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_get_rt_off(idx)
+    إذا (idx == 0) ارجع xhci_rt_off_0 + 0 نهاية
+    إذا (idx == 1) ارجع xhci_rt_off_1 + 0 نهاية
+    إذا (idx == 2) ارجع xhci_rt_off_2 + 0 نهاية
+    إذا (idx == 3) ارجع xhci_rt_off_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة xhci_set_rt_off(idx، val)
+    إذا (idx == 0) xhci_rt_off_0 = val + 0 نهاية
+    إذا (idx == 1) xhci_rt_off_1 = val + 0 نهاية
+    إذا (idx == 2) xhci_rt_off_2 = val + 0 نهاية
+    إذا (idx == 3) xhci_rt_off_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# قراءة/كتابة سجلات MMIO
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_read_cap(hc_idx، offset)
+    متغير base = xhci_get_base(hc_idx) + 0
+    ارجع sad_ll_mem_read32(base + offset) + 0
+نهاية
+
+صدّر دالة xhci_read_op(hc_idx، offset)
+    متغير op = xhci_get_op_base(hc_idx) + 0
+    ارجع sad_ll_mem_read32(op + offset) + 0
+نهاية
+
+صدّر دالة xhci_write_op(hc_idx، offset، val)
+    متغير op = xhci_get_op_base(hc_idx) + 0
+    sad_ll_mem_write32(op + offset، val)
+    ارجع 0
+نهاية
+
+صدّر دالة xhci_read_port(hc_idx، port_num)
+    متغير op = xhci_get_op_base(hc_idx) + 0
+    متغير port_off = XHCI_PORTSC_OFFSET + (port_num * XHCI_PORTSC_SIZE)
+    ارجع sad_ll_mem_read32(op + port_off) + 0
+نهاية
+
+صدّر دالة xhci_write_port(hc_idx، port_num، val)
+    متغير op = xhci_get_op_base(hc_idx) + 0
+    متغير port_off = XHCI_PORTSC_OFFSET + (port_num * XHCI_PORTSC_SIZE)
+    sad_ll_mem_write32(op + port_off، val)
+    ارجع 0
+نهاية
+
+# Doorbell register
+صدّر دالة xhci_ring_doorbell(hc_idx، slot_id، target)
+    متغير base = xhci_get_base(hc_idx) + 0
+    متغير db = xhci_get_db_off(hc_idx) + 0
+    sad_ll_mem_write32(base + db + (slot_id * 4)، target)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TRB — Transfer Request Block (16 bytes)
+# ═══════════════════════════════════════════════════════════════════════════════
+# TRB Layout:
+# DWord 0: Parameter Low  (bytes 0-3)
+# DWord 1: Parameter High (bytes 4-7)
+# DWord 2: Status         (bytes 8-11)
+# DWord 3: Control        (bytes 12-15) — type in bits 15:10, cycle in bit 0
+
+صدّر دالة xhci_write_trb(trb_addr، dw0، dw1، dw2، dw3)
+    sad_ll_mem_write32(trb_addr، dw0)
+    sad_ll_mem_write32(trb_addr + 4، dw1)
+    sad_ll_mem_write32(trb_addr + 8، dw2)
+    sad_ll_mem_write32(trb_addr + 12، dw3)
+    ارجع 0
+نهاية
+
+صدّر دالة xhci_read_trb_dw0(trb_addr)
+    ارجع sad_ll_mem_read32(trb_addr) + 0
+نهاية
+
+صدّر دالة xhci_read_trb_dw1(trb_addr)
+    ارجع sad_ll_mem_read32(trb_addr + 4) + 0
+نهاية
+
+صدّر دالة xhci_read_trb_dw2(trb_addr)
+    ارجع sad_ll_mem_read32(trb_addr + 8) + 0
+نهاية
+
+صدّر دالة xhci_read_trb_dw3(trb_addr)
+    ارجع sad_ll_mem_read32(trb_addr + 12) + 0
+نهاية
+
+# استخراج نوع TRB من DWord 3
+صدّر دالة xhci_trb_type(dw3)
+    ارجع (dw3 / 1024) % 64    # bits 15:10
+نهاية
+
+# استخراج Cycle bit من DWord 3
+صدّر دالة xhci_trb_cycle(dw3)
+    ارجع dw3 % 2    # bit 0
+نهاية
+
+# استخراج Completion Code من DWord 2 (Event TRB)
+صدّر دالة xhci_trb_completion_code(dw2)
+    ارجع (dw2 / 16777216) % 256    # bits 31:24
+نهاية
+
+# بناء DWord 3 للـ TRB
+صدّر دالة xhci_make_trb_control(trb_type، cycle، flags)
+    # type in bits 15:10, cycle in bit 0, other flags
+    ارجع (trb_type * 1024) + cycle + flags
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# إيقاف وإعادة تعيين المتحكم
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_halt(hc_idx)
+    # مسح Run bit
+    متغير cmd = xhci_read_op(hc_idx، XHCI_OP_USBCMD) + 0
+    cmd = cmd - (cmd % 2)  # clear bit 0 (Run/Stop)
+    xhci_write_op(hc_idx، XHCI_OP_USBCMD، cmd)
+
+    # انتظار HCHalted
+    متغير timeout = 1000 + 0
+    بينما (timeout > 0)
+        متغير sts = xhci_read_op(hc_idx، XHCI_OP_USBSTS) + 0
+        إذا (sts % 2 == 1)  # HCH bit
+            ارجع 0
+        نهاية
+        timeout = timeout - 1
+    نهاية
+    xhci_serial_اطبع("[xHCI] Halt timeout!")
+    xhci_serial_سطر()
+    ارجع 0 - 1
+نهاية
+
+صدّر دالة xhci_reset(hc_idx)
+    xhci_serial_اطبع("[xHCI] Resetting HC #")
+    xhci_serial_رقم(hc_idx + 0)
+    xhci_serial_سطر()
+
+    # إيقاف أولاً
+    xhci_halt(hc_idx)
+
+    # تعيين HCRST
+    متغير cmd = xhci_read_op(hc_idx، XHCI_OP_USBCMD) + 0
+    xhci_write_op(hc_idx، XHCI_OP_USBCMD، cmd + XHCI_CMD_HCRST)
+
+    # انتظار مسح HCRST و CNR
+    متغير timeout = 5000 + 0
+    بينما (timeout > 0)
+        متغير usbcmd = xhci_read_op(hc_idx، XHCI_OP_USBCMD) + 0
+        متغير usbsts = xhci_read_op(hc_idx، XHCI_OP_USBSTS) + 0
+
+        إذا ((usbcmd / 2) % 2 == 0)  # HCRST cleared
+            إذا ((usbsts / 2048) % 2 == 0)  # CNR cleared
+                xhci_serial_اطبع("[xHCI] Reset complete")
+                xhci_serial_سطر()
+                ارجع 0
+            نهاية
+        نهاية
+        timeout = timeout - 1
+    نهاية
+
+    xhci_serial_اطبع("[xHCI] Reset timeout!")
+    xhci_serial_سطر()
+    xhci_errors = xhci_errors + 1
+    ارجع 0 - 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تخصيص هياكل البيانات
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_alloc_rings(hc_idx)
+    # Command Ring: 64 TRBs × 16 bytes = 1024
+    متغير cmd_ring = sad_ll_kmalloc(1024) + 0
+    sad_ll_memset(cmd_ring، 0، 1024)
+    xhci_set_cmd_ring(hc_idx، cmd_ring)
+    xhci_set_cmd_enq(hc_idx، 0)
+    xhci_set_cmd_cycle(hc_idx، 1)
+
+    # Link TRB at end of command ring (TRB 63)
+    متغير link_addr = cmd_ring + (63 * 16)
+    xhci_write_trb(link_addr، cmd_ring، 0، 0، xhci_make_trb_control(TRB_LINK، 1، 32))
+    # bit 5 (32) = Toggle Cycle
+
+    # Event Ring: 64 TRBs × 16 bytes = 1024
+    متغير evt_ring = sad_ll_kmalloc(1024) + 0
+    sad_ll_memset(evt_ring، 0، 1024)
+    xhci_set_evt_ring(hc_idx، evt_ring)
+    xhci_set_evt_deq(hc_idx، 0)
+
+    # DCBAA: (max_slots + 1) × 8 bytes (64-bit pointers)
+    متغير max_slots = xhci_get_max_slots(hc_idx) + 0
+    إذا (max_slots > XHCI_MAX_SLOTS) max_slots = XHCI_MAX_SLOTS نهاية
+    متغير dcbaa_size = (max_slots + 1) * 8
+    متغير dcbaa = sad_ll_kmalloc(dcbaa_size + 64) + 0
+    # Align to 64 bytes
+    متغير dcbaa_aligned = ((dcbaa + 63) / 64) * 64
+    sad_ll_memset(dcbaa_aligned، 0، dcbaa_size)
+    xhci_set_dcbaa(hc_idx، dcbaa_aligned)
+
+    # Event Ring Segment Table: 1 entry × 16 bytes
+    متغير erst = sad_ll_kmalloc(64) + 0
+    sad_ll_memset(erst، 0، 64)
+    # Entry 0: Ring Segment Base Address (low), Base Address (high), Ring Segment Size
+    sad_ll_mem_write32(erst، evt_ring)           # base addr low
+    sad_ll_mem_write32(erst + 4، 0)              # base addr high
+    sad_ll_mem_write32(erst + 8، XHCI_MAX_TRB_RING)  # size
+
+    إذا (hc_idx == 0) xhci_erst_0 = erst + 0 نهاية
+    إذا (hc_idx == 1) xhci_erst_1 = erst + 0 نهاية
+    إذا (hc_idx == 2) xhci_erst_2 = erst + 0 نهاية
+    إذا (hc_idx == 3) xhci_erst_3 = erst + 0 نهاية
+
+    xhci_serial_اطبع("[xHCI] Rings allocated: cmd=0x")
+    xhci_serial_hex32(cmd_ring)
+    xhci_serial_اطبع(" evt=0x")
+    xhci_serial_hex32(evt_ring)
+    xhci_serial_سطر()
+
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تهيئة سجلات المتحكم
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_setup_registers(hc_idx)
+    متغير dcbaa = xhci_get_dcbaa(hc_idx) + 0
+    متغير cmd_ring = xhci_get_cmd_ring(hc_idx) + 0
+    متغير max_slots = xhci_get_max_slots(hc_idx) + 0
+    إذا (max_slots > XHCI_MAX_SLOTS) max_slots = XHCI_MAX_SLOTS نهاية
+
+    # CONFIG: set MaxSlotsEn
+    xhci_write_op(hc_idx، XHCI_OP_CONFIG، max_slots)
+
+    # DCBAAP: set device context base address array pointer
+    xhci_write_op(hc_idx، XHCI_OP_DCBAAP، dcbaa)
+    xhci_write_op(hc_idx، XHCI_OP_DCBAAP + 4، 0)  # high 32 bits
+
+    # CRCR: set command ring control register
+    # low 32 bits: address | RCS (cycle state = 1)
+    xhci_write_op(hc_idx، XHCI_OP_CRCR، cmd_ring + 1)  # +1 for cycle bit
+    xhci_write_op(hc_idx، XHCI_OP_CRCR + 4، 0)
+
+    # Setup Interrupter 0 in Runtime Registers
+    متغير base = xhci_get_base(hc_idx) + 0
+    متغير rt_off = xhci_get_rt_off(hc_idx) + 0
+    متغير intr0 = base + rt_off + 32  # Interrupter 0 at offset 0x20
+
+    # ERSTSZ: Event Ring Segment Table Size = 1
+    sad_ll_mem_write32(intr0 + 8، 1)
+
+    # ERDP: Event Ring Dequeue Pointer
+    متغير evt_ring = xhci_get_evt_ring(hc_idx) + 0
+    sad_ll_mem_write32(intr0 + 24، evt_ring)     # ERDP low
+    sad_ll_mem_write32(intr0 + 28، 0)            # ERDP high
+
+    # ERSTBA: Event Ring Segment Table Base Address
+    متغير erst = 0 + 0
+    إذا (hc_idx == 0) erst = xhci_erst_0 + 0 نهاية
+    إذا (hc_idx == 1) erst = xhci_erst_1 + 0 نهاية
+    إذا (hc_idx == 2) erst = xhci_erst_2 + 0 نهاية
+    إذا (hc_idx == 3) erst = xhci_erst_3 + 0 نهاية
+    sad_ll_mem_write32(intr0 + 16، erst)         # ERSTBA low
+    sad_ll_mem_write32(intr0 + 20، 0)            # ERSTBA high
+
+    # Enable Interrupter
+    متغير iman = sad_ll_mem_read32(intr0) + 0
+    sad_ll_mem_write32(intr0، iman + 2)  # bit 1 = IE (Interrupt Enable)
+
+    xhci_serial_اطبع("[xHCI] Registers configured")
+    xhci_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تشغيل المتحكم
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_start(hc_idx)
+    متغير cmd = xhci_read_op(hc_idx، XHCI_OP_USBCMD) + 0
+    # Set Run + INTE
+    cmd = cmd + XHCI_CMD_RUN + XHCI_CMD_INTE
+    xhci_write_op(hc_idx، XHCI_OP_USBCMD، cmd)
+
+    # انتظار أن يبدأ التشغيل (HCHalted goes to 0)
+    متغير timeout = 1000 + 0
+    بينما (timeout > 0)
+        متغير sts = xhci_read_op(hc_idx، XHCI_OP_USBSTS) + 0
+        إذا (sts % 2 == 0)  # HCH cleared
+            xhci_serial_اطبع("[xHCI] HC running")
+            xhci_serial_سطر()
+            ارجع 0
+        نهاية
+        timeout = timeout - 1
+    نهاية
+
+    xhci_serial_اطبع("[xHCI] Start timeout!")
+    xhci_serial_سطر()
+    ارجع 0 - 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# إرسال أمر عبر Command Ring
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_send_command(hc_idx، dw0، dw1، dw2، trb_type، flags)
+    متغير cmd_ring = xhci_get_cmd_ring(hc_idx) + 0
+    متغير enq = xhci_get_cmd_enq(hc_idx) + 0
+    متغير cycle = xhci_get_cmd_cycle(hc_idx) + 0
+
+    إذا (enq >= 63)
+        # Wrap around — Link TRB already at position 63
+        enq = 0
+        cycle = 1 - cycle
+        xhci_set_cmd_cycle(hc_idx، cycle)
+    نهاية
+
+    متغير trb_addr = cmd_ring + (enq * 16)
+    متغير control = xhci_make_trb_control(trb_type، cycle، flags)
+
+    xhci_write_trb(trb_addr، dw0، dw1، dw2، control)
+
+    xhci_set_cmd_enq(hc_idx، enq + 1)
+    xhci_commands_sent = xhci_commands_sent + 1
+
+    # Ring Host Controller Doorbell (slot 0, target 0)
+    xhci_ring_doorbell(hc_idx، 0، 0)
+
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# انتظار حدث اكتمال الأمر
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_wait_command_completion(hc_idx)
+    متغير evt_ring = xhci_get_evt_ring(hc_idx) + 0
+    متغير deq = xhci_get_evt_deq(hc_idx) + 0
+
+    متغير timeout = 5000 + 0
+    بينما (timeout > 0)
+        متغير trb_addr = evt_ring + (deq * 16)
+        متغير dw3 = xhci_read_trb_dw3(trb_addr) + 0
+
+        # تحقق من Cycle bit
+        متغير evt_cycle = dw3 % 2
+
+        إذا (evt_cycle == 1)  # Owner changed — new event
+            متغير trb_t = xhci_trb_type(dw3) + 0
+            متغير dw2 = xhci_read_trb_dw2(trb_addr) + 0
+            متغير cc = xhci_trb_completion_code(dw2) + 0
+
+            xhci_events_received = xhci_events_received + 1
+
+            # تقدم Dequeue
+            xhci_set_evt_deq(hc_idx، (deq + 1) % XHCI_MAX_TRB_RING)
+
+            إذا (trb_t == TRB_COMMAND_COMPLETE)
+                إذا (cc == TRB_CC_SUCCESS)
+                    # Slot ID in bits 31:24 of DW3
+                    متغير slot_id = dw3 / 16777216
+                    ارجع slot_id + 0
+                والا
+                    xhci_serial_اطبع("[xHCI] Command failed CC=")
+                    xhci_serial_رقم(cc + 0)
+                    xhci_serial_سطر()
+                    xhci_errors = xhci_errors + 1
+                    ارجع 0 - cc
+                نهاية
+            نهاية
+        نهاية
+        timeout = timeout - 1
+    نهاية
+
+    xhci_serial_اطبع("[xHCI] Command completion timeout")
+    xhci_serial_سطر()
+    xhci_errors = xhci_errors + 1
+    ارجع 0 - 255
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Enable Slot Command
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_enable_slot(hc_idx)
+    xhci_serial_اطبع("[xHCI] Enable Slot...")
+    xhci_serial_سطر()
+
+    xhci_send_command(hc_idx، 0، 0، 0، TRB_ENABLE_SLOT، 0)
+    متغير slot_id = xhci_wait_command_completion(hc_idx) + 0
+
+    إذا (slot_id > 0)
+        xhci_serial_اطبع("[xHCI] Slot enabled: ")
+        xhci_serial_رقم(slot_id + 0)
+        xhci_serial_سطر()
+    نهاية
+
+    ارجع slot_id + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Port Reset
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_port_reset(hc_idx، port_num)
+    xhci_serial_اطبع("[xHCI] Resetting port ")
+    xhci_serial_رقم(port_num + 0)
+    xhci_serial_سطر()
+
+    متغير portsc = xhci_read_port(hc_idx، port_num) + 0
+
+    # Set PR bit (bit 4), preserve PP (bit 9)
+    # Clear status change bits by NOT setting them (write-1-to-clear)
+    متغير preserve = portsc % 1024  # keep bits 0-9 only
+    # Remove change bits
+    preserve = preserve % 32  # keep bits 0-4
+    preserve = (preserve / 4) * 4  # clear bits 0-1 (CCS, PED are RO)
+    # Set PR and PP
+    xhci_write_port(hc_idx، port_num، PORTSC_PR + PORTSC_PP)
+
+    # انتظار PRC (Port Reset Change)
+    متغير timeout = 2000 + 0
+    بينما (timeout > 0)
+        portsc = xhci_read_port(hc_idx، port_num) + 0
+        إذا ((portsc / PORTSC_PRC) % 2 == 1)
+            # مسح PRC
+            xhci_write_port(hc_idx، port_num، portsc + PORTSC_PRC)
+            xhci_serial_اطبع("[xHCI] Port ")
+            xhci_serial_رقم(port_num + 0)
+            xhci_serial_اطبع(" reset done")
+            xhci_serial_سطر()
+            ارجع 0
+        نهاية
+        timeout = timeout - 1
+    نهاية
+
+    xhci_serial_اطبع("[xHCI] Port reset timeout")
+    xhci_serial_سطر()
+    ارجع 0 - 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# قراءة سرعة المنفذ
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_port_speed(hc_idx، port_num)
+    متغير portsc = xhci_read_port(hc_idx، port_num) + 0
+    # Speed in bits 13:10
+    متغير speed = (portsc / 1024) % 16
+    ارجع speed + 0
+نهاية
+
+صدّر دالة xhci_speed_name(speed)
+    إذا (speed == XHCI_SPEED_FULL)
+        xhci_serial_اطبع("Full")
+    والا_اذا (speed == XHCI_SPEED_LOW)
+        xhci_serial_اطبع("Low")
+    والا_اذا (speed == XHCI_SPEED_HIGH)
+        xhci_serial_اطبع("High")
+    والا_اذا (speed == XHCI_SPEED_SUPER)
+        xhci_serial_اطبع("Super")
+    والا
+        xhci_serial_اطبع("?")
+    نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# فحص المنافذ
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_scan_ports(hc_idx)
+    متغير num_ports = xhci_get_num_ports(hc_idx) + 0
+    متغير found = 0 + 0
+
+    xhci_serial_اطبع("[xHCI] Scanning ")
+    xhci_serial_رقم(num_ports + 0)
+    xhci_serial_اطبع(" ports")
+    xhci_serial_سطر()
+
+    متغير p = 0 + 0
+    بينما (p < num_ports)
+        متغير portsc = xhci_read_port(hc_idx، p) + 0
+
+        # تحقق من اتصال جهاز (CCS bit)
+        إذا (portsc % 2 == 1)
+            متغير speed = xhci_port_speed(hc_idx، p) + 0
+
+            xhci_serial_اطبع("[xHCI] Port ")
+            xhci_serial_رقم(p + 0)
+            xhci_serial_اطبع(": device connected, speed=")
+            xhci_speed_name(speed)
+            xhci_serial_سطر()
+
+            # إعادة تعيين المنفذ
+            xhci_port_reset(hc_idx، p)
+
+            # تسجيل الجهاز
+            متغير usb_speed = speed + 0
+            إذا (speed == XHCI_SPEED_SUPER) usb_speed = 3 نهاية
+            إذا (speed == XHCI_SPEED_HIGH) usb_speed = 2 نهاية
+            إذا (speed == XHCI_SPEED_FULL) usb_speed = 1 نهاية
+            إذا (speed == XHCI_SPEED_LOW) usb_speed = 0 نهاية
+
+            متغير dev_idx = usb_register_device(hc_idx + 10، p، usb_speed، 0، 0، 0، 0) + 0
+            إذا (dev_idx >= 0)
+                found = found + 1
+                xhci_devices_found = xhci_devices_found + 1
+            نهاية
+        نهاية
+        p = p + 1
+    نهاية
+
+    xhci_serial_اطبع("[xHCI] Found ")
+    xhci_serial_رقم(found + 0)
+    xhci_serial_اطبع(" devices")
+    xhci_serial_سطر()
+
+    ارجع found + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# اكتشاف متحكمات xHCI من PCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_detect_controllers()
+    xhci_serial_اطبع("[xHCI] Detecting xHCI controllers via PCI...")
+    xhci_serial_سطر()
+
+    متغير start = 0 + 0
+
+    بينما (xhci_count < XHCI_MAX_HC)
+        متغير pci_idx = pci_find_usb_controller(start) + 0
+        إذا (pci_idx < 0) اخرج نهاية
+
+        متغير usb_type = pci_get_usb_type(pci_idx) + 0
+        إذا (usb_type == 48)  # PCI_PROGIF_XHCI = 0x30
+            متغير bar0 = pci_get_bar0(pci_idx) + 0
+            متغير irq = pci_get_irq(pci_idx) + 0
+            متغير base = pci_bar_address(bar0) + 0
+
+            xhci_serial_اطبع("[xHCI] Found xHCI at PCI idx ")
+            xhci_serial_رقم(pci_idx + 0)
+            xhci_serial_اطبع(" BAR0=0x")
+            xhci_serial_hex32(base)
+            xhci_serial_سطر()
+
+            pci_enable_bus_master(pci_idx)
+
+            متغير idx = xhci_count + 0
+            xhci_set_base(idx، base)
+
+            # قراءة Capability Registers
+            متغير cap_len = sad_ll_mem_read8(base + XHCI_CAP_CAPLENGTH) + 0
+            إذا (idx == 0) xhci_cap_len_0 = cap_len + 0 نهاية
+            إذا (idx == 1) xhci_cap_len_1 = cap_len + 0 نهاية
+            إذا (idx == 2) xhci_cap_len_2 = cap_len + 0 نهاية
+            إذا (idx == 3) xhci_cap_len_3 = cap_len + 0 نهاية
+
+            xhci_set_op_base(idx، base + cap_len)
+
+            متغير hcsparams1 = sad_ll_mem_read32(base + XHCI_CAP_HCSPARAMS1) + 0
+            متغير num_ports = (hcsparams1 / 16777216) % 256  # bits 31:24
+            متغير max_slots = hcsparams1 % 256                # bits 7:0
+            xhci_set_num_ports(idx، num_ports)
+            xhci_set_max_slots(idx، max_slots)
+
+            متغير dboff = sad_ll_mem_read32(base + XHCI_CAP_DBOFF) + 0
+            متغير rtsoff = sad_ll_mem_read32(base + XHCI_CAP_RTSOFF) + 0
+            xhci_set_db_off(idx، dboff)
+            xhci_set_rt_off(idx، rtsoff)
+
+            # PCI/IRQ info
+            إذا (idx == 0) xhci_pci_idx_0 = pci_idx + 0 نهاية
+            إذا (idx == 1) xhci_pci_idx_1 = pci_idx + 0 نهاية
+            إذا (idx == 2) xhci_pci_idx_2 = pci_idx + 0 نهاية
+            إذا (idx == 3) xhci_pci_idx_3 = pci_idx + 0 نهاية
+            إذا (idx == 0) xhci_irq_0 = irq + 0 نهاية
+            إذا (idx == 1) xhci_irq_1 = irq + 0 نهاية
+            إذا (idx == 2) xhci_irq_2 = irq + 0 نهاية
+            إذا (idx == 3) xhci_irq_3 = irq + 0 نهاية
+
+            xhci_set_active(idx، 1)
+
+            xhci_serial_اطبع("[xHCI] HC #")
+            xhci_serial_رقم(idx + 0)
+            xhci_serial_اطبع(" ports=")
+            xhci_serial_رقم(num_ports + 0)
+            xhci_serial_اطبع(" slots=")
+            xhci_serial_رقم(max_slots + 0)
+            xhci_serial_سطر()
+
+            xhci_count = xhci_count + 1
+        نهاية
+
+        start = pci_idx + 1
+    نهاية
+
+    xhci_serial_اطبع("[xHCI] Total xHCI controllers: ")
+    xhci_serial_رقم(xhci_count + 0)
+    xhci_serial_سطر()
+
+    ارجع xhci_count + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تقرير xHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_تقرير()
+    xhci_serial_اطبع("═══ [xHCI] تقرير ═══")
+    xhci_serial_سطر()
+
+    xhci_serial_اطبع("  متحكمات: ")
+    xhci_serial_رقم(xhci_count + 0)
+    xhci_serial_سطر()
+
+    متغير h = 0 + 0
+    بينما (h < xhci_count)
+        إذا (xhci_get_active(h) == 1)
+            xhci_serial_اطبع("  HC #")
+            xhci_serial_رقم(h + 0)
+            xhci_serial_اطبع(" base=0x")
+            xhci_serial_hex32(xhci_get_base(h) + 0)
+            xhci_serial_اطبع(" ports=")
+            xhci_serial_رقم(xhci_get_num_ports(h) + 0)
+            xhci_serial_اطبع(" slots=")
+            xhci_serial_رقم(xhci_get_max_slots(h) + 0)
+            xhci_serial_سطر()
+        نهاية
+        h = h + 1
+    نهاية
+
+    xhci_serial_اطبع("  أوامر: ")
+    xhci_serial_رقم(xhci_commands_sent + 0)
+    xhci_serial_اطبع(" أحداث: ")
+    xhci_serial_رقم(xhci_events_received + 0)
+    xhci_serial_اطبع(" أجهزة: ")
+    xhci_serial_رقم(xhci_devices_found + 0)
+    xhci_serial_اطبع(" أخطاء: ")
+    xhci_serial_رقم(xhci_errors + 0)
+    xhci_serial_سطر()
+
+    xhci_serial_اطبع("═══════════════════════════════════")
+    xhci_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تهيئة xHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_هيئ()
+    xhci_serial_اطبع("[xHCI] تهيئة تعريفات xHCI...")
+    xhci_serial_سطر()
+
+    xhci_count = 0
+    xhci_commands_sent = 0
+    xhci_events_received = 0
+    xhci_errors = 0
+    xhci_devices_found = 0
+
+    # اكتشاف المتحكمات
+    xhci_detect_controllers()
+
+    # تهيئة كل متحكم
+    متغير h = 0 + 0
+    بينما (h < xhci_count)
+        xhci_reset(h)
+        xhci_alloc_rings(h)
+        xhci_setup_registers(h)
+        xhci_start(h)
+        xhci_scan_ports(h)
+        h = h + 1
+    نهاية
+
+    xhci_serial_اطبع("[xHCI] جاهز")
+    xhci_serial_سطر()
+    ارجع xhci_count + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دورة xHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة xhci_دورة()
+    # لا شيء تلقائي — يتم التعامل عبر المقاطعات أو الاستقصاء يدوياً
+    ارجع 0
+نهاية

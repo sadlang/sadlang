@@ -1,0 +1,122 @@
+﻿.\build\bin\Release\sadc.exe : 
+At line:1 char:1
++ .\build\bin\Release\sadc.exe --emit-llvm examples\test_ui.ص 2>&1 | Ou ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+========================================
+  ≡ƒףך (AR) ┘ו┘ה╪«╪╡ ╪º┘ה╪¬╪¡┘ה┘ך┘ה / (EN) Parsing Summary
+========================================
+Γ£ף (AR) ╪╣╪»╪» ╪º┘ה╪¼┘ו┘ה ╪º┘ה┘ז╪º╪¼╪¡╪⌐: 31
+Γ£ף (EN) Successful statements: 31
+========================================
+
+Module verification failed:
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D9\87\D9\8A\D9\83\D9\84.load" = load i64, ptr 
+%"%\D8\A7\D9\84\D9\87\D9\8A\D9\83\D9\84", align 8
+ ptr  %sad_add_child_result = call void @sad_add_child(i64 
+%"%\D8\A7\D9\84\D9\87\D9\8A\D9\83\D9\84.load", i64 
+%"%\D8\A7\D9\84\D8\B4\D8\B1\D9\8A\D8\B7.load")
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load" = load i64, ptr 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89", align 8
+ ptr  %sad_set_spacing_result = call void @sad_set_spacing(i64 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load", float 1.600000e+01)
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load4" = load i64, ptr 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89", align 8
+ ptr  %sad_set_padding_result = call void @sad_set_padding(i64 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load4", float 2.000000e+01, 
+float 1.600000e+01, float 2.000000e+01, float 1.600000e+01)
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load5" = load i64, ptr 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89", align 8
+ ptr  %sad_set_alignment_result = call void @sad_set_alignment(i64 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load5", i32 1, i32 1)
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D8\B9\D9\86\D9\88\D8\A7\D9\86.load" = load i64, ptr 
+%"%\D8\A7\D9\84\D8\B9\D9\86\D9\88\D8\A7\D9\86", align 8
+ ptr  %sad_set_background_result = call void @sad_set_background(i64 
+%"%\D8\A7\D9\84\D8\B9\D9\86\D9\88\D8\A7\D9\86.load", float 0.000000e+00, float 
+0.000000e+00, float 0.000000e+00, float 0.000000e+00)
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load7" = load i64, ptr 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89", align 8
+ ptr  %sad_add_child_result9 = call void @sad_add_child(i64 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load7", i64 
+%"%\D8\A7\D9\84\D8\B9\D9\86\D9\88\D8\A7\D9\86.load8")
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D8\A8\D8\B7\D8\A7\D9\82\D8\A9.load" = load i64, ptr 
+%"%\D8\A7\D9\84\D8\A8\D8\B7\D8\A7\D9\82\D8\A9", align 8
+ ptr  %sad_set_padding_result11 = call void @sad_set_padding(i64 
+%"%\D8\A7\D9\84\D8\A8\D8\B7\D8\A7\D9\82\D8\A9.load", float 1.600000e+01, float 
+1.600000e+01, float 1.600000e+01, float 1.600000e+01)
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D8\A8\D8\B7\D8\A7\D9\82\D8\A9.load14" = load i64, ptr 
+%"%\D8\A7\D9\84\D8\A8\D8\B7\D8\A7\D9\82\D8\A9", align 8
+ ptr  %sad_add_child_result15 = call void @sad_add_child(i64 
+%"%\D8\A7\D9\84\D8\A8\D8\B7\D8\A7\D9\82\D8\A9.load14", i64 
+%"%\D9\86\D8\B5_\D8\A7\D9\84\D8\A8\D8\B7\D8\A7\D9\82\D8\A9.load")
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load16" = load i64, ptr 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89", align 8
+ ptr  %sad_add_child_result18 = call void @sad_add_child(i64 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load16", i64 
+%"%\D8\A7\D9\84\D8\A8\D8\B7\D8\A7\D9\82\D8\A9.load17")
+Call parameter type does not match function signature!
+  %"%\D8\B5\D9\81_\D8\A7\D9\84\D8\A3\D8\B2\D8\B1\D8\A7\D8\B1.load" = load i64, 
+ptr %"%\D8\B5\D9\81_\D8\A7\D9\84\D8\A3\D8\B2\D8\B1\D8\A7\D8\B1", align 8
+ ptr  %sad_set_spacing_result20 = call void @sad_set_spacing(i64 
+%"%\D8\B5\D9\81_\D8\A7\D9\84\D8\A3\D8\B2\D8\B1\D8\A7\D8\B1.load", float 
+8.000000e+00)
+Call parameter type does not match function signature!
+  %"%\D8\B5\D9\81_\D8\A7\D9\84\D8\A3\D8\B2\D8\B1\D8\A7\D8\B1.load24" = load 
+i64, ptr %"%\D8\B5\D9\81_\D8\A7\D9\84\D8\A3\D8\B2\D8\B1\D8\A7\D8\B1", align 8
+ ptr  %sad_add_child_result25 = call void @sad_add_child(i64 
+%"%\D8\B5\D9\81_\D8\A7\D9\84\D8\A3\D8\B2\D8\B1\D8\A7\D8\B1.load24", i64 
+%"%\D8\B2\D8\B11.load")
+Call parameter type does not match function signature!
+  %"%\D8\B5\D9\81_\D8\A7\D9\84\D8\A3\D8\B2\D8\B1\D8\A7\D8\B1.load26" = load 
+i64, ptr %"%\D8\B5\D9\81_\D8\A7\D9\84\D8\A3\D8\B2\D8\B1\D8\A7\D8\B1", align 8
+ ptr  %sad_add_child_result27 = call void @sad_add_child(i64 
+%"%\D8\B5\D9\81_\D8\A7\D9\84\D8\A3\D8\B2\D8\B1\D8\A7\D8\B1.load26", i64 
+%"%\D8\B2\D8\B12.load")
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load28" = load i64, ptr 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89", align 8
+ ptr  %sad_add_child_result30 = call void @sad_add_child(i64 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load28", i64 
+%"%\D8\B5\D9\81_\D8\A7\D9\84\D8\A3\D8\B2\D8\B1\D8\A7\D8\B1.load29")
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load32" = load i64, ptr 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89", align 8
+ ptr  %sad_add_child_result33 = call void @sad_add_child(i64 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load32", i64 
+%"%\D8\A7\D9\84\D9\81\D8\A7\D8\B5\D9\84.load")
+Call parameter type does not match function signature!
+  %"%\D9\85\D8\B3\D8\A7\D8\AD\D8\A9.load" = load i64, ptr 
+%"%\D9\85\D8\B3\D8\A7\D8\AD\D8\A9", align 8
+ ptr  %sad_set_flex_result = call void @sad_set_flex(i64 
+%"%\D9\85\D8\B3\D8\A7\D8\AD\D8\A9.load", float 1.000000e+00)
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load35" = load i64, ptr 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89", align 8
+ ptr  %sad_add_child_result37 = call void @sad_add_child(i64 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load35", i64 
+%"%\D9\85\D8\B3\D8\A7\D8\AD\D8\A9.load36")
+Call parameter type does not match function signature!
+  %"%\D8\A7\D9\84\D9\87\D9\8A\D9\83\D9\84.load38" = load i64, ptr 
+%"%\D8\A7\D9\84\D9\87\D9\8A\D9\83\D9\84", align 8
+ ptr  %sad_add_child_result40 = call void @sad_add_child(i64 
+%"%\D8\A7\D9\84\D9\87\D9\8A\D9\83\D9\84.load38", i64 
+%"%\D8\A7\D9\84\D9\85\D8\AD\D8\AA\D9\88\D9\89.load39")
+Call parameter type does not match function signature!
+  %"%\D8\AA\D8\B7\D8\A8\D9\8A\D9\82.load" = load i64, ptr 
+%"%\D8\AA\D8\B7\D8\A8\D9\8A\D9\82", align 8
+ ptr  %sad_app_set_root_result = call void @sad_app_set_root(i64 
+%"%\D8\AA\D8\B7\D8\A8\D9\8A\D9\82.load", i64 
+%"%\D8\A7\D9\84\D9\87\D9\8A\D9\83\D9\84.load41")
+
+[WARNING] Module verification failed, continuing anyway...

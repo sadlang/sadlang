@@ -1,0 +1,1232 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# usb_ehci_نحلة.ص — تعريف متحكم EHCI لنظام نحلة
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# EHCI (Enhanced Host Controller Interface) — USB 2.0 Controller
+# Memory-mapped registers, async/periodic scheduling,
+# companion controllers for low/full speed devices
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── دوال خارجية (FFI) ───
+خارجي دالة sad_ll_port_inb(port)
+خارجي دالة sad_ll_port_outb(port، val)
+خارجي دالة sad_ll_port_inw(port)
+خارجي دالة sad_ll_port_outw(port، val)
+خارجي دالة sad_ll_port_inl(port)
+خارجي دالة sad_ll_port_outl(port، val)
+خارجي دالة sad_ll_mem_read8(addr)
+خارجي دالة sad_ll_mem_write8(addr، val)
+خارجي دالة sad_ll_mem_read32(addr)
+خارجي دالة sad_ll_mem_write32(addr، val)
+خارجي دالة sad_ll_serial_write_char(port، ch)
+خارجي دالة sad_ll_kmalloc(حجم_طلب)
+خارجي دالة sad_ll_kfree(عنوان)
+خارجي دالة sad_ll_memset(عنوان، قيمة، حجم_منطقة)
+خارجي دالة sad_ll_memcpy(هدف، مصدر، حجم_نقل)
+خارجي دالة sad_ll_timer_get_ticks()
+
+# ─── دوال خارجية من USB Core ───
+خارجي دالة usb_get_hc_base(idx)
+خارجي دالة usb_register_device(hc_idx، port_num، speed)
+خارجي دالة usb_build_setup(buf، req_type، request، w_value، w_index، w_length)
+خارجي دالة usb_parse_device_descriptor(buf، dev_idx)
+خارجي دالة usb_parse_config_descriptor(buf، total_len، dev_idx)
+خارجي دالة usb_classify_device(dev_idx)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ثوابت EHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+ثابت COM1 = 1016
+
+# ─── Capability Registers (read from MMIO base) ───
+ثابت EHCI_CAP_CAPLENGTH   = 0      # 0x00 - Length of Cap Regs (8-bit)
+ثابت EHCI_CAP_HCIVERSION  = 2      # 0x02 - Version (16-bit)
+ثابت EHCI_CAP_HCSPARAMS   = 4      # 0x04 - Structural Parameters (32-bit)
+ثابت EHCI_CAP_HCCPARAMS   = 8      # 0x08 - Capability Parameters (32-bit)
+
+# ─── Operational Registers (offset = CAPLENGTH from MMIO base) ───
+ثابت EHCI_OP_USBCMD       = 0      # 0x00 - USB Command
+ثابت EHCI_OP_USBSTS       = 4      # 0x04 - USB Status
+ثابت EHCI_OP_USBINTR      = 8      # 0x08 - USB Interrupt Enable
+ثابت EHCI_OP_FRINDEX       = 12     # 0x0C - Frame Index
+ثابت EHCI_OP_CTRLDSSEG     = 16     # 0x10 - 4G Segment Selector
+ثابت EHCI_OP_PERIODICLIST   = 20     # 0x14 - Periodic Frame List Base
+ثابت EHCI_OP_ASYNCLIST     = 24     # 0x18 - Async List Address
+ثابت EHCI_OP_CONFIGFLAG    = 64     # 0x40 - Config Flag
+ثابت EHCI_OP_PORTSC_BASE   = 68     # 0x44 - Port Status/Control (base for port 0)
+
+# USBCMD bits
+ثابت EHCI_CMD_RS           = 1      # Run/Stop
+ثابت EHCI_CMD_HCRESET      = 2      # HC Reset
+ثابت EHCI_CMD_FLS_1024     = 0      # Frame List Size = 1024
+ثابت EHCI_CMD_FLS_512      = 4      # Frame List Size = 512
+ثابت EHCI_CMD_FLS_256      = 8      # Frame List Size = 256
+ثابت EHCI_CMD_PSE          = 16     # 0x10 Periodic Schedule Enable
+ثابت EHCI_CMD_ASE          = 32     # 0x20 Async Schedule Enable
+ثابت EHCI_CMD_IAAD         = 64     # 0x40 Interrupt on Async Advance Doorbell
+ثابت EHCI_CMD_ITC_1        = 65536  # 0x10000 Interrupt Threshold = 1 micro-frame
+
+# USBSTS bits
+ثابت EHCI_STS_USBINT       = 1      # USB Interrupt
+ثابت EHCI_STS_USBERR       = 2      # USB Error
+ثابت EHCI_STS_PCD          = 4      # Port Change Detect
+ثابت EHCI_STS_FLR          = 8      # Frame List Rollover
+ثابت EHCI_STS_HSE          = 16     # 0x10 Host System Error
+ثابت EHCI_STS_IAA          = 32     # 0x20 Interrupt on Async Advance
+ثابت EHCI_STS_HCH          = 4096   # 0x1000 HC Halted
+ثابت EHCI_STS_RECL         = 8192   # 0x2000 Reclamation
+ثابت EHCI_STS_PSS          = 16384  # 0x4000 Periodic Schedule Status
+ثابت EHCI_STS_ASS          = 32768  # 0x8000 Async Schedule Status
+
+# PORTSC bits
+ثابت EHCI_PORT_CONNECT     = 1      # Current Connect Status
+ثابت EHCI_PORT_CSC         = 2      # Connect Status Change
+ثابت EHCI_PORT_ENABLE      = 4      # Port Enable
+ثابت EHCI_PORT_ENC         = 8      # Port Enable Change
+ثابت EHCI_PORT_OCA         = 16     # 0x10 Over-current Active
+ثابت EHCI_PORT_OCC         = 32     # 0x20 Over-current Change
+ثابت EHCI_PORT_FPR         = 64     # 0x40 Force Port Resume
+ثابت EHCI_PORT_SUSPEND     = 128    # 0x80 Suspend
+ثابت EHCI_PORT_RESET       = 256    # 0x100 Port Reset
+ثابت EHCI_PORT_LS_MASK     = 3072   # 0xC00 Line Status (bits 10-11)
+ثابت EHCI_PORT_PP          = 4096   # 0x1000 Port Power
+ثابت EHCI_PORT_OWNER       = 8192   # 0x2000 Port Owner (1=companion)
+ثابت EHCI_PORT_PIC_OFF     = 0      # Port Indicator Off
+ثابت EHCI_PORT_PIC_AMBER   = 16384  # 0x4000
+ثابت EHCI_PORT_PIC_GREEN   = 32768  # 0x8000
+
+# QH Endpoint characteristics
+ثابت EHCI_QH_RL_SHIFT    = 28     # NAK count reload, bits 28-31
+ثابت EHCI_QH_C_BIT       = 134217728   # 0x08000000 bit 27 control endpoint
+ثابت EHCI_QH_MAX_PKT_SHIFT = 16   # bits 16-26
+ثابت EHCI_QH_H_BIT       = 32768  # 0x8000 Head of Reclamation
+ثابت EHCI_QH_DTC         = 16384  # 0x4000 Data Toggle Control
+ثابت EHCI_QH_EPS_FULL    = 0      # bits 12-13 = 00 Full Speed
+ثابت EHCI_QH_EPS_LOW     = 4096   # 0x1000
+ثابت EHCI_QH_EPS_HIGH    = 8192   # 0x2000
+ثابت EHCI_QH_EP_SHIFT    = 8      # bits 8-11: endpoint
+ثابت EHCI_QH_INACT       = 128    # 0x80 Inactivate on Next
+ثابت EHCI_QH_ADDR_MASK   = 127    # bits 0-6: device address
+
+# qTD Token bits
+ثابت EHCI_QTD_ACTIVE     = 128     # 0x80 bit 7
+ثابت EHCI_QTD_HALTED     = 64      # 0x40 bit 6
+ثابت EHCI_QTD_DBUF_ERR   = 32      # 0x20 bit 5
+ثابت EHCI_QTD_BABBLE     = 16      # 0x10 bit 4
+ثابت EHCI_QTD_XACT_ERR   = 8       # bit 3
+ثابت EHCI_QTD_MISS_MF    = 4       # bit 2
+ثابت EHCI_QTD_SPLIT_XS   = 2       # bit 1
+ثابت EHCI_QTD_PING       = 1       # bit 0
+
+# qTD PID codes (bits 8-9)
+ثابت EHCI_QTD_PID_OUT    = 0        # 0x00 bits 8-9
+ثابت EHCI_QTD_PID_IN     = 256      # 0x100
+ثابت EHCI_QTD_PID_SETUP  = 512      # 0x200
+
+# qTD Toggle
+ثابت EHCI_QTD_TOGGLE     = 2147483648  # 0x80000000 bit 31
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# حالة EHCI (حتى 4 متحكمات)
+# ═══════════════════════════════════════════════════════════════════════════════
+متغير ehci_count = 0
+
+# عناوين MMIO القاعدية
+متغير ehci_mmio_0 = 0
+متغير ehci_mmio_1 = 0
+متغير ehci_mmio_2 = 0
+متغير ehci_mmio_3 = 0
+
+# إزاحة السجلات التشغيلية (CAPLENGTH)
+متغير ehci_opbase_0 = 0
+متغير ehci_opbase_1 = 0
+متغير ehci_opbase_2 = 0
+متغير ehci_opbase_3 = 0
+
+# عدد المنافذ
+متغير ehci_num_ports_0 = 0
+متغير ehci_num_ports_1 = 0
+متغير ehci_num_ports_2 = 0
+متغير ehci_num_ports_3 = 0
+
+# عنوان Periodic Frame List
+متغير ehci_periodic_0 = 0
+متغير ehci_periodic_1 = 0
+متغير ehci_periodic_2 = 0
+متغير ehci_periodic_3 = 0
+
+# QH Pool
+متغير ehci_qh_pool_0 = 0
+متغير ehci_qh_pool_1 = 0
+متغير ehci_qh_pool_2 = 0
+متغير ehci_qh_pool_3 = 0
+
+# qTD Pool
+متغير ehci_qtd_pool_0 = 0
+متغير ehci_qtd_pool_1 = 0
+متغير ehci_qtd_pool_2 = 0
+متغير ehci_qtd_pool_3 = 0
+
+# Data buffer
+متغير ehci_data_buf_0 = 0
+متغير ehci_data_buf_1 = 0
+متغير ehci_data_buf_2 = 0
+متغير ehci_data_buf_3 = 0
+
+# Setup buffer
+متغير ehci_setup_buf_0 = 0
+متغير ehci_setup_buf_1 = 0
+متغير ehci_setup_buf_2 = 0
+متغير ehci_setup_buf_3 = 0
+
+# حالة (0=معطل، 1=مهيأ، 2=يعمل)
+متغير ehci_status_0 = 0
+متغير ehci_status_1 = 0
+متغير ehci_status_2 = 0
+متغير ehci_status_3 = 0
+
+# QH و qTD usage
+متغير ehci_qh_used_0 = 0
+متغير ehci_qh_used_1 = 0
+متغير ehci_qh_used_2 = 0
+متغير ehci_qh_used_3 = 0
+
+متغير ehci_qtd_used_0 = 0
+متغير ehci_qtd_used_1 = 0
+متغير ehci_qtd_used_2 = 0
+متغير ehci_qtd_used_3 = 0
+
+# Async QH (head of reclamation list)
+متغير ehci_async_qh_0 = 0
+متغير ehci_async_qh_1 = 0
+متغير ehci_async_qh_2 = 0
+متغير ehci_async_qh_3 = 0
+
+# إحصائيات
+متغير ehci_total_transfers = 0
+متغير ehci_transfer_errors = 0
+متغير ehci_port_resets = 0
+متغير ehci_companion_routes = 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الطباعة
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة ehci_serial_اطبع(رسالة)
+    متغير i = 0 + 0
+    بينما (i < 80)
+        متغير ch = sad_ll_mem_read8(رسالة + i) + 0
+        إذا (ch == 0) ارجع 0 نهاية
+        sad_ll_serial_write_char(COM1، ch)
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية
+
+دالة ehci_serial_رقم(ن)
+    متغير val = ن + 0
+    إذا (val < 0)
+        sad_ll_serial_write_char(COM1، 45)
+        val = 0 - val
+    نهاية
+    إذا (val >= 10000)
+        متغير d5 = val / 10000
+        sad_ll_serial_write_char(COM1، 48 + d5)
+        val = val - (d5 * 10000)
+    نهاية
+    إذا (val >= 1000)
+        متغير d4 = val / 1000
+        sad_ll_serial_write_char(COM1، 48 + d4)
+        val = val - (d4 * 1000)
+    والا_اذا (ن >= 10000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 100)
+        متغير d3 = val / 100
+        sad_ll_serial_write_char(COM1، 48 + d3)
+        val = val - (d3 * 100)
+    والا_اذا (ن >= 1000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 10)
+        متغير d2 = val / 10
+        sad_ll_serial_write_char(COM1، 48 + d2)
+        val = val - (d2 * 10)
+    والا_اذا (ن >= 100)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    sad_ll_serial_write_char(COM1، 48 + val)
+    ارجع 0
+نهاية
+
+دالة ehci_serial_hex8(val)
+    متغير v = val + 0
+    متغير hi = v / 16
+    متغير lo = v % 16
+    إذا (hi < 10) sad_ll_serial_write_char(COM1، 48 + hi)
+    والا sad_ll_serial_write_char(COM1، 55 + hi) نهاية
+    إذا (lo < 10) sad_ll_serial_write_char(COM1، 48 + lo)
+    والا sad_ll_serial_write_char(COM1، 55 + lo) نهاية
+    ارجع 0
+نهاية
+
+دالة ehci_serial_hex16(val)
+    ehci_serial_hex8(val / 256)
+    ehci_serial_hex8(val % 256)
+    ارجع 0
+نهاية
+
+دالة ehci_serial_سطر()
+    sad_ll_serial_write_char(COM1، 13)
+    sad_ll_serial_write_char(COM1، 10)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# وصول المصفوفات الموازية
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة ehci_get_mmio(idx)
+    إذا (idx == 0) ارجع ehci_mmio_0 + 0 نهاية
+    إذا (idx == 1) ارجع ehci_mmio_1 + 0 نهاية
+    إذا (idx == 2) ارجع ehci_mmio_2 + 0 نهاية
+    إذا (idx == 3) ارجع ehci_mmio_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة ehci_get_opbase(idx)
+    إذا (idx == 0) ارجع ehci_opbase_0 + 0 نهاية
+    إذا (idx == 1) ارجع ehci_opbase_1 + 0 نهاية
+    إذا (idx == 2) ارجع ehci_opbase_2 + 0 نهاية
+    إذا (idx == 3) ارجع ehci_opbase_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة ehci_get_num_ports(idx)
+    إذا (idx == 0) ارجع ehci_num_ports_0 + 0 نهاية
+    إذا (idx == 1) ارجع ehci_num_ports_1 + 0 نهاية
+    إذا (idx == 2) ارجع ehci_num_ports_2 + 0 نهاية
+    إذا (idx == 3) ارجع ehci_num_ports_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة ehci_get_data_buf(idx)
+    إذا (idx == 0) ارجع ehci_data_buf_0 + 0 نهاية
+    إذا (idx == 1) ارجع ehci_data_buf_1 + 0 نهاية
+    إذا (idx == 2) ارجع ehci_data_buf_2 + 0 نهاية
+    إذا (idx == 3) ارجع ehci_data_buf_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة ehci_get_setup_buf(idx)
+    إذا (idx == 0) ارجع ehci_setup_buf_0 + 0 نهاية
+    إذا (idx == 1) ارجع ehci_setup_buf_1 + 0 نهاية
+    إذا (idx == 2) ارجع ehci_setup_buf_2 + 0 نهاية
+    إذا (idx == 3) ارجع ehci_setup_buf_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة ehci_get_qh_pool(idx)
+    إذا (idx == 0) ارجع ehci_qh_pool_0 + 0 نهاية
+    إذا (idx == 1) ارجع ehci_qh_pool_1 + 0 نهاية
+    إذا (idx == 2) ارجع ehci_qh_pool_2 + 0 نهاية
+    إذا (idx == 3) ارجع ehci_qh_pool_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة ehci_get_qtd_pool(idx)
+    إذا (idx == 0) ارجع ehci_qtd_pool_0 + 0 نهاية
+    إذا (idx == 1) ارجع ehci_qtd_pool_1 + 0 نهاية
+    إذا (idx == 2) ارجع ehci_qtd_pool_2 + 0 نهاية
+    إذا (idx == 3) ارجع ehci_qtd_pool_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة ehci_get_async_qh(idx)
+    إذا (idx == 0) ارجع ehci_async_qh_0 + 0 نهاية
+    إذا (idx == 1) ارجع ehci_async_qh_1 + 0 نهاية
+    إذا (idx == 2) ارجع ehci_async_qh_2 + 0 نهاية
+    إذا (idx == 3) ارجع ehci_async_qh_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# قراءة/كتابة سجلات EHCI (MMIO)
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ehci_read_cap(hc_idx، reg)
+    متغير mmio = ehci_get_mmio(hc_idx) + 0
+    ارجع sad_ll_mem_read32(mmio + reg) + 0
+نهاية
+
+صدّر دالة ehci_read_op(hc_idx، reg)
+    متغير opbase = ehci_get_opbase(hc_idx) + 0
+    ارجع sad_ll_mem_read32(opbase + reg) + 0
+نهاية
+
+صدّر دالة ehci_write_op(hc_idx، reg، val)
+    متغير opbase = ehci_get_opbase(hc_idx) + 0
+    sad_ll_mem_write32(opbase + reg، val + 0)
+    ارجع 0
+نهاية
+
+صدّر دالة ehci_read_port(hc_idx، port_num)
+    متغير opbase = ehci_get_opbase(hc_idx) + 0
+    ارجع sad_ll_mem_read32(opbase + EHCI_OP_PORTSC_BASE + (port_num * 4)) + 0
+نهاية
+
+صدّر دالة ehci_write_port(hc_idx، port_num، val)
+    متغير opbase = ehci_get_opbase(hc_idx) + 0
+    sad_ll_mem_write32(opbase + EHCI_OP_PORTSC_BASE + (port_num * 4)، val + 0)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# إعادة تعيين المتحكم
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ehci_reset(hc_idx)
+    ehci_serial_اطبع("[EHCI] Resetting HC #")
+    ehci_serial_رقم(hc_idx + 0)
+    ehci_serial_سطر()
+
+    # إيقاف المتحكم أولاً
+    متغير cmd = ehci_read_op(hc_idx، EHCI_OP_USBCMD) + 0
+    # clear RS bit
+    متغير new_cmd = cmd - (cmd % 2)
+    ehci_write_op(hc_idx، EHCI_OP_USBCMD، new_cmd)
+
+    # انتظار HCH (Halted)
+    متغير timeout = 200 + 0
+    بينما (timeout > 0)
+        متغير sts = ehci_read_op(hc_idx، EHCI_OP_USBSTS) + 0
+        متغير halted = (sts / EHCI_STS_HCH) % 2
+        إذا (halted == 1)
+            timeout = 0
+        والا
+            timeout = timeout - 1
+            متغير w = sad_ll_timer_get_ticks() + 0
+            بينما (sad_ll_timer_get_ticks() - w < 100)
+                متغير d = 0
+            نهاية
+        نهاية
+    نهاية
+
+    # HC Reset
+    ehci_write_op(hc_idx، EHCI_OP_USBCMD، EHCI_CMD_HCRESET)
+
+    # انتظار انتهاء الإعادة
+    timeout = 500 + 0
+    بينما (timeout > 0)
+        cmd = ehci_read_op(hc_idx، EHCI_OP_USBCMD) + 0
+        إذا ((cmd / 2) % 2 == 0)  # HCRESET bit cleared
+            ehci_serial_اطبع("[EHCI] Reset complete")
+            ehci_serial_سطر()
+            ارجع 1
+        نهاية
+        timeout = timeout - 1
+        متغير w2 = sad_ll_timer_get_ticks() + 0
+        بينما (sad_ll_timer_get_ticks() - w2 < 100)
+            متغير d2 = 0
+        نهاية
+    نهاية
+
+    ehci_serial_اطبع("[EHCI] Reset timeout!")
+    ehci_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تخصيص qTD (32 بايت، محاذاة 32 بايت)
+# ═══════════════════════════════════════════════════════════════════════════════
+# qTD Structure (8 DWORDs = 32 bytes):
+#   DWORD 0: Next qTD Pointer
+#   DWORD 1: Alternate Next qTD Pointer
+#   DWORD 2: Token (status, PID, error count, current page, IOC, total bytes, toggle)
+#   DWORD 3: Buffer Pointer 0
+#   DWORD 4: Buffer Pointer 1
+#   DWORD 5: Buffer Pointer 2
+#   DWORD 6: Buffer Pointer 3
+#   DWORD 7: Buffer Pointer 4
+
+صدّر دالة ehci_alloc_qtd(hc_idx)
+    متغير used = 0 + 0
+    إذا (hc_idx == 0) used = ehci_qtd_used_0 + 0 نهاية
+    إذا (hc_idx == 1) used = ehci_qtd_used_1 + 0 نهاية
+    إذا (hc_idx == 2) used = ehci_qtd_used_2 + 0 نهاية
+    إذا (hc_idx == 3) used = ehci_qtd_used_3 + 0 نهاية
+
+    إذا (used >= 32)
+        ارجع 0
+    نهاية
+
+    متغير pool = ehci_get_qtd_pool(hc_idx) + 0
+    متغير qtd = pool + (used * 32)
+
+    # Clear
+    sad_ll_mem_write32(qtd، 1)        # next = terminate
+    sad_ll_mem_write32(qtd + 4، 1)    # alt next = terminate
+    sad_ll_mem_write32(qtd + 8، 0)    # token
+    sad_ll_mem_write32(qtd + 12، 0)   # buf0
+    sad_ll_mem_write32(qtd + 16، 0)   # buf1
+    sad_ll_mem_write32(qtd + 20، 0)   # buf2
+    sad_ll_mem_write32(qtd + 24، 0)   # buf3
+    sad_ll_mem_write32(qtd + 28، 0)   # buf4
+
+    إذا (hc_idx == 0) ehci_qtd_used_0 = used + 1 نهاية
+    إذا (hc_idx == 1) ehci_qtd_used_1 = used + 1 نهاية
+    إذا (hc_idx == 2) ehci_qtd_used_2 = used + 1 نهاية
+    إذا (hc_idx == 3) ehci_qtd_used_3 = used + 1 نهاية
+
+    ارجع qtd + 0
+نهاية
+
+صدّر دالة ehci_reset_qtd_pool(hc_idx)
+    إذا (hc_idx == 0) ehci_qtd_used_0 = 0 نهاية
+    إذا (hc_idx == 1) ehci_qtd_used_1 = 0 نهاية
+    إذا (hc_idx == 2) ehci_qtd_used_2 = 0 نهاية
+    إذا (hc_idx == 3) ehci_qtd_used_3 = 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# بناء qTD
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ehci_qtd_set_next(qtd، next_qtd، terminate)
+    إذا (terminate == 1)
+        sad_ll_mem_write32(qtd، 1)
+    والا
+        sad_ll_mem_write32(qtd، next_qtd + 0)
+    نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة ehci_qtd_set_token(qtd، pid_code، total_bytes، toggle، cerr، ioc)
+    # Token (DWORD 2):
+    # bits 0-7:   Status (bit 7=Active)
+    # bits 8-9:   PID (0=OUT, 1=IN, 2=SETUP)
+    # bits 10-11: Error Counter (CERR)
+    # bits 12-14: Current Page (0)
+    # bit 15:     IOC
+    # bits 16-30: Total Bytes to Transfer
+    # bit 31:     Data Toggle
+    متغير token = EHCI_QTD_ACTIVE  # bit 7 = active
+    token = token + pid_code         # bits 8-9
+    token = token + (cerr * 1024)    # bits 10-11 (0x400)
+    إذا (ioc == 1)
+        token = token + 32768        # bit 15 = 0x8000
+    نهاية
+    token = token + (total_bytes * 65536)  # bits 16-30
+    إذا (toggle == 1)
+        token = token + EHCI_QTD_TOGGLE    # bit 31
+    نهاية
+    sad_ll_mem_write32(qtd + 8، token)
+    ارجع 0
+نهاية
+
+صدّر دالة ehci_qtd_set_buffer(qtd، buf_phys)
+    sad_ll_mem_write32(qtd + 12، buf_phys + 0)  # Buffer Page 0
+    # For buffers crossing page boundaries, set buf1-4
+    # Simple implementation: assume buffer doesn't cross 4K
+    ارجع 0
+نهاية
+
+صدّر دالة ehci_qtd_get_token(qtd)
+    ارجع sad_ll_mem_read32(qtd + 8) + 0
+نهاية
+
+صدّر دالة ehci_qtd_is_active(qtd)
+    متغير token = ehci_qtd_get_token(qtd) + 0
+    متغير active = (token / EHCI_QTD_ACTIVE) % 2  # bit 7
+    ارجع active + 0
+نهاية
+
+صدّر دالة ehci_qtd_has_error(qtd)
+    متغير token = ehci_qtd_get_token(qtd) + 0
+    متغير halted = (token / EHCI_QTD_HALTED) % 2
+    متغير dbuf = (token / EHCI_QTD_DBUF_ERR) % 2
+    متغير babble = (token / EHCI_QTD_BABBLE) % 2
+    متغير xact = (token / EHCI_QTD_XACT_ERR) % 2
+    إذا (halted + dbuf + babble + xact > 0)
+        ارجع 1
+    نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة ehci_qtd_actual_len(qtd)
+    متغير token = ehci_qtd_get_token(qtd) + 0
+    # bits 16-30 = total bytes remaining
+    متغير remaining = (token / 65536) % 32768  # 15 bits
+    ارجع remaining + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تخصيص QH (48 بايت، محاذاة 32 بايت) 
+# ═══════════════════════════════════════════════════════════════════════════════
+# QH Structure:
+#   DWORD 0:  Queue Head Horizontal Link Pointer
+#   DWORD 1:  Endpoint Characteristics
+#   DWORD 2:  Endpoint Capabilities
+#   DWORD 3:  Current qTD Pointer
+#   DWORD 4:  Next qTD Pointer (overlay)
+#   DWORD 5:  Alternate Next qTD (overlay)
+#   DWORD 6:  Token (overlay)
+#   DWORD 7:  Buffer Page 0 (overlay)
+#   DWORD 8:  Buffer Page 1 (overlay)
+#   DWORD 9:  Buffer Page 2 (overlay)
+#   DWORD 10: Buffer Page 3 (overlay)
+#   DWORD 11: Buffer Page 4 (overlay)
+
+صدّر دالة ehci_alloc_qh(hc_idx)
+    متغير used = 0 + 0
+    إذا (hc_idx == 0) used = ehci_qh_used_0 + 0 نهاية
+    إذا (hc_idx == 1) used = ehci_qh_used_1 + 0 نهاية
+    إذا (hc_idx == 2) used = ehci_qh_used_2 + 0 نهاية
+    إذا (hc_idx == 3) used = ehci_qh_used_3 + 0 نهاية
+
+    إذا (used >= 16)
+        ارجع 0
+    نهاية
+
+    متغير pool = ehci_get_qh_pool(hc_idx) + 0
+    متغير قه = pool + (used * 64)  # 64-byte aligned QHs
+
+    # Clear 48 bytes
+    sad_ll_memset(قه، 0، 64)
+    sad_ll_mem_write32(قه، 1)       # terminate
+    sad_ll_mem_write32(قه + 16، 1)  # next qTD = terminate
+
+    إذا (hc_idx == 0) ehci_qh_used_0 = used + 1 نهاية
+    إذا (hc_idx == 1) ehci_qh_used_1 = used + 1 نهاية
+    إذا (hc_idx == 2) ehci_qh_used_2 = used + 1 نهاية
+    إذا (hc_idx == 3) ehci_qh_used_3 = used + 1 نهاية
+
+    ارجع قه + 0
+نهاية
+
+صدّر دالة ehci_qh_setup(قه، dev_addr، endpoint، max_pkt، speed، is_head)
+    # DWORD 1: Endpoint Characteristics
+    متغير chars = dev_addr + 0                # bits 0-6
+    chars = chars + (endpoint * 256)           # bits 8-11 (shift 8)
+    
+    إذا (speed == 2)  # High speed
+        chars = chars + EHCI_QH_EPS_HIGH
+    والا_اذا (speed == 0)  # Low speed
+        chars = chars + EHCI_QH_EPS_LOW
+    والا   # Full speed
+        chars = chars + EHCI_QH_EPS_FULL
+    نهاية
+
+    chars = chars + EHCI_QH_DTC             # Data Toggle from qTD
+    chars = chars + (max_pkt * 65536)       # bits 16-26 (shift 16)
+
+    إذا (endpoint == 0)
+        chars = chars + EHCI_QH_C_BIT       # Control endpoint flag
+    نهاية
+
+    إذا (is_head == 1)
+        chars = chars + EHCI_QH_H_BIT       # Head of Reclamation
+    نهاية
+
+    # NAK reload = 15
+    chars = chars + (15 * 268435456)         # bits 28-31 (0x10000000)
+
+    sad_ll_mem_write32(قه + 4، chars)
+
+    # DWORD 2: Endpoint Capabilities  
+    # For high-speed: mult=1 (bits 30-31)
+    متغير caps = 1073741824  # 0x40000000 = mult=1
+    # Hub/port for split transactions (full/low speed behind TT)
+    إذا (speed != 2)
+        # S-mask = 1 (bit 0 of byte = micro-frame 0)
+        caps = caps + 1
+        # C-mask = 0x1C (bits 8-15) 
+        caps = caps + 7168  # 0x1C00
+    نهاية
+    sad_ll_mem_write32(قه + 8، caps)
+
+    ارجع 0
+نهاية
+
+صدّر دالة ehci_qh_link_qtd(قه، first_qtd)
+    # DWORD 4: Next qTD Pointer (in overlay area)
+    sad_ll_mem_write32(قه + 16، first_qtd + 0)
+    # Clear overlay token
+    sad_ll_mem_write32(قه + 24، 0)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# إعادة تعيين منفذ EHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ehci_port_reset(hc_idx، port_num)
+    ehci_serial_اطبع("[EHCI] Port reset HC#")
+    ehci_serial_رقم(hc_idx + 0)
+    ehci_serial_اطبع(" port ")
+    ehci_serial_رقم(port_num + 0)
+    ehci_serial_سطر()
+
+    ehci_port_resets = ehci_port_resets + 1
+
+    متغير sc = ehci_read_port(hc_idx، port_num) + 0
+
+    # تعيين Port Reset + Port Power
+    متغير new_sc = EHCI_PORT_RESET + EHCI_PORT_PP
+    ehci_write_port(hc_idx، port_num، new_sc)
+
+    # انتظار 50ms
+    متغير wait = sad_ll_timer_get_ticks() + 0
+    بينما (sad_ll_timer_get_ticks() - wait < 5000)
+        متغير d = 0
+    نهاية
+
+    # إزالة Reset bit
+    sc = ehci_read_port(hc_idx، port_num) + 0
+    new_sc = sc - (sc % 512)  # clear bit 8 (reset) and below
+    new_sc = new_sc + EHCI_PORT_PP + EHCI_PORT_ENABLE
+    ehci_write_port(hc_idx، port_num، EHCI_PORT_PP)
+
+    # انتظار Reset complete
+    متغير timeout = 200 + 0
+    بينما (timeout > 0)
+        sc = ehci_read_port(hc_idx، port_num) + 0
+        متغير reset_bit = (sc / EHCI_PORT_RESET) % 2
+        إذا (reset_bit == 0)
+            timeout = 0
+        والا
+            timeout = timeout - 1
+            متغير w = sad_ll_timer_get_ticks() + 0
+            بينما (sad_ll_timer_get_ticks() - w < 100)
+                متغير d2 = 0
+            نهاية
+        نهاية
+    نهاية
+
+    # قراءة الحالة النهائية
+    sc = ehci_read_port(hc_idx، port_num) + 0
+    متغير connected = sc % 2
+    متغير enabled = (sc / EHCI_PORT_ENABLE) % 2
+    متغير owner = (sc / EHCI_PORT_OWNER) % 2
+    متغير line_status = (sc / 1024) % 4  # bits 10-11
+
+    ehci_serial_اطبع("[EHCI] Port: conn=")
+    ehci_serial_رقم(connected + 0)
+    ehci_serial_اطبع(" en=")
+    ehci_serial_رقم(enabled + 0)
+    ehci_serial_اطبع(" owner=")
+    ehci_serial_رقم(owner + 0)
+    ehci_serial_اطبع(" LS=")
+    ehci_serial_رقم(line_status + 0)
+    ehci_serial_سطر()
+
+    # إذا المنفذ غير مفعل → جهاز low/full speed → route to companion
+    إذا (connected == 1)
+        إذا (enabled == 0)
+            ehci_serial_اطبع("[EHCI] Non-HS device, routing to companion")
+            ehci_serial_سطر()
+            ehci_write_port(hc_idx، port_num، EHCI_PORT_OWNER + EHCI_PORT_PP)
+            ehci_companion_routes = ehci_companion_routes + 1
+            ارجع 0
+        نهاية
+    نهاية
+
+    # Clear CSC
+    إذا ((sc / EHCI_PORT_CSC) % 2 == 1)
+        ehci_write_port(hc_idx، port_num، EHCI_PORT_PP + EHCI_PORT_CSC)
+    نهاية
+
+    ارجع connected + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# نقل تحكم عبر EHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ehci_control_transfer(hc_idx، dev_addr، setup_buf، data_buf، data_len، is_read)
+    ehci_total_transfers = ehci_total_transfers + 1
+    ehci_reset_qtd_pool(hc_idx)
+
+    # ─── qTD SETUP ───
+    متغير qtd_setup = ehci_alloc_qtd(hc_idx) + 0
+    إذا (qtd_setup == 0)
+        ehci_transfer_errors = ehci_transfer_errors + 1
+        ارجع 0 - 1
+    نهاية
+
+    ehci_qtd_set_token(qtd_setup، EHCI_QTD_PID_SETUP، 8، 0، 3، 0)
+    ehci_qtd_set_buffer(qtd_setup، setup_buf)
+
+    # ─── qTD DATA ───
+    متغير qtd_data_first = 0 + 0
+    متغير qtd_data_last = 0 + 0
+    متغير toggle = 1 + 0
+    متغير remaining = data_len + 0
+    متغير offset = 0 + 0
+
+    متغير pid = EHCI_QTD_PID_IN + 0
+    إذا (is_read == 0)
+        pid = EHCI_QTD_PID_OUT + 0
+    نهاية
+
+    بينما (remaining > 0)
+        متغير qtd_data = ehci_alloc_qtd(hc_idx) + 0
+        إذا (qtd_data == 0)
+            ehci_transfer_errors = ehci_transfer_errors + 1
+            ارجع 0 - 1
+        نهاية
+
+        إذا (qtd_data_first == 0)
+            qtd_data_first = qtd_data + 0
+        نهاية
+        إذا (qtd_data_last != 0)
+            ehci_qtd_set_next(qtd_data_last، qtd_data، 0)
+        نهاية
+
+        متغير pkt = remaining + 0
+        إذا (pkt > 512)
+            pkt = 512
+        نهاية
+
+        ehci_qtd_set_token(qtd_data، pid، pkt، toggle، 3، 0)
+        ehci_qtd_set_buffer(qtd_data، data_buf + offset)
+
+        qtd_data_last = qtd_data + 0
+        offset = offset + pkt
+        remaining = remaining - pkt
+        toggle = 1 - toggle
+    نهاية
+
+    # ─── qTD STATUS ───
+    متغير qtd_status = ehci_alloc_qtd(hc_idx) + 0
+    إذا (qtd_status == 0)
+        ehci_transfer_errors = ehci_transfer_errors + 1
+        ارجع 0 - 1
+    نهاية
+
+    متغير status_pid = EHCI_QTD_PID_OUT + 0
+    إذا (is_read == 0)
+        status_pid = EHCI_QTD_PID_IN + 0
+    نهاية
+
+    ehci_qtd_set_token(qtd_status، status_pid، 0، 1، 3، 1)  # IOC=1
+    ehci_qtd_set_next(qtd_status، 0، 1)  # terminate
+
+    # ─── ربط السلسلة ───
+    إذا (qtd_data_first != 0)
+        ehci_qtd_set_next(qtd_setup، qtd_data_first، 0)
+        ehci_qtd_set_next(qtd_data_last، qtd_status، 0)
+    والا
+        ehci_qtd_set_next(qtd_setup، qtd_status، 0)
+    نهاية
+
+    # ─── QH Setup ───
+    متغير async_qh = ehci_get_async_qh(hc_idx) + 0
+    ehci_qh_setup(async_qh، dev_addr، 0، 64، 2، 1)  # HS, head
+    # Point QH to itself (circular)
+    sad_ll_mem_write32(async_qh، async_qh + 2)  # type=QH
+    # Link qTDs
+    ehci_qh_link_qtd(async_qh، qtd_setup)
+
+    # ─── Set Async List Address ───
+    ehci_write_op(hc_idx، EHCI_OP_ASYNCLIST، async_qh)
+
+    # ─── Enable Async Schedule ───
+    متغير cmd = ehci_read_op(hc_idx، EHCI_OP_USBCMD) + 0
+    ehci_write_op(hc_idx، EHCI_OP_USBCMD، cmd + EHCI_CMD_ASE + EHCI_CMD_RS)
+
+    # ─── Wait for completion ───
+    متغير timeout = 50000 + 0
+    بينما (timeout > 0)
+        إذا (ehci_qtd_is_active(qtd_status) == 0)
+            # Disable async schedule
+            cmd = ehci_read_op(hc_idx، EHCI_OP_USBCMD) + 0
+            متغير new_cmd = cmd - EHCI_CMD_ASE
+            إذا (new_cmd < 0)
+                new_cmd = cmd + 0
+            نهاية
+            ehci_write_op(hc_idx، EHCI_OP_USBCMD، new_cmd)
+
+            # Check errors
+            إذا (ehci_qtd_has_error(qtd_setup) == 1)
+                ehci_serial_اطبع("[EHCI] SETUP qTD error")
+                ehci_serial_سطر()
+                ehci_transfer_errors = ehci_transfer_errors + 1
+                ارجع 0 - 2
+            نهاية
+
+            إذا (ehci_qtd_has_error(qtd_status) == 1)
+                ehci_serial_اطبع("[EHCI] STATUS qTD error")
+                ehci_serial_سطر()
+                ehci_transfer_errors = ehci_transfer_errors + 1
+                ارجع 0 - 3
+            نهاية
+
+            # Calculate actual transferred
+            متغير total = 0 + 0
+            إذا (qtd_data_first != 0)
+                متغير cq = qtd_data_first + 0
+                متغير cc = 0
+                بينما (cc < 32)
+                    إذا (ehci_qtd_has_error(cq) == 1)
+                        ehci_transfer_errors = ehci_transfer_errors + 1
+                        ارجع 0 - 4
+                    نهاية
+                    متغير rem = ehci_qtd_actual_len(cq) + 0
+                    # total bytes = requested - remaining
+                    إذا (cq == qtd_data_last)
+                        cc = 32
+                    والا
+                        cq = cq + 32
+                        cc = cc + 1
+                    نهاية
+                نهاية
+                total = data_len + 0  # simplified
+            نهاية
+
+            ارجع total + 0
+        نهاية
+        timeout = timeout - 1
+    نهاية
+
+    # Timeout
+    cmd = ehci_read_op(hc_idx، EHCI_OP_USBCMD) + 0
+    ehci_write_op(hc_idx، EHCI_OP_USBCMD، cmd - EHCI_CMD_ASE)
+    ehci_serial_اطبع("[EHCI] Transfer timeout!")
+    ehci_serial_سطر()
+    ehci_transfer_errors = ehci_transfer_errors + 1
+    ارجع 0 - 5
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# طلبات EHCI القياسية
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ehci_get_device_descriptor(hc_idx، dev_addr، buf، buf_len)
+    متغير setup = ehci_get_setup_buf(hc_idx) + 0
+    usb_build_setup(setup، 128، 6، 256، 0، buf_len)
+    ارجع ehci_control_transfer(hc_idx، dev_addr، setup، buf، buf_len، 1) + 0
+نهاية
+
+صدّر دالة ehci_get_config_descriptor(hc_idx، dev_addr، config_idx، buf، buf_len)
+    متغير setup = ehci_get_setup_buf(hc_idx) + 0
+    متغير w_value = 512 + config_idx
+    usb_build_setup(setup، 128، 6، w_value، 0، buf_len)
+    ارجع ehci_control_transfer(hc_idx، dev_addr، setup، buf، buf_len، 1) + 0
+نهاية
+
+صدّر دالة ehci_set_address(hc_idx، old_addr، new_addr)
+    متغير setup = ehci_get_setup_buf(hc_idx) + 0
+    usb_build_setup(setup، 0، 5، new_addr، 0، 0)
+    ارجع ehci_control_transfer(hc_idx، old_addr، setup، 0، 0، 0) + 0
+نهاية
+
+صدّر دالة ehci_set_configuration(hc_idx، dev_addr، config_value)
+    متغير setup = ehci_get_setup_buf(hc_idx) + 0
+    usb_build_setup(setup، 0، 9، config_value، 0، 0)
+    ارجع ehci_control_transfer(hc_idx، dev_addr، setup، 0، 0، 0) + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# فحص المنافذ
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ehci_scan_ports(hc_idx)
+    متغير num_ports = ehci_get_num_ports(hc_idx) + 0
+    ehci_serial_اطبع("[EHCI] Scanning ")
+    ehci_serial_رقم(num_ports + 0)
+    ehci_serial_اطبع(" ports on HC#")
+    ehci_serial_رقم(hc_idx + 0)
+    ehci_serial_سطر()
+
+    متغير devices_found = 0 + 0
+    متغير p = 0 + 0
+    بينما (p < num_ports)
+        إذا (p >= 8)
+            p = num_ports  # limit to 8 ports
+        والا
+            متغير sc = ehci_read_port(hc_idx، p) + 0
+            متغير connected = sc % 2
+
+            إذا (connected == 1)
+                ehci_serial_اطبع("[EHCI] Port ")
+                ehci_serial_رقم(p + 0)
+                ehci_serial_اطبع(": device connected")
+                ehci_serial_سطر()
+
+                متغير result = ehci_port_reset(hc_idx، p) + 0
+                إذا (result > 0)
+                    # Device is high-speed, enumerate
+                    متغير dev_idx = usb_register_device(hc_idx، p، 2) + 0
+                    إذا (dev_idx >= 0)
+                        # Get device descriptor
+                        متغير data_buf = ehci_get_data_buf(hc_idx) + 0
+                        sad_ll_memset(data_buf، 0، 64)
+                        متغير res = ehci_get_device_descriptor(hc_idx، 0، data_buf، 8) + 0
+                        إذا (res >= 0)
+                            متغير new_addr = dev_idx + 1
+                            ehci_set_address(hc_idx، 0، new_addr)
+
+                            متغير wait = sad_ll_timer_get_ticks() + 0
+                            بينما (sad_ll_timer_get_ticks() - wait < 200)
+                                متغير d = 0
+                            نهاية
+
+                            sad_ll_memset(data_buf، 0، 64)
+                            res = ehci_get_device_descriptor(hc_idx، new_addr، data_buf، 18) + 0
+                            إذا (res >= 0)
+                                usb_parse_device_descriptor(data_buf، dev_idx)
+                            نهاية
+
+                            ehci_set_configuration(hc_idx، new_addr، 1)
+                            usb_classify_device(dev_idx)
+                            devices_found = devices_found + 1
+                        نهاية
+                    نهاية
+                نهاية
+            والا
+                ehci_serial_اطبع("[EHCI] Port ")
+                ehci_serial_رقم(p + 0)
+                ehci_serial_اطبع(": no device")
+                ehci_serial_سطر()
+            نهاية
+            p = p + 1
+        نهاية
+    نهاية
+
+    ehci_serial_اطبع("[EHCI] Found ")
+    ehci_serial_رقم(devices_found + 0)
+    ehci_serial_اطبع(" HS device(s)")
+    ehci_serial_سطر()
+    ارجع devices_found + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تقرير EHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ehci_تقرير()
+    ehci_serial_اطبع("═══ [EHCI] تقرير ═══")
+    ehci_serial_سطر()
+
+    ehci_serial_اطبع("  متحكمات EHCI: ")
+    ehci_serial_رقم(ehci_count + 0)
+    ehci_serial_سطر()
+
+    ehci_serial_اطبع("  عمليات النقل: ")
+    ehci_serial_رقم(ehci_total_transfers + 0)
+    ehci_serial_سطر()
+
+    ehci_serial_اطبع("  أخطاء: ")
+    ehci_serial_رقم(ehci_transfer_errors + 0)
+    ehci_serial_سطر()
+
+    ehci_serial_اطبع("  إعادة تعيين منافذ: ")
+    ehci_serial_رقم(ehci_port_resets + 0)
+    ehci_serial_سطر()
+
+    ehci_serial_اطبع("  توجيهات companion: ")
+    ehci_serial_رقم(ehci_companion_routes + 0)
+    ehci_serial_سطر()
+
+    ehci_serial_اطبع("═══════════════════════════════════")
+    ehci_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تهيئة EHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ehci_هيئ(hc_idx، mmio_base)
+    ehci_serial_اطبع("[EHCI] تهيئة EHCI HC#")
+    ehci_serial_رقم(hc_idx + 0)
+    ehci_serial_اطبع(" MMIO=0x")
+    ehci_serial_hex16(mmio_base / 65536)
+    ehci_serial_hex16(mmio_base % 65536)
+    ehci_serial_سطر()
+
+    إذا (ehci_count >= 4)
+        ehci_serial_اطبع("[EHCI] Max controllers reached!")
+        ehci_serial_سطر()
+        ارجع 0
+    نهاية
+
+    # حفظ MMIO base
+    إذا (hc_idx == 0) ehci_mmio_0 = mmio_base + 0 نهاية
+    إذا (hc_idx == 1) ehci_mmio_1 = mmio_base + 0 نهاية
+    إذا (hc_idx == 2) ehci_mmio_2 = mmio_base + 0 نهاية
+    إذا (hc_idx == 3) ehci_mmio_3 = mmio_base + 0 نهاية
+
+    # قراءة CAPLENGTH
+    متغير caplength = sad_ll_mem_read8(mmio_base) + 0
+    متغير opbase = mmio_base + caplength
+
+    إذا (hc_idx == 0) ehci_opbase_0 = opbase + 0 نهاية
+    إذا (hc_idx == 1) ehci_opbase_1 = opbase + 0 نهاية
+    إذا (hc_idx == 2) ehci_opbase_2 = opbase + 0 نهاية
+    إذا (hc_idx == 3) ehci_opbase_3 = opbase + 0 نهاية
+
+    ehci_serial_اطبع("[EHCI] CAPLENGTH=")
+    ehci_serial_رقم(caplength + 0)
+    ehci_serial_سطر()
+
+    # قراءة HCSPARAMS
+    متغير hcsparams = ehci_read_cap(hc_idx، EHCI_CAP_HCSPARAMS) + 0
+    متغير num_ports = hcsparams % 16  # bits 0-3
+
+    إذا (hc_idx == 0) ehci_num_ports_0 = num_ports + 0 نهاية
+    إذا (hc_idx == 1) ehci_num_ports_1 = num_ports + 0 نهاية
+    إذا (hc_idx == 2) ehci_num_ports_2 = num_ports + 0 نهاية
+    إذا (hc_idx == 3) ehci_num_ports_3 = num_ports + 0 نهاية
+
+    ehci_serial_اطبع("[EHCI] Ports: ")
+    ehci_serial_رقم(num_ports + 0)
+    ehci_serial_سطر()
+
+    # HCCPARAMS
+    متغير hccparams = ehci_read_cap(hc_idx، EHCI_CAP_HCCPARAMS) + 0
+    متغير eecp = (hccparams / 256) % 256  # EECP bits 8-15
+    ehci_serial_اطبع("[EHCI] EECP=0x")
+    ehci_serial_hex8(eecp + 0)
+    ehci_serial_سطر()
+
+    # إعادة تعيين
+    ehci_reset(hc_idx)
+
+    # تخصيص ذاكرة
+    # Periodic Frame List: 1024 * 4 = 4096
+    متغير periodic = sad_ll_kmalloc(4096) + 0
+    إذا (hc_idx == 0) ehci_periodic_0 = periodic + 0 نهاية
+    إذا (hc_idx == 1) ehci_periodic_1 = periodic + 0 نهاية
+    إذا (hc_idx == 2) ehci_periodic_2 = periodic + 0 نهاية
+    إذا (hc_idx == 3) ehci_periodic_3 = periodic + 0 نهاية
+
+    # تهيئة Periodic list = all terminate
+    متغير i = 0 + 0
+    بينما (i < 1024)
+        sad_ll_mem_write32(periodic + (i * 4)، 1)
+        i = i + 1
+    نهاية
+
+    # QH Pool: 16 * 64 = 1024
+    متغير qhp = sad_ll_kmalloc(1024) + 0
+    إذا (hc_idx == 0) ehci_qh_pool_0 = qhp + 0 نهاية
+    إذا (hc_idx == 1) ehci_qh_pool_1 = qhp + 0 نهاية
+    إذا (hc_idx == 2) ehci_qh_pool_2 = qhp + 0 نهاية
+    إذا (hc_idx == 3) ehci_qh_pool_3 = qhp + 0 نهاية
+    sad_ll_memset(qhp، 0، 1024)
+
+    # qTD Pool: 32 * 32 = 1024
+    متغير qtdp = sad_ll_kmalloc(1024) + 0
+    إذا (hc_idx == 0) ehci_qtd_pool_0 = qtdp + 0 نهاية
+    إذا (hc_idx == 1) ehci_qtd_pool_1 = qtdp + 0 نهاية
+    إذا (hc_idx == 2) ehci_qtd_pool_2 = qtdp + 0 نهاية
+    إذا (hc_idx == 3) ehci_qtd_pool_3 = qtdp + 0 نهاية
+    sad_ll_memset(qtdp، 0، 1024)
+
+    # Data buffer
+    متغير dbuf = sad_ll_kmalloc(1024) + 0
+    إذا (hc_idx == 0) ehci_data_buf_0 = dbuf + 0 نهاية
+    إذا (hc_idx == 1) ehci_data_buf_1 = dbuf + 0 نهاية
+    إذا (hc_idx == 2) ehci_data_buf_2 = dbuf + 0 نهاية
+    إذا (hc_idx == 3) ehci_data_buf_3 = dbuf + 0 نهاية
+
+    # Setup buffer
+    متغير sbuf = sad_ll_kmalloc(32) + 0
+    إذا (hc_idx == 0) ehci_setup_buf_0 = sbuf + 0 نهاية
+    إذا (hc_idx == 1) ehci_setup_buf_1 = sbuf + 0 نهاية
+    إذا (hc_idx == 2) ehci_setup_buf_2 = sbuf + 0 نهاية
+    إذا (hc_idx == 3) ehci_setup_buf_3 = sbuf + 0 نهاية
+
+    # Async QH (head of reclamation)
+    متغير aqh = ehci_alloc_qh(hc_idx) + 0
+    إذا (hc_idx == 0) ehci_async_qh_0 = aqh + 0 نهاية
+    إذا (hc_idx == 1) ehci_async_qh_1 = aqh + 0 نهاية
+    إذا (hc_idx == 2) ehci_async_qh_2 = aqh + 0 نهاية
+    إذا (hc_idx == 3) ehci_async_qh_3 = aqh + 0 نهاية
+
+    # Point async QH to itself
+    sad_ll_mem_write32(aqh، aqh + 2)  # QH type=2
+
+    # Set up operational registers
+    ehci_write_op(hc_idx، EHCI_OP_USBINTR، 7)  # enable USB, Error, PCD interrupts
+    ehci_write_op(hc_idx، EHCI_OP_PERIODICLIST، periodic)
+    ehci_write_op(hc_idx، EHCI_OP_ASYNCLIST، aqh)
+    ehci_write_op(hc_idx، EHCI_OP_CTRLDSSEG، 0)  # 32-bit mode
+    ehci_write_op(hc_idx، EHCI_OP_FRINDEX، 0)
+
+    # Set CF=1 (configure flag, take ownership from companion)
+    ehci_write_op(hc_idx، EHCI_OP_CONFIGFLAG، 1)
+
+    # Start the controller
+    متغير cmd = EHCI_CMD_RS + EHCI_CMD_ITC_1
+    ehci_write_op(hc_idx، EHCI_OP_USBCMD، cmd)
+
+    # انتظار التشغيل
+    متغير wait = sad_ll_timer_get_ticks() + 0
+    بينما (sad_ll_timer_get_ticks() - wait < 500)
+        متغير d = 0
+    نهاية
+
+    # التحقق من أن المتحكم يعمل
+    متغير sts = ehci_read_op(hc_idx، EHCI_OP_USBSTS) + 0
+    متغير halted = (sts / EHCI_STS_HCH) % 2
+    إذا (halted == 0)
+        ehci_serial_اطبع("[EHCI] Controller running")
+        ehci_serial_سطر()
+        إذا (hc_idx == 0) ehci_status_0 = 2 نهاية
+        إذا (hc_idx == 1) ehci_status_1 = 2 نهاية
+        إذا (hc_idx == 2) ehci_status_2 = 2 نهاية
+        إذا (hc_idx == 3) ehci_status_3 = 2 نهاية
+    والا
+        ehci_serial_اطبع("[EHCI] Controller still halted!")
+        ehci_serial_سطر()
+        إذا (hc_idx == 0) ehci_status_0 = 1 نهاية
+        إذا (hc_idx == 1) ehci_status_1 = 1 نهاية
+        إذا (hc_idx == 2) ehci_status_2 = 1 نهاية
+        إذا (hc_idx == 3) ehci_status_3 = 1 نهاية
+    نهاية
+
+    ehci_count = ehci_count + 1
+
+    # Power on ports
+    متغير p = 0 + 0
+    بينما (p < num_ports)
+        إذا (p < 8)
+            ehci_write_port(hc_idx، p، EHCI_PORT_PP)
+        نهاية
+        p = p + 1
+    نهاية
+
+    # Wait for port power stabilization
+    متغير wait2 = sad_ll_timer_get_ticks() + 0
+    بينما (sad_ll_timer_get_ticks() - wait2 < 2000)
+        متغير d2 = 0
+    نهاية
+
+    # Scan ports
+    ehci_scan_ports(hc_idx)
+
+    ehci_serial_اطبع("[EHCI] تهيئة مكتملة")
+    ehci_serial_سطر()
+    ارجع 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دورة EHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ehci_دورة()
+    متغير i = 0 + 0
+    بينما (i < ehci_count)
+        # فحص Port Change Detect
+        متغير sts = ehci_read_op(i، EHCI_OP_USBSTS) + 0
+        إذا ((sts / EHCI_STS_PCD) % 2 == 1)
+            ehci_serial_اطبع("[EHCI] Port change HC#")
+            ehci_serial_رقم(i + 0)
+            ehci_serial_سطر()
+            ehci_write_op(i، EHCI_OP_USBSTS، EHCI_STS_PCD)  # Clear
+        نهاية
+
+        # فحص Host System Error
+        إذا ((sts / EHCI_STS_HSE) % 2 == 1)
+            ehci_serial_اطبع("[EHCI] Host System Error HC#")
+            ehci_serial_رقم(i + 0)
+            ehci_serial_سطر()
+            ehci_write_op(i، EHCI_OP_USBSTS، EHCI_STS_HSE)
+        نهاية
+
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية

@@ -1,0 +1,1832 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# pci_نحلة.ص — وحدة ناقل PCI لنظام نحلة
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# PCI Configuration Space Access (Mechanism #1)
+# Port 0xCF8 = CONFIG_ADDRESS, Port 0xCFC = CONFIG_DATA
+# Scans Bus 0-7, Device 0-31, Function 0-7
+# Supports: Device detection, BAR reading, interrupt routing, class codes
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── دوال خارجية (FFI) ───
+خارجي دالة sad_ll_port_inb(port)
+خارجي دالة sad_ll_port_outb(port، val)
+خارجي دالة sad_ll_port_inw(port)
+خارجي دالة sad_ll_port_outw(port، val)
+خارجي دالة sad_ll_port_inl(port)
+خارجي دالة sad_ll_port_outl(port، val)
+خارجي دالة sad_ll_mem_read8(addr)
+خارجي دالة sad_ll_mem_write8(addr، val)
+خارجي دالة sad_ll_mem_read32(addr)
+خارجي دالة sad_ll_mem_write32(addr، val)
+خارجي دالة sad_ll_serial_write_char(port، ch)
+خارجي دالة sad_ll_kmalloc(حجم_طلب)
+خارجي دالة sad_ll_kfree(عنوان)
+خارجي دالة sad_ll_memset(عنوان، قيمة، حجم_منطقة)
+خارجي دالة sad_ll_memcpy(هدف، مصدر، حجم_نقل)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ثوابت PCI
+# ═══════════════════════════════════════════════════════════════════════════════
+ثابت COM1 = 1016
+
+# منافذ PCI
+ثابت PCI_CONFIG_ADDR = 3320       # 0xCF8
+ثابت PCI_CONFIG_DATA = 3324       # 0xCFC
+
+# حقول Configuration Space
+ثابت PCI_VENDOR_ID      = 0
+ثابت PCI_DEVICE_ID      = 2
+ثابت PCI_COMMAND         = 4
+ثابت PCI_STATUS          = 6
+ثابت PCI_REVISION        = 8
+ثابت PCI_PROG_IF         = 9
+ثابت PCI_SUBCLASS        = 10
+ثابت PCI_CLASS_CODE      = 11
+ثابت PCI_CACHE_LINE      = 12
+ثابت PCI_LATENCY_TIMER   = 13
+ثابت PCI_HEADER_TYPE     = 14
+ثابت PCI_BIST            = 15
+ثابت PCI_BAR0            = 16     # 0x10
+ثابت PCI_BAR1            = 20     # 0x14
+ثابت PCI_BAR2            = 24     # 0x18
+ثابت PCI_BAR3            = 28     # 0x1C
+ثابت PCI_BAR4            = 32     # 0x20
+ثابت PCI_BAR5            = 36     # 0x24
+ثابت PCI_SUBSYSTEM_VENDOR = 44    # 0x2C
+ثابت PCI_SUBSYSTEM_ID     = 46    # 0x2E
+ثابت PCI_IRQ_LINE         = 60    # 0x3C
+ثابت PCI_IRQ_PIN          = 61    # 0x3D
+ثابت PCI_MIN_GRANT        = 62    # 0x3E
+ثابت PCI_MAX_LATENCY      = 63    # 0x3F
+
+# أقنعة الأوامر
+ثابت PCI_CMD_IO_ENABLE    = 1
+ثابت PCI_CMD_MEM_ENABLE   = 2
+ثابت PCI_CMD_BUS_MASTER   = 4
+ثابت PCI_CMD_SPECIAL      = 8
+ثابت PCI_CMD_INVALIDATE   = 16
+ثابت PCI_CMD_PALETTE      = 32
+ثابت PCI_CMD_PARITY       = 64
+ثابت PCI_CMD_SERR         = 256
+ثابت PCI_CMD_FAST_BTB     = 512
+ثابت PCI_CMD_INT_DISABLE  = 1024
+
+# أصناف الأجهزة
+ثابت PCI_CLASS_STORAGE       = 1
+ثابت PCI_CLASS_NETWORK       = 2
+ثابت PCI_CLASS_DISPLAY       = 3
+ثابت PCI_CLASS_MULTIMEDIA    = 4
+ثابت PCI_CLASS_MEMORY        = 5
+ثابت PCI_CLASS_BRIDGE        = 6
+ثابت PCI_CLASS_COMM          = 7
+ثابت PCI_CLASS_SYSTEM        = 8
+ثابت PCI_CLASS_INPUT         = 9
+ثابت PCI_CLASS_DOCK          = 10
+ثابت PCI_CLASS_PROCESSOR     = 11
+ثابت PCI_CLASS_SERIAL        = 12
+ثابت PCI_CLASS_WIRELESS      = 13
+
+# أصناف فرعية Serial Bus
+ثابت PCI_SUBCLASS_USB        = 3
+ثابت PCI_SUBCLASS_FIREWIRE   = 0
+ثابت PCI_SUBCLASS_SMBUS      = 5
+
+# واجهات البرمجة USB
+ثابت PCI_PROGIF_UHCI  = 0       # 0x00 — Universal HCI
+ثابت PCI_PROGIF_OHCI  = 16      # 0x10 — Open HCI
+ثابت PCI_PROGIF_EHCI  = 32      # 0x20 — Enhanced HCI
+ثابت PCI_PROGIF_XHCI  = 48      # 0x30 — eXtensible HCI
+
+# حد المسح
+ثابت PCI_MAX_BUS       = 8
+ثابت PCI_MAX_DEV       = 32
+ثابت PCI_MAX_FUNC      = 8
+
+# بائع غير صالح
+ثابت PCI_VENDOR_INVALID = 65535   # 0xFFFF
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# قاعدة بيانات الأجهزة المكتشفة (64 جهاز كحد أقصى)
+# ═══════════════════════════════════════════════════════════════════════════════
+متغير pci_dev_count = 0
+
+# معلومات الموقع: bus/dev/func (مشفرة: bus*256 + dev*8 + func)
+متغير pci_loc_0 = 0
+متغير pci_loc_1 = 0
+متغير pci_loc_2 = 0
+متغير pci_loc_3 = 0
+متغير pci_loc_4 = 0
+متغير pci_loc_5 = 0
+متغير pci_loc_6 = 0
+متغير pci_loc_7 = 0
+متغير pci_loc_8 = 0
+متغير pci_loc_9 = 0
+متغير pci_loc_10 = 0
+متغير pci_loc_11 = 0
+متغير pci_loc_12 = 0
+متغير pci_loc_13 = 0
+متغير pci_loc_14 = 0
+متغير pci_loc_15 = 0
+متغير pci_loc_16 = 0
+متغير pci_loc_17 = 0
+متغير pci_loc_18 = 0
+متغير pci_loc_19 = 0
+متغير pci_loc_20 = 0
+متغير pci_loc_21 = 0
+متغير pci_loc_22 = 0
+متغير pci_loc_23 = 0
+متغير pci_loc_24 = 0
+متغير pci_loc_25 = 0
+متغير pci_loc_26 = 0
+متغير pci_loc_27 = 0
+متغير pci_loc_28 = 0
+متغير pci_loc_29 = 0
+متغير pci_loc_30 = 0
+متغير pci_loc_31 = 0
+متغير pci_loc_32 = 0
+متغير pci_loc_33 = 0
+متغير pci_loc_34 = 0
+متغير pci_loc_35 = 0
+متغير pci_loc_36 = 0
+متغير pci_loc_37 = 0
+متغير pci_loc_38 = 0
+متغير pci_loc_39 = 0
+متغير pci_loc_40 = 0
+متغير pci_loc_41 = 0
+متغير pci_loc_42 = 0
+متغير pci_loc_43 = 0
+متغير pci_loc_44 = 0
+متغير pci_loc_45 = 0
+متغير pci_loc_46 = 0
+متغير pci_loc_47 = 0
+متغير pci_loc_48 = 0
+متغير pci_loc_49 = 0
+متغير pci_loc_50 = 0
+متغير pci_loc_51 = 0
+متغير pci_loc_52 = 0
+متغير pci_loc_53 = 0
+متغير pci_loc_54 = 0
+متغير pci_loc_55 = 0
+متغير pci_loc_56 = 0
+متغير pci_loc_57 = 0
+متغير pci_loc_58 = 0
+متغير pci_loc_59 = 0
+متغير pci_loc_60 = 0
+متغير pci_loc_61 = 0
+متغير pci_loc_62 = 0
+متغير pci_loc_63 = 0
+
+# معرّف البائع
+متغير pci_vid_0 = 0
+متغير pci_vid_1 = 0
+متغير pci_vid_2 = 0
+متغير pci_vid_3 = 0
+متغير pci_vid_4 = 0
+متغير pci_vid_5 = 0
+متغير pci_vid_6 = 0
+متغير pci_vid_7 = 0
+متغير pci_vid_8 = 0
+متغير pci_vid_9 = 0
+متغير pci_vid_10 = 0
+متغير pci_vid_11 = 0
+متغير pci_vid_12 = 0
+متغير pci_vid_13 = 0
+متغير pci_vid_14 = 0
+متغير pci_vid_15 = 0
+متغير pci_vid_16 = 0
+متغير pci_vid_17 = 0
+متغير pci_vid_18 = 0
+متغير pci_vid_19 = 0
+متغير pci_vid_20 = 0
+متغير pci_vid_21 = 0
+متغير pci_vid_22 = 0
+متغير pci_vid_23 = 0
+متغير pci_vid_24 = 0
+متغير pci_vid_25 = 0
+متغير pci_vid_26 = 0
+متغير pci_vid_27 = 0
+متغير pci_vid_28 = 0
+متغير pci_vid_29 = 0
+متغير pci_vid_30 = 0
+متغير pci_vid_31 = 0
+متغير pci_vid_32 = 0
+متغير pci_vid_33 = 0
+متغير pci_vid_34 = 0
+متغير pci_vid_35 = 0
+متغير pci_vid_36 = 0
+متغير pci_vid_37 = 0
+متغير pci_vid_38 = 0
+متغير pci_vid_39 = 0
+متغير pci_vid_40 = 0
+متغير pci_vid_41 = 0
+متغير pci_vid_42 = 0
+متغير pci_vid_43 = 0
+متغير pci_vid_44 = 0
+متغير pci_vid_45 = 0
+متغير pci_vid_46 = 0
+متغير pci_vid_47 = 0
+متغير pci_vid_48 = 0
+متغير pci_vid_49 = 0
+متغير pci_vid_50 = 0
+متغير pci_vid_51 = 0
+متغير pci_vid_52 = 0
+متغير pci_vid_53 = 0
+متغير pci_vid_54 = 0
+متغير pci_vid_55 = 0
+متغير pci_vid_56 = 0
+متغير pci_vid_57 = 0
+متغير pci_vid_58 = 0
+متغير pci_vid_59 = 0
+متغير pci_vid_60 = 0
+متغير pci_vid_61 = 0
+متغير pci_vid_62 = 0
+متغير pci_vid_63 = 0
+
+# معرّف الجهاز
+متغير pci_did_0 = 0
+متغير pci_did_1 = 0
+متغير pci_did_2 = 0
+متغير pci_did_3 = 0
+متغير pci_did_4 = 0
+متغير pci_did_5 = 0
+متغير pci_did_6 = 0
+متغير pci_did_7 = 0
+متغير pci_did_8 = 0
+متغير pci_did_9 = 0
+متغير pci_did_10 = 0
+متغير pci_did_11 = 0
+متغير pci_did_12 = 0
+متغير pci_did_13 = 0
+متغير pci_did_14 = 0
+متغير pci_did_15 = 0
+متغير pci_did_16 = 0
+متغير pci_did_17 = 0
+متغير pci_did_18 = 0
+متغير pci_did_19 = 0
+متغير pci_did_20 = 0
+متغير pci_did_21 = 0
+متغير pci_did_22 = 0
+متغير pci_did_23 = 0
+متغير pci_did_24 = 0
+متغير pci_did_25 = 0
+متغير pci_did_26 = 0
+متغير pci_did_27 = 0
+متغير pci_did_28 = 0
+متغير pci_did_29 = 0
+متغير pci_did_30 = 0
+متغير pci_did_31 = 0
+متغير pci_did_32 = 0
+متغير pci_did_33 = 0
+متغير pci_did_34 = 0
+متغير pci_did_35 = 0
+متغير pci_did_36 = 0
+متغير pci_did_37 = 0
+متغير pci_did_38 = 0
+متغير pci_did_39 = 0
+متغير pci_did_40 = 0
+متغير pci_did_41 = 0
+متغير pci_did_42 = 0
+متغير pci_did_43 = 0
+متغير pci_did_44 = 0
+متغير pci_did_45 = 0
+متغير pci_did_46 = 0
+متغير pci_did_47 = 0
+متغير pci_did_48 = 0
+متغير pci_did_49 = 0
+متغير pci_did_50 = 0
+متغير pci_did_51 = 0
+متغير pci_did_52 = 0
+متغير pci_did_53 = 0
+متغير pci_did_54 = 0
+متغير pci_did_55 = 0
+متغير pci_did_56 = 0
+متغير pci_did_57 = 0
+متغير pci_did_58 = 0
+متغير pci_did_59 = 0
+متغير pci_did_60 = 0
+متغير pci_did_61 = 0
+متغير pci_did_62 = 0
+متغير pci_did_63 = 0
+
+# صنف الجهاز (class_code * 65536 + subclass * 256 + prog_if)
+متغير pci_class_0 = 0
+متغير pci_class_1 = 0
+متغير pci_class_2 = 0
+متغير pci_class_3 = 0
+متغير pci_class_4 = 0
+متغير pci_class_5 = 0
+متغير pci_class_6 = 0
+متغير pci_class_7 = 0
+متغير pci_class_8 = 0
+متغير pci_class_9 = 0
+متغير pci_class_10 = 0
+متغير pci_class_11 = 0
+متغير pci_class_12 = 0
+متغير pci_class_13 = 0
+متغير pci_class_14 = 0
+متغير pci_class_15 = 0
+متغير pci_class_16 = 0
+متغير pci_class_17 = 0
+متغير pci_class_18 = 0
+متغير pci_class_19 = 0
+متغير pci_class_20 = 0
+متغير pci_class_21 = 0
+متغير pci_class_22 = 0
+متغير pci_class_23 = 0
+متغير pci_class_24 = 0
+متغير pci_class_25 = 0
+متغير pci_class_26 = 0
+متغير pci_class_27 = 0
+متغير pci_class_28 = 0
+متغير pci_class_29 = 0
+متغير pci_class_30 = 0
+متغير pci_class_31 = 0
+متغير pci_class_32 = 0
+متغير pci_class_33 = 0
+متغير pci_class_34 = 0
+متغير pci_class_35 = 0
+متغير pci_class_36 = 0
+متغير pci_class_37 = 0
+متغير pci_class_38 = 0
+متغير pci_class_39 = 0
+متغير pci_class_40 = 0
+متغير pci_class_41 = 0
+متغير pci_class_42 = 0
+متغير pci_class_43 = 0
+متغير pci_class_44 = 0
+متغير pci_class_45 = 0
+متغير pci_class_46 = 0
+متغير pci_class_47 = 0
+متغير pci_class_48 = 0
+متغير pci_class_49 = 0
+متغير pci_class_50 = 0
+متغير pci_class_51 = 0
+متغير pci_class_52 = 0
+متغير pci_class_53 = 0
+متغير pci_class_54 = 0
+متغير pci_class_55 = 0
+متغير pci_class_56 = 0
+متغير pci_class_57 = 0
+متغير pci_class_58 = 0
+متغير pci_class_59 = 0
+متغير pci_class_60 = 0
+متغير pci_class_61 = 0
+متغير pci_class_62 = 0
+متغير pci_class_63 = 0
+
+# BAR0
+متغير pci_bar0_0 = 0
+متغير pci_bar0_1 = 0
+متغير pci_bar0_2 = 0
+متغير pci_bar0_3 = 0
+متغير pci_bar0_4 = 0
+متغير pci_bar0_5 = 0
+متغير pci_bar0_6 = 0
+متغير pci_bar0_7 = 0
+متغير pci_bar0_8 = 0
+متغير pci_bar0_9 = 0
+متغير pci_bar0_10 = 0
+متغير pci_bar0_11 = 0
+متغير pci_bar0_12 = 0
+متغير pci_bar0_13 = 0
+متغير pci_bar0_14 = 0
+متغير pci_bar0_15 = 0
+متغير pci_bar0_16 = 0
+متغير pci_bar0_17 = 0
+متغير pci_bar0_18 = 0
+متغير pci_bar0_19 = 0
+متغير pci_bar0_20 = 0
+متغير pci_bar0_21 = 0
+متغير pci_bar0_22 = 0
+متغير pci_bar0_23 = 0
+متغير pci_bar0_24 = 0
+متغير pci_bar0_25 = 0
+متغير pci_bar0_26 = 0
+متغير pci_bar0_27 = 0
+متغير pci_bar0_28 = 0
+متغير pci_bar0_29 = 0
+متغير pci_bar0_30 = 0
+متغير pci_bar0_31 = 0
+متغير pci_bar0_32 = 0
+متغير pci_bar0_33 = 0
+متغير pci_bar0_34 = 0
+متغير pci_bar0_35 = 0
+متغير pci_bar0_36 = 0
+متغير pci_bar0_37 = 0
+متغير pci_bar0_38 = 0
+متغير pci_bar0_39 = 0
+متغير pci_bar0_40 = 0
+متغير pci_bar0_41 = 0
+متغير pci_bar0_42 = 0
+متغير pci_bar0_43 = 0
+متغير pci_bar0_44 = 0
+متغير pci_bar0_45 = 0
+متغير pci_bar0_46 = 0
+متغير pci_bar0_47 = 0
+متغير pci_bar0_48 = 0
+متغير pci_bar0_49 = 0
+متغير pci_bar0_50 = 0
+متغير pci_bar0_51 = 0
+متغير pci_bar0_52 = 0
+متغير pci_bar0_53 = 0
+متغير pci_bar0_54 = 0
+متغير pci_bar0_55 = 0
+متغير pci_bar0_56 = 0
+متغير pci_bar0_57 = 0
+متغير pci_bar0_58 = 0
+متغير pci_bar0_59 = 0
+متغير pci_bar0_60 = 0
+متغير pci_bar0_61 = 0
+متغير pci_bar0_62 = 0
+متغير pci_bar0_63 = 0
+
+# BAR1
+متغير pci_bar1_0 = 0
+متغير pci_bar1_1 = 0
+متغير pci_bar1_2 = 0
+متغير pci_bar1_3 = 0
+متغير pci_bar1_4 = 0
+متغير pci_bar1_5 = 0
+متغير pci_bar1_6 = 0
+متغير pci_bar1_7 = 0
+متغير pci_bar1_8 = 0
+متغير pci_bar1_9 = 0
+متغير pci_bar1_10 = 0
+متغير pci_bar1_11 = 0
+متغير pci_bar1_12 = 0
+متغير pci_bar1_13 = 0
+متغير pci_bar1_14 = 0
+متغير pci_bar1_15 = 0
+متغير pci_bar1_16 = 0
+متغير pci_bar1_17 = 0
+متغير pci_bar1_18 = 0
+متغير pci_bar1_19 = 0
+متغير pci_bar1_20 = 0
+متغير pci_bar1_21 = 0
+متغير pci_bar1_22 = 0
+متغير pci_bar1_23 = 0
+متغير pci_bar1_24 = 0
+متغير pci_bar1_25 = 0
+متغير pci_bar1_26 = 0
+متغير pci_bar1_27 = 0
+متغير pci_bar1_28 = 0
+متغير pci_bar1_29 = 0
+متغير pci_bar1_30 = 0
+متغير pci_bar1_31 = 0
+متغير pci_bar1_32 = 0
+متغير pci_bar1_33 = 0
+متغير pci_bar1_34 = 0
+متغير pci_bar1_35 = 0
+متغير pci_bar1_36 = 0
+متغير pci_bar1_37 = 0
+متغير pci_bar1_38 = 0
+متغير pci_bar1_39 = 0
+متغير pci_bar1_40 = 0
+متغير pci_bar1_41 = 0
+متغير pci_bar1_42 = 0
+متغير pci_bar1_43 = 0
+متغير pci_bar1_44 = 0
+متغير pci_bar1_45 = 0
+متغير pci_bar1_46 = 0
+متغير pci_bar1_47 = 0
+متغير pci_bar1_48 = 0
+متغير pci_bar1_49 = 0
+متغير pci_bar1_50 = 0
+متغير pci_bar1_51 = 0
+متغير pci_bar1_52 = 0
+متغير pci_bar1_53 = 0
+متغير pci_bar1_54 = 0
+متغير pci_bar1_55 = 0
+متغير pci_bar1_56 = 0
+متغير pci_bar1_57 = 0
+متغير pci_bar1_58 = 0
+متغير pci_bar1_59 = 0
+متغير pci_bar1_60 = 0
+متغير pci_bar1_61 = 0
+متغير pci_bar1_62 = 0
+متغير pci_bar1_63 = 0
+
+# خط المقاطعة
+متغير pci_irq_0 = 0
+متغير pci_irq_1 = 0
+متغير pci_irq_2 = 0
+متغير pci_irq_3 = 0
+متغير pci_irq_4 = 0
+متغير pci_irq_5 = 0
+متغير pci_irq_6 = 0
+متغير pci_irq_7 = 0
+متغير pci_irq_8 = 0
+متغير pci_irq_9 = 0
+متغير pci_irq_10 = 0
+متغير pci_irq_11 = 0
+متغير pci_irq_12 = 0
+متغير pci_irq_13 = 0
+متغير pci_irq_14 = 0
+متغير pci_irq_15 = 0
+متغير pci_irq_16 = 0
+متغير pci_irq_17 = 0
+متغير pci_irq_18 = 0
+متغير pci_irq_19 = 0
+متغير pci_irq_20 = 0
+متغير pci_irq_21 = 0
+متغير pci_irq_22 = 0
+متغير pci_irq_23 = 0
+متغير pci_irq_24 = 0
+متغير pci_irq_25 = 0
+متغير pci_irq_26 = 0
+متغير pci_irq_27 = 0
+متغير pci_irq_28 = 0
+متغير pci_irq_29 = 0
+متغير pci_irq_30 = 0
+متغير pci_irq_31 = 0
+متغير pci_irq_32 = 0
+متغير pci_irq_33 = 0
+متغير pci_irq_34 = 0
+متغير pci_irq_35 = 0
+متغير pci_irq_36 = 0
+متغير pci_irq_37 = 0
+متغير pci_irq_38 = 0
+متغير pci_irq_39 = 0
+متغير pci_irq_40 = 0
+متغير pci_irq_41 = 0
+متغير pci_irq_42 = 0
+متغير pci_irq_43 = 0
+متغير pci_irq_44 = 0
+متغير pci_irq_45 = 0
+متغير pci_irq_46 = 0
+متغير pci_irq_47 = 0
+متغير pci_irq_48 = 0
+متغير pci_irq_49 = 0
+متغير pci_irq_50 = 0
+متغير pci_irq_51 = 0
+متغير pci_irq_52 = 0
+متغير pci_irq_53 = 0
+متغير pci_irq_54 = 0
+متغير pci_irq_55 = 0
+متغير pci_irq_56 = 0
+متغير pci_irq_57 = 0
+متغير pci_irq_58 = 0
+متغير pci_irq_59 = 0
+متغير pci_irq_60 = 0
+متغير pci_irq_61 = 0
+متغير pci_irq_62 = 0
+متغير pci_irq_63 = 0
+
+# أعداد أنواع الأجهزة المكتشفة
+متغير pci_usb_count = 0
+متغير pci_net_count = 0
+متغير pci_disk_count = 0
+متغير pci_display_count = 0
+متغير pci_audio_count = 0
+متغير pci_bridge_count = 0
+متغير pci_other_count = 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الطباعة التسلسلية
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة pci_serial_اطبع(رسالة)
+    متغير i = 0 + 0
+    بينما (i < 80)
+        متغير ch = sad_ll_mem_read8(رسالة + i) + 0
+        إذا (ch == 0)
+            ارجع 0
+        نهاية
+        sad_ll_serial_write_char(COM1، ch)
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية
+
+دالة pci_serial_رقم(ن)
+    متغير val = ن + 0
+    إذا (val < 0)
+        sad_ll_serial_write_char(COM1، 45)
+        val = 0 - val
+    نهاية
+    إذا (val >= 10000)
+        متغير d5 = val / 10000
+        sad_ll_serial_write_char(COM1، 48 + d5)
+        val = val - (d5 * 10000)
+    نهاية
+    إذا (val >= 1000)
+        متغير d4 = val / 1000
+        sad_ll_serial_write_char(COM1، 48 + d4)
+        val = val - (d4 * 1000)
+    والا_اذا (ن >= 10000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 100)
+        متغير d3 = val / 100
+        sad_ll_serial_write_char(COM1، 48 + d3)
+        val = val - (d3 * 100)
+    والا_اذا (ن >= 1000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 10)
+        متغير d2 = val / 10
+        sad_ll_serial_write_char(COM1، 48 + d2)
+        val = val - (d2 * 10)
+    والا_اذا (ن >= 100)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    sad_ll_serial_write_char(COM1، 48 + val)
+    ارجع 0
+نهاية
+
+دالة pci_serial_hex8(val)
+    متغير v = val + 0
+    متغير hi = v / 16
+    متغير lo = v % 16
+    إذا (hi < 10)
+        sad_ll_serial_write_char(COM1، 48 + hi)
+    والا
+        sad_ll_serial_write_char(COM1، 55 + hi)
+    نهاية
+    إذا (lo < 10)
+        sad_ll_serial_write_char(COM1، 48 + lo)
+    والا
+        sad_ll_serial_write_char(COM1، 55 + lo)
+    نهاية
+    ارجع 0
+نهاية
+
+دالة pci_serial_hex16(val)
+    pci_serial_hex8(val / 256)
+    pci_serial_hex8(val % 256)
+    ارجع 0
+نهاية
+
+دالة pci_serial_hex32(val)
+    pci_serial_hex16(val / 65536)
+    pci_serial_hex16(val % 65536)
+    ارجع 0
+نهاية
+
+دالة pci_serial_سطر()
+    sad_ll_serial_write_char(COM1، 13)
+    sad_ll_serial_write_char(COM1، 10)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الوصول للمصفوفات الموازية
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة pci_get_loc(idx)
+    إذا (idx == 0) ارجع pci_loc_0 + 0 نهاية
+    إذا (idx == 1) ارجع pci_loc_1 + 0 نهاية
+    إذا (idx == 2) ارجع pci_loc_2 + 0 نهاية
+    إذا (idx == 3) ارجع pci_loc_3 + 0 نهاية
+    إذا (idx == 4) ارجع pci_loc_4 + 0 نهاية
+    إذا (idx == 5) ارجع pci_loc_5 + 0 نهاية
+    إذا (idx == 6) ارجع pci_loc_6 + 0 نهاية
+    إذا (idx == 7) ارجع pci_loc_7 + 0 نهاية
+    إذا (idx == 8) ارجع pci_loc_8 + 0 نهاية
+    إذا (idx == 9) ارجع pci_loc_9 + 0 نهاية
+    إذا (idx == 10) ارجع pci_loc_10 + 0 نهاية
+    إذا (idx == 11) ارجع pci_loc_11 + 0 نهاية
+    إذا (idx == 12) ارجع pci_loc_12 + 0 نهاية
+    إذا (idx == 13) ارجع pci_loc_13 + 0 نهاية
+    إذا (idx == 14) ارجع pci_loc_14 + 0 نهاية
+    إذا (idx == 15) ارجع pci_loc_15 + 0 نهاية
+    إذا (idx == 16) ارجع pci_loc_16 + 0 نهاية
+    إذا (idx == 17) ارجع pci_loc_17 + 0 نهاية
+    إذا (idx == 18) ارجع pci_loc_18 + 0 نهاية
+    إذا (idx == 19) ارجع pci_loc_19 + 0 نهاية
+    إذا (idx == 20) ارجع pci_loc_20 + 0 نهاية
+    إذا (idx == 21) ارجع pci_loc_21 + 0 نهاية
+    إذا (idx == 22) ارجع pci_loc_22 + 0 نهاية
+    إذا (idx == 23) ارجع pci_loc_23 + 0 نهاية
+    إذا (idx == 24) ارجع pci_loc_24 + 0 نهاية
+    إذا (idx == 25) ارجع pci_loc_25 + 0 نهاية
+    إذا (idx == 26) ارجع pci_loc_26 + 0 نهاية
+    إذا (idx == 27) ارجع pci_loc_27 + 0 نهاية
+    إذا (idx == 28) ارجع pci_loc_28 + 0 نهاية
+    إذا (idx == 29) ارجع pci_loc_29 + 0 نهاية
+    إذا (idx == 30) ارجع pci_loc_30 + 0 نهاية
+    إذا (idx == 31) ارجع pci_loc_31 + 0 نهاية
+    إذا (idx == 32) ارجع pci_loc_32 + 0 نهاية
+    إذا (idx == 33) ارجع pci_loc_33 + 0 نهاية
+    إذا (idx == 34) ارجع pci_loc_34 + 0 نهاية
+    إذا (idx == 35) ارجع pci_loc_35 + 0 نهاية
+    إذا (idx == 36) ارجع pci_loc_36 + 0 نهاية
+    إذا (idx == 37) ارجع pci_loc_37 + 0 نهاية
+    إذا (idx == 38) ارجع pci_loc_38 + 0 نهاية
+    إذا (idx == 39) ارجع pci_loc_39 + 0 نهاية
+    إذا (idx == 40) ارجع pci_loc_40 + 0 نهاية
+    إذا (idx == 41) ارجع pci_loc_41 + 0 نهاية
+    إذا (idx == 42) ارجع pci_loc_42 + 0 نهاية
+    إذا (idx == 43) ارجع pci_loc_43 + 0 نهاية
+    إذا (idx == 44) ارجع pci_loc_44 + 0 نهاية
+    إذا (idx == 45) ارجع pci_loc_45 + 0 نهاية
+    إذا (idx == 46) ارجع pci_loc_46 + 0 نهاية
+    إذا (idx == 47) ارجع pci_loc_47 + 0 نهاية
+    إذا (idx == 48) ارجع pci_loc_48 + 0 نهاية
+    إذا (idx == 49) ارجع pci_loc_49 + 0 نهاية
+    إذا (idx == 50) ارجع pci_loc_50 + 0 نهاية
+    إذا (idx == 51) ارجع pci_loc_51 + 0 نهاية
+    إذا (idx == 52) ارجع pci_loc_52 + 0 نهاية
+    إذا (idx == 53) ارجع pci_loc_53 + 0 نهاية
+    إذا (idx == 54) ارجع pci_loc_54 + 0 نهاية
+    إذا (idx == 55) ارجع pci_loc_55 + 0 نهاية
+    إذا (idx == 56) ارجع pci_loc_56 + 0 نهاية
+    إذا (idx == 57) ارجع pci_loc_57 + 0 نهاية
+    إذا (idx == 58) ارجع pci_loc_58 + 0 نهاية
+    إذا (idx == 59) ارجع pci_loc_59 + 0 نهاية
+    إذا (idx == 60) ارجع pci_loc_60 + 0 نهاية
+    إذا (idx == 61) ارجع pci_loc_61 + 0 نهاية
+    إذا (idx == 62) ارجع pci_loc_62 + 0 نهاية
+    إذا (idx == 63) ارجع pci_loc_63 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_set_loc(idx، val)
+    إذا (idx == 0) pci_loc_0 = val + 0 نهاية
+    إذا (idx == 1) pci_loc_1 = val + 0 نهاية
+    إذا (idx == 2) pci_loc_2 = val + 0 نهاية
+    إذا (idx == 3) pci_loc_3 = val + 0 نهاية
+    إذا (idx == 4) pci_loc_4 = val + 0 نهاية
+    إذا (idx == 5) pci_loc_5 = val + 0 نهاية
+    إذا (idx == 6) pci_loc_6 = val + 0 نهاية
+    إذا (idx == 7) pci_loc_7 = val + 0 نهاية
+    إذا (idx == 8) pci_loc_8 = val + 0 نهاية
+    إذا (idx == 9) pci_loc_9 = val + 0 نهاية
+    إذا (idx == 10) pci_loc_10 = val + 0 نهاية
+    إذا (idx == 11) pci_loc_11 = val + 0 نهاية
+    إذا (idx == 12) pci_loc_12 = val + 0 نهاية
+    إذا (idx == 13) pci_loc_13 = val + 0 نهاية
+    إذا (idx == 14) pci_loc_14 = val + 0 نهاية
+    إذا (idx == 15) pci_loc_15 = val + 0 نهاية
+    إذا (idx == 16) pci_loc_16 = val + 0 نهاية
+    إذا (idx == 17) pci_loc_17 = val + 0 نهاية
+    إذا (idx == 18) pci_loc_18 = val + 0 نهاية
+    إذا (idx == 19) pci_loc_19 = val + 0 نهاية
+    إذا (idx == 20) pci_loc_20 = val + 0 نهاية
+    إذا (idx == 21) pci_loc_21 = val + 0 نهاية
+    إذا (idx == 22) pci_loc_22 = val + 0 نهاية
+    إذا (idx == 23) pci_loc_23 = val + 0 نهاية
+    إذا (idx == 24) pci_loc_24 = val + 0 نهاية
+    إذا (idx == 25) pci_loc_25 = val + 0 نهاية
+    إذا (idx == 26) pci_loc_26 = val + 0 نهاية
+    إذا (idx == 27) pci_loc_27 = val + 0 نهاية
+    إذا (idx == 28) pci_loc_28 = val + 0 نهاية
+    إذا (idx == 29) pci_loc_29 = val + 0 نهاية
+    إذا (idx == 30) pci_loc_30 = val + 0 نهاية
+    إذا (idx == 31) pci_loc_31 = val + 0 نهاية
+    إذا (idx == 32) pci_loc_32 = val + 0 نهاية
+    إذا (idx == 33) pci_loc_33 = val + 0 نهاية
+    إذا (idx == 34) pci_loc_34 = val + 0 نهاية
+    إذا (idx == 35) pci_loc_35 = val + 0 نهاية
+    إذا (idx == 36) pci_loc_36 = val + 0 نهاية
+    إذا (idx == 37) pci_loc_37 = val + 0 نهاية
+    إذا (idx == 38) pci_loc_38 = val + 0 نهاية
+    إذا (idx == 39) pci_loc_39 = val + 0 نهاية
+    إذا (idx == 40) pci_loc_40 = val + 0 نهاية
+    إذا (idx == 41) pci_loc_41 = val + 0 نهاية
+    إذا (idx == 42) pci_loc_42 = val + 0 نهاية
+    إذا (idx == 43) pci_loc_43 = val + 0 نهاية
+    إذا (idx == 44) pci_loc_44 = val + 0 نهاية
+    إذا (idx == 45) pci_loc_45 = val + 0 نهاية
+    إذا (idx == 46) pci_loc_46 = val + 0 نهاية
+    إذا (idx == 47) pci_loc_47 = val + 0 نهاية
+    إذا (idx == 48) pci_loc_48 = val + 0 نهاية
+    إذا (idx == 49) pci_loc_49 = val + 0 نهاية
+    إذا (idx == 50) pci_loc_50 = val + 0 نهاية
+    إذا (idx == 51) pci_loc_51 = val + 0 نهاية
+    إذا (idx == 52) pci_loc_52 = val + 0 نهاية
+    إذا (idx == 53) pci_loc_53 = val + 0 نهاية
+    إذا (idx == 54) pci_loc_54 = val + 0 نهاية
+    إذا (idx == 55) pci_loc_55 = val + 0 نهاية
+    إذا (idx == 56) pci_loc_56 = val + 0 نهاية
+    إذا (idx == 57) pci_loc_57 = val + 0 نهاية
+    إذا (idx == 58) pci_loc_58 = val + 0 نهاية
+    إذا (idx == 59) pci_loc_59 = val + 0 نهاية
+    إذا (idx == 60) pci_loc_60 = val + 0 نهاية
+    إذا (idx == 61) pci_loc_61 = val + 0 نهاية
+    إذا (idx == 62) pci_loc_62 = val + 0 نهاية
+    إذا (idx == 63) pci_loc_63 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_get_vid(idx)
+    إذا (idx == 0) ارجع pci_vid_0 + 0 نهاية
+    إذا (idx == 1) ارجع pci_vid_1 + 0 نهاية
+    إذا (idx == 2) ارجع pci_vid_2 + 0 نهاية
+    إذا (idx == 3) ارجع pci_vid_3 + 0 نهاية
+    إذا (idx == 4) ارجع pci_vid_4 + 0 نهاية
+    إذا (idx == 5) ارجع pci_vid_5 + 0 نهاية
+    إذا (idx == 6) ارجع pci_vid_6 + 0 نهاية
+    إذا (idx == 7) ارجع pci_vid_7 + 0 نهاية
+    إذا (idx == 8) ارجع pci_vid_8 + 0 نهاية
+    إذا (idx == 9) ارجع pci_vid_9 + 0 نهاية
+    إذا (idx == 10) ارجع pci_vid_10 + 0 نهاية
+    إذا (idx == 11) ارجع pci_vid_11 + 0 نهاية
+    إذا (idx == 12) ارجع pci_vid_12 + 0 نهاية
+    إذا (idx == 13) ارجع pci_vid_13 + 0 نهاية
+    إذا (idx == 14) ارجع pci_vid_14 + 0 نهاية
+    إذا (idx == 15) ارجع pci_vid_15 + 0 نهاية
+    إذا (idx == 16) ارجع pci_vid_16 + 0 نهاية
+    إذا (idx == 17) ارجع pci_vid_17 + 0 نهاية
+    إذا (idx == 18) ارجع pci_vid_18 + 0 نهاية
+    إذا (idx == 19) ارجع pci_vid_19 + 0 نهاية
+    إذا (idx == 20) ارجع pci_vid_20 + 0 نهاية
+    إذا (idx == 21) ارجع pci_vid_21 + 0 نهاية
+    إذا (idx == 22) ارجع pci_vid_22 + 0 نهاية
+    إذا (idx == 23) ارجع pci_vid_23 + 0 نهاية
+    إذا (idx == 24) ارجع pci_vid_24 + 0 نهاية
+    إذا (idx == 25) ارجع pci_vid_25 + 0 نهاية
+    إذا (idx == 26) ارجع pci_vid_26 + 0 نهاية
+    إذا (idx == 27) ارجع pci_vid_27 + 0 نهاية
+    إذا (idx == 28) ارجع pci_vid_28 + 0 نهاية
+    إذا (idx == 29) ارجع pci_vid_29 + 0 نهاية
+    إذا (idx == 30) ارجع pci_vid_30 + 0 نهاية
+    إذا (idx == 31) ارجع pci_vid_31 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_set_vid(idx، val)
+    إذا (idx == 0) pci_vid_0 = val + 0 نهاية
+    إذا (idx == 1) pci_vid_1 = val + 0 نهاية
+    إذا (idx == 2) pci_vid_2 = val + 0 نهاية
+    إذا (idx == 3) pci_vid_3 = val + 0 نهاية
+    إذا (idx == 4) pci_vid_4 = val + 0 نهاية
+    إذا (idx == 5) pci_vid_5 = val + 0 نهاية
+    إذا (idx == 6) pci_vid_6 = val + 0 نهاية
+    إذا (idx == 7) pci_vid_7 = val + 0 نهاية
+    إذا (idx == 8) pci_vid_8 = val + 0 نهاية
+    إذا (idx == 9) pci_vid_9 = val + 0 نهاية
+    إذا (idx == 10) pci_vid_10 = val + 0 نهاية
+    إذا (idx == 11) pci_vid_11 = val + 0 نهاية
+    إذا (idx == 12) pci_vid_12 = val + 0 نهاية
+    إذا (idx == 13) pci_vid_13 = val + 0 نهاية
+    إذا (idx == 14) pci_vid_14 = val + 0 نهاية
+    إذا (idx == 15) pci_vid_15 = val + 0 نهاية
+    إذا (idx == 16) pci_vid_16 = val + 0 نهاية
+    إذا (idx == 17) pci_vid_17 = val + 0 نهاية
+    إذا (idx == 18) pci_vid_18 = val + 0 نهاية
+    إذا (idx == 19) pci_vid_19 = val + 0 نهاية
+    إذا (idx == 20) pci_vid_20 = val + 0 نهاية
+    إذا (idx == 21) pci_vid_21 = val + 0 نهاية
+    إذا (idx == 22) pci_vid_22 = val + 0 نهاية
+    إذا (idx == 23) pci_vid_23 = val + 0 نهاية
+    إذا (idx == 24) pci_vid_24 = val + 0 نهاية
+    إذا (idx == 25) pci_vid_25 = val + 0 نهاية
+    إذا (idx == 26) pci_vid_26 = val + 0 نهاية
+    إذا (idx == 27) pci_vid_27 = val + 0 نهاية
+    إذا (idx == 28) pci_vid_28 = val + 0 نهاية
+    إذا (idx == 29) pci_vid_29 = val + 0 نهاية
+    إذا (idx == 30) pci_vid_30 = val + 0 نهاية
+    إذا (idx == 31) pci_vid_31 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_get_did(idx)
+    إذا (idx == 0) ارجع pci_did_0 + 0 نهاية
+    إذا (idx == 1) ارجع pci_did_1 + 0 نهاية
+    إذا (idx == 2) ارجع pci_did_2 + 0 نهاية
+    إذا (idx == 3) ارجع pci_did_3 + 0 نهاية
+    إذا (idx == 4) ارجع pci_did_4 + 0 نهاية
+    إذا (idx == 5) ارجع pci_did_5 + 0 نهاية
+    إذا (idx == 6) ارجع pci_did_6 + 0 نهاية
+    إذا (idx == 7) ارجع pci_did_7 + 0 نهاية
+    إذا (idx == 8) ارجع pci_did_8 + 0 نهاية
+    إذا (idx == 9) ارجع pci_did_9 + 0 نهاية
+    إذا (idx == 10) ارجع pci_did_10 + 0 نهاية
+    إذا (idx == 11) ارجع pci_did_11 + 0 نهاية
+    إذا (idx == 12) ارجع pci_did_12 + 0 نهاية
+    إذا (idx == 13) ارجع pci_did_13 + 0 نهاية
+    إذا (idx == 14) ارجع pci_did_14 + 0 نهاية
+    إذا (idx == 15) ارجع pci_did_15 + 0 نهاية
+    إذا (idx == 16) ارجع pci_did_16 + 0 نهاية
+    إذا (idx == 17) ارجع pci_did_17 + 0 نهاية
+    إذا (idx == 18) ارجع pci_did_18 + 0 نهاية
+    إذا (idx == 19) ارجع pci_did_19 + 0 نهاية
+    إذا (idx == 20) ارجع pci_did_20 + 0 نهاية
+    إذا (idx == 21) ارجع pci_did_21 + 0 نهاية
+    إذا (idx == 22) ارجع pci_did_22 + 0 نهاية
+    إذا (idx == 23) ارجع pci_did_23 + 0 نهاية
+    إذا (idx == 24) ارجع pci_did_24 + 0 نهاية
+    إذا (idx == 25) ارجع pci_did_25 + 0 نهاية
+    إذا (idx == 26) ارجع pci_did_26 + 0 نهاية
+    إذا (idx == 27) ارجع pci_did_27 + 0 نهاية
+    إذا (idx == 28) ارجع pci_did_28 + 0 نهاية
+    إذا (idx == 29) ارجع pci_did_29 + 0 نهاية
+    إذا (idx == 30) ارجع pci_did_30 + 0 نهاية
+    إذا (idx == 31) ارجع pci_did_31 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_set_did(idx، val)
+    إذا (idx == 0) pci_did_0 = val + 0 نهاية
+    إذا (idx == 1) pci_did_1 = val + 0 نهاية
+    إذا (idx == 2) pci_did_2 = val + 0 نهاية
+    إذا (idx == 3) pci_did_3 = val + 0 نهاية
+    إذا (idx == 4) pci_did_4 = val + 0 نهاية
+    إذا (idx == 5) pci_did_5 = val + 0 نهاية
+    إذا (idx == 6) pci_did_6 = val + 0 نهاية
+    إذا (idx == 7) pci_did_7 = val + 0 نهاية
+    إذا (idx == 8) pci_did_8 = val + 0 نهاية
+    إذا (idx == 9) pci_did_9 = val + 0 نهاية
+    إذا (idx == 10) pci_did_10 = val + 0 نهاية
+    إذا (idx == 11) pci_did_11 = val + 0 نهاية
+    إذا (idx == 12) pci_did_12 = val + 0 نهاية
+    إذا (idx == 13) pci_did_13 = val + 0 نهاية
+    إذا (idx == 14) pci_did_14 = val + 0 نهاية
+    إذا (idx == 15) pci_did_15 = val + 0 نهاية
+    إذا (idx == 16) pci_did_16 = val + 0 نهاية
+    إذا (idx == 17) pci_did_17 = val + 0 نهاية
+    إذا (idx == 18) pci_did_18 = val + 0 نهاية
+    إذا (idx == 19) pci_did_19 = val + 0 نهاية
+    إذا (idx == 20) pci_did_20 = val + 0 نهاية
+    إذا (idx == 21) pci_did_21 = val + 0 نهاية
+    إذا (idx == 22) pci_did_22 = val + 0 نهاية
+    إذا (idx == 23) pci_did_23 = val + 0 نهاية
+    إذا (idx == 24) pci_did_24 = val + 0 نهاية
+    إذا (idx == 25) pci_did_25 = val + 0 نهاية
+    إذا (idx == 26) pci_did_26 = val + 0 نهاية
+    إذا (idx == 27) pci_did_27 = val + 0 نهاية
+    إذا (idx == 28) pci_did_28 = val + 0 نهاية
+    إذا (idx == 29) pci_did_29 = val + 0 نهاية
+    إذا (idx == 30) pci_did_30 = val + 0 نهاية
+    إذا (idx == 31) pci_did_31 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_get_class(idx)
+    إذا (idx == 0) ارجع pci_class_0 + 0 نهاية
+    إذا (idx == 1) ارجع pci_class_1 + 0 نهاية
+    إذا (idx == 2) ارجع pci_class_2 + 0 نهاية
+    إذا (idx == 3) ارجع pci_class_3 + 0 نهاية
+    إذا (idx == 4) ارجع pci_class_4 + 0 نهاية
+    إذا (idx == 5) ارجع pci_class_5 + 0 نهاية
+    إذا (idx == 6) ارجع pci_class_6 + 0 نهاية
+    إذا (idx == 7) ارجع pci_class_7 + 0 نهاية
+    إذا (idx == 8) ارجع pci_class_8 + 0 نهاية
+    إذا (idx == 9) ارجع pci_class_9 + 0 نهاية
+    إذا (idx == 10) ارجع pci_class_10 + 0 نهاية
+    إذا (idx == 11) ارجع pci_class_11 + 0 نهاية
+    إذا (idx == 12) ارجع pci_class_12 + 0 نهاية
+    إذا (idx == 13) ارجع pci_class_13 + 0 نهاية
+    إذا (idx == 14) ارجع pci_class_14 + 0 نهاية
+    إذا (idx == 15) ارجع pci_class_15 + 0 نهاية
+    إذا (idx == 16) ارجع pci_class_16 + 0 نهاية
+    إذا (idx == 17) ارجع pci_class_17 + 0 نهاية
+    إذا (idx == 18) ارجع pci_class_18 + 0 نهاية
+    إذا (idx == 19) ارجع pci_class_19 + 0 نهاية
+    إذا (idx == 20) ارجع pci_class_20 + 0 نهاية
+    إذا (idx == 21) ارجع pci_class_21 + 0 نهاية
+    إذا (idx == 22) ارجع pci_class_22 + 0 نهاية
+    إذا (idx == 23) ارجع pci_class_23 + 0 نهاية
+    إذا (idx == 24) ارجع pci_class_24 + 0 نهاية
+    إذا (idx == 25) ارجع pci_class_25 + 0 نهاية
+    إذا (idx == 26) ارجع pci_class_26 + 0 نهاية
+    إذا (idx == 27) ارجع pci_class_27 + 0 نهاية
+    إذا (idx == 28) ارجع pci_class_28 + 0 نهاية
+    إذا (idx == 29) ارجع pci_class_29 + 0 نهاية
+    إذا (idx == 30) ارجع pci_class_30 + 0 نهاية
+    إذا (idx == 31) ارجع pci_class_31 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_set_class(idx، val)
+    إذا (idx == 0) pci_class_0 = val + 0 نهاية
+    إذا (idx == 1) pci_class_1 = val + 0 نهاية
+    إذا (idx == 2) pci_class_2 = val + 0 نهاية
+    إذا (idx == 3) pci_class_3 = val + 0 نهاية
+    إذا (idx == 4) pci_class_4 = val + 0 نهاية
+    إذا (idx == 5) pci_class_5 = val + 0 نهاية
+    إذا (idx == 6) pci_class_6 = val + 0 نهاية
+    إذا (idx == 7) pci_class_7 = val + 0 نهاية
+    إذا (idx == 8) pci_class_8 = val + 0 نهاية
+    إذا (idx == 9) pci_class_9 = val + 0 نهاية
+    إذا (idx == 10) pci_class_10 = val + 0 نهاية
+    إذا (idx == 11) pci_class_11 = val + 0 نهاية
+    إذا (idx == 12) pci_class_12 = val + 0 نهاية
+    إذا (idx == 13) pci_class_13 = val + 0 نهاية
+    إذا (idx == 14) pci_class_14 = val + 0 نهاية
+    إذا (idx == 15) pci_class_15 = val + 0 نهاية
+    إذا (idx == 16) pci_class_16 = val + 0 نهاية
+    إذا (idx == 17) pci_class_17 = val + 0 نهاية
+    إذا (idx == 18) pci_class_18 = val + 0 نهاية
+    إذا (idx == 19) pci_class_19 = val + 0 نهاية
+    إذا (idx == 20) pci_class_20 = val + 0 نهاية
+    إذا (idx == 21) pci_class_21 = val + 0 نهاية
+    إذا (idx == 22) pci_class_22 = val + 0 نهاية
+    إذا (idx == 23) pci_class_23 = val + 0 نهاية
+    إذا (idx == 24) pci_class_24 = val + 0 نهاية
+    إذا (idx == 25) pci_class_25 = val + 0 نهاية
+    إذا (idx == 26) pci_class_26 = val + 0 نهاية
+    إذا (idx == 27) pci_class_27 = val + 0 نهاية
+    إذا (idx == 28) pci_class_28 = val + 0 نهاية
+    إذا (idx == 29) pci_class_29 = val + 0 نهاية
+    إذا (idx == 30) pci_class_30 = val + 0 نهاية
+    إذا (idx == 31) pci_class_31 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_get_bar0(idx)
+    إذا (idx == 0) ارجع pci_bar0_0 + 0 نهاية
+    إذا (idx == 1) ارجع pci_bar0_1 + 0 نهاية
+    إذا (idx == 2) ارجع pci_bar0_2 + 0 نهاية
+    إذا (idx == 3) ارجع pci_bar0_3 + 0 نهاية
+    إذا (idx == 4) ارجع pci_bar0_4 + 0 نهاية
+    إذا (idx == 5) ارجع pci_bar0_5 + 0 نهاية
+    إذا (idx == 6) ارجع pci_bar0_6 + 0 نهاية
+    إذا (idx == 7) ارجع pci_bar0_7 + 0 نهاية
+    إذا (idx == 8) ارجع pci_bar0_8 + 0 نهاية
+    إذا (idx == 9) ارجع pci_bar0_9 + 0 نهاية
+    إذا (idx == 10) ارجع pci_bar0_10 + 0 نهاية
+    إذا (idx == 11) ارجع pci_bar0_11 + 0 نهاية
+    إذا (idx == 12) ارجع pci_bar0_12 + 0 نهاية
+    إذا (idx == 13) ارجع pci_bar0_13 + 0 نهاية
+    إذا (idx == 14) ارجع pci_bar0_14 + 0 نهاية
+    إذا (idx == 15) ارجع pci_bar0_15 + 0 نهاية
+    إذا (idx == 16) ارجع pci_bar0_16 + 0 نهاية
+    إذا (idx == 17) ارجع pci_bar0_17 + 0 نهاية
+    إذا (idx == 18) ارجع pci_bar0_18 + 0 نهاية
+    إذا (idx == 19) ارجع pci_bar0_19 + 0 نهاية
+    إذا (idx == 20) ارجع pci_bar0_20 + 0 نهاية
+    إذا (idx == 21) ارجع pci_bar0_21 + 0 نهاية
+    إذا (idx == 22) ارجع pci_bar0_22 + 0 نهاية
+    إذا (idx == 23) ارجع pci_bar0_23 + 0 نهاية
+    إذا (idx == 24) ارجع pci_bar0_24 + 0 نهاية
+    إذا (idx == 25) ارجع pci_bar0_25 + 0 نهاية
+    إذا (idx == 26) ارجع pci_bar0_26 + 0 نهاية
+    إذا (idx == 27) ارجع pci_bar0_27 + 0 نهاية
+    إذا (idx == 28) ارجع pci_bar0_28 + 0 نهاية
+    إذا (idx == 29) ارجع pci_bar0_29 + 0 نهاية
+    إذا (idx == 30) ارجع pci_bar0_30 + 0 نهاية
+    إذا (idx == 31) ارجع pci_bar0_31 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_set_bar0(idx، val)
+    إذا (idx == 0) pci_bar0_0 = val + 0 نهاية
+    إذا (idx == 1) pci_bar0_1 = val + 0 نهاية
+    إذا (idx == 2) pci_bar0_2 = val + 0 نهاية
+    إذا (idx == 3) pci_bar0_3 = val + 0 نهاية
+    إذا (idx == 4) pci_bar0_4 = val + 0 نهاية
+    إذا (idx == 5) pci_bar0_5 = val + 0 نهاية
+    إذا (idx == 6) pci_bar0_6 = val + 0 نهاية
+    إذا (idx == 7) pci_bar0_7 = val + 0 نهاية
+    إذا (idx == 8) pci_bar0_8 = val + 0 نهاية
+    إذا (idx == 9) pci_bar0_9 = val + 0 نهاية
+    إذا (idx == 10) pci_bar0_10 = val + 0 نهاية
+    إذا (idx == 11) pci_bar0_11 = val + 0 نهاية
+    إذا (idx == 12) pci_bar0_12 = val + 0 نهاية
+    إذا (idx == 13) pci_bar0_13 = val + 0 نهاية
+    إذا (idx == 14) pci_bar0_14 = val + 0 نهاية
+    إذا (idx == 15) pci_bar0_15 = val + 0 نهاية
+    إذا (idx == 16) pci_bar0_16 = val + 0 نهاية
+    إذا (idx == 17) pci_bar0_17 = val + 0 نهاية
+    إذا (idx == 18) pci_bar0_18 = val + 0 نهاية
+    إذا (idx == 19) pci_bar0_19 = val + 0 نهاية
+    إذا (idx == 20) pci_bar0_20 = val + 0 نهاية
+    إذا (idx == 21) pci_bar0_21 = val + 0 نهاية
+    إذا (idx == 22) pci_bar0_22 = val + 0 نهاية
+    إذا (idx == 23) pci_bar0_23 = val + 0 نهاية
+    إذا (idx == 24) pci_bar0_24 = val + 0 نهاية
+    إذا (idx == 25) pci_bar0_25 = val + 0 نهاية
+    إذا (idx == 26) pci_bar0_26 = val + 0 نهاية
+    إذا (idx == 27) pci_bar0_27 = val + 0 نهاية
+    إذا (idx == 28) pci_bar0_28 = val + 0 نهاية
+    إذا (idx == 29) pci_bar0_29 = val + 0 نهاية
+    إذا (idx == 30) pci_bar0_30 = val + 0 نهاية
+    إذا (idx == 31) pci_bar0_31 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_get_bar1(idx)
+    إذا (idx == 0) ارجع pci_bar1_0 + 0 نهاية
+    إذا (idx == 1) ارجع pci_bar1_1 + 0 نهاية
+    إذا (idx == 2) ارجع pci_bar1_2 + 0 نهاية
+    إذا (idx == 3) ارجع pci_bar1_3 + 0 نهاية
+    إذا (idx == 4) ارجع pci_bar1_4 + 0 نهاية
+    إذا (idx == 5) ارجع pci_bar1_5 + 0 نهاية
+    إذا (idx == 6) ارجع pci_bar1_6 + 0 نهاية
+    إذا (idx == 7) ارجع pci_bar1_7 + 0 نهاية
+    إذا (idx == 8) ارجع pci_bar1_8 + 0 نهاية
+    إذا (idx == 9) ارجع pci_bar1_9 + 0 نهاية
+    إذا (idx == 10) ارجع pci_bar1_10 + 0 نهاية
+    إذا (idx == 11) ارجع pci_bar1_11 + 0 نهاية
+    إذا (idx == 12) ارجع pci_bar1_12 + 0 نهاية
+    إذا (idx == 13) ارجع pci_bar1_13 + 0 نهاية
+    إذا (idx == 14) ارجع pci_bar1_14 + 0 نهاية
+    إذا (idx == 15) ارجع pci_bar1_15 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_set_bar1(idx، val)
+    إذا (idx == 0) pci_bar1_0 = val + 0 نهاية
+    إذا (idx == 1) pci_bar1_1 = val + 0 نهاية
+    إذا (idx == 2) pci_bar1_2 = val + 0 نهاية
+    إذا (idx == 3) pci_bar1_3 = val + 0 نهاية
+    إذا (idx == 4) pci_bar1_4 = val + 0 نهاية
+    إذا (idx == 5) pci_bar1_5 = val + 0 نهاية
+    إذا (idx == 6) pci_bar1_6 = val + 0 نهاية
+    إذا (idx == 7) pci_bar1_7 = val + 0 نهاية
+    إذا (idx == 8) pci_bar1_8 = val + 0 نهاية
+    إذا (idx == 9) pci_bar1_9 = val + 0 نهاية
+    إذا (idx == 10) pci_bar1_10 = val + 0 نهاية
+    إذا (idx == 11) pci_bar1_11 = val + 0 نهاية
+    إذا (idx == 12) pci_bar1_12 = val + 0 نهاية
+    إذا (idx == 13) pci_bar1_13 = val + 0 نهاية
+    إذا (idx == 14) pci_bar1_14 = val + 0 نهاية
+    إذا (idx == 15) pci_bar1_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_get_irq(idx)
+    إذا (idx == 0) ارجع pci_irq_0 + 0 نهاية
+    إذا (idx == 1) ارجع pci_irq_1 + 0 نهاية
+    إذا (idx == 2) ارجع pci_irq_2 + 0 نهاية
+    إذا (idx == 3) ارجع pci_irq_3 + 0 نهاية
+    إذا (idx == 4) ارجع pci_irq_4 + 0 نهاية
+    إذا (idx == 5) ارجع pci_irq_5 + 0 نهاية
+    إذا (idx == 6) ارجع pci_irq_6 + 0 نهاية
+    إذا (idx == 7) ارجع pci_irq_7 + 0 نهاية
+    إذا (idx == 8) ارجع pci_irq_8 + 0 نهاية
+    إذا (idx == 9) ارجع pci_irq_9 + 0 نهاية
+    إذا (idx == 10) ارجع pci_irq_10 + 0 نهاية
+    إذا (idx == 11) ارجع pci_irq_11 + 0 نهاية
+    إذا (idx == 12) ارجع pci_irq_12 + 0 نهاية
+    إذا (idx == 13) ارجع pci_irq_13 + 0 نهاية
+    إذا (idx == 14) ارجع pci_irq_14 + 0 نهاية
+    إذا (idx == 15) ارجع pci_irq_15 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة pci_set_irq(idx، val)
+    إذا (idx == 0) pci_irq_0 = val + 0 نهاية
+    إذا (idx == 1) pci_irq_1 = val + 0 نهاية
+    إذا (idx == 2) pci_irq_2 = val + 0 نهاية
+    إذا (idx == 3) pci_irq_3 = val + 0 نهاية
+    إذا (idx == 4) pci_irq_4 = val + 0 نهاية
+    إذا (idx == 5) pci_irq_5 = val + 0 نهاية
+    إذا (idx == 6) pci_irq_6 = val + 0 نهاية
+    إذا (idx == 7) pci_irq_7 = val + 0 نهاية
+    إذا (idx == 8) pci_irq_8 = val + 0 نهاية
+    إذا (idx == 9) pci_irq_9 = val + 0 نهاية
+    إذا (idx == 10) pci_irq_10 = val + 0 نهاية
+    إذا (idx == 11) pci_irq_11 = val + 0 نهاية
+    إذا (idx == 12) pci_irq_12 = val + 0 نهاية
+    إذا (idx == 13) pci_irq_13 = val + 0 نهاية
+    إذا (idx == 14) pci_irq_14 = val + 0 نهاية
+    إذا (idx == 15) pci_irq_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PCI Configuration Space Access — Mechanism #1
+# ═══════════════════════════════════════════════════════════════════════════════
+# بناء عنوان التكوين
+# Address = 0x80000000 | (bus << 16) | (dev << 11) | (func << 8) | (reg & 0xFC)
+صدّر دالة pci_config_address(bus، dev، func، reg)
+    # 0x80000000 = 2147483648
+    متغير addr = 2147483648 + 0
+    addr = addr + (bus * 65536)        # bus << 16
+    addr = addr + (dev * 2048)         # dev << 11
+    addr = addr + (func * 256)         # func << 8
+    # reg & 0xFC — مضاعفات 4 فقط
+    متغير reg_aligned = (reg / 4) * 4
+    addr = addr + reg_aligned
+    ارجع addr + 0
+نهاية
+
+# قراءة كلمة مزدوجة (32 بت) من فضاء التكوين
+صدّر دالة pci_read32(bus، dev، func، reg)
+    متغير addr = pci_config_address(bus + 0، dev + 0، func + 0، reg + 0) + 0
+    sad_ll_port_outl(PCI_CONFIG_ADDR، addr)
+    متغير val = sad_ll_port_inl(PCI_CONFIG_DATA) + 0
+    ارجع val + 0
+نهاية
+
+# كتابة كلمة مزدوجة (32 بت) في فضاء التكوين
+صدّر دالة pci_write32(bus، dev، func، reg، val)
+    متغير addr = pci_config_address(bus + 0، dev + 0، func + 0، reg + 0) + 0
+    sad_ll_port_outl(PCI_CONFIG_ADDR، addr)
+    sad_ll_port_outl(PCI_CONFIG_DATA، val + 0)
+    ارجع 0
+نهاية
+
+# قراءة كلمة (16 بت) من فضاء التكوين
+صدّر دالة pci_read16(bus، dev، func، reg)
+    متغير val32 = pci_read32(bus + 0، dev + 0، func + 0، reg + 0) + 0
+    متغير shift = (reg % 4) * 8
+    إذا (shift == 0)
+        ارجع val32 % 65536
+    نهاية
+    إذا (shift == 16)
+        ارجع val32 / 65536
+    نهاية
+    ارجع val32 % 65536
+نهاية
+
+# قراءة بايت (8 بت) من فضاء التكوين
+صدّر دالة pci_read8(bus، dev، func، reg)
+    متغير val32 = pci_read32(bus + 0، dev + 0، func + 0، reg + 0) + 0
+    متغير shift = (reg % 4) * 8
+    إذا (shift == 0)
+        ارجع val32 % 256
+    نهاية
+    إذا (shift == 8)
+        ارجع (val32 / 256) % 256
+    نهاية
+    إذا (shift == 16)
+        ارجع (val32 / 65536) % 256
+    نهاية
+    إذا (shift == 24)
+        ارجع (val32 / 16777216) % 256
+    نهاية
+    ارجع val32 % 256
+نهاية
+
+# كتابة كلمة (16 بت) في فضاء التكوين
+صدّر دالة pci_write16(bus، dev، func، reg، val)
+    متغير val32 = pci_read32(bus + 0، dev + 0، func + 0، reg + 0) + 0
+    متغير shift = (reg % 4) * 8
+    إذا (shift == 0)
+        val32 = (val32 / 65536) * 65536 + (val % 65536)
+    نهاية
+    إذا (shift == 16)
+        val32 = (val32 % 65536) + (val % 65536) * 65536
+    نهاية
+    pci_write32(bus + 0، dev + 0، func + 0، reg + 0، val32)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# قراءة معرّفات وصنف الجهاز
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة pci_get_vendor_id(bus، dev، func)
+    ارجع pci_read16(bus + 0، dev + 0، func + 0، PCI_VENDOR_ID) + 0
+نهاية
+
+صدّر دالة pci_get_device_id(bus، dev، func)
+    ارجع pci_read16(bus + 0، dev + 0، func + 0، PCI_DEVICE_ID) + 0
+نهاية
+
+صدّر دالة pci_get_class_code(bus، dev، func)
+    ارجع pci_read8(bus + 0، dev + 0، func + 0، PCI_CLASS_CODE) + 0
+نهاية
+
+صدّر دالة pci_get_subclass_code(bus، dev، func)
+    ارجع pci_read8(bus + 0، dev + 0، func + 0، PCI_SUBCLASS) + 0
+نهاية
+
+صدّر دالة pci_get_prog_if(bus، dev، func)
+    ارجع pci_read8(bus + 0، dev + 0، func + 0، PCI_PROG_IF) + 0
+نهاية
+
+صدّر دالة pci_get_header_type(bus، dev، func)
+    ارجع pci_read8(bus + 0، dev + 0، func + 0، PCI_HEADER_TYPE) + 0
+نهاية
+
+صدّر دالة pci_get_irq_line(bus، dev، func)
+    ارجع pci_read8(bus + 0، dev + 0، func + 0، PCI_IRQ_LINE) + 0
+نهاية
+
+صدّر دالة pci_get_bar(bus، dev، func، bar_num)
+    متغير bar_reg = PCI_BAR0 + (bar_num * 4)
+    ارجع pci_read32(bus + 0، dev + 0، func + 0، bar_reg) + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تفعيل Bus Master / IO / Memory
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة pci_enable_bus_master(bus، dev، func)
+    متغير cmd = pci_read16(bus + 0، dev + 0، func + 0، PCI_COMMAND) + 0
+    # تفعيل IO + MEM + Bus Master
+    متغير new_cmd = cmd + 0
+    # التحقق وإضافة كل بت
+    إذا ((new_cmd % 2) == 0)
+        new_cmd = new_cmd + PCI_CMD_IO_ENABLE
+    نهاية
+    إذا (((new_cmd / 2) % 2) == 0)
+        new_cmd = new_cmd + PCI_CMD_MEM_ENABLE
+    نهاية
+    إذا (((new_cmd / 4) % 2) == 0)
+        new_cmd = new_cmd + PCI_CMD_BUS_MASTER
+    نهاية
+    pci_write16(bus + 0، dev + 0، func + 0، PCI_COMMAND، new_cmd)
+    ارجع new_cmd + 0
+نهاية
+
+صدّر دالة pci_enable_io(bus، dev، func)
+    متغير cmd = pci_read16(bus + 0، dev + 0، func + 0، PCI_COMMAND) + 0
+    إذا ((cmd % 2) == 0)
+        cmd = cmd + PCI_CMD_IO_ENABLE
+        pci_write16(bus + 0، dev + 0، func + 0، PCI_COMMAND، cmd)
+    نهاية
+    ارجع cmd + 0
+نهاية
+
+صدّر دالة pci_enable_memory(bus، dev، func)
+    متغير cmd = pci_read16(bus + 0، dev + 0، func + 0، PCI_COMMAND) + 0
+    إذا (((cmd / 2) % 2) == 0)
+        cmd = cmd + PCI_CMD_MEM_ENABLE
+        pci_write16(bus + 0، dev + 0، func + 0، PCI_COMMAND، cmd)
+    نهاية
+    ارجع cmd + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# حجم BAR
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة pci_get_bar_size(bus، dev، func، bar_num)
+    متغير bar_reg = PCI_BAR0 + (bar_num * 4)
+    متغير original = pci_read32(bus + 0، dev + 0، func + 0، bar_reg) + 0
+
+    # كتابة 0xFFFFFFFF
+    pci_write32(bus + 0، dev + 0، func + 0، bar_reg، 4294967295)
+    متغير size_mask = pci_read32(bus + 0، dev + 0، func + 0، bar_reg) + 0
+
+    # استعادة القيمة الأصلية
+    pci_write32(bus + 0، dev + 0، func + 0، bar_reg، original)
+
+    إذا (size_mask == 0)
+        ارجع 0
+    نهاية
+
+    # إزالة بتات النوع
+    إذا ((original % 2) == 1)
+        # I/O BAR — إزالة آخر 2 بت
+        size_mask = (size_mask / 4) * 4
+    والا
+        # Memory BAR — إزالة آخر 4 بت
+        size_mask = (size_mask / 16) * 16
+    نهاية
+
+    # NOT + 1 = الحجم (تقريب)
+    # بما أننا لا نملك عامل NOT، نستخدم XOR مع 0xFFFFFFFF
+    متغير inverted = 4294967295 - size_mask
+    ارجع inverted + 1
+نهاية
+
+# تحديد نوع BAR (I/O أو Memory)
+صدّر دالة pci_bar_is_io(bar_val)
+    ارجع bar_val % 2
+نهاية
+
+صدّر دالة pci_bar_address(bar_val)
+    إذا ((bar_val % 2) == 1)
+        # I/O BAR — إزالة آخر 2 بت
+        ارجع (bar_val / 4) * 4
+    والا
+        # Memory BAR — إزالة آخر 4 بت
+        ارجع (bar_val / 16) * 16
+    نهاية
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# مسح ناقل PCI
+# ═══════════════════════════════════════════════════════════════════════════════
+# تصنيف الجهاز حسب الصنف
+دالة pci_classify_device(class_code)
+    إذا (class_code == PCI_CLASS_STORAGE)
+        pci_disk_count = pci_disk_count + 1
+    نهاية
+    إذا (class_code == PCI_CLASS_NETWORK)
+        pci_net_count = pci_net_count + 1
+    نهاية
+    إذا (class_code == PCI_CLASS_DISPLAY)
+        pci_display_count = pci_display_count + 1
+    نهاية
+    إذا (class_code == PCI_CLASS_MULTIMEDIA)
+        pci_audio_count = pci_audio_count + 1
+    نهاية
+    إذا (class_code == PCI_CLASS_BRIDGE)
+        pci_bridge_count = pci_bridge_count + 1
+    نهاية
+    إذا (class_code == PCI_CLASS_SERIAL)
+        متغير tmp = pci_dev_count - 1
+        إذا (tmp >= 0)
+            متغير cls = pci_get_class(tmp) + 0
+            متغير sub = (cls / 256) % 256
+            إذا (sub == PCI_SUBCLASS_USB)
+                pci_usb_count = pci_usb_count + 1
+            نهاية
+        نهاية
+    نهاية
+    ارجع 0
+نهاية
+
+# تسجيل جهاز مكتشف
+دالة pci_register_device(bus، dev، func، vid، did، class_full، bar0_val، bar1_val، irq_val)
+    متغير idx = pci_dev_count + 0
+    إذا (idx >= 64)
+        ارجع 0
+    نهاية
+
+    متغير loc = bus * 256 + dev * 8 + func
+    pci_set_loc(idx، loc)
+    pci_set_vid(idx، vid)
+    pci_set_did(idx، did)
+    pci_set_class(idx، class_full)
+    pci_set_bar0(idx، bar0_val)
+    pci_set_bar1(idx، bar1_val)
+    pci_set_irq(idx، irq_val)
+
+    pci_dev_count = pci_dev_count + 1
+
+    # تصنيف
+    متغير class_code = class_full / 65536
+    pci_classify_device(class_code)
+
+    ارجع idx + 0
+نهاية
+
+# مسح وظيفة واحدة
+دالة pci_scan_function(bus، dev، func)
+    متغير vid = pci_get_vendor_id(bus + 0، dev + 0، func + 0) + 0
+    إذا (vid == PCI_VENDOR_INVALID)
+        ارجع 0
+    نهاية
+    إذا (vid == 0)
+        ارجع 0
+    نهاية
+
+    متغير did = pci_get_device_id(bus + 0، dev + 0، func + 0) + 0
+    متغير cls = pci_get_class_code(bus + 0، dev + 0، func + 0) + 0
+    متغير sub = pci_get_subclass_code(bus + 0، dev + 0، func + 0) + 0
+    متغير pif = pci_get_prog_if(bus + 0، dev + 0، func + 0) + 0
+    متغير bar0 = pci_get_bar(bus + 0، dev + 0، func + 0، 0) + 0
+    متغير bar1 = pci_get_bar(bus + 0، dev + 0، func + 0، 1) + 0
+    متغير irq = pci_get_irq_line(bus + 0، dev + 0، func + 0) + 0
+
+    متغير class_full = cls * 65536 + sub * 256 + pif
+
+    pci_register_device(bus + 0، dev + 0، func + 0، vid + 0، did + 0، class_full + 0، bar0 + 0، bar1 + 0، irq + 0)
+
+    # طباعة معلومات الجهاز
+    pci_serial_اطبع("[PCI] ")
+    pci_serial_رقم(bus + 0)
+    sad_ll_serial_write_char(COM1، 58)  # ':'
+    pci_serial_رقم(dev + 0)
+    sad_ll_serial_write_char(COM1، 46)  # '.'
+    pci_serial_رقم(func + 0)
+    pci_serial_اطبع(" VID=0x")
+    pci_serial_hex16(vid + 0)
+    pci_serial_اطبع(" DID=0x")
+    pci_serial_hex16(did + 0)
+    pci_serial_اطبع(" Class=")
+    pci_serial_hex8(cls + 0)
+    sad_ll_serial_write_char(COM1، 58)
+    pci_serial_hex8(sub + 0)
+    sad_ll_serial_write_char(COM1، 58)
+    pci_serial_hex8(pif + 0)
+    pci_serial_اطبع(" BAR0=0x")
+    pci_serial_hex32(bar0 + 0)
+    pci_serial_اطبع(" IRQ=")
+    pci_serial_رقم(irq + 0)
+    pci_serial_سطر()
+
+    ارجع 1
+نهاية
+
+# مسح جهاز واحد (جميع الوظائف)
+دالة pci_scan_device(bus، dev)
+    متغير vid = pci_get_vendor_id(bus + 0، dev + 0، 0) + 0
+    إذا (vid == PCI_VENDOR_INVALID)
+        ارجع 0
+    نهاية
+    إذا (vid == 0)
+        ارجع 0
+    نهاية
+
+    pci_scan_function(bus + 0، dev + 0، 0)
+
+    # التحقق من تعدد الوظائف
+    متغير header = pci_get_header_type(bus + 0، dev + 0، 0) + 0
+    إذا (header >= 128)
+        # Multi-function device — bit 7 set
+        متغير f = 1 + 0
+        بينما (f < PCI_MAX_FUNC)
+            pci_scan_function(bus + 0، dev + 0، f + 0)
+            f = f + 1
+        نهاية
+    نهاية
+
+    ارجع 1
+نهاية
+
+# مسح ناقل واحد
+دالة pci_scan_bus(bus)
+    متغير dev = 0 + 0
+    بينما (dev < PCI_MAX_DEV)
+        pci_scan_device(bus + 0، dev + 0)
+        dev = dev + 1
+    نهاية
+    ارجع 0
+نهاية
+
+# مسح جميع النواقل
+صدّر دالة pci_scan_all()
+    pci_serial_اطبع("[PCI] Scanning buses 0-7...")
+    pci_serial_سطر()
+
+    متغير bus = 0 + 0
+    بينما (bus < PCI_MAX_BUS)
+        pci_scan_bus(bus + 0)
+        bus = bus + 1
+    نهاية
+
+    pci_serial_اطبع("[PCI] Scan complete: ")
+    pci_serial_رقم(pci_dev_count + 0)
+    pci_serial_اطبع(" devices found")
+    pci_serial_سطر()
+
+    ارجع pci_dev_count + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# البحث عن أجهزة حسب الصنف
+# ═══════════════════════════════════════════════════════════════════════════════
+# البحث عن جهاز حسب الصنف والصنف الفرعي
+# يرجع: فهرس الجهاز في قاعدة البيانات، أو -1
+صدّر دالة pci_find_device_by_class(class_code، subclass)
+    متغير i = 0 + 0
+    بينما (i < pci_dev_count)
+        متغير cls = pci_get_class(i) + 0
+        متغير dev_class = cls / 65536
+        متغير dev_sub = (cls / 256) % 256
+        إذا (dev_class == class_code)
+            إذا (dev_sub == subclass)
+                ارجع i + 0
+            نهاية
+        نهاية
+        i = i + 1
+    نهاية
+    ارجع 0 - 1
+نهاية
+
+# البحث عن جهاز حسب الصنف والصنف الفرعي وواجهة البرمجة
+صدّر دالة pci_find_device_by_class_if(class_code، subclass، prog_if)
+    متغير i = 0 + 0
+    بينما (i < pci_dev_count)
+        متغير cls = pci_get_class(i) + 0
+        متغير dev_class = cls / 65536
+        متغير dev_sub = (cls / 256) % 256
+        متغير dev_pif = cls % 256
+        إذا (dev_class == class_code)
+            إذا (dev_sub == subclass)
+                إذا (dev_pif == prog_if)
+                    ارجع i + 0
+                نهاية
+            نهاية
+        نهاية
+        i = i + 1
+    نهاية
+    ارجع 0 - 1
+نهاية
+
+# البحث عن جهاز حسب VID:DID
+صدّر دالة pci_find_device_by_id(vendor_id، device_id)
+    متغير i = 0 + 0
+    بينما (i < pci_dev_count)
+        متغير vid = pci_get_vid(i) + 0
+        متغير did = pci_get_did(i) + 0
+        إذا (vid == vendor_id)
+            إذا (did == device_id)
+                ارجع i + 0
+            نهاية
+        نهاية
+        i = i + 1
+    نهاية
+    ارجع 0 - 1
+نهاية
+
+# البحث عن جميع أجهزة USB
+صدّر دالة pci_find_usb_controller(search_index)
+    متغير found = 0 + 0
+    متغير i = 0 + 0
+    بينما (i < pci_dev_count)
+        متغير cls = pci_get_class(i) + 0
+        متغير dev_class = cls / 65536
+        متغير dev_sub = (cls / 256) % 256
+        إذا (dev_class == PCI_CLASS_SERIAL)
+            إذا (dev_sub == PCI_SUBCLASS_USB)
+                إذا (found == search_index)
+                    ارجع i + 0
+                نهاية
+                found = found + 1
+            نهاية
+        نهاية
+        i = i + 1
+    نهاية
+    ارجع 0 - 1
+نهاية
+
+# الحصول على نوع متحكم USB (UHCI/OHCI/EHCI/XHCI) من واجهة البرمجة
+صدّر دالة pci_get_usb_type(idx)
+    إذا (idx < 0)
+        ارجع 0 - 1
+    نهاية
+    إذا (idx >= pci_dev_count)
+        ارجع 0 - 1
+    نهاية
+    متغير cls = pci_get_class(idx) + 0
+    ارجع cls % 256  # prog_if
+نهاية
+
+# استخراج bus/dev/func من الموقع المشفر
+صدّر دالة pci_loc_bus(idx)
+    متغير loc = pci_get_loc(idx) + 0
+    ارجع loc / 256
+نهاية
+
+صدّر دالة pci_loc_dev(idx)
+    متغير loc = pci_get_loc(idx) + 0
+    ارجع (loc % 256) / 8
+نهاية
+
+صدّر دالة pci_loc_func(idx)
+    متغير loc = pci_get_loc(idx) + 0
+    ارجع loc % 8
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تكوين Capabilities (للأجهزة المتقدمة)
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة pci_find_capability(bus، dev، func، cap_id)
+    # التحقق من وجود قائمة القدرات
+    متغير status = pci_read16(bus + 0، dev + 0، func + 0، PCI_STATUS) + 0
+    # Bit 4 = Capabilities List exists
+    إذا (((status / 16) % 2) == 0)
+        ارجع 0
+    نهاية
+
+    # مؤشر أول قدرة في السجل 0x34
+    متغير cap_ptr = pci_read8(bus + 0، dev + 0، func + 0، 52) + 0
+    # محاذاة على 4 بايت
+    cap_ptr = (cap_ptr / 4) * 4
+
+    متغير iterations = 0 + 0
+    بينما (cap_ptr > 0)
+        إذا (iterations > 48)
+            ارجع 0  # حماية من حلقة لا نهائية
+        نهاية
+
+        متغير id = pci_read8(bus + 0، dev + 0، func + 0، cap_ptr) + 0
+        إذا (id == cap_id)
+            ارجع cap_ptr + 0
+        نهاية
+
+        # المؤشر التالي
+        cap_ptr = pci_read8(bus + 0، dev + 0، func + 0، cap_ptr + 1) + 0
+        cap_ptr = (cap_ptr / 4) * 4
+        iterations = iterations + 1
+    نهاية
+
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MSI (Message Signaled Interrupts)
+# ═══════════════════════════════════════════════════════════════════════════════
+ثابت PCI_CAP_MSI = 5    # 0x05
+
+صدّر دالة pci_enable_msi(bus، dev، func، vector)
+    متغير cap_pos = pci_find_capability(bus + 0، dev + 0، func + 0، PCI_CAP_MSI) + 0
+    إذا (cap_pos == 0)
+        pci_serial_اطبع("[PCI] MSI not supported")
+        pci_serial_سطر()
+        ارجع 0
+    نهاية
+
+    # MSI Control Register (cap_pos + 2)
+    متغير msi_ctrl = pci_read16(bus + 0، dev + 0، func + 0، cap_pos + 2) + 0
+
+    # Message Address (cap_pos + 4) = 0xFEE00000 | (CPU = 0)
+    # 0xFEE00000 = 4276092928
+    pci_write32(bus + 0، dev + 0، func + 0، cap_pos + 4، 4276092928)
+
+    # Message Data (cap_pos + 8 or +12) = vector
+    إذا (((msi_ctrl / 128) % 2) == 1)
+        # 64-bit
+        pci_write32(bus + 0، dev + 0، func + 0، cap_pos + 8، 0)
+        pci_write16(bus + 0، dev + 0، func + 0، cap_pos + 12، vector)
+    والا
+        # 32-bit
+        pci_write16(bus + 0، dev + 0، func + 0، cap_pos + 8، vector)
+    نهاية
+
+    # Enable MSI (bit 0 of control)
+    إذا ((msi_ctrl % 2) == 0)
+        msi_ctrl = msi_ctrl + 1
+    نهاية
+    pci_write16(bus + 0، dev + 0، func + 0، cap_pos + 2، msi_ctrl)
+
+    pci_serial_اطبع("[PCI] MSI enabled, vector=")
+    pci_serial_رقم(vector + 0)
+    pci_serial_سطر()
+    ارجع 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تقرير PCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة pci_تقرير()
+    pci_serial_اطبع("═══ [PCI] تقرير الأجهزة ═══")
+    pci_serial_سطر()
+
+    pci_serial_اطبع("  إجمالي الأجهزة: ")
+    pci_serial_رقم(pci_dev_count + 0)
+    pci_serial_سطر()
+
+    pci_serial_اطبع("  تخزين: ")
+    pci_serial_رقم(pci_disk_count + 0)
+    pci_serial_سطر()
+
+    pci_serial_اطبع("  شبكة: ")
+    pci_serial_رقم(pci_net_count + 0)
+    pci_serial_سطر()
+
+    pci_serial_اطبع("  عرض: ")
+    pci_serial_رقم(pci_display_count + 0)
+    pci_serial_سطر()
+
+    pci_serial_اطبع("  صوت: ")
+    pci_serial_رقم(pci_audio_count + 0)
+    pci_serial_سطر()
+
+    pci_serial_اطبع("  USB: ")
+    pci_serial_رقم(pci_usb_count + 0)
+    pci_serial_سطر()
+
+    pci_serial_اطبع("  جسور: ")
+    pci_serial_رقم(pci_bridge_count + 0)
+    pci_serial_سطر()
+
+    # تفاصيل كل جهاز
+    متغير i = 0 + 0
+    بينما (i < pci_dev_count)
+        متغير loc = pci_get_loc(i) + 0
+        متغير bus = loc / 256
+        متغير dev = (loc % 256) / 8
+        متغير func = loc % 8
+        متغير vid = pci_get_vid(i) + 0
+        متغير did = pci_get_did(i) + 0
+        متغير cls = pci_get_class(i) + 0
+        متغير bar0 = pci_get_bar0(i) + 0
+
+        pci_serial_اطبع("  [")
+        pci_serial_رقم(i + 0)
+        pci_serial_اطبع("] ")
+        pci_serial_رقم(bus + 0)
+        sad_ll_serial_write_char(COM1، 58)
+        pci_serial_رقم(dev + 0)
+        sad_ll_serial_write_char(COM1، 46)
+        pci_serial_رقم(func + 0)
+        pci_serial_اطبع(" 0x")
+        pci_serial_hex16(vid + 0)
+        sad_ll_serial_write_char(COM1، 58)
+        pci_serial_hex16(did + 0)
+        pci_serial_اطبع(" C=")
+        pci_serial_hex8(cls / 65536)
+        sad_ll_serial_write_char(COM1، 58)
+        pci_serial_hex8((cls / 256) % 256)
+        pci_serial_اطبع(" B0=0x")
+        pci_serial_hex32(bar0 + 0)
+        pci_serial_سطر()
+
+        i = i + 1
+    نهاية
+
+    pci_serial_اطبع("═══════════════════════════════════")
+    pci_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تهيئة PCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة pci_هيئ()
+    pci_serial_اطبع("[PCI] تهيئة نظام PCI...")
+    pci_serial_سطر()
+
+    pci_dev_count = 0
+    pci_usb_count = 0
+    pci_net_count = 0
+    pci_disk_count = 0
+    pci_display_count = 0
+    pci_audio_count = 0
+    pci_bridge_count = 0
+    pci_other_count = 0
+
+    # مسح الناقل
+    pci_scan_all()
+    pci_تقرير()
+
+    pci_serial_اطبع("[PCI] جاهز")
+    pci_serial_سطر()
+    ارجع pci_dev_count + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دورة PCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة pci_دورة()
+    # PCI لا يحتاج لمعالجة دورية
+    ارجع 0
+نهاية

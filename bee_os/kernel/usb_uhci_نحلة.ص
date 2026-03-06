@@ -1,0 +1,1450 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# usb_uhci_نحلة.ص — تعريف متحكم UHCI لنظام نحلة
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# UHCI (Universal Host Controller Interface) — Intel USB 1.x Controller
+# I/O Register based, 2 root hub ports, 1024 Frame List entries
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── دوال خارجية (FFI) ───
+خارجي دالة sad_ll_port_inb(port)
+خارجي دالة sad_ll_port_outb(port، val)
+خارجي دالة sad_ll_port_inw(port)
+خارجي دالة sad_ll_port_outw(port، val)
+خارجي دالة sad_ll_port_inl(port)
+خارجي دالة sad_ll_port_outl(port، val)
+خارجي دالة sad_ll_mem_read8(addr)
+خارجي دالة sad_ll_mem_write8(addr، val)
+خارجي دالة sad_ll_mem_read32(addr)
+خارجي دالة sad_ll_mem_write32(addr، val)
+خارجي دالة sad_ll_serial_write_char(port، ch)
+خارجي دالة sad_ll_kmalloc(حجم_طلب)
+خارجي دالة sad_ll_kfree(عنوان)
+خارجي دالة sad_ll_memset(عنوان، قيمة، حجم_منطقة)
+خارجي دالة sad_ll_memcpy(هدف، مصدر، حجم_نقل)
+خارجي دالة sad_ll_timer_get_ticks()
+
+# ─── دوال خارجية من USB Core ───
+خارجي دالة usb_get_hc_base(idx)
+خارجي دالة usb_register_device(hc_idx، port_num، speed)
+خارجي دالة usb_build_setup(buf، req_type، request، w_value، w_index، w_length)
+خارجي دالة usb_parse_device_descriptor(buf، dev_idx)
+خارجي دالة usb_parse_config_descriptor(buf، total_len، dev_idx)
+خارجي دالة usb_classify_device(dev_idx)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ثوابت UHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+ثابت COM1 = 1016
+
+# سجلات UHCI I/O (إزاحة من العنوان القاعدي)
+ثابت UHCI_USBCMD    = 0      # 0x00 - USB Command (R/W, 16-bit)
+ثابت UHCI_USBSTS    = 2      # 0x02 - USB Status (R/WC, 16-bit)
+ثابت UHCI_USBINTR   = 4      # 0x04 - USB Interrupt Enable (R/W, 16-bit)
+ثابت UHCI_FRNUM     = 6      # 0x06 - Frame Number (R/W, 16-bit)
+ثابت UHCI_FRBASEADD = 8      # 0x08 - Frame List Base Address (R/W, 32-bit)
+ثابت UHCI_SOFMOD    = 12     # 0x0C - Start of Frame Modify (R/W, 8-bit)
+ثابت UHCI_PORTSC1   = 16     # 0x10 - Port 1 Status/Control (R/WC, 16-bit)
+ثابت UHCI_PORTSC2   = 18     # 0x12 - Port 2 Status/Control (R/WC, 16-bit)
+
+# USBCMD بتات
+ثابت UHCI_CMD_RS         = 1      # Run/Stop (1=Run)
+ثابت UHCI_CMD_HCRESET    = 2      # Host Controller Reset
+ثابت UHCI_CMD_GRESET     = 4      # Global Reset
+ثابت UHCI_CMD_EGSM       = 8      # Enter Global Suspend Mode
+ثابت UHCI_CMD_FGR        = 16     # 0x10 Force Global Resume
+ثابت UHCI_CMD_SWDBG      = 32     # 0x20 Software Debug
+ثابت UHCI_CMD_CF         = 64     # 0x40 Configure Flag
+ثابت UHCI_CMD_MAXP       = 128    # 0x80 Max Packet (0=32, 1=64)
+
+# USBSTS بتات
+ثابت UHCI_STS_USBINT     = 1      # USB Interrupt
+ثابت UHCI_STS_ERROR      = 2      # USB Error Interrupt
+ثابت UHCI_STS_RD         = 4      # Resume Detect
+ثابت UHCI_STS_HSE        = 8      # Host System Error
+ثابت UHCI_STS_HCPE       = 16     # 0x10 HC Process Error
+ثابت UHCI_STS_HCH        = 32     # 0x20 HC Halted
+
+# PORTSC بتات
+ثابت UHCI_PORT_CONNECT    = 1      # Current Connect Status
+ثابت UHCI_PORT_CSC        = 2      # Connect Status Change
+ثابت UHCI_PORT_ENABLE     = 4      # Port Enable
+ثابت UHCI_PORT_ENC        = 8      # Port Enable Change
+ثابت UHCI_PORT_LS_LO      = 16     # 0x10 Line Status D- (bit 4)
+ثابت UHCI_PORT_LS_HI      = 32     # 0x20 Line Status D+ (bit 5)
+ثابت UHCI_PORT_RD         = 64     # 0x40 Resume Detect
+ثابت UHCI_PORT_LSDA       = 256    # 0x100 Low Speed Device Attached
+ثابت UHCI_PORT_RESET      = 512    # 0x200 Port Reset
+ثابت UHCI_PORT_SUSP       = 4096   # 0x1000 Suspend
+
+# TD (Transfer Descriptor) بتات
+ثابت UHCI_TD_ACTIVE       = 8388608    # 0x800000 - bit 23
+ثابت UHCI_TD_STALLED      = 4194304    # 0x400000 - bit 22
+ثابت UHCI_TD_DBUF_ERR     = 2097152    # 0x200000 - bit 21
+ثابت UHCI_TD_BABBLE       = 1048576    # 0x100000 - bit 20
+ثابت UHCI_TD_NAK          = 524288     # 0x080000 - bit 19
+ثابت UHCI_TD_CRC_ERR      = 262144     # 0x040000 - bit 18
+ثابت UHCI_TD_BITSTUFF     = 131072     # 0x020000 - bit 17
+ثابت UHCI_TD_IOC          = 16777216   # 0x01000000 - bit 24 (Interrupt on Complete)
+ثابت UHCI_TD_IOS          = 33554432   # 0x02000000 - bit 25 (Isochronous Select)
+ثابت UHCI_TD_LS           = 67108864   # 0x04000000 - bit 26 (Low Speed)
+ثابت UHCI_TD_SPD          = 536870912  # 0x20000000 - bit 29 (Short Packet Detect)
+
+# PID tokens
+ثابت UHCI_PID_SETUP = 45    # 0x2D
+ثابت UHCI_PID_IN    = 105   # 0x69
+ثابت UHCI_PID_OUT   = 225   # 0xE1
+
+# عدد الإطارات (Frame List)
+ثابت UHCI_FRAME_COUNT = 1024
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# حالة UHCI (4 متحكمات كحد أقصى)
+# ═══════════════════════════════════════════════════════════════════════════════
+متغير uhci_count = 0
+
+# عناوين I/O القاعدية
+متغير uhci_base_0 = 0
+متغير uhci_base_1 = 0
+متغير uhci_base_2 = 0
+متغير uhci_base_3 = 0
+
+# عنوان Frame List المخصص
+متغير uhci_framelist_0 = 0
+متغير uhci_framelist_1 = 0
+متغير uhci_framelist_2 = 0
+متغير uhci_framelist_3 = 0
+
+# عنوان QH Pool
+متغير uhci_qh_pool_0 = 0
+متغير uhci_qh_pool_1 = 0
+متغير uhci_qh_pool_2 = 0
+متغير uhci_qh_pool_3 = 0
+
+# عنوان TD Pool
+متغير uhci_td_pool_0 = 0
+متغير uhci_td_pool_1 = 0
+متغير uhci_td_pool_2 = 0
+متغير uhci_td_pool_3 = 0
+
+# مخزن بيانات مؤقت
+متغير uhci_data_buf_0 = 0
+متغير uhci_data_buf_1 = 0
+متغير uhci_data_buf_2 = 0
+متغير uhci_data_buf_3 = 0
+
+# Setup packet buffer
+متغير uhci_setup_buf_0 = 0
+متغير uhci_setup_buf_1 = 0
+متغير uhci_setup_buf_2 = 0
+متغير uhci_setup_buf_3 = 0
+
+# حالة المتحكم (0=معطل، 1=مهيأ، 2=يعمل)
+متغير uhci_status_0 = 0
+متغير uhci_status_1 = 0
+متغير uhci_status_2 = 0
+متغير uhci_status_3 = 0
+
+# حالة المنافذ (connected/speed per port)
+متغير uhci_port1_connected_0 = 0
+متغير uhci_port2_connected_0 = 0
+متغير uhci_port1_connected_1 = 0
+متغير uhci_port2_connected_1 = 0
+متغير uhci_port1_connected_2 = 0
+متغير uhci_port2_connected_2 = 0
+متغير uhci_port1_connected_3 = 0
+متغير uhci_port2_connected_3 = 0
+
+متغير uhci_port1_speed_0 = 1
+متغير uhci_port2_speed_0 = 1
+متغير uhci_port1_speed_1 = 1
+متغير uhci_port2_speed_1 = 1
+متغير uhci_port1_speed_2 = 1
+متغير uhci_port2_speed_2 = 1
+متغير uhci_port1_speed_3 = 1
+متغير uhci_port2_speed_3 = 1
+
+# عدد TD المستخدمة
+متغير uhci_td_used_0 = 0
+متغير uhci_td_used_1 = 0
+متغير uhci_td_used_2 = 0
+متغير uhci_td_used_3 = 0
+
+# إحصائيات
+متغير uhci_total_transfers = 0
+متغير uhci_transfer_errors = 0
+متغير uhci_port_resets = 0
+متغير uhci_interrupts = 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الطباعة
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة uhci_serial_اطبع(رسالة)
+    متغير i = 0 + 0
+    بينما (i < 80)
+        متغير ch = sad_ll_mem_read8(رسالة + i) + 0
+        إذا (ch == 0)
+            ارجع 0
+        نهاية
+        sad_ll_serial_write_char(COM1، ch)
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_serial_رقم(ن)
+    متغير val = ن + 0
+    إذا (val < 0)
+        sad_ll_serial_write_char(COM1، 45)
+        val = 0 - val
+    نهاية
+    إذا (val >= 10000)
+        متغير d5 = val / 10000
+        sad_ll_serial_write_char(COM1، 48 + d5)
+        val = val - (d5 * 10000)
+    نهاية
+    إذا (val >= 1000)
+        متغير d4 = val / 1000
+        sad_ll_serial_write_char(COM1، 48 + d4)
+        val = val - (d4 * 1000)
+    والا_اذا (ن >= 10000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 100)
+        متغير d3 = val / 100
+        sad_ll_serial_write_char(COM1، 48 + d3)
+        val = val - (d3 * 100)
+    والا_اذا (ن >= 1000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 10)
+        متغير d2 = val / 10
+        sad_ll_serial_write_char(COM1، 48 + d2)
+        val = val - (d2 * 10)
+    والا_اذا (ن >= 100)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    sad_ll_serial_write_char(COM1، 48 + val)
+    ارجع 0
+نهاية
+
+دالة uhci_serial_hex8(val)
+    متغير v = val + 0
+    متغير hi = v / 16
+    متغير lo = v % 16
+    إذا (hi < 10) sad_ll_serial_write_char(COM1، 48 + hi)
+    والا sad_ll_serial_write_char(COM1، 55 + hi) نهاية
+    إذا (lo < 10) sad_ll_serial_write_char(COM1، 48 + lo)
+    والا sad_ll_serial_write_char(COM1، 55 + lo) نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_serial_hex16(val)
+    uhci_serial_hex8(val / 256)
+    uhci_serial_hex8(val % 256)
+    ارجع 0
+نهاية
+
+دالة uhci_serial_سطر()
+    sad_ll_serial_write_char(COM1، 13)
+    sad_ll_serial_write_char(COM1، 10)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# وصول المصفوفات الموازية
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة uhci_get_base(idx)
+    إذا (idx == 0) ارجع uhci_base_0 + 0 نهاية
+    إذا (idx == 1) ارجع uhci_base_1 + 0 نهاية
+    إذا (idx == 2) ارجع uhci_base_2 + 0 نهاية
+    إذا (idx == 3) ارجع uhci_base_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_set_base(idx، val)
+    إذا (idx == 0) uhci_base_0 = val + 0 نهاية
+    إذا (idx == 1) uhci_base_1 = val + 0 نهاية
+    إذا (idx == 2) uhci_base_2 = val + 0 نهاية
+    إذا (idx == 3) uhci_base_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_get_framelist(idx)
+    إذا (idx == 0) ارجع uhci_framelist_0 + 0 نهاية
+    إذا (idx == 1) ارجع uhci_framelist_1 + 0 نهاية
+    إذا (idx == 2) ارجع uhci_framelist_2 + 0 نهاية
+    إذا (idx == 3) ارجع uhci_framelist_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_set_framelist(idx، val)
+    إذا (idx == 0) uhci_framelist_0 = val + 0 نهاية
+    إذا (idx == 1) uhci_framelist_1 = val + 0 نهاية
+    إذا (idx == 2) uhci_framelist_2 = val + 0 نهاية
+    إذا (idx == 3) uhci_framelist_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_get_qh_pool(idx)
+    إذا (idx == 0) ارجع uhci_qh_pool_0 + 0 نهاية
+    إذا (idx == 1) ارجع uhci_qh_pool_1 + 0 نهاية
+    إذا (idx == 2) ارجع uhci_qh_pool_2 + 0 نهاية
+    إذا (idx == 3) ارجع uhci_qh_pool_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_set_qh_pool(idx، val)
+    إذا (idx == 0) uhci_qh_pool_0 = val + 0 نهاية
+    إذا (idx == 1) uhci_qh_pool_1 = val + 0 نهاية
+    إذا (idx == 2) uhci_qh_pool_2 = val + 0 نهاية
+    إذا (idx == 3) uhci_qh_pool_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_get_td_pool(idx)
+    إذا (idx == 0) ارجع uhci_td_pool_0 + 0 نهاية
+    إذا (idx == 1) ارجع uhci_td_pool_1 + 0 نهاية
+    إذا (idx == 2) ارجع uhci_td_pool_2 + 0 نهاية
+    إذا (idx == 3) ارجع uhci_td_pool_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_set_td_pool(idx، val)
+    إذا (idx == 0) uhci_td_pool_0 = val + 0 نهاية
+    إذا (idx == 1) uhci_td_pool_1 = val + 0 نهاية
+    إذا (idx == 2) uhci_td_pool_2 = val + 0 نهاية
+    إذا (idx == 3) uhci_td_pool_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_get_data_buf(idx)
+    إذا (idx == 0) ارجع uhci_data_buf_0 + 0 نهاية
+    إذا (idx == 1) ارجع uhci_data_buf_1 + 0 نهاية
+    إذا (idx == 2) ارجع uhci_data_buf_2 + 0 نهاية
+    إذا (idx == 3) ارجع uhci_data_buf_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_set_data_buf(idx، val)
+    إذا (idx == 0) uhci_data_buf_0 = val + 0 نهاية
+    إذا (idx == 1) uhci_data_buf_1 = val + 0 نهاية
+    إذا (idx == 2) uhci_data_buf_2 = val + 0 نهاية
+    إذا (idx == 3) uhci_data_buf_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_get_setup_buf(idx)
+    إذا (idx == 0) ارجع uhci_setup_buf_0 + 0 نهاية
+    إذا (idx == 1) ارجع uhci_setup_buf_1 + 0 نهاية
+    إذا (idx == 2) ارجع uhci_setup_buf_2 + 0 نهاية
+    إذا (idx == 3) ارجع uhci_setup_buf_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_set_setup_buf(idx، val)
+    إذا (idx == 0) uhci_setup_buf_0 = val + 0 نهاية
+    إذا (idx == 1) uhci_setup_buf_1 = val + 0 نهاية
+    إذا (idx == 2) uhci_setup_buf_2 = val + 0 نهاية
+    إذا (idx == 3) uhci_setup_buf_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_get_status(idx)
+    إذا (idx == 0) ارجع uhci_status_0 + 0 نهاية
+    إذا (idx == 1) ارجع uhci_status_1 + 0 نهاية
+    إذا (idx == 2) ارجع uhci_status_2 + 0 نهاية
+    إذا (idx == 3) ارجع uhci_status_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة uhci_set_status(idx، val)
+    إذا (idx == 0) uhci_status_0 = val + 0 نهاية
+    إذا (idx == 1) uhci_status_1 = val + 0 نهاية
+    إذا (idx == 2) uhci_status_2 = val + 0 نهاية
+    إذا (idx == 3) uhci_status_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# قراءة/كتابة سجلات UHCI I/O
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_read16(hc_idx، reg)
+    متغير base = uhci_get_base(hc_idx) + 0
+    ارجع sad_ll_port_inw(base + reg) + 0
+نهاية
+
+صدّر دالة uhci_write16(hc_idx، reg، val)
+    متغير base = uhci_get_base(hc_idx) + 0
+    sad_ll_port_outw(base + reg، val + 0)
+    ارجع 0
+نهاية
+
+صدّر دالة uhci_read32(hc_idx، reg)
+    متغير base = uhci_get_base(hc_idx) + 0
+    ارجع sad_ll_port_inl(base + reg) + 0
+نهاية
+
+صدّر دالة uhci_write32(hc_idx، reg، val)
+    متغير base = uhci_get_base(hc_idx) + 0
+    sad_ll_port_outl(base + reg، val + 0)
+    ارجع 0
+نهاية
+
+صدّر دالة uhci_read8(hc_idx، reg)
+    متغير base = uhci_get_base(hc_idx) + 0
+    ارجع sad_ll_port_inb(base + reg) + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# إعادة تعيين المتحكم
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_reset(hc_idx)
+    uhci_serial_اطبع("[UHCI] Resetting HC #")
+    uhci_serial_رقم(hc_idx + 0)
+    uhci_serial_سطر()
+
+    # Global Reset
+    uhci_write16(hc_idx، UHCI_USBCMD، UHCI_CMD_GRESET)
+
+    # انتظار ~50ms (5000 ticks تقريباً)
+    متغير wait_start = sad_ll_timer_get_ticks() + 0
+    بينما (sad_ll_timer_get_ticks() - wait_start < 5000)
+        متغير dummy = 0 + 0
+    نهاية
+
+    uhci_write16(hc_idx، UHCI_USBCMD، 0)
+
+    # HC Reset
+    uhci_write16(hc_idx، UHCI_USBCMD، UHCI_CMD_HCRESET)
+
+    # انتظار انتهاء الإعادة
+    متغير timeout = 100 + 0
+    بينما (timeout > 0)
+        متغير cmd = uhci_read16(hc_idx، UHCI_USBCMD) + 0
+        إذا ((cmd % 4) / 2 == 0)  # bit 1 = HCRESET cleared
+            uhci_serial_اطبع("[UHCI] Reset complete")
+            uhci_serial_سطر()
+            ارجع 1
+        نهاية
+        timeout = timeout - 1
+        متغير w2 = sad_ll_timer_get_ticks() + 0
+        بينما (sad_ll_timer_get_ticks() - w2 < 100)
+            متغير d2 = 0
+        نهاية
+    نهاية
+
+    uhci_serial_اطبع("[UHCI] Reset timeout!")
+    uhci_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# بناء Transfer Descriptor (TD) — 16 بايت
+# ═══════════════════════════════════════════════════════════════════════════════
+# TD Structure (4 DWORDs, 16 bytes each, aligned):
+#   DWORD 0: Link Pointer (next TD or QH, bit 0=T terminate, bit 1=QH)
+#   DWORD 1: Control & Status
+#   DWORD 2: Token (PID, device addr, endpoint, data toggle, max length)
+#   DWORD 3: Buffer Pointer
+
+صدّر دالة uhci_td_set_link(td_addr، next_td، terminate، is_qh)
+    متغير val = next_td + 0
+    إذا (terminate == 1)
+        val = 1  # T bit = terminate
+    نهاية
+    إذا (is_qh == 1)
+        val = val + 2  # QH bit
+    نهاية
+    sad_ll_mem_write32(td_addr، val)
+    ارجع 0
+نهاية
+
+صدّر دالة uhci_td_set_status(td_addr، active، ioc، ls_dev، cerr_count)
+    # Control & Status (DWORD 1)
+    # bits 23     = Active
+    # bits 24     = IOC
+    # bits 26     = LS
+    # bits 27-28  = error count (cerr, 2 bits)
+    # bits 29     = SPD
+    متغير val = 0 + 0
+    إذا (active == 1)
+        val = val + UHCI_TD_ACTIVE
+    نهاية
+    إذا (ioc == 1)
+        val = val + UHCI_TD_IOC
+    نهاية
+    إذا (ls_dev == 1)
+        val = val + UHCI_TD_LS
+    نهاية
+    # cerr count في bits 27-28
+    val = val + (cerr_count * 134217728)  # 0x08000000 = bit 27
+    sad_ll_mem_write32(td_addr + 4، val)
+    ارجع 0
+نهاية
+
+صدّر دالة uhci_td_set_token(td_addr، pid، dev_addr، endpoint، toggle، max_len)
+    # Token (DWORD 2):
+    # bits 0-7:   PID
+    # bits 8-14:  Device Address (7 bits)
+    # bits 15-18: Endpoint (4 bits)
+    # bit 19:     Data Toggle
+    # bits 21-31: MaxLen (11 bits, actual_len - 1, 0x7FF for 0 bytes)
+    متغير val = pid + 0
+    val = val + (dev_addr * 256)          # shift left 8
+    val = val + (endpoint * 32768)        # shift left 15 = 0x8000
+    إذا (toggle == 1)
+        val = val + 524288                # bit 19 = 0x80000
+    نهاية
+    # MaxLen: actual_len - 1 (0x7FF = null packet)
+    متغير ml = 0 + 0
+    إذا (max_len > 0)
+        ml = max_len - 1
+    والا
+        ml = 2047                         # 0x7FF for zero-length
+    نهاية
+    val = val + (ml * 2097152)            # shift left 21 = 0x200000
+    sad_ll_mem_write32(td_addr + 8، val)
+    ارجع 0
+نهاية
+
+صدّر دالة uhci_td_set_buffer(td_addr، buf_phys)
+    sad_ll_mem_write32(td_addr + 12، buf_phys + 0)
+    ارجع 0
+نهاية
+
+# قراءة حالة TD
+صدّر دالة uhci_td_get_status(td_addr)
+    ارجع sad_ll_mem_read32(td_addr + 4) + 0
+نهاية
+
+صدّر دالة uhci_td_is_active(td_addr)
+    متغير st = uhci_td_get_status(td_addr) + 0
+    # bit 23 = Active
+    متغير bit23 = (st / UHCI_TD_ACTIVE) % 2
+    ارجع bit23 + 0
+نهاية
+
+صدّر دالة uhci_td_has_error(td_addr)
+    متغير st = uhci_td_get_status(td_addr) + 0
+    # check bits 17-22 for errors
+    متغير stalled = (st / UHCI_TD_STALLED) % 2
+    متغير dbuf = (st / UHCI_TD_DBUF_ERR) % 2
+    متغير babble = (st / UHCI_TD_BABBLE) % 2
+    متغير crc = (st / UHCI_TD_CRC_ERR) % 2
+    متغير bitstuff = (st / UHCI_TD_BITSTUFF) % 2
+    إذا (stalled + dbuf + babble + crc + bitstuff > 0)
+        ارجع 1
+    نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة uhci_td_actual_len(td_addr)
+    متغير st = uhci_td_get_status(td_addr) + 0
+    # bits 0-10 = actual length (ActLen + 1, or 0x7FF for none)
+    متغير actlen = st % 2048   # 0x7FF mask
+    إذا (actlen == 2047)
+        ارجع 0
+    نهاية
+    ارجع actlen + 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# بناء Queue Head (QH) — 8 بايت
+# ═══════════════════════════════════════════════════════════════════════════════
+# QH Structure:
+#   DWORD 0: Head Link Pointer (next QH)
+#   DWORD 1: Element Link Pointer (first TD)
+
+صدّر دالة uhci_qh_set_head_link(qh_addr، next_qh، terminate)
+    متغير val = next_qh + 0
+    إذا (terminate == 1)
+        val = 1
+    والا
+        val = val + 2  # QH bit
+    نهاية
+    sad_ll_mem_write32(qh_addr، val)
+    ارجع 0
+نهاية
+
+صدّر دالة uhci_qh_set_element(qh_addr، first_td، terminate)
+    متغير val = first_td + 0
+    إذا (terminate == 1)
+        val = 1
+    نهاية
+    sad_ll_mem_write32(qh_addr + 4، val)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تخصيص TD من Pool
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_alloc_td(hc_idx)
+    متغير used = 0 + 0
+    إذا (hc_idx == 0) used = uhci_td_used_0 + 0 نهاية
+    إذا (hc_idx == 1) used = uhci_td_used_1 + 0 نهاية
+    إذا (hc_idx == 2) used = uhci_td_used_2 + 0 نهاية
+    إذا (hc_idx == 3) used = uhci_td_used_3 + 0 نهاية
+
+    إذا (used >= 32)
+        ارجع 0
+    نهاية
+
+    متغير pool = uhci_get_td_pool(hc_idx) + 0
+    متغير td_addr = pool + (used * 32)  # 32-byte aligned TDs
+
+    # مسح TD
+    sad_ll_mem_write32(td_addr، 1)       # link = terminate
+    sad_ll_mem_write32(td_addr + 4، 0)   # status = 0
+    sad_ll_mem_write32(td_addr + 8، 0)   # token = 0
+    sad_ll_mem_write32(td_addr + 12، 0)  # buffer = 0
+
+    # تحديث العداد
+    إذا (hc_idx == 0) uhci_td_used_0 = used + 1 نهاية
+    إذا (hc_idx == 1) uhci_td_used_1 = used + 1 نهاية
+    إذا (hc_idx == 2) uhci_td_used_2 = used + 1 نهاية
+    إذا (hc_idx == 3) uhci_td_used_3 = used + 1 نهاية
+
+    ارجع td_addr + 0
+نهاية
+
+صدّر دالة uhci_reset_td_pool(hc_idx)
+    إذا (hc_idx == 0) uhci_td_used_0 = 0 نهاية
+    إذا (hc_idx == 1) uhci_td_used_1 = 0 نهاية
+    إذا (hc_idx == 2) uhci_td_used_2 = 0 نهاية
+    إذا (hc_idx == 3) uhci_td_used_3 = 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# إعادة تعيين منفذ
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_port_reset(hc_idx، port_num)
+    uhci_serial_اطبع("[UHCI] Port reset HC#")
+    uhci_serial_رقم(hc_idx + 0)
+    uhci_serial_اطبع(" port ")
+    uhci_serial_رقم(port_num + 0)
+    uhci_serial_سطر()
+
+    متغير port_reg = UHCI_PORTSC1 + 0
+    إذا (port_num == 1)
+        port_reg = UHCI_PORTSC2 + 0
+    نهاية
+
+    uhci_port_resets = uhci_port_resets + 1
+
+    # قراءة الحالة الحالية
+    متغير sc = uhci_read16(hc_idx، port_reg) + 0
+
+    # تعيين بت الإعادة
+    uhci_write16(hc_idx، port_reg، sc + UHCI_PORT_RESET)
+
+    # انتظار 50ms
+    متغير wait = sad_ll_timer_get_ticks() + 0
+    بينما (sad_ll_timer_get_ticks() - wait < 5000)
+        متغير d = 0
+    نهاية
+
+    # إزالة بت الإعادة
+    sc = uhci_read16(hc_idx، port_reg) + 0
+    # مسح bit 9 (RESET) — القيمة بدون UHCI_PORT_RESET
+    متغير new_sc = sc % UHCI_PORT_RESET
+    uhci_write16(hc_idx، port_reg، new_sc)
+
+    # انتظار قصير
+    متغير wait2 = sad_ll_timer_get_ticks() + 0
+    بينما (sad_ll_timer_get_ticks() - wait2 < 1000)
+        متغير d2 = 0
+    نهاية
+
+    # تفعيل المنفذ والتأكد من مسح CSC و ENC
+    sc = uhci_read16(hc_idx، port_reg) + 0
+    uhci_write16(hc_idx، port_reg، UHCI_PORT_ENABLE + UHCI_PORT_CSC + UHCI_PORT_ENC)
+
+    # انتظار تثبيت
+    متغير wait3 = sad_ll_timer_get_ticks() + 0
+    بينما (sad_ll_timer_get_ticks() - wait3 < 500)
+        متغير d3 = 0
+    نهاية
+
+    # قراءة الحالة النهائية
+    sc = uhci_read16(hc_idx، port_reg) + 0
+    متغير connected = sc % 2         # bit 0
+    متغير enabled = (sc / 4) % 2     # bit 2
+    متغير low_speed = (sc / 256) % 2 # bit 8 (LSDA)
+
+    uhci_serial_اطبع("[UHCI] Port status: connect=")
+    uhci_serial_رقم(connected + 0)
+    uhci_serial_اطبع(" enabled=")
+    uhci_serial_رقم(enabled + 0)
+    uhci_serial_اطبع(" lowspeed=")
+    uhci_serial_رقم(low_speed + 0)
+    uhci_serial_سطر()
+
+    إذا (connected == 1)
+        # تحديث حالة المنفذ
+        متغير speed = 1 + 0  # Full speed
+        إذا (low_speed == 1)
+            speed = 0  # Low speed
+        نهاية
+
+        إذا (port_num == 0)
+            إذا (hc_idx == 0) uhci_port1_connected_0 = 1 نهاية
+            إذا (hc_idx == 1) uhci_port1_connected_1 = 1 نهاية
+            إذا (hc_idx == 2) uhci_port1_connected_2 = 1 نهاية
+            إذا (hc_idx == 3) uhci_port1_connected_3 = 1 نهاية
+            إذا (hc_idx == 0) uhci_port1_speed_0 = speed + 0 نهاية
+            إذا (hc_idx == 1) uhci_port1_speed_1 = speed + 0 نهاية
+            إذا (hc_idx == 2) uhci_port1_speed_2 = speed + 0 نهاية
+            إذا (hc_idx == 3) uhci_port1_speed_3 = speed + 0 نهاية
+        والا
+            إذا (hc_idx == 0) uhci_port2_connected_0 = 1 نهاية
+            إذا (hc_idx == 1) uhci_port2_connected_1 = 1 نهاية
+            إذا (hc_idx == 2) uhci_port2_connected_2 = 1 نهاية
+            إذا (hc_idx == 3) uhci_port2_connected_3 = 1 نهاية
+            إذا (hc_idx == 0) uhci_port2_speed_0 = speed + 0 نهاية
+            إذا (hc_idx == 1) uhci_port2_speed_1 = speed + 0 نهاية
+            إذا (hc_idx == 2) uhci_port2_speed_2 = speed + 0 نهاية
+            إذا (hc_idx == 3) uhci_port2_speed_3 = speed + 0 نهاية
+        نهاية
+    نهاية
+
+    ارجع connected + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# نقل تحكم (Control Transfer) عبر UHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_control_transfer(hc_idx، dev_addr، setup_buf، data_buf، data_len، is_read)
+    uhci_total_transfers = uhci_total_transfers + 1
+    uhci_reset_td_pool(hc_idx)
+
+    متغير ls_dev = 0 + 0  # full speed by default
+    متغير qh = uhci_get_qh_pool(hc_idx) + 0
+    إذا (qh == 0)
+        uhci_transfer_errors = uhci_transfer_errors + 1
+        ارجع 0 - 1
+    نهاية
+
+    # ─── TD 0: SETUP ───
+    متغير td_setup = uhci_alloc_td(hc_idx) + 0
+    إذا (td_setup == 0)
+        uhci_transfer_errors = uhci_transfer_errors + 1
+        ارجع 0 - 1
+    نهاية
+
+    # ─── TD 1+: DATA (if any) ───
+    متغير td_data_first = 0 + 0
+    متغير td_data_last = 0 + 0
+    متغير toggle = 1 + 0  # DATA stage starts with DATA1
+    متغير remaining = data_len + 0
+    متغير buf_offset = 0 + 0
+    متغير pid = UHCI_PID_IN + 0
+    إذا (is_read == 0)
+        pid = UHCI_PID_OUT + 0
+    نهاية
+
+    بينما (remaining > 0)
+        متغير td_data = uhci_alloc_td(hc_idx) + 0
+        إذا (td_data == 0)
+            uhci_transfer_errors = uhci_transfer_errors + 1
+            ارجع 0 - 1
+        نهاية
+
+        إذا (td_data_first == 0)
+            td_data_first = td_data + 0
+        نهاية
+        إذا (td_data_last != 0)
+            uhci_td_set_link(td_data_last، td_data، 0، 0)
+        نهاية
+
+        متغير pkt_len = remaining + 0
+        إذا (pkt_len > 8)
+            pkt_len = 8
+        نهاية
+
+        uhci_td_set_status(td_data، 1، 0، ls_dev، 3)
+        uhci_td_set_token(td_data، pid، dev_addr، 0، toggle، pkt_len)
+        uhci_td_set_buffer(td_data، data_buf + buf_offset)
+
+        td_data_last = td_data + 0
+        buf_offset = buf_offset + pkt_len
+        remaining = remaining - pkt_len
+        toggle = 1 - toggle  # alternate toggle
+    نهاية
+
+    # ─── TD STATUS: handshake ───
+    متغير td_status = uhci_alloc_td(hc_idx) + 0
+    إذا (td_status == 0)
+        uhci_transfer_errors = uhci_transfer_errors + 1
+        ارجع 0 - 1
+    نهاية
+
+    متغير status_pid = UHCI_PID_OUT + 0
+    إذا (is_read == 0)
+        status_pid = UHCI_PID_IN + 0
+    نهاية
+
+    uhci_td_set_status(td_status، 1، 1، ls_dev، 3)  # IOC=1
+    uhci_td_set_token(td_status، status_pid، dev_addr، 0، 1، 0)  # toggle=1, len=0
+    uhci_td_set_buffer(td_status، 0)
+    uhci_td_set_link(td_status، 0، 1، 0)  # terminate
+
+    # ─── ربط السلسلة ───
+    # Setup TD → first data TD → ... → status TD
+    uhci_td_set_status(td_setup، 1، 0، ls_dev، 3)
+    uhci_td_set_token(td_setup، UHCI_PID_SETUP، dev_addr، 0، 0، 8)  # toggle=0, len=8
+    uhci_td_set_buffer(td_setup، setup_buf)
+
+    إذا (td_data_first != 0)
+        uhci_td_set_link(td_setup، td_data_first، 0، 0)
+        uhci_td_set_link(td_data_last، td_status، 0، 0)
+    والا
+        uhci_td_set_link(td_setup، td_status، 0، 0)
+    نهاية
+
+    # ─── تعيين QH ───
+    uhci_qh_set_head_link(qh، 0، 1)      # no next QH
+    uhci_qh_set_element(qh، td_setup، 0)  # first TD
+
+    # ─── تعيين Frame List entry 0 للإشارة إلى QH ───
+    متغير framelist = uhci_get_framelist(hc_idx) + 0
+    sad_ll_mem_write32(framelist، qh + 2)  # QH bit set
+
+    # ─── تشغيل المتحكم ───
+    uhci_write16(hc_idx، UHCI_FRNUM، 0)
+    uhci_write16(hc_idx، UHCI_USBCMD، UHCI_CMD_RS + UHCI_CMD_MAXP)
+
+    # ─── انتظار الاكتمال ───
+    متغير timeout = 10000 + 0
+    بينما (timeout > 0)
+        # التحقق من اكتمال TD الأخير (Status TD)
+        متغير active = uhci_td_is_active(td_status) + 0
+        إذا (active == 0)
+            # إيقاف المتحكم
+            uhci_write16(hc_idx، UHCI_USBCMD، 0)
+
+            # التحقق من الأخطاء
+            إذا (uhci_td_has_error(td_setup) == 1)
+                uhci_serial_اطبع("[UHCI] SETUP TD error")
+                uhci_serial_سطر()
+                uhci_transfer_errors = uhci_transfer_errors + 1
+                ارجع 0 - 2
+            نهاية
+
+            إذا (uhci_td_has_error(td_status) == 1)
+                uhci_serial_اطبع("[UHCI] STATUS TD error")
+                uhci_serial_سطر()
+                uhci_transfer_errors = uhci_transfer_errors + 1
+                ارجع 0 - 3
+            نهاية
+
+            # حساب البيانات المنقولة فعلياً
+            متغير total_actual = 0 + 0
+            إذا (td_data_first != 0)
+                متغير check_td = td_data_first + 0
+                متغير check_count = 0 + 0
+                بينما (check_count < 16)
+                    إذا (uhci_td_has_error(check_td) == 1)
+                        uhci_serial_اطبع("[UHCI] DATA TD error")
+                        uhci_serial_سطر()
+                        uhci_transfer_errors = uhci_transfer_errors + 1
+                        ارجع 0 - 4
+                    نهاية
+                    total_actual = total_actual + uhci_td_actual_len(check_td)
+                    إذا (check_td == td_data_last)
+                        check_count = 16  # خروج
+                    والا
+                        check_td = check_td + 32  # next TD
+                        check_count = check_count + 1
+                    نهاية
+                نهاية
+            نهاية
+
+            # إعادة Frame List entry إلى terminate
+            sad_ll_mem_write32(framelist، 1)
+
+            ارجع total_actual + 0
+        نهاية
+
+        timeout = timeout - 1
+    نهاية
+
+    # Timeout
+    uhci_write16(hc_idx، UHCI_USBCMD، 0)
+    sad_ll_mem_write32(framelist، 1)
+    uhci_serial_اطبع("[UHCI] Transfer timeout!")
+    uhci_serial_سطر()
+    uhci_transfer_errors = uhci_transfer_errors + 1
+    ارجع 0 - 5
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# طلبات USB القياسية عبر UHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_get_device_descriptor(hc_idx، dev_addr، buf، buf_len)
+    متغير setup = uhci_get_setup_buf(hc_idx) + 0
+    # GET_DESCRIPTOR: bmReqType=0x80, bRequest=6, wValue=0x0100, wIndex=0, wLength
+    usb_build_setup(setup، 128، 6، 256، 0، buf_len)
+    ارجع uhci_control_transfer(hc_idx، dev_addr، setup، buf، buf_len، 1) + 0
+نهاية
+
+صدّر دالة uhci_get_config_descriptor(hc_idx، dev_addr، config_idx، buf، buf_len)
+    متغير setup = uhci_get_setup_buf(hc_idx) + 0
+    # wValue = (USB_DESC_CONFIG << 8) | config_idx = 0x0200 + config_idx
+    متغير w_value = 512 + config_idx   # 0x0200
+    usb_build_setup(setup، 128، 6، w_value، 0، buf_len)
+    ارجع uhci_control_transfer(hc_idx، dev_addr، setup، buf، buf_len، 1) + 0
+نهاية
+
+صدّر دالة uhci_set_address(hc_idx، old_addr، new_addr)
+    متغير setup = uhci_get_setup_buf(hc_idx) + 0
+    # SET_ADDRESS: bmReqType=0, bRequest=5, wValue=new_addr
+    usb_build_setup(setup، 0، 5، new_addr، 0، 0)
+    ارجع uhci_control_transfer(hc_idx، old_addr، setup، 0، 0، 0) + 0
+نهاية
+
+صدّر دالة uhci_set_configuration(hc_idx، dev_addr، config_value)
+    متغير setup = uhci_get_setup_buf(hc_idx) + 0
+    # SET_CONFIGURATION: bmReqType=0, bRequest=9, wValue=config_value
+    usb_build_setup(setup، 0، 9، config_value، 0، 0)
+    ارجع uhci_control_transfer(hc_idx، dev_addr، setup، 0، 0، 0) + 0
+نهاية
+
+صدّر دالة uhci_get_string_descriptor(hc_idx، dev_addr، str_idx، lang_id، buf، buf_len)
+    متغير setup = uhci_get_setup_buf(hc_idx) + 0
+    # GET_DESCRIPTOR: wValue = (USB_DESC_STRING << 8) | str_idx
+    متغير w_value = 768 + str_idx   # 0x0300
+    usb_build_setup(setup، 128، 6، w_value، lang_id، buf_len)
+    ارجع uhci_control_transfer(hc_idx، dev_addr، setup، buf، buf_len، 1) + 0
+نهاية
+
+صدّر دالة uhci_clear_feature(hc_idx، dev_addr، feature، recip)
+    متغير setup = uhci_get_setup_buf(hc_idx) + 0
+    usb_build_setup(setup، recip، 1، feature، 0، 0)
+    ارجع uhci_control_transfer(hc_idx، dev_addr، setup، 0، 0، 0) + 0
+نهاية
+
+صدّر دالة uhci_set_idle(hc_idx، dev_addr، iface، duration)
+    متغير setup = uhci_get_setup_buf(hc_idx) + 0
+    # SET_IDLE: bmReqType=0x21 (class, interface), bRequest=0x0A, wValue=(duration<<8)
+    متغير w_value = duration * 256
+    usb_build_setup(setup، 33، 10، w_value، iface، 0)
+    ارجع uhci_control_transfer(hc_idx، dev_addr، setup، 0، 0، 0) + 0
+نهاية
+
+صدّر دالة uhci_set_protocol(hc_idx، dev_addr، iface، protocol)
+    متغير setup = uhci_get_setup_buf(hc_idx) + 0
+    # SET_PROTOCOL: bmReqType=0x21, bRequest=0x0B, wValue=protocol
+    usb_build_setup(setup، 33، 11، protocol، iface، 0)
+    ارجع uhci_control_transfer(hc_idx، dev_addr، setup، 0، 0، 0) + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Bulk Transfer (for mass storage)
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_bulk_transfer(hc_idx، dev_addr، endpoint، buf، buf_len، is_in)
+    uhci_total_transfers = uhci_total_transfers + 1
+    uhci_reset_td_pool(hc_idx)
+
+    متغير qh = uhci_get_qh_pool(hc_idx) + 0
+    إذا (qh == 0)
+        uhci_transfer_errors = uhci_transfer_errors + 1
+        ارجع 0 - 1
+    نهاية
+
+    متغير pid = UHCI_PID_OUT + 0
+    إذا (is_in == 1)
+        pid = UHCI_PID_IN + 0
+    نهاية
+
+    متغير first_td = 0 + 0
+    متغير last_td = 0 + 0
+    متغير toggle = 0 + 0
+    متغير remaining = buf_len + 0
+    متغير offset = 0 + 0
+    متغير max_pkt = 8 + 0
+
+    بينما (remaining > 0)
+        متغير td = uhci_alloc_td(hc_idx) + 0
+        إذا (td == 0)
+            uhci_transfer_errors = uhci_transfer_errors + 1
+            ارجع 0 - 1
+        نهاية
+
+        إذا (first_td == 0)
+            first_td = td + 0
+        نهاية
+        إذا (last_td != 0)
+            uhci_td_set_link(last_td، td، 0، 0)
+        نهاية
+
+        متغير pkt = remaining + 0
+        إذا (pkt > max_pkt)
+            pkt = max_pkt + 0
+        نهاية
+
+        uhci_td_set_status(td، 1، 0، 0، 3)
+        uhci_td_set_token(td، pid، dev_addr، endpoint، toggle، pkt)
+        uhci_td_set_buffer(td، buf + offset)
+
+        last_td = td + 0
+        offset = offset + pkt
+        remaining = remaining - pkt
+        toggle = 1 - toggle
+    نهاية
+
+    # IOC on last TD
+    إذا (last_td != 0)
+        متغير st = uhci_td_get_status(last_td) + 0
+        sad_ll_mem_write32(last_td + 4، st + UHCI_TD_IOC)
+        uhci_td_set_link(last_td، 0، 1، 0)
+    نهاية
+
+    # QH setup
+    uhci_qh_set_head_link(qh، 0، 1)
+    uhci_qh_set_element(qh، first_td، 0)
+
+    # Frame list
+    متغير framelist = uhci_get_framelist(hc_idx) + 0
+    sad_ll_mem_write32(framelist، qh + 2)
+
+    # Start
+    uhci_write16(hc_idx، UHCI_FRNUM، 0)
+    uhci_write16(hc_idx، UHCI_USBCMD، UHCI_CMD_RS + UHCI_CMD_MAXP)
+
+    # Wait
+    متغير timeout = 50000 + 0
+    بينما (timeout > 0)
+        إذا (last_td != 0)
+            إذا (uhci_td_is_active(last_td) == 0)
+                uhci_write16(hc_idx، UHCI_USBCMD، 0)
+                sad_ll_mem_write32(framelist، 1)
+
+                إذا (uhci_td_has_error(last_td) == 1)
+                    uhci_transfer_errors = uhci_transfer_errors + 1
+                    ارجع 0 - 2
+                نهاية
+
+                # Count actual data
+                متغير total = 0 + 0
+                متغير ct = first_td + 0
+                متغير cc = 0
+                بينما (cc < 64)
+                    total = total + uhci_td_actual_len(ct)
+                    إذا (ct == last_td)
+                        cc = 64
+                    والا
+                        ct = ct + 32
+                        cc = cc + 1
+                    نهاية
+                نهاية
+                ارجع total + 0
+            نهاية
+        نهاية
+        timeout = timeout - 1
+    نهاية
+
+    uhci_write16(hc_idx، UHCI_USBCMD، 0)
+    sad_ll_mem_write32(framelist، 1)
+    uhci_transfer_errors = uhci_transfer_errors + 1
+    ارجع 0 - 5
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Interrupt Transfer (for HID)
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_interrupt_transfer(hc_idx، dev_addr، endpoint، buf، buf_len)
+    uhci_total_transfers = uhci_total_transfers + 1
+    uhci_reset_td_pool(hc_idx)
+
+    متغير qh = uhci_get_qh_pool(hc_idx) + 0
+    إذا (qh == 0)
+        uhci_transfer_errors = uhci_transfer_errors + 1
+        ارجع 0 - 1
+    نهاية
+
+    # Single IN TD for interrupt
+    متغير td = uhci_alloc_td(hc_idx) + 0
+    إذا (td == 0)
+        uhci_transfer_errors = uhci_transfer_errors + 1
+        ارجع 0 - 1
+    نهاية
+
+    uhci_td_set_status(td، 1، 1، 0، 3)  # active, IOC, 3 retries
+    uhci_td_set_token(td، UHCI_PID_IN، dev_addr، endpoint، 0، buf_len)
+    uhci_td_set_buffer(td، buf)
+    uhci_td_set_link(td، 0، 1، 0)
+
+    uhci_qh_set_head_link(qh، 0، 1)
+    uhci_qh_set_element(qh، td، 0)
+
+    متغير framelist = uhci_get_framelist(hc_idx) + 0
+    sad_ll_mem_write32(framelist، qh + 2)
+
+    uhci_write16(hc_idx، UHCI_FRNUM، 0)
+    uhci_write16(hc_idx، UHCI_USBCMD، UHCI_CMD_RS + UHCI_CMD_MAXP)
+
+    # Short timeout for interrupt
+    متغير timeout = 5000 + 0
+    بينما (timeout > 0)
+        إذا (uhci_td_is_active(td) == 0)
+            uhci_write16(hc_idx، UHCI_USBCMD، 0)
+            sad_ll_mem_write32(framelist، 1)
+
+            إذا (uhci_td_has_error(td) == 1)
+                # NAK is normal for interrupt endpoints
+                متغير st = uhci_td_get_status(td) + 0
+                متغير nak = (st / UHCI_TD_NAK) % 2
+                إذا (nak == 1)
+                    ارجع 0  # No data available
+                نهاية
+                uhci_transfer_errors = uhci_transfer_errors + 1
+                ارجع 0 - 2
+            نهاية
+
+            ارجع uhci_td_actual_len(td) + 0
+        نهاية
+        timeout = timeout - 1
+    نهاية
+
+    uhci_write16(hc_idx، UHCI_USBCMD، 0)
+    sad_ll_mem_write32(framelist، 1)
+    ارجع 0  # timeout = no data
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تعداد جهاز على منفذ UHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_enumerate_device(hc_idx، port_num)
+    uhci_serial_اطبع("[UHCI] Enumerating device on HC#")
+    uhci_serial_رقم(hc_idx + 0)
+    uhci_serial_اطبع(" port ")
+    uhci_serial_رقم(port_num + 0)
+    uhci_serial_سطر()
+
+    # تحديد السرعة
+    متغير speed = 1 + 0
+    إذا (port_num == 0)
+        إذا (hc_idx == 0) speed = uhci_port1_speed_0 + 0 نهاية
+        إذا (hc_idx == 1) speed = uhci_port1_speed_1 + 0 نهاية
+        إذا (hc_idx == 2) speed = uhci_port1_speed_2 + 0 نهاية
+        إذا (hc_idx == 3) speed = uhci_port1_speed_3 + 0 نهاية
+    والا
+        إذا (hc_idx == 0) speed = uhci_port2_speed_0 + 0 نهاية
+        إذا (hc_idx == 1) speed = uhci_port2_speed_1 + 0 نهاية
+        إذا (hc_idx == 2) speed = uhci_port2_speed_2 + 0 نهاية
+        إذا (hc_idx == 3) speed = uhci_port2_speed_3 + 0 نهاية
+    نهاية
+
+    # تسجيل جهاز جديد
+    متغير dev_idx = usb_register_device(hc_idx، port_num، speed) + 0
+    إذا (dev_idx < 0)
+        ارجع 0 - 1
+    نهاية
+
+    # الخطوة 1: قراءة أول 8 بايتات من واصفة الجهاز (عنوان 0)
+    متغير data_buf = uhci_get_data_buf(hc_idx) + 0
+    sad_ll_memset(data_buf، 0، 64)
+
+    متغير result = uhci_get_device_descriptor(hc_idx، 0، data_buf، 8) + 0
+    إذا (result < 0)
+        uhci_serial_اطبع("[UHCI] Failed to get initial descriptor")
+        uhci_serial_سطر()
+        ارجع 0 - 2
+    نهاية
+
+    # تحديث maxPacketSize0
+    متغير maxpkt = sad_ll_mem_read8(data_buf + 7) + 0
+    إذا (maxpkt > 0)
+        uhci_serial_اطبع("[UHCI] maxPacketSize0=")
+        uhci_serial_رقم(maxpkt + 0)
+        uhci_serial_سطر()
+    نهاية
+
+    # الخطوة 2: تعيين عنوان
+    متغير new_addr = dev_idx + 1
+    result = uhci_set_address(hc_idx، 0، new_addr) + 0
+    إذا (result < 0)
+        uhci_serial_اطبع("[UHCI] SET_ADDRESS failed")
+        uhci_serial_سطر()
+        ارجع 0 - 3
+    نهاية
+
+    # انتظار استقرار بعد SET_ADDRESS
+    متغير wait = sad_ll_timer_get_ticks() + 0
+    بينما (sad_ll_timer_get_ticks() - wait < 200)
+        متغير d = 0
+    نهاية
+
+    uhci_serial_اطبع("[UHCI] Device addressed as ")
+    uhci_serial_رقم(new_addr + 0)
+    uhci_serial_سطر()
+
+    # الخطوة 3: قراءة واصفة الجهاز الكاملة (18 بايت)
+    sad_ll_memset(data_buf، 0، 64)
+    result = uhci_get_device_descriptor(hc_idx، new_addr، data_buf، 18) + 0
+    إذا (result >= 8)
+        usb_parse_device_descriptor(data_buf، dev_idx)
+    نهاية
+
+    # الخطوة 4: قراءة واصفة التكوين
+    sad_ll_memset(data_buf، 0، 256)
+    result = uhci_get_config_descriptor(hc_idx، new_addr، 0، data_buf، 9) + 0
+    إذا (result >= 4)
+        # wTotalLength في bytes 2-3
+        متغير total_lo = sad_ll_mem_read8(data_buf + 2) + 0
+        متغير total_hi = sad_ll_mem_read8(data_buf + 3) + 0
+        متغير total_len = total_hi * 256 + total_lo
+
+        إذا (total_len > 0)
+            إذا (total_len > 256)
+                total_len = 256
+            نهاية
+            sad_ll_memset(data_buf، 0، 256)
+            result = uhci_get_config_descriptor(hc_idx، new_addr، 0، data_buf، total_len) + 0
+            إذا (result > 0)
+                usb_parse_config_descriptor(data_buf، total_len، dev_idx)
+            نهاية
+        نهاية
+    نهاية
+
+    # الخطوة 5: تعيين التكوين (عادة config=1)
+    result = uhci_set_configuration(hc_idx، new_addr، 1) + 0
+    إذا (result < 0)
+        uhci_serial_اطبع("[UHCI] SET_CONFIG failed (non-fatal)")
+        uhci_serial_سطر()
+    نهاية
+
+    # تصنيف الجهاز
+    usb_classify_device(dev_idx)
+
+    uhci_serial_اطبع("[UHCI] Device enumeration complete")
+    uhci_serial_سطر()
+
+    ارجع dev_idx + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# فحص المنافذ
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_scan_ports(hc_idx)
+    uhci_serial_اطبع("[UHCI] Scanning ports on HC#")
+    uhci_serial_رقم(hc_idx + 0)
+    uhci_serial_سطر()
+
+    # المنفذ 1
+    متغير sc1 = uhci_read16(hc_idx، UHCI_PORTSC1) + 0
+    متغير connected1 = sc1 % 2
+    متغير csc1 = (sc1 / 2) % 2  # bit 1
+
+    إذا (connected1 == 1)
+        uhci_serial_اطبع("[UHCI] Port 1: device connected")
+        uhci_serial_سطر()
+        uhci_port_reset(hc_idx، 0)
+        uhci_enumerate_device(hc_idx، 0)
+    والا
+        uhci_serial_اطبع("[UHCI] Port 1: no device")
+        uhci_serial_سطر()
+    نهاية
+
+    # مسح CSC
+    إذا (csc1 == 1)
+        uhci_write16(hc_idx، UHCI_PORTSC1، UHCI_PORT_CSC)
+    نهاية
+
+    # المنفذ 2
+    متغير sc2 = uhci_read16(hc_idx، UHCI_PORTSC2) + 0
+    متغير connected2 = sc2 % 2
+    متغير csc2 = (sc2 / 2) % 2
+
+    إذا (connected2 == 1)
+        uhci_serial_اطبع("[UHCI] Port 2: device connected")
+        uhci_serial_سطر()
+        uhci_port_reset(hc_idx، 1)
+        uhci_enumerate_device(hc_idx، 1)
+    والا
+        uhci_serial_اطبع("[UHCI] Port 2: no device")
+        uhci_serial_سطر()
+    نهاية
+
+    إذا (csc2 == 1)
+        uhci_write16(hc_idx، UHCI_PORTSC2، UHCI_PORT_CSC)
+    نهاية
+
+    ارجع connected1 + connected2
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تقرير UHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_تقرير()
+    uhci_serial_اطبع("═══ [UHCI] تقرير ═══")
+    uhci_serial_سطر()
+
+    uhci_serial_اطبع("  متحكمات UHCI: ")
+    uhci_serial_رقم(uhci_count + 0)
+    uhci_serial_سطر()
+
+    uhci_serial_اطبع("  عمليات النقل: ")
+    uhci_serial_رقم(uhci_total_transfers + 0)
+    uhci_serial_سطر()
+
+    uhci_serial_اطبع("  أخطاء: ")
+    uhci_serial_رقم(uhci_transfer_errors + 0)
+    uhci_serial_سطر()
+
+    uhci_serial_اطبع("  إعادة تعيين منافذ: ")
+    uhci_serial_رقم(uhci_port_resets + 0)
+    uhci_serial_سطر()
+
+    متغير i = 0 + 0
+    بينما (i < uhci_count)
+        متغير base = uhci_get_base(i) + 0
+        متغير st = uhci_get_status(i) + 0
+        uhci_serial_اطبع("  HC#")
+        uhci_serial_رقم(i + 0)
+        uhci_serial_اطبع(" base=0x")
+        uhci_serial_hex16(base + 0)
+        uhci_serial_اطبع(" status=")
+        uhci_serial_رقم(st + 0)
+        uhci_serial_سطر()
+        i = i + 1
+    نهاية
+
+    uhci_serial_اطبع("═══════════════════════════════════")
+    uhci_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تهيئة UHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_هيئ(hc_idx، io_base)
+    uhci_serial_اطبع("[UHCI] تهيئة UHCI HC#")
+    uhci_serial_رقم(hc_idx + 0)
+    uhci_serial_اطبع(" base=0x")
+    uhci_serial_hex16(io_base + 0)
+    uhci_serial_سطر()
+
+    إذا (uhci_count >= 4)
+        uhci_serial_اطبع("[UHCI] Max controllers reached!")
+        uhci_serial_سطر()
+        ارجع 0
+    نهاية
+
+    uhci_set_base(hc_idx، io_base)
+
+    # تخصيص ذاكرة
+    # Frame List: 1024 entries × 4 bytes = 4096 bytes (aligned to 4K)
+    متغير fl = sad_ll_kmalloc(4096) + 0
+    uhci_set_framelist(hc_idx، fl)
+
+    # QH Pool: 16 × 16 bytes = 256 bytes
+    متغير qhp = sad_ll_kmalloc(512) + 0
+    uhci_set_qh_pool(hc_idx، qhp)
+
+    # TD Pool: 32 × 32 bytes = 1024 bytes
+    متغير tdp = sad_ll_kmalloc(1024) + 0
+    uhci_set_td_pool(hc_idx، tdp)
+
+    # Data buffer: 512 bytes
+    متغير dbuf = sad_ll_kmalloc(512) + 0
+    uhci_set_data_buf(hc_idx، dbuf)
+
+    # Setup buffer: 16 bytes
+    متغير sbuf = sad_ll_kmalloc(32) + 0
+    uhci_set_setup_buf(hc_idx، sbuf)
+
+    # إعادة تعيين المتحكم
+    uhci_reset(hc_idx)
+
+    # تهيئة Frame List — كل الإدخالات terminate
+    متغير i = 0 + 0
+    بينما (i < UHCI_FRAME_COUNT)
+        sad_ll_mem_write32(fl + (i * 4)، 1)  # T bit = terminate
+        i = i + 1
+    نهاية
+
+    # تعيين عنوان Frame List
+    uhci_write32(hc_idx، UHCI_FRBASEADD، fl)
+
+    # تعيين رقم الإطار الحالي
+    uhci_write16(hc_idx، UHCI_FRNUM، 0)
+
+    # تعيين SOF interval (default = 64)
+    متغير base = uhci_get_base(hc_idx) + 0
+    sad_ll_port_outb(base + UHCI_SOFMOD، 64)
+
+    # مسح حالة الأخطاء
+    uhci_write16(hc_idx، UHCI_USBSTS، 63)  # 0x3F clear all
+
+    # تفعيل المقاطعات
+    uhci_write16(hc_idx، UHCI_USBINTR، 15)  # 0x0F all interrupts
+
+    # تشغيل المتحكم
+    uhci_write16(hc_idx، UHCI_USBCMD، UHCI_CMD_RS + UHCI_CMD_CF + UHCI_CMD_MAXP)
+
+    uhci_set_status(hc_idx، 2)  # running
+    uhci_count = uhci_count + 1
+
+    uhci_serial_اطبع("[UHCI] HC initialized and running")
+    uhci_serial_سطر()
+
+    # فحص المنافذ
+    uhci_scan_ports(hc_idx)
+
+    ارجع 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دورة UHCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة uhci_دورة()
+    # فحص تغييرات الاتصال في المنافذ
+    متغير i = 0 + 0
+    بينما (i < uhci_count)
+        متغير base = uhci_get_base(i) + 0
+
+        # فحص المنفذ 1
+        متغير sc1 = uhci_read16(i، UHCI_PORTSC1) + 0
+        متغير csc1 = (sc1 / 2) % 2
+        إذا (csc1 == 1)
+            uhci_serial_اطبع("[UHCI] Port 1 change detected HC#")
+            uhci_serial_رقم(i + 0)
+            uhci_serial_سطر()
+            uhci_write16(i، UHCI_PORTSC1، UHCI_PORT_CSC)
+        نهاية
+
+        # فحص المنفذ 2
+        متغير sc2 = uhci_read16(i، UHCI_PORTSC2) + 0
+        متغير csc2 = (sc2 / 2) % 2
+        إذا (csc2 == 1)
+            uhci_serial_اطبع("[UHCI] Port 2 change detected HC#")
+            uhci_serial_رقم(i + 0)
+            uhci_serial_سطر()
+            uhci_write16(i، UHCI_PORTSC2، UHCI_PORT_CSC)
+        نهاية
+
+        # فحص حالة الأخطاء
+        متغير sts = uhci_read16(i، UHCI_USBSTS) + 0
+        إذا ((sts / 2) % 2 == 1)  # Error bit
+            uhci_serial_اطبع("[UHCI] Error interrupt HC#")
+            uhci_serial_رقم(i + 0)
+            uhci_serial_سطر()
+            uhci_interrupts = uhci_interrupts + 1
+            uhci_write16(i، UHCI_USBSTS، UHCI_STS_ERROR)
+        نهاية
+
+        إذا ((sts / UHCI_STS_HSE) % 2 == 1)
+            uhci_serial_اطبع("[UHCI] Host System Error HC#")
+            uhci_serial_رقم(i + 0)
+            uhci_serial_سطر()
+            uhci_write16(i، UHCI_USBSTS، UHCI_STS_HSE)
+        نهاية
+
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية

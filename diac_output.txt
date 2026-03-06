@@ -1,0 +1,30 @@
+Total keyword entries found: 101
+
+Keywords with Arabic diacritics:
+================================================================================
+1. Keyword: "أخيراً"  ->  TokenType::KEYWORD_FINALLY
+   Diacritics found: tanween fathah U+064B
+   Without diacritics: "أخيرا"
+   Codepoints: U+0623 U+062E U+064A U+0631 U+0627 U+064B
+
+2. Keyword: "صدّر"  ->  TokenType::KEYWORD_EXPORT
+   Diacritics found: shaddah U+0651
+   Without diacritics: "صدر"
+   Codepoints: U+0635 U+062F U+0651 U+0631
+
+3. Keyword: "نفّذ"  ->  TokenType::KEYWORD_IMPL
+   Diacritics found: shaddah U+0651
+   Without diacritics: "نفذ"
+   Codepoints: U+0646 U+0641 U+0651 U+0630
+
+4. Keyword: "ذرّي"  ->  TokenType::KEYWORD_ATOMIC
+   Diacritics found: shaddah U+0651
+   Without diacritics: "ذري"
+   Codepoints: U+0630 U+0631 U+0651 U+064A
+
+5. Keyword: "متغيّر"  ->  TokenType::KEYWORD_MUT
+   Diacritics found: shaddah U+0651
+   Without diacritics: "متغير"
+   Codepoints: U+0645 U+062A U+063A U+064A U+0651 U+0631
+
+Total keywords with diacritics: 5

@@ -1,0 +1,1454 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# ps2_نحلة.ص — تعريف متحكم PS/2 (لوحة مفاتيح وفأرة) لنظام نحلة
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# Intel 8042 PS/2 Controller
+# Scan Code Set 2, IRQ1 (keyboard), IRQ12 (mouse)
+# دعم لوحة مفاتيح كاملة مع مفاتيح عربية + فأرة PS/2
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── دوال خارجية (FFI) ───
+خارجي دالة sad_ll_port_inb(port)
+خارجي دالة sad_ll_port_outb(port، val)
+خارجي دالة sad_ll_mem_read8(addr)
+خارجي دالة sad_ll_mem_write8(addr، val)
+خارجي دالة sad_ll_serial_write_char(port، ch)
+خارجي دالة sad_ll_kmalloc(حجم_طلب)
+خارجي دالة sad_ll_memset(عنوان، قيمة، حجم_منطقة)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ثوابت
+# ═══════════════════════════════════════════════════════════════════════════════
+ثابت COM1 = 1016
+
+# ─── منافذ i8042 ───
+ثابت PS2_DATA = 96           # 0x60: Data Port
+ثابت PS2_STATUS = 100        # 0x64: Status Register (read)
+ثابت PS2_COMMAND = 100       # 0x64: Command Register (write)
+
+# ─── Status Register bits ───
+ثابت PS2_STS_OUTPUT = 1      # Output Buffer Full (data available)
+ثابت PS2_STS_INPUT = 2       # Input Buffer Full (controller busy)
+ثابت PS2_STS_SYSTEM = 4      # System Flag
+ثابت PS2_STS_CMD = 8         # 0=data for device, 1=data for controller
+ثابت PS2_STS_TIMEOUT = 64    # 0x40: Timeout Error
+ثابت PS2_STS_PARITY = 128    # 0x80: Parity Error
+
+# ─── Controller Commands ───
+ثابت PS2_CMD_READ_CONFIG = 32     # 0x20: Read Configuration Byte
+ثابت PS2_CMD_WRITE_CONFIG = 96    # 0x60: Write Configuration Byte
+ثابت PS2_CMD_DISABLE_PORT2 = 167  # 0xA7: Disable 2nd Port
+ثابت PS2_CMD_ENABLE_PORT2 = 168   # 0xA8: Enable 2nd Port
+ثابت PS2_CMD_TEST_PORT2 = 169     # 0xA9: Test 2nd Port
+ثابت PS2_CMD_SELF_TEST = 170      # 0xAA: Controller Self-Test
+ثابت PS2_CMD_TEST_PORT1 = 171     # 0xAB: Test 1st Port
+ثابت PS2_CMD_DISABLE_PORT1 = 173  # 0xAD: Disable 1st Port
+ثابت PS2_CMD_ENABLE_PORT1 = 174   # 0xAE: Enable 1st Port
+ثابت PS2_CMD_WRITE_PORT2 = 212    # 0xD4: Write to 2nd Port
+
+# ─── Configuration Byte bits ───
+ثابت PS2_CFG_INT1 = 1        # Port 1 Interrupt Enable
+ثابت PS2_CFG_INT2 = 2        # Port 2 Interrupt Enable
+ثابت PS2_CFG_SYSTEM = 4      # System Flag
+ثابت PS2_CFG_CLOCK1 = 16     # Port 1 Clock Disable (0x10)
+ثابت PS2_CFG_CLOCK2 = 32     # Port 2 Clock Disable (0x20)
+ثابت PS2_CFG_TRANS = 64      # Port 1 Translation (0x40)
+
+# ─── Device Commands ───
+ثابت PS2_DEV_RESET = 255           # 0xFF: Reset
+ثابت PS2_DEV_ENABLE_SCAN = 244     # 0xF4: Enable Scanning
+ثابت PS2_DEV_DISABLE_SCAN = 245    # 0xF5: Disable Scanning
+ثابت PS2_DEV_IDENTIFY = 242        # 0xF2: Identify
+ثابت PS2_DEV_SET_RATE = 243        # 0xF3: Set Sample Rate (mouse)
+ثابت PS2_DEV_SET_SCANSET = 240     # 0xF0: Set Scan Code Set
+ثابت PS2_DEV_SET_LEDS = 237        # 0xED: Set LEDs
+
+# ─── Keyboard Responses ───
+ثابت PS2_RESP_ACK = 250       # 0xFA: Acknowledge
+ثابت PS2_RESP_RESEND = 254    # 0xFE: Resend
+ثابت PS2_RESP_ERROR = 252     # 0xFC: Error
+ثابت PS2_RESP_SELF_OK = 170   # 0xAA: Self-Test Passed
+ثابت PS2_RESP_ECHO = 238      # 0xEE: Echo
+
+# ─── Special Scan Codes (Set 2) ───
+ثابت SC2_RELEASE = 240        # 0xF0: Key Release prefix
+ثابت SC2_EXTENDED = 224       # 0xE0: Extended key prefix
+ثابت SC2_EXTENDED2 = 225      # 0xE1: Extended key prefix 2
+
+# ─── Key buffer ───
+ثابت KEY_BUF_SIZE = 128
+ثابت MOUSE_BUF_SIZE = 64
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# حالة المتحكم
+# ═══════════════════════════════════════════════════════════════════════════════
+متغير ps2_هيئ_تم = 0
+متغير ps2_port1_exists = 0
+متغير ps2_port2_exists = 0
+متغير ps2_dual_channel = 0
+
+# ─── حالة لوحة المفاتيح ───
+متغير kbd_extended = 0
+متغير kbd_release = 0
+متغير kbd_shift_left = 0
+متغير kbd_shift_right = 0
+متغير kbd_ctrl_left = 0
+متغير kbd_ctrl_right = 0
+متغير kbd_alt_left = 0
+متغير kbd_alt_right = 0
+متغير kbd_capslock = 0
+متغير kbd_numlock = 0
+متغير kbd_scrolllock = 0
+متغير kbd_leds = 0
+
+# ─── Key Event Buffer (circular) ───
+# كل حدث: scancode (byte) + ascii (byte) + flags (byte) = 3 bytes
+# flags: bit0=release, bit1=extended, bit2=shift, bit3=ctrl, bit4=alt
+متغير kbd_buf_scancode_0 = 0
+متغير kbd_buf_scancode_1 = 0
+متغير kbd_buf_scancode_2 = 0
+متغير kbd_buf_scancode_3 = 0
+متغير kbd_buf_scancode_4 = 0
+متغير kbd_buf_scancode_5 = 0
+متغير kbd_buf_scancode_6 = 0
+متغير kbd_buf_scancode_7 = 0
+متغير kbd_buf_scancode_8 = 0
+متغير kbd_buf_scancode_9 = 0
+متغير kbd_buf_scancode_10 = 0
+متغير kbd_buf_scancode_11 = 0
+متغير kbd_buf_scancode_12 = 0
+متغير kbd_buf_scancode_13 = 0
+متغير kbd_buf_scancode_14 = 0
+متغير kbd_buf_scancode_15 = 0
+متغير kbd_buf_scancode_16 = 0
+متغير kbd_buf_scancode_17 = 0
+متغير kbd_buf_scancode_18 = 0
+متغير kbd_buf_scancode_19 = 0
+متغير kbd_buf_scancode_20 = 0
+متغير kbd_buf_scancode_21 = 0
+متغير kbd_buf_scancode_22 = 0
+متغير kbd_buf_scancode_23 = 0
+متغير kbd_buf_scancode_24 = 0
+متغير kbd_buf_scancode_25 = 0
+متغير kbd_buf_scancode_26 = 0
+متغير kbd_buf_scancode_27 = 0
+متغير kbd_buf_scancode_28 = 0
+متغير kbd_buf_scancode_29 = 0
+متغير kbd_buf_scancode_30 = 0
+متغير kbd_buf_scancode_31 = 0
+
+متغير kbd_buf_ascii_0 = 0
+متغير kbd_buf_ascii_1 = 0
+متغير kbd_buf_ascii_2 = 0
+متغير kbd_buf_ascii_3 = 0
+متغير kbd_buf_ascii_4 = 0
+متغير kbd_buf_ascii_5 = 0
+متغير kbd_buf_ascii_6 = 0
+متغير kbd_buf_ascii_7 = 0
+متغير kbd_buf_ascii_8 = 0
+متغير kbd_buf_ascii_9 = 0
+متغير kbd_buf_ascii_10 = 0
+متغير kbd_buf_ascii_11 = 0
+متغير kbd_buf_ascii_12 = 0
+متغير kbd_buf_ascii_13 = 0
+متغير kbd_buf_ascii_14 = 0
+متغير kbd_buf_ascii_15 = 0
+متغير kbd_buf_ascii_16 = 0
+متغير kbd_buf_ascii_17 = 0
+متغير kbd_buf_ascii_18 = 0
+متغير kbd_buf_ascii_19 = 0
+متغير kbd_buf_ascii_20 = 0
+متغير kbd_buf_ascii_21 = 0
+متغير kbd_buf_ascii_22 = 0
+متغير kbd_buf_ascii_23 = 0
+متغير kbd_buf_ascii_24 = 0
+متغير kbd_buf_ascii_25 = 0
+متغير kbd_buf_ascii_26 = 0
+متغير kbd_buf_ascii_27 = 0
+متغير kbd_buf_ascii_28 = 0
+متغير kbd_buf_ascii_29 = 0
+متغير kbd_buf_ascii_30 = 0
+متغير kbd_buf_ascii_31 = 0
+
+متغير kbd_buf_head = 0
+متغير kbd_buf_tail = 0
+متغير kbd_buf_count = 0
+
+# ─── حالة الفأرة ───
+متغير mouse_x = 320
+متغير mouse_y = 240
+متغير mouse_buttons = 0
+متغير mouse_byte_idx = 0
+متغير mouse_byte0 = 0
+متغير mouse_byte1 = 0
+متغير mouse_byte2 = 0
+متغير mouse_has_wheel = 0
+متغير mouse_byte3 = 0
+متغير mouse_wheel = 0
+متغير mouse_phase = 0
+
+# Screen limits
+متغير mouse_max_x = 639
+متغير mouse_max_y = 479
+
+# إحصائيات
+متغير ps2_kbd_irq_count = 0
+متغير ps2_mouse_irq_count = 0
+متغير ps2_errors = 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Scan Code Set 2 → ASCII Lookup Tables
+# ═══════════════════════════════════════════════════════════════════════════════
+# جدول التحويل الأساسي (بدون Shift)
+متغير sc2_ascii_0 = 0      # 0x00: (none)
+متغير sc2_ascii_1 = 0      # 0x01: F9
+متغير sc2_ascii_2 = 0      # 0x02: (none)
+متغير sc2_ascii_3 = 0      # 0x03: F5
+متغير sc2_ascii_4 = 0      # 0x04: F3
+متغير sc2_ascii_5 = 0      # 0x05: F1
+متغير sc2_ascii_6 = 0      # 0x06: F2
+متغير sc2_ascii_7 = 0      # 0x07: F12
+متغير sc2_ascii_8 = 0      # 0x08: (none)
+متغير sc2_ascii_9 = 0      # 0x09: F10
+متغير sc2_ascii_10 = 0     # 0x0A: F8
+متغير sc2_ascii_11 = 0     # 0x0B: F6
+متغير sc2_ascii_12 = 0     # 0x0C: F4
+متغير sc2_ascii_13 = 9     # 0x0D: Tab → 0x09
+متغير sc2_ascii_14 = 96    # 0x0E: ` (backtick)
+متغير sc2_ascii_15 = 0     # 0x0F: (none)
+متغير sc2_ascii_16 = 0     # 0x10: (none)
+متغير sc2_ascii_17 = 0     # 0x11: Left Alt
+متغير sc2_ascii_18 = 0     # 0x12: Left Shift
+متغير sc2_ascii_19 = 0     # 0x13: (none)
+متغير sc2_ascii_20 = 0     # 0x14: Left Ctrl
+متغير sc2_ascii_21 = 113   # 0x15: q
+متغير sc2_ascii_22 = 49    # 0x16: 1
+متغير sc2_ascii_23 = 0     # 0x17: (none)
+متغير sc2_ascii_24 = 0     # 0x18: (none)
+متغير sc2_ascii_25 = 0     # 0x19: (none)
+متغير sc2_ascii_26 = 122   # 0x1A: z
+متغير sc2_ascii_27 = 115   # 0x1B: s
+متغير sc2_ascii_28 = 97    # 0x1C: a
+متغير sc2_ascii_29 = 119   # 0x1D: w
+متغير sc2_ascii_30 = 50    # 0x1E: 2
+متغير sc2_ascii_31 = 0     # 0x1F: (none)
+متغير sc2_ascii_32 = 0     # 0x20: (none)
+متغير sc2_ascii_33 = 99    # 0x21: c
+متغير sc2_ascii_34 = 120   # 0x22: x
+متغير sc2_ascii_35 = 100   # 0x23: d
+متغير sc2_ascii_36 = 101   # 0x24: e
+متغير sc2_ascii_37 = 52    # 0x25: 4
+متغير sc2_ascii_38 = 51    # 0x26: 3
+متغير sc2_ascii_39 = 0     # 0x27: (none)
+متغير sc2_ascii_40 = 0     # 0x28: (none)
+متغير sc2_ascii_41 = 32    # 0x29: Space
+متغير sc2_ascii_42 = 118   # 0x2A: v
+متغير sc2_ascii_43 = 102   # 0x2B: f
+متغير sc2_ascii_44 = 116   # 0x2C: t
+متغير sc2_ascii_45 = 114   # 0x2D: r
+متغير sc2_ascii_46 = 53    # 0x2E: 5
+متغير sc2_ascii_47 = 0     # 0x2F: (none)
+متغير sc2_ascii_48 = 0     # 0x30: (none)
+متغير sc2_ascii_49 = 110   # 0x31: n
+متغير sc2_ascii_50 = 98    # 0x32: b
+متغير sc2_ascii_51 = 104   # 0x33: h
+متغير sc2_ascii_52 = 103   # 0x34: g
+متغير sc2_ascii_53 = 121   # 0x35: y
+متغير sc2_ascii_54 = 54    # 0x36: 6
+متغير sc2_ascii_55 = 0     # 0x37: (none)
+متغير sc2_ascii_56 = 0     # 0x38: (none)
+متغير sc2_ascii_57 = 0     # 0x39: (none)
+متغير sc2_ascii_58 = 109   # 0x3A: m
+متغير sc2_ascii_59 = 106   # 0x3B: j
+متغير sc2_ascii_60 = 117   # 0x3C: u
+متغير sc2_ascii_61 = 55    # 0x3D: 7
+متغير sc2_ascii_62 = 56    # 0x3E: 8
+متغير sc2_ascii_63 = 0     # 0x3F: (none)
+
+# 0x40-0x5F
+متغير sc2_ascii_64 = 0     # 0x40: (none)
+متغير sc2_ascii_65 = 44    # 0x41: , (comma)
+متغير sc2_ascii_66 = 107   # 0x42: k
+متغير sc2_ascii_67 = 105   # 0x43: i
+متغير sc2_ascii_68 = 111   # 0x44: o
+متغير sc2_ascii_69 = 48    # 0x45: 0
+متغير sc2_ascii_70 = 57    # 0x46: 9
+متغير sc2_ascii_71 = 0     # 0x47: (none)
+متغير sc2_ascii_72 = 0     # 0x48: (none)
+متغير sc2_ascii_73 = 46    # 0x49: . (period)
+متغير sc2_ascii_74 = 47    # 0x4A: / (slash)
+متغير sc2_ascii_75 = 108   # 0x4B: l
+متغير sc2_ascii_76 = 59    # 0x4C: ; (semicolon)
+متغير sc2_ascii_77 = 112   # 0x4D: p
+متغير sc2_ascii_78 = 45    # 0x4E: - (minus)
+متغير sc2_ascii_79 = 0     # 0x4F: (none)
+متغير sc2_ascii_80 = 0     # 0x50: (none)
+متغير sc2_ascii_81 = 0     # 0x51: (none)
+متغير sc2_ascii_82 = 39    # 0x52: ' (quote)
+متغير sc2_ascii_83 = 0     # 0x53: (none)
+متغير sc2_ascii_84 = 91    # 0x54: [ (left bracket)
+متغير sc2_ascii_85 = 61    # 0x55: = (equals)
+متغير sc2_ascii_86 = 0     # 0x56: (none)
+متغير sc2_ascii_87 = 0     # 0x57: (none)
+متغير sc2_ascii_88 = 0     # 0x58: CapsLock
+متغير sc2_ascii_89 = 0     # 0x59: Right Shift
+متغير sc2_ascii_90 = 13    # 0x5A: Enter → CR
+متغير sc2_ascii_91 = 93    # 0x5B: ] (right bracket)
+متغير sc2_ascii_92 = 0     # 0x5C: (none)
+متغير sc2_ascii_93 = 92    # 0x5D: \ (backslash)
+متغير sc2_ascii_94 = 0     # 0x5E: (none)
+متغير sc2_ascii_95 = 0     # 0x5F: (none)
+
+# 0x60-0x6F
+متغير sc2_ascii_96 = 0     # 0x60: (none)
+متغير sc2_ascii_97 = 0     # 0x61: (none)
+متغير sc2_ascii_98 = 0     # 0x62: (none)
+متغير sc2_ascii_99 = 0     # 0x63: (none)
+متغير sc2_ascii_100 = 0    # 0x64: (none)
+متغير sc2_ascii_101 = 0    # 0x65: (none)
+متغير sc2_ascii_102 = 8    # 0x66: Backspace → 0x08
+متغير sc2_ascii_103 = 0    # 0x67: (none)
+متغير sc2_ascii_104 = 0    # 0x68: (none)
+متغير sc2_ascii_105 = 0    # 0x69: KP 1
+متغير sc2_ascii_106 = 0    # 0x6A: (none)
+متغير sc2_ascii_107 = 0    # 0x6B: KP 4
+متغير sc2_ascii_108 = 0    # 0x6C: KP 7
+متغير sc2_ascii_109 = 0    # 0x6D: (none)
+متغير sc2_ascii_110 = 0    # 0x6E: (none)
+متغير sc2_ascii_111 = 0    # 0x6F: (none)
+
+# 0x70-0x7F
+متغير sc2_ascii_112 = 0    # 0x70: KP 0
+متغير sc2_ascii_113 = 0    # 0x71: KP .
+متغير sc2_ascii_114 = 0    # 0x72: KP 2
+متغير sc2_ascii_115 = 0    # 0x73: KP 5
+متغير sc2_ascii_116 = 0    # 0x74: KP 6
+متغير sc2_ascii_117 = 0    # 0x75: KP 8
+متغير sc2_ascii_118 = 27   # 0x76: Escape → 0x1B
+متغير sc2_ascii_119 = 0    # 0x77: NumLock
+متغير sc2_ascii_120 = 0    # 0x78: F11
+متغير sc2_ascii_121 = 0    # 0x79: KP +
+متغير sc2_ascii_122 = 0    # 0x7A: KP 3
+متغير sc2_ascii_123 = 0    # 0x7B: KP -
+متغير sc2_ascii_124 = 0    # 0x7C: KP *
+متغير sc2_ascii_125 = 0    # 0x7D: KP 9
+متغير sc2_ascii_126 = 0    # 0x7E: ScrollLock
+متغير sc2_ascii_127 = 0    # 0x7F: (none)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Shift Scan Code Set 2 → ASCII
+# ═══════════════════════════════════════════════════════════════════════════════
+متغير sc2_shift_14 = 126    # ~ (tilde)
+متغير sc2_shift_21 = 81     # Q
+متغير sc2_shift_22 = 33     # !
+متغير sc2_shift_26 = 90     # Z
+متغير sc2_shift_27 = 83     # S
+متغير sc2_shift_28 = 65     # A
+متغير sc2_shift_29 = 87     # W
+متغير sc2_shift_30 = 64     # @
+متغير sc2_shift_33 = 67     # C
+متغير sc2_shift_34 = 88     # X
+متغير sc2_shift_35 = 68     # D
+متغير sc2_shift_36 = 69     # E
+متغير sc2_shift_37 = 36     # $
+متغير sc2_shift_38 = 35     # #
+متغير sc2_shift_42 = 86     # V
+متغير sc2_shift_43 = 70     # F
+متغير sc2_shift_44 = 84     # T
+متغير sc2_shift_45 = 82     # R
+متغير sc2_shift_46 = 37     # %
+متغير sc2_shift_49 = 78     # N
+متغير sc2_shift_50 = 66     # B
+متغير sc2_shift_51 = 72     # H
+متغير sc2_shift_52 = 71     # G
+متغير sc2_shift_53 = 89     # Y
+متغير sc2_shift_54 = 94     # ^
+متغير sc2_shift_58 = 77     # M
+متغير sc2_shift_59 = 74     # J
+متغير sc2_shift_60 = 85     # U
+متغير sc2_shift_61 = 38     # &
+متغير sc2_shift_62 = 42     # *
+متغير sc2_shift_65 = 60     # <
+متغير sc2_shift_66 = 75     # K
+متغير sc2_shift_67 = 73     # I
+متغير sc2_shift_68 = 79     # O
+متغير sc2_shift_69 = 41     # )
+متغير sc2_shift_70 = 40     # (
+متغير sc2_shift_73 = 62     # >
+متغير sc2_shift_74 = 63     # ?
+متغير sc2_shift_75 = 76     # L
+متغير sc2_shift_76 = 58     # :
+متغير sc2_shift_77 = 80     # P
+متغير sc2_shift_78 = 95     # _
+متغير sc2_shift_82 = 34     # "
+متغير sc2_shift_84 = 123    # {
+متغير sc2_shift_85 = 43     # +
+متغير sc2_shift_91 = 125    # }
+متغير sc2_shift_93 = 124    # |
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الطباعة
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة ps2_serial_اطبع(رسالة)
+    متغير i = 0 + 0
+    بينما (i < 80)
+        متغير ch = sad_ll_mem_read8(رسالة + i) + 0
+        إذا (ch == 0) ارجع 0 نهاية
+        sad_ll_serial_write_char(COM1، ch)
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية
+
+دالة ps2_serial_رقم(ن)
+    متغير val = ن + 0
+    إذا (val < 0)
+        sad_ll_serial_write_char(COM1، 45)
+        val = 0 - val
+    نهاية
+    إذا (val >= 10000)
+        متغير d5 = val / 10000
+        sad_ll_serial_write_char(COM1، 48 + d5)
+        val = val - (d5 * 10000)
+    نهاية
+    إذا (val >= 1000)
+        متغير d4 = val / 1000
+        sad_ll_serial_write_char(COM1، 48 + d4)
+        val = val - (d4 * 1000)
+    والا_اذا (ن >= 10000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 100)
+        متغير d3 = val / 100
+        sad_ll_serial_write_char(COM1، 48 + d3)
+        val = val - (d3 * 100)
+    والا_اذا (ن >= 1000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 10)
+        متغير d2 = val / 10
+        sad_ll_serial_write_char(COM1، 48 + d2)
+        val = val - (d2 * 10)
+    والا_اذا (ن >= 100)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    sad_ll_serial_write_char(COM1، 48 + val)
+    ارجع 0
+نهاية
+
+دالة ps2_serial_hex8(val)
+    متغير hi = val / 16
+    متغير lo = val % 16
+    إذا (hi < 10) sad_ll_serial_write_char(COM1، 48 + hi)
+    والا sad_ll_serial_write_char(COM1، 55 + hi) نهاية
+    إذا (lo < 10) sad_ll_serial_write_char(COM1، 48 + lo)
+    والا sad_ll_serial_write_char(COM1، 55 + lo) نهاية
+    ارجع 0
+نهاية
+
+دالة ps2_serial_سطر()
+    sad_ll_serial_write_char(COM1، 13)
+    sad_ll_serial_write_char(COM1، 10)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# انتظار المتحكم
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_wait_input()
+    # انتظار أن يصبح Input Buffer فارغ (bit 1 clear)
+    متغير timeout = 10000 + 0
+    بينما (timeout > 0)
+        متغير sts = sad_ll_port_inb(PS2_STATUS) + 0
+        إذا ((sts / 2) % 2 == 0)
+            ارجع 0
+        نهاية
+        timeout = timeout - 1
+    نهاية
+    ارجع 0 - 1
+نهاية
+
+صدّر دالة ps2_wait_output()
+    # انتظار أن يصبح Output Buffer ممتلئ (bit 0 set)
+    متغير timeout = 10000 + 0
+    بينما (timeout > 0)
+        متغير sts = sad_ll_port_inb(PS2_STATUS) + 0
+        إذا (sts % 2 == 1)
+            ارجع 0
+        نهاية
+        timeout = timeout - 1
+    نهاية
+    ارجع 0 - 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# إرسال أمر إلى المتحكم
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_send_controller_cmd(cmd)
+    ps2_wait_input()
+    sad_ll_port_outb(PS2_COMMAND، cmd)
+    ارجع 0
+نهاية
+
+صدّر دالة ps2_send_controller_data(data)
+    ps2_wait_input()
+    sad_ll_port_outb(PS2_DATA، data)
+    ارجع 0
+نهاية
+
+صدّر دالة ps2_read_data()
+    متغير rc = ps2_wait_output() + 0
+    إذا (rc < 0) ارجع 0 - 1 نهاية
+    ارجع sad_ll_port_inb(PS2_DATA) + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# إرسال أمر إلى الجهاز (المنفذ الأول)
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_send_device1_cmd(cmd)
+    ps2_wait_input()
+    sad_ll_port_outb(PS2_DATA، cmd)
+    # انتظار ACK
+    متغير resp = ps2_read_data() + 0
+    إذا (resp == PS2_RESP_ACK)
+        ارجع 0
+    والا_اذا (resp == PS2_RESP_RESEND)
+        ارجع 0 - 2
+    نهاية
+    ارجع 0 - 1
+نهاية
+
+# إرسال أمر إلى الجهاز (المنفذ الثاني)
+صدّر دالة ps2_send_device2_cmd(cmd)
+    ps2_send_controller_cmd(PS2_CMD_WRITE_PORT2)
+    ps2_wait_input()
+    sad_ll_port_outb(PS2_DATA، cmd)
+    متغير resp = ps2_read_data() + 0
+    إذا (resp == PS2_RESP_ACK)
+        ارجع 0
+    نهاية
+    ارجع 0 - 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تفريغ Output Buffer
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_flush()
+    متغير count = 0 + 0
+    بينما (count < 64)
+        متغير sts = sad_ll_port_inb(PS2_STATUS) + 0
+        إذا (sts % 2 == 0) اخرج نهاية
+        sad_ll_port_inb(PS2_DATA)
+        count = count + 1
+    نهاية
+    ارجع count + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تحويل Scan Code → ASCII
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_sc2_to_ascii(scancode)
+    إذا (scancode > 127) ارجع 0 نهاية
+    # بحث في الجدول
+    إذا (scancode == 0) ارجع sc2_ascii_0 + 0 نهاية
+    إذا (scancode == 1) ارجع sc2_ascii_1 + 0 نهاية
+    إذا (scancode == 2) ارجع sc2_ascii_2 + 0 نهاية
+    إذا (scancode == 3) ارجع sc2_ascii_3 + 0 نهاية
+    إذا (scancode == 4) ارجع sc2_ascii_4 + 0 نهاية
+    إذا (scancode == 5) ارجع sc2_ascii_5 + 0 نهاية
+    إذا (scancode == 6) ارجع sc2_ascii_6 + 0 نهاية
+    إذا (scancode == 7) ارجع sc2_ascii_7 + 0 نهاية
+    إذا (scancode == 8) ارجع sc2_ascii_8 + 0 نهاية
+    إذا (scancode == 9) ارجع sc2_ascii_9 + 0 نهاية
+    إذا (scancode == 10) ارجع sc2_ascii_10 + 0 نهاية
+    إذا (scancode == 11) ارجع sc2_ascii_11 + 0 نهاية
+    إذا (scancode == 12) ارجع sc2_ascii_12 + 0 نهاية
+    إذا (scancode == 13) ارجع sc2_ascii_13 + 0 نهاية
+    إذا (scancode == 14) ارجع sc2_ascii_14 + 0 نهاية
+    إذا (scancode == 15) ارجع sc2_ascii_15 + 0 نهاية
+    إذا (scancode == 16) ارجع sc2_ascii_16 + 0 نهاية
+    إذا (scancode == 17) ارجع sc2_ascii_17 + 0 نهاية
+    إذا (scancode == 18) ارجع sc2_ascii_18 + 0 نهاية
+    إذا (scancode == 19) ارجع sc2_ascii_19 + 0 نهاية
+    إذا (scancode == 20) ارجع sc2_ascii_20 + 0 نهاية
+    إذا (scancode == 21) ارجع sc2_ascii_21 + 0 نهاية
+    إذا (scancode == 22) ارجع sc2_ascii_22 + 0 نهاية
+    إذا (scancode == 23) ارجع sc2_ascii_23 + 0 نهاية
+    إذا (scancode == 24) ارجع sc2_ascii_24 + 0 نهاية
+    إذا (scancode == 25) ارجع sc2_ascii_25 + 0 نهاية
+    إذا (scancode == 26) ارجع sc2_ascii_26 + 0 نهاية
+    إذا (scancode == 27) ارجع sc2_ascii_27 + 0 نهاية
+    إذا (scancode == 28) ارجع sc2_ascii_28 + 0 نهاية
+    إذا (scancode == 29) ارجع sc2_ascii_29 + 0 نهاية
+    إذا (scancode == 30) ارجع sc2_ascii_30 + 0 نهاية
+    إذا (scancode == 31) ارجع sc2_ascii_31 + 0 نهاية
+    إذا (scancode == 32) ارجع sc2_ascii_32 + 0 نهاية
+    إذا (scancode == 33) ارجع sc2_ascii_33 + 0 نهاية
+    إذا (scancode == 34) ارجع sc2_ascii_34 + 0 نهاية
+    إذا (scancode == 35) ارجع sc2_ascii_35 + 0 نهاية
+    إذا (scancode == 36) ارجع sc2_ascii_36 + 0 نهاية
+    إذا (scancode == 37) ارجع sc2_ascii_37 + 0 نهاية
+    إذا (scancode == 38) ارجع sc2_ascii_38 + 0 نهاية
+    إذا (scancode == 39) ارجع sc2_ascii_39 + 0 نهاية
+    إذا (scancode == 40) ارجع sc2_ascii_40 + 0 نهاية
+    إذا (scancode == 41) ارجع sc2_ascii_41 + 0 نهاية
+    إذا (scancode == 42) ارجع sc2_ascii_42 + 0 نهاية
+    إذا (scancode == 43) ارجع sc2_ascii_43 + 0 نهاية
+    إذا (scancode == 44) ارجع sc2_ascii_44 + 0 نهاية
+    إذا (scancode == 45) ارجع sc2_ascii_45 + 0 نهاية
+    إذا (scancode == 46) ارجع sc2_ascii_46 + 0 نهاية
+    إذا (scancode == 47) ارجع sc2_ascii_47 + 0 نهاية
+    إذا (scancode == 48) ارجع sc2_ascii_48 + 0 نهاية
+    إذا (scancode == 49) ارجع sc2_ascii_49 + 0 نهاية
+    إذا (scancode == 50) ارجع sc2_ascii_50 + 0 نهاية
+    إذا (scancode == 51) ارجع sc2_ascii_51 + 0 نهاية
+    إذا (scancode == 52) ارجع sc2_ascii_52 + 0 نهاية
+    إذا (scancode == 53) ارجع sc2_ascii_53 + 0 نهاية
+    إذا (scancode == 54) ارجع sc2_ascii_54 + 0 نهاية
+    إذا (scancode == 55) ارجع sc2_ascii_55 + 0 نهاية
+    إذا (scancode == 56) ارجع sc2_ascii_56 + 0 نهاية
+    إذا (scancode == 57) ارجع sc2_ascii_57 + 0 نهاية
+    إذا (scancode == 58) ارجع sc2_ascii_58 + 0 نهاية
+    إذا (scancode == 59) ارجع sc2_ascii_59 + 0 نهاية
+    إذا (scancode == 60) ارجع sc2_ascii_60 + 0 نهاية
+    إذا (scancode == 61) ارجع sc2_ascii_61 + 0 نهاية
+    إذا (scancode == 62) ارجع sc2_ascii_62 + 0 نهاية
+    إذا (scancode == 63) ارجع sc2_ascii_63 + 0 نهاية
+    إذا (scancode == 64) ارجع sc2_ascii_64 + 0 نهاية
+    إذا (scancode == 65) ارجع sc2_ascii_65 + 0 نهاية
+    إذا (scancode == 66) ارجع sc2_ascii_66 + 0 نهاية
+    إذا (scancode == 67) ارجع sc2_ascii_67 + 0 نهاية
+    إذا (scancode == 68) ارجع sc2_ascii_68 + 0 نهاية
+    إذا (scancode == 69) ارجع sc2_ascii_69 + 0 نهاية
+    إذا (scancode == 70) ارجع sc2_ascii_70 + 0 نهاية
+    إذا (scancode == 71) ارجع sc2_ascii_71 + 0 نهاية
+    إذا (scancode == 72) ارجع sc2_ascii_72 + 0 نهاية
+    إذا (scancode == 73) ارجع sc2_ascii_73 + 0 نهاية
+    إذا (scancode == 74) ارجع sc2_ascii_74 + 0 نهاية
+    إذا (scancode == 75) ارجع sc2_ascii_75 + 0 نهاية
+    إذا (scancode == 76) ارجع sc2_ascii_76 + 0 نهاية
+    إذا (scancode == 77) ارجع sc2_ascii_77 + 0 نهاية
+    إذا (scancode == 78) ارجع sc2_ascii_78 + 0 نهاية
+    إذا (scancode == 79) ارجع sc2_ascii_79 + 0 نهاية
+    إذا (scancode == 80) ارجع sc2_ascii_80 + 0 نهاية
+    إذا (scancode == 81) ارجع sc2_ascii_81 + 0 نهاية
+    إذا (scancode == 82) ارجع sc2_ascii_82 + 0 نهاية
+    إذا (scancode == 83) ارجع sc2_ascii_83 + 0 نهاية
+    إذا (scancode == 84) ارجع sc2_ascii_84 + 0 نهاية
+    إذا (scancode == 85) ارجع sc2_ascii_85 + 0 نهاية
+    إذا (scancode == 86) ارجع sc2_ascii_86 + 0 نهاية
+    إذا (scancode == 87) ارجع sc2_ascii_87 + 0 نهاية
+    إذا (scancode == 88) ارجع sc2_ascii_88 + 0 نهاية
+    إذا (scancode == 89) ارجع sc2_ascii_89 + 0 نهاية
+    إذا (scancode == 90) ارجع sc2_ascii_90 + 0 نهاية
+    إذا (scancode == 91) ارجع sc2_ascii_91 + 0 نهاية
+    إذا (scancode == 92) ارجع sc2_ascii_92 + 0 نهاية
+    إذا (scancode == 93) ارجع sc2_ascii_93 + 0 نهاية
+    إذا (scancode == 94) ارجع sc2_ascii_94 + 0 نهاية
+    إذا (scancode == 95) ارجع sc2_ascii_95 + 0 نهاية
+    إذا (scancode == 96) ارجع sc2_ascii_96 + 0 نهاية
+    إذا (scancode == 97) ارجع sc2_ascii_97 + 0 نهاية
+    إذا (scancode == 98) ارجع sc2_ascii_98 + 0 نهاية
+    إذا (scancode == 99) ارجع sc2_ascii_99 + 0 نهاية
+    إذا (scancode == 100) ارجع sc2_ascii_100 + 0 نهاية
+    إذا (scancode == 101) ارجع sc2_ascii_101 + 0 نهاية
+    إذا (scancode == 102) ارجع sc2_ascii_102 + 0 نهاية
+    إذا (scancode == 103) ارجع sc2_ascii_103 + 0 نهاية
+    إذا (scancode == 104) ارجع sc2_ascii_104 + 0 نهاية
+    إذا (scancode == 105) ارجع sc2_ascii_105 + 0 نهاية
+    إذا (scancode == 106) ارجع sc2_ascii_106 + 0 نهاية
+    إذا (scancode == 107) ارجع sc2_ascii_107 + 0 نهاية
+    إذا (scancode == 108) ارجع sc2_ascii_108 + 0 نهاية
+    إذا (scancode == 109) ارجع sc2_ascii_109 + 0 نهاية
+    إذا (scancode == 110) ارجع sc2_ascii_110 + 0 نهاية
+    إذا (scancode == 111) ارجع sc2_ascii_111 + 0 نهاية
+    إذا (scancode == 112) ارجع sc2_ascii_112 + 0 نهاية
+    إذا (scancode == 113) ارجع sc2_ascii_113 + 0 نهاية
+    إذا (scancode == 114) ارجع sc2_ascii_114 + 0 نهاية
+    إذا (scancode == 115) ارجع sc2_ascii_115 + 0 نهاية
+    إذا (scancode == 116) ارجع sc2_ascii_116 + 0 نهاية
+    إذا (scancode == 117) ارجع sc2_ascii_117 + 0 نهاية
+    إذا (scancode == 118) ارجع sc2_ascii_118 + 0 نهاية
+    إذا (scancode == 119) ارجع sc2_ascii_119 + 0 نهاية
+    إذا (scancode == 120) ارجع sc2_ascii_120 + 0 نهاية
+    إذا (scancode == 121) ارجع sc2_ascii_121 + 0 نهاية
+    إذا (scancode == 122) ارجع sc2_ascii_122 + 0 نهاية
+    إذا (scancode == 123) ارجع sc2_ascii_123 + 0 نهاية
+    إذا (scancode == 124) ارجع sc2_ascii_124 + 0 نهاية
+    إذا (scancode == 125) ارجع sc2_ascii_125 + 0 نهاية
+    إذا (scancode == 126) ارجع sc2_ascii_126 + 0 نهاية
+    إذا (scancode == 127) ارجع sc2_ascii_127 + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تحويل مع Shift
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_sc2_to_ascii_shift(scancode)
+    إذا (scancode == 14) ارجع sc2_shift_14 + 0 نهاية
+    إذا (scancode == 21) ارجع sc2_shift_21 + 0 نهاية
+    إذا (scancode == 22) ارجع sc2_shift_22 + 0 نهاية
+    إذا (scancode == 26) ارجع sc2_shift_26 + 0 نهاية
+    إذا (scancode == 27) ارجع sc2_shift_27 + 0 نهاية
+    إذا (scancode == 28) ارجع sc2_shift_28 + 0 نهاية
+    إذا (scancode == 29) ارجع sc2_shift_29 + 0 نهاية
+    إذا (scancode == 30) ارجع sc2_shift_30 + 0 نهاية
+    إذا (scancode == 33) ارجع sc2_shift_33 + 0 نهاية
+    إذا (scancode == 34) ارجع sc2_shift_34 + 0 نهاية
+    إذا (scancode == 35) ارجع sc2_shift_35 + 0 نهاية
+    إذا (scancode == 36) ارجع sc2_shift_36 + 0 نهاية
+    إذا (scancode == 37) ارجع sc2_shift_37 + 0 نهاية
+    إذا (scancode == 38) ارجع sc2_shift_38 + 0 نهاية
+    إذا (scancode == 42) ارجع sc2_shift_42 + 0 نهاية
+    إذا (scancode == 43) ارجع sc2_shift_43 + 0 نهاية
+    إذا (scancode == 44) ارجع sc2_shift_44 + 0 نهاية
+    إذا (scancode == 45) ارجع sc2_shift_45 + 0 نهاية
+    إذا (scancode == 46) ارجع sc2_shift_46 + 0 نهاية
+    إذا (scancode == 49) ارجع sc2_shift_49 + 0 نهاية
+    إذا (scancode == 50) ارجع sc2_shift_50 + 0 نهاية
+    إذا (scancode == 51) ارجع sc2_shift_51 + 0 نهاية
+    إذا (scancode == 52) ارجع sc2_shift_52 + 0 نهاية
+    إذا (scancode == 53) ارجع sc2_shift_53 + 0 نهاية
+    إذا (scancode == 54) ارجع sc2_shift_54 + 0 نهاية
+    إذا (scancode == 58) ارجع sc2_shift_58 + 0 نهاية
+    إذا (scancode == 59) ارجع sc2_shift_59 + 0 نهاية
+    إذا (scancode == 60) ارجع sc2_shift_60 + 0 نهاية
+    إذا (scancode == 61) ارجع sc2_shift_61 + 0 نهاية
+    إذا (scancode == 62) ارجع sc2_shift_62 + 0 نهاية
+    إذا (scancode == 65) ارجع sc2_shift_65 + 0 نهاية
+    إذا (scancode == 66) ارجع sc2_shift_66 + 0 نهاية
+    إذا (scancode == 67) ارجع sc2_shift_67 + 0 نهاية
+    إذا (scancode == 68) ارجع sc2_shift_68 + 0 نهاية
+    إذا (scancode == 69) ارجع sc2_shift_69 + 0 نهاية
+    إذا (scancode == 70) ارجع sc2_shift_70 + 0 نهاية
+    إذا (scancode == 73) ارجع sc2_shift_73 + 0 نهاية
+    إذا (scancode == 74) ارجع sc2_shift_74 + 0 نهاية
+    إذا (scancode == 75) ارجع sc2_shift_75 + 0 نهاية
+    إذا (scancode == 76) ارجع sc2_shift_76 + 0 نهاية
+    إذا (scancode == 77) ارجع sc2_shift_77 + 0 نهاية
+    إذا (scancode == 78) ارجع sc2_shift_78 + 0 نهاية
+    إذا (scancode == 82) ارجع sc2_shift_82 + 0 نهاية
+    إذا (scancode == 84) ارجع sc2_shift_84 + 0 نهاية
+    إذا (scancode == 85) ارجع sc2_shift_85 + 0 نهاية
+    إذا (scancode == 91) ارجع sc2_shift_91 + 0 نهاية
+    إذا (scancode == 93) ارجع sc2_shift_93 + 0 نهاية
+    # fallback to normal
+    ارجع ps2_sc2_to_ascii(scancode) + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# الوصول لمخزن لوحة المفاتيح
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة kbd_buf_set_sc(idx، val)
+    إذا (idx == 0) kbd_buf_scancode_0 = val + 0 نهاية
+    إذا (idx == 1) kbd_buf_scancode_1 = val + 0 نهاية
+    إذا (idx == 2) kbd_buf_scancode_2 = val + 0 نهاية
+    إذا (idx == 3) kbd_buf_scancode_3 = val + 0 نهاية
+    إذا (idx == 4) kbd_buf_scancode_4 = val + 0 نهاية
+    إذا (idx == 5) kbd_buf_scancode_5 = val + 0 نهاية
+    إذا (idx == 6) kbd_buf_scancode_6 = val + 0 نهاية
+    إذا (idx == 7) kbd_buf_scancode_7 = val + 0 نهاية
+    إذا (idx == 8) kbd_buf_scancode_8 = val + 0 نهاية
+    إذا (idx == 9) kbd_buf_scancode_9 = val + 0 نهاية
+    إذا (idx == 10) kbd_buf_scancode_10 = val + 0 نهاية
+    إذا (idx == 11) kbd_buf_scancode_11 = val + 0 نهاية
+    إذا (idx == 12) kbd_buf_scancode_12 = val + 0 نهاية
+    إذا (idx == 13) kbd_buf_scancode_13 = val + 0 نهاية
+    إذا (idx == 14) kbd_buf_scancode_14 = val + 0 نهاية
+    إذا (idx == 15) kbd_buf_scancode_15 = val + 0 نهاية
+    إذا (idx == 16) kbd_buf_scancode_16 = val + 0 نهاية
+    إذا (idx == 17) kbd_buf_scancode_17 = val + 0 نهاية
+    إذا (idx == 18) kbd_buf_scancode_18 = val + 0 نهاية
+    إذا (idx == 19) kbd_buf_scancode_19 = val + 0 نهاية
+    إذا (idx == 20) kbd_buf_scancode_20 = val + 0 نهاية
+    إذا (idx == 21) kbd_buf_scancode_21 = val + 0 نهاية
+    إذا (idx == 22) kbd_buf_scancode_22 = val + 0 نهاية
+    إذا (idx == 23) kbd_buf_scancode_23 = val + 0 نهاية
+    إذا (idx == 24) kbd_buf_scancode_24 = val + 0 نهاية
+    إذا (idx == 25) kbd_buf_scancode_25 = val + 0 نهاية
+    إذا (idx == 26) kbd_buf_scancode_26 = val + 0 نهاية
+    إذا (idx == 27) kbd_buf_scancode_27 = val + 0 نهاية
+    إذا (idx == 28) kbd_buf_scancode_28 = val + 0 نهاية
+    إذا (idx == 29) kbd_buf_scancode_29 = val + 0 نهاية
+    إذا (idx == 30) kbd_buf_scancode_30 = val + 0 نهاية
+    إذا (idx == 31) kbd_buf_scancode_31 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة kbd_buf_set_ascii(idx، val)
+    إذا (idx == 0) kbd_buf_ascii_0 = val + 0 نهاية
+    إذا (idx == 1) kbd_buf_ascii_1 = val + 0 نهاية
+    إذا (idx == 2) kbd_buf_ascii_2 = val + 0 نهاية
+    إذا (idx == 3) kbd_buf_ascii_3 = val + 0 نهاية
+    إذا (idx == 4) kbd_buf_ascii_4 = val + 0 نهاية
+    إذا (idx == 5) kbd_buf_ascii_5 = val + 0 نهاية
+    إذا (idx == 6) kbd_buf_ascii_6 = val + 0 نهاية
+    إذا (idx == 7) kbd_buf_ascii_7 = val + 0 نهاية
+    إذا (idx == 8) kbd_buf_ascii_8 = val + 0 نهاية
+    إذا (idx == 9) kbd_buf_ascii_9 = val + 0 نهاية
+    إذا (idx == 10) kbd_buf_ascii_10 = val + 0 نهاية
+    إذا (idx == 11) kbd_buf_ascii_11 = val + 0 نهاية
+    إذا (idx == 12) kbd_buf_ascii_12 = val + 0 نهاية
+    إذا (idx == 13) kbd_buf_ascii_13 = val + 0 نهاية
+    إذا (idx == 14) kbd_buf_ascii_14 = val + 0 نهاية
+    إذا (idx == 15) kbd_buf_ascii_15 = val + 0 نهاية
+    إذا (idx == 16) kbd_buf_ascii_16 = val + 0 نهاية
+    إذا (idx == 17) kbd_buf_ascii_17 = val + 0 نهاية
+    إذا (idx == 18) kbd_buf_ascii_18 = val + 0 نهاية
+    إذا (idx == 19) kbd_buf_ascii_19 = val + 0 نهاية
+    إذا (idx == 20) kbd_buf_ascii_20 = val + 0 نهاية
+    إذا (idx == 21) kbd_buf_ascii_21 = val + 0 نهاية
+    إذا (idx == 22) kbd_buf_ascii_22 = val + 0 نهاية
+    إذا (idx == 23) kbd_buf_ascii_23 = val + 0 نهاية
+    إذا (idx == 24) kbd_buf_ascii_24 = val + 0 نهاية
+    إذا (idx == 25) kbd_buf_ascii_25 = val + 0 نهاية
+    إذا (idx == 26) kbd_buf_ascii_26 = val + 0 نهاية
+    إذا (idx == 27) kbd_buf_ascii_27 = val + 0 نهاية
+    إذا (idx == 28) kbd_buf_ascii_28 = val + 0 نهاية
+    إذا (idx == 29) kbd_buf_ascii_29 = val + 0 نهاية
+    إذا (idx == 30) kbd_buf_ascii_30 = val + 0 نهاية
+    إذا (idx == 31) kbd_buf_ascii_31 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة kbd_buf_get_sc(idx)
+    إذا (idx == 0) ارجع kbd_buf_scancode_0 + 0 نهاية
+    إذا (idx == 1) ارجع kbd_buf_scancode_1 + 0 نهاية
+    إذا (idx == 2) ارجع kbd_buf_scancode_2 + 0 نهاية
+    إذا (idx == 3) ارجع kbd_buf_scancode_3 + 0 نهاية
+    إذا (idx == 4) ارجع kbd_buf_scancode_4 + 0 نهاية
+    إذا (idx == 5) ارجع kbd_buf_scancode_5 + 0 نهاية
+    إذا (idx == 6) ارجع kbd_buf_scancode_6 + 0 نهاية
+    إذا (idx == 7) ارجع kbd_buf_scancode_7 + 0 نهاية
+    إذا (idx == 8) ارجع kbd_buf_scancode_8 + 0 نهاية
+    إذا (idx == 9) ارجع kbd_buf_scancode_9 + 0 نهاية
+    إذا (idx == 10) ارجع kbd_buf_scancode_10 + 0 نهاية
+    إذا (idx == 11) ارجع kbd_buf_scancode_11 + 0 نهاية
+    إذا (idx == 12) ارجع kbd_buf_scancode_12 + 0 نهاية
+    إذا (idx == 13) ارجع kbd_buf_scancode_13 + 0 نهاية
+    إذا (idx == 14) ارجع kbd_buf_scancode_14 + 0 نهاية
+    إذا (idx == 15) ارجع kbd_buf_scancode_15 + 0 نهاية
+    إذا (idx == 16) ارجع kbd_buf_scancode_16 + 0 نهاية
+    إذا (idx == 17) ارجع kbd_buf_scancode_17 + 0 نهاية
+    إذا (idx == 18) ارجع kbd_buf_scancode_18 + 0 نهاية
+    إذا (idx == 19) ارجع kbd_buf_scancode_19 + 0 نهاية
+    إذا (idx == 20) ارجع kbd_buf_scancode_20 + 0 نهاية
+    إذا (idx == 21) ارجع kbd_buf_scancode_21 + 0 نهاية
+    إذا (idx == 22) ارجع kbd_buf_scancode_22 + 0 نهاية
+    إذا (idx == 23) ارجع kbd_buf_scancode_23 + 0 نهاية
+    إذا (idx == 24) ارجع kbd_buf_scancode_24 + 0 نهاية
+    إذا (idx == 25) ارجع kbd_buf_scancode_25 + 0 نهاية
+    إذا (idx == 26) ارجع kbd_buf_scancode_26 + 0 نهاية
+    إذا (idx == 27) ارجع kbd_buf_scancode_27 + 0 نهاية
+    إذا (idx == 28) ارجع kbd_buf_scancode_28 + 0 نهاية
+    إذا (idx == 29) ارجع kbd_buf_scancode_29 + 0 نهاية
+    إذا (idx == 30) ارجع kbd_buf_scancode_30 + 0 نهاية
+    إذا (idx == 31) ارجع kbd_buf_scancode_31 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة kbd_buf_get_ascii(idx)
+    إذا (idx == 0) ارجع kbd_buf_ascii_0 + 0 نهاية
+    إذا (idx == 1) ارجع kbd_buf_ascii_1 + 0 نهاية
+    إذا (idx == 2) ارجع kbd_buf_ascii_2 + 0 نهاية
+    إذا (idx == 3) ارجع kbd_buf_ascii_3 + 0 نهاية
+    إذا (idx == 4) ارجع kbd_buf_ascii_4 + 0 نهاية
+    إذا (idx == 5) ارجع kbd_buf_ascii_5 + 0 نهاية
+    إذا (idx == 6) ارجع kbd_buf_ascii_6 + 0 نهاية
+    إذا (idx == 7) ارجع kbd_buf_ascii_7 + 0 نهاية
+    إذا (idx == 8) ارجع kbd_buf_ascii_8 + 0 نهاية
+    إذا (idx == 9) ارجع kbd_buf_ascii_9 + 0 نهاية
+    إذا (idx == 10) ارجع kbd_buf_ascii_10 + 0 نهاية
+    إذا (idx == 11) ارجع kbd_buf_ascii_11 + 0 نهاية
+    إذا (idx == 12) ارجع kbd_buf_ascii_12 + 0 نهاية
+    إذا (idx == 13) ارجع kbd_buf_ascii_13 + 0 نهاية
+    إذا (idx == 14) ارجع kbd_buf_ascii_14 + 0 نهاية
+    إذا (idx == 15) ارجع kbd_buf_ascii_15 + 0 نهاية
+    إذا (idx == 16) ارجع kbd_buf_ascii_16 + 0 نهاية
+    إذا (idx == 17) ارجع kbd_buf_ascii_17 + 0 نهاية
+    إذا (idx == 18) ارجع kbd_buf_ascii_18 + 0 نهاية
+    إذا (idx == 19) ارجع kbd_buf_ascii_19 + 0 نهاية
+    إذا (idx == 20) ارجع kbd_buf_ascii_20 + 0 نهاية
+    إذا (idx == 21) ارجع kbd_buf_ascii_21 + 0 نهاية
+    إذا (idx == 22) ارجع kbd_buf_ascii_22 + 0 نهاية
+    إذا (idx == 23) ارجع kbd_buf_ascii_23 + 0 نهاية
+    إذا (idx == 24) ارجع kbd_buf_ascii_24 + 0 نهاية
+    إذا (idx == 25) ارجع kbd_buf_ascii_25 + 0 نهاية
+    إذا (idx == 26) ارجع kbd_buf_ascii_26 + 0 نهاية
+    إذا (idx == 27) ارجع kbd_buf_ascii_27 + 0 نهاية
+    إذا (idx == 28) ارجع kbd_buf_ascii_28 + 0 نهاية
+    إذا (idx == 29) ارجع kbd_buf_ascii_29 + 0 نهاية
+    إذا (idx == 30) ارجع kbd_buf_ascii_30 + 0 نهاية
+    إذا (idx == 31) ارجع kbd_buf_ascii_31 + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# إضافة حدث إلى مخزن لوحة المفاتيح
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_kbd_push(scancode، ascii)
+    إذا (kbd_buf_count >= 32)
+        # المخزن ممتلئ — تجاهل
+        ارجع 0 - 1
+    نهاية
+    kbd_buf_set_sc(kbd_buf_head، scancode)
+    kbd_buf_set_ascii(kbd_buf_head، ascii)
+    kbd_buf_head = (kbd_buf_head + 1) % 32
+    kbd_buf_count = kbd_buf_count + 1
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# قراءة حدث من مخزن لوحة المفاتيح
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_kbd_pop_ascii()
+    إذا (kbd_buf_count == 0) ارجع 0 - 1 نهاية
+    متغير ascii = kbd_buf_get_ascii(kbd_buf_tail) + 0
+    kbd_buf_tail = (kbd_buf_tail + 1) % 32
+    kbd_buf_count = kbd_buf_count - 1
+    ارجع ascii + 0
+نهاية
+
+صدّر دالة ps2_kbd_pop_scancode()
+    إذا (kbd_buf_count == 0) ارجع 0 - 1 نهاية
+    متغير sc = kbd_buf_get_sc(kbd_buf_tail) + 0
+    kbd_buf_tail = (kbd_buf_tail + 1) % 32
+    kbd_buf_count = kbd_buf_count - 1
+    ارجع sc + 0
+نهاية
+
+صدّر دالة ps2_kbd_has_key()
+    ارجع kbd_buf_count + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# معالجة بايت Scan Code Set 2 من لوحة المفاتيح
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_kbd_handle_byte(byte)
+    ps2_kbd_irq_count = ps2_kbd_irq_count + 1
+
+    # Extended prefix
+    إذا (byte == SC2_EXTENDED)
+        kbd_extended = 1
+        ارجع 0
+    نهاية
+
+    # Release prefix
+    إذا (byte == SC2_RELEASE)
+        kbd_release = 1
+        ارجع 0
+    نهاية
+
+    متغير scancode = byte + 0
+    متغير is_release = kbd_release + 0
+    متغير is_extended = kbd_extended + 0
+    kbd_release = 0
+    kbd_extended = 0
+
+    # ═══ Modifier keys ═══
+    # Left Shift (0x12 = 18)
+    إذا (scancode == 18)
+        إذا (is_release == 1)
+            kbd_shift_left = 0
+        والا
+            kbd_shift_left = 1
+        نهاية
+        ارجع 0
+    نهاية
+
+    # Right Shift (0x59 = 89)
+    إذا (scancode == 89)
+        إذا (is_release == 1)
+            kbd_shift_right = 0
+        والا
+            kbd_shift_right = 1
+        نهاية
+        ارجع 0
+    نهاية
+
+    # Left Ctrl (0x14 = 20)
+    إذا (scancode == 20)
+        إذا (is_extended == 0)
+            إذا (is_release == 1)
+                kbd_ctrl_left = 0
+            والا
+                kbd_ctrl_left = 1
+            نهاية
+        والا
+            إذا (is_release == 1)
+                kbd_ctrl_right = 0
+            والا
+                kbd_ctrl_right = 1
+            نهاية
+        نهاية
+        ارجع 0
+    نهاية
+
+    # Left Alt (0x11 = 17)
+    إذا (scancode == 17)
+        إذا (is_extended == 0)
+            إذا (is_release == 1)
+                kbd_alt_left = 0
+            والا
+                kbd_alt_left = 1
+            نهاية
+        والا
+            إذا (is_release == 1)
+                kbd_alt_right = 0
+            والا
+                kbd_alt_right = 1
+            نهاية
+        نهاية
+        ارجع 0
+    نهاية
+
+    # CapsLock (0x58 = 88)
+    إذا (scancode == 88)
+        إذا (is_release == 0)
+            kbd_capslock = 1 - kbd_capslock
+            ps2_update_leds()
+        نهاية
+        ارجع 0
+    نهاية
+
+    # NumLock (0x77 = 119)
+    إذا (scancode == 119)
+        إذا (is_release == 0)
+            kbd_numlock = 1 - kbd_numlock
+            ps2_update_leds()
+        نهاية
+        ارجع 0
+    نهاية
+
+    # ScrollLock (0x7E = 126)
+    إذا (scancode == 126)
+        إذا (is_release == 0)
+            kbd_scrolllock = 1 - kbd_scrolllock
+            ps2_update_leds()
+        نهاية
+        ارجع 0
+    نهاية
+
+    # ═══ Regular keys (only on press, not release) ═══
+    إذا (is_release == 1) ارجع 0 نهاية
+
+    متغير shift = kbd_shift_left + kbd_shift_right
+    إذا (shift > 1) shift = 1 نهاية
+
+    # CapsLock toggles for alpha chars
+    متغير ascii = 0 + 0
+    إذا (shift == 1)
+        ascii = ps2_sc2_to_ascii_shift(scancode) + 0
+    والا
+        ascii = ps2_sc2_to_ascii(scancode) + 0
+    نهاية
+
+    # CapsLock: toggle case for a-z / A-Z
+    إذا (kbd_capslock == 1)
+        إذا (ascii >= 97)
+            إذا (ascii <= 122)
+                ascii = ascii - 32  # upper
+            نهاية
+        والا_اذا (ascii >= 65)
+            إذا (ascii <= 90)
+                ascii = ascii + 32  # lower
+            نهاية
+        نهاية
+    نهاية
+
+    إذا (ascii > 0)
+        ps2_kbd_push(scancode، ascii)
+    نهاية
+
+    ارجع ascii + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تحديث LEDs
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_update_leds()
+    متغير led_val = kbd_scrolllock + (kbd_numlock * 2) + (kbd_capslock * 4)
+    ps2_send_device1_cmd(PS2_DEV_SET_LEDS)
+    ps2_send_device1_cmd(led_val)
+    kbd_leds = led_val + 0
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# معالجة بايت الفأرة PS/2
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_mouse_handle_byte(byte)
+    ps2_mouse_irq_count = ps2_mouse_irq_count + 1
+
+    إذا (mouse_byte_idx == 0)
+        # Byte 0: buttons/sign/overflow
+        # bit 3 must be set (always 1)
+        إذا ((byte / 8) % 2 == 0)
+            # alignment error — skip
+            ارجع 0
+        نهاية
+        mouse_byte0 = byte + 0
+        mouse_byte_idx = 1
+        ارجع 0
+    نهاية
+
+    إذا (mouse_byte_idx == 1)
+        mouse_byte1 = byte + 0
+        mouse_byte_idx = 2
+        ارجع 0
+    نهاية
+
+    إذا (mouse_byte_idx == 2)
+        mouse_byte2 = byte + 0
+
+        إذا (mouse_has_wheel == 1)
+            mouse_byte_idx = 3
+            ارجع 0
+        نهاية
+
+        # حزمة كاملة (3 بايت) — معالجة
+        ps2_mouse_process_packet()
+        mouse_byte_idx = 0
+        ارجع 0
+    نهاية
+
+    إذا (mouse_byte_idx == 3)
+        mouse_byte3 = byte + 0
+        # حزمة كاملة (4 بايت) — معالجة
+        ps2_mouse_process_packet()
+        mouse_byte_idx = 0
+        ارجع 0
+    نهاية
+
+    mouse_byte_idx = 0
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# معالجة حزمة الفأرة
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_mouse_process_packet()
+    متغير b0 = mouse_byte0 + 0
+    متغير dx = mouse_byte1 + 0
+    متغير dy = mouse_byte2 + 0
+
+    # Buttons
+    mouse_buttons = b0 % 8  # bits 0-2: left, right, middle
+
+    # X overflow check (bit 6)
+    إذا ((b0 / 64) % 2 == 1) ارجع 0 نهاية
+    # Y overflow check (bit 7)
+    إذا ((b0 / 128) % 2 == 1) ارجع 0 نهاية
+
+    # Sign extend X (bit 4 of byte 0)
+    إذا ((b0 / 16) % 2 == 1)
+        dx = dx - 256
+    نهاية
+
+    # Sign extend Y (bit 5 of byte 0)
+    إذا ((b0 / 32) % 2 == 1)
+        dy = dy - 256
+    نهاية
+
+    # Y is inverted in PS/2
+    dy = 0 - dy
+
+    # تحديث الإحداثيات
+    mouse_x = mouse_x + dx
+    mouse_y = mouse_y + dy
+
+    # Clamp
+    إذا (mouse_x < 0) mouse_x = 0 نهاية
+    إذا (mouse_y < 0) mouse_y = 0 نهاية
+    إذا (mouse_x > mouse_max_x) mouse_x = mouse_max_x + 0 نهاية
+    إذا (mouse_y > mouse_max_y) mouse_y = mouse_max_y + 0 نهاية
+
+    # Wheel
+    إذا (mouse_has_wheel == 1)
+        متغير w = mouse_byte3 + 0
+        إذا (w > 127) w = w - 256 نهاية
+        mouse_wheel = w + 0
+    نهاية
+
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# API للفأرة
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_mouse_get_x()
+    ارجع mouse_x + 0
+نهاية
+
+صدّر دالة ps2_mouse_get_y()
+    ارجع mouse_y + 0
+نهاية
+
+صدّر دالة ps2_mouse_get_buttons()
+    ارجع mouse_buttons + 0
+نهاية
+
+صدّر دالة ps2_mouse_left()
+    ارجع mouse_buttons % 2
+نهاية
+
+صدّر دالة ps2_mouse_right()
+    ارجع (mouse_buttons / 2) % 2
+نهاية
+
+صدّر دالة ps2_mouse_middle()
+    ارجع (mouse_buttons / 4) % 2
+نهاية
+
+صدّر دالة ps2_mouse_get_wheel()
+    ارجع mouse_wheel + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# استقصاء PS/2
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_poll()
+    متغير sts = sad_ll_port_inb(PS2_STATUS) + 0
+    إذا (sts % 2 == 0) ارجع 0 نهاية  # لا توجد بيانات
+
+    متغير data = sad_ll_port_inb(PS2_DATA) + 0
+
+    # هل هو من المنفذ الثاني (فأرة)؟ bit 5 of status
+    إذا ((sts / 32) % 2 == 1)
+        ps2_mouse_handle_byte(data)
+    والا
+        ps2_kbd_handle_byte(data)
+    نهاية
+
+    ارجع 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تمكين عجلة الفأرة (IntelliMouse)
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_mouse_enable_wheel()
+    # Magic sequence: set sample rate 200, 100, 80
+    ps2_send_device2_cmd(PS2_DEV_SET_RATE)
+    ps2_send_device2_cmd(200)
+    ps2_send_device2_cmd(PS2_DEV_SET_RATE)
+    ps2_send_device2_cmd(100)
+    ps2_send_device2_cmd(PS2_DEV_SET_RATE)
+    ps2_send_device2_cmd(80)
+
+    # Identify
+    ps2_send_device2_cmd(PS2_DEV_IDENTIFY)
+    متغير id = ps2_read_data() + 0
+    إذا (id == 3)
+        mouse_has_wheel = 1
+        ps2_serial_اطبع("[PS/2] IntelliMouse wheel enabled")
+        ps2_serial_سطر()
+    والا
+        ps2_serial_اطبع("[PS/2] No wheel support (id=")
+        ps2_serial_رقم(id + 0)
+        ps2_serial_اطبع(")")
+        ps2_serial_سطر()
+    نهاية
+    ارجع mouse_has_wheel + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تقرير PS/2
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_تقرير()
+    ps2_serial_اطبع("═══ [PS/2] تقرير ═══")
+    ps2_serial_سطر()
+
+    ps2_serial_اطبع("  Port1: ")
+    إذا (ps2_port1_exists == 1) ps2_serial_اطبع("OK")
+    والا ps2_serial_اطبع("N/A") نهاية
+    ps2_serial_اطبع("  Port2: ")
+    إذا (ps2_port2_exists == 1) ps2_serial_اطبع("OK")
+    والا ps2_serial_اطبع("N/A") نهاية
+    ps2_serial_سطر()
+
+    ps2_serial_اطبع("  Kbd IRQs: ")
+    ps2_serial_رقم(ps2_kbd_irq_count + 0)
+    ps2_serial_اطبع(" Mouse IRQs: ")
+    ps2_serial_رقم(ps2_mouse_irq_count + 0)
+    ps2_serial_سطر()
+
+    ps2_serial_اطبع("  Key buf: ")
+    ps2_serial_رقم(kbd_buf_count + 0)
+    ps2_serial_اطبع("  Shift:")
+    ps2_serial_رقم(kbd_shift_left + kbd_shift_right)
+    ps2_serial_اطبع(" Ctrl:")
+    ps2_serial_رقم(kbd_ctrl_left + kbd_ctrl_right)
+    ps2_serial_اطبع(" Alt:")
+    ps2_serial_رقم(kbd_alt_left + kbd_alt_right)
+    ps2_serial_سطر()
+
+    ps2_serial_اطبع("  Caps:")
+    ps2_serial_رقم(kbd_capslock + 0)
+    ps2_serial_اطبع(" Num:")
+    ps2_serial_رقم(kbd_numlock + 0)
+    ps2_serial_اطبع(" Scroll:")
+    ps2_serial_رقم(kbd_scrolllock + 0)
+    ps2_serial_سطر()
+
+    ps2_serial_اطبع("  Mouse: (")
+    ps2_serial_رقم(mouse_x + 0)
+    ps2_serial_اطبع(",")
+    ps2_serial_رقم(mouse_y + 0)
+    ps2_serial_اطبع(") btn=")
+    ps2_serial_رقم(mouse_buttons + 0)
+    إذا (mouse_has_wheel == 1)
+        ps2_serial_اطبع(" whl=")
+        ps2_serial_رقم(mouse_wheel + 0)
+    نهاية
+    ps2_serial_سطر()
+
+    ps2_serial_اطبع("═══════════════════════════════════")
+    ps2_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تهيئة PS/2
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_هيئ()
+    ps2_serial_اطبع("[PS/2] تهيئة متحكم PS/2...")
+    ps2_serial_سطر()
+
+    # تفريغ buffers
+    ps2_flush()
+
+    # تعطيل المنفذين
+    ps2_send_controller_cmd(PS2_CMD_DISABLE_PORT1)
+    ps2_send_controller_cmd(PS2_CMD_DISABLE_PORT2)
+    ps2_flush()
+
+    # قراءة إعدادات المتحكم
+    ps2_send_controller_cmd(PS2_CMD_READ_CONFIG)
+    متغير config = ps2_read_data() + 0
+    ps2_serial_اطبع("[PS/2] Config byte: 0x")
+    ps2_serial_hex8(config + 0)
+    ps2_serial_سطر()
+
+    # تعطيل المقاطعات والترجمة
+    config = config - (config % 2)  # clear bit 0 (INT1)
+    إذا ((config / 2) % 2 == 1) config = config - 2 نهاية  # clear bit 1 (INT2)
+    إذا ((config / 64) % 2 == 1) config = config - 64 نهاية  # clear bit 6 (translation)
+
+    ps2_send_controller_cmd(PS2_CMD_WRITE_CONFIG)
+    ps2_send_controller_data(config)
+
+    # فحص ذاتي للمتحكم
+    ps2_send_controller_cmd(PS2_CMD_SELF_TEST)
+    متغير result = ps2_read_data() + 0
+    إذا (result == 85)  # 0x55 = pass
+        ps2_serial_اطبع("[PS/2] Self-test passed")
+        ps2_serial_سطر()
+    والا
+        ps2_serial_اطبع("[PS/2] Self-test FAILED: 0x")
+        ps2_serial_hex8(result + 0)
+        ps2_serial_سطر()
+        ps2_errors = ps2_errors + 1
+    نهاية
+
+    # إعادة كتابة الإعدادات (قد تتغير بعد Self-Test)
+    ps2_send_controller_cmd(PS2_CMD_WRITE_CONFIG)
+    ps2_send_controller_data(config)
+
+    # تحقق من dual channel
+    ps2_send_controller_cmd(PS2_CMD_ENABLE_PORT2)
+    ps2_send_controller_cmd(PS2_CMD_READ_CONFIG)
+    متغير config2 = ps2_read_data() + 0
+    إذا ((config2 / 32) % 2 == 0)  # bit 5 clear = dual channel
+        ps2_dual_channel = 1
+        ps2_send_controller_cmd(PS2_CMD_DISABLE_PORT2)
+    نهاية
+
+    # فحص المنفذ الأول
+    ps2_send_controller_cmd(PS2_CMD_TEST_PORT1)
+    متغير port1_result = ps2_read_data() + 0
+    إذا (port1_result == 0)
+        ps2_port1_exists = 1
+        ps2_serial_اطبع("[PS/2] Port 1 test passed")
+        ps2_serial_سطر()
+    والا
+        ps2_serial_اطبع("[PS/2] Port 1 test failed: ")
+        ps2_serial_رقم(port1_result + 0)
+        ps2_serial_سطر()
+    نهاية
+
+    # فحص المنفذ الثاني
+    إذا (ps2_dual_channel == 1)
+        ps2_send_controller_cmd(PS2_CMD_TEST_PORT2)
+        متغير port2_result = ps2_read_data() + 0
+        إذا (port2_result == 0)
+            ps2_port2_exists = 1
+            ps2_serial_اطبع("[PS/2] Port 2 test passed")
+            ps2_serial_سطر()
+        والا
+            ps2_serial_اطبع("[PS/2] Port 2 test failed: ")
+            ps2_serial_رقم(port2_result + 0)
+            ps2_serial_سطر()
+        نهاية
+    نهاية
+
+    # تمكين المنافذ
+    إذا (ps2_port1_exists == 1)
+        ps2_send_controller_cmd(PS2_CMD_ENABLE_PORT1)
+        config = config + PS2_CFG_INT1
+    نهاية
+    إذا (ps2_port2_exists == 1)
+        ps2_send_controller_cmd(PS2_CMD_ENABLE_PORT2)
+        config = config + PS2_CFG_INT2
+    نهاية
+
+    # كتابة الإعدادات النهائية
+    ps2_send_controller_cmd(PS2_CMD_WRITE_CONFIG)
+    ps2_send_controller_data(config)
+
+    # إعادة تعيين الأجهزة
+    إذا (ps2_port1_exists == 1)
+        ps2_send_device1_cmd(PS2_DEV_RESET)
+        متغير resp1 = ps2_read_data() + 0
+        إذا (resp1 == PS2_RESP_SELF_OK)
+            ps2_serial_اطبع("[PS/2] Keyboard reset OK")
+            ps2_serial_سطر()
+        نهاية
+        ps2_flush()
+        # تمكين المسح
+        ps2_send_device1_cmd(PS2_DEV_ENABLE_SCAN)
+    نهاية
+
+    إذا (ps2_port2_exists == 1)
+        ps2_send_device2_cmd(PS2_DEV_RESET)
+        متغير resp2 = ps2_read_data() + 0
+        ps2_flush()
+        # محاولة تمكين عجلة الفأرة
+        ps2_mouse_enable_wheel()
+        # تمكين المسح
+        ps2_send_device2_cmd(PS2_DEV_ENABLE_SCAN)
+        # Set sample rate to 100
+        ps2_send_device2_cmd(PS2_DEV_SET_RATE)
+        ps2_send_device2_cmd(100)
+    نهاية
+
+    ps2_هيئ_تم = 1
+    ps2_serial_اطبع("[PS/2] جاهز")
+    ps2_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دورة PS/2
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة ps2_دورة()
+    # استقصاء كل البيانات المتاحة
+    متغير processed = 0 + 0
+    متغير max_iter = 32 + 0
+    بينما (max_iter > 0)
+        متغير rc = ps2_poll() + 0
+        إذا (rc == 0) اخرج نهاية
+        processed = processed + 1
+        max_iter = max_iter - 1
+    نهاية
+    ارجع processed + 0
+نهاية

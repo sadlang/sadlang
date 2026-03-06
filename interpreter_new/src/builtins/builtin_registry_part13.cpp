@@ -16,6 +16,21 @@
 #include "graphics/sad_navigator.h"
 #include "graphics/sad_state.h"
 
+// ───── Unified UI layer (cross-platform bridge) ─────
+#include "ui/sad_ui_unified.h"
+#include "ui/sad_ui_platform.h"
+#include "ui/sad_ui_callbacks.h"
+
+// Helper: route through unified backend if available, else fall back to sad::ui
+namespace {
+    inline bool useUnified() {
+        return sad::unified::SadUI::instance().isInitialized();
+    }
+    inline sad::unified::SadUIBackend* UB() {
+        return sad::unified::SadUI::instance().backend();
+    }
+}
+
 namespace Sad {
 namespace Interpreter {
 
@@ -30,7 +45,12 @@ void registerBuiltinsPart13(Interpreter& interpreter) {
         std::string title = args.size() > 0 ? args[0]->toString() : "تطبيق ص";
         int w = args.size() > 1 ? args[1]->toInt() : 800;
         int h = args.size() > 2 ? args[2]->toInt() : 600;
-        int appId = sad::ui::app_create(title, w, h);
+        int appId;
+        if (useUnified() && UB()) {
+            appId = UB()->appCreate(title, w, h);
+        } else {
+            appId = sad::ui::app_create(title, w, h);
+        }
         return std::make_shared<Data::Value>(appId);
     };
     interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82", app_create_func); // أنشئ_تطبيق
@@ -39,6 +59,9 @@ void registerBuiltinsPart13(Interpreter& interpreter) {
     // --- التطبيق_يعمل / app_is_running ---
     auto app_is_running_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.empty()) return std::make_shared<Data::Value>(false);
+        if (useUnified() && UB()) {
+            return std::make_shared<Data::Value>(UB()->appIsRunning(args[0]->toInt()));
+        }
         return std::make_shared<Data::Value>(sad::ui::app_is_running(args[0]->toInt()));
     };
     interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82_\xd9\x8a\xd8\xb9\xd9\x85\xd9\x84", app_is_running_func); // التطبيق_يعمل
@@ -47,7 +70,11 @@ void registerBuiltinsPart13(Interpreter& interpreter) {
     // --- حدث_التطبيق / app_update ---
     auto app_update_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.empty()) return std::make_shared<Data::Value>();
-        sad::ui::app_update(args[0]->toInt());
+        if (useUnified() && UB()) {
+            UB()->appUpdate(args[0]->toInt());
+        } else {
+            sad::ui::app_update(args[0]->toInt());
+        }
         return std::make_shared<Data::Value>();
     };
     interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xad\xd8\xaf\xd8\xab_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82", app_update_func); // حدث_التطبيق
@@ -56,7 +83,11 @@ void registerBuiltinsPart13(Interpreter& interpreter) {
     // --- عين_محتوى_التطبيق / app_set_content ---
     auto app_set_content_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) return std::make_shared<Data::Value>();
-        sad::ui::app_set_content(args[0]->toInt(), args[1]->toInt());
+        if (useUnified() && UB()) {
+            UB()->appSetContent(args[0]->toInt(), args[1]->toInt());
+        } else {
+            sad::ui::app_set_content(args[0]->toInt(), args[1]->toInt());
+        }
         return std::make_shared<Data::Value>();
     };
     interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xb9\xd9\x8a\xd9\x86_\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82", app_set_content_func); // عين_محتوى_التطبيق
@@ -67,7 +98,11 @@ void registerBuiltinsPart13(Interpreter& interpreter) {
         if (args.size() < 4) return std::make_shared<Data::Value>();
         int appId = args[0]->toInt();
         int r = args[1]->toInt(), g = args[2]->toInt(), b = args[3]->toInt();
-        sad::ui::app_set_bg_color(appId, r, g, b);
+        if (useUnified() && UB()) {
+            UB()->appSetBgColor(appId, r, g, b);
+        } else {
+            sad::ui::app_set_bg_color(appId, r, g, b);
+        }
         return std::make_shared<Data::Value>();
     };
     interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xb9\xd9\x8a\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82", app_set_bg_color_func); // عين_خلفية_التطبيق
@@ -76,7 +111,11 @@ void registerBuiltinsPart13(Interpreter& interpreter) {
     // --- أغلق_التطبيق / app_close ---
     auto app_close_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.empty()) return std::make_shared<Data::Value>();
-        sad::ui::app_close(args[0]->toInt());
+        if (useUnified() && UB()) {
+            UB()->appClose(args[0]->toInt());
+        } else {
+            sad::ui::app_close(args[0]->toInt());
+        }
         return std::make_shared<Data::Value>();
     };
     interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd8\xba\xd9\x84\xd9\x82_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82", app_close_func); // أغلق_التطبيق
@@ -459,6 +498,35 @@ void registerBuiltinsPart13(Interpreter& interpreter) {
     };
     interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa7\xd8\xac\xd9\x85\xd8\xb9_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xad\xd8\xaf\xd8\xa7\xd8\xab", collect_events_func); // اجمع_الأحداث
     interpreter.getFunctionManager().registerBuiltinFunction("collect_events", collect_events_func);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) معالجة الإرجاعات — يفحص الأحداث ويستدعي الدوال المسجلة
+    // (EN) Process callbacks — checks events and invokes registered functions
+    // ═══════════════════════════════════════════════════════════════════
+
+    // --- معالجة_الأحداث / process_callbacks ---
+    auto process_callbacks_func = [&interpreter](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        int callCount = 0;
+        auto widgets = sad::callbacks::getRegisteredWidgets();
+        for (int wid : widgets) {
+            // فحص النقر
+            std::string clickFn = sad::callbacks::getCallback(wid, "click");
+            if (!clickFn.empty() && sad::ui::button_was_clicked(wid)) {
+                try {
+                    std::vector<Data::Value> callArgs;
+                    callArgs.push_back(Data::Value(wid));
+                    interpreter.callUserFunction(clickFn, callArgs);
+                    callCount++;
+                } catch (...) {
+                    // تجاهل الأخطاء في الإرجاع لمنع تعطل الحلقة
+                }
+            }
+        }
+        return std::make_shared<Data::Value>(callCount);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction(
+        "\xd9\x85\xd8\xb9\xd8\xa7\xd9\x84\xd8\xac\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xad\xd8\xaf\xd8\xa7\xd8\xab", process_callbacks_func); // معالجة_الأحداث
+    interpreter.getFunctionManager().registerBuiltinFunction("process_callbacks", process_callbacks_func);
 
 } // registerBuiltinsPart13
 

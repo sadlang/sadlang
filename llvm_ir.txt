@@ -1,0 +1,10 @@
+﻿[DEBUG] buildClass: constructor param 'اسم' AST type=10 -> SIR type=1
+[DEBUG] preprocessClasses: created struct type for class 'اختبار' with 1 fields
+[DEBUG] emitFunctionBody: detected constructor for class 'اختبار'
+[DEBUG] emitStore: member assign %self.الاسم
+[DEBUG] emitStore: field 'الاسم' stored via GEP index 0
+[DEBUG] emitFunctionBody: detected method for class 'اختبار'
+[DEBUG] emitLoad: field access %self.الاسم
+[DEBUG] emitLoad: field 'الاسم' loaded via GEP index 0
+[DEBUG] emitAlloca: allocated struct for class 'اختبار' in register '%3'
+[DEBUG] emitStore: propagated class 'اختبار' from %3 to %ت

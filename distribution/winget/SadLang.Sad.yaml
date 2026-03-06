@@ -1,0 +1,24 @@
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# winget Manifest — لغة ص / Sad Programming Language
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# التثبيت: winget install SadLang.Sad
+#
+# لنشر الحزمة:
+#   1. Fork https://github.com/microsoft/winget-pkgs
+#   2. أنشئ مجلد: manifests/s/SadLang/Sad/1.0.0/
+#   3. ضع الملفات الثلاثة (version, defaultLocale, installer)
+#   4. افتح Pull Request
+#
+# أو استخدم أداة wingetcreate:
+#   wingetcreate new --url https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-full-v1.0.0-windows-x86_64.zip
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# الملف 1: SadLang.Sad.yaml (Version Manifest)
+PackageIdentifier: SadLang.Sad
+PackageVersion: 1.0.0
+DefaultLocale: ar
+ManifestType: version
+ManifestVersion: 1.6.0

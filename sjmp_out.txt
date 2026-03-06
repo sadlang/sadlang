@@ -1,0 +1,4 @@
+setjmp returned: 0
+try block
+setjmp returned: 1
+caught exception!

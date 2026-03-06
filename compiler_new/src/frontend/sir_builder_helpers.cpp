@@ -917,8 +917,20 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
             }
         } else if (objResult.type == SIRType::STRING) {
             resultType = SIRType::STRING;
-        } else if (objResult.type == SIRType::MAP) {
-            resultType = SIRType::I64;
+        } else if (objResult.type == SIRType::MAP || objResult.type == SIRType::STRUCT) {
+            // (AR) وصول خريطة بالمفتاح → استدعاء runtime
+            // (EN) Map key access → runtime call
+            std::string resultReg = newTempRegister();
+            SIRInstruction getInst;
+            getInst.opcode = SIROpcode::CALL;
+            getInst.result = SIROperand::Register(resultReg, SIRType::I64);
+            getInst.operands.push_back(SIROperand::ConstantString("__sad_map_get"));
+            getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
+            getInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
+            getInst.comment = "map get by key";
+            if (currentBlock_) currentBlock_->addInstruction(getInst);
+            
+            return BuildResult(resultReg, SIRType::I64);
         }
         
         // (AR) تعليمة ARRAY_GET للوصول بالفهرس
@@ -1154,33 +1166,40 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
                   << mapExpr->pairs.size() << " pairs" << std::endl;
         #endif
         
-        // (AR) تخصيص خريطة جديدة
-        // (EN) Allocate new map
+        // (AR) إنشاء خريطة عبر استدعاء runtime
+        // (EN) Create map via runtime call
         std::string mapReg = newTempRegister();
-        SIRInstruction allocInst;
-        allocInst.opcode = SIROpcode::ALLOC;
-        allocInst.result = SIROperand::Register(mapReg, SIRType::STRUCT);
-        allocInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(mapExpr->pairs.size())));
-        allocInst.comment = "map alloc {" + std::to_string(mapExpr->pairs.size()) + " pairs}";
+        SIRInstruction createInst;
+        createInst.opcode = SIROpcode::CALL;
+        createInst.result = SIROperand::Register(mapReg, SIRType::MAP);
+        createInst.operands.push_back(SIROperand::ConstantString("__sad_map_create"));
+        createInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(mapExpr->pairs.size())));
+        createInst.comment = "map create {" + std::to_string(mapExpr->pairs.size()) + " pairs}";
+        if (currentBlock_) currentBlock_->addInstruction(createInst);
         
-        if (currentBlock_) {
-            currentBlock_->addInstruction(allocInst);
-        }
-        
-        // (AR) تخزين الأزواج (مفتاح، قيمة)
-        // (EN) Store key-value pairs
+        // (AR) إضافة الأزواج (مفتاح، قيمة) عبر runtime
+        // (EN) Insert key-value pairs via runtime
         for (size_t i = 0; i < mapExpr->pairs.size(); ++i) {
+            // (AR) دعم النشر (spread): إذا كان الزوج spread، دمج الكائن
+            // (EN) Spread support: if pair is spread, merge object
+            if (mapExpr->pairs[i].isSpread()) {
+                auto spreadResult = buildExpression(mapExpr->pairs[i].value.get());
+                SIRInstruction mergeInst;
+                mergeInst.opcode = SIROpcode::CALL;
+                mergeInst.operands.push_back(SIROperand::ConstantString("__sad_map_merge"));
+                mergeInst.operands.push_back(SIROperand::Register(mapReg, SIRType::MAP));
+                mergeInst.operands.push_back(SIROperand::Register(spreadResult.registerName, spreadResult.type));
+                if (currentBlock_) currentBlock_->addInstruction(mergeInst);
+                continue;
+            }
+            
             auto keyResult = buildExpression(mapExpr->pairs[i].key.get());
             auto valResult = buildExpression(mapExpr->pairs[i].value.get());
             
-            // (AR) دالة مساعدة: تحويل BuildResult إلى SIROperand مع معالجة الثوابت
-            // (EN) Helper: convert BuildResult to SIROperand, handling constants properly
-            // When isConstant=true, registerName is empty and constantValue holds the data.
-            // We must emit a MOVE instruction to materialize the constant into a named register,
-            // because emitStore resolves operands by register name lookup in namedValues.
+            // (AR) تجسيد الثوابت إلى سجلات
+            // (EN) Materialize constants to registers
             auto materializeResult = [&](BuildResult& res) -> SIROperand {
                 if (res.isConstant) {
-                    // Emit MOVE to materialize constant into a fresh register
                     std::string reg = newTempRegister();
                     res.registerName = reg;
                     SIRInstruction moveInst(SIROpcode::MOVE);
@@ -1192,16 +1211,13 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
                     } else if (res.type == SIRType::BOOL) {
                         moveInst.operands.push_back(SIROperand::ConstantBool(res.constantValue == "true" || res.constantValue == "1"));
                     } else {
-                        // I64 or default
                         try {
                             moveInst.operands.push_back(SIROperand::ConstantI64(std::stoll(res.constantValue)));
                         } catch (...) {
                             moveInst.operands.push_back(SIROperand::ConstantI64(0));
                         }
                     }
-                    if (currentBlock_) {
-                        currentBlock_->addInstruction(moveInst);
-                    }
+                    if (currentBlock_) currentBlock_->addInstruction(moveInst);
                     res.isConstant = false;
                 }
                 return SIROperand::Register(res.registerName, res.type);
@@ -1210,34 +1226,19 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
             SIROperand keyOp = materializeResult(keyResult);
             SIROperand valOp = materializeResult(valResult);
             
-            // (AR) تخزين المفتاح
-            // (EN) Store key
-            SIRInstruction storeKeyInst;
-            storeKeyInst.opcode = SIROpcode::STORE;
-            storeKeyInst.operands.push_back(keyOp);
-            storeKeyInst.operands.push_back(SIROperand::Register(mapReg, SIRType::STRUCT));
-            storeKeyInst.operands.push_back(SIROperand::ConstantString("key_" + std::to_string(i)));
-            storeKeyInst.comment = "map key[" + std::to_string(i) + "]";
-            
-            if (currentBlock_) {
-                currentBlock_->addInstruction(storeKeyInst);
-            }
-            
-            // (AR) تخزين القيمة
-            // (EN) Store value
-            SIRInstruction storeValInst;
-            storeValInst.opcode = SIROpcode::STORE;
-            storeValInst.operands.push_back(valOp);
-            storeValInst.operands.push_back(SIROperand::Register(mapReg, SIRType::STRUCT));
-            storeValInst.operands.push_back(SIROperand::ConstantString("val_" + std::to_string(i)));
-            storeValInst.comment = "map val[" + std::to_string(i) + "]";
-            
-            if (currentBlock_) {
-                currentBlock_->addInstruction(storeValInst);
-            }
+            // (AR) إدراج الزوج في الخريطة
+            // (EN) Insert pair into map
+            SIRInstruction setInst;
+            setInst.opcode = SIROpcode::CALL;
+            setInst.operands.push_back(SIROperand::ConstantString("__sad_map_set"));
+            setInst.operands.push_back(SIROperand::Register(mapReg, SIRType::MAP));
+            setInst.operands.push_back(keyOp);
+            setInst.operands.push_back(valOp);
+            setInst.comment = "map set [" + std::to_string(i) + "]";
+            if (currentBlock_) currentBlock_->addInstruction(setInst);
         }
         
-        return BuildResult(mapReg, SIRType::STRUCT);
+        return BuildResult(mapReg, SIRType::MAP);
     }
     
     // ========================================================================
@@ -1304,17 +1305,72 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         // (EN) Create unique name for anonymous function
         std::string lambdaName = "__lambda_" + std::to_string(nextTempRegister_++);
         
-        // (AR) بناء معاملات الدالة
-        // (EN) Build function parameters
+        // (AR) جمع أسماء المعاملات
+        // (EN) Collect parameter names
+        std::set<std::string> paramNames;
+        for (const auto& param : lambdaExpr->parameters) {
+            paramNames.insert(param.name);
+        }
+        
+        // (AR) تحليل المتغيرات الحرة (الملتقطة من النطاق الخارجي)
+        // (EN) Analyze free variables (captured from outer scope)
+        std::set<std::string> freeVars;
+        if (lambdaExpr->body) {
+            collectFreeVarsExpr(lambdaExpr->body.get(), paramNames, freeVars);
+        }
+        if (lambdaExpr->blockBody) {
+            std::set<std::string> boundCopy = paramNames;
+            collectFreeVarsStmt(lambdaExpr->blockBody.get(), boundCopy, freeVars);
+        }
+        
+        // (AR) البحث عن المتغيرات الملتقطة في النطاق الحالي
+        // (EN) Look up captured variables in current scope
+        std::vector<CaptureInfo> captures;
+        for (const auto& fv : freeVars) {
+            auto* varPtr = lookupVariable(fv);
+            if (varPtr) {
+                CaptureInfo ci;
+                ci.varName = fv;
+                ci.registerName = varPtr->registerName;
+                ci.type = varPtr->type;
+                captures.push_back(ci);
+                #ifndef NDEBUG
+                std::cout << "[DEBUG] Lambda capture: " << fv 
+                          << " (reg=" << ci.registerName << ", type=" 
+                          << static_cast<int>(ci.type) << ")" << std::endl;
+                #endif
+            }
+        }
+        
+        // (AR) حفظ التقاطات الإغلاق
+        // (EN) Store closure captures
+        if (!captures.empty()) {
+            closureCaptures_[lambdaName] = captures;
+        }
+        
+        // (AR) بناء معاملات الدالة (معاملات صريحة + معاملات ملتقطة مخفية)
+        // (EN) Build function parameters (explicit params + hidden captured params)
         std::vector<SIRParameter> sirParams;
         for (const auto& param : lambdaExpr->parameters) {
             SIRType paramType = SIRType::I64; // (AR) نوع افتراضي / (EN) Default type
             sirParams.push_back(SIRParameter(param.name, paramType));
         }
+        // (AR) إضافة المعاملات الملتقطة كمعاملات إضافية مخفية
+        // (EN) Add captured variables as hidden extra parameters
+        for (const auto& cap : captures) {
+            sirParams.push_back(SIRParameter("__cap_" + cap.varName, cap.type));
+        }
+        
+        // (AR) استنتاج نوع الإرجاع
+        // (EN) Infer return type
+        SIRType retType = SIRType::I64;
+        if (lambdaExpr->blockBody) {
+            retType = inferReturnTypeFromBody(lambdaExpr->blockBody.get());
+        }
         
         // (AR) إنشاء دالة SIR للـ lambda
         // (EN) Create SIR function for lambda
-        auto lambdaFunc = std::make_shared<SIRFunction>(lambdaName, SIRType::I64);
+        auto lambdaFunc = std::make_shared<SIRFunction>(lambdaName, retType);
         for (const auto& lp : sirParams) lambdaFunc->addParameter(lp);
         
         // (AR) حفظ السياق الحالي
@@ -1331,8 +1387,8 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         
         enterScope();
         
-        // (AR) تسجيل المعاملات كمتغيرات محلية
-        // (EN) Register parameters as local variables
+        // (AR) تسجيل المعاملات الصريحة كمتغيرات محلية
+        // (EN) Register explicit parameters as local variables
         for (size_t i = 0; i < lambdaExpr->parameters.size(); ++i) {
             std::string paramReg = "%" + lambdaExpr->parameters[i].name;
             VariableInfo paramVar;
@@ -1344,17 +1400,48 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
             addVariable(paramVar);
         }
         
-        // (AR) بناء جسم الـ lambda (تعبير واحد)
-        // (EN) Build lambda body (single expression)
+        // (AR) تسجيل المتغيرات الملتقطة كمتغيرات محلية (من المعاملات المخفية)
+        // (EN) Register captured variables as local variables (from hidden params)
+        for (const auto& cap : captures) {
+            std::string capParamReg = "%__cap_" + cap.varName;
+            VariableInfo capVar;
+            capVar.name = cap.varName;  // (AR) استخدم الاسم الأصلي / (EN) Use original name
+            capVar.type = cap.type;
+            capVar.registerName = capParamReg;
+            capVar.isMutable = false;
+            capVar.scopeLevel = currentScopeLevel_;
+            addVariable(capVar);
+        }
+        
+        // (AR) بناء جسم الـ lambda
+        // (EN) Build lambda body
         if (lambdaExpr->body) {
+            // (AR) تعبير واحد - إرجاع تلقائي
+            // (EN) Single expression - auto-return
             auto bodyResult = buildExpression(lambdaExpr->body.get());
-            // (AR) إرجاع النتيجة تلقائياً
-            // (EN) Automatically return the result
             SIRInstruction retInst;
             retInst.opcode = SIROpcode::RET;
             retInst.operands.push_back(SIROperand::Register(bodyResult.registerName, bodyResult.type));
             if (currentBlock_) {
                 currentBlock_->addInstruction(retInst);
+            }
+        } else if (lambdaExpr->blockBody) {
+            // (AR) جسم كتلي - بناء الجمل
+            // (EN) Block body - build statements
+            buildStatement(lambdaExpr->blockBody.get());
+            // (AR) إضافة RET_VOID في نهاية الكتلة إن لم يكن هناك return
+            // (EN) Add RET_VOID at end if no return
+            if (currentBlock_ && !currentBlock_->instructions.empty()) {
+                auto& lastInst = currentBlock_->instructions.back();
+                if (lastInst.opcode != SIROpcode::RET && lastInst.opcode != SIROpcode::RET_VOID) {
+                    SIRInstruction retVoid;
+                    retVoid.opcode = SIROpcode::RET_VOID;
+                    currentBlock_->addInstruction(retVoid);
+                }
+            } else if (currentBlock_) {
+                SIRInstruction retVoid;
+                retVoid.opcode = SIROpcode::RET_VOID;
+                currentBlock_->addInstruction(retVoid);
             }
         }
         
@@ -1365,6 +1452,16 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         if (module_) {
             module_->addFunction(lambdaFunc);
         }
+        
+        // (AR) تسجيل في جدول الدوال
+        // (EN) Register in function table
+        FunctionInfo lambdaInfo;
+        lambdaInfo.name = lambdaName;
+        lambdaInfo.returnType = retType;
+        for (const auto& sp : sirParams) {
+            lambdaInfo.parameters.push_back(sp);
+        }
+        functionTable_[lambdaName] = lambdaInfo;
         
         // (AR) استعادة السياق السابق
         // (EN) Restore previous context
@@ -1645,27 +1742,173 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         allocInst.result = SIROperand::Register(resultMapReg, SIRType::STRUCT);
         allocInst.operands.push_back(SIROperand::ConstantI64(0));
         allocInst.comment = "dict comprehension result";
+        if (currentBlock_) currentBlock_->addInstruction(allocInst);
         
-        if (currentBlock_) {
-            currentBlock_->addInstruction(allocInst);
-        }
-        
-        // (AR) بناء التعبير القابل للتكرار واستدعاء حلقة runtime
-        // (EN) Build iterable and invoke runtime loop
+        // (AR) بناء التعبير القابل للتكرار
+        // (EN) Build iterable expression
         auto iterResult = buildExpression(dictCompExpr->iterable.get());
         
-        // (AR) حلقة مبسطة مع runtime
-        // (EN) Simplified loop with runtime
-        SIRInstruction loopInst;
-        loopInst.opcode = SIROpcode::CALL;
-        loopInst.operands.push_back(SIROperand::ConstantString("__sad_dict_comprehension"));
-        loopInst.operands.push_back(SIROperand::Register(resultMapReg, SIRType::STRUCT));
-        loopInst.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
-        loopInst.comment = "dict comprehension loop";
+        // (AR) تخصيص عداد الحلقة
+        // (EN) Allocate loop counter
+        std::string idxReg = newTempRegister();
+        SIRInstruction allocIdx;
+        allocIdx.opcode = SIROpcode::ALLOC;
+        allocIdx.result = SIROperand::Register(idxReg, SIRType::I64);
+        allocIdx.operands.push_back(SIROperand::ConstantI64(1));
+        if (currentBlock_) currentBlock_->addInstruction(allocIdx);
+        
+        SIRInstruction storeZero;
+        storeZero.opcode = SIROpcode::STORE;
+        storeZero.operands.push_back(SIROperand::ConstantI64(0));
+        storeZero.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(storeZero);
+        
+        // (AR) كتل الحلقة
+        // (EN) Loop blocks
+        std::string condLabel = newLabel("dc_cond");
+        std::string bodyLabel = newLabel("dc_body");
+        std::string exitLabel = newLabel("dc_exit");
+        
+        auto condBlock = createBasicBlock(condLabel);
+        auto bodyBlock = createBasicBlock(bodyLabel);
+        auto exitBlock = createBasicBlock(exitLabel);
         
         if (currentBlock_) {
-            currentBlock_->addInstruction(loopInst);
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
         }
+        
+        // (AR) كتلة الشرط
+        // (EN) Condition block
+        if (currentFunction_) currentFunction_->addBasicBlock(condBlock);
+        currentBlock_ = condBlock;
+        
+        std::string curIdxReg = newTempRegister();
+        SIRInstruction loadIdx;
+        loadIdx.opcode = SIROpcode::LOAD;
+        loadIdx.result = SIROperand::Register(curIdxReg, SIRType::I64);
+        loadIdx.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(loadIdx);
+        
+        std::string lenReg = newTempRegister();
+        SIRInstruction callLen;
+        callLen.opcode = SIROpcode::CALL;
+        callLen.result = SIROperand::Register(lenReg, SIRType::I64);
+        callLen.operands.push_back(SIROperand::ConstantString("__sad_len"));
+        callLen.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+        if (currentBlock_) currentBlock_->addInstruction(callLen);
+        
+        std::string cmpReg = newTempRegister();
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Binary(
+                SIROpcode::LT,
+                SIROperand::Register(cmpReg, SIRType::BOOL),
+                SIROperand::Register(curIdxReg, SIRType::I64),
+                SIROperand::Register(lenReg, SIRType::I64)
+            ));
+            currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                SIROperand::Register(cmpReg, SIRType::BOOL),
+                SIROperand::Label(bodyLabel),
+                SIROperand::Label(exitLabel)
+            ));
+        }
+        
+        // (AR) كتلة الجسم
+        // (EN) Body block
+        if (currentFunction_) currentFunction_->addBasicBlock(bodyBlock);
+        currentBlock_ = bodyBlock;
+        
+        enterScope();
+        
+        // (AR) تحميل العنصر وتسجيل متغير الحلقة
+        // (EN) Load element and register loop variable
+        std::string elemReg = newTempRegister();
+        SIRInstruction loadElem;
+        loadElem.opcode = SIROpcode::LOAD;
+        loadElem.result = SIROperand::Register(elemReg, SIRType::I64);
+        loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+        loadElem.operands.push_back(SIROperand::Register(curIdxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(loadElem);
+        
+        VariableInfo loopVar;
+        loopVar.name = dictCompExpr->variable;
+        loopVar.type = SIRType::I64;
+        loopVar.registerName = elemReg;
+        loopVar.isMutable = false;
+        loopVar.scopeLevel = currentScopeLevel_;
+        addVariable(loopVar);
+        
+        // (AR) فحص الشرط (إن وجد)
+        // (EN) Check condition (if present)
+        bool hasCondition = (dictCompExpr->condition != nullptr);
+        std::string storeLabel, incLabel;
+        
+        if (hasCondition) {
+            storeLabel = newLabel("dc_store");
+            incLabel = newLabel("dc_inc");
+            
+            auto condResult = buildExpression(dictCompExpr->condition.get());
+            auto storeBlock2 = createBasicBlock(storeLabel);
+            auto incBlock = createBasicBlock(incLabel);
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                    SIROperand::Register(condResult.registerName, SIRType::BOOL),
+                    SIROperand::Label(storeLabel),
+                    SIROperand::Label(incLabel)
+                ));
+            }
+            
+            if (currentFunction_) currentFunction_->addBasicBlock(storeBlock2);
+            currentBlock_ = storeBlock2;
+        }
+        
+        // (AR) بناء تعبيرات المفتاح والقيمة وإضافتها للخريطة
+        // (EN) Build key and value expressions and add to map
+        auto keyResult = buildExpression(dictCompExpr->key.get());
+        auto valResult = buildExpression(dictCompExpr->value.get());
+        
+        SIRInstruction setInst;
+        setInst.opcode = SIROpcode::CALL;
+        setInst.operands.push_back(SIROperand::ConstantString("__sad_dict_set"));
+        setInst.operands.push_back(SIROperand::Register(resultMapReg, SIRType::STRUCT));
+        setInst.operands.push_back(SIROperand::Register(keyResult.registerName, keyResult.type));
+        setInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+        if (currentBlock_) currentBlock_->addInstruction(setInst);
+        
+        if (hasCondition) {
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(incLabel)));
+            }
+            auto incBlock2 = createBasicBlock(incLabel);
+            if (currentFunction_) currentFunction_->addBasicBlock(incBlock2);
+            currentBlock_ = incBlock2;
+        }
+        
+        // (AR) زيادة العداد
+        // (EN) Increment counter
+        std::string nextIdxReg = newTempRegister();
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Binary(
+                SIROpcode::ADD_I64,
+                SIROperand::Register(nextIdxReg, SIRType::I64),
+                SIROperand::Register(curIdxReg, SIRType::I64),
+                SIROperand::ConstantI64(1)
+            ));
+            
+            SIRInstruction storeIdx;
+            storeIdx.opcode = SIROpcode::STORE;
+            storeIdx.operands.push_back(SIROperand::Register(nextIdxReg, SIRType::I64));
+            storeIdx.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+            currentBlock_->addInstruction(storeIdx);
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
+        }
+        
+        exitScope();
+        
+        // (AR) كتلة الخروج
+        // (EN) Exit block
+        if (currentFunction_) currentFunction_->addBasicBlock(exitBlock);
+        currentBlock_ = exitBlock;
         
         return BuildResult(resultMapReg, SIRType::STRUCT);
     }
@@ -1679,31 +1922,179 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         std::cout << "[DEBUG] buildExpression: found SetComprehensionExpr" << std::endl;
         #endif
         
+        // (AR) المجموعة تُمثَّل كمصفوفة بعناصر فريدة (مثل المفسر)
+        // (EN) Set represented as array with unique elements (like interpreter)
         std::string resultSetReg = newTempRegister();
         SIRInstruction allocInst;
         allocInst.opcode = SIROpcode::ALLOC;
-        allocInst.result = SIROperand::Register(resultSetReg, SIRType::STRUCT);
+        allocInst.result = SIROperand::Register(resultSetReg, SIRType::ARRAY);
         allocInst.operands.push_back(SIROperand::ConstantI64(0));
         allocInst.comment = "set comprehension result";
+        if (currentBlock_) currentBlock_->addInstruction(allocInst);
         
-        if (currentBlock_) {
-            currentBlock_->addInstruction(allocInst);
-        }
-        
+        // (AR) بناء التعبير القابل للتكرار
+        // (EN) Build iterable expression
         auto iterResult = buildExpression(setCompExpr->iterable.get());
         
-        SIRInstruction loopInst;
-        loopInst.opcode = SIROpcode::CALL;
-        loopInst.operands.push_back(SIROperand::ConstantString("__sad_set_comprehension"));
-        loopInst.operands.push_back(SIROperand::Register(resultSetReg, SIRType::STRUCT));
-        loopInst.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
-        loopInst.comment = "set comprehension loop";
+        // (AR) تخصيص عداد الحلقة
+        // (EN) Allocate loop counter
+        std::string idxReg = newTempRegister();
+        SIRInstruction allocIdx;
+        allocIdx.opcode = SIROpcode::ALLOC;
+        allocIdx.result = SIROperand::Register(idxReg, SIRType::I64);
+        allocIdx.operands.push_back(SIROperand::ConstantI64(1));
+        if (currentBlock_) currentBlock_->addInstruction(allocIdx);
+        
+        SIRInstruction storeZero;
+        storeZero.opcode = SIROpcode::STORE;
+        storeZero.operands.push_back(SIROperand::ConstantI64(0));
+        storeZero.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(storeZero);
+        
+        // (AR) كتل الحلقة
+        // (EN) Loop blocks
+        std::string condLabel = newLabel("sc_cond");
+        std::string bodyLabel = newLabel("sc_body");
+        std::string exitLabel = newLabel("sc_exit");
+        
+        auto condBlock = createBasicBlock(condLabel);
+        auto bodyBlock = createBasicBlock(bodyLabel);
+        auto exitBlock = createBasicBlock(exitLabel);
         
         if (currentBlock_) {
-            currentBlock_->addInstruction(loopInst);
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
         }
         
-        return BuildResult(resultSetReg, SIRType::STRUCT);
+        // (AR) كتلة الشرط
+        // (EN) Condition block
+        if (currentFunction_) currentFunction_->addBasicBlock(condBlock);
+        currentBlock_ = condBlock;
+        
+        std::string curIdxReg = newTempRegister();
+        SIRInstruction loadIdx;
+        loadIdx.opcode = SIROpcode::LOAD;
+        loadIdx.result = SIROperand::Register(curIdxReg, SIRType::I64);
+        loadIdx.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(loadIdx);
+        
+        std::string lenReg = newTempRegister();
+        SIRInstruction callLen;
+        callLen.opcode = SIROpcode::CALL;
+        callLen.result = SIROperand::Register(lenReg, SIRType::I64);
+        callLen.operands.push_back(SIROperand::ConstantString("__sad_len"));
+        callLen.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+        if (currentBlock_) currentBlock_->addInstruction(callLen);
+        
+        std::string cmpReg = newTempRegister();
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Binary(
+                SIROpcode::LT,
+                SIROperand::Register(cmpReg, SIRType::BOOL),
+                SIROperand::Register(curIdxReg, SIRType::I64),
+                SIROperand::Register(lenReg, SIRType::I64)
+            ));
+            currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                SIROperand::Register(cmpReg, SIRType::BOOL),
+                SIROperand::Label(bodyLabel),
+                SIROperand::Label(exitLabel)
+            ));
+        }
+        
+        // (AR) كتلة الجسم
+        // (EN) Body block
+        if (currentFunction_) currentFunction_->addBasicBlock(bodyBlock);
+        currentBlock_ = bodyBlock;
+        
+        enterScope();
+        
+        std::string elemReg = newTempRegister();
+        SIRInstruction loadElem;
+        loadElem.opcode = SIROpcode::LOAD;
+        loadElem.result = SIROperand::Register(elemReg, SIRType::I64);
+        loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+        loadElem.operands.push_back(SIROperand::Register(curIdxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(loadElem);
+        
+        VariableInfo loopVar;
+        loopVar.name = setCompExpr->variable;
+        loopVar.type = SIRType::I64;
+        loopVar.registerName = elemReg;
+        loopVar.isMutable = false;
+        loopVar.scopeLevel = currentScopeLevel_;
+        addVariable(loopVar);
+        
+        // (AR) فحص الشرط (إن وجد)
+        // (EN) Check condition (if present)
+        bool hasCondition = (setCompExpr->condition != nullptr);
+        std::string storeLabel, incLabel;
+        
+        if (hasCondition) {
+            storeLabel = newLabel("sc_store");
+            incLabel = newLabel("sc_inc");
+            
+            auto condResult = buildExpression(setCompExpr->condition.get());
+            auto storeBlock2 = createBasicBlock(storeLabel);
+            auto incBlock = createBasicBlock(incLabel);
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                    SIROperand::Register(condResult.registerName, SIRType::BOOL),
+                    SIROperand::Label(storeLabel),
+                    SIROperand::Label(incLabel)
+                ));
+            }
+            
+            if (currentFunction_) currentFunction_->addBasicBlock(storeBlock2);
+            currentBlock_ = storeBlock2;
+        }
+        
+        // (AR) بناء التعبير وإضافته للمجموعة (بدون تكرار عبر runtime)
+        // (EN) Build expression and add to set (dedup via runtime)
+        auto elemExprResult = buildExpression(setCompExpr->expression.get());
+        
+        SIRInstruction appendInst;
+        appendInst.opcode = SIROpcode::CALL;
+        appendInst.operands.push_back(SIROperand::ConstantString("__sad_set_add"));
+        appendInst.operands.push_back(SIROperand::Register(resultSetReg, SIRType::ARRAY));
+        appendInst.operands.push_back(SIROperand::Register(elemExprResult.registerName, elemExprResult.type));
+        if (currentBlock_) currentBlock_->addInstruction(appendInst);
+        
+        if (hasCondition) {
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(incLabel)));
+            }
+            auto incBlock2 = createBasicBlock(incLabel);
+            if (currentFunction_) currentFunction_->addBasicBlock(incBlock2);
+            currentBlock_ = incBlock2;
+        }
+        
+        // (AR) زيادة العداد
+        // (EN) Increment counter
+        std::string nextIdxReg = newTempRegister();
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Binary(
+                SIROpcode::ADD_I64,
+                SIROperand::Register(nextIdxReg, SIRType::I64),
+                SIROperand::Register(curIdxReg, SIRType::I64),
+                SIROperand::ConstantI64(1)
+            ));
+            
+            SIRInstruction storeIdx;
+            storeIdx.opcode = SIROpcode::STORE;
+            storeIdx.operands.push_back(SIROperand::Register(nextIdxReg, SIRType::I64));
+            storeIdx.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+            currentBlock_->addInstruction(storeIdx);
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
+        }
+        
+        exitScope();
+        
+        // (AR) كتلة الخروج
+        // (EN) Exit block
+        if (currentFunction_) currentFunction_->addBasicBlock(exitBlock);
+        currentBlock_ = exitBlock;
+        
+        return BuildResult(resultSetReg, SIRType::ARRAY);
     }
     
     // ========================================================================
@@ -1715,20 +2106,161 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
         std::cout << "[DEBUG] buildExpression: found GeneratorExpr" << std::endl;
         #endif
         
-        // (AR) المولّد يُخفّض إلى دالة مجهولة تُنشئ مصفوفة كسولة
-        // (EN) Generator is lowered to an anonymous fn producing a lazy array
-        std::string genReg = newTempRegister();
+        // (AR) المولّد يُقيَّم بشكل كامل كمصفوفة (مثل المفسر)
+        // (EN) Generator eagerly evaluated as array (matching interpreter)
+        std::string resultArrReg = newTempRegister();
         SIRInstruction allocInst;
         allocInst.opcode = SIROpcode::ALLOC;
-        allocInst.result = SIROperand::Register(genReg, SIRType::FUNCTION);
+        allocInst.result = SIROperand::Register(resultArrReg, SIRType::ARRAY);
         allocInst.operands.push_back(SIROperand::ConstantI64(0));
-        allocInst.comment = "generator expression";
+        allocInst.comment = "generator expression result";
+        if (currentBlock_) currentBlock_->addInstruction(allocInst);
+        
+        auto iterResult = buildExpression(genExpr->iterable.get());
+        
+        std::string idxReg = newTempRegister();
+        SIRInstruction allocIdx;
+        allocIdx.opcode = SIROpcode::ALLOC;
+        allocIdx.result = SIROperand::Register(idxReg, SIRType::I64);
+        allocIdx.operands.push_back(SIROperand::ConstantI64(1));
+        if (currentBlock_) currentBlock_->addInstruction(allocIdx);
+        
+        SIRInstruction storeZero;
+        storeZero.opcode = SIROpcode::STORE;
+        storeZero.operands.push_back(SIROperand::ConstantI64(0));
+        storeZero.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(storeZero);
+        
+        std::string condLabel = newLabel("gen_cond");
+        std::string bodyLabel = newLabel("gen_body");
+        std::string exitLabel = newLabel("gen_exit");
+        
+        auto condBlock = createBasicBlock(condLabel);
+        auto bodyBlock = createBasicBlock(bodyLabel);
+        auto exitBlock = createBasicBlock(exitLabel);
         
         if (currentBlock_) {
-            currentBlock_->addInstruction(allocInst);
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
         }
         
-        return BuildResult(genReg, SIRType::FUNCTION);
+        if (currentFunction_) currentFunction_->addBasicBlock(condBlock);
+        currentBlock_ = condBlock;
+        
+        std::string curIdxReg = newTempRegister();
+        SIRInstruction loadIdx;
+        loadIdx.opcode = SIROpcode::LOAD;
+        loadIdx.result = SIROperand::Register(curIdxReg, SIRType::I64);
+        loadIdx.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(loadIdx);
+        
+        std::string lenReg = newTempRegister();
+        SIRInstruction callLen;
+        callLen.opcode = SIROpcode::CALL;
+        callLen.result = SIROperand::Register(lenReg, SIRType::I64);
+        callLen.operands.push_back(SIROperand::ConstantString("__sad_len"));
+        callLen.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+        if (currentBlock_) currentBlock_->addInstruction(callLen);
+        
+        std::string cmpReg = newTempRegister();
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Binary(
+                SIROpcode::LT,
+                SIROperand::Register(cmpReg, SIRType::BOOL),
+                SIROperand::Register(curIdxReg, SIRType::I64),
+                SIROperand::Register(lenReg, SIRType::I64)
+            ));
+            currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                SIROperand::Register(cmpReg, SIRType::BOOL),
+                SIROperand::Label(bodyLabel),
+                SIROperand::Label(exitLabel)
+            ));
+        }
+        
+        if (currentFunction_) currentFunction_->addBasicBlock(bodyBlock);
+        currentBlock_ = bodyBlock;
+        
+        enterScope();
+        
+        std::string elemReg = newTempRegister();
+        SIRInstruction loadElem;
+        loadElem.opcode = SIROpcode::LOAD;
+        loadElem.result = SIROperand::Register(elemReg, SIRType::I64);
+        loadElem.operands.push_back(SIROperand::Register(iterResult.registerName, iterResult.type));
+        loadElem.operands.push_back(SIROperand::Register(curIdxReg, SIRType::I64));
+        if (currentBlock_) currentBlock_->addInstruction(loadElem);
+        
+        VariableInfo loopVar;
+        loopVar.name = genExpr->variable;
+        loopVar.type = SIRType::I64;
+        loopVar.registerName = elemReg;
+        loopVar.isMutable = false;
+        loopVar.scopeLevel = currentScopeLevel_;
+        addVariable(loopVar);
+        
+        bool hasCondition = (genExpr->condition != nullptr);
+        std::string storeLabel, incLabel;
+        
+        if (hasCondition) {
+            storeLabel = newLabel("gen_store");
+            incLabel = newLabel("gen_inc");
+            
+            auto condResult = buildExpression(genExpr->condition.get());
+            auto storeBlock2 = createBasicBlock(storeLabel);
+            auto incBlock = createBasicBlock(incLabel);
+            
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                    SIROperand::Register(condResult.registerName, SIRType::BOOL),
+                    SIROperand::Label(storeLabel),
+                    SIROperand::Label(incLabel)
+                ));
+            }
+            
+            if (currentFunction_) currentFunction_->addBasicBlock(storeBlock2);
+            currentBlock_ = storeBlock2;
+        }
+        
+        auto elemExprResult = buildExpression(genExpr->element.get());
+        
+        SIRInstruction appendInst;
+        appendInst.opcode = SIROpcode::CALL;
+        appendInst.operands.push_back(SIROperand::ConstantString("__sad_array_push"));
+        appendInst.operands.push_back(SIROperand::Register(resultArrReg, SIRType::ARRAY));
+        appendInst.operands.push_back(SIROperand::Register(elemExprResult.registerName, elemExprResult.type));
+        if (currentBlock_) currentBlock_->addInstruction(appendInst);
+        
+        if (hasCondition) {
+            if (currentBlock_) {
+                currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(incLabel)));
+            }
+            auto incBlock2 = createBasicBlock(incLabel);
+            if (currentFunction_) currentFunction_->addBasicBlock(incBlock2);
+            currentBlock_ = incBlock2;
+        }
+        
+        std::string nextIdxReg = newTempRegister();
+        if (currentBlock_) {
+            currentBlock_->addInstruction(SIRInstruction::Binary(
+                SIROpcode::ADD_I64,
+                SIROperand::Register(nextIdxReg, SIRType::I64),
+                SIROperand::Register(curIdxReg, SIRType::I64),
+                SIROperand::ConstantI64(1)
+            ));
+            
+            SIRInstruction storeIdx;
+            storeIdx.opcode = SIROpcode::STORE;
+            storeIdx.operands.push_back(SIROperand::Register(nextIdxReg, SIRType::I64));
+            storeIdx.operands.push_back(SIROperand::Register(idxReg, SIRType::I64));
+            currentBlock_->addInstruction(storeIdx);
+            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
+        }
+        
+        exitScope();
+        
+        if (currentFunction_) currentFunction_->addBasicBlock(exitBlock);
+        currentBlock_ = exitBlock;
+        
+        return BuildResult(resultArrReg, SIRType::ARRAY);
     }
     
     // ========================================================================
@@ -2058,6 +2590,179 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
               << typeid(*expr).name() << std::endl;
     #endif
     return BuildResult();
+}
+
+// ============================================================================
+// (AR) جمع المتغيرات الحرة في تعبير (لاكتشاف التقاطات الإغلاقات)
+// (EN) Collect free variables in an expression (for closure capture detection)
+// ============================================================================
+void SIRBuilder::collectFreeVarsExpr(Sad::AST::Expression* expr,
+                                      const std::set<std::string>& boundNames,
+                                      std::set<std::string>& freeVars) {
+    if (!expr) return;
+    
+    // (AR) متغير - إذا لم يكن مُعرَّفاً فهو حرّ
+    // (EN) Variable - if not bound, it's free
+    if (auto* var = dynamic_cast<Sad::AST::VariableExpr*>(expr)) {
+        if (boundNames.find(var->name) == boundNames.end()) {
+            // (AR) تحقق من وجوده في النطاق الخارجي
+            // (EN) Check if it exists in the outer scope
+            auto* varOpt = lookupVariable(var->name);
+            if (varOpt) {
+                freeVars.insert(var->name);
+            }
+        }
+        return;
+    }
+    
+    // (AR) عملية ثنائية
+    // (EN) Binary operation
+    if (auto* bin = dynamic_cast<Sad::AST::BinaryExpr*>(expr)) {
+        collectFreeVarsExpr(bin->left.get(), boundNames, freeVars);
+        collectFreeVarsExpr(bin->right.get(), boundNames, freeVars);
+        return;
+    }
+    
+    // (AR) عملية أحادية
+    // (EN) Unary operation
+    if (auto* un = dynamic_cast<Sad::AST::UnaryExpr*>(expr)) {
+        collectFreeVarsExpr(un->operand.get(), boundNames, freeVars);
+        return;
+    }
+    
+    // (AR) استدعاء دالة
+    // (EN) Function call
+    if (auto* call = dynamic_cast<Sad::AST::CallExpr*>(expr)) {
+        collectFreeVarsExpr(call->callee.get(), boundNames, freeVars);
+        for (auto& arg : call->arguments) {
+            collectFreeVarsExpr(arg.get(), boundNames, freeVars);
+        }
+        return;
+    }
+    
+    // (AR) وصول عضو
+    // (EN) Member access
+    if (auto* mem = dynamic_cast<Sad::AST::MemberAccessExpr*>(expr)) {
+        collectFreeVarsExpr(mem->object.get(), boundNames, freeVars);
+        return;
+    }
+    
+    // (AR) وصول فهرس
+    // (EN) Index access
+    if (auto* idx = dynamic_cast<Sad::AST::IndexExpr*>(expr)) {
+        collectFreeVarsExpr(idx->object.get(), boundNames, freeVars);
+        collectFreeVarsExpr(idx->index.get(), boundNames, freeVars);
+        return;
+    }
+    
+    // (AR) تعبير شرطي ثلاثي
+    // (EN) Ternary conditional
+    if (auto* tern = dynamic_cast<Sad::AST::TernaryExpr*>(expr)) {
+        collectFreeVarsExpr(tern->condition.get(), boundNames, freeVars);
+        collectFreeVarsExpr(tern->trueExpr.get(), boundNames, freeVars);
+        collectFreeVarsExpr(tern->falseExpr.get(), boundNames, freeVars);
+        return;
+    }
+    
+    // (AR) مصفوفة
+    // (EN) Array literal
+    if (auto* arr = dynamic_cast<Sad::AST::ArrayExpr*>(expr)) {
+        for (auto& el : arr->elements) {
+            collectFreeVarsExpr(el.get(), boundNames, freeVars);
+        }
+        return;
+    }
+    
+    // (AR) لامدا متداخلة - لا نغوص فيها (لها نطاقها الخاص)
+    // (EN) Nested lambda - don't recurse into it (has its own scope)
+    if (dynamic_cast<Sad::AST::LambdaExpr*>(expr)) {
+        return;
+    }
+    
+    // (AR) القيم الحرفية (أرقام، نصوص، منطقية) - ليست متغيرات حرة
+    // (EN) Literals (numbers, strings, booleans) - not free variables
+    // No action needed for NumberLiteral, StringLiteral, BoolLiteral, NullLiteral
+}
+
+// ============================================================================
+// (AR) جمع المتغيرات الحرة في جملة (تعاودي)
+// (EN) Collect free variables in a statement (recursive)
+// ============================================================================
+void SIRBuilder::collectFreeVarsStmt(Sad::AST::Statement* stmt,
+                                      std::set<std::string>& boundNames,
+                                      std::set<std::string>& freeVars) {
+    if (!stmt) return;
+    
+    // (AR) كتلة جمل
+    // (EN) Block statement
+    if (auto* block = dynamic_cast<Sad::AST::BlockStmt*>(stmt)) {
+        for (auto& s : block->statements) {
+            collectFreeVarsStmt(s.get(), boundNames, freeVars);
+        }
+        return;
+    }
+    
+    // (AR) تعبير مستقل
+    // (EN) Expression statement
+    if (auto* exprStmt = dynamic_cast<Sad::AST::ExprStmt*>(stmt)) {
+        if (exprStmt->expression) {
+            collectFreeVarsExpr(exprStmt->expression.get(), boundNames, freeVars);
+        }
+        return;
+    }
+    
+    // (AR) تعريف متغير
+    // (EN) Variable declaration
+    if (auto* varDecl = dynamic_cast<Sad::AST::VarDeclStmt*>(stmt)) {
+        if (varDecl->initializer) {
+            collectFreeVarsExpr(varDecl->initializer.get(), boundNames, freeVars);
+        }
+        boundNames.insert(varDecl->name);
+        return;
+    }
+    
+    // (AR) إرجاع
+    // (EN) Return
+    if (auto* ret = dynamic_cast<Sad::AST::ReturnStmt*>(stmt)) {
+        if (ret->value) {
+            collectFreeVarsExpr(ret->value.get(), boundNames, freeVars);
+        }
+        return;
+    }
+    
+    // (AR) شرط
+    // (EN) If statement
+    if (auto* ifStmt = dynamic_cast<Sad::AST::IfStmt*>(stmt)) {
+        collectFreeVarsExpr(ifStmt->condition.get(), boundNames, freeVars);
+        if (ifStmt->thenBranch) {
+            collectFreeVarsStmt(ifStmt->thenBranch.get(), boundNames, freeVars);
+        }
+        if (ifStmt->elseBranch) {
+            collectFreeVarsStmt(ifStmt->elseBranch.get(), boundNames, freeVars);
+        }
+        return;
+    }
+    
+    // (AR) حلقة while
+    // (EN) While loop
+    if (auto* whileStmt = dynamic_cast<Sad::AST::WhileStmt*>(stmt)) {
+        collectFreeVarsExpr(whileStmt->condition.get(), boundNames, freeVars);
+        if (whileStmt->body) {
+            collectFreeVarsStmt(whileStmt->body.get(), boundNames, freeVars);
+        }
+        return;
+    }
+    
+    // (AR) حلقة for-each
+    // (EN) For-each loop
+    if (auto* forStmt = dynamic_cast<Sad::AST::ForRangeStmt*>(stmt)) {
+        collectFreeVarsExpr(forStmt->iterable.get(), boundNames, freeVars);
+        boundNames.insert(forStmt->variable);
+        if (forStmt->body) {
+            collectFreeVarsStmt(forStmt->body.get(), boundNames, freeVars);
+        }
+        return;
+    }
 }
 
 } // namespace SIR

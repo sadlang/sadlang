@@ -1,0 +1,344 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * android_main.cpp.template - نقطة دخول التطبيق الأصلي
+ * Native Application Entry Point Template
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * هذا الملف يوفر نقطة الدخول الرئيسية لتطبيقات أندرويد المكتوبة بلغة ص.
+ * يُنشأ تلقائياً عند بناء التطبيق ويربط مع الكود المترجم من ص.
+ *
+ * This file provides the main entry point for Android apps written in Sad.
+ * It's generated automatically during build and links with compiled Sad code.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+#include <android_native_app_glue.h>
+#include <android/log.h>
+#include <android/native_window.h>
+#include <android/input.h>
+
+#include <EGL/egl.h>
+#include <GLES3/gl3.h>
+
+#include <cstdlib>
+#include <cstring>
+
+// ═══════════════════════════════════════════════════════════════════════════
+// تسجيل الأحداث / Logging
+// ═══════════════════════════════════════════════════════════════════════════
+
+#define LOG_TAG "SadApp"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// الدوال المُصدّرة من كود ص المترجم
+// Exported functions from compiled Sad code
+// ═══════════════════════════════════════════════════════════════════════════
+
+extern "C" {
+    // نقطة الدخول الرئيسية من كود ص
+    extern void sad_main(void* app_state);
+    
+    // دالة التهيئة (اختيارية)
+    extern void sad_init(void* app_state) __attribute__((weak));
+    
+    // دالة التنظيف (اختيارية)
+    extern void sad_cleanup(void* app_state) __attribute__((weak));
+    
+    // دالة الرسم (اختيارية)
+    extern void sad_draw(void* app_state) __attribute__((weak));
+    
+    // معالجة الإدخال (اختيارية)
+    extern void sad_input(void* app_state, int type, float x, float y) __attribute__((weak));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// حالة التطبيق / Application State
+// ═══════════════════════════════════════════════════════════════════════════
+
+struct SadAppState {
+    struct android_app* app;
+    
+    // EGL
+    EGLDisplay display;
+    EGLSurface surface;
+    EGLContext context;
+    
+    // الحالة
+    bool initialized;
+    bool running;
+    bool focused;
+    
+    // أبعاد الشاشة
+    int32_t width;
+    int32_t height;
+    
+    // بيانات المستخدم
+    void* userData;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// تهيئة EGL / EGL Initialization
+// ═══════════════════════════════════════════════════════════════════════════
+
+static bool initEGL(SadAppState* state) {
+    // الحصول على العرض الافتراضي
+    state->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (state->display == EGL_NO_DISPLAY) {
+        LOGE("فشل الحصول على EGL display");
+        return false;
+    }
+    
+    // تهيئة EGL
+    if (!eglInitialize(state->display, nullptr, nullptr)) {
+        LOGE("فشل تهيئة EGL");
+        return false;
+    }
+    
+    // تكوين السطح
+    const EGLint configAttribs[] = {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_BLUE_SIZE, 8,
+        EGL_GREEN_SIZE, 8,
+        EGL_RED_SIZE, 8,
+        EGL_ALPHA_SIZE, 8,
+        EGL_DEPTH_SIZE, 24,
+        EGL_STENCIL_SIZE, 8,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
+        EGL_NONE
+    };
+    
+    EGLConfig config;
+    EGLint numConfigs;
+    eglChooseConfig(state->display, configAttribs, &config, 1, &numConfigs);
+    
+    if (numConfigs == 0) {
+        LOGE("لم يتم العثور على تكوين EGL مناسب");
+        return false;
+    }
+    
+    // تحديد تنسيق النافذة
+    EGLint format;
+    eglGetConfigAttrib(state->display, config, EGL_NATIVE_VISUAL_ID, &format);
+    ANativeWindow_setBuffersGeometry(state->app->window, 0, 0, format);
+    
+    // إنشاء السطح
+    state->surface = eglCreateWindowSurface(state->display, config, state->app->window, nullptr);
+    if (state->surface == EGL_NO_SURFACE) {
+        LOGE("فشل إنشاء EGL surface");
+        return false;
+    }
+    
+    // إنشاء السياق
+    const EGLint contextAttribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 3,
+        EGL_NONE
+    };
+    
+    state->context = eglCreateContext(state->display, config, EGL_NO_CONTEXT, contextAttribs);
+    if (state->context == EGL_NO_CONTEXT) {
+        LOGE("فشل إنشاء EGL context");
+        return false;
+    }
+    
+    // تفعيل السياق
+    if (!eglMakeCurrent(state->display, state->surface, state->surface, state->context)) {
+        LOGE("فشل تفعيل EGL context");
+        return false;
+    }
+    
+    // الحصول على أبعاد السطح
+    eglQuerySurface(state->display, state->surface, EGL_WIDTH, &state->width);
+    eglQuerySurface(state->display, state->surface, EGL_HEIGHT, &state->height);
+    
+    // تعيين viewport
+    glViewport(0, 0, state->width, state->height);
+    
+    LOGI("✓ تمت تهيئة EGL: %dx%d", state->width, state->height);
+    return true;
+}
+
+static void terminateEGL(SadAppState* state) {
+    if (state->display != EGL_NO_DISPLAY) {
+        eglMakeCurrent(state->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        
+        if (state->context != EGL_NO_CONTEXT) {
+            eglDestroyContext(state->display, state->context);
+        }
+        
+        if (state->surface != EGL_NO_SURFACE) {
+            eglDestroySurface(state->display, state->surface);
+        }
+        
+        eglTerminate(state->display);
+    }
+    
+    state->display = EGL_NO_DISPLAY;
+    state->context = EGL_NO_CONTEXT;
+    state->surface = EGL_NO_SURFACE;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// معالجة الأوامر / Command Handler
+// ═══════════════════════════════════════════════════════════════════════════
+
+static void handleCmd(struct android_app* app, int32_t cmd) {
+    SadAppState* state = static_cast<SadAppState*>(app->userData);
+    
+    switch (cmd) {
+        case APP_CMD_INIT_WINDOW:
+            if (app->window != nullptr) {
+                LOGI("تهيئة النافذة...");
+                if (initEGL(state)) {
+                    state->initialized = true;
+                    
+                    // استدعاء دالة التهيئة من كود ص
+                    if (sad_init) {
+                        sad_init(state);
+                    }
+                }
+            }
+            break;
+            
+        case APP_CMD_TERM_WINDOW:
+            LOGI("إنهاء النافذة...");
+            
+            // استدعاء دالة التنظيف من كود ص
+            if (sad_cleanup) {
+                sad_cleanup(state);
+            }
+            
+            terminateEGL(state);
+            state->initialized = false;
+            break;
+            
+        case APP_CMD_GAINED_FOCUS:
+            LOGI("اكتساب التركيز");
+            state->focused = true;
+            break;
+            
+        case APP_CMD_LOST_FOCUS:
+            LOGI("فقدان التركيز");
+            state->focused = false;
+            break;
+            
+        case APP_CMD_DESTROY:
+            LOGI("تدمير التطبيق");
+            state->running = false;
+            break;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// معالجة الإدخال / Input Handler
+// ═══════════════════════════════════════════════════════════════════════════
+
+static int32_t handleInput(struct android_app* app, AInputEvent* event) {
+    SadAppState* state = static_cast<SadAppState*>(app->userData);
+    
+    if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION) {
+        int32_t action = AMotionEvent_getAction(event);
+        float x = AMotionEvent_getX(event, 0);
+        float y = AMotionEvent_getY(event, 0);
+        
+        int inputType = 0;
+        switch (action & AMOTION_EVENT_ACTION_MASK) {
+            case AMOTION_EVENT_ACTION_DOWN:
+                inputType = 1; // لمس بداية
+                break;
+            case AMOTION_EVENT_ACTION_UP:
+                inputType = 2; // رفع الإصبع
+                break;
+            case AMOTION_EVENT_ACTION_MOVE:
+                inputType = 3; // حركة
+                break;
+        }
+        
+        // استدعاء معالج الإدخال من كود ص
+        if (sad_input && inputType > 0) {
+            sad_input(state, inputType, x, y);
+        }
+        
+        return 1;
+    }
+    
+    return 0;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// الحلقة الرئيسية / Main Loop
+// ═══════════════════════════════════════════════════════════════════════════
+
+static void mainLoop(SadAppState* state) {
+    while (state->running) {
+        // معالجة أحداث Android
+        int events;
+        struct android_poll_source* source;
+        
+        while (ALooper_pollAll(state->focused ? 0 : -1, nullptr, &events,
+                              reinterpret_cast<void**>(&source)) >= 0) {
+            if (source != nullptr) {
+                source->process(state->app, source);
+            }
+            
+            if (state->app->destroyRequested) {
+                state->running = false;
+                return;
+            }
+        }
+        
+        // الرسم إذا كانت النافذة جاهزة
+        if (state->initialized && state->focused) {
+            // مسح الشاشة
+            glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            
+            // استدعاء دالة الرسم من كود ص
+            if (sad_draw) {
+                sad_draw(state);
+            }
+            
+            // تبديل المخازن المؤقتة
+            eglSwapBuffers(state->display, state->surface);
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// نقطة الدخول الرئيسية / Main Entry Point
+// ═══════════════════════════════════════════════════════════════════════════
+
+void android_main(struct android_app* app) {
+    LOGI("╔═══════════════════════════════════════════════════╗");
+    LOGI("║         تطبيق ص - Sad Application                 ║");
+    LOGI("║         الإصدار: {{VERSION_NAME}}                           ║");
+    LOGI("╚═══════════════════════════════════════════════════╝");
+    
+    // تهيئة حالة التطبيق
+    SadAppState state = {};
+    state.app = app;
+    state.running = true;
+    state.initialized = false;
+    state.focused = false;
+    state.display = EGL_NO_DISPLAY;
+    state.surface = EGL_NO_SURFACE;
+    state.context = EGL_NO_CONTEXT;
+    
+    // ربط الحالة بالتطبيق
+    app->userData = &state;
+    app->onAppCmd = handleCmd;
+    app->onInputEvent = handleInput;
+    
+    LOGI("بدء تطبيق ص...");
+    
+    // استدعاء الدالة الرئيسية من كود ص
+    sad_main(&state);
+    
+    // الدخول في الحلقة الرئيسية
+    mainLoop(&state);
+    
+    LOGI("إنهاء تطبيق ص");
+}

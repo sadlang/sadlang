@@ -1,0 +1,16 @@
+{
+    "app_name": "لغة ص",
+    "app_name_en": "Sad Language",
+    "package_name": "org.sadlang.interpreter",
+    "version_code": 1,
+    "version_name": "1.0.0",
+    "min_sdk": 21,
+    "target_sdk": 34,
+    "main_file": "main.ص",
+    "permissions": [
+        "INTERNET",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE"
+    ],
+    "features": ["interpreter", "repl", "editor", "stdlib"]
+}

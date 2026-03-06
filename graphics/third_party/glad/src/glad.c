@@ -3,6 +3,7 @@
  */
 
 #include <glad/glad.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 

@@ -39,6 +39,7 @@
 #include "property_nodes.h"
 #include <memory>
 #include <string>
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -900,6 +901,19 @@ private:
     // (AR) مكدس سياق الحلقات / (EN) Loop context stack
     std::vector<LoopContext> loopStack_;
     
+    // (AR) أسماء مستعارة لدوال Lambda: اسم_المتغير -> اسم_lambda
+    // (EN) Lambda aliases: variable_name -> lambda_function_name
+    std::unordered_map<std::string, std::string> lambdaAliases_;
+    
+    // (AR) التقاطات الإغلاقات: اسم_lambda -> [(اسم_متغير, اسم_سجل)]
+    // (EN) Closure captures: lambda_name -> [(var_name, register_name)]
+    struct CaptureInfo {
+        std::string varName;       ///< (AR) اسم المتغير الملتقط / (EN) Captured variable name
+        std::string registerName;  ///< (AR) اسم السجل في النطاق الخارجي / (EN) Register name in outer scope
+        SIRType type;              ///< (AR) نوع المتغير / (EN) Variable type
+    };
+    std::unordered_map<std::string, std::vector<CaptureInfo>> closureCaptures_;
+    
     // (AR) مكدس نطاقات الأنواع العامة / (EN) Generic scopes stack
     std::vector<GenericScope> genericScopeStack_;
     
@@ -1012,6 +1026,22 @@ private:
      * @brief (EN) Check type compatibility
      */
     bool areTypesCompatible(SIRType t1, SIRType t2);
+    
+    /**
+     * @brief (AR) جمع المتغيرات الحرة في تعبير (لاكتشاف التقاطات الإغلاقات)
+     * @brief (EN) Collect free variables in an expression (for closure capture detection)
+     */
+    void collectFreeVarsExpr(Sad::AST::Expression* expr, 
+                             const std::set<std::string>& boundNames,
+                             std::set<std::string>& freeVars);
+    
+    /**
+     * @brief (AR) جمع المتغيرات الحرة في جملة (تعاودي)
+     * @brief (EN) Collect free variables in a statement (recursive)
+     */
+    void collectFreeVarsStmt(Sad::AST::Statement* stmt,
+                             std::set<std::string>& boundNames,
+                             std::set<std::string>& freeVars);
     
     /**
      * @brief (AR) إنشاء تعليمة تحويل نوع إذا لزم

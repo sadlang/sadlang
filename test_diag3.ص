@@ -1,0 +1,54 @@
+من مكتبات_خارجية.تعبيرات_منتظمة.src.مكتبة استورد تطابق، بحث، يحتوي
+
+# Debug email pattern piece by piece
+اطبع_سطر("=== تشخيص البريد ===")
+
+# Part 1: local part
+اطبع("  local part [a-zA-Z0-9._%+-]+: ")
+اطبع_سطر(يحتوي("[a-zA-Z0-9._%+-]+", "user", 0))
+
+# Part 2: @ sign
+اطبع("  user@: ")
+اطبع_سطر(يحتوي("[a-zA-Z0-9._%+-]+@", "user@example.com", 0))
+
+# Part 3: domain - the . is not escaped in [a-zA-Z0-9.-]
+اطبع("  [a-zA-Z0-9.-]+: ")
+اطبع_سطر(يحتوي("[a-zA-Z0-9.-]+", "example.com", 0))
+
+# Part 4: domain dot
+اطبع("  [a-zA-Z0-9.-]+\\.: ")
+اطبع_سطر(يحتوي("[a-zA-Z0-9.-]+\\.", "example.", 0))
+
+# Part 5: full domain
+اطبع("  [a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}: ")
+اطبع_سطر(يحتوي("[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", "example.com", 0))
+
+# Part 6: full domain in 'user@example.com'
+اطبع("  domain in full email: ")
+اطبع_سطر(يحتوي("[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", "user@example.com", 0))
+
+# Simpler pattern
+اطبع_سطر("=== تشخيص إضافي ===")
+اطبع("  \\. in class: ")
+اطبع_سطر(يحتوي("[a-z0-9.]+\\.[a-z]{2}", "example.com", 0))
+
+# The issue: [a-zA-Z0-9.-] vs [a-zA-Z0-9\.-]
+# .-] range? a-z.0-9 etc.
+متغير r = بحث("[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", "example.com", 0)
+إذا (r != لاشيء)
+    اطبع("  match: '")
+    اطبع(r.النص_المطابق)
+    اطبع_سطر("'")
+وإلا
+    اطبع_سطر("  NO MATCH")
+نهاية
+
+# Test full email
+متغير r2 = بحث("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", "user@example.com", 0)
+إذا (r2 != لاشيء)
+    اطبع("  full email match: '")
+    اطبع(r2.النص_المطابق)
+    اطبع_سطر("'")
+وإلا
+    اطبع_سطر("  full email NO MATCH")
+نهاية

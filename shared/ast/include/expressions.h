@@ -349,6 +349,47 @@ public:
 };
 
 // =========================================================================
+// Named Argument Expression / تعبير الوسيط المسمّى
+// =========================================================================
+
+/**
+ * @brief (AR) وسيط مسمّى — يسمح بصيغة شبيهة بـ Flutter:
+ *        عمود(تباعد: 10، خلفية: "ابيض"، نص("مرحبا"))
+ * @brief (EN) Named argument — enables Flutter-like declarative syntax:
+ *        column(spacing: 10, background: "white", text("hello"))
+ *
+ * يُستخدم داخل قائمة وسائط CallExpr. يُكتشف عبر dynamic_cast
+ * في visitCallExpr ويُحوّل إلى أزواج اسم/قيمة لتوافق مع _autoChildren.
+ *
+ * Used inside CallExpr::arguments. Detected via dynamic_cast
+ * in visitCallExpr and converted to name/value pairs for _autoChildren.
+ */
+class NamedArgExpr : public Expression {
+public:
+    std::string name;       ///< اسم الوسيط / Argument name (e.g., "تباعد", "خلفية")
+    ExprPtr value;          ///< قيمة الوسيط / Argument value expression
+
+    NamedArgExpr(const std::string& name, ExprPtr value,
+                 const Lexer::Position& pos = Lexer::Position())
+        : Expression(pos), name(name), value(std::move(value)) {}
+
+    void accept(ASTVisitor& visitor) override {
+        // (AR) الاسم يُعالج في visitCallExpr عبر dynamic_cast
+        // (EN) Name is handled in visitCallExpr via dynamic_cast
+        // Fallback: just evaluate the value
+        if (value) value->accept(visitor);
+    }
+
+    std::string toString() const override {
+        return name + ": " + (value ? value->toString() : "لاشيء");
+    }
+
+    Data::DataType getType() const override {
+        return value ? value->getType() : Data::DataType::NONE;
+    }
+};
+
+// =========================================================================
 // Index Expression / تعبير الفهرسة
 // =========================================================================
 

@@ -1,0 +1,473 @@
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# GitHub Actions — بناء ونشر إصدارات لغة ص تلقائياً
+# Automated Build & Release for Sad Programming Language
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# يعمل هذا الـ workflow عند:
+#   1. دفع وسم (tag) جديد بصيغة v*.*.* (مثل v1.0.0)
+#   2. يدوياً من واجهة GitHub Actions
+#
+# ينتج:
+#   - sad-v{VER}-windows-x86_64.zip        (المفسر فقط)
+#   - sad-full-v{VER}-windows-x86_64.zip   (المفسر + المترجم + كل الأدوات)
+#   - sadc-v{VER}-windows-x86_64.zip       (المترجم فقط)
+#   - نفس الملفات لـ linux-x86_64, linux-aarch64, macos-x86_64, macos-aarch64
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "Release / إصدار جديد"
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "رقم الإصدار (مثال: 1.0.0)"
+        required: true
+        type: string
+      prerelease:
+        description: "إصدار تجريبي؟"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  BUILD_TYPE: Release
+  CMAKE_VERSION: "3.28"
+
+# ──────────────────────────────────────────────────────────────────────
+# الوظائف / Jobs
+# ──────────────────────────────────────────────────────────────────────
+jobs:
+  # ════════════════════════════════════════════════════════════════════
+  # 1. بناء المفسر على جميع المنصات (بدون LLVM)
+  # ════════════════════════════════════════════════════════════════════
+  build-interpreter:
+    name: "المفسر / Interpreter (${{ matrix.os }}-${{ matrix.arch }})"
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows x86_64
+          - os: windows
+            arch: x86_64
+            runner: windows-latest
+            cmake_generator: "Visual Studio 17 2022"
+            archive_ext: zip
+
+          # Linux x86_64
+          - os: linux
+            arch: x86_64
+            runner: ubuntu-22.04
+            cmake_generator: "Unix Makefiles"
+            archive_ext: tar.gz
+
+          # Linux aarch64
+          - os: linux
+            arch: aarch64
+            runner: ubuntu-22.04-arm
+            cmake_generator: "Unix Makefiles"
+            archive_ext: tar.gz
+
+          # macOS x86_64
+          - os: macos
+            arch: x86_64
+            runner: macos-13
+            cmake_generator: "Unix Makefiles"
+            archive_ext: tar.gz
+
+          # macOS aarch64 (Apple Silicon)
+          - os: macos
+            arch: aarch64
+            runner: macos-14
+            cmake_generator: "Unix Makefiles"
+            archive_ext: tar.gz
+
+    steps:
+      - name: "استنساخ المصدر / Checkout"
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "تحديد الإصدار / Determine Version"
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: "إعداد CMake / Setup CMake"
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: ${{ env.CMAKE_VERSION }}
+
+      # ── تبعيات Linux ──
+      - name: "تبعيات Linux / Linux Dependencies"
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential libssl-dev
+
+      # ── تهيئة البناء (بدون LLVM) ──
+      - name: "تهيئة CMake / Configure"
+        run: >
+          cmake -S . -B build
+          -G "${{ matrix.cmake_generator }}"
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          -DENABLE_LLVM_BACKEND=OFF
+          -DBUILD_TESTS=OFF
+          -DBUILD_PKG_MANAGER=ON
+          -DBUILD_LSP_SERVER=ON
+          -DBUILD_REPL=ON
+
+      # ── بناء المفسر والأدوات ──
+      - name: "بناء / Build"
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad
+
+      # ── بناء الأدوات المساعدة ──
+      - name: "بناء الأدوات / Build Tools"
+        run: |
+          cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-lsp || true
+          cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-pkg || true
+        continue-on-error: true
+
+      # ── تجميع الحزمة ──
+      - name: "تجميع الحزمة / Package (Unix)"
+        if: matrix.os != 'windows'
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG_DIR="sad-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
+          mkdir -p "$PKG_DIR/bin" "$PKG_DIR/stdlib" "$PKG_DIR/docs"
+
+          # نسخ الملفات التنفيذية
+          cp build/bin/sad "$PKG_DIR/bin/" 2>/dev/null || true
+          cp build/bin/sad-lsp "$PKG_DIR/bin/" 2>/dev/null || true
+          cp build/bin/sad-lsp-server "$PKG_DIR/bin/" 2>/dev/null || true
+          cp build/bin/sad-pkg "$PKG_DIR/bin/" 2>/dev/null || true
+          cp build/bin/sad-repl "$PKG_DIR/bin/" 2>/dev/null || true
+          cp build/bin/sad-fmt "$PKG_DIR/bin/" 2>/dev/null || true
+
+          # نسخ المكتبة القياسية
+          cp -r stdlib/* "$PKG_DIR/stdlib/" 2>/dev/null || true
+
+          # نسخ الملفات المرافقة
+          cp README.md "$PKG_DIR/" 2>/dev/null || true
+          cp distribution/install.sh "$PKG_DIR/" 2>/dev/null || true
+
+          # ضغط
+          tar -czf "${PKG_DIR}.${{ matrix.archive_ext }}" "$PKG_DIR"
+          echo "ARCHIVE=${PKG_DIR}.${{ matrix.archive_ext }}" >> $GITHUB_ENV
+
+      - name: "تجميع الحزمة / Package (Windows)"
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $VERSION = "${{ steps.version.outputs.version }}"
+          $PKG_DIR = "sad-v${VERSION}-windows-${{ matrix.arch }}"
+          New-Item -ItemType Directory -Path "$PKG_DIR\bin", "$PKG_DIR\stdlib", "$PKG_DIR\docs" -Force
+
+          # نسخ الملفات التنفيذية
+          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\sad.exe" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\sad-lsp.exe" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\sad-pkg.exe" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\sad-repl.exe" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\sad-fmt.exe" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\SDL2.dll" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
+
+          # المكتبة القياسية
+          Copy-Item -Path "stdlib\*" -Destination "$PKG_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
+
+          # ملفات مرافقة
+          Copy-Item "README.md" "$PKG_DIR\" -ErrorAction SilentlyContinue
+          Copy-Item "distribution\install.ps1" "$PKG_DIR\" -ErrorAction SilentlyContinue
+
+          # ضغط
+          Compress-Archive -Path "$PKG_DIR" -DestinationPath "${PKG_DIR}.zip"
+          echo "ARCHIVE=${PKG_DIR}.zip" >> $env:GITHUB_ENV
+
+      - name: "رفع الحزمة / Upload Artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: "sad-interpreter-${{ matrix.os }}-${{ matrix.arch }}"
+          path: ${{ env.ARCHIVE }}
+          retention-days: 5
+
+  # ════════════════════════════════════════════════════════════════════
+  # 2. بناء المترجم (مع LLVM) — Windows و Linux فقط
+  # ════════════════════════════════════════════════════════════════════
+  build-compiler:
+    name: "المترجم / Compiler (${{ matrix.os }}-${{ matrix.arch }})"
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows
+            arch: x86_64
+            runner: windows-latest
+            cmake_generator: "Visual Studio 17 2022"
+
+          - os: linux
+            arch: x86_64
+            runner: ubuntu-22.04
+            cmake_generator: "Unix Makefiles"
+
+          - os: macos
+            arch: aarch64
+            runner: macos-14
+            cmake_generator: "Unix Makefiles"
+
+    steps:
+      - name: "استنساخ المصدر / Checkout"
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "تحديد الإصدار / Determine Version"
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          fi
+
+      # ── تثبيت LLVM ──
+      - name: "تثبيت LLVM / Install LLVM (Linux)"
+        if: matrix.os == 'linux'
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq llvm-18-dev libclang-18-dev lld-18 build-essential libssl-dev
+          echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
+
+      - name: "تثبيت LLVM / Install LLVM (Windows)"
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          choco install llvm --version=18.1.8 -y --no-progress
+          echo "LLVM_DIR=C:\Program Files\LLVM\lib\cmake\llvm" >> $env:GITHUB_ENV
+
+      - name: "تثبيت LLVM / Install LLVM (macOS)"
+        if: matrix.os == 'macos'
+        run: |
+          brew install llvm@18
+          echo "LLVM_DIR=$(brew --prefix llvm@18)/lib/cmake/llvm" >> $GITHUB_ENV
+
+      # ── تهيئة البناء (مع LLVM) ──
+      - name: "تهيئة CMake / Configure"
+        run: >
+          cmake -S . -B build
+          -G "${{ matrix.cmake_generator }}"
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          -DENABLE_LLVM_BACKEND=ON
+          -DLLVM_DIR="${{ env.LLVM_DIR }}"
+          -DBUILD_TESTS=OFF
+
+      # ── بناء المترجم ──
+      - name: "بناء المترجم / Build Compiler"
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
+
+      # ── بناء المفسر أيضاً (للحزمة الكاملة) ──
+      - name: "بناء المفسر / Build Interpreter"
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad
+
+      # ── تجميع حزمة المترجم فقط ──
+      - name: "حزمة المترجم / Package Compiler (Unix)"
+        if: matrix.os != 'windows'
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # حزمة المترجم فقط
+          SADC_DIR="sadc-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
+          mkdir -p "$SADC_DIR/bin"
+          cp build/bin/sadc "$SADC_DIR/bin/" 2>/dev/null || true
+          tar -czf "${SADC_DIR}.tar.gz" "$SADC_DIR"
+
+          # الحزمة الكاملة (المفسر + المترجم + أدوات)
+          FULL_DIR="sad-full-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
+          mkdir -p "$FULL_DIR/bin" "$FULL_DIR/stdlib"
+          cp build/bin/sad "$FULL_DIR/bin/" 2>/dev/null || true
+          cp build/bin/sadc "$FULL_DIR/bin/" 2>/dev/null || true
+          cp build/bin/sad-lsp "$FULL_DIR/bin/" 2>/dev/null || true
+          cp build/bin/sad-lsp-server "$FULL_DIR/bin/" 2>/dev/null || true
+          cp build/bin/sad-pkg "$FULL_DIR/bin/" 2>/dev/null || true
+          cp build/bin/sad-repl "$FULL_DIR/bin/" 2>/dev/null || true
+          cp build/bin/sad-fmt "$FULL_DIR/bin/" 2>/dev/null || true
+          cp -r stdlib/* "$FULL_DIR/stdlib/" 2>/dev/null || true
+          cp README.md "$FULL_DIR/" 2>/dev/null || true
+          tar -czf "${FULL_DIR}.tar.gz" "$FULL_DIR"
+
+          echo "SADC_ARCHIVE=${SADC_DIR}.tar.gz" >> $GITHUB_ENV
+          echo "FULL_ARCHIVE=${FULL_DIR}.tar.gz" >> $GITHUB_ENV
+
+      - name: "حزمة المترجم / Package Compiler (Windows)"
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $VERSION = "${{ steps.version.outputs.version }}"
+          $BIN = "build\bin\${{ env.BUILD_TYPE }}"
+
+          # حزمة المترجم فقط
+          $SADC_DIR = "sadc-v${VERSION}-windows-${{ matrix.arch }}"
+          New-Item -ItemType Directory -Path "$SADC_DIR\bin" -Force
+          Copy-Item "$BIN\sadc.exe" "$SADC_DIR\bin\" -ErrorAction SilentlyContinue
+          Compress-Archive -Path "$SADC_DIR" -DestinationPath "${SADC_DIR}.zip"
+
+          # الحزمة الكاملة
+          $FULL_DIR = "sad-full-v${VERSION}-windows-${{ matrix.arch }}"
+          New-Item -ItemType Directory -Path "$FULL_DIR\bin", "$FULL_DIR\stdlib" -Force
+          Copy-Item "$BIN\sad.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item "$BIN\sadc.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item "$BIN\sad-lsp.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item "$BIN\sad-pkg.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item "$BIN\sad-repl.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item "$BIN\sad-fmt.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item "$BIN\SDL2.dll" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
+          Copy-Item -Path "stdlib\*" -Destination "$FULL_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
+          Copy-Item "README.md" "$FULL_DIR\" -ErrorAction SilentlyContinue
+          Compress-Archive -Path "$FULL_DIR" -DestinationPath "${FULL_DIR}.zip"
+
+          echo "SADC_ARCHIVE=${SADC_DIR}.zip" >> $env:GITHUB_ENV
+          echo "FULL_ARCHIVE=${FULL_DIR}.zip" >> $env:GITHUB_ENV
+
+      - name: "رفع حزمة المترجم / Upload Compiler"
+        uses: actions/upload-artifact@v4
+        with:
+          name: "sadc-${{ matrix.os }}-${{ matrix.arch }}"
+          path: ${{ env.SADC_ARCHIVE }}
+          retention-days: 5
+
+      - name: "رفع الحزمة الكاملة / Upload Full"
+        uses: actions/upload-artifact@v4
+        with:
+          name: "sad-full-${{ matrix.os }}-${{ matrix.arch }}"
+          path: ${{ env.FULL_ARCHIVE }}
+          retention-days: 5
+
+  # ════════════════════════════════════════════════════════════════════
+  # 3. إنشاء الإصدار على GitHub ورفع جميع الملفات
+  # ════════════════════════════════════════════════════════════════════
+  release:
+    name: "نشر الإصدار / Create Release"
+    needs: [build-interpreter, build-compiler]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: "استنساخ المصدر / Checkout"
+        uses: actions/checkout@v4
+
+      - name: "تحديد الإصدار / Determine Version"
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "tag=v${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: "تحميل جميع الحزم / Download All Artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts/
+
+      - name: "تجهيز الملفات / Prepare Release Files"
+        run: |
+          mkdir -p release-files
+          find release-artifacts/ -type f \( -name "*.zip" -o -name "*.tar.gz" \) -exec cp {} release-files/ \;
+          echo "=== الملفات المتاحة للنشر ==="
+          ls -lh release-files/
+
+      - name: "حساب SHA256 / Compute Checksums"
+        run: |
+          cd release-files
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: "إنشاء ملاحظات الإصدار / Generate Release Notes"
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cat > release-notes.md <<'NOTES'
+          # لغة ص v${{ steps.version.outputs.version }}
+
+          ## طرق التثبيت
+
+          ### Windows (PowerShell)
+          ```powershell
+          irm https://sad-lang.org/install.ps1 | iex
+          ```
+
+          ### Linux / macOS
+          ```bash
+          curl -fsSL https://sad-lang.org/install.sh | sh
+          ```
+
+          ### تحميل يدوي
+          اختر الملف المناسب لمنصتك:
+
+          | الملف | المحتوى |
+          |-------|---------|
+          | `sad-v*-{OS}-{ARCH}.*` | **المفسر** + المكتبة القياسية + الأدوات الأساسية |
+          | `sad-full-v*-{OS}-{ARCH}.*` | **المفسر + المترجم** + كل الأدوات |
+          | `sadc-v*-{OS}-{ARCH}.*` | **المترجم فقط** (يتطلب LLVM 18) |
+
+          ### المنصات المدعومة
+          - Windows x86_64
+          - Linux x86_64 / aarch64
+          - macOS x86_64 / aarch64 (Apple Silicon)
+
+          ### ما الفرق بين المفسر والمترجم؟
+          - **المفسر (sad)**: يشغل ملفات `.ص` مباشرة — لا يحتاج أي تبعيات إضافية
+          - **المترجم (sadc)**: يحوّل `.ص` إلى ملف تنفيذي أصلي عبر LLVM — أداء أعلى، يتطلب LLVM 18
+
+          ---
+          NOTES
+
+      - name: "نشر الإصدار / Create GitHub Release"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "لغة ص v${{ steps.version.outputs.version }}"
+          body_path: release-notes.md
+          prerelease: ${{ github.event.inputs.prerelease || false }}
+          files: |
+            release-files/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ════════════════════════════════════════════════════════════════════
+  # 4. تحديث سكريبتات التثبيت (اختياري)
+  # ════════════════════════════════════════════════════════════════════
+  update-install-scripts:
+    name: "تحديث سكريبتات التثبيت / Update Install Scripts"
+    needs: [release]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: "نسخ السكريبتات / Copy Scripts"
+        run: |
+          # يمكن رفع السكريبتات لخادم sad-lang.org أو GitHub Pages
+          echo "سكريبتات التثبيت محدّثة ومتاحة في distribution/"
+          echo "للنشر على sad-lang.org، ارفع install.ps1 و install.sh"

@@ -4,6 +4,7 @@
  */
 
 #ifndef __glad_h_
+#include <stddef.h>
 #define __glad_h_
 
 #ifdef __cplusplus

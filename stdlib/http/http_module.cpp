@@ -50,7 +50,7 @@ namespace fs = std::filesystem;
     #define SOCKET int
     #define INVALID_SOCKET -1
     #define SOCKET_ERROR -1
-    #define closesocket close
+    #define closesocket ::close
 #endif
 
 namespace sad {

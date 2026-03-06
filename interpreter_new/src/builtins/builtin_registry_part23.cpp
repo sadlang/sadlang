@@ -230,7 +230,7 @@ void registerBuiltinsPart23(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(sehUSBPortStatus(ctrl, port));
 #else
             auto& usb = LowLevel::USBManager::getInstance();
-            return std::make_shared<Data::Value>(usb.getPortStatus(ctrl, port));
+            return std::make_shared<Data::Value>(static_cast<int>(usb.getPortStatus(ctrl, port)));
 #endif
         };
         fm.registerBuiltinFunction("usb_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9_\xd9\x85\xd9\x86\xd9\x81\xd8\xb0", f);

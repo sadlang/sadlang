@@ -836,7 +836,9 @@ std::vector<Parameter> ParserCore::parseTypedParameterList() {
 
 /**
  * @brief (AR) يحلل قائمة وسائط استدعاء: f(1, 2, 3) أو f(1، 2، 3).
+ *        يدعم الوسائط المسمّاة بصيغة Flutter: عمود(تباعد: 10، خلفية: "ابيض")
  *        (EN) Parses function call argument list: f(1, 2, 3) or f(1، 2، 3).
+ *        Supports Flutter-like named arguments: column(spacing: 10, bg: "white")
  */
 ExprList ParserCore::parseArgumentList() {
     ExprList arguments;
@@ -845,7 +847,23 @@ ExprList ParserCore::parseArgumentList() {
     // (AR) تحليل الوسائط
     if (!check(TT::PAREN_RIGHT)) {
         do {
-            arguments.push_back(parseExpression());
+            // ─── كشف الوسائط المسمّاة: مُعرّف : تعبير ───
+            // (EN) Detect named arguments: IDENTIFIER : expression
+            // (AR) إذا كان الرمز الحالي مُعرّف والتالي نقطتان
+            //      فهذا وسيط مسمّى (مثل Flutter)
+            if ((check(TT::IDENTIFIER) || isTokenUsableAsName(current_.getType()))
+                && nextToken_.getType() == TT::COLON) {
+                // (AR) وسيط مسمّى: اسم: قيمة
+                std::string argName = current_.getValue();
+                auto pos = current_.getPosition();
+                advance(); // (AR) تجاوز اسم الوسيط
+                advance(); // (AR) تجاوز ':'
+                auto value = parseExpression();
+                arguments.push_back(
+                    std::make_unique<NamedArgExpr>(argName, std::move(value), pos));
+            } else {
+                arguments.push_back(parseExpression());
+            }
         } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));  // (AR) دعم الفاصلة العربية (،)
     }
     

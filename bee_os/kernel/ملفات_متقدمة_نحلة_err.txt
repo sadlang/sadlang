@@ -1,0 +1,36 @@
+
+========================================
+  📊 (AR) ملخص التحليل / (EN) Parsing Summary
+========================================
+✓ (AR) عدد الجمل الناجحة: 164
+✓ (EN) Successful statements: 164
+========================================
+
+LLVM CodeGen Error: Source value not found for move: 
+LLVM CodeGen Error: Undefined register: %107
+LLVM CodeGen Error: Source value not found for move: 
+LLVM CodeGen Error: Undefined register: %116
+LLVM CodeGen Error: Undefined register: %116
+LLVM CodeGen Error: Undefined register: %116
+LLVM CodeGen Error: Source value not found for move: 
+LLVM CodeGen Error: Undefined register: %142
+LLVM CodeGen Error: Undefined register: %142
+LLVM CodeGen Error: Source value not found for move: 
+LLVM CodeGen Error: Undefined register: %177
+LLVM CodeGen Error: Source value not found for move: 
+LLVM CodeGen Error: Undefined register: %223
+LLVM CodeGen Error: Source value not found for move: 
+LLVM CodeGen Error: Undefined register: %299
+LLVM CodeGen Error: Source value not found for move: 
+LLVM CodeGen Error: Undefined register: %362
+LLVM CodeGen Error: Undefined register: %362
+LLVM CodeGen Error: Undefined register: %362
+LLVM CodeGen Error: Source value not found for move: 
+LLVM CodeGen Error: Undefined register: %434
+LLVM CodeGen Error: Source value not found for move: 
+LLVM CodeGen Error: Undefined register: %464
+LLVM CodeGen Error: Source value not found for move: 
+LLVM CodeGen Error: Undefined register: %999
+LLVM CodeGen Error: Undefined register: %999
+LLVM CodeGen Error: Undefined register: %999
+LLVM CodeGen Error: Undefined register: %999

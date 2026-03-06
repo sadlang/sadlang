@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+═══════════════════════════════════════════════════════════════════════════
+AndroidManifest.xml - قالب تطبيق ص لأندرويد
+Template for Sad Android Applications
+═══════════════════════════════════════════════════════════════════════════
+
+الاستخدام / Usage:
+استبدل المتغيرات التالية بقيمك الخاصة:
+Replace these placeholders with your values:
+
+{{PACKAGE_NAME}}     - اسم الحزمة (com.example.myapp)
+{{VERSION_CODE}}     - رقم الإصدار (1)
+{{VERSION_NAME}}     - اسم الإصدار (1.0.0)
+{{APP_NAME}}         - اسم التطبيق (تطبيقي)
+{{MIN_SDK}}          - الحد الأدنى للإصدار (26)
+{{TARGET_SDK}}       - الإصدار المستهدف (34)
+{{ORIENTATION}}      - الاتجاه (portrait/landscape/unspecified)
+
+═══════════════════════════════════════════════════════════════════════════
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="{{PACKAGE_NAME}}"
+    android:versionCode="{{VERSION_CODE}}"
+    android:versionName="{{VERSION_NAME}}">
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- إصدارات SDK المدعومة / Supported SDK Versions -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <uses-sdk
+        android:minSdkVersion="{{MIN_SDK}}"
+        android:targetSdkVersion="{{TARGET_SDK}}" />
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- الصلاحيات / Permissions -->
+    <!-- أضف أو احذف حسب احتياجات تطبيقك -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <!-- الوصول للإنترنت -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- التخزين (اختياري) -->
+    <!-- <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" /> -->
+    <!-- <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" /> -->
+    
+    <!-- الكاميرا (اختياري) -->
+    <!-- <uses-permission android:name="android.permission.CAMERA" /> -->
+    
+    <!-- الموقع (اختياري) -->
+    <!-- <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> -->
+    <!-- <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> -->
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- متطلبات الميزات / Feature Requirements -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    
+    <!-- OpenGL ES 3.0 مطلوب لواجهة المستخدم -->
+    <uses-feature android:glEsVersion="0x00030000" android:required="true" />
+    
+    <!-- شاشة اللمس (مطلوب لمعظم التطبيقات) -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="true" />
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- التطبيق / Application -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <application
+        android:label="{{APP_NAME}}"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:hasCode="false"
+        android:allowBackup="true"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- النشاط الرئيسي (NativeActivity) -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <activity
+            android:name="android.app.NativeActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|keyboard|colorMode|density|fontScale|fontWeightAdjustment|layoutDirection|locale|mcc|mnc|navigation|smallestScreenSize|touchscreen|uiMode"
+            android:screenOrientation="{{ORIENTATION}}"
+            android:hardwareAccelerated="true">
+
+            <!-- اسم المكتبة الأصلية التي سيتم تحميلها -->
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="sad_app" />
+
+            <!-- نقطة الدخول الرئيسية -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- خدمات إضافية (اختياري) -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        
+        <!-- خدمة الخلفية (إذا احتجت) -->
+        <!--
+        <service
+            android:name=".SadBackgroundService"
+            android:exported="false" />
+        -->
+
+    </application>
+</manifest>

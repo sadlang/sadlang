@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file expression_evaluator.cpp
  * @brief (AR) تنفيذ مُقيِّم التعابير
  * @brief (EN) Expression Evaluator Implementation
@@ -564,10 +564,25 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
     }
     
     // (AR) تقييم المعاملات / (EN) Evaluate arguments
+    // (AR) يدعم الوسائط المسمّاة بصيغة Flutter: عمود(تباعد: 10، خلفية: "ابيض")
+    // (EN) Supports Flutter-like named arguments: column(spacing: 10, bg: "white")
     std::vector<Data::Value> arguments;
+    std::vector<std::pair<std::string, Data::Value>> namedArgs;
     for (const auto& arg : node.arguments) {
-        arg->accept(*this);
-        arguments.push_back(lastResult_);
+        // (AR) كشف الوسيط المسمّى / (EN) Detect named argument
+        if (auto* named = dynamic_cast<AST::NamedArgExpr*>(arg.get())) {
+            named->value->accept(*this);
+            namedArgs.emplace_back(named->name, lastResult_);
+        } else {
+            arg->accept(*this);
+            arguments.push_back(lastResult_);
+        }
+    }
+    // (AR) إلحاق الوسائط المسمّاة كأزواج اسم/قيمة (متوافق مع _autoChildren)
+    // (EN) Append named args as name/value pairs (compatible with _autoChildren)
+    for (size_t ni = 0; ni < namedArgs.size(); ++ni) {
+        arguments.push_back(Data::Value(namedArgs[ni].first));
+        arguments.push_back(namedArgs[ni].second);
     }
     
     // (AR) أولوية: إذا كنا داخل طريقة صنف، نبحث أولاً عن الطريقة في الصنف الحالي

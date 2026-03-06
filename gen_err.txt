@@ -1,0 +1,55 @@
+
+========================================
+  📊 (AR) ملخص التحليل / (EN) Parsing Summary
+========================================
+✓ (AR) عدد الجمل الناجحة: 6
+✓ (EN) Successful statements: 6
+========================================
+
+[EXC-DBG] Phase1: registered func 'بسيط' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'ضعف' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'مجموع' retType=1 AST-retType=0
+[EXC-DBG] buildFunction: 'بسيط' inferred retType=0
+[GEN] Function 'بسيط' marked as generator
+[EXC-DBG] buildFunction: 'ضعف' inferred retType=0
+[GEN] Function 'ضعف' marked as generator
+[EXC-DBG] buildFunction: 'مجموع' inferred retType=0
+[GEN] Function 'مجموع' marked as generator
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='بسيط' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'بسيط' retType=0
+[GEN] Emitting GENERATOR_CONSUME for generator 'بسيط'
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='ضعف' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'ضعف' retType=0
+[GEN] Emitting GENERATOR_CONSUME for generator 'ضعف'
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='مجموع' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'مجموع' retType=0
+[GEN] Emitting GENERATOR_CONSUME for generator 'مجموع'
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[CORO] Added presplitcoroutine to 'بسيط'
+[CORO] Added presplitcoroutine to 'ضعف'
+[CORO] Added presplitcoroutine to 'مجموع'
+[CORO] Preamble emitted for 'بسيط'
+[GEN] Emitted GENERATOR_YIELD #0
+[CORO] Epilogue emitted
+[CORO] Preamble emitted for 'ضعف'
+[GEN] Emitted GENERATOR_YIELD #0
+[CORO] Epilogue emitted
+[CORO] Preamble emitted for 'مجموع'
+[GEN] Emitted GENERATOR_YIELD #0
+[GEN] Emitted GENERATOR_YIELD #1
+[GEN] Emitted GENERATOR_YIELD #2
+[CORO] Epilogue emitted
+[GEN] Emitted GENERATOR_CONSUME
+[GEN] Emitted GENERATOR_CONSUME
+[GEN] Emitted GENERATOR_CONSUME

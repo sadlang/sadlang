@@ -1,0 +1,124 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# CMakeLists.txt.template - قالب CMake لتطبيقات ص على أندرويد
+# CMake Template for Sad Android Native Applications
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# هذا الملف يُستخدم لبناء الكود الأصلي لتطبيق ص على أندرويد
+# This file is used to build native code for Sad Android apps
+#
+# ═══════════════════════════════════════════════════════════════════════════
+
+cmake_minimum_required(VERSION 3.22.1)
+
+project("{{PROJECT_NAME}}" LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# البحث عن مكتبات Android الأساسية
+# ═══════════════════════════════════════════════════════════════════════════
+
+find_library(log-lib log)
+find_library(android-lib android)
+find_library(EGL-lib EGL)
+find_library(GLESv3-lib GLESv3)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ملفات المصدر المترجمة من ص
+# ═══════════════════════════════════════════════════════════════════════════
+
+set(SAD_GENERATED_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/sad_generated.cpp
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ملفات Runtime ص
+# ═══════════════════════════════════════════════════════════════════════════
+
+set(SAD_RUNTIME_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/sad_runtime/sad_android_runtime.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sad_runtime/sad_android_memory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sad_runtime/sad_android_string.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sad_runtime/sad_android_array.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sad_runtime/sad_android_ui.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sad_runtime/sad_android_network.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sad_runtime/sad_android_io.cpp
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# المكتبة الأصلية الرئيسية
+# ═══════════════════════════════════════════════════════════════════════════
+
+add_library(sad_app SHARED
+    ${SAD_GENERATED_SOURCES}
+    ${SAD_RUNTIME_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/android_main.cpp
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# مسارات Include
+# ═══════════════════════════════════════════════════════════════════════════
+
+target_include_directories(sad_app PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/sad_runtime/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/include
+    ${ANDROID_NDK}/sources/android/native_app_glue
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# تعريفات الماكرو
+# ═══════════════════════════════════════════════════════════════════════════
+
+target_compile_definitions(sad_app PRIVATE
+    SAD_ANDROID=1
+    SAD_PLATFORM_ANDROID=1
+    APP_NAME="{{APP_NAME}}"
+    APP_VERSION="{{VERSION_NAME}}"
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# الربط مع المكتبات
+# ═══════════════════════════════════════════════════════════════════════════
+
+target_link_libraries(sad_app
+    ${log-lib}
+    ${android-lib}
+    ${EGL-lib}
+    ${GLESv3-lib}
+    android
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Native App Glue
+# ═══════════════════════════════════════════════════════════════════════════
+
+# إضافة native_app_glue كمكتبة ثابتة
+add_library(native_app_glue STATIC
+    ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c
+)
+
+target_include_directories(native_app_glue PUBLIC
+    ${ANDROID_NDK}/sources/android/native_app_glue
+)
+
+target_link_libraries(sad_app native_app_glue)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# خيارات التجميع
+# ═══════════════════════════════════════════════════════════════════════════
+
+target_compile_options(sad_app PRIVATE
+    -Wall
+    -Wextra
+    -fno-omit-frame-pointer
+    -fexceptions
+    -frtti
+)
+
+# للتصحيح
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+    target_compile_options(sad_app PRIVATE -g -O0)
+else()
+    target_compile_options(sad_app PRIVATE -O2 -DNDEBUG)
+endif()

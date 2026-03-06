@@ -1,0 +1,532 @@
+{
+  "name": "Sad Language Dark — سمة لغة ص الداكنة",
+  "type": "dark",
+  "semanticHighlighting": true,
+  "colors": {
+    "editor.background": "#1a1a2e",
+    "editor.foreground": "#e0e0e0",
+    "editor.lineHighlightBackground": "#1f1f3a",
+    "editor.selectionBackground": "#264f78",
+    "editor.inactiveSelectionBackground": "#1f2d40",
+    "editor.selectionHighlightBackground": "#2a4a6b55",
+    "editor.wordHighlightBackground": "#2a4a6b44",
+    "editor.wordHighlightStrongBackground": "#2a6a6b55",
+    "editor.findMatchBackground": "#515c6a",
+    "editor.findMatchHighlightBackground": "#ea5c0055",
+    "editorCursor.foreground": "#4fc3f7",
+    "editorLineNumber.foreground": "#4a5568",
+    "editorLineNumber.activeForeground": "#4fc3f7",
+    "editorIndentGuide.background1": "#2d2d4a",
+    "editorIndentGuide.activeBackground1": "#4fc3f7",
+    "editorBracketMatch.background": "#2a4a6b55",
+    "editorBracketMatch.border": "#4fc3f7",
+
+    "activityBar.background": "#0f0f23",
+    "activityBar.foreground": "#e0e0e0",
+    "activityBar.activeBorder": "#4fc3f7",
+    "activityBarBadge.background": "#4fc3f7",
+    "activityBarBadge.foreground": "#000000",
+
+    "sideBar.background": "#141428",
+    "sideBar.foreground": "#c0c0d0",
+    "sideBarTitle.foreground": "#4fc3f7",
+    "sideBarSectionHeader.background": "#1a1a35",
+    "sideBarSectionHeader.foreground": "#4fc3f7",
+
+    "titleBar.activeBackground": "#0f0f23",
+    "titleBar.activeForeground": "#e0e0e0",
+    "titleBar.inactiveBackground": "#0d0d1a",
+
+    "statusBar.background": "#0d47a1",
+    "statusBar.foreground": "#ffffff",
+    "statusBar.debuggingBackground": "#c62828",
+    "statusBar.noFolderBackground": "#212121",
+
+    "tab.activeBackground": "#1a1a2e",
+    "tab.activeForeground": "#ffffff",
+    "tab.activeBorderTop": "#4fc3f7",
+    "tab.inactiveBackground": "#111122",
+    "tab.inactiveForeground": "#8888aa",
+    "tab.border": "#0a0a1a",
+
+    "terminal.background": "#0f0f23",
+    "terminal.foreground": "#e0e0e0",
+    "terminal.ansiBlue": "#4fc3f7",
+    "terminal.ansiGreen": "#66bb6a",
+    "terminal.ansiRed": "#ef5350",
+    "terminal.ansiYellow": "#ffca28",
+    "terminal.ansiCyan": "#4dd0e1",
+    "terminal.ansiMagenta": "#ce93d8",
+
+    "minimap.background": "#0f0f23",
+    "panel.background": "#111122",
+    "panel.border": "#2a2a4a",
+
+    "input.background": "#1a1a35",
+    "input.border": "#2a2a5a",
+    "input.foreground": "#e0e0e0",
+    "input.placeholderForeground": "#6a6a8a",
+    "focusBorder": "#4fc3f7",
+
+    "button.background": "#1565c0",
+    "button.foreground": "#ffffff",
+    "button.hoverBackground": "#1976d2",
+
+    "dropdown.background": "#1a1a35",
+    "dropdown.border": "#2a2a5a",
+
+    "list.activeSelectionBackground": "#1565c0",
+    "list.activeSelectionForeground": "#ffffff",
+    "list.hoverBackground": "#1a1a3a",
+    "list.inactiveSelectionBackground": "#1a1a35",
+
+    "editorWidget.background": "#1a1a2e",
+    "editorWidget.border": "#2a2a4a",
+    "editorSuggestWidget.background": "#1a1a2e",
+    "editorSuggestWidget.selectedBackground": "#1565c0",
+    "editorSuggestWidget.highlightForeground": "#4fc3f7",
+
+    "badge.background": "#4fc3f7",
+    "badge.foreground": "#000000",
+
+    "scrollbarSlider.background": "#4a4a6a33",
+    "scrollbarSlider.hoverBackground": "#4a4a6a55",
+    "scrollbarSlider.activeBackground": "#4a4a6a88",
+
+    "gitDecoration.addedResourceForeground": "#66bb6a",
+    "gitDecoration.modifiedResourceForeground": "#4fc3f7",
+    "gitDecoration.deletedResourceForeground": "#ef5350",
+    "gitDecoration.untrackedResourceForeground": "#81c784",
+    "gitDecoration.conflictingResourceForeground": "#ffca28",
+
+    "editorError.foreground": "#ef5350",
+    "editorWarning.foreground": "#ffca28",
+    "editorInfo.foreground": "#4fc3f7",
+
+    "editorGutter.addedBackground": "#66bb6a",
+    "editorGutter.modifiedBackground": "#4fc3f7",
+    "editorGutter.deletedBackground": "#ef5350",
+
+    "peekView.border": "#4fc3f7",
+    "peekViewEditor.background": "#1a1a2e",
+    "peekViewResult.background": "#141428",
+    "peekViewTitle.background": "#1a1a35"
+  },
+  "tokenColors": [
+    {
+      "name": "Comment — التعليقات",
+      "scope": [
+        "comment",
+        "comment.line",
+        "comment.block",
+        "punctuation.definition.comment"
+      ],
+      "settings": {
+        "foreground": "#546e7a",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "name": "Documentation Comment — التوثيق",
+      "scope": [
+        "comment.block.documentation",
+        "comment.line.documentation"
+      ],
+      "settings": {
+        "foreground": "#7986cb",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "name": "String — النصوص",
+      "scope": [
+        "string",
+        "string.quoted.double",
+        "string.quoted.single"
+      ],
+      "settings": {
+        "foreground": "#66bb6a"
+      }
+    },
+    {
+      "name": "String Escape — رموز الهروب",
+      "scope": [
+        "constant.character.escape"
+      ],
+      "settings": {
+        "foreground": "#ffca28",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "String Interpolation — الاستيفاء",
+      "scope": [
+        "meta.interpolation",
+        "punctuation.section.interpolation"
+      ],
+      "settings": {
+        "foreground": "#4fc3f7"
+      }
+    },
+    {
+      "name": "Number — الأرقام",
+      "scope": [
+        "constant.numeric",
+        "constant.numeric.integer",
+        "constant.numeric.float",
+        "constant.numeric.hex",
+        "constant.numeric.binary",
+        "constant.numeric.octal"
+      ],
+      "settings": {
+        "foreground": "#f48fb1"
+      }
+    },
+    {
+      "name": "Language Constant — ثوابت اللغة (صحيح، خطأ، لاشيء)",
+      "scope": [
+        "constant.language"
+      ],
+      "settings": {
+        "foreground": "#ff8a65",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Control Keywords — كلمات التحكم (إذا، بينما، لكل، ارجع)",
+      "scope": [
+        "keyword.control",
+        "keyword.control.sad"
+      ],
+      "settings": {
+        "foreground": "#ce93d8",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Match Keywords — طابق/عندما",
+      "scope": [
+        "keyword.control.match"
+      ],
+      "settings": {
+        "foreground": "#ba68c8",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Exception Keywords — حاول/امسك/ارمي/أخيراً",
+      "scope": [
+        "keyword.control.exception"
+      ],
+      "settings": {
+        "foreground": "#ef5350",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Declaration — كلمات التعريف (دالة، صنف، بنية، تعداد)",
+      "scope": [
+        "keyword.declaration",
+        "keyword.declaration.sad"
+      ],
+      "settings": {
+        "foreground": "#4fc3f7",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "OOP Keywords — كلمات كائنية (يرث، جديد، هذا، باني)",
+      "scope": [
+        "keyword.other.oop",
+        "keyword.other.oop.sad"
+      ],
+      "settings": {
+        "foreground": "#4dd0e1",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Import Keywords — استورد/من/صدّر/كـ",
+      "scope": [
+        "keyword.control.import",
+        "keyword.control.import.sad"
+      ],
+      "settings": {
+        "foreground": "#81c784"
+      }
+    },
+    {
+      "name": "Access Modifiers — عام/خاص/محمي/مجرد",
+      "scope": [
+        "keyword.other.access",
+        "keyword.other.access.sad"
+      ],
+      "settings": {
+        "foreground": "#ffb74d"
+      }
+    },
+    {
+      "name": "Variable Keywords — متغير/ثابت/ساكن/خارجي",
+      "scope": [
+        "keyword.other.variable",
+        "keyword.other.variable.sad"
+      ],
+      "settings": {
+        "foreground": "#4fc3f7"
+      }
+    },
+    {
+      "name": "Async Keywords — غير_متزامن/انتظر",
+      "scope": [
+        "keyword.other.async",
+        "keyword.other.async.sad"
+      ],
+      "settings": {
+        "foreground": "#ce93d8"
+      }
+    },
+    {
+      "name": "Lambda — لامدا",
+      "scope": [
+        "keyword.other.lambda",
+        "keyword.other.lambda.sad"
+      ],
+      "settings": {
+        "foreground": "#e040fb"
+      }
+    },
+    {
+      "name": "Trait/Interface — سمة/واجهة/نفّذ",
+      "scope": [
+        "keyword.other.trait",
+        "keyword.other.trait.sad"
+      ],
+      "settings": {
+        "foreground": "#80cbc4",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "name": "Using Keywords — باستخدام/نهاية_استخدام",
+      "scope": [
+        "keyword.control.using",
+        "keyword.control.using.sad"
+      ],
+      "settings": {
+        "foreground": "#a5d6a7"
+      }
+    },
+    {
+      "name": "Namespace — فضاء/نهاية_فضاء",
+      "scope": [
+        "keyword.other.namespace",
+        "keyword.other.namespace.sad"
+      ],
+      "settings": {
+        "foreground": "#90caf9"
+      }
+    },
+    {
+      "name": "Contextual Keywords — كلمات سياقية",
+      "scope": [
+        "keyword.other.contextual",
+        "keyword.other.contextual.sad"
+      ],
+      "settings": {
+        "foreground": "#b0bec5"
+      }
+    },
+    {
+      "name": "Built-in Types — رقم/نص/عشري/منطقي...",
+      "scope": [
+        "support.type",
+        "support.type.sad"
+      ],
+      "settings": {
+        "foreground": "#4dd0e1",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "name": "Function Name — اسم الدالة",
+      "scope": [
+        "entity.name.function",
+        "entity.name.function.sad"
+      ],
+      "settings": {
+        "foreground": "#64b5f6"
+      }
+    },
+    {
+      "name": "Built-in Functions — الدوال المدمجة (اطبع...)",
+      "scope": [
+        "support.function.builtin",
+        "support.function.builtin.sad"
+      ],
+      "settings": {
+        "foreground": "#4fc3f7",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Function Call — استدعاء دالة",
+      "scope": [
+        "entity.name.function.call"
+      ],
+      "settings": {
+        "foreground": "#64b5f6"
+      }
+    },
+    {
+      "name": "Logical Operators Arabic — و/أو/ليس",
+      "scope": [
+        "keyword.operator.logical.arabic",
+        "keyword.operator.logical.arabic.sad"
+      ],
+      "settings": {
+        "foreground": "#ce93d8",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Arithmetic Operators — حسابية",
+      "scope": [
+        "keyword.operator.arithmetic",
+        "keyword.operator.arithmetic.power"
+      ],
+      "settings": {
+        "foreground": "#90caf9"
+      }
+    },
+    {
+      "name": "Comparison Operators — مقارنة",
+      "scope": [
+        "keyword.operator.comparison"
+      ],
+      "settings": {
+        "foreground": "#90caf9"
+      }
+    },
+    {
+      "name": "Logical Operators — منطقية",
+      "scope": [
+        "keyword.operator.logical"
+      ],
+      "settings": {
+        "foreground": "#ce93d8"
+      }
+    },
+    {
+      "name": "Assignment Operators — إسناد",
+      "scope": [
+        "keyword.operator.assignment",
+        "keyword.operator.assignment.compound"
+      ],
+      "settings": {
+        "foreground": "#90caf9"
+      }
+    },
+    {
+      "name": "Arrow Operator — =>",
+      "scope": [
+        "keyword.operator.arrow"
+      ],
+      "settings": {
+        "foreground": "#4fc3f7",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Ternary Operators — ? :",
+      "scope": [
+        "keyword.operator.ternary"
+      ],
+      "settings": {
+        "foreground": "#ce93d8"
+      }
+    },
+    {
+      "name": "Dot/Member Access — الوصول",
+      "scope": [
+        "keyword.operator.accessor",
+        "punctuation.accessor"
+      ],
+      "settings": {
+        "foreground": "#e0e0e0"
+      }
+    },
+    {
+      "name": "Brackets — الأقواس",
+      "scope": [
+        "punctuation.bracket",
+        "punctuation.definition.parameters",
+        "meta.brace"
+      ],
+      "settings": {
+        "foreground": "#b0bec5"
+      }
+    },
+    {
+      "name": "Punctuation — الفواصل والمنقوطة",
+      "scope": [
+        "punctuation.separator",
+        "punctuation.terminator"
+      ],
+      "settings": {
+        "foreground": "#78909c"
+      }
+    },
+    {
+      "name": "Variable — المتغيرات",
+      "scope": [
+        "variable",
+        "variable.other"
+      ],
+      "settings": {
+        "foreground": "#e0e0e0"
+      }
+    },
+    {
+      "name": "Variable Parameter — المعاملات",
+      "scope": [
+        "variable.parameter"
+      ],
+      "settings": {
+        "foreground": "#ffcc80",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "name": "Class Name — اسم الصنف",
+      "scope": [
+        "entity.name.class",
+        "entity.name.type.class"
+      ],
+      "settings": {
+        "foreground": "#4dd0e1",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Inherited Class — الصنف الأساس",
+      "scope": [
+        "entity.other.inherited-class"
+      ],
+      "settings": {
+        "foreground": "#80cbc4",
+        "fontStyle": "italic underline"
+      }
+    },
+    {
+      "name": "Invalid — خطأ",
+      "scope": [
+        "invalid",
+        "invalid.illegal"
+      ],
+      "settings": {
+        "foreground": "#ef5350",
+        "fontStyle": "strikethrough"
+      }
+    }
+  ]
+}

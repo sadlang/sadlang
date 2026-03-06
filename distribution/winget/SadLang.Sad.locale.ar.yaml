@@ -1,0 +1,37 @@
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# winget Default Locale Manifest (العربية)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+PackageIdentifier: SadLang.Sad
+PackageVersion: 1.0.0
+PackageLocale: ar
+Publisher: فريق لغة ص
+PublisherUrl: https://sad-lang.org
+PublisherSupportUrl: https://github.com/sad-lang/sad-language/issues
+Author: Sad Language Team
+PackageName: لغة ص
+PackageUrl: https://github.com/sad-lang/sad-language
+License: MIT
+LicenseUrl: https://github.com/sad-lang/sad-language/blob/main/LICENSE
+ShortDescription: لغة برمجة عربية حديثة — مفسر ومترجم أصلي
+Description: |-
+  لغة ص هي لغة برمجة عربية حديثة مبنية بـ C++17، تدعم:
+  - نحو عربي بالكامل مع دعم الإنجليزية
+  - مفسر فوري (sad) ومترجم أصلي عبر LLVM (sadc)
+  - برمجة كائنية متقدمة (أصناف، وراثة، واجهات)
+  - مكتبة قياسية غنية (رياضيات، نصوص، شبكات، رسوميات)
+  - خادم LSP للتكامل مع المحررات
+  - مدير حزم (sad-pkg) وأداة تنسيق (sad-fmt)
+  - أكثر من 900 اختبار شامل
+Tags:
+  - programming-language
+  - arabic
+  - interpreter
+  - compiler
+  - sad
+  - عربي
+  - لغة-برمجة
+Moniker: sad
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

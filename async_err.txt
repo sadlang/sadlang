@@ -1,0 +1,55 @@
+
+========================================
+  📊 (AR) ملخص التحليل / (EN) Parsing Summary
+========================================
+✓ (AR) عدد الجمل الناجحة: 4
+✓ (EN) Successful statements: 4
+========================================
+
+[EXC-DBG] Phase1: registered func 'حساب_بسيط' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'ضعف' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'جمع' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'رئيسية' retType=1 AST-retType=1
+[EXC-DBG] buildFunction: 'حساب_بسيط' inferred retType=1
+[CORO] Function 'حساب_بسيط' marked as coroutine
+[EXC-DBG] buildFunction: 'ضعف' inferred retType=1
+[CORO] Function 'ضعف' marked as coroutine
+[EXC-DBG] buildFunction: 'جمع' inferred retType=1
+[CORO] Function 'جمع' marked as coroutine
+[EXC-DBG] buildFunction: 'رئيسية' inferred retType=1
+[EXC-DBG] buildLocalVariable: name='ن1' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::AwaitExpr
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='حساب_بسيط' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'حساب_بسيط' retType=1
+[EXC-DBG]   initResult: reg='%5' type=1 isConst=0 constVal=''
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='ن2' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::AwaitExpr
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='ضعف' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'ضعف' retType=1
+[EXC-DBG]   initResult: reg='%8' type=1 isConst=0 constVal=''
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='ن3' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::AwaitExpr
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='جمع' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'جمع' retType=1
+[EXC-DBG]   initResult: reg='%12' type=1 isConst=0 constVal=''
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[CORO] Added presplitcoroutine to 'حساب_بسيط'
+[CORO] Added presplitcoroutine to 'ضعف'
+[CORO] Added presplitcoroutine to 'جمع'
+[CORO] Preamble emitted for 'حساب_بسيط'
+[CORO] Epilogue emitted
+[CORO] Preamble emitted for 'ضعف'
+[CORO] Epilogue emitted
+[CORO] Preamble emitted for 'جمع'
+[CORO] Epilogue emitted

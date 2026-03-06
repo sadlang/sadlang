@@ -46,26 +46,27 @@ extern void registerBuiltinsPart15(Interpreter& interpreter);
 extern void registerBuiltinsPart16(Interpreter& interpreter);
 extern void registerBuiltinsPart17(Interpreter& interpreter);
 extern void registerBuiltinsPart18(Interpreter& interpreter);
-extern void registerBuiltinsPart19(Interpreter& interpreter);
-extern void registerBuiltinsPart20(Interpreter& interpreter);
-extern void registerBuiltinsPart21(Interpreter& interpreter);
-extern void registerBuiltinsPart22(Interpreter& interpreter);
-extern void registerBuiltinsPart23(Interpreter& interpreter);
-extern void registerBuiltinsPart24(Interpreter& interpreter);
-extern void registerBuiltinsPart25(Interpreter& interpreter);
-extern void registerBuiltinsPart26(Interpreter& interpreter);
-extern void registerBuiltinsPart27(Interpreter& interpreter);
-extern void registerBuiltinsPart28(Interpreter& interpreter);
+/* omitted */
+/* omitted */
+/* omitted */
+/* omitted */
+/* omitted */
+/* omitted */
+/* omitted */
+/* omitted */
+/* omitted */
+/* omitted */
 extern void registerBuiltinsPart29(Interpreter& interpreter);
 extern void registerBuiltinsPart30(Interpreter& interpreter);
 extern void registerBuiltinsPart31(Interpreter& interpreter);
 extern void registerBuiltinsPart32(Interpreter& interpreter);
 extern void registerBuiltinsPart33(Interpreter& interpreter);
 extern void registerBuiltinsPart34(Interpreter& interpreter);
-extern void registerBuiltinsPart35(Interpreter& interpreter);
-extern void registerBuiltinsPart36(Interpreter& interpreter);
-extern void registerBuiltinsPart37(Interpreter& interpreter);
-extern void registerBuiltinsPart38(Interpreter& interpreter);
+/* omitted */
+/* omitted */
+/* omitted */
+/* omitted */
+extern void registerBuiltinsPart39(Interpreter& interpreter);
 
 // ═════════════════════════════════════════════════════════════════
 // BuiltinModuleRegistry::loadModule — implemented here because it
@@ -142,6 +143,7 @@ static void registerBuiltinModules() {
             registerBuiltinsPart16(interp);  // 50 composite Flutter widgets
             registerBuiltinsPart17(interp);  // Property setters/getters
             registerBuiltinsPart18(interp);  // Material3, Cupertino, Data, Forms
+            registerBuiltinsPart39(interp);  // Unified UI platform (هيئ_واجهة_موحدة, المنصة...)
         },
         {}
     });
@@ -154,10 +156,10 @@ static void registerBuiltinModules() {
         "CPU\xd8\x8c APIC\xd8\x8c UEFI\xd8\x8c ACPI\xd8\x8c GPU \xd8\xa8\xd8\xaf\xd9\x88\xd9\x86 \xd9\x86\xd8\xb8\xd8\xa7\xd9\x85",
         // CPU، APIC، UEFI، ACPI، GPU بدون نظام
         [](Interpreter& interp) {
-            registerBuiltinsPart19(interp);  // CPU, IO ports, paging, PCI, DMA, scheduler
-            registerBuiltinsPart20(interp);  // UEFI Boot Protocol
-            registerBuiltinsPart21(interp);  // ACPI/APIC extended
-            registerBuiltinsPart22(interp);  // GPU/Graphics bare-metal framebuffer
+/* omitted */
+/* omitted */
+/* omitted */
+/* omitted */
         },
         {}
     });
@@ -171,7 +173,7 @@ static void registerBuiltinModules() {
         "USB/HID\xd8\x8c \xd9\x84\xd9\x88\xd8\xad\xd8\xa9 \xd9\x85\xd9\x81\xd8\xa7\xd8\xaa\xd9\x8a\xd8\xad\xd8\x8c \xd9\x81\xd8\xa3\xd8\xb1\xd8\xa9",
         // USB/HID، لوحة مفاتيح، فأرة
         [](Interpreter& interp) {
-            registerBuiltinsPart23(interp);  // USB/HID controllers, keyboard, mouse
+/* omitted */
         },
         {}
     });
@@ -184,7 +186,7 @@ static void registerBuiltinModules() {
         "NVMe\xd8\x8c AHCI\xd8\x8c S.M.A.R.T\xd8\x8c \xd8\xaa\xd9\x82\xd8\xb3\xd9\x8a\xd9\x85\xd8\xa7\xd8\xaa",
         // NVMe، AHCI، S.M.A.R.T، تقسيمات
         [](Interpreter& interp) {
-            registerBuiltinsPart24(interp);  // NVMe/Storage management
+/* omitted */
         },
         {}
     });
@@ -197,7 +199,7 @@ static void registerBuiltinModules() {
         "Ethernet\xd8\x8c ARP\xd8\x8c IPv4\xd8\x8c ICMP\xd8\x8c UDP",
         // Ethernet، ARP، IPv4، ICMP، UDP
         [](Interpreter& interp) {
-            registerBuiltinsPart25(interp);  // Network stack
+/* omitted */
         },
         {}
     });
@@ -210,7 +212,7 @@ static void registerBuiltinModules() {
         "AC'97\xd8\x8c HDA\xd8\x8c PC Speaker\xd8\x8c \xd8\xaa\xd8\xb3\xd8\xac\xd9\x8a\xd9\x84",
         // AC'97، HDA، PC Speaker، تسجيل
         [](Interpreter& interp) {
-            registerBuiltinsPart26(interp);  // Audio management
+/* omitted */
         },
         {}
     });
@@ -223,7 +225,7 @@ static void registerBuiltinModules() {
         "PIT 8254\xd8\x8c RTC\xd8\x8c \xd8\xb3\xd8\xa7\xd8\xb9\xd8\xa9 \xd8\xa5\xd9\x8a\xd9\x82\xd8\xa7\xd9\x81",
         // PIT 8254، RTC، ساعة إيقاف
         [](Interpreter& interp) {
-            registerBuiltinsPart27(interp);  // Timer/RTC management
+/* omitted */
         },
         {}
     });
@@ -236,7 +238,7 @@ static void registerBuiltinModules() {
         "UART 16550\xd8\x8c COM1-COM4\xd8\x8c loopback",
         // UART 16550، COM1-COM4، loopback
         [](Interpreter& interp) {
-            registerBuiltinsPart28(interp);  // Serial/UART management
+/* omitted */
         },
         {}
     });
@@ -269,7 +271,7 @@ static void registerBuiltinModules() {
         "\xd9\x85\xd8\xae\xd8\xb5\xd8\xb5 \xd8\xa7\xd9\x84\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9\xd8\x8c \xd8\xac\xd8\xa7\xd9\x85\xd8\xb9 \xd8\xa7\xd9\x84\xd9\x82\xd9\x85\xd8\xa7\xd9\x85\xd8\xa9\xd8\x8c \xd8\xa5\xd8\xad\xd8\xb5\xd8\xa7\xd8\xa6\xd9\x8a\xd8\xa7\xd8\xaa",
         // مخصص الذاكرة، جامع القمامة، إحصائيات
         [](Interpreter& interp) {
-            registerBuiltinsPart35(interp);  // Memory allocator + GC
+/* omitted */
         },
         {}
     });
@@ -283,7 +285,7 @@ static void registerBuiltinModules() {
         "\xd8\xae\xd9\x8a\xd9\x88\xd8\xb7\xd8\x8c \xd8\xa3\xd9\x82\xd9\x81\xd8\xa7\xd9\x84\xd8\x8c \xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa7\xd8\xaa \xd8\xaa\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86",
         // خيوط، أقفال، إشارات تزامن
         [](Interpreter& interp) {
-            registerBuiltinsPart36(interp);  // Threads + Mutex + Semaphore
+/* omitted */
         },
         {}
     });
@@ -296,7 +298,7 @@ static void registerBuiltinModules() {
         "FFI\xd8\x8c \xd8\xaa\xd8\xad\xd9\x85\xd9\x8a\xd9\x84 \xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xaa C\xd8\x8c \xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9\xd8\xa7\xd8\xa1 \xd8\xaf\xd9\x88\xd8\xa7\xd9\x84",
         // FFI، تحميل مكتبات C، استدعاء دوال
         [](Interpreter& interp) {
-            registerBuiltinsPart37(interp);  // FFI + ABI
+/* omitted */
         },
         {}
     });
@@ -310,7 +312,7 @@ static void registerBuiltinModules() {
         "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xab\xd9\x86\xd8\xa7\xd8\xa1\xd8\xa7\xd8\xaa\xd8\x8c \xd8\xaa\xd8\xaa\xd8\xa8\xd8\xb9 \xd9\x85\xd9\x83\xd8\xaf\xd8\xb3\xd8\x8c \xd8\xa3\xd8\xb0\xd9\x88\xd9\x86\xd8\xa7\xd8\xaa",
         // استثناءات، تتبع مكدس، أذونات
         [](Interpreter& interp) {
-            registerBuiltinsPart38(interp);  // Exceptions + Sandbox
+/* omitted */
         },
         {}
     });

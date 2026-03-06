@@ -1,0 +1,1349 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# usb_نحلة.ص — وحدة USB الأساسية لنظام نحلة
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# USB Core Layer — Device Enumeration, Descriptors, Control Transfers
+# Supports USB 1.1 (UHCI/OHCI) and USB 2.0 (EHCI)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── دوال خارجية (FFI) ───
+خارجي دالة sad_ll_port_inb(port)
+خارجي دالة sad_ll_port_outb(port، val)
+خارجي دالة sad_ll_port_inw(port)
+خارجي دالة sad_ll_port_outw(port، val)
+خارجي دالة sad_ll_port_inl(port)
+خارجي دالة sad_ll_port_outl(port، val)
+خارجي دالة sad_ll_mem_read8(addr)
+خارجي دالة sad_ll_mem_write8(addr، val)
+خارجي دالة sad_ll_mem_read32(addr)
+خارجي دالة sad_ll_mem_write32(addr، val)
+خارجي دالة sad_ll_serial_write_char(port، ch)
+خارجي دالة sad_ll_kmalloc(حجم_طلب)
+خارجي دالة sad_ll_kfree(عنوان)
+خارجي دالة sad_ll_memset(عنوان، قيمة، حجم_منطقة)
+خارجي دالة sad_ll_memcpy(هدف، مصدر، حجم_نقل)
+خارجي دالة sad_ll_timer_get_ticks()
+
+# ─── دوال خارجية من PCI ───
+خارجي دالة pci_find_usb_controller(search_index)
+خارجي دالة pci_get_usb_type(idx)
+خارجي دالة pci_get_bar0(idx)
+خارجي دالة pci_get_bar1(idx)
+خارجي دالة pci_get_irq(idx)
+خارجي دالة pci_loc_bus(idx)
+خارجي دالة pci_loc_dev(idx)
+خارجي دالة pci_loc_func(idx)
+خارجي دالة pci_enable_bus_master(bus، dev، func)
+خارجي دالة pci_bar_is_io(bar_val)
+خارجي دالة pci_bar_address(bar_val)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ثوابت USB
+# ═══════════════════════════════════════════════════════════════════════════════
+ثابت COM1 = 1016
+
+# أنواع الطلبات (bmRequestType)
+ثابت USB_REQ_HOST_TO_DEV   = 0        # 0x00
+ثابت USB_REQ_DEV_TO_HOST   = 128      # 0x80
+ثابت USB_REQ_TYPE_STD      = 0        # 0x00
+ثابت USB_REQ_TYPE_CLASS    = 32       # 0x20
+ثابت USB_REQ_TYPE_VENDOR   = 64       # 0x40
+ثابت USB_REQ_RECIP_DEV     = 0
+ثابت USB_REQ_RECIP_IFACE   = 1
+ثابت USB_REQ_RECIP_EP      = 2
+
+# طلبات USB القياسية (bRequest)
+ثابت USB_REQ_GET_STATUS     = 0
+ثابت USB_REQ_CLEAR_FEATURE  = 1
+ثابت USB_REQ_SET_FEATURE    = 3
+ثابت USB_REQ_SET_ADDRESS    = 5
+ثابت USB_REQ_GET_DESCRIPTOR = 6
+ثابت USB_REQ_SET_DESCRIPTOR = 7
+ثابت USB_REQ_GET_CONFIG     = 8
+ثابت USB_REQ_SET_CONFIG     = 9
+ثابت USB_REQ_GET_INTERFACE  = 10
+ثابت USB_REQ_SET_INTERFACE  = 11
+
+# أنواع الواصفات (wValue high byte)
+ثابت USB_DESC_DEVICE        = 1
+ثابت USB_DESC_CONFIG        = 2
+ثابت USB_DESC_STRING        = 3
+ثابت USB_DESC_INTERFACE     = 4
+ثابت USB_DESC_ENDPOINT      = 5
+ثابت USB_DESC_HID           = 33      # 0x21
+ثابت USB_DESC_REPORT        = 34      # 0x22
+ثابت USB_DESC_HUB           = 41      # 0x29
+
+# أصناف أجهزة USB
+ثابت USB_CLASS_HUB          = 9
+ثابت USB_CLASS_HID          = 3
+ثابت USB_CLASS_STORAGE       = 8
+ثابت USB_CLASS_AUDIO         = 1
+ثابت USB_CLASS_VIDEO         = 14      # 0x0E
+ثابت USB_CLASS_CDC           = 2
+ثابت USB_CLASS_PRINTER       = 7
+ثابت USB_CLASS_WIRELESS      = 224     # 0xE0
+ثابت USB_CLASS_VENDOR        = 255     # 0xFF
+
+# أصناف فرعية HID
+ثابت USB_SUBCLASS_BOOT      = 1
+ثابت USB_PROTOCOL_KEYBOARD  = 1
+ثابت USB_PROTOCOL_MOUSE     = 2
+
+# أصناف فرعية Storage
+ثابت USB_SUBCLASS_SCSI      = 6
+ثابت USB_PROTOCOL_BBB       = 80      # 0x50 Bulk-Only
+
+# أنواع نقاط النهاية
+ثابت USB_EP_CONTROL         = 0
+ثابت USB_EP_ISOCHRONOUS     = 1
+ثابت USB_EP_BULK            = 2
+ثابت USB_EP_INTERRUPT       = 3
+
+# اتجاه نقطة النهاية
+ثابت USB_EP_DIR_OUT         = 0
+ثابت USB_EP_DIR_IN          = 128     # 0x80
+
+# سرعة USB
+ثابت USB_SPEED_LOW          = 0
+ثابت USB_SPEED_FULL         = 1
+ثابت USB_SPEED_HIGH         = 2
+
+# حالة الجهاز
+ثابت USB_DEV_DISCONNECTED   = 0
+ثابت USB_DEV_ATTACHED       = 1
+ثابت USB_DEV_POWERED        = 2
+ثابت USB_DEV_DEFAULT        = 3
+ثابت USB_DEV_ADDRESSED      = 4
+ثابت USB_DEV_CONFIGURED     = 5
+
+# أنواع المتحكمات
+ثابت USB_HC_UHCI = 0
+ثابت USB_HC_OHCI = 16
+ثابت USB_HC_EHCI = 32
+ثابت USB_HC_XHCI = 48
+
+# حدود
+ثابت USB_MAX_DEVICES = 32
+ثابت USB_MAX_ENDPOINTS = 8
+ثابت USB_MAX_CONTROLLERS = 4
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# قاعدة بيانات الأجهزة (32 جهاز كحد أقصى)
+# ═══════════════════════════════════════════════════════════════════════════════
+متغير usb_dev_count = 0
+
+# عنوان USB (1-127)
+متغير usb_addr_0 = 0
+متغير usb_addr_1 = 0
+متغير usb_addr_2 = 0
+متغير usb_addr_3 = 0
+متغير usb_addr_4 = 0
+متغير usb_addr_5 = 0
+متغير usb_addr_6 = 0
+متغير usb_addr_7 = 0
+متغير usb_addr_8 = 0
+متغير usb_addr_9 = 0
+متغير usb_addr_10 = 0
+متغير usb_addr_11 = 0
+متغير usb_addr_12 = 0
+متغير usb_addr_13 = 0
+متغير usb_addr_14 = 0
+متغير usb_addr_15 = 0
+متغير usb_addr_16 = 0
+متغير usb_addr_17 = 0
+متغير usb_addr_18 = 0
+متغير usb_addr_19 = 0
+متغير usb_addr_20 = 0
+متغير usb_addr_21 = 0
+متغير usb_addr_22 = 0
+متغير usb_addr_23 = 0
+متغير usb_addr_24 = 0
+متغير usb_addr_25 = 0
+متغير usb_addr_26 = 0
+متغير usb_addr_27 = 0
+متغير usb_addr_28 = 0
+متغير usb_addr_29 = 0
+متغير usb_addr_30 = 0
+متغير usb_addr_31 = 0
+
+# حالة الجهاز
+متغير usb_state_0 = 0
+متغير usb_state_1 = 0
+متغير usb_state_2 = 0
+متغير usb_state_3 = 0
+متغير usb_state_4 = 0
+متغير usb_state_5 = 0
+متغير usb_state_6 = 0
+متغير usb_state_7 = 0
+متغير usb_state_8 = 0
+متغير usb_state_9 = 0
+متغير usb_state_10 = 0
+متغير usb_state_11 = 0
+متغير usb_state_12 = 0
+متغير usb_state_13 = 0
+متغير usb_state_14 = 0
+متغير usb_state_15 = 0
+متغير usb_state_16 = 0
+متغير usb_state_17 = 0
+متغير usb_state_18 = 0
+متغير usb_state_19 = 0
+متغير usb_state_20 = 0
+متغير usb_state_21 = 0
+متغير usb_state_22 = 0
+متغير usb_state_23 = 0
+متغير usb_state_24 = 0
+متغير usb_state_25 = 0
+متغير usb_state_26 = 0
+متغير usb_state_27 = 0
+متغير usb_state_28 = 0
+متغير usb_state_29 = 0
+متغير usb_state_30 = 0
+متغير usb_state_31 = 0
+
+# سرعة الجهاز
+متغير usb_speed_0 = 0
+متغير usb_speed_1 = 0
+متغير usb_speed_2 = 0
+متغير usb_speed_3 = 0
+متغير usb_speed_4 = 0
+متغير usb_speed_5 = 0
+متغير usb_speed_6 = 0
+متغير usb_speed_7 = 0
+متغير usb_speed_8 = 0
+متغير usb_speed_9 = 0
+متغير usb_speed_10 = 0
+متغير usb_speed_11 = 0
+متغير usb_speed_12 = 0
+متغير usb_speed_13 = 0
+متغير usb_speed_14 = 0
+متغير usb_speed_15 = 0
+متغير usb_speed_16 = 0
+متغير usb_speed_17 = 0
+متغير usb_speed_18 = 0
+متغير usb_speed_19 = 0
+متغير usb_speed_20 = 0
+متغير usb_speed_21 = 0
+متغير usb_speed_22 = 0
+متغير usb_speed_23 = 0
+متغير usb_speed_24 = 0
+متغير usb_speed_25 = 0
+متغير usb_speed_26 = 0
+متغير usb_speed_27 = 0
+متغير usb_speed_28 = 0
+متغير usb_speed_29 = 0
+متغير usb_speed_30 = 0
+متغير usb_speed_31 = 0
+
+# صنف الجهاز (class * 256 + subclass)
+متغير usb_class_0 = 0
+متغير usb_class_1 = 0
+متغير usb_class_2 = 0
+متغير usb_class_3 = 0
+متغير usb_class_4 = 0
+متغير usb_class_5 = 0
+متغير usb_class_6 = 0
+متغير usb_class_7 = 0
+متغير usb_class_8 = 0
+متغير usb_class_9 = 0
+متغير usb_class_10 = 0
+متغير usb_class_11 = 0
+متغير usb_class_12 = 0
+متغير usb_class_13 = 0
+متغير usb_class_14 = 0
+متغير usb_class_15 = 0
+متغير usb_class_16 = 0
+متغير usb_class_17 = 0
+متغير usb_class_18 = 0
+متغير usb_class_19 = 0
+متغير usb_class_20 = 0
+متغير usb_class_21 = 0
+متغير usb_class_22 = 0
+متغير usb_class_23 = 0
+متغير usb_class_24 = 0
+متغير usb_class_25 = 0
+متغير usb_class_26 = 0
+متغير usb_class_27 = 0
+متغير usb_class_28 = 0
+متغير usb_class_29 = 0
+متغير usb_class_30 = 0
+متغير usb_class_31 = 0
+
+# بروتوكول الجهاز
+متغير usb_proto_0 = 0
+متغير usb_proto_1 = 0
+متغير usb_proto_2 = 0
+متغير usb_proto_3 = 0
+متغير usb_proto_4 = 0
+متغير usb_proto_5 = 0
+متغير usb_proto_6 = 0
+متغير usb_proto_7 = 0
+متغير usb_proto_8 = 0
+متغير usb_proto_9 = 0
+متغير usb_proto_10 = 0
+متغير usb_proto_11 = 0
+متغير usb_proto_12 = 0
+متغير usb_proto_13 = 0
+متغير usb_proto_14 = 0
+متغير usb_proto_15 = 0
+متغير usb_proto_16 = 0
+متغير usb_proto_17 = 0
+متغير usb_proto_18 = 0
+متغير usb_proto_19 = 0
+متغير usb_proto_20 = 0
+متغير usb_proto_21 = 0
+متغير usb_proto_22 = 0
+متغير usb_proto_23 = 0
+متغير usb_proto_24 = 0
+متغير usb_proto_25 = 0
+متغير usb_proto_26 = 0
+متغير usb_proto_27 = 0
+متغير usb_proto_28 = 0
+متغير usb_proto_29 = 0
+متغير usb_proto_30 = 0
+متغير usb_proto_31 = 0
+
+# VID
+متغير usb_vid_0 = 0
+متغير usb_vid_1 = 0
+متغير usb_vid_2 = 0
+متغير usb_vid_3 = 0
+متغير usb_vid_4 = 0
+متغير usb_vid_5 = 0
+متغير usb_vid_6 = 0
+متغير usb_vid_7 = 0
+متغير usb_vid_8 = 0
+متغير usb_vid_9 = 0
+متغير usb_vid_10 = 0
+متغير usb_vid_11 = 0
+متغير usb_vid_12 = 0
+متغير usb_vid_13 = 0
+متغير usb_vid_14 = 0
+متغير usb_vid_15 = 0
+
+# PID
+متغير usb_pid_0 = 0
+متغير usb_pid_1 = 0
+متغير usb_pid_2 = 0
+متغير usb_pid_3 = 0
+متغير usb_pid_4 = 0
+متغير usb_pid_5 = 0
+متغير usb_pid_6 = 0
+متغير usb_pid_7 = 0
+متغير usb_pid_8 = 0
+متغير usb_pid_9 = 0
+متغير usb_pid_10 = 0
+متغير usb_pid_11 = 0
+متغير usb_pid_12 = 0
+متغير usb_pid_13 = 0
+متغير usb_pid_14 = 0
+متغير usb_pid_15 = 0
+
+# حجم الحزمة القصوى لـ EP0
+متغير usb_maxpkt_0 = 8
+متغير usb_maxpkt_1 = 8
+متغير usb_maxpkt_2 = 8
+متغير usb_maxpkt_3 = 8
+متغير usb_maxpkt_4 = 8
+متغير usb_maxpkt_5 = 8
+متغير usb_maxpkt_6 = 8
+متغير usb_maxpkt_7 = 8
+متغير usb_maxpkt_8 = 8
+متغير usb_maxpkt_9 = 8
+متغير usb_maxpkt_10 = 8
+متغير usb_maxpkt_11 = 8
+متغير usb_maxpkt_12 = 8
+متغير usb_maxpkt_13 = 8
+متغير usb_maxpkt_14 = 8
+متغير usb_maxpkt_15 = 8
+
+# رقم المتحكم المرتبط
+متغير usb_hc_0 = 0
+متغير usb_hc_1 = 0
+متغير usb_hc_2 = 0
+متغير usb_hc_3 = 0
+متغير usb_hc_4 = 0
+متغير usb_hc_5 = 0
+متغير usb_hc_6 = 0
+متغير usb_hc_7 = 0
+متغير usb_hc_8 = 0
+متغير usb_hc_9 = 0
+متغير usb_hc_10 = 0
+متغير usb_hc_11 = 0
+متغير usb_hc_12 = 0
+متغير usb_hc_13 = 0
+متغير usb_hc_14 = 0
+متغير usb_hc_15 = 0
+
+# منفذ الجهاز على المتحكم
+متغير usb_port_0 = 0
+متغير usb_port_1 = 0
+متغير usb_port_2 = 0
+متغير usb_port_3 = 0
+متغير usb_port_4 = 0
+متغير usb_port_5 = 0
+متغير usb_port_6 = 0
+متغير usb_port_7 = 0
+متغير usb_port_8 = 0
+متغير usb_port_9 = 0
+متغير usb_port_10 = 0
+متغير usb_port_11 = 0
+متغير usb_port_12 = 0
+متغير usb_port_13 = 0
+متغير usb_port_14 = 0
+متغير usb_port_15 = 0
+
+# عدد نقاط النهاية لكل جهاز
+متغير usb_num_ep_0 = 0
+متغير usb_num_ep_1 = 0
+متغير usb_num_ep_2 = 0
+متغير usb_num_ep_3 = 0
+متغير usb_num_ep_4 = 0
+متغير usb_num_ep_5 = 0
+متغير usb_num_ep_6 = 0
+متغير usb_num_ep_7 = 0
+متغير usb_num_ep_8 = 0
+متغير usb_num_ep_9 = 0
+متغير usb_num_ep_10 = 0
+متغير usb_num_ep_11 = 0
+متغير usb_num_ep_12 = 0
+متغير usb_num_ep_13 = 0
+متغير usb_num_ep_14 = 0
+متغير usb_num_ep_15 = 0
+
+# ─── متحكمات USB المكتشفة ───
+متغير usb_hc_count = 0
+
+# نوع المتحكم (UHCI=0, OHCI=16, EHCI=32, XHCI=48)
+متغير hc_type_0 = 0
+متغير hc_type_1 = 0
+متغير hc_type_2 = 0
+متغير hc_type_3 = 0
+
+# عنوان قاعدة المتحكم (I/O أو MMIO)
+متغير hc_base_0 = 0
+متغير hc_base_1 = 0
+متغير hc_base_2 = 0
+متغير hc_base_3 = 0
+
+# IRQ
+متغير hc_irq_0 = 0
+متغير hc_irq_1 = 0
+متغير hc_irq_2 = 0
+متغير hc_irq_3 = 0
+
+# فهرس PCI
+متغير hc_pci_idx_0 = 0
+متغير hc_pci_idx_1 = 0
+متغير hc_pci_idx_2 = 0
+متغير hc_pci_idx_3 = 0
+
+# عداد العنوان التالي
+متغير usb_next_address = 1
+
+# ─── إحصائيات ───
+متغير usb_total_transfers = 0
+متغير usb_transfer_errors = 0
+متغير usb_hid_devices = 0
+متغير usb_storage_devices = 0
+متغير usb_hub_devices = 0
+متغير usb_other_devices = 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الطباعة التسلسلية
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة usb_serial_اطبع(رسالة)
+    متغير i = 0 + 0
+    بينما (i < 80)
+        متغير ch = sad_ll_mem_read8(رسالة + i) + 0
+        إذا (ch == 0)
+            ارجع 0
+        نهاية
+        sad_ll_serial_write_char(COM1، ch)
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية
+
+دالة usb_serial_رقم(ن)
+    متغير val = ن + 0
+    إذا (val < 0)
+        sad_ll_serial_write_char(COM1، 45)
+        val = 0 - val
+    نهاية
+    إذا (val >= 10000)
+        متغير d5 = val / 10000
+        sad_ll_serial_write_char(COM1، 48 + d5)
+        val = val - (d5 * 10000)
+    نهاية
+    إذا (val >= 1000)
+        متغير d4 = val / 1000
+        sad_ll_serial_write_char(COM1، 48 + d4)
+        val = val - (d4 * 1000)
+    والا_اذا (ن >= 10000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 100)
+        متغير d3 = val / 100
+        sad_ll_serial_write_char(COM1، 48 + d3)
+        val = val - (d3 * 100)
+    والا_اذا (ن >= 1000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 10)
+        متغير d2 = val / 10
+        sad_ll_serial_write_char(COM1، 48 + d2)
+        val = val - (d2 * 10)
+    والا_اذا (ن >= 100)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    sad_ll_serial_write_char(COM1، 48 + val)
+    ارجع 0
+نهاية
+
+دالة usb_serial_hex8(val)
+    متغير v = val + 0
+    متغير hi = v / 16
+    متغير lo = v % 16
+    إذا (hi < 10) sad_ll_serial_write_char(COM1، 48 + hi)
+    والا sad_ll_serial_write_char(COM1، 55 + hi) نهاية
+    إذا (lo < 10) sad_ll_serial_write_char(COM1، 48 + lo)
+    والا sad_ll_serial_write_char(COM1، 55 + lo) نهاية
+    ارجع 0
+نهاية
+
+دالة usb_serial_hex16(val)
+    usb_serial_hex8(val / 256)
+    usb_serial_hex8(val % 256)
+    ارجع 0
+نهاية
+
+دالة usb_serial_سطر()
+    sad_ll_serial_write_char(COM1، 13)
+    sad_ll_serial_write_char(COM1، 10)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الوصول للمصفوفات الموازية
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة usb_get_addr(idx)
+    إذا (idx == 0) ارجع usb_addr_0 + 0 نهاية
+    إذا (idx == 1) ارجع usb_addr_1 + 0 نهاية
+    إذا (idx == 2) ارجع usb_addr_2 + 0 نهاية
+    إذا (idx == 3) ارجع usb_addr_3 + 0 نهاية
+    إذا (idx == 4) ارجع usb_addr_4 + 0 نهاية
+    إذا (idx == 5) ارجع usb_addr_5 + 0 نهاية
+    إذا (idx == 6) ارجع usb_addr_6 + 0 نهاية
+    إذا (idx == 7) ارجع usb_addr_7 + 0 نهاية
+    إذا (idx == 8) ارجع usb_addr_8 + 0 نهاية
+    إذا (idx == 9) ارجع usb_addr_9 + 0 نهاية
+    إذا (idx == 10) ارجع usb_addr_10 + 0 نهاية
+    إذا (idx == 11) ارجع usb_addr_11 + 0 نهاية
+    إذا (idx == 12) ارجع usb_addr_12 + 0 نهاية
+    إذا (idx == 13) ارجع usb_addr_13 + 0 نهاية
+    إذا (idx == 14) ارجع usb_addr_14 + 0 نهاية
+    إذا (idx == 15) ارجع usb_addr_15 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_set_addr(idx، val)
+    إذا (idx == 0) usb_addr_0 = val + 0 نهاية
+    إذا (idx == 1) usb_addr_1 = val + 0 نهاية
+    إذا (idx == 2) usb_addr_2 = val + 0 نهاية
+    إذا (idx == 3) usb_addr_3 = val + 0 نهاية
+    إذا (idx == 4) usb_addr_4 = val + 0 نهاية
+    إذا (idx == 5) usb_addr_5 = val + 0 نهاية
+    إذا (idx == 6) usb_addr_6 = val + 0 نهاية
+    إذا (idx == 7) usb_addr_7 = val + 0 نهاية
+    إذا (idx == 8) usb_addr_8 = val + 0 نهاية
+    إذا (idx == 9) usb_addr_9 = val + 0 نهاية
+    إذا (idx == 10) usb_addr_10 = val + 0 نهاية
+    إذا (idx == 11) usb_addr_11 = val + 0 نهاية
+    إذا (idx == 12) usb_addr_12 = val + 0 نهاية
+    إذا (idx == 13) usb_addr_13 = val + 0 نهاية
+    إذا (idx == 14) usb_addr_14 = val + 0 نهاية
+    إذا (idx == 15) usb_addr_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_get_state(idx)
+    إذا (idx == 0) ارجع usb_state_0 + 0 نهاية
+    إذا (idx == 1) ارجع usb_state_1 + 0 نهاية
+    إذا (idx == 2) ارجع usb_state_2 + 0 نهاية
+    إذا (idx == 3) ارجع usb_state_3 + 0 نهاية
+    إذا (idx == 4) ارجع usb_state_4 + 0 نهاية
+    إذا (idx == 5) ارجع usb_state_5 + 0 نهاية
+    إذا (idx == 6) ارجع usb_state_6 + 0 نهاية
+    إذا (idx == 7) ارجع usb_state_7 + 0 نهاية
+    إذا (idx == 8) ارجع usb_state_8 + 0 نهاية
+    إذا (idx == 9) ارجع usb_state_9 + 0 نهاية
+    إذا (idx == 10) ارجع usb_state_10 + 0 نهاية
+    إذا (idx == 11) ارجع usb_state_11 + 0 نهاية
+    إذا (idx == 12) ارجع usb_state_12 + 0 نهاية
+    إذا (idx == 13) ارجع usb_state_13 + 0 نهاية
+    إذا (idx == 14) ارجع usb_state_14 + 0 نهاية
+    إذا (idx == 15) ارجع usb_state_15 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_set_state(idx، val)
+    إذا (idx == 0) usb_state_0 = val + 0 نهاية
+    إذا (idx == 1) usb_state_1 = val + 0 نهاية
+    إذا (idx == 2) usb_state_2 = val + 0 نهاية
+    إذا (idx == 3) usb_state_3 = val + 0 نهاية
+    إذا (idx == 4) usb_state_4 = val + 0 نهاية
+    إذا (idx == 5) usb_state_5 = val + 0 نهاية
+    إذا (idx == 6) usb_state_6 = val + 0 نهاية
+    إذا (idx == 7) usb_state_7 = val + 0 نهاية
+    إذا (idx == 8) usb_state_8 = val + 0 نهاية
+    إذا (idx == 9) usb_state_9 = val + 0 نهاية
+    إذا (idx == 10) usb_state_10 = val + 0 نهاية
+    إذا (idx == 11) usb_state_11 = val + 0 نهاية
+    إذا (idx == 12) usb_state_12 = val + 0 نهاية
+    إذا (idx == 13) usb_state_13 = val + 0 نهاية
+    إذا (idx == 14) usb_state_14 = val + 0 نهاية
+    إذا (idx == 15) usb_state_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_get_speed(idx)
+    إذا (idx == 0) ارجع usb_speed_0 + 0 نهاية
+    إذا (idx == 1) ارجع usb_speed_1 + 0 نهاية
+    إذا (idx == 2) ارجع usb_speed_2 + 0 نهاية
+    إذا (idx == 3) ارجع usb_speed_3 + 0 نهاية
+    إذا (idx == 4) ارجع usb_speed_4 + 0 نهاية
+    إذا (idx == 5) ارجع usb_speed_5 + 0 نهاية
+    إذا (idx == 6) ارجع usb_speed_6 + 0 نهاية
+    إذا (idx == 7) ارجع usb_speed_7 + 0 نهاية
+    إذا (idx == 8) ارجع usb_speed_8 + 0 نهاية
+    إذا (idx == 9) ارجع usb_speed_9 + 0 نهاية
+    إذا (idx == 10) ارجع usb_speed_10 + 0 نهاية
+    إذا (idx == 11) ارجع usb_speed_11 + 0 نهاية
+    إذا (idx == 12) ارجع usb_speed_12 + 0 نهاية
+    إذا (idx == 13) ارجع usb_speed_13 + 0 نهاية
+    إذا (idx == 14) ارجع usb_speed_14 + 0 نهاية
+    إذا (idx == 15) ارجع usb_speed_15 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_set_speed(idx، val)
+    إذا (idx == 0) usb_speed_0 = val + 0 نهاية
+    إذا (idx == 1) usb_speed_1 = val + 0 نهاية
+    إذا (idx == 2) usb_speed_2 = val + 0 نهاية
+    إذا (idx == 3) usb_speed_3 = val + 0 نهاية
+    إذا (idx == 4) usb_speed_4 = val + 0 نهاية
+    إذا (idx == 5) usb_speed_5 = val + 0 نهاية
+    إذا (idx == 6) usb_speed_6 = val + 0 نهاية
+    إذا (idx == 7) usb_speed_7 = val + 0 نهاية
+    إذا (idx == 8) usb_speed_8 = val + 0 نهاية
+    إذا (idx == 9) usb_speed_9 = val + 0 نهاية
+    إذا (idx == 10) usb_speed_10 = val + 0 نهاية
+    إذا (idx == 11) usb_speed_11 = val + 0 نهاية
+    إذا (idx == 12) usb_speed_12 = val + 0 نهاية
+    إذا (idx == 13) usb_speed_13 = val + 0 نهاية
+    إذا (idx == 14) usb_speed_14 = val + 0 نهاية
+    إذا (idx == 15) usb_speed_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_get_class(idx)
+    إذا (idx == 0) ارجع usb_class_0 + 0 نهاية
+    إذا (idx == 1) ارجع usb_class_1 + 0 نهاية
+    إذا (idx == 2) ارجع usb_class_2 + 0 نهاية
+    إذا (idx == 3) ارجع usb_class_3 + 0 نهاية
+    إذا (idx == 4) ارجع usb_class_4 + 0 نهاية
+    إذا (idx == 5) ارجع usb_class_5 + 0 نهاية
+    إذا (idx == 6) ارجع usb_class_6 + 0 نهاية
+    إذا (idx == 7) ارجع usb_class_7 + 0 نهاية
+    إذا (idx == 8) ارجع usb_class_8 + 0 نهاية
+    إذا (idx == 9) ارجع usb_class_9 + 0 نهاية
+    إذا (idx == 10) ارجع usb_class_10 + 0 نهاية
+    إذا (idx == 11) ارجع usb_class_11 + 0 نهاية
+    إذا (idx == 12) ارجع usb_class_12 + 0 نهاية
+    إذا (idx == 13) ارجع usb_class_13 + 0 نهاية
+    إذا (idx == 14) ارجع usb_class_14 + 0 نهاية
+    إذا (idx == 15) ارجع usb_class_15 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_set_class(idx، val)
+    إذا (idx == 0) usb_class_0 = val + 0 نهاية
+    إذا (idx == 1) usb_class_1 = val + 0 نهاية
+    إذا (idx == 2) usb_class_2 = val + 0 نهاية
+    إذا (idx == 3) usb_class_3 = val + 0 نهاية
+    إذا (idx == 4) usb_class_4 = val + 0 نهاية
+    إذا (idx == 5) usb_class_5 = val + 0 نهاية
+    إذا (idx == 6) usb_class_6 = val + 0 نهاية
+    إذا (idx == 7) usb_class_7 = val + 0 نهاية
+    إذا (idx == 8) usb_class_8 = val + 0 نهاية
+    إذا (idx == 9) usb_class_9 = val + 0 نهاية
+    إذا (idx == 10) usb_class_10 = val + 0 نهاية
+    إذا (idx == 11) usb_class_11 = val + 0 نهاية
+    إذا (idx == 12) usb_class_12 = val + 0 نهاية
+    إذا (idx == 13) usb_class_13 = val + 0 نهاية
+    إذا (idx == 14) usb_class_14 = val + 0 نهاية
+    إذا (idx == 15) usb_class_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_get_proto(idx)
+    إذا (idx == 0) ارجع usb_proto_0 + 0 نهاية
+    إذا (idx == 1) ارجع usb_proto_1 + 0 نهاية
+    إذا (idx == 2) ارجع usb_proto_2 + 0 نهاية
+    إذا (idx == 3) ارجع usb_proto_3 + 0 نهاية
+    إذا (idx == 4) ارجع usb_proto_4 + 0 نهاية
+    إذا (idx == 5) ارجع usb_proto_5 + 0 نهاية
+    إذا (idx == 6) ارجع usb_proto_6 + 0 نهاية
+    إذا (idx == 7) ارجع usb_proto_7 + 0 نهاية
+    إذا (idx == 8) ارجع usb_proto_8 + 0 نهاية
+    إذا (idx == 9) ارجع usb_proto_9 + 0 نهاية
+    إذا (idx == 10) ارجع usb_proto_10 + 0 نهاية
+    إذا (idx == 11) ارجع usb_proto_11 + 0 نهاية
+    إذا (idx == 12) ارجع usb_proto_12 + 0 نهاية
+    إذا (idx == 13) ارجع usb_proto_13 + 0 نهاية
+    إذا (idx == 14) ارجع usb_proto_14 + 0 نهاية
+    إذا (idx == 15) ارجع usb_proto_15 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_set_proto(idx، val)
+    إذا (idx == 0) usb_proto_0 = val + 0 نهاية
+    إذا (idx == 1) usb_proto_1 = val + 0 نهاية
+    إذا (idx == 2) usb_proto_2 = val + 0 نهاية
+    إذا (idx == 3) usb_proto_3 = val + 0 نهاية
+    إذا (idx == 4) usb_proto_4 = val + 0 نهاية
+    إذا (idx == 5) usb_proto_5 = val + 0 نهاية
+    إذا (idx == 6) usb_proto_6 = val + 0 نهاية
+    إذا (idx == 7) usb_proto_7 = val + 0 نهاية
+    إذا (idx == 8) usb_proto_8 = val + 0 نهاية
+    إذا (idx == 9) usb_proto_9 = val + 0 نهاية
+    إذا (idx == 10) usb_proto_10 = val + 0 نهاية
+    إذا (idx == 11) usb_proto_11 = val + 0 نهاية
+    إذا (idx == 12) usb_proto_12 = val + 0 نهاية
+    إذا (idx == 13) usb_proto_13 = val + 0 نهاية
+    إذا (idx == 14) usb_proto_14 = val + 0 نهاية
+    إذا (idx == 15) usb_proto_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_get_vid(idx)
+    إذا (idx == 0) ارجع usb_vid_0 + 0 نهاية
+    إذا (idx == 1) ارجع usb_vid_1 + 0 نهاية
+    إذا (idx == 2) ارجع usb_vid_2 + 0 نهاية
+    إذا (idx == 3) ارجع usb_vid_3 + 0 نهاية
+    إذا (idx == 4) ارجع usb_vid_4 + 0 نهاية
+    إذا (idx == 5) ارجع usb_vid_5 + 0 نهاية
+    إذا (idx == 6) ارجع usb_vid_6 + 0 نهاية
+    إذا (idx == 7) ارجع usb_vid_7 + 0 نهاية
+    إذا (idx == 8) ارجع usb_vid_8 + 0 نهاية
+    إذا (idx == 9) ارجع usb_vid_9 + 0 نهاية
+    إذا (idx == 10) ارجع usb_vid_10 + 0 نهاية
+    إذا (idx == 11) ارجع usb_vid_11 + 0 نهاية
+    إذا (idx == 12) ارجع usb_vid_12 + 0 نهاية
+    إذا (idx == 13) ارجع usb_vid_13 + 0 نهاية
+    إذا (idx == 14) ارجع usb_vid_14 + 0 نهاية
+    إذا (idx == 15) ارجع usb_vid_15 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_set_vid(idx، val)
+    إذا (idx == 0) usb_vid_0 = val + 0 نهاية
+    إذا (idx == 1) usb_vid_1 = val + 0 نهاية
+    إذا (idx == 2) usb_vid_2 = val + 0 نهاية
+    إذا (idx == 3) usb_vid_3 = val + 0 نهاية
+    إذا (idx == 4) usb_vid_4 = val + 0 نهاية
+    إذا (idx == 5) usb_vid_5 = val + 0 نهاية
+    إذا (idx == 6) usb_vid_6 = val + 0 نهاية
+    إذا (idx == 7) usb_vid_7 = val + 0 نهاية
+    إذا (idx == 8) usb_vid_8 = val + 0 نهاية
+    إذا (idx == 9) usb_vid_9 = val + 0 نهاية
+    إذا (idx == 10) usb_vid_10 = val + 0 نهاية
+    إذا (idx == 11) usb_vid_11 = val + 0 نهاية
+    إذا (idx == 12) usb_vid_12 = val + 0 نهاية
+    إذا (idx == 13) usb_vid_13 = val + 0 نهاية
+    إذا (idx == 14) usb_vid_14 = val + 0 نهاية
+    إذا (idx == 15) usb_vid_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_get_maxpkt(idx)
+    إذا (idx == 0) ارجع usb_maxpkt_0 + 0 نهاية
+    إذا (idx == 1) ارجع usb_maxpkt_1 + 0 نهاية
+    إذا (idx == 2) ارجع usb_maxpkt_2 + 0 نهاية
+    إذا (idx == 3) ارجع usb_maxpkt_3 + 0 نهاية
+    إذا (idx == 4) ارجع usb_maxpkt_4 + 0 نهاية
+    إذا (idx == 5) ارجع usb_maxpkt_5 + 0 نهاية
+    إذا (idx == 6) ارجع usb_maxpkt_6 + 0 نهاية
+    إذا (idx == 7) ارجع usb_maxpkt_7 + 0 نهاية
+    إذا (idx == 8) ارجع usb_maxpkt_8 + 0 نهاية
+    إذا (idx == 9) ارجع usb_maxpkt_9 + 0 نهاية
+    إذا (idx == 10) ارجع usb_maxpkt_10 + 0 نهاية
+    إذا (idx == 11) ارجع usb_maxpkt_11 + 0 نهاية
+    إذا (idx == 12) ارجع usb_maxpkt_12 + 0 نهاية
+    إذا (idx == 13) ارجع usb_maxpkt_13 + 0 نهاية
+    إذا (idx == 14) ارجع usb_maxpkt_14 + 0 نهاية
+    إذا (idx == 15) ارجع usb_maxpkt_15 + 0 نهاية
+    ارجع 8
+نهاية
+
+دالة usb_set_maxpkt(idx، val)
+    إذا (idx == 0) usb_maxpkt_0 = val + 0 نهاية
+    إذا (idx == 1) usb_maxpkt_1 = val + 0 نهاية
+    إذا (idx == 2) usb_maxpkt_2 = val + 0 نهاية
+    إذا (idx == 3) usb_maxpkt_3 = val + 0 نهاية
+    إذا (idx == 4) usb_maxpkt_4 = val + 0 نهاية
+    إذا (idx == 5) usb_maxpkt_5 = val + 0 نهاية
+    إذا (idx == 6) usb_maxpkt_6 = val + 0 نهاية
+    إذا (idx == 7) usb_maxpkt_7 = val + 0 نهاية
+    إذا (idx == 8) usb_maxpkt_8 = val + 0 نهاية
+    إذا (idx == 9) usb_maxpkt_9 = val + 0 نهاية
+    إذا (idx == 10) usb_maxpkt_10 = val + 0 نهاية
+    إذا (idx == 11) usb_maxpkt_11 = val + 0 نهاية
+    إذا (idx == 12) usb_maxpkt_12 = val + 0 نهاية
+    إذا (idx == 13) usb_maxpkt_13 = val + 0 نهاية
+    إذا (idx == 14) usb_maxpkt_14 = val + 0 نهاية
+    إذا (idx == 15) usb_maxpkt_15 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+# HC type/base/irq accessors
+دالة usb_get_hc_type(idx)
+    إذا (idx == 0) ارجع hc_type_0 + 0 نهاية
+    إذا (idx == 1) ارجع hc_type_1 + 0 نهاية
+    إذا (idx == 2) ارجع hc_type_2 + 0 نهاية
+    إذا (idx == 3) ارجع hc_type_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_set_hc_type(idx، val)
+    إذا (idx == 0) hc_type_0 = val + 0 نهاية
+    إذا (idx == 1) hc_type_1 = val + 0 نهاية
+    إذا (idx == 2) hc_type_2 = val + 0 نهاية
+    إذا (idx == 3) hc_type_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+صدّر دالة usb_get_hc_base(idx)
+    إذا (idx == 0) ارجع hc_base_0 + 0 نهاية
+    إذا (idx == 1) ارجع hc_base_1 + 0 نهاية
+    إذا (idx == 2) ارجع hc_base_2 + 0 نهاية
+    إذا (idx == 3) ارجع hc_base_3 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة usb_set_hc_base(idx، val)
+    إذا (idx == 0) hc_base_0 = val + 0 نهاية
+    إذا (idx == 1) hc_base_1 = val + 0 نهاية
+    إذا (idx == 2) hc_base_2 = val + 0 نهاية
+    إذا (idx == 3) hc_base_3 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# بناء حزمة Setup (8 بايت)
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة usb_build_setup(buf، req_type، request، w_value، w_index، w_length)
+    sad_ll_mem_write8(buf، req_type + 0)
+    sad_ll_mem_write8(buf + 1، request + 0)
+    sad_ll_mem_write8(buf + 2، w_value % 256)
+    sad_ll_mem_write8(buf + 3، w_value / 256)
+    sad_ll_mem_write8(buf + 4، w_index % 256)
+    sad_ll_mem_write8(buf + 5، w_index / 256)
+    sad_ll_mem_write8(buf + 6، w_length % 256)
+    sad_ll_mem_write8(buf + 7، w_length / 256)
+    ارجع 8
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تحليل واصفة الجهاز (18 بايت)
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة usb_parse_device_descriptor(buf، dev_idx)
+    # byte 0: bLength
+    # byte 1: bDescriptorType (should be 1)
+    متغير desc_type = sad_ll_mem_read8(buf + 1) + 0
+    إذا (desc_type != USB_DESC_DEVICE)
+        ارجع 0
+    نهاية
+
+    # byte 4: bDeviceClass
+    متغير dev_class = sad_ll_mem_read8(buf + 4) + 0
+    # byte 5: bDeviceSubClass
+    متغير dev_subclass = sad_ll_mem_read8(buf + 5) + 0
+    # byte 6: bDeviceProtocol
+    متغير dev_protocol = sad_ll_mem_read8(buf + 6) + 0
+    # byte 7: bMaxPacketSize0
+    متغير max_pkt = sad_ll_mem_read8(buf + 7) + 0
+
+    # byte 8-9: idVendor (little-endian)
+    متغير vid_lo = sad_ll_mem_read8(buf + 8) + 0
+    متغير vid_hi = sad_ll_mem_read8(buf + 9) + 0
+    متغير vid = vid_hi * 256 + vid_lo
+
+    # byte 10-11: idProduct
+    متغير pid_lo = sad_ll_mem_read8(buf + 10) + 0
+    متغير pid_hi = sad_ll_mem_read8(buf + 11) + 0
+    متغير pid = pid_hi * 256 + pid_lo
+
+    # byte 17: bNumConfigurations
+    متغير num_configs = sad_ll_mem_read8(buf + 17) + 0
+
+    # تخزين المعلومات
+    usb_set_class(dev_idx، dev_class * 256 + dev_subclass)
+    usb_set_proto(dev_idx، dev_protocol)
+    usb_set_maxpkt(dev_idx، max_pkt)
+    usb_set_vid(dev_idx، vid)
+
+    usb_serial_اطبع("[USB] Device Desc: VID=0x")
+    usb_serial_hex16(vid + 0)
+    usb_serial_اطبع(" PID=0x")
+    usb_serial_hex16(pid + 0)
+    usb_serial_اطبع(" Class=")
+    usb_serial_hex8(dev_class + 0)
+    sad_ll_serial_write_char(COM1، 58)
+    usb_serial_hex8(dev_subclass + 0)
+    usb_serial_اطبع(" MaxPkt=")
+    usb_serial_رقم(max_pkt + 0)
+    usb_serial_سطر()
+
+    ارجع 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تحليل واصفة التكوين
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة usb_parse_config_descriptor(buf، total_len، dev_idx)
+    متغير pos = 0 + 0
+    متغير iface_class = 0 + 0
+    متغير iface_sub = 0 + 0
+    متغير iface_proto = 0 + 0
+    متغير ep_count = 0 + 0
+
+    بينما (pos < total_len)
+        متغير bLength = sad_ll_mem_read8(buf + pos) + 0
+        إذا (bLength == 0)
+            ارجع ep_count + 0
+        نهاية
+
+        متغير bDescType = sad_ll_mem_read8(buf + pos + 1) + 0
+
+        # واصفة الواجهة
+        إذا (bDescType == USB_DESC_INTERFACE)
+            iface_class = sad_ll_mem_read8(buf + pos + 5) + 0
+            iface_sub = sad_ll_mem_read8(buf + pos + 6) + 0
+            iface_proto = sad_ll_mem_read8(buf + pos + 7) + 0
+
+            # تحديث صنف الجهاز إذا كان 0 في واصفة الجهاز
+            متغير cur_class = usb_get_class(dev_idx) + 0
+            إذا (cur_class == 0)
+                usb_set_class(dev_idx، iface_class * 256 + iface_sub)
+                usb_set_proto(dev_idx، iface_proto)
+            نهاية
+
+            usb_serial_اطبع("[USB]   Interface: class=")
+            usb_serial_hex8(iface_class + 0)
+            sad_ll_serial_write_char(COM1، 58)
+            usb_serial_hex8(iface_sub + 0)
+            sad_ll_serial_write_char(COM1، 58)
+            usb_serial_hex8(iface_proto + 0)
+            usb_serial_سطر()
+        نهاية
+
+        # واصفة نقطة النهاية
+        إذا (bDescType == USB_DESC_ENDPOINT)
+            متغير ep_addr = sad_ll_mem_read8(buf + pos + 2) + 0
+            متغير ep_attr = sad_ll_mem_read8(buf + pos + 3) + 0
+            متغير ep_maxpkt_lo = sad_ll_mem_read8(buf + pos + 4) + 0
+            متغير ep_maxpkt_hi = sad_ll_mem_read8(buf + pos + 5) + 0
+            متغير ep_interval = sad_ll_mem_read8(buf + pos + 6) + 0
+            متغير ep_type = ep_attr % 4
+
+            usb_serial_اطبع("[USB]   EP 0x")
+            usb_serial_hex8(ep_addr + 0)
+            usb_serial_اطبع(" type=")
+            إذا (ep_type == USB_EP_CONTROL)
+                usb_serial_اطبع("CTRL")
+            نهاية
+            إذا (ep_type == USB_EP_BULK)
+                usb_serial_اطبع("BULK")
+            نهاية
+            إذا (ep_type == USB_EP_INTERRUPT)
+                usb_serial_اطبع("INTR")
+            نهاية
+            إذا (ep_type == USB_EP_ISOCHRONOUS)
+                usb_serial_اطبع("ISOC")
+            نهاية
+            usb_serial_اطبع(" maxpkt=")
+            usb_serial_رقم(ep_maxpkt_hi * 256 + ep_maxpkt_lo)
+            usb_serial_سطر()
+
+            ep_count = ep_count + 1
+        نهاية
+
+        pos = pos + bLength
+    نهاية
+
+    ارجع ep_count + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تصنيف جهاز USB
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة usb_classify_device(dev_idx)
+    متغير cls_full = usb_get_class(dev_idx) + 0
+    متغير cls = cls_full / 256
+    متغير sub = cls_full % 256
+    متغير proto = usb_get_proto(dev_idx) + 0
+
+    إذا (cls == USB_CLASS_HID)
+        usb_hid_devices = usb_hid_devices + 1
+        إذا (proto == USB_PROTOCOL_KEYBOARD)
+            usb_serial_اطبع("[USB]   -> Keyboard")
+            usb_serial_سطر()
+        والا_اذا (proto == USB_PROTOCOL_MOUSE)
+            usb_serial_اطبع("[USB]   -> Mouse")
+            usb_serial_سطر()
+        والا
+            usb_serial_اطبع("[USB]   -> HID device")
+            usb_serial_سطر()
+        نهاية
+        ارجع USB_CLASS_HID + 0
+    نهاية
+
+    إذا (cls == USB_CLASS_STORAGE)
+        usb_storage_devices = usb_storage_devices + 1
+        usb_serial_اطبع("[USB]   -> Mass Storage")
+        usb_serial_سطر()
+        ارجع USB_CLASS_STORAGE + 0
+    نهاية
+
+    إذا (cls == USB_CLASS_HUB)
+        usb_hub_devices = usb_hub_devices + 1
+        usb_serial_اطبع("[USB]   -> Hub")
+        usb_serial_سطر()
+        ارجع USB_CLASS_HUB + 0
+    نهاية
+
+    إذا (cls == USB_CLASS_AUDIO)
+        usb_serial_اطبع("[USB]   -> Audio")
+        usb_serial_سطر()
+    نهاية
+
+    إذا (cls == USB_CLASS_CDC)
+        usb_serial_اطبع("[USB]   -> CDC/Network")
+        usb_serial_سطر()
+    نهاية
+
+    إذا (cls == USB_CLASS_PRINTER)
+        usb_serial_اطبع("[USB]   -> Printer")
+        usb_serial_سطر()
+    نهاية
+
+    usb_other_devices = usb_other_devices + 1
+    ارجع cls + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تسجيل جهاز جديد
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة usb_register_device(hc_idx، port_num، speed)
+    إذا (usb_dev_count >= USB_MAX_DEVICES)
+        usb_serial_اطبع("[USB] Max devices reached!")
+        usb_serial_سطر()
+        ارجع 0 - 1
+    نهاية
+
+    متغير dev_idx = usb_dev_count + 0
+    usb_dev_count = usb_dev_count + 1
+
+    متغير new_addr = usb_next_address + 0
+    usb_next_address = usb_next_address + 1
+
+    usb_set_addr(dev_idx، new_addr)
+    usb_set_state(dev_idx، USB_DEV_ATTACHED)
+    usb_set_speed(dev_idx، speed)
+
+    إذا (dev_idx < 16)
+        إذا (dev_idx == 0) usb_hc_0 = hc_idx + 0 نهاية
+        إذا (dev_idx == 1) usb_hc_1 = hc_idx + 0 نهاية
+        إذا (dev_idx == 2) usb_hc_2 = hc_idx + 0 نهاية
+        إذا (dev_idx == 3) usb_hc_3 = hc_idx + 0 نهاية
+        إذا (dev_idx == 4) usb_hc_4 = hc_idx + 0 نهاية
+        إذا (dev_idx == 5) usb_hc_5 = hc_idx + 0 نهاية
+        إذا (dev_idx == 6) usb_hc_6 = hc_idx + 0 نهاية
+        إذا (dev_idx == 7) usb_hc_7 = hc_idx + 0 نهاية
+        إذا (dev_idx == 8) usb_hc_8 = hc_idx + 0 نهاية
+        إذا (dev_idx == 9) usb_hc_9 = hc_idx + 0 نهاية
+        إذا (dev_idx == 10) usb_hc_10 = hc_idx + 0 نهاية
+        إذا (dev_idx == 11) usb_hc_11 = hc_idx + 0 نهاية
+        إذا (dev_idx == 12) usb_hc_12 = hc_idx + 0 نهاية
+        إذا (dev_idx == 13) usb_hc_13 = hc_idx + 0 نهاية
+        إذا (dev_idx == 14) usb_hc_14 = hc_idx + 0 نهاية
+        إذا (dev_idx == 15) usb_hc_15 = hc_idx + 0 نهاية
+    نهاية
+
+    إذا (dev_idx < 16)
+        إذا (dev_idx == 0) usb_port_0 = port_num + 0 نهاية
+        إذا (dev_idx == 1) usb_port_1 = port_num + 0 نهاية
+        إذا (dev_idx == 2) usb_port_2 = port_num + 0 نهاية
+        إذا (dev_idx == 3) usb_port_3 = port_num + 0 نهاية
+        إذا (dev_idx == 4) usb_port_4 = port_num + 0 نهاية
+        إذا (dev_idx == 5) usb_port_5 = port_num + 0 نهاية
+        إذا (dev_idx == 6) usb_port_6 = port_num + 0 نهاية
+        إذا (dev_idx == 7) usb_port_7 = port_num + 0 نهاية
+        إذا (dev_idx == 8) usb_port_8 = port_num + 0 نهاية
+        إذا (dev_idx == 9) usb_port_9 = port_num + 0 نهاية
+        إذا (dev_idx == 10) usb_port_10 = port_num + 0 نهاية
+        إذا (dev_idx == 11) usb_port_11 = port_num + 0 نهاية
+        إذا (dev_idx == 12) usb_port_12 = port_num + 0 نهاية
+        إذا (dev_idx == 13) usb_port_13 = port_num + 0 نهاية
+        إذا (dev_idx == 14) usb_port_14 = port_num + 0 نهاية
+        إذا (dev_idx == 15) usb_port_15 = port_num + 0 نهاية
+    نهاية
+
+    usb_serial_اطبع("[USB] New device #")
+    usb_serial_رقم(dev_idx + 0)
+    usb_serial_اطبع(" addr=")
+    usb_serial_رقم(new_addr + 0)
+    usb_serial_اطبع(" port=")
+    usb_serial_رقم(port_num + 0)
+    usb_serial_اطبع(" speed=")
+    إذا (speed == USB_SPEED_LOW)
+        usb_serial_اطبع("Low")
+    والا_اذا (speed == USB_SPEED_FULL)
+        usb_serial_اطبع("Full")
+    والا
+        usb_serial_اطبع("High")
+    نهاية
+    usb_serial_سطر()
+
+    ارجع dev_idx + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# اكتشاف المتحكمات USB من PCI
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة usb_detect_controllers()
+    usb_serial_اطبع("[USB] Detecting USB controllers...")
+    usb_serial_سطر()
+
+    متغير search = 0 + 0
+    بينما (search < USB_MAX_CONTROLLERS)
+        متغير pci_idx = pci_find_usb_controller(search + 0) + 0
+        إذا (pci_idx < 0)
+            search = USB_MAX_CONTROLLERS  # انتهى
+        والا
+            متغير hc_idx = usb_hc_count + 0
+            إذا (hc_idx < USB_MAX_CONTROLLERS)
+                متغير usb_type = pci_get_usb_type(pci_idx + 0) + 0
+                متغير bar0 = pci_get_bar0(pci_idx + 0) + 0
+                متغير irq = pci_get_irq(pci_idx + 0) + 0
+                متغير base_addr = pci_bar_address(bar0 + 0) + 0
+
+                usb_set_hc_type(hc_idx، usb_type)
+                usb_set_hc_base(hc_idx، base_addr)
+
+                إذا (hc_idx == 0) hc_irq_0 = irq + 0 نهاية
+                إذا (hc_idx == 1) hc_irq_1 = irq + 0 نهاية
+                إذا (hc_idx == 2) hc_irq_2 = irq + 0 نهاية
+                إذا (hc_idx == 3) hc_irq_3 = irq + 0 نهاية
+
+                إذا (hc_idx == 0) hc_pci_idx_0 = pci_idx + 0 نهاية
+                إذا (hc_idx == 1) hc_pci_idx_1 = pci_idx + 0 نهاية
+                إذا (hc_idx == 2) hc_pci_idx_2 = pci_idx + 0 نهاية
+                إذا (hc_idx == 3) hc_pci_idx_3 = pci_idx + 0 نهاية
+
+                # تفعيل Bus Master
+                متغير bus = pci_loc_bus(pci_idx + 0) + 0
+                متغير dev = pci_loc_dev(pci_idx + 0) + 0
+                متغير func = pci_loc_func(pci_idx + 0) + 0
+                pci_enable_bus_master(bus + 0، dev + 0، func + 0)
+
+                usb_hc_count = usb_hc_count + 1
+
+                usb_serial_اطبع("[USB] HC #")
+                usb_serial_رقم(hc_idx + 0)
+                usb_serial_اطبع(" type=")
+                إذا (usb_type == USB_HC_UHCI)
+                    usb_serial_اطبع("UHCI")
+                والا_اذا (usb_type == USB_HC_OHCI)
+                    usb_serial_اطبع("OHCI")
+                والا_اذا (usb_type == USB_HC_EHCI)
+                    usb_serial_اطبع("EHCI")
+                والا_اذا (usb_type == USB_HC_XHCI)
+                    usb_serial_اطبع("XHCI")
+                والا
+                    usb_serial_اطبع("Unknown")
+                نهاية
+                usb_serial_اطبع(" base=0x")
+                usb_serial_hex16(base_addr / 65536)
+                usb_serial_hex16(base_addr % 65536)
+                usb_serial_اطبع(" IRQ=")
+                usb_serial_رقم(irq + 0)
+                usb_serial_سطر()
+            نهاية
+            search = search + 1
+        نهاية
+    نهاية
+
+    usb_serial_اطبع("[USB] Found ")
+    usb_serial_رقم(usb_hc_count + 0)
+    usb_serial_اطبع(" USB controller(s)")
+    usb_serial_سطر()
+    ارجع usb_hc_count + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# البحث عن أجهزة حسب الصنف
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة usb_find_device_by_class(class_code، subclass)
+    متغير i = 0 + 0
+    بينما (i < usb_dev_count)
+        متغير cls = usb_get_class(i) + 0
+        متغير dev_cls = cls / 256
+        متغير dev_sub = cls % 256
+        إذا (dev_cls == class_code)
+            إذا (subclass == 0)
+                ارجع i + 0
+            والا_اذا (dev_sub == subclass)
+                ارجع i + 0
+            نهاية
+        نهاية
+        i = i + 1
+    نهاية
+    ارجع 0 - 1
+نهاية
+
+صدّر دالة usb_find_keyboard()
+    متغير i = 0 + 0
+    بينما (i < usb_dev_count)
+        متغير cls = usb_get_class(i) + 0
+        متغير dev_cls = cls / 256
+        متغير proto = usb_get_proto(i) + 0
+        إذا (dev_cls == USB_CLASS_HID)
+            إذا (proto == USB_PROTOCOL_KEYBOARD)
+                ارجع i + 0
+            نهاية
+        نهاية
+        i = i + 1
+    نهاية
+    ارجع 0 - 1
+نهاية
+
+صدّر دالة usb_find_mouse()
+    متغير i = 0 + 0
+    بينما (i < usb_dev_count)
+        متغير cls = usb_get_class(i) + 0
+        متغير dev_cls = cls / 256
+        متغير proto = usb_get_proto(i) + 0
+        إذا (dev_cls == USB_CLASS_HID)
+            إذا (proto == USB_PROTOCOL_MOUSE)
+                ارجع i + 0
+            نهاية
+        نهاية
+        i = i + 1
+    نهاية
+    ارجع 0 - 1
+نهاية
+
+صدّر دالة usb_find_storage()
+    ارجع usb_find_device_by_class(USB_CLASS_STORAGE، 0) + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تقرير USB
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة usb_تقرير()
+    usb_serial_اطبع("═══ [USB] تقرير ═══")
+    usb_serial_سطر()
+
+    usb_serial_اطبع("  متحكمات: ")
+    usb_serial_رقم(usb_hc_count + 0)
+    usb_serial_سطر()
+
+    usb_serial_اطبع("  أجهزة: ")
+    usb_serial_رقم(usb_dev_count + 0)
+    usb_serial_سطر()
+
+    usb_serial_اطبع("  HID: ")
+    usb_serial_رقم(usb_hid_devices + 0)
+    usb_serial_سطر()
+
+    usb_serial_اطبع("  Storage: ")
+    usb_serial_رقم(usb_storage_devices + 0)
+    usb_serial_سطر()
+
+    usb_serial_اطبع("  Hubs: ")
+    usb_serial_رقم(usb_hub_devices + 0)
+    usb_serial_سطر()
+
+    usb_serial_اطبع("  Other: ")
+    usb_serial_رقم(usb_other_devices + 0)
+    usb_serial_سطر()
+
+    usb_serial_اطبع("  Total transfers: ")
+    usb_serial_رقم(usb_total_transfers + 0)
+    usb_serial_سطر()
+
+    usb_serial_اطبع("  Transfer errors: ")
+    usb_serial_رقم(usb_transfer_errors + 0)
+    usb_serial_سطر()
+
+    # تفاصيل كل جهاز
+    متغير i = 0 + 0
+    بينما (i < usb_dev_count)
+        متغير addr = usb_get_addr(i) + 0
+        متغير state = usb_get_state(i) + 0
+        متغير speed = usb_get_speed(i) + 0
+        متغير cls = usb_get_class(i) + 0
+
+        usb_serial_اطبع("  [")
+        usb_serial_رقم(i + 0)
+        usb_serial_اطبع("] addr=")
+        usb_serial_رقم(addr + 0)
+        usb_serial_اطبع(" state=")
+        usb_serial_رقم(state + 0)
+        usb_serial_اطبع(" class=0x")
+        usb_serial_hex16(cls + 0)
+        usb_serial_سطر()
+
+        i = i + 1
+    نهاية
+
+    usb_serial_اطبع("═══════════════════════════════════")
+    usb_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تهيئة USB
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة usb_هيئ()
+    usb_serial_اطبع("[USB] تهيئة نظام USB...")
+    usb_serial_سطر()
+
+    usb_dev_count = 0
+    usb_hc_count = 0
+    usb_next_address = 1
+    usb_total_transfers = 0
+    usb_transfer_errors = 0
+    usb_hid_devices = 0
+    usb_storage_devices = 0
+    usb_hub_devices = 0
+    usb_other_devices = 0
+
+    # اكتشاف المتحكمات
+    usb_detect_controllers()
+
+    usb_serial_اطبع("[USB] جاهز")
+    usb_serial_سطر()
+    ارجع usb_hc_count + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دورة USB
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة usb_دورة()
+    # فحص المنافذ لأي تغيير اتصال
+    ارجع 0
+نهاية

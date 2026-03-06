@@ -40,6 +40,31 @@ class SIRGlobalVariable;
 class SIRClass;
 
 // ======================================================================
+// (AR) سمة SIR / (EN) SIR Trait
+// ======================================================================
+
+/**
+ * @brief (AR) معلومات دالة مطلوبة في السمة
+ * @brief (EN) Required method info in a trait
+ */
+struct SIRTraitMethod {
+    std::string name;                       ///< (AR) اسم الدالة / (EN) Method name
+    std::vector<SIRType> paramTypes;        ///< (AR) أنواع المعاملات / (EN) Parameter types
+    SIRType returnType = SIRType::VOID;     ///< (AR) نوع الإرجاع / (EN) Return type
+    bool hasDefaultImpl = false;            ///< (AR) هل لها تنفيذ افتراضي / (EN) Has default impl
+};
+
+/**
+ * @brief (AR) تعريف سمة/واجهة
+ * @brief (EN) Trait/interface definition
+ */
+struct SIRTrait {
+    std::string name;                           ///< (AR) اسم السمة / (EN) Trait name
+    std::vector<SIRTraitMethod> methods;        ///< (AR) الدوال المطلوبة / (EN) Required methods
+    std::vector<std::string> superTraits;       ///< (AR) السمات الأب / (EN) Super traits
+};
+
+// ======================================================================
 // فئة الوحدة / Module Class
 // ======================================================================
 
@@ -211,6 +236,31 @@ public:
         return classes_;
     }
     
+    /**
+     * @brief (AR) تسجيل سمة
+     * @brief (EN) Register a trait
+     */
+    void addTrait(const SIRTrait& trait) {
+        traits_[trait.name] = trait;
+    }
+    
+    /**
+     * @brief (AR) الحصول على سمة بالاسم
+     * @brief (EN) Get trait by name
+     */
+    const SIRTrait* getTrait(const std::string& name) const {
+        auto it = traits_.find(name);
+        return it != traits_.end() ? &it->second : nullptr;
+    }
+    
+    /**
+     * @brief (AR) هل السمة موجودة
+     * @brief (EN) Does trait exist
+     */
+    bool hasTrait(const std::string& name) const {
+        return traits_.find(name) != traits_.end();
+    }
+    
 private:
     std::vector<std::shared_ptr<SIRFunction>> functions_;
     std::unordered_map<std::string, std::shared_ptr<SIRFunction>> functionMap_;
@@ -220,6 +270,8 @@ private:
     
     std::vector<std::shared_ptr<SIRClass>> classes_;
     std::unordered_map<std::string, std::shared_ptr<SIRClass>> classMap_;
+    
+    std::unordered_map<std::string, SIRTrait> traits_;
     
     std::vector<std::string> stringConstants_;
     std::unordered_map<std::string, std::string> stringConstantMap_;
@@ -417,6 +469,7 @@ public:
     std::string name;           ///< (AR) اسم الصنف / (EN) Class name
     std::string parentClass;    ///< (AR) الصنف الأب (للوراثة) / (EN) Parent class (for inheritance)
     bool isAbstract = false;    ///< (AR) هل الصنف مجرد / (EN) Is class abstract
+    std::vector<std::string> implementedTraits;  ///< (AR) السمات المُنفَّذة / (EN) Implemented traits
     std::unordered_map<std::string, SIRType> fields_;   ///< (AR) الحقول / (EN) Fields
     std::vector<std::string> fieldOrder_;                ///< (AR) ترتيب الحقول / (EN) Field insertion order
     std::unordered_map<std::string, std::shared_ptr<SIRFunction>> methods_;  ///< (AR) الدوال / (EN) Methods

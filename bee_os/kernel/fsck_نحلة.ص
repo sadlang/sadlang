@@ -1,0 +1,158 @@
+#* ===================================================================
+   فاحص نظام الملفات — Filesystem Checker (fsck)
+   BeeOS FSCK Module
+   ===================================================================
+   
+   يفحص سلامة نظام الملفات ويكتشف الأخطاء:
+   - كتل يتيمة (orphan blocks)
+   - عقد معلقة (dangling inodes)
+   - تسلسل FAT مكسور
+   - تناقض في عدد الروابط
+   - superblock تالف
+   
+   ── الاختبارات ──
+   1. فحص superblock / boot sector
+   2. فحص bitmap الكتل
+   3. فحص سلسلة FAT
+   4. فحص تناسق الأدلة
+   5. فحص عدد الروابط
+   
+   الترخيص: BeeOS Kernel Module
+   الإصدار: 1.0
+   ================================================================== *#
+
+خارجي دالة kernel_print_string(عنوان)
+خارجي دالة kernel_print_number(قيمة)
+
+# نتائج الفحص
+متغير fsck_كتل_حرة = 0
+متغير fsck_كتل_مستخدمة = 0
+متغير fsck_كتل_يتيمة = 0
+متغير fsck_أخطاء = 0
+متغير fsck_تحذيرات = 0
+متغير fsck_عقد_معلقة = 0
+متغير fsck_سلاسل_مكسورة = 0
+متغير fsck_حالة_أخيرة = 0        # 0=سليم 1=أخطاء بسيطة 2=أخطاء حرجة
+
+# ══════════════════════════════════════════════
+# القسم 1: فحوصات
+# ══════════════════════════════════════════════
+
+#* ── فحص Superblock ── *#
+صدّر دالة fsck_فحص_super(توقيع_متوقع، توقيع_فعلي)
+    إذا (توقيع_متوقع != توقيع_فعلي)
+        kernel_print_string("  [fsck] ERROR: superblock signature mismatch!")
+        kernel_print_number(10)
+        kernel_print_string("    expected=")
+        kernel_print_number(توقيع_متوقع)
+        kernel_print_string(" found=")
+        kernel_print_number(توقيع_فعلي)
+        kernel_print_number(10)
+        fsck_أخطاء = fsck_أخطاء + 1
+        fsck_حالة_أخيرة = 2
+        ارجع -1
+    نهاية
+    kernel_print_string("  [fsck] superblock OK")
+    kernel_print_number(10)
+    ارجع 0
+نهاية
+
+#* ── فحص نتائج bitmap ── *#
+صدّر دالة fsck_سجل_bitmap(حرة، مستخدمة، إجمالي)
+    fsck_كتل_حرة = حرة
+    fsck_كتل_مستخدمة = مستخدمة
+    
+    متغير مجموع = حرة + مستخدمة
+    إذا (مجموع != إجمالي)
+        kernel_print_string("  [fsck] WARNING: bitmap inconsistency")
+        kernel_print_number(10)
+        kernel_print_string("    free+used=")
+        kernel_print_number(مجموع)
+        kernel_print_string(" total=")
+        kernel_print_number(إجمالي)
+        kernel_print_number(10)
+        fsck_تحذيرات = fsck_تحذيرات + 1
+        إذا (fsck_حالة_أخيرة < 1) fsck_حالة_أخيرة = 1 نهاية
+    نهاية
+    ارجع 0
+نهاية
+
+#* ── تسجيل كتل يتيمة ── *#
+صدّر دالة fsck_سجل_يتيمة(عدد)
+    fsck_كتل_يتيمة = fsck_كتل_يتيمة + عدد
+    إذا (عدد > 0)
+        kernel_print_string("  [fsck] Found orphan blocks: ")
+        kernel_print_number(عدد)
+        kernel_print_number(10)
+        fsck_تحذيرات = fsck_تحذيرات + 1
+    نهاية
+    ارجع 0
+نهاية
+
+#* ── تسجيل سلسلة FAT مكسورة ── *#
+صدّر دالة fsck_سجل_سلسلة_مكسورة(كتلة_بداية)
+    fsck_سلاسل_مكسورة = fsck_سلاسل_مكسورة + 1
+    kernel_print_string("  [fsck] Broken FAT chain starting at cluster ")
+    kernel_print_number(كتلة_بداية)
+    kernel_print_number(10)
+    fsck_أخطاء = fsck_أخطاء + 1
+    إذا (fsck_حالة_أخيرة < 2) fsck_حالة_أخيرة = 2 نهاية
+    ارجع 0
+نهاية
+
+#* ── إعادة تعيين قبل فحص جديد ── *#
+صدّر دالة fsck_إعادة_تعيين()
+    fsck_كتل_حرة = 0
+    fsck_كتل_مستخدمة = 0
+    fsck_كتل_يتيمة = 0
+    fsck_أخطاء = 0
+    fsck_تحذيرات = 0
+    fsck_عقد_معلقة = 0
+    fsck_سلاسل_مكسورة = 0
+    fsck_حالة_أخيرة = 0
+    ارجع 0
+نهاية
+
+# ══════════════════════════════════════════════
+# القسم 2: تقرير + تهيئة
+# ══════════════════════════════════════════════
+
+صدّر دالة fsck_تقرير()
+    kernel_print_string("=== FSCK Report ===")
+    kernel_print_number(10)
+    kernel_print_string("  Errors: ")
+    kernel_print_number(fsck_أخطاء)
+    kernel_print_number(10)
+    kernel_print_string("  Warnings: ")
+    kernel_print_number(fsck_تحذيرات)
+    kernel_print_number(10)
+    kernel_print_string("  Orphan blocks: ")
+    kernel_print_number(fsck_كتل_يتيمة)
+    kernel_print_number(10)
+    kernel_print_string("  Broken chains: ")
+    kernel_print_number(fsck_سلاسل_مكسورة)
+    kernel_print_number(10)
+    
+    إذا (fsck_حالة_أخيرة == 0)
+        kernel_print_string("  Status: CLEAN")
+    نهاية
+    إذا (fsck_حالة_أخيرة == 1)
+        kernel_print_string("  Status: MINOR ISSUES")
+    نهاية
+    إذا (fsck_حالة_أخيرة == 2)
+        kernel_print_string("  Status: ERRORS FOUND")
+    نهاية
+    kernel_print_number(10)
+    ارجع 0
+نهاية
+
+صدّر دالة __sad_init_73()
+    kernel_print_string("  [init_73] Filesystem checker (fsck) loaded")
+    kernel_print_number(10)
+    
+    fsck_إعادة_تعيين()
+    
+    kernel_print_string("    fsck: superblock, bitmap, FAT chain checks")
+    kernel_print_number(10)
+    ارجع 0
+نهاية

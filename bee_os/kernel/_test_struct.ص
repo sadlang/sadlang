@@ -1,0 +1,15 @@
+# اختبار بنية
+
+خارجي دالة kernel_print_string(عنوان)
+خارجي دالة kernel_print_number(قيمة)
+
+بنية نقطة
+    رقم س = 0
+    رقم ص = 0
+نهاية
+
+صدّر دالة __sad_init_99()
+    kernel_print_string("struct test")
+    kernel_print_number(10)
+    ارجع 0
+نهاية

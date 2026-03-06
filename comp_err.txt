@@ -1,0 +1,320 @@
+
+========================================
+  📊 (AR) ملخص التحليل / (EN) Parsing Summary
+========================================
+✓ (AR) عدد الجمل الناجحة: 96
+✓ (EN) Successful statements: 96
+========================================
+
+[EXC-DBG] Phase1: registered func 'جمع' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'ضرب' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'عاملي' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'أكبر' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'رسالة' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'فيبو' retType=1 AST-retType=0
+[EXC-DBG] buildFunction: 'جمع' inferred retType=1
+[EXC-DBG] buildFunction: 'ضرب' inferred retType=1
+[EXC-DBG] buildFunction: 'عاملي' inferred retType=1
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='عاملي' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'عاملي' retType=1
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunction: 'أكبر' inferred retType=1
+[EXC-DBG] buildFunction: 'رسالة' inferred retType=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunction: 'فيبو' inferred retType=1
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='فيبو' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'فيبو' retType=1
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='فيبو' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'فيبو' retType=1
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='رقم' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%59' type=1 isConst=1 constVal='42'
+[EXC-DBG] buildLocalVariable: name='تحية' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%60' type=6 isConst=1 constVal='مرحبا'
+[EXC-DBG] buildLocalVariable: name='عشري1' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%61' type=1 isConst=1 constVal='3'
+[EXC-DBG] buildLocalVariable: name='منطق' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%62' type=3 isConst=1 constVal='true'
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='عمر' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%101' type=1 isConst=1 constVal='25'
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='عداد' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%107' type=1 isConst=1 constVal='0'
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='جمع' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'جمع' retType=1
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='ضرب' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'ضرب' retType=1
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='عاملي' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'عاملي' retType=1
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='أ' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::ArrayExpr
+[EXC-DBG]   initResult: reg='%131' type=5 isConst=0 constVal=''
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='طول' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=1
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='مج' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%165' type=1 isConst=1 constVal='0'
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='ش' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::NewExpr
+[EXC-DBG]   initResult: reg='%204' type=7 isConst=0 constVal=''
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='ط' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::NewExpr
+[EXC-DBG]   initResult: reg='%213' type=7 isConst=0 constVal=''
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='س1' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::NewExpr
+[EXC-DBG]   initResult: reg='%221' type=7 isConst=0 constVal=''
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='م1' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::NewExpr
+[EXC-DBG]   initResult: reg='%226' type=7 isConst=0 constVal=''
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='درجة' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%234' type=1 isConst=1 constVal='85'
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='يوم' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%247' type=1 isConst=1 constVal='3'
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='لنص' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=6
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='جمع' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'جمع' retType=1
+[EXC-DBG] buildFunctionCall: funcName='لنص' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=6
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='ق' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%272' type=1 isConst=1 constVal='1'
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='أكبر' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'أكبر' retType=1
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='أكبر' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'أكبر' retType=1
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='رسالة' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'رسالة' retType=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='ع1' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%294' type=1 isConst=1 constVal='1'
+[EXC-DBG] buildLocalVariable: name='ع2' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::LiteralExpr
+[EXC-DBG]   initResult: reg='%297' type=1 isConst=1 constVal='1'
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='فيبو' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'فيبو' retType=1
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0

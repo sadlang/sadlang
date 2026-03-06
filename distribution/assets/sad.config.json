@@ -1,0 +1,26 @@
+{
+    "version": "1.0.0",
+    "stdlib_path": "$SAD_HOME/stdlib",
+    "encoding": "utf-8",
+    "rtl": true,
+    "language": "ar",
+    "repl": {
+        "history_size": 1000,
+        "prompt": ">>> ",
+        "multiline_prompt": "... ",
+        "colors": true
+    },
+    "compiler": {
+        "optimization": 2,
+        "debug_info": false,
+        "target": "native"
+    },
+    "lsp": {
+        "port": 2087,
+        "log_level": "warning"
+    },
+    "pkg": {
+        "registry": "https://pkg.sad-lang.org",
+        "cache_dir": "$SAD_HOME/cache/packages"
+    }
+}

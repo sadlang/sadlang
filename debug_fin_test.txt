@@ -1,0 +1,2 @@
+'c:\s_lang\s-programming-language\build\bin\Debug\sad.exe' is not recognized as an internal or external command,
+operable program or batch file.

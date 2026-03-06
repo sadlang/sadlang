@@ -248,6 +248,48 @@ BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode* call) {
     }
 
     // ========================================================================
+    // (AR) الخطوة 2.7: حل الأسماء المستعارة للامدا
+    // (EN) Step 2.7: Resolve lambda aliases
+    // مثال: ف(5) حيث ف = لامدا(س): س + 1 → funcName = "__lambda_0"
+    // ========================================================================
+    {
+        auto aliasIt = lambdaAliases_.find(funcName);
+        if (aliasIt != lambdaAliases_.end()) {
+            std::string realLambdaName = aliasIt->second;
+            std::cerr << "[LAMBDA] Resolved alias '" << funcName 
+                      << "' -> '" << realLambdaName << "'" << std::endl;
+            funcName = realLambdaName;
+            
+            // (AR) إضافة المتغيرات المُلتقطة كمعاملات إضافية مخفية
+            // (EN) Append captured variables as extra hidden arguments
+            auto capIt = closureCaptures_.find(realLambdaName);
+            if (capIt != closureCaptures_.end()) {
+                for (const auto& cap : capIt->second) {
+                    VariableInfo* capVar = lookupVariable(cap.varName);
+                    if (capVar) {
+                        // (AR) تحميل القيمة الحالية للمتغير المُلتقط
+                        // (EN) Load current value of captured variable
+                        std::string loadReg = newTempRegister();
+                        SIRInstruction loadInst;
+                        loadInst.opcode = SIROpcode::LOAD;
+                        loadInst.result = SIROperand::Register(loadReg, capVar->type);
+                        loadInst.operands.push_back(SIROperand::Register(capVar->registerName, capVar->type));
+                        if (currentBlock_) currentBlock_->addInstruction(loadInst);
+                        
+                        argOperands.push_back(SIROperand::Register(loadReg, capVar->type));
+                    } else {
+                        // (AR) الرجوع إلى معلومات الالتقاط المخزنة
+                        // (EN) Fallback to stored capture info
+                        argOperands.push_back(SIROperand::Register(cap.registerName, cap.type));
+                    }
+                }
+                std::cerr << "[LAMBDA] Injected " << capIt->second.size() 
+                          << " captured args for '" << realLambdaName << "'" << std::endl;
+            }
+        }
+    }
+    
+    // ========================================================================
     // (AR) الخطوة 3: البحث عن الدالة والحصول على نوع الإرجاع
     // (EN) Step 3: Look up function and get return type
     // المصدر: sir_builder.h:719 - functionTable_

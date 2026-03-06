@@ -225,9 +225,9 @@ StmtList ParserCore::parseProgram() {
         }
     }
     
-    // (AR) طباعة ملخص التحليل
+// (AR) طباعة ملخص التحليل
     // (EN) Print parsing summary
-    std::cerr << "\n";
+  /*  std::cerr << "\n";
     std::cerr << "========================================\n";
     std::cerr << "  📊 (AR) ملخص التحليل / (EN) Parsing Summary\n";
     std::cerr << "========================================\n";
@@ -239,7 +239,7 @@ StmtList ParserCore::parseProgram() {
         std::cerr << "❌ (EN) Error count: " << error_count << "\n";
     }
     std::cerr << "========================================\n\n";
-    
+    */
     // DEBUG: Disabled
     // std::cout << "[parser_core_impl.cpp] انتهى parseProgram - عدد الجمل: " 
     //           << statements.size() << "\n";

@@ -1,0 +1,1100 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# شبكة_dns_نحلة.ص — وحدة DNS و DHCP لنظام نحلة
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════════════
+# DNS: RFC 1035 — Domain Name System (استعلام بسيط نوع A)
+# DHCP: RFC 2131 — Dynamic Host Configuration Protocol (عميل مبسط)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── دوال خارجية (FFI) ───
+خارجي دالة sad_ll_mem_read8(addr)
+خارجي دالة sad_ll_mem_write8(addr، val)
+خارجي دالة sad_ll_mem_read32(addr)
+خارجي دالة sad_ll_mem_write32(addr، val)
+خارجي دالة sad_ll_serial_write_char(port، ch)
+خارجي دالة sad_ll_kmalloc(حجم_طلب)
+خارجي دالة sad_ll_kfree(عنوان)
+خارجي دالة sad_ll_memset(عنوان، قيمة، حجم_منطقة)
+خارجي دالة sad_ll_memcpy(هدف، مصدر، حجم_نقل)
+خارجي دالة sad_ll_timer_get_ticks()
+
+# ─── دوال خارجية من وحدة UDP ───
+خارجي دالة udp_open(port)
+خارجي دالة udp_close(sock)
+خارجي دالة udp_sendto(sock، dst_ip، dst_port، data_addr، data_len)
+خارجي دالة udp_broadcast(sock، dst_port، data_addr، data_len)
+خارجي دالة udp_recv(sock، dest_addr، max_len)
+خارجي دالة udp_get_sender(idx)
+خارجي دالة udp_get_sport(idx)
+
+# ─── دوال خارجية من وحدة IP ───
+خارجي دالة ip_to_int(a، b، c، d)
+خارجي دالة ip_byte(ip_int، byte_num)
+خارجي دالة ip_عين_عنوان(a، b، c، d)
+خارجي دالة ip_عين_قناع(a، b، c، d)
+خارجي دالة ip_عين_بوابة(a، b، c، d)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ثوابت
+# ═══════════════════════════════════════════════════════════════════════════════
+ثابت COM1 = 1016
+
+# DNS
+ثابت DNS_PORT          = 53
+ثابت DNS_HEADER_SIZE   = 12
+ثابت DNS_TYPE_A        = 1           # IPv4 address
+ثابت DNS_CLASS_IN      = 1           # Internet
+ثابت DNS_MAX_RESPONSE  = 512
+ثابت DNS_RECURSION     = 1           # RD flag
+
+# DHCP
+ثابت DHCP_SERVER_PORT  = 67
+ثابت DHCP_CLIENT_PORT  = 68
+ثابت DHCP_MAGIC_1      = 99          # 0x63
+ثابت DHCP_MAGIC_2      = 130         # 0x82
+ثابت DHCP_MAGIC_3      = 83          # 0x53
+ثابت DHCP_MAGIC_4      = 99          # 0x63
+
+# أنواع رسائل DHCP
+ثابت DHCP_DISCOVER     = 1
+ثابت DHCP_OFFER        = 2
+ثابت DHCP_REQUEST      = 3
+ثابت DHCP_ACK          = 5
+ثابت DHCP_NAK          = 6
+
+# خيارات DHCP
+ثابت DHCP_OPT_SUBNET   = 1
+ثابت DHCP_OPT_ROUTER   = 3
+ثابت DHCP_OPT_DNS      = 6
+ثابت DHCP_OPT_HOSTNAME = 12
+ثابت DHCP_OPT_DOMAIN   = 15
+ثابت DHCP_OPT_REQIP    = 50
+ثابت DHCP_OPT_LEASE    = 51
+ثابت DHCP_OPT_MSGTYPE  = 53
+ثابت DHCP_OPT_SERVER   = 54
+ثابت DHCP_OPT_PARAMLIST = 55
+ثابت DHCP_OPT_END      = 255
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# متغيرات عامة
+# ═══════════════════════════════════════════════════════════════════════════════
+# عنوان خادم DNS
+متغير dns_server_0 = 8
+متغير dns_server_1 = 8
+متغير dns_server_2 = 8
+متغير dns_server_3 = 8
+
+# معرّف استعلام DNS
+متغير dns_query_id = 1
+
+# مأخذ DNS
+متغير dns_sock = 0
+
+# ─── ذاكرة DNS المؤقتة (8 مدخلات) ───
+# كل مدخل: اسم مُجَزَّأ (hash) + عنوان IP
+متغير dns_cache_hash_0 = 0
+متغير dns_cache_hash_1 = 0
+متغير dns_cache_hash_2 = 0
+متغير dns_cache_hash_3 = 0
+متغير dns_cache_hash_4 = 0
+متغير dns_cache_hash_5 = 0
+متغير dns_cache_hash_6 = 0
+متغير dns_cache_hash_7 = 0
+
+متغير dns_cache_ip_0 = 0
+متغير dns_cache_ip_1 = 0
+متغير dns_cache_ip_2 = 0
+متغير dns_cache_ip_3 = 0
+متغير dns_cache_ip_4 = 0
+متغير dns_cache_ip_5 = 0
+متغير dns_cache_ip_6 = 0
+متغير dns_cache_ip_7 = 0
+
+متغير dns_cache_ttl_0 = 0
+متغير dns_cache_ttl_1 = 0
+متغير dns_cache_ttl_2 = 0
+متغير dns_cache_ttl_3 = 0
+متغير dns_cache_ttl_4 = 0
+متغير dns_cache_ttl_5 = 0
+متغير dns_cache_ttl_6 = 0
+متغير dns_cache_ttl_7 = 0
+
+# ─── حالة DHCP ───
+متغير dhcp_state = 0              # 0=idle, 1=discovering, 2=requesting, 3=bound
+متغير dhcp_xid = 0                # معرّف المعاملة
+متغير dhcp_server_ip = 0          # عنوان خادم DHCP
+متغير dhcp_offered_ip = 0         # العنوان المعروض
+متغير dhcp_lease_time = 0         # وقت الإيجار بالثواني
+متغير dhcp_sock = 0               # مأخذ DHCP
+
+# MAC المحلي (نسخة)
+متغير local_mac_0 = 0
+متغير local_mac_1 = 0
+متغير local_mac_2 = 0
+متغير local_mac_3 = 0
+متغير local_mac_4 = 0
+متغير local_mac_5 = 0
+
+# ─── إحصائيات ───
+متغير dns_queries = 0
+متغير dns_responses = 0
+متغير dns_cache_hits = 0
+متغير dns_errors = 0
+متغير dhcp_discovers = 0
+متغير dhcp_offers = 0
+متغير dhcp_acks = 0
+متغير dhcp_naks = 0
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دوال الطباعة التسلسلية
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة dns_serial_اطبع(رسالة)
+    متغير i = 0 + 0
+    بينما (i < 80)
+        متغير ch = sad_ll_mem_read8(رسالة + i) + 0
+        إذا (ch == 0)
+            ارجع 0
+        نهاية
+        sad_ll_serial_write_char(COM1، ch)
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية
+
+دالة dns_serial_رقم(ن)
+    متغير val = ن + 0
+    إذا (val < 0)
+        sad_ll_serial_write_char(COM1، 45)
+        val = 0 - val
+    نهاية
+    إذا (val >= 10000)
+        متغير d5 = val / 10000
+        sad_ll_serial_write_char(COM1، 48 + d5)
+        val = val - (d5 * 10000)
+    نهاية
+    إذا (val >= 1000)
+        متغير d4 = val / 1000
+        sad_ll_serial_write_char(COM1، 48 + d4)
+        val = val - (d4 * 1000)
+    والا_اذا (ن >= 10000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 100)
+        متغير d3 = val / 100
+        sad_ll_serial_write_char(COM1، 48 + d3)
+        val = val - (d3 * 100)
+    والا_اذا (ن >= 1000)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    إذا (val >= 10)
+        متغير d2 = val / 10
+        sad_ll_serial_write_char(COM1، 48 + d2)
+        val = val - (d2 * 10)
+    والا_اذا (ن >= 100)
+        sad_ll_serial_write_char(COM1، 48)
+    نهاية
+    sad_ll_serial_write_char(COM1، 48 + val)
+    ارجع 0
+نهاية
+
+دالة dns_serial_سطر()
+    sad_ll_serial_write_char(COM1، 13)
+    sad_ll_serial_write_char(COM1، 10)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DNS Cache — دوال الوصول
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة dns_cache_get_hash(idx)
+    إذا (idx == 0) ارجع dns_cache_hash_0 + 0 نهاية
+    إذا (idx == 1) ارجع dns_cache_hash_1 + 0 نهاية
+    إذا (idx == 2) ارجع dns_cache_hash_2 + 0 نهاية
+    إذا (idx == 3) ارجع dns_cache_hash_3 + 0 نهاية
+    إذا (idx == 4) ارجع dns_cache_hash_4 + 0 نهاية
+    إذا (idx == 5) ارجع dns_cache_hash_5 + 0 نهاية
+    إذا (idx == 6) ارجع dns_cache_hash_6 + 0 نهاية
+    إذا (idx == 7) ارجع dns_cache_hash_7 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة dns_cache_set_hash(idx، val)
+    إذا (idx == 0) dns_cache_hash_0 = val + 0 نهاية
+    إذا (idx == 1) dns_cache_hash_1 = val + 0 نهاية
+    إذا (idx == 2) dns_cache_hash_2 = val + 0 نهاية
+    إذا (idx == 3) dns_cache_hash_3 = val + 0 نهاية
+    إذا (idx == 4) dns_cache_hash_4 = val + 0 نهاية
+    إذا (idx == 5) dns_cache_hash_5 = val + 0 نهاية
+    إذا (idx == 6) dns_cache_hash_6 = val + 0 نهاية
+    إذا (idx == 7) dns_cache_hash_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة dns_cache_get_ip(idx)
+    إذا (idx == 0) ارجع dns_cache_ip_0 + 0 نهاية
+    إذا (idx == 1) ارجع dns_cache_ip_1 + 0 نهاية
+    إذا (idx == 2) ارجع dns_cache_ip_2 + 0 نهاية
+    إذا (idx == 3) ارجع dns_cache_ip_3 + 0 نهاية
+    إذا (idx == 4) ارجع dns_cache_ip_4 + 0 نهاية
+    إذا (idx == 5) ارجع dns_cache_ip_5 + 0 نهاية
+    إذا (idx == 6) ارجع dns_cache_ip_6 + 0 نهاية
+    إذا (idx == 7) ارجع dns_cache_ip_7 + 0 نهاية
+    ارجع 0
+نهاية
+
+دالة dns_cache_set_ip(idx، val)
+    إذا (idx == 0) dns_cache_ip_0 = val + 0 نهاية
+    إذا (idx == 1) dns_cache_ip_1 = val + 0 نهاية
+    إذا (idx == 2) dns_cache_ip_2 = val + 0 نهاية
+    إذا (idx == 3) dns_cache_ip_3 = val + 0 نهاية
+    إذا (idx == 4) dns_cache_ip_4 = val + 0 نهاية
+    إذا (idx == 5) dns_cache_ip_5 = val + 0 نهاية
+    إذا (idx == 6) dns_cache_ip_6 = val + 0 نهاية
+    إذا (idx == 7) dns_cache_ip_7 = val + 0 نهاية
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DNS — تجزئة اسم المضيف (hash بسيط)
+# ═══════════════════════════════════════════════════════════════════════════════
+# حساب hash لاسم مضيف (سلسلة منتهية بـ null)
+دالة dns_hash_name(name_addr)
+    متغير hash = 5381 + 0
+    متغير i = 0 + 0
+    بينما (i < 64)
+        متغير ch = sad_ll_mem_read8(name_addr + i) + 0
+        إذا (ch == 0)
+            ارجع hash + 0
+        نهاية
+        hash = hash * 33 + ch
+        # تجنب القيم السالبة
+        إذا (hash < 0)
+            hash = hash + 2147483647
+        نهاية
+        i = i + 1
+    نهاية
+    ارجع hash + 0
+نهاية
+
+# البحث في الذاكرة المؤقتة
+دالة dns_cache_lookup(name_hash)
+    متغير i = 0 + 0
+    بينما (i < 8)
+        متغير h = dns_cache_get_hash(i) + 0
+        إذا (h == name_hash)
+            متغير ip = dns_cache_get_ip(i) + 0
+            إذا (ip > 0)
+                dns_cache_hits = dns_cache_hits + 1
+                ارجع ip + 0
+            نهاية
+        نهاية
+        i = i + 1
+    نهاية
+    ارجع 0
+نهاية
+
+# إضافة مدخل في الذاكرة المؤقتة
+دالة dns_cache_add(name_hash، ip_val)
+    # البحث عن خانة فارغة
+    متغير i = 0 + 0
+    بينما (i < 8)
+        متغير h = dns_cache_get_hash(i) + 0
+        إذا (h == 0)
+            dns_cache_set_hash(i، name_hash)
+            dns_cache_set_ip(i، ip_val)
+            ارجع i + 0
+        نهاية
+        i = i + 1
+    نهاية
+    # استبدال المدخل 0
+    dns_cache_set_hash(0، name_hash)
+    dns_cache_set_ip(0، ip_val)
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DNS — بناء استعلام
+# ═══════════════════════════════════════════════════════════════════════════════
+# يبني استعلام DNS نوع A في المخزن المؤقت
+# name_addr: عنوان اسم المضيف (مثل "example.com" بصيغة C-string)
+# buf: عنوان المخزن المؤقت للكتابة
+# يرجع: طول الاستعلام الكلي
+دالة dns_build_query(name_addr، buf)
+    متغير qid = dns_query_id + 0
+    dns_query_id = dns_query_id + 1
+
+    # رأس DNS (12 بايت)
+    # ID (2 بايت)
+    sad_ll_mem_write8(buf، qid / 256)
+    sad_ll_mem_write8(buf + 1، qid % 256)
+
+    # Flags: QR=0, OPCODE=0, RD=1 → 0x0100
+    sad_ll_mem_write8(buf + 2، 1)
+    sad_ll_mem_write8(buf + 3، 0)
+
+    # QDCOUNT = 1
+    sad_ll_mem_write8(buf + 4، 0)
+    sad_ll_mem_write8(buf + 5، 1)
+
+    # ANCOUNT = 0
+    sad_ll_mem_write8(buf + 6، 0)
+    sad_ll_mem_write8(buf + 7، 0)
+
+    # NSCOUNT = 0
+    sad_ll_mem_write8(buf + 8، 0)
+    sad_ll_mem_write8(buf + 9، 0)
+
+    # ARCOUNT = 0
+    sad_ll_mem_write8(buf + 10، 0)
+    sad_ll_mem_write8(buf + 11، 0)
+
+    # ترميز الاسم بصيغة DNS (label encoding)
+    # "example.com" → 7 "example" 3 "com" 0
+    متغير write_pos = DNS_HEADER_SIZE + 0
+    متغير read_pos = 0 + 0
+    متغير label_start = write_pos + 0
+
+    # حجز بايت للطول
+    write_pos = write_pos + 1
+
+    بينما (read_pos < 256)
+        متغير ch = sad_ll_mem_read8(name_addr + read_pos) + 0
+
+        إذا (ch == 0)
+            # نهاية — اكتب طول التسمية الأخيرة
+            متغير label_len = write_pos - label_start - 1
+            sad_ll_mem_write8(buf + label_start، label_len)
+            # بايت الإنهاء
+            sad_ll_mem_write8(buf + write_pos، 0)
+            write_pos = write_pos + 1
+            read_pos = 256  # خروج
+        والا_اذا (ch == 46)
+            # نقطة — اكتب طول التسمية وابدأ تسمية جديدة
+            متغير llen = write_pos - label_start - 1
+            sad_ll_mem_write8(buf + label_start، llen)
+            label_start = write_pos + 0
+            write_pos = write_pos + 1  # حجز بايت للطول التالي
+            read_pos = read_pos + 1
+        والا
+            sad_ll_mem_write8(buf + write_pos، ch)
+            write_pos = write_pos + 1
+            read_pos = read_pos + 1
+        نهاية
+    نهاية
+
+    # QTYPE = A (1)
+    sad_ll_mem_write8(buf + write_pos، 0)
+    sad_ll_mem_write8(buf + write_pos + 1، DNS_TYPE_A)
+    write_pos = write_pos + 2
+
+    # QCLASS = IN (1)
+    sad_ll_mem_write8(buf + write_pos، 0)
+    sad_ll_mem_write8(buf + write_pos + 1، DNS_CLASS_IN)
+    write_pos = write_pos + 2
+
+    ارجع write_pos + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DNS — تحليل الاستجابة
+# ═══════════════════════════════════════════════════════════════════════════════
+# يحلل استجابة DNS ويرجع أول عنوان A (IPv4)
+# buf: عنوان المخزن المؤقت
+# len: طول الاستجابة
+# يرجع: عنوان IP (معبأ)، 0 = لم يُعثر
+دالة dns_parse_response(buf، len)
+    إذا (len < DNS_HEADER_SIZE)
+        ارجع 0
+    نهاية
+
+    # التحقق من QR=1 (استجابة)
+    متغير flags_hi = sad_ll_mem_read8(buf + 2) + 0
+    إذا (flags_hi < 128)
+        # ليست استجابة
+        ارجع 0
+    نهاية
+
+    # عدد الإجابات
+    متغير ancount_hi = sad_ll_mem_read8(buf + 6) + 0
+    متغير ancount_lo = sad_ll_mem_read8(buf + 7) + 0
+    متغير ancount = ancount_hi * 256 + ancount_lo
+
+    إذا (ancount == 0)
+        ارجع 0
+    نهاية
+
+    # تخطي السؤال
+    متغير pos = DNS_HEADER_SIZE + 0
+
+    # تخطي الاسم في السؤال (labels)
+    بينما (pos < len)
+        متغير label_len = sad_ll_mem_read8(buf + pos) + 0
+        إذا (label_len == 0)
+            pos = pos + 1
+            pos = pos + 4  # QTYPE + QCLASS
+            ارجع dns_parse_answers(buf، len، pos، ancount)
+        نهاية
+        # التحقق من مؤشر ضغط
+        إذا (label_len >= 192)
+            pos = pos + 2
+            pos = pos + 4  # QTYPE + QCLASS
+            ارجع dns_parse_answers(buf، len، pos، ancount)
+        نهاية
+        pos = pos + label_len + 1
+    نهاية
+
+    ارجع 0
+نهاية
+
+# تحليل قسم الإجابات
+دالة dns_parse_answers(buf، len، start_pos، count)
+    متغير pos = start_pos + 0
+    متغير i = 0 + 0
+
+    بينما (i < count)
+        إذا (pos >= len)
+            ارجع 0
+        نهاية
+
+        # تخطي الاسم (قد يكون مؤشر ضغط)
+        متغير name_byte = sad_ll_mem_read8(buf + pos) + 0
+        إذا (name_byte >= 192)
+            pos = pos + 2  # مؤشر ضغط (2 بايت)
+        والا
+            # تخطي التسميات
+            بينما (name_byte > 0)
+                إذا (name_byte >= 192)
+                    pos = pos + 2
+                    name_byte = 0  # خروج
+                والا
+                    pos = pos + name_byte + 1
+                    name_byte = sad_ll_mem_read8(buf + pos) + 0
+                نهاية
+            نهاية
+            إذا (name_byte == 0)
+                pos = pos + 1
+            نهاية
+        نهاية
+
+        # قراءة TYPE (2 بايت)
+        متغير rtype_hi = sad_ll_mem_read8(buf + pos) + 0
+        متغير rtype_lo = sad_ll_mem_read8(buf + pos + 1) + 0
+        متغير rtype = rtype_hi * 256 + rtype_lo
+        pos = pos + 2
+
+        # تخطي CLASS (2 بايت)
+        pos = pos + 2
+
+        # تخطي TTL (4 بايت)
+        pos = pos + 4
+
+        # RDLENGTH (2 بايت)
+        متغير rdlen_hi = sad_ll_mem_read8(buf + pos) + 0
+        متغير rdlen_lo = sad_ll_mem_read8(buf + pos + 1) + 0
+        متغير rdlen = rdlen_hi * 256 + rdlen_lo
+        pos = pos + 2
+
+        # إذا كان TYPE = A (1) و RDLENGTH = 4
+        إذا (rtype == DNS_TYPE_A)
+            إذا (rdlen == 4)
+                متغير a = sad_ll_mem_read8(buf + pos) + 0
+                متغير b = sad_ll_mem_read8(buf + pos + 1) + 0
+                متغير c = sad_ll_mem_read8(buf + pos + 2) + 0
+                متغير d = sad_ll_mem_read8(buf + pos + 3) + 0
+                ارجع ip_to_int(a، b، c، d)
+            نهاية
+        نهاية
+
+        pos = pos + rdlen
+        i = i + 1
+    نهاية
+
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DNS — استعلام (واجهة عامة)
+# ═══════════════════════════════════════════════════════════════════════════════
+# name_addr: عنوان اسم المضيف (C-string)
+# يرجع: عنوان IP (معبأ)، 0 = فشل
+صدّر دالة dns_resolve(name_addr)
+    # التحقق من الذاكرة المؤقتة
+    متغير name_hash = dns_hash_name(name_addr) + 0
+    متغير cached = dns_cache_lookup(name_hash) + 0
+    إذا (cached > 0)
+        dns_serial_اطبع("[DNS] Cache hit")
+        dns_serial_سطر()
+        ارجع cached + 0
+    نهاية
+
+    # بناء الاستعلام
+    متغير query_buf = sad_ll_kmalloc(256) + 0
+    إذا (query_buf == 0)
+        dns_errors = dns_errors + 1
+        ارجع 0
+    نهاية
+
+    sad_ll_memset(query_buf، 0، 256)
+    متغير query_len = dns_build_query(name_addr، query_buf) + 0
+
+    # فتح مأخذ UDP إذا لم يكن مفتوحاً
+    إذا (dns_sock == 0)
+        dns_sock = udp_open(0) + 0
+        إذا (dns_sock < 0)
+            sad_ll_kfree(query_buf)
+            dns_errors = dns_errors + 1
+            ارجع 0
+        نهاية
+    نهاية
+
+    # إرسال الاستعلام
+    متغير dns_ip = ip_to_int(dns_server_0 + 0، dns_server_1 + 0، dns_server_2 + 0، dns_server_3 + 0)
+    متغير result = udp_sendto(dns_sock، dns_ip، DNS_PORT، query_buf، query_len) + 0
+
+    sad_ll_kfree(query_buf)
+
+    إذا (result <= 0)
+        dns_serial_اطبع("[DNS] فشل إرسال الاستعلام")
+        dns_serial_سطر()
+        dns_errors = dns_errors + 1
+        ارجع 0
+    نهاية
+
+    dns_queries = dns_queries + 1
+    dns_serial_اطبع("[DNS] Query sent, waiting...")
+    dns_serial_سطر()
+
+    # انتظار الاستجابة (بسيط — تحقق مباشر)
+    متغير resp_buf = sad_ll_kmalloc(DNS_MAX_RESPONSE) + 0
+    إذا (resp_buf == 0)
+        ارجع 0
+    نهاية
+
+    # محاولة القراءة عدة مرات
+    متغير attempts = 0 + 0
+    متغير resolved_ip = 0 + 0
+
+    بينما (attempts < 100)
+        متغير recv_len = udp_recv(dns_sock، resp_buf، DNS_MAX_RESPONSE) + 0
+        إذا (recv_len > 0)
+            resolved_ip = dns_parse_response(resp_buf، recv_len) + 0
+            إذا (resolved_ip > 0)
+                dns_responses = dns_responses + 1
+                dns_cache_add(name_hash، resolved_ip)
+
+                dns_serial_اطبع("[DNS] Resolved: ")
+                dns_serial_رقم(ip_byte(resolved_ip، 0))
+                sad_ll_serial_write_char(COM1، 46)
+                dns_serial_رقم(ip_byte(resolved_ip، 1))
+                sad_ll_serial_write_char(COM1، 46)
+                dns_serial_رقم(ip_byte(resolved_ip، 2))
+                sad_ll_serial_write_char(COM1، 46)
+                dns_serial_رقم(ip_byte(resolved_ip، 3))
+                dns_serial_سطر()
+
+                sad_ll_kfree(resp_buf)
+                ارجع resolved_ip + 0
+            نهاية
+            attempts = 100  # خروج
+        نهاية
+        attempts = attempts + 1
+    نهاية
+
+    sad_ll_kfree(resp_buf)
+    dns_serial_اطبع("[DNS] فشل الحل")
+    dns_serial_سطر()
+    dns_errors = dns_errors + 1
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DHCP — بناء حزمة DISCOVER
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة dhcp_build_discover(buf)
+    sad_ll_memset(buf، 0، 548)
+
+    # op = 1 (BOOTREQUEST)
+    sad_ll_mem_write8(buf، 1)
+    # htype = 1 (Ethernet)
+    sad_ll_mem_write8(buf + 1، 1)
+    # hlen = 6
+    sad_ll_mem_write8(buf + 2، 6)
+    # hops = 0
+    sad_ll_mem_write8(buf + 3، 0)
+
+    # xid (4 بايت)
+    متغير xid = sad_ll_timer_get_ticks() + 0
+    dhcp_xid = xid + 0
+    sad_ll_mem_write8(buf + 4، (xid / 16777216) % 256)
+    sad_ll_mem_write8(buf + 5، (xid / 65536) % 256)
+    sad_ll_mem_write8(buf + 6، (xid / 256) % 256)
+    sad_ll_mem_write8(buf + 7، xid % 256)
+
+    # secs = 0, flags = 0x8000 (broadcast)
+    sad_ll_mem_write8(buf + 8، 0)
+    sad_ll_mem_write8(buf + 9، 0)
+    sad_ll_mem_write8(buf + 10، 128)  # flags high byte = 0x80
+    sad_ll_mem_write8(buf + 11، 0)
+
+    # ciaddr, yiaddr, siaddr, giaddr = 0 (بالفعل 0 من memset)
+
+    # chaddr — عنوان MAC (البايتات 28-33)
+    sad_ll_mem_write8(buf + 28، local_mac_0 + 0)
+    sad_ll_mem_write8(buf + 29، local_mac_1 + 0)
+    sad_ll_mem_write8(buf + 30، local_mac_2 + 0)
+    sad_ll_mem_write8(buf + 31، local_mac_3 + 0)
+    sad_ll_mem_write8(buf + 32، local_mac_4 + 0)
+    sad_ll_mem_write8(buf + 33، local_mac_5 + 0)
+
+    # sname + file = 0 (بالفعل 0)
+    # DHCP magic cookie (البايتات 236-239)
+    sad_ll_mem_write8(buf + 236، DHCP_MAGIC_1)
+    sad_ll_mem_write8(buf + 237، DHCP_MAGIC_2)
+    sad_ll_mem_write8(buf + 238، DHCP_MAGIC_3)
+    sad_ll_mem_write8(buf + 239، DHCP_MAGIC_4)
+
+    # خيارات DHCP تبدأ من البايت 240
+    متغير opt_pos = 240 + 0
+
+    # خيار 53: نوع الرسالة = DISCOVER (1)
+    sad_ll_mem_write8(buf + opt_pos، DHCP_OPT_MSGTYPE)
+    sad_ll_mem_write8(buf + opt_pos + 1، 1)
+    sad_ll_mem_write8(buf + opt_pos + 2، DHCP_DISCOVER)
+    opt_pos = opt_pos + 3
+
+    # خيار 55: قائمة المعاملات المطلوبة
+    sad_ll_mem_write8(buf + opt_pos، DHCP_OPT_PARAMLIST)
+    sad_ll_mem_write8(buf + opt_pos + 1، 3)  # 3 عناصر
+    sad_ll_mem_write8(buf + opt_pos + 2، DHCP_OPT_SUBNET)
+    sad_ll_mem_write8(buf + opt_pos + 3، DHCP_OPT_ROUTER)
+    sad_ll_mem_write8(buf + opt_pos + 4، DHCP_OPT_DNS)
+    opt_pos = opt_pos + 5
+
+    # نهاية الخيارات
+    sad_ll_mem_write8(buf + opt_pos، DHCP_OPT_END)
+    opt_pos = opt_pos + 1
+
+    ارجع opt_pos + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DHCP — بناء حزمة REQUEST
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة dhcp_build_request(buf، offered_ip، server_ip)
+    # نسخ معظم الحقول من DISCOVER
+    متغير pkt_len = dhcp_build_discover(buf) + 0
+
+    # تعديل xid (نفس المعاملة)
+    sad_ll_mem_write8(buf + 4، (dhcp_xid / 16777216) % 256)
+    sad_ll_mem_write8(buf + 5، (dhcp_xid / 65536) % 256)
+    sad_ll_mem_write8(buf + 6، (dhcp_xid / 256) % 256)
+    sad_ll_mem_write8(buf + 7، dhcp_xid % 256)
+
+    # تعديل الخيارات — بدءاً من 240
+    متغير opt_pos = 240 + 0
+
+    # خيار 53: REQUEST (3)
+    sad_ll_mem_write8(buf + opt_pos، DHCP_OPT_MSGTYPE)
+    sad_ll_mem_write8(buf + opt_pos + 1، 1)
+    sad_ll_mem_write8(buf + opt_pos + 2، DHCP_REQUEST)
+    opt_pos = opt_pos + 3
+
+    # خيار 50: العنوان المطلوب
+    sad_ll_mem_write8(buf + opt_pos، DHCP_OPT_REQIP)
+    sad_ll_mem_write8(buf + opt_pos + 1، 4)
+    sad_ll_mem_write8(buf + opt_pos + 2، ip_byte(offered_ip، 0))
+    sad_ll_mem_write8(buf + opt_pos + 3، ip_byte(offered_ip، 1))
+    sad_ll_mem_write8(buf + opt_pos + 4، ip_byte(offered_ip، 2))
+    sad_ll_mem_write8(buf + opt_pos + 5، ip_byte(offered_ip، 3))
+    opt_pos = opt_pos + 6
+
+    # خيار 54: هوية الخادم
+    sad_ll_mem_write8(buf + opt_pos، DHCP_OPT_SERVER)
+    sad_ll_mem_write8(buf + opt_pos + 1، 4)
+    sad_ll_mem_write8(buf + opt_pos + 2، ip_byte(server_ip، 0))
+    sad_ll_mem_write8(buf + opt_pos + 3، ip_byte(server_ip، 1))
+    sad_ll_mem_write8(buf + opt_pos + 4، ip_byte(server_ip، 2))
+    sad_ll_mem_write8(buf + opt_pos + 5، ip_byte(server_ip، 3))
+    opt_pos = opt_pos + 6
+
+    # نهاية
+    sad_ll_mem_write8(buf + opt_pos، DHCP_OPT_END)
+    opt_pos = opt_pos + 1
+
+    ارجع opt_pos + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DHCP — تحليل استجابة
+# ═══════════════════════════════════════════════════════════════════════════════
+دالة dhcp_parse_response(buf، len)
+    إذا (len < 240)
+        ارجع 0
+    نهاية
+
+    # التحقق من op=2 (BOOTREPLY)
+    متغير op = sad_ll_mem_read8(buf) + 0
+    إذا (op != 2)
+        ارجع 0
+    نهاية
+
+    # التحقق من magic cookie
+    متغير m1 = sad_ll_mem_read8(buf + 236) + 0
+    متغير m2 = sad_ll_mem_read8(buf + 237) + 0
+    إذا (m1 != DHCP_MAGIC_1)
+        ارجع 0
+    نهاية
+    إذا (m2 != DHCP_MAGIC_2)
+        ارجع 0
+    نهاية
+
+    # استخراج yiaddr (العنوان المعروض) — البايتات 16-19
+    متغير y0 = sad_ll_mem_read8(buf + 16) + 0
+    متغير y1 = sad_ll_mem_read8(buf + 17) + 0
+    متغير y2 = sad_ll_mem_read8(buf + 18) + 0
+    متغير y3 = sad_ll_mem_read8(buf + 19) + 0
+    dhcp_offered_ip = ip_to_int(y0، y1، y2، y3) + 0
+
+    # تحليل الخيارات (بدءاً من 240)
+    متغير pos = 240 + 0
+    متغير msg_type = 0 + 0
+
+    بينما (pos < len)
+        متغير opt_code = sad_ll_mem_read8(buf + pos) + 0
+
+        إذا (opt_code == DHCP_OPT_END)
+            ارجع msg_type + 0
+        نهاية
+
+        إذا (opt_code == 0)
+            pos = pos + 1
+            تابع
+        نهاية
+
+        متغير opt_len = sad_ll_mem_read8(buf + pos + 1) + 0
+
+        إذا (opt_code == DHCP_OPT_MSGTYPE)
+            msg_type = sad_ll_mem_read8(buf + pos + 2) + 0
+        نهاية
+
+        إذا (opt_code == DHCP_OPT_SUBNET)
+            إذا (opt_len == 4)
+                متغير s0 = sad_ll_mem_read8(buf + pos + 2) + 0
+                متغير s1 = sad_ll_mem_read8(buf + pos + 3) + 0
+                متغير s2 = sad_ll_mem_read8(buf + pos + 4) + 0
+                متغير s3 = sad_ll_mem_read8(buf + pos + 5) + 0
+                ip_عين_قناع(s0، s1، s2، s3)
+            نهاية
+        نهاية
+
+        إذا (opt_code == DHCP_OPT_ROUTER)
+            إذا (opt_len >= 4)
+                متغير g0 = sad_ll_mem_read8(buf + pos + 2) + 0
+                متغير g1 = sad_ll_mem_read8(buf + pos + 3) + 0
+                متغير g2 = sad_ll_mem_read8(buf + pos + 4) + 0
+                متغير g3 = sad_ll_mem_read8(buf + pos + 5) + 0
+                ip_عين_بوابة(g0، g1، g2، g3)
+            نهاية
+        نهاية
+
+        إذا (opt_code == DHCP_OPT_DNS)
+            إذا (opt_len >= 4)
+                dns_server_0 = sad_ll_mem_read8(buf + pos + 2) + 0
+                dns_server_1 = sad_ll_mem_read8(buf + pos + 3) + 0
+                dns_server_2 = sad_ll_mem_read8(buf + pos + 4) + 0
+                dns_server_3 = sad_ll_mem_read8(buf + pos + 5) + 0
+            نهاية
+        نهاية
+
+        إذا (opt_code == DHCP_OPT_SERVER)
+            إذا (opt_len == 4)
+                متغير sv0 = sad_ll_mem_read8(buf + pos + 2) + 0
+                متغير sv1 = sad_ll_mem_read8(buf + pos + 3) + 0
+                متغير sv2 = sad_ll_mem_read8(buf + pos + 4) + 0
+                متغير sv3 = sad_ll_mem_read8(buf + pos + 5) + 0
+                dhcp_server_ip = ip_to_int(sv0، sv1، sv2، sv3) + 0
+            نهاية
+        نهاية
+
+        إذا (opt_code == DHCP_OPT_LEASE)
+            إذا (opt_len == 4)
+                متغير t0 = sad_ll_mem_read8(buf + pos + 2) + 0
+                متغير t1 = sad_ll_mem_read8(buf + pos + 3) + 0
+                متغير t2 = sad_ll_mem_read8(buf + pos + 4) + 0
+                متغير t3 = sad_ll_mem_read8(buf + pos + 5) + 0
+                dhcp_lease_time = t0 * 16777216 + t1 * 65536 + t2 * 256 + t3
+            نهاية
+        نهاية
+
+        pos = pos + 2 + opt_len
+    نهاية
+
+    ارجع msg_type + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DHCP — عميل (واجهة عامة)
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة dhcp_discover()
+    dns_serial_اطبع("[DHCP] Sending DISCOVER...")
+    dns_serial_سطر()
+
+    # فتح مأخذ UDP على المنفذ 68
+    إذا (dhcp_sock == 0)
+        dhcp_sock = udp_open(DHCP_CLIENT_PORT) + 0
+        إذا (dhcp_sock < 0)
+            dns_serial_اطبع("[DHCP] فشل فتح المأخذ")
+            dns_serial_سطر()
+            ارجع 0
+        نهاية
+    نهاية
+
+    # بناء وإرسال DISCOVER
+    متغير pkt_buf = sad_ll_kmalloc(548) + 0
+    إذا (pkt_buf == 0)
+        ارجع 0
+    نهاية
+
+    متغير pkt_len = dhcp_build_discover(pkt_buf) + 0
+    متغير result = udp_broadcast(dhcp_sock، DHCP_SERVER_PORT، pkt_buf، pkt_len) + 0
+
+    sad_ll_kfree(pkt_buf)
+
+    إذا (result > 0)
+        dhcp_state = 1  # discovering
+        dhcp_discovers = dhcp_discovers + 1
+        dns_serial_اطبع("[DHCP] DISCOVER sent")
+        dns_serial_سطر()
+    والا
+        dns_serial_اطبع("[DHCP] DISCOVER failed")
+        dns_serial_سطر()
+    نهاية
+
+    ارجع result + 0
+نهاية
+
+# معالجة استجابة DHCP
+صدّر دالة dhcp_handle_response()
+    إذا (dhcp_sock < 0)
+        ارجع 0
+    نهاية
+
+    متغير resp_buf = sad_ll_kmalloc(548) + 0
+    إذا (resp_buf == 0)
+        ارجع 0
+    نهاية
+
+    متغير recv_len = udp_recv(dhcp_sock، resp_buf، 548) + 0
+    إذا (recv_len <= 0)
+        sad_ll_kfree(resp_buf)
+        ارجع 0
+    نهاية
+
+    متغير msg_type = dhcp_parse_response(resp_buf، recv_len) + 0
+    sad_ll_kfree(resp_buf)
+
+    إذا (msg_type == DHCP_OFFER)
+        dhcp_offers = dhcp_offers + 1
+        dns_serial_اطبع("[DHCP] OFFER received: ")
+        dns_serial_رقم(ip_byte(dhcp_offered_ip، 0))
+        sad_ll_serial_write_char(COM1، 46)
+        dns_serial_رقم(ip_byte(dhcp_offered_ip، 1))
+        sad_ll_serial_write_char(COM1، 46)
+        dns_serial_رقم(ip_byte(dhcp_offered_ip، 2))
+        sad_ll_serial_write_char(COM1، 46)
+        dns_serial_رقم(ip_byte(dhcp_offered_ip، 3))
+        dns_serial_سطر()
+
+        # إرسال REQUEST
+        ارجع dhcp_request()
+    نهاية
+
+    إذا (msg_type == DHCP_ACK)
+        dhcp_acks = dhcp_acks + 1
+        dhcp_state = 3  # bound
+
+        # تطبيق العنوان
+        ip_عين_عنوان(
+            ip_byte(dhcp_offered_ip، 0)،
+            ip_byte(dhcp_offered_ip، 1)،
+            ip_byte(dhcp_offered_ip، 2)،
+            ip_byte(dhcp_offered_ip، 3)
+        )
+
+        dns_serial_اطبع("[DHCP] ACK! IP=")
+        dns_serial_رقم(ip_byte(dhcp_offered_ip، 0))
+        sad_ll_serial_write_char(COM1، 46)
+        dns_serial_رقم(ip_byte(dhcp_offered_ip، 1))
+        sad_ll_serial_write_char(COM1، 46)
+        dns_serial_رقم(ip_byte(dhcp_offered_ip، 2))
+        sad_ll_serial_write_char(COM1، 46)
+        dns_serial_رقم(ip_byte(dhcp_offered_ip، 3))
+        dns_serial_اطبع(" lease=")
+        dns_serial_رقم(dhcp_lease_time + 0)
+        dns_serial_سطر()
+
+        ارجع 1
+    نهاية
+
+    إذا (msg_type == DHCP_NAK)
+        dhcp_naks = dhcp_naks + 1
+        dhcp_state = 0
+        dns_serial_اطبع("[DHCP] NAK received")
+        dns_serial_سطر()
+        ارجع 0
+    نهاية
+
+    ارجع 0
+نهاية
+
+# إرسال DHCP REQUEST
+دالة dhcp_request()
+    dns_serial_اطبع("[DHCP] Sending REQUEST...")
+    dns_serial_سطر()
+
+    متغير pkt_buf = sad_ll_kmalloc(548) + 0
+    إذا (pkt_buf == 0)
+        ارجع 0
+    نهاية
+
+    متغير pkt_len = dhcp_build_request(pkt_buf، dhcp_offered_ip + 0، dhcp_server_ip + 0) + 0
+    متغير result = udp_broadcast(dhcp_sock، DHCP_SERVER_PORT، pkt_buf، pkt_len) + 0
+
+    sad_ll_kfree(pkt_buf)
+
+    إذا (result > 0)
+        dhcp_state = 2  # requesting
+        dns_serial_اطبع("[DHCP] REQUEST sent")
+        dns_serial_سطر()
+    نهاية
+
+    ارجع result + 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# التكوين
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة dns_عين_خادم(a، b، c، d)
+    dns_server_0 = a + 0
+    dns_server_1 = b + 0
+    dns_server_2 = c + 0
+    dns_server_3 = d + 0
+    ارجع 1
+نهاية
+
+صدّر دالة dhcp_عين_mac(m0، m1، m2، m3، m4، m5)
+    local_mac_0 = m0 + 0
+    local_mac_1 = m1 + 0
+    local_mac_2 = m2 + 0
+    local_mac_3 = m3 + 0
+    local_mac_4 = m4 + 0
+    local_mac_5 = m5 + 0
+    ارجع 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تقرير DNS/DHCP
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة dns_تقرير()
+    dns_serial_اطبع("═══ [DNS/DHCP] تقرير ═══")
+    dns_serial_سطر()
+
+    dns_serial_اطبع("  خادم DNS: ")
+    dns_serial_رقم(dns_server_0 + 0)
+    sad_ll_serial_write_char(COM1، 46)
+    dns_serial_رقم(dns_server_1 + 0)
+    sad_ll_serial_write_char(COM1، 46)
+    dns_serial_رقم(dns_server_2 + 0)
+    sad_ll_serial_write_char(COM1، 46)
+    dns_serial_رقم(dns_server_3 + 0)
+    dns_serial_سطر()
+
+    dns_serial_اطبع("  استعلامات DNS: ")
+    dns_serial_رقم(dns_queries + 0)
+    dns_serial_سطر()
+
+    dns_serial_اطبع("  استجابات DNS: ")
+    dns_serial_رقم(dns_responses + 0)
+    dns_serial_سطر()
+
+    dns_serial_اطبع("  DNS cache hits: ")
+    dns_serial_رقم(dns_cache_hits + 0)
+    dns_serial_سطر()
+
+    dns_serial_اطبع("  أخطاء DNS: ")
+    dns_serial_رقم(dns_errors + 0)
+    dns_serial_سطر()
+
+    dns_serial_اطبع("  DHCP حالة: ")
+    dns_serial_رقم(dhcp_state + 0)
+    dns_serial_سطر()
+
+    dns_serial_اطبع("  DHCP اكتشاف: ")
+    dns_serial_رقم(dhcp_discovers + 0)
+    dns_serial_سطر()
+
+    dns_serial_اطبع("  DHCP عروض: ")
+    dns_serial_رقم(dhcp_offers + 0)
+    dns_serial_سطر()
+
+    dns_serial_اطبع("  DHCP ACK: ")
+    dns_serial_رقم(dhcp_acks + 0)
+    dns_serial_سطر()
+
+    dns_serial_اطبع("═══════════════════════════════════")
+    dns_serial_سطر()
+    ارجع 0
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# تهيئة DNS/DHCP
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة dns_هيئ()
+    dns_serial_اطبع("[DNS/DHCP] تهيئة...")
+    dns_serial_سطر()
+
+    # تصفير الإحصائيات
+    dns_queries = 0
+    dns_responses = 0
+    dns_cache_hits = 0
+    dns_errors = 0
+    dhcp_discovers = 0
+    dhcp_offers = 0
+    dhcp_acks = 0
+    dhcp_naks = 0
+
+    # تصفير الذاكرة المؤقتة
+    متغير i = 0 + 0
+    بينما (i < 8)
+        dns_cache_set_hash(i، 0)
+        dns_cache_set_ip(i، 0)
+        i = i + 1
+    نهاية
+
+    dhcp_state = 0
+    dhcp_xid = 0
+    dhcp_server_ip = 0
+    dhcp_offered_ip = 0
+    dhcp_lease_time = 0
+    dns_sock = 0
+    dhcp_sock = 0
+    dns_query_id = 1
+
+    dns_serial_اطبع("[DNS/DHCP] جاهز")
+    dns_serial_سطر()
+    ارجع 1
+نهاية
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# دورة DNS/DHCP
+# ═══════════════════════════════════════════════════════════════════════════════
+صدّر دالة dns_دورة()
+    # التحقق من استجابات DHCP المعلقة
+    إذا (dhcp_state == 1)
+        dhcp_handle_response()
+    نهاية
+    إذا (dhcp_state == 2)
+        dhcp_handle_response()
+    نهاية
+    ارجع 0
+نهاية

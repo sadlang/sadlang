@@ -890,10 +890,35 @@ void SIRBuilder::buildTrait(AST::TraitDecl* traitDecl) {
               << "' with " << traitDecl->methods.size() << " methods" << std::endl;
     #endif
     
-    // (AR) السمات لا تولّد كوداً — فقط تُسجَّل كبيانات وصفية
-    // (EN) Traits don't generate code — they're registered as metadata
-    // (AR) يمكن تخزينها في وحدة SIR إذا احتجنا للتحقق لاحقاً
-    // (EN) Could be stored in SIR module for later validation if needed
+    // (AR) بناء بيانات السمة وتسجيلها في الوحدة
+    // (EN) Build trait data and register in module
+    SIR::SIRTrait sirTrait;
+    sirTrait.name = traitDecl->name;
+    
+    // (AR) نسخ السمات الأب
+    // (EN) Copy super traits
+    sirTrait.superTraits = traitDecl->superTraits;
+    
+    // (AR) تحويل الدوال المطلوبة
+    // (EN) Convert required methods
+    for (const auto& method : traitDecl->methods) {
+        SIR::SIRTraitMethod tm;
+        tm.name = method.name;
+        tm.returnType = astTypeToSIRType(method.returnType);
+        tm.hasDefaultImpl = (method.defaultImpl != nullptr);
+        for (const auto& param : method.params) {
+            tm.paramTypes.push_back(astTypeToSIRType(param.type));
+        }
+        sirTrait.methods.push_back(tm);
+    }
+    
+    module_->addTrait(sirTrait);
+    
+    #ifndef NDEBUG
+    std::cout << "[DEBUG] buildTrait: registered trait '" << traitDecl->name 
+              << "' with " << sirTrait.methods.size() << " methods, "
+              << sirTrait.superTraits.size() << " super traits" << std::endl;
+    #endif
 }
 
 // ============================================================================
@@ -1016,6 +1041,31 @@ void SIRBuilder::buildImpl(AST::ImplDecl* implDecl) {
         // (AR) إضافة الدالة للوحدة
         // (EN) Add function to module
         module_->addFunction(sirMethod);
+    }
+    
+    // (AR) التحقق من تنفيذ جميع دوال السمة المطلوبة
+    // (EN) Validate that all required trait methods are implemented
+    if (!implDecl->traitName.empty()) {
+        auto* trait = module_->getTrait(implDecl->traitName);
+        if (trait) {
+            for (const auto& reqMethod : trait->methods) {
+                if (reqMethod.hasDefaultImpl) continue;
+                
+                std::string fullName = className + "." + reqMethod.name;
+                auto method = sirClass->getMethod(fullName);
+                if (!method) {
+                    errors_.push_back("Class '" + className + "' does not implement required method '" 
+                                     + reqMethod.name + "' from trait '" + implDecl->traitName + "'");
+                }
+            }
+            
+            // (AR) تسجيل أن الصنف ينفذ هذه السمة
+            // (EN) Record that this class implements this trait
+            sirClass->implementedTraits.push_back(implDecl->traitName);
+        } else {
+            std::cerr << "[WARNING] buildImpl: trait '" << implDecl->traitName 
+                      << "' not found in module" << std::endl;
+        }
     }
     
     #ifndef NDEBUG

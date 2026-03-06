@@ -1,0 +1,345 @@
+
+========================================
+  📊 (AR) ملخص التحليل / (EN) Parsing Summary
+========================================
+✓ (AR) عدد الجمل الناجحة: 4
+✓ (EN) Successful statements: 4
+========================================
+
+[EXC-DBG] Phase1: registered func 'حساب_بسيط' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'ضعف' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'جمع' retType=1 AST-retType=0
+[EXC-DBG] Phase1: registered func 'رئيسية' retType=1 AST-retType=1
+[EXC-DBG] buildFunction: 'حساب_بسيط' inferred retType=1
+[CORO] Function 'حساب_بسيط' marked as coroutine
+[CORO-BODY] Building body for 'حساب_بسيط', body type=class Sad::AST::BlockStmt
+[CORO-BODY] After body build, entry block has 1 instructions
+[EXC-DBG] buildFunction: 'ضعف' inferred retType=1
+[CORO] Function 'ضعف' marked as coroutine
+[CORO-BODY] Building body for 'ضعف', body type=class Sad::AST::BlockStmt
+[CORO-BODY] After body build, entry block has 2 instructions
+[EXC-DBG] buildFunction: 'جمع' inferred retType=1
+[CORO] Function 'جمع' marked as coroutine
+[CORO-BODY] Building body for 'جمع', body type=class Sad::AST::BlockStmt
+[CORO-BODY] After body build, entry block has 2 instructions
+[EXC-DBG] buildFunction: 'رئيسية' inferred retType=1
+[CORO-BODY] Building body for 'رئيسية', body type=class Sad::AST::BlockStmt
+[EXC-DBG] buildLocalVariable: name='ن1' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::AwaitExpr
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='حساب_بسيط' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'حساب_بسيط' retType=1
+[EXC-DBG]   initResult: reg='%5' type=1 isConst=0 constVal=''
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='ن2' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::AwaitExpr
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='ضعف' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'ضعف' retType=1
+[EXC-DBG]   initResult: reg='%8' type=1 isConst=0 constVal=''
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[EXC-DBG] buildLocalVariable: name='ن3' type=0
+[EXC-DBG]   building initializer, expr type=class Sad::AST::AwaitExpr
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='جمع' isUserDefined=1
+[EXC-DBG] buildFunctionCall: found 'جمع' retType=1
+[EXC-DBG]   initResult: reg='%12' type=1 isConst=0 constVal=''
+[EXC-DBG] buildFunctionCall entered
+[EXC-DBG] buildFunctionCall: funcName='اطبع' isUserDefined=0
+[EXC-DBG] buildFunctionCall: handled by BuiltinCore! type=0
+[CORO-BODY] After body build, entry block has 15 instructions
+[CORO] Added presplitcoroutine to 'حساب_بسيط'
+[CORO] Added presplitcoroutine to 'ضعف'
+[CORO] Added presplitcoroutine to 'جمع'
+[CORO] Preamble emitted for 'حساب_بسيط'
+[CORO-EMIT] Block 'entry' has 1 instructions
+[CORO-EMIT]   opcode=234 operands=1
+[CORO] Epilogue emitted
+[CORO] Preamble emitted for 'ضعف'
+[CORO-EMIT] Block 'entry' has 2 instructions
+[CORO-EMIT]   opcode=14 operands=2
+[CORO-EMIT]   opcode=234 operands=1
+[CORO] Epilogue emitted
+[CORO] Preamble emitted for 'جمع'
+[CORO-EMIT] Block 'entry' has 2 instructions
+[CORO-EMIT]   opcode=0 operands=2
+[CORO-EMIT]   opcode=234 operands=1
+[CORO] Epilogue emitted
+[CORO-EMIT] Block 'entry' has 16 instructions
+[CORO-EMIT]   opcode=28 operands=1
+[CORO-EMIT]   opcode=233 operands=1
+[CORO-EMIT]   opcode=32 operands=0
+[CORO-EMIT]   opcode=36 operands=2
+[CORO-EMIT]   opcode=76 operands=1
+[CORO-EMIT]   opcode=28 operands=2
+[CORO-EMIT]   opcode=233 operands=1
+[CORO-EMIT]   opcode=32 operands=0
+[CORO-EMIT]   opcode=36 operands=2
+[CORO-EMIT]   opcode=76 operands=1
+[CORO-EMIT]   opcode=28 operands=3
+[CORO-EMIT]   opcode=233 operands=1
+[CORO-EMIT]   opcode=32 operands=0
+[CORO-EMIT]   opcode=36 operands=2
+[CORO-EMIT]   opcode=76 operands=1
+[CORO-EMIT]   opcode=26 operands=1
+[CORO-DEBUG] === IR BEFORE COROUTINE PASSES ===
+; ModuleID = 'test_async_sadc'
+source_filename = "test_async_sadc"
+target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-pc-windows-msvc"
+
+@fmt.d = private unnamed_addr constant [5 x i8] c"%lld\00", align 1
+
+; Function Attrs: presplitcoroutine
+define ptr @"\D8\AD\D8\B3\D8\A7\D8\A8_\D8\A8\D8\B3\D9\8A\D8\B7"() #0 {
+entry:
+  %coro.promise = alloca i64, align 8
+  store i64 0, ptr %coro.promise, align 8
+  %coro.id = call token @llvm.coro.id(i32 0, ptr %coro.promise, ptr null, ptr null)
+  %coro.size = call i64 @llvm.coro.size.i64()
+  %coro.alloc = call ptr @malloc(i64 %coro.size)
+  %coro.hdl = call ptr @llvm.coro.begin(token %coro.id, ptr %coro.alloc)
+  %coro.init.save = call token @llvm.coro.save(ptr %coro.hdl)
+  %coro.init.susp = call i8 @llvm.coro.suspend(token %coro.init.save, i1 false)
+  switch i8 %coro.init.susp, label %coro.suspend [
+    i8 0, label %coro.init.resume
+    i8 1, label %coro.cleanup
+  ]
+
+coro.final:                                       ; preds = %coro.init.resume
+  %coro.final.save = call token @llvm.coro.save(ptr %coro.hdl)
+  %coro.final.susp = call i8 @llvm.coro.suspend(token %coro.final.save, i1 true)
+  switch i8 %coro.final.susp, label %coro.suspend [
+    i8 0, label %coro.suspend
+    i8 1, label %coro.cleanup
+  ]
+
+coro.cleanup:                                     ; preds = %coro.final, %entry
+  %coro.mem = call ptr @llvm.coro.free(token %coro.id, ptr %coro.hdl)
+  call void @free(ptr %coro.mem)
+  br label %coro.suspend
+
+coro.suspend:                                     ; preds = %coro.cleanup, %coro.final, %coro.final, %entry
+  %0 = call i1 @llvm.coro.end(ptr %coro.hdl, i1 false, token none)
+  ret ptr %coro.hdl
+
+coro.init.resume:                                 ; preds = %entry
+  store i64 42, ptr %coro.promise, align 8
+  br label %coro.final
+}
+
+; Function Attrs: presplitcoroutine
+define ptr @"\D8\B6\D8\B9\D9\81"(i64 %"\D9\86") #0 {
+entry:
+  %"\D9\861" = alloca i64, align 8
+  store i64 %"\D9\86", ptr %"\D9\861", align 8
+  %coro.promise = alloca i64, align 8
+  store i64 0, ptr %coro.promise, align 8
+  %coro.id = call token @llvm.coro.id(i32 0, ptr %coro.promise, ptr null, ptr null)
+  %coro.size = call i64 @llvm.coro.size.i64()
+  %coro.alloc = call ptr @malloc(i64 %coro.size)
+  %coro.hdl = call ptr @llvm.coro.begin(token %coro.id, ptr %coro.alloc)
+  %coro.init.save = call token @llvm.coro.save(ptr %coro.hdl)
+  %coro.init.susp = call i8 @llvm.coro.suspend(token %coro.init.save, i1 false)
+  switch i8 %coro.init.susp, label %coro.suspend [
+    i8 0, label %coro.init.resume
+    i8 1, label %coro.cleanup
+  ]
+
+coro.final:                                       ; preds = %coro.init.resume
+  %coro.final.save = call token @llvm.coro.save(ptr %coro.hdl)
+  %coro.final.susp = call i8 @llvm.coro.suspend(token %coro.final.save, i1 true)
+  switch i8 %coro.final.susp, label %coro.suspend [
+    i8 0, label %coro.suspend
+    i8 1, label %coro.cleanup
+  ]
+
+coro.cleanup:                                     ; preds = %coro.final, %entry
+  %coro.mem = call ptr @llvm.coro.free(token %coro.id, ptr %coro.hdl)
+  call void @free(ptr %coro.mem)
+  br label %coro.suspend
+
+coro.suspend:                                     ; preds = %coro.cleanup, %coro.final, %coro.final, %entry
+  %0 = call i1 @llvm.coro.end(ptr %coro.hdl, i1 false, token none)
+  ret ptr %coro.hdl
+
+coro.init.resume:                                 ; preds = %entry
+  %"%\D9\86.load" = load i64, ptr %"\D9\861", align 8
+  %shltmp = shl i64 %"%\D9\86.load", 1
+  store i64 %shltmp, ptr %coro.promise, align 8
+  br label %coro.final
+}
+
+; Function Attrs: presplitcoroutine
+define ptr @"\D8\AC\D9\85\D8\B9"(i64 %"\D8\A3", i64 %"\D8\A8") #0 {
+entry:
+  %"\D8\A82" = alloca i64, align 8
+  store i64 %"\D8\A8", ptr %"\D8\A82", align 8
+  %"\D8\A31" = alloca i64, align 8
+  store i64 %"\D8\A3", ptr %"\D8\A31", align 8
+  %coro.promise = alloca i64, align 8
+  store i64 0, ptr %coro.promise, align 8
+  %coro.id = call token @llvm.coro.id(i32 0, ptr %coro.promise, ptr null, ptr null)
+  %coro.size = call i64 @llvm.coro.size.i64()
+  %coro.alloc = call ptr @malloc(i64 %coro.size)
+  %coro.hdl = call ptr @llvm.coro.begin(token %coro.id, ptr %coro.alloc)
+  %coro.init.save = call token @llvm.coro.save(ptr %coro.hdl)
+  %coro.init.susp = call i8 @llvm.coro.suspend(token %coro.init.save, i1 false)
+  switch i8 %coro.init.susp, label %coro.suspend [
+    i8 0, label %coro.init.resume
+    i8 1, label %coro.cleanup
+  ]
+
+coro.final:                                       ; preds = %coro.init.resume
+  %coro.final.save = call token @llvm.coro.save(ptr %coro.hdl)
+  %coro.final.susp = call i8 @llvm.coro.suspend(token %coro.final.save, i1 true)
+  switch i8 %coro.final.susp, label %coro.suspend [
+    i8 0, label %coro.suspend
+    i8 1, label %coro.cleanup
+  ]
+
+coro.cleanup:                                     ; preds = %coro.final, %entry
+  %coro.mem = call ptr @llvm.coro.free(token %coro.id, ptr %coro.hdl)
+  call void @free(ptr %coro.mem)
+  br label %coro.suspend
+
+coro.suspend:                                     ; preds = %coro.cleanup, %coro.final, %coro.final, %entry
+  %0 = call i1 @llvm.coro.end(ptr %coro.hdl, i1 false, token none)
+  ret ptr %coro.hdl
+
+coro.init.resume:                                 ; preds = %entry
+  %"%\D8\A3.load" = load i64, ptr %"\D8\A31", align 8
+  %"%\D8\A8.load" = load i64, ptr %"\D8\A82", align 8
+  %addtmp = add i64 %"%\D8\A3.load", %"%\D8\A8.load"
+  store i64 %addtmp, ptr %coro.promise, align 8
+  br label %coro.final
+}
+
+define i64 @"\D8\B1\D8\A6\D9\8A\D8\B3\D9\8A\D8\A9"() {
+entry:
+  %"%\D9\863" = alloca i64, align 8
+  %"%\D9\862" = alloca i64, align 8
+  %"%\D9\861" = alloca i64, align 8
+  %calltmp = call ptr @"\D8\AD\D8\B3\D8\A7\D8\A8_\D8\A8\D8\B3\D9\8A\D8\B7"()
+  br label %await.0.loop
+
+await.0.loop:                                     ; preds = %await.0.resume, %entry
+  %await.0.isdone = call i1 @llvm.coro.done(ptr %calltmp)
+  br i1 %await.0.isdone, label %await.0.done, label %await.0.resume
+
+await.0.resume:                                   ; preds = %await.0.loop
+  call void @llvm.coro.resume(ptr %calltmp)
+  br label %await.0.loop
+
+await.0.done:                                     ; preds = %await.0.loop
+  %await.0.promise = call ptr @llvm.coro.promise(ptr %calltmp, i32 8, i1 false)
+  %await.0.result = load i64, ptr %await.0.promise, align 8
+  call void @llvm.coro.destroy(ptr %calltmp)
+  br label %await.0.cont
+
+await.0.cont:                                     ; preds = %await.0.done
+  store i64 %await.0.result, ptr %"%\D9\861", align 8
+  %"%\D9\861.load" = load i64, ptr %"%\D9\861", align 8
+  %0 = call i32 (ptr, ...) @printf(ptr @fmt.d, i64 %"%\D9\861.load")
+  %calltmp1 = call ptr @"\D8\B6\D8\B9\D9\81"(i64 21)
+  br label %await.1.loop
+
+await.1.loop:                                     ; preds = %await.1.resume, %await.0.cont
+  %await.1.isdone = call i1 @llvm.coro.done(ptr %calltmp1)
+  br i1 %await.1.isdone, label %await.1.done, label %await.1.resume
+
+await.1.resume:                                   ; preds = %await.1.loop
+  call void @llvm.coro.resume(ptr %calltmp1)
+  br label %await.1.loop
+
+await.1.done:                                     ; preds = %await.1.loop
+  %await.1.promise = call ptr @llvm.coro.promise(ptr %calltmp1, i32 8, i1 false)
+  %await.1.result = load i64, ptr %await.1.promise, align 8
+  call void @llvm.coro.destroy(ptr %calltmp1)
+  br label %await.1.cont
+
+await.1.cont:                                     ; preds = %await.1.done
+  store i64 %await.1.result, ptr %"%\D9\862", align 8
+  %"%\D9\862.load" = load i64, ptr %"%\D9\862", align 8
+  %1 = call i32 (ptr, ...) @printf(ptr @fmt.d, i64 %"%\D9\862.load")
+  %calltmp2 = call ptr @"\D8\AC\D9\85\D8\B9"(i64 30, i64 12)
+  br label %await.2.loop
+
+await.2.loop:                                     ; preds = %await.2.resume, %await.1.cont
+  %await.2.isdone = call i1 @llvm.coro.done(ptr %calltmp2)
+  br i1 %await.2.isdone, label %await.2.done, label %await.2.resume
+
+await.2.resume:                                   ; preds = %await.2.loop
+  call void @llvm.coro.resume(ptr %calltmp2)
+  br label %await.2.loop
+
+await.2.done:                                     ; preds = %await.2.loop
+  %await.2.promise = call ptr @llvm.coro.promise(ptr %calltmp2, i32 8, i1 false)
+  %await.2.result = load i64, ptr %await.2.promise, align 8
+  call void @llvm.coro.destroy(ptr %calltmp2)
+  br label %await.2.cont
+
+await.2.cont:                                     ; preds = %await.2.done
+  store i64 %await.2.result, ptr %"%\D9\863", align 8
+  %"%\D9\863.load" = load i64, ptr %"%\D9\863", align 8
+  %2 = call i32 (ptr, ...) @printf(ptr @fmt.d, i64 %"%\D9\863.load")
+  ret i64 0
+}
+
+; Function Attrs: nocallback nofree nosync nounwind willreturn memory(argmem: read)
+declare token @llvm.coro.id(i32, ptr readnone, ptr nocapture readonly, ptr) #1
+
+; Function Attrs: nounwind memory(none)
+declare i64 @llvm.coro.size.i64() #2
+
+declare ptr @malloc(i64)
+
+; Function Attrs: nounwind
+declare ptr @llvm.coro.begin(token, ptr writeonly) #3
+
+; Function Attrs: nomerge nounwind
+declare token @llvm.coro.save(ptr) #4
+
+; Function Attrs: nounwind
+declare i8 @llvm.coro.suspend(token, i1) #3
+
+; Function Attrs: nounwind memory(argmem: read)
+declare ptr @llvm.coro.free(token, ptr nocapture readonly) #5
+
+declare void @free(ptr)
+
+; Function Attrs: nounwind
+declare i1 @llvm.coro.end(ptr, i1, token) #3
+
+; Function Attrs: nounwind memory(argmem: readwrite)
+declare i1 @llvm.coro.done(ptr nocapture readonly) #6
+
+declare void @llvm.coro.resume(ptr)
+
+; Function Attrs: nounwind memory(none)
+declare ptr @llvm.coro.promise(ptr nocapture, i32, i1) #2
+
+declare void @llvm.coro.destroy(ptr)
+
+declare i32 @printf(ptr, ...)
+
+define i32 @main() {
+entry:
+  %0 = call i64 @"\D8\B1\D8\A6\D9\8A\D8\B3\D9\8A\D8\A9"()
+  %1 = trunc i64 %0 to i32
+  ret i32 %1
+}
+
+attributes #0 = { presplitcoroutine }
+attributes #1 = { nocallback nofree nosync nounwind willreturn memory(argmem: read) }
+attributes #2 = { nounwind memory(none) }
+attributes #3 = { nounwind }
+attributes #4 = { nomerge nounwind }
+attributes #5 = { nounwind memory(argmem: read) }
+attributes #6 = { nounwind memory(argmem: readwrite) }
+
+[CORO-DEBUG] === END PRE-CORO IR ===

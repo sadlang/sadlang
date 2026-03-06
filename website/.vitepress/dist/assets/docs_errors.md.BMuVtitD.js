@@ -1,0 +1,44 @@
+import{_ as a,o as n,c as i,am as l}from"./chunks/framework.ZxETiGz0.js";const b=JSON.parse('{"title":"إدارة الأخطاء","description":"استثناءات وأخطاء في لغة ص — حاول / امسك / أخيراً","frontmatter":{"title":"إدارة الأخطاء","description":"استثناءات وأخطاء في لغة ص — حاول / امسك / أخيراً"},"headers":[],"relativePath":"docs/errors.md","filePath":"docs/errors.md","lastUpdated":null}'),p={name:"docs/errors.md"};function e(r,s,t,h,E,c){return n(),i("div",null,[...s[0]||(s[0]=[l(`<h1 id="إدارة-الأخطاء" tabindex="-1">إدارة الأخطاء <a class="header-anchor" href="#إدارة-الأخطاء" aria-label="Permalink to &quot;إدارة الأخطاء&quot;">​</a></h1><h2 id="حاول-امسك-أخيراً" tabindex="-1">حاول / امسك / أخيراً <a class="header-anchor" href="#حاول-امسك-أخيراً" aria-label="Permalink to &quot;حاول / امسك / أخيراً&quot;">​</a></h2><div class="language-sad vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">sad</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">حاول</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  متغير ناتج = 10 / 0</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  اطبع(ناتج)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">امسك (خطأ_القسمة_على_صفر  كـ  خ)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  اطبع_سطر(&quot;خطأ: &quot; + خ.رسالة)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">أخيراً</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  اطبع_سطر(&quot;تم التنفيذ دائماً&quot;)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">نهاية</span></span></code></pre><div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br><span class="line-number">4</span><br><span class="line-number">5</span><br><span class="line-number">6</span><br><span class="line-number">7</span><br><span class="line-number">8</span><br></div></div><h2 id="رمي-الأخطاء" tabindex="-1">رمي الأخطاء <a class="header-anchor" href="#رمي-الأخطاء" aria-label="Permalink to &quot;رمي الأخطاء&quot;">​</a></h2><div class="language-sad vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">sad</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">دالة قسّم(أ، ب)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  إذا (ب == 0)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">    ارمي جديد خطأ(&quot;لا يمكن القسمة على صفر!&quot;)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  نهاية</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  ارجع أ / ب</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">نهاية</span></span>
+<span class="line"></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">حاول</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  اطبع(قسّم(10، 2))   # 5</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  اطبع(قسّم(8، 0))    # يرمي خطأ</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">امسك (خ)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  اطبع_سطر(&quot;خُطأ: &quot; + خ.رسالة)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">نهاية</span></span></code></pre><div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br><span class="line-number">4</span><br><span class="line-number">5</span><br><span class="line-number">6</span><br><span class="line-number">7</span><br><span class="line-number">8</span><br><span class="line-number">9</span><br><span class="line-number">10</span><br><span class="line-number">11</span><br><span class="line-number">12</span><br><span class="line-number">13</span><br></div></div><h2 id="أصناف-الأخطاء-المخصصة" tabindex="-1">أصناف الأخطاء المخصصة <a class="header-anchor" href="#أصناف-الأخطاء-المخصصة" aria-label="Permalink to &quot;أصناف الأخطاء المخصصة&quot;">​</a></h2><div class="language-sad vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">sad</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">صنف خطأ_المدخلات يرث خطأ</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  باني(حقل، رسالة)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">    الأساس(رسالة)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">    هذا.الحقل = حقل</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  نهاية</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">نهاية</span></span>
+<span class="line"></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">دالة تحقق_من_العمر(عمر)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  إذا (عمر &lt; 0)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">    ارمي جديد خطأ_المدخلات(&quot;عمر&quot;، &quot;لا يمكن أن يكون العمر سالباً&quot;)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  نهاية</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  إذا (عمر &gt; 150)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">    ارمي جديد خطأ_المدخلات(&quot;عمر&quot;، &quot;العمر كبير جداً&quot;)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  نهاية</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  ارجع صحيح</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">نهاية</span></span>
+<span class="line"></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">حاول</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  تحقق_من_العمر(-5)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">امسك (خ كـ خطأ_المدخلات)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  اطبع_سطر(&quot;خطأ في حقل: &quot; + خ.الحقل)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  اطبع_سطر(&quot;الرسالة: &quot; + خ.رسالة)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">امسك (خ)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  اطبع_سطر(&quot;خطأ عام: &quot; + خ.رسالة)</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">نهاية</span></span></code></pre><div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br><span class="line-number">4</span><br><span class="line-number">5</span><br><span class="line-number">6</span><br><span class="line-number">7</span><br><span class="line-number">8</span><br><span class="line-number">9</span><br><span class="line-number">10</span><br><span class="line-number">11</span><br><span class="line-number">12</span><br><span class="line-number">13</span><br><span class="line-number">14</span><br><span class="line-number">15</span><br><span class="line-number">16</span><br><span class="line-number">17</span><br><span class="line-number">18</span><br><span class="line-number">19</span><br><span class="line-number">20</span><br><span class="line-number">21</span><br><span class="line-number">22</span><br><span class="line-number">23</span><br><span class="line-number">24</span><br><span class="line-number">25</span><br></div></div><hr><p>التالي: <a href="/docs/async">async/await ←</a></p>`,9)])])}const d=a(p,[["render",e]]);export{b as __pageData,d as default};

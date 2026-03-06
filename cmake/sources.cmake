@@ -70,9 +70,9 @@ set(INTERPRETER_SOURCES
     interpreter_new/src/builtins/builtin_registry_part10.cpp
     interpreter_new/src/builtins/builtin_registry_part11.cpp
     interpreter_new/src/builtins/builtin_registry_part12.cpp
+    interpreter_new/src/builtins/builtin_registry_part13.cpp
     interpreter_new/src/builtins/builtin_registry_part14.cpp
     interpreter_new/src/builtins/builtin_registry_part15.cpp
-    interpreter_new/src/builtins/builtin_registry_part13.cpp
     interpreter_new/src/builtins/builtin_registry_part16.cpp
     interpreter_new/src/builtins/builtin_registry_part17.cpp
     interpreter_new/src/builtins/builtin_registry_part18.cpp
@@ -96,6 +96,7 @@ set(INTERPRETER_SOURCES
     interpreter_new/src/builtins/builtin_registry_part36.cpp
     interpreter_new/src/builtins/builtin_registry_part37.cpp
     interpreter_new/src/builtins/builtin_registry_part38.cpp
+    interpreter_new/src/builtins/builtin_registry_part39_unified.cpp
     interpreter_new/src/visitors/expression_evaluator_core.cpp
     interpreter_new/src/visitors/expression_evaluator_calls.cpp
     interpreter_new/src/visitors/expression_evaluator_oop.cpp
@@ -214,7 +215,11 @@ set(STDLIB_SOURCES
     stdlib/graphics/sad_renderer3d_atlas.cpp
     stdlib/graphics/sad_shapes_postfx.cpp
     stdlib/system/system_functions.cpp
-
+    stdlib/ui/sad_ui_unified.cpp
+    stdlib/ui/sad_ui_platform.cpp
+    stdlib/ui/sad_backend_desktop.cpp
+    stdlib/ui/sad_backend_android.cpp
+    stdlib/ui/sad_backend_wasm.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────

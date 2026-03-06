@@ -350,6 +350,12 @@ void SIRBuilder::buildAssignment(AST::AssignExpr* assignment) {
         
         currentBlock_->instructions.push_back(storeInst);
     }
+    
+    // (AR) تحديث اسم اللامدا المستعار عند إعادة تعيين دالة لامدا لمتغير
+    // (EN) Update lambda alias when reassigning a lambda to a variable
+    if (valueResult.type == SIRType::FUNCTION && !valueResult.constantValue.empty()) {
+        lambdaAliases_[assignment->name] = valueResult.constantValue;
+    }
 }
 
 // ============================================================================
@@ -488,6 +494,15 @@ void SIRBuilder::buildLocalVariable(AST::VarDeclStmt* varDecl) {
     // (AR) إضافة المتغير للنطاق (sir_builder.h:591 - addVariable)
     // (EN) Add variable to scope
     addVariable(varInfo);
+    
+    // (AR) تسجيل اسم اللامدا المستعار عند تعيين دالة لامدا لمتغير
+    // (EN) Register lambda alias when assigning a lambda to a variable
+    // مثال: متغير ف = لامدا(س): س + 1 → lambdaAliases_["ف"] = "__lambda_0"
+    if (hasInitializer && initResult.type == SIRType::FUNCTION && !initResult.constantValue.empty()) {
+        lambdaAliases_[varDecl->name] = initResult.constantValue;
+        std::cerr << "[LAMBDA] Registered alias: '" << varDecl->name 
+                  << "' -> '" << initResult.constantValue << "'" << std::endl;
+    }
 }
 
 // ============================================================================

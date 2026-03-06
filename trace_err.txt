@@ -1,0 +1,14 @@
+
+========================================
+  📊 (AR) ملخص التحليل / (EN) Parsing Summary
+========================================
+✓ (AR) عدد الجمل الناجحة: 7
+✓ (EN) Successful statements: 7
+========================================
+
+[TRACE-ENTRY] buildNewObject for class 'مربع'
+[TRACE] buildNewObject constructor found for 'مربع', params=2
+[TRACE] paramTypes[ضلع] = 1
+[TRACE] propagating from 'مربع' to parent 'مستطيل', superParamMapping size=2
+[TRACE] parent param 'عرض' type=1
+[TRACE] parent param 'ارتفاع' type=1

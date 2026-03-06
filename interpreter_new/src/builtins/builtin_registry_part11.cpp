@@ -13,6 +13,7 @@
 
 // ───── sad::ui framework headers ─────
 #include "graphics/sad_ui_framework.h"
+#include "ui/sad_ui_callbacks.h"
 
 namespace Sad {
 namespace Interpreter {
@@ -27,6 +28,16 @@ static void _autoChildren(int parentId, const std::vector<std::shared_ptr<Data::
         if (args[i]->getType() == Data::ValueType::STRING) {
             std::string name = args[i]->toString();
             if (sad::ui::isKnownPropertyName(name) && i + 1 < args.size()) {
+                // [v3.1] أحداث: إذا كان الاسم حدث معروف → سجل الإرجاع
+                if (sad::callbacks::isEventProperty(name)) {
+                    auto& val = args[i + 1];
+                    // القيمة هي اسم الدالة (نص)
+                    if (val->getType() == Data::ValueType::STRING) {
+                        sad::callbacks::registerCallback(parentId, name, val->toString());
+                    }
+                    i++; // تخطي القيمة
+                    continue;
+                }
                 auto& val = args[i + 1];
                 auto vtype = val->getType();
                 if (vtype == Data::ValueType::STRING) {
