@@ -257,17 +257,15 @@ std::string StringUtils::replace(const std::string& str,
     
     std::string result = str;
     size_t pos = 0;
-    int count = 0;
     
     // البحث عن كل حالة واستبدالها
     // Find and replace each occurrence
     while ((pos = result.find(from, pos)) != std::string::npos) {
         result.replace(pos, from.length(), to);
         pos += to.length();
-        count++;
     }
-    
-    DEBUG_PRINT("تم استبدال " + std::to_string(count) + " حالة");
+
+    DEBUG_PRINT("اكتملت عملية الاستبدال");
     
     return result;
 }

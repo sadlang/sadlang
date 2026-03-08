@@ -72,19 +72,15 @@ jobs:
           cmake-windows-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}-
           cmake-windows-
     
-    - name: 📦 Cache LLVM
-      uses: actions/cache@v4
-      with:
-        path: C:\LLVM
-        key: llvm-18-windows-${{ hashFiles('cmake/llvm.cmake') }}
-    
     - name: 🔧 Install LLVM 18
+      shell: pwsh
       run: |
-        if (!(Test-Path "C:\LLVM")) {
-          choco install llvm --version=18.1.8 -y --allow-downgrade --no-progress
-          Copy-Item "C:\Program Files\LLVM" "C:\LLVM" -Recurse
+        choco install llvm --version=18.1.8 -y --allow-downgrade --no-progress
+        $llvmDir = "C:\Program Files\LLVM\lib\cmake\llvm"
+        if (!(Test-Path "$llvmDir\LLVMConfig.cmake")) {
+          throw "LLVMConfig.cmake not found at $llvmDir"
         }
-        echo "LLVM_DIR=C:\LLVM\lib\cmake\llvm" >> $env:GITHUB_ENV
+        echo "LLVM_DIR=$llvmDir" >> $env:GITHUB_ENV
     
     - name: 🔧 Configure CMake
       run: |
@@ -98,12 +94,28 @@ jobs:
       run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad
     
     - name: 🔨 Build sadc compiler
-      continue-on-error: true
+      shell: pwsh
       run: |
         if (Test-Path "build\sadc.vcxproj") {
           cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
         } else {
-          Write-Host "⚠️ sadc target not available (LLVM not found)"
+          Write-Host "⚠️ sadc target missing, retrying with fresh LLVM configure"
+          choco install llvm --version=18.1.8 -y --allow-downgrade --no-progress
+          $llvmDir = "C:\Program Files\LLVM\lib\cmake\llvm"
+          if (!(Test-Path "$llvmDir\LLVMConfig.cmake")) {
+            throw "LLVMConfig.cmake not found at $llvmDir"
+          }
+          cmake -S . -B build `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DENABLE_LLVM_BACKEND=ON `
+            -DBUILD_TESTS=OFF `
+            -DLLVM_DIR="$llvmDir"
+
+          if (!(Test-Path "build\sadc.vcxproj")) {
+            throw "sadc.vcxproj still missing after LLVM reinstall"
+          }
+
+          cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
         }
     
     - name: ✅ Test interpreter

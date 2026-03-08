@@ -304,12 +304,29 @@ jobs:
       - name: "بناء المترجم / Build Compiler (Windows)"
         if: matrix.os == 'windows'
         shell: pwsh
-        continue-on-error: true
         run: |
           if (Test-Path "build\sadc.vcxproj") {
             cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
           } else {
-            Write-Host "⚠️ sadc target not available (LLVM not found)"
+            Write-Host "⚠️ sadc target missing, retrying with LLVM reinstall"
+            choco install llvm --version=18.1.8 -y --no-progress --allow-downgrade
+            $llvmDir = "C:\Program Files\LLVM\lib\cmake\llvm"
+            if (!(Test-Path "$llvmDir\LLVMConfig.cmake")) {
+              throw "LLVMConfig.cmake not found at $llvmDir"
+            }
+
+            cmake -S . -B build `
+              -G "${{ matrix.cmake_generator }}" `
+              -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+              -DENABLE_LLVM_BACKEND=ON `
+              -DLLVM_DIR="$llvmDir" `
+              -DBUILD_TESTS=OFF
+
+            if (!(Test-Path "build\sadc.vcxproj")) {
+              throw "sadc.vcxproj still missing after LLVM reinstall"
+            }
+
+            cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
           }
 
       # ── بناء المفسر أيضاً (للحزمة الكاملة) ──
