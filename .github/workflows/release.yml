@@ -262,9 +262,10 @@ jobs:
           choco install llvm --version=18.1.8 -y --no-progress --allow-downgrade
           $llvmConfig = Get-ChildItem -Path "C:\Program Files\LLVM" -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($null -eq $llvmConfig) {
-            throw "LLVMConfig.cmake not found after LLVM installation"
+            Write-Host "⚠️ LLVMConfig.cmake not found after install; retry logic will attempt recovery"
+          } else {
+            echo "LLVM_DIR=$($llvmConfig.Directory.FullName)" >> $env:GITHUB_ENV
           }
-          echo "LLVM_DIR=$($llvmConfig.Directory.FullName)" >> $env:GITHUB_ENV
 
       - name: "تثبيت LLVM / Install LLVM (macOS)"
         if: matrix.os == 'macos'
@@ -319,20 +320,21 @@ jobs:
 
               $llvmConfig = Get-ChildItem -Path "C:\Program Files\LLVM" -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
               if ($null -eq $llvmConfig) {
-                if ($attempt -eq $maxAttempts) {
-                  throw "LLVMConfig.cmake not found after retries"
-                }
-                Start-Sleep -Seconds 5
-                continue
+                Write-Host "⚠️ LLVMConfig.cmake still missing; trying configure without LLVM_DIR"
+                cmake -S . -B build `
+                  -G "${{ matrix.cmake_generator }}" `
+                  -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+                  -DENABLE_LLVM_BACKEND=ON `
+                  -DBUILD_TESTS=OFF
+              } else {
+                $llvmDir = $llvmConfig.Directory.FullName
+                cmake -S . -B build `
+                  -G "${{ matrix.cmake_generator }}" `
+                  -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+                  -DENABLE_LLVM_BACKEND=ON `
+                  -DLLVM_DIR="$llvmDir" `
+                  -DBUILD_TESTS=OFF
               }
-
-              $llvmDir = $llvmConfig.Directory.FullName
-              cmake -S . -B build `
-                -G "${{ matrix.cmake_generator }}" `
-                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-                -DENABLE_LLVM_BACKEND=ON `
-                -DLLVM_DIR="$llvmDir" `
-                -DBUILD_TESTS=OFF
             }
 
             if (Test-Path "build\sadc.vcxproj") {

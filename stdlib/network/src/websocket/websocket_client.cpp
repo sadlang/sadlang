@@ -229,7 +229,11 @@ bool WebSocketClient::connect(const std::string& url,
     // Resolve host
     struct hostent* host_info = gethostbyname(impl_->host.c_str());
     if (!host_info) {
-        closesocket(impl_->socket);
+        #ifdef _WIN32
+        ::closesocket(impl_->socket);
+        #else
+        ::close(impl_->socket);
+        #endif
         impl_->socket = INVALID_SOCKET;
         impl_->set_error("Failed to resolve host / فشل حل اسم المضيف");
         impl_->state = ConnectionState::Closed;
@@ -245,7 +249,11 @@ bool WebSocketClient::connect(const std::string& url,
     
     if (::connect(impl_->socket, reinterpret_cast<struct sockaddr*>(&server_addr), 
                   sizeof(server_addr)) == SOCKET_ERROR) {
-        closesocket(impl_->socket);
+        #ifdef _WIN32
+        ::closesocket(impl_->socket);
+        #else
+        ::close(impl_->socket);
+        #endif
         impl_->socket = INVALID_SOCKET;
         impl_->set_error("Connection failed / فشل الاتصال");
         impl_->state = ConnectionState::Closed;
@@ -254,7 +262,11 @@ bool WebSocketClient::connect(const std::string& url,
     
     // Perform WebSocket handshake
     if (!do_handshake()) {
-        closesocket(impl_->socket);
+        #ifdef _WIN32
+        ::closesocket(impl_->socket);
+        #else
+        ::close(impl_->socket);
+        #endif
         impl_->socket = INVALID_SOCKET;
         impl_->state = ConnectionState::Closed;
         return false;
@@ -354,7 +366,11 @@ void WebSocketClient::close(CloseCode code, const std::string& reason) {
         auto close_frame = FrameBuilder::build_close(code, reason);
         ::send(impl_->socket, reinterpret_cast<const char*>(close_frame.data()), 
              static_cast<int>(close_frame.size()), 0);
-        closesocket(impl_->socket);
+        #ifdef _WIN32
+        ::closesocket(impl_->socket);
+        #else
+        ::close(impl_->socket);
+        #endif
         impl_->socket = INVALID_SOCKET;
     }
     

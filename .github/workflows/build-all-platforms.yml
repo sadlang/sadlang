@@ -78,10 +78,11 @@ jobs:
         choco install llvm --version=18.1.8 -y --allow-downgrade --no-progress
         $llvmConfig = Get-ChildItem -Path "C:\Program Files\LLVM" -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($null -eq $llvmConfig) {
-          throw "LLVMConfig.cmake not found after LLVM installation"
+          Write-Host "⚠️ LLVMConfig.cmake not found after install; will retry during sadc build"
+        } else {
+          $llvmDir = $llvmConfig.Directory.FullName
+          echo "LLVM_DIR=$llvmDir" >> $env:GITHUB_ENV
         }
-        $llvmDir = $llvmConfig.Directory.FullName
-        echo "LLVM_DIR=$llvmDir" >> $env:GITHUB_ENV
     
     - name: 🔧 Configure CMake
       run: |
@@ -107,19 +108,19 @@ jobs:
 
             $llvmConfig = Get-ChildItem -Path "C:\Program Files\LLVM" -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($null -eq $llvmConfig) {
-              if ($attempt -eq $maxAttempts) {
-                throw "LLVMConfig.cmake not found after retries"
-              }
-              Start-Sleep -Seconds 5
-              continue
+              Write-Host "⚠️ LLVMConfig.cmake still missing; trying configure without LLVM_DIR"
+              cmake -S . -B build `
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+                -DENABLE_LLVM_BACKEND=ON `
+                -DBUILD_TESTS=OFF
+            } else {
+              $llvmDir = $llvmConfig.Directory.FullName
+              cmake -S . -B build `
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+                -DENABLE_LLVM_BACKEND=ON `
+                -DBUILD_TESTS=OFF `
+                -DLLVM_DIR="$llvmDir"
             }
-
-            $llvmDir = $llvmConfig.Directory.FullName
-            cmake -S . -B build `
-              -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-              -DENABLE_LLVM_BACKEND=ON `
-              -DBUILD_TESTS=OFF `
-              -DLLVM_DIR="$llvmDir"
           }
 
           if (Test-Path "build\sadc.vcxproj") {
