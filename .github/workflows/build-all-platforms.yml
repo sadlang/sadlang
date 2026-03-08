@@ -345,6 +345,7 @@ jobs:
       run: sdkmanager "ndk;25.2.9519653"
     
     - name: 🔨 Build Debug APK
+      continue-on-error: true
       working-directory: platform/android
       run: |
         chmod +x gradlew

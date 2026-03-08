@@ -18,8 +18,13 @@ target_link_libraries(sad PRIVATE
     sad_http
     sad_websocket
     sad_mobile
-    sad_graphics
 )
+
+# ربط مكتبة الرسومات فقط على Windows
+# Link graphics only on Windows
+if(TARGET sad_graphics)
+    target_link_libraries(sad PRIVATE sad_graphics)
+endif()
 
 # (AR) ربط مكتبة وقت التشغيل إذا تم بناؤها / (EN) Link runtime if built
 if(TARGET sad_rt_runtime)
