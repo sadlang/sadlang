@@ -260,7 +260,11 @@ jobs:
         shell: pwsh
         run: |
           choco install llvm --version=18.1.8 -y --no-progress --allow-downgrade
-          echo "LLVM_DIR=C:\Program Files\LLVM\lib\cmake\llvm" >> $env:GITHUB_ENV
+          $llvmConfig = Get-ChildItem -Path "C:\Program Files\LLVM" -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -eq $llvmConfig) {
+            throw "LLVMConfig.cmake not found after LLVM installation"
+          }
+          echo "LLVM_DIR=$($llvmConfig.Directory.FullName)" >> $env:GITHUB_ENV
 
       - name: "تثبيت LLVM / Install LLVM (macOS)"
         if: matrix.os == 'macos'
@@ -305,28 +309,47 @@ jobs:
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
-          if (Test-Path "build\sadc.vcxproj") {
-            cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
-          } else {
-            Write-Host "⚠️ sadc target missing, retrying with LLVM reinstall"
-            choco install llvm --version=18.1.8 -y --no-progress --allow-downgrade
-            $llvmDir = "C:\Program Files\LLVM\lib\cmake\llvm"
-            if (!(Test-Path "$llvmDir\LLVMConfig.cmake")) {
-              throw "LLVMConfig.cmake not found at $llvmDir"
-            }
+          $maxAttempts = 3  # first try + two retries
+          $success = $false
 
-            cmake -S . -B build `
-              -G "${{ matrix.cmake_generator }}" `
-              -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-              -DENABLE_LLVM_BACKEND=ON `
-              -DLLVM_DIR="$llvmDir" `
-              -DBUILD_TESTS=OFF
-
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
             if (!(Test-Path "build\sadc.vcxproj")) {
-              throw "sadc.vcxproj still missing after LLVM reinstall"
+              Write-Host "⚠️ sadc target missing (attempt $attempt/$maxAttempts), reinstalling LLVM and reconfiguring"
+              choco install llvm --version=18.1.8 -y --no-progress --allow-downgrade
+
+              $llvmConfig = Get-ChildItem -Path "C:\Program Files\LLVM" -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($null -eq $llvmConfig) {
+                if ($attempt -eq $maxAttempts) {
+                  throw "LLVMConfig.cmake not found after retries"
+                }
+                Start-Sleep -Seconds 5
+                continue
+              }
+
+              $llvmDir = $llvmConfig.Directory.FullName
+              cmake -S . -B build `
+                -G "${{ matrix.cmake_generator }}" `
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+                -DENABLE_LLVM_BACKEND=ON `
+                -DLLVM_DIR="$llvmDir" `
+                -DBUILD_TESTS=OFF
             }
 
-            cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
+            if (Test-Path "build\sadc.vcxproj") {
+              cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
+              if ($LASTEXITCODE -eq 0) {
+                $success = $true
+                break
+              }
+            }
+
+            if ($attempt -lt $maxAttempts) {
+              Start-Sleep -Seconds 5
+            }
+          }
+
+          if (-not $success) {
+            throw "Failed to build sadc after two retries"
           }
 
       # ── بناء المفسر أيضاً (للحزمة الكاملة) ──

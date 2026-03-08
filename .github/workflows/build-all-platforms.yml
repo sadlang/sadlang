@@ -1,4 +1,4 @@
-# بسم الله الرحمن الرحيم
+﻿# بسم الله الرحمن الرحيم
 # ═══════════════════════════════════════════════════════════════════════════════
 #  GitHub Actions — بناء لغة ص على جميع المنصات
 #  Sad Language Cross-Platform Build
@@ -76,10 +76,11 @@ jobs:
       shell: pwsh
       run: |
         choco install llvm --version=18.1.8 -y --allow-downgrade --no-progress
-        $llvmDir = "C:\Program Files\LLVM\lib\cmake\llvm"
-        if (!(Test-Path "$llvmDir\LLVMConfig.cmake")) {
-          throw "LLVMConfig.cmake not found at $llvmDir"
+        $llvmConfig = Get-ChildItem -Path "C:\Program Files\LLVM" -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -eq $llvmConfig) {
+          throw "LLVMConfig.cmake not found after LLVM installation"
         }
+        $llvmDir = $llvmConfig.Directory.FullName
         echo "LLVM_DIR=$llvmDir" >> $env:GITHUB_ENV
     
     - name: 🔧 Configure CMake
@@ -88,7 +89,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
           -DENABLE_LLVM_BACKEND=ON `
           -DBUILD_TESTS=OFF `
-          -DLLVM_DIR=${{ env.LLVM_DIR }}
+          -DLLVM_DIR="$env:LLVM_DIR"
     
     - name: 🔨 Build sad interpreter
       run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad
@@ -96,26 +97,46 @@ jobs:
     - name: 🔨 Build sadc compiler
       shell: pwsh
       run: |
-        if (Test-Path "build\sadc.vcxproj") {
-          cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
-        } else {
-          Write-Host "⚠️ sadc target missing, retrying with fresh LLVM configure"
-          choco install llvm --version=18.1.8 -y --allow-downgrade --no-progress
-          $llvmDir = "C:\Program Files\LLVM\lib\cmake\llvm"
-          if (!(Test-Path "$llvmDir\LLVMConfig.cmake")) {
-            throw "LLVMConfig.cmake not found at $llvmDir"
-          }
-          cmake -S . -B build `
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-            -DENABLE_LLVM_BACKEND=ON `
-            -DBUILD_TESTS=OFF `
-            -DLLVM_DIR="$llvmDir"
+        $maxAttempts = 3  # first attempt + two retries
+        $success = $false
 
+        for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
           if (!(Test-Path "build\sadc.vcxproj")) {
-            throw "sadc.vcxproj still missing after LLVM reinstall"
+            Write-Host "⚠️ sadc target missing (attempt $attempt/$maxAttempts), reinstalling LLVM and reconfiguring"
+            choco install llvm --version=18.1.8 -y --allow-downgrade --no-progress
+
+            $llvmConfig = Get-ChildItem -Path "C:\Program Files\LLVM" -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -eq $llvmConfig) {
+              if ($attempt -eq $maxAttempts) {
+                throw "LLVMConfig.cmake not found after retries"
+              }
+              Start-Sleep -Seconds 5
+              continue
+            }
+
+            $llvmDir = $llvmConfig.Directory.FullName
+            cmake -S . -B build `
+              -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+              -DENABLE_LLVM_BACKEND=ON `
+              -DBUILD_TESTS=OFF `
+              -DLLVM_DIR="$llvmDir"
           }
 
-          cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
+          if (Test-Path "build\sadc.vcxproj") {
+            cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
+            if ($LASTEXITCODE -eq 0) {
+              $success = $true
+              break
+            }
+          }
+
+          if ($attempt -lt $maxAttempts) {
+            Start-Sleep -Seconds 5
+          }
+        }
+
+        if (-not $success) {
+          throw "Failed to build sadc after two retries"
         }
     
     - name: ✅ Test interpreter
@@ -169,6 +190,11 @@ jobs:
           build-essential cmake ccache \
           libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev \
           libgl1-mesa-dev libglu1-mesa-dev
+
+    - name: 🧹 Clean stale CMake cache
+      run: |
+        rm -f build/CMakeCache.txt
+        rm -rf build/CMakeFiles
     
     - name: 🔧 Configure CMake
       run: |
@@ -230,6 +256,11 @@ jobs:
     - name: 📦 Install Dependencies
       run: |
         brew install cmake sdl2 sdl2_ttf sdl2_image ccache
+
+    - name: 🧹 Clean stale CMake cache
+      run: |
+        rm -f build/CMakeCache.txt
+        rm -rf build/CMakeFiles
     
     - name: 🔧 Configure CMake
       run: |
