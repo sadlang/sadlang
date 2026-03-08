@@ -11,6 +11,7 @@
 #include "string_utils.h"
 #include <iostream>
 #include <filesystem>
+#include <algorithm>
 
 namespace Sad {
 namespace Utils {

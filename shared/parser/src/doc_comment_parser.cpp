@@ -63,6 +63,7 @@
 #include <sstream>
 #include <iostream>
 #include <optional>
+#include <algorithm>
 
 namespace sad::docs {
 

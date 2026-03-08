@@ -15,6 +15,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iomanip>
+#include <algorithm>
 
 namespace Sad {
 namespace Modules {

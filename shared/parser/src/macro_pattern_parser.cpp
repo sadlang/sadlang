@@ -38,6 +38,7 @@
 #include <memory>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 #include <variant>
 #include <optional>
 

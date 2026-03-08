@@ -64,6 +64,7 @@
 #include <sstream>
 #include <regex>
 #include <set>
+#include <algorithm>
 
 namespace sad {
 namespace parser {
