@@ -5,7 +5,13 @@
 
 #include "window/window.h"
 #include <SDL.h>           // مكتبة SDL2 الأساسية / Core SDL2 library
+
+// SDL_syswm.h فقط على Windows (يتضمن windows.h)
+// SDL_syswm.h only on Windows (includes windows.h)
+#ifdef _WIN32
 #include <SDL_syswm.h>     // معلومات النظام / System information
+#endif
+
 #include <atomic>               // للعمليات الذرية / Atomic operations
 #include <stdexcept>            // للاستثناءات / Exceptions
 

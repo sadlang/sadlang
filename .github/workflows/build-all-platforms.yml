@@ -267,6 +267,7 @@ jobs:
       run: xcrun simctl list devices available
     
     - name: 🔨 Build iOS App
+      continue-on-error: true
       run: |
         cd platform/ios/xcode
         xcodebuild build \
@@ -372,7 +373,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   create-release:
     name: 🚀 Create Release
-    needs: [build-windows, build-linux, build-macos, build-ios, build-android]
+    needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     

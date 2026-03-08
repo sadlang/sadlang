@@ -6,14 +6,17 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # مكتبة الرسومات / Graphics Library (SDL2 + OpenGL)
+# حالياً على Windows فقط / Currently Windows only
 # ──────────────────────────────────────────────────────────────────────
 set(SAD_GRAPHICS_SHARED OFF CACHE BOOL "Build graphics as static library" FORCE)
 set(SAD_GRAPHICS_BUILD_TESTS OFF CACHE BOOL "Skip graphics tests" FORCE)
 set(SAD_GRAPHICS_BUILD_EXAMPLES OFF CACHE BOOL "Skip graphics examples" FORCE)
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/graphics/CMakeLists.txt")
+if(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/graphics/CMakeLists.txt")
     add_subdirectory(graphics)
     message(STATUS "✓ الرسومات / Graphics: SDL2 + OpenGL")
+elseif(EXISTS "${CMAKE_SOURCE_DIR}/graphics/CMakeLists.txt")
+    message(STATUS "⚠ الرسومات / Graphics: معطلة على هذه المنصة / Disabled on this platform")
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
