@@ -133,6 +133,7 @@
 #include <algorithm>
 #include <atomic>
 #include <stack>
+#include <optional>
 
 namespace sad {
 namespace ffi {

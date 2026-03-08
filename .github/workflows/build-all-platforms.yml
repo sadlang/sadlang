@@ -99,7 +99,12 @@ jobs:
     
     - name: 🔨 Build sadc compiler
       continue-on-error: true
-      run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
+      run: |
+        if (Test-Path "build\sadc.vcxproj") {
+          cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
+        } else {
+          Write-Host "⚠️ sadc target not available (LLVM not found)"
+        }
     
     - name: ✅ Test interpreter
       run: |
