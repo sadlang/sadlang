@@ -9,6 +9,7 @@
 #include <iostream>
 #include <chrono>
 #include <algorithm>
+#include <cstring>
 
 namespace Sad {
 namespace Memory {
