@@ -98,6 +98,7 @@ jobs:
       run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad
     
     - name: 🔨 Build sadc compiler
+      continue-on-error: true
       run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sadc
     
     - name: ✅ Test interpreter

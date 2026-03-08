@@ -278,11 +278,36 @@ inline std::filesystem::path get_executable_dir() {
     return std::filesystem::current_path();
 }
 
-#else
+#elif defined(__APPLE__)
+
+#include <mach-o/dyld.h>
+#include <limits.h>
 
 /**
- * @brief الحصول على مسار البرنامج التنفيذي
- * Get executable directory path (Linux/Mac).
+ * @brief الحصول على مسار البرنامج التنفيذي على macOS
+ * Get executable directory path (macOS).
+ */
+inline std::filesystem::path get_executable_dir() {
+    char buffer[PATH_MAX];
+    uint32_t size = sizeof(buffer);
+    if (_NSGetExecutablePath(buffer, &size) == 0) {
+        char resolved[PATH_MAX];
+        if (realpath(buffer, resolved) != nullptr) {
+            return std::filesystem::path(resolved).parent_path();
+        }
+        return std::filesystem::path(buffer).parent_path();
+    }
+    return std::filesystem::current_path();
+}
+
+#else
+
+#include <unistd.h>
+#include <limits.h>
+
+/**
+ * @brief الحصول على مسار البرنامج التنفيذي على Linux
+ * Get executable directory path (Linux).
  */
 inline std::filesystem::path get_executable_dir() {
     char buffer[PATH_MAX];

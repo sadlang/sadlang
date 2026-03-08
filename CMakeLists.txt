@@ -34,7 +34,7 @@ cmake_minimum_required(VERSION 3.15)
 project(SadLanguage
     VERSION 1.0.0
     DESCRIPTION "لغة ص - لغة برمجة عربية حديثة / Sad - Modern Arabic Programming Language"
-    LANGUAGES CXX
+    LANGUAGES C CXX
 )
 
 # Beta version suffix (for display/packaging)
