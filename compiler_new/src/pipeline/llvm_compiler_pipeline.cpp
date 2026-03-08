@@ -446,7 +446,13 @@ bool LLVMCompilerPipeline::parsing() {
         // طباعة AST إذا طُلب / Print AST if requested
         if (options_.print_ast) {
             std::cout << "\n=== AST ===\n";
-            // TODO: طباعة AST / Print AST
+            // (AR) طباعة عقد AST — تمثيل نصي لكل عبارة رئيسية
+            // (EN) Print AST nodes — string representation for each top-level statement
+            for (size_t i = 0; i < ast_.size(); ++i) {
+                if (ast_[i]) {
+                    std::cout << "  [" << i << "] " << ast_[i]->toString() << "\n";
+                }
+            }
             std::cout << "عدد العبارات / Statement count: " << ast_.size() << "\n\n";
         }
         
@@ -467,8 +473,17 @@ bool LLVMCompilerPipeline::typeChecking() {
             std::cout << "[Pipeline] المرحلة 3: فحص الأنواع / Stage 3: Type checking\n";
         }
         
-        // TODO: تنفيذ فحص الأنواع / Implement type checking
-        // هذه مرحلة اختيارية ويمكن تخطيها حالياً / This is optional and can be skipped for now
+        // (AR) فحص الأنواع — مرحلة اختيارية
+        // (EN) Type checking — optional stage
+        // (AR) TypeChecker موجود في compiler_new/src/semantic/type_checker.cpp
+        //      لكنه يعمل على مستوى الـ AST ويحتاج ربط مع الـ pipeline
+        //      سيتم تفعيله عند اكتمال التكامل مع TypeEnvironment وInferenceContext
+        // (EN) TypeChecker exists in compiler_new/src/semantic/type_checker.cpp
+        //      but operates at AST level and needs pipeline integration
+        //      Will be enabled when TypeEnvironment/InferenceContext integration is complete
+        
+        // (AR) حالياً: نتخطى فحص الأنواع — الأخطاء تُكتشف في مرحلة SIR/LLVM
+        // (EN) Currently: skip type checking — errors caught in SIR/LLVM stages
         
         if (options_.verbose) {
             std::cout << "[Pipeline] تم تخطي فحص الأنواع (قيد التطوير) / Type checking skipped (under development)\n";
@@ -594,10 +609,22 @@ bool LLVMCompilerPipeline::optimization() {
         
         // طباعة إحصائيات التحسين إذا طُلب / Print optimization stats if requested
         if (options_.print_optimization_stats) {
-            // TODO: الحصول على إحصائيات التحسين من codeGen
-            // Get optimization stats from codeGen
-            if (options_.verbose) {
-                std::cout << "[Pipeline] إحصائيات التحسين متاحة / Optimization stats available\n";
+            // (AR) إحصائيات التحسين — تُستخرج من عدد التعليمات قبل/بعد
+            // (EN) Optimization stats — extracted from instruction count before/after
+            if (options_.verbose && llvmModule_) {
+                size_t funcCount = 0;
+                size_t instrCount = 0;
+                for (auto& F : *llvmModule_) {
+                    if (!F.isDeclaration()) {
+                        funcCount++;
+                        for (auto& BB : F) {
+                            instrCount += BB.size();
+                        }
+                    }
+                }
+                std::cout << "[Pipeline] إحصائيات التحسين / Optimization stats:\n";
+                std::cout << "  الدوال / Functions: " << funcCount << "\n";
+                std::cout << "  التعليمات / Instructions: " << instrCount << "\n";
             }
         }
         

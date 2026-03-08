@@ -517,12 +517,14 @@ int sad_borrow_check(SadBorrowChecker* ctx, void* function) {
 }
 
 const char* sad_borrow_check_report(SadBorrowChecker* ctx) {
-    static std::string report;
+    if (!ctx || !ctx->report) return "";
+    thread_local std::string report;
     report = ctx->report->toString();
     return report.c_str();
 }
 
 int sad_borrow_check_passed(SadBorrowChecker* ctx) {
+    if (!ctx || !ctx->report) return 0;
     return ctx->report->hasErrors() ? 0 : 1;
 }
 

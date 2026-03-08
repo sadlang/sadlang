@@ -260,6 +260,12 @@ const char* sirOpcodeToString(SIROpcode opcode) {
         case SIROpcode::BUILTIN_UI_APP_DESTROY:   return "ui.app_destroy";
         case SIROpcode::BUILTIN_UI_WIDGET_DESTROY:return "ui.widget_destroy";
 
+        // Module System
+        case SIROpcode::MODULE_LOAD:   return "module.load";
+        case SIROpcode::MODULE_SYMBOL: return "module.symbol";
+        case SIROpcode::MODULE_EXPORT: return "module.export";
+        case SIROpcode::MODULE_INIT:   return "module.init";
+
         default:                    return "unknown";
     }
 }

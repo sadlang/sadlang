@@ -270,6 +270,18 @@ std::string IOFunctions::valueToString(const Data::Value& value, int depth) {
             }
         }
         
+        case VT::FUNCTION: {
+            // (AR) مرجع دالة — يطبع معلومات الدالة
+            // (EN) Function reference — print function info
+            try {
+                auto funcRef = value.toFunction();
+                if (funcRef) {
+                    return funcRef->toString();
+                }
+            } catch (...) {}
+            return "<دالة>";
+        }
+        
         default:
             return "(unknown)";
     }
@@ -326,14 +338,28 @@ Data::Value IOFunctions::print(const std::vector<Data::Value>& args) {
     try {
         for (size_t i = 0; i < args.size(); ++i) {
             if (i > 0) {
+#ifdef __EMSCRIPTEN__
+                // (AR) في WASM نستخدم std::cout للتوافق مع OutputCapture
+                // (EN) In WASM use std::cout for OutputCapture compatibility
+                std::cout << " ";
+#else
                 // (AR) استخدام fwrite لتجنب مشاكل ترميز Unicode على Windows
                 // (EN) Use fwrite to avoid Unicode encoding issues on Windows
                 fwrite(" ", 1, 1, stdout);
+#endif
             }
             std::string str = valueToString(args[i]);
+#ifdef __EMSCRIPTEN__
+            std::cout << str;
+#else
             fwrite(str.c_str(), 1, str.size(), stdout);
+#endif
         }
+#ifdef __EMSCRIPTEN__
+        std::cout << std::flush;
+#else
         fflush(stdout);
+#endif
     } catch (const std::exception& e) {
         throw std::runtime_error(
             std::string("(AR) خطأ في طبع() / (EN) Error in print(): ") + e.what()
@@ -352,15 +378,27 @@ Data::Value IOFunctions::println(const std::vector<Data::Value>& args) {
     try {
         for (size_t i = 0; i < args.size(); ++i) {
             if (i > 0) {
+#ifdef __EMSCRIPTEN__
+                std::cout << " ";
+#else
                 fwrite(" ", 1, 1, stdout);
+#endif
             }
             std::string str = valueToString(args[i]);
+#ifdef __EMSCRIPTEN__
+            std::cout << str;
+#else
             fwrite(str.c_str(), 1, str.size(), stdout);
+#endif
         }
         // (AR) إضافة سطر جديد
         // (EN) Add newline
+#ifdef __EMSCRIPTEN__
+        std::cout << "\n" << std::flush;
+#else
         fwrite("\n", 1, 1, stdout);
         fflush(stdout);
+#endif
     } catch (const std::exception& e) {
         throw std::runtime_error(
             std::string("(AR) خطأ في طبع_سطر() / (EN) Error in println(): ") + e.what()

@@ -26,7 +26,7 @@ static const std::vector<std::string> SAD_KEYWORDS = {
     "إذا", "اذا", "وإلا", "والا", "والا_اذا", "وإلا_إذا",
     "بينما", "طالما", "لكل", "كرر",
     // تعريفات
-    "دالة", "صنف", "هيكل", "واجهة", "سمة", "وحدة", "تعداد",
+    "دالة", "صنف", "هيكل", "واجهة", "سمة", "وحدة", "تعداد", "بنية",
     "ثابت", "متغير",
     // تحكم تدفق
     "ارجع", "إرجاع", "اخرج", "توقف", "تابع", "استمر",
@@ -35,19 +35,33 @@ static const std::vector<std::string> SAD_KEYWORDS = {
     // استيراد
     "استورد", "من", "صدّر", "كـ",
     // استثناءات
-    "حاول", "امسك", "أخيراً", "ارمِ",
+    "حاول", "امسك", "أخيراً", "ارمِ", "ارمي",
     // كائنية
-    "جديد", "هذا", "ذاتي",
+    "جديد", "هذا", "ذاتي", "الأساس",
     // قيم خاصة
-    "صحيح", "خطأ", "عدم", "فارغ",
+    "صحيح", "خطأ", "عدم", "فارغ", "لاشيء",
     // عضوية
     "في",
     // أنواع
-    "رقم", "عشري", "منطقي", "نص", "مصفوفة", "قائمة", "خريطة", "مجموعة", "أي", "كائن",
+    "رقم", "عشري", "منطقي", "نص", "مصفوفة", "قائمة", "خريطة", "مجموعة", "أي", "كائن", "فراغ",
     // منطقية
     "و", "أو", "ليس",
-    // switch
-    "حالة", "عندما", "افتراضي"
+    // مطابقة أنماط
+    "طابق", "حالة", "عندما", "افتراضي",
+    // كلمات سياقية — لامدا وغير متزامن
+    "لامدا", "غير_متزامن", "انتظر", "مولد", "أنتج",
+    // كلمات سياقية — قوالب وسمات
+    "قالب", "نفّذ", "نفذ",
+    // كلمات سياقية — خصائص ودورة حياة
+    "خاصية", "احصل", "عيّن", "هدم", "عامل", "رئيسية",
+    // مُعدّلات الوصول
+    "عام", "خاص", "محمي", "مجرد", "ساكن", "خارجي",
+    // إدارة الموارد
+    "باستخدام", "نهاية_استخدام",
+    // فضاء الأسماء
+    "فضاء", "نهاية_فضاء",
+    // اختبارات
+    "اختبر", "يرث"
 };
 
 static const std::vector<std::string> SAD_OPERATORS_SORTED = {
@@ -74,15 +88,19 @@ static bool isImportKeyword(const std::string& s) {
 
 static bool isBlockOpener(const std::string& s) {
     return s == "دالة" || s == "صنف" || s == "هيكل" || s == "واجهة" ||
-           s == "سمة" || s == "وحدة" || s == "تعداد" ||
+           s == "سمة" || s == "وحدة" || s == "تعداد" || s == "بنية" ||
            s == "إذا" || s == "اذا" ||
            s == "بينما" || s == "طالما" || s == "لكل" || s == "كرر" ||
-           s == "حاول" || s == "حالة" ||
-           s == "باني";
+           s == "حاول" || s == "طابق" || s == "حالة" ||
+           s == "باني" || s == "هدم" || s == "خاصية" ||
+           s == "غير_متزامن" || s == "لامدا" ||
+           s == "قالب" || s == "نفّذ" || s == "نفذ" ||
+           s == "باستخدام" || s == "فضاء" || s == "اختبر" ||
+           s == "رئيسية";
 }
 
 static bool isBlockCloser(const std::string& s) {
-    return s == "نهاية";
+    return s == "نهاية" || s == "نهاية_استخدام" || s == "نهاية_فضاء";
 }
 
 static bool isInterBlock(const std::string& s) {
@@ -111,7 +129,8 @@ bool FmtToken::isTypeKeyword() const {
     return (type == FmtTokenType::KEYWORD) &&
            (value == "رقم" || value == "عشري" || value == "منطقي" ||
             value == "نص" || value == "مصفوفة" || value == "قائمة" ||
-            value == "خريطة" || value == "مجموعة" || value == "أي" || value == "كائن");
+            value == "خريطة" || value == "مجموعة" || value == "أي" || 
+            value == "كائن" || value == "فراغ");
 }
 
 // ============================================================================
@@ -233,6 +252,17 @@ std::vector<FmtToken> FmtLexer::tokenize(const std::string& source) {
         // معرّف (عربي أو لاتيني)
         else if (isIdentStart(c)) {
             scanIdentifier();
+        }
+        // توجيه @
+        else if (c == '@') {
+            int sl = line_, sc = column_; int so = (int)pos_;
+            std::string val = "@";
+            advance();
+            // قراءة اسم التوجيه بعد @
+            while (pos_ < source_.size() && isIdentChar(current())) {
+                val += current(); advance();
+            }
+            emit(FmtTokenType::DIRECTIVE, val, sl, sc, so);
         }
         // عامل
         else {
@@ -986,6 +1016,14 @@ std::string SadFormatter::rebuild(const std::vector<FmtToken>& tokens) {
         case FmtTokenType::COMMENT_LINE:
         case FmtTokenType::COMMENT_BLOCK:
         case FmtTokenType::COMMENT_DOC: {
+            lastWasNewline = false;
+            consecutiveBlankLines = 0;
+            if (startOfLine) { out << getIndent(indentLevel); startOfLine = false; }
+            out << tok.value;
+            break;
+        }
+
+        case FmtTokenType::DIRECTIVE: {
             lastWasNewline = false;
             consecutiveBlankLines = 0;
             if (startOfLine) { out << getIndent(indentLevel); startOfLine = false; }

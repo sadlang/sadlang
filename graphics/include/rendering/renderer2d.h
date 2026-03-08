@@ -451,6 +451,323 @@ private:
                       const sad::graphics::FontRef& font,
                       Float32 x, Float32 y,
                       const Color& color);
+    
+    /// حساب نقطة بزيه التكعيبية / Compute cubic Bézier point (private helper)
+    void BezierPoint(Float32 t, Float32 x0, Float32 y0, Float32 x1, Float32 y1,
+                     Float32 x2, Float32 y2, Float32 x3, Float32 y3,
+                     Float32& outX, Float32& outY);
+};
+
+// ==============================================================================
+// ==============================================================================
+//
+//   القسم المتقدم — أشكال متقدمة، ظلال، فلاتر، وتحكم بالبكسل
+//   Advanced Section — curves, shadows, filters, pixel-level control
+//
+//   أُضيف في: أبريل 2026 — المهندس كامل
+//   Added: April 2026 — Engineer Kamel
+//
+// ==============================================================================
+// ==============================================================================
+
+// ==============================================================================
+// مصفوفة التحويل ثنائية الأبعاد / 2D Transform Matrix
+// ==============================================================================
+/// مصفوفة تحويل مخصصة 3×3 للرسم ثنائي الأبعاد
+/// Custom 3x3 transform matrix for 2D rendering
+/// تدعم: ترجمة، دوران، تكبير، قص، ضرب المصفوفات
+struct Transform2D {
+    Float32 m[3][3];  // مصفوفة 3×3 / 3x3 matrix
+    
+    /// إنشاء مصفوفة هوية / Create identity matrix
+    Transform2D();
+    
+    /// مصفوفة ترجمة / Translation matrix
+    static Transform2D ترجمة(Float32 tx, Float32 ty);
+    static Transform2D Translate(Float32 tx, Float32 ty) { return ترجمة(tx, ty); }
+    
+    /// مصفوفة دوران / Rotation matrix
+    /// angle: الزاوية بالراديان / Angle in radians
+    static Transform2D دوران(Float32 angle);
+    static Transform2D Rotation(Float32 angle) { return دوران(angle); }
+    
+    /// مصفوفة تكبير / Scale matrix
+    static Transform2D تكبير(Float32 sx, Float32 sy);
+    static Transform2D Scaling(Float32 sx, Float32 sy) { return تكبير(sx, sy); }
+    
+    /// مصفوفة قص / Shear matrix
+    static Transform2D قص(Float32 shx, Float32 shy);
+    static Transform2D Shear(Float32 shx, Float32 shy) { return قص(shx, shy); }
+    
+    /// ضرب مصفوفتين / Multiply matrices
+    Transform2D operator*(const Transform2D& other) const;
+    
+    /// تحويل نقطة / Transform point
+    void حوّل(Float32& x, Float32& y) const;
+    void Apply(Float32& x, Float32& y) const { حوّل(x, y); }
+    
+    /// المعكوس / Inverse
+    Transform2D معكوس() const;
+    Transform2D Inverse() const { return معكوس(); }
+};
+
+// ==============================================================================
+// إعدادات الظلال / Shadow Settings
+// ==============================================================================
+/// إعدادات ظل مسقط لأي شكل مرسوم
+/// Drop shadow settings for any drawn shape
+struct إعدادات_الظل {
+    Float32 إزاحة_س = 3.0f;         // الإزاحة الأفقية / X offset
+    Float32 إزاحة_ص = 3.0f;         // الإزاحة العمودية / Y offset
+    Float32 نصف_قطر_الضبابية = 5.0f; // ضبابية الظل / Blur radius
+    Color لون = {0, 0, 0, 128};     // لون الظل (شبه شفاف) / Shadow color
+    bool مفعّل = false;              // هل الظل مفعّل / Is shadow enabled
+};
+
+// ==============================================================================
+// إعدادات التدرج اللوني / Gradient Settings
+// ==============================================================================
+/// نوع التدرج / Gradient type
+enum class نوع_التدرج : uint8_t {
+    خطي      = 0,  // Linear gradient
+    شعاعي    = 1,  // Radial gradient
+    مخروطي   = 2   // Conic gradient
+};
+
+/// إعدادات التدرج اللوني — لتعبئة الأشكال بألوان متدرجة
+/// Gradient settings — fill shapes with color gradients
+struct إعدادات_التدرج {
+    نوع_التدرج النوع = نوع_التدرج::خطي;
+    Color لون_البداية = Color::White;     // Start color
+    Color لون_النهاية = Color::Black;     // End color
+    Float32 زاوية = 0.0f;                 // Angle (for linear)
+    Float32 مركز_س = 0.5f;               // Center X (for radial/conic)
+    Float32 مركز_ص = 0.5f;               // Center Y (for radial/conic)
+    Float32 نصف_قطر = 1.0f;              // Radius (for radial)
+};
+
+// ==============================================================================
+// مخزن البكسل — تحكم كامل بكل بكسل / Pixel Buffer — Full pixel control
+// ==============================================================================
+/// مخزن بكسل خام — يمنح تحكماً كاملاً بكل بكسل على الشاشة
+/// Raw pixel buffer — provides full per-pixel screen control
+///
+/// الاستخدام / Usage:
+///   مخزن_البكسل buf(800, 600);
+///   buf.عيّن_بكسل(100, 200, Color::Red);  // تلوين بكسل واحد
+///   buf.املأ(Color::Black);                // ملء الكل
+///   buf.ارسم_إلى_الشاشة(renderer);       // رسم على الشاشة
+///
+class مخزن_البكسل {
+public:
+    /// إنشاء مخزن بكسل بأبعاد محددة
+    /// Create pixel buffer with given dimensions
+    مخزن_البكسل(UInt32 عرض, UInt32 ارتفاع);
+    
+    /// التدمير / Destructor
+    ~مخزن_البكسل();
+    
+    // ====================================================================
+    // عمليات البكسل الأساسية / Basic Pixel Operations
+    // ====================================================================
+    
+    /// تعيين لون بكسل واحد / Set single pixel color
+    /// x, y: إحداثيات البكسل / Pixel coordinates
+    /// color: اللون / Color
+    void عيّن_بكسل(UInt32 x, UInt32 y, const Color& color);
+    void SetPixel(UInt32 x, UInt32 y, const Color& color) { عيّن_بكسل(x, y, color); }
+    
+    /// قراءة لون بكسل / Read pixel color
+    Color اقرأ_بكسل(UInt32 x, UInt32 y) const;
+    Color GetPixel(UInt32 x, UInt32 y) const { return اقرأ_بكسل(x, y); }
+    
+    /// ملء الكل بلون واحد / Fill entire buffer with color
+    void املأ(const Color& color);
+    void Fill(const Color& color) { املأ(color); }
+    
+    /// مسح (ملء بالأسود الشفاف) / Clear (fill with transparent black)
+    void امسح();
+    void Clear() { امسح(); }
+    
+    // ====================================================================
+    // عمليات متقدمة / Advanced Operations
+    // ====================================================================
+    
+    /// نسخ منطقة من مخزن آخر / Copy region from another buffer
+    void انسخ_منطقة(const مخزن_البكسل& مصدر,
+                     UInt32 مصدر_س, UInt32 مصدر_ص,
+                     UInt32 عرض, UInt32 ارتفاع,
+                     UInt32 هدف_س, UInt32 هدف_ص);
+    
+    /// مزج بكسل مع شفافية (Alpha Blending)
+    /// Blend pixel with alpha blending
+    void امزج_بكسل(UInt32 x, UInt32 y, const Color& color);
+    
+    /// الوصول المباشر للبيانات الخام / Direct access to raw data
+    /// يُرجع مؤشراً لبيانات RGBA (4 بايت لكل بكسل)
+    /// Returns pointer to RGBA data (4 bytes per pixel)
+    uint8_t* البيانات() { return بيانات_.data(); }
+    const uint8_t* البيانات() const { return بيانات_.data(); }
+    
+    /// رسم المخزن على الشاشة عبر texture / Draw buffer to screen via texture
+    void ارسم_إلى_الشاشة(Renderer2D& renderer, Float32 x = 0, Float32 y = 0);
+    
+    // ====================================================================
+    // الأبعاد / Dimensions
+    // ====================================================================
+    UInt32 العرض() const { return العرض_; }
+    UInt32 الارتفاع() const { return الارتفاع_; }
+    UInt32 Width() const { return العرض_; }
+    UInt32 Height() const { return الارتفاع_; }
+    
+private:
+    UInt32 العرض_;                    // Width
+    UInt32 الارتفاع_;                 // Height
+    std::vector<uint8_t> بيانات_;     // RGBA pixel data
+    UInt32 معرّف_texture_ = 0;       // OpenGL texture ID (lazy)
+    bool متسخ_ = true;               // Needs GPU upload
+};
+
+// ==============================================================================
+// امتداد Renderer2D المتقدم / Advanced Renderer2D Extension
+// ==============================================================================
+/// امتداد لمحرك الرسم يضيف: منحنيات بزيه، ظلال، تدرجات، فلاتر
+/// Extension for Renderer2D adding: Bézier curves, shadows, gradients, filters
+///
+/// يعمل فوق Renderer2D الموجود ويستخدمه للرسم الفعلي
+/// Works on top of existing Renderer2D, using it for actual drawing
+///
+class Renderer2DAdvanced {
+public:
+    /// إنشاء من renderer موجود / Create from existing renderer
+    explicit Renderer2DAdvanced(Renderer2D* renderer);
+    ~Renderer2DAdvanced() = default;
+    
+    // ==================================================================
+    // منحنيات بزيه / Bézier Curves
+    // ==================================================================
+    
+    /// رسم منحنى بزيه تربيعي / Draw quadratic Bézier curve
+    /// x0,y0: البداية / Start    x1,y1: نقطة التحكم / Control
+    /// x2,y2: النهاية / End
+    void DrawBezierQuadratic(Float32 x0, Float32 y0,
+                             Float32 x1, Float32 y1,
+                             Float32 x2, Float32 y2,
+                             const Color& color = Color::White,
+                             Float32 thickness = 1.0f, Int32 segments = 32);
+    
+    /// رسم منحنى بزيه تكعيبي / Draw cubic Bézier curve
+    /// x0,y0: البداية / Start    x1,y1: تحكم 1 / Control 1
+    /// x2,y2: تحكم 2 / Control 2   x3,y3: النهاية / End
+    void DrawBezierCubic(Float32 x0, Float32 y0,
+                         Float32 x1, Float32 y1,
+                         Float32 x2, Float32 y2,
+                         Float32 x3, Float32 y3,
+                         const Color& color = Color::White,
+                         Float32 thickness = 1.0f, Int32 segments = 48);
+    
+    /// رسم مسار بزيه متعدد النقاط / Draw multi-point Bézier path
+    void DrawBezierPath(const std::vector<Point2D>& controlPoints,
+                        const Color& color = Color::White,
+                        Float32 thickness = 1.0f, Int32 segmentsPerCurve = 32);
+    
+    /// رسم منحنى B-Spline / Draw B-Spline curve
+    void DrawBSpline(const std::vector<Point2D>& controlPoints,
+                     Int32 degree = 3,
+                     const Color& color = Color::White,
+                     Float32 thickness = 1.0f, Int32 segments = 64);
+    
+    // ==================================================================
+    // مستطيلات دائرية الزوايا / Rounded Rectangles
+    // ==================================================================
+    
+    /// رسم مستطيل بزوايا دائرية / Draw rounded rectangle
+    void DrawRoundedRect(Float32 x, Float32 y, Float32 w, Float32 h,
+                         Float32 radius, const Color& color = Color::White,
+                         bool filled = true);
+    
+    // ==================================================================
+    // الظلال المسقطة / Drop Shadows
+    // ==================================================================
+    
+    /// تفعيل/تعطيل الظل العام / Enable/disable global shadow
+    void SetShadow(const إعدادات_الظل& shadow);
+    void DisableShadow();
+    
+    /// رسم مستطيل مع ظل / Draw rectangle with shadow
+    void DrawRectWithShadow(Float32 x, Float32 y, Float32 w, Float32 h,
+                            const Color& color, const إعدادات_الظل& shadow);
+    
+    /// رسم دائرة مع ظل / Draw circle with shadow
+    void DrawCircleWithShadow(Float32 x, Float32 y, Float32 radius,
+                              const Color& color, const إعدادات_الظل& shadow);
+    
+    // ==================================================================
+    // التدرجات اللونية / Gradients
+    // ==================================================================
+    
+    /// رسم مستطيل بتدرج لوني / Draw gradient-filled rectangle
+    void DrawGradientRect(Float32 x, Float32 y, Float32 w, Float32 h,
+                          const إعدادات_التدرج& gradient);
+    
+    /// رسم دائرة بتدرج شعاعي / Draw radial-gradient circle
+    void DrawGradientCircle(Float32 x, Float32 y, Float32 radius,
+                            const Color& center, const Color& edge,
+                            Int32 segments = 48);
+    
+    // ==================================================================
+    // الفلاتر والمؤثرات / Filters and Effects
+    // ==================================================================
+    
+    /// تطبيق ضبابية Gaussian على مخزن بكسل
+    /// Apply Gaussian blur to pixel buffer
+    static void ApplyGaussianBlur(مخزن_البكسل& buffer, Float32 radius);
+    
+    /// تطبيق توهج (Glow) حول الأشكال
+    /// Apply glow effect around shapes
+    static void ApplyGlow(مخزن_البكسل& buffer, const Color& glowColor, Float32 radius);
+    
+    /// تطبيق فلتر لوني / Apply color filter
+    static void ApplyColorFilter(مخزن_البكسل& buffer,
+                                  Float32 r_scale, Float32 g_scale,
+                                  Float32 b_scale, Float32 a_scale = 1.0f);
+    
+    /// تطبيق فلتر التباين / Apply contrast filter
+    static void ApplyContrast(مخزن_البكسل& buffer, Float32 factor);
+    
+    /// تطبيق فلتر السطوع / Apply brightness filter
+    static void ApplyBrightness(مخزن_البكسل& buffer, Float32 offset);
+    
+    /// تحويل إلى تدرج رمادي / Convert to grayscale
+    static void ApplyGrayscale(مخزن_البكسل& buffer);
+    
+    /// قلب الألوان / Invert colors
+    static void ApplyInvert(مخزن_البكسل& buffer);
+    
+    // ==================================================================
+    // تحويلات مخصصة / Custom Transforms
+    // ==================================================================
+    
+    /// تطبيق مصفوفة تحويل / Apply transform matrix
+    void SetTransform(const Transform2D& transform);
+    
+    /// إرجاع التحويل الحالي / Get current transform
+    const Transform2D& GetTransform() const { return التحويل_الحالي_; }
+    
+    /// حفظ/استرجاع التحويل / Save/restore transform
+    void PushTransform();
+    void PopTransform();
+    
+    // ==================================================================
+    // الوصول للمحرك الأساسي / Access base renderer
+    // ==================================================================
+    Renderer2D* GetBaseRenderer() { return المحرك_; }
+
+private:
+    Renderer2D* المحرك_;                          // المحرك الأساسي / Base renderer
+    إعدادات_الظل الظل_الحالي_;                     // الظل الحالي / Current shadow
+    Transform2D التحويل_الحالي_;                   // التحويل الحالي / Current transform
+    std::vector<Transform2D> كومة_التحويلات_;     // كومة التحويلات / Transform stack
 };
 
 } // namespace SadGraphics

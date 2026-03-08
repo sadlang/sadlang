@@ -118,9 +118,13 @@ void KeywordTable::initialize() {
 
 
     keywords_["استمر"] = TokenType::KEYWORD_CONTINUE;       // (EN) continue
+
+    // (AR) كلمة 'توقف' للخروج من الحلقة — المواصفة 04_syntax.md
+    // (EN) 'break' keyword for loop exit — spec 04_syntax.md
+    keywords_["توقف"] = TokenType::KEYWORD_BREAK;             // (EN) break
    
     
-    DEBUG_PRINT("تمت إضافة 14 كلمة: التحكم في التدفق (عربي + إنجليزي)");
+    DEBUG_PRINT("تمت إضافة 15 كلمة: التحكم في التدفق (عربي + إنجليزي)");
     
     // ========== الكلمات المفتاحية - Switch/Case ==========
     // Keywords - Switch/Case (spec 04_syntax.md)
@@ -280,7 +284,11 @@ void KeywordTable::initialize() {
     // Supported C++ Features (Phase 7B)
     
     // Templates (Phase 7B.1)
-    keywords_["قالب"] = TokenType::KEYWORD_TEMPLATE;      // (AR) لتعريف القوالب / (EN) template keyword
+    // (AR) 'قالب' كلمة سياقية — لا تُسجل في جدول الكلمات المحجوزة
+    //      لتسمح باستخدامها كأسماء متغيرات (مثل: متغير قالب = "نموذج")
+    // (EN) 'قالب' is contextual — NOT registered in keyword table
+    //      to allow use as variable/parameter names (e.g., var template = "model")
+    // keywords_["قالب"] = TokenType::KEYWORD_TEMPLATE;  // DISABLED: contextual keyword (Bug #21 fix)
 
     // (AR) 'نوع' كلمة سياقية — لا تُسجل في جدول الكلمات المحجوزة
     //      لتسمح باستخدامها كأسماء معاملات/متغيرات (مثل: دالة سجّل(نوع، بيانات))
@@ -312,10 +320,12 @@ void KeywordTable::initialize() {
     keywords_["سمة"] = TokenType::KEYWORD_TRAIT;
     // keywords_["واجهة"] = TokenType::KEYWORD_TRAIT;  // REMOVED: contextual keyword
 
-    // (AR) كلمة 'نفّذ' — تنفيذ سمة لنوع معين (مثل impl في Rust)
-    // (EN) 'impl' — implement trait for a type
-    keywords_["نفّذ"] = TokenType::KEYWORD_IMPL;
-    keywords_["نفذ"] = TokenType::KEYWORD_IMPL;
+    // (AR) كلمة 'نفّذ' — كلمة سياقية لتنفيذ سمة (مثل impl في Rust)
+    //      لا تُسجل في جدول الكلمات المحجوزة لتسمح باستخدامها كاسم متغير
+    // (EN) 'impl' — contextual keyword for trait implementation
+    //      NOT registered in keyword table to allow use as variable name
+    // keywords_["نفّذ"] = TokenType::KEYWORD_IMPL;  // REMOVED: contextual keyword
+    // keywords_["نفذ"] = TokenType::KEYWORD_IMPL;   // REMOVED: contextual keyword
 
     
     // (AR) كلمة 'اختبر' — تعريف دالة اختبار (مثل #[test] في Rust)

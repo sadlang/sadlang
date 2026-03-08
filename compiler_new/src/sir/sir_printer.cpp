@@ -482,7 +482,8 @@ void sad_sir_printer_set_options(SadSirPrinter* ctx,
 }
 
 const char* sad_sir_print_module(SadSirPrinter* ctx, void* module) {
-    static std::string result;
+    // (AR) thread_local لتجنب سباق البيانات / (EN) thread_local to avoid data races
+    thread_local std::string result;
     
     if (!ctx || !module) {
         result = "";
@@ -495,7 +496,7 @@ const char* sad_sir_print_module(SadSirPrinter* ctx, void* module) {
 }
 
 const char* sad_sir_print_function(SadSirPrinter* ctx, void* function) {
-    static std::string result;
+    thread_local std::string result;
     
     if (!ctx || !function) {
         result = "";
@@ -508,7 +509,7 @@ const char* sad_sir_print_function(SadSirPrinter* ctx, void* function) {
 }
 
 const char* sad_sir_print_dot(SadSirPrinter* ctx, void* function) {
-    static std::string result;
+    thread_local std::string result;
     
     if (!ctx || !function) {
         result = "";

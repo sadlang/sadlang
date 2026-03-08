@@ -36,6 +36,7 @@ SignatureHelp LspEngine::signature_help(const DocumentUri& uri, const Position& 
         std::string func_name;
         int param_index;        // فهرس المعلمة النشطة
         int open_paren_col;     // موضع قوس الفتح
+        bool is_constructor = false; // هل هو استدعاء باني (جديد صنف())
     };
     std::vector<CallContext> call_stack;
 
@@ -74,6 +75,22 @@ SignatureHelp LspEngine::signature_help(const DocumentUri& uri, const Position& 
                     ctx.func_name = line.substr(func_start, name_end - func_start);
                     ctx.param_index = current_param;
                     ctx.open_paren_col = i;
+
+                    // ──── دعم الباني: جديد صنف(|) ────
+                    // إذا كان قبل الاسم الكلمة "جديد"، نحفظ اسم الصنف
+                    // جديد = \xd8\xac\xd8\xaf\xd9\x8a\xd8\xaf
+                    static const std::string kw_new = "\xd8\xac\xd8\xaf\xd9\x8a\xd8\xaf";
+                    if (func_start >= static_cast<int>(kw_new.size()) + 1) {
+                        int before = func_start - 1;
+                        while (before >= 0 && (line[before] == ' ' || line[before] == '\t'))
+                            before--;
+                        int kw_end = before + 1;
+                        int kw_start = kw_end - static_cast<int>(kw_new.size());
+                        if (kw_start >= 0 && line.substr(kw_start, kw_new.size()) == kw_new) {
+                            ctx.is_constructor = true;
+                        }
+                    }
+
                     call_stack.push_back(ctx);
                 }
                 // ننتقل للمستوى الأعلى
@@ -101,8 +118,33 @@ SignatureHelp LspEngine::signature_help(const DocumentUri& uri, const Position& 
     // ──── بناء التوقيعات لأقرب سياق استدعاء ────
     const auto& ctx = call_stack.front(); // أعمق سياق (أقرب للمؤشر)
 
-    auto def = index_->find_definition(ctx.func_name, uri, pos);
-    if (!def || !def->func_info) return help;
+    // ──── البحث عن تعريف الدالة أو الباني ────
+    std::optional<AnalyzedSymbol> def_opt;
+
+    if (ctx.is_constructor) {
+        // جديد صنف(...) — نبحث عن الباني في الصنف
+        auto class_def = index_->find_definition(ctx.func_name, uri, pos);
+        if (class_def && class_def->kind == AnalyzedSymbolKind::Class) {
+            // نبحث عن باني في أعضاء الصنف
+            auto symbols = index_->get_document_symbols(class_def->uri);
+            for (const auto& sym : symbols) {
+                if (sym.kind == AnalyzedSymbolKind::Constructor &&
+                    sym.scope_owner == ctx.func_name) {
+                    def_opt = sym;
+                    break;
+                }
+            }
+            if (!def_opt) {
+                // لا باني صريح — نعرض معلومات الصنف
+                def_opt = class_def;
+            }
+        }
+    } else {
+        def_opt = index_->find_definition(ctx.func_name, uri, pos);
+    }
+
+    if (!def_opt || !def_opt->func_info) return help;
+    const auto& def = *def_opt;
 
     SignatureInformation sig;
 
@@ -110,17 +152,17 @@ SignatureHelp LspEngine::signature_help(const DocumentUri& uri, const Position& 
     std::string label;
 
     // مؤشرات: غير_متزامن / مولّد
-    if (def->func_info->is_async) {
+    if (def.func_info->is_async) {
         label += "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xaa\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86 "; // غير_متزامن
     }
-    if (def->func_info->is_generator) {
+    if (def.func_info->is_generator) {
         label += "\xd9\x85\xd9\x88\xd9\x84\xd9\x91\xd8\xaf "; // مولّد
     }
 
-    label += def->name + "(";
+    label += def.name + "(";
 
     bool first = true;
-    for (const auto& [pname, ptype] : def->func_info->parameters) {
+    for (const auto& [pname, ptype] : def.func_info->parameters) {
         if (!first) label += ", ";
         first = false;
 
@@ -146,26 +188,26 @@ SignatureHelp LspEngine::signature_help(const DocumentUri& uri, const Position& 
     label += ")";
 
     // نوع الإرجاع
-    if (!def->func_info->return_type.name.empty() &&
-        def->func_info->return_type.name != "\xd8\xb9\xd8\xaf\xd9\x85" && // عدم
-        def->func_info->return_type.name != "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf") { // غير_محدد
-        label += " \xe2\x86\x90 " + def->func_info->return_type.name; // ←
+    if (!def.func_info->return_type.name.empty() &&
+        def.func_info->return_type.name != "\xd8\xb9\xd8\xaf\xd9\x85" && // عدم
+        def.func_info->return_type.name != "\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf") { // غير_محدد
+        label += " \xe2\x86\x90 " + def.func_info->return_type.name; // ←
     }
 
     sig.label = label;
     sig.active_parameter = ctx.param_index;
 
     // توثيق الدالة
-    if (!def->documentation.empty()) {
-        sig.documentation = def->documentation;
+    if (!def.documentation.empty()) {
+        sig.documentation = def.documentation;
     } else {
         // توثيق تلقائي
         std::string auto_doc;
-        if (def->is_builtin) {
+        if (def.is_builtin) {
             auto_doc = "\xf0\x9f\x94\xa7 **دالة مدمجة**\n\n";
         }
-        auto_doc += "`" + def->name + "` - ";
-        auto_doc += std::to_string(def->func_info->parameters.size());
+        auto_doc += "`" + def.name + "` - ";
+        auto_doc += std::to_string(def.func_info->parameters.size());
         auto_doc += " \xd9\x85\xd8\xb9\xd9\x84\xd9\x85\xd8\xa9"; // معلمة
         sig.documentation = auto_doc;
     }

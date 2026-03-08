@@ -157,6 +157,7 @@ set(SAD_GRAPHICS_SOURCES
     src/rendering/context.cpp
     src/rendering/shader.cpp
     src/rendering/renderer2d.cpp
+    src/rendering/renderer2d_advanced.cpp
     src/rendering/renderer3d.cpp
     src/rendering/framebuffer.cpp
     src/rendering/camera2d.cpp

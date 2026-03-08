@@ -15,6 +15,11 @@ if(NOT EMSCRIPTEN)
     return()
 endif()
 
+# (AR) تعيين مسار المصدر / (EN) Set source directory
+if(NOT DEFINED SAD_SOURCE_DIR)
+    set(SAD_SOURCE_DIR ${CMAKE_SOURCE_DIR})
+endif()
+
 message(STATUS "[wasm] Building sad_wasm with Emscripten ${EMSCRIPTEN_VERSION}")
 
 # ── مصادر نواة المفسر ──────────────────────────────────────────────────────

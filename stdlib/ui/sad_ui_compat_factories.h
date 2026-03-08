@@ -445,7 +445,10 @@ inline bool widget_get_checked(int id) {
 inline float widget_get_value(int id) {
     return sad::unified::SadUI::get().getFloat(id, "value");
 }
-inline int widget_get_selected(int id) { return 0; } // TODO
+inline int widget_get_selected(int id) {
+    // إرجاع الفهرس المحدد للـ Dropdown, TabBar, BottomBar, Pagination
+    return static_cast<int>(sad::unified::SadUI::get().getFloat(id, "selectedIndex"));
+}
 inline bool widget_get_expanded(int id) {
     return sad::unified::SadUI::get().getBool(id, "expanded");
 }

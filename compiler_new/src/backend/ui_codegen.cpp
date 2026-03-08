@@ -32,7 +32,8 @@ std::string get_property(const UiComponent& comp, const std::string& key, const 
 // Factory function
 extern "C" {
     const char* ui_codegen_generate(const char* ast_json, const char* target) {
-        static std::string result;
+        // (AR) thread_local لأمان الخيوط / (EN) thread_local for thread safety
+        thread_local std::string result;
         std::string tgt(target);
         // Parse JSON AST → UiComponent tree
         // Generate code for target platform

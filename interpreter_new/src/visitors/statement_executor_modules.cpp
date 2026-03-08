@@ -112,6 +112,14 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
         }
     }
     
+    // (AR) حفظ أسماء الدوال قبل تنفيذ الوحدة لاكتشاف الدوال الجديدة
+    // (EN) Snapshot function names before module execution to detect new functions
+    std::set<std::string> funcNamesBefore;
+    {
+        auto allFuncNames = functionManager_.getFunctionNames();
+        funcNamesBefore.insert(allFuncNames.begin(), allFuncNames.end());
+    }
+    
     // (AR) المرحلة 1: تنفيذ كل جمل الوحدة
     // (EN) Phase 1: Execute all module statements
     bool hasExplicitExports = false;
@@ -207,6 +215,44 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
                     // (EN) Only export classes that were defined during module execution
                     if (classNamesBefore.find(className) == classNamesBefore.end()) {
                         moduleExports[className] = Data::Value(std::string("__class__:" + className));
+                    }
+                }
+            }
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) المرحلة 3: التقاط متغيرات الوحدة وربطها بالدوال المُعرّفة
+    // (EN) Phase 3: Capture module-level variables and attach to defined functions
+    // ═══════════════════════════════════════════════════════════════
+    {
+        // (AR) جمع جميع متغيرات الوحدة (متغيرات وثوابت) من النطاق الحالي
+        // (EN) Collect all module variables (vars and consts) from current scope
+        std::unordered_map<std::string, Data::Value> moduleVars;
+        auto varNames = variableManager_.getVariableNames();
+        for (const auto& varName : varNames) {
+            const auto* val = variableManager_.tryGet(varName);
+            if (val) {
+                moduleVars[varName] = *val;
+            }
+        }
+        
+        // (AR) إذا وُجدت متغيرات، نربطها بجميع الدوال الجديدة المُعرّفة في هذه الوحدة
+        // (EN) If variables found, attach them to all new functions defined in this module
+        if (!moduleVars.empty()) {
+            auto allFuncNames = functionManager_.getFunctionNames();
+            for (const auto& funcName : allFuncNames) {
+                // (AR) نتجاهل الدوال التي كانت موجودة قبل تنفيذ الوحدة
+                // (EN) Skip functions that existed before module execution
+                if (funcNamesBefore.find(funcName) != funcNamesBefore.end()) {
+                    continue;
+                }
+                // (AR) ربط المتغيرات الملتقطة بالدالة لدعم النطاق المعجمي
+                // (EN) Attach captured variables to function for lexical scoping support
+                auto overloads = functionManager_.getFunctionOverloads(funcName);
+                for (auto& funcDef : overloads) {
+                    if (funcDef && !funcDef->hasNativeImplementation()) {
+                        funcDef->setCaptures(moduleVars);
                     }
                 }
             }

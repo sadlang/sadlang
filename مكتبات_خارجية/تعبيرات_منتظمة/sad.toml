@@ -1,0 +1,15 @@
+[package]
+name = "tabirat-muntazama"
+version = "1.0.0"
+description = "Regular expressions library — search, match, replace, split with compiled patterns"
+description_ar = "مكتبة التعبيرات النمطية — بحث ومطابقة واستبدال وتقسيم"
+authors = ["Sad Language Team"]
+license = "MIT"
+keywords = ["regex", "pattern", "search", "text-processing"]
+categories = ["text-processing", "parsing"]
+sad_minimum = "2.0.0"
+
+[build]
+main = "src/مكتبة.ص"
+target = "library"
+source-dirs = ["src"]

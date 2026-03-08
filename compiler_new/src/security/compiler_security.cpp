@@ -31,6 +31,8 @@
 #include <regex>
 #include <filesystem>
 #include <cstring>
+#include <mutex>
+#include <iostream>
 
 namespace sad {
 namespace compiler {

@@ -1,0 +1,15 @@
+[package]
+name = "tahaqquq"
+version = "1.0.0"
+description = "Data validation library — email, URL, password strength, Luhn, ranges"
+description_ar = "مكتبة للتحقق من صحة البيانات — البريد والروابط وكلمات المرور"
+authors = ["Sad Language Team"]
+license = "MIT"
+keywords = ["validation", "email", "password", "security"]
+categories = ["validation", "utilities"]
+sad_minimum = "2.0.0"
+
+[build]
+main = "src/مكتبة.ص"
+target = "library"
+source-dirs = ["src"]

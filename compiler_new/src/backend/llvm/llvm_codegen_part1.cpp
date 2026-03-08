@@ -549,13 +549,21 @@ std::unique_ptr<llvm::Module> LLVMCodeGen::generate(std::shared_ptr<SIRModule> s
     // Store SIR module reference for class info access
     sirModule_ = sirModule;
     
-    // ┘ו╪╣╪º┘ה╪¼╪⌐ ╪º┘ה╪ú╪╡┘ז╪º┘ב ┘ט╪Ñ┘ז╪┤╪º╪í ╪ú┘ז┘ט╪º╪╣ ╪º┘ה┘ח┘ך╪º┘ד┘ה
+    // معالجة الأصناف وإنشاء أنواع الهياكل
     // Pre-process classes and create struct types
     preprocessClasses(sirModule);
     
-    // ╪Ñ╪╡╪»╪º╪▒ ╪º┘ה┘ט╪¡╪»╪⌐ ╪¿╪º┘ה┘ד╪º┘ו┘ה
+    // (AR) بناء vtables لجميع الأصناف
+    // (EN) Build vtables for all classes
+    buildClassVtables(sirModule);
+    
+    // إصدار الوحدة بالكامل
     // Emit complete module
     emitModule(sirModule);
+
+    // (AR) تحديث مداخل vtable المؤجلة بعد أن أصبحت كل الدوال متاحة
+    // (EN) Patch deferred vtable entries now that all functions are emitted
+    patchClassVtables();
     
     // ╪º┘ה╪¬╪¡┘ג┘ג ┘ו┘ז ╪º┘ה┘ט╪¡╪»╪⌐ (╪¬╪¡╪░┘ך╪▒ ┘ב┘ג╪╖╪ל ┘ה╪º ╪Ñ┘ך┘ג╪º┘ב)
     // Verify module (warning only, don't stop)
@@ -629,10 +637,20 @@ void LLVMCodeGen::preprocessClasses(std::shared_ptr<SIRModule> sirModule) {
             #endif
         }
         
-        // (AR) ╪¼┘ו╪╣ ╪ú┘ז┘ט╪º╪╣ ╪º┘ה╪¡┘ג┘ט┘ה ╪¿╪º┘ה╪¬╪▒╪¬┘ך╪¿
-        // (EN) Collect field types in order
+        // (AR) تسجيل الصنف المجرد
+        // (EN) Register abstract class
+        if (sirClass->isAbstract) {
+            context_info_.abstractClasses.insert(className);
+        }
+        
+        // (AR) جمع أنواع الحقول بالترتيب — الحقل 0 دائماً مؤشر vtable
+        // (EN) Collect field types in order — field 0 is always vtable pointer
         std::vector<llvm::Type*> fieldTypes;
         std::vector<std::string> fieldNames;
+        
+        // (AR) الحقل 0: مؤشر vtable (ptr) — لدعم الاستدعاء الافتراضي
+        // (EN) Field 0: vtable pointer (ptr) — for virtual dispatch
+        fieldTypes.push_back(llvm::PointerType::getUnqual(*context_));
         
         for (const auto& fieldName : sirClass->fieldOrder_) {
             // (AR) ╪¬╪¡┘ט┘ך┘ה ╪ú┘ז┘ט╪º╪╣ ╪º┘ה╪¡┘ג┘ט┘ה ╪¿╪┤┘ד┘ה ╪╡╪¡┘ך╪¡ ╪¿╪»┘ה╪º┘כ ┘ו┘ז ╪º╪│╪¬╪«╪»╪º┘ו i64 ┘ה┘ד┘ה ╪┤┘ך╪í
@@ -824,13 +842,315 @@ void LLVMCodeGen::emitGlobalVariables(std::shared_ptr<SIRModule> sirModule) {
 }
 
 /**
- * ╪Ñ╪╡╪»╪º╪▒ ╪º┘ה╪½┘ט╪º╪¿╪¬
+ * إصدار الثوابت
  * Emit constants
  * 
  * Source: llvm_codegen.h:335
- * @param sirModule ┘ט╪¡╪»╪⌐ SIR / SIR module
+ * @param sirModule وحدة SIR / SIR module
  */
 
+
+// ============================================================================
+// OOP vtable & Virtual Dispatch / جدول الدوال الافتراضية
+// ============================================================================
+
+/**
+ * (AR) بناء vtable لكل صنف يحتوي على دوال
+ * (EN) Build vtable for each class that has methods
+ *
+ * التصميم:
+ *   - vtable = مصفوفة ثابتة من مؤشرات الدوال [ptr, ptr, ...]
+ *   - الصنف الابن يرث vtable الأب وينسخها مع استبدال الدوال المُعاد تعريفها
+ *   - الحقل 0 في كل كائن يُشير إلى vtable الخاص بصنفه الحقيقي
+ */
+void LLVMCodeGen::buildClassVtables(std::shared_ptr<SIRModule> sirModule) {
+    if (!sirModule) return;
+    
+    auto ptrTy = llvm::PointerType::getUnqual(*context_);
+    
+    // (AR) ترتيب الأصناف: الأب قبل الابن (نفس الترتيب في preprocessClasses)
+    // (EN) Process in topo order: parents before children
+    const auto& allClasses = sirModule->getClasses();
+    std::vector<std::shared_ptr<SIRClass>> sorted;
+    std::unordered_set<std::string> done;
+    
+    std::function<void(const std::shared_ptr<SIRClass>&)> topoSort;
+    topoSort = [&](const std::shared_ptr<SIRClass>& cls) {
+        if (!cls || done.count(cls->name)) return;
+        if (!cls->parentClass.empty() && !done.count(cls->parentClass)) {
+            for (const auto& other : allClasses) {
+                if (other && other->name == cls->parentClass) {
+                    topoSort(other);
+                    break;
+                }
+            }
+        }
+        done.insert(cls->name);
+        sorted.push_back(cls);
+    };
+    for (const auto& cls : allClasses) topoSort(cls);
+    
+    for (const auto& cls : sorted) {
+        if (!cls) continue;
+        const std::string& className = cls->name;
+        
+        // (AR) بناء تخطيط vtable: ابدأ من الأب
+        // (EN) Build vtable layout: start from parent
+        std::vector<std::string> vtableSlots;
+        if (!cls->parentClass.empty()) {
+            auto parentIt = context_info_.classVtableLayout.find(cls->parentClass);
+            if (parentIt != context_info_.classVtableLayout.end()) {
+                vtableSlots = parentIt->second;  // نسخ vtable الأب
+            }
+        }
+        
+        // (AR) إضافة/استبدال دوال الصنف الحالي
+        // (EN) Add/override methods from current class
+        for (const auto& [methodName, methodFunc] : cls->methods_) {
+            // تجاهل الباني — ليس في vtable
+            if (methodName == "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1" || methodName == "بناء" ||
+                methodName == "__init__" || methodName == "init" ||
+                methodName == "\xD8\xA8\xD8\xA7\xD9\x86\xD9\x8A" || methodName == "باني" ||
+                methodName == "\xD9\x85\xD9\x86\xD8\xB4\xD8\xA6" || methodName == "منشئ") {
+                continue;
+            }
+            
+            // تجاهل الهدم — يُعالج بشكل منفصل
+            if (methodName == "\xD9\x87\xD8\xAF\xD9\x85" || methodName == "هدم" ||
+                methodName == "__del__" || methodName == "__destroy__") {
+                // تسجيل الهدم
+                context_info_.classDestructors[className] = className + "." + methodName;
+                continue;
+            }
+            
+            std::string fullName = className + "." + methodName;
+            
+            // هل هذه الدالة تعيد تعريف دالة من الأب؟
+            bool overridden = false;
+            for (size_t i = 0; i < vtableSlots.size(); i++) {
+                // استخراج اسم الدالة من الاسم الكامل "صنف.دالة"
+                size_t dot = vtableSlots[i].rfind('.');
+                std::string slotMethodName = (dot != std::string::npos) 
+                    ? vtableSlots[i].substr(dot + 1) : vtableSlots[i];
+                if (slotMethodName == methodName) {
+                    vtableSlots[i] = fullName;  // استبدال بتنفيذ الابن
+                    overridden = true;
+                    break;
+                }
+            }
+            if (!overridden) {
+                vtableSlots.push_back(fullName);  // إضافة دالة جديدة
+            }
+        }
+        
+        // تسجيل التخطيط
+        context_info_.classVtableLayout[className] = vtableSlots;
+        
+        // (AR) إنشاء متغير عام ثابت لـ vtable
+        // (EN) Create constant global for vtable
+        if (!vtableSlots.empty()) {
+            auto vtableArrayTy = llvm::ArrayType::get(ptrTy, vtableSlots.size());
+            
+            std::vector<llvm::Constant*> vtableEntries;
+            for (const auto& fullMethodName : vtableSlots) {
+                llvm::Function* fn = module_->getFunction(fullMethodName);
+                if (fn) {
+                    vtableEntries.push_back(fn);
+                } else {
+                    // الدالة لم تُعرّف بعد — سيتم ربطها لاحقاً (null مؤقتاً)
+                    vtableEntries.push_back(llvm::ConstantPointerNull::get(ptrTy));
+                }
+            }
+            
+            auto vtableInit = llvm::ConstantArray::get(vtableArrayTy, vtableEntries);
+            auto vtableGlobal = new llvm::GlobalVariable(
+                *module_, vtableArrayTy, true,  // isConstant=true
+                llvm::GlobalValue::PrivateLinkage, vtableInit,
+                "vtable." + className);
+            
+            context_info_.classVtableGlobals[className] = vtableGlobal;
+            
+            #ifndef NDEBUG
+            std::cout << "[DEBUG] buildVtable: '" << className 
+                      << "' with " << vtableSlots.size() << " slots" << std::endl;
+            #endif
+        }
+    }
+}
+
+/**
+ * (AR) تحديث مداخل vtable المؤجلة بعد إصدار جميع الدوال.
+ * (EN) Patch deferred vtable entries after all functions have been emitted.
+ */
+void LLVMCodeGen::patchClassVtables() {
+    auto ptrTy = llvm::PointerType::getUnqual(*context_);
+
+    for (const auto& [className, vtableGlobal] : context_info_.classVtableGlobals) {
+        auto layoutIt = context_info_.classVtableLayout.find(className);
+        if (layoutIt == context_info_.classVtableLayout.end() || !vtableGlobal) {
+            continue;
+        }
+
+        const auto& slots = layoutIt->second;
+        if (slots.empty()) {
+            continue;
+        }
+
+        std::vector<llvm::Constant*> entries;
+        entries.reserve(slots.size());
+
+        for (const auto& fullMethodName : slots) {
+            llvm::Function* fn = module_->getFunction(fullMethodName);
+            if (fn) {
+                entries.push_back(fn);
+            } else {
+                // Keep null as defensive fallback, but report missing entry.
+                reportError("Missing vtable method at patch time: " + fullMethodName);
+                entries.push_back(llvm::ConstantPointerNull::get(ptrTy));
+            }
+        }
+
+        auto arrTy = llvm::ArrayType::get(ptrTy, entries.size());
+        vtableGlobal->setInitializer(llvm::ConstantArray::get(arrTy, entries));
+    }
+}
+
+/**
+ * (AR) تخزين مؤشر vtable في الحقل 0 من الكائن
+ * (EN) Store vtable pointer in field 0 of the object
+ */
+void LLVMCodeGen::storeVtablePtr(llvm::Value* objPtr, const std::string& className) {
+    auto vtableIt = context_info_.classVtableGlobals.find(className);
+    if (vtableIt == context_info_.classVtableGlobals.end()) return;  // لا vtable
+    
+    auto structIt = context_info_.classStructTypes.find(className);
+    if (structIt == context_info_.classStructTypes.end()) return;
+    
+    llvm::StructType* structType = structIt->second;
+    
+    // GEP إلى الحقل 0 (مؤشر vtable)
+    llvm::Value* vtablePtrSlot = builder_->CreateStructGEP(structType, objPtr, 0, "vtable.slot");
+    
+    // تحويل المصفوفة العامة إلى مؤشر (decay)
+    auto ptrTy = llvm::PointerType::getUnqual(*context_);
+    llvm::Value* vtablePtr = builder_->CreateBitCast(vtableIt->second, ptrTy, "vtable.ptr");
+    
+    builder_->CreateStore(vtablePtr, vtablePtrSlot);
+}
+
+/**
+ * (AR) الاستدعاء الافتراضي: تحميل مؤشر الدالة من vtable + استدعاء غير مباشر
+ * (EN) Virtual dispatch: load function pointer from vtable + indirect call
+ */
+llvm::Value* LLVMCodeGen::emitVirtualCall(llvm::Value* objPtr, const std::string& className,
+                                           const std::string& methodName,
+                                           const std::vector<llvm::Value*>& extraArgs) {
+    // (AR) البحث عن رقم الفتحة (slot) في vtable
+    // (EN) Find the vtable slot index
+    auto layoutIt = context_info_.classVtableLayout.find(className);
+    if (layoutIt == context_info_.classVtableLayout.end()) return nullptr;
+    
+    const auto& layout = layoutIt->second;
+    int slotIndex = -1;
+    for (size_t i = 0; i < layout.size(); i++) {
+        size_t dot = layout[i].rfind('.');
+        std::string slotMethodName = (dot != std::string::npos) 
+            ? layout[i].substr(dot + 1) : layout[i];
+        if (slotMethodName == methodName) {
+            slotIndex = static_cast<int>(i);
+            break;
+        }
+    }
+    
+    if (slotIndex < 0) return nullptr;  // ليست في vtable
+    
+    auto structIt = context_info_.classStructTypes.find(className);
+    if (structIt == context_info_.classStructTypes.end()) return nullptr;
+    
+    llvm::StructType* structType = structIt->second;
+    auto ptrTy = llvm::PointerType::getUnqual(*context_);
+    
+    // (AR) الخطوة 1: تحميل مؤشر vtable من الحقل 0
+    // (EN) Step 1: Load vtable pointer from field 0
+    llvm::Value* vtableSlotAddr = builder_->CreateStructGEP(structType, objPtr, 0, "vtable.addr");
+    llvm::Value* vtablePtr = builder_->CreateLoad(ptrTy, vtableSlotAddr, "vtable.load");
+    
+    // (AR) الخطوة 2: حساب عنوان الفتحة في vtable
+    // (EN) Step 2: GEP into vtable array at slot index
+    llvm::Value* slotAddr = builder_->CreateGEP(
+        ptrTy, vtablePtr,
+        {llvm::ConstantInt::get(getInt64Type(), slotIndex)},
+        "vslot.addr");
+    
+    // (AR) الخطوة 3: تحميل مؤشر الدالة
+    // (EN) Step 3: Load function pointer
+    llvm::Value* fnPtr = builder_->CreateLoad(ptrTy, slotAddr, "vfn.ptr");
+    
+    // (AR) الخطوة 4: بناء المعاملات (self + extra)
+    // (EN) Step 4: Build args (self + extra)
+    std::vector<llvm::Value*> callArgs = {objPtr};
+    callArgs.insert(callArgs.end(), extraArgs.begin(), extraArgs.end());
+    
+    // (AR) الخطوة 5: بناء نوع الدالة — نحتاج لمعرفة التوقيع
+    // (EN) Step 5: Build function type — need to know the signature
+    // البحث عن الدالة الأصلية لمعرفة نوعها
+    std::string origFuncName = layout[slotIndex];
+    llvm::Function* origFunc = module_->getFunction(origFuncName);
+    
+    llvm::FunctionType* fnType = nullptr;
+    if (origFunc) {
+        fnType = origFunc->getFunctionType();
+    } else {
+        // احتياطي: افتراض توقيع (ptr, ...) → i64
+        std::vector<llvm::Type*> argTypes;
+        for (auto* a : callArgs) argTypes.push_back(a->getType());
+        fnType = llvm::FunctionType::get(getInt64Type(), argTypes, false);
+    }
+    
+    // (AR) الخطوة 6: الاستدعاء غير المباشر
+    // (EN) Step 6: Indirect call
+    llvm::Value* result = builder_->CreateCall(fnType, fnPtr, callArgs,
+        fnType->getReturnType()->isVoidTy() ? "" : (methodName + "_virt"));
+    
+    return result;
+}
+
+/**
+ * (AR) استدعاء دالة الهدم للكائن (إن وُجدت)
+ * (EN) Call destructor for object (if exists)
+ */
+void LLVMCodeGen::emitDestructorCall(llvm::Value* objPtr, const std::string& className) {
+    // البحث في سلسلة الوراثة عن أول هدم
+    std::string searchClass = className;
+    while (!searchClass.empty()) {
+        auto dtorIt = context_info_.classDestructors.find(searchClass);
+        if (dtorIt != context_info_.classDestructors.end()) {
+            llvm::Function* dtorFunc = module_->getFunction(dtorIt->second);
+            if (dtorFunc) {
+                builder_->CreateCall(dtorFunc, {objPtr});
+            }
+            return;
+        }
+        auto parentIt = context_info_.classParentMap.find(searchClass);
+        if (parentIt != context_info_.classParentMap.end()) {
+            searchClass = parentIt->second;
+        } else {
+            break;
+        }
+    }
+}
+
+/**
+ * (AR) حساب فهرس الحقل الحقيقي في الهيكل مع إزاحة vtable
+ * (EN) Calculate actual field struct index with vtable offset
+ * 
+ * الحقل 0 في الهيكل → مؤشر vtable (محجوز)
+ * الحقل 1 في الهيكل → أول حقل للمستخدم (الفهرس 0 في classFieldNames)
+ */
+int LLVMCodeGen::getFieldStructIndex(const std::string& className, int userFieldIndex) const {
+    // كل صنف يملك vtable pointer في الحقل 0
+    return userFieldIndex + 1;
+}
 
 } // namespace LLVM
 } // namespace Sad

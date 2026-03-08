@@ -1,0 +1,25 @@
+# اختبار انحدار #30 — database availability contract
+# Regression Test #30 — Database availability/import contract
+# الأولوية: P1
+
+متغير نجح_استيراد = خطأ
+
+حاول
+    استورد database
+    نجح_استيراد = صحيح
+    اطبع("PASS: استيراد database نجح")
+امسك (خ)
+    اطبع("PASS: database غير متاح حالياً لكن الخطأ واضح وقابل للامساك")
+نهاية
+
+إذا (نجح_استيراد)
+    حاول
+        متغير _ = db_open(":memory:")
+        اطبع("PASS: db_open قابل للاستدعاء")
+        db_close()
+    امسك (خ2)
+        اطبع("FAIL: تم الاستيراد لكن db_open/db_close فشلت")
+    نهاية
+نهاية
+
+اطبع("=== انتهى اختبار #30 ===")

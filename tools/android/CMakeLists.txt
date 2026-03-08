@@ -93,43 +93,24 @@ endif() # End of if(EXISTS src/sad_android_runtime.cpp)
 # ═══════════════════════════════════════════════════════════════════════════
 
 if(NOT ANDROID)
-    add_executable(sad-android sad_android.cpp)
-    target_compile_features(sad-android PRIVATE cxx_std_17)
-    
-    if(WIN32)
-        target_compile_options(sad-android PRIVATE /utf-8)
-    endif()
-    
-    # نسخ إلى مجلد الإخراج
-    add_custom_command(TARGET sad-android POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-            $<TARGET_FILE:sad-android>
-            ${CMAKE_BINARY_DIR}/bin/$<CONFIG>/sad-android${CMAKE_EXECUTABLE_SUFFIX}
-    )
-    
-    install(TARGETS sad-android RUNTIME DESTINATION bin)
+    # sad-android الآن معرّف في cmake/executables.cmake
+    # sad-android is now defined in cmake/executables.cmake
 
     # ═══════════════════════════════════════════════════════════════════════════
     # أداة بناء APK / APK Builder Tool
     # ═══════════════════════════════════════════════════════════════════════════
     
-    add_executable(sad_android_builder sad_android_builder.cpp)
-    target_compile_features(sad_android_builder PRIVATE cxx_std_17)
-    
-    if(WIN32)
-        target_compile_options(sad_android_builder PRIVATE /utf-8)
-    else()
-        target_link_libraries(sad_android_builder PRIVATE stdc++fs)
+    if(NOT TARGET sad_android_builder)
+        add_executable(sad_android_builder sad_android_builder.cpp)
+        target_compile_features(sad_android_builder PRIVATE cxx_std_17)
+        
+        if(WIN32)
+            target_compile_options(sad_android_builder PRIVATE /utf-8)
+        else()
+            target_link_libraries(sad_android_builder PRIVATE stdc++fs)
+        endif()
+        
+        install(TARGETS sad_android_builder RUNTIME DESTINATION bin)
+        message(STATUS "✓ تمت إضافة أداة بناء APK: sad_android_builder")
     endif()
-    
-    # نسخ إلى مجلد الإخراج
-    add_custom_command(TARGET sad_android_builder POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-            $<TARGET_FILE:sad_android_builder>
-            ${CMAKE_BINARY_DIR}/bin/$<CONFIG>/sad_android_builder${CMAKE_EXECUTABLE_SUFFIX}
-    )
-    
-    install(TARGETS sad_android_builder RUNTIME DESTINATION bin)
-    
-    message(STATUS "✓ تمت إضافة أداة بناء APK: sad_android_builder")
 endif()

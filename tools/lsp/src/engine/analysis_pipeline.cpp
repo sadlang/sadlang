@@ -68,6 +68,7 @@
 
 #include "lsp_engine.h"       // تعريفات المحرك الأساسي وكل الأنواع
 #include "arabic_utils.h"     // أدوات النص العربي (تطبيع، بحث ضبابي، تقسيم أسطر)
+#include "known_issues_detector.h" // كاشف المشاكل المعروفة الموثقة
 
 // ── مكونات المحلل الحقيقية للغة ص ──
 #include "lexer_core.h"       // المحلل المعجمي: يحول النص إلى رموز (tokens)
@@ -1442,6 +1443,18 @@ AnalysisPipeline::AnalysisResult AnalysisPipeline::analyze(
     // ════════════════════════════════════════════════════════════════════════
     collect_extra_diagnostics(content, uri, result);
 
+    // ════════════════════════════════════════════════════════════════════════
+    //  المرحلة ٦: كشف المشاكل المعروفة والموثقة
+    //  ════════════════════════════════════════════════════════════════════════
+    //  يكتشف أنماط الكود التي تسبب مشاكل موثقة في مشاكل.md
+    //  ويحذر المبرمج قبل أن يواجه الخطأ في وقت التشغيل.
+    //  المشاكل المكتشفة: P1-P3, P9, P12, P17-P21
+    // ════════════════════════════════════════════════════════════════════════
+    auto known_issues = detect_known_issues(content, uri);
+    for (auto& diag : known_issues) {
+        result.diagnostics.push_back(std::move(diag));
+    }
+
     return result;
 }
 
@@ -1872,6 +1885,167 @@ void AnalysisPipeline::collect_extra_diagnostics(
                 diag.tags.push_back(DiagnosticTag::Unnecessary);
                 result.diagnostics.push_back(diag);
             }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  ⑩ كشف كتل نهاية غير متوازنة
+    // ════════════════════════════════════════════════════════════════════════
+    //  في لغة ص، كل كتلة (دالة، صنف، إذا، بينما، لكل، ...) تنتهي بـ نهاية.
+    //  نحسب عدد الكلمات المفتاحية التي تفتح كتلاً وعدد نهاية في الملف.
+    //  إذا كان الفرق كبيراً، هناك خطأ.
+    // ════════════════════════════════════════════════════════════════════════
+    {
+        int block_openers = 0;
+        int block_closers = 0;
+        int last_opener_line = -1;
+
+        // الكلمات التي تفتح كتلة (بـ UTF-8)
+        // دالة, صنف, إذا, بينما, لكل, حاول, طابق, تعداد, بنية, سمة, اختبر
+        static const std::vector<std::string> opener_keywords = {
+            "\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9",       // دالة
+            "\xd8\xb5\xd9\x86\xd9\x81",                // صنف
+            "\xd8\xa5\xd8\xb0\xd8\xa7",                // إذا
+            "\xd8\xa8\xd9\x8a\xd9\x86\xd9\x85\xd8\xa7", // بينما
+            "\xd9\x84\xd9\x83\xd9\x84",                // لكل
+            "\xd8\xad\xd8\xa7\xd9\x88\xd9\x84",       // حاول
+            "\xd8\xb7\xd8\xa7\xd8\xa8\xd9\x82",       // طابق
+            "\xd8\xaa\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf", // تعداد
+            "\xd8\xa8\xd9\x86\xd9\x8a\xd8\xa9",       // بنية
+        };
+        // نهاية = \xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9
+        static const std::string nihaya = "\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9";
+
+        for (int i = 0; i < static_cast<int>(lines.size()); i++) {
+            const auto& line = lines[i];
+            // تخطي الأسطر الفارغة والتعليقات
+            std::string trimmed = line;
+            size_t start_pos = trimmed.find_first_not_of(" \t");
+            if (start_pos == std::string::npos) continue;
+            trimmed = trimmed.substr(start_pos);
+            if (!trimmed.empty() && trimmed[0] == '#') continue;
+
+            for (const auto& kw : opener_keywords) {
+                if (trimmed.find(kw) == 0) {
+                    // تحقق أنها ليست داخل نص مقتبس
+                    size_t kw_pos = line.find(kw);
+                    int quotes = 0;
+                    for (size_t j = 0; j < kw_pos; j++) {
+                        if (line[j] == '"') quotes++;
+                    }
+                    if (quotes % 2 == 0) {
+                        block_openers++;
+                        last_opener_line = i;
+                    }
+                    break;
+                }
+            }
+
+            // عد نهاية (فقط لو هي الكلمة الوحيدة في السطر أو بعد مسافات)
+            if (trimmed == nihaya || trimmed.find(nihaya) == 0) {
+                size_t after = nihaya.size();
+                if (trimmed.size() == after ||
+                    trimmed[after] == ' ' || trimmed[after] == '\t' ||
+                    trimmed[after] == '#' || trimmed[after] == '\r') {
+                    block_closers++;
+                }
+            }
+        }
+
+        if (block_openers > block_closers && last_opener_line >= 0) {
+            int missing = block_openers - block_closers;
+            Diagnostic diag;
+            diag.severity = DiagnosticSeverity::Warning;
+            diag.message = "يوجد " + std::to_string(missing) +
+                           (missing == 1 ? " كتلة بدون 'نهاية'" : " كتل بدون 'نهاية'");
+            diag.source = "\xd8\xb5-\xd9\x86\xd8\xad\xd9\x88"; // ص-نحو
+            diag.code = "\xd8\xb5-\xd9\x86\xd9\xa2\xd9\xa0\xd9\xa1"; // ص-ن٢٠١
+            diag.range.start = {last_opener_line, 0};
+            diag.range.end = {last_opener_line, static_cast<int>(lines[last_opener_line].size())};
+            result.diagnostics.push_back(diag);
+        } else if (block_closers > block_openers) {
+            Diagnostic diag;
+            diag.severity = DiagnosticSeverity::Warning;
+            diag.message = "يوجد 'نهاية' زائدة بدون كتلة مفتوحة";
+            diag.source = "\xd8\xb5-\xd9\x86\xd8\xad\xd9\x88"; // ص-نحو
+            diag.code = "\xd8\xb5-\xd9\x86\xd9\xa2\xd9\xa0\xd9\xa2"; // ص-ن٢٠٢
+            // نضع التشخيص على آخر نهاية
+            for (int i = static_cast<int>(lines.size()) - 1; i >= 0; i--) {
+                if (lines[i].find(nihaya) != std::string::npos) {
+                    diag.range.start = {i, 0};
+                    diag.range.end = {i, static_cast<int>(lines[i].size())};
+                    break;
+                }
+            }
+            result.diagnostics.push_back(diag);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  ⑪ كشف المتغيرات غير المعرّفة
+    // ════════════════════════════════════════════════════════════════════════
+    //  إذا استُخدم اسم في تعبير لكنه لم يُعرّف في أي مكان في الملف
+    //  ولم يكن دالة مدمجة أو كلمة مفتاحية، نعطي تحذيراً.
+    // ════════════════════════════════════════════════════════════════════════
+    {
+        // نجمع أسماء كل التعريفات
+        std::unordered_set<std::string> defined_names;
+        for (const auto& sym : result.symbols) {
+            defined_names.insert(sym.name);
+            // إضافة أسماء المعلمات أيضاً
+            if (sym.func_info) {
+                for (const auto& [pname, ptype] : sym.func_info->parameters) {
+                    defined_names.insert(pname);
+                }
+            }
+            // إضافة أعضاء الصنف
+            if (sym.class_info) {
+                for (const auto& member : sym.class_info->members) {
+                    defined_names.insert(member);
+                }
+            }
+        }
+
+        // أسماء مدمجة لا نحذّر عنها
+        static const std::unordered_set<std::string> builtins = {
+            "\xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9",             // اطبع
+            "\xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9_\xd8\xb3\xd8\xb7\xd8\xb1", // اطبع_سطر
+            "\xd8\xa7\xd8\xaf\xd8\xae\xd9\x84",             // ادخل
+            "\xd9\x86\xd9\x88\xd8\xb9",                     // نوع
+            "\xd8\xb7\xd9\x88\xd9\x84",                     // طول
+            "\xd8\xb1\xd9\x82\xd9\x85",                     // رقم
+            "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a",             // عشري
+            "\xd9\x86\xd8\xb5",                             // نص
+            "\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a",     // منطقي
+            "\xd8\xac\xd8\xb0\xd8\xb1",                     // جذر
+            "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9_\xd9\x85\xd8\xb7\xd9\x84\xd9\x82\xd8\xa9", // قيمة_مطلقة
+            "\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89",             // أقصى
+            "\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89",             // أدنى
+            "\xd9\x82\xd8\xb5",                             // قص
+            "\xd9\x86\xd8\xb7\xd8\xa7\xd9\x82",             // نطاق
+            "\xd8\xa3\xd8\xb6\xd9\x81",                     // أضف
+            "\xd8\xa7\xd8\xad\xd8\xb0\xd9\x81",             // احذف
+            "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad",             // صحيح
+            "\xd8\xae\xd8\xb7\xd8\xa3",                     // خطأ
+            "\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1",     // لاشيء
+            "\xd9\x87\xd8\xb0\xd8\xa7",                     // هذا
+        };
+
+        // نفحص المراجع: هل كل مرجع له تعريف؟
+        for (const auto& ref : result.references) {
+            if (ref.is_declaration) continue;
+            if (defined_names.count(ref.name)) continue;
+            if (builtins.count(ref.name)) continue;
+            // نتخطى إذا كان اسم نوع مدمج
+            if (ref.name.empty()) continue;
+
+            Diagnostic diag;
+            diag.severity = DiagnosticSeverity::Warning;
+            diag.message = "المُعرّف '" + ref.name + "' غير معرّف في هذا الملف";
+            diag.source = "\xd8\xb5-\xd8\xaa\xd8\xad\xd9\x84\xd9\x8a\xd9\x84"; // ص-تحليل
+            diag.code = "\xd8\xb5-\xd8\xaa\xd9\xa1\xd9\xa0\xd9\xa3"; // ص-ت١٠٣
+            diag.range = ref.range;
+            result.diagnostics.push_back(diag);
         }
     }
 }

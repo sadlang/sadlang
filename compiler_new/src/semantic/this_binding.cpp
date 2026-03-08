@@ -458,7 +458,7 @@ int sad_is_this_mutable() {
 const char* sad_get_current_type_name() {
     const auto* ctx = g_thisManager.currentContext();
     if (!ctx) return "";
-    static std::string result;
+    thread_local std::string result;
     result = ctx->typeName;
     return result.c_str();
 }

@@ -24,6 +24,7 @@ set(VM_SOURCES
     src/sad_vm_opcodes.cpp
     src/sad_vm_compiler.cpp
     src/sad_vm_executor.cpp
+    src/sad_jit.cpp
 )
 
 set(VM_HEADERS
@@ -33,6 +34,7 @@ set(VM_HEADERS
     include/sad_vm_compiler.h
     include/sad_vm_executor.h
     include/sad_vm_debug.h
+    include/sad_jit.h
 )
 
 # ============================================================================
@@ -58,6 +60,18 @@ target_include_directories(sad_vm
 target_link_libraries(sad_vm PUBLIC sad_shared)
 
 # ============================================================================
+# دعم LLVM (اختياري — لمحرك JIT)
+# ============================================================================
+if(DEFINED HAS_LLVM AND HAS_LLVM)
+    target_compile_definitions(sad_vm PRIVATE HAS_LLVM=1)
+    target_link_libraries(sad_vm PRIVATE ${LLVM_LIBRARIES})
+    target_include_directories(sad_vm PRIVATE ${LLVM_INCLUDE_DIRS})
+    message(STATUS "  ✓ JIT: مفعّل مع LLVM ORC / Enabled with LLVM ORC")
+else()
+    message(STATUS "  ⚠ JIT: وضع البروفايلر فقط (LLVM غير متوفر) / Profiler-only mode")
+endif()
+
+# ============================================================================
 # خيارات المُترجم
 # ============================================================================
 
@@ -79,4 +93,4 @@ endif()
 # رسالة تأكيد
 # ============================================================================
 
-message(STATUS "✓ تم إعداد مكتبة الآلة الافتراضية (sad_vm) / Configured VM library")
+message(STATUS "✓ تم إعداد مكتبة الآلة الافتراضية (sad_vm) مع JIT / Configured VM library with JIT")

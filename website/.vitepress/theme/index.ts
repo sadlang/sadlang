@@ -9,6 +9,7 @@ import type { Theme } from 'vitepress'
 import HomeHero from './components/HomeHero.vue'
 import DownloadCard from './components/DownloadCard.vue'
 import CodePlayground from './components/CodePlayground.vue'
+import CodePlaygroundV2 from './components/CodePlaygroundV2.vue'
 import FeatureGrid from './components/FeatureGrid.vue'
 import SadVersion from './components/SadVersion.vue'
 import InteractiveTutorial from './components/InteractiveTutorial.vue'
@@ -38,6 +39,7 @@ export default {
     app.component('HomeHero',           HomeHero)
     app.component('DownloadCard',       DownloadCard)
     app.component('CodePlayground',     CodePlayground)
+    app.component('CodePlaygroundV2',   CodePlaygroundV2)
     app.component('FeatureGrid',        FeatureGrid)
     app.component('SadVersion',         SadVersion)
     app.component('InteractiveTutorial', InteractiveTutorial)

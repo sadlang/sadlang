@@ -27,9 +27,14 @@ using sad::graphics::Point2D;
 // التصريح المسبق لمحرك الرسم / Forward declaration for renderer
 namespace SadGraphics { class Renderer2D; }
 
-namespace Graphics {
-    // المساحة الاسمية للواجهة / Namespace for UI
-    namespace UI {
+namespace sad {
+namespace graphics {
+    // ═══════════════════════════════════════════════════════════════════════
+    // مساحة أسماء واجهة المستخدم — sad::graphics::ui
+    // تحتوي على جميع عناصر الواجهة الرسومية (Widget, Button, Label, ...)
+    // UI namespace — contains all graphical UI widgets
+    // ═══════════════════════════════════════════════════════════════════════
+    namespace ui {
 
         // تعريف أنواع معرفات الأحداث / Event callback types
         using EventCallback = std::function<void()>;                          // دالة رد بدون معاملات / Callback without parameters
@@ -204,7 +209,8 @@ namespace Graphics {
             virtual void OnStyleChanged();                     // عند تغيير النمط / When style changes
         };
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad
 
 #endif // GRAPHICS_UI_WIDGET_H

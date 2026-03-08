@@ -9,6 +9,7 @@
  */
 
 #include "types/generics.h"
+#include "types/type.h"
 #include <sstream>
 #include <algorithm>
 #include <cctype>
@@ -195,8 +196,9 @@ std::string GenericInstantiation::getKey() const {
     bool first = true;
     for (const auto& typeArg : typeArgs_) {
         if (!first) ss << ",";
-        // في المستقبل: استخدام معرف فريد للنوع
-        ss << reinterpret_cast<uintptr_t>(typeArg.get());
+        // (AR) استخدام تمثيل النوع النصي بدلاً من عنوان الذاكرة
+        // (EN) Use type string representation instead of memory address
+        ss << (typeArg ? typeArg->toString() : "null");
         first = false;
     }
     

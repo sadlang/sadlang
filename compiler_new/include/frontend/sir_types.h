@@ -815,6 +815,15 @@ enum class SIROpcode {
     AtomicSub,       ///< @ذري(طرح, ptr, val) / atomic sub
     AtomicExchange,  ///< @ذري(تبادل, ptr, val) / atomic exchange
     AtomicCmpXchg,   ///< @ذري(مقارنة_وتبديل, ptr, exp, des) / atomic CAS
+
+    // ==========================================
+    // نظام الوحدات / Module System
+    // ==========================================
+    MODULE_LOAD,     ///< تحميل وحدة: %m = ModuleLoad("path") / Load module
+    MODULE_SYMBOL,   ///< استيراد رمز: %s = ModuleSymbol(%m, "name") / Import symbol from module
+    MODULE_EXPORT,   ///< تصدير رمز: ModuleExport("name", %v) / Export symbol
+    MODULE_INIT,     ///< تهيئة وحدة: ModuleInit(%m) / Initialize module
+
     Nop              ///< لا عملية (markers) / No operation (for markers)
 };
 

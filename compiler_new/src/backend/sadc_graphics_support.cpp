@@ -23,6 +23,7 @@
 #include <vector>
 #include <map>
 #include <sstream>
+#include <fstream>
 #include <memory>
 
 namespace sad {

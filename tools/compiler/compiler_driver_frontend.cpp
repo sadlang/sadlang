@@ -27,9 +27,20 @@
 // (EN) Contains optimization passes: constant folding, DCE, CSE, copy propagation
 #include "../../compiler_new/include/middle/optimizer.h"
 
+// Frontend SIR Optimizer / محسّن SIR الأمامي (5 ممرات)
+#include "../../compiler_new/include/frontend/sir_frontend_optimizer.h"
+
 // Borrow Checker / فاحص الاستعارة
 #include "../../compiler_new/include/semantic/borrow_checker.h"
 #include "../../shared/ast/include/statements.h"
+
+// (AR) عقد الوحدات — ImportStmt و FromImportStmt لحل التبعيات تلقائياً
+// (EN) Module AST nodes — ImportStmt & FromImportStmt for auto dependency resolution
+#include "../../shared/ast/include/module_nodes.h"
+
+// (AR) محلل الوحدات — يبحث عن ملفات .ص المستوردة على القرص
+// (EN) Module Resolver — finds imported .ص files on disk
+#include "../../shared/modules/include/module_resolver.h"
 
 // LLVM headers for file output
 #include <llvm/Support/FileSystem.h>
@@ -52,6 +63,7 @@
 #include <limits>
 #include <cstdlib>
 #include <cstdio>
+#include <unordered_set>
 
 // Undefine Windows macros that conflict with our code
 #ifdef _WIN32
@@ -449,6 +461,28 @@ bool CompilerDriver::compile_file(const std::string& input_file) {
     return true;
 }
 
+// ============================================================================
+// (AR) استخراج تبعيات الوحدات من AST — يمسح الجمل المستوردة ويرجع مسارات الوحدات
+// (EN) Extract module dependencies from AST — scans import statements and returns module paths
+// ============================================================================
+static std::vector<std::vector<std::string>> extractModuleDependencies(
+    const Sad::AST::StmtList& ast)
+{
+    std::vector<std::vector<std::string>> deps;
+    for (const auto& stmt : ast) {
+        if (!stmt) continue;
+        // (AR) جملة استورد — استورد وحدة
+        if (auto* importStmt = dynamic_cast<Sad::AST::ImportStmt*>(stmt.get())) {
+            deps.push_back(importStmt->modulePath);
+        }
+        // (AR) جملة من...استورد — من وحدة استورد رمز
+        else if (auto* fromImportStmt = dynamic_cast<Sad::AST::FromImportStmt*>(stmt.get())) {
+            deps.push_back(fromImportStmt->modulePath);
+        }
+    }
+    return deps;
+}
+
 bool CompilerDriver::compile_files(const std::vector<std::string>& input_files) {
     // Check if we have input files
     if (input_files.empty()) {
@@ -481,10 +515,110 @@ bool CompilerDriver::compile_files(const std::vector<std::string>& input_files) 
                          options_.output_type != OutputType::LLVM_BC &&
                          options_.output_type != OutputType::ASSEMBLY);
     
+    // ====================================================================
+    // (AR) مرحلة اكتشاف تبعيات الوحدات تلقائياً
+    // ====================================================================
+    // (AR) عند ترجمة ملف واحد يحتوي على جمل «استورد»، نحتاج لاكتشاف
+    //      ملفات .ص المستوردة وإضافتها لقائمة الترجمة تلقائياً.
+    //      الخوارزمية:
+    //        1. تحليل معجمي+نحوي سريع لكل ملف مصدري
+    //        2. استخراج ImportStmt / FromImportStmt من AST
+    //        3. استخدام ModuleResolver لحل المسارات إلى ملفات فعلية
+    //        4. إضافة الملفات الجديدة المكتشفة وتكرار حتى الاستقرار
+    // ====================================================================
+    // (EN) Module dependency auto-discovery phase
+    //      When a single file contains import statements, we automatically
+    //      discover the .ص files and add them to the compilation list.
+    //      Algorithm: parse → extract imports → resolve to files → repeat
+    // ====================================================================
+    std::vector<std::string> all_source_files;
+    {
+        Sad::Modules::ModuleResolver modResolver;
+        std::unordered_set<std::string> discovered;
+        std::vector<std::string> queue;
+
+        // (AR) تجميع ملفات المصدر الأولية
+        for (const auto& f : input_files) {
+            std::string ext = get_file_extension(f);
+            if (ext == ".\xd8\xb5" || ext == ".sad") {
+                // (AR) تطبيع المسار لتجنب التكرار
+                auto canonical = std::filesystem::weakly_canonical(f).string();
+                if (discovered.insert(canonical).second) {
+                    queue.push_back(f);
+                    all_source_files.push_back(f);
+                    // (AR) إضافة مجلد الملف كمسار بحث للوحدات
+                    auto parentDir = std::filesystem::path(f).parent_path();
+                    if (!parentDir.empty()) {
+                        modResolver.addSearchPath(parentDir.string());
+                    }
+                }
+            }
+        }
+
+        // (AR) حلقة الاكتشاف — نحلل كل ملف ونبحث عن استيرادات جديدة
+        for (size_t qi = 0; qi < queue.size(); ++qi) {
+            const auto& currentFile = queue[qi];
+            
+            // (AR) قراءة وتحليل الملف سريعاً لاستخراج الاستيرادات
+            auto src = read_file(currentFile);
+            if (!src) continue;
+
+            Lexer tmpLexer(*src);
+            Parser tmpParser(tmpLexer);
+            auto tmpAst = tmpParser.parseProgram();
+            if (tmpParser.hasErrors()) continue;
+
+            // (AR) استخراج تبعيات الوحدات من AST
+            auto deps = extractModuleDependencies(tmpAst);
+            for (const auto& modPath : deps) {
+                // (AR) محاولة حل مسار الوحدة إلى ملف .ص فعلي
+                auto resolved = modResolver.findModuleFile(modPath, currentFile);
+                if (resolved.has_value()) {
+                    auto canon = std::filesystem::weakly_canonical(resolved.value()).string();
+                    if (discovered.insert(canon).second) {
+                        // (AR) ملف وحدة جديد مكتشف — إضافته للقائمة
+                        std::string resolvedStr = resolved.value().string();
+                        queue.push_back(resolvedStr);
+                        all_source_files.push_back(resolvedStr);
+                        if (options_.verbose) {
+                            std::cout << colors::CYAN 
+                                      << u8"  \u2192 \u0627\u0643\u062a\u0634\u0627\u0641 \u062a\u0628\u0639\u064a\u0629: " << resolvedStr
+                                      << " (\u0645\u0646 " << currentFile << ")\n"
+                                      << colors::RESET;
+                        }
+                        // (AR) إضافة مجلد الملف المكتشف كمسار بحث
+                        auto depDir = resolved.value().parent_path();
+                        if (!depDir.empty()) {
+                            modResolver.addSearchPath(depDir.string());
+                        }
+                    }
+                }
+            }
+        }
+
+        // (AR) تحديث need_linking إذا اكتشفنا ملفات إضافية
+        if (all_source_files.size() > 1 && !need_linking) {
+            need_linking = (options_.output_type != OutputType::OBJECT_FILE &&
+                            options_.output_type != OutputType::LLVM_IR &&
+                            options_.output_type != OutputType::LLVM_BC &&
+                            options_.output_type != OutputType::ASSEMBLY);
+        }
+    }
+    
     std::vector<std::string> object_files;
     
+    // (AR) بناء القائمة النهائية: ملفات المصدر المكتشفة + ملفات الكائن الأصلية
+    // (EN) Build final list: discovered source files + original object files
+    std::vector<std::string> final_files = all_source_files;
+    for (const auto& f : input_files) {
+        std::string ext = get_file_extension(f);
+        if (ext == ".o" || ext == ".obj") {
+            final_files.push_back(f);
+        }
+    }
+    
     // Compile each file
-    for (const auto& input_file : input_files) {
+    for (const auto& input_file : final_files) {
         // Check if file exists
         if (!file_exists(input_file)) {
             diagnostics_.report_error("file not found: " + input_file + 
@@ -993,6 +1127,19 @@ bool CompilerDriver::run_frontend(const std::string& file) {
     if (!sir_module_) {
         diagnostics_.report_error("Failed to build SIR module", file);
         return false;
+    }
+    
+    // (AR) تحسين SIR — 5 ممرات: طيّ ثوابت، حذف كود ميت، تضمين، CSE، تبسيط حلقات
+    // (EN) Optimize SIR — 5 passes: const fold, DCE, inlining, CSE, loop simplify
+    if (options_.opt_level != OptimizationLevel::O0) {
+        if (options_.verbose) {
+            std::cout << "  [4.5/5] Optimizing SIR... / تحسين SIR...\n";
+        }
+        Sad::Compiler::SIR::SIRFrontendOptimizer sirOptimizer;
+        sirOptimizer.optimizeModule(*sir_module_);
+        if (options_.verbose) {
+            std::cout << sirOptimizer.getStats().toString();
+        }
     }
     
     return true;

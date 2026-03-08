@@ -46,6 +46,7 @@
 #include <queue>
 #include <mutex>
 #include <functional>
+#include <atomic>
 
 namespace Sad {
 namespace TypeSystem {
@@ -103,7 +104,7 @@ public:
     virtual ~ActorType() = default;
     
     static std::string generateId() {
-        static uint64_t counter = 0;
+        static std::atomic<uint64_t> counter{0};
         return "actor_" + std::to_string(++counter);
     }
     
@@ -167,8 +168,17 @@ public:
     ActorRef() = default;
     ActorRef(const std::string& id, bool local = true) : id_(id), local_(local) {}
     
-    void send(const ActorMessage& msg) const {}
-    std::string request(const ActorMessage& msg, int timeoutMs = 5000) const { return ""; }
+    void send(const ActorMessage& msg) const {
+        // (AR) إرسال عبر ActorRef — يتطلب نظام توجيه الرسائل
+        // (EN) Send via ActorRef — requires message routing system
+        std::cerr << "[ActorRef] send() not yet connected to routing system for actor: " << id_ << std::endl;
+    }
+    std::string request(const ActorMessage& msg, int timeoutMs = 5000) const {
+        // (AR) طلب متزامن عبر ActorRef — يتطلب نظام توجيه الرسائل
+        // (EN) Synchronous request via ActorRef — requires message routing system
+        std::cerr << "[ActorRef] request() not yet connected to routing system for actor: " << id_ << std::endl;
+        return "";
+    }
     void stop() const {
         ActorMessage stopMsg;
         stopMsg.msgType = MessageType::Stop;

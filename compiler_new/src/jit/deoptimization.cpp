@@ -618,6 +618,11 @@ public:
                 break;
                 
             default:
+                // (AR) نوع حارس غير معروف — إصدار trap (int3) لمنع تنفيذ خاطئ
+                // (EN) Unknown guard type — emit trap (int3) to prevent wrong execution
+                std::cerr << "[sadc تحذير] نوع حارس JIT غير معالج: "
+                          << static_cast<int>(guard.type) << std::endl;
+                code.push_back(0xCC);  // int3 — debug trap
                 break;
         }
         

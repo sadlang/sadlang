@@ -62,6 +62,57 @@ sadc_build_log*.txt
 CMakeLists.txt.new
 CMakeLists.txt.backup
 
+# ── ملفات LLVM IR مؤقتة / LLVM IR temp files ──
+*.ll
+!examples/**/*.ll
+!docs/**/*.ll
+
+# ── ملفات تنفيذية تجريبية في الجذر ──
+/*.exe
+/*.so
+
+# ── سكربتات مؤقتة في الجذر (أدوات تجريبية) ──
+/fix*.py
+/read_*.py
+/tmp_*.py
+/test_debug_cli*.py
+/fix*.js
+/tmp_*.js
+!build_wasm.ps1
+
+# ── ملفات أخرى مؤقتة ──
+*.ppm
+*.rsp
+*.bc
+
+# ── ملفات debug و trace ──
+*_debug.txt
+*_trace.txt
+*_err.txt
+*_out.txt
+*_stderr.txt
+*_stdout.txt
+dbg*.txt
+err*.txt
+out*.txt
+res*.txt
+trace*.txt
+
+# ── مخرجات SIR ──
+sir_*.txt
+
+# ── ملفات أدوات التنسيق / Formatter output ──
+fmt_*.txt
+
+# ── ملفات اختبار مترجم ──
+comp_*.txt
+exc_*.txt
+fin_*.txt
+
+# ── حزم الموبايل / Mobile packages ──
+*.apk
+*.ipa
+
 # ── حزم ومكتبات خارجية / External packages ──
 node_modules/
 __pycache__/

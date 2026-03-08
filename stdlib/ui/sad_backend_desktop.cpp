@@ -191,18 +191,144 @@ double DesktopBackend::appGetFps(int appId) {
 
 WidgetId DesktopBackend::createWidget(WidgetType type) {
     auto legacy = toLegacy(type);
-    // نستخدم الدوال المتخصصة الموجودة
+    // نستخدم الدوال المتخصصة الموجودة — دعم شامل لـ 109 widget
     switch (legacy) {
-        case sad::ui::WidgetType::Button:   return sad::ui::widget_button("");
-        case sad::ui::WidgetType::Text:     return sad::ui::widget_text("");
-        case sad::ui::WidgetType::Column:   return sad::ui::widget_column();
-        case sad::ui::WidgetType::Row:      return sad::ui::widget_row();
-        case sad::ui::WidgetType::Card:     return sad::ui::widget_card();
-        case sad::ui::WidgetType::Divider:  return sad::ui::widget_divider();
-        case sad::ui::WidgetType::Spacer:   return sad::ui::widget_spacer(0);
-        case sad::ui::WidgetType::TextField:return sad::ui::widget_textfield("");
+        // === Layout (10) ===
+        case sad::ui::WidgetType::Column:       return sad::ui::widget_column();
+        case sad::ui::WidgetType::Row:          return sad::ui::widget_row();
+        case sad::ui::WidgetType::Stack:        return sad::ui::widget_stack();
+        case sad::ui::WidgetType::Center:       return sad::ui::widget_center();
+        case sad::ui::WidgetType::Wrap:         return sad::ui::widget_wrap();
+        case sad::ui::WidgetType::GridView:     return sad::ui::widget_gridview(2);
+        case sad::ui::WidgetType::ListView:     return sad::ui::widget_listview();
+        case sad::ui::WidgetType::ScrollView:   return sad::ui::widget_scrollview();
+        case sad::ui::WidgetType::SizedBox:     return sad::ui::widget_sizedbox(100, 100);
+        case sad::ui::WidgetType::Expanded:     return sad::ui::widget_expanded();
+        case sad::ui::WidgetType::PageView:     return sad::ui::widget_pageview();
+        case sad::ui::WidgetType::Table:        return sad::ui::widget_table(2);
+
+        // === Buttons (7) ===
+        case sad::ui::WidgetType::Button:       return sad::ui::widget_button("");
+        case sad::ui::WidgetType::IconButton:   return sad::ui::widget_icon_button('*');
+        case sad::ui::WidgetType::FloatingButton: return sad::ui::widget_floating_button('+');
+        case sad::ui::WidgetType::OutlineButton:return sad::ui::widget_outline_button("");
+        case sad::ui::WidgetType::TextButton:   return sad::ui::widget_text_button("");
+        case sad::ui::WidgetType::ToggleButton: return sad::ui::widget_toggle_button("");
+        case sad::ui::WidgetType::ButtonGroup:  return sad::ui::widget_button_group();
+
+        // === Text (8) ===
+        case sad::ui::WidgetType::Text:         return sad::ui::widget_text("");
+        case sad::ui::WidgetType::Label:        return sad::ui::widget_label("");
+        case sad::ui::WidgetType::Heading:      return sad::ui::widget_heading("", 1);
+        case sad::ui::WidgetType::Paragraph:    return sad::ui::widget_paragraph("");
+        case sad::ui::WidgetType::Link:         return sad::ui::widget_link("");
+        case sad::ui::WidgetType::CodeBlock:    return sad::ui::widget_code_block("");
+        case sad::ui::WidgetType::Quote:        return sad::ui::widget_quote("");
+        case sad::ui::WidgetType::Markdown:     return sad::ui::widget_markdown("");
+
+        // === Input (14) ===
+        case sad::ui::WidgetType::TextField:    return sad::ui::widget_textfield("");
+        case sad::ui::WidgetType::Checkbox:     return sad::ui::widget_checkbox("");
+        case sad::ui::WidgetType::Radio:        return sad::ui::widget_radio("");
+        case sad::ui::WidgetType::Switch:       return sad::ui::widget_switch("");
+        case sad::ui::WidgetType::Slider:       return sad::ui::widget_slider(0, 100);
+        case sad::ui::WidgetType::Dropdown:     return sad::ui::widget_dropdown("");
+        case sad::ui::WidgetType::NumberInput:  return sad::ui::widget_number_input(0, 100);
+        case sad::ui::WidgetType::SearchField:  return sad::ui::widget_search_field("");
+        case sad::ui::WidgetType::PasswordField:return sad::ui::widget_password_field("");
+        case sad::ui::WidgetType::TextArea:     return sad::ui::widget_textarea("");
+        case sad::ui::WidgetType::DateField:    return sad::ui::widget_date_field();
+        case sad::ui::WidgetType::RangeSlider:  return sad::ui::widget_range_slider(0, 100);
+        case sad::ui::WidgetType::ColorPicker:  return sad::ui::widget_color_picker();
+        case sad::ui::WidgetType::RatingStars:  return sad::ui::widget_rating_stars(5);
+        case sad::ui::WidgetType::ToggleGroup:  return sad::ui::widget_toggle_group();
+
+        // === Visual (11) ===
+        case sad::ui::WidgetType::Icon:         return sad::ui::widget_icon('*');
+        case sad::ui::WidgetType::ImageWidget:  return sad::ui::widget_image("");
+        case sad::ui::WidgetType::Avatar:       return sad::ui::widget_avatar("A", 100, 100, 200);
+        case sad::ui::WidgetType::Badge:        return sad::ui::widget_badge(0);
+        case sad::ui::WidgetType::Chip:         return sad::ui::widget_chip("");
+        case sad::ui::WidgetType::Tag:          return sad::ui::widget_tag("", 100, 100, 100);
+        case sad::ui::WidgetType::StatusDot:    return sad::ui::widget_status_dot(0, 255, 0);
+        case sad::ui::WidgetType::ColorBox:     return sad::ui::widget_color_box(128, 128, 128);
+        case sad::ui::WidgetType::GradientBox:  return sad::ui::widget_gradient_box(255,0,0, 0,0,255);
+        case sad::ui::WidgetType::Divider:      return sad::ui::widget_divider();
+        case sad::ui::WidgetType::Spacer:       return sad::ui::widget_spacer(8);
+        case sad::ui::WidgetType::Separator:    return sad::ui::widget_separator();
+
+        // === Progress (5) ===
+        case sad::ui::WidgetType::ProgressBar:  return sad::ui::widget_progress_bar(0);
+        case sad::ui::WidgetType::CircleProgress: return sad::ui::widget_circle_progress(0);
+        case sad::ui::WidgetType::LoadingSpinner: return sad::ui::widget_loading_spinner();
+        case sad::ui::WidgetType::Skeleton:     return sad::ui::widget_skeleton();
+        case sad::ui::WidgetType::Gauge:        return sad::ui::widget_gauge(0, 100);
+
+        // === Navigation (10) ===
+        case sad::ui::WidgetType::AppBar:       return sad::ui::widget_app_bar("");
+        case sad::ui::WidgetType::BottomBar:    return sad::ui::widget_bottom_bar();
+        case sad::ui::WidgetType::TabBar:       return sad::ui::widget_tab_bar();
+        case sad::ui::WidgetType::Drawer:       return sad::ui::widget_drawer();
+        case sad::ui::WidgetType::Breadcrumb:   return sad::ui::widget_breadcrumb();
+        case sad::ui::WidgetType::NavItem:      return sad::ui::widget_nav_item("");
+        case sad::ui::WidgetType::MenuItem:     return sad::ui::widget_menu_item("");
+        case sad::ui::WidgetType::Toolbar:      return sad::ui::widget_toolbar();
+        case sad::ui::WidgetType::StatusBar:    return sad::ui::widget_status_bar("");
+        case sad::ui::WidgetType::SideMenu:     return sad::ui::widget_side_menu();
+
+        // === Feedback (10) ===
+        case sad::ui::WidgetType::Dialog:       return sad::ui::widget_dialog("", "");
+        case sad::ui::WidgetType::Alert:        return sad::ui::widget_alert("", "info");
+        case sad::ui::WidgetType::Toast:        return sad::ui::widget_toast("");
+        case sad::ui::WidgetType::Snackbar:     return sad::ui::widget_snackbar("");
+        case sad::ui::WidgetType::Banner:       return sad::ui::widget_banner("");
+        case sad::ui::WidgetType::Modal:        return sad::ui::widget_modal();
+        case sad::ui::WidgetType::Popover:      return sad::ui::widget_popover();
+        case sad::ui::WidgetType::Notification: return sad::ui::widget_notification("", "");
+        case sad::ui::WidgetType::ConfirmDialog:return sad::ui::widget_confirm_dialog("", "");
+        case sad::ui::WidgetType::Tooltip:      return sad::ui::widget_tooltip("");
+
+        // === Cards & Panels (7) ===
+        case sad::ui::WidgetType::Card:         return sad::ui::widget_card();
+        case sad::ui::WidgetType::InfoCard:     return sad::ui::widget_info_card("", "");
+        case sad::ui::WidgetType::StatCard:     return sad::ui::widget_stat_card("", "");
+        case sad::ui::WidgetType::ExpansionPanel: return sad::ui::widget_expansion_panel("");
+        case sad::ui::WidgetType::Accordion:    return sad::ui::widget_accordion();
+        case sad::ui::WidgetType::Panel:        return sad::ui::widget_panel("");
+        case sad::ui::WidgetType::GroupBox:     return sad::ui::widget_group_box("");
+        case sad::ui::WidgetType::Callout:      return sad::ui::widget_callout("", "info");
+
+        // === Data (10) ===
+        case sad::ui::WidgetType::ListTile:     return sad::ui::widget_list_tile("", "");
+        case sad::ui::WidgetType::DataTable:    return sad::ui::widget_data_table(3);
+        case sad::ui::WidgetType::TableRow:     return sad::ui::widget_table_row();
+        case sad::ui::WidgetType::TableCell:    return sad::ui::widget_table_cell("");
+        case sad::ui::WidgetType::DetailRow:    return sad::ui::widget_detail_row("", "");
+        case sad::ui::WidgetType::Timeline:     return sad::ui::widget_timeline();
+        case sad::ui::WidgetType::TimelineItem: return sad::ui::widget_timeline_item("");
+        case sad::ui::WidgetType::TreeItem:     return sad::ui::widget_tree_item("", 0);
+        case sad::ui::WidgetType::Stepper:      return sad::ui::widget_stepper(3);
+        case sad::ui::WidgetType::StepIndicator:return sad::ui::widget_step_indicator(3, 0);
+
+        // === Charts (7) ===
+        case sad::ui::WidgetType::BarChart:     return sad::ui::widget_bar_chart();
+        case sad::ui::WidgetType::HBarChart:    return sad::ui::widget_hbar_chart();
+        case sad::ui::WidgetType::PieChart:     return sad::ui::widget_pie_chart();
+        case sad::ui::WidgetType::LineChart:    return sad::ui::widget_line_chart();
+        case sad::ui::WidgetType::SparkLine:    return sad::ui::widget_spark_line();
+        case sad::ui::WidgetType::DonutChart:   return sad::ui::widget_donut_chart();
+
+        // === Pagination (2) ===
+        case sad::ui::WidgetType::Pagination:   return sad::ui::widget_pagination(10);
+        case sad::ui::WidgetType::DotIndicator: return sad::ui::widget_dot_indicator(5, 0);
+
+        // === Advanced (3) ===
+        case sad::ui::WidgetType::Canvas:       return sad::ui::widget_canvas(200, 200);
+        case sad::ui::WidgetType::Carousel:     return sad::ui::widget_carousel();
+        case sad::ui::WidgetType::SplitView:    return sad::ui::widget_split_view();
+
         default:
-            // عنصر عام — يُنشأ كصندوق Container
+            // عنصر غير معروف — يُنشأ كـ Container
             return sad::ui::widget_container();
     }
 }

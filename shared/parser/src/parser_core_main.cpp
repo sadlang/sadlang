@@ -448,9 +448,14 @@ StmtPtr ParserCore::parseDeclaration() {
     // ═══════════════════════════════════════════════════════════════════
     // (AR) دعم تنفيذ الواجهات: نفّذ اسم_الواجهة لـ اسم_الصنف ... نهاية
     // (EN) Impl block: impl TraitName for ClassName ... end
+    // (AR) نفّذ/نفذ كلمة سياقية — تُعامل كـ impl فقط إذا تلاها مُعرّف (اسم السمة)
+    //      وإلا تُعامل كمُعرّف عادي (متغير/دالة)
+    // (EN) نفّذ/نفذ is contextual — treated as impl only if followed by identifier (trait name)
+    //      otherwise treated as regular identifier (variable/function)
     // ═══════════════════════════════════════════════════════════════════
     if (match(TT::KEYWORD_IMPL) ||
-        (check(TT::IDENTIFIER) && (current_.getValue() == "نفّذ" || current_.getValue() == "نفذ") && (advance(), true))) {
+        (check(TT::IDENTIFIER) && (current_.getValue() == "نفّذ" || current_.getValue() == "نفذ") && 
+         peekNext().getType() == TT::IDENTIFIER && (advance(), true))) {
         return parseImplDecl();
     }
     

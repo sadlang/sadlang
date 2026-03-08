@@ -415,7 +415,14 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
                 // (AR) قد يكون lambda أو اسم دالة مخزّن في متغير
                 // (EN) May be lambda or function name stored in variable
                 Value varValue = variableManager_.get(calleeVar->name);
-                if (varValue.isString()) {
+                
+                // (AR) أولاً: التحقق من نوع FUNCTION الجديد
+                // (EN) First: check for new FUNCTION type
+                if (varValue.isFunction()) {
+                    funcName = varValue.getFunctionName();
+                } else if (varValue.isString()) {
+                    // (AR) توافق خلفي: STRING قد يحمل اسم lambda أو دالة
+                    // (EN) Backward compat: STRING may hold lambda or function name
                     std::string strVal = varValue.toString();
                     if (strVal.find("__lambda_") == 0) {
                         // (AR) هذا lambda! / (EN) This is lambda!
@@ -453,21 +460,35 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
             node.callee->accept(*this);
             Value calleeValue = lastResult_;
             
-            if (calleeValue.isString()) {
-                // (AR) القيمة نص — قد يكون اسم lambda أو دالة
-                // (EN) String value — may be lambda name or function name
+            if (calleeValue.isFunction()) {
+                // (AR) مرجع دالة من نوع FUNCTION — الطريقة الجديدة
+                // (EN) FUNCTION type reference — the new way
+                funcName = calleeValue.getFunctionName();
+            } else if (calleeValue.isString()) {
+                // (AR) القيمة نص — قد يكون اسم lambda أو دالة (توافق خلفي)
+                // (EN) String value — may be lambda name or function name (backward compat)
                 funcName = calleeValue.toString();
             } else if (calleeValue.isMap()) {
                 // (AR) خريطة — نبحث عن __callable__ أو __lambda__
                 // (EN) Map — look for __callable__ or __lambda__ key
                 auto mapVal = calleeValue.toMap();
                 auto callableIt = mapVal.find("__callable__");
-                if (callableIt != mapVal.end() && callableIt->second.isString()) {
-                    funcName = callableIt->second.toString();
+                if (callableIt != mapVal.end()) {
+                    // (AR) دعم FUNCTION أو STRING
+                    // (EN) Support both FUNCTION and STRING
+                    if (callableIt->second.isFunction()) {
+                        funcName = callableIt->second.getFunctionName();
+                    } else if (callableIt->second.isString()) {
+                        funcName = callableIt->second.toString();
+                    }
                 } else {
                     auto lambdaIt = mapVal.find("__lambda__");
-                    if (lambdaIt != mapVal.end() && lambdaIt->second.isString()) {
-                        funcName = lambdaIt->second.toString();
+                    if (lambdaIt != mapVal.end()) {
+                        if (lambdaIt->second.isFunction()) {
+                            funcName = lambdaIt->second.getFunctionName();
+                        } else if (lambdaIt->second.isString()) {
+                            funcName = lambdaIt->second.toString();
+                        }
                     } else {
                         throw Interpreter::RuntimeError(
                             "(AR) لا يمكن استدعاء خريطة كدالة. أضف مفتاح '__callable__' لتحديد الدالة.\n"
@@ -482,8 +503,14 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
                 auto objPtr = calleeValue.toObject();
                 if (objPtr) {
                     auto callIt = objPtr->fields.find("__call__");
-                    if (callIt != objPtr->fields.end() && callIt->second.isString()) {
-                        funcName = callIt->second.toString();
+                    if (callIt != objPtr->fields.end()) {
+                        // (AR) دعم FUNCTION أو STRING
+                        // (EN) Support both FUNCTION and STRING
+                        if (callIt->second.isFunction()) {
+                            funcName = callIt->second.getFunctionName();
+                        } else if (callIt->second.isString()) {
+                            funcName = callIt->second.toString();
+                        }
                     } else {
                         std::string className = objPtr->getClassName();
                         auto* classManager = Data::ClassManager::getInstance();

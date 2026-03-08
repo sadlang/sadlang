@@ -193,6 +193,11 @@ target_link_libraries(unit_tests
 add_test(NAME "UnitTests" COMMAND unit_tests)
 
 # ========================================
+# إطار الاختبارات الموحد / Unified Test Framework
+# ========================================
+add_subdirectory(framework)
+
+# ========================================
 # Summary - الملخص
 # ========================================
 

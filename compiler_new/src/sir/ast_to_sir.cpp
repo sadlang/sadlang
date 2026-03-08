@@ -58,6 +58,7 @@
 #include <memory>
 #include <stack>
 #include <map>
+#include <iostream>
 
 namespace sad::sir {
 
@@ -545,7 +546,10 @@ public:
                 return lowerFieldAccess(expr, func);
                 
             default:
-                // قيمة افتراضية
+                // (AR) نوع عقدة AST غير معالج — تحذير + قيمة افتراضية
+                // (EN) Unhandled AST expression kind — warn + default value
+                std::cerr << "[sadc تحذير] نوع تعبير AST غير معالج في SIR lowering: "
+                          << static_cast<int>(expr->kind()) << std::endl;
                 return createValue();
         }
     }

@@ -9,6 +9,8 @@
 
 #include "module.h"
 #include "module_nodes.h"
+#include "declarations.h"
+#include "statements.h"
 #include <sstream>
 #include <fstream>
 #include <filesystem>
@@ -173,17 +175,27 @@ void Module::analyzeExports() {
     for (const auto& stmt : ast_) {
         if (auto* exportDecl = dynamic_cast<AST::ExportDecl*>(stmt.get())) {
             if (exportDecl->declaration) {
-                // تحديد نوع التصدير
+                // (AR) تحديد نوع التصدير واسمه من التصريح
+                // (EN) Determine export type and name from declaration
                 ExportedSymbol::Type type = ExportedSymbol::Type::VARIABLE;
-                std::string name = "unknown";
+                std::string name;
                 
-                // TODO: تحليل نوع التصريح المُصدَّر
-                // For now, we'll need to check the declaration type
-                // This will be enhanced when we add proper type checking
+                if (auto* funcDecl = dynamic_cast<AST::FunctionDecl*>(exportDecl->declaration.get())) {
+                    type = ExportedSymbol::Type::FUNCTION;
+                    name = funcDecl->name;
+                } else if (auto* classDecl = dynamic_cast<AST::ClassDecl*>(exportDecl->declaration.get())) {
+                    type = ExportedSymbol::Type::CLASS;
+                    name = classDecl->name;
+                } else if (auto* varDecl = dynamic_cast<AST::VarDeclStmt*>(exportDecl->declaration.get())) {
+                    type = varDecl->isConst ? ExportedSymbol::Type::CONSTANT : ExportedSymbol::Type::VARIABLE;
+                    name = varDecl->name;
+                }
                 
-                // مؤقتاً: افترض أنه متغير
-                // Temporarily: assume it's a variable
-                // نحتاج لإضافة logic للتحقق من نوع declaration
+                if (!name.empty()) {
+                    // (AR) نمرر nullptr لأن الملكية تبقى في AST
+                    // (EN) Pass nullptr — ownership stays with the AST node
+                    addExport(name, type, nullptr);
+                }
             }
         }
     }

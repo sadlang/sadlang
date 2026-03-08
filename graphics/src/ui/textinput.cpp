@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // textinput.cpp - تطبيق عنصر حقل إدخال النص
 // Implementation of text input field widget
 // ============================================================================
@@ -12,8 +12,9 @@
 
 using sad::graphics::ResourceManager;
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // ============================================================================
         // البناء الافتراضي / Default constructor
@@ -585,5 +586,6 @@ namespace Graphics {
             }
         }
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad

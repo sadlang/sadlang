@@ -671,6 +671,7 @@ extern "C" {
      * 📊 عدد الأخطاء
      */
     size_t sad_error_recovery_count(void* system) {
+        if (!system) return 0;
         return static_cast<ErrorRecoverySystem*>(system)->errorCount();
     }
     
@@ -678,6 +679,7 @@ extern "C" {
      * 🧹 مسح الأخطاء
      */
     void sad_error_recovery_clear(void* system) {
+        if (!system) return;
         static_cast<ErrorRecoverySystem*>(system)->clear();
     }
     
@@ -685,7 +687,8 @@ extern "C" {
      * 📝 تنسيق الأخطاء
      */
     const char* sad_error_recovery_format(void* system) {
-        static std::string result;
+        if (!system) return "";
+        thread_local std::string result;
         result = static_cast<ErrorRecoverySystem*>(system)->formatAllErrors();
         return result.c_str();
     }

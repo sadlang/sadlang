@@ -1,0 +1,15 @@
+[package]
+name = "majmuat"
+version = "1.0.0"
+description = "Data structures — stack, queue, priority queue, set, linked list, ordered map, counter"
+description_ar = "هياكل بيانات — مكدس وطابور ومجموعة فريدة وقائمة مرتبطة وخريطة مرتبة"
+authors = ["Sad Language Team"]
+license = "MIT"
+keywords = ["data-structures", "stack", "queue", "set", "linked-list"]
+categories = ["data-structures", "algorithms"]
+sad_minimum = "2.0.0"
+
+[build]
+main = "src/مكتبة.ص"
+target = "library"
+source-dirs = ["src"]

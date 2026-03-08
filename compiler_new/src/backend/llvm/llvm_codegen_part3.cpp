@@ -942,6 +942,62 @@ llvm::Value* LLVMCodeGen::emitInstruction(std::shared_ptr<SIRInstruction> inst) 
         case SIROpcode::AtomicExchange:          return emitAtomicExchange(inst);
         case SIROpcode::AtomicCmpXchg:           return emitAtomicCmpXchg(inst);
 
+        // ====================================================================
+        // القسم 22: نظام الوحدات / Module System
+        // ====================================================================
+        case SIROpcode::MODULE_LOAD: {
+            // (AR) تحميل وحدة — يُنشئ تعريفاً خارجياً لدالة تهيئة الوحدة
+            // (EN) Module load — creates extern declaration for module init function
+            if (!inst->operands.empty()) {
+                std::string moduleName = inst->operands[0].name;
+                // تحويل اسم الوحدة لاسم دالة تهيئة صالح
+                std::string initFnName = "__sad_module_init_" + moduleName;
+                // تعريف خارجي لدالة التهيئة
+                auto* fnType = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*context_), false);
+                module_->getOrInsertFunction(initFnName, fnType);
+            }
+            return nullptr;
+        }
+        case SIROpcode::MODULE_INIT: {
+            // (AR) تهيئة وحدة — يستدعي دالة تهيئة الوحدة المستوردة
+            // (EN) Module init — calls the imported module's init function
+            if (!inst->operands.empty()) {
+                std::string moduleName = inst->operands[0].name;
+                std::string initFnName = "__sad_module_init_" + moduleName;
+                auto* fn = module_->getFunction(initFnName);
+                if (fn) {
+                    builder_->CreateCall(fn);
+                }
+            }
+            return nullptr;
+        }
+        case SIROpcode::MODULE_SYMBOL: {
+            // (AR) رمز وحدة — يُعلن عن رمز خارجي مستورد من وحدة أخرى
+            // (EN) Module symbol — declares external symbol imported from another module
+            if (inst->operands.size() >= 2) {
+                std::string symbolName = inst->operands[0].name;
+                // تعريف خارجي للرمز — سيحلّه الرابط لاحقاً
+                auto* fnType = llvm::FunctionType::get(
+                    llvm::Type::getInt64Ty(*context_),
+                    {}, true); // variadic للمرونة
+                module_->getOrInsertFunction(symbolName, fnType);
+            }
+            return nullptr;
+        }
+        case SIROpcode::MODULE_EXPORT: {
+            // (AR) تصدير وحدة — يضع ربطاً خارجياً على الدالة المصدّرة
+            // (EN) Module export — sets external linkage on exported function
+            if (!inst->operands.empty()) {
+                std::string symbolName = inst->operands[0].name;
+                auto* fn = module_->getFunction(symbolName);
+                if (fn) {
+                    fn->setLinkage(llvm::GlobalValue::ExternalLinkage);
+                }
+            }
+            return nullptr;
+        }
+
         default:
             reportError("Unsupported opcode: " + std::to_string(static_cast<int>(inst->opcode)));
             return nullptr;

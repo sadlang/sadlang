@@ -105,6 +105,82 @@ Duration:      ~3 seconds
 
 ---
 
+## 🧪 الاختبارات الشاملة (Comprehensive Tests)
+
+### تفعيل البناء مع الاختبارات
+
+```bash
+# تهيئة CMake مع تفعيل الاختبارات
+cmake -S . -B build -DBUILD_TESTS=ON
+
+# بناء الاختبارات الشاملة
+cmake --build build --config Debug --target comprehensive_tests
+```
+
+### تشغيل الاختبارات
+
+```bash
+# تشغيل جميع الاختبارات الشاملة
+ctest --test-dir build -R Comprehensive -C Debug --output-on-failure
+
+# تشغيل اختبارات regression فقط
+ctest --test-dir build -L regression -C Debug
+```
+
+### نتائج الاختبارات (مارس 2026)
+
+| # | الاختبار | الحالة |
+|---|----------|--------|
+| 1 | test_lexer_comprehensive | ✅ نجح |
+| 2 | test_parser_comprehensive | ✅ نجح |
+| 3 | test_value_comprehensive | ✅ نجح |
+| 4 | test_interpreter_comprehensive | ✅ نجح |
+| 5 | test_stdlib_comprehensive | ✅ نجح |
+| 6 | test_errors_comprehensive | ✅ نجح |
+| 7 | test_vm_compiler_comprehensive | ✅ نجح |
+| 8 | test_e2e_comprehensive | ✅ نجح |
+| 9 | test_utils_modules_comprehensive | ✅ نجح |
+| 10 | test_compiler_comprehensive | ✅ نجح |
+| 11 | test_graphics_tools_comprehensive | ✅ نجح |
+| 12 | test_regression_comprehensive | ✅ نجح |
+
+**ملخص:** 12/12 نجحوا تماماً (100%)
+
+### ملاحظة: إصلاح CreateProcessW (مارس 2026)
+
+كانت 4 حالات P2 تفشل بسبب مشكلة ترميز UTF-8 في `popen()` على Windows.
+المسارات التي تحتوي امتداد `.ص` كانت تتلف عند تمريرها عبر ANSI `cmd /c`.
+تم الحل باستبدال `popen` بـ `CreateProcessW` (Windows API UTF-16) في
+`test_regression_comprehensive.cpp`، مما أصلح جميع 22 اختبار regression.
+
+---
+
+## 📁 بنية مجلدات الاختبار / Test Directory Structure
+
+```
+tests/
+├── comprehensive/           # 12 suite شاملة (900+ اختبار)
+│   ├── test_lexer_comprehensive.cpp
+│   ├── test_parser_comprehensive.cpp
+│   ├── test_value_comprehensive.cpp
+│   ├── test_stdlib_comprehensive.cpp
+│   ├── test_errors_comprehensive.cpp
+│   ├── test_e2e_comprehensive.cpp
+│   ├── test_utils_modules_comprehensive.cpp
+│   ├── test_compiler_comprehensive.cpp
+│   ├── test_graphics_tools_comprehensive.cpp
+│   └── test_regression_comprehensive.cpp
+├── regression/              # اختبارات انحدار لمشاكل موثقة
+├── framework/               # إطار عمل الاختبار (sad_test.h, sad_benchmark.h)
+├── performance/             # اختبارات أداء مقارنة (Sad vs Python vs Node)
+├── stdlib_tests/            # اختبارات المكتبة القياسية (151 اختبار)
+├── integration/             # اختبارات تكامل
+├── unit/                    # اختبارات وحدة
+└── *.ص                     # ملفات اختبار بلغة ص
+```
+
+---
+
 ## 🧪 أنواع الاختبارات / Test Types
 
 ### 1. اختبارات الوحدة / Unit Tests
@@ -257,5 +333,5 @@ add_test(NAME NewTests COMMAND new_tests)
 
 ---
 
-**آخر تحديث**: 22 نوفمبر 2025 - 17:45  
-**الحالة الحالية**: ✅ 151 اختبار نجحت (100%)
+**آخر تحديث**: 6 مارس 2026 - 10:30  
+**الحالة الحالية**: ✅ 9/12 suite شاملة نجحت | 151 stdlib نجحت (100%)

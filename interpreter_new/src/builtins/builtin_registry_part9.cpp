@@ -33,6 +33,7 @@ void registerBuiltinsPart9(Interpreter& interpreter) {
         return std::make_shared<Data::Value>(windowId);
     };
     interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x86\xd8\xa7\xd9\x81\xd8\xb0\xd8\xa9_\xd8\xac\xd8\xaf\xd9\x8a\xd8\xaf", window_create_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x86\xd8\xa7\xd9\x81\xd8\xb0\xd8\xa9_\xd8\xac\xd8\xaf\xd9\x8a\xd8\xaf\xd8\xa9", window_create_func);
     interpreter.getFunctionManager().registerBuiltinFunction("window_new", window_create_func);
 
     // --- نافذة_عرض / window_show ---

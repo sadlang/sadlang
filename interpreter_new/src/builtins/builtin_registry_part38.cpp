@@ -147,7 +147,8 @@ void registerBuiltinsPart38(Interpreter& interpreter) {
 
     // (10) خطأ_آخر / last_error
     {
-        static std::string lastError;
+        // (AR) thread_local لأمان الخيوط / (EN) thread_local for thread safety
+        thread_local std::string lastError;
         auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args)
             -> std::shared_ptr<Data::Value> {
             if (!args.empty()) {

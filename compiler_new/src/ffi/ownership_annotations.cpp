@@ -166,6 +166,10 @@ std::optional<Annotation> AnnotationParser::parse(const std::string& text) {
             }
             break;
         default:
+            // (AR) نوع تعليق غير معروف — تحذير لتجنب التجاهل الصامت
+            // (EN) Unknown annotation type — warn to avoid silent ignore
+            ann.target = AnnotationTarget::UNKNOWN;
+            std::cerr << "[sadc تحذير] نوع تعليق ملكية غير معالج: " << static_cast<int>(ann.type) << std::endl;
             break;
     }
     
@@ -223,6 +227,9 @@ bool AnnotationParser::validate(const Annotation& annotation, std::vector<std::s
             break;
             
         default:
+            // (AR) نوع تعليق غير معالج — تحذير مع قبول مشروط
+            // (EN) Unknown annotation type — warn but accept conditionally
+            errors.push_back(u8"تحذير: نوع تعليق غير معروف (" + std::to_string(static_cast<int>(annotation.type)) + u8") — قد لا يعمل كما هو متوقع");
             break;
     }
     
@@ -386,6 +393,10 @@ void OwnershipProfileBuilder::applyAnnotation(
             break;
             
         default:
+            // (AR) نوع تعليق ملكية غير معالج — تحذير لتجنب فقدان إعدادات الملكية
+            // (EN) Unhandled annotation type — warn to avoid silent ownership loss
+            std::cerr << "[sadc تحذير] تعليق ملكية غير معالج عند تطبيق الملف الشخصي: "
+                      << static_cast<int>(annotation.type) << std::endl;
             break;
     }
 }

@@ -12,8 +12,9 @@
 #include "widget.h"  // الفئة الأساسية / Base class
 #include "../text/font.h"  // للخطوط / For fonts
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // تعريف دالة رد عند تغيير الحالة / State change callback type
         using CheckStateCallback = std::function<void(bool)>;
@@ -79,7 +80,8 @@ namespace Graphics {
             bool IsPointInBox(float x, float y) const;  // هل النقطة داخل المربع؟ / Is point in box?
         };
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad
 
 #endif // GRAPHICS_UI_CHECKBOX_H

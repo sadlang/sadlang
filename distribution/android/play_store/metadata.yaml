@@ -1,0 +1,205 @@
+# بيانات متجر Google Play — لغة ص
+# Play Store Metadata for Sad Programming Language
+
+# ==============================================================
+# معلومات أساسية / Basic Info
+# ==============================================================
+
+اسم_التطبيق: "لغة ص — بيئة برمجة عربية"
+اسم_التطبيق_en: "Sad Language — Arabic Programming IDE"
+الحزمة: "com.sadlang.ide"
+الفئة: "DEVELOPMENT"
+الفئة_الفرعية: "TOOLS"
+تصنيف_المحتوى: "Everyone"
+البريد: "support@sadlang.com"
+الموقع: "https://sadlang.com"
+سياسة_الخصوصية: "https://sadlang.com/privacy"
+
+# ==============================================================
+# الوصف القصير (80 حرف كحد أقصى)
+# ==============================================================
+
+الوصف_القصير_ar: "بيئة برمجة عربية متكاملة — اكتب، شغّل، وتعلم البرمجة بالعربية"
+الوصف_القصير_en: "Arabic programming IDE — Write, run, and learn coding in Arabic"
+
+# ==============================================================
+# الوصف الكامل (4000 حرف كحد أقصى)
+# ==============================================================
+
+الوصف_الكامل_ar: |
+  🌟 لغة ص — أول لغة برمجة عربية متكاملة
+
+  لغة ص هي لغة برمجة حديثة مصممة بالكامل للمبرمج العربي. اكتب الكود بالعربية
+  بكلمات مفتاحية مفهومة وطبيعية مثل: دالة، صنف، إذا، بينما، لكل.
+
+  ✨ المميزات الرئيسية:
+
+  📝 كتابة الكود بالعربية بالكامل
+  • كلمات مفتاحية عربية: دالة، صنف، إذا، بينما، لكل، ارجع
+  • أسماء متغيرات ودوال عربية 100%
+  • تعليقات ورسائل خطأ بالعربية
+
+  🚀 بيئة تطوير متكاملة (IDE)
+  • محرر كود ذكي مع تلوين البناء النحوي
+  • إكمال تلقائي للكلمات المفتاحية والدوال
+  • تشغيل فوري للبرامج داخل التطبيق
+  • كشف الأخطاء وعرض رسائل مفهومة
+
+  📚 تعلم البرمجة بسهولة
+  • دروس تفاعلية للمبتدئين
+  • أمثلة جاهزة قابلة للتعديل والتشغيل
+  • توثيق شامل بالعربية
+  • تمارين عملية متدرجة
+
+  🔧 مكتبات غنية
+  • الرياضيات والإحصائيات
+  • معالجة النصوص والتعبيرات المنتظمة
+  • التاريخ والوقت
+  • الملفات والمجلدات
+  • الشبكات وHTTP
+
+  💡 لمن هذا التطبيق؟
+  • المبتدئين الراغبين في تعلم البرمجة بلغتهم الأم
+  • المعلمين والأكاديميين لتدريس مفاهيم البرمجة
+  • المبرمجين المحترفين الباحثين عن أداة عربية
+  • الطلاب والهواة
+
+  🔄 تحديثات مستمرة
+  نعمل باستمرار على إضافة ميزات جديدة وتحسين الأداء.
+
+  📧 تواصل معنا: support@sadlang.com
+  🌐 الموقع: sadlang.com
+
+الوصف_الكامل_en: |
+  🌟 Sad Language — The First Complete Arabic Programming Language
+
+  Sad is a modern programming language designed entirely for Arabic speakers.
+  Write code in Arabic with natural keywords: function, class, if, while, for each.
+
+  ✨ Key Features:
+
+  📝 Full Arabic Code Writing
+  • Arabic keywords: دالة (function), صنف (class), إذا (if), بينما (while)
+  • 100% Arabic variable and function names
+  • Arabic comments and error messages
+
+  🚀 Integrated Development Environment (IDE)
+  • Smart code editor with syntax highlighting
+  • Auto-completion for keywords and functions
+  • Instant program execution within the app
+  • Error detection with clear messages
+
+  📚 Learn Programming Easily
+  • Interactive tutorials for beginners
+  • Ready-made examples you can edit and run
+  • Comprehensive Arabic documentation
+  • Progressive practical exercises
+
+  🔧 Rich Libraries
+  • Mathematics and statistics
+  • Text processing and regex
+  • Date and time
+  • Files and directories
+  • Networking and HTTP
+
+  💡 Who is this app for?
+  • Beginners wanting to learn programming in their native language
+  • Teachers and academics for teaching programming concepts
+  • Professional programmers looking for an Arabic tool
+  • Students and hobbyists
+
+  📧 Contact: support@sadlang.com
+  🌐 Website: sadlang.com
+
+# ==============================================================
+# الكلمات المفتاحية / Keywords (100 حرف كحد أقصى)
+# ==============================================================
+
+الكلمات_المفتاحية_ar: "برمجة,عربية,لغة برمجة,تعلم برمجة,كودينغ,محرر أكواد,IDE,تطوير تطبيقات"
+الكلمات_المفتاحية_en: "programming,arabic,code,IDE,learn coding,development,sad language"
+
+# ==============================================================
+# لقطات الشاشة / Screenshots
+# ==============================================================
+
+لقطات_الشاشة:
+  - اسم: "01_الشاشة_الرئيسية.png"
+    وصف_ar: "الشاشة الرئيسية — محرر الأكواد مع تلوين البناء النحوي"
+    وصف_en: "Main screen — Code editor with syntax highlighting"
+    
+  - اسم: "02_تشغيل_البرنامج.png"
+    وصف_ar: "تشغيل البرنامج وعرض النتائج مباشرة"
+    وصف_en: "Running code and displaying results instantly"
+    
+  - اسم: "03_الإكمال_التلقائي.png"
+    وصف_ar: "الإكمال التلقائي للكلمات المفتاحية والدوال"
+    وصف_en: "Auto-completion for keywords and functions"
+    
+  - اسم: "04_الأمثلة.png"
+    وصف_ar: "مكتبة أمثلة جاهزة قابلة للتعديل"
+    وصف_en: "Ready-made examples library"
+    
+  - اسم: "05_التوثيق.png"
+    وصف_ar: "توثيق شامل بالعربية"
+    وصف_en: "Comprehensive Arabic documentation"
+    
+  - اسم: "06_كشف_الأخطاء.png"
+    وصف_ar: "كشف الأخطاء مع رسائل واضحة بالعربية"
+    وصف_en: "Error detection with clear Arabic messages"
+    
+  - اسم: "07_السمة_الداكنة.png"
+    وصف_ar: "السمة الداكنة — مريحة للعين"
+    وصف_en: "Dark theme — easy on the eyes"
+    
+  - اسم: "08_المكتبات.png"
+    وصف_ar: "مكتبات مدمجة غنية: رياضيات، نصوص، شبكات"
+    وصف_en: "Rich built-in libraries: math, strings, networking"
+
+# ==============================================================
+# الرسم المميز / Feature Graphic
+# ==============================================================
+
+الرسم_المميز:
+  اسم: "feature_graphic.png"
+  الحجم: "1024x500"
+  وصف: "لغة ص — البرمجة بالعربية | Sad Language — Programming in Arabic"
+
+# ==============================================================
+# مواصفات تقنية / Technical Specs
+# ==============================================================
+
+الحد_الأدنى_SDK: 24         # Android 7.0 Nougat
+الهدف_SDK: 34                # Android 14
+الإصدار: "2.0.0"
+رمز_الإصدار: 200
+المعماريات: ["arm64-v8a", "armeabi-v7a", "x86_64"]
+الأذونات:
+  - "INTERNET"                # للتوثيق عبر الإنترنت
+  - "WRITE_EXTERNAL_STORAGE"  # لحفظ الملفات
+  - "READ_EXTERNAL_STORAGE"   # لفتح الملفات
+
+# ==============================================================
+# ملاحظات الإصدار / Release Notes
+# ==============================================================
+
+ملاحظات_الإصدار_ar: |
+  الإصدار 2.0.0 — تحديث كبير! 🎉
+  
+  • ✨ إعادة تصميم واجهة المستخدم بالكامل
+  • 🚀 محرك تنفيذ أسرع 3 مرات
+  • 📚 11 مكتبة جديدة (ألوان، سجلات، تعبيرات منتظمة، ...)
+  • 🎨 سمة داكنة جديدة
+  • 🔧 إكمال تلقائي محسّن
+  • 🐛 إصلاح أكثر من 50 خطأ
+  • 📱 دعم أفضل للشاشات الكبيرة والأجهزة اللوحية
+
+ملاحظات_الإصدار_en: |
+  Version 2.0.0 — Major Update! 🎉
+  
+  • ✨ Complete UI redesign
+  • 🚀 3x faster execution engine
+  • 📚 11 new libraries (colors, logging, regex, ...)
+  • 🎨 New dark theme
+  • 🔧 Improved auto-completion
+  • 🐛 Fixed 50+ bugs
+  • 📱 Better support for large screens and tablets

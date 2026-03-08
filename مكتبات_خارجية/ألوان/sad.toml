@@ -1,0 +1,15 @@
+[package]
+name = "alwan"
+version = "1.0.0"
+description = "Color manipulation library with RGB, HSL, mixing, and palette support"
+description_ar = "مكتبة للتعامل مع الألوان — RGB و HSL والمزج واللوحات"
+authors = ["Sad Language Team"]
+license = "MIT"
+keywords = ["colors", "rgb", "hsl", "palette"]
+categories = ["graphics", "utilities"]
+sad_minimum = "2.0.0"
+
+[build]
+main = "src/مكتبة.ص"
+target = "library"
+source-dirs = ["src"]

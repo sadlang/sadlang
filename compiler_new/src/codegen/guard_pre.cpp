@@ -69,6 +69,7 @@
 #include <functional>
 #include <optional>
 #include <regex>
+#include <iostream>
 
 namespace sad {
 namespace security {
@@ -770,7 +771,12 @@ inline std::string حارس_قبل_التوليد::ابنِ_الملخص(
             case مستوى_خطورة::عالي: عالي++; break;
             case مستوى_خطورة::متوسط: متوسط++; break;
             case مستوى_خطورة::منخفض: منخفض++; break;
-            default: break;
+            default:
+                // (AR) مستوى خطورة غير معروف — يُحسب ضمن المنخفض مع تحذير
+                // (EN) Unknown severity level — counted as low with warning
+                منخفض++;
+                std::cerr << "[sadc تحذير] مستوى خطورة غير معالج: " << static_cast<int>(ت.الخطورة) << std::endl;
+                break;
         }
     }
     

@@ -13,8 +13,9 @@
 #include "../text/font.h"                          // لاستخدام الخطوط / For fonts
 #include <memory>                                  // لاستخدام المؤشرات الذكية / For smart pointers
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // ============================================================================
         // TextAlignment - محاذاة النص
@@ -90,7 +91,8 @@ namespace Graphics {
             void UpdateSize();                                     // تحديث الحجم / Update size
         };
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad
 
 #endif // GRAPHICS_UI_LABEL_H

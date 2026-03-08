@@ -547,7 +547,7 @@ private:
     std::unique_ptr<Parser> parser_;
     std::unique_ptr<SIRBuilder> sir_builder_;
     std::shared_ptr<SIRModule> sir_module_;  // Store SIR module
-    // std::unique_ptr<SIROptimizer> optimizer_;  // Not implemented yet
+    // SIR Frontend Optimizer integrated in compiler_driver_frontend.cpp
     // std::unique_ptr<BytecodeEmitter> bytecode_emitter_;  // Not implemented yet
     std::unique_ptr<Sad::LLVM::LLVMCodeGen> llvm_codegen_;  // Correct namespace
     

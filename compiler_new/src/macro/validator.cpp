@@ -66,6 +66,7 @@
 #include <optional>
 #include <memory>
 #include <sstream>
+#include <iostream>
 
 namespace sad {
 namespace مترجم {
@@ -485,6 +486,16 @@ private:
             }
             
             default:
+                // (AR) نوع قاعدة ماكرو غير معالج — تحذير لمنع تجاوز القيود
+                // (EN) Unhandled macro constraint rule — warn to prevent bypass
+                {
+                    خطأ_ماكرو خطأ;
+                    خطأ.التفاصيل = "تحذير: نوع قاعدة تحقق غير معالج (" + 
+                        std::to_string(static_cast<int>(قاعدة.النوع)) + ")";
+                    خطأ.الملف = الملف;
+                    خطأ.السطر = السطر;
+                    أخطاء.push_back(خطأ);
+                }
                 break;
         }
         

@@ -466,7 +466,8 @@ void sad_register_extension_method(const char* typeName, const char* methodName,
  * الحصول على الاسم المُشوّه
  */
 const char* sad_mangle_extension_name(const char* typeName, const char* methodName) {
-    static std::string result;
+    // (AR) thread_local لأمان الخيوط / (EN) thread_local for thread safety
+    thread_local std::string result;
     result = ExtensionNameMangler::mangle(typeName, methodName);
     return result.c_str();
 }

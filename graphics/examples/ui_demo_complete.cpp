@@ -25,8 +25,8 @@
 #include <string>      // للنصوص / For strings
 
 // استخدام المساحات الاسمية / Using namespaces
-using namespace Graphics;
-using namespace Graphics::UI;
+using namespace sad::graphics;
+using namespace sad::graphics::ui;
 
 // ============================================================================
 // حالة التطبيق / Application State

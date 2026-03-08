@@ -9,7 +9,7 @@
 #include "ui/label.h"
 #include "ui/button.h"
 
-using namespace Graphics::UI;
+using namespace sad::graphics::ui;
 
 // ============================================================================
 // اختبارات Rect / Rect Tests

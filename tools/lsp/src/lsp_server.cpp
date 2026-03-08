@@ -409,7 +409,9 @@ public:
         const auto& doc = it->second;
         lock.unlock();
         
-        // TODO: استخدام المنسق
+        // NOTE: التنسيق الفعلي مُنفّذ في LspEngine::format_document
+        // انظر: formatting_provider.cpp لتفاصيل التنسيق الكاملة
+        // هذه الدالة stub للتوافق مع API قديم
         return {};
     }
     

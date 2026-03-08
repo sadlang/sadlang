@@ -23,6 +23,7 @@
 #include "arabic_utils.h"
 #include "lexer_core.h"
 #include "lexer_keywords.h"
+#include <iostream>
 #include "token.h"
 #include <algorithm>
 #include <unordered_set>
@@ -298,7 +299,7 @@ SemanticTokensData LspEngine::semantic_tokens_full(const DocumentUri& uri) {
 
     } catch (const std::exception& e) {
         // إذا فشل التحليل المعجمي، نرجع بيانات فارغة مع تسجيل الخطأ
-        (void)e; // TODO: log("semantic_tokens failed: " + std::string(e.what()));
+        std::cerr << "[LSP] semantic_tokens failed: " << e.what() << std::endl;
     } catch (...) {
         // خطأ غير معروف أثناء التحليل المعجمي
     }

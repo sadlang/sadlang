@@ -362,6 +362,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     };
     
     interpreter.getFunctionManager().registerBuiltinFunction("نافذة_جديد", window_create_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("نافذة_جديدة", window_create_func);
     interpreter.getFunctionManager().registerBuiltinFunction("window_new", window_create_func);
     
     // Show window / عرض النافذة

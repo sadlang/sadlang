@@ -281,13 +281,62 @@ void LLVMDropGlue::emitDropCall(llvm::IRBuilder<>& builder,
         }
         
         case DropKind::EnumVariant: {
-            // (AR) ״­״µ ״§„……‘״² ״«… ‡״¯… ״§„״­״§„״© ״§„…†״§״³״¨״©
+            // (AR) فحص المميّز ثم هدم الحالة المناسبة
             // (EN) Check discriminant then drop appropriate variant
-            // TODO: ״×†״° ƒ״§…„ „€ enum drop ג€” ״­״×״§״¬ …״¹„ˆ…״§״× ״§„״­״§„״§״×
-            std::string dropFnName = getDropFunctionName(var.dropInfo.typeName);
-            llvm::Function* dropFn = module_.getFunction(dropFnName);
-            if (dropFn) {
-                builder.CreateCall(dropFn, {var.alloca});
+            
+            // (AR) تحميل المميّز (الحقل الأول دائماً في تمثيل tagged union)
+            // (EN) Load discriminant (always first field in tagged union representation)
+            llvm::Type* enumType = llvm::StructType::getTypeByName(context_, var.dropInfo.typeName);
+            
+            if (enumType && enumType->isStructTy()) {
+                // (AR) GEP للحقل 0 = المميّز (i32)
+                // (EN) GEP to field 0 = discriminant (i32)
+                llvm::Value* discPtr = builder.CreateStructGEP(
+                    enumType, var.alloca, 0, "disc.ptr");
+                llvm::Value* disc = builder.CreateLoad(
+                    llvm::Type::getInt32Ty(context_), discPtr, "disc.val");
+                
+                // (AR) إنشاء switch على المميّز — لكل حالة استدعاء drop المناسب
+                // (EN) Create switch on discriminant — call appropriate drop for each variant
+                llvm::Function* currentFn = builder.GetInsertBlock()->getParent();
+                llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(
+                    context_, "enum.drop.merge", currentFn);
+                
+                // (AR) الافتراضي = القفز للنهاية (حالات بدائية لا تحتاج هدم)
+                // (EN) Default = jump to merge (primitive variants need no drop)
+                llvm::SwitchInst* sw = builder.CreateSwitch(disc, mergeBB,
+                    static_cast<unsigned>(var.dropInfo.fieldTypes.size()));
+                
+                // (AR) لكل حالة تعداد — فحص إذا تحتاج drop
+                // (EN) For each enum variant — check if it needs drop
+                for (size_t vi = 0; vi < var.dropInfo.fieldTypes.size(); ++vi) {
+                    const DropTypeInfo& vInfo = var.dropInfo.fieldTypes[vi];
+                    if (vInfo.isPrimitive()) continue;  // لا تحتاج هدم
+                    
+                    llvm::BasicBlock* caseBB = llvm::BasicBlock::Create(
+                        context_, "enum.drop.case." + std::to_string(vi), currentFn);
+                    sw->addCase(
+                        llvm::ConstantInt::get(llvm::Type::getInt32Ty(context_), vi),
+                        caseBB);
+                    
+                    builder.SetInsertPoint(caseBB);
+                    std::string variantDropName = getDropFunctionName(vInfo.typeName);
+                    llvm::Function* variantDropFn = module_.getFunction(variantDropName);
+                    if (variantDropFn) {
+                        builder.CreateCall(variantDropFn, {var.alloca});
+                    }
+                    builder.CreateBr(mergeBB);
+                }
+                
+                builder.SetInsertPoint(mergeBB);
+            } else {
+                // (AR) fallback: استدعاء drop عام بدون تمييز
+                // (EN) Fallback: call generic drop without discriminant check
+                std::string dropFnName = getDropFunctionName(var.dropInfo.typeName);
+                llvm::Function* dropFn = module_.getFunction(dropFnName);
+                if (dropFn) {
+                    builder.CreateCall(dropFn, {var.alloca});
+                }
             }
             break;
         }

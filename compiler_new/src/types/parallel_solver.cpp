@@ -287,24 +287,30 @@ std::shared_ptr<Substitution> ParallelConstraintSolver::mergeSubstitutions(
 bool ParallelConstraintSolver::checkConflicts(
     const std::vector<std::shared_ptr<Substitution>>& substitutions) {
     
-    // التحقق من عدم وجود تعيينات متعارضة لنفس المتغير
-    // TODO: تنفيذ التحقق من التعارضات عندما تصبح getMappings() متاحة
-    // std::unordered_map<size_t, TypePtr> allMappings;
-    // 
-    // for (const auto& subst : substitutions) {
-    //     for (const auto& [varId, type] : subst->getMappings()) {
-    //         auto it = allMappings.find(varId);
-    //         if (it != allMappings.end()) {
-    //             // تحقق من التطابق
-    //             if (!it->second->equals(type.get())) {
-    //                 // تعارض: نفس المتغير له قيمتان مختلفتان
-    //                 return false;
-    //             }
-    //         } else {
-    //             allMappings[varId] = type;
-    //         }
-    //     }
-    // }
+    // (AR) التحقق من عدم وجود تعيينات متعارضة لنفس المتغير
+    // (EN) Check that no variable has conflicting assignments
+    std::unordered_map<std::string, TypePtr> allMappings;
+    
+    for (const auto& subst : substitutions) {
+        if (!subst) continue;
+        for (const auto& varName : subst->getVariableNames()) {
+            auto type = subst->lookup(varName);
+            if (!type) continue;
+            
+            auto it = allMappings.find(varName);
+            if (it != allMappings.end()) {
+                // (AR) تحقق من التطابق — نفس المتغير يجب أن يحصل على نفس النوع
+                // (EN) Check match — same variable must get same type
+                if (it->second && !it->second->equals(type.get())) {
+                    // (AR) تعارض: نفس المتغير له قيمتان مختلفتان
+                    // (EN) Conflict: same variable has two different types
+                    return false;
+                }
+            } else {
+                allMappings[varName] = type;
+            }
+        }
+    }
     
     return true;
 }

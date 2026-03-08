@@ -92,6 +92,10 @@ add_library(sad_lsp_engine STATIC
     # مساعد إعادة الهيكلة الذكي
     # يوفر عمليات إعادة هيكلة آمنة وذكية
     src/providers/refactoring_provider.cpp
+    
+    # كاشف المشاكل المعروفة
+    # يحذر المبرمجين من الأنماط التي تسبب مشاكل موثقة
+    src/providers/known_issues_detector.cpp
 
     # أدوات مساعدة عربية
     src/utils/arabic_utils.cpp
@@ -106,11 +110,13 @@ target_include_directories(sad_lsp_engine PUBLIC
     ${CMAKE_SOURCE_DIR}/shared/types/include
     ${CMAKE_SOURCE_DIR}/shared/utils/include
     ${CMAKE_SOURCE_DIR}/shared/errors/include
+    ${CMAKE_SOURCE_DIR}/compiler_new/include
     ${CMAKE_SOURCE_DIR}/include
 )
 
 target_link_libraries(sad_lsp_engine PUBLIC
     sad_core
+    sad_formatter
 )
 
 target_compile_features(sad_lsp_engine PUBLIC cxx_std_17)

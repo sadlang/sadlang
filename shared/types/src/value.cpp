@@ -136,6 +136,19 @@ Value::Value(MapType&& val)
 Value::Value(ObjectPtr obj) 
     : type_(ValueType::OBJECT), data_(std::move(obj)) {}
 
+// ════════════════════════════════════════════════════════════════════════
+// (AR) منشئ مرجع الدالة — يُنشئ قيمة من نوع FUNCTION تحمل مؤشراً مشتركاً
+//      لبنية FunctionRef. يسمح بتمريرها كقيم من الدرجة الأولى
+//
+// (EN) Function reference constructor — creates a FUNCTION value holding
+//      a shared_ptr to FunctionRef struct. Enables first-class functions
+// ════════════════════════════════════════════════════════════════════════
+Value::Value(FunctionRefPtr funcRef) 
+    : type_(ValueType::FUNCTION), data_(std::move(funcRef)) {}
+
+Value::Value(const FunctionRef& funcRef) 
+    : type_(ValueType::FUNCTION), data_(std::make_shared<FunctionRef>(funcRef)) {}
+
 // ========================================
 // Clone / النسخ العميق
 // ========================================
@@ -169,6 +182,17 @@ Value Value::clone() const {
                     newObj->baseInstance->isConstructed = srcPtr->baseInstance->isConstructed;
                 }
                 return Value(std::move(newObj));
+            }
+            return *this;
+        }
+        case ValueType::FUNCTION: {
+            // (AR) نسخ ضحل لمرجع الدالة — نفس FunctionRef (مشترك)
+            // (EN) Shallow copy for function reference — same FunctionRef (shared)
+            auto srcRef = std::get<std::shared_ptr<FunctionRef>>(data_);
+            if (srcRef) {
+                // (AR) نسخ عميق — FunctionRef جديد بنفس المحتوى
+                // (EN) Deep copy — new FunctionRef with same content
+                return Value(std::make_shared<FunctionRef>(*srcRef));
             }
             return *this;
         }
@@ -310,6 +334,16 @@ std::string Value::toString() const {
             return "كائن_فارغ";  // null object
         }
         
+        case ValueType::FUNCTION: {
+            // (AR) تحويل مرجع الدالة إلى نص — يستخدم toString() من FunctionRef
+            // (EN) Convert function reference to string — uses toString() from FunctionRef
+            const auto& funcPtr = std::get<std::shared_ptr<FunctionRef>>(data_);
+            if (funcPtr) {
+                return funcPtr->toString();
+            }
+            return "<دالة:مجهولة>";  // null function ref
+        }
+        
         case ValueType::VOID:
             return "void";
     }
@@ -342,6 +376,11 @@ bool Value::toBool() const {
             const auto& objPtr = std::get<std::shared_ptr<ObjectInstance>>(data_);
             return objPtr != nullptr;
         }
+        
+        case ValueType::FUNCTION:
+            // (AR) مرجع الدالة دائماً صحيح (مثل Python — bool(func) = True)
+            // (EN) Function reference is always truthy (like Python — bool(func) = True)
+            return true;
         
         case ValueType::VOID:
             return false;
@@ -499,6 +538,57 @@ bool Value::isObjectLike() const {
         const auto& map = *std::get<std::shared_ptr<MapType>>(data_);
         return map.find("__class__") != map.end();
     }
+    return false;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// (AR) دالة toFunction — الحصول على مرجع الدالة
+//      يجب أن تكون القيمة من نوع FUNCTION
+//
+// (EN) toFunction — get the function reference pointer
+//      Value must be of FUNCTION type
+// ════════════════════════════════════════════════════════════════════════
+Value::FunctionRefPtr Value::toFunction() const {
+    if (type_ == ValueType::FUNCTION) {
+        return std::get<std::shared_ptr<FunctionRef>>(data_);
+    }
+    throwInvalidType("toFunction - القيمة ليست دالة / value is not a function");
+    return nullptr;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// (AR) دالة getFunctionName — الحصول على اسم الدالة المسجل
+//      تعمل مع FUNCTION (registeredName) وSTRING (النص نفسه)
+//
+// (EN) getFunctionName — get the registered function name
+//      Works with FUNCTION (registeredName) and STRING (the string itself)
+// ════════════════════════════════════════════════════════════════════════
+std::string Value::getFunctionName() const {
+    if (type_ == ValueType::FUNCTION) {
+        const auto& funcPtr = std::get<std::shared_ptr<FunctionRef>>(data_);
+        if (funcPtr) {
+            return funcPtr->registeredName;
+        }
+        return "";
+    }
+    if (type_ == ValueType::STRING) {
+        return std::get<std::string>(data_);
+    }
+    throwInvalidType("getFunctionName - القيمة ليست دالة أو نص / value is not a function or string");
+    return "";
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// (AR) دالة isCallable — هل القيمة قابلة للاستدعاء كدالة؟
+//      تشمل: FUNCTION + STRING (للتوافق) + OBJECT مع __call__
+//
+// (EN) isCallable — is the value callable as a function?
+//      Includes: FUNCTION + STRING (backward compat) + OBJECT with __call__
+// ════════════════════════════════════════════════════════════════════════
+bool Value::isCallable() const {
+    if (type_ == ValueType::FUNCTION) return true;
+    if (type_ == ValueType::STRING) return true;  // (AR) للتوافق — قد يحمل اسم دالة
+    if (type_ == ValueType::OBJECT) return true;   // (AR) قد يملك __call__
     return false;
 }
 
@@ -782,6 +872,17 @@ Value Value::operator==(const Value& other) const {
             return Value(obj1.get() == obj2.get());
         }
         
+        case ValueType::FUNCTION: {
+            // (AR) مقارنة مراجع الدوال: بالاسم المسجل ونوع الدالة
+            // (EN) Function reference comparison: by registered name and kind
+            const auto& f1 = std::get<std::shared_ptr<FunctionRef>>(data_);
+            const auto& f2 = std::get<std::shared_ptr<FunctionRef>>(other.data_);
+            if (f1 && f2) {
+                return Value(*f1 == *f2);
+            }
+            return Value(f1.get() == f2.get());
+        }
+        
         default:
             break;
     }
@@ -950,6 +1051,15 @@ std::string Value::getTypeName() const {
                 return "OBJECT:" + objPtr->getClassName();
             }
             return "OBJECT";
+        }
+        case ValueType::FUNCTION: {
+            // (AR) للدوال: نُرجع "FUNCTION:نوع_الدالة" للتوضيح
+            // (EN) For functions: return "FUNCTION:kind" for clarity
+            const auto& funcPtr = std::get<std::shared_ptr<FunctionRef>>(data_);
+            if (funcPtr) {
+                return "FUNCTION:" + funcPtr->getKindNameEn();
+            }
+            return "FUNCTION";
         }
     }
     return "UNKNOWN";

@@ -11,8 +11,9 @@
 
 #include "widget.h"  // الفئة الأساسية / Base class
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // ============================================================================
         // PanelLayout - نوع التخطيط
@@ -90,7 +91,8 @@ namespace Graphics {
             void ApplyGridLayout();          // تطبيق التخطيط الشبكي / Apply grid layout
         };
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad
 
 #endif // GRAPHICS_UI_PANEL_H

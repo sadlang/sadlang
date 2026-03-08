@@ -550,6 +550,7 @@ extern "C" {
         size_t line,
         size_t column
     ) {
+        if (!system) return false;
         auto* s = static_cast<CascadePreventionSystem*>(system);
         ErrorLocation loc;
         loc.filename = filename ? filename : "";
@@ -567,7 +568,8 @@ extern "C" {
      * 📝 تقرير
      */
     const char* sad_cascade_report(void* system) {
-        static std::string result;
+        if (!system) return "";
+        thread_local std::string result;
         result = static_cast<CascadePreventionSystem*>(system)->formatReport(false);
         return result.c_str();
     }
@@ -576,6 +578,7 @@ extern "C" {
      * 🧹 مسح
      */
     void sad_cascade_clear(void* system) {
+        if (!system) return;
         static_cast<CascadePreventionSystem*>(system)->clear();
     }
 }

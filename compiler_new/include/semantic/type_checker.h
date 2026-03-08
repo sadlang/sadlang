@@ -90,6 +90,7 @@ struct TypeCheckResult {
     size_t totalInferred = 0;
     std::vector<TypeCheckError> errors;
     std::vector<std::string> warnings;
+    std::vector<std::string> moduleDependencies;  // اعتماديات الوحدات المستوردة
     
     void addError(const TypeCheckError& error) {
         errors.push_back(error);

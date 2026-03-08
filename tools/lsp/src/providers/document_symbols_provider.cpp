@@ -42,6 +42,8 @@ static SymbolKind analyzed_to_symbol_kind(AnalyzedSymbolKind kind) {
 }
 
 /// ترتيب الأولوية حسب نوع الرمز
+/// @note يُستخدم لترتيب الرموز في عرض المخطط (مستقبلاً)
+[[maybe_unused]]
 static int symbol_sort_priority(AnalyzedSymbolKind kind) {
     switch (kind) {
         case AnalyzedSymbolKind::Import:      return 0; // الاستيرادات أولاً

@@ -661,7 +661,7 @@ void* sad_create_function_decl(void* factory, const char* name) {
 const char* sad_ast_node_to_string(void* node) {
     if (!node) return "";
     auto* ptr = static_cast<ASTNodePtr*>(node);
-    static std::string result;  // للحفاظ على الذاكرة
+    thread_local std::string result;
     result = (*ptr)->toString();
     return result.c_str();
 }

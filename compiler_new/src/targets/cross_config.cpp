@@ -590,6 +590,14 @@ void TargetConfig::applyDefaults() {
             break;
             
         default:
+            // (AR) نوع toolchain غير معروف — تحذير مع استخدام أسماء أدوات عامة
+            // (EN) Unknown toolchain type — warn and use generic tool names
+            std::cerr << "[sadc تحذير] نوع toolchain غير معالج: "
+                      << static_cast<int>(toolchain.type)
+                      << " — استخدام أسماء أدوات افتراضية" << std::endl;
+            if (toolchain.cc.empty()) toolchain.cc = "cc";
+            if (toolchain.cxx.empty()) toolchain.cxx = "c++";
+            if (toolchain.ar.empty()) toolchain.ar = "ar";
             break;
     }
 }

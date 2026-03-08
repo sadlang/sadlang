@@ -1,0 +1,226 @@
+#!/usr/bin/env pwsh
+# بسم الله الرحمن الرحيم
+# ═══════════════════════════════════════════════════════════════════════
+# سكريبت إعداد إصدار جديد — لغة ص
+# Create New Release — Sad Programming Language
+# ═══════════════════════════════════════════════════════════════════════
+#
+# الاستخدام:
+#   .\create-release.ps1 -Version "2.0.0"
+#   .\create-release.ps1 -Version "2.0.0" -Release
+#   .\create-release.ps1 -Version "2.0.0" -Push
+# ═══════════════════════════════════════════════════════════════════════
+
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$Version,
+    
+    [switch]$Release,
+    [switch]$Push,
+    [switch]$DryRun
+)
+
+$ErrorActionPreference = "Stop"
+$ScriptDir = $PSScriptRoot
+$RepoRoot = Split-Path $ScriptDir -Parent
+
+# الألوان
+function Write-Banner {
+    Write-Host ""
+    Write-Host "  ╔═══════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+    Write-Host "  ║        لغة ص — إنشاء الإصدار v$Version                   ║" -ForegroundColor Cyan
+    Write-Host "  ║        Sad Language — Release Builder                     ║" -ForegroundColor Cyan
+    Write-Host "  ╚═══════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+function Write-Step  { param($m) Write-Host "  [>>] " -ForegroundColor Blue   -NoNewline; Write-Host $m }
+function Write-OK    { param($m) Write-Host "  [✓]  " -ForegroundColor Green  -NoNewline; Write-Host $m }
+function Write-Warn  { param($m) Write-Host "  [!]  " -ForegroundColor Yellow -NoNewline; Write-Host $m }
+function Write-Error2{ param($m) Write-Host "  [X]  " -ForegroundColor Red    -NoNewline; Write-Host $m }
+
+Write-Banner
+
+# ═══════════════════════════════════════════════════════════════════════
+#  الخطوة 1: تحديث رقم الإصدار في الملفات
+# ═══════════════════════════════════════════════════════════════════════
+
+Write-Step "تحديث أرقام الإصدار..."
+
+# CMakeLists.txt
+$cmakePath = Join-Path $RepoRoot "CMakeLists.txt"
+if (Test-Path $cmakePath) {
+    $content = Get-Content $cmakePath -Raw
+    $content = $content -replace 'project\(SadLanguage VERSION \d+\.\d+\.\d+', "project(SadLanguage VERSION $Version"
+    if (-not $DryRun) {
+        Set-Content $cmakePath $content -Encoding UTF8
+    }
+    Write-OK "CMakeLists.txt"
+}
+
+# CHANGELOG.md — إضافة قسم جديد
+$changelogPath = Join-Path $RepoRoot "CHANGELOG.md"
+if (Test-Path $changelogPath) {
+    $date = Get-Date -Format "yyyy-MM-dd"
+    $newSection = @"
+
+## [$Version] - $date
+
+### أضيف (Added)
+- دعم Android SDK كامل (35+ ملف Kotlin/JNI)
+- مكونات: NFC, HealthConnect, Maps, Billing, Firebase, WorkManager, Bluetooth
+- واجهة Compose UI مع محرر كود ومحطة REPL
+
+### تحسينات (Changed)
+- تحسين أداء المفسر
+- تحديث نظام الأنواع
+
+### إصلاحات (Fixed)
+- إصلاحات متعددة للثبات
+
+"@
+    $content = Get-Content $changelogPath -Raw
+    $content = $content -replace '(# Changelog\s*)', "`$1$newSection"
+    if (-not $DryRun) {
+        Set-Content $changelogPath $content -Encoding UTF8
+    }
+    Write-OK "CHANGELOG.md"
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+#  الخطوة 2: البناء
+# ═══════════════════════════════════════════════════════════════════════
+
+Write-Step "بناء المشروع (Release)..."
+
+if (-not $DryRun) {
+    $BuildDir = Join-Path $RepoRoot "build"
+    
+    # Configure if needed
+    if (-not (Test-Path (Join-Path $BuildDir "CMakeCache.txt"))) {
+        cmake -S $RepoRoot -B $BuildDir
+    }
+    
+    # Build Release
+    cmake --build $BuildDir --config Release --target sad
+    cmake --build $BuildDir --config Release --target sad-lsp
+    cmake --build $BuildDir --config Release --target sad-pkg
+    cmake --build $BuildDir --config Release --target sad-fmt
+}
+
+Write-OK "البناء مكتمل"
+
+# ═══════════════════════════════════════════════════════════════════════
+#  الخطوة 3: إنشاء حزمة التوزيع
+# ═══════════════════════════════════════════════════════════════════════
+
+Write-Step "إنشاء حزمة التوزيع..."
+
+$DistDir = Join-Path $ScriptDir "output"
+$PackageDir = Join-Path $DistDir "sad-v$Version-windows-x86_64"
+$ZipPath = "$PackageDir.zip"
+
+if (-not $DryRun) {
+    # إنشاء مجلد الحزمة
+    New-Item -ItemType Directory -Path $PackageDir -Force | Out-Null
+    
+    $BinDir = Join-Path $RepoRoot "build\bin\Release"
+    
+    # نسخ الملفات التنفيذية
+    Copy-Item (Join-Path $BinDir "sad.exe") $PackageDir -Force
+    if (Test-Path (Join-Path $BinDir "sad-lsp.exe")) {
+        Copy-Item (Join-Path $BinDir "sad-lsp.exe") $PackageDir -Force
+    }
+    if (Test-Path (Join-Path $BinDir "sad-pkg.exe")) {
+        Copy-Item (Join-Path $BinDir "sad-pkg.exe") $PackageDir -Force
+    }
+    if (Test-Path (Join-Path $BinDir "sad-fmt.exe")) {
+        Copy-Item (Join-Path $BinDir "sad-fmt.exe") $PackageDir -Force
+    }
+    
+    # نسخ DLLs
+    Get-ChildItem (Join-Path $BinDir "*.dll") | ForEach-Object {
+        Copy-Item $_.FullName $PackageDir -Force
+    }
+    
+    # نسخ المكتبة القياسية
+    $StdlibSrc = Join-Path $RepoRoot "stdlib"
+    $StdlibDst = Join-Path $PackageDir "stdlib"
+    if (Test-Path $StdlibSrc) {
+        Copy-Item $StdlibSrc $StdlibDst -Recurse -Force
+    }
+    
+    # نسخ الأمثلة
+    $ExamplesSrc = Join-Path $RepoRoot "examples"
+    $ExamplesDst = Join-Path $PackageDir "examples"
+    if (Test-Path $ExamplesSrc) {
+        Copy-Item $ExamplesSrc $ExamplesDst -Recurse -Force
+    }
+    
+    # نسخ الوثائق
+    Copy-Item (Join-Path $RepoRoot "README.md") $PackageDir -Force
+    Copy-Item (Join-Path $RepoRoot "LICENSE") $PackageDir -Force
+    
+    # إنشاء ملف الإصدار
+    @{
+        version = $Version
+        date = (Get-Date -Format "yyyy-MM-dd")
+        platform = "windows-x86_64"
+        components = @("sad", "sad-lsp", "sad-pkg", "sad-fmt", "stdlib")
+    } | ConvertTo-Json | Set-Content (Join-Path $PackageDir "version.json") -Encoding UTF8
+    
+    # ضغط الملفات
+    Compress-Archive -Path $PackageDir -DestinationPath $ZipPath -Force
+    
+    # حساب SHA256
+    $hash = (Get-FileHash $ZipPath -Algorithm SHA256).Hash.ToLower()
+    Set-Content "$ZipPath.sha256" "$hash  sad-v$Version-windows-x86_64.zip" -Encoding ASCII
+}
+
+Write-OK "الحزمة: $ZipPath"
+
+# ═══════════════════════════════════════════════════════════════════════
+#  الخطوة 4: إنشاء Git Tag (اختياري)
+# ═══════════════════════════════════════════════════════════════════════
+
+if ($Release) {
+    Write-Step "إنشاء Git Tag..."
+    
+    if (-not $DryRun) {
+        Set-Location $RepoRoot
+        git add -A
+        git commit -m "Release v$Version"
+        git tag -a "v$Version" -m "Sad Language v$Version"
+        
+        if ($Push) {
+            Write-Step "رفع إلى GitHub..."
+            git push origin main
+            git push origin "v$Version"
+            Write-OK "تم الرفع"
+        }
+    }
+    
+    Write-OK "Git Tag: v$Version"
+}
+
+# ═══════════════════════════════════════════════════════════════════════
+#  ملخص
+# ═══════════════════════════════════════════════════════════════════════
+
+Write-Host ""
+Write-Host "  ═══════════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "  ✓ الإصدار v$Version جاهز للنشر!" -ForegroundColor Green
+Write-Host "  ═══════════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host ""
+Write-Host "  الملفات المُنشأة:" -ForegroundColor White
+Write-Host "    • $ZipPath" -ForegroundColor DarkGray
+Write-Host "    • $ZipPath.sha256" -ForegroundColor DarkGray
+Write-Host ""
+
+if (-not $Release) {
+    Write-Host "  للنشر الرسمي:" -ForegroundColor Yellow
+    Write-Host "    .\create-release.ps1 -Version $Version -Release -Push" -ForegroundColor Cyan
+}
+
+Write-Host ""

@@ -61,6 +61,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <iostream>
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
@@ -762,6 +763,11 @@ public:
                 break;
                 
             default:
+                // (AR) نوع حالة غير متزامنة غير معروف — تحذير + انتقال لحالة النهاية
+                // (EN) Unknown async state kind — warn + transition to end state
+                std::cerr << "[sadc تحذير] نوع حالة async غير معالج: "
+                          << static_cast<int>(state.kind) << std::endl;
+                generateReadyReturn(body.get());
                 break;
         }
         

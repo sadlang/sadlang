@@ -1,0 +1,41 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# ملف: .github/dependabot.yml
+# الوصف: إعدادات Dependabot لتحديث التبعيات تلقائياً
+# المسؤول: عمر — مهندس الأدوات والبنية التحتية
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Dependabot يفحص تبعيات المشروع أسبوعياً ويفتح Pull Requests تلقائياً
+# عند وجود تحديثات أمنية أو إصدارات جديدة.
+#
+# النطاقات المراقبة:
+#   1. GitHub Actions — تحديث الإجراءات المستخدمة في CI/CD
+#   2. npm — تحديث تبعيات موقع الويب (website/)
+#   3. pip — تحديث تبعيات السكريبتات (scripts/)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+version: 2
+
+updates:
+  # ──── تحديث إجراءات GitHub Actions ────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci"
+
+  # ──── تحديث تبعيات npm (الموقع) ────
+  - package-ecosystem: "npm"
+    directory: "/website"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+    labels:
+      - "dependencies"
+      - "website"
+    commit-message:
+      prefix: "deps"

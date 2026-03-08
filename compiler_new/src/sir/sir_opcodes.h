@@ -300,7 +300,16 @@ enum class Opcode {
     
     // --- الذاكرة الافتراضية (Virtual Memory) ---
     Invlpg,         // إبطال صفحة TLB: Invlpg(%addr)
-    Invpcid         // إبطال PCID: Invpcid(%type, %desc)
+    Invpcid,        // إبطال PCID: Invpcid(%type, %desc)
+    
+    // ═══════════════════════════════════════════════════════════════
+    // عمليات الوحدات (Module Operations)
+    // ═══════════════════════════════════════════════════════════════
+    
+    ModuleLoad,     // تحميل وحدة: %m = ModuleLoad("مسار")
+    ModuleSymbol,   // استيراد رمز: %s = ModuleSymbol(%m, "اسم")
+    ModuleExport,   // تصدير رمز: ModuleExport("اسم", %v)
+    ModuleInit      // تهيئة وحدة: ModuleInit(%m)
 };
 
 // =============================================================================

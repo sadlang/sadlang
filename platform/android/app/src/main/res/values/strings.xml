@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- بسم الله الرحمن الرحيم -->
+<resources>
+    <string name="app_name">ملاحظاتي</string>
+    <string name="app_name_en">My Notes</string>
+    
+    <!-- الملاحظات -->
+    <string name="note_title_hint">العنوان</string>
+    <string name="note_content_hint">اكتب ملاحظتك هنا...</string>
+    <string name="new_note">ملاحظة جديدة</string>
+    <string name="edit_note">تحرير الملاحظة</string>
+    <string name="delete_note">حذف</string>
+    <string name="pin_note">تثبيت</string>
+    <string name="unpin_note">إلغاء التثبيت</string>
+    <string name="share_note">مشاركة</string>
+    <string name="restore_note">استعادة</string>
+    
+    <!-- التبويبات -->
+    <string name="tab_all">الكل</string>
+    <string name="tab_pinned">مثبتة</string>
+    <string name="tab_trash">محذوفة</string>
+    
+    <!-- البحث -->
+    <string name="search_hint">ابحث في الملاحظات...</string>
+    
+    <!-- الحالات الفارغة -->
+    <string name="empty_notes">لا توجد ملاحظات\nاضغط + لإضافة ملاحظة جديدة</string>
+    <string name="empty_pinned">لا توجد ملاحظات مثبتة</string>
+    <string name="empty_trash">سلة المحذوفات فارغة</string>
+    
+    <!-- الأزرار -->
+    <string name="save">حفظ</string>
+    <string name="cancel">إلغاء</string>
+    <string name="discard">تجاهل</string>
+    
+    <!-- الحوارات -->
+    <string name="discard_changes_title">تجاهل التغييرات؟</string>
+    <string name="discard_changes_message">لديك تغييرات غير محفوظة. هل تريد تجاهلها؟</string>
+    <string name="delete_confirm_title">حذف الملاحظة؟</string>
+    <string name="delete_confirm_message">هل تريد حذف هذه الملاحظة؟</string>
+    
+    <!-- الألوان -->
+    <string name="change_color">تغيير اللون</string>
+    <string name="color_yellow">أصفر</string>
+    <string name="color_orange">برتقالي</string>
+    <string name="color_red">أحمر</string>
+    <string name="color_pink">وردي</string>
+    <string name="color_purple">بنفسجي</string>
+    <string name="color_blue">أزرق</string>
+    <string name="color_lightblue">أزرق فاتح</string>
+    <string name="color_green">أخضر</string>
+    <string name="color_gray">رمادي</string>
+    
+    <!-- الإعدادات -->
+    <string name="settings">الإعدادات</string>
+    <string name="dark_mode">الوضع الداكن</string>
+    <string name="language">اللغة</string>
+    <string name="about">حول التطبيق</string>
+    <string name="version">النسخة</string>
+</resources>

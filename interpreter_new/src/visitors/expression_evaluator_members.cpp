@@ -919,11 +919,20 @@ void ExpressionEvaluator::visitLambdaExpr(LambdaExpr& node) {
         }
     }
     
-    // (AR) إرجاع اسم الدالة كقيمة String
-    // (EN) Return function name as String value
-    // Note: في المستقبل، يمكن إضافة نوع FUNCTION إلى Value
-    // Note: In future, we can add FUNCTION type to Value
-    lastResult_ = Value(lambdaName);
+    // (AR) إرجاع مرجع الدالة كقيمة من نوع FUNCTION
+    // (EN) Return function reference as FUNCTION type value
+    auto funcRef = std::make_shared<Data::FunctionRef>(
+        lambdaName,                        // displayName  
+        lambdaName,                        // registeredName
+        Data::FunctionRefKind::LAMBDA,     // kind
+        static_cast<int>(params.size()),   // arity
+        std::vector<std::string>()         // parameterNames (filled below)
+    );
+    // (AR) ملء أسماء المعاملات / (EN) Fill parameter names
+    for (const auto& p : params) {
+        funcRef->parameterNames.push_back(p.name);
+    }
+    lastResult_ = Value(std::move(funcRef));
 }
 
 // =========================================================================

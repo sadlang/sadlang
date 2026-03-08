@@ -1002,6 +1002,85 @@ void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
                           << " is LiteralPattern(" << litValue << ")" << std::endl;
                 #endif
             }
+            else if (auto* rangePat = dynamic_cast<const Sad::AST::RangePattern*>(caseClause.pattern.get())) {
+                // (AR) نمط نطاق: start..end أو start..=end
+                // (EN) Range pattern: start..end or start..=end
+                condReg = newTempRegister();
+
+                if (matchValueType != SIRType::I64 && matchValueType != SIRType::F64) {
+                    // (AR) نطاق على نوع غير رقمي: فشل آمن + تشخيص واضح
+                    // (EN) Range on non-numeric value: safe fail + clear diagnostic
+                    SIROperand resultOp = SIROperand::Register(condReg, SIRType::BOOL);
+                    SIRInstruction moveFalse(SIROpcode::MOVE);
+                    moveFalse.result = resultOp;
+                    moveFalse.operands = {SIROperand::ConstantBool(false)};
+                    currentBlock_->instructions.push_back(moveFalse);
+
+                    errors_.push_back("Error: Range pattern requires numeric match value");
+                } else {
+                    SIRType boundType = matchValueType;
+
+                    std::string startReg = newTempRegister();
+                    std::string endReg = newTempRegister();
+
+                    SIROperand startResultOp = SIROperand::Register(startReg, boundType);
+                    SIROperand endResultOp = SIROperand::Register(endReg, boundType);
+
+                    SIROperand startConstOp;
+                    SIROperand endConstOp;
+
+                    if (boundType == SIRType::F64) {
+                        startConstOp = SIROperand::ConstantF64(rangePat->start.toDouble());
+                        endConstOp = SIROperand::ConstantF64(rangePat->end.toDouble());
+                    } else {
+                        startConstOp = SIROperand::ConstantI64(rangePat->start.toInt());
+                        endConstOp = SIROperand::ConstantI64(rangePat->end.toInt());
+                    }
+
+                    SIRInstruction moveStart(SIROpcode::MOVE);
+                    moveStart.result = startResultOp;
+                    moveStart.operands = {startConstOp};
+                    currentBlock_->instructions.push_back(moveStart);
+
+                    SIRInstruction moveEnd(SIROpcode::MOVE);
+                    moveEnd.result = endResultOp;
+                    moveEnd.operands = {endConstOp};
+                    currentBlock_->instructions.push_back(moveEnd);
+
+                    std::string lowerReg = newTempRegister();
+                    std::string upperReg = newTempRegister();
+
+                    SIROperand matchOp = SIROperand::Register(matchValueReg, matchValueType);
+                    SIROperand lowerResultOp = SIROperand::Register(lowerReg, SIRType::BOOL);
+                    SIROperand upperResultOp = SIROperand::Register(upperReg, SIRType::BOOL);
+
+                    SIRInstruction lowerCmp = SIRInstruction::Binary(
+                        SIROpcode::GE,
+                        lowerResultOp,
+                        matchOp,
+                        SIROperand::Register(startReg, boundType));
+                    currentBlock_->instructions.push_back(lowerCmp);
+
+                    SIRInstruction upperCmp = SIRInstruction::Binary(
+                        rangePat->inclusive ? SIROpcode::LE : SIROpcode::LT,
+                        upperResultOp,
+                        matchOp,
+                        SIROperand::Register(endReg, boundType));
+                    currentBlock_->instructions.push_back(upperCmp);
+
+                    SIRInstruction andCmp = SIRInstruction::Binary(
+                        SIROpcode::AND,
+                        SIROperand::Register(condReg, SIRType::BOOL),
+                        SIROperand::Register(lowerReg, SIRType::BOOL),
+                        SIROperand::Register(upperReg, SIRType::BOOL));
+                    currentBlock_->instructions.push_back(andCmp);
+                }
+
+                #ifndef NDEBUG
+                std::cout << "[DEBUG] buildMatchStatement: case " << i
+                          << " is RangePattern(" << rangePat->toString() << ")" << std::endl;
+                #endif
+            }
             else if (auto* orPat = dynamic_cast<const Sad::AST::OrPattern*>(caseClause.pattern.get())) {
                 // (AR) نمط OR - سلسلة مقارنات مع OR
                 // (EN) OR pattern - chain comparisons with OR
@@ -1102,18 +1181,20 @@ void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt* matchStmt) {
                 #endif
             }
             else {
-                // (AR) نمط غير معروف - نعتبره true (يطابق أي شيء)
-                // (EN) Unknown pattern - treat as true (matches anything)
+                // (AR) نمط غير مدعوم - فشل آمن مع تشخيص واضح
+                // (EN) Unsupported pattern - safe failure with explicit diagnostic
                 condReg = newTempRegister();
                 SIROperand resultOp = SIROperand::Register(condReg, SIRType::BOOL);
-                SIROperand trueOp = SIROperand::ConstantBool(true);
+                SIROperand falseOp = SIROperand::ConstantBool(false);
                 SIRInstruction moveInst(SIROpcode::MOVE);
                 moveInst.result = resultOp;
-                moveInst.operands = {trueOp};
+                moveInst.operands = {falseOp};
                 currentBlock_->instructions.push_back(moveInst);
+
+                errors_.push_back("Error: Unsupported pattern in match: " + caseClause.pattern->toString());
                 
                 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildMatchStatement: case " << i << " is unknown pattern" << std::endl;
+                std::cout << "[DEBUG] buildMatchStatement: case " << i << " is unsupported pattern" << std::endl;
                 #endif
             }
         }   // end if (caseClause.pattern)

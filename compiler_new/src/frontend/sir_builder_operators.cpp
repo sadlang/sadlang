@@ -270,7 +270,10 @@ BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
             case Lexer::TokenType::OP_LESS_EQUAL:    opSafeName = "__op_le__"; break;
             case Lexer::TokenType::OP_GREATER:       opSafeName = "__op_gt__"; break;
             case Lexer::TokenType::OP_GREATER_EQUAL: opSafeName = "__op_ge__"; break;
-            default: break;
+            default:
+                // (AR) عامل غير مدعوم للتحميل الزائد — لن يُبحّث عن operator overload
+                // (EN) Unsupported operator for overloading — no overload lookup
+                break;
         }
         
         if (!opSafeName.empty()) {

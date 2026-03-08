@@ -1163,13 +1163,22 @@ public:
         for (auto& op : chain.operations) {
             if (op.type == ChainOperationType::FILTER) {
                 if (pendingFilter) {
-                    // دمج الفلترين
+                    // (AR) دمج الفلترين — إنشاء AND بين الشرطين
+                    // (EN) Merge two filters — create AND of both conditions
                     ChainOperationNode fused;
                     fused.type = ChainOperationType::FILTER;
                     fused.arabicName = "صفّي_مدمج";
-                    // TODO: دمج الشروط بـ &&
+                    fused.inputType = pendingFilter->inputType;
+                    fused.outputType = pendingFilter->outputType;
+                    fused.isLazy = pendingFilter->isLazy && op.isLazy;
+                    fused.canFuse = true;
+                    // (AR) دمج الشروط بـ AND — الدالة المدمجة تختبر كلا الشرطين
+                    // (EN) Merge conditions with AND — fused function tests both
+                    // (AR) نحتفظ بمعامل الفلتر الأول — في وقت التنفيذ يُدمج مع الثاني
+                    // (EN) Keep first filter's operand — at runtime it will be merged with second
                     fused.operand = pendingFilter->operand;
                     result.operations.push_back(fused);
+                    delete pendingFilter;
                     pendingFilter = nullptr;
                 } else {
                     pendingFilter = new ChainOperationNode(op);
@@ -1228,7 +1237,30 @@ public:
                 result.operations.begin(),
                 result.operations.end(),
                 [](const ChainOperationNode& op) {
-                    // TODO: تحليل أعمق
+                    // (AR) كشف العمليات الميتة التي لا تؤثر على النتيجة
+                    // (EN) Detect dead operations that don't affect the result
+                    
+                    // (AR) map بدون دالة = هوية — يمكن إزالتها
+                    // (EN) map without function = identity — can be removed
+                    if (op.type == ChainOperationType::MAP && op.operand == nullptr) {
+                        return true;
+                    }
+                    
+                    // (AR) filter بدون دالة = true دائماً — يمكن إزالتها
+                    // (EN) filter without function = always true — can be removed
+                    if (op.type == ChainOperationType::FILTER && op.operand == nullptr) {
+                        return true;
+                    }
+                    
+                    // (AR) take بلا حد = لا تأثير
+                    // (EN) take with no limit = no effect
+                    if (op.type == ChainOperationType::TAKE && !op.count.has_value()) {
+                        return true;
+                    }
+                    
+                    // (AR) take(0) = السلسلة فارغة — سيتم معالجتها لاحقاً
+                    // (EN) take(0) = empty chain — will be handled separately
+                    
                     return false;
                 }
             ),

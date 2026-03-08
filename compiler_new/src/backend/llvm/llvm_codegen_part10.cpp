@@ -67,8 +67,29 @@ llvm::Value* LLVMCodeGen::emitObjectCall(std::shared_ptr<SIRInstruction> inst) {
     auto classIt = context_info_.objectClassMap.find(objRegName);
     std::string className = (classIt != context_info_.objectClassMap.end()) ? classIt->second : "";
     
-    // (AR) البحث عن الدالة في سلسلة الوراثة (الصنف الحالي → الأب → جد الأب ...)
-    // (EN) Search for method in inheritance chain (current → parent → grandparent ...)
+    // (AR) جمع المعاملات الإضافية (بعد object و method_name)
+    // (EN) Collect extra arguments (after object and method_name)
+    std::vector<llvm::Value*> extraArgs;
+    for (size_t i = 2; i < inst->operands.size(); i++) {
+        llvm::Value* arg = resolveOperand(inst->operands[i]);
+        if (arg) extraArgs.push_back(arg);
+    }
+    
+    // (AR) محاولة الاستدعاء الافتراضي عبر vtable أولاً
+    // (EN) Try virtual dispatch via vtable first
+    if (!className.empty() && context_info_.classVtableLayout.count(className)) {
+        llvm::Value* virtualResult = emitVirtualCall(objPtr, className, methodName, extraArgs);
+        if (virtualResult) {
+            if (inst->result.has_value()) {
+                context_info_.namedValues[inst->result->name] = virtualResult;
+            }
+            return virtualResult;
+        }
+        // الدالة ليست في vtable — تابع بالاستدعاء المباشر
+    }
+    
+    // (AR) الاستدعاء المباشر: البحث في سلسلة الوراثة (الصنف الحالي → الأب → جد الأب ...)
+    // (EN) Direct call fallback: search in inheritance chain (current → parent → grandparent ...)
     llvm::Function* method = nullptr;
     std::string searchClass = className;
     while (!searchClass.empty() && !method) {
@@ -99,10 +120,7 @@ llvm::Value* LLVMCodeGen::emitObjectCall(std::shared_ptr<SIRInstruction> inst) {
     // (AR) بناء المعاملات: self + باقي المعاملات
     // (EN) Build args: self + remaining operands
     std::vector<llvm::Value*> args = {objPtr};
-    for (size_t i = 2; i < inst->operands.size(); i++) {
-        llvm::Value* arg = resolveOperand(inst->operands[i]);
-        if (arg) args.push_back(arg);
-    }
+    args.insert(args.end(), extraArgs.begin(), extraArgs.end());
     
     llvm::Value* result = builder_->CreateCall(method, args,
         method->getReturnType()->isVoidTy() ? "" : (methodName + "_result"));
@@ -194,6 +212,13 @@ llvm::Value* LLVMCodeGen::emitConstructorCall(std::shared_ptr<SIRInstruction> in
     
     std::string className = inst->operands[0].name;
     
+    // (AR) فحص الصنف المجرد — لا يمكن إنشاء كائنات منه
+    // (EN) Abstract class check — cannot instantiate abstract classes
+    if (context_info_.abstractClasses.count(className)) {
+        reportError("Cannot instantiate abstract class: " + className);
+        return nullptr;
+    }
+    
     // (AR) إنشاء الكائن أولاً
     // (EN) First, create the object
     auto structIt = context_info_.classStructTypes.find(className);
@@ -240,6 +265,10 @@ llvm::Value* LLVMCodeGen::emitConstructorCall(std::shared_ptr<SIRInstruction> in
         }
         builder_->CreateCall(ctorFunc, args);
     }
+    
+    // (AR) تخزين مؤشر vtable في الحقل 0 (بعد الباني حتى لا يُمسح بالتصفير)
+    // (EN) Store vtable pointer in field 0 (after ctor so memset doesn't clear it)
+    storeVtablePtr(objPtr, className);
     
     // (AR) تتبع ارتباط الصنف
     // (EN) Track class association

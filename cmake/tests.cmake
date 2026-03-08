@@ -349,6 +349,14 @@ if(OPENSSL_FOUND)
         OUTPUT_NAME "crypto_tests" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
 endif()
 
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات الوحدات الإضافية / Additional Module Tests (Sprint 1 — ريم)
+# ──────────────────────────────────────────────────────────────────────
+# ملاحظة: تم نقل الاختبارات إلى tests/comprehensive/ واستخدام sad_test_framework.h
+# بدلاً من GTest. انظر cmake/tests_comprehensive.cmake للتسجيل.
+# Note: Tests moved to tests/comprehensive/ using sad_test_framework.h
+# instead of GTest. See cmake/tests_comprehensive.cmake for registration.
+
 # Type Checker Tests
 if(EXISTS "${CMAKE_SOURCE_DIR}/compiler/frontend/type_checker/tests/CMakeLists.txt")
     add_subdirectory(compiler/frontend/type_checker/tests)

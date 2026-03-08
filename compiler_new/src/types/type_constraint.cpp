@@ -18,6 +18,7 @@
 #include "type_constraint.h"
 #include <sstream>
 #include <algorithm>
+#include <cctype>
 
 namespace Sad {
 namespace TypeSystem {
@@ -221,39 +222,42 @@ bool TypeConstraint::checkSubtypeConstraint(const TypePtr& type) const {
 }
 
 bool TypeConstraint::checkProtocolConstraint(const TypePtr& type) const {
-    // TODO: تنفيذ كامل بعد إضافة نظام الـ protocols
-    // TODO: Full implementation after adding protocols system
-    
-    // مؤقتاً، تحقق من اسم الـ protocol
-    // Temporarily, check protocol name
-    
-    if (!protocolName_.empty()) {
-        // بعض الـ protocols المعروفة
-        // Some known protocols
-        
-        if (protocolName_ == "Comparable" || protocolName_ == "قابل_للمقارنة") {
-            // الأنواع الرقمية و Strings قابلة للمقارنة
-            // Numeric types and Strings are comparable
-            TypeKind kind = type->getKind();
-            return kind == TypeKind::Integer || 
-                   kind == TypeKind::Float || 
-                   kind == TypeKind::String;
-        }
-        
-        if (protocolName_ == "Numeric" || protocolName_ == "رقمي") {
-            TypeKind kind = type->getKind();
-            return kind == TypeKind::Integer || kind == TypeKind::Float;
-        }
-        
-        if (protocolName_ == "Iterable" || protocolName_ == "قابل_للتكرار") {
-            TypeKind kind = type->getKind();
-            return kind == TypeKind::Array || 
-                   kind == TypeKind::String ||
-                   kind == TypeKind::Dictionary;
-        }
+    // تنفيذ عملي: نربط أشهر البروتوكولات بخصائص TypeKind
+    // Practical implementation: map common protocol names to TypeKind capabilities.
+    if (!type) return false;
+
+    std::string proto = protocolName_;
+    std::transform(proto.begin(), proto.end(), proto.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    // إذا وُجد نوع مقيد صريح ضمن القيد، يكفي تحقق subtype
+    if (constraintType_) {
+        return type->isSubtypeOf(constraintType_.get()) || type->equals(constraintType_.get());
     }
     
-    return false;
+    if (proto.empty()) return false;
+
+    const TypeKind kind = type->getKind();
+    if (proto == "comparable" || proto == "قابل_للمقارنة" || proto == "equatable") {
+        return kind == TypeKind::Integer || kind == TypeKind::Float ||
+               kind == TypeKind::String || kind == TypeKind::Boolean;
+    }
+    if (proto == "numeric" || proto == "رقمي") {
+        return kind == TypeKind::Integer || kind == TypeKind::Float;
+    }
+    if (proto == "iterable" || proto == "قابل_للتكرار") {
+        return kind == TypeKind::Array || kind == TypeKind::String ||
+               kind == TypeKind::Dictionary;
+    }
+    if (proto == "hashable" || proto == "قابل_للتجزئة") {
+        return kind == TypeKind::Integer || kind == TypeKind::Float ||
+               kind == TypeKind::Boolean || kind == TypeKind::String;
+    }
+    if (proto == "callable" || proto == "قابل_للاستدعاء") {
+        return kind == TypeKind::Function;
+    }
+
+    return kind == TypeKind::Class || kind == TypeKind::Interface;
 }
 
 bool TypeConstraint::checkSameTypeConstraint(const TypePtr& type, 
@@ -274,25 +278,74 @@ bool TypeConstraint::checkSameTypeConstraint(const TypePtr& type,
 }
 
 bool TypeConstraint::checkConstructorConstraint(const TypePtr& type) const {
-    // TODO: تنفيذ كامل بعد إضافة نظام الأصناف
-    // TODO: Full implementation after adding class system
-    
-    // مؤقتاً، جميع الأنواع لها منشئات افتراضية
-    // Temporarily, all types have default constructors
-    return true;
+    if (!type) return false;
+
+    // الأنواع غير القابلة للإنشاء
+    if (type->getKind() == TypeKind::Never || type->getKind() == TypeKind::Error) {
+        return false;
+    }
+
+    // إن لم يُطلب توقيع منشئ محدد، نعتبر النوع قابلاً للإنشاء
+    if (description_.empty()) return true;
+
+    // دعم أساسي: وصف المنشئ "default" أو "empty" يعني بدون معاملات
+    if (description_ == "default" || description_ == "empty" || description_ == "افتراضي") {
+        return true;
+    }
+
+    // fallback: وجود وصف غير فارغ يعني مطلوب منشئ خاص — ندعم فقط لأنواع class/interface
+    return type->getKind() == TypeKind::Class || type->getKind() == TypeKind::Interface;
 }
 
 bool TypeConstraint::checkMethodConstraint(const TypePtr& type) const {
-    // TODO: تنفيذ كامل بعد إضافة نظام الأصناف
-    // TODO: Full implementation after adding class system
-    
-    return false;
+    if (!type) return false;
+
+    // بدون اسم طريقة: يكفي أن يكون نوعاً كائنياً
+    if (description_.empty()) {
+        return type->getKind() == TypeKind::Class || type->getKind() == TypeKind::Interface;
+    }
+
+    const std::string& m = description_;
+    const TypeKind k = type->getKind();
+
+    // دوال شائعة على النص/المصفوفة/القاموس
+    if ((m == "طول" || m == "length") &&
+        (k == TypeKind::String || k == TypeKind::Array || k == TypeKind::Dictionary)) {
+        return true;
+    }
+    if ((m == "أضف" || m == "push") && k == TypeKind::Array) {
+        return true;
+    }
+    if ((m == "يحتوي" || m == "contains") &&
+        (k == TypeKind::String || k == TypeKind::Array || k == TypeKind::Dictionary)) {
+        return true;
+    }
+
+    // الأصناف والواجهات تعتبر داعمة للطرق من حيث المبدأ
+    return k == TypeKind::Class || k == TypeKind::Interface;
 }
 
 bool TypeConstraint::checkPropertyConstraint(const TypePtr& type) const {
-    // TODO: تنفيذ كامل بعد إضافة نظام الأصناف
-    // TODO: Full implementation after adding class system
-    
+    if (!type) return false;
+
+    if (description_.empty()) {
+        return type->getKind() == TypeKind::Class || type->getKind() == TypeKind::Interface;
+    }
+
+    const std::string& p = description_;
+    const TypeKind k = type->getKind();
+
+    if ((p == "length" || p == "الطول" || p == "size") &&
+        (k == TypeKind::String || k == TypeKind::Array || k == TypeKind::Dictionary)) {
+        return true;
+    }
+
+    // خصائص أسماء/أنواع شائعة في الأنواع الكائنية
+    if ((p == "name" || p == "اسم" || p == "type" || p == "نوع") &&
+        (k == TypeKind::Class || k == TypeKind::Interface)) {
+        return true;
+    }
+
     return false;
 }
 

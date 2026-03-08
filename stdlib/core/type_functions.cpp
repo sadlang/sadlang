@@ -256,6 +256,10 @@ Data::Value TypeFunctions::type(const std::vector<Data::Value>& args) {
         return Data::Value("void");     // يمكن أن يكون "فراغ" أيضاً
     } else if (typeName == "MAP") {
         return Data::Value("map");      // يمكن أن يكون "خريطة" أيضاً
+    } else if (typeName == "OBJECT") {
+        return Data::Value("object");   // يمكن أن يكون "كائن" أيضاً
+    } else if (typeName.rfind("FUNCTION", 0) == 0) {
+        return Data::Value("function"); // يمكن أن يكون "دالة" أيضاً
     }
     
     // نوع غير معروف

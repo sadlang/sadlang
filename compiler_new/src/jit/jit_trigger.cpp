@@ -362,6 +362,11 @@ public:
                     stats.failedFunctions++;
                     break;
                 default:
+                    // (AR) حالة ترجمة غير معروفة — تُحسب ضمن فاشلة مع تحذير
+                    // (EN) Unknown compilation state — counted as failed with warning
+                    stats.failedFunctions++;
+                    std::cerr << "[sadc تحذير] حالة ترجمة JIT غير معروفة: "
+                              << static_cast<int>(info.state) << std::endl;
                     break;
             }
         }
@@ -465,7 +470,13 @@ private:
             case TriggerReason::OSRTrigger: priority += 90; break;
             case TriggerReason::ExecutionCount: priority += 50; break;
             case TriggerReason::TimeThreshold: priority += 40; break;
-            default: break;
+            default:
+                // (AR) سبب تشغيل غير معروف — أولوية معتدلة مع تحذير
+                // (EN) Unknown trigger reason — moderate priority with warning
+                priority += 30;
+                std::cerr << "[sadc تحذير] سبب تشغيل JIT غير معروف: "
+                          << static_cast<int>(reason) << std::endl;
+                break;
         }
         
         // أولوية حسب التنفيذات

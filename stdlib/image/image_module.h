@@ -274,7 +274,7 @@ public:
 // Image Format Detection - اكتشاف صيغة الصورة
 // ============================================================================
 
-class ImageFormat {
+class ImageFormatDetector {
 public:
     static ImageFormat detect(const std::string& filename);
     static ImageFormat from_extension(const std::string& ext);

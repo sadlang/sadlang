@@ -67,6 +67,7 @@ extern void registerBuiltinsPart34(Interpreter& interpreter);
 /* omitted */
 /* omitted */
 extern void registerBuiltinsPart39(Interpreter& interpreter);
+extern void registerBuiltinsPart40(Interpreter& interpreter);
 
 // ═════════════════════════════════════════════════════════════════
 // BuiltinModuleRegistry::loadModule — implemented here because it
@@ -313,6 +314,32 @@ static void registerBuiltinModules() {
         // استثناءات، تتبع مكدس، أذونات
         [](Interpreter& interp) {
 /* omitted */
+        },
+        {}
+    });
+
+    // ─── مقابس / Sockets (Part 40) — TCP & UDP عالي المستوى ───
+    registry.registerModule({
+        "\xd9\x85\xd9\x82\xd8\xa7\xd8\xa8\xd8\xb3", // مقابس
+        {"sockets", "socket", "tcp", "udp",
+         "\xd9\x85\xd9\x82\xd8\xa8\xd8\xb3"},  // مقبس
+        "TCP\xd8\x8c UDP\xd8\x8c \xd8\xa7\xd8\xaa\xd8\xb5\xd8\xa7\xd9\x84\xd8\x8c \xd8\xa5\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\x8c \xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd8\xa7\xd9\x84",
+        // TCP، UDP، اتصال، إرسال، استقبال
+        [](Interpreter& interp) {
+            registerBuiltinsPart40(interp);  // TCP & UDP high-level sockets
+        },
+        {}
+    });
+
+    // ─── تشفير / Crypto (Part 7 crypto functions) — SHA-256, تشفير/فك_تشفير ───
+    registry.registerModule({
+        "\xd8\xaa\xd8\xb4\xd9\x81\xd9\x8a\xd8\xb1", // تشفير
+        {"crypto", "encryption",
+         "\xd8\xa3\xd9\x85\xd8\xa7\xd9\x86_\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa"},  // أمان_بيانات
+        "SHA-256\xd8\x8c \xd8\xaa\xd8\xb4\xd9\x81\xd9\x8a\xd8\xb1 CTR\xd8\x8c \xd9\x87\xd8\xa7\xd8\xb4",
+        // SHA-256، تشفير CTR، هاش
+        [](Interpreter& interp) {
+            registerBuiltinsPart7(interp);  // SHA-256, encrypt/decrypt, hash
         },
         {}
     });

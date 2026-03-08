@@ -17,6 +17,10 @@
 
 #ifdef _WIN32
 #include <windows.h>
+// Undefine Windows VOID macro to avoid conflict with ValueType::VOID
+#ifdef VOID
+#undef VOID
+#endif
 #endif
 
 namespace Sad {
@@ -515,6 +519,12 @@ std::shared_ptr<Data::Value> type_of(const std::vector<std::shared_ptr<Data::Val
             return std::make_shared<Data::Value>(std::string("array"));
         case Data::ValueType::MAP:
             return std::make_shared<Data::Value>(std::string("map"));
+        case Data::ValueType::OBJECT:
+            return std::make_shared<Data::Value>(std::string("object"));
+        case Data::ValueType::FUNCTION:
+            return std::make_shared<Data::Value>(std::string("function"));
+        case Data::ValueType::VOID:
+            return std::make_shared<Data::Value>(std::string("void"));
         default:
             return std::make_shared<Data::Value>(std::string("unknown"));
     }

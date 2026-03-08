@@ -552,7 +552,7 @@ void sad_contract_destroy(SadSmartContract* contract) {
 
 const char* sad_contract_to_solidity(SadSmartContract* contract) {
     if (!contract) return nullptr;
-    static std::string نتيجة;
+    thread_local std::string نتيجة;
     نتيجة = reinterpret_cast<عقد_ذكي*>(contract)->إلى_Solidity();
     return نتيجة.c_str();
 }

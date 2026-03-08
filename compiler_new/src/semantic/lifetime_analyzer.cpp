@@ -140,17 +140,36 @@ bool LifetimeAnalyzer::outlivesScope(const LifetimeId& lifetime,
         return true;
     }
     
-    // (AR) البحث عن النطاق في المكدس
-    // (EN) Find scope in stack
-    for (size_t i = 0; i < scopeStack_.size(); ++i) {
-        if (scopeStack_[i].scopeId == scopeId) {
-            // (AR) يعيش أطول إذا كان في نطاق أعلى (أقدم)
-            // (EN) Outlives if in higher (older) scope
-            // TODO: تحسين هذا مع NLL
-            return i < scopeStack_.size() - 1;
+    // (AR) البحث عن وجود النطاق الهدف
+    // (EN) Ensure target scope exists
+    auto targetIt = std::find_if(scopeStack_.begin(), scopeStack_.end(),
+        [scopeId](const LifetimeScope& s) { return s.scopeId == scopeId; });
+    if (targetIt == scopeStack_.end()) {
+        return false;
+    }
+
+    // تقريب NLL: العمر الأقدم (id أصغر) يُعتبر أطول عمراً من النطاقات الأحدث.
+    // NLL approximation: older lifetime ids outlive newer lexical scopes.
+    if (lifetime.id <= scopeId + 1) {
+        return true;
+    }
+
+    // إذا كان العمر مربوطاً بمتغير لا يزال معرفاً في نطاق أقدم أو مساوٍ للنطاق الهدف
+    // نعتبره outlives لهذا النطاق.
+    for (const auto& [varName, varLifetime] : variableLifetimes_) {
+        if (!(varLifetime == lifetime)) {
+            continue;
+        }
+        for (const auto& scope : scopeStack_) {
+            if (scope.scopeId > scopeId) {
+                continue;
+            }
+            if (std::find(scope.variables.begin(), scope.variables.end(), varName) != scope.variables.end()) {
+                return true;
+            }
         }
     }
-    
+
     return false;
 }
 
@@ -242,15 +261,29 @@ void LifetimeAnalyzer::analyzeLastUsePoints() {
     if (!nllEnabled_) {
         return;
     }
-    
-    // TODO: تنفيذ تحليل نقاط الاستخدام الأخير
-    // (AR) هذا يتطلب تحليل Control Flow Graph
-    // (EN) This requires Control Flow Graph analysis
-    
-    // (AR) NLL يسمح للاستعارة بالانتهاء قبل نهاية النطاق المعجمي
-    // (EN) NLL allows borrows to end before lexical scope end
-    
-    // TODO: Implementation
+
+    // تطبيق خفيف لـ NLL بدون CFG كامل:
+    // نحذف القيود المحققة مسبقاً لتقليل الإنذارات الكاذبة وتضييق نطاق الفحص.
+    // Lightweight NLL pass without full CFG:
+    // prune already-satisfied constraints to reduce false positives.
+    std::vector<LifetimeBound> remaining;
+    remaining.reserve(constraints_.size());
+
+    for (const auto& c : constraints_) {
+        if (!c.mustOutlive) {
+            remaining.push_back(c);
+            continue;
+        }
+
+        LifetimeRelation rel = compare(c.lifetime, c.bound);
+        if (rel == LifetimeRelation::Outlives || rel == LifetimeRelation::Equal) {
+            continue; // هذا القيد محقق بالفعل
+        }
+
+        remaining.push_back(c);
+    }
+
+    constraints_.swap(remaining);
 }
 
 // ============================================================================

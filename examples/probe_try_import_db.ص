@@ -1,0 +1,6 @@
+حاول
+    استورد database
+    اطبع("FAIL: import database succeeded")
+امسك (خ)
+    اطبع("PASS: import database failed as expected")
+نهاية

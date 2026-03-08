@@ -18,6 +18,7 @@
 #include "unification.h"      // المصدر: unification.h:1-240 / Source: unification.h:1-240
 #include "type_variable.h"    // المصدر: type_variable.h:1-186 / Source: type_variable.h:1-186
 #include "primitive_type.h"   // المصدر: primitive_type.h:1-100 / Source: primitive_type.h:1-100
+#include "types/composite_type_classes.h"  // ArrayType, TupleType, FunctionType
 #include <sstream>            // لـ ostringstream / For ostringstream
 #include <algorithm>          // لـ std::find / For std::find
 #include <set>                // لـ std::set / For std::set
@@ -264,12 +265,38 @@ UnificationResult Unifier::unifyInternal(TypePtr type1, TypePtr type2, Substitut
             );
         }
         
-        // TODO: في التنفيذ الكامل، سنحلل عناصر الأنواع المركبة
-        // TODO: In full implementation, we'll analyze composite type elements
-        // مثال: Array<Integer> مع Array<Float> يجب أن يفشل
-        // Example: Array<Integer> with Array<Float> should fail
+        // (AR) تحليل عناصر الأنواع المركبة / (EN) Analyze composite type elements
+        if (type1->getKind() == TypeKind::Array) {
+            auto* arr1 = static_cast<ArrayType*>(type1.get());
+            auto* arr2 = static_cast<ArrayType*>(type2.get());
+            TypePtr elem1 = arr1->getElementType();
+            TypePtr elem2 = arr2->getElementType();
+            if (elem1 && elem2) {
+                auto elemResult = unifyInternal(elem1, elem2, subst);
+                if (!elemResult.success) {
+                    return elemResult;
+                }
+            }
+        } else if (type1->getKind() == TypeKind::Tuple) {
+            auto* tup1 = static_cast<TupleType*>(type1.get());
+            auto* tup2 = static_cast<TupleType*>(type2.get());
+            if (tup1->getArity() != tup2->getArity()) {
+                return UnificationResult::makeFailure(
+                    createMismatchError(type1, type2)
+                );
+            }
+            for (size_t i = 0; i < tup1->getArity(); ++i) {
+                TypePtr e1 = tup1->getElementAt(i);
+                TypePtr e2 = tup2->getElementAt(i);
+                if (e1 && e2) {
+                    auto elemResult = unifyInternal(e1, e2, subst);
+                    if (!elemResult.success) {
+                        return elemResult;
+                    }
+                }
+            }
+        }
         
-        // حالياً، نقبل نفس النوع المركب / Currently, accept same composite type
         return UnificationResult::makeSuccess(subst);
     }
     
@@ -277,10 +304,39 @@ UnificationResult Unifier::unifyInternal(TypePtr type1, TypePtr type2, Substitut
     // المصدر: type.h:129 / Source: type.h:129
     if (type1->isFunction() && type2->isFunction()) {
         // كلاهما نوع دالة / Both are function types
-        // TODO: في التنفيذ الكامل، سنحلل معاملات ونوع الإرجاع
-        // TODO: In full implementation, we'll analyze parameters and return type
+        // (AR) تحليل معاملات ونوع الإرجاع / (EN) Analyze parameters and return type
+        auto* fn1 = static_cast<FunctionType*>(type1.get());
+        auto* fn2 = static_cast<FunctionType*>(type2.get());
         
-        // حالياً، نقبل نفس نوع الدالة / Currently, accept same function type
+        // (AR) تحقق من عدد المعاملات / (EN) Check parameter count
+        if (fn1->getArity() != fn2->getArity()) {
+            return UnificationResult::makeFailure(
+                createMismatchError(type1, type2)
+            );
+        }
+        
+        // (AR) توحيد كل معامل / (EN) Unify each parameter
+        for (size_t i = 0; i < fn1->getArity(); ++i) {
+            TypePtr p1 = fn1->getParamAt(i);
+            TypePtr p2 = fn2->getParamAt(i);
+            if (p1 && p2) {
+                auto paramResult = unifyInternal(p1, p2, subst);
+                if (!paramResult.success) {
+                    return paramResult;
+                }
+            }
+        }
+        
+        // (AR) توحيد نوع الإرجاع / (EN) Unify return type
+        TypePtr ret1 = fn1->getReturnType();
+        TypePtr ret2 = fn2->getReturnType();
+        if (ret1 && ret2) {
+            auto retResult = unifyInternal(ret1, ret2, subst);
+            if (!retResult.success) {
+                return retResult;
+            }
+        }
+        
         return UnificationResult::makeSuccess(subst);
     }
     
@@ -348,10 +404,40 @@ bool Unifier::occursCheck(const std::string& varName, TypePtr type) const {
         return false;  // متغير مختلف / Different variable
     }
     
-    // TODO: في التنفيذ الكامل، سنفحص الأنواع المركبة والدوال
-    // TODO: In full implementation, we'll check composite types and functions
-    // مثال: فحص Array<T> للبحث عن T
-    // Example: Check Array<T> to find T
+    // (AR) فحص الأنواع المركبة والدوال / (EN) Check composite types and functions
+    if (type->isComposite()) {
+        if (type->getKind() == TypeKind::Array) {
+            auto* arr = static_cast<ArrayType*>(type.get());
+            TypePtr elem = arr->getElementType();
+            if (elem && occursCheck(varName, elem)) {
+                return true;
+            }
+        } else if (type->getKind() == TypeKind::Tuple) {
+            auto* tup = static_cast<TupleType*>(type.get());
+            for (size_t i = 0; i < tup->getArity(); ++i) {
+                TypePtr e = tup->getElementAt(i);
+                if (e && occursCheck(varName, e)) {
+                    return true;
+                }
+            }
+        }
+    }
+    
+    if (type->isFunction()) {
+        auto* fn = static_cast<FunctionType*>(type.get());
+        // (AR) فحص المعاملات / (EN) Check parameters
+        for (size_t i = 0; i < fn->getArity(); ++i) {
+            TypePtr p = fn->getParamAt(i);
+            if (p && occursCheck(varName, p)) {
+                return true;
+            }
+        }
+        // (AR) فحص نوع الإرجاع / (EN) Check return type
+        TypePtr ret = fn->getReturnType();
+        if (ret && occursCheck(varName, ret)) {
+            return true;
+        }
+    }
     
     return false;  // لم يتم العثور على تواجد / No occurrence found
 }

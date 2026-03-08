@@ -205,6 +205,11 @@ size_t TypeRegistry::hashType(const TypePtr& type) const {
     // „„״£†ˆ״§״¹ ״§„…״±ƒ״¨״©״ †״­״×״§״¬ …״¹„ˆ…״§״× ״¥״¶״§״© / For composite types, need more info
     // TODO: ״¥״¶״§״© hash „„…״¹„ˆ…״§״× ״§„״¥״¶״§״©  ״§„״£†ˆ״§״¹ ״§„…״±ƒ״¨״©
     // TODO: Add hash for additional info in composite types
+    // (AR) تم التنفيذ: دمج معلومات إضافية في hash للأنواع المركبة باستخدام toString()
+    // (EN) Mix additional info into hash for composite types via toString()
+    std::string typeStr = type->toString();
+    size_t strHash = std::hash<std::string>{}(typeStr);
+    hash ^= strHash + 0x9e3779b9 + (hash << 6) + (hash >> 2);
     
     // ״¥״±״¬״§״¹ hash / Return hash
     return hash;

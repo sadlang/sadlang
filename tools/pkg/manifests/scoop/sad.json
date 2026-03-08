@@ -1,0 +1,39 @@
+{
+    "version": "1.0.0",
+    "description": "لغة ص - لغة برمجة عربية احترافية | Sad Programming Language",
+    "homepage": "https://sad-lang.org",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/sad-lang/sad/releases/download/v1.0.0/sad-1.0.0-win64.zip",
+            "hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "bin": [
+                "sad.exe",
+                "sadc.exe",
+                "sad-pkg.exe",
+                "sad-fmt.exe"
+            ],
+            "shortcuts": [
+                ["sad.exe", "Sad REPL"]
+            ]
+        }
+    },
+    "checkver": {
+        "github": "https://github.com/sad-lang/sad"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/sad-lang/sad/releases/download/v$version/sad-$version-win64.zip"
+            }
+        },
+        "hash": {
+            "url": "$url.sha256"
+        }
+    },
+    "notes": [
+        "لغة ص - أول لغة برمجة عربية كاملة الميزات",
+        "الوثائق: https://sad-lang.org/docs",
+        "Discord: https://discord.gg/sad-lang"
+    ]
+}

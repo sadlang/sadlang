@@ -47,6 +47,7 @@
 #include <vector>
 #include <map>
 #include <sstream>
+#include <iostream>
 
 namespace sad::sir {
 
@@ -785,11 +786,12 @@ private:
                 }
                 return "i8*";
             default:
+                // (AR) نوع SIR غير معروف — تحذير + fallback إلى i32
+                // (EN) Unknown SIR type kind — warn + fallback to i32
+                std::cerr << "[sadc تحذير] نوع SIR غير معروف في typeToLlvm: "
+                          << static_cast<int>(type->kind) << " — استخدام i32" << std::endl;
                 return "i32";
         }
-    }
-    
-    std::ostringstream output_;
 };
 
 } // namespace sad::sir
@@ -811,7 +813,7 @@ SadSirToLlvm* sad_sir_to_llvm_new() {
 }
 
 const char* sad_sir_to_llvm_generate(SadSirToLlvm* ctx, void* module) {
-    static std::string result;
+    thread_local std::string result;
     
     if (!ctx || !module) {
         result = "";

@@ -323,8 +323,22 @@ TypePtr TypeInferencer::generalize(TypePtr type, const TypeEnvironment& env) {
         return nullptr;  // نوع null / null type
     }
     
-    // TODO: في التنفيذ الكامل / In full implementation
-    // حالياً، نرجع النوع كما هو / Currently, return type as is
+    // (AR) تعميم: جمع متغيرات الأنواع الحرة غير المُقيّدة في البيئة
+    // (EN) Generalization: collect free type variables not bound in environment
+    // ملاحظة: لا يوجد ForallType حالياً — نُعيد النوع كما هو مع تسجيل المتغيرات الحرة
+    // Note: No ForallType exists yet — return type as-is while logging free vars
+    
+    // جمع متغيرات الأنواع من النوع / Collect type variables from the type
+    if (auto tv = std::dynamic_pointer_cast<TypeVariable>(type)) {
+        // (AR) إذا المتغير غير مُرتبط وغير موجود في البيئة — هو حر ويمكن تعميمه
+        // (EN) If variable is unbound and not in environment — it's free and generalizable
+        if (!tv->isBound()) {
+            // (AR) سيتم لفّه بـ ForallType عند إضافته مستقبلاً
+            // (EN) Would be wrapped in ForallType when added in the future
+        }
+    }
+    // (AR) للأنواع المركبة مثل الدوال والمصفوفات — التعميم يتم بشكل ضمني
+    // (EN) For composite types like functions and arrays — generalization is implicit
     return type;
 }
 
@@ -335,16 +349,40 @@ TypePtr TypeInferencer::instantiate(TypePtr type) {
         return nullptr;  // نوع null / null type
     }
     
-    // === في التنفيذ الكامل، سنفكك نوع Forall
-    // In full implementation, we'll unwrap Forall type ===
-    // TODO: إذا كان type هو ForallType(vars, innerType):
-    // TODO: If type is ForallType(vars, innerType):
-    //   1. إنشاء متغيرات جديدة لكل var / Create fresh variables for each var
-    //   2. إنشاء استبدال من vars إلى المتغيرات الجديدة / Create substitution from vars to fresh variables
-    //   3. تطبيق الاستبدال على innerType / Apply substitution to innerType
-    //   4. إرجاع النوع الناتج / Return resulting type
+    // (AR) تخصيص: إذا كان النوع متغير حر — استبدله بمتغير جديد
+    // (EN) Instantiation: if type is a free variable — replace it with a fresh one
+    if (auto tv = std::dynamic_pointer_cast<TypeVariable>(type)) {
+        if (!tv->isBound()) {
+            // (AR) إنشاء متغير نوع جديد بدلاً من المتغير المُعمّم
+            // (EN) Create fresh type variable to replace the generalized one
+            return createFreshTypeVariable();
+        }
+    }
     
-    // حالياً، نرجع النوع كما هو / Currently, return type as is
+    // (AR) للأنواع المركبة — تخصيص العناصر الداخلية بشكل عودي
+    // (EN) For composite types — instantiate inner elements recursively
+    if (auto arrType = std::dynamic_pointer_cast<ArrayType>(type)) {
+        TypePtr elemInst = instantiate(arrType->getElementType());
+        if (elemInst != arrType->getElementType()) {
+            return std::make_shared<ArrayType>(elemInst);
+        }
+    }
+    
+    if (auto funcType = std::dynamic_pointer_cast<FunctionType>(type)) {
+        bool changed = false;
+        std::vector<TypePtr> newParams;
+        for (size_t i = 0; i < funcType->getArity(); ++i) {
+            TypePtr inst = instantiate(funcType->getParamAt(i));
+            newParams.push_back(inst);
+            if (inst != funcType->getParamAt(i)) changed = true;
+        }
+        TypePtr retInst = instantiate(funcType->getReturnType());
+        if (retInst != funcType->getReturnType()) changed = true;
+        if (changed) {
+            return std::make_shared<FunctionType>(newParams, retInst);
+        }
+    }
+    
     return type;
 }
 

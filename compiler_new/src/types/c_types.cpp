@@ -123,11 +123,14 @@ FFI::CTypePtr CTypeMapper::sadToC(TypePtr sadType) const {
         return builder.build();
     }
     
-    // (AR) نوع البنية / (EN) Struct type
-    // TODO: StructType doesn't inherit from Type yet - enable when unified
-    // if (auto* structType = dynamic_cast<StructType*>(sadType.get())) {
-    //     return std::static_pointer_cast<FFI::CType>(sadStructToC(*structType));
-    // }
+    // (AR) دعم هرمية Struct/Class بشكل عملي:
+    // عندما لا تتوفر StructType كـ Type، نمثل الأنواع الكائنية كمؤشر opaque.
+    // (EN) Practical Struct/Class hierarchy support:
+    // when StructType is not a Type node yet, represent object-like types as opaque pointer.
+    if (sadType->getKind() == TypeKind::Class || sadType->getKind() == TypeKind::Interface) {
+        auto voidType = std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::VOID);
+        return std::make_shared<FFI::CPointerType>(voidType);
+    }
     
     // (AR) نوع غير معروف / (EN) Unknown type
     throw std::runtime_error(
@@ -307,12 +310,10 @@ TypePtr CTypeMapper::cToSad(FFI::CTypePtr cType) const {
     
     // (AR) نوع البنية / (EN) Struct type
     if (auto* structType = dynamic_cast<FFI::CStructType*>(cType.get())) {
-        // (AR) إنشاء بنية "ص" من بنية C - TODO: تحويل الحقول بشكل كامل
-        // (EN) Create Sad struct from C struct - TODO: full field conversion
-        throw std::runtime_error(
-            "(AR) تحويل بنية C إلى ص غير مكتمل بعد / "
-            "(EN) C struct to Sad conversion not fully implemented yet"
-        );
+        (void)structType;
+        // (AR) fallback آمن: نمثل بنية C كنوع Any حتى يكتمل جسر StructType.
+        // (EN) Safe fallback: represent C struct as Any until StructType bridge is complete.
+        return createPrimitiveType(TypeKind::Any);
     }
     
     throw std::runtime_error(
@@ -447,8 +448,7 @@ TypePtr CTypeMapper::cPointerToSad(FFI::CTypePtr pointeeType) const {
      *      Then create Sad pointer type
      */
     TypePtr sadPointeeType = cToSad(pointeeType);
-    // TODO: No PointerType in TypeSystem hierarchy yet
-    // Return pointee type for now until pointer types are unified
+    // لا يوجد PointerType موحد بعد في TypeSystem، لذا نعيد pointee كحل مرحلي آمن.
     return sadPointeeType;
 }
 

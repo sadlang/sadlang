@@ -520,7 +520,8 @@ void sad_bytecode_builder_add_opcode(SadBytecodeBuilder* builder, uint8_t opcode
 
 const char* sad_bytecode_builder_to_hex(SadBytecodeBuilder* builder) {
     if (!builder) return nullptr;
-    static std::string نتيجة;
+    // (AR) thread_local لأمان الخيوط / (EN) thread_local for thread safety
+    thread_local std::string نتيجة;
     نتيجة = reinterpret_cast<بنّاء_Bytecode*>(builder)->إلى_hex();
     return نتيجة.c_str();
 }

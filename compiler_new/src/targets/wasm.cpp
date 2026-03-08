@@ -577,7 +577,12 @@ private:
             case WasmType::I64: return "i64";
             case WasmType::F32: return "f32";
             case WasmType::F64: return "f64";
-            default: return "i32";
+            default:
+                // (AR) نوع WASM غير معروف — تحذير + fallback
+                // (EN) Unknown WASM type — warn + fallback
+                std::cerr << "[sadc تحذير] نوع WASM غير معروف: "
+                          << static_cast<int>(t) << " — استخدام i32" << std::endl;
+                return "i32";
         }
     }
 };
@@ -605,7 +610,12 @@ std::string opcodeToWat(WasmOpcode op) {
         case WasmOpcode::Loop: return "loop";
         case WasmOpcode::Br: return "br";
         case WasmOpcode::BrIf: return "br_if";
-        default: return "???";
+        default:
+            // (AR) رمز WASM غير معروف — تحذير لتجنب WAT مشوه
+            // (EN) Unknown WASM opcode — warn to avoid malformed WAT
+            std::cerr << "[sadc تحذير] WasmOpcode غير معروف: "
+                      << static_cast<int>(op) << std::endl;
+            return "??? ; unknown opcode " + std::to_string(static_cast<int>(op));
     }
 }
 
@@ -625,6 +635,8 @@ std::string WasmInstruction::toWat() const {
             ss << " " << index;
             break;
         default:
+            // (AR) رمز WASM بدون معاملات إضافية — مقبول للتعليمات البسيطة (add, sub, mul..)
+            // (EN) WASM opcode with no extra operands — acceptable for simple instructions
             break;
     }
     

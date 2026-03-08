@@ -26,7 +26,7 @@
 
 using namespace sad::graphics;    // Window, Color, types, ResourceManager
 using namespace SadGraphics;      // RenderContext, Renderer2D, InputManager, KeyCode
-using namespace Graphics::UI;     // Widget, Label, Button, WidgetStyle, TextAlignment
+using namespace sad::graphics::ui;     // Widget, Label, Button, WidgetStyle, TextAlignment
 
 // ============================================================================
 constexpr int W = 1280, H = 720;

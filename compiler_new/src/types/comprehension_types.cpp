@@ -120,6 +120,7 @@
  */
 
 #include "../../include/types/comprehension_types.hpp"
+#include "../../include/types/generator_type.hpp"
 #include <memory>
 #include <string>
 #include <stdexcept>
@@ -252,11 +253,18 @@ bool ComprehensionType::isConvertibleTo(const Type& target) const {
         return true;
     }
     
-    // 2. قائمة من نفس نوع العنصر
-    // TODO: Check if target is ListType with same element type
+    // 2. مولد من نفس نوع العنصر
+    // (EN) Generator with same yield type
+    const GeneratorType* genType = dynamic_cast<const GeneratorType*>(&target);
+    if (genType != nullptr) {
+        TypePtr yieldType = genType->getYieldType();
+        if (elementType_ && yieldType && elementType_->equals(yieldType.get())) {
+            return true;
+        }
+    }
     
-    // 3. مولد من نفس نوع العنصر
-    // TODO: Check if target is GeneratorType with same yield type
+    // 3. مصفوفة (قائمة) من نفس نوع العنصر — معلّق لحين توفر ListType
+    // (EN) List with same element type — pending ListType availability
     
     return false;
 }

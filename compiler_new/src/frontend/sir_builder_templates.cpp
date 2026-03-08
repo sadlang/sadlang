@@ -86,7 +86,11 @@ std::string SIRBuilder::instantiateTemplate(const std::string& templateName,
     // (EN) Find template function
     auto it = templateFunctions_.find(templateName);
     if (it == templateFunctions_.end()) {
-        std::cerr << "[Template Error] Template function '" << templateName << "' not found" << std::endl;
+        // (AR) تسجيل الخطأ في قائمة الأخطاء بدلاً من stderr فقط
+        // (EN) Record error in error list instead of only stderr
+        std::string errMsg = "دالة القالب غير موجودة / Template function not found: '" + templateName + "'";
+        std::cerr << "[Template Error] " << errMsg << std::endl;
+        errors_.push_back(errMsg);
         return "";
     }
     
@@ -95,9 +99,11 @@ std::string SIRBuilder::instantiateTemplate(const std::string& templateName,
     // (AR) التحقق من عدد معاملات الأنواع
     // (EN) Check type argument count
     if (typeArguments.size() != templateDecl->typeParameters.size()) {
-        std::cerr << "[Template Error] Template '" << templateName << "' expects " 
-                  << templateDecl->typeParameters.size() << " type arguments, got " 
-                  << typeArguments.size() << std::endl;
+        std::string errMsg = "عدد معاملات الأنواع غير متطابق / Type argument count mismatch for '" + templateName 
+                     + "': expected " + std::to_string(templateDecl->typeParameters.size()) 
+                     + ", got " + std::to_string(typeArguments.size());
+        std::cerr << "[Template Error] " << errMsg << std::endl;
+        errors_.push_back(errMsg);
         return "";
     }
     
@@ -137,12 +143,15 @@ std::string SIRBuilder::instantiateTemplate(const std::string& templateName,
     // (EN) Substitute return type
     SIRType returnType = astTypeToSIRType(templateDecl->returnType);
     
-    // (AR) إذا كان نوع الإرجاع هو معامل قالب، نستبدله
-    // (EN) If return type is template parameter, substitute it
-    if (templateDecl->returnType == Data::DataType::OBJECT) {
-        // (AR) قد يكون معامل قالب - نحتاج للتحقق من الاسم
-        // (EN) Might be template parameter - need to check name
-        // TODO: تحسين هذا الجزء لمعرفة ما إذا كان نوع الإرجاع هو معامل قالب
+    // (AR) إذا كان نوع الإرجاع OBJECT نستخدم أول استبدال نوع متاح كحل عملي
+    // (EN) If return type is OBJECT, use the first available type substitution pragmatically
+    if (templateDecl->returnType == Data::DataType::OBJECT &&
+        !templateDecl->typeParameters.empty()) {
+        const std::string& firstTypeParam = templateDecl->typeParameters.front().name;
+        auto it = typeSubstitutions.find(firstTypeParam);
+        if (it != typeSubstitutions.end()) {
+            returnType = it->second;
+        }
     }
     
     // (AR) إنشاء دالة SIR جديدة
@@ -157,12 +166,23 @@ std::string SIRBuilder::instantiateTemplate(const std::string& templateName,
         // (AR) إذا كان نوع المعامل هو OBJECT، قد يكون معامل قالب
         // (EN) If parameter type is OBJECT, might be template parameter
         if (param.type == Data::DataType::OBJECT) {
-            // (AR) نحاول إيجاد استبدال لهذا النوع
-            // (EN) Try to find substitution for this type
-            // TODO: نحتاج معلومات إضافية من Parser لربط الأنواع بأسماء المعاملات
-            // هنا نفترض أن المعامل الأول له نفس ترتيب معامل النوع الأول
-            if (!typeArguments.empty()) {
-                paramType = typeArguments[0]; // استبدال مؤقت بسيط
+            // (AR) البحث في جدول الاستبدال باسم النوع المعلن (param.typeName)
+            // (EN) Look up type name in substitution table (param.typeName)
+            if (!param.typeName.empty()) {
+                auto substIt = typeSubstitutions.find(param.typeName);
+                if (substIt != typeSubstitutions.end()) {
+                    paramType = substIt->second;
+                }
+            } else {
+                // (AR) افتراضي: البحث بترتيب معاملات القالب حسب ترتيب المعاملات
+                // (EN) Fallback: try matching by index using type param names
+                for (size_t ti = 0; ti < templateDecl->typeParameters.size(); ++ti) {
+                    auto substIt = typeSubstitutions.find(templateDecl->typeParameters[ti].name);
+                    if (substIt != typeSubstitutions.end()) {
+                        paramType = substIt->second;
+                        break;
+                    }
+                }
             }
         }
         
@@ -327,6 +347,24 @@ void SIRBuilder::buildImportStmt(AST::ImportStmt* importStmt) {
         return;
     }
     
+    // (AR) إصدار تعليمة تحميل الوحدة في SIR
+    // (EN) Emit MODULE_LOAD SIR instruction for linker tracking
+    if (currentBlock_) {
+        std::string moduleReg = newTempRegister();
+        SIRInstruction loadInst(SIROpcode::MODULE_LOAD);
+        loadInst.result = SIROperand::Register(moduleReg, SIRType::I64);
+        loadInst.operands.push_back(SIROperand::ConstantString(fullModuleName));
+        loadInst.comment = "استيراد وحدة / import module: " + fullModuleName;
+        currentBlock_->addInstruction(loadInst);
+        
+        // (AR) إصدار تعليمة تهيئة الوحدة
+        // (EN) Emit MODULE_INIT instruction
+        SIRInstruction initInst(SIROpcode::MODULE_INIT);
+        initInst.operands.push_back(SIROperand::Register(moduleReg, SIRType::I64));
+        initInst.comment = "تهيئة وحدة / init module: " + fullModuleName;
+        currentBlock_->addInstruction(initInst);
+    }
+    
     // (AR) تحميل الوحدة
     // (EN) Load module
     Modules::Module* module = moduleResolver_->resolveModule(
@@ -414,6 +452,35 @@ void SIRBuilder::buildFromImportStmt(AST::FromImportStmt* fromImportStmt) {
     // (EN) Check if module was already processed
     if (processedModules_.count(fullModuleName)) {
         return;
+    }
+    
+    // (AR) إصدار تعليمات SIR للاستيراد الانتقائي
+    // (EN) Emit SIR instructions for selective import
+    if (currentBlock_) {
+        std::string moduleReg = newTempRegister();
+        SIRInstruction loadInst(SIROpcode::MODULE_LOAD);
+        loadInst.result = SIROperand::Register(moduleReg, SIRType::I64);
+        loadInst.operands.push_back(SIROperand::ConstantString(fullModuleName));
+        loadInst.comment = "تحميل وحدة انتقائي / selective import from: " + fullModuleName;
+        currentBlock_->addInstruction(loadInst);
+        
+        SIRInstruction initInst(SIROpcode::MODULE_INIT);
+        initInst.operands.push_back(SIROperand::Register(moduleReg, SIRType::I64));
+        currentBlock_->addInstruction(initInst);
+        
+        // (AR) إصدار MODULE_SYMBOL لكل رمز مطلوب
+        // (EN) Emit MODULE_SYMBOL for each requested symbol
+        if (!fromImportStmt->isWildcard) {
+            for (const auto& item : fromImportStmt->items) {
+                std::string symReg = newTempRegister();
+                SIRInstruction symInst(SIROpcode::MODULE_SYMBOL);
+                symInst.result = SIROperand::Register(symReg, SIRType::I64);
+                symInst.operands.push_back(SIROperand::Register(moduleReg, SIRType::I64));
+                symInst.operands.push_back(SIROperand::ConstantString(item.name));
+                symInst.comment = "استيراد رمز / import symbol: " + item.name;
+                currentBlock_->addInstruction(symInst);
+            }
+        }
     }
     
     // (AR) تحميل الوحدة

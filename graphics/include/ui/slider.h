@@ -12,8 +12,9 @@
 #include "widget.h"         // الفئة الأساسية / Base class
 #include <functional>       // للدوال الاستدعاء / For callbacks
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // ============================================================================
         // SliderOrientation - اتجاه المنزلق
@@ -130,7 +131,8 @@ namespace Graphics {
             std::string FormatValue(float value) const;  // تنسيق القيمة / Format value
         };
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad
 
 #endif // GRAPHICS_UI_SLIDER_H

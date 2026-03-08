@@ -29,8 +29,11 @@
 #include <functional>
 #include <stdexcept>
 #include <sstream>
+#include <iostream>
 #include <chrono>
 #include <atomic>
+#include <set>
+#include <iomanip>
 
 namespace sad {
 namespace compiler {

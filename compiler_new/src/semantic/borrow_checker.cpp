@@ -890,11 +890,13 @@ SourceLocation BorrowChecker::getLocation(AST::ASTNode* node) const {
     if (!node) {
         return SourceLocation();
     }
-    
-    // TODO: Get actual location from node position
+
+    // تتبع الموقع الفعلي من العقدة مع fallback آمن إذا كانت الإحداثيات غير مهيأة.
+    const size_t line = (node->position.line == 0) ? 1 : node->position.line;
+    const size_t column = (node->position.column == 0) ? 1 : node->position.column;
     return SourceLocation(currentFile_, 
-                          node->position.line, 
-                          node->position.column);
+                          line,
+                          column);
 }
 
 void BorrowChecker::recordError(const OwnershipError& error) {

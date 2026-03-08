@@ -1577,21 +1577,15 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
     // إنشاء scope جديد للطريقة
     variableManager_.enterScope(Data::ScopeType::FUNCTION, node.methodName);
     
-    // ربط المعاملات بالقيم أو القيم الافتراضية
-    // (AR) Bind parameters to values or default values
-    for (size_t i = 0; i < method->parameters.size(); ++i) {
-        if (i < argValues.size()) {
-            // (AR) استخدام القيمة المُمررة
-            variableManager_.define(method->parameters[i].name, argValues[i]);
-        } else if (method->parameters[i].defaultValue) {
-            // (AR) استخدام القيمة الافتراضية - نقيّمها الآن
-            method->parameters[i].defaultValue->accept(*this);
-            variableManager_.define(method->parameters[i].name, lastResult_);
-        }
-    }
-    
-    // إضافة حقول الكائن للـ scope (محاكاة 'this') - فقط للطرق غير الثابتة
-    // Add object fields to scope (simulate 'this') - only for non-static methods
+    // ═══════════════════════════════════════════════════════════════════════
+    // (AR) إضافة حقول الكائن للـ scope أولاً (محاكاة 'this') - فقط للطرق غير الثابتة
+    //      ثم ربط المعاملات — حتى تتغلب المعاملات على الحقول عند تطابق الأسماء
+    //      هذا يمنع خطأ "parameter shadowing" حيث الحقل يُظلل المعامل
+    //
+    // (EN) Add object fields to scope FIRST (simulate 'this') - only for non-static
+    //      THEN bind parameters — so parameters override fields when names match
+    //      This prevents "parameter shadowing" bug where field overwrites param
+    // ═══════════════════════════════════════════════════════════════════════
     if (!isStaticCall) {
         // إضافة 'this' reference للكائن الحالي
         // Add 'this' reference to current object
@@ -1602,6 +1596,19 @@ void ExpressionEvaluator::visitMethodCallExpr(MethodCallExpr& node) {
             if (name != "__class__") {
                 variableManager_.define(name, value);
             }
+        }
+    }
+    
+    // (AR) ربط المعاملات بالقيم أو القيم الافتراضية — بعد الحقول لتتغلب عليها
+    // (EN) Bind parameters to values or default values — AFTER fields to override them
+    for (size_t i = 0; i < method->parameters.size(); ++i) {
+        if (i < argValues.size()) {
+            // (AR) استخدام القيمة المُمررة
+            variableManager_.define(method->parameters[i].name, argValues[i]);
+        } else if (method->parameters[i].defaultValue) {
+            // (AR) استخدام القيمة الافتراضية - نقيّمها الآن
+            method->parameters[i].defaultValue->accept(*this);
+            variableManager_.define(method->parameters[i].name, lastResult_);
         }
     }
     

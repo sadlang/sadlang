@@ -67,8 +67,31 @@ add_custom_command(TARGET sad POST_BUILD
 message(STATUS "✓ المفسر / Interpreter: sad")
 
 # ──────────────────────────────────────────────────────────────────────
+# مكتبة المنسّق / Formatter Library
+# ─────────────────────────────────────────────────────────────────────
+add_library(sad_formatter STATIC
+    compiler_new/src/format/sad_formatter.cpp
+)
+
+target_include_directories(sad_formatter PUBLIC
+    ${CMAKE_SOURCE_DIR}/compiler_new/include
+    ${CMAKE_SOURCE_DIR}/shared/lexer/include
+    ${CMAKE_SOURCE_DIR}/shared/types/include
+    ${CMAKE_SOURCE_DIR}/shared/errors/include
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_compile_features(sad_formatter PUBLIC cxx_std_17)
+
+if(MSVC)
+    target_compile_options(sad_formatter PRIVATE /wd4819 /FS)
+endif()
+
+message(STATUS "✓ منسّق الكود / Formatter: sad_formatter")
+
+# ─────────────────────────────────────────────────────────────────────
 # مكتبة تطبيقات الهاتف / Mobile Applications Library
-# ──────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────
 set(MOBILE_SOURCES
     tools/compiler/src/android_target.cpp
     tools/compiler/src/ios_target.cpp
@@ -78,7 +101,6 @@ set(MOBILE_SOURCES
     tools/compiler/src/run_command.cpp
     tools/compiler/src/test_command.cpp
     tools/compiler/src/build_command.cpp
-    compiler_new/src/format/sad_formatter.cpp
     compiler_new/src/build/build_system.cpp
     shared/parser/src/ui_parser.cpp
     compiler_new/src/backend/android_compose.cpp
@@ -104,6 +126,8 @@ target_include_directories(sad_mobile PUBLIC
 )
 
 target_compile_features(sad_mobile PUBLIC cxx_std_17)
+
+target_link_libraries(sad_mobile PUBLIC sad_formatter)
 
 set_target_properties(sad_mobile PROPERTIES
     OUTPUT_NAME "sad_mobile"
@@ -155,7 +179,6 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
     )
 
-    install(TARGETS sadc RUNTIME DESTINATION bin COMPONENT compiler)
     message(STATUS "✓ المترجم / Compiler: sadc (LLVM ${LLVM_PACKAGE_VERSION})")
 else()
     message(STATUS "⊘ المترجم sadc معطّل (LLVM غير متوفر) / sadc disabled")
@@ -235,3 +258,59 @@ if(EXISTS ${SDL2_DLL_PATH})
 endif()
 
 message(STATUS "✓ تطبيق سطح المكتب / Desktop Demo: sad_desktop_demo (8 screens, SDL2)")
+
+# ──────────────────────────────────────────────────────────────────────
+# أداة iOS / iOS CLI Tool (sad-ios)
+# ──────────────────────────────────────────────────────────────────────
+add_executable(sad-ios tools/ios/sad_ios_cli.cpp)
+
+target_include_directories(sad-ios PRIVATE
+    ${CMAKE_SOURCE_DIR}/shared/lexer/include
+    ${CMAKE_SOURCE_DIR}/shared/parser/include
+    ${CMAKE_SOURCE_DIR}/shared/ast/include
+    ${CMAKE_SOURCE_DIR}/shared/types/include
+    ${CMAKE_SOURCE_DIR}/shared/errors/include
+)
+
+target_link_libraries(sad-ios PRIVATE sad_core)
+
+if(MSVC)
+    target_compile_options(sad-ios PRIVATE /wd4819 /FS /utf-8)
+endif()
+
+target_compile_features(sad-ios PRIVATE cxx_std_17)
+
+set_target_properties(sad-ios PROPERTIES
+    OUTPUT_NAME "sad-ios"
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+)
+
+message(STATUS "✓ أداة iOS / iOS Tool: sad-ios")
+
+# ──────────────────────────────────────────────────────────────────────
+# أداة أندرويد / Android CLI Tool (sad-android)
+# ──────────────────────────────────────────────────────────────────────
+add_executable(sad-android tools/android/sad_android.cpp)
+
+target_include_directories(sad-android PRIVATE
+    ${CMAKE_SOURCE_DIR}/shared/lexer/include
+    ${CMAKE_SOURCE_DIR}/shared/parser/include
+    ${CMAKE_SOURCE_DIR}/shared/ast/include
+    ${CMAKE_SOURCE_DIR}/shared/types/include
+    ${CMAKE_SOURCE_DIR}/shared/errors/include
+)
+
+target_link_libraries(sad-android PRIVATE sad_core)
+
+if(MSVC)
+    target_compile_options(sad-android PRIVATE /wd4819 /FS /utf-8)
+endif()
+
+target_compile_features(sad-android PRIVATE cxx_std_17)
+
+set_target_properties(sad-android PROPERTIES
+    OUTPUT_NAME "sad-android"
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+)
+
+message(STATUS "✓ أداة أندرويد / Android Tool: sad-android")

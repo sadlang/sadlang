@@ -32,7 +32,8 @@ public:
 
 extern "C" {
     const char* compose_emit(const char* component_json) {
-        static std::string result;
+        // (AR) thread_local لأمان الخيوط / (EN) thread_local for thread safety
+        thread_local std::string result;
         ComposeEmitter emitter;
         result = emitter.emit_composable("MainScreen", emitter.emit_column(emitter.emit_text("مرحباً بالعربية") + emitter.emit_button("اضغط هنا")));
         return result.c_str();

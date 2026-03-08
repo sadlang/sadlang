@@ -144,7 +144,12 @@ struct TargetTriple {
             case OperatingSystem::iOS: name = "ios"; break;
             case OperatingSystem::Android: name = "android"; break;
             case OperatingSystem::WebAssembly: name = "wasm"; break;
-            default: name = "unknown";
+            default:
+                // (AR) نظام تشغيل غير معروف — تحذير
+                // (EN) Unknown OS — warn
+                std::cerr << "[sadc تحذير] نظام تشغيل غير معروف في shortName: "
+                          << static_cast<int>(os) << std::endl;
+                name = "unknown";
         }
         
         name += "-";
@@ -155,7 +160,12 @@ struct TargetTriple {
             case Architecture::ARM: name += "arm"; break;
             case Architecture::ARM64: name += "arm64"; break;
             case Architecture::WASM32: name += "wasm32"; break;
-            default: name += "unknown";
+            default:
+                // (AR) بنية معالج غير معروفة — تحذير
+                // (EN) Unknown arch — warn
+                std::cerr << "[sadc تحذير] بنية معالج غير معروفة في shortName: "
+                          << static_cast<int>(arch) << std::endl;
+                name += "unknown";
         }
         
         return name;
@@ -216,7 +226,10 @@ private:
             case Architecture::RISCV64: return "riscv64";
             case Architecture::WASM32: return "wasm32";
             case Architecture::WASM64: return "wasm64";
-            default: return "unknown";
+            default:
+                // (AR) بنية معالج غير معروفة في archToString
+                std::cerr << "[sadc تحذير] Architecture غير معروفة: " << static_cast<int>(arch) << std::endl;
+                return "unknown";
         }
     }
     
@@ -234,7 +247,10 @@ private:
             case OperatingSystem::FreeBSD: return "freebsd";
             case OperatingSystem::WebAssembly: return "wasm";
             case OperatingSystem::Bare: return "none";
-            default: return "unknown";
+            default:
+                // (AR) نظام تشغيل غير معروف في osToString
+                std::cerr << "[sadc تحذير] OS غير معروف: " << static_cast<int>(os) << std::endl;
+                return "unknown";
         }
     }
     
@@ -245,7 +261,10 @@ private:
             case Environment::Musl: return "musl";
             case Environment::Android: return "android";
             case Environment::None: return "none";
-            default: return "unknown";
+            default:
+                // (AR) بيئة غير معروفة في envToString
+                std::cerr << "[sadc تحذير] Environment غير معروفة: " << static_cast<int>(env) << std::endl;
+                return "unknown";
         }
     }
 };

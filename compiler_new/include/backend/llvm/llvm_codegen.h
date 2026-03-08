@@ -54,6 +54,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // LLVM Headers
@@ -155,6 +156,26 @@ struct CodeGenContext {
     
     // اسم الصنف الحالي في حالة الدالة (فارغ خارج دوال الصنف)
     // Current method class name (empty outside class methods)
+    
+    // ================================================================
+    // دعم vtable والاستدعاء الافتراضي / vtable & Virtual Dispatch
+    // ================================================================
+    
+    // اسم الصنف → متغير عام لـ vtable
+    // Class name → vtable global variable
+    std::unordered_map<std::string, llvm::GlobalVariable*> classVtableGlobals;
+    
+    // اسم الصنف → ترتيب الدوال في vtable (اسم الدالة الكامل)
+    // Class name → ordered method names in vtable slots
+    std::unordered_map<std::string, std::vector<std::string>> classVtableLayout;
+    
+    // اسم الصنف → اسم دالة الهدم
+    // Class name → destructor function name
+    std::unordered_map<std::string, std::string> classDestructors;
+    
+    // أسماء الأصناف المجردة (لا يمكن إنشاء كائنات منها)
+    // Abstract class names (cannot be instantiated)
+    std::unordered_set<std::string> abstractClasses;
     
     // ================================================================
     // دعم الكوروتين / Coroutine Support
@@ -980,6 +1001,36 @@ public:
     llvm::Value* emitMethodDef(std::shared_ptr<SIRInstruction> inst);        // تعريف طريقة
     llvm::Value* emitFieldDef(std::shared_ptr<SIRInstruction> inst);         // تعريف حقل
     llvm::Value* emitConstructorCall(std::shared_ptr<SIRInstruction> inst);  // استدعاء منشئ
+    
+    // ========================================================================
+    // vtable & Virtual Dispatch / جدول الدوال الافتراضية
+    // ========================================================================
+    
+    /// (AR) بناء vtables لجميع الأصناف بعد preprocessClasses
+    /// (EN) Build vtables for all classes after preprocessClasses
+    void buildClassVtables(std::shared_ptr<SIRModule> sirModule);
+
+    /// (AR) تحديث مداخل vtable المؤجلة بعد إصدار جميع الدوال
+    /// (EN) Patch deferred vtable entries after all functions are emitted
+    void patchClassVtables();
+    
+    /// (AR) استدعاء افتراضي عبر vtable
+    /// (EN) Virtual dispatch via vtable
+    llvm::Value* emitVirtualCall(llvm::Value* objPtr, const std::string& className,
+                                 const std::string& methodName,
+                                 const std::vector<llvm::Value*>& extraArgs);
+    
+    /// (AR) تخزين مؤشر vtable في الحقل 0 من الكائن
+    /// (EN) Store vtable pointer in field 0 of object
+    void storeVtablePtr(llvm::Value* objPtr, const std::string& className);
+    
+    /// (AR) استدعاء دالة الهدم للكائن
+    /// (EN) Call destructor for object
+    void emitDestructorCall(llvm::Value* objPtr, const std::string& className);
+    
+    /// (AR) الحصول على إزاحة الحقول بسبب vtable
+    /// (EN) Get field offset due to vtable pointer at index 0
+    int getFieldStructIndex(const std::string& className, int userFieldIndex) const;
     
     // ------------------------------------------------------------------------
     // Missing Bitwise / عمليات ثنائية ناقصة

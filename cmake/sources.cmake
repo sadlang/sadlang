@@ -97,6 +97,7 @@ set(INTERPRETER_SOURCES
     interpreter_new/src/builtins/builtin_registry_part37.cpp
     interpreter_new/src/builtins/builtin_registry_part38.cpp
     interpreter_new/src/builtins/builtin_registry_part39_unified.cpp
+    interpreter_new/src/builtins/builtin_registry_part40.cpp
     interpreter_new/src/visitors/expression_evaluator_core.cpp
     interpreter_new/src/visitors/expression_evaluator_calls.cpp
     interpreter_new/src/visitors/expression_evaluator_oop.cpp
@@ -183,6 +184,7 @@ set(STDLIB_SOURCES
     stdlib/json/json_module.cpp
     stdlib/xml/xml_module.cpp
     stdlib/crypto/crypto_module.cpp
+    # stdlib/crypto/crypto_builtins.cpp  # (AR) معطّل — يستخدم نظام include مختلف عن sad_core
     stdlib/graphics/graphics_module.cpp
     stdlib/graphics/sad_ui_fonts_arabic.cpp
     stdlib/graphics/sad_ui_layout_render.cpp
@@ -220,6 +222,7 @@ set(STDLIB_SOURCES
     stdlib/ui/sad_backend_desktop.cpp
     stdlib/ui/sad_backend_android.cpp
     stdlib/ui/sad_backend_wasm.cpp
+    stdlib/mobile/mobile_module.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────

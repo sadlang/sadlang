@@ -42,7 +42,8 @@ private:
 
 extern "C" {
     const char* html_emit(const char* component_json) {
-        static std::string result;
+        // (AR) thread_local لأمان الخيوط / (EN) thread_local for thread safety
+        thread_local std::string result;
         HtmlEmitter emitter;
         result = emitter.emit_page("\xD8\xAA\xD8\xB7\xD8\xA8\xD9\x8A\xD9\x82 \xD8\xB5", // تطبيق ص
             emitter.emit_div("container", emitter.emit_text("\xD9\x85\xD8\xB1\xD8\xAD\xD8\xA8\xD8\xA7\xD9\x8B", "h1") + emitter.emit_button("\xD8\xA7\xD8\xB6\xD8\xBA\xD8\xB7 \xD9\x87\xD9\x86\xD8\xA7")));

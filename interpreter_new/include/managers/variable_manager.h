@@ -420,9 +420,9 @@ private:
     // We use Scope* as key to associate values with scopes
     std::unordered_map<Scope*, std::unordered_map<std::string, Value>> scopeVariables_;
     
-    // (AR) مجموعة أسماء الثوابت (المتغيرات غير القابلة للتعديل)
-    // (EN) Set of const variable names (immutable variables)
-    std::unordered_set<std::string> constVariables_;
+    // (AR) خريطة الثوابت — مرتبطة بالنطاق: كل نطاق يعرف ثوابته
+    // (EN) Scope-aware const tracking — each scope knows its own constants
+    std::unordered_map<Scope*, std::unordered_set<std::string>> constVariables_;
     
     /**
      * @brief (AR) البحث عن النطاق الذي يحتوي على متغير معين

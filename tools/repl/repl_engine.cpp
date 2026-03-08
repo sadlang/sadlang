@@ -12,12 +12,17 @@
 #include <fstream>
 #include <sstream>
 
+// Windows VOID macro conflicts with ValueType::VOID
 #ifdef _WIN32
 #include <windows.h>
 #include <conio.h>
 #else
 #include <termios.h>
 #include <unistd.h>
+#endif
+
+#ifdef VOID
+#undef VOID
 #endif
 
 namespace Sad {

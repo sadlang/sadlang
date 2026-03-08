@@ -250,7 +250,23 @@ void ExpressionEvaluator::visitVariableExpr(VariableExpr& node) {
         // (AR) التحقق من وجود دالة بهذا الاسم — دوال من الدرجة الأولى
         // (EN) Check if a function exists with this name — first-class functions
         if (functionManager_.hasFunction(node.name)) {
-            lastResult_ = Value(node.name);
+            // (AR) إنشاء مرجع دالة من نوع FUNCTION بدل STRING
+            // (EN) Create FUNCTION type reference instead of STRING
+            Data::FunctionRefKind kind = Data::FunctionRefKind::USER_DEFINED;
+            int arity = -1;
+            auto funcDef = functionManager_.getFunction(node.name, -1);
+            if (funcDef) {
+                switch (funcDef->getType()) {
+                    case Data::FunctionType::BUILT_IN: kind = Data::FunctionRefKind::BUILT_IN; break;
+                    case Data::FunctionType::LAMBDA:   kind = Data::FunctionRefKind::LAMBDA; break;
+                    default: kind = Data::FunctionRefKind::USER_DEFINED; break;
+                }
+                arity = static_cast<int>(funcDef->getParameterCount());
+            }
+            auto funcRef = std::make_shared<Data::FunctionRef>(
+                node.name, node.name, kind, arity
+            );
+            lastResult_ = Value(std::move(funcRef));
             return;
         }
         
@@ -921,6 +937,15 @@ Value ExpressionEvaluator::evaluateComparisonOp(const Value& left, TokenType op,
                     if (!cmp.toBool()) { equal = false; break; }
                 }
             }
+            return Value(op == TokenType::OP_EQUAL ? equal : !equal);
+        }
+    }
+    
+    // (AR) مقارنة مراجع الدوال / (EN) Function reference comparison
+    if (left.isFunction() && right.isFunction()) {
+        if (op == TokenType::OP_EQUAL || op == TokenType::OP_NOT_EQUAL) {
+            Value eqResult = (left == right);
+            bool equal = eqResult.toBool();
             return Value(op == TokenType::OP_EQUAL ? equal : !equal);
         }
     }

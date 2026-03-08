@@ -359,6 +359,15 @@ bool ConstraintCache::loadFromDisk() {
     size_t count;
     file.read(reinterpret_cast<char*>(&count), sizeof(count));
     
+    // (AR) حماية من ملفات الكاش التالفة أو الخبيثة
+    // (EN) Guard against corrupted or malicious cache files
+    constexpr size_t MAX_CACHE_ENTRIES = 10'000'000;  // 10M max
+    constexpr size_t MAX_MSG_LENGTH = 10'000;         // 10KB max per message
+    
+    if (!file.good() || count > MAX_CACHE_ENTRIES) {
+        return false;
+    }
+    
     // قراءة كل إدخال
     for (size_t i = 0; i < count; ++i) {
         size_t hash;
@@ -369,10 +378,21 @@ bool ConstraintCache::loadFromDisk() {
         
         size_t msgLen;
         file.read(reinterpret_cast<char*>(&msgLen), sizeof(msgLen));
+        
+        // (AR) التحقق من طول الرسالة وحالة الملف
+        // (EN) Validate message length and file state
+        if (!file.good() || msgLen > MAX_MSG_LENGTH) {
+            return false;
+        }
+        
         entry.errorMessage.resize(msgLen);
         file.read(entry.errorMessage.data(), msgLen);
         
         file.read(reinterpret_cast<char*>(&entry.hitCount), sizeof(entry.hitCount));
+        
+        if (!file.good()) {
+            return false;
+        }
         
         entry.constraintHash = hash;
         entry.timestamp = std::chrono::steady_clock::now();

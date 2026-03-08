@@ -594,14 +594,38 @@ private:
                 break;
             }
                 
-            case OpCode::CALL:
-                // TODO: تنفيذ استدعاء الدوال
+            case OpCode::CALL: {
+                // (AR) تنفيذ استدعاء الدوال - operand يحدد عنوان الدالة أو عدد الوسائط
+                // (EN) Function call execution - operand specifies function address
+                int targetAddress = instr.operand;
+                
+                // (AR) حفظ إطار الاستدعاء الحالي
+                // (EN) Save current call frame
+                CallFrame frame;
+                frame.returnAddress = ip_ + 1;  // العودة إلى التعليمة التالية / Return to next instruction
+                frame.basePointer = static_cast<int>(locals_.size());
+                frame.functionName = "";  // (AR) يمكن إضافة اسم لاحقاً / Can add name later
+                frames_.push_back(frame);
+                
+                // (AR) القفز لعنوان الدالة (-1 لأن ip_++ سيُضاف)
+                // (EN) Jump to function address (-1 because ip_++ will be added)
+                ip_ = targetAddress - 1;
                 break;
+            }
                 
             case OpCode::RET:
                 if (!frames_.empty()) {
-                    ip_ = frames_.back().returnAddress - 1;
+                    CallFrame frame = frames_.back();
                     frames_.pop_back();
+
+                    // (AR) استرجاع مساحة المتغيرات المحلية الخاصة بالدالة المُستدعاة
+                    // (EN) Restore caller local area by dropping callee locals
+                    if (frame.basePointer >= 0 &&
+                        static_cast<size_t>(frame.basePointer) <= locals_.size()) {
+                        locals_.resize(static_cast<size_t>(frame.basePointer));
+                    }
+
+                    ip_ = frame.returnAddress - 1;
                 } else {
                     running_ = false;
                 }

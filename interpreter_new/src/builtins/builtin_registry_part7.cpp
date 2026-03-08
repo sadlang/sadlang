@@ -54,6 +54,8 @@
 #include <cstring>
 #include <cstdint>
 #include <atomic>
+#include <array>
+#include <iomanip>
 #include <queue>
 #include <unordered_map>
 #include <condition_variable>
@@ -251,88 +253,197 @@ void registerBuiltinsPart7(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("ذعر", panic_func);
     interpreter.getFunctionManager().registerBuiltinFunction("panic", panic_func);
 
-    // هاش / hash — يحسب هاش SHA-256 بسيط لنص (Simplified for interpreter)
+    // ===================================================================
+    // (AR) SHA-256 نقي بلغة C++ — بدون اعتماد على OpenSSL
+    // (EN) Pure C++ SHA-256 — no OpenSSL dependency
+    // ===================================================================
+    // هاش / hash — يحسب هاش SHA-256 حقيقي لنص
     auto hash_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.empty()) throw std::runtime_error("(AR) هاش: يحتاج نص / (EN) hash: needs a string");
         std::string input = args[0]->toString();
-        // Simple FNV-1a hash (for demonstration — real crypto uses OpenSSL)
-        uint64_t hash = 14695981039346656037ULL;
-        for (char c : input) {
-            hash ^= static_cast<uint64_t>(c);
-            hash *= 1099511628211ULL;
-        }
-        std::stringstream ss;
-        ss << std::hex << hash;
-        return std::make_shared<Data::Value>(ss.str());
+
+        // ────────────────────────────────────────────────────────
+        // (AR) تنفيذ SHA-256 حسب FIPS 180-4
+        // (EN) SHA-256 implementation per FIPS 180-4
+        // ────────────────────────────────────────────────────────
+        auto sha256 = [](const std::string& msg) -> std::string {
+            // (AR) ثوابت SHA-256 الأولية — أول 32 بت من الجذور التربيعية لأول 8 أعداد أولية
+            uint32_t h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
+            uint32_t h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+            static const uint32_t k[64] = {
+                0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+                0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+                0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+                0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+                0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+                0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+                0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+                0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+            };
+            auto rotr = [](uint32_t x, uint32_t n) -> uint32_t { return (x >> n) | (x << (32 - n)); };
+
+            // (AR) الحشو — إضافة 1 ثم أصفار ثم الطول بالبتات
+            uint64_t bitLen = (uint64_t)msg.size() * 8;
+            std::vector<uint8_t> data(msg.begin(), msg.end());
+            data.push_back(0x80);
+            while ((data.size() % 64) != 56) data.push_back(0x00);
+            for (int i = 7; i >= 0; --i) data.push_back((uint8_t)(bitLen >> (i * 8)));
+
+            // (AR) معالجة الكتل 512 بت
+            for (size_t offset = 0; offset < data.size(); offset += 64) {
+                uint32_t w[64];
+                for (int i = 0; i < 16; ++i)
+                    w[i] = ((uint32_t)data[offset+i*4]<<24) | ((uint32_t)data[offset+i*4+1]<<16) |
+                            ((uint32_t)data[offset+i*4+2]<<8) | (uint32_t)data[offset+i*4+3];
+                for (int i = 16; i < 64; ++i) {
+                    uint32_t s0 = rotr(w[i-15],7) ^ rotr(w[i-15],18) ^ (w[i-15]>>3);
+                    uint32_t s1 = rotr(w[i-2],17) ^ rotr(w[i-2],19)  ^ (w[i-2]>>10);
+                    w[i] = w[i-16] + s0 + w[i-7] + s1;
+                }
+                uint32_t a=h0, b=h1, c=h2, d=h3, e=h4, f=h5, g=h6, hh=h7;
+                for (int i = 0; i < 64; ++i) {
+                    uint32_t S1 = rotr(e,6) ^ rotr(e,11) ^ rotr(e,25);
+                    uint32_t ch = (e & f) ^ (~e & g);
+                    uint32_t temp1 = hh + S1 + ch + k[i] + w[i];
+                    uint32_t S0 = rotr(a,2) ^ rotr(a,13) ^ rotr(a,22);
+                    uint32_t maj = (a & b) ^ (a & c) ^ (b & c);
+                    uint32_t temp2 = S0 + maj;
+                    hh=g; g=f; f=e; e=d+temp1; d=c; c=b; b=a; a=temp1+temp2;
+                }
+                h0+=a; h1+=b; h2+=c; h3+=d; h4+=e; h5+=f; h6+=g; h7+=hh;
+            }
+            // (AR) تحويل الناتج إلى سلسلة hex
+            char buf[65];
+            snprintf(buf, sizeof(buf),
+                "%08x%08x%08x%08x%08x%08x%08x%08x",
+                h0, h1, h2, h3, h4, h5, h6, h7);
+            return std::string(buf);
+        };
+        return std::make_shared<Data::Value>(sha256(input));
     };
     interpreter.getFunctionManager().registerBuiltinFunction("هاش", hash_func);
     interpreter.getFunctionManager().registerBuiltinFunction("hash", hash_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("sha256", hash_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("تجزئة", hash_func);
 
-    // شفّر / encrypt — تشفير بسيط (XOR مع مفتاح — للتعليم)
-    auto encrypt_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    // ===================================================================
+    // (AR) تشفير SHA-256-CTR — تشفير تيار آمن مبني على SHA-256
+    // (EN) SHA-256-CTR encryption — secure stream cipher based on SHA-256
+    // ===================================================================
+
+    // (AR) دالة مساعدة: SHA-256 خام تُرجع 32 بايت
+    auto sha256_raw = [](const std::vector<uint8_t>& data) -> std::array<uint8_t, 32> {
+        uint32_t h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a;
+        uint32_t h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;
+        static const uint32_t k[64]={
+            0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+            0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+            0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+            0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+            0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+            0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+            0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+            0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+        };
+        auto rotr=[](uint32_t x,uint32_t n)->uint32_t{return(x>>n)|(x<<(32-n));};
+        uint64_t bitLen=(uint64_t)data.size()*8;
+        std::vector<uint8_t> padded(data);
+        padded.push_back(0x80);
+        while((padded.size()%64)!=56) padded.push_back(0x00);
+        for(int i=7;i>=0;--i) padded.push_back((uint8_t)(bitLen>>(i*8)));
+        for(size_t off=0;off<padded.size();off+=64){
+            uint32_t w[64];
+            for(int i=0;i<16;++i) w[i]=((uint32_t)padded[off+i*4]<<24)|((uint32_t)padded[off+i*4+1]<<16)|((uint32_t)padded[off+i*4+2]<<8)|(uint32_t)padded[off+i*4+3];
+            for(int i=16;i<64;++i){uint32_t s0=rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>3);uint32_t s1=rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>10);w[i]=w[i-16]+s0+w[i-7]+s1;}
+            uint32_t a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,hh=h7;
+            for(int i=0;i<64;++i){uint32_t S1=rotr(e,6)^rotr(e,11)^rotr(e,25);uint32_t ch=(e&f)^(~e&g);uint32_t t1=hh+S1+ch+k[i]+w[i];uint32_t S0=rotr(a,2)^rotr(a,13)^rotr(a,22);uint32_t maj=(a&b)^(a&c)^(b&c);uint32_t t2=S0+maj;hh=g;g=f;f=e;e=d+t1;d=c;c=b;b=a;a=t1+t2;}
+            h0+=a;h1+=b;h2+=c;h3+=d;h4+=e;h5+=f;h6+=g;h7+=hh;
+        }
+        std::array<uint8_t,32> result;
+        uint32_t hs[8]={h0,h1,h2,h3,h4,h5,h6,h7};
+        for(int i=0;i<8;++i){result[i*4]=(uint8_t)(hs[i]>>24);result[i*4+1]=(uint8_t)(hs[i]>>16);result[i*4+2]=(uint8_t)(hs[i]>>8);result[i*4+3]=(uint8_t)hs[i];}
+        return result;
+    };
+
+    // (AR) دالة مساعدة: تحويل hex إلى بايتات
+    auto hexToBytes = [](const std::string& hex) -> std::string {
+        if (hex.size() % 2 != 0)
+            throw std::runtime_error("(AR) النص المشفر غير صالح: طول غير زوجي / (EN) Invalid encrypted text: odd length");
+        std::string bytes;
+        bytes.reserve(hex.size() / 2);
+        for (size_t i = 0; i + 1 < hex.size(); i += 2) {
+            std::string hb = hex.substr(i, 2);
+            for (char c : hb)
+                if (!std::isxdigit(static_cast<unsigned char>(c)))
+                    throw std::runtime_error("(AR) حرف hex غير صالح / (EN) Invalid hex char");
+            bytes += (char)std::stoi(hb, nullptr, 16);
+        }
+        return bytes;
+    };
+
+    // شفّر / encrypt — تشفير SHA-256-CTR (تشفير تيار آمن)
+    auto encrypt_func = [sha256_raw](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) throw std::runtime_error("(AR) شفّر: يحتاج نص ومفتاح / (EN) encrypt: needs text and key");
         std::string text = args[0]->toString();
         std::string key = args[1]->toString();
         if (key.empty()) throw std::runtime_error("(AR) المفتاح فارغ / (EN) Key is empty");
-        std::string result;
-        for (size_t i = 0; i < text.size(); ++i) {
-            result += static_cast<char>(text[i] ^ key[i % key.size()]);
+
+        // (AR) توليد nonce عشوائي 8 بايت
+        std::random_device rd;
+        std::mt19937_64 rng(rd());
+        uint64_t nonce = rng();
+
+        // (AR) تشفير CTR — SHA-256(key || nonce || counter) كتيار مفاتيح
+        std::string cipher;
+        cipher.reserve(8 + text.size());
+        for (int i = 7; i >= 0; --i) cipher += (char)((nonce >> (i * 8)) & 0xFF);
+
+        size_t pos = 0;
+        uint64_t ctr = 0;
+        while (pos < text.size()) {
+            std::vector<uint8_t> input(key.begin(), key.end());
+            for (int i = 7; i >= 0; --i) input.push_back((uint8_t)((nonce >> (i * 8)) & 0xFF));
+            for (int i = 7; i >= 0; --i) input.push_back((uint8_t)((ctr >> (i * 8)) & 0xFF));
+            auto block = sha256_raw(input);
+            for (size_t j = 0; j < 32 && pos < text.size(); ++j, ++pos)
+                cipher += (char)((uint8_t)text[pos] ^ block[j]);
+            ++ctr;
         }
-        // Convert to hex for safe display
         std::stringstream ss;
-        for (unsigned char c : result) {
+        for (unsigned char c : cipher)
             ss << std::hex << std::setfill('0') << std::setw(2) << (int)c;
-        }
         return std::make_shared<Data::Value>(ss.str());
     };
     interpreter.getFunctionManager().registerBuiltinFunction("شفّر", encrypt_func);
     interpreter.getFunctionManager().registerBuiltinFunction("encrypt", encrypt_func);
 
-    // فك_تشفير / decrypt — فك التشفير (XOR — للتعليم)
-    auto decrypt_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    // فك_تشفير / decrypt — فك تشفير SHA-256-CTR
+    auto decrypt_func = [sha256_raw, hexToBytes](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) throw std::runtime_error("(AR) فك_تشفير: يحتاج نص_مشفر ومفتاح / (EN) decrypt: needs encrypted_text and key");
         std::string hex_text = args[0]->toString();
         std::string key = args[1]->toString();
         if (key.empty()) throw std::runtime_error("(AR) المفتاح فارغ / (EN) Key is empty");
-        
-        // التحقق من صحة طول النص المشفر (يجب أن يكون زوجياً)
-        if (hex_text.size() % 2 != 0) {
-            throw std::runtime_error("(AR) النص المشفر غير صالح: طول غير زوجي / (EN) Invalid encrypted text: odd length");
-        }
-        
-        // Convert hex back to bytes with validation
-        std::string bytes;
-        bytes.reserve(hex_text.size() / 2);
-        
-        for (size_t i = 0; i + 1 < hex_text.size(); i += 2) {
-            std::string hex_byte = hex_text.substr(i, 2);
-            
-            // التحقق من أن الحرف hex صالح
-            for (char c : hex_byte) {
-                if (!std::isxdigit(static_cast<unsigned char>(c))) {
-                    throw std::runtime_error(
-                        "(AR) النص المشفر يحتوي على حرف غير صالح: '" + std::string(1, c) + 
-                        "' / (EN) Invalid hex character in encrypted text: '" + std::string(1, c) + "'"
-                    );
-                }
-            }
-            
-            try {
-                int byte = std::stoi(hex_byte, nullptr, 16);
-                bytes += static_cast<char>(byte);
-            } catch (const std::exception& e) {
-                throw std::runtime_error(
-                    "(AR) فشل تحليل البايت: " + hex_byte + 
-                    " / (EN) Failed to parse byte: " + hex_byte
-                );
-            }
-        }
-        
-        // XOR decrypt
+
+        std::string raw = hexToBytes(hex_text);
+        if (raw.size() < 8) throw std::runtime_error("(AR) البيانات المشفرة قصيرة جداً / (EN) Encrypted data too short");
+
+        // (AR) استخراج nonce من أول 8 بايت
+        uint64_t nonce = 0;
+        for (int i = 0; i < 8; ++i) nonce = (nonce << 8) | (uint8_t)raw[i];
+
+        // (AR) فك التشفير CTR
         std::string result;
-        result.reserve(bytes.size());
-        for (size_t i = 0; i < bytes.size(); ++i) {
-            result += static_cast<char>(bytes[i] ^ key[i % key.size()]);
+        result.reserve(raw.size() - 8);
+        size_t pos = 8;
+        uint64_t ctr = 0;
+        while (pos < raw.size()) {
+            std::vector<uint8_t> input(key.begin(), key.end());
+            for (int i = 7; i >= 0; --i) input.push_back((uint8_t)((nonce >> (i * 8)) & 0xFF));
+            for (int i = 7; i >= 0; --i) input.push_back((uint8_t)((ctr >> (i * 8)) & 0xFF));
+            auto block = sha256_raw(input);
+            for (size_t j = 0; j < 32 && pos < raw.size(); ++j, ++pos)
+                result += (char)((uint8_t)raw[pos] ^ block[j]);
+            ++ctr;
         }
         return std::make_shared<Data::Value>(result);
     };

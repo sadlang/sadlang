@@ -612,6 +612,10 @@ llvm::Value* LLVMCodeGen::emitObjectNew(std::shared_ptr<SIRInstruction> inst) {
         dlSize
     });
     
+    // (AR) تخزين مؤشر vtable في الحقل 0
+    // (EN) Store vtable pointer in field 0
+    storeVtablePtr(rawPtr, className);
+    
     // Track class association
     if (inst->result.has_value()) {
         context_info_.namedValues[inst->result->name] = rawPtr;
@@ -645,6 +649,23 @@ llvm::Value* LLVMCodeGen::emitObjectGet(std::shared_ptr<SIRInstruction> inst) {
     }
     
     std::string className = classIt->second;
+    
+    // (AR) فحص الخاصية: إذا وُجدت دالة __get_fieldName → استدعاؤها بدلاً من الوصول المباشر
+    // (EN) Property check: if __get_fieldName exists → call it instead of direct access
+    {
+        std::string getterName = className + ".__get_" + fieldName;
+        llvm::Function* getter = module_->getFunction(getterName);
+        if (!getter) getter = module_->getFunction("__get_" + fieldName);
+        if (getter) {
+            llvm::Value* result = builder_->CreateCall(getter, {objPtr},
+                getter->getReturnType()->isVoidTy() ? "" : (fieldName + ".prop"));
+            if (inst->result.has_value()) {
+                context_info_.namedValues[inst->result->name] = result;
+            }
+            return result;
+        }
+    }
+    
     auto structIt = context_info_.classStructTypes.find(className);
     auto fieldNamesIt = context_info_.classFieldNames.find(className);
     
@@ -710,10 +731,14 @@ llvm::Value* LLVMCodeGen::emitObjectGet(std::shared_ptr<SIRInstruction> inst) {
         }
     }
     
+    // (AR) إزاحة vtable: الحقل 0 في الهيكل محجوز لمؤشر vtable
+    // (EN) vtable offset: field 0 in struct is reserved for vtable ptr
+    int structIndex = getFieldStructIndex(className, fieldIndex);
+    
     // GEP + Load
-    llvm::Value* gep = builder_->CreateStructGEP(structType, actualObj, fieldIndex, 
+    llvm::Value* gep = builder_->CreateStructGEP(structType, actualObj, structIndex, 
         fieldName + "_gep");
-    llvm::Type* fieldType = structType->getElementType(fieldIndex);
+    llvm::Type* fieldType = structType->getElementType(structIndex);
     llvm::Value* result = builder_->CreateLoad(fieldType, gep, fieldName + ".val");
     
     if (inst->result.has_value()) {
@@ -745,6 +770,19 @@ llvm::Value* LLVMCodeGen::emitObjectSet(std::shared_ptr<SIRInstruction> inst) {
     }
     
     std::string className = classIt->second;
+    
+    // (AR) فحص الخاصية: إذا وُجدت دالة __set_fieldName → استدعاؤها بدلاً من التعيين المباشر
+    // (EN) Property check: if __set_fieldName exists → call it instead of direct store
+    {
+        std::string setterName = className + ".__set_" + fieldName;
+        llvm::Function* setter = module_->getFunction(setterName);
+        if (!setter) setter = module_->getFunction("__set_" + fieldName);
+        if (setter) {
+            builder_->CreateCall(setter, {objPtr, value});
+            return value;
+        }
+    }
+    
     auto structIt = context_info_.classStructTypes.find(className);
     auto fieldNamesIt = context_info_.classFieldNames.find(className);
     
@@ -805,8 +843,12 @@ llvm::Value* LLVMCodeGen::emitObjectSet(std::shared_ptr<SIRInstruction> inst) {
         }
     }
     
+    // (AR) إزاحة vtable: الحقل 0 في الهيكل محجوز لمؤشر vtable
+    // (EN) vtable offset: field 0 in struct is reserved for vtable ptr
+    int structIndex = getFieldStructIndex(className, fieldIndex);
+    
     // GEP + Store
-    llvm::Value* gep = builder_->CreateStructGEP(structType, actualObj, fieldIndex,
+    llvm::Value* gep = builder_->CreateStructGEP(structType, actualObj, structIndex,
         fieldName + "_gep");
     builder_->CreateStore(value, gep);
     

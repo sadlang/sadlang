@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // slider.cpp - تطبيق عنصر المنزلق
 // Implementation of slider widget
 // ============================================================================
@@ -10,8 +10,9 @@
 #include <sstream>                             // لتنسيق النص / For string formatting
 #include <iomanip>                             // لتنسيق الأرقام / For number formatting
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // ============================================================================
         // البناء الافتراضي / Default constructor
@@ -450,5 +451,6 @@ namespace Graphics {
             return std::string(buffer);  // إرجاع النص / Return string
         }
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad

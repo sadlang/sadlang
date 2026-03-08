@@ -498,6 +498,7 @@ StmtPtr ParserCore::parseTryStmt() {
     // Parse catch clauses
     // (AR) تحليل بنود catch
     std::vector<CatchClause> catchClauses;
+    bool lastBlockClosedByEnd = false;  // (AR) تتبع إذا آخر كتلة أُغلقت بـ'نهاية'
     while (match(TT::KEYWORD_CATCH)) {
         // (AR) الأقواس اختيارية: امسك (خطأ) أو امسك خطأ
         // (EN) Parentheses optional: catch (error) or catch error
@@ -548,7 +549,10 @@ StmtPtr ParserCore::parseTryStmt() {
         
         // Parse catch body using Arabic syntax
         // (AR) تحليل جسم catch باستخدام الصيغة العربية
-        auto catchBody = parseBlockStmt();
+        // (AR) تتبع إذا أُغلقت الكتلة بـ'نهاية' — لمنع سرقة 'امسك' الخارجي في حالة التداخل
+        // (EN) Track if block closed by 'end' — prevents stealing outer 'catch' in nested try
+        bool catchClosedByEnd = false;
+        auto catchBody = parseBlockStmt(&catchClosedByEnd);
         
         catchClauses.push_back(CatchClause(
             exceptionVar.getValue(), 
@@ -556,12 +560,25 @@ StmtPtr ParserCore::parseTryStmt() {
             std::move(catchBody),
             exceptionTypeName
         ));
+        
+        // (AR) إذا أُغلقت كتلة catch بـ'نهاية'، فهذا يعني انتهاء بنية try-catch بالكامل
+        //      لا نبحث عن المزيد من بنود catch — لأن 'نهاية' تُنهي الكتلة
+        //      هذا يمنع parseTryStmt الداخلي من سرقة 'امسك' الخارجي
+        // (EN) If catch block was closed by 'end', the try-catch construct is done
+        //      Don't look for more catch clauses — 'end' terminates the block
+        //      This prevents inner parseTryStmt from stealing outer 'catch'
+        if (catchClosedByEnd) {
+            lastBlockClosedByEnd = true;
+            break;
+        }
     }
     
     // Parse optional finally block using Arabic syntax
     // (AR) تحليل كتلة finally الاختيارية باستخدام الصيغة العربية
+    // (AR) فقط إذا لم تُغلق الكتلة السابقة بـ'نهاية' — لأن 'نهاية' تُنهي البنية بالكامل
+    // (EN) Only if the last block wasn't closed by 'end' — 'end' terminates the entire construct
     StmtPtr finallyBlock = nullptr;
-    if (match(TT::KEYWORD_FINALLY)) {
+    if (!lastBlockClosedByEnd && match(TT::KEYWORD_FINALLY)) {
         finallyBlock = parseBlockStmt();
     }
     

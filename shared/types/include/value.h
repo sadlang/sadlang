@@ -35,6 +35,7 @@
 #include <unordered_map>
 #include <stdexcept>
 #include <sstream>
+#include "function_ref.h"
 
 namespace Sad {
 namespace Data {
@@ -83,7 +84,8 @@ enum class ValueType {
     BOOLEAN,    ///< (AR) منطقي (صحيح/خطأ) / (EN) Boolean (true/false)
     ARRAY,      ///< (AR) مصفوفة / (EN) Array (dynamic list)
     MAP,        ///< (AR) قاموس / (EN) Map (dictionary/hash table)
-    OBJECT      ///< (AR) كائن (نسخة من صنف) / (EN) Object (class instance)
+    OBJECT,     ///< (AR) كائن (نسخة من صنف) / (EN) Object (class instance)
+    FUNCTION    ///< (AR) دالة (مرجع دالة من الدرجة الأولى) / (EN) Function (first-class function reference)
 };
 
 /**
@@ -114,6 +116,7 @@ public:
     using ArrayType = std::vector<Value>;
     using MapType = std::unordered_map<std::string, Value>;
     using ObjectPtr = std::shared_ptr<ObjectInstance>;  ///< (AR) مؤشر مشترك لكائن / (EN) Shared pointer to object
+    using FunctionRefPtr = std::shared_ptr<FunctionRef>; ///< (AR) مؤشر مشترك لمرجع دالة / (EN) Shared pointer to function reference
     
     // ══════════════════════════════════════════════════════════════════
     // (AR) المنشئات — لكل نوع من أنواع القيم منشئ خاص
@@ -148,6 +151,26 @@ public:
      */
     explicit Value(ObjectPtr obj);
     
+    /**
+     * @brief (AR) إنشاء قيمة مرجع دالة من مؤشر FunctionRef
+     * @brief (EN) Create FUNCTION value from FunctionRef pointer
+     * 
+     * (AR) يُستخدم لتمثيل الدوال كقيم من الدرجة الأولى.
+     *      يسمح بتمرير الدوال كمعاملات وتخزينها في متغيرات
+     *
+     * (EN) Used to represent functions as first-class values.
+     *      Allows passing functions as arguments and storing in variables
+     * 
+     * @param funcRef (FunctionRefPtr) — (AR) مؤشر مشترك لمرجع الدالة / (EN) shared pointer to function reference
+     */
+    explicit Value(FunctionRefPtr funcRef);
+    
+    /**
+     * @brief (AR) إنشاء قيمة مرجع دالة من FunctionRef مباشرة (ينسخ إلى shared_ptr)
+     * @brief (EN) Create FUNCTION value from FunctionRef directly (copies to shared_ptr)
+     */
+    explicit Value(const FunctionRef& funcRef);
+    
     // ══════════════════════════════════════════════════════════════════
     // (AR) النسخ العميق / (EN) Deep clone
     // ══════════════════════════════════════════════════════════════════
@@ -178,6 +201,26 @@ public:
     bool isObject() const { return type_ == ValueType::OBJECT; }
     
     /**
+     * @brief (AR) هل القيمة مرجع دالة (دالة من الدرجة الأولى)؟
+     * @brief (EN) Is the value a function reference (first-class function)?
+     * 
+     * (AR) تشمل: دوال المستخدم، الدوال المدمجة، اللامبدا، الطرق
+     * (EN) Includes: user functions, built-in functions, lambdas, methods
+     */
+    bool isFunction() const { return type_ == ValueType::FUNCTION; }
+    
+    /**
+     * @brief (AR) هل القيمة قابلة للاستدعاء كدالة؟
+     * @brief (EN) Is the value callable as a function?
+     * 
+     * (AR) تشمل FUNCTION بالإضافة إلى STRING التي قد تحمل اسم دالة (توافق)
+     *      وOBJECT الذي يملك __call__
+     * (EN) Includes FUNCTION plus STRING that may hold function name (backward compat)
+     *      and OBJECT with __call__
+     */
+    bool isCallable() const;
+    
+    /**
      * @brief (AR) هل القيمة تمثل كائناً (سواء OBJECT أو MAP بـ __class__)؟
      * @brief (EN) Does the value represent an object (either OBJECT or MAP with __class__)?
      * 
@@ -190,6 +233,7 @@ public:
     
     bool isNumeric() const { return isInteger() || isDouble(); }
     bool isContainer() const { return isArray() || isMap(); }
+    bool isFunctionOrString() const { return isFunction() || isString(); }  ///< (AR) دالة أو نص — للتوافق الخلفي / (EN) Function or string — backward compat
     
     // ══════════════════════════════════════════════════════════════════
     // (AR) تحويل النوع — تحويل القيمة إلى نوع محدد
@@ -238,6 +282,27 @@ public:
      * @throws std::runtime_error (AR) إذا لم تكن القيمة كائناً / (EN) if value is not an object
      */
     ObjectPtr toObject() const;
+    
+    /**
+     * @brief (AR) الحصول على مرجع الدالة
+     * @brief (EN) Get function reference
+     * 
+     * (AR) يُرجع المؤشر المشترك لمرجع الدالة. يجب أن تكون القيمة من نوع FUNCTION
+     * (EN) Returns the shared pointer to function reference. Value must be FUNCTION type
+     * 
+     * @return (FunctionRefPtr) — (AR) مؤشر مشترك لمرجع الدالة / (EN) shared pointer to function reference
+     * @throws std::runtime_error (AR) إذا لم تكن القيمة دالة / (EN) if value is not a function
+     */
+    FunctionRefPtr toFunction() const;
+    
+    /**
+     * @brief (AR) الحصول على اسم الدالة المسجل (للاستدعاء)
+     * @brief (EN) Get registered function name (for calling)
+     * 
+     * (AR) يعمل مع FUNCTION (يرجع registeredName) ومع STRING (يرجع النص)
+     * (EN) Works with FUNCTION (returns registeredName) and STRING (returns the string)
+     */
+    std::string getFunctionName() const;
     
     /**
      * @brief (AR) الحصول على اسم الصنف إذا كانت القيمة كائناً
@@ -396,7 +461,8 @@ private:
         bool,                                        // BOOLEAN
         std::shared_ptr<ArrayType>,                  // ARRAY
         std::shared_ptr<MapType>,                    // MAP
-        std::shared_ptr<ObjectInstance>               // OBJECT — كائن حقيقي
+        std::shared_ptr<ObjectInstance>,              // OBJECT — كائن حقيقي
+        std::shared_ptr<FunctionRef>                 // FUNCTION — مرجع دالة من الدرجة الأولى
     > data_;
     
     void throwTypeMismatch(const std::string& operation, const Value& other) const;

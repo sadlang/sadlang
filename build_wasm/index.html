@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ملعب لغة ص — Sad Playground</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-code: #0f0f1a;
+            --text-primary: #eee;
+            --text-secondary: #aaa;
+            --accent: #4CAF50;
+            --accent-hover: #45a049;
+            --border: #333;
+            --error: #ff6b6b;
+            --success: #4CAF50;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Cairo', 'Noto Sans Arabic', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            background: var(--bg-secondary);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+        
+        .logo span {
+            color: var(--text-primary);
+            font-weight: normal;
+        }
+        
+        .header-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-right: 1.5rem;
+            transition: color 0.2s;
+        }
+        
+        .header-links a:hover {
+            color: var(--accent);
+        }
+        
+        main {
+            flex: 1;
+            display: flex;
+            padding: 1rem;
+            gap: 1rem;
+        }
+        
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: var(--bg-code);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .panel-title {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        #code-editor {
+            flex: 1;
+            width: 100%;
+            padding: 1rem;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            background: var(--bg-code);
+            color: var(--text-primary);
+            border: none;
+            resize: none;
+            direction: ltr;
+            text-align: left;
+        }
+        
+        #code-editor:focus {
+            outline: none;
+        }
+        
+        #output {
+            flex: 1;
+            padding: 1rem;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            background: var(--bg-code);
+            color: var(--text-primary);
+            overflow: auto;
+            white-space: pre-wrap;
+            direction: ltr;
+            text-align: left;
+        }
+        
+        .output-error {
+            color: var(--error);
+        }
+        
+        .output-success {
+            color: var(--success);
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        button {
+            padding: 0.5rem 1.25rem;
+            font-size: 0.9rem;
+            font-family: inherit;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-run {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .btn-run:hover {
+            background: var(--accent-hover);
+        }
+        
+        .btn-run:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: var(--bg-code);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--border);
+            color: var(--text-primary);
+        }
+        
+        .examples-dropdown {
+            position: relative;
+        }
+        
+        .examples-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            min-width: 200px;
+            display: none;
+            z-index: 100;
+        }
+        
+        .examples-menu.show {
+            display: block;
+        }
+        
+        .examples-menu button {
+            display: block;
+            width: 100%;
+            padding: 0.75rem 1rem;
+            text-align: right;
+            background: transparent;
+            color: var(--text-primary);
+            border: none;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .examples-menu button:last-child {
+            border-bottom: none;
+        }
+        
+        .examples-menu button:hover {
+            background: var(--bg-code);
+        }
+        
+        .status {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-right: auto;
+            padding: 0.5rem;
+        }
+        
+        .status.loading {
+            color: var(--accent);
+        }
+        
+        .status.error {
+            color: var(--error);
+        }
+        
+        .status.ready {
+            color: var(--success);
+        }
+        
+        footer {
+            padding: 1rem 2rem;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        
+        @media (max-width: 768px) {
+            main {
+                flex-direction: column;
+            }
+            
+            header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">ص <span>| ملعب لغة ص</span></div>
+        <div class="header-links">
+            <a href="https://github.com/sad-lang/sad-language" target="_blank">GitHub</a>
+            <a href="#" onclick="showHelp()">المساعدة</a>
+        </div>
+    </header>
+    
+    <div class="toolbar">
+        <button class="btn-run" id="run-btn" onclick="runCode()" disabled>
+            ▶ تنفيذ
+        </button>
+        
+        <div class="examples-dropdown">
+            <button class="btn-secondary" onclick="toggleExamples()">
+                📚 أمثلة ▼
+            </button>
+            <div class="examples-menu" id="examples-menu">
+                <button onclick="loadExample('hello')">مرحباً بالعالم</button>
+                <button onclick="loadExample('variables')">المتغيرات</button>
+                <button onclick="loadExample('loop')">الحلقات</button>
+                <button onclick="loadExample('function')">الدوال</button>
+                <button onclick="loadExample('class')">الأصناف</button>
+                <button onclick="loadExample('array')">المصفوفات</button>
+                <button onclick="loadExample('fibonacci')">فيبوناتشي</button>
+            </div>
+        </div>
+        
+        <button class="btn-secondary" onclick="clearOutput()">
+            🗑️ مسح
+        </button>
+        
+        <span class="status loading" id="status">⏳ جاري التحميل...</span>
+    </div>
+    
+    <main>
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">📝 الكود</span>
+                <span style="font-size: 0.8rem; color: var(--text-secondary);">.ص</span>
+            </div>
+            <textarea id="code-editor" spellcheck="false">
+# مرحباً بك في ملعب لغة ص!
+# جرّب كتابة كود عربي هنا
+
+اطبع_سطر("مرحباً بالعالم! 🌍")
+
+متغير الاسم = "أحمد"
+متغير العمر = 25
+
+اطبع_سطر("الاسم: " + الاسم)
+اطبع_سطر("العمر: " + العمر)
+
+# حلقة بسيطة
+لكل رقم في [1، 2، 3، 4، 5]
+    اطبع_سطر("العدد: " + رقم)
+نهاية
+</textarea>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">📤 المخرجات</span>
+                <span id="exec-time" style="font-size: 0.8rem; color: var(--text-secondary);"></span>
+            </div>
+            <div id="output">اضغط "تنفيذ" لرؤية النتيجة...</div>
+        </div>
+    </main>
+    
+    <footer>
+        لغة ص — أول لغة برمجة عربية متكاملة | 
+        <a href="https://github.com/sad-lang/sad-language">GitHub</a> | 
+        إصدار 2026
+    </footer>
+    
+    <script src="sad.js"></script>
+    <script>
+        let sadModule = null;
+        let isReady = false;
+        
+        // أمثلة الكود
+        const examples = {
+            hello: `# مرحباً بالعالم
+اطبع_سطر("مرحباً بالعالم! 🌍")
+اطبع_سطر("أهلاً بك في لغة ص")`,
+
+            variables: `# المتغيرات والثوابت
+متغير س = 10
+متغير ص = 20
+ثابت باي = 3.14159
+
+اطبع_سطر("س = " + س)
+اطبع_سطر("ص = " + ص)
+اطبع_سطر("س + ص = " + (س + ص))
+اطبع_سطر("باي = " + باي)`,
+
+            loop: `# الحلقات
+اطبع_سطر("حلقة لكل:")
+لكل عدد في [1، 2، 3، 4، 5]
+    اطبع_سطر("  العدد: " + عدد)
+نهاية
+
+اطبع_سطر("")
+اطبع_سطر("حلقة بينما:")
+متغير عداد = 0
+بينما (عداد < 3)
+    اطبع_سطر("  العداد: " + عداد)
+    عداد = عداد + 1
+نهاية`,
+
+            function: `# الدوال
+دالة مرحباً(اسم)
+    ارجع "مرحباً يا " + اسم + "!"
+نهاية
+
+دالة مضروب(ن)
+    إذا (ن <= 1)
+        ارجع 1
+    نهاية
+    ارجع ن * مضروب(ن - 1)
+نهاية
+
+اطبع_سطر(مرحباً("أحمد"))
+اطبع_سطر(مرحباً("سارة"))
+اطبع_سطر("")
+اطبع_سطر("مضروب 5 = " + مضروب(5))
+اطبع_سطر("مضروب 10 = " + مضروب(10))`,
+
+            class: `# الأصناف (البرمجة الكائنية)
+صنف شخص
+    متغير الاسم
+    متغير العمر
+    
+    باني(اسم، عمر)
+        هذا.الاسم = اسم
+        هذا.العمر = عمر
+    نهاية
+    
+    دالة تعريف()
+        ارجع "أنا " + هذا.الاسم + " وعمري " + هذا.العمر + " سنة"
+    نهاية
+نهاية
+
+متغير أحمد = جديد شخص("أحمد"، 25)
+متغير سارة = جديد شخص("سارة"، 22)
+
+اطبع_سطر(أحمد.تعريف())
+اطبع_سطر(سارة.تعريف())`,
+
+            array: `# المصفوفات والقوائم
+متغير أرقام = [10، 20، 30، 40، 50]
+متغير أسماء = ["أحمد"، "سارة"، "محمد"]
+
+اطبع_سطر("الأرقام:")
+لكل رقم في أرقام
+    اطبع_سطر("  " + رقم)
+نهاية
+
+اطبع_سطر("")
+اطبع_سطر("الأسماء:")
+لكل اسم في أسماء
+    اطبع_سطر("  مرحباً يا " + اسم)
+نهاية
+
+اطبع_سطر("")
+اطبع_سطر("عدد الأرقام: " + طول(أرقام))
+اطبع_سطر("أول اسم: " + أسماء[0])`,
+
+            fibonacci: `# متسلسلة فيبوناتشي
+دالة فيبوناتشي(ن)
+    إذا (ن <= 1)
+        ارجع ن
+    نهاية
+    ارجع فيبوناتشي(ن - 1) + فيبوناتشي(ن - 2)
+نهاية
+
+اطبع_سطر("متسلسلة فيبوناتشي:")
+لكل ي في [0، 1، 2، 3، 4، 5، 6، 7، 8، 9، 10]
+    اطبع_سطر("فيبوناتشي(" + ي + ") = " + فيبوناتشي(ي))
+نهاية`
+        };
+        
+        // تحميل WASM module
+        async function initSad() {
+            const status = document.getElementById('status');
+            const runBtn = document.getElementById('run-btn');
+            
+            try {
+                status.textContent = '⏳ جاري تحميل المفسر...';
+                status.className = 'status loading';
+                
+                sadModule = await SadWasm();
+                isReady = true;
+                
+                status.textContent = '✅ جاهز';
+                status.className = 'status ready';
+                runBtn.disabled = false;
+                
+            } catch (err) {
+                status.textContent = '❌ فشل التحميل: ' + err.message;
+                status.className = 'status error';
+                console.error('Failed to load SadWasm:', err);
+            }
+        }
+        
+        // تنفيذ الكود
+        async function runCode() {
+            if (!isReady) {
+                alert('المفسر لم يتم تحميله بعد. انتظر قليلاً...');
+                return;
+            }
+            
+            const code = document.getElementById('code-editor').value;
+            const output = document.getElementById('output');
+            const execTime = document.getElementById('exec-time');
+            const runBtn = document.getElementById('run-btn');
+            
+            runBtn.disabled = true;
+            runBtn.textContent = '⏳ جاري التنفيذ...';
+            output.textContent = '';
+            output.className = '';
+            
+            const startTime = performance.now();
+            
+            try {
+                // استدعاء دالة التنفيذ في WASM
+                const resultPtr = sadModule.ccall(
+                    'sad_execute',      // اسم الدالة
+                    'number',           // نوع الإرجاع (مؤشر)
+                    ['string', 'string'], // أنواع المعاملات
+                    [code, '']          // القيم
+                );
+                
+                // قراءة النتيجة كـ JSON
+                const resultJson = sadModule.UTF8ToString(resultPtr);
+                sadModule._free(resultPtr);
+                
+                const result = JSON.parse(resultJson);
+                const endTime = performance.now();
+                
+                execTime.textContent = `⏱️ ${(endTime - startTime).toFixed(1)}ms`;
+                
+                if (result.success) {
+                    output.textContent = result.output || '(لا يوجد مخرجات)';
+                    output.className = 'output-success';
+                } else {
+                    output.textContent = '❌ خطأ:\n' + result.error;
+                    output.className = 'output-error';
+                }
+                
+            } catch (err) {
+                const endTime = performance.now();
+                execTime.textContent = `⏱️ ${(endTime - startTime).toFixed(1)}ms`;
+                output.textContent = '❌ خطأ في التنفيذ:\n' + err.message;
+                output.className = 'output-error';
+            }
+            
+            runBtn.disabled = false;
+            runBtn.textContent = '▶ تنفيذ';
+        }
+        
+        // تحميل مثال
+        function loadExample(name) {
+            if (examples[name]) {
+                document.getElementById('code-editor').value = examples[name];
+                toggleExamples();
+                clearOutput();
+            }
+        }
+        
+        // عرض/إخفاء قائمة الأمثلة
+        function toggleExamples() {
+            const menu = document.getElementById('examples-menu');
+            menu.classList.toggle('show');
+        }
+        
+        // مسح المخرجات
+        function clearOutput() {
+            document.getElementById('output').textContent = 'اضغط "تنفيذ" لرؤية النتيجة...';
+            document.getElementById('output').className = '';
+            document.getElementById('exec-time').textContent = '';
+        }
+        
+        // عرض المساعدة
+        function showHelp() {
+            alert(`ملعب لغة ص — المساعدة
+
+الكلمات المفتاحية الأساسية:
+• متغير — تعريف متغير
+• ثابت — تعريف ثابت
+• دالة — تعريف دالة
+• ارجع — إرجاع قيمة
+• إذا / وإلا — شرط
+• بينما — حلقة while
+• لكل — حلقة for each
+• صنف — تعريف صنف
+• جديد — إنشاء كائن
+• نهاية — نهاية الكتلة
+
+الدوال المدمجة:
+• اطبع_سطر(نص) — طباعة مع سطر جديد
+• اطبع(نص) — طباعة بدون سطر جديد
+• طول(مصفوفة) — طول المصفوفة
+• نوع(قيمة) — نوع القيمة
+
+للمزيد: https://github.com/sad-lang/sad-language`);
+        }
+        
+        // إغلاق القائمة عند النقر خارجها
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('examples-menu');
+            const dropdown = e.target.closest('.examples-dropdown');
+            if (!dropdown && menu.classList.contains('show')) {
+                menu.classList.remove('show');
+            }
+        });
+        
+        // اختصارات لوحة المفاتيح
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+Enter أو Cmd+Enter للتنفيذ
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                runCode();
+            }
+        });
+        
+        // تحميل المفسر عند بدء الصفحة
+        initSad();
+    </script>
+</body>
+</html>

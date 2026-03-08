@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // label.cpp - تطبيق عنصر التسمية
 // Implementation of label widget
 // ============================================================================
@@ -9,8 +9,9 @@
 
 using sad::graphics::ResourceManager;
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // ============================================================================
         // البناء الافتراضي / Default constructor
@@ -227,5 +228,6 @@ namespace Graphics {
             // (Already drawn in Widget::Draw, but mentioned for clarity)
         }
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad

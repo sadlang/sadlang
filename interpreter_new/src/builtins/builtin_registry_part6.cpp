@@ -769,6 +769,154 @@ void registerBuiltinsPart6(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("واجهة_نص", ui_text_func);
     interpreter.getFunctionManager().registerBuiltinFunction("ui_text", ui_text_func);
 
+    // (AR) إنشاء زر — واجهة_زر(نص)
+    auto ui_button_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.empty()) throw std::runtime_error("واجهة_زر: يحتاج معامل واحد على الأقل");
+        auto elem = sad::stdlib::mobile::create_button(args[0]->toString());
+        return std::make_shared<Data::Value>(sad::stdlib::mobile::render_ui_element(elem));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("واجهة_زر", ui_button_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ui_button", ui_button_func);
+
+    // (AR) إنشاء صورة — واجهة_صورة(مورد)
+    auto ui_image_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.empty()) throw std::runtime_error("واجهة_صورة: يحتاج معامل واحد على الأقل");
+        auto elem = sad::stdlib::mobile::create_image(args[0]->toString());
+        return std::make_shared<Data::Value>(sad::stdlib::mobile::render_ui_element(elem));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("واجهة_صورة", ui_image_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("ui_image", ui_image_func);
+
+    // (AR) توليد كود Compose من نص — صدّر_كومبوز(نص)
+    auto export_compose_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.empty()) throw std::runtime_error("صدّر_كومبوز: يحتاج معامل واحد على الأقل");
+        auto elem = sad::stdlib::mobile::create_text(args[0]->toString());
+        return std::make_shared<Data::Value>(sad::stdlib::mobile::render_to_compose(elem));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("صدّر_كومبوز", export_compose_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("صدر_كومبوز", export_compose_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("export_compose", export_compose_func);
+
+    // (AR) توليد كود SwiftUI من نص — صدّر_سويفت(نص)
+    auto export_swiftui_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.empty()) throw std::runtime_error("صدّر_سويفت: يحتاج معامل واحد على الأقل");
+        auto elem = sad::stdlib::mobile::create_text(args[0]->toString());
+        return std::make_shared<Data::Value>(sad::stdlib::mobile::render_to_swiftui(elem));
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("صدّر_سويفت", export_swiftui_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("صدر_سويفت", export_swiftui_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("export_swiftui", export_swiftui_func);
+
+    // =========================================================================
+    // Camera Functions / دوال الكاميرا
+    // =========================================================================
+
+    // (AR) التقاط صورة — هاتف_كاميرا()
+    auto camera_capture_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        std::string result = sad::stdlib::mobile::capture_photo();
+        return std::make_shared<Data::Value>(result);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("هاتف_كاميرا", camera_capture_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("mobile_camera", camera_capture_func);
+
+    // (AR) التحقق من توفر الكاميرا — كاميرا_متوفرة()
+    auto camera_available_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        return std::make_shared<Data::Value>(sad::stdlib::mobile::is_camera_available());
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("كاميرا_متوفرة", camera_available_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("camera_available", camera_available_func);
+
+    // =========================================================================
+    // Location Functions / دوال الموقع
+    // =========================================================================
+
+    // (AR) الموقع الحالي — هاتف_موقع()
+    auto location_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto loc = sad::stdlib::mobile::get_current_location();
+        std::string result = "خط_عرض:" + std::to_string(loc.latitude) + 
+                            ",خط_طول:" + std::to_string(loc.longitude) +
+                            ",ارتفاع:" + std::to_string(loc.altitude);
+        return std::make_shared<Data::Value>(result);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("هاتف_موقع", location_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("mobile_location", location_func);
+
+    // (AR) حساب المسافة بين نقطتين — احسب_المسافة(عرض1، طول1، عرض2، طول2)
+    auto distance_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.size() < 4) throw std::runtime_error("احسب_المسافة: يحتاج 4 معاملات (عرض1، طول1، عرض2، طول2)");
+        double lat1 = args[0]->toDouble();
+        double lon1 = args[1]->toDouble();
+        double lat2 = args[2]->toDouble();
+        double lon2 = args[3]->toDouble();
+        double km = sad::stdlib::mobile::calculate_distance(lat1, lon1, lat2, lon2);
+        return std::make_shared<Data::Value>(km);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("احسب_المسافة", distance_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("calculate_distance", distance_func);
+
+    // =========================================================================
+    // Sensor Functions / دوال المستشعرات
+    // =========================================================================
+
+    // (AR) مستشعر التسارع — هاتف_تسارع()
+    auto accelerometer_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto data = sad::stdlib::mobile::get_accelerometer();
+        std::string result = "x:" + std::to_string(data.x) + 
+                            ",y:" + std::to_string(data.y) +
+                            ",z:" + std::to_string(data.z);
+        return std::make_shared<Data::Value>(result);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("هاتف_تسارع", accelerometer_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("mobile_accelerometer", accelerometer_func);
+
+    // (AR) الجيروسكوب — هاتف_دوران()
+    auto gyroscope_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        auto data = sad::stdlib::mobile::get_gyroscope();
+        std::string result = "x:" + std::to_string(data.x) + 
+                            ",y:" + std::to_string(data.y) +
+                            ",z:" + std::to_string(data.z);
+        return std::make_shared<Data::Value>(result);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("هاتف_دوران", gyroscope_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("mobile_gyroscope", gyroscope_func);
+
+    // =========================================================================
+    // Project Generation / إنشاء المشاريع
+    // =========================================================================
+
+    // (AR) إنشاء مشروع هاتف جديد — هاتف_مشروع_جديد(اسم، منصة)
+    auto new_project_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.size() < 2) throw std::runtime_error("هاتف_مشروع_جديد: يحتاج معاملين (اسم، منصة)");
+        std::string name = args[0]->toString();
+        std::string platform = args[1]->toString();
+        bool result = sad::stdlib::mobile::create_mobile_project(name, platform);
+        return std::make_shared<Data::Value>(result);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("هاتف_مشروع_جديد", new_project_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("mobile_new_project", new_project_func);
+
+    // (AR) توليد AndroidManifest — انشئ_manifest(اسم_الحزمة، اسم_التطبيق)  
+    auto manifest_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.size() < 2) throw std::runtime_error("انشئ_manifest: يحتاج معاملين (اسم_الحزمة، اسم_التطبيق)");
+        std::string pkg = args[0]->toString();
+        std::string app = args[1]->toString();
+        std::string xml = sad::stdlib::mobile::generate_android_manifest(pkg, app);
+        return std::make_shared<Data::Value>(xml);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("انشئ_manifest", manifest_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("generate_manifest", manifest_func);
+
+    // (AR) توليد Info.plist — انشئ_plist(bundle_id، اسم_التطبيق)
+    auto plist_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+        if (args.size() < 2) throw std::runtime_error("انشئ_plist: يحتاج معاملين (bundle_id، اسم_التطبيق)");
+        std::string bundle = args[0]->toString();
+        std::string app = args[1]->toString();
+        std::string plist = sad::stdlib::mobile::generate_ios_plist(bundle, app);
+        return std::make_shared<Data::Value>(plist);
+    };
+    interpreter.getFunctionManager().registerBuiltinFunction("انشئ_plist", plist_func);
+    interpreter.getFunctionManager().registerBuiltinFunction("generate_plist", plist_func);
+
 
 }
 

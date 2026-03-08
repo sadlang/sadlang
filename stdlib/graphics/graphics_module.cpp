@@ -17,6 +17,7 @@
 #include <iostream>                                  // للطباعة / For output
 #include <map>                                       // للخرائط / For maps
 #include <SDL.h>                                     // مكتبة SDL2 / SDL2 library
+#include "../../../graphics/include/text/font.h"              // نظام الخطوط / Font system
 #include "../../../graphics/include/window/window.h"             // نظام النوافذ / Window system
 #include "../../../graphics/include/rendering/context.h"         // سياق الرسم / Render context
 #include "../../../graphics/include/rendering/renderer2d.h"      // محرك الرسم 2D / 2D renderer
@@ -72,6 +73,7 @@ struct WidgetData {
 static std::map<int, WindowData> g_windows;              // خريطة النوافذ / Windows map
 static std::map<int, RendererData> g_renderers;          // خريطة الرسامين / Renderers map
 static std::map<int, WidgetData> g_widgets;              // خريطة العناصر / Widgets map
+static std::map<int, sad::graphics::FontRef> g_fontsBySize; // كاش الخطوط حسب الحجم / Font cache by size
 static int g_nextId = 1;                                 // المعرف التالي / Next ID
 static bool g_sdlInitialized = false;                    // حالة تهيئة SDL / SDL initialization state
 
@@ -121,6 +123,21 @@ static WidgetData* GetWidget(int widgetId) {
         throw std::runtime_error("معرف عنصر غير صالح / Invalid widget ID: " + std::to_string(widgetId));
     }
     return &it->second;                                  // إرجاع مؤشر للبيانات / Return pointer to data
+}
+
+/// الحصول على خط افتراضي بحجم معين مع كاش داخلي / Get cached default font by size
+static sad::graphics::FontRef GetOrCreateDefaultFont(float size) {
+    int roundedSize = static_cast<int>(size <= 0.0f ? 16.0f : size);
+    auto it = g_fontsBySize.find(roundedSize);
+    if (it != g_fontsBySize.end() && it->second && it->second->IsValid()) {
+        return it->second;
+    }
+
+    auto font = sad::graphics::Font::CreateDefault(static_cast<float>(roundedSize));
+    if (font && font->IsValid()) {
+        g_fontsBySize[roundedSize] = font;
+    }
+    return font;
 }
 
 
@@ -424,11 +441,15 @@ void renderer_draw_text_impl(int rendererId, const std::string& text, float x, f
         if (rendererData->renderer) {                    // التحقق من وجود الرسام / Check renderer exists
             // إنشاء كائن لون / Create color object
             sad::graphics::Color color = sad::graphics::Color::FromBytes(r, g, b, a);
-            
-            // رسم النص (مؤقتاً نستخدم مستطيل كبديل) / Draw text (temporarily use rectangle as substitute)
-            // ملاحظة: يحتاج إلى تطبيق نظام الخطوط / Note: Needs font system implementation
-            std::cout << "رسم نص (مؤقت): \"" << text << "\" في (" << x << "," << y << ")" << std::endl;
-            std::cout << "Drawing text (temp): \"" << text << "\" at (" << x << "," << y << ")" << std::endl;
+
+            // محاولة رسم النص الحقيقي عبر نظام الخطوط / Render real text via font system
+            auto font = GetOrCreateDefaultFont(size);
+            if (font && font->IsValid()) {
+                rendererData->renderer->DrawTextAuto(text, font, x, y, color);
+            } else {
+                // fallback واضح بدل السبام / Explicit fallback without noisy placeholder spam
+                std::cerr << "تعذر تحميل خط افتراضي لرسم النص / Failed to load default font for text rendering" << std::endl;
+            }
         }
     }
     catch (const std::exception& e) {                    // معالجة الأخطاء / Handle errors

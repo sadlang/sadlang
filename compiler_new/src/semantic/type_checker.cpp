@@ -535,24 +535,78 @@ void TypeChecker::visitIndexExpr(AST::IndexExpr& expr) {
             recordTypeError("", "integer", idxType->toString(), &expr,
                 "Array index must be integer");
         }
+        // (AR) استرجاع نوع العنصر من نوع المصفوفة / (EN) Retrieve element type from array type
+        if (objType->getKind() == TypeKind::Array) {
+            auto* arrType = static_cast<ArrayType*>(objType.get());
+            TypePtr elemType = arrType->getElementType();
+            lastInferredType_ = elemType ? elemType : registry_.getUnknownType();
+            return;
+        }
     }
-    
-    // TODO: استرجع نوع العنصر الفعلي
+    // (AR) إذا كان كائن به عملية فهرسة / (EN) Object with subscript operation
+    if (objType && (objType->getKind() == TypeKind::Dictionary || objType->isString())) {
+        lastInferredType_ = objType->isString() ? registry_.getStringType() : registry_.getAnyType();
+        return;
+    }
     lastInferredType_ = registry_.getUnknownType();
 }
 
 void TypeChecker::visitMemberExpr(AST::MemberExpr& expr) {
     currentResult_.totalExpressions++;
-    inferExprType(expr.object.get());
-    // TODO: ابحث عن نوع العضو من تعريف الفئة
+    TypePtr objType = inferExprType(expr.object.get());
+    
+    // (AR) البحث عن نوع العضو من StructRegistry / (EN) Look up member type from StructRegistry
+    if (objType && (objType->getKind() == TypeKind::Class)) {
+        std::string className;
+        if (auto* newExpr = dynamic_cast<AST::NewExpr*>(expr.object.get())) {
+            className = newExpr->className;
+        }
+        if (!className.empty()) {
+            auto structType = StructRegistry::instance().findStruct(className);
+            if (structType) {
+                auto field = structType->findField(expr.member);
+                if (field) {
+                    lastInferredType_ = field->getType() ? field->getType() : registry_.getUnknownType();
+                    return;
+                }
+            }
+        }
+    }
+    // (AR) للنصوص: خصائص مثل الطول / (EN) For strings: properties like length
+    if (objType && objType->isString()) {
+        if (expr.member == "الطول" || expr.member == "length") {
+            lastInferredType_ = registry_.getIntegerType();
+            return;
+        }
+    }
     lastInferredType_ = registry_.getUnknownType();
 }
 
 void TypeChecker::visitMemberAssignExpr(AST::MemberAssignExpr& expr) {
     currentResult_.totalExpressions++;
-    inferExprType(expr.object.get());
+    TypePtr objType = inferExprType(expr.object.get());
     TypePtr valType = inferExprType(expr.value.get());
-    // TODO: تحقق من توافق نوع العضو
+    
+    // (AR) تحقق من توافق نوع العضو مع القيمة المُسندة / (EN) Check member type compatibility with assigned value
+    if (strictMode_ && objType && (objType->getKind() == TypeKind::Class)) {
+        std::string className;
+        if (auto* newExpr = dynamic_cast<AST::NewExpr*>(expr.object.get())) {
+            className = newExpr->className;
+        }
+        if (!className.empty()) {
+            auto structType = StructRegistry::instance().findStruct(className);
+            if (structType) {
+                auto field = structType->findField(expr.member);
+                if (field && field->getType() && valType && !valType->isUnknown()) {
+                    TypePtr fieldType = field->getType();
+                    if (!fieldType->isUnknown() && !areTypesCompatible(fieldType, valType)) {
+                        recordTypeError(expr.member, fieldType->toString(), valType->toString(), &expr,
+                            "Member assignment type mismatch");
+                    }
+                }
+            }
+        }
+    }
     lastInferredType_ = valType;
 }
 
@@ -718,18 +772,78 @@ void TypeChecker::visitNewExpr(AST::NewExpr& expr) {
 
 void TypeChecker::visitMemberAccessExpr(AST::MemberAccessExpr& expr) {
     currentResult_.totalExpressions++;
-    inferExprType(expr.object.get());
-    // TODO: field type lookup
+    TypePtr objType = inferExprType(expr.object.get());
+    
+    // (AR) البحث عن نوع الحقل من StructRegistry / (EN) Look up field type from StructRegistry
+    if (objType && (objType->getKind() == TypeKind::Class)) {
+        // (AR) محاولة تحديد اسم الصنف / (EN) Try to identify class name
+        std::string className;
+        if (auto* newExpr = dynamic_cast<AST::NewExpr*>(expr.object.get())) {
+            className = newExpr->className;
+        } else if (auto* thisExpr = dynamic_cast<AST::ThisExpr*>(expr.object.get())) {
+            className = currentFunction_;
+        }
+        if (!className.empty()) {
+            auto structType = StructRegistry::instance().findStruct(className);
+            if (structType) {
+                auto field = structType->findField(expr.memberName);
+                if (field && field->getType()) {
+                    lastInferredType_ = field->getType();
+                    return;
+                }
+            }
+        }
+    }
+    // (AR) خصائص النص / (EN) String properties
+    if (objType && objType->isString()) {
+        if (expr.memberName == "الطول" || expr.memberName == "length") {
+            lastInferredType_ = registry_.getIntegerType();
+            return;
+        }
+    }
     lastInferredType_ = registry_.getUnknownType();
 }
 
 void TypeChecker::visitMethodCallExpr(AST::MethodCallExpr& expr) {
     currentResult_.totalExpressions++;
-    inferExprType(expr.object.get());
+    TypePtr objType = inferExprType(expr.object.get());
     for (auto& arg : expr.arguments) {
         if (arg) inferExprType(arg.get());
     }
-    // TODO: return type from method
+    // (AR) استنتاج نوع الإرجاع من الطريقة / (EN) Infer return type from method
+    // (AR) طرق النص تُرجع أنواعاً معروفة / (EN) String methods return known types
+    if (objType && objType->isString()) {
+        const std::string& method = expr.methodName;
+        if (method == "الطول" || method == "length") {
+            lastInferredType_ = registry_.getIntegerType();
+            return;
+        }
+        if (method == "يحتوي" || method == "contains" ||
+            method == "يبدأ_بـ" || method == "startsWith" ||
+            method == "ينتهي_بـ" || method == "endsWith") {
+            lastInferredType_ = registry_.getBooleanType();
+            return;
+        }
+        if (method == "قطع" || method == "slice" ||
+            method == "استبدل" || method == "replace" ||
+            method == "حروف_كبيرة" || method == "toUpperCase" ||
+            method == "حروف_صغيرة" || method == "toLowerCase") {
+            lastInferredType_ = registry_.getStringType();
+            return;
+        }
+    }
+    // (AR) طرق المصفوفة / (EN) Array methods
+    if (objType && objType->isArray()) {
+        const std::string& method = expr.methodName;
+        if (method == "الطول" || method == "length" || method == "حجم" || method == "size") {
+            lastInferredType_ = registry_.getIntegerType();
+            return;
+        }
+        if (method == "أضف" || method == "push" || method == "ادفع") {
+            lastInferredType_ = registry_.getVoidType();
+            return;
+        }
+    }
     lastInferredType_ = registry_.getUnknownType();
 }
 
@@ -1178,12 +1292,34 @@ void TypeChecker::visitEnumDecl(AST::EnumDecl& decl) {
     }
 }
 
-void TypeChecker::visitImportStmt(AST::ImportStmt& /*stmt*/) {
-    // TODO: module type loading
+void TypeChecker::visitImportStmt(AST::ImportStmt& stmt) {
+    // (AR) تحميل أنواع الوحدة — تسجيل اسم الوحدة كمتغير من نوع Module
+    // (EN) Module type loading — register module name as Module-typed variable
+    if (!stmt.modulePath.empty()) {
+        std::string effectiveName = stmt.getEffectiveName();
+        
+        // (AR) تسجيل الوحدة كنطاق اسم — كل أعضائها Any حتى يتم ربط الوحدات
+        // (EN) Register module as namespace — members are Any until module linking
+        declareVariable(effectiveName, registry_.getAnyType());
+        
+        // (AR) تسجيل مسار الوحدة لمرحلة الربط في SIR
+        // (EN) Record module path for SIR linking phase
+        currentResult_.moduleDependencies.push_back(stmt.getFullModuleName());
+    }
 }
 
-void TypeChecker::visitFromImportStmt(AST::FromImportStmt& /*stmt*/) {
-    // TODO: module type loading
+void TypeChecker::visitFromImportStmt(AST::FromImportStmt& stmt) {
+    // (AR) تسجيل كل رمز مستورد مع نوعه المبدئي
+    // (EN) Register each imported symbol with its initial type
+    
+    // (AR) تسجيل اعتماد الوحدة
+    currentResult_.moduleDependencies.push_back(stmt.getFullModuleName());
+    
+    for (const auto& item : stmt.items) {
+        std::string name = item.getEffectiveName();
+        // (AR) كل رمز مستورد يبدأ كـ Any — سيُحدَّث عند ربط الوحدات
+        declareVariable(name, registry_.getAnyType());
+    }
 }
 
 void TypeChecker::visitExportStmt(AST::ExportStmt& stmt) {
@@ -1249,9 +1385,35 @@ void TypeChecker::visitTemplateClassDecl(AST::TemplateClassDecl& decl) {
 void TypeChecker::visitTemplateInstantiation(AST::TemplateInstantiation& inst) {
     currentResult_.totalExpressions++;
     
-    // TODO: Look up template, apply type arguments, check bounds
+    // (AR) البحث عن القالب والتحقق من عدد معاملات الأنواع
+    // (EN) Look up template and validate type argument count
     auto type = lookupVariable(inst.templateName);
-    lastInferredType_ = type ? type : registry_.getUnknownType();
+    
+    if (!type) {
+        // (AR) قالب غير معرّف
+        // (EN) Template not defined
+        TypeCheckError err;
+        err.variableName = inst.templateName;
+        err.line = inst.position.line;
+        err.column = inst.position.column;
+        err.message = "Undefined template: '" + inst.templateName + "'";
+        err.arabicMessage = "قالب غير معرّف: '" + inst.templateName + "'";
+        currentResult_.addError(err);
+        lastInferredType_ = registry_.getUnknownType();
+    } else {
+        // (AR) التحقق من أنه ليس فارغًا من معاملات الأنواع
+        // (EN) Ensure type arguments are provided
+        if (inst.typeArguments.empty()) {
+            TypeCheckError err;
+            err.variableName = inst.templateName;
+            err.line = inst.position.line;
+            err.column = inst.position.column;
+            err.message = "Empty type arguments for template: '" + inst.templateName + "'";
+            err.arabicMessage = "معاملات أنواع فارغة للقالب: '" + inst.templateName + "'";
+            currentResult_.addError(err);
+        }
+        lastInferredType_ = type;
+    }
     
     if (debugMode_) {
         std::cerr << "  [TC] TemplateInstantiation '" << inst.templateName

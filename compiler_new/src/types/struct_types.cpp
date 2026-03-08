@@ -9,6 +9,7 @@
  */
 
 #include "types/struct_types.h"
+#include "types/type.h"
 #include <algorithm>
 #include <sstream>
 
@@ -277,7 +278,9 @@ StructTypePtr StructRegistry::getOrCreateInstantiation(
     bool first = true;
     for (const auto& arg : typeArgs) {
         if (!first) key << ",";
-        key << reinterpret_cast<uintptr_t>(arg.get());
+        // (AR) استخدام تمثيل النوع النصي بدلاً من عنوان الذاكرة
+        // (EN) Use type string representation instead of memory address
+        key << (arg ? arg->toString() : "null");
         first = false;
     }
     key << ">";

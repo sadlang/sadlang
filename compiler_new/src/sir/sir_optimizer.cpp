@@ -61,6 +61,7 @@
 #include <map>
 #include <set>
 #include <algorithm>
+#include <iostream>
 
 namespace sad::sir {
 
@@ -395,7 +396,12 @@ private:
             case Opcode::Mul: return lhs * rhs;
             case Opcode::Div: return rhs != 0 ? lhs / rhs : 0;
             case Opcode::Mod: return rhs != 0 ? lhs % rhs : 0;
-            default: return 0;
+            default:
+                // (AR) عملية غير حسابية — تحذير + إرجاع 0
+                // (EN) Non-arithmetic opcode — warn + return 0
+                std::cerr << "[sadc تحذير] evaluateOp مع عملية غير حسابية: "
+                          << static_cast<int>(op) << std::endl;
+                return 0;
         }
     }
 };
@@ -487,7 +493,7 @@ SadSirOptimizer* sad_sir_optimizer_new() {
 }
 
 int sad_sir_optimize_function(SadSirOptimizer* ctx, void* function) {
-    if (!ctx || !function) return 0;
+    if (!ctx || !function) return -1;  // (AR) -1 يعني خطأ، 0 يعني لا تحسينات / (EN) -1 means error, 0 means no optimizations
     
     auto* func = static_cast<sad::sir::SirFunction*>(function);
     ctx->lastStats = ctx->optimizer->optimize(*func);
@@ -496,7 +502,7 @@ int sad_sir_optimize_function(SadSirOptimizer* ctx, void* function) {
 }
 
 int sad_sir_optimize_module(SadSirOptimizer* ctx, void* module) {
-    if (!ctx || !module) return 0;
+    if (!ctx || !module) return -1;  // (AR) -1 يعني خطأ / (EN) -1 means error
     
     auto* mod = static_cast<sad::sir::SirModule*>(module);
     ctx->lastStats = ctx->optimizer->optimize(*mod);
@@ -505,7 +511,10 @@ int sad_sir_optimize_module(SadSirOptimizer* ctx, void* module) {
 }
 
 const char* sad_sir_optimizer_stats(SadSirOptimizer* ctx) {
-    static std::string stats;
+    // (AR) استخدام thread_local بدلاً من static لتجنب سباق البيانات
+    // (EN) Use thread_local instead of static to avoid data races
+    thread_local std::string stats;
+    if (!ctx) return "";
     stats = ctx->lastStats.toString();
     return stats.c_str();
 }

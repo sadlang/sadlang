@@ -141,8 +141,10 @@ SIRType SIRBuilder::astTypeToSIRType(const Sad::Data::DataType& type) {
             // (EN) Unknown type - will be inferred from expression
             return SIRType::I64;  // Default, will be overwritten by type inference
         default:
-            // (AR) أنواع أخرى (MAP, TUPLE, ENUM, BYTE, ERROR)
-            // (EN) Other types (MAP, TUPLE, ENUM, BYTE, ERROR)
+            // (AR) أنواع أخرى (MAP, TUPLE, ENUM, BYTE, ERROR) — تحذير + fallback
+            // (EN) Other types (MAP, TUPLE, ENUM, BYTE, ERROR) — warn + fallback
+            std::cerr << "[sadc تحذير] DataType غير معالج في astTypeToSIRType: "
+                      << static_cast<int>(type) << " — استخدام I64" << std::endl;
             return SIRType::I64;  // Fallback
     }
 }
@@ -803,6 +805,10 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
                     moveInst.operands.push_back(SIROperand::ConstantString(trueResult.constantValue));
                     break;
                 default:
+                    // (AR) نوع غير معروف في التعبير الثلاثي (true) — تحذير + fallback I64
+                    // (EN) Unknown type in ternary (true branch) — warn + fallback I64
+                    std::cerr << "[sadc تحذير] نوع غير معالج في تعبير ثلاثي (true): "
+                              << static_cast<int>(resultType) << std::endl;
                     moveInst.operands.push_back(SIROperand::ConstantI64(0));
                     break;
             }
@@ -843,6 +849,10 @@ BuildResult SIRBuilder::buildExpression(AST::ExpressionNode* expr) {
                     moveInst.operands.push_back(SIROperand::ConstantString(falseResult.constantValue));
                     break;
                 default:
+                    // (AR) نوع غير معروف في التعبير الثلاثي (false) — تحذير + fallback I64
+                    // (EN) Unknown type in ternary (false branch) — warn + fallback I64
+                    std::cerr << "[sadc تحذير] نوع غير معالج في تعبير ثلاثي (false): "
+                              << static_cast<int>(resultType) << std::endl;
                     moveInst.operands.push_back(SIROperand::ConstantI64(0));
                     break;
             }

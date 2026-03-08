@@ -234,8 +234,8 @@ SolverResult ConstraintSolver::solve(const ConstraintSet& constraints,
             break;
         }
         
-        // التحقق من نقطة الثبات / Check fixed point
-        // TODO: في التنفيذ الكامل، سنستخدم isFixedPoint بشكل صحيح
+        // التحقق من نقطة الثبات: جميع القيود محلولة
+        // (EN) Fixed point check: all constraints solved
         if (remaining.empty()) {
             if (verbose_) {
                 std::cout << "\n✓ وصلنا لنقطة الثبات / Reached fixed point" << std::endl;

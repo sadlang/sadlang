@@ -755,16 +755,19 @@ extern "C" {
     }
     
     void* sad_string_pool_get(void* pool, const char* str) {
+        if (!pool || !str) return nullptr;
         auto* p = static_cast<ArabicStringPool*>(pool);
         return p->getOrCreateString(str);
     }
     
     int sad_string_pool_contains(void* pool, const char* str) {
+        if (!pool || !str) return 0;
         auto* p = static_cast<ArabicStringPool*>(pool);
         return p->contains(str) ? 1 : 0;
     }
     
     size_t sad_string_pool_size(void* pool) {
+        if (!pool) return 0;
         auto* p = static_cast<ArabicStringPool*>(pool);
         return p->size();
     }

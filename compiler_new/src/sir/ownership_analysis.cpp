@@ -561,12 +561,14 @@ int sad_ownership_analyze(SadOwnershipAnalyzer* ctx,
 }
 
 const char* sad_ownership_report(SadOwnershipAnalyzer* ctx) {
-    static std::string report;
+    if (!ctx || !ctx->report) return "";
+    thread_local std::string report;
     report = ctx->report->toString();
     return report.c_str();
 }
 
 int sad_ownership_has_errors(SadOwnershipAnalyzer* ctx) {
+    if (!ctx || !ctx->report) return 0;
     return ctx->report->hasErrors() ? 1 : 0;
 }
 

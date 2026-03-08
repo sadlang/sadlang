@@ -11,8 +11,9 @@
 
 #include "label.h"  // نرث من Label لأن الزر يحتوي على نص / Inherit from Label as button contains text
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // ============================================================================
         // Button - عنصر الزر
@@ -67,7 +68,8 @@ namespace Graphics {
             void UpdateStyleForState();              // تحديث النمط حسب الحالة / Update style for state
         };
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad
 
 #endif // GRAPHICS_UI_BUTTON_H

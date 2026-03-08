@@ -187,7 +187,7 @@ private:
             default:
                 compiler::Logger::instance().log(
                     compiler::Logger::Level::Warning,
-                    "Unknown type kind: " + std::to_string(static_cast<int>(type->kind))
+                    "نوع SIR غير معروف في typeToLlvm: " + std::to_string(static_cast<int>(type->kind)) + " — استخدام i32"
                 );
                 return "i32";
         }

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // button.cpp - تطبيق عنصر الزر
 // Implementation of button widget
 // ============================================================================
@@ -6,8 +6,9 @@
 #include "../include/ui/button.h"          // ملف الرأس / Header file
 #include "../include/rendering/renderer2d.h"  // للرسم / For rendering
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // ============================================================================
         // البناء الافتراضي / Default constructor
@@ -256,5 +257,6 @@ namespace Graphics {
             }
         }
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad

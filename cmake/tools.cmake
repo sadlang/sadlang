@@ -38,13 +38,8 @@ if(BUILD_LSP_SERVER)
         add_subdirectory(tools/formatter)
     endif()
 
-    # تثبيت / Installation
-    if(TARGET sad-lsp-server)
-        install(TARGETS sad-lsp-server RUNTIME DESTINATION bin COMPONENT tools)
-    endif()
-    if(TARGET sad-fmt)
-        install(TARGETS sad-fmt RUNTIME DESTINATION bin COMPONENT tools)
-    endif()
+    # (AR) قواعد التثبيت مُجمّعة في cmake/install.cmake
+    # (EN) Install rules consolidated in cmake/install.cmake
 
     message(STATUS "✓ خادم LSP / LSP Server: sad-lsp-server")
     message(STATUS "✓ أداة التنسيق / Formatter: sad-fmt")
@@ -68,7 +63,6 @@ if(BUILD_PKG_MANAGER)
     set_target_properties(sad-pkg PROPERTIES
         OUTPUT_NAME "sad-pkg" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-    install(TARGETS sad-pkg RUNTIME DESTINATION bin COMPONENT tools)
     message(STATUS "✓ مدير الحزم / Package Manager: sad-pkg")
 endif()
 

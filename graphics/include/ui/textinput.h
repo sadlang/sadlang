@@ -14,8 +14,9 @@
 #include <memory>                                  // لاستخدام المؤشرات الذكية / For smart pointers
 #include <functional>                              // لاستخدام الدوال / For functions
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // تعريف دالة رد عند تغيير النص / Text change callback type
         using TextChangeCallback = std::function<void(const std::string&)>;
@@ -129,7 +130,8 @@ namespace Graphics {
             void EnsureCursorVisible();                         // التأكد من ظهور المؤشر / Ensure cursor visible
         };
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad
 
 #endif // GRAPHICS_UI_TEXTINPUT_H

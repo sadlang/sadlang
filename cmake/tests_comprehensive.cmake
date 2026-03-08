@@ -103,6 +103,12 @@ target_include_directories(test_vm_compiler_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/interpreter_new/include
     ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers)
 
+# 7.5. اختبارات محرك JIT / JIT Engine Tests (74 tests)
+add_comprehensive_test(test_jit_comprehensive test_jit_comprehensive.cpp)
+target_link_libraries(test_jit_comprehensive PRIVATE sad_vm)
+target_include_directories(test_jit_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/vm/include)
+
 # 8. اختبارات التكامل / End-to-End Tests (47 tests)
 add_comprehensive_test(test_e2e_comprehensive test_e2e_comprehensive.cpp)
 
@@ -125,6 +131,136 @@ target_include_directories(test_graphics_tools_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/network/include
     ${CMAKE_SOURCE_DIR}/tools)
 
+# 12. اختبارات الانحدار / Regression Tests (22 tests - bugs from مشاكل.md)
+add_comprehensive_test(test_regression_comprehensive test_regression_comprehensive.cpp)
+
+# تمرير مسار sad.exe ومجلد الاختبارات / Pass interpreter and test directory paths
+target_compile_definitions(test_regression_comprehensive PRIVATE
+    SAD_EXE_PATH="$<TARGET_FILE:sad>"
+    REGRESSION_DIR="${CMAKE_SOURCE_DIR}/tests/regression"
+)
+
+# مهلة أطول للانحدار — بعض الاختبارات تتضمن حلقات لا نهائية / Longer timeout for regression
+set_tests_properties("Comprehensive_test_regression_comprehensive" PROPERTIES TIMEOUT 300)
+
+# ──────────────────────────────────────────────────────────────────────
+# 13. اختبارات وحدات المكتبة القياسية المتقدمة / Advanced Stdlib Module Tests (Sprint 1 — ريم)
+# ──────────────────────────────────────────────────────────────────────
+
+# 13a. الشبكات / Network Module Tests
+add_comprehensive_test(test_network_comprehensive test_network_comprehensive.cpp)
+target_include_directories(test_network_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/stdlib/network
+    ${CMAKE_SOURCE_DIR}/stdlib/network/include
+    ${CMAKE_SOURCE_DIR}/stdlib/network/include/network
+    ${CMAKE_SOURCE_DIR}/stdlib/network/include/socket
+    ${CMAKE_SOURCE_DIR}/stdlib/network/include/http
+    ${CMAKE_SOURCE_DIR}/stdlib/network/include/websocket)
+target_sources(test_network_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/stdlib/network/src/network/network_error.cpp
+    ${CMAKE_SOURCE_DIR}/stdlib/network/src/socket/socket_address.cpp
+    ${CMAKE_SOURCE_DIR}/stdlib/network/src/http/http_base.cpp
+    ${CMAKE_SOURCE_DIR}/stdlib/network/src/http/http_request.cpp
+    ${CMAKE_SOURCE_DIR}/stdlib/network/src/http/http_response.cpp
+    ${CMAKE_SOURCE_DIR}/stdlib/network/src/http/http_cookie.cpp
+    ${CMAKE_SOURCE_DIR}/stdlib/network/src/http/http_url.cpp)
+if(WIN32)
+    target_link_libraries(test_network_comprehensive PRIVATE ws2_32)
+    target_compile_definitions(test_network_comprehensive PRIVATE WIN32_LEAN_AND_MEAN)
+endif()
+
+# 13b. البرمجة غير المتزامنة / Async Module Tests
+add_comprehensive_test(test_async_comprehensive test_async_comprehensive.cpp)
+target_include_directories(test_async_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/stdlib)
+
+# 13c. النظام / System Module Tests
+add_comprehensive_test(test_system_comprehensive test_system_comprehensive.cpp)
+target_include_directories(test_system_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/stdlib)
+target_sources(test_system_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/stdlib/system/system_functions.cpp)
+
+# 13d. النصوص العربية / Arabic Text Module Tests
+add_comprehensive_test(test_text_comprehensive test_text_comprehensive.cpp)
+target_include_directories(test_text_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/stdlib)
+
+# 13e. الصور / Image Module Tests (header-only — stb_image_write.h unavailable)
+add_comprehensive_test(test_image_comprehensive test_image_comprehensive.cpp)
+target_include_directories(test_image_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/stdlib)
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات .ص فردية مباشرة عبر CTest / Individual .ص CTest entries
+# ──────────────────────────────────────────────────────────────────────
+# تسجيل كل ملف .ص كاختبار CTest مستقل — يسهل التشخيص / Register each .ص as standalone CTest
+set(REGRESSION_TEST_DIR "${CMAKE_SOURCE_DIR}/tests/regression")
+
+# P0 — عاجل / Critical
+set(REGRESSION_P0_TESTS
+    test_p01_array_key_access
+    test_p02_while_update
+    test_p03_length_depth
+    test_p09_reserved_words
+    test_p10_void_return
+    test_p11_custom_class_fields
+    test_p12_integer_division
+    test_p16_compound_field
+    test_p18_this_method_save
+    test_p19_hex_literals
+)
+
+# P1 — مهم / Important
+set(REGRESSION_P1_TESTS
+    test_p04_hamza_var
+    test_p08_break
+    test_p13_class_prefix
+    test_p14_cascading_errors
+    test_p17_undocumented_reserved
+    test_p20_super_reserved
+    test_p24_json_unified_builtin
+    test_p25_xml_unified_builtin
+    test_p26_json_invalid_input
+    test_p27_xml_invalid_input
+    test_p28_filesystem_smoke
+    test_p29_filesystem_invalid_input
+    test_p30_database_availability
+)
+
+# P2 — تحسين / Enhancement
+set(REGRESSION_P2_TESTS
+    test_p05_mixed_chars
+    test_p06_large_numbers
+    test_p07_array_pluseq
+    test_p15_utf8_windows
+    test_p21_template_reserved
+    test_p22_true_literal
+)
+
+foreach(TEST_NAME IN LISTS REGRESSION_P0_TESTS REGRESSION_P1_TESTS REGRESSION_P2_TESTS)
+    # تحقق من وجود الملف بلاحقة .ص
+    set(TEST_FILE "${REGRESSION_TEST_DIR}/${TEST_NAME}.ص")
+    if(EXISTS "${TEST_FILE}")
+        add_test(
+            NAME "Regression_${TEST_NAME}"
+            COMMAND $<TARGET_FILE:sad> "${TEST_FILE}"
+        )
+        set_tests_properties("Regression_${TEST_NAME}" PROPERTIES
+            TIMEOUT 15
+            LABELS "regression"
+        )
+        message(STATUS "  📋 Regression: ${TEST_NAME}")
+    endif()
+endforeach()
+
+# الحلقة اللانهائية تحتاج مهلة قصيرة / Infinite loop test needs shorter timeout
+if(TARGET sad)
+    set_tests_properties("Regression_test_p02_while_update" PROPERTIES TIMEOUT 5)
+endif()
+
+message(STATUS "  ✅ test_regression_comprehensive (30 regression tests)")
+
 # ──────────────────────────────────────────────────────────────────────
 # هدف مُجمّع / Combined Target
 # ──────────────────────────────────────────────────────────────────────
@@ -137,15 +273,18 @@ add_custom_target(comprehensive_tests
         test_stdlib_comprehensive
         test_errors_comprehensive
         test_vm_compiler_comprehensive
+        test_jit_comprehensive
         test_e2e_comprehensive
         test_utils_modules_comprehensive
         test_compiler_comprehensive
         test_graphics_tools_comprehensive
+        test_regression_comprehensive
     COMMENT "بناء جميع الاختبارات الشاملة / Building all comprehensive tests"
 )
 
 message(STATUS "════════════════════════════════════════════════════════")
-message(STATUS "  ✅ الاختبارات الشاملة: 11 ملف | 900+ اختبار")
+message(STATUS "  ✅ الاختبارات الشاملة: 12 ملف | 900+ اختبار + 30 انحدار")
 message(STATUS "  📋 بناء الكل: cmake --build build --target comprehensive_tests")
-message(STATUS "  🧪 تشغيل: ctest --test-dir build -R Comprehensive")
+message(STATUS "  🧪 تشغيل الكل: ctest --test-dir build -R Comprehensive")
+message(STATUS "  🔄 تشغيل الانحدار: ctest --test-dir build -L regression")
 message(STATUS "════════════════════════════════════════════════════════")

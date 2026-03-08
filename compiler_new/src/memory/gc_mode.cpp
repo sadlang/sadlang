@@ -92,6 +92,12 @@ bool MemoryModeManager::setModeFromAttribute(const std::string& attribute) {
             settings_.ownershipMode = OwnershipMode::UltraStrict;
             break;
         default:
+            // (AR) وضع ذاكرة غير معروف — استخدام إعدادات التطوير الآمنة مع تحذير
+            // (EN) Unknown memory mode — use safe development defaults with warning
+            settings_.gcStrategy = GCStrategy::ReferenceCounting;
+            settings_.ownershipMode = OwnershipMode::Warnings;
+            std::cerr << "[sadc تحذير] وضع ذاكرة غير معالج: "
+                      << static_cast<int>(*mode) << " — استخدام إعدادات التطوير" << std::endl;
             break;
     }
     

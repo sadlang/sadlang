@@ -7,6 +7,8 @@
 #include "interpreter_core.h"
 #include "value.h"
 #include "graphics/sad_serialization_resources.h"
+#include "json/json_module.h"
+#include "xml/xml_module.h"
 
 #include <vector>
 #include <memory>
@@ -14,6 +16,141 @@
 
 namespace Sad {
 namespace Interpreter {
+
+namespace {
+
+using Sad::Data::Value;
+
+// Convert interpreter runtime value -> stdlib JSON value.
+sad::stdlib::json::JsonValue sadToJsonValue(const Value& value) {
+    if (value.isVoid()) {
+        return sad::stdlib::json::JsonValue();
+    }
+    if (value.isBoolean()) {
+        return sad::stdlib::json::JsonValue(value.toBool());
+    }
+    if (value.isNumeric()) {
+        return sad::stdlib::json::JsonValue(value.toDouble());
+    }
+    if (value.isString()) {
+        return sad::stdlib::json::JsonValue(value.toString());
+    }
+    if (value.isArray()) {
+        sad::stdlib::json::JsonArray arr;
+        for (const auto& item : value.toArrayRef()) {
+            arr.push(sadToJsonValue(item));
+        }
+        return sad::stdlib::json::JsonValue(std::move(arr));
+    }
+    if (value.isMap()) {
+        sad::stdlib::json::JsonObject obj;
+        for (const auto& kv : value.toMapRef()) {
+            obj.set(kv.first, sadToJsonValue(kv.second));
+        }
+        return sad::stdlib::json::JsonValue(std::move(obj));
+    }
+
+    // Fallback for unsupported runtime types in JSON encoding.
+    return sad::stdlib::json::JsonValue();
+}
+
+// Convert stdlib JSON value -> interpreter runtime value.
+Value jsonToSadValue(const sad::stdlib::json::JsonValue& jsonVal) {
+    using JT = sad::stdlib::json::JsonType;
+    switch (jsonVal.type()) {
+        case JT::NULL_TYPE:
+            return Value();
+        case JT::BOOLEAN:
+            return Value(jsonVal.as_boolean());
+        case JT::NUMBER:
+            return Value(jsonVal.as_number());
+        case JT::STRING:
+            return Value(jsonVal.as_string());
+        case JT::ARRAY: {
+            Value::ArrayType out;
+            const auto& arr = jsonVal.as_array();
+            out.reserve(arr.size());
+            for (size_t i = 0; i < arr.size(); ++i) {
+                out.push_back(jsonToSadValue(arr[i]));
+            }
+            return Value(std::move(out));
+        }
+        case JT::OBJECT: {
+            Value::MapType out;
+            const auto& obj = jsonVal.as_object();
+            for (const auto& key : obj.keys()) {
+                out[key] = jsonToSadValue(obj.get(key));
+            }
+            return Value(std::move(out));
+        }
+    }
+    return Value();
+}
+
+Value xmlElementToSadValue(const sad::stdlib::xml::XmlElement& element) {
+    Value::MapType out;
+    out["name"] = Value(element.name());
+
+    if (!element.text().empty()) {
+        out["text"] = Value(element.text());
+    }
+
+    if (element.attribute_count() > 0) {
+        Value::MapType attrs;
+        for (const auto& attr : element.attributes()) {
+            attrs[attr.name()] = Value(attr.value());
+        }
+        out["attributes"] = Value(std::move(attrs));
+    }
+
+    if (element.child_count() > 0) {
+        Value::ArrayType children;
+        children.reserve(element.child_count());
+        for (const auto& child : element.children()) {
+            children.push_back(xmlElementToSadValue(child));
+        }
+        out["children"] = Value(std::move(children));
+    }
+
+    return Value(std::move(out));
+}
+
+sad::stdlib::xml::XmlElement sadValueToXmlElement(const Value& value) {
+    if (!value.isMap()) {
+        throw std::runtime_error("(AR) قيمة XML يجب أن تكون كائن/خريطة. (EN) XML value must be an object/map.");
+    }
+
+    const auto& obj = value.toMapRef();
+    auto itName = obj.find("name");
+    if (itName == obj.end()) {
+        throw std::runtime_error("(AR) عنصر XML يحتاج الحقل 'name'. (EN) XML element requires 'name' field.");
+    }
+
+    sad::stdlib::xml::XmlElement element(itName->second.toString());
+
+    auto itText = obj.find("text");
+    if (itText != obj.end()) {
+        element.set_text(itText->second.toString());
+    }
+
+    auto itAttrs = obj.find("attributes");
+    if (itAttrs != obj.end() && itAttrs->second.isMap()) {
+        for (const auto& kv : itAttrs->second.toMapRef()) {
+            element.set_attribute(kv.first, kv.second.toString());
+        }
+    }
+
+    auto itChildren = obj.find("children");
+    if (itChildren != obj.end() && itChildren->second.isArray()) {
+        for (const auto& childVal : itChildren->second.toArrayRef()) {
+            element.append_child(sadValueToXmlElement(childVal));
+        }
+    }
+
+    return element;
+}
+
+} // namespace
 
 void registerBuiltinsPart31(Interpreter& interpreter) {
     auto& fm = interpreter.getFunctionManager();
@@ -192,6 +329,158 @@ void registerBuiltinsPart31(Interpreter& interpreter) {
     // =================================================================
     // مدير الموارد / Resource Manager
     // =================================================================
+
+    // =================================================================
+    // JSON/XML (stdlib unified entry points) / نقاط دخول موحدة
+    // =================================================================
+
+    // json_parse_value / حلل_json
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+            if (args.empty()) {
+                throw std::runtime_error("(AR) حلل_json يحتاج نص JSON. (EN) json_parse_value requires JSON string.");
+            }
+            sad::stdlib::json::JsonParseOptions options;
+            if (args.size() > 1 && args[1] && args[1]->isMap()) {
+                const auto& opts = args[1]->toMapRef();
+                auto itComments = opts.find("allow_comments");
+                if (itComments != opts.end()) options.allow_comments = itComments->second.toBool();
+                auto itTrailing = opts.find("allow_trailing_commas");
+                if (itTrailing != opts.end()) options.allow_trailing_commas = itTrailing->second.toBool();
+                auto itStrict = opts.find("strict_mode");
+                if (itStrict != opts.end()) options.strict_mode = itStrict->second.toBool();
+            }
+            auto parsed = sad::stdlib::json::JsonValue::parse(args[0]->toString(), options);
+            return std::make_shared<Data::Value>(jsonToSadValue(parsed));
+        };
+        fm.registerBuiltinFunction("json_parse_value", f);
+        fm.registerBuiltinFunction("حلل_json", f);
+    }
+
+    // json_stringify_value / حول_لـjson
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+            if (args.empty()) {
+                throw std::runtime_error("(AR) حول_لـjson يحتاج قيمة. (EN) json_stringify_value requires a value.");
+            }
+            sad::stdlib::json::JsonStringifyOptions options;
+            if (args.size() > 1 && args[1] && args[1]->isMap()) {
+                const auto& opts = args[1]->toMapRef();
+                auto itPretty = opts.find("pretty");
+                if (itPretty != opts.end()) options.pretty = itPretty->second.toBool();
+                auto itIndent = opts.find("indent");
+                if (itIndent != opts.end()) options.indent = itIndent->second.toInt();
+                auto itSort = opts.find("sort_keys");
+                if (itSort != opts.end()) options.sort_keys = itSort->second.toBool();
+            }
+            auto asJson = sadToJsonValue(*args[0]);
+            return std::make_shared<Data::Value>(asJson.to_string(options));
+        };
+        fm.registerBuiltinFunction("json_stringify_value", f);
+        fm.registerBuiltinFunction("حول_لـjson", f);
+    }
+
+    // json_pretty_value / json_منسق
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+            if (args.empty()) {
+                throw std::runtime_error("(AR) json_منسق يحتاج قيمة. (EN) json_pretty_value requires a value.");
+            }
+            int indent = (args.size() > 1 && args[1]) ? args[1]->toInt() : 2;
+            auto asJson = sadToJsonValue(*args[0]);
+            return std::make_shared<Data::Value>(sad::stdlib::json::JsonGenerator::pretty(asJson, indent));
+        };
+        fm.registerBuiltinFunction("json_pretty_value", f);
+        fm.registerBuiltinFunction("json_منسق", f);
+    }
+
+    // json_minify_value / json_مصغر
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+            if (args.empty()) {
+                throw std::runtime_error("(AR) json_مصغر يحتاج قيمة. (EN) json_minify_value requires a value.");
+            }
+            auto asJson = sadToJsonValue(*args[0]);
+            return std::make_shared<Data::Value>(sad::stdlib::json::JsonGenerator::minify(asJson));
+        };
+        fm.registerBuiltinFunction("json_minify_value", f);
+        fm.registerBuiltinFunction("json_مصغر", f);
+    }
+
+    // xml_parse / حلل_xml
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+            if (args.empty()) {
+                throw std::runtime_error("(AR) حلل_xml يحتاج نص XML. (EN) xml_parse requires XML string.");
+            }
+            sad::stdlib::xml::XmlParseOptions options;
+            if (args.size() > 1 && args[1] && args[1]->isMap()) {
+                const auto& opts = args[1]->toMapRef();
+                auto itWhitespace = opts.find("preserve_whitespace");
+                if (itWhitespace != opts.end()) options.preserve_whitespace = itWhitespace->second.toBool();
+                auto itComments = opts.find("ignore_comments");
+                if (itComments != opts.end()) options.ignore_comments = itComments->second.toBool();
+            }
+            auto doc = sad::stdlib::xml::XmlDocument::parse(args[0]->toString(), options);
+            return std::make_shared<Data::Value>(xmlElementToSadValue(doc.root()));
+        };
+        fm.registerBuiltinFunction("xml_parse", f);
+        fm.registerBuiltinFunction("حلل_xml", f);
+    }
+
+    // xml_stringify / حول_لـxml
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+            if (args.empty()) {
+                throw std::runtime_error("(AR) حول_لـxml يحتاج قيمة. (EN) xml_stringify requires a value.");
+            }
+            sad::stdlib::xml::XmlStringifyOptions options;
+            if (args.size() > 1 && args[1] && args[1]->isMap()) {
+                const auto& opts = args[1]->toMapRef();
+                auto itPretty = opts.find("pretty");
+                if (itPretty != opts.end()) options.pretty = itPretty->second.toBool();
+                auto itIndent = opts.find("indent");
+                if (itIndent != opts.end()) options.indent = itIndent->second.toInt();
+                auto itDecl = opts.find("omit_declaration");
+                if (itDecl != opts.end()) options.omit_declaration = itDecl->second.toBool();
+            }
+
+            sad::stdlib::xml::XmlDocument doc;
+            doc.set_root(sadValueToXmlElement(*args[0]));
+            return std::make_shared<Data::Value>(doc.to_string(options));
+        };
+        fm.registerBuiltinFunction("xml_stringify", f);
+        fm.registerBuiltinFunction("حول_لـxml", f);
+    }
+
+    // xml_pretty / xml_منسق
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+            if (args.empty()) {
+                throw std::runtime_error("(AR) xml_منسق يحتاج قيمة. (EN) xml_pretty requires a value.");
+            }
+            int indent = (args.size() > 1 && args[1]) ? args[1]->toInt() : 2;
+            sad::stdlib::xml::XmlDocument doc;
+            doc.set_root(sadValueToXmlElement(*args[0]));
+            return std::make_shared<Data::Value>(sad::stdlib::xml::XmlGenerator::pretty(doc, indent));
+        };
+        fm.registerBuiltinFunction("xml_pretty", f);
+        fm.registerBuiltinFunction("xml_منسق", f);
+    }
+
+    // xml_minify / xml_مصغر
+    {
+        auto f = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+            if (args.empty()) {
+                throw std::runtime_error("(AR) xml_مصغر يحتاج قيمة. (EN) xml_minify requires a value.");
+            }
+            sad::stdlib::xml::XmlDocument doc;
+            doc.set_root(sadValueToXmlElement(*args[0]));
+            return std::make_shared<Data::Value>(sad::stdlib::xml::XmlGenerator::minify(doc));
+        };
+        fm.registerBuiltinFunction("xml_minify", f);
+        fm.registerBuiltinFunction("xml_مصغر", f);
+    }
 
     // 16. resource_load / مورد_تحميل
     {

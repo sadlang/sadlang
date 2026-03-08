@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // checkbox.cpp - تطبيق عنصر مربع الاختيار
 // Implementation of checkbox widget
 // ============================================================================
@@ -10,8 +10,9 @@
 
 using sad::graphics::ResourceManager;
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // ============================================================================
         // البناء الافتراضي / Default constructor
@@ -207,5 +208,6 @@ namespace Graphics {
                    y >= boxY && y <= (boxY + m_boxSize);
         }
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad

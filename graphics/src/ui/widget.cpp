@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // widget.cpp - تطبيق الفئة الأساسية للعناصر
 // Implementation of base widget class
 // ============================================================================
@@ -7,8 +7,9 @@
 #include "../include/rendering/renderer2d.h"      // لاستخدام Renderer2D / For Renderer2D
 #include <algorithm>                              // لاستخدام الخوارزميات / For algorithms
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // تهيئة المعرف الثابت / Initialize static ID counter
         int Widget::s_nextID = 1;  // البدء من 1 / Start from 1
@@ -381,5 +382,6 @@ namespace Graphics {
             // لإضافة سلوك خاص عند تغيير النمط / To add custom behavior on style change
         }
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad

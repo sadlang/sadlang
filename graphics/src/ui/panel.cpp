@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // panel.cpp - تطبيق عنصر اللوحة الحاوية
 // Implementation of panel container widget
 // ============================================================================
@@ -7,8 +7,9 @@
 #include "../include/rendering/renderer2d.h"   // للرسم / For rendering
 #include <algorithm>                           // للخوارزميات / For algorithms
 
-namespace Graphics {
-    namespace UI {
+namespace sad {
+namespace graphics {
+    namespace ui {
 
         // ============================================================================
         // البناء الافتراضي / Default constructor
@@ -284,5 +285,6 @@ namespace Graphics {
             }
         }
 
-    } // namespace UI
-} // namespace Graphics
+    } // namespace ui
+} // namespace graphics
+} // namespace sad

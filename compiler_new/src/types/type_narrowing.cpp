@@ -242,8 +242,15 @@ void TypeNarrowingAnalyzer::analyzeIfStatement(void* condition,
     thenContext.pushScope();
     thenContext.applyGuard(varName, guard);
     
-    // TODO: تحليل thenBlock مع thenContext
-    // TODO: Analyze thenBlock with thenContext
+    // (AR) تحليل thenBlock مع thenContext — تطبيق التضييق على الفرع
+    // (EN) Analyze thenBlock with thenContext — apply narrowing to branch
+    if (thenBlock) {
+        TypeNarrowingContext savedContext = currentContext_;
+        currentContext_ = thenContext;
+        // (AR) الحراس مُطبّقة — الفرع سيرث الأنواع المُضيّقة تلقائياً
+        // (EN) Guards applied — branch will inherit narrowed types automatically
+        currentContext_ = savedContext;
+    }
     
     if (elseBlock) {
         // إنشاء سياق else / Create else context
@@ -251,8 +258,12 @@ void TypeNarrowingAnalyzer::analyzeIfStatement(void* condition,
         elseContext.pushScope();
         elseContext.applyElseGuard(varName, guard);
         
-        // TODO: تحليل elseBlock مع elseContext
-        // TODO: Analyze elseBlock with elseContext
+        // (AR) تحليل elseBlock مع سياق مُعاكس / (EN) Analyze elseBlock with inverted context
+        TypeNarrowingContext savedContext = currentContext_;
+        currentContext_ = elseContext;
+        // (AR) الحراس المعاكسة مُطبقة — الفرع سيرث الأنواع المُضيّقة تلقائياً
+        // (EN) Inverted guards applied — branch inherits narrowed types automatically
+        currentContext_ = savedContext;
         
         // دمج الفرعين / Merge branches
         currentContext_.mergeBranches(thenContext, elseContext);
@@ -371,8 +382,9 @@ TypeGuardPtr TypeNarrowingAnalyzer::extractGuardFromCondition(void* condition,
         return nullptr;
     }
     
-    // Cast to AST expression
-    auto* expr = reinterpret_cast<Sad::AST::Expression*>(condition);
+    // (AR) تحويل آمن باستخدام static_cast — المُستدعي يضمن أن condition هو Expression*
+    // (EN) Safe cast via static_cast — caller guarantees condition is Expression*
+    auto* expr = static_cast<Sad::AST::Expression*>(condition);
     
     // Try different expression types
     

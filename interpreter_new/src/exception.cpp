@@ -57,12 +57,12 @@ std::string SadException::toString() const {
 
 const char* SadException::what() const noexcept {
     // std::exception::what() requires a const char* that remains valid
-    // We use toString() and cache it (note: this is not thread-safe for modification)
+    // We use toString() and cache it per-thread for thread safety
     // 
     // std::exception::what() يتطلب const char* تبقى صالحة
-    // نستخدم toString() ونخزنها مؤقتاً (ملاحظة: هذا ليس آمناً للخيوط عند التعديل)
+    // نستخدم toString() ونخزنها مؤقتاً لكل خيط
     
-    static std::string cached;
+    thread_local std::string cached;
     cached = toString();
     return cached.c_str();
 }

@@ -67,29 +67,42 @@ void VariableManager::define(const std::string& name, const Value& value) {
     }
     
     // (AR) ثانياً: تحقق من النطاقات الأعلى ضمن حدود الدالة الحالية فقط
-    //      نتوقف عند أول FUNCTION scope نصطدم به (حد الدالة)
+    //      القاعدة:
+    //      • إذا كان النطاق الحالي FUNCTION scope، لا نصعد أبداً
+    //        (لأن أي أب سيكون FUNCTION أخرى — لا نلوث متغيراتها)
+    //      • إذا كان النطاق الحالي BLOCK/LOOP (داخل بينما/إذا)،
+    //        نصعد حتى نصل لأول FUNCTION scope (شاملاً إياه) ثم نتوقف
+    //        هذا يُصلح: متغير عداد = عداد + 1 داخل حلقة بينما
+    //
     // (EN) Second: check parent scopes ONLY within current function boundary
-    //      Stop at the first FUNCTION scope encountered (function boundary)
-    Scope* parentScope = currentScope->getParent();
-    while (parentScope != nullptr) {
-        // (AR) توقف عند حدود الدالة — لا تُحدّث متغيرات نطاقات دالة أخرى
-        // (EN) Stop at function boundary — don't update vars belonging to another function
-        if (parentScope->isFunction()) {
-            break;
-        }
-        auto scopeIt = scopeVariables_.find(parentScope);
-        if (scopeIt != scopeVariables_.end()) {
-            auto varIt = scopeIt->second.find(name);
-            if (varIt != scopeIt->second.end()) {
-                // (AR) وجدنا المتغير في نطاق أعلى ضمن نفس الدالة — نحدّثه!
-                //      هذا يُصلح: متغير عداد = عداد + 1 داخل حلقة
-                // (EN) Found variable in parent scope within same function — update it!
-                //      This fixes: var counter = counter + 1 inside loop
-                varIt->second = value;
-                return;
+    //      Rules:
+    //      • If current scope IS a FUNCTION scope, never walk up
+    //        (any parent would be another function — don't pollute its vars)
+    //      • If current scope is BLOCK/LOOP (inside while/if),
+    //        walk up to the first FUNCTION scope (inclusive) then stop
+    //        This fixes: var counter = counter + 1 inside while loop
+    if (!currentScope->isFunction()) {
+        Scope* parentScope = currentScope->getParent();
+        while (parentScope != nullptr) {
+            // (AR) فحص المتغيرات في هذا النطاق — حتى لو كان FUNCTION scope
+            // (EN) Check variables in this scope — even if it's a FUNCTION scope
+            auto scopeIt = scopeVariables_.find(parentScope);
+            if (scopeIt != scopeVariables_.end()) {
+                auto varIt = scopeIt->second.find(name);
+                if (varIt != scopeIt->second.end()) {
+                    // (AR) وجدنا المتغير في نطاق أعلى ضمن نفس الدالة — نحدّثه!
+                    // (EN) Found variable in parent scope within same function — update it!
+                    varIt->second = value;
+                    return;
+                }
             }
+            // (AR) توقف بعد فحص حدود الدالة — لا تتجاوز لدالة أخرى
+            // (EN) Stop after checking function boundary — don't cross to another function
+            if (parentScope->isFunction()) {
+                break;
+            }
+            parentScope = parentScope->getParent();
         }
-        parentScope = parentScope->getParent();
     }
     
     // (AR) المتغير جديد — أنشئه في النطاق الحالي
@@ -99,28 +112,30 @@ void VariableManager::define(const std::string& name, const Value& value) {
 }
 
 void VariableManager::defineConst(const std::string& name, const Value& value) {
-    // (AR) تعريف الثابت كمتغير عادي ثم تسجيله في قائمة الثوابت
-    // (EN) Define as normal variable then register in const set
+    // (AR) تعريف الثابت كمتغير عادي ثم تسجيله كثابت في النطاق الحالي
+    // (EN) Define as normal variable then register as const in current scope
     define(name, value);
-    constVariables_.insert(name);
+    Scope* currentScope = scopeManager_.getCurrentScope();
+    constVariables_[currentScope].insert(name);
 }
 
 bool VariableManager::isConst(const std::string& name) const {
-    return constVariables_.count(name) > 0;
+    // (AR) البحث عن الثابت في سلسلة النطاقات — من النطاق الحالي صعوداً
+    // (EN) Search for const in scope chain — from current scope upward
+    Scope* scope = scopeManager_.getCurrentScope();
+    while (scope != nullptr) {
+        auto it = constVariables_.find(scope);
+        if (it != constVariables_.end() && it->second.count(name) > 0) {
+            return true;
+        }
+        scope = scope->getParent();
+    }
+    return false;
 }
 
 void VariableManager::assign(const std::string& name, const Value& value) {
-    // (AR) التحقق من أن المتغير ليس ثابتاً
-    // (EN) Check that the variable is not a constant
-    if (constVariables_.count(name) > 0) {
-        throwError(
-            "لا يمكن تعديل الثابت '" + name + "'",
-            "Cannot reassign constant '" + name + "'"
-        );
-    }
-    
-    // (AR) البحث المباشر عن المتغير وتحديثه — بحث واحد بدلاً من اثنين
-    // (EN) Direct variable lookup and update — single pass instead of two
+    // (AR) البحث عن المتغير وتحديثه — مع فحص const في النطاق الذي وُجد فيه
+    // (EN) Find variable and update — checking const in the scope where it's found
     Scope* scope = scopeManager_.getCurrentScope();
     
     while (scope != nullptr) {
@@ -128,6 +143,15 @@ void VariableManager::assign(const std::string& name, const Value& value) {
         if (scopeIt != scopeVariables_.end()) {
             auto varIt = scopeIt->second.find(name);
             if (varIt != scopeIt->second.end()) {
+                // (AR) فحص هل المتغير ثابت في هذا النطاق بالذات
+                // (EN) Check if variable is const in THIS specific scope
+                auto constIt = constVariables_.find(scope);
+                if (constIt != constVariables_.end() && constIt->second.count(name) > 0) {
+                    throwError(
+                        "لا يمكن تعديل الثابت '" + name + "'",
+                        "Cannot reassign constant '" + name + "'"
+                    );
+                }
                 varIt->second = value;
                 return;
             }
@@ -157,6 +181,15 @@ void VariableManager::defineOrAssign(const std::string& name, const Value& value
         if (scopeIt != scopeVariables_.end()) {
             auto varIt = scopeIt->second.find(name);
             if (varIt != scopeIt->second.end()) {
+                // (AR) فحص هل المتغير ثابت في هذا النطاق بالذات
+                // (EN) Check if variable is const in THIS specific scope
+                auto constIt = constVariables_.find(scope);
+                if (constIt != constVariables_.end() && constIt->second.count(name) > 0) {
+                    throwError(
+                        "لا يمكن تعديل الثابت '" + name + "'",
+                        "Cannot reassign constant '" + name + "'"
+                    );
+                }
                 // (AR) وجدنا المتغير — نحدّث قيمته / (EN) Found var — update value
                 varIt->second = value;
                 return;
@@ -362,9 +395,10 @@ std::string VariableManager::getVariableInfo(const std::string& name) const {
 }
 
 void VariableManager::clear() {
-    // (AR) حذف جميع المتغيرات
-    // (EN) Delete all variables
+    // (AR) حذف جميع المتغيرات والثوابت
+    // (EN) Delete all variables and constants
     scopeVariables_.clear();
+    constVariables_.clear();
     
     // (AR) العودة إلى النطاق العام (حذف جميع النطاقات الأخرى)
     // (EN) Return to global scope (remove all other scopes)
@@ -455,12 +489,10 @@ void VariableManager::throwError(const std::string& messageAr, const std::string
 }
 
 void VariableManager::cleanupScope(Scope* scope) {
-    // (AR) حذف جميع المتغيرات المرتبطة بهذا النطاق
-    // (EN) Delete all variables associated with this scope
-    auto it = scopeVariables_.find(scope);
-    if (it != scopeVariables_.end()) {
-        scopeVariables_.erase(it);
-    }
+    // (AR) حذف جميع المتغيرات والثوابت المرتبطة بهذا النطاق
+    // (EN) Delete all variables and constants associated with this scope
+    scopeVariables_.erase(scope);
+    constVariables_.erase(scope);
 }
 
 } // namespace Data

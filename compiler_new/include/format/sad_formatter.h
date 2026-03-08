@@ -49,6 +49,7 @@ enum class FmtTokenType {
     COLON,              ///< نقطتان :
     DOT,                ///< نقطة .
     IMPORT_KEYWORD,     ///< كلمة استورد/من
+    DIRECTIVE,          ///< توجيه @كلمة
     END_OF_FILE         ///< نهاية الملف
 };
 
