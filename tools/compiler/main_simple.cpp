@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
     }
     
     if (arg == "--version" || arg == "-v") {
-        std::cout << "sad version 1.0.0\n";
+        std::cout << "sad version 1.0.0-beta.1\n";
         return 0;
     }
     

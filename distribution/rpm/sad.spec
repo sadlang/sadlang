@@ -16,14 +16,14 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 Name:           sad-lang
-Version:        1.0.0
+Version:        1.0.0~beta.1
 Release:        1%{?dist}
 Summary:        لغة ص — لغة برمجة عربية حديثة
 Summary(en):    Sad — Modern Arabic Programming Language
 
 License:        MIT
 URL:            https://github.com/sad-lang/sad-language
-Source0:        https://github.com/sad-lang/sad-language/releases/download/v%{version}/sad-full-v%{version}-linux-x86_64.tar.gz
+Source0:        https://github.com/sad-lang/sad-language/releases/download/v1.0.0-beta.1/sad-full-v1.0.0-beta.1-linux-x86_64.tar.gz
 
 # لا نبني من المصدر — نستخدم الثنائيات الجاهزة
 AutoReqProv:    no

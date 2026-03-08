@@ -1,127 +1,116 @@
 # لغة ص (Sad Programming Language)
 
-![Sad Logo](https://raw.githubusercontent.com/SadLanguage/sad/main/docs/logo.png)
+[![Release](https://img.shields.io/github/v/release/sad-lang/sad-language?include_prereleases&label=الإصدار)](https://github.com/sad-lang/sad-language/releases)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Website](https://img.shields.io/badge/الموقع-sad--lang.org-brightgreen)](https://sad-lang.org)
 
-**لغة ص** هي لغة برمجة عربية حديثة، قوية، وسهلة القراءة، مصممة لتكون الخيار الأول للمبرمج العربي والعالمي في تطوير البرمجيات عالية الأداء، مع دعم كامل للغة العربية والإنجليزية في الكود والتوثيق.
+لغة ص هي لغة برمجة عربية حديثة تدعم العربية والإنجليزية في الكلمات المفتاحية والمُعرّفات والنصوص،
+وتوفّر مسارين للتنفيذ:
+- مفسر مباشر `sad`
+- مترجم أصلي عبر LLVM `sadc`
+
+## 📥 التثبيت السريع
+
+### Windows
+```powershell
+irm https://sad-lang.org/install.ps1 | iex
+```
+
+### Linux / macOS
+```bash
+curl -fsSL https://sad-lang.org/install.sh | sh
+```
+
+### مديرو الحزم
+```bash
+# Windows (winget)
+winget install SadLang.Sad
+
+# Windows (scoop)
+scoop install sad
+
+# macOS / Linux (homebrew)
+brew install sad-lang/tap/sad
+```
+
+📦 **[تحميل الإصدار الأخير →](https://github.com/sad-lang/sad-language/releases/latest)**
 
 ---
 
-## المميزات الرئيسية
+## نظرة سريعة
 
-- **نحو عربي بالكامل**: جميع الكلمات المفتاحية عربية، مع دعم الإنجليزية.
-- **مفسر ومترجم أصلي**: تنفيذ فوري (Interpreter) أو تحويل إلى ملف تنفيذي عبر LLVM (Compiler).
-- **برمجة كائنية متقدمة**: دعم الأصناف، الوراثة، الواجهات، البناء، التعددية.
-- **أمان عالي**: فحص حدود، إدارة ذاكرة آمنة، كشف التسربات، حماية من التجاوزات.
-- **خيوط متقدمة**: دعم أمان الخيوط، تراكيب متزامنة (Mutex, RWLock, Atomic).
-- **مكتبة قياسية عربية**: io، رياضيات، نصوص، شبكات، رسوميات، قواعد بيانات.
-- **تعليقات وتوثيق عربي/إنجليزي**: دعم كامل UTF-8 في كل شيء.
-- **مدير حزم وأداة تنسيق**: إدارة مكتبات وتنسيق الكود تلقائياً.
-- **خادم LSP**: تكامل مع المحررات الحديثة (VS Code, Vim, ...).
-- **اختبارات شاملة**: أكثر من 900 اختبار تغطي كل جوانب اللغة.
+- نحو عربي واضح (`دالة`, `إذا`, `لكل`, `نهاية`)
+- UTF-8 كامل في الكود والتوثيق
+- مكتبة قياسية عربية (core, io, math, string, network, ...)
+- أدوات تطوير: LSP، Formatter، Package Manager، REPL
+- اختبارات شاملة (Comprehensive + Regression)
 
----
-
-## مثال كود بلغة ص
+## مثال سريع
 
 ```sad
 دالة جمع(أ، ب)
    ارجع أ + ب
 نهاية
 
-متغير النتيجة = جمع(3، 5)
-اطبع_سطر("الناتج: " + النتيجة)
+متغير الناتج = جمع(3، 5)
+اطبع_سطر("الناتج: " + الناتج)
 ```
-
----
 
 ## بنية المشروع
 
-| المكون         | المجلد                  | الدور الرئيسي |
-|----------------|------------------------|--------------|
-| النواة         | shared/                 | محلل معجمي ونحوي، AST، أنواع |
-| المفسر         | interpreter_new/        | تنفيذ فوري (Interpreter) |
-| المترجم        | compiler_new/           | تحويل إلى ملف تنفيذي عبر LLVM |
-| الآلة الافتراضية| vm/                    | تنفيذ بايت كود |
-| المكتبة القياسية| stdlib/                | مكتبات عربية أساسية |
-| الأدوات        | tools/                  | LSP، Formatter، REPL، مدير حزم |
-| البناء         | cmake/                  | وحدات بناء CMake |
-
----
+| المكوّن | المسار | الدور |
+|---|---|---|
+| النواة المشتركة | `shared/` | Lexer + Parser + AST + Value |
+| المفسر | `interpreter_new/` | تنفيذ البرامج مباشرة |
+| المترجم | `compiler_new/` | AST -> SIR -> LLVM -> Executable |
+| الآلة الافتراضية | `vm/` | مسار bytecode |
+| المكتبة القياسية | `stdlib/` | وحدات اللغة الأساسية |
+| الأدوات | `tools/` | LSP + Formatter + Pkg + REPL |
+| البناء | `cmake/` | إعدادات CMake |
+| التوثيق | `docs/` + `website/` | مرجع اللغة والموقع |
 
 ## البناء والتشغيل
 
-```bash
-# تهيئة البناء لأول مرة
+```powershell
+# Configure
 cmake -S . -B build
 
-# بناء المفسر فقط (أسرع)
+# Build interpreter
 cmake --build build --config Debug --target sad
 
-# بناء المترجم (sadc)
+# Build compiler
 cmake --build build --config Debug --target sadc
 
-# تشغيل ملف .ص
-./build/bin/Debug/sad.exe examples/test_simple.ص
+# Run a Sad file
+.\build\bin\Debug\sad.exe examples\test_simple.ص
+```
 
-# تشغيل الاختبارات الشاملة
+### الاختبارات
+
+```powershell
+# Enable tests on configure
+cmake -S . -B build -DBUILD_TESTS=ON
+
+# Build comprehensive tests
 cmake --build build --config Debug --target comprehensive_tests
+
+# Run ctest suites
 ctest --test-dir build -R Comprehensive
 ```
 
-> **ملاحظة:** لتفعيل الاختبارات: استخدم `-DBUILD_TESTS=ON` عند تهيئة cmake.
+## التوثيق الأساسي
 
----
-
-## أساسيات النحو
-
-- نهاية الكتل بكلمة `نهاية` فقط (بدلاً من `{}`)
-- الشروط: `إذا (شرط)`، الحلقات: `بينما (شرط)`، `لكل ...`
-- الفاصلة `،` أو `,` للفصل بين الوسائط
-- التعليقات: `#` للسطر، `#* ... *#` للكتلة
-- جميع الملفات والمُعرّفات تدعم UTF-8 والعربية والإنجليزية
-
-### مثال تحكم:
-```sad
-متغير س = 10
-إذا (س > 5)
-   اطبع("س أكبر من 5")
-وإلا
-   اطبع("س أصغر أو يساوي 5")
-نهاية
-```
-
----
-
-## متطلبات النظام
-
-- **C++17** أو أحدث
-- **CMake 3.18+**
-- **LLVM 18** (اختياري للمترجم)
-- **SDL2 + OpenGL** (للرسوميات)
-- **SQLite3, OpenSSL** (اختياري)
-
----
+- المرجع الكامل: `docs/SAD_LANGUAGE_COMPLETE_REFERENCE.md`
+- البرمجة الكائنية: `docs/07_البرمجة_الكائنية.md`
+- الخطة السنوية 2026: `docs/ANNUAL_PLAN_2026.md`
+- مهام السبرنت: `docs/SPRINT_1_TASKS.md`
 
 ## المساهمة
 
-- راجع [CONTRIBUTING.md](docs/CONTRIBUTING.md) للمساهمة.
-- جميع النقاشات والأسئلة مرحب بها بالعربية أو الإنجليزية.
+- دليل المساهمة: `CONTRIBUTING.md`
+- قواعد السلوك: `CODE_OF_CONDUCT.md`
+- سياسة الأمان: `SECURITY.md`
 
----
+## الترخيص
 
-## المصادر والروابط
-
-- [دليل النحو الكامل](rules/rules/04_syntax.md)
-- [دليل البرمجة الكائنية](rules/rules/03_oop.md)
-- [الموقع الرسمي](https://sad-lang.org)
-- [مجتمع لغة ص](https://discord.gg/sadlang)
-
----
-
-## الرخصة
-
-مشروع لغة ص مفتوح المصدر تحت رخصة MIT.
-
----
-
-**© جميع الحقوق محفوظة لمطوري لغة ص.**
+هذا المشروع مرخّص تحت MIT. راجع `LICENSE`.

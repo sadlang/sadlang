@@ -37,6 +37,9 @@ project(SadLanguage
     LANGUAGES CXX
 )
 
+# Beta version suffix (for display/packaging)
+set(SAD_VERSION_SUFFIX "-beta.1")
+
 # ══════════════════════════════════════════════════════════════════════
 # إعدادات C++ / C++ Settings
 # ══════════════════════════════════════════════════════════════════════
@@ -59,6 +62,7 @@ option(BUILD_EXAMPLES "بناء الأمثلة / Build examples" ON)
 option(ENABLE_DEBUG_LOGGING "تفعيل سجلات التنقيح / Enable debug logging" OFF)
 option(BUILD_PKG_MANAGER "بناء مدير الحزم / Build package manager" ON)
 option(ENABLE_LLVM_BACKEND "تفعيل LLVM Backend / Enable LLVM Backend" ON)
+option(BUILD_WASM "بناء هدف WebAssembly / Build WebAssembly target" OFF)
 
 # ══════════════════════════════════════════════════════════════════════
 # تحميل وحدات CMake / Load CMake Modules
@@ -137,6 +141,14 @@ include(${CMAKE_SOURCE_DIR}/cmake/tests.cmake)
 
 # 10. الاختبارات الشاملة / Comprehensive Test Suite (900+ tests)
 include(${CMAKE_SOURCE_DIR}/cmake/tests_comprehensive.cmake)
+
+# 11. WebAssembly (اختياري) / WebAssembly (optional)
+if(BUILD_WASM)
+    include(${CMAKE_SOURCE_DIR}/cmake/wasm.cmake)
+endif()
+
+# 12. قواعد التثبيت و CPack / Install Rules & CPack
+include(${CMAKE_SOURCE_DIR}/cmake/install.cmake)
 
 # ══════════════════════════════════════════════════════════════════════
 # الأمثلة / Examples

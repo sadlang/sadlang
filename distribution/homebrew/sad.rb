@@ -21,27 +21,27 @@ class Sad < Formula
   desc "لغة ص — لغة برمجة عربية حديثة / Sad Arabic Programming Language"
   homepage "https://github.com/sad-lang/sad-language"
   license "MIT"
-  version "1.0.0"
+  version "1.0.0-beta.1"
 
   # ── تنزيل حسب المنصة والبنية ──
   on_macos do
     on_arm do
-      url "https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-full-v1.0.0-macos-aarch64.tar.gz"
+      url "https://github.com/sad-lang/sad-language/releases/download/v1.0.0-beta.1/sad-full-v1.0.0-beta.1-macos-aarch64.tar.gz"
       sha256 "0000000000000000000000000000000000000000000000000000000000000000"
     end
     on_intel do
-      url "https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-full-v1.0.0-macos-x86_64.tar.gz"
+      url "https://github.com/sad-lang/sad-language/releases/download/v1.0.0-beta.1/sad-full-v1.0.0-beta.1-macos-x86_64.tar.gz"
       sha256 "0000000000000000000000000000000000000000000000000000000000000000"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-full-v1.0.0-linux-aarch64.tar.gz"
+      url "https://github.com/sad-lang/sad-language/releases/download/v1.0.0-beta.1/sad-full-v1.0.0-beta.1-linux-aarch64.tar.gz"
       sha256 "0000000000000000000000000000000000000000000000000000000000000000"
     end
     on_intel do
-      url "https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-full-v1.0.0-linux-x86_64.tar.gz"
+      url "https://github.com/sad-lang/sad-language/releases/download/v1.0.0-beta.1/sad-full-v1.0.0-beta.1-linux-x86_64.tar.gz"
       sha256 "0000000000000000000000000000000000000000000000000000000000000000"
     end
   end
