@@ -10,6 +10,7 @@
 
 #include "filesystem/filesystem_module.h"
 #include <fstream>
+#include <filesystem>
 #include <sstream>
 #include <chrono>
 #include <ctime>

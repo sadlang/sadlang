@@ -5,6 +5,7 @@
 #include "type_info.h"
 #include <sstream>
 #include <stdexcept>
+#include <algorithm>
 
 namespace Sad {
 namespace Compiler {

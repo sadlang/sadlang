@@ -13,6 +13,7 @@
  */
 
 #include "constraint_errors.hpp"
+#include <optional>
 #include <sstream>
 #include <iomanip>
 

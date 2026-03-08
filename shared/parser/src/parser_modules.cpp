@@ -12,6 +12,7 @@
 #include "declarations.h"
 #include "expressions.h"
 #include "statements.h"
+#include <optional>
 
 namespace Sad {
 namespace Parser {

@@ -9,6 +9,7 @@
  */
 
 #include "database/database_module.h"
+#include <optional>
 
 #ifdef HAS_SQLITE3
 #include <sqlite3.h>

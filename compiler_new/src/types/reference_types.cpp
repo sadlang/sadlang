@@ -13,6 +13,7 @@
 #include <optional>
 #include <unordered_map>
 #include <cassert>
+#include <algorithm>
 
 namespace sad {
 namespace types {

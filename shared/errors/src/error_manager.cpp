@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file error_manager.cpp
  * @brief (AR) تطبيق المدير المركزي للأخطاء
  *        (EN) Implementation of central error manager
@@ -12,6 +12,7 @@
  */
 
 #include "error_manager.h"
+#include <mutex>
 #include "smart_errors.h"
 #include <iostream>
 #include <fstream>
