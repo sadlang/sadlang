@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # يعمل هذا الـ workflow عند:
-#   1. دفع وسم (tag) جديد بصيغة v*.*.* (مثل v1.0.0)
+#   1. دفع وسم (tag) يبدأ بـ v (مثل v1.0.0 أو v0.5.0-alpha)
 #   2. يدوياً من واجهة GitHub Actions
 #
 # ينتج:
@@ -21,7 +21,7 @@ name: "Release / إصدار جديد"
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
@@ -197,11 +197,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: "sad-interpreter-${{ matrix.os }}-${{ matrix.arch }}"
-          path: ${{ env.ARCHIVE }}
+          path: sad-v${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.${{ matrix.archive_ext }}
+          if-no-files-found: error
           retention-days: 5
 
   # ════════════════════════════════════════════════════════════════════
-  # 2. بناء المترجم (مع LLVM) — Windows و Linux فقط
+  # 2. بناء المترجم (مع LLVM) — Windows و Linux و macOS
   # ════════════════════════════════════════════════════════════════════
   build-compiler:
     name: "المترجم / Compiler (${{ matrix.os }}-${{ matrix.arch }})"
@@ -214,16 +215,19 @@ jobs:
             arch: x86_64
             runner: windows-latest
             cmake_generator: "Visual Studio 17 2022"
+            archive_ext: zip
 
           - os: linux
             arch: x86_64
             runner: ubuntu-22.04
             cmake_generator: "Unix Makefiles"
+            archive_ext: tar.gz
 
           - os: macos
             arch: aarch64
             runner: macos-14
             cmake_generator: "Unix Makefiles"
+            archive_ext: tar.gz
 
     steps:
       - name: "استنساخ المصدر / Checkout"
@@ -255,7 +259,7 @@ jobs:
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
-          choco install llvm --version=18.1.8 -y --no-progress
+          choco install llvm --version=18.1.8 -y --no-progress --allow-downgrade
           echo "LLVM_DIR=C:\Program Files\LLVM\lib\cmake\llvm" >> $env:GITHUB_ENV
 
       - name: "تثبيت LLVM / Install LLVM (macOS)"
@@ -265,14 +269,26 @@ jobs:
           echo "LLVM_DIR=$(brew --prefix llvm@18)/lib/cmake/llvm" >> $GITHUB_ENV
 
       # ── تهيئة البناء (مع LLVM) ──
-      - name: "تهيئة CMake / Configure"
+      - name: "تهيئة CMake / Configure (Linux/macOS)"
+        if: matrix.os != 'windows'
         run: >
           cmake -S . -B build
           -G "${{ matrix.cmake_generator }}"
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           -DENABLE_LLVM_BACKEND=ON
-          -DLLVM_DIR="${{ env.LLVM_DIR }}"
+          -DLLVM_DIR="$LLVM_DIR"
           -DBUILD_TESTS=OFF
+
+      - name: "تهيئة CMake / Configure (Windows)"
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          cmake -S . -B build `
+            -G "${{ matrix.cmake_generator }}" `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DENABLE_LLVM_BACKEND=ON `
+            -DLLVM_DIR="$env:LLVM_DIR" `
+            -DBUILD_TESTS=OFF
 
       # ── بناء المترجم ──
       - name: "بناء المترجم / Build Compiler"
@@ -346,14 +362,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: "sadc-${{ matrix.os }}-${{ matrix.arch }}"
-          path: ${{ env.SADC_ARCHIVE }}
+          path: sadc-v${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.${{ matrix.archive_ext }}
+          if-no-files-found: error
           retention-days: 5
 
       - name: "رفع الحزمة الكاملة / Upload Full"
         uses: actions/upload-artifact@v4
         with:
           name: "sad-full-${{ matrix.os }}-${{ matrix.arch }}"
-          path: ${{ env.FULL_ARCHIVE }}
+          path: sad-full-v${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.${{ matrix.archive_ext }}
+          if-no-files-found: error
           retention-days: 5
 
   # ════════════════════════════════════════════════════════════════════
@@ -392,6 +410,29 @@ jobs:
           find release-artifacts/ -type f \( -name "*.zip" -o -name "*.tar.gz" \) -exec cp {} release-files/ \;
           echo "=== الملفات المتاحة للنشر ==="
           ls -lh release-files/
+
+      - name: "التحقق من اكتمال الحزم / Verify Release Artifacts"
+        shell: bash
+        run: |
+          shopt -s nullglob
+          sad=(release-files/sad-v*.zip release-files/sad-v*.tar.gz)
+          sadc=(release-files/sadc-v*.zip release-files/sadc-v*.tar.gz)
+          full=(release-files/sad-full-v*.zip release-files/sad-full-v*.tar.gz)
+
+          if [ ${#sad[@]} -eq 0 ]; then
+            echo "Missing interpreter artifacts (sad-v*)"
+            exit 1
+          fi
+          if [ ${#sadc[@]} -eq 0 ]; then
+            echo "Missing compiler artifacts (sadc-v*)"
+            exit 1
+          fi
+          if [ ${#full[@]} -eq 0 ]; then
+            echo "Missing full artifacts (sad-full-v*)"
+            exit 1
+          fi
+
+          echo "Artifact verification passed"
 
       - name: "حساب SHA256 / Compute Checksums"
         run: |
@@ -444,7 +485,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: "لغة ص v${{ steps.version.outputs.version }}"
           body_path: release-notes.md
-          prerelease: ${{ github.event.inputs.prerelease || false }}
+          prerelease: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.prerelease == 'true') || contains(steps.version.outputs.tag, '-') }}
           files: |
             release-files/*
         env:

@@ -81,7 +81,7 @@ jobs:
     - name: 🔧 Install LLVM 18
       run: |
         if (!(Test-Path "C:\LLVM")) {
-          choco install llvm --version=18.1.3 -y
+          choco install llvm --version=18.1.8 -y --allow-downgrade --no-progress
           Copy-Item "C:\Program Files\LLVM" "C:\LLVM" -Recurse
         }
         echo "LLVM_DIR=C:\LLVM\lib\cmake\llvm" >> $env:GITHUB_ENV
