@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: sandbox.cpp
  * الوصف: Sandbox اختياري لعزل كود FFI - @ffi(sandbox = صحيح)
@@ -83,6 +83,7 @@
 #else
 #include <signal.h>
 #include <sys/resource.h>
+#include <algorithm>
 #endif
 
 namespace sad {

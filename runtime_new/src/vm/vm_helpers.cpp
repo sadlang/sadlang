@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file vm_helpers.cpp
  * @brief الدوال المساعدة للآلة الافتراضية / VM Helper Functions
  * @brief Utility functions, type conversions, and memory management
@@ -13,6 +13,7 @@
 #include <sstream>
 #include <iomanip>
 #include <cstring>
+#include <algorithm>
 
 namespace Sad {
 namespace VM {

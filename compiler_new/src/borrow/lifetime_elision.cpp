@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: lifetime_elision.cpp
  * الوصف: قواعد حذف العمر (Lifetime Elision)
@@ -490,6 +490,7 @@ void sad_print_elision_examples() {
 #ifdef LIFETIME_ELISION_TEST
 
 #include <cassert>
+#include <algorithm>
 
 void testRule1InputLifetimes() {
     sad::borrow::elision::LifetimeElisionEngine engine;

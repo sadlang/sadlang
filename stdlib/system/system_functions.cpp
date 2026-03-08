@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file system_functions.cpp
  * @brief Implementation of System Functions
  * @date February 4, 2026
@@ -17,6 +17,7 @@ using namespace Sad::Data;
 #include <windows.h>
 #else
 #include <unistd.h>
+#include <algorithm>
 #endif
 
 namespace Sad {

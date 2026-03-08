@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: sir_types.h
  * الوصف: أنواع SIR الأساسية (Sad Intermediate Representation)
@@ -58,6 +58,7 @@
 #include <optional>
 #include <variant>
 #include <map>
+#include <algorithm>
 
 namespace sad::sir {
 

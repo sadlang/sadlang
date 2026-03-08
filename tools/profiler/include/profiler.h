@@ -1,3 +1,4 @@
+﻿#include <algorithm>
 /**
  * @file profiler.h
  * @brief محلل الأداء (Profiler) للغة ص

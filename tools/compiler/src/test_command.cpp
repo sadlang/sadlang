@@ -170,6 +170,7 @@ int TestCommand::execute(const ParsedOptions& options) {
     bool coverage = options.get_bool("coverage");
     
     int timeout = options.get_int("timeout", 60);
+    (void)timeout; // timeout will be used when run_single_test supports per-test timeouts
     int num_jobs = options.get_int("jobs", 0);
     
     // إذا كان عدد الخيوط 0، نستخدم عدد المعالجات

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: linter_engine.h
  * الوصف: محرك التحليل الثابت الأساسي للغة ص
@@ -16,6 +16,7 @@
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
+#include <algorithm>
 
 namespace sad::linter {
 

@@ -1,8 +1,9 @@
-// وضع GC للمبتدئين — Garbage Collector Fallback
+﻿// وضع GC للمبتدئين — Garbage Collector Fallback
 #include <cstddef>
 #include <vector>
 #include <unordered_map>
 #include <mutex>
+#include <algorithm>
 
 namespace sadc {
 namespace memory {

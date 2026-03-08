@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: ai_suggestions.cpp
  * الوصف: اقتراحات التحسين بالذكاء الاصطناعي
@@ -51,6 +51,7 @@
 #include <memory>
 #include <functional>
 #include <regex>
+#include <algorithm>
 
 namespace sad {
 namespace profiler {

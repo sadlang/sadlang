@@ -15,6 +15,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <algorithm>
 #endif
 
 namespace fs = std::filesystem;

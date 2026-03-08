@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ==========================================================
  * ملف: sql_injection.cpp
  * الوصف: كاشف SQL Injection
@@ -24,6 +24,7 @@
 #include <vector>
 #include <regex>
 #include <unordered_set>
+#include <algorithm>
 
 namespace sad {
 namespace security {

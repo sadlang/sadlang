@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: guard_pre.cpp
  * الوصف: الحارس قبل التوليد - المرحلة الأولى من نظام الحماية الثلاثي
@@ -70,6 +70,7 @@
 #include <optional>
 #include <regex>
 #include <iostream>
+#include <algorithm>
 
 namespace sad {
 namespace security {

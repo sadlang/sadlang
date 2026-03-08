@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: borrow_lifetimes.cpp
  * الوصف: تكامل الأعمار مع مدقق الاستعارة
@@ -674,6 +674,7 @@ void sad_borrow_print_errors(void* checker) {
 #ifdef BORROW_LIFETIMES_TEST
 
 #include <cassert>
+#include <algorithm>
 
 void testBasicBorrow() {
     sad::borrow::integration::LifetimeAwareBorrowChecker checker;

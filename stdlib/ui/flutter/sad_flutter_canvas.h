@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 // ═══════════════════════════════════════════════════════════════════════════════
 //  sad_flutter_canvas.h — نظام الرسم المخصص
 //  Canvas & CustomPaint System
@@ -9,6 +9,7 @@
 
 #include "sad_flutter_core.h"
 #include "sad_flutter_widgets.h"
+#include <algorithm>
 
 namespace sad {
 namespace flutter {

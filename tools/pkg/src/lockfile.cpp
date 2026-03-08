@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                       لغة سعد - مترجم عربي الأول                              ║
  * ║                   Sad Language - First Arabic Compiler                        ║
@@ -53,6 +53,7 @@
 #include <chrono>
 #include <iomanip>
 #include <optional>
+#include <algorithm>
 
 namespace fs = std::filesystem;
 

@@ -1,4 +1,4 @@
-// ======================================================================
+﻿// ======================================================================
 // video_links.cpp - نظام روابط الفيديو التعليمية
 // Video Links System for Educational Content
 // ======================================================================
@@ -23,6 +23,7 @@
 #include <vector>
 #include <map>
 #include <optional>
+#include <algorithm>
 
 namespace Sad {
 namespace Teacher {

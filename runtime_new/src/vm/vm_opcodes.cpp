@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file vm_opcodes.cpp
  * @brief معالجات تعليمات الآلة الافتراضية / VM Opcode Handlers
  * @brief Implementation of remaining opcode handlers
@@ -11,6 +11,7 @@
 #include "vm/vm.h"
 #include <iostream>
 #include <cstring>
+#include <algorithm>
 
 namespace Sad {
 namespace VM {

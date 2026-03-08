@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: api_version_attribute.cpp
  * الوصف: نظام @api(إصدار) لإدارة إصدارات الواجهات
@@ -51,6 +51,7 @@
 #include <optional>
 #include <regex>
 #include <chrono>
+#include <algorithm>
 
 namespace sad {
 namespace compiler {

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: mega_improvements_part1.h
  * الوصف: تحسينات شاملة للمترجم sadc - الجزء الأول (2500 إصلاح)
@@ -45,6 +45,7 @@
 #include <filesystem>
 #include <regex>
 #include <charconv>
+#include <algorithm>
 
 namespace sad {
 namespace compiler {

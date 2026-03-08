@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 // ==============================================================================
 // cli_main.cpp - نقطة الدخول الرئيسية لأداة ص
 // Main Entry Point for SAD CLI Tool
@@ -44,6 +44,7 @@
 #include <windows.h>
 #include <io.h>
 #include <fcntl.h>
+#include <algorithm>
 #endif
 
 namespace sad {

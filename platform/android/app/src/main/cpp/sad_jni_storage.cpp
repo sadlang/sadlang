@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * @file sad_jni_storage.cpp
  * @brief (AR) جسر JNI للتخزين — قراءة/كتابة الملفات
@@ -11,6 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <android/log.h>
+#include <algorithm>
 
 #define LOG_TAG "SadStorage"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)

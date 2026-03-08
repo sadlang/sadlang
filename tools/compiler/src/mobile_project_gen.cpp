@@ -1,4 +1,4 @@
-// تعطيل تحذير Unicode للتعليقات العربية
+﻿// تعطيل تحذير Unicode للتعليقات العربية
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -19,6 +19,7 @@
 #include "mobile_project_gen.hpp"
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 
 namespace Sad {
 namespace Tools {

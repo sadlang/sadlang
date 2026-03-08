@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: mega_improvements_part3.h
  * الوصف: تحسينات شاملة للمترجم sadc - الجزء الثالث (2000 إصلاح)
@@ -27,6 +27,7 @@
 #include <sstream>
 #include <iomanip>
 #include <filesystem>
+#include <algorithm>
 
 namespace sad {
 namespace compiler {

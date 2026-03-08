@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ==========================================================
  * ملف: ai_suggestions.cpp
  * الوصف: تكامل AI مع LSP
@@ -42,6 +42,7 @@
 #include <functional>
 #include <memory>
 #include <cstring>
+#include <algorithm>
 
 namespace sad {
 namespace lsp {

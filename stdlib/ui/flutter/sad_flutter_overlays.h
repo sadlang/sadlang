@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 // ═══════════════════════════════════════════════════════════════════════════════
 //  sad_flutter_overlays.h — نظام الطبقات العلوية
 //  Overlay System
@@ -9,6 +9,7 @@
 
 #include "sad_flutter_core.h"
 #include "sad_flutter_widgets.h"
+#include <algorithm>
 
 namespace sad {
 namespace flutter {

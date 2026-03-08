@@ -1,4 +1,4 @@
-// mobile_input.h - مركبات الإدخال للتطبيقات الهاتفية
+﻿// mobile_input.h - مركبات الإدخال للتطبيقات الهاتفية
 // Mobile Input Components
 //
 // الوصف: مجموعة شاملة من مركبات الإدخال للتطبيقات الهاتفية
@@ -19,6 +19,7 @@
 #include <optional>
 #include <memory>
 #include <chrono>
+#include <algorithm>
 
 namespace sad {
 namespace graphics {

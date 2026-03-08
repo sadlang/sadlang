@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file apk_builder.cpp
  * @brief أداة بناء APK من ملفات .ص فقط
  * 
@@ -27,6 +27,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <algorithm>
 #endif
 
 namespace fs = std::filesystem;

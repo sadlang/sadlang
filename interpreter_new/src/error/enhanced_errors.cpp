@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file enhanced_errors.cpp
  * @brief تنفيذ نظام رسائل الأخطاء المحسّنة
  * @brief (EN) Enhanced error messages implementation
@@ -8,6 +8,7 @@
  */
 
 #include "enhanced_errors.h"
+#include <algorithm>
 #include &lt;sstream&gt;
 #include &lt;algorithm&gt;
 #include &lt;iomanip&gt;

@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 /**
  * @file database_builtins.cpp
  * @brief Database Module Builtin Functions - دوال قاعدة البيانات المدمجة
@@ -16,6 +16,7 @@
 #include "interpreter/value.h"
 #include <memory>
 #include <map>
+#include <algorithm>
 
 namespace sad {
 namespace stdlib {

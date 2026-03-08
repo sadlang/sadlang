@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ==========================================================
  * ملف: local_model.cpp
  * الوصف: نموذج التعلم المحلي (يعمل بدون إنترنت)
@@ -28,6 +28,7 @@
 #include <map>
 #include <fstream>
 #include <cmath>
+#include <algorithm>
 
 namespace sad {
 namespace companion {

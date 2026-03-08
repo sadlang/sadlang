@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: continuous_profiler.cpp
  * الوصف: Profiler مستمر لتحليل الأداء
@@ -51,6 +51,7 @@
 #include <atomic>
 #include <mutex>
 #include <functional>
+#include <algorithm>
 
 namespace sad {
 namespace profiler {

@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 /**
  * @file registry_client_v2.h
  * @brief Package Registry Client v2 - عميل مستودع الحزم (الإصدار ٢)
@@ -44,6 +44,7 @@
 // JSON: استخدام محلل JSON مبسط مضمّن إذا لم تتوفر nlohmann/json
 #if __has_include(<nlohmann/json.hpp>)
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #define SAD_HAS_NLOHMANN_JSON 1
 #else
 #define SAD_HAS_NLOHMANN_JSON 0

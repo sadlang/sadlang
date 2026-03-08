@@ -1,4 +1,4 @@
-// mobile_buttons.h - أزرار التطبيقات الهاتفية
+﻿// mobile_buttons.h - أزرار التطبيقات الهاتفية
 // Mobile Button Components
 //
 // الوصف: مجموعة شاملة من الأزرار للتطبيقات الهاتفية
@@ -18,6 +18,7 @@
 #include <functional>
 #include <optional>
 #include <memory>
+#include <algorithm>
 
 namespace sad {
 namespace graphics {

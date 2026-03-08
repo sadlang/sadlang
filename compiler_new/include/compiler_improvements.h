@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: compiler_improvements.h
  * الوصف: تحسينات شاملة للمترجم sadc - إصلاح 700 نقطة ضعف
@@ -34,6 +34,7 @@
 #include <atomic>
 #include <set>
 #include <iomanip>
+#include <algorithm>
 
 namespace sad {
 namespace compiler {

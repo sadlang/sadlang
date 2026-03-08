@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ==========================================================
  * ملف: taint_tracker.cpp
  * الوصف: تتبع تلوث البيانات (Taint Tracking)
@@ -29,6 +29,7 @@
 #include <unordered_set>
 #include <functional>
 #include <stack>
+#include <algorithm>
 
 namespace sad {
 namespace security {

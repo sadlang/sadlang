@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                       لغة سعد - مترجم عربي الأول                              ║
  * ║                   Sad Language - First Arabic Compiler                        ║
@@ -51,6 +51,7 @@
 #include <unordered_map>
 #include <optional>
 #include <variant>
+#include <algorithm>
 
 namespace sad {
 namespace codegen {

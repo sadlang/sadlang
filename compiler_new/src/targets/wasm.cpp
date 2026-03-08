@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: wasm.cpp
  * الوصف: Backend لـ WebAssembly
@@ -772,6 +772,7 @@ void sad_wasm_codegen_free(SadWasmCodeGen* ctx) {
 #ifdef WASM_TEST
 
 #include <cassert>
+#include <algorithm>
 
 void testSimpleFunction() {
     std::cout << "🌐 اختبار دالة بسيطة...\n";

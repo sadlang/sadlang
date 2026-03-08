@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ==========================================================
  * ملف: preferences.cpp
  * الوصف: تتبع تفضيلات المبرمج
@@ -19,6 +19,7 @@
 #include <memory>
 #include <map>
 #include <chrono>
+#include <algorithm>
 
 namespace sad {
 namespace companion {

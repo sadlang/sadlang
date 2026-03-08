@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: property_flag.cpp
  * الوصف: علم CLI لتشغيل اختبارات الخصائص
@@ -48,6 +48,7 @@
 #include <functional>
 #include <iostream>
 #include <filesystem>
+#include <algorithm>
 
 namespace sad::testing {
 
