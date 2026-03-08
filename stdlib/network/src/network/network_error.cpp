@@ -229,7 +229,9 @@ NetworkErrorCode system_error_to_network_error(int system_code) {
         case ETIMEDOUT:
             return NetworkErrorCode::TIMEOUT;
         case EWOULDBLOCK:
+#if EAGAIN != EWOULDBLOCK
         case EAGAIN:
+#endif
             return NetworkErrorCode::WOULD_BLOCK;
         case EISCONN:
             return NetworkErrorCode::SOCKET_ALREADY_CONNECTED;
