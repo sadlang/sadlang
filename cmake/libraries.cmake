@@ -44,6 +44,13 @@ if(ENABLE_FREESTANDING)
     set(ALL_SOURCES ${ALL_SOURCES} ${FREESTANDING_SOURCES})
 endif()
 
+# (AR) على Linux/macOS، استبعد ملفات stdlib/graphics التي تتطلب SDL2 من bundled Windows library
+# (EN) On Linux/macOS, exclude stdlib/graphics files that require bundled Windows SDL2 headers
+if(NOT WIN32)
+    list(FILTER ALL_SOURCES EXCLUDE REGEX "stdlib/graphics/.*\\.cpp$")
+    message(STATUS "⚠ Linux/macOS: استبعاد رسومات SDL2 من sad_core / Excluding bundled-SDL2 graphics from sad_core")
+endif()
+
 add_library(sad_core STATIC ${ALL_SOURCES})
 
 if(MSVC)
