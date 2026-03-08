@@ -139,7 +139,11 @@ void WebSocketConnection::close(CloseCode code, const std::string& reason) {
     send_frame(frame);
     
     connected_ = false;
+#ifdef _WIN32
     closesocket(socket_);
+#else
+    ::close(socket_);
+#endif
 }
 
 bool WebSocketConnection::send_frame(const std::vector<uint8_t>& frame) {
@@ -565,7 +569,7 @@ void WebSocketServer::set_connection_timeout(int timeout_ms) {
 void WebSocketServer::accept_thread_func() {
     while (impl_->running) {
         struct sockaddr_in client_addr;
-        int addr_len = sizeof(client_addr);
+        socklen_t addr_len = sizeof(client_addr);
         
         SOCKET client_socket = accept(impl_->server_socket,
                                        reinterpret_cast<struct sockaddr*>(&client_addr),
