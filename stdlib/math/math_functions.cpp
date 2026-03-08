@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <limits>
+#include <climits>
 #include <random>
 
 namespace Sad {

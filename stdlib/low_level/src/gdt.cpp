@@ -1,6 +1,6 @@
-/*
+﻿/*
  * ============================================================================
- * تنفيذ جدول الواصفات العام وقطعة حالة المهمة
+ * ״×†״° ״¬״¯ˆ„ ״§„ˆ״§״µ״§״× ״§„״¹״§… ˆ‚״·״¹״© ״­״§„״© ״§„…‡…״©
  * GDT & TSS Implementation for Sad Language
  * ============================================================================
  */
@@ -14,7 +14,7 @@ namespace Sad {
 namespace LowLevel {
 
 // ============================================================================
-// المثيل الوحيد / Singleton
+// ״§„…״«„ ״§„ˆ״­״¯ / Singleton
 // ============================================================================
 
 GDTManager& GDTManager::getInstance() {
@@ -30,7 +30,7 @@ GDTManager::GDTManager() : isInitialized_(false) {
 }
 
 // ============================================================================
-// التهيئة / Initialization
+// ״§„״×‡״¦״© / Initialization
 // ============================================================================
 
 void GDTManager::initialize() {
@@ -38,34 +38,34 @@ void GDTManager::initialize() {
 
     using namespace GDTConstants;
 
-    // القطعة الفارغة (مطلوبة من المعالج) / Null segment (required by CPU)
+    // ״§„‚״·״¹״© ״§„״§״±״÷״© (…״·„ˆ״¨״© …† ״§„…״¹״§„״¬) / Null segment (required by CPU)
     setEntry(0, 0, 0, 0, 0);
 
-    // كود النواة (Ring 0, 64-بت) / Kernel code (Ring 0, 64-bit)
+    // ƒˆ״¯ ״§„†ˆ״§״© (Ring 0, 64-״¨״×) / Kernel code (Ring 0, 64-bit)
     setEntry(1, 0, 0xFFFFF,
         ACCESS_PRESENT | ACCESS_RING0 | ACCESS_CODE_DATA | ACCESS_EXECUTABLE | ACCESS_READ_WRITE,
         FLAG_GRANULARITY | FLAG_LONG_MODE);
 
-    // بيانات النواة (Ring 0) / Kernel data (Ring 0)
+    // ״¨״§†״§״× ״§„†ˆ״§״© (Ring 0) / Kernel data (Ring 0)
     setEntry(2, 0, 0xFFFFF,
         ACCESS_PRESENT | ACCESS_RING0 | ACCESS_CODE_DATA | ACCESS_READ_WRITE,
         FLAG_GRANULARITY | FLAG_SIZE_32);
 
-    // كود المستخدم (Ring 3, 64-بت) / User code (Ring 3, 64-bit)
+    // ƒˆ״¯ ״§„…״³״×״®״¯… (Ring 3, 64-״¨״×) / User code (Ring 3, 64-bit)
     setEntry(3, 0, 0xFFFFF,
         ACCESS_PRESENT | ACCESS_RING3 | ACCESS_CODE_DATA | ACCESS_EXECUTABLE | ACCESS_READ_WRITE,
         FLAG_GRANULARITY | FLAG_LONG_MODE);
 
-    // بيانات المستخدم (Ring 3) / User data (Ring 3)
+    // ״¨״§†״§״× ״§„…״³״×״®״¯… (Ring 3) / User data (Ring 3)
     setEntry(4, 0, 0xFFFFF,
         ACCESS_PRESENT | ACCESS_RING3 | ACCESS_CODE_DATA | ACCESS_READ_WRITE,
         FLAG_GRANULARITY | FLAG_SIZE_32);
 
-    // إعداد TSS / Setup TSS
+    // ״¥״¹״¯״§״¯ TSS / Setup TSS
     uint64_t tssAddr = reinterpret_cast<uint64_t>(&tss_);
     setTSSEntry(5, tssAddr, sizeof(TSS) - 1);
 
-    // تحديث مؤشر GDT / Update GDT pointer
+    // ״×״­״¯״« …״₪״´״± GDT / Update GDT pointer
     gdtPointer_.limit = sizeof(entries_) - 1;
     gdtPointer_.base = reinterpret_cast<uint64_t>(entries_);
 
@@ -73,7 +73,7 @@ void GDTManager::initialize() {
 }
 
 // ============================================================================
-// تعيين الإدخالات / Setting Entries
+// ״×״¹† ״§„״¥״¯״®״§„״§״× / Setting Entries
 // ============================================================================
 
 void GDTManager::setEntry(int index, uint32_t base, uint32_t limit,
@@ -93,7 +93,7 @@ void GDTManager::setEntry(int index, uint32_t base, uint32_t limit,
 void GDTManager::setTSSEntry(int index, uint64_t tssAddress, uint32_t tssSize) {
     if (index < 0 || index >= GDTConstants::MAX_GDT_ENTRIES - 1) return;
 
-    // TSS في الوضع الطويل يحتل إدخالين (16 بايت) / TSS in long mode occupies 2 entries (16 bytes)
+    // TSS  ״§„ˆ״¶״¹ ״§„״·ˆ„ ״­״×„ ״¥״¯״®״§„† (16 ״¨״§״×) / TSS in long mode occupies 2 entries (16 bytes)
     GDTSystemEntry* sysEntry = reinterpret_cast<GDTSystemEntry*>(&entries_[index]);
 
     sysEntry->limitLow      = tssSize & 0xFFFF;
@@ -107,21 +107,21 @@ void GDTManager::setTSSEntry(int index, uint64_t tssAddress, uint32_t tssSize) {
 }
 
 // ============================================================================
-// التحميل / Loading
+// ״§„״×״­…„ / Loading
 // ============================================================================
 
 void GDTManager::load() {
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile (
         "lgdt %0\n\t"
-        // إعادة تحميل قطع البيانات / Reload data segments
+        // ״¥״¹״§״¯״© ״×״­…„ ‚״·״¹ ״§„״¨״§†״§״× / Reload data segments
         "mov $0x10, %%ax\n\t"
         "mov %%ax, %%ds\n\t"
         "mov %%ax, %%es\n\t"
         "mov %%ax, %%fs\n\t"
         "mov %%ax, %%gs\n\t"
         "mov %%ax, %%ss\n\t"
-        // قفز بعيد لإعادة تحميل CS / Far jump to reload CS
+        // ‚״² ״¨״¹״¯ „״¥״¹״§״¯״© ״×״­…„ CS / Far jump to reload CS
         "pushq $0x08\n\t"
         "leaq 1f(%%rip), %%rax\n\t"
         "pushq %%rax\n\t"
@@ -133,13 +133,13 @@ void GDTManager::load() {
 }
 
 void GDTManager::loadTSS(uint16_t selector) {
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile ("ltr %0" : : "r"(selector));
 #endif
 }
 
 // ============================================================================
-// إدارة TSS / TSS Management
+// ״¥״¯״§״±״© TSS / TSS Management
 // ============================================================================
 
 void GDTManager::initializeTSS(uint64_t kernelStackTop) {
@@ -160,7 +160,7 @@ void GDTManager::setIST(int istIndex, uint64_t stackTop) {
 }
 
 // ============================================================================
-// استعلامات / Queries
+// ״§״³״×״¹„״§…״§״× / Queries
 // ============================================================================
 
 const GDTEntry* GDTManager::getEntry(int index) const {
@@ -169,29 +169,29 @@ const GDTEntry* GDTManager::getEntry(int index) const {
 }
 
 // ============================================================================
-// التقرير / Report
+// ״§„״×‚״±״± / Report
 // ============================================================================
 
 std::string GDTManager::generateReport() const {
     std::ostringstream report;
 
     report << "\n" << std::string(70, '=') << "\n";
-    report << "تقرير GDT / GDT Report\n";
+    report << "״×‚״±״± GDT / GDT Report\n";
     report << std::string(70, '=') << "\n\n";
 
     const char* segNames[] = {
-        "NULL (فارغة)", "كود النواة / Kernel Code",
-        "بيانات النواة / Kernel Data", "كود المستخدم / User Code",
-        "بيانات المستخدم / User Data", "TSS (الجزء 1)", "TSS (الجزء 2)"
+        "NULL (״§״±״÷״©)", "ƒˆ״¯ ״§„†ˆ״§״© / Kernel Code",
+        "״¨״§†״§״× ״§„†ˆ״§״© / Kernel Data", "ƒˆ״¯ ״§„…״³״×״®״¯… / User Code",
+        "״¨״§†״§״× ״§„…״³״×״®״¯… / User Data", "TSS (״§„״¬״²״¡ 1)", "TSS (״§„״¬״²״¡ 2)"
     };
 
     report << std::left
-           << std::setw(5)  << "رقم"
-           << std::setw(30) << "الاسم / Name"
-           << std::setw(10) << "القاعدة"
-           << std::setw(10) << "الحد"
-           << std::setw(6)  << "وصول"
-           << std::setw(6)  << "أعلام"
+           << std::setw(5)  << "״±‚…"
+           << std::setw(30) << "״§„״§״³… / Name"
+           << std::setw(10) << "״§„‚״§״¹״¯״©"
+           << std::setw(10) << "״§„״­״¯"
+           << std::setw(6)  << "ˆ״µˆ„"
+           << std::setw(6)  << "״£״¹„״§…"
            << "\n";
     report << std::string(70, '-') << "\n";
 
@@ -213,8 +213,8 @@ std::string GDTManager::generateReport() const {
 
     report << "\n";
     report << "TSS:\n";
-    report << "  RSP0 (مكدس النواة): 0x" << std::hex << tss_.rsp0 << std::dec << "\n";
-    report << "  إزاحة IOPB: " << tss_.iopbOffset << "\n";
+    report << "  RSP0 (…ƒ״¯״³ ״§„†ˆ״§״©): 0x" << std::hex << tss_.rsp0 << std::dec << "\n";
+    report << "  ״¥״²״§״­״© IOPB: " << tss_.iopbOffset << "\n";
 
     report << std::string(70, '=') << "\n\n";
     return report.str();
@@ -222,3 +222,4 @@ std::string GDTManager::generateReport() const {
 
 } // namespace LowLevel
 } // namespace Sad
+

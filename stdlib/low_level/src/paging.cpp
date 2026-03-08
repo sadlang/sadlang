@@ -1,6 +1,6 @@
-/*
+﻿/*
  * ============================================================================
- * تنفيذ نظام الترحيل للغة ص
+ * ״×†״° †״¸״§… ״§„״×״±״­„ „„״÷״© ״µ
  * Paging System Implementation for Sad Language
  * ============================================================================
  */
@@ -16,7 +16,7 @@ namespace Sad {
 namespace LowLevel {
 
 // ============================================================================
-// مخصص إطارات الصفحات / Page Frame Allocator
+// …״®״µ״µ ״¥״·״§״±״§״× ״§„״µ״­״§״× / Page Frame Allocator
 // ============================================================================
 
 PageFrameAllocator& PageFrameAllocator::getInstance() {
@@ -34,16 +34,16 @@ void PageFrameAllocator::initialize(uint64_t startAddress, uint64_t totalPages) 
     totalFrames_ = totalPages;
     freeFrames_ = totalPages;
 
-    // حساب حجم خريطة البتات: كل uint64_t = 64 إطار
+    // ״­״³״§״¨ ״­״¬… ״®״±״·״© ״§„״¨״×״§״×: ƒ„ uint64_t = 64 ״¥״·״§״±
     // Bitmap size calculation: each uint64_t = 64 frames
     bitmapSize_ = (totalPages + 63) / 64;
 
-    // خريطة البتات توضع في بداية النطاق المتاح
+    // ״®״±״·״© ״§„״¨״×״§״× ״×ˆ״¶״¹  ״¨״¯״§״© ״§„†״·״§‚ ״§„…״×״§״­
     // Bitmap placed at the start of available range
     bitmap_ = reinterpret_cast<uint64_t*>(startAddress);
     std::memset(bitmap_, 0, bitmapSize_ * sizeof(uint64_t));
 
-    // حجز مساحة خريطة البتات ذاتها / Reserve bitmap space itself
+    // ״­״¬״² …״³״§״­״© ״®״±״·״© ״§„״¨״×״§״× ״°״§״×‡״§ / Reserve bitmap space itself
     uint64_t bitmapBytes = bitmapSize_ * sizeof(uint64_t);
     uint64_t bitmapPages = (bitmapBytes + PagingConstants::PAGE_SIZE_4K - 1) / PagingConstants::PAGE_SIZE_4K;
     for (uint64_t i = 0; i < bitmapPages; ++i) {
@@ -84,7 +84,7 @@ void PageFrameAllocator::freeFrame(uint64_t physicalAddress) {
 
     uint64_t index = (physicalAddress - startAddress_) / PagingConstants::PAGE_SIZE_4K;
     if (index >= totalFrames_) return;
-    if (!testBit(index)) return; // ليست مخصصة أصلاً / Not allocated
+    if (!testBit(index)) return; // „״³״× …״®״µ״µ״© ״£״µ„״§‹ / Not allocated
 
     clearBit(index);
     freeFrames_++;
@@ -141,14 +141,14 @@ void PageFrameAllocator::clearBit(uint64_t frameIndex) {
 }
 
 bool PageFrameAllocator::testBit(uint64_t frameIndex) const {
-    if (frameIndex >= totalFrames_) return true; // خارج النطاق = مشغول / Out of range = occupied
+    if (frameIndex >= totalFrames_) return true; // ״®״§״±״¬ ״§„†״·״§‚ = …״´״÷ˆ„ / Out of range = occupied
     return (bitmap_[frameIndex / 64] & (1ULL << (frameIndex % 64))) != 0;
 }
 
 uint64_t PageFrameAllocator::findFirstFree() const {
     for (uint64_t i = 0; i < bitmapSize_; ++i) {
         if (bitmap_[i] != UINT64_MAX) {
-            // يوجد بت حر في هذا العنصر / There's a free bit in this element
+            // ˆ״¬״¯ ״¨״× ״­״±  ‡״°״§ ״§„״¹†״µ״± / There's a free bit in this element
             for (int bit = 0; bit < 64; ++bit) {
                 uint64_t frameIndex = i * 64 + bit;
                 if (frameIndex >= totalFrames_) return UINT64_MAX;
@@ -178,7 +178,7 @@ uint64_t PageFrameAllocator::findContiguousFree(uint64_t count) const {
 }
 
 // ============================================================================
-// مدير الترحيل / Paging Manager
+// …״¯״± ״§„״×״±״­„ / Paging Manager
 // ============================================================================
 
 PagingManager& PagingManager::getInstance() {
@@ -188,14 +188,14 @@ PagingManager& PagingManager::getInstance() {
 
 PagingManager::PagingManager()
     : currentPML4_(0)
-    , nextMmioVirtual_(0xFFFFFF0000000000ULL) // منطقة MMIO الافتراضية / Default MMIO region
+    , nextMmioVirtual_(0xFFFFFF0000000000ULL) // …†״·‚״© MMIO ״§„״§״×״±״§״¶״© / Default MMIO region
     , mappedPageCount_(0)
     , isInitialized_(false) {}
 
 void PagingManager::initialize() {
     if (isInitialized_) return;
 
-    // تخصيص جدول PML4 جديد / Allocate new PML4 table
+    // ״×״®״µ״µ ״¬״¯ˆ„ PML4 ״¬״¯״¯ / Allocate new PML4 table
     uint64_t pml4Frame = PageFrameAllocator::getInstance().allocateFrame();
     if (pml4Frame == 0) return;
 
@@ -212,16 +212,16 @@ TranslationResult PagingManager::translate(uint64_t virtualAddress) const {
 
     PageTable* pml4 = reinterpret_cast<PageTable*>(currentPML4_);
 
-    // المستوى 4: PML4 / Level 4: PML4
+    // ״§„…״³״×ˆ‰ 4: PML4 / Level 4: PML4
     int idx4 = pml4Index(virtualAddress);
     if (!pml4->entries[idx4].isPresent()) return result;
 
-    // المستوى 3: PDPT / Level 3: PDPT
+    // ״§„…״³״×ˆ‰ 3: PDPT / Level 3: PDPT
     PageTable* pdpt = reinterpret_cast<PageTable*>(pml4->entries[idx4].getPhysicalAddress());
     int idx3 = pdptIndex(virtualAddress);
     if (!pdpt->entries[idx3].isPresent()) return result;
 
-    // فحص صفحة 1GB / Check 1GB page
+    // ״­״µ ״µ״­״© 1GB / Check 1GB page
     if (pdpt->entries[idx3].isHugePage()) {
         result.valid = true;
         result.pageBase = pdpt->entries[idx3].getPhysicalAddress();
@@ -232,12 +232,12 @@ TranslationResult PagingManager::translate(uint64_t virtualAddress) const {
         return result;
     }
 
-    // المستوى 2: PD / Level 2: Page Directory
+    // ״§„…״³״×ˆ‰ 2: PD / Level 2: Page Directory
     PageTable* pd = reinterpret_cast<PageTable*>(pdpt->entries[idx3].getPhysicalAddress());
     int idx2 = pdIndex(virtualAddress);
     if (!pd->entries[idx2].isPresent()) return result;
 
-    // فحص صفحة 2MB / Check 2MB page
+    // ״­״µ ״µ״­״© 2MB / Check 2MB page
     if (pd->entries[idx2].isHugePage()) {
         result.valid = true;
         result.pageBase = pd->entries[idx2].getPhysicalAddress();
@@ -248,7 +248,7 @@ TranslationResult PagingManager::translate(uint64_t virtualAddress) const {
         return result;
     }
 
-    // المستوى 1: PT / Level 1: Page Table
+    // ״§„…״³״×ˆ‰ 1: PT / Level 1: Page Table
     PageTable* pt = reinterpret_cast<PageTable*>(pd->entries[idx2].getPhysicalAddress());
     int idx1 = ptIndex(virtualAddress);
     if (!pt->entries[idx1].isPresent()) return result;
@@ -267,14 +267,14 @@ PageTable* PagingManager::getOrCreateTable(PageTable* parent, int index, uint64_
         return reinterpret_cast<PageTable*>(parent->entries[index].getPhysicalAddress());
     }
 
-    // تخصيص جدول جديد / Allocate new table
+    // ״×״®״µ״µ ״¬״¯ˆ„ ״¬״¯״¯ / Allocate new table
     uint64_t frame = PageFrameAllocator::getInstance().allocateFrame();
     if (frame == 0) return nullptr;
 
     PageTable* table = reinterpret_cast<PageTable*>(frame);
     table->clear();
 
-    // تعيين الإدخال في الجدول الأب / Set entry in parent table
+    // ״×״¹† ״§„״¥״¯״®״§„  ״§„״¬״¯ˆ„ ״§„״£״¨ / Set entry in parent table
     parent->entries[index].value = frame | flags | PageFlags::PRESENT;
 
     return table;
@@ -287,40 +287,40 @@ bool PagingManager::mapPage(uint64_t virtualAddress, uint64_t physicalAddress,
     PageTable* pml4 = reinterpret_cast<PageTable*>(currentPML4_);
     uint64_t tableFlags = PageFlags::PRESENT | PageFlags::WRITABLE;
 
-    // إضافة علم المستخدم إذا كان مطلوباً في الأعلام / Add user flag if requested
+    // ״¥״¶״§״© ״¹„… ״§„…״³״×״®״¯… ״¥״°״§ ƒ״§† …״·„ˆ״¨״§‹  ״§„״£״¹„״§… / Add user flag if requested
     if (flags & PageFlags::USER) {
         tableFlags |= PageFlags::USER;
     }
 
-    // المستوى 4 → 3 / Level 4 → 3
+    // ״§„…״³״×ˆ‰ 4 ג†’ 3 / Level 4 ג†’ 3
     PageTable* pdpt = getOrCreateTable(pml4, pml4Index(virtualAddress), tableFlags);
     if (!pdpt) return false;
 
     if (pageSize == PageSize::SIZE_1G) {
-        // صفحة 1GB مباشرة في PDPT / 1GB page directly in PDPT
+        // ״µ״­״© 1GB …״¨״§״´״±״©  PDPT / 1GB page directly in PDPT
         pdpt->entries[pdptIndex(virtualAddress)].value =
             (physicalAddress & PagingConstants::PHYS_ADDR_MASK) | flags | PageFlags::HUGE_PAGE;
         mappedPageCount_++;
         return true;
     }
 
-    // المستوى 3 → 2 / Level 3 → 2
+    // ״§„…״³״×ˆ‰ 3 ג†’ 2 / Level 3 ג†’ 2
     PageTable* pd = getOrCreateTable(pdpt, pdptIndex(virtualAddress), tableFlags);
     if (!pd) return false;
 
     if (pageSize == PageSize::SIZE_2M) {
-        // صفحة 2MB مباشرة في PD / 2MB page directly in PD
+        // ״µ״­״© 2MB …״¨״§״´״±״©  PD / 2MB page directly in PD
         pd->entries[pdIndex(virtualAddress)].value =
             (physicalAddress & PagingConstants::PHYS_ADDR_MASK) | flags | PageFlags::HUGE_PAGE;
         mappedPageCount_++;
         return true;
     }
 
-    // المستوى 2 → 1 / Level 2 → 1
+    // ״§„…״³״×ˆ‰ 2 ג†’ 1 / Level 2 ג†’ 1
     PageTable* pt = getOrCreateTable(pd, pdIndex(virtualAddress), tableFlags);
     if (!pt) return false;
 
-    // صفحة 4KB / 4KB page
+    // ״µ״­״© 4KB / 4KB page
     pt->entries[ptIndex(virtualAddress)].value =
         (physicalAddress & PagingConstants::PHYS_ADDR_MASK) | flags;
     mappedPageCount_++;
@@ -451,7 +451,7 @@ uint64_t PagingManager::createAddressSpace() {
     PageTable* newPML4 = reinterpret_cast<PageTable*>(frame);
     newPML4->clear();
 
-    // نسخ نصف النواة من PML4 الحالي (إدخالات 256-511)
+    // †״³״® †״µ ״§„†ˆ״§״© …† PML4 ״§„״­״§„ (״¥״¯״®״§„״§״× 256-511)
     // Copy kernel half from current PML4 (entries 256-511)
     if (currentPML4_ != 0) {
         PageTable* currentPml4 = reinterpret_cast<PageTable*>(currentPML4_);
@@ -466,7 +466,7 @@ uint64_t PagingManager::createAddressSpace() {
 void PagingManager::switchAddressSpace(uint64_t pml4PhysAddr) {
     currentPML4_ = pml4PhysAddr;
 
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile ("mov %0, %%cr3" : : "r"(pml4PhysAddr) : "memory");
 #elif defined(_MSC_VER)
     __writecr3(pml4PhysAddr);
@@ -474,11 +474,11 @@ void PagingManager::switchAddressSpace(uint64_t pml4PhysAddr) {
 }
 
 void PagingManager::destroyAddressSpace(uint64_t pml4PhysAddr) {
-    if (pml4PhysAddr == currentPML4_) return; // لا يمكن تدمير الفضاء النشط / Can't destroy active space
+    if (pml4PhysAddr == currentPML4_) return; // „״§ …ƒ† ״×״¯…״± ״§„״¶״§״¡ ״§„†״´״· / Can't destroy active space
 
     PageTable* pml4 = reinterpret_cast<PageTable*>(pml4PhysAddr);
 
-    // تحرير جداول المستخدم فقط (الإدخالات 0-255) / Free only user tables (entries 0-255)
+    // ״×״­״±״± ״¬״¯״§ˆ„ ״§„…״³״×״®״¯… ‚״· (״§„״¥״¯״®״§„״§״× 0-255) / Free only user tables (entries 0-255)
     freeTable(pml4, 4);
 
     PageFrameAllocator::getInstance().freeFrame(pml4PhysAddr);
@@ -487,7 +487,7 @@ void PagingManager::destroyAddressSpace(uint64_t pml4PhysAddr) {
 void PagingManager::freeTable(PageTable* table, int level) {
     if (level <= 1) return;
 
-    // لجداول المستخدم فقط (صفحات أقل من النواة)
+    // „״¬״¯״§ˆ„ ״§„…״³״×״®״¯… ‚״· (״µ״­״§״× ״£‚„ …† ״§„†ˆ״§״©)
     int maxIndex = (level == 4) ? 256 : PagingConstants::ENTRIES_PER_TABLE;
 
     for (int i = 0; i < maxIndex; ++i) {
@@ -500,7 +500,7 @@ void PagingManager::freeTable(PageTable* table, int level) {
 }
 
 void PagingManager::invalidatePage(uint64_t virtualAddress) {
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile ("invlpg (%0)" : : "r"(virtualAddress) : "memory");
 #elif defined(_MSC_VER)
     __invlpg(reinterpret_cast<void*>(virtualAddress));
@@ -518,20 +518,20 @@ std::string PagingManager::generateReport() const {
     auto& alloc = PageFrameAllocator::getInstance();
 
     report << "\n" << std::string(70, '=') << "\n";
-    report << "تقرير نظام الترحيل / Paging System Report\n";
+    report << "״×‚״±״± †״¸״§… ״§„״×״±״­„ / Paging System Report\n";
     report << std::string(70, '=') << "\n\n";
 
-    report << "PML4 الحالي / Current PML4: 0x" << std::hex << currentPML4_ << std::dec << "\n";
-    report << "الصفحات المعينة / Mapped Pages: " << mappedPageCount_ << "\n\n";
+    report << "PML4 ״§„״­״§„ / Current PML4: 0x" << std::hex << currentPML4_ << std::dec << "\n";
+    report << "״§„״µ״­״§״× ״§„…״¹†״© / Mapped Pages: " << mappedPageCount_ << "\n\n";
 
-    report << "مخصص الإطارات / Frame Allocator:\n";
-    report << "  إجمالي الإطارات / Total Frames: " << alloc.getTotalFrameCount() << "\n";
-    report << "  إطارات حرة / Free Frames: " << alloc.getFreeFrameCount() << "\n";
-    report << "  إطارات مستخدمة / Used Frames: " << alloc.getUsedFrameCount() << "\n";
+    report << "…״®״µ״µ ״§„״¥״·״§״±״§״× / Frame Allocator:\n";
+    report << "  ״¥״¬…״§„ ״§„״¥״·״§״±״§״× / Total Frames: " << alloc.getTotalFrameCount() << "\n";
+    report << "  ״¥״·״§״±״§״× ״­״±״© / Free Frames: " << alloc.getFreeFrameCount() << "\n";
+    report << "  ״¥״·״§״±״§״× …״³״×״®״¯…״© / Used Frames: " << alloc.getUsedFrameCount() << "\n";
 
     if (alloc.getTotalFrameCount() > 0) {
         double usedPercent = 100.0 * alloc.getUsedFrameCount() / alloc.getTotalFrameCount();
-        report << "  نسبة الاستخدام / Usage: " << std::fixed << std::setprecision(1) << usedPercent << "%\n";
+        report << "  †״³״¨״© ״§„״§״³״×״®״¯״§… / Usage: " << std::fixed << std::setprecision(1) << usedPercent << "%\n";
     }
 
     report << std::string(70, '=') << "\n\n";
@@ -540,3 +540,4 @@ std::string PagingManager::generateReport() const {
 
 } // namespace LowLevel
 } // namespace Sad
+
