@@ -549,22 +549,22 @@ namespace قوالب_مخرجات {
  * قيود لمخرج malloc/realloc
  */
 inline قيود_مخرج_مؤشر malloc_output() {
-    return قيود_مخرج_مؤشر{
-        .يُسمح_null = false,
-        .يتطلب_تحرير = true,
-        .دالة_التحرير = "free"
-    };
+    قيود_مخرج_مؤشر قيود{};
+    قيود.يُسمح_null = false;
+    قيود.يتطلب_تحرير = true;
+    قيود.دالة_التحرير = "free";
+    return قيود;
 }
 
 /**
  * قيود لمخرج fopen
  */
 inline قيود_مخرج_مؤشر fopen_output() {
-    return قيود_مخرج_مؤشر{
-        .يُسمح_null = false,
-        .يتطلب_تحرير = true,
-        .دالة_التحرير = "fclose"
-    };
+    قيود_مخرج_مؤشر قيود{};
+    قيود.يُسمح_null = false;
+    قيود.يتطلب_تحرير = true;
+    قيود.دالة_التحرير = "fclose";
+    return قيود;
 }
 
 /**
@@ -572,19 +572,19 @@ inline قيود_مخرج_مؤشر fopen_output() {
  */
 template<typename T = ssize_t>
 inline قيود_مخرج_رقمي<T> io_size_output() {
-    return قيود_مخرج_رقمي<T>{
-        .قيمة_الخطأ = -1
-    };
+    قيود_مخرج_رقمي<T> قيود{};
+    قيود.قيمة_الخطأ = static_cast<T>(-1);
+    return قيود;
 }
 
 /**
  * قيود لمخرج دوال POSIX التي تُرجع 0 للنجاح
  */
 inline قيود_كود_خطأ posix_return_code() {
-    return قيود_كود_خطأ{
-        .قيمة_النجاح = 0,
-        .السالب_خطأ = true
-    };
+    قيود_كود_خطأ قيود{};
+    قيود.قيمة_النجاح = 0;
+    قيود.السالب_خطأ = true;
+    return قيود;
 }
 
 /**
@@ -592,10 +592,10 @@ inline قيود_كود_خطأ posix_return_code() {
  */
 template<typename T = int>
 inline قيود_مخرج_رقمي<T> socket_output() {
-    return قيود_مخرج_رقمي<T>{
-        .قيمة_الخطأ = -1,
-        .الحد_الأدنى_للنجاح = 0
-    };
+    قيود_مخرج_رقمي<T> قيود{};
+    قيود.قيمة_الخطأ = static_cast<T>(-1);
+    قيود.الحد_الأدنى_للنجاح = static_cast<T>(0);
+    return قيود;
 }
 
 } // namespace قوالب_مخرجات
@@ -610,7 +610,9 @@ inline قيود_مخرج_رقمي<T> socket_output() {
 #define SAD_FFI_CHECK_PTR(ptr, func_name) \
     do { \
         مدقق_مخرجات_FFI __مدقق; \
-        auto __نتيجة = __مدقق.تحقق_من_مؤشر(ptr, func_name, {.يُسمح_null = false}); \
+        قيود_مخرج_مؤشر __قيود{}; \
+        __قيود.يُسمح_null = false; \
+        auto __نتيجة = __مدقق.تحقق_من_مؤشر(ptr, func_name, __قيود); \
         if (!__نتيجة.نجح()) { \
             throw std::runtime_error(__نتيجة.إلى_نص()); \
         } \
