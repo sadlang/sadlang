@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file type_functions.cpp
  * @brief (AR) تنفيذ دوال الأنواع والتحويلات / (EN) Implementation of Type Conversion and Checking Functions
  * 
@@ -7,6 +7,7 @@
  * @version 1.0
  */
 
+#include <string>
 #include "type_functions.h"
 #include <stdexcept>
 #include <sstream>

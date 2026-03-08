@@ -5,11 +5,14 @@
 #include "pattern_nodes.h"
 #include "advanced_expr_nodes.h"  // (AR) لتعريف AwaitExpr / (EN) For AwaitExpr definition
 #include "ast_visitor.h"
+#include "class_nodes.h"        // (AR) تعريف SuperExpr, ClassDeclStmt / (EN) SuperExpr, ClassDeclStmt definitions
+#include "property_nodes.h"     // (AR) تعريف PropertyDecl / (EN) PropertyDecl definition
 #include "token.h"
 #include <iostream>
 #include <cmath>
 #include <set>
 #include <map>
+#include <string>
 
 namespace sad {
 

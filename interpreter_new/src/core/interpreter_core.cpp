@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interpreter_core.cpp
  * @brief (AR) تنفيذ المفسر الأساسي
  * @brief (EN) Core Interpreter Implementation
@@ -7,6 +7,7 @@
  * @date November 21, 2025
  */
 
+#include <string>
 #include "interpreter_core.h"
 #include "declarations.h"
 #include "statements.h"

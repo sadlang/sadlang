@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file value.cpp
  * @brief (AR) تنفيذ فئة القيمة في وقت التشغيل
  * @brief (EN) Runtime value class implementation
@@ -33,6 +33,7 @@
 // NOTE(#26): (EN) MapType uses std::unordered_map — iteration order is non-deterministic.
 //            If deterministic order is needed, use an array of pairs or std::map.
 
+#include <string>
 #include "value.h"
 #include "object_instance.h"
 #include <cmath>

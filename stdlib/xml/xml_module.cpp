@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 /**
  * @file xml_module.cpp
  * @brief XML Module Implementation - تنفيذ وحدة XML
@@ -6,6 +6,7 @@
  * الحمد لله رب العالمين
  */
 
+#include <string>
 #include "xml/xml_module.h"
 #include <sstream>
 #include <algorithm>

@@ -7,6 +7,7 @@
  * @date November 21, 2025
  */
 
+#include <string>
 #include "expression_evaluator.h"
 #include "statement_executor.h"
 #include "ast_node.h"  // (AR) لضمان تعريف ASTNode الكامل عند استدعاء accept / (EN) Ensure full ASTNode definition for accept() calls

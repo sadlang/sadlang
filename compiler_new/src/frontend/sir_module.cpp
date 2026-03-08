@@ -1,4 +1,4 @@
-/*
+﻿/*
  * ملف تنفيذ SIR Module - SIR Module Implementation File
  * 
  * الوصف: تنفيذ الفئات الأساسية لتمثيل البرنامج في SIR
@@ -12,6 +12,7 @@
  * - SIRClass: دعم OOP / OOP support
  */
 
+#include <string>
 #include "sir_module.h"
 #include <sstream>
 #include <iostream>

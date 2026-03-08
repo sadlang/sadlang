@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 /**
  * @file http_module.cpp
  * @brief HTTP/HTTPS Module Implementation - تنفيذ وحدة HTTP/HTTPS
@@ -9,6 +9,7 @@
  * الحمد لله رب العالمين
  */
 
+#include <string>
 #include "http/http_module.h"
 #include <sstream>
 #include <fstream>

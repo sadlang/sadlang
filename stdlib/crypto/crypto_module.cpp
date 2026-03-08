@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 /**
  * @file crypto_module.cpp
  * @brief Cryptography Module Implementation - تنفيذ وحدة التشفير
@@ -6,6 +6,7 @@
  * الحمد لله رب العالمين
  */
 
+#include <string>
 #include "crypto/crypto_module.h"
 #include <algorithm>
 #include <random>

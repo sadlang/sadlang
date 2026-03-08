@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file parser_core_helpers.cpp
  * @brief (AR) دوال مساعدة للمحلل النحوي - الجزء الثاني من التنفيذ.
  *        (EN) Parser helper functions - second part of implementation.
@@ -8,6 +8,7 @@
  * @license MIT License
  */
 
+#include <string>
 #include "parser_core.h"
 #include "class_manager.h"
 #include <iostream>

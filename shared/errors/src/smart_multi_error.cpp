@@ -1,9 +1,10 @@
-/**
+﻿/**
  * @file smart_multi_error.cpp
  * @brief (AR) تطبيق نظام جمع الأخطاء المتعددة - Sad::Errors namespace
  * (AR) المهمة: T164 - Phase 15 (US13)
  */
 
+#include <string>
 #include "multi_error.h"
 #include <sstream>
 #include <algorithm>

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // sir_builder.cpp - بناء SIR من AST / SIR Builder from AST
 // ============================================================================
 // المؤلف / Author: Sad Compiler Team
@@ -16,6 +16,7 @@
 // - AST headers (ast_node.h, expressions.h, statements.h, declarations.h)
 // ============================================================================
 
+#include <string>
 #include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"

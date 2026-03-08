@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file debug_server.cpp
  * @brief (AR) تنفيذ خادم التصحيح — بروتوكول JSON عبر stdin/stdout
  * @brief (EN) Debug Server implementation — JSON protocol over stdin/stdout
@@ -7,6 +7,7 @@
  * @date 2025
  */
 
+#include <string>
 #include "debug_server.h"
 #include "lexer_core.h"
 #include "parser_core.h"

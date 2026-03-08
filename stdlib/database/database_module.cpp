@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 /**
  * @file database_module.cpp
  * @brief Database Module Implementation - تنفيذ وحدة قاعدة البيانات
@@ -8,6 +8,7 @@
  * الحمد لله رب العالمين
  */
 
+#include <string>
 #include "database/database_module.h"
 #include <optional>
 

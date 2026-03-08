@@ -1,9 +1,10 @@
-/**
+﻿/**
  * @file smart_cascade_prevention.cpp
  * @brief (AR) تطبيق منع الأخطاء المتتالية - Sad::Errors
  * (AR) المهمة: T163 - Phase 15 (US13)
  */
 
+#include <string>
 #include "cascade_prevention.h"
 #include <sstream>
 #include <algorithm>

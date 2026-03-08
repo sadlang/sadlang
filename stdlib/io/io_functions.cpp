@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file io_functions.cpp
  * @brief (AR) تطبيق دوال الإدخال والإخراج / (EN) Implementation of I/O Functions
  * 
@@ -10,6 +10,7 @@
  * @version 1.0
  */
 
+#include <string>
 #include "io/io_functions.h"
 #include "object_instance.h"
 #include <iostream>

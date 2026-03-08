@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 /**
  * @file json_module.cpp
  * @brief JSON Module Implementation - تنفيذ وحدة JSON
@@ -6,6 +6,7 @@
  * الحمد لله رب العالمين
  */
 
+#include <string>
 #include "json/json_module.h"
 #include <sstream>
 #include <iomanip>

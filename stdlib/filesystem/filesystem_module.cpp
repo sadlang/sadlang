@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 /**
  * @file filesystem_module.cpp
  * @brief Implementation of Filesystem Module - تنفيذ وحدة نظام الملفات
@@ -8,6 +8,7 @@
  * الحمد لله رب العالمين
  */
 
+#include <string>
 #include "filesystem/filesystem_module.h"
 #include <fstream>
 #include <filesystem>

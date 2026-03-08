@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file builtins.cpp
  * @brief (AR) تنفيذ الدوال المضمنة / (EN) Implementation of Built-in Functions
  * 
@@ -9,6 +9,7 @@
  * @date November 22, 2025
  */
 
+#include <string>
 #include "builtins.h"
 #include "io/io_functions.h"
 #include <iostream>
