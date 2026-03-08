@@ -34,8 +34,8 @@ uint8_t IOPorts::inb(uint16_t port) {
     // Microsoft Visual C++
     // Note: __inbyte is an intrinsic function
     return 0; // Placeholder - would use __inbyte(port) in real kernel mode
-#elif defined(__GNUC__) || defined(__clang__)
-    // GCC or Clang
+#elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
+    // GCC or Clang on x86/x86_64
     uint8_t result;
     __asm__ volatile ("inb %1, %0" : "=a"(result) : "Nd"(port));
     return result;
@@ -67,8 +67,8 @@ void IOPorts::outb(uint16_t port, uint8_t value) {
 #if defined(_MSC_VER)
     // Microsoft Visual C++
     // Placeholder - would use __outbyte(port, value) in real kernel mode
-#elif defined(__GNUC__) || defined(__clang__)
-    // GCC or Clang
+#elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
+    // GCC or Clang on x86/x86_64
     __asm__ volatile ("outb %0, %1" : : "a"(value), "Nd"(port));
 #endif
 }
@@ -94,7 +94,7 @@ uint16_t IOPorts::inw(uint16_t port) {
     
 #if defined(_MSC_VER)
     return 0; // Placeholder - would use __inword(port)
-#elif defined(__GNUC__) || defined(__clang__)
+#elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     uint16_t result;
     __asm__ volatile ("inw %1, %0" : "=a"(result) : "Nd"(port));
     return result;
@@ -117,7 +117,7 @@ void IOPorts::outw(uint16_t port, uint16_t value) {
     
 #if defined(_MSC_VER)
     // Placeholder - would use __outword(port, value)
-#elif defined(__GNUC__) || defined(__clang__)
+#elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile ("outw %0, %1" : : "a"(value), "Nd"(port));
 #endif
 }
@@ -139,7 +139,7 @@ uint32_t IOPorts::inl(uint16_t port) {
     
 #if defined(_MSC_VER)
     return 0; // Placeholder - would use __indword(port)
-#elif defined(__GNUC__) || defined(__clang__)
+#elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     uint32_t result;
     __asm__ volatile ("inl %1, %0" : "=a"(result) : "Nd"(port));
     return result;
@@ -162,7 +162,7 @@ void IOPorts::outl(uint16_t port, uint32_t value) {
     
 #if defined(_MSC_VER)
     // Placeholder - would use __outdword(port, value)
-#elif defined(__GNUC__) || defined(__clang__)
+#elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile ("outl %0, %1" : : "a"(value), "Nd"(port));
 #endif
 }
@@ -185,7 +185,7 @@ void IOPorts::insb(uint16_t port, void* buffer, size_t count) {
      * Uses rep insb instruction
      */
     
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile (
         "cld\n\t"
         "rep insb"
@@ -208,7 +208,7 @@ void IOPorts::insw(uint16_t port, void* buffer, size_t count) {
      * Read multiple words from port
      */
     
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile (
         "cld\n\t"
         "rep insw"
@@ -230,7 +230,7 @@ void IOPorts::insl(uint16_t port, void* buffer, size_t count) {
      * Read multiple double words from port
      */
     
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile (
         "cld\n\t"
         "rep insl"
@@ -252,7 +252,7 @@ void IOPorts::outsb(uint16_t port, const void* buffer, size_t count) {
      * Write multiple bytes to port
      */
     
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile (
         "cld\n\t"
         "rep outsb"
@@ -274,7 +274,7 @@ void IOPorts::outsw(uint16_t port, const void* buffer, size_t count) {
      * Write multiple words to port
      */
     
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile (
         "cld\n\t"
         "rep outsw"
@@ -296,7 +296,7 @@ void IOPorts::outsl(uint16_t port, const void* buffer, size_t count) {
      * Write multiple double words to port
      */
     
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile (
         "cld\n\t"
         "rep outsl"

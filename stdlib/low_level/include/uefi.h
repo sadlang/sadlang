@@ -50,7 +50,7 @@ namespace LowLevel {
 ///   Positive = success, negative = error
 using EFI_STATUS  = int64_t;
 using EFI_HANDLE  = uint64_t;
-using EFI_GUID    = struct { uint32_t data1; uint16_t data2; uint16_t data3; uint8_t data4[8]; };
+struct EFI_GUID   { uint32_t data1; uint16_t data2; uint16_t data3; uint8_t data4[8]; };
 
 /// @brief (AR) رموز حالة UEFI / (EN) UEFI Status codes
 namespace EfiStatus {
