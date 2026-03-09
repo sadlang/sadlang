@@ -30,8 +30,8 @@ namespace {
     inline sad::unified::SadUIBackend* UB() {
         return sad::unified::SadUI::instance().backend();
     }
+} // namespace
 #endif // HAS_GRAPHICS
-}
 
 namespace Sad {
 namespace Interpreter {
