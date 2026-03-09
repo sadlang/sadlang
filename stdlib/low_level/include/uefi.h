@@ -655,7 +655,7 @@ private:
         bool isDirectory;
     };
     std::vector<FileEntry> openFiles_;
-    int64_t nextFd_;
+    [[maybe_unused]] int64_t nextFd_;
 
     // NVRAM
     struct NvramVar {

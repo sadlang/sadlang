@@ -64,6 +64,7 @@ namespace Interpreter {
 using namespace StdLib;
 
 void registerBuiltinsPart3(Interpreter& interpreter) {
+#ifdef HAS_GRAPHICS
     // Check checkbox state / فحص حالة مربع الاختيار
     auto checkbox_is_checked_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) {
         if (args.empty()) {
@@ -783,6 +784,7 @@ void registerBuiltinsPart3(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("ارسم_حد_متدرج", effects_drawBorderGradient_func);
     interpreter.getFunctionManager().registerBuiltinFunction("effects_draw_border_gradient", effects_drawBorderGradient_func);
 
+#endif // HAS_GRAPHICS
 
 }
 

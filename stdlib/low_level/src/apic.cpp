@@ -411,14 +411,18 @@ void APICManager::sendSIPI(uint8_t destAPICId, uint8_t pageNumber) {
 
 void APICManager::waitForDelivery() {
     // انتظار حتى يكتمل التسليم / Wait until delivery completes
-    while (readLocalAPIC(APICRegisters::ICR_LOW) & APICConstants::ICR_DELIVERY_PENDING) {
+        while (readLocalAPIC(APICRegisters::ICR_LOW) & APICConstants::ICR_DELIVERY_PENDING) {
         // انتظار / Waiting
-#ifdef _MSC_VER
+    #ifdef _MSC_VER
         _mm_pause();
-#else
+    #elif defined(__x86_64__) || defined(__i386__)
         __asm__ volatile("pause");
-#endif
-    }
+    #elif defined(__aarch64__) || defined(__arm__)
+        __asm__ volatile("yield");
+    #else
+        // no-op on other architectures
+    #endif
+        }
 }
 
 // ============================================================================

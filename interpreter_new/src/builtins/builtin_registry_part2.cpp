@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file builtin_registry_part2.cpp
  * @brief (AR) جزء من تسجيل الدوال المضمنة
  */
@@ -340,7 +340,8 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     interpreter.getFunctionManager().registerBuiltinFunction("هل_موجود", file_exists_func);
     interpreter.getFunctionManager().registerBuiltinFunction("exists", file_exists_func);
-    
+
+#ifdef HAS_GRAPHICS
     // ===================================================================
     // (AR) دوال الرسومات / (EN) Graphics Functions
     // ===================================================================
@@ -769,6 +770,7 @@ void registerBuiltinsPart2(Interpreter& interpreter) {
     
     interpreter.getFunctionManager().registerBuiltinFunction("مربع_اختيار_جديد", checkbox_create_func);
     interpreter.getFunctionManager().registerBuiltinFunction("checkbox_new", checkbox_create_func);
+#endif // HAS_GRAPHICS
     
 
 }
