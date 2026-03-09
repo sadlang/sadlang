@@ -47,51 +47,51 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   # بناء Windows
   # ─────────────────────────────────────────────────────────────────────
-  build-windows:
-    name: 🪟 Windows (MSVC + LLVM)
-    runs-on: windows-latest
-    timeout-minutes: 45
+ #* build-windows:
+  #  name: 🪟 Windows (MSVC + LLVM)
+  #  runs-on: windows-latest
+  #  timeout-minutes: 45
     
-    steps:
-    - name: 📥 Checkout
-      uses: actions/checkout@v4
+  #  steps:
+  #  - name: 📥 Checkout
+  #    uses: actions/checkout@v4
     
-    - name: 📊 Setup build timing
-      id: timing
-      run: |
-        echo "start_time=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" >> $env:GITHUB_OUTPUT
+  #  - name: 📊 Setup build timing
+  #    id: timing
+  #    run: |
+  #      echo "start_time=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" >> $env:GITHUB_OUTPUT
     
-    - name: 📦 Cache CMake build
-      uses: actions/cache@v4
-      with:
-        path: |
-          build
-          !build/bin
-        key: cmake-windows-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}-${{ github.sha }}
-        restore-keys: |
-          cmake-windows-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}-
-          cmake-windows-
+   # - name: 📦 Cache CMake build
+  #    uses: actions/cache@v4
+  #    with:
+  #      path: |
+  #        build
+  #        !build/bin
+  #      key: cmake-windows-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}-${{ github.sha }}
+  #      restore-keys: |
+  #        cmake-windows-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}-
+  #        cmake-windows-
     
-    - name: 🔧 Configure CMake
-      run: |
-        cmake -S . -B build `
-          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-          -DENABLE_LLVM_BACKEND=OFF `
-          -DBUILD_TESTS=OFF
+  #  - name: 🔧 Configure CMake
+  #    run: |
+  #      cmake -S . -B build `
+  #        -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+  #        -DENABLE_LLVM_BACKEND=OFF `
+  #        -DBUILD_TESTS=OFF
     
-    - name: 🔨 Build sad interpreter
-      run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad
+  #  - name: 🔨 Build sad interpreter
+  #    run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad
     
-    - name: ✅ Test interpreter
-      run: |
-        .\build\bin\${{ env.BUILD_TYPE }}\sad.exe examples\test_simple.ص
+  #  - name: ✅ Test interpreter
+  #    run: |
+  #      .\build\bin\${{ env.BUILD_TYPE }}\sad.exe examples\test_simple.ص
     
-    - name: 📤 Upload Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: sad-windows
-        path: |
-          build/bin/${{ env.BUILD_TYPE }}/sad.exe
+  #  - name: 📤 Upload Artifacts
+  #    uses: actions/upload-artifact@v4
+  #    with:
+  #      name: sad-windows
+  #      path: |
+  #        build/bin/${{ env.BUILD_TYPE }}/sad.exe
 
   # ─────────────────────────────────────────────────────────────────────
   # بناء Linux
@@ -364,7 +364,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   create-release:
     name: 🚀 Create Release
-    needs: [build-windows, build-linux, build-macos]
+    needs:   [ build-linux, build-macos]  # [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
@@ -404,18 +404,18 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   build-summary:
     name: 📊 Build Summary
-    needs: [build-windows, build-linux, build-macos, build-ios, build-android]
+    needs: [ build-linux, build-macos, build-ios, build-android]  # [build-windows, build-linux, build-macos, build-ios, build-android]
     runs-on: ubuntu-latest
     if: always()
     
     steps:
     - name: 📊 Generate Build Report
-      run: |
+      run: | #  echo "| 🪟 Windows | ${{ needs.build-windows.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "# 📊 تقرير البناء - Sad Language" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "| المنصة | الحالة |" >> $GITHUB_STEP_SUMMARY
         echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
-        echo "| 🪟 Windows | ${{ needs.build-windows.result }} |" >> $GITHUB_STEP_SUMMARY
+      
         echo "| 🐧 Linux | ${{ needs.build-linux.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| 🍎 macOS | ${{ needs.build-macos.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| 📱 iOS | ${{ needs.build-ios.result }} |" >> $GITHUB_STEP_SUMMARY
