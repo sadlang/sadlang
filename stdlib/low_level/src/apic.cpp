@@ -14,7 +14,7 @@
 
 #ifdef _MSC_VER
 #include <intrin.h>
-#else
+#elif defined(__x86_64__) || defined(__i386__)
 #include <cpuid.h>
 #endif
 
@@ -37,13 +37,15 @@ APICManager& APICManager::getInstance() {
 namespace {
     /// قراءة MSR / Read MSR
     inline uint64_t readMSR(uint32_t msr) {
-        uint32_t lo, hi;
+        uint32_t lo = 0, hi = 0;
 #ifdef _MSC_VER
         uint64_t val = __readmsr(msr);
         lo = static_cast<uint32_t>(val);
         hi = static_cast<uint32_t>(val >> 32);
-#else
+#elif defined(__x86_64__) || defined(__i386__)
         __asm__ volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(msr));
+#else
+        (void)msr;
 #endif
         return (static_cast<uint64_t>(hi) << 32) | lo;
     }
@@ -54,8 +56,10 @@ namespace {
         uint32_t hi = static_cast<uint32_t>(value >> 32);
 #ifdef _MSC_VER
         __writemsr(msr, value);
-#else
+#elif defined(__x86_64__) || defined(__i386__)
         __asm__ volatile("wrmsr" : : "a"(lo), "d"(hi), "c"(msr));
+#else
+        (void)msr; (void)lo; (void)hi;
 #endif
     }
 
@@ -63,18 +67,22 @@ namespace {
     inline void outb(uint16_t port, uint8_t val) {
 #ifdef _MSC_VER
         __outbyte(port, val);
-#else
+#elif defined(__x86_64__) || defined(__i386__)
         __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
+#else
+        (void)port; (void)val;
 #endif
     }
 
     /// إدخال بايت من منفذ / Input byte from port
     inline uint8_t inb(uint16_t port) {
-        uint8_t val;
+        uint8_t val = 0;
 #ifdef _MSC_VER
         val = __inbyte(port);
-#else
+#elif defined(__x86_64__) || defined(__i386__)
         __asm__ volatile("inb %1, %0" : "=a"(val) : "Nd"(port));
+#else
+        (void)port;
 #endif
         return val;
     }
@@ -90,25 +98,31 @@ namespace {
 // ============================================================================
 
 bool APICManager::isAPICSupported() const {
-    uint32_t eax, ebx, ecx, edx;
+    uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 #ifdef _MSC_VER
     int regs[4];
     __cpuid(regs, 1);
     edx = regs[3];
-#else
+#elif defined(__x86_64__) || defined(__i386__)
     __cpuid(1, eax, ebx, ecx, edx);
+#else
+    (void)eax; (void)ebx; (void)ecx;
+    return false; // ARM64/other: no x86 APIC
 #endif
     return (edx & (1 << 9)) != 0; // CPUID.1:EDX.APIC[bit 9]
 }
 
 bool APICManager::isX2APICSupported() const {
-    uint32_t eax, ebx, ecx, edx;
+    uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 #ifdef _MSC_VER
     int regs[4];
     __cpuid(regs, 1);
     ecx = regs[2];
-#else
+#elif defined(__x86_64__) || defined(__i386__)
     __cpuid(1, eax, ebx, ecx, edx);
+#else
+    (void)eax; (void)ebx; (void)edx;
+    return false; // ARM64/other: no x2APIC
 #endif
     return (ecx & (1 << 21)) != 0; // CPUID.1:ECX.x2APIC[bit 21]
 }

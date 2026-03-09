@@ -425,6 +425,9 @@ set(UI_IR_SOURCES
     src/ui/ios_swiftui_codegen.cpp
     src/ui/web_html_codegen.cpp
     src/ui/sad_ui_pipeline.cpp
+    # (AR) تنفيذ UIParser المطلوب من sad_ui_pipeline.cpp
+    # (EN) UIParser implementation required by sad_ui_pipeline.cpp
+    ${SAD_SHARED_DIR}/shared/parser/src/ui_parser.cpp
 )
 
 # التحقق من وجود الملفات

@@ -167,8 +167,12 @@ void HPETManager::delayNanoseconds(uint64_t ns) const {
         // انتظار نشط / Active wait
 #ifdef _MSC_VER
         _mm_pause();
-#else
+#elif defined(__x86_64__) || defined(__i386__)
         __asm__ volatile("pause");
+#elif defined(__aarch64__) || defined(__arm__)
+        __asm__ volatile("yield");
+#else
+        // no-op on other architectures
 #endif
     }
 }

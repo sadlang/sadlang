@@ -48,6 +48,9 @@ endif()
 # (EN) On Linux/macOS, exclude stdlib/graphics files that require bundled Windows SDL2 headers
 if(NOT WIN32)
     list(FILTER ALL_SOURCES EXCLUDE REGEX "stdlib/graphics/.*\\.cpp$")
+    # (AR) استبعاد sad_backend_desktop.cpp لأنه يستدعي دوال sad::ui من stdlib/graphics (SDL2)
+    # (EN) Exclude sad_backend_desktop.cpp because it calls sad::ui functions from stdlib/graphics (SDL2)
+    list(FILTER ALL_SOURCES EXCLUDE REGEX "stdlib/ui/sad_backend_desktop\\.cpp$")
     message(STATUS "⚠ Linux/macOS: استبعاد رسومات SDL2 من sad_core / Excluding bundled-SDL2 graphics from sad_core")
 endif()
 

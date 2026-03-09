@@ -27,13 +27,15 @@ namespace LowLevel {
 namespace {
     /// قراءة MSR / Read MSR
     inline uint64_t readMSR(uint32_t msr) {
-        uint32_t lo, hi;
+        uint32_t lo = 0, hi = 0;
 #ifdef _MSC_VER
         uint64_t val = __readmsr(msr);
         lo = static_cast<uint32_t>(val);
         hi = static_cast<uint32_t>(val >> 32);
-#else
+#elif defined(__x86_64__) || defined(__i386__)
         __asm__ volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(msr));
+#else
+        (void)msr;
 #endif
         return (static_cast<uint64_t>(hi) << 32) | lo;
     }
@@ -44,8 +46,10 @@ namespace {
         uint32_t hi = static_cast<uint32_t>(value >> 32);
 #ifdef _MSC_VER
         __writemsr(msr, value);
-#else
+#elif defined(__x86_64__) || defined(__i386__)
         __asm__ volatile("wrmsr" : : "a"(lo), "d"(hi), "c"(msr));
+#else
+        (void)msr; (void)lo; (void)hi;
 #endif
     }
 }
