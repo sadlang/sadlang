@@ -60,8 +60,10 @@ static void _autoChildren(int parentId, const std::vector<std::shared_ptr<Data::
         }
     }
 }
+#endif // HAS_GRAPHICS (helper)
 
 void registerBuiltinsPart11(Interpreter& interpreter) {
+#ifdef HAS_GRAPHICS
 
     // ═══════════════════════════════════════════════════════════════════
     // (AR) المكونات الأساسية (9) / (EN) Original 9 Widgets
