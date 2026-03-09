@@ -455,6 +455,7 @@ private:
         }
         
         auto& registry = TypeSystem::TypeRegistry::getInstance();
+        (void)registry;
         
         // (AR) أنواع خاصة
         // (EN) Special types
@@ -509,6 +510,7 @@ private:
         // (AR) نمط متغير يغطي كل شيء (يربط أي قيمة)
         // (EN) Variable pattern covers everything (binds any value)
         if (auto* var = dynamic_cast<const AST::VariablePattern*>(&pattern)) {
+            (void)var;
             return PatternSpace::full();
         }
         

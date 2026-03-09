@@ -19,6 +19,7 @@ namespace Sad {
 namespace Interpreter {
 
 void registerBuiltinsPart15(Interpreter& interpreter) {
+#ifdef HAS_GRAPHICS
 
     // ═══════════════════════════════════════════════════════════════════
     // (AR) استعلامات العناصر / (EN) Widget Queries
@@ -414,6 +415,7 @@ void registerBuiltinsPart15(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x85\xd9\x84\xd9\x88\xd9\x86", colored_builder_func); // ملون
     interpreter.getFunctionManager().registerBuiltinFunction("colored", colored_builder_func);
 
+#endif // HAS_GRAPHICS
 } // registerBuiltinsPart15
 
 } // namespace Interpreter

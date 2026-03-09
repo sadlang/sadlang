@@ -1683,6 +1683,7 @@ void registerBuiltinsPart10(Interpreter& interpreter) {
                 unsigned char c2 = static_cast<unsigned char>(input[i + 1]);
                 unsigned char c3 = static_cast<unsigned char>(input[i + 2]);
                 uint32_t cp = ((c & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+                (void)cp;
                 // U+06D6-U+06ED (Quranic marks in 3-byte range if any, but these are 2-byte)
                 // U+FE70-U+FEFF (Arabic Presentation Forms-B) — keep these
                 result += input[i];

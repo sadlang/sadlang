@@ -18,6 +18,7 @@ namespace Sad {
 namespace Interpreter {
 
 void registerBuiltinsPart12(Interpreter& interpreter) {
+#ifdef HAS_GRAPHICS
 
     // ═══════════════════════════════════════════════════════════════════
     // (AR) عمليات شجرة المكونات / (EN) Widget Tree Operations
@@ -517,6 +518,7 @@ void registerBuiltinsPart12(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xb9\xd9\x8a\xd9\x86_\xd8\xae\xd8\xa7\xd8\xb5\xd9\x8a\xd8\xa9_\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a", widget_set_prop_bool_func); // عين_خاصية_منطقي
     interpreter.getFunctionManager().registerBuiltinFunction("widget_set_prop_bool", widget_set_prop_bool_func);
 
+#endif // HAS_GRAPHICS
 } // registerBuiltinsPart12
 
 } // namespace Interpreter

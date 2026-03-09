@@ -707,7 +707,7 @@ void registerBuiltinsPart7(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("c_free", ffi_free_func);
 
     // 4. realloc — اعد_حجز (managed pointer table)
-    auto ffi_realloc_func = [&interpreter, getPtr, removePtr, registerPtr](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto ffi_realloc_func = [&interpreter, removePtr, registerPtr](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         if (args.size() < 2) throw std::runtime_error("(AR) realloc: يحتاج مؤشر وحجم / (EN) realloc: needs ptr and size");
         if (interpreter.getOptions().enableSecurity) {
             throw std::runtime_error("(AR) realloc محظورة في الوضع الآمن / (EN) realloc blocked in secure mode");

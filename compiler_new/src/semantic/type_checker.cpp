@@ -62,12 +62,12 @@ std::string TypeCheckError::toArabicString() const {
 // ============================================================================
 
 TypeChecker::TypeChecker()
-    : registry_(TypeRegistry::getInstance())
-    , lastInferredType_(nullptr)
-    , expectedReturnType_(nullptr)
-    , useArabicMessages_(true)
+    : useArabicMessages_(true)
     , debugMode_(false)
-    , strictMode_(false) {
+    , strictMode_(false)
+    , registry_(TypeRegistry::getInstance())
+    , lastInferredType_(nullptr)
+    , expectedReturnType_(nullptr) {
     // إنشاء بيئة الأنواع العامة / Create global type environment
     currentEnv_ = std::make_shared<TypeEnvironment>();
     scopeStack_.push_back(currentEnv_);
@@ -781,6 +781,7 @@ void TypeChecker::visitMemberAccessExpr(AST::MemberAccessExpr& expr) {
         if (auto* newExpr = dynamic_cast<AST::NewExpr*>(expr.object.get())) {
             className = newExpr->className;
         } else if (auto* thisExpr = dynamic_cast<AST::ThisExpr*>(expr.object.get())) {
+            (void)thisExpr;
             className = currentFunction_;
         }
         if (!className.empty()) {

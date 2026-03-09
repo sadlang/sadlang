@@ -19,6 +19,7 @@ namespace Sad {
 namespace Interpreter {
 
 void registerBuiltinsPart14(Interpreter& interpreter) {
+#ifdef HAS_GRAPHICS
 
     // ═══════════════════════════════════════════════════════════════════
     // (AR) الشفافية / (EN) Opacity
@@ -973,6 +974,7 @@ void registerBuiltinsPart14(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x85\xd9\x83\xd9\x88\xd9\x86", ui_builder_func); // مكون
     interpreter.getFunctionManager().registerBuiltinFunction("ui_widget", ui_builder_func);
 
+#endif // HAS_GRAPHICS
 } // registerBuiltinsPart14
 
 } // namespace Interpreter

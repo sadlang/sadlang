@@ -18,6 +18,7 @@ namespace Interpreter {
 // ═══════════════════════════════════════════════════════════════════════════
 // مساعد تطبيق الخصائص
 // ═══════════════════════════════════════════════════════════════════════════
+#ifdef HAS_GRAPHICS
 static void _applyProps18(int id, const std::vector<std::shared_ptr<Data::Value>>& args, size_t startIdx) {
     for (size_t i = startIdx; i < args.size(); ++i) {
         if (args[i]->getType() == Data::ValueType::STRING) {
@@ -36,8 +37,10 @@ static void _applyProps18(int id, const std::vector<std::shared_ptr<Data::Value>
         }
     }
 }
+#endif // HAS_GRAPHICS
 
 void registerBuiltinsPart18(Interpreter& interpreter) {
+#ifdef HAS_GRAPHICS
     using Args = const std::vector<std::shared_ptr<Data::Value>>&;
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1082,6 +1085,7 @@ void registerBuiltinsPart18(Interpreter& interpreter) {
             _applyProps18(row, args, 0);
             return std::make_shared<Data::Value>((double)row);
         });
+#endif // HAS_GRAPHICS
 }
 
 } // namespace Interpreter

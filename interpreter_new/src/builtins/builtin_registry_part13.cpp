@@ -22,6 +22,7 @@
 #include "ui/sad_ui_callbacks.h"
 
 // Helper: route through unified backend if available, else fall back to sad::ui
+#ifdef HAS_GRAPHICS
 namespace {
     inline bool useUnified() {
         return sad::unified::SadUI::instance().isInitialized();
@@ -29,12 +30,14 @@ namespace {
     inline sad::unified::SadUIBackend* UB() {
         return sad::unified::SadUI::instance().backend();
     }
+#endif // HAS_GRAPHICS
 }
 
 namespace Sad {
 namespace Interpreter {
 
 void registerBuiltinsPart13(Interpreter& interpreter) {
+#ifdef HAS_GRAPHICS
 
     // ═══════════════════════════════════════════════════════════════════
     // (AR) دورة حياة التطبيق / (EN) App Lifecycle
@@ -528,6 +531,7 @@ void registerBuiltinsPart13(Interpreter& interpreter) {
         "\xd9\x85\xd8\xb9\xd8\xa7\xd9\x84\xd8\xac\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xad\xd8\xaf\xd8\xa7\xd8\xab", process_callbacks_func); // معالجة_الأحداث
     interpreter.getFunctionManager().registerBuiltinFunction("process_callbacks", process_callbacks_func);
 
+#endif // HAS_GRAPHICS
 } // registerBuiltinsPart13
 
 } // namespace Interpreter

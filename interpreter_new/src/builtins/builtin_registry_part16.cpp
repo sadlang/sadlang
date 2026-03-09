@@ -22,6 +22,7 @@ namespace Interpreter {
 // (AR) دالة مساعدة لتطبيق الخصائص السطرية على أي ودجت
 // (EN) Helper to apply inline properties from variadic args
 // ═══════════════════════════════════════════════════════════════════════════
+#ifdef HAS_GRAPHICS
 static void _applyProps(int id, const std::vector<std::shared_ptr<Data::Value>>& args, size_t startIdx) {
     for (size_t i = startIdx; i < args.size(); ++i) {
         if (args[i]->getType() == Data::ValueType::STRING) {
@@ -46,8 +47,10 @@ static void _applyProps(int id, const std::vector<std::shared_ptr<Data::Value>>&
         }
     }
 }
+#endif // HAS_GRAPHICS
 
 void registerBuiltinsPart16(Interpreter& interpreter) {
+#ifdef HAS_GRAPHICS
 
     // ═══════════════════════════════════════════════════════════════════
     // (AR) 1. سقالة / scaffold — هيكل تطبيق Flutter الأساسي
@@ -982,6 +985,7 @@ void registerBuiltinsPart16(Interpreter& interpreter) {
         "\xd8\xad\xd9\x82\xd9\x84_\xd9\x85\xd8\xae\xd8\xb5\xd8\xb5", custom_field_func); // حقل_مخصص
     interpreter.getFunctionManager().registerBuiltinFunction("ui_custom_field", custom_field_func);
 
+#endif // HAS_GRAPHICS
 } // registerBuiltinsPart16
 
 } // namespace Interpreter

@@ -106,7 +106,7 @@ void registerBuiltinsPart8(Interpreter& interpreter) {
     static std::unordered_map<int64_t, std::shared_ptr<std::atomic<int64_t>>> async_atomics;
 
     // 1. spawn / async_spawn
-    auto async_spawn_func = [&interpreter](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto async_spawn_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         int64_t taskId = async_task_counter.fetch_add(1);
         std::cout << "[ASYNC-SIM] Spawned task #" << taskId << std::endl;
         return std::make_shared<Data::Value>(static_cast<int>(taskId));
@@ -349,7 +349,7 @@ void registerBuiltinsPart8(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("unlock", mutex_unlock_func);
 
     // 15. thread_spawn
-    auto thread_spawn_func = [&interpreter](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
+    auto thread_spawn_func = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
         int64_t threadId = async_task_counter.fetch_add(1);
         std::cout << "[ASYNC-SIM] Spawned thread #" << threadId << std::endl;
         return std::make_shared<Data::Value>(static_cast<int>(threadId));
