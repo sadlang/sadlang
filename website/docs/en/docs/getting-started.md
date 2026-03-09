@@ -1,4 +1,4 @@
----
+﻿---
 title: Installation
 description: How to install Sad Language and run your first program
 ---
@@ -47,7 +47,7 @@ sadc --version
 ### Linux
 
 ```bash
-wget https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-1.0.0-x86_64.AppImage
+wget https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-x86_64.AppImage
 chmod +x sad-1.0.0-x86_64.AppImage
 ./sad-1.0.0-x86_64.AppImage my-file.ص
 ```

@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 // ═══════════════════════════════════════════════════════════════
 // VitePress Configuration — sad-lang.org
 // ═══════════════════════════════════════════════════════════════
@@ -315,7 +315,7 @@ export default defineConfig({
 
     // ── أزرار التحرير
     editLink: {
-      pattern: 'https://github.com/sad-lang/sad-language/edit/main/website/docs/:path',
+      pattern: 'https://github.com/SalehKadah/s-programming-language/edit/main/website/docs/:path',
       text:    'تحرير هذه الصفحة على GitHub',
     },
 
@@ -382,7 +382,7 @@ export default defineConfig({
           {
             text: 'Community',
             items: [
-              { text: 'GitHub',    link: 'https://github.com/sad-lang/sad-language' },
+              { text: 'GitHub',    link: 'https://github.com/SalehKadah/s-programming-language' },
               { text: 'Discord',   link: 'https://discord.gg/sadlang' },
               { text: 'Blog',      link: '/blog' },
             ],
@@ -417,7 +417,7 @@ export default defineConfig({
           ],
         },
         editLink: {
-          pattern: 'https://github.com/sad-lang/sad-language/edit/main/website/docs/:path',
+          pattern: 'https://github.com/SalehKadah/s-programming-language/edit/main/website/docs/:path',
           text:    'Edit this page on GitHub',
         },
         docFooter:    { prev: 'Previous Page', next: 'Next Page' },

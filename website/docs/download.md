@@ -1,6 +1,6 @@
 ﻿---
 title: تحميل لغة ص
-description: حمّل مثبّت لغة ص لنظامك — Windows · Linux · macOS
+description: حمّل مثبّت لغة ص لنظام Windows
 ---
 
 <script setup>
@@ -14,7 +14,8 @@ function copy(text, key) {
   setTimeout(() => { copied.value = '' }, 1800)
 }
 
-const sha256win = '52FFBB8D94FFC69128E5D9404965E6F60D2FC0AFF94B7FAEC78F33964A28980A'
+const sha256setup = '52FFBB8D94FFC69128E5D9404965E6F60D2FC0AFF94B7FAEC78F33964A28980A'
+const sha256zip = '409C1E66734ED0D13F8872D6D6D8F6E27BB313434E209D4856619C63D3A5E5D7'
 </script>
 
 # تحميل لغة ص
@@ -39,32 +40,29 @@ const sha256win = '52FFBB8D94FFC69128E5D9404965E6F60D2FC0AFF94B7FAEC78F33964A289
     >⬇️ تحميل sad-setup.exe</a>
   </div>
 
-  <div class="dl-hero-os linux">
+  <div class="dl-hero-os linux coming-soon">
     <div class="dl-os-icon">🐧</div>
     <div class="dl-os-info">
       <div class="dl-os-name">Linux x86_64</div>
-      <div class="dl-os-meta">الإصدار 1.0.0 · 22 MB · AppImage</div>
+      <div class="dl-os-meta">قريباً — النسخة قيد التحضير</div>
     </div>
-    <a
-      class="dl-btn"
-      href="https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-x86_64.AppImage"
-      download
-    >⬇️ تحميل AppImage</a>
+    <span class="dl-btn disabled">🔜 قريباً</span>
   </div>
 
-  <div class="dl-hero-os macos">
+  <div class="dl-hero-os macos coming-soon">
     <div class="dl-os-icon">🍎</div>
     <div class="dl-os-info">
       <div class="dl-os-name">macOS Universal</div>
-      <div class="dl-os-meta">الإصدار 1.0.0 · 20 MB · مثبّت PKG</div>
+      <div class="dl-os-meta">قريباً — النسخة قيد التحضير</div>
     </div>
-    <a
-      class="dl-btn"
-      href="https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-lang-1.0.0-macos-universal.pkg"
-      download
-    >⬇️ تحميل PKG</a>
+    <span class="dl-btn disabled">🔜 قريباً</span>
   </div>
 </div>
+
+::: warning ملاحظة بخصوص المنصات الأخرى
+حالياً لغة ص متوفرة على **نظام Windows فقط**. نسخ Linux و macOS قيد التحضير وستُنشر قريباً.
+تابع [صفحة الإصدارات على GitHub](https://github.com/SalehKadah/s-programming-language/releases) للاطلاع على آخر المستجدات.
+:::
 
 ---
 
@@ -72,10 +70,17 @@ const sha256win = '52FFBB8D94FFC69128E5D9404965E6F60D2FC0AFF94B7FAEC78F33964A289
 
 <div class="sha-block">
   <div class="sha-row">
-    <span class="sha-label">Windows x64:</span>
-    <code class="sha-val">{{ sha256win }}</code>
-    <button class="copy-btn" @click="copy(sha256win, 'sha-win')">
-      {{ copied === 'sha-win' ? '✅ تم النسخ' : '📋 نسخ' }}
+    <span class="sha-label">المثبّت (EXE):</span>
+    <code class="sha-val">{{ sha256setup }}</code>
+    <button class="copy-btn" @click="copy(sha256setup, 'sha-setup')">
+      {{ copied === 'sha-setup' ? '✅ تم النسخ' : '📋 نسخ' }}
+    </button>
+  </div>
+  <div class="sha-row" style="margin-top: 8px;">
+    <span class="sha-label">النسخة المحمولة (ZIP):</span>
+    <code class="sha-val">{{ sha256zip }}</code>
+    <button class="copy-btn" @click="copy(sha256zip, 'sha-zip')">
+      {{ copied === 'sha-zip' ? '✅ تم النسخ' : '📋 نسخ' }}
     </button>
   </div>
 </div>
@@ -89,40 +94,10 @@ Get-FileHash .\sad-setup-1.0.0-windows-x64.exe -Algorithm SHA256
 
 ## ⚡ تثبيت سريع عبر الأوامر
 
-::: code-group
-
-```powershell [PowerShell (Windows)]
-# تثبيت بسطر واحد
+```powershell
+# تثبيت بسطر واحد (PowerShell — Windows)
 irm https://sad-lang.org/install.ps1 | iex
 ```
-
-```powershell [Winget (Windows)]
-winget install sad-lang.sad
-```
-
-```powershell [Scoop (Windows)]
-scoop bucket add sad https://github.com/sad-lang/scoop-bucket
-scoop install sad
-```
-
-```bash [curl (Linux/macOS)]
-curl -fsSL https://sad-lang.org/install.sh | bash
-```
-
-```bash [Homebrew (macOS)]
-brew install sad-lang/tap/sad
-```
-
-```bash [apt (Debian/Ubuntu)]
-curl -fsSL https://sad-lang.org/gpg.key | sudo gpg --dearmor \
-  -o /usr/share/keyrings/sad-lang.gpg
-echo "deb [signed-by=/usr/share/keyrings/sad-lang.gpg] \
-  https://apt.sad-lang.org stable main" \
-  | sudo tee /etc/apt/sources.list.d/sad-lang.list
-sudo apt update && sudo apt install sad-lang
-```
-
-:::
 
 ---
 
@@ -137,70 +112,18 @@ sudo apt update && sudo apt install sad-lang
   arch="x64"
   :files="[
     { name: 'sad-setup-1.0.0-windows-x64.exe', label: 'مثبّت GUI ✅ (موصى به)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-setup-1.0.0-windows-x64.exe', size: '24.8 MB' },
-    { name: 'sad-1.0.0-windows-x64.zip', label: 'نقلة مضغوطة (ZIP)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-windows-x64.zip', size: '21 MB' },
+    { name: 'sad-1.0.0-windows-x64.zip', label: 'نسخة محمولة (ZIP)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-windows-x64.zip', size: '26.6 MB' },
   ]"
   sha256="52FFBB8D94FFC69128E5D9404965E6F60D2FC0AFF94B7FAEC78F33964A28980A"
   installCmd="irm https://sad-lang.org/install.ps1 | iex"
 />
 
-<DownloadCard
-  icon="🐧"
-  platform="Linux"
-  version="1.0.0"
-  arch="x86_64"
-  :files="[
-    { name: 'sad-1.0.0-x86_64.AppImage', label: 'AppImage (شامل)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-x86_64.AppImage', size: '22 MB' },
-    { name: 'sad-lang_1.0.0_amd64.deb', label: 'حزمة DEB (Debian/Ubuntu)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-lang_1.0.0_amd64.deb', size: '18 MB' },
-    { name: 'sad-lang-1.0.0.x86_64.rpm', label: 'حزمة RPM (RHEL/Fedora)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-lang-1.0.0.x86_64.rpm', size: '18 MB' },
-  ]"
-  installCmd="curl -fsSL https://sad-lang.org/install.sh | bash"
-/>
-
-<DownloadCard
-  icon="🍎"
-  platform="macOS"
-  version="1.0.0"
-  arch="Universal (arm64 + x86_64)"
-  :files="[
-    { name: 'sad-lang-1.0.0-macos-universal.pkg', label: 'حزمة PKG (مثبّت)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-lang-1.0.0-macos-universal.pkg', size: '20 MB' },
-    { name: 'sad-lang-1.0.0-macos-universal.dmg', label: 'صورة DMG', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-lang-1.0.0-macos-universal.dmg', size: '20 MB' },
-  ]"
-  installCmd="brew install sad-lang/tap/sad"
-/>
-
 </div>
 
----
-
-## 🧩 إضافة VS Code
-
-<div class="vscode-card">
-  <div class="vscode-header">
-    <span class="vscode-icon">⚡</span>
-    <div>
-      <div class="vscode-title">sad-language for VS Code</div>
-      <div class="vscode-version">الإصدار 2.0.0 · 2 MB</div>
-    </div>
-    <a
-      class="dl-btn primary"
-      href="https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-language-2.0.0.vsix"
-      download
-    >⬇️ تحميل .vsix</a>
-  </div>
-  <div class="vscode-features">
-    <span>✅ تلوين الكود العربي</span>
-    <span>✅ إكمال تلقائي</span>
-    <span>✅ تشخيص الأخطاء</span>
-    <span>✅ تنسيق تلقائي</span>
-    <span>✅ Go to Definition</span>
-  </div>
-</div>
-
-تثبيت الإضافة بعد التحميل:
-
-```bash
-code --install-extension sad-language-2.0.0.vsix
-```
+::: info منصات أخرى — قريباً
+نسخة **Linux** (AppImage, DEB, RPM) ونسخة **macOS** (PKG, DMG) قيد التحضير.
+سيتم الإعلان عنها في [صفحة الإصدارات](https://github.com/SalehKadah/s-programming-language/releases).
+:::
 
 ---
 
@@ -208,13 +131,10 @@ code --install-extension sad-language-2.0.0.vsix
 
 | المكوّن | الوصف | الحجم |
 |---------|-------|-------|
-| `sad.exe` / `sad` | المفسر الرئيسي | 17.9 MB |
-| `sadc.exe` / `sadc` | المترجم LLVM (كود أصيل) | 75 MB |
-| `sad-lsp.exe` / `sad-lsp` | خادم LSP | 4.7 MB |
-| `sad-pkg.exe` / `sad-pkg` | مدير الحزم | 2 MB |
-| `sad-fmt.exe` / `sad-fmt` | منسّق الكود | 977 KB |
-| المكتبة القياسية | مكتبات عربية مضمّنة | 5 MB |
-| الأمثلة | 50+ مثال جاهز | 500 KB |
+| `sad.exe` | المفسر الرئيسي | 4.8 MB |
+| `sadc.exe` | المترجم LLVM (كود أصيل) | 75.9 MB |
+| `SDL2.dll` | مكتبة الرسوميات | 2.4 MB |
+| المكتبة القياسية | مكتبات عربية مضمّنة | stdlib/ |
 
 ::: tip مكوّنات اختيارية
 عند تشغيل مثبّت Windows، يمكن إلغاء تحديد **المترجم LLVM** (75MB) إذا أردت المفسر فحسب.
@@ -239,8 +159,6 @@ sadc --version
 | النظام | الحد الأدنى |
 |--------|------------|
 | Windows | Windows 10 x64 أو أحدث |
-| Linux | glibc 2.17+ (Ubuntu 18.04+) |
-| macOS | macOS 12 Monterey أو أحدث |
 
 <style scoped>
 /* ===== Hero Download Bands ===== */
@@ -254,6 +172,13 @@ sadc --version
 .dl-hero-os.windows { border-color: #0078d4; background: rgba(0,120,212,0.06); }
 .dl-hero-os.linux   { border-color: #e8a000; background: rgba(232,160,0,0.06); }
 .dl-hero-os.macos   { border-color: #888; background: rgba(128,128,128,0.06); }
+.dl-hero-os.coming-soon { opacity: 0.6; }
+.dl-btn.disabled {
+  display: inline-block; padding: 10px 18px; border-radius: 8px; font-size: 0.88rem;
+  font-weight: 600; border: 1px solid var(--vp-c-border);
+  background: var(--vp-c-bg-soft); color: var(--vp-c-text-3); white-space: nowrap;
+  cursor: default;
+}
 .dl-os-icon  { font-size: 2rem; }
 .dl-os-info  { flex: 1; }
 .dl-os-name  { font-weight: 700; font-size: 1rem; }

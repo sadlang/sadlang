@@ -1,4 +1,4 @@
----
+﻿---
 layout: home
 title: لغة ص — أول لغة برمجة عربية حديثة
 
@@ -118,4 +118,4 @@ scoop install sad
 <SadVersion />
 
 **الإصدار 1.0.0** — أول إصدار رسمي لغة ص  
-9 أبريل 2025 · [ملاحظات الإصدار](https://github.com/sad-lang/sad-language/releases/tag/v1.0.0)
+9 أبريل 2025 · [ملاحظات الإصدار](https://github.com/SalehKadah/s-programming-language/releases/tag/v1.0.0)

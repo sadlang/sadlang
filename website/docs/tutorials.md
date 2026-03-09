@@ -1,4 +1,4 @@
----
+﻿---
 title: الدروس التعليمية التفاعلية
 description: تعلّم لغة ص خطوة بخطوة مع محرر تفاعلي مدمج
 ---
@@ -43,5 +43,5 @@ import { tutorial1Steps, tutorial2Steps } from '../.vitepress/theme/tutorialData
 | 🔜 6 | تحسين الأداء والمترجم | متقدم |
 
 ::: tip مساهمة في الدروس
-هل تريد إضافة درس جديد؟ [افتح Pull Request](https://github.com/sad-lang/sad-language/tree/main/website/docs) — نرحب بمساهماتك!
+هل تريد إضافة درس جديد؟ [افتح Pull Request](https://github.com/SalehKadah/s-programming-language/tree/main/website/docs) — نرحب بمساهماتك!
 :::

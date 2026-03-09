@@ -1,4 +1,4 @@
----
+﻿---
 title: مدونة لغة ص
 description: آخر أخبار وتحديثات لغة ص — مقالات تقنية وأخبار المجتمع
 ---
@@ -85,7 +85,7 @@ description: آخر أخبار وتحديثات لغة ص — مقالات تق�
 
 هل لديك تجربة أو مقال تريد مشاركته مع مجتمع لغة ص؟
 
-[افتح Pull Request في GitHub ←](https://github.com/sad-lang/sad-language/tree/main/website/docs/blog)
+[افتح Pull Request في GitHub ←](https://github.com/SalehKadah/s-programming-language/tree/main/website/docs/blog)
 
 <style scoped>
 .newsletter {

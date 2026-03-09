@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="sad-version">
     <span class="version-label">الإصدار</span>
     <a
       class="version-tag"
-      href="https://github.com/sad-lang/sad-language/releases"
+      href="https://github.com/SalehKadah/s-programming-language/releases"
       target="_blank"
       rel="noopener"
     >
