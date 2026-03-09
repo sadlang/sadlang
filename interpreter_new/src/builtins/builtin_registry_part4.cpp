@@ -64,6 +64,7 @@ namespace Interpreter {
 using namespace StdLib;
 
 void registerBuiltinsPart4(Interpreter& interpreter) {
+#ifdef HAS_GRAPHICS
     // ===================================================================
     // النظام 3: محرك الفيزياء — sad::physics
     // ===================================================================
@@ -765,7 +766,7 @@ void registerBuiltinsPart4(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("طول_المسار", ai_getPathLength_func);
     interpreter.getFunctionManager().registerBuiltinFunction("ai_get_path_length", ai_getPathLength_func);
 
-
+#endif // HAS_GRAPHICS
 }
 
 } // namespace Interpreter

@@ -501,9 +501,9 @@ private:
     bool keyboardConnected_  = false;
     bool mouseConnected_     = false;
     uint8_t keyboardAddress_ = 0;
-    uint8_t keyboardEndpoint_= 0;
+    [[maybe_unused]] uint8_t keyboardEndpoint_= 0;
     uint8_t mouseAddress_    = 0;
-    uint8_t mouseEndpoint_   = 0;
+    [[maybe_unused]] uint8_t mouseEndpoint_   = 0;
 
     KeyboardState keyboardState_;
     MouseState mouseState_;

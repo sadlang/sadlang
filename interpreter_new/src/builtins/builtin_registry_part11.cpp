@@ -18,6 +18,8 @@
 namespace Sad {
 namespace Interpreter {
 
+#ifdef HAS_GRAPHICS
+
 // (AR) مساعد: أضف الأبناء تلقائياً للأسلوب التصريحي مثل فلتر + دعم الخصائص السطرية v3.0
 // (EN) Helper: auto-add child widgets + inline property support (Flutter-like declarative syntax)
 // يدعم: عمود("تباعد"، 10، "خلفية"، "ابيض"، child1، child2)
@@ -1201,6 +1203,7 @@ void registerBuiltinsPart11(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xb9\xd8\xb1\xd8\xb6_\xd8\xaf\xd9\x88\xd8\xa7\xd8\xb1", ui_carousel_func); // عرض_دوار
     interpreter.getFunctionManager().registerBuiltinFunction("ui_carousel", ui_carousel_func);
 
+#endif // HAS_GRAPHICS
 } // registerBuiltinsPart11
 
 } // namespace Interpreter

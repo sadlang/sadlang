@@ -64,6 +64,7 @@ namespace Interpreter {
 using namespace StdLib;
 
 void registerBuiltinsPart6(Interpreter& interpreter) {
+#ifdef HAS_GRAPHICS
     // ─── شاشة_إلى_عالم_س / cam2d_screen_to_world_x ───
     // تحويل إحداثي أفقي من نظام الشاشة إلى نظام العالم.
     // مفيد لتحديد النقطة التي نقر عليها المستخدم في عالم اللعبة.
@@ -129,6 +130,7 @@ void registerBuiltinsPart6(Interpreter& interpreter) {
     };
     interpreter.getFunctionManager().registerBuiltinFunction("إزاحة_كاميرا_ص", cam2d_getOffsetY_func);
     interpreter.getFunctionManager().registerBuiltinFunction("cam2d_get_offset_y", cam2d_getOffsetY_func);
+#endif // HAS_GRAPHICS
 
     // ===================================================================
     // Phase 23: Advanced Math Functions (log, exp, clamp, etc.)

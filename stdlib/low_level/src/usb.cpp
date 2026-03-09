@@ -64,18 +64,24 @@ void USBManager::writeMMIO(volatile uint32_t* base, uint32_t offset, uint32_t va
 uint16_t USBManager::readIO16(uint16_t port) const {
 #ifdef _MSC_VER
     return __inword(port);
-#else
+#elif defined(__x86_64__) || defined(__i386__)
     uint16_t val;
     __asm__ volatile("inw %1, %0" : "=a"(val) : "dN"(port));
     return val;
+#else
+    (void)port;
+    return 0; // I/O ports not available on this architecture
 #endif
 }
 
 void USBManager::writeIO16(uint16_t port, uint16_t value) {
 #ifdef _MSC_VER
     __outword(port, value);
-#else
+#elif defined(__x86_64__) || defined(__i386__)
     __asm__ volatile("outw %0, %1" : : "a"(value), "dN"(port));
+#else
+    (void)port;
+    (void)value; // I/O ports not available on this architecture
 #endif
 }
 

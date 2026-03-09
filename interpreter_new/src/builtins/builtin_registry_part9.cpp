@@ -16,7 +16,7 @@ namespace Sad {
 namespace Interpreter {
 
 void registerBuiltinsPart9(Interpreter& interpreter) {
-
+#ifdef HAS_GRAPHICS
     // ═══════════════════════════════════════════════════════════════════
     // (AR) إدارة النوافذ / (EN) Window Management
     // ═══════════════════════════════════════════════════════════════════
@@ -684,6 +684,7 @@ void registerBuiltinsPart9(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa7\xd9\x84\xd9\x88\xd9\x82\xd8\xaa_\xd8\xa7\xd9\x84\xd8\xad\xd8\xa7\xd9\x84\xd9\x8a", get_ticks_func);
     interpreter.getFunctionManager().registerBuiltinFunction("get_ticks", get_ticks_func);
 
+#endif // HAS_GRAPHICS
 } // end registerBuiltinsPart9
 
 } // namespace Interpreter

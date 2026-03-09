@@ -64,6 +64,7 @@ namespace Interpreter {
 using namespace StdLib;
 
 void registerBuiltinsPart5(Interpreter& interpreter) {
+#ifdef HAS_GRAPHICS
     // ─── مسار_س / ai_get_path_x ───
     // الحصول على الإحداثي الأفقي (س) لنقطة معينة في المسار.
     // المعاملات: معرّف المسار، ورقم النقطة (الفهرس).
@@ -767,7 +768,7 @@ void registerBuiltinsPart5(Interpreter& interpreter) {
     interpreter.getFunctionManager().registerBuiltinFunction("عالم_إلى_شاشة_ص", cam2d_worldToScreenY_func);
     interpreter.getFunctionManager().registerBuiltinFunction("cam2d_world_to_screen_y", cam2d_worldToScreenY_func);
 
-
+#endif // HAS_GRAPHICS
 }
 
 } // namespace Interpreter
