@@ -1,4 +1,4 @@
----
+﻿---
 title: تحميل لغة ص
 description: حمّل مثبّت لغة ص لنظامك — Windows · Linux · macOS
 ---
@@ -34,7 +34,7 @@ const sha256win = '52FFBB8D94FFC69128E5D9404965E6F60D2FC0AFF94B7FAEC78F33964A289
     </div>
     <a
       class="dl-btn primary"
-      href="https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-setup-1.0.0-windows-x64.exe"
+      href="https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-setup-1.0.0-windows-x64.exe"
       download
     >⬇️ تحميل sad-setup.exe</a>
   </div>
@@ -47,7 +47,7 @@ const sha256win = '52FFBB8D94FFC69128E5D9404965E6F60D2FC0AFF94B7FAEC78F33964A289
     </div>
     <a
       class="dl-btn"
-      href="https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-1.0.0-x86_64.AppImage"
+      href="https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-x86_64.AppImage"
       download
     >⬇️ تحميل AppImage</a>
   </div>
@@ -60,7 +60,7 @@ const sha256win = '52FFBB8D94FFC69128E5D9404965E6F60D2FC0AFF94B7FAEC78F33964A289
     </div>
     <a
       class="dl-btn"
-      href="https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-lang-1.0.0-macos-universal.pkg"
+      href="https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-lang-1.0.0-macos-universal.pkg"
       download
     >⬇️ تحميل PKG</a>
   </div>
@@ -136,8 +136,8 @@ sudo apt update && sudo apt install sad-lang
   version="1.0.0"
   arch="x64"
   :files="[
-    { name: 'sad-setup-1.0.0-windows-x64.exe', label: 'مثبّت GUI ✅ (موصى به)', url: 'https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-setup-1.0.0-windows-x64.exe', size: '24.8 MB' },
-    { name: 'sad-1.0.0-windows-x64.zip', label: 'نقلة مضغوطة (ZIP)', url: 'https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-1.0.0-windows-x64.zip', size: '21 MB' },
+    { name: 'sad-setup-1.0.0-windows-x64.exe', label: 'مثبّت GUI ✅ (موصى به)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-setup-1.0.0-windows-x64.exe', size: '24.8 MB' },
+    { name: 'sad-1.0.0-windows-x64.zip', label: 'نقلة مضغوطة (ZIP)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-windows-x64.zip', size: '21 MB' },
   ]"
   sha256="52FFBB8D94FFC69128E5D9404965E6F60D2FC0AFF94B7FAEC78F33964A28980A"
   installCmd="irm https://sad-lang.org/install.ps1 | iex"
@@ -149,9 +149,9 @@ sudo apt update && sudo apt install sad-lang
   version="1.0.0"
   arch="x86_64"
   :files="[
-    { name: 'sad-1.0.0-x86_64.AppImage', label: 'AppImage (شامل)', url: 'https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-1.0.0-x86_64.AppImage', size: '22 MB' },
-    { name: 'sad-lang_1.0.0_amd64.deb', label: 'حزمة DEB (Debian/Ubuntu)', url: 'https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-lang_1.0.0_amd64.deb', size: '18 MB' },
-    { name: 'sad-lang-1.0.0.x86_64.rpm', label: 'حزمة RPM (RHEL/Fedora)', url: 'https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-lang-1.0.0.x86_64.rpm', size: '18 MB' },
+    { name: 'sad-1.0.0-x86_64.AppImage', label: 'AppImage (شامل)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-x86_64.AppImage', size: '22 MB' },
+    { name: 'sad-lang_1.0.0_amd64.deb', label: 'حزمة DEB (Debian/Ubuntu)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-lang_1.0.0_amd64.deb', size: '18 MB' },
+    { name: 'sad-lang-1.0.0.x86_64.rpm', label: 'حزمة RPM (RHEL/Fedora)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-lang-1.0.0.x86_64.rpm', size: '18 MB' },
   ]"
   installCmd="curl -fsSL https://sad-lang.org/install.sh | bash"
 />
@@ -162,8 +162,8 @@ sudo apt update && sudo apt install sad-lang
   version="1.0.0"
   arch="Universal (arm64 + x86_64)"
   :files="[
-    { name: 'sad-lang-1.0.0-macos-universal.pkg', label: 'حزمة PKG (مثبّت)', url: 'https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-lang-1.0.0-macos-universal.pkg', size: '20 MB' },
-    { name: 'sad-lang-1.0.0-macos-universal.dmg', label: 'صورة DMG', url: 'https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-lang-1.0.0-macos-universal.dmg', size: '20 MB' },
+    { name: 'sad-lang-1.0.0-macos-universal.pkg', label: 'حزمة PKG (مثبّت)', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-lang-1.0.0-macos-universal.pkg', size: '20 MB' },
+    { name: 'sad-lang-1.0.0-macos-universal.dmg', label: 'صورة DMG', url: 'https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-lang-1.0.0-macos-universal.dmg', size: '20 MB' },
   ]"
   installCmd="brew install sad-lang/tap/sad"
 />
@@ -183,7 +183,7 @@ sudo apt update && sudo apt install sad-lang
     </div>
     <a
       class="dl-btn primary"
-      href="https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-language-2.0.0.vsix"
+      href="https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-language-2.0.0.vsix"
       download
     >⬇️ تحميل .vsix</a>
   </div>

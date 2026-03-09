@@ -1,4 +1,4 @@
-#!/bin/sh
+﻿#!/bin/sh
 # بسم الله الرحمن الرحيم
 # ═══════════════════════════════════════════════════════════════════════════════
 # سكريبت تثبيت لغة ص — Linux / macOS
@@ -22,7 +22,7 @@
 #
 # مصدر التحميل / Download Source:
 #   يتم تحميل الملفات من GitHub Releases:
-#   https://github.com/sad-lang/sad-language/releases
+#   https://github.com/SalehKadah/s-programming-language/releases
 #
 #   ملفات التحميل المتاحة لكل إصدار:
 #   ┌─────────────────────────────────────────────────────────────────┐
@@ -41,8 +41,8 @@ set -e
 # ──────────────────────────────────────────────────────────────────────
 # الإعدادات / Configuration
 # ──────────────────────────────────────────────────────────────────────
-REPO_OWNER="sad-lang"
-REPO_NAME="sad-language"
+REPO_OWNER="SalehKadah"
+REPO_NAME="s-programming-language"
 GITHUB_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 DEFAULT_INSTALL_DIR="$HOME/.sad-lang"
 VERSION="latest"

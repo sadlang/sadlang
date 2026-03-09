@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # بسم الله الرحمن الرحيم
 # ═══════════════════════════════════════════════════════════════════════════════
 # سكريبت تثبيت لغة ص — Windows
@@ -22,7 +22,7 @@
 #
 # مصدر التحميل / Download Source:
 #   يتم تحميل الملفات من GitHub Releases:
-#   https://github.com/sad-lang/sad-language/releases
+#   https://github.com/SalehKadah/s-programming-language/releases
 #
 #   ملفات التحميل المتاحة لكل إصدار:
 #   ┌─────────────────────────────────────────────────────────────────┐
@@ -55,8 +55,8 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-$REPO_OWNER = "sad-lang"
-$REPO_NAME  = "sad-language"
+$REPO_OWNER = "SalehKadah"
+$REPO_NAME  = "s-programming-language"
 $GITHUB_API = "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME"
 
 # ──────────────────────────────────────────────────────────────────────
