@@ -1577,11 +1577,15 @@ std::string WebSocket::receive() {
                 }
                 
                 // إضافة البيانات للرسالة المجزأة / Append to fragmented message
-                impl_->fragmented_message.insert(
-                    impl_->fragmented_message.end(),
-                    frame.payload_data.begin(),
-                    frame.payload_data.end()
-                );
+                if (!frame.payload_data.empty()) {
+                    impl_->fragmented_message.reserve(
+                        impl_->fragmented_message.size() + frame.payload_data.size());
+                    impl_->fragmented_message.insert(
+                        impl_->fragmented_message.end(),
+                        frame.payload_data.begin(),
+                        frame.payload_data.end()
+                    );
+                }
                 
                 // إذا كانت النهاية (FIN = 1)، أكمل الرسالة
                 // If final frame (FIN = 1), complete the message

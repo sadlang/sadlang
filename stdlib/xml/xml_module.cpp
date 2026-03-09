@@ -942,11 +942,9 @@ std::string xml_node_type_to_string(XmlNodeType type) {
 // ============================================================================
 static std::string element_to_json(const XmlElement& elem) {
     std::string result = "{";
-    bool first = true;
 
     // Tag name
     result += "\"_name\":\"" + elem.name() + "\"";
-    first = false;
 
     // Attributes
     auto attrs = elem.attributes();

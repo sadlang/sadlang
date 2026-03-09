@@ -256,7 +256,8 @@ public:
 private:
     Spinlock lock_;
     volatile uint32_t count_;
-    volatile uint32_t maxCount_;
+    // محفوظ للاستخدام المستقبلي (max count for bounded semaphore)
+    volatile uint32_t maxCount_ = 0;
 };
 
 // ============================================================================

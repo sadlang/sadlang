@@ -32,6 +32,7 @@
 #include <optional>
 #include <variant>
 #include <chrono>
+#include <stdexcept>
 
 // Forward declaration for SQLite
 struct sqlite3;

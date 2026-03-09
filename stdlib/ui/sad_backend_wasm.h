@@ -123,7 +123,6 @@ private:
     int m_canvasWidth = 800, m_canvasHeight = 600;
     int m_bgR = 245, m_bgG = 245, m_bgB = 250;
     bool m_running = false;
-    double m_lastFrameTime = 0;
     double m_currentFps = 60.0;
 
     WasmWidget* get(int id);

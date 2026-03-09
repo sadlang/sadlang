@@ -113,32 +113,43 @@ void Atomic::memoryBarrier() {
 #ifdef _MSC_VER
     _ReadWriteBarrier();
     __faststorefence();
-#else
+#elif defined(__x86_64__) || defined(__i386__)
     __asm__ volatile("mfence" ::: "memory");
+#else
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
 #endif
 }
 
 void Atomic::readBarrier() {
 #ifdef _MSC_VER
     _ReadWriteBarrier();
-#else
+#elif defined(__x86_64__) || defined(__i386__)
     __asm__ volatile("lfence" ::: "memory");
+#else
+    __atomic_thread_fence(__ATOMIC_ACQUIRE);
 #endif
 }
 
 void Atomic::writeBarrier() {
 #ifdef _MSC_VER
     _ReadWriteBarrier();
-#else
+#elif defined(__x86_64__) || defined(__i386__)
     __asm__ volatile("sfence" ::: "memory");
+#else
+    __atomic_thread_fence(__ATOMIC_RELEASE);
 #endif
 }
 
 void Atomic::pause() {
 #ifdef _MSC_VER
     _mm_pause();
-#else
+#elif defined(__x86_64__) || defined(__i386__)
     __asm__ volatile("pause" ::: "memory");
+#elif defined(__aarch64__)
+    __asm__ volatile("yield" ::: "memory");
+#else
+    // Fallback: compiler barrier
+    __asm__ volatile("" ::: "memory");
 #endif
 }
 
@@ -190,11 +201,14 @@ Spinlock::Spinlock() : lock_(0), savedFlags_(0) {}
 void Spinlock::lock() {
     // حفظ وتعطيل المقاطعات / Save and disable interrupts
     uint64_t flags = 0;
-#if defined(__GNUC__) || defined(__clang__)
-    __asm__ volatile("pushfq; pop %0; cli" : "=r"(flags));
-#elif defined(_MSC_VER)
+#if defined(_MSC_VER)
     flags = __readeflags();
     // _disable() requires kernel mode — stubbed for user-mode build
+#elif defined(__x86_64__) || defined(__i386__)
+    __asm__ volatile("pushfq; pop %0; cli" : "=r"(flags));
+#else
+    // ARM/other: no direct CLI equivalent in user mode
+    (void)flags;
 #endif
 
     // محاولة الحصول على القفل / Try to acquire lock
@@ -210,11 +224,14 @@ void Spinlock::lock() {
 
 bool Spinlock::tryLock() {
     uint64_t flags = 0;
-#if defined(__GNUC__) || defined(__clang__)
-    __asm__ volatile("pushfq; pop %0; cli" : "=r"(flags));
-#elif defined(_MSC_VER)
+#if defined(_MSC_VER)
     flags = __readeflags();
     // _disable() requires kernel mode — stubbed for user-mode build
+#elif defined(__x86_64__) || defined(__i386__)
+    __asm__ volatile("pushfq; pop %0; cli" : "=r"(flags));
+#else
+    // ARM/other: no direct CLI equivalent in user mode
+    (void)flags;
 #endif
 
     if (Atomic::exchange(&lock_, 1) == 0) {
@@ -223,10 +240,12 @@ bool Spinlock::tryLock() {
     }
 
     // إعادة المقاطعات / Restore interrupts
-#if defined(__GNUC__) || defined(__clang__)
-    __asm__ volatile("push %0; popfq" :: "r"(flags));
-#elif defined(_MSC_VER)
+#if defined(_MSC_VER)
     __writeeflags(flags);
+#elif defined(__x86_64__) || defined(__i386__)
+    __asm__ volatile("push %0; popfq" :: "r"(flags));
+#else
+    (void)flags;
 #endif
 
     return false;
@@ -239,10 +258,12 @@ void Spinlock::unlock() {
     Atomic::store(&lock_, 0);
 
     // إعادة المقاطعات / Restore interrupts
-#if defined(__GNUC__) || defined(__clang__)
-    __asm__ volatile("push %0; popfq" :: "r"(flags));
-#elif defined(_MSC_VER)
+#if defined(_MSC_VER)
     __writeeflags(flags);
+#elif defined(__x86_64__) || defined(__i386__)
+    __asm__ volatile("push %0; popfq" :: "r"(flags));
+#else
+    (void)flags;
 #endif
 }
 
@@ -387,7 +408,9 @@ bool Semaphore::tryWait() {
 
 void Semaphore::signal() {
     lock_.lock();
-    count_++;
+    if (count_ < maxCount_) {
+        count_++;
+    }
     lock_.unlock();
 
     // في نظام حقيقي: إيقاظ خيط منتظر / In real OS: wake waiting thread

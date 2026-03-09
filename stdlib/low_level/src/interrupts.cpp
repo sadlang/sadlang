@@ -199,12 +199,7 @@ bool InterruptManager::isEnabled() {
 // ============================================================================
 
 void InterruptManager::registerHandler(uint8_t number, InterruptHandler handler) {
-    if (number >= 256) {
-        std::cout << "⚠️  خطأ: رقم مقاطعة غير صالح: " << (int)number << "\n";
-        std::cout << "⚠️  Error: Invalid interrupt number: " << (int)number << "\n";
-        return;
-    }
-    
+    // uint8_t is always < 256, so number is always valid for IDT
     handlers_[number] = handler;
     
     std::cout << "📝 تسجيل معالج للمقاطعة " << (int)number 
@@ -214,10 +209,6 @@ void InterruptManager::registerHandler(uint8_t number, InterruptHandler handler)
 }
 
 void InterruptManager::unregisterHandler(uint8_t number) {
-    if (number >= 256) {
-        return;
-    }
-    
     handlers_[number] = nullptr;
     
     std::cout << "🗑️  إلغاء تسجيل معالج المقاطعة " << (int)number << "\n";
@@ -225,16 +216,10 @@ void InterruptManager::unregisterHandler(uint8_t number) {
 }
 
 InterruptHandler InterruptManager::getHandler(uint8_t number) {
-    if (number >= 256) {
-        return nullptr;
-    }
     return handlers_[number];
 }
 
 bool InterruptManager::hasHandler(uint8_t number) {
-    if (number >= 256) {
-        return false;
-    }
     return handlers_[number] != nullptr;
 }
 
@@ -312,9 +297,7 @@ void InterruptManager::sendEOI(uint8_t irq) {
 
 void InterruptManager::setIDTEntry(uint8_t number, uint64_t handler, 
                                    uint16_t selector, uint8_t flags) {
-    if (number >= 256) {
-        return;
-    }
+    // uint8_t is always < 256, so number is always valid for IDT
     
     // تعيين إدخال IDT
     // Set IDT entry
@@ -329,9 +312,6 @@ void InterruptManager::setIDTEntry(uint8_t number, uint64_t handler,
 }
 
 const IDTEntry* InterruptManager::getIDTEntry(uint8_t number) {
-    if (number >= 256) {
-        return nullptr;
-    }
     return &idt_[number];
 }
 
@@ -460,9 +440,6 @@ void InterruptManager::handleDivideError(InterruptFrame* frame) {
 // ============================================================================
 
 uint64_t InterruptManager::getInterruptCount(uint8_t number) {
-    if (number >= 256) {
-        return 0;
-    }
     return interruptCounts_[number];
 }
 

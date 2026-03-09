@@ -312,7 +312,7 @@ void ACPIManager::reboot() {
 
     // إذا لم تنجح أيضاً: Triple fault (إعادة تشغيل قسرية)
     // If that also failed: Triple fault (forced reboot)
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
     __asm__ volatile("lidt (%%rax)" :: "a"(0));
     __asm__ volatile("int $3");
 #endif

@@ -32,6 +32,7 @@ namespace {
  * @brief Convert SQLite type to DbColumnType
  * تحويل نوع SQLite إلى DbColumnType
  */
+[[maybe_unused]]
 DbColumnType sqlite_type_to_db_type(int sqlite_type) {
     switch (sqlite_type) {
         case SQLITE_INTEGER: return DbColumnType::INTEGER;
@@ -798,7 +799,8 @@ std::string QueryBuilder::build() const {
             sql << ") VALUES (";
             
             i = 0;
-            for (const auto& [_, value] : pImpl->insert_values) {
+            for (const auto& [_v, value] : pImpl->insert_values) {
+                (void)_v;
                 if (i++ > 0) sql << ", ";
                 sql << "?";
             }

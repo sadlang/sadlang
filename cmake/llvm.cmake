@@ -38,6 +38,10 @@ if(NOT LLVM_DIR)
         "C:/Program Files/LLVM/lib/cmake/llvm"
         "C:/LLVM/lib/cmake/llvm"
         "C:/LLVM-Dev/lib/cmake/llvm"
+        "/usr/lib/llvm-18/lib/cmake/llvm"
+        "/usr/lib/llvm-17/lib/cmake/llvm"
+        "/usr/local/opt/llvm@18/lib/cmake/llvm"
+        "/opt/homebrew/opt/llvm@18/lib/cmake/llvm"
     )
         if(EXISTS "${_llvm_hint}/LLVMConfig.cmake")
             set(LLVM_DIR "${_llvm_hint}" CACHE PATH "LLVM CMake directory" FORCE)

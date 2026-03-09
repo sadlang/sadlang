@@ -20,6 +20,15 @@
 #include <string>
 #include <vector>
 
+// ACPI structures require C99 flexible array members per specification
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc99-extensions"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
 namespace Sad {
 namespace LowLevel {
 
@@ -500,5 +509,11 @@ namespace ACPIConstants {
 
 } // namespace LowLevel
 } // namespace Sad
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 #endif // SAD_LOW_LEVEL_ACPI_H
