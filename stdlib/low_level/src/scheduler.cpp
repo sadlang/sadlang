@@ -381,7 +381,7 @@ void SchedulerManager::switchContext(Thread* oldThread, Thread* newThread) {
     if (oldThread && oldThread->processId != newThread->processId) {
         Process* newProcess = getProcess(newThread->processId);
         if (newProcess && newProcess->pageTableRoot) {
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
             __asm__ volatile("mov %0, %%cr3" :: "r"(newProcess->pageTableRoot));
 #endif
         }

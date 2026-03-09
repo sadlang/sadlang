@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                       لغة سعد - مترجم عربي الأول                              ║
  * ║                   Sad Language - First Arabic Compiler                        ║
@@ -97,7 +97,7 @@ enum class ExplanationLevel {
  * 📚 ConceptExplanation - شرح مفهوم
  */
 struct ConceptExplanation {
-    std::string concept;        // اسم المفهوم
+    std::string conceptAr;       // اسم المفهوم
     std::string conceptEn;      // اسم بالإنجليزية
     std::string simpleExplanation;  // شرح بسيط
     std::string analogy;        // تشبيه من الحياة
@@ -109,7 +109,7 @@ struct ConceptExplanation {
     std::string format(bool useArabic = true) const {
         std::ostringstream oss;
         
-        oss << "\n📚 " << (useArabic ? concept : conceptEn) << "\n";
+        oss << "\n📚 " << (useArabic ? conceptAr : conceptEn) << "\n";
         oss << "   ════════════════════════════════════════════════════════\n";
         
         if (!simpleExplanation.empty()) {
@@ -183,15 +183,15 @@ private:
         //                          مفهوم: الأنواع
         // ═══════════════════════════════════════════════════════════════
         {
-            ConceptExplanation concept;
-            concept.concept = "الأنواع (Types)";
-            concept.conceptEn = "Types";
+            ConceptExplanation entry;
+            entry.conceptAr = "الأنواع (Types)";
+            entry.conceptEn = "Types";
             
-            concept.simpleExplanation = 
+            entry.simpleExplanation = 
                 "في البرمجة، كل قيمة لها نوع يحدد طبيعتها.\n"
                 "مثل: الأرقام لها نوع 'عدد'، والكلمات لها نوع 'نص'.";
             
-            concept.analogy = 
+            entry.analogy = 
                 "🏠 تخيل أنواع البيانات كأنواع الحاويات:\n"
                 "   📦 صندوق للأرقام: يحتوي 1, 2, 3...\n"
                 "   📦 صندوق للكلمات: يحتوي \"مرحبا\", \"أهلاً\"...\n"
@@ -199,42 +199,42 @@ private:
                 "لا يمكنك وضع تفاحة في صندوق الأرقام!\n"
                 "كذلك، لا يمكنك وضع نص في متغير من نوع عدد.";
             
-            concept.codeExample = 
+            entry.codeExample = 
                 "// أنواع مختلفة في سعد:\n"
                 "متغير عمري: عدد = 25          // عدد صحيح\n"
                 "متغير اسمي: نص = \"أحمد\"       // نص\n"
                 "متغير متزوج: منطقي = صحيح    // منطقي\n"
                 "متغير درجات: قائمة = [90, 85, 95]  // قائمة";
             
-            concept.keyPoints = {
+            entry.keyPoints = {
                 "كل متغير له نوع محدد",
                 "الأنواع تساعد على اكتشاف الأخطاء مبكراً",
                 "يمكن تحويل بين الأنواع باستخدام دوال التحويل",
                 "اختر النوع المناسب لطبيعة البيانات"
             };
             
-            concept.commonMistakes = {
+            entry.commonMistakes = {
                 "جمع نص مع عدد مباشرة: \"العمر: \" + 25 ❌",
                 "مقارنة نص برقم: \"5\" == 5 ⚠️",
                 "نسيان التحويل: عدد(\"123\") ✅"
             };
             
-            concepts_["types"] = concept;
+            concepts_["types"] = entry;
         }
         
         // ═══════════════════════════════════════════════════════════════
         //                          مفهوم: المتغيرات
         // ═══════════════════════════════════════════════════════════════
         {
-            ConceptExplanation concept;
-            concept.concept = "المتغيرات (Variables)";
-            concept.conceptEn = "Variables";
+            ConceptExplanation entry;
+            entry.conceptAr = "المتغيرات (Variables)";
+            entry.conceptEn = "Variables";
             
-            concept.simpleExplanation = 
+            entry.simpleExplanation = 
                 "المتغير هو اسم نعطيه لمكان في الذاكرة لتخزين قيمة.\n"
                 "يمكننا تغيير قيمته لاحقاً (لذلك يسمى 'متغير').";
             
-            concept.analogy = 
+            entry.analogy = 
                 "🏷️ تخيل المتغير كصندوق مُسمّى:\n"
                 "   \n"
                 "   ┌─────────┐\n"
@@ -247,7 +247,7 @@ private:
                 "   • تغيير محتواه: عمري = 26\n"
                 "   • استخدامه في حسابات: عمري + 5 → 30";
             
-            concept.codeExample = 
+            entry.codeExample = 
                 "// تعريف متغير:\n"
                 "متغير اسم = \"أحمد\"\n"
                 "\n"
@@ -261,35 +261,35 @@ private:
                 "// ثابت (لا يتغير):\n"
                 "ثابت PI = 3.14159";
             
-            concept.keyPoints = {
+            entry.keyPoints = {
                 "استخدم 'متغير' للقيم التي قد تتغير",
                 "استخدم 'ثابت' للقيم الثابتة",
                 "اختر أسماء واضحة ومعبرة",
                 "عرّف المتغير قبل استخدامه"
             };
             
-            concept.commonMistakes = {
+            entry.commonMistakes = {
                 "استخدام متغير قبل تعريفه",
                 "أسماء غير واضحة مثل: س، ص، ع",
                 "نسيان كلمة 'متغير' في التعريف"
             };
             
-            concepts_["variables"] = concept;
+            concepts_["variables"] = entry;
         }
         
         // ═══════════════════════════════════════════════════════════════
         //                          مفهوم: الدوال
         // ═══════════════════════════════════════════════════════════════
         {
-            ConceptExplanation concept;
-            concept.concept = "الدوال (Functions)";
-            concept.conceptEn = "Functions";
+            ConceptExplanation entry;
+            entry.conceptAr = "الدوال (Functions)";
+            entry.conceptEn = "Functions";
             
-            concept.simpleExplanation = 
+            entry.simpleExplanation = 
                 "الدالة هي مجموعة أوامر مُسماة يمكن استدعاؤها.\n"
                 "تأخذ مدخلات (معاملات) وقد تُرجع مخرجات (نتيجة).";
             
-            concept.analogy = 
+            entry.analogy = 
                 "🏭 تخيل الدالة كآلة في مصنع:\n"
                 "   \n"
                 "        المدخلات\n"
@@ -306,7 +306,7 @@ private:
                 "   • المعالجة: عصر\n"
                 "   • المخرجات: عصير برتقال 🥤";
             
-            concept.codeExample = 
+            entry.codeExample = 
                 "// تعريف دالة بسيطة:\n"
                 "دالة تحية(اسم):\n"
                 "    أرجع \"مرحباً يا \" + اسم\n"
@@ -321,35 +321,35 @@ private:
                 "\n"
                 "اطبع(اجمع(5, 3))  // 8";
             
-            concept.keyPoints = {
+            entry.keyPoints = {
                 "الدالة تنظم الكود وتمنع التكرار",
                 "اختر اسماً يصف ما تفعله الدالة",
                 "استخدم 'أرجع' لإرجاع قيمة",
                 "المعاملات اختيارية"
             };
             
-            concept.commonMistakes = {
+            entry.commonMistakes = {
                 "نسيان كلمة 'أرجع' في نهاية الدالة",
                 "عدد المعاملات غير صحيح عند الاستدعاء",
                 "استدعاء دالة قبل تعريفها"
             };
             
-            concepts_["functions"] = concept;
+            concepts_["functions"] = entry;
         }
         
         // ═══════════════════════════════════════════════════════════════
         //                          مفهوم: الشروط
         // ═══════════════════════════════════════════════════════════════
         {
-            ConceptExplanation concept;
-            concept.concept = "الشروط (Conditions)";
-            concept.conceptEn = "Conditions";
+            ConceptExplanation entry;
+            entry.conceptAr = "الشروط (Conditions)";
+            entry.conceptEn = "Conditions";
             
-            concept.simpleExplanation = 
+            entry.simpleExplanation = 
                 "الشروط تسمح للبرنامج باتخاذ قرارات.\n"
                 "إذا تحقق الشرط، نفّذ كوداً معيناً.";
             
-            concept.analogy = 
+            entry.analogy = 
                 "🚦 تخيل الشرط كإشارة المرور:\n"
                 "   \n"
                 "   إذا اللون == أخضر:\n"
@@ -361,7 +361,7 @@ private:
                 "   \n"
                 "البرنامج يختار مساراً واحداً فقط حسب الشرط.";
             
-            concept.codeExample = 
+            entry.codeExample = 
                 "متغير عمر = 20\n"
                 "\n"
                 "// شرط بسيط:\n"
@@ -382,35 +382,35 @@ private:
                 "وإلا:\n"
                 "    اطبع(\"بالغ\")";
             
-            concept.keyPoints = {
+            entry.keyPoints = {
                 "الشرط يُنتج قيمة منطقية (صحيح/خطأ)",
                 "استخدم ':' بعد الشرط",
                 "المسافات البادئة مهمة!",
                 "'وإلا' اختياري"
             };
             
-            concept.commonMistakes = {
+            entry.commonMistakes = {
                 "نسيان النقطتين بعد الشرط",
                 "مسافات بادئة غير متسقة",
                 "استخدام = بدلاً من == للمقارنة"
             };
             
-            concepts_["conditions"] = concept;
+            concepts_["conditions"] = entry;
         }
         
         // ═══════════════════════════════════════════════════════════════
         //                          مفهوم: الحلقات
         // ═══════════════════════════════════════════════════════════════
         {
-            ConceptExplanation concept;
-            concept.concept = "الحلقات (Loops)";
-            concept.conceptEn = "Loops";
+            ConceptExplanation entry;
+            entry.conceptAr = "الحلقات (Loops)";
+            entry.conceptEn = "Loops";
             
-            concept.simpleExplanation = 
+            entry.simpleExplanation = 
                 "الحلقة تكرر كوداً معيناً عدة مرات.\n"
                 "مفيدة للتعامل مع قوائم أو تكرار عملية.";
             
-            concept.analogy = 
+            entry.analogy = 
                 "🔄 تخيل الحلقة كجولة في الحديقة:\n"
                 "   \n"
                 "   لكل شجرة في الحديقة:\n"
@@ -424,7 +424,7 @@ private:
                 "   \n"
                 "   تسقي كل شجرة واحدة تلو الأخرى.";
             
-            concept.codeExample = 
+            entry.codeExample = 
                 "// حلقة على قائمة:\n"
                 "متغير فواكه = [\"تفاح\", \"برتقال\", \"موز\"]\n"
                 "\n"
@@ -445,20 +445,20 @@ private:
                 "    اطبع(عداد)\n"
                 "    عداد = عداد + 1";
             
-            concept.keyPoints = {
+            entry.keyPoints = {
                 "'لكل' للتكرار على مجموعة",
                 "'طالما' للتكرار بشرط",
                 "تجنب الحلقات اللانهائية!",
                 "استخدم 'توقف' للخروج مبكراً"
             };
             
-            concept.commonMistakes = {
+            entry.commonMistakes = {
                 "نسيان زيادة العداد (حلقة لانهائية)",
                 "شرط لا يتحقق أبداً",
                 "تعديل القائمة أثناء التكرار عليها"
             };
             
-            concepts_["loops"] = concept;
+            concepts_["loops"] = entry;
         }
     }
 };

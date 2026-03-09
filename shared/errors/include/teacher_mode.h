@@ -31,7 +31,7 @@ enum class ExplanationLevel {
 // ═══════════════════════════════════════════════════════════════════════
 
 struct ConceptExplanation {
-    std::string concept;
+    std::string conceptAr;       // اسم المفهوم بالعربية / C++20: 'concept' is a keyword
     std::string conceptEn;
     std::string simpleExplanation;
     std::string analogy;
