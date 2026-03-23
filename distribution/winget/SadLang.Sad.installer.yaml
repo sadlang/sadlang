@@ -29,8 +29,8 @@ FileExtensions:
 Installers:
   # ── المفسر + أدوات (x64) ──
   - Architecture: x64
-    InstallerUrl: https://github.com/sad-lang/sad-language/releases/download/v1.0.0/sad-full-v1.0.0-windows-x86_64.zip
-    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000  # يُحدّث عند النشر
+    InstallerUrl: https://github.com/SalehKadah/s-programming-language/releases/download/v1.0.0/sad-1.0.0-windows-x64.zip
+    InstallerSha256: 0A803F2ED02753C9A7D18B8AA790A960A857E14EF0C0BF87BB94D77918F1BB96
     UpgradeBehavior: uninstallPrevious
 
   # ── يمكن إضافة ARM64 عندما يتوفر ──
