@@ -11,6 +11,7 @@
 #include <sstream>
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <set>
 
 namespace sad {

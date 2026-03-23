@@ -23,6 +23,7 @@
 #include "exception.h"
 #include "async_runtime.h"  // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include "suggestions.h"    // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
+#include "../../tools/profiler/include/profiler_hooks.h"  // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
 #include <atomic>
 #include <cmath>
 #include <climits>
@@ -831,8 +832,29 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
             break;
         }
     }
-    // (AR) الأولوية 2: الدوال المضمنة (كنسخة احتياطية)
-    // (EN) Priority 2: Built-in functions (as fallback)
+    // (AR) الأولوية 2: التحقق إذا كان الاسم صنف مسجّل → إنشاء كائن بدون 'جديد'
+    // (EN) Priority 2: Check if name is a registered class → create object without 'new'
+    // (AR) الأصناف تأخذ أولوية على الدوال المضمنة — مثل Flutter: نص("مرحبا") ينشئ كائن
+    // (EN) Classes take priority over builtins — like Flutter: نص("hello") creates an object
+    if (!func) {
+        auto* classManager2 = Data::ClassManager::getInstance();
+        Data::ClassType* classType = classManager2->getClass(funcName);
+        if (classType) {
+            NewExpr tempNewExpr(funcName);
+            tempNewExpr.position = node.position;
+            for (auto& arg : node.arguments) {
+                tempNewExpr.arguments.push_back(std::move(arg));
+            }
+            visitNewExpr(tempNewExpr);
+            node.arguments.clear();
+            for (auto& arg : tempNewExpr.arguments) {
+                node.arguments.push_back(std::move(arg));
+            }
+            return;
+        }
+    }
+    // (AR) الأولوية 3: الدوال المضمنة (كنسخة احتياطية)
+    // (EN) Priority 3: Built-in functions (as fallback)
     if (!func) {
         for (const auto& candidate : allOverloads) {
             if (candidate->hasNativeImplementation()) {
@@ -850,30 +872,6 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
         func = functionManager_.getFunction(funcName, arguments.size());
         
         if (!func) {
-            // (AR) التحقق إذا كان الاسم هو اسم صنف مسجّل → إنشاء كائن بدون 'جديد'
-            // (EN) Check if name is a registered class → create object without 'new' keyword
-            // مثال: مكدس م1 = مكدس()  بدلاً من  متغير م1 = جديد مكدس()
-            auto* classManager2 = Data::ClassManager::getInstance();
-            Data::ClassType* classType = classManager2->getClass(funcName);
-            if (classType) {
-                // (AR) بناء عقدة NewExpr مؤقتة والنقل إليها
-                // (EN) Build a temporary NewExpr node and delegate
-                NewExpr tempNewExpr(funcName);
-                tempNewExpr.position = node.position;
-                // (AR) نقل المعاملات من الـ CallExpr إلى NewExpr
-                // (EN) Move arguments from CallExpr to NewExpr
-                for (auto& arg : node.arguments) {
-                    tempNewExpr.arguments.push_back(std::move(arg));
-                }
-                visitNewExpr(tempNewExpr);
-                // (AR) إعادة المعاملات للـ CallExpr لتجنب مؤشرات معلقة
-                // (EN) Move arguments back to CallExpr to avoid dangling pointers
-                node.arguments.clear();
-                for (auto& arg : tempNewExpr.arguments) {
-                    node.arguments.push_back(std::move(arg));
-                }
-                return;
-            }
             
             // (AR) دالة غير معرّفة — مع اقتراح "هل قصدت؟"
             // (EN) Undefined function — with "Did you mean?" suggestion
@@ -902,6 +900,14 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
     
     // (AR) التحقق من وجود تنفيذ أصلي (دالة مضمنة) / (EN) Check for native implementation (built-in function)
     if (func->hasNativeImplementation()) {
+        // ═══════════════════════════════════════════════════════
+        // (AR) خطاف مصحح الأداء — دالة مدمجة
+        // (EN) Profiler hook — built-in function
+        // ═══════════════════════════════════════════════════════
+        Sad::Tools::ProfileGuard _profGuard(
+            funcName, Sad::Tools::getGlobalProfiler(), true, "",
+            node.position.line);
+        
         // ═══════════════════════════════════════════════════════════
         // (AR) تحسين أداء: حجز الذاكرة مسبقاً للمؤشرات
         // (EN) Performance: pre-reserve memory for argument pointers
@@ -924,6 +930,15 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
         return;
     }
     
+    // (AR) إذا كانت دالة خارجية (FFI) — نُرجع قيمة فارغة
+    // (EN) If extern function (FFI) — return empty value
+    if (func->isExtern()) {
+        // (AR) الدوال الخارجية مُعدّة للمترجم وليس المفسر — نُرجع 0
+        // (EN) Extern functions are for compiler, not interpreter — return 0
+        lastResult_ = Value(static_cast<int64_t>(0));
+        return;
+    }
+    
     // (AR) التحقق من وجود جسم للدالة / (EN) Check if function has body
     if (!func->hasBody()) {
         Sad::Errors::ErrorManager::getInstance().reportError(
@@ -935,6 +950,14 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
         lastResult_ = Value();
         return;
     }
+    
+    // ═══════════════════════════════════════════════════════════
+    // (AR) خطاف مصحح الأداء — دالة مستخدم
+    // (EN) Profiler hook — user function
+    // ═══════════════════════════════════════════════════════════
+    Sad::Tools::ProfileGuard _userProfGuard(
+        funcName, Sad::Tools::getGlobalProfiler(), false, "",
+        node.position.line);
     
     // (AR) إنشاء نطاق جديد للدالة / (EN) Create new scope for function
     variableManager_.enterScope(Data::ScopeType::FUNCTION, funcName);
@@ -1120,7 +1143,14 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
             statementExecutor_.setGeneratorMode(true);
             statementExecutor_.clearGeneratorYieldValues();
             
-            statementExecutor_.executeFunctionBody(*bodyStmt);
+            try {
+                statementExecutor_.executeFunctionBody(*bodyStmt);
+            } catch (...) {
+                statementExecutor_.clearGeneratorYieldValues();
+                statementExecutor_.setGeneratorMode(wasInGenerator);
+                variableManager_.exitScope();
+                throw;
+            }
             
             // (AR) تحويل القيم المجمّعة إلى مصفوفة
             // (EN) Convert collected values to array
@@ -1190,7 +1220,14 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
             }
             
             // (AR) دالة عادية - نستخدم StatementExecutor / (EN) Regular function - use StatementExecutor
-            lastResult_ = statementExecutor_.executeFunctionBody(*bodyStmt);
+            try {
+                lastResult_ = statementExecutor_.executeFunctionBody(*bodyStmt);
+            } catch (...) {
+                // (AR) ضمان تنظيف نطاق الدالة عند انتشار الاستثناء (مثل ارمي من داخل دالة)
+                // (EN) Ensure function scope cleanup when exception propagates (e.g. throw from inside function)
+                variableManager_.exitScope();
+                throw;
+            }
         }
     } else {
         // (AR) هذه دالة Lambda - نقيّم التعبير مباشرةً / (EN) This is Lambda - evaluate expression directly
@@ -1208,7 +1245,12 @@ void ExpressionEvaluator::visitCallExpr(CallExpr& node) {
             return;
         }
         
-        bodyExpr->accept(*this);
+        try {
+            bodyExpr->accept(*this);
+        } catch (...) {
+            variableManager_.exitScope();
+            throw;
+        }
         // lastResult_ already contains the result
     }
     

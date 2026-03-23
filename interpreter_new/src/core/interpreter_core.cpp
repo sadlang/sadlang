@@ -198,7 +198,7 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
         // (AR) فحص الأنواع المتقدم - قبل التنفيذ
         // (EN) Advanced type check - before execution
         // ================================================================
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) && !defined(SAD_PLATFORM_ANDROID)
         if (options_.enableTypeCheck) {
             if (options_.enableDebugMode) {
                 std::cout << "(AR) فحص الأنواع... / (EN) Type checking..." << std::endl;
@@ -233,7 +233,7 @@ ExecutionResult Interpreter::execute(const std::vector<std::unique_ptr<AST::Stat
                 std::cout << "(AR) ✓ فحص الأنواع تم / (EN) ✓ Type check completed" << std::endl;
             }
         }
-#endif // __EMSCRIPTEN__
+#endif // !__EMSCRIPTEN__ && !SAD_PLATFORM_ANDROID
         
         // (AR) مسح أي أخطاء سابقة من مراحل التحليل - نبدأ تنفيذاً نظيفاً
         // (EN) Clear any previous errors from parsing phases - start with clean execution
@@ -465,6 +465,16 @@ Data::Value Interpreter::callUserFunction(const std::string& funcName,
         }
         auto result = func->callNative(valuePtrs);
         return result ? *result : Data::Value();
+    }
+    
+    // ─── (AR) إذا كانت دالة خارجية (FFI) — نُرجع قيمة فارغة ───
+    // ─── (EN) If extern function (FFI) — return empty value ───
+    // (AR) الدوال الخارجية مُعدّة للمترجم وليس المفسر
+    // (EN) Extern functions are meant for compiler, not interpreter
+    if (func->isExtern()) {
+        // (AR) نُرجع 0 كقيمة افتراضية للدوال الخارجية في المفسر
+        // (EN) Return 0 as default value for extern functions in interpreter
+        return Data::Value(static_cast<int64_t>(0));
     }
     
     // ─── (AR) التحقق من وجود جسم للدالة ───

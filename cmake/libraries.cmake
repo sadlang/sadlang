@@ -5,21 +5,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ──────────────────────────────────────────────────────────────────────
-# مكتبة الرسومات / Graphics Library (SDL2 + OpenGL)
-# حالياً على Windows فقط / Currently Windows only
-# ──────────────────────────────────────────────────────────────────────
-set(SAD_GRAPHICS_SHARED OFF CACHE BOOL "Build graphics as static library" FORCE)
-set(SAD_GRAPHICS_BUILD_TESTS OFF CACHE BOOL "Skip graphics tests" FORCE)
-set(SAD_GRAPHICS_BUILD_EXAMPLES OFF CACHE BOOL "Skip graphics examples" FORCE)
-
-if(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/graphics/CMakeLists.txt")
-    add_subdirectory(graphics)
-    message(STATUS "✓ الرسومات / Graphics: SDL2 + OpenGL")
-elseif(EXISTS "${CMAKE_SOURCE_DIR}/graphics/CMakeLists.txt")
-    message(STATUS "⚠ الرسومات / Graphics: معطلة على هذه المنصة / Disabled on this platform")
-endif()
-
-# ──────────────────────────────────────────────────────────────────────
 # الآلة الافتراضية / Bytecode Virtual Machine
 # ──────────────────────────────────────────────────────────────────────
 if(EXISTS "${CMAKE_SOURCE_DIR}/vm/CMakeLists.txt")
@@ -44,27 +29,10 @@ if(ENABLE_FREESTANDING)
     set(ALL_SOURCES ${ALL_SOURCES} ${FREESTANDING_SOURCES})
 endif()
 
-# (AR) على Linux/macOS، استبعد ملفات stdlib/graphics التي تتطلب SDL2 من bundled Windows library
-# (EN) On Linux/macOS, exclude stdlib/graphics files that require bundled Windows SDL2 headers
-if(NOT WIN32)
-    list(FILTER ALL_SOURCES EXCLUDE REGEX "stdlib/graphics/.*\\.cpp$")
-    # (AR) استبعاد sad_backend_desktop.cpp لأنه يستدعي دوال sad::ui من stdlib/graphics (SDL2)
-    # (EN) Exclude sad_backend_desktop.cpp because it calls sad::ui functions from stdlib/graphics (SDL2)
-    list(FILTER ALL_SOURCES EXCLUDE REGEX "stdlib/ui/sad_backend_desktop\\.cpp$")
-    message(STATUS "⚠ Linux/macOS: استبعاد رسومات SDL2 من sad_core / Excluding bundled-SDL2 graphics from sad_core")
-endif()
-
 add_library(sad_core STATIC ${ALL_SOURCES})
 
 if(MSVC)
     target_compile_options(sad_core PRIVATE /FS /utf-8 /Z7)
-endif()
-
-# ربط مكتبة الرسومات / Link graphics
-if(TARGET sad_graphics)
-    target_link_libraries(sad_core PRIVATE sad_graphics)
-    target_compile_definitions(sad_core PRIVATE HAS_GRAPHICS)
-    target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/graphics/third_party)
 endif()
 
 # ربط وقت التشغيل الجديد / Link runtime_new
@@ -108,6 +76,37 @@ set_target_properties(sad_core PROPERTIES
     OUTPUT_NAME "sad_core"
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
 )
+
+# ربط نظام واجهات sad_ui / Link SadUI system
+if(TARGET sad_ui)
+    target_link_libraries(sad_core PRIVATE sad_ui)
+    target_include_directories(sad_core PRIVATE 
+        ${CMAKE_SOURCE_DIR}/sad_ui/core/include
+        ${CMAKE_SOURCE_DIR}/sad_ui/backends/desktop/include
+    )
+    # (AR) على Linux، SDL2 include يحتاج مسار صريح / (EN) On Linux, SDL2 needs explicit include path
+    if(UNIX)
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_check_modules(SDL2_PC QUIET sdl2)
+            if(SDL2_PC_FOUND)
+                target_include_directories(sad_core PRIVATE ${SDL2_PC_INCLUDE_DIRS})
+            endif()
+        endif()
+    endif()
+    message(STATUS "✓ ربط sad_ui بالمفسر / Linked sad_ui to interpreter")
+endif()
+
+# (AR) ربط مكتبة مصحح الأداء / (EN) Link profiler library
+if(TARGET sad_profiler_lib)
+    target_link_libraries(sad_core PRIVATE sad_profiler_lib)
+    target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/tools/profiler/include)
+    message(STATUS "✓ ربط مصحح الأداء بالمفسر / Linked profiler to interpreter")
+endif()
+
+# (AR) إضافة مسارات إعادة التحميل الساخن / (EN) Add hot reload include paths
+target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/shared/hot_reload/include)
+message(STATUS "✓ إعادة التحميل الساخن / Hot Reload")
 
 # ──────────────────────────────────────────────────────────────────────
 # المكونات المشتركة والمترجم / Shared & Compiler (if not already added)
