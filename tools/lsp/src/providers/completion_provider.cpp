@@ -317,16 +317,21 @@ CompletionList LspEngine::completion(const DocumentUri& uri, const Position& pos
     std::string current_word = doc_store_->get_word_at(uri, pos);
     std::string current_line = doc_store_->get_line(uri, pos.line);
 
-    // ──── ١. التحقق من سياق النقطة (إكمال أعضاء) ────
+    // ──── ١. التحقق من سياق النقطة أو ?. (إكمال أعضاء) ────
     bool is_member_access = false;
     std::string object_name;
     if (!current_line.empty()) {
-        // نبحث عن نقطة قبل الموضع الحالي
+        // نبحث عن نقطة أو ?. قبل الموضع الحالي
         int col = pos.character;
         int dot_pos = -1;
         for (int i = col - 1; i >= 0; i--) {
             if (i < static_cast<int>(current_line.size()) && current_line[i] == '.') {
                 dot_pos = i;
+                // (AR) تحقق: هل النقطة مسبوقة بـ ? (وصول اختياري ?.)
+                // (EN) Check: is the dot preceded by ? (optional chaining ?.)
+                if (dot_pos > 0 && current_line[dot_pos - 1] == '?') {
+                    dot_pos--; // نقطة البدء هي ? وليس .
+                }
                 break;
             }
         }

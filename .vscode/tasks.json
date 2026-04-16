@@ -207,6 +207,406 @@
 			"label": "Build sadc Release",
 			"type": "shell",
 			"command": "cmake --build build --config Release --target sadc 2>&1 | Select-Object -Last 30"
+		},
+		{
+			"label": "Rebuild Kernel (0x200000)",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File C:\\s_lang\\rebuild_kernel2.ps1"
+		},
+		{
+			"label": "Test QEMU",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File C:\\s_lang\\test_qemu.ps1"
+		},
+		{
+			"label": "Read QEMU Log",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File C:\\s_lang\\read_log.ps1"
+		},
+		{
+			"label": "Debug Kernel Symbols",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File C:\\s_lang\\debug_kernel.ps1"
+		},
+		{
+			"label": "Rebuild HAL and Test",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File C:\\s_lang\\rebuild_and_test.ps1"
+		},
+		{
+			"label": "Rebuild HAL v3",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File C:\\s_lang\\rebuild_v3.ps1"
+		},
+		{
+			"label": "Build Only",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File C:\\s_lang\\build_only.ps1"
+		},
+		{
+			"label": "Run QEMU Test",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File C:\\s_lang\\run_qemu.ps1"
+		},
+		{
+			"label": "QEMU Test v2",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File C:\\s_lang\\run_qemu2.ps1"
+		},
+		{
+			"label": "QEMU v3",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File C:\\s_lang\\run_q3.ps1"
+		},
+		{
+			"label": "Test kernel_aliases.ll",
+			"type": "shell",
+			"command": "C:\\llvm_dev\\LLVM\\bin\\llvm-as.exe \"c:\\s_lang\\s-programming-language\\أفق\\hal\\kernel_aliases.ll\" -o \"C:\\s_lang\\ufuq_ir_temp\\ka_test.bc\" 2>&1; Write-Host \"EXIT: $LASTEXITCODE\""
+		},
+		{
+			"label": "Build Ufuq Kernel + QEMU",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" -RunQemu -Verbose 2>&1"
+		},
+		{
+			"label": "Check fb symbols in kernel.o",
+			"type": "shell",
+			"command": "C:\\llvm_dev\\LLVM\\bin\\llvm-nm.exe C:\\s_lang\\ufuq_build\\kernel.o 2>&1 | Select-String 'fb_init|fb_set_pixel|fb_fill_rect|fb_draw_rect|fb_draw_line|fb_clear|fb_draw_string|bga_init|bga_map'"
+		},
+		{
+			"label": "Run Ufuq OS in QEMU (Graphics)",
+			"type": "shell",
+			"command": "C:\\qemu\\qemu-system-x86_64.exe -kernel C:\\s_lang\\ufuq_build\\boot32.elf -initrd C:\\s_lang\\ufuq_build\\ufuq_kernel.elf -m 256M -vga std -serial file:C:\\s_lang\\ufuq_serial.log -display sdl -no-reboot",
+			"isBackground": true
+		},
+		{
+			"label": "Read QEMU Serial Log",
+			"type": "shell",
+			"command": "Start-Sleep 5; Get-Content C:\\s_lang\\ufuq_serial.log -ErrorAction SilentlyContinue | Select-Object -Last 50"
+		},
+		{
+			"label": "Build + QEMU (Font Test)",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" -RunQemu 2>&1"
+		},
+		{
+			"label": "Read Serial After Build",
+			"type": "shell",
+			"command": "Start-Sleep 60; Get-Content C:\\s_lang\\ufuq_serial.log -ErrorAction SilentlyContinue | Select-Object -Last 30"
+		},
+		{
+			"label": "Search FB/Font in log",
+			"type": "shell",
+			"command": "Get-Content C:\\s_lang\\ufuq_serial.log -ErrorAction SilentlyContinue | Select-String 'FB|BGA|font|FONT' | Select-Object -First 20"
+		},
+		{
+			"label": "Build Ufuq + Boot Logo",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" 2>&1 | Select-Object -Last 30"
+		},
+		{
+			"label": "Run QEMU Boot Logo",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_ufuq_final.ps1\" -RunQemu 2>&1 | Select-Object -Last 40"
+		},
+		{
+			"label": "Read Serial Log",
+			"type": "shell",
+			"command": "Start-Sleep -Seconds 10; Get-Content 'C:\\s_lang\\ufuq_serial.log' -Encoding UTF8 2>$null | Select-Object -Last 80"
+		},
+		{
+			"label": "Build DB Kernel",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" 2>&1 | Select-Object -Last 30"
+		},
+		{
+			"label": "QEMU DB Test",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_ufuq_final.ps1\" -RunQemu 2>&1 | Select-Object -Last 20"
+		},
+		{
+			"label": "Read DB Serial",
+			"type": "shell",
+			"command": "Start-Sleep -Seconds 15; Get-Content 'C:\\s_lang\\ufuq_serial.log' -Encoding UTF8 2>$null | Select-Object -Last 50"
+		},
+		{
+			"label": "Verify Disk Entry",
+			"type": "shell",
+			"command": "$content = Get-Content 'c:\\s_lang\\s-programming-language\\أفق\\نقطة_الدخول.ص' -Encoding UTF8; $lineNum = 0; foreach($line in $content) { $lineNum++; if($lineNum -ge 531 -and $lineNum -le 555) { Write-Host \"$lineNum`: $line\" } }"
+		},
+		{
+			"label": "Check IR for DB",
+			"type": "shell",
+			"command": "Select-String -Path 'C:\\s_lang\\ufuq_ir_temp\\entry_main.ll' -Pattern 'fb_init_double|fb_swap|font_init' | Select-Object -First 10"
+		},
+		{
+			"label": "Search DB in Log",
+			"type": "shell",
+			"command": "Select-String -Path 'C:\\s_lang\\ufuq_serial.log' -Pattern '\\[DB\\]|font_init|double|مزدوج|الخط|شعار' -Encoding UTF8"
+		},
+		{
+			"label": "Check ELF Symbols",
+			"type": "shell",
+			"command": "& 'C:\\llvm_dev\\LLVM\\bin\\llvm-nm.exe' 'C:\\s_lang\\ufuq_build\\ufuq_kernel.elf' 2>&1 | Select-String 'fb_init_double|fb_swap'"
+		},
+		{
+			"label": "Check timestamps",
+			"type": "shell",
+			"command": "(Get-Item 'C:\\s_lang\\ufuq_build\\ufuq_kernel.elf').LastWriteTime; (Get-Item 'C:\\s_lang\\ufuq_serial.log').LastWriteTime; Get-Content 'C:\\s_lang\\ufuq_serial.log' -Encoding UTF8 2>$null | Select-String '\\[DB\\]|font_init|الخط النقطي|التخزين المؤقت'"
+		},
+		{
+			"label": "QEMU Fresh Run",
+			"type": "shell",
+			"command": "$serial = 'C:\\s_lang\\ufuq_serial.log'; if(Test-Path $serial){Remove-Item $serial -Force}; Start-Process -FilePath 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList @('-kernel','C:\\s_lang\\ufuq_build\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot') -PassThru | ForEach-Object { Write-Host \"QEMU PID: $($_.Id)\"; Start-Sleep -Seconds 18; Get-Content $serial -Encoding UTF8 2>$null | Select-String '\\[DB\\]|\\[FB\\]|BGA|مرحلة 9|الخط|مزدوج|شعار|الشاشة' | Select-Object -First 30 }"
+		},
+		{
+			"label": "Full Serial Log",
+			"type": "shell",
+			"command": "Get-Content 'C:\\s_lang\\ufuq_serial.log' -Encoding UTF8 2>$null | Select-Object -Last 35"
+		},
+		{
+			"label": "Wait and Check",
+			"type": "shell",
+			"command": "Start-Sleep -Seconds 20; Get-Content 'C:\\s_lang\\ufuq_serial.log' -Encoding UTF8 2>$null | Select-Object -Last 20"
+		},
+		{
+			"label": "Wait 60s Check",
+			"type": "shell",
+			"command": "Start-Sleep -Seconds 60; Get-Content 'C:\\s_lang\\ufuq_serial.log' -Encoding UTF8 2>$null | Select-Object -Last 30"
+		},
+		{
+			"label": "Build Debug Logo",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" 2>&1 | Select-Object -Last 10"
+		},
+		{
+			"label": "QEMU Debug Run",
+			"type": "shell",
+			"command": "$serial = 'C:\\s_lang\\ufuq_serial.log'; if(Test-Path $serial){Remove-Item $serial -Force}; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList @('-kernel','C:\\s_lang\\ufuq_build\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot'); Start-Sleep -Seconds 25; Get-Content $serial -Encoding UTF8 2>$null | Select-String '\\[LOGO\\]|\\[DB\\]|\\[FB\\]' | Select-Object -First 20"
+		},
+		{
+			"label": "Full Debug Log",
+			"type": "shell",
+			"command": "Get-Content 'C:\\s_lang\\ufuq_serial.log' -Encoding UTF8 2>$null | Select-Object -Last 25"
+		},
+		{
+			"label": "Build P9 Debug",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" 2>&1 | Select-Object -Last 5"
+		},
+		{
+			"label": "QEMU P9 Debug",
+			"type": "shell",
+			"command": "$serial = 'C:\\s_lang\\ufuq_serial.log'; if(Test-Path $serial){Remove-Item $serial -Force}; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList @('-kernel','C:\\s_lang\\ufuq_build\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot'); Start-Sleep -Seconds 30; Get-Content $serial -Encoding UTF8 2>$null | Select-String '\\[P9\\]|\\[LOGO\\]|\\[DB\\]' | Select-Object -First 20"
+		},
+		{
+			"label": "Check QEMU",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Select-Object Id, ProcessName, CPU, WorkingSet64 | Format-Table -AutoSize"
+		},
+		{
+			"label": "Kill QEMU + Check IR",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 2; Write-Host 'All QEMU killed'; Select-String -Path 'C:\\s_lang\\ufuq_ir_temp\\entry_main.ll' -Pattern 'fill_rect|fb_set_pixel' | Select-Object -First 10"
+		},
+		{
+			"label": "Check HAL IR",
+			"type": "shell",
+			"command": "Select-String -Path 'C:\\s_lang\\ufuq_ir_temp\\mod_hal_hal.ll' -Pattern 'define.*fb_fill_rect|define.*fb_set_pixel' | Select-Object -First 5"
+		},
+		{
+			"label": "Find HAL IR",
+			"type": "shell",
+			"command": "Get-ChildItem 'C:\\s_lang\\ufuq_ir_temp\\' -Filter 'mod_hal*' | Select-Object Name"
+		},
+		{
+			"label": "List IR Files",
+			"type": "shell",
+			"command": "Get-ChildItem 'C:\\s_lang\\ufuq_ir_temp\\' -Filter '*.ll' | Select-Object Name | Select-Object -First 20"
+		},
+		{
+			"label": "Find fill_rect in HAL",
+			"type": "shell",
+			"command": "$halFile = Get-ChildItem 'C:\\s_lang\\ufuq_ir_temp\\' -Filter '*hal_hal*'; Select-String -Path $halFile.FullName -Pattern 'define.*fb_fill_rect' | Select-Object LineNumber, Line | Select-Object -First 3"
+		},
+		{
+			"label": "Read fill_rect IR",
+			"type": "shell",
+			"command": "$halFile = (Get-ChildItem 'C:\\s_lang\\ufuq_ir_temp\\' -Filter '*hal_hal*')[0].FullName; $lines = Get-Content $halFile; for($i=2406; $i -lt 2450; $i++) { Write-Host \"$($i+1): $($lines[$i])\" }"
+		},
+		{
+			"label": "Read fill_rect IR v2",
+			"type": "shell",
+			"command": "$halFile = (Get-ChildItem 'C:\\s_lang\\ufuq_ir_temp\\' -Filter '*hal_hal.ll')[0].FullName; [IO.File]::ReadAllLines($halFile, [Text.Encoding]::UTF8)[2406..2440] | ForEach-Object { $_ }"
+		},
+		{
+			"label": "Read fill_rect IR v3",
+			"type": "shell",
+			"command": "$halFile = (Get-ChildItem 'C:\\s_lang\\ufuq_ir_temp\\' -Filter '*hal_hal.ll')[0].FullName; [IO.File]::ReadAllLines($halFile, [Text.Encoding]::UTF8)[2440..2470] | ForEach-Object { $_ }"
+		},
+		{
+			"label": "Read set_pixel IR",
+			"type": "shell",
+			"command": "$halFile = (Get-ChildItem 'C:\\s_lang\\ufuq_ir_temp\\' -Filter '*hal_hal.ll')[0].FullName; $lines = [IO.File]::ReadAllLines($halFile, [Text.Encoding]::UTF8); $start = -1; for($i=0; $i -lt $lines.Count; $i++) { if($lines[$i] -match 'define.*fb_set_pixel') { $start = $i; break } }; if($start -ge 0) { $lines[$start..($start+40)] | ForEach-Object { $_ } }"
+		},
+		{
+			"label": "Build Minimal Test",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" 2>&1 | Select-Object -Last 5"
+		},
+		{
+			"label": "QEMU Minimal DB Test",
+			"type": "shell",
+			"command": "$serial = 'C:\\s_lang\\ufuq_serial.log'; if(Test-Path $serial){Remove-Item $serial -Force}; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList @('-kernel','C:\\s_lang\\ufuq_build\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot'); Start-Sleep -Seconds 20; Get-Content $serial -Encoding UTF8 2>$null | Select-String '\\[P9\\]|\\[DB\\]|مرحلة 9' | Select-Object -First 10"
+		},
+		{
+			"label": "Check Log",
+			"type": "shell",
+			"command": "if(Test-Path 'C:\\s_lang\\ufuq_serial.log'){$sz = (Get-Item 'C:\\s_lang\\ufuq_serial.log').Length; Write-Host \"Log size: $sz bytes\"; Get-Content 'C:\\s_lang\\ufuq_serial.log' -Encoding UTF8 2>$null | Select-Object -Last 15} else {Write-Host 'No log file!'}"
+		},
+		{
+			"label": "Build 64MB Heap",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" 2>&1 | Select-Object -Last 5"
+		},
+		{
+			"label": "QEMU 64MB Heap",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Start-Sleep 2; $serial = 'C:\\s_lang\\ufuq_serial.log'; if(Test-Path $serial){Remove-Item $serial -Force}; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList @('-kernel','C:\\s_lang\\ufuq_build\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot'); Start-Sleep -Seconds 25; Get-Content $serial -Encoding UTF8 2>$null | Select-Object -Last 25"
+		},
+		{
+			"label": "Check DB Messages",
+			"type": "shell",
+			"command": "Get-Content 'C:\\s_lang\\ufuq_serial.log' -Encoding UTF8 2>$null | Select-String '\\[P9\\]|\\[DB\\]|\\[LOGO\\]|MALLOC|التخزين|شعار' | Select-Object -First 15"
+		},
+		{
+			"label": "Build Final DB",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" 2>&1 | Select-Object -Last 5"
+		},
+		{
+			"label": "QEMU Final DB Test",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Start-Sleep 2; $serial = 'C:\\s_lang\\ufuq_serial.log'; if(Test-Path $serial){Remove-Item $serial -Force}; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList @('-kernel','C:\\s_lang\\ufuq_build\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot'); Start-Sleep -Seconds 25; Get-Content $serial -Encoding UTF8 2>$null | Select-Object -Last 30"
+		},
+		{
+			"label": "Verify DB+Logo",
+			"type": "shell",
+			"command": "Get-Content 'C:\\s_lang\\ufuq_serial.log' -Encoding UTF8 2>$null | Select-String '\\[DB\\]|شعار|التخزين|swap' | Select-Object -First 10"
+		},
+		{
+			"label": "Build Ufuq Kernel",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" 2>&1 | Select-Object -Last 15",
+			"isBackground": false
+		},
+		{
+			"label": "QEMU Test Optimized",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Start-Sleep 2; Remove-Item 'C:\\s_lang\\ufuq_serial.log' -Force -ErrorAction SilentlyContinue; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList '-kernel','C:\\s_lang\\temp_hal\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot'; Start-Sleep 25; Write-Host '=== SERIAL LOG ==='; Get-Content 'C:\\s_lang\\ufuq_serial.log' -ErrorAction SilentlyContinue",
+			"isBackground": false
+		},
+		{
+			"label": "Read Serial Extended",
+			"type": "shell",
+			"command": "Start-Sleep 15; Write-Host '=== SERIAL LOG (extended) ==='; Get-Content 'C:\\s_lang\\ufuq_serial.log' -ErrorAction SilentlyContinue",
+			"isBackground": false
+		},
+		{
+			"label": "Check QEMU Status",
+			"type": "shell",
+			"command": "$proc = Get-Process qemu* -ErrorAction SilentlyContinue; if ($proc) { Write-Host \"QEMU alive: PID=$($proc.Id) CPU=$($proc.CPU)\" } else { Write-Host 'QEMU NOT running' }; Write-Host '=== SERIAL LOG SIZE ==='; $f = Get-Item 'C:\\s_lang\\ufuq_serial.log' -EA SilentlyContinue; if ($f) { Write-Host \"Size: $($f.Length) bytes\"; Get-Content 'C:\\s_lang\\ufuq_serial.log' } else { Write-Host 'No log file' }",
+			"isBackground": false
+		},
+		{
+			"label": "Check ELF",
+			"type": "shell",
+			"command": "& 'C:\\llvm_dev\\LLVM\\bin\\llvm-readelf.exe' -h -l 'C:\\s_lang\\ufuq_build\\ufuq_kernel.elf' 2>&1 | Select-Object -First 40",
+			"isBackground": false
+		},
+		{
+			"label": "Check Large Symbols",
+			"type": "shell",
+			"command": "& 'C:\\llvm_dev\\LLVM\\bin\\llvm-nm.exe' --size-sort -r 'C:\\s_lang\\ufuq_build\\ufuq_kernel.elf' 2>&1 | Select-Object -First 30",
+			"isBackground": false
+		},
+		{
+			"label": "QEMU Debug Run",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Start-Sleep 2; Remove-Item 'C:\\s_lang\\ufuq_serial.log' -Force -EA SilentlyContinue; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList '-kernel','C:\\s_lang\\temp_hal\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot','-no-shutdown'; Start-Sleep 40; Write-Host '=== SERIAL LOG ==='; Get-Content 'C:\\s_lang\\ufuq_serial.log' -EA SilentlyContinue; Write-Host '=== QEMU STATUS ==='; $p = Get-Process qemu* -EA SilentlyContinue; if ($p) { Write-Host \"ALIVE PID=$($p.Id)\" } else { Write-Host 'DEAD' }",
+			"isBackground": false
+		},
+		{
+			"label": "Read Full Serial",
+			"type": "shell",
+			"command": "Write-Host '=== FULL SERIAL LOG ==='; Get-Content 'C:\\s_lang\\ufuq_serial.log' -ErrorAction SilentlyContinue",
+			"isBackground": false
+		},
+		{
+			"label": "Stop QEMU",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Write-Host 'QEMU stopped'",
+			"isBackground": false
+		},
+		{
+			"label": "Build Optimized Swap",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" 2>&1 | Select-Object -Last 15",
+			"isBackground": false
+		},
+		{
+			"label": "QEMU Test Swap",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Start-Sleep 2; Remove-Item 'C:\\s_lang\\ufuq_serial.log' -Force -EA SilentlyContinue; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList '-kernel','C:\\s_lang\\temp_hal\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot'; Start-Sleep 30; Write-Host '=== SERIAL LOG ==='; Get-Content 'C:\\s_lang\\ufuq_serial.log' -EA SilentlyContinue | Select-Object -Last 30",
+			"isBackground": false
+		},
+		{
+			"label": "Check boot32 paths",
+			"type": "shell",
+			"command": "Write-Host '=== boot32.elf locations ==='; @('C:\\s_lang\\temp_hal\\boot32.elf','C:\\s_lang\\ufuq_build\\boot32.elf') | ForEach-Object { $f=Get-Item $_ -EA SilentlyContinue; if($f){Write-Host \"$_ → $($f.Length) bytes, $($f.LastWriteTime)\"} else {Write-Host \"$_ → NOT FOUND\"} }; Write-Host '=== QEMU alive? ==='; $p=Get-Process qemu* -EA SilentlyContinue; if($p){Write-Host \"YES PID=$($p.Id)\"}else{Write-Host 'NO'}",
+			"isBackground": false
+		},
+		{
+			"label": "QEMU ufuq_build boot32",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Start-Sleep 2; Remove-Item 'C:\\s_lang\\ufuq_serial.log' -Force -EA SilentlyContinue; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList '-kernel','C:\\s_lang\\ufuq_build\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot'; Start-Sleep 30; Write-Host '=== SERIAL LOG ==='; Get-Content 'C:\\s_lang\\ufuq_serial.log' -EA SilentlyContinue | Select-Object -Last 30; Write-Host '=== QEMU? ==='; $p=Get-Process qemu* -EA SilentlyContinue; if($p){Write-Host 'ALIVE'}else{Write-Host 'DEAD'}",
+			"isBackground": false
+		},
+		{
+			"label": "Wait and Read Log",
+			"type": "shell",
+			"command": "Start-Sleep 20; Write-Host '=== FULL LOG (tail) ==='; Get-Content 'C:\\s_lang\\ufuq_serial.log' -EA SilentlyContinue | Select-Object -Last 25; Write-Host '=== QEMU? ==='; $p=Get-Process qemu* -EA SilentlyContinue; if($p){Write-Host 'ALIVE'}else{Write-Host 'DEAD'}",
+			"isBackground": false
+		},
+		{
+			"label": "Build Reverted Swap",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" 2>&1 | Select-Object -Last 5",
+			"isBackground": false
+		},
+		{
+			"label": "QEMU Test Reverted",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Start-Sleep 2; Remove-Item 'C:\\s_lang\\ufuq_serial.log' -Force -EA SilentlyContinue; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList '-kernel','C:\\s_lang\\ufuq_build\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot'; Start-Sleep 35; Write-Host '=== SERIAL LOG (tail) ==='; Get-Content 'C:\\s_lang\\ufuq_serial.log' -EA SilentlyContinue | Select-Object -Last 15; Write-Host '=== QEMU? ==='; $p=Get-Process qemu* -EA SilentlyContinue; if($p){Write-Host 'ALIVE'}else{Write-Host 'DEAD'}",
+			"isBackground": false
+		},
+		{
+			"label": "Kill QEMU",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Write-Host 'Done'",
+			"isBackground": false
+		},
+		{
+			"label": "Build Mouse Driver",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"c:\\s_lang\\s-programming-language\\أفق\\build_kernel.ps1\" 2>&1 | Select-Object -Last 10",
+			"isBackground": false
+		},
+		{
+			"label": "QEMU Mouse Test",
+			"type": "shell",
+			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Start-Sleep 2; Remove-Item 'C:\\s_lang\\ufuq_serial.log' -Force -EA SilentlyContinue; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList '-kernel','C:\\s_lang\\ufuq_build\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot'; Start-Sleep 40; Write-Host '=== LOG TAIL ==='; Get-Content 'C:\\s_lang\\ufuq_serial.log' -EA SilentlyContinue | Select-Object -Last 20; Write-Host '=== QEMU ==='; $p=Get-Process qemu* -EA SilentlyContinue; if($p){Write-Host 'ALIVE'}else{Write-Host 'DEAD'}",
+			"isBackground": false
 		}
 	]
 }

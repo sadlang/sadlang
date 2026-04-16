@@ -77,6 +77,10 @@ bool StrengthReductionPass::processBlock(SIR::SIRBasicBlock* block) {
                 if (tryReduceDivision(inst)) modified = true;
                 break;
                 
+            case SIR::SIROpcode::FLOOR_DIV_I64:
+                if (tryReduceDivision(inst)) modified = true;
+                break;
+                
             case SIR::SIROpcode::MOD_I64:
                 if (tryReduceModulo(inst)) modified = true;
                 break;
@@ -235,7 +239,8 @@ bool StrengthReductionPass::tryAlgebraicSimplification(SIR::SIRInstruction& inst
         }
         
         // (AR) x / 1 → x
-        case SIR::SIROpcode::DIV_I64: {
+        case SIR::SIROpcode::DIV_I64:
+        case SIR::SIROpcode::FLOOR_DIV_I64: {
             if (c1 && *c1 == 1) {
                 inst.opcode = SIR::SIROpcode::MOVE;
                 inst.operands = {inst.operands[0]};

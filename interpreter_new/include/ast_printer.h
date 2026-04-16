@@ -438,6 +438,7 @@ private:
             case TokenType::OP_MINUS: return "-";
             case TokenType::OP_MULTIPLY: return "*";
             case TokenType::OP_DIVIDE: return "/";
+            case TokenType::OP_FLOOR_DIVIDE: return "//";
             case TokenType::OP_MODULO: return "%";
             case TokenType::OP_EQUAL: return "==";
             case TokenType::OP_NOT_EQUAL: return "!=";

@@ -1,4 +1,4 @@
-// تعطيل تحذير Unicode للنصوص العربية
+﻿// تعطيل تحذير Unicode للنصوص العربية
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -280,7 +280,7 @@ private:
     std::unordered_map<std::string, FFI::CTypePtr> typeRegistry_;  // سجل الأنواع
     
     // (AR) دوال مساعدة / (EN) Helper functions
-    FFI::CBasicType primitiveKindToCBasic(TypeKind kind) const;
+    FFI::CBasicType primitiveKindToCBasic(SadTypeKind kind) const;
 };
 
 // ============================================================================

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ═══════════════════════════════════════════════════════════════════════════════
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                          نظام المولدات - لغة ص                             ║
@@ -114,7 +114,7 @@ namespace TypeSystem {
  * - مولد<(عدد، نص)> -> Generator yielding tuples
  */
 GeneratorType::GeneratorType(TypePtr yieldType) 
-    : Type(TypeKind::Generator)
+    : Type(SadTypeKind::Generator)
     , yieldType_(yieldType)
     , state_(GeneratorState::Created) 
 {
@@ -177,7 +177,7 @@ std::string GeneratorType::toString() const {
  *         true if types are equal
  */
 bool GeneratorType::equals(const Type* other) const {
-    if (!other || other->getKind() != TypeKind::Generator) {
+    if (!other || other->getKind() != SadTypeKind::Generator) {
         return false;
     }
     

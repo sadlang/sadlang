@@ -41,6 +41,8 @@
 | 28 | `test_p28_filesystem_smoke.ص` | Filesystem read/write/delete smoke | P1 |
 | 29 | `test_p29_filesystem_invalid_input.ص` | Filesystem invalid path (negative test) | P1 |
 | 30 | `test_p30_database_availability.ص` | Database availability/import contract | P1 |
+| 31 | `test_p31_json_unicode_parse.ص` | JSON Unicode escape parsing (\uXXXX) | P1 |
+| 32 | `test_p32_json_unicode_stringify.ص` | JSON Unicode escape stringify (round-trip) | P1 |
 
 ## التشغيل
 

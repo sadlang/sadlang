@@ -1,0 +1,11 @@
+[package]
+name = "sad-math"
+version = "1.0.0"
+description = "مكتبة الرياضيات للغة ص — دوال حسابية وإحصائية وهندسية"
+authors = ["فريق لغة ص"]
+license = "MIT"
+repository = "https://github.com/sad-lang/sad-math"
+keywords = ["math", "رياضيات", "حساب", "إحصاء"]
+category = "math"
+
+[dependencies]

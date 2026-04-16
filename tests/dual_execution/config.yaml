@@ -1,0 +1,41 @@
+# ═══════════════════════════════════════════════════════════════════════════════════
+# إعدادات runner.py — اختبارات التنفيذ المزدوج (المفسر + المترجم)
+# Dual Execution Test Runner Configuration
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+# (AR) مسارات الملفات التنفيذية — عدّل حسب بيئتك
+# (EN) Executable paths — adjust for your environment
+paths:
+  interpreter: "build/bin/Debug/sad.exe"
+  compiler: "build/bin/Release/sadc.exe"
+  tests_dir: "tests/dual_execution"
+
+# (AR) إعدادات التنفيذ
+# (EN) Execution settings
+execution:
+  timeout_seconds: 30          # (AR) المهلة الافتراضية لكل اختبار
+  max_parallel: 4              # (AR) أقصى عدد اختبارات متوازية
+  temp_dir: "build/_dual_tmp"  # (AR) مجلد مؤقت للملفات المُترجمة
+
+# (AR) إعدادات الإخراج
+# (EN) Output settings
+output:
+  report_file: "build/_dual_report.json"   # (AR) ملف تقرير JSON
+  verbose: false                            # (AR) طباعة تفاصيل كل اختبار
+  colors: true                              # (AR) ألوان في الطرفية
+
+# (AR) مستويات الاختبار (P0 = أساسي، P1 = كامل، P2 = متقدم)
+# (EN) Test levels
+levels:
+  P0:
+    dirs: ["core"]
+    description: "اختبارات أساسية — كل commit"
+  P1:
+    dirs: ["core", "oop"]
+    description: "اختبارات كاملة — كل PR"
+  P2:
+    dirs: ["core", "oop", "concurrency", "advanced", "negative"]
+    description: "اختبارات متقدمة — Nightly"
+  P3:
+    dirs: ["core", "oop", "concurrency", "advanced", "negative"]
+    description: "اختبارات شاملة — جميع الميزات بما فيها P3"

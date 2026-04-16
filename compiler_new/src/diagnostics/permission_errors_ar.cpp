@@ -43,6 +43,7 @@
 #pragma once
 
 #include <string>
+#include <cstring>
 #include <sstream>
 #include <unordered_map>
 

@@ -125,8 +125,15 @@ RecoveryResult ErrorRecoverySystem::tryInsertMissing(
     result.line = line;
     result.column = col;
     
-    // Common missing tokens we can auto-insert
-    if (expected == ")" || expected == "}" || expected == "]" || expected == ":") {
+    // (AR) الرموز القابلة للإدراج التلقائي
+    // (EN) Tokens that can be auto-inserted
+    static const std::unordered_set<std::string> insertable = {
+        ")", "(", "}", "{", "]", "[", ":", ";",
+        "=", ",", "->",
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9"  // نهاية
+    };
+    
+    if (insertable.count(expected) > 0) {
         result.recovered = true;
         result.action.strategy = RecoveryStrategyType::INSERT_TOKEN;
         result.action.insertedText = expected;

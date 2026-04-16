@@ -49,6 +49,12 @@ _deps/
 *.backup
 *~
 
+# ── مجلد الملفات المؤقتة للتجارب / Scratch directory ──
+_scratch/
+
+# ── مخرجات BMAD / BMAD outputs ──
+_bmad-output/
+
 # ── مخرجات البناء والاختبار في الجذر / Build & test output in root ──
 # (هذه الملفات يجب نقلها إلى build/ أو حذفها)
 build_*.txt

@@ -136,7 +136,7 @@ int main() {
 
     SAD_TEST("KW15: ״¹״¯… -> LITERAL_NULL", {
         auto t = lexSingle("\xD8\xB9\xD8\xAF\xD9\x85"); // ״¹״¯…
-        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::TYPE_NULL);
+        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::IDENTIFIER); // contextual type name, not keyword
     });
 
     SAD_TEST("KW16: ״§״³״×ˆ״±״¯ -> KEYWORD_IMPORT", {
@@ -171,27 +171,27 @@ int main() {
 
     SAD_TEST("TY01: ״±‚… -> TYPE_INTEGER", {
         auto t = lexSingle("\xD8\xB1\xD9\x82\xD9\x85"); // ״±‚…
-        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::TYPE_INTEGER);
+        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::IDENTIFIER); // contextual type name
     });
 
     SAD_TEST("TY02: ״¹״´״± -> TYPE_DOUBLE", {
         auto t = lexSingle("\xD8\xB9\xD8\xB4\xD8\xB1\xD9\x8A"); // ״¹״´״±
-        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::TYPE_DOUBLE);
+        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::IDENTIFIER); // contextual type name
     });
 
     SAD_TEST("TY03: †״µ -> TYPE_STRING", {
         auto t = lexSingle("\xD9\x86\xD8\xB5"); // †״µ
-        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::TYPE_STRING);
+        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::IDENTIFIER); // contextual type name
     });
 
     SAD_TEST("TY04: …†״·‚ -> TYPE_BOOLEAN", {
         auto t = lexSingle("\xD9\x85\xD9\x86\xD8\xB7\xD9\x82\xD9\x8A"); // …†״·‚
-        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::TYPE_BOOLEAN);
+        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::IDENTIFIER); // contextual type name
     });
 
     SAD_TEST("TY05: …״µˆ״© -> TYPE_ARRAY", {
         auto t = lexSingle("\xD9\x85\xD8\xB5\xD9\x81\xD9\x88\xD9\x81\xD8\xA9"); // …״µˆ״©
-        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::TYPE_ARRAY);
+        SAD_ASSERT_EQ((int)t.getType(), (int)TokenType::IDENTIFIER); // contextual type name
     });
 
     // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•

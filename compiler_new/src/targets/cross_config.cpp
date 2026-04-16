@@ -615,8 +615,10 @@ struct SadCrossConfig {
 };
 
 SadCrossConfig* sad_cross_config_new() {
-    auto* ctx = new SadCrossConfig();
-    ctx->manager = new sad::targets::CrossConfigManager();
+    auto* ctx = new (std::nothrow) SadCrossConfig();
+    if (!ctx) return nullptr;
+    ctx->manager = new (std::nothrow) sad::targets::CrossConfigManager();
+    if (!ctx->manager) { delete ctx; return nullptr; }
     return ctx;
 }
 

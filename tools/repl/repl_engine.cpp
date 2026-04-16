@@ -2,7 +2,7 @@
 /**
  * @file repl_engine.cpp
  * @brief تنفيذ محرك REPL للغة ص / REPL Engine Implementation
- * 
+ *
  * @author Sad Language Team
  * @date January 2026
  */
@@ -25,369 +25,427 @@
 #undef VOID
 #endif
 
-namespace Sad {
-namespace REPL {
-
-// ============================================================================
-// Helper Functions / دوال مساعدة
-// ============================================================================
-
-// C++17 compatible starts_with
-inline bool starts_with(const std::string& str, const std::string& prefix) {
-    if (prefix.length() > str.length()) return false;
-    return str.compare(0, prefix.length(), prefix) == 0;
-}
-
-// ============================================================================
-// Color Codes / أكواد الألوان
-// ============================================================================
-
-static const char* RESET = "\033[0m";
-static const char* BOLD = "\033[1m";
-static const char* RED = "\033[31m";
-static const char* GREEN = "\033[32m";
-static const char* YELLOW = "\033[33m";
-static const char* BLUE = "\033[34m";
-static const char* CYAN = "\033[36m";
-static const char* MAGENTA = "\033[35m";
-
-// ============================================================================
-// REPLEngine Implementation / تنفيذ REPLEngine
-// ============================================================================
-
-REPLEngine::REPLEngine(const REPLConfig& config)
-    : config_(config)
-    , state_(REPLState::Ready)
-    , bracketDepth_(0)
-    , lastWasEmpty_(false)
+namespace Sad
 {
-    // Initialize color support on Windows / تفعيل دعم الألوان على ويندوز
+    namespace REPL
+    {
+
+        // ============================================================================
+        // Helper Functions / دوال مساعدة
+        // ============================================================================
+
+        // C++17 compatible starts_with
+        inline bool starts_with(const std::string &str, const std::string &prefix)
+        {
+            if (prefix.length() > str.length())
+                return false;
+            return str.compare(0, prefix.length(), prefix) == 0;
+        }
+
+        // ============================================================================
+        // Color Codes / أكواد الألوان
+        // ============================================================================
+
+        static const char *RESET = "\033[0m";
+        static const char *BOLD = "\033[1m";
+        static const char *RED = "\033[31m";
+        static const char *GREEN = "\033[32m";
+        static const char *YELLOW = "\033[33m";
+        static const char *BLUE = "\033[34m";
+        static const char *CYAN = "\033[36m";
+        static const char *MAGENTA = "\033[35m";
+
+        // ============================================================================
+        // REPLEngine Implementation / تنفيذ REPLEngine
+        // ============================================================================
+
+        REPLEngine::REPLEngine(const REPLConfig &config)
+            : config_(config), state_(REPLState::Ready), bracketDepth_(0), lastWasEmpty_(false)
+        {
+            // Initialize color support on Windows / تفعيل دعم الألوان على ويندوز
 #ifdef _WIN32
-    if (config_.enableColor) {
-        HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD dwMode = 0;
-        GetConsoleMode(hOut, &dwMode);
-        dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-        SetConsoleMode(hOut, dwMode);
-    }
+            if (config_.enableColor)
+            {
+                HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+                DWORD dwMode = 0;
+                GetConsoleMode(hOut, &dwMode);
+                dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+                SetConsoleMode(hOut, dwMode);
+            }
 #endif
 
-    // Initialize components / تهيئة المكونات
-    if (config_.enableHistory) {
-        history_ = std::make_unique<HistoryManager>(
-            config_.maxHistorySize,
-            config_.historyFile
-        );
-        history_->load();
-    }
-    
-    commands_ = std::make_unique<REPLCommands>(this);
-    
-    // Initialize interpreter / تهيئة المفسر
-    Interpreter::InterpreterOptions interpOpts;
-    interpOpts.enableDebugMode = false;
-    interpOpts.printResults = false;
-    interpreter_ = std::make_unique<Interpreter::Interpreter>(interpOpts);
-    
-    // ErrorManager is a singleton, no need to initialize
-    // errorManager_ = std::make_unique<Errors::ErrorManager>();
-}
+            // Initialize components / تهيئة المكونات
+            if (config_.enableHistory)
+            {
+                history_ = std::make_unique<HistoryManager>(
+                    config_.maxHistorySize,
+                    config_.historyFile);
+                history_->load();
+            }
 
-REPLEngine::~REPLEngine()
-{
-    // Save history / حفظ التاريخ
-    if (history_ && config_.enableHistory) {
-        history_->save();
-    }
-}
+            commands_ = std::make_unique<REPLCommands>(this);
 
-int REPLEngine::run()
-{
-    printHeader();
-    
-    while (state_ != REPLState::Exiting) {
-        try {
-            printPrompt();
-            std::string line = readLine();
-            
-            if (!processLine(line)) {
-                break;
+            // Initialize interpreter / تهيئة المفسر
+            Interpreter::InterpreterOptions interpOpts;
+            interpOpts.enableDebugMode = false;
+            interpOpts.printResults = false;
+            interpreter_ = std::make_unique<Interpreter::Interpreter>(interpOpts);
+
+            // ErrorManager is a singleton, no need to initialize
+            // errorManager_ = std::make_unique<Errors::ErrorManager>();
+        }
+
+        REPLEngine::~REPLEngine()
+        {
+            // Save history / حفظ التاريخ
+            if (history_ && config_.enableHistory)
+            {
+                history_->save();
             }
         }
-        catch (const std::exception& e) {
-            printError(std::string("خطأ داخلي / Internal error: ") + e.what());
+
+        int REPLEngine::run()
+        {
+            printHeader();
+
+            while (state_ != REPLState::Exiting)
+            {
+                try
+                {
+                    printPrompt();
+                    std::string line = readLine();
+
+                    if (!processLine(line))
+                    {
+                        break;
+                    }
+                }
+                catch (const std::exception &e)
+                {
+                    printError(std::string("خطأ داخلي / Internal error: ") + e.what());
+                    state_ = REPLState::Ready;
+                }
+            }
+
+            if (config_.enableColor)
+            {
+                std::cout << GREEN << "وداعاً! Goodbye!" << RESET << std::endl;
+            }
+            else
+            {
+                std::cout << "وداعاً! Goodbye!" << std::endl;
+            }
+
+            return 0;
+        }
+
+        std::string REPLEngine::evaluate(const std::string &line)
+        {
+            try
+            {
+                // Tokenize and Parse / التحليل المعجمي والنحوي
+                Lexer::LexerCore lexer(line);
+                Parser::ParserCore parser(lexer);
+                auto ast = parser.parseProgram();
+
+                if (ast.empty())
+                {
+                    return "";
+                }
+
+                // Check for parse errors / التحقق من أخطاء التحليل
+                if (parser.hasErrors())
+                {
+                    std::string errors;
+                    for (const auto &err : parser.getErrors())
+                    {
+                        if (!errors.empty())
+                            errors += "\n";
+                        errors += err;
+                    }
+                    return std::string("خطأ نحوي / Syntax Error: ") + errors;
+                }
+
+                // Execute via the persistent interpreter / تنفيذ عبر المفسر الدائم
+                auto result = interpreter_->execute(ast);
+
+                if (!result.success)
+                {
+                    return std::string("خطأ / Error: ") + result.errorMessage;
+                }
+
+                // Return result value if not void / إرجاع القيمة إن لم تكن فارغة
+                if (result.result.getKind() != Types::SadTypeKind::Void)
+                {
+                    return result.result.toString();
+                }
+
+                return "";
+            }
+            catch (const std::exception &e)
+            {
+                return std::string("خطأ / Error: ") + e.what();
+            }
+        }
+
+        std::string REPLEngine::evaluateMultiline(const std::vector<std::string> &lines)
+        {
+            // Combine lines / دمج الأسطر
+            std::string combined;
+            for (const auto &line : lines)
+            {
+                combined += line + "\n";
+            }
+
+            return evaluate(combined);
+        }
+
+        bool REPLEngine::loadFile(const std::string &filename)
+        {
+            std::ifstream file(filename);
+            if (!file.is_open())
+            {
+                printError("فشل فتح الملف / Failed to open file: " + filename);
+                return false;
+            }
+
+            std::string content((std::istreambuf_iterator<char>(file)),
+                                std::istreambuf_iterator<char>());
+            file.close();
+
+            std::string result = evaluate(content);
+            std::cout << result << std::endl;
+
+            return true;
+        }
+
+        void REPLEngine::reset()
+        {
+            // Reset interpreter state / إعادة تعيين حالة المفسر
+            Interpreter::InterpreterOptions interpOpts;
+            interpOpts.enableDebugMode = false;
+            interpOpts.printResults = false;
+            interpreter_ = std::make_unique<Interpreter::Interpreter>(interpOpts);
+
+            // Clear multiline buffer / مسح المخزن متعدد الأسطر
+            multilineBuffer_.clear();
+            bracketDepth_ = 0;
+            lastWasEmpty_ = false;
             state_ = REPLState::Ready;
-        }
-    }
-    
-    if (config_.enableColor) {
-        std::cout << GREEN << "وداعاً! Goodbye!" << RESET << std::endl;
-    } else {
-        std::cout << "وداعاً! Goodbye!" << std::endl;
-    }
-    
-    return 0;
-}
 
-std::string REPLEngine::evaluate(const std::string& line)
-{
-    try {
-        // Tokenize and Parse / التحليل المعجمي والنحوي
-        Lexer::LexerCore lexer(line);
-        Parser::ParserCore parser(lexer);
-        auto ast = parser.parseProgram();
-        
-        if (ast.empty()) {
-            return "";
+            std::cout << "تم إعادة تعيين حالة REPL / REPL state reset." << std::endl;
         }
-        
-        // Check for parse errors / التحقق من أخطاء التحليل
-        if (parser.hasErrors()) {
-            std::string errors;
-            for (const auto& err : parser.getErrors()) {
-                if (!errors.empty()) errors += "\n";
-                errors += err;
+
+        bool REPLEngine::processLine(const std::string &line)
+        {
+            // Add to history / إضافة للتاريخ
+            if (history_ && !line.empty() && state_ == REPLState::Ready)
+            {
+                history_->add(line);
             }
-            return std::string("خطأ نحوي / Syntax Error: ") + errors;
+
+            // Check for special command / فحص الأوامر الخاصة
+            if (commands_->isCommand(line))
+            {
+                return commands_->process(line);
+            }
+
+            // Handle multiline / معالجة متعدد الأسطر
+            if (state_ == REPLState::MultiLine || isIncomplete(line))
+            {
+                multilineBuffer_.push_back(line);
+                state_ = REPLState::MultiLine;
+
+                // Check if complete / فحص إذا اكتمل
+                if (line.empty() && lastWasEmpty_)
+                {
+                    // Two empty lines = execute / سطران فارغان = تنفيذ
+                    std::string result = evaluateMultiline(multilineBuffer_);
+                    if (config_.printResults)
+                    {
+                        std::cout << result << std::endl;
+                    }
+                    multilineBuffer_.clear();
+                    state_ = REPLState::Ready;
+                    lastWasEmpty_ = false;
+                }
+                else
+                {
+                    lastWasEmpty_ = line.empty();
+                }
+
+                return true;
+            }
+
+            // Normal code execution / تنفيذ عادي
+            processCode(line);
+            return true;
         }
-        
-        // Execute via the persistent interpreter / تنفيذ عبر المفسر الدائم
-        auto result = interpreter_->execute(ast);
-        
-        if (!result.success) {
-            return std::string("خطأ / Error: ") + result.errorMessage;
+
+        bool REPLEngine::processCommand(const std::string &command)
+        {
+            return commands_->process(command);
         }
-        
-        // Return result value if not void / إرجاع القيمة إن لم تكن فارغة
-        if (result.result.getType() != Data::ValueType::VOID) {
-            return result.result.toString();
-        }
-        
-        return "";
-    }
-    catch (const std::exception& e) {
-        return std::string("خطأ / Error: ") + e.what();
-    }
-}
 
-std::string REPLEngine::evaluateMultiline(const std::vector<std::string>& lines)
-{
-    // Combine lines / دمج الأسطر
-    std::string combined;
-    for (const auto& line : lines) {
-        combined += line + "\n";
-    }
-    
-    return evaluate(combined);
-}
+        void REPLEngine::processCode(const std::string &code)
+        {
+            if (code.empty())
+            {
+                return;
+            }
 
-bool REPLEngine::loadFile(const std::string& filename)
-{
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        printError("فشل فتح الملف / Failed to open file: " + filename);
-        return false;
-    }
-    
-    std::string content((std::istreambuf_iterator<char>(file)),
-                        std::istreambuf_iterator<char>());
-    file.close();
-    
-    std::string result = evaluate(content);
-    std::cout << result << std::endl;
-    
-    return true;
-}
+            state_ = REPLState::Executing;
+            std::string result = evaluate(code);
+            state_ = REPLState::Ready;
 
-void REPLEngine::reset()
-{
-    // Reset interpreter state / إعادة تعيين حالة المفسر
-    Interpreter::InterpreterOptions interpOpts;
-    interpOpts.enableDebugMode = false;
-    interpOpts.printResults = false;
-    interpreter_ = std::make_unique<Interpreter::Interpreter>(interpOpts);
-    
-    // Clear multiline buffer / مسح المخزن متعدد الأسطر
-    multilineBuffer_.clear();
-    bracketDepth_ = 0;
-    lastWasEmpty_ = false;
-    state_ = REPLState::Ready;
-    
-    std::cout << "تم إعادة تعيين حالة REPL / REPL state reset." << std::endl;
-}
-
-bool REPLEngine::processLine(const std::string& line)
-{
-    // Add to history / إضافة للتاريخ
-    if (history_ && !line.empty() && state_ == REPLState::Ready) {
-        history_->add(line);
-    }
-    
-    // Check for special command / فحص الأوامر الخاصة
-    if (commands_->isCommand(line)) {
-        return commands_->process(line);
-    }
-    
-    // Handle multiline / معالجة متعدد الأسطر
-    if (state_ == REPLState::MultiLine || isIncomplete(line)) {
-        multilineBuffer_.push_back(line);
-        state_ = REPLState::MultiLine;
-        
-        // Check if complete / فحص إذا اكتمل
-        if (line.empty() && lastWasEmpty_) {
-            // Two empty lines = execute / سطران فارغان = تنفيذ
-            std::string result = evaluateMultiline(multilineBuffer_);
-            if (config_.printResults) {
+            if (config_.printResults && !result.empty())
+            {
                 std::cout << result << std::endl;
             }
-            multilineBuffer_.clear();
-            state_ = REPLState::Ready;
-            lastWasEmpty_ = false;
-        } else {
-            lastWasEmpty_ = line.empty();
         }
-        
-        return true;
-    }
-    
-    // Normal code execution / تنفيذ عادي
-    processCode(line);
-    return true;
-}
 
-bool REPLEngine::processCommand(const std::string& command)
-{
-    return commands_->process(command);
-}
+        bool REPLEngine::isIncomplete(const std::string &line)
+        {
+            // Count brackets / عد الأقواس
+            int openBraces = 0;
+            int openBrackets = 0;
+            int openParens = 0;
 
-void REPLEngine::processCode(const std::string& code)
-{
-    if (code.empty()) {
-        return;
-    }
-    
-    state_ = REPLState::Executing;
-    std::string result = evaluate(code);
-    state_ = REPLState::Ready;
-    
-    if (config_.printResults && !result.empty()) {
-        std::cout << result << std::endl;
-    }
-}
+            for (char c : line)
+            {
+                if (c == '{')
+                    openBraces++;
+                else if (c == '}')
+                    openBraces--;
+                else if (c == '[')
+                    openBrackets++;
+                else if (c == ']')
+                    openBrackets--;
+                else if (c == '(')
+                    openParens++;
+                else if (c == ')')
+                    openParens--;
+            }
 
-bool REPLEngine::isIncomplete(const std::string& line)
-{
-    // Count brackets / عد الأقواس
-    int openBraces = 0;
-    int openBrackets = 0;
-    int openParens = 0;
-    
-    for (char c : line) {
-        if (c == '{') openBraces++;
-        else if (c == '}') openBraces--;
-        else if (c == '[') openBrackets++;
-        else if (c == ']') openBrackets--;
-        else if (c == '(') openParens++;
-        else if (c == ')') openParens--;
-    }
-    
-    bracketDepth_ += openBraces + openBrackets + openParens;
-    
-    // Check for incomplete keywords / فحص الكلمات المفتاحية غير المكتملة
-    std::string trimmed = line;
-    trimmed.erase(0, trimmed.find_first_not_of(" \t"));
-    
-    if (starts_with(trimmed, "دالة") || starts_with(trimmed, "function") ||
-        starts_with(trimmed, "إذا") || starts_with(trimmed, "if") ||
-        starts_with(trimmed, "لكل") || starts_with(trimmed, "for") ||
-        starts_with(trimmed, "بينما") || starts_with(trimmed, "while") ||
-        starts_with(trimmed, "صنف") || starts_with(trimmed, "class")) {
-        return true;
-    }
-    
-    return bracketDepth_ > 0;
-}
+            bracketDepth_ += openBraces + openBrackets + openParens;
 
-void REPLEngine::printPrompt()
-{
-    if (!config_.showPrompt) return;
-    
-    if (state_ == REPLState::MultiLine) {
-        if (config_.enableColor) {
-            std::cout << YELLOW << config_.multilinePrompt << RESET;
-        } else {
-            std::cout << config_.multilinePrompt;
+            // Check for incomplete keywords / فحص الكلمات المفتاحية غير المكتملة
+            std::string trimmed = line;
+            trimmed.erase(0, trimmed.find_first_not_of(" \t"));
+
+            if (starts_with(trimmed, "دالة") || starts_with(trimmed, "function") ||
+                starts_with(trimmed, "إذا") || starts_with(trimmed, "if") ||
+                starts_with(trimmed, "لكل") || starts_with(trimmed, "for") ||
+                starts_with(trimmed, "بينما") || starts_with(trimmed, "while") ||
+                starts_with(trimmed, "صنف") || starts_with(trimmed, "class"))
+            {
+                return true;
+            }
+
+            return bracketDepth_ > 0;
         }
-    } else {
-        if (config_.enableColor) {
-            std::cout << CYAN << config_.promptSymbol << RESET;
-        } else {
-            std::cout << config_.promptSymbol;
+
+        void REPLEngine::printPrompt()
+        {
+            if (!config_.showPrompt)
+                return;
+
+            if (state_ == REPLState::MultiLine)
+            {
+                if (config_.enableColor)
+                {
+                    std::cout << YELLOW << config_.multilinePrompt << RESET;
+                }
+                else
+                {
+                    std::cout << config_.multilinePrompt;
+                }
+            }
+            else
+            {
+                if (config_.enableColor)
+                {
+                    std::cout << CYAN << config_.promptSymbol << RESET;
+                }
+                else
+                {
+                    std::cout << config_.promptSymbol;
+                }
+            }
+            std::cout.flush();
         }
-    }
-    std::cout.flush();
-}
 
-void REPLEngine::printResult(const Data::Value& result)
-{
-    if (config_.enableColor) {
-        std::cout << GREEN << result.toString() << RESET << std::endl;
-    } else {
-        std::cout << result.toString() << std::endl;
-    }
-}
+        void REPLEngine::printResult(const Data::Value &result)
+        {
+            if (config_.enableColor)
+            {
+                std::cout << GREEN << result.toString() << RESET << std::endl;
+            }
+            else
+            {
+                std::cout << result.toString() << std::endl;
+            }
+        }
 
-void REPLEngine::printError(const std::string& message)
-{
-    if (config_.enableColor) {
-        std::cerr << RED << "✗ " << message << RESET << std::endl;
-    } else {
-        std::cerr << "✗ " << message << std::endl;
-    }
-}
+        void REPLEngine::printError(const std::string &message)
+        {
+            if (config_.enableColor)
+            {
+                std::cerr << RED << "✗ " << message << RESET << std::endl;
+            }
+            else
+            {
+                std::cerr << "✗ " << message << std::endl;
+            }
+        }
 
-void REPLEngine::printHeader()
-{
-    if (config_.enableColor) {
-        std::cout << BOLD << CYAN;
-        std::cout << "========================================\n";
-        std::cout << "لغة ص - REPL\n";
-        std::cout << "Sad Language REPL\n";
-        std::cout << "الإصدار / Version: 1.0.0\n";
-        std::cout << "========================================\n";
-        std::cout << RESET << std::endl;
-        
-        std::cout << "اكتب " << YELLOW << "':help'" << RESET 
-                  << " للمساعدة أو " << YELLOW << "':exit'" << RESET 
-                  << " للخروج\n";
-        std::cout << "Type " << YELLOW << "':help'" << RESET 
-                  << " for help or " << YELLOW << "':exit'" << RESET 
-                  << " to quit\n" << std::endl;
-    } else {
-        std::cout << "========================================\n";
-        std::cout << "لغة ص - REPL\n";
-        std::cout << "Sad Language REPL\n";
-        std::cout << "الإصدار / Version: 1.0.0\n";
-        std::cout << "========================================\n\n";
-        
-        std::cout << "اكتب ':help' للمساعدة أو ':exit' للخروج\n";
-        std::cout << "Type ':help' for help or ':exit' to quit\n\n";
-    }
-}
+        void REPLEngine::printHeader()
+        {
+            if (config_.enableColor)
+            {
+                std::cout << BOLD << CYAN;
+                std::cout << "========================================\n";
+                std::cout << "لغة ص - REPL\n";
+                std::cout << "Sad Language REPL\n";
+                std::cout << "الإصدار / Version: 1.0.0\n";
+                std::cout << "========================================\n";
+                std::cout << RESET << std::endl;
 
-std::string REPLEngine::readLine()
-{
-    std::string line;
-    std::getline(std::cin, line);
-    
-    // Check for EOF / فحص نهاية الملف
-    if (std::cin.eof()) {
-        state_ = REPLState::Exiting;
-        return "";
-    }
-    
-    return line;
-}
+                std::cout << "اكتب " << YELLOW << "':help'" << RESET
+                          << " للمساعدة أو " << YELLOW << "':exit'" << RESET
+                          << " للخروج\n";
+                std::cout << "Type " << YELLOW << "':help'" << RESET
+                          << " for help or " << YELLOW << "':exit'" << RESET
+                          << " to quit\n"
+                          << std::endl;
+            }
+            else
+            {
+                std::cout << "========================================\n";
+                std::cout << "لغة ص - REPL\n";
+                std::cout << "Sad Language REPL\n";
+                std::cout << "الإصدار / Version: 1.0.0\n";
+                std::cout << "========================================\n\n";
 
-} // namespace REPL
+                std::cout << "اكتب ':help' للمساعدة أو ':exit' للخروج\n";
+                std::cout << "Type ':help' for help or ':exit' to quit\n\n";
+            }
+        }
+
+        std::string REPLEngine::readLine()
+        {
+            std::string line;
+            std::getline(std::cin, line);
+
+            // Check for EOF / فحص نهاية الملف
+            if (std::cin.eof())
+            {
+                state_ = REPLState::Exiting;
+                return "";
+            }
+
+            return line;
+        }
+
+    } // namespace REPL
 } // namespace Sad

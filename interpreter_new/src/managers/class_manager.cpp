@@ -68,7 +68,7 @@ bool ClassManager::registerClass(std::unique_ptr<ClassType> classType) {
     if (it != classes_.end()) {
         // (AR) إذا كان الصنف الموجود فارغاً (تسجيل مؤقت)، استبدله
         // (EN) If existing class is empty (temporary registration), replace it
-        if (it->second->fields.empty() && it->second->methods.empty()) {
+        if (it->second->fields.empty() && it->second->methods.empty() && !it->second->constructor) {
             #ifdef DEBUG_OOP
 std::cout << "[ClassManager] تحديث التسجيل المؤقت للصنف: " << className << "\n";
 #endif
@@ -78,7 +78,7 @@ std::cout << "[ClassManager] تحديث التسجيل المؤقت للصنف: 
         
         std::cerr << "خطأ: الصنف '" << className << "' مسجل مسبقاً\n";
         std::cerr << "Error: Class '" << className << "' already registered\n";
-        return false;
+        return true;  // (AR) السماح بإعادة التعريف بدون خطأ (استيراد متعدد)
     }
     
     // (AR) تسجيل الصنف
@@ -102,34 +102,66 @@ bool ClassManager::registerClass(ClassType* classType) {
 // ======================================================================
 
 ClassType* ClassManager::getClass(const std::string& className) {
-    // (AR) الحصول على صنف بالاسم
-    // (EN) Get class by name
+    // (AR) الحصول على صنف بالاسم — يبحث أولاً في الأصناف ثم في الأسماء المستعارة
+    // (EN) Get class by name — checks classes first, then aliases
     
     auto it = classes_.find(className);
     if (it != classes_.end()) {
         return it->second.get();
+    }
+
+    // (AR) بحث في الأسماء المستعارة
+    // (EN) Check aliases
+    auto aliasIt = classAliases_.find(className);
+    if (aliasIt != classAliases_.end()) {
+        auto origIt = classes_.find(aliasIt->second);
+        if (origIt != classes_.end()) {
+            return origIt->second.get();
+        }
     }
     
     return nullptr;
 }
 
 const ClassType* ClassManager::getClass(const std::string& className) const {
-    // (AR) الحصول على صنف بالاسم (نسخة const)
-    // (EN) Get class by name (const version)
+    // (AR) الحصول على صنف بالاسم (نسخة const) — يدعم الأسماء المستعارة
+    // (EN) Get class by name (const version) — supports aliases
     
     auto it = classes_.find(className);
     if (it != classes_.end()) {
         return it->second.get();
+    }
+
+    // (AR) بحث في الأسماء المستعارة
+    auto aliasIt = classAliases_.find(className);
+    if (aliasIt != classAliases_.end()) {
+        auto origIt = classes_.find(aliasIt->second);
+        if (origIt != classes_.end()) {
+            return origIt->second.get();
+        }
     }
     
     return nullptr;
 }
 
 bool ClassManager::hasClass(const std::string& className) const {
-    // (AR) فحص وجود صنف
-    // (EN) Check if class exists
+    // (AR) فحص وجود صنف — يدعم الأسماء المستعارة
+    // (EN) Check if class exists — supports aliases
     
-    return classes_.find(className) != classes_.end();
+    if (classes_.find(className) != classes_.end()) {
+        return true;
+    }
+    return classAliases_.find(className) != classAliases_.end();
+}
+
+bool ClassManager::registerClassAlias(const std::string& aliasName, const std::string& originalName) {
+    // (AR) تسجيل اسم مستعار لصنف موجود
+    // (EN) Register a type alias for an existing class
+    if (classes_.find(originalName) == classes_.end()) {
+        return false;
+    }
+    classAliases_[aliasName] = originalName;
+    return true;
 }
 
 size_t ClassManager::getClassCount() const {
@@ -171,10 +203,11 @@ bool ClassManager::removeClass(const std::string& className) {
 }
 
 void ClassManager::clearAll() {
-    // (AR) حذف جميع الأصناف
-    // (EN) Remove all classes
+    // (AR) حذف جميع الأصناف والأسماء المستعارة
+    // (EN) Remove all classes and aliases
     
     classes_.clear();
+    classAliases_.clear();
 }
 
 // ======================================================================

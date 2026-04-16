@@ -1,0 +1,628 @@
+/**
+ * @file parser_modules.cpp
+ * @brief (AR) تنفيذ دوال تحليل نظام الوحدات (استيراد وتصدير)
+ *        (EN) Implementation of module system parsing functions (import and export)
+ * 
+ * @author Sad Language Development Team / فريق تطوير لغة ص
+ * @date December 2025 / ديسمبر 2025
+ */
+
+#include "parser_core.h"
+#include "module_nodes.h"
+#include "declarations.h"
+#include "expressions.h"
+#include "statements.h"
+#include <optional>
+
+namespace Sad {
+namespace Parser {
+
+using namespace Lexer;
+using namespace AST;
+using TT = TokenType;
+
+// =========================================================================
+// (AR) دالة مساعدة: تحليل مسار وحدة / (EN) Helper: Parse module path
+// =========================================================================
+bool ParserCore::parseModulePath(std::vector<std::string>& modulePath) {
+    if (check(TT::STRING_LITERAL)) {
+        std::string quotedPath = current_.getValue();
+        advance();
+        size_t start = 0;
+        for (size_t i = 0; i <= quotedPath.size(); ++i) {
+            if (i == quotedPath.size() || quotedPath[i] == '.' || 
+                quotedPath[i] == '/' || quotedPath[i] == '\\') {
+                if (i > start) {
+                    modulePath.push_back(quotedPath.substr(start, i - start));
+                }
+                start = i + 1;
+            }
+        }
+        if (modulePath.empty()) modulePath.push_back(quotedPath);
+        return true;
+    }
+    
+    // (AR) دعم الاستيراد النسبي: .وحدة أو ..وحدة
+    // (EN) Support relative import: .module or ..module
+    if (check(TT::DOT) || check(TT::DOT_DOT)) {
+        std::string relativePrefix;
+        if (match(TT::DOT_DOT)) {
+            relativePrefix = "..";
+        } else {
+            advance(); // consume DOT
+            relativePrefix = ".";
+        }
+        modulePath.push_back(relativePrefix);
+        
+        if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
+            error("(AR) متوقع اسم وحدة بعد '" + relativePrefix + "'. الصيغة: استورد X من .وحدة_محلية\n"
+                  "(EN) Expected module name after '" + relativePrefix + "'. Syntax: import X from .local_module");
+            return false;
+        }
+        modulePath.push_back(current_.getValue());
+        advance();
+        
+        while (match(TT::DOT)) {
+            if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
+                error("(AR) متوقع اسم وحدة بعد '.'. (EN) Expected module name after '.'.");
+                return false;
+            }
+            modulePath.push_back(current_.getValue());
+            advance();
+        }
+        return true;
+    }
+    
+    if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
+        error("(AR) متوقع اسم وحدة. (EN) Expected module name.");
+        return false;
+    }
+    
+    modulePath.push_back(current_.getValue());
+    advance();
+    
+    while (match(TT::DOT)) {
+        if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
+            error("(AR) متوقع اسم وحدة بعد '.'. (EN) Expected module name after '.'.");
+            return false;
+        }
+        modulePath.push_back(current_.getValue());
+        advance();
+    }
+    
+    return true;
+}
+
+// =========================================================================
+// (AR) تحليل جملة الاستيراد / (EN) Parse Import Statement
+// =========================================================================
+
+/**
+ * @brief (AR) يحلل جملة استيراد بالصيغ المتعددة
+ *        (EN) Parses import statement in multiple forms
+ * 
+ * @details
+ * الصيغ المدعومة / Supported syntax:
+ *   استورد وحدة                         ← استيراد بسيط
+ *   استورد وحدة كـ اسم                  ← استيراد مع اسم مستعار
+ *   استورد وحدة.فرعية.متداخلة           ← استيراد مسار متداخل
+ *   استورد * من وحدة                    ← استيراد شامل (صيغة عربية)
+ *   استورد عنصر من وحدة                 ← استيراد انتقائي (صيغة عربية)
+ *   استورد عنصر1، عنصر2 من وحدة         ← استيراد متعدد (صيغة عربية)
+ *   استورد عنصر كـ بديل من وحدة          ← استيراد مع اسم مستعار (صيغة عربية)
+ */
+StmtPtr ParserCore::parseImportStmt() {
+    Position startPos = previous_.getPosition();
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) الحالة 1: استورد * من وحدة — استيراد شامل بالصيغة العربية
+    // (EN) Case 1: import * from module — Arabic wildcard import
+    // ═══════════════════════════════════════════════════════════════════
+    if (match(TT::OP_MULTIPLY)) {
+        if (!match(TT::KEYWORD_FROM)) {
+            error("(AR) متوقع 'من' بعد 'استورد *'. الصيغة: استورد * من وحدة\n"
+                  "(EN) Expected 'from' after 'import *'. Syntax: import * from module");
+            return nullptr;
+        }
+        
+        // (AR) تحليل مسار الوحدة / (EN) Parse module path
+        std::vector<std::string> modulePath;
+        if (!parseModulePath(modulePath)) return nullptr;
+        
+        return std::make_unique<FromImportStmt>(
+            std::move(modulePath),
+            std::vector<ImportItem>(),
+            true,  // isWildcard
+            startPos
+        );
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) تحليل مسار أو اسم عنصر / (EN) Parse path or item name
+    // ═══════════════════════════════════════════════════════════════════
+    
+    // (AR) دعم الاستيراد بالنص المقتبس: استورد "وحدة"
+    // (EN) Support string-quoted import: import "module"
+    if (check(TT::STRING_LITERAL)) {
+        std::vector<std::string> modulePath;
+        std::string quotedPath = current_.getValue();
+        advance();
+        size_t start = 0;
+        for (size_t i = 0; i <= quotedPath.size(); ++i) {
+            if (i == quotedPath.size() || quotedPath[i] == '.' || 
+                quotedPath[i] == '/' || quotedPath[i] == '\\') {
+                if (i > start) {
+                    modulePath.push_back(quotedPath.substr(start, i - start));
+                }
+                start = i + 1;
+            }
+        }
+        if (modulePath.empty()) modulePath.push_back(quotedPath);
+        
+        // (AR) التحقق من 'من' بعد النص المقتبس
+        if (match(TT::KEYWORD_FROM)) {
+            // (AR) استورد "عنصر" من وحدة — نمط نادر لكنه مدعوم
+            std::vector<std::string> fromPath;
+            if (!parseModulePath(fromPath)) return nullptr;
+            
+            std::vector<ImportItem> items;
+            for (auto& p : modulePath) {
+                items.push_back(ImportItem(p));
+            }
+            return std::make_unique<FromImportStmt>(
+                std::move(fromPath), std::move(items), false, startPos);
+        }
+        
+        std::optional<std::string> alias = std::nullopt;
+        if (match(TT::KEYWORD_AS)) {
+            if (!check(TT::IDENTIFIER)) {
+                error("(AR) متوقع اسم مستعار بعد 'كـ'. (EN) Expected alias name after 'as'.");
+                return nullptr;
+            }
+            alias = current_.getValue();
+            advance();
+        }
+        return std::make_unique<ImportStmt>(std::move(modulePath), std::move(alias), startPos);
+    }
+    
+    if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
+        error("(AR) متوقع اسم وحدة أو عنصر بعد 'استورد'.\n"
+              "    الصيغ المدعومة:\n"
+              "    • استورد * من وحدة           (استيراد شامل)\n"
+              "    • استورد عنصر من وحدة         (استيراد انتقائي)\n"
+              "    • استورد عنصر1، عنصر2 من وحدة (استيراد متعدد)\n"
+              "    • استورد وحدة                  (استيراد بسيط)\n"
+              "(EN) Expected module or item name after 'import'.");
+        return nullptr;
+    }
+    
+    // (AR) حفظ المعرّف الأول / (EN) Save first identifier
+    std::string firstName = current_.getValue();
+    Position firstPos = current_.getPosition();
+    advance();
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) الحالة 2: استورد وحدة.فرعية — مسار متداخل (الصيغة القديمة)
+    // (EN) Case 2: import module.sub — dotted path (old syntax)
+    // ═══════════════════════════════════════════════════════════════════
+    if (check(TT::DOT)) {
+        std::vector<std::string> modulePath;
+        modulePath.push_back(firstName);
+        
+        while (match(TT::DOT)) {
+            if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
+                error("(AR) متوقع اسم وحدة بعد '.'. (EN) Expected module name after '.'.");
+                return nullptr;
+            }
+            modulePath.push_back(current_.getValue());
+            advance();
+        }
+        
+        std::optional<std::string> alias = std::nullopt;
+        if (match(TT::KEYWORD_AS)) {
+            if (!check(TT::IDENTIFIER)) {
+                error("(AR) متوقع اسم مستعار بعد 'كـ'. (EN) Expected alias name after 'as'.");
+                return nullptr;
+            }
+            alias = current_.getValue();
+            advance();
+        }
+        
+        return std::make_unique<ImportStmt>(std::move(modulePath), std::move(alias), startPos);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) الحالة 3: استورد عنصر من وحدة — صيغة عربية انتقائية
+    // (EN) Case 3: import item from module — Arabic selective import
+    // ═══════════════════════════════════════════════════════════════════
+    
+    // (AR) التحقق: هل يلي المعرّف فاصلة (عدة عناصر) أو 'كـ' أو 'من'
+    // (EN) Check: does comma (multiple items), 'as', or 'from' follow?
+    
+    if (checkComma() || check(TT::KEYWORD_FROM) || check(TT::KEYWORD_AS)) {
+        // (AR) جمع قائمة العناصر / (EN) Collect items list
+        std::vector<ImportItem> items;
+        
+        ImportItem firstItem;
+        firstItem.name = firstName;
+        firstItem.position = firstPos;
+        
+        // (AR) فحص 'كـ' للعنصر الأول / (EN) Check 'as' for first item
+        if (match(TT::KEYWORD_AS)) {
+            if (!check(TT::IDENTIFIER)) {
+                error("(AR) متوقع اسم مستعار بعد 'كـ'. (EN) Expected alias.");
+                return nullptr;
+            }
+            firstItem.alias = current_.getValue();
+            advance();
+        }
+        items.push_back(std::move(firstItem));
+        
+        // (AR) قراءة بقية العناصر / (EN) Read remaining items
+        while (matchComma()) {
+            if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
+                error("(AR) متوقع اسم عنصر بعد الفاصلة. (EN) Expected item name after comma.");
+                return nullptr;
+            }
+            
+            ImportItem item;
+            item.name = current_.getValue();
+            item.position = current_.getPosition();
+            advance();
+            
+            if (match(TT::KEYWORD_AS)) {
+                if (!check(TT::IDENTIFIER)) {
+                    error("(AR) متوقع اسم مستعار. (EN) Expected alias.");
+                    return nullptr;
+                }
+                item.alias = current_.getValue();
+                advance();
+            }
+            items.push_back(std::move(item));
+        }
+        
+        // (AR) الآن يجب أن تأتي 'من' / (EN) Now 'from' must follow
+        if (!match(TT::KEYWORD_FROM)) {
+            // (AR) ربما هي الصيغة القديمة: استورد وحدة كـ اسم (بدون 'من')
+            // (EN) Maybe old syntax: import module as alias (without 'from')
+            if (items.size() == 1 && items[0].alias.has_value()) {
+                // (AR) استورد وحدة كـ اسم — الصيغة القديمة
+                std::vector<std::string> modulePath = {items[0].name};
+                std::optional<std::string> alias = items[0].alias;
+                return std::make_unique<ImportStmt>(
+                    std::move(modulePath), std::move(alias), startPos);
+            }
+            error("(AR) متوقع 'من' بعد قائمة العناصر.\n"
+                  "    مثال: استورد عنصر1، عنصر2 من وحدة.فرعية\n"
+                  "(EN) Expected 'from' after items list.\n"
+                  "    Example: import item1, item2 from module.sub");
+            return nullptr;
+        }
+        
+        // (AR) تحليل مسار الوحدة بعد 'من' / (EN) Parse module path after 'from'
+        std::vector<std::string> modulePath;
+        if (!parseModulePath(modulePath)) return nullptr;
+        
+        return std::make_unique<FromImportStmt>(
+            std::move(modulePath), std::move(items), false, startPos);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // (AR) الحالة 4: استورد وحدة — استيراد بسيط (الصيغة القديمة)
+    // (EN) Case 4: import module — simple import (old syntax)
+    // ═══════════════════════════════════════════════════════════════════
+    std::vector<std::string> modulePath = {firstName};
+    std::optional<std::string> alias = std::nullopt;
+    
+    return std::make_unique<ImportStmt>(std::move(modulePath), std::move(alias), startPos);
+}
+
+// =========================================================================
+// (AR) تحليل جملة الاستيراد الانتقائي / (EN) Parse From-Import Statement
+// =========================================================================
+
+/**
+ * @brief (AR) يحلل جملة استيراد انتقائي - من [وحدة] استورد [عناصر]
+ *        (EN) Parses from-import statement - from [module] import [items]
+ * 
+ * @details
+ * Syntax / النحو:
+ *   من وحدة استورد عنصر
+ *   من وحدة استورد عنصر1، عنصر2
+ *   من وحدة استورد عنصر كـ اسم
+ *   من وحدة استورد *
+ *   من "وحدة" استورد عنصر
+ * 
+ * Grammar / القواعد:
+ *   FromImportStmt := 'من' ModulePath 'استورد' ImportItems
+ *   ImportItems := '*' | ImportItem ('،' ImportItem)*
+ *   ImportItem := IDENTIFIER ['كـ' IDENTIFIER]
+ */
+StmtPtr ParserCore::parseFromImportStmt() {
+    Position startPos = previous_.getPosition();
+    
+    // (AR) تحليل مسار الوحدة / (EN) Parse module path
+    std::vector<std::string> modulePath;
+    if (!parseModulePath(modulePath)) return nullptr;
+    
+    // (AR) يجب أن تتبعها كلمة 'استورد' / (EN) Must be followed by 'import'
+    if (!match(TT::KEYWORD_IMPORT)) {
+        error("(AR) متوقع 'استورد' بعد اسم الوحدة. (EN) Expected 'import' after module name.");
+        return nullptr;
+    }
+    
+    // (AR) فحص استيراد wildcard (*) / (EN) Check for wildcard import (*)
+    if (match(TT::OP_MULTIPLY)) {
+        return std::make_unique<FromImportStmt>(
+            std::move(modulePath),
+            std::vector<ImportItem>(),
+            true,  // isWildcard
+            startPos
+        );
+    }
+    
+    // (AR) تحليل قائمة العناصر / (EN) Parse items list
+    std::vector<ImportItem> items;
+    
+    do {
+        if (!check(TT::IDENTIFIER)) {
+            error("(AR) متوقع اسم رمز بعد 'استورد'. (EN) Expected symbol name after 'import'.");
+            return nullptr;
+        }
+        
+        ImportItem item;
+        item.name = current_.getValue();
+        item.position = current_.getPosition();
+        advance();
+        
+        // (AR) فحص الاسم المستعار / (EN) Check for alias
+        if (match(TT::KEYWORD_AS)) {
+            if (!check(TT::IDENTIFIER)) {
+                error("(AR) متوقع اسم مستعار بعد 'كـ'. (EN) Expected alias name after 'as'.");
+                return nullptr;
+            }
+            item.alias = current_.getValue();
+            advance();
+        }
+        
+        items.push_back(std::move(item));
+    } while (matchComma());
+    
+    if (items.empty()) {
+        error("(AR) يجب استيراد عنصر واحد على الأقل. (EN) Must import at least one item.");
+        return nullptr;
+    }
+    
+    return std::make_unique<FromImportStmt>(
+        std::move(modulePath), std::move(items), false, startPos);
+}
+
+// =========================================================================
+// (AR) تحليل تصريح التصدير / (EN) Parse Export Declaration
+// =========================================================================
+
+/**
+ * @brief (AR) يحلل تصريح تصدير - صدّر [تصريح]
+ *        (EN) Parses export declaration - export [declaration]
+ * 
+ * @details
+ * Syntax / النحو:
+ *   صدّر دالة اسم() { ... }
+ *   صدّر صنف اسم { ... }
+ *   صدّر ثابت PI = 3.14
+ *   صدّر رقم س = 10
+ * 
+ * Grammar / القواعد:
+ *   ExportDecl := 'صدّر' Declaration
+ *   Declaration := FunctionDecl | ClassDecl | VarDecl
+ */
+StmtPtr ParserCore::parseExportDecl() {
+    Position startPos = previous_.getPosition();
+    
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) الحالة 1: إعادة تصدير شاملة — صدّر * من وحدة
+    // (EN) Case 1: Wildcard re-export — export * from module
+    // ═══════════════════════════════════════════════════════════════
+    if (match(TT::OP_MULTIPLY)) {
+        if (!match(TT::KEYWORD_FROM)) {
+            error("(AR) متوقع 'من' بعد 'صدّر *'.\n(EN) Expected 'من' (from) after 'صدّر *'.");
+            return nullptr;
+        }
+        std::vector<std::string> modulePath;
+        if (!parseModulePath(modulePath)) {
+            error("(AR) متوقع مسار الوحدة بعد 'من'.\n(EN) Expected module path after 'من'.");
+            return nullptr;
+        }
+        return std::make_unique<AST::ReExportStmt>(
+            std::move(modulePath), std::vector<AST::ImportItem>{}, true, startPos);
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) الحالة 2: إعادة تصدير انتقائية — صدّر عنصر1، عنصر2 من وحدة
+    //      IDENTIFIER ثم FROM → إعادة تصدير عنصر واحد
+    //      IDENTIFIER ثم COMMA → قائمة إعادة تصدير
+    //      IDENTIFIER ثم AS → عنصر واحد بإسم مستعار ثم FROM
+    //      (القواعد غير ملتبسة — لا حاجة لـ backtracking)
+    // (EN) Case 2: Selective re-export — export item1, item2 from module
+    // ═══════════════════════════════════════════════════════════════
+    if (check(TT::IDENTIFIER) && !check(TT::KEYWORD_FUNCTION) && !check(TT::KEYWORD_CLASS)
+        && !check(TT::KEYWORD_CONST) && !check(TT::KEYWORD_VAR)) {
+        
+        auto nextType = peekNext().getType();
+        
+        // (AR) IDENTIFIER ثم FROM أو COMMA أو AS → إعادة تصدير
+        if (nextType == TT::KEYWORD_FROM || nextType == TT::COMMA || nextType == TT::KEYWORD_AS) {
+            std::vector<AST::ImportItem> items;
+            
+            // (AR) قراءة العنصر الأول
+            AST::ImportItem firstItem;
+            firstItem.name = current_.getValue();
+            firstItem.position = current_.getPosition();
+            advance();
+            
+            // (AR) دعم الأسماء المستعارة: صدّر عنصر كـ اسم_جديد من وحدة
+            if (match(TT::KEYWORD_AS)) {
+                if (!check(TT::IDENTIFIER)) {
+                    error("(AR) متوقع اسم مستعار بعد 'كـ'.\n(EN) Expected alias after 'كـ'.");
+                    return nullptr;
+                }
+                firstItem.alias = current_.getValue();
+                advance();
+            }
+            items.push_back(firstItem);
+            
+            // (AR) قراءة عناصر إضافية مفصولة بفاصلة
+            while (match(TT::COMMA)) {
+                if (!check(TT::IDENTIFIER)) break;
+                AST::ImportItem item;
+                item.name = current_.getValue();
+                item.position = current_.getPosition();
+                advance();
+                
+                if (match(TT::KEYWORD_AS)) {
+                    if (check(TT::IDENTIFIER)) {
+                        item.alias = current_.getValue();
+                        advance();
+                    }
+                }
+                items.push_back(item);
+            }
+            
+            // (AR) يجب أن يتبع 'من'
+            if (!match(TT::KEYWORD_FROM)) {
+                error("(AR) متوقع 'من' بعد قائمة العناصر في إعادة التصدير.\n"
+                      "(EN) Expected 'من' (from) after item list in re-export.\n"
+                      "مثال: صدّر عنصر1، عنصر2 من وحدة");
+                return nullptr;
+            }
+            
+            std::vector<std::string> modulePath;
+            if (!parseModulePath(modulePath)) {
+                error("(AR) متوقع مسار الوحدة بعد 'من'.\n(EN) Expected module path after 'من'.");
+                return nullptr;
+            }
+            return std::make_unique<AST::ReExportStmt>(
+                std::move(modulePath), std::move(items), false, startPos);
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) الحالات العادية: صدّر دالة|صنف|ثابت|متغير|خارجي|اسم
+    // (EN) Regular cases: export function|class|const|var|extern|name
+    // ═══════════════════════════════════════════════════════════════
+    StmtPtr declaration = nullptr;
+    
+    // Parse the declaration that follows 'صدّر'
+    // We need to advance past the keyword and call the appropriate parser
+    if (match(TT::KEYWORD_EXTERN)) {
+        // صدّر خارجي دالة ... - Extern function declaration
+        // (AR) تحليل اسم الربط الاختياري: صدّر خارجي("اسم_الربط") دالة ...
+        std::string ffiLinkName;
+        if (check(TT::PAREN_LEFT)) {
+            advance();
+            Token linkNameToken = consume(TT::STRING_LITERAL,
+                "(AR) خطأ نحوي: توقع نص حرفي لاسم الربط.\n"
+                "(EN) Syntax error: expected string literal for link name.");
+            ffiLinkName = linkNameToken.getValue();
+            consume(TT::PAREN_RIGHT,
+                "(AR) خطأ نحوي: توقع ')' بعد اسم الربط.\n"
+                "(EN) Syntax error: expected ')' after link name.");
+        }
+        if (!match(TT::KEYWORD_FUNCTION)) {
+            error("(AR) خطأ نحوي: توقع 'دالة' بعد 'صدّر خارجي'.\n"
+                  "(EN) Syntax error: expected 'function' after 'export extern'.");
+            return nullptr;
+        }
+        declaration = parseExternFunctionDecl(ffiLinkName);
+    }
+    else if (match(TT::KEYWORD_FUNCTION)) {
+        // صدّر دالة ... - Function keyword consumed, now parse the function
+        declaration = parseFunctionDecl();
+    }
+    else if (match(TT::KEYWORD_CLASS)) {
+        // صدّر صنف ... - Class keyword consumed, now parse the class
+        declaration = parseClassDecl();
+    }
+    else if (match(TT::KEYWORD_ENUM)) {
+        // صدّر تعداد ... - Enum keyword consumed, now parse the enum
+        declaration = parseEnumDecl();
+    }
+    else if (match(TT::KEYWORD_STRUCT)) {
+        // صدّر بنية ... - Struct keyword consumed, now parse the struct
+        declaration = parseStructDecl();
+    }
+    else if (match(TT::KEYWORD_CONST)) {
+        // صدّر ثابت ... - Const keyword consumed, now parse variable
+        declaration = parseVarDecl();
+    }
+    else if (match(TT::KEYWORD_VAR)) {
+        // صدّر متغير ... - Var keyword consumed, now parse variable
+        declaration = parseVarDecl();
+    }
+    else if (isTypeToken(current_.getType())) {
+        // صدّر رقم س = ... - Type token, parse as variable declaration
+        declaration = parseVarDecl();
+    }
+    else if (check(TT::IDENTIFIER)) {
+        // صدّر اسم = قيمة - Export alias assignment
+        // (AR) دعم تصدير الأسماء المستعارة: صدّر اسم = وحدة.عضو
+        // (EN) Support export alias: export name = module.member
+        Token nameToken = current_;
+        advance();
+        
+        if (match(TT::OP_ASSIGN)) {
+            // (AR) تحليل التعبير على اليمين
+            // (EN) Parse the RHS expression
+            ExprPtr value = parseExpression();
+            if (!value) {
+                error("(AR) متوقع قيمة بعد '=' في تصدير الإسناد. (EN) Expected value after '=' in export assignment.");
+                return nullptr;
+            }
+            
+            // (AR) إنشاء تصريح ثابت ضمني / (EN) Create implicit const declaration
+            declaration = std::make_unique<VarDeclStmt>(
+                nameToken.getValue(),
+                Data::DataType::UNKNOWN,  // (AR) سيُستنتج من القيمة
+                std::move(value),
+                true,  // isConst = true
+                nameToken.getPosition()
+            );
+        } else {
+            // (AR) صدّر اسم — بدون قيمة
+            // (EN) export name — without value (re-export)
+            // Create a variable reference to the identifier
+            auto varRef = std::make_unique<VariableExpr>(nameToken.getValue(), nameToken.getPosition());
+            declaration = std::make_unique<VarDeclStmt>(
+                nameToken.getValue(),
+                Data::DataType::UNKNOWN,
+                std::move(varRef),
+                true,
+                nameToken.getPosition()
+            );
+        }
+    }
+    else {
+        error(
+            "(AR) متوقع تصريح بعد 'صدّر' (دالة، صنف، تعداد، بنية، أو متغير).\n"
+            "(EN) Expected declaration after 'export' (function, class, enum, struct, or variable)."
+        );
+        return nullptr;
+    }
+    
+    // (AR) التحقق من نجاح التحليل / (EN) Verify parsing succeeded
+    if (!declaration) {
+        error("(AR) فشل تحليل التصريح المُصدَّر. (EN) Failed to parse exported declaration.");
+        return nullptr;
+    }
+    
+    // (AR) إنشاء عقدة ExportDecl / (EN) Create ExportDecl node
+    auto exportDecl = std::make_unique<ExportDecl>(
+        std::move(declaration),
+        startPos
+    );
+    
+    return exportDecl;
+}
+
+} // namespace Parser
+} // namespace Sad

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * اختبارات وحدات SIR - SIR Module Tests
  * 
  * الوصف: اختبارات شاملة لنظام الوحدات في SIR
@@ -60,7 +60,7 @@ void testFunction() {
     // إنشاء دالة / Create function
     auto func = std::make_shared<SIRFunction>("add", makeI64Type());
     assert(func->getName() == "add");
-    assert(func->getReturnType()->getBaseType() == SIRType::I64);
+    assert(func->getReturnType()->getBaseType() == SadTypeKind::Integer);
     
     // إضافة معاملات / Add parameters
     func->addParameter(SIRParameter{"a", makeI64Type()});
@@ -111,7 +111,7 @@ void testGlobalVariable() {
     );
     
     assert(globalVar->getName() == "counter");
-    assert(globalVar->getType()->getBaseType() == SIRType::I64);
+    assert(globalVar->getType()->getBaseType() == SadTypeKind::Integer);
     assert(!globalVar->getIsConstant());
     
     std::string globalStr = globalVar->toString();

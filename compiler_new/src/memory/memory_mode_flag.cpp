@@ -1,4 +1,4 @@
-// تعطيل تحذير Unicode للتعليقات العربية
+﻿// تعطيل تحذير Unicode للتعليقات العربية
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -322,7 +322,7 @@ FlagParseResult MemoryModeFlag::parse(const std::vector<std::string>& args) {
         if (result.settings.gcStrategy != GCStrategy::None) {
             result.success = false;
             result.warnings.push_back(
-                u8"خطأ: لا يمكن استخدام جامع القمامة في وضع بلا مكتبة قياسية\n"
+                "خطأ: لا يمكن استخدام جامع القمامة في وضع بلا مكتبة قياسية\n"
                 "Error: Cannot use garbage collector in no_std mode"
             );
             // (AR) فرض الإعدادات الصحيحة
@@ -333,7 +333,7 @@ FlagParseResult MemoryModeFlag::parse(const std::vector<std::string>& args) {
         if (result.settings.ownershipMode == OwnershipMode::Disabled) {
             result.success = false;
             result.warnings.push_back(
-                u8"خطأ: لا يمكن تعطيل نظام الملكية في وضع بلا مكتبة قياسية\n"
+                "خطأ: لا يمكن تعطيل نظام الملكية في وضع بلا مكتبة قياسية\n"
                 "Error: Cannot disable ownership in no_std mode"
             );
             result.settings.ownershipMode = OwnershipMode::UltraStrict;

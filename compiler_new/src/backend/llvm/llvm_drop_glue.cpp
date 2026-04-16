@@ -52,23 +52,23 @@ LLVMDropGlue::LLVMDropGlue(llvm::LLVMContext& context, llvm::Module& module)
     // (EN) Register primitive types that don't need cleanup
     primitiveTypes_ = {
         // ״£†ˆ״§״¹ ״µ״­״­״© / Integer types
-        u8"״¹8", u8"״¹16", u8"״¹32", u8"״¹64", u8"״¹128",
+        "״¹8", "״¹16", "״¹32", "״¹64", "״¹128",
         "i8", "i16", "i32", "i64", "i128",
-        u8"״·8", u8"״·16", u8"״·32", u8"״·64",
-        "u8", "u16", "u32", "u64",
+        "״·8", "״·16", "״·32", "״·64",
+        "", "u16", "u32", "u64",
         
         // ״£†ˆ״§״¹ ״¹״´״±״© / Float types
-        u8"״¹32", u8"״¹64",
+        "״¹32", "״¹64",
         "f32", "f64", "float", "double",
         
         // ״£†ˆ״§״¹ ״£״®״±‰ / Other types
-        u8"…†״·‚", "bool",
-        u8"״­״±", "char",
-        u8"״±״§״÷", "void",
-        u8"…״₪״´״±_״®״§…", "raw_ptr",
+        "…†״·‚", "bool",
+        "״­״±", "char",
+        "״±״§״÷", "void",
+        "…״₪״´״±_״®״§…", "raw_ptr",
         
         // ״£†ˆ״§״¹ ״­״¬… / Size types
-        u8"״­״¬…", "usize", "isize",
+        "״­״¬…", "usize", "isize",
     };
 }
 
@@ -157,7 +157,7 @@ void LLVMDropGlue::emitScopeExit(llvm::IRBuilder<>& builder) {
     
     // (AR) ‡״¯… ״§„…״×״÷״±״§״× ״¨״×״±״×״¨ ״¹ƒ״³ (LIFO)
     // (EN) Drop variables in reverse order (LIFO)
-    // ״¢״®״± …״×״÷״± ״£†״´״¦ ג€” ״£ˆ„ …״×״÷״± ‡״¯…
+    // ?�?r?� ?.?x?�???� ?�???+?'?� �?" ?�?^?, ?.?x?�???� ?????�?_?.
     for (auto it = scope.variables.rbegin(); it != scope.variables.rend(); ++it) {
         ScopedVariable& var = *it;
         
@@ -490,7 +490,7 @@ void LLVMDropGlue::emitStructDrop(llvm::IRBuilder<>& builder,
                                    const DropTypeInfo& info) {
     // (AR) ‡״¯… ״§„״­‚ˆ„ ״¨״×״±״×״¨ ״¹ƒ״³
     // (EN) Drop fields in reverse order
-    // ״¢״®״± ״­‚„ ״£״¹„† ג€” ״£ˆ„ ״­‚„ ‡״¯…
+    // ?�?r?� ?-?,?, ?�???1?,?+ �?" ?�?^?, ?-?,?, ?????�?_?.
     
     const auto& fields = info.fieldTypes;
     
@@ -543,7 +543,7 @@ void LLVMDropGlue::emitArrayDrop(llvm::IRBuilder<>& builder,
                                   llvm::Value* arrayPtr,
                                   const DropTypeInfo& info) {
     if (!info.elementType || info.elementType->isPrimitive()) {
-        return;  // (AR) ״¹†״§״µ״± ״¨״¯״§״¦״© ג€” „״§ ״×״­״×״§״¬ drop
+        return;  // (AR) ?1?+??�?� ?"?_??�???c �?" ?,? ?x?-?x??� drop
     }
     
     if (info.arraySize == 0) {

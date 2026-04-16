@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file async_codegen.hpp
  * @brief (AR) تعريفات مولّد الكود غير المتزامن
  *        (EN) Async code generator declarations
@@ -34,11 +34,11 @@ namespace llvm {
 namespace types {
 
 /**
- * @enum TypeKind
+ * @enum SadTypeKind
  * @brief (AR) أنواع البيانات للنظام الداخلي
  *        (EN) Data type kinds for internal type system
  */
-enum class TypeKind {
+enum class SadTypeKind {
     Int8,       // i8
     Int16,      // i16
     Int32,      // i32
@@ -60,14 +60,14 @@ enum class TypeKind {
  *        (EN) Abstract type information
  */
 struct Type {
-    TypeKind kind = TypeKind::Unknown;
+    SadTypeKind kind = SadTypeKind::Unknown;
     std::string name;
     
     virtual ~Type() = default;
     
     Type() = default;
-    Type(TypeKind k) : kind(k) {}
-    Type(TypeKind k, const std::string& n) : kind(k), name(n) {}
+    Type(SadTypeKind k) : kind(k) {}
+    Type(SadTypeKind k, const std::string& n) : kind(k), name(n) {}
 };
 
 } // namespace types
@@ -101,7 +101,7 @@ struct CapturedVariable {
     int defined_in_state = 0;
     
     CapturedVariable() = default;
-    CapturedVariable(const std::string& n, types::TypeKind k, int state = 0)
+    CapturedVariable(const std::string& n, types::SadTypeKind k, int state = 0)
         : name(n), type(std::make_unique<types::Type>(k)), defined_in_state(state) {}
 };
 
@@ -144,7 +144,7 @@ struct AsyncStateMachine {
     std::vector<AwaitPoint> await_points;
     std::unique_ptr<types::Type> output_type;
     
-    AsyncStateMachine() : output_type(std::make_unique<types::Type>(types::TypeKind::Unit)) {}
+    AsyncStateMachine() : output_type(std::make_unique<types::Type>(types::SadTypeKind::Unit)) {}
 };
 
 } // namespace middle

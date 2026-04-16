@@ -80,6 +80,7 @@
 #include "diagnostics.hpp"
 #include "hover.hpp"
 #include "goto_definition.hpp"
+#include "doc_comment.h"
 
 #include <iostream>
 #include <fstream>
@@ -488,6 +489,153 @@ private:
     }
     
     /**
+     * @brief تحويل نص توثيقي خام إلى Markdown غني باستخدام DocCommentParser
+     * @param raw_text النص الخام المستخرج من التعليق
+     * @return نص Markdown غني مع وسوم مُنسقة، أو النص الخام إذا لم تُوجد وسوم
+     */
+    std::string format_doc_as_markdown(const std::string& raw_text) {
+        if (raw_text.empty()) return "";
+        
+        auto doc = Sad::AST::DocCommentParser::parse(raw_text);
+        if (doc.isEmpty()) return raw_text;
+        
+        std::string md = doc.toMarkdown();
+        // إزالة الأسطر الفارغة في النهاية
+        while (!md.empty() && (md.back() == '\n' || md.back() == ' ')) {
+            md.pop_back();
+        }
+        return md.empty() ? raw_text : md;
+    }
+
+    /**
+     * @brief استخراج تعليق توثيقي من الأسطر السابقة لرمز
+     * @param lines أسطر المستند
+     * @param symbol_line رقم سطر الرمز (0-based)
+     * @return نص التوثيق بصيغة Markdown غني، أو سلسلة فارغة إذا لا يوجد
+     *
+     * يدعم نمطين:
+     * 1. تعليق سطر واحد أو أكثر: ## نص التوثيق
+     * 2. تعليق كتلة: #** نص التوثيق **#
+     */
+    std::string extract_doc_comment(const std::vector<std::string>& lines, size_t symbol_line) {
+        if (symbol_line == 0) return "";
+        
+        // (AR) تتبع الأسطر الفارغة بين التعليق والرمز
+        int scan_line = static_cast<int>(symbol_line) - 1;
+        
+        // تخطي الأسطر الفارغة بين التعليق والرمز (أسطر فارغة واحدة أو أقل)
+        while (scan_line >= 0) {
+            std::string trimmed = lines[scan_line];
+            // إزالة المسافات البيضاء من البداية والنهاية
+            size_t start = trimmed.find_first_not_of(" \t\r\n");
+            if (start == std::string::npos) {
+                // سطر فارغ — نتخطاه (سطر واحد فقط)
+                scan_line--;
+                break;
+            }
+            break;
+        }
+        
+        if (scan_line < 0) return "";
+        
+        // التحقق مما إذا كان السطر ينتهي بـ **# (نهاية تعليق كتلة توثيقي)
+        {
+            std::string trimmed = lines[scan_line];
+            size_t start = trimmed.find_first_not_of(" \t");
+            if (start != std::string::npos) {
+                trimmed = trimmed.substr(start);
+            }
+            
+            // البحث عن **# في نهاية السطر
+            // (AR) يمكن أن يكون التعليق على سطر واحد: #** نص **#
+            // (AR) أو على عدة أسطر تنتهي بـ **#
+            if (trimmed.find("**#") != std::string::npos) {
+                // تعليق كتلة توثيقي — نبحث عن بدايته #**
+                std::string block_text;
+                int block_start = scan_line;
+                
+                // البحث لأعلى عن #**
+                for (int j = scan_line; j >= 0; j--) {
+                    if (lines[j].find("#**") != std::string::npos) {
+                        block_start = j;
+                        break;
+                    }
+                }
+                
+                // تجميع نص الكتلة
+                for (int j = block_start; j <= scan_line; j++) {
+                    std::string l = lines[j];
+                    // إزالة #** من البداية
+                    size_t pos = l.find("#**");
+                    if (pos != std::string::npos) {
+                        l = l.substr(pos + std::string("#**").length());
+                    }
+                    // إزالة **# من النهاية
+                    pos = l.find("**#");
+                    if (pos != std::string::npos) {
+                        l = l.substr(0, pos);
+                    }
+                    // إزالة * بادئة سطور التعليق
+                    size_t s = l.find_first_not_of(" \t");
+                    if (s != std::string::npos && l[s] == '*') {
+                        l = l.substr(s + 1);
+                    }
+                    // إزالة المسافات البيضاء
+                    s = l.find_first_not_of(" \t");
+                    if (s != std::string::npos) {
+                        l = l.substr(s);
+                    }
+                    if (!l.empty()) {
+                        if (!block_text.empty()) block_text += "\n";
+                        block_text += l;
+                    }
+                }
+                
+                return format_doc_as_markdown(block_text);
+            }
+        }
+        
+        // التحقق من تعليقات ## (سطر واحد أو أكثر)
+        {
+            std::vector<std::string> doc_lines;
+            
+            for (int j = scan_line; j >= 0; j--) {
+                std::string trimmed = lines[j];
+                size_t start = trimmed.find_first_not_of(" \t");
+                if (start == std::string::npos) break; // سطر فارغ — توقف
+                trimmed = trimmed.substr(start);
+                
+                // التحقق من أن السطر يبدأ بـ ##
+                // (AR) ## تعليق توثيقي (وليس #* أو # عادي)
+                if (trimmed.length() >= 2 && trimmed[0] == '#' && trimmed[1] == '#') {
+                    // إزالة ## والمسافات
+                    std::string text = trimmed.substr(2);
+                    size_t s = text.find_first_not_of(" \t");
+                    if (s != std::string::npos) {
+                        text = text.substr(s);
+                    }
+                    doc_lines.push_back(text);
+                } else {
+                    break; // ليس تعليق توثيقي — توقف
+                }
+            }
+            
+            if (!doc_lines.empty()) {
+                // عكس الترتيب (جمعنا من الأسفل للأعلى)
+                std::reverse(doc_lines.begin(), doc_lines.end());
+                std::string result;
+                for (size_t k = 0; k < doc_lines.size(); k++) {
+                    if (k > 0) result += "\n";
+                    result += doc_lines[k];
+                }
+                return format_doc_as_markdown(result);
+            }
+        }
+        
+        return "";
+    }
+    
+    /**
      * @brief تحليل الرموز في المستند
      */
     void parse_symbols(DocumentInfo& doc) {
@@ -518,6 +666,7 @@ private:
                 sym.range.end = find_block_end(doc.lines, i);
                 sym.selection_range = sym.range;
                 sym.detail = "دالة";
+                sym.documentation = extract_doc_comment(doc.lines, i);
                 doc.symbols.push_back(sym);
             }
             
@@ -530,6 +679,7 @@ private:
                 sym.range.end = {static_cast<int>(i), static_cast<int>(line.length())};
                 sym.selection_range = sym.range;
                 sym.detail = match[1].str();
+                sym.documentation = extract_doc_comment(doc.lines, i);
                 doc.symbols.push_back(sym);
             }
             
@@ -542,6 +692,7 @@ private:
                 sym.range.end = find_block_end(doc.lines, i);
                 sym.selection_range = sym.range;
                 sym.detail = "صنف";
+                sym.documentation = extract_doc_comment(doc.lines, i);
                 doc.symbols.push_back(sym);
             }
             
@@ -554,6 +705,7 @@ private:
                 sym.range.end = {static_cast<int>(i), static_cast<int>(line.length())};
                 sym.selection_range = sym.range;
                 sym.detail = "ثابت";
+                sym.documentation = extract_doc_comment(doc.lines, i);
                 doc.symbols.push_back(sym);
             }
         }
@@ -623,10 +775,39 @@ private:
             path = path.substr(7);
         }
         
-        // فك ترميز URL
-        // TODO: تنفيذ كامل لفك الترميز
+        // (AR) فك ترميز URL — تحويل %XX إلى الحرف المقابل
+        // (EN) URL decode — convert %XX to corresponding character
+        std::string decoded;
+        decoded.reserve(path.size());
+        for (size_t i = 0; i < path.size(); ++i) {
+            if (path[i] == '%' && i + 2 < path.size()) {
+                char hi = path[i + 1];
+                char lo = path[i + 2];
+                auto hexVal = [](char c) -> int {
+                    if (c >= '0' && c <= '9') return c - '0';
+                    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+                    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+                    return -1;
+                };
+                int h = hexVal(hi), l = hexVal(lo);
+                if (h >= 0 && l >= 0) {
+                    decoded += static_cast<char>((h << 4) | l);
+                    i += 2;
+                    continue;
+                }
+            }
+            decoded += path[i];
+        }
         
-        return path;
+        // (AR) على Windows: تحويل / إلى \\ 
+        // (EN) On Windows: convert / to backslash
+#ifdef _WIN32
+        for (auto& c : decoded) {
+            if (c == '/') c = '\\';
+        }
+#endif
+        
+        return decoded;
     }
     
     /**
@@ -655,7 +836,28 @@ private:
         action.title = "إصلاح: " + diag.message;
         action.kind = CodeActionKind::QUICK_FIX;
         
-        // TODO: تنفيذ الإصلاحات السريعة حسب نوع الخطأ
+        // (AR) الإصلاحات السريعة حسب نوع الخطأ
+        // (EN) Quick fixes based on error type
+        std::string msg = diag.message;
+        
+        // (AR) متغير غير معرّف — اقتراح إضافة "متغير"
+        // (EN) Undefined variable — suggest adding "متغير"
+        if (msg.find("غير معرف") != std::string::npos || 
+            msg.find("undefined") != std::string::npos) {
+            action.title = "إضافة تعريف المتغير";
+        }
+        // (AR) فاصلة منقوصة
+        // (EN) Missing separator
+        else if (msg.find("نهاية") != std::string::npos ||
+                 msg.find("expected") != std::string::npos) {
+            action.title = "إضافة 'نهاية' المفقودة";
+        }
+        // (AR) استيراد مفقود
+        // (EN) Missing import
+        else if (msg.find("استورد") != std::string::npos ||
+                 msg.find("import") != std::string::npos) {
+            action.title = "إضافة الاستيراد المفقود";
+        }
         
         return action;
     }

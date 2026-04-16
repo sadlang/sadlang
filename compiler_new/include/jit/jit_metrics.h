@@ -13,6 +13,7 @@
 #include <chrono>        // للوقت / For time
 #include <memory>        // لإدارة الذاكرة الذكية / For smart pointers
 #include <string>        // للنصوص / For strings
+#include <vector>        // للمصفوفات / For vectors
 #include <unordered_map> // للخرائط السريعة / For fast maps
 #include <mutex>         // للتزامن / For thread safety
 

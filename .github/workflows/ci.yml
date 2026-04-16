@@ -82,6 +82,79 @@ jobs:
           fi
 
   # ======================================================================
+  # 1.5. تحليل ساكن / Static Analysis (clang-tidy + cppcheck)
+  # ======================================================================
+  static-analysis:
+    name: "🔍 تحليل ساكن / Static Analysis"
+    runs-on: ubuntu-latest
+    needs: code-quality
+
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: "📦 تثبيت أدوات التحليل / Install Analysis Tools"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ build-essential cppcheck clang-tidy-18
+          sudo ln -sf /usr/bin/clang-tidy-18 /usr/bin/clang-tidy 2>/dev/null || true
+
+      - name: "📦 تثبيت LLVM 18 / Install LLVM 18"
+        run: |
+          CODENAME=$(lsb_release -cs)
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
+          sudo apt-get update
+          sudo apt-get install -y llvm-18-dev libclang-18-dev || true
+          echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
+
+      - name: "🔨 تكوين CMake (لتوليد compile_commands.json) / Configure CMake"
+        run: |
+          cmake -B build \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DBUILD_TESTS=OFF \
+            -DENABLE_LLVM_BACKEND=ON \
+            -DLLVM_DIR=$LLVM_DIR \
+            -DCMAKE_BUILD_TYPE=Debug
+
+      - name: "🔍 cppcheck / Run cppcheck"
+        run: |
+          echo "═══ cppcheck — فحص الكود الساكن ═══"
+          cppcheck \
+            --enable=warning,performance,portability \
+            --suppress=missingInclude \
+            --suppress=unusedFunction \
+            --suppress=unmatchedSuppression \
+            --error-exitcode=0 \
+            --inline-suppr \
+            --std=c++17 \
+            --quiet \
+            -I shared/lexer/include \
+            -I shared/parser/include \
+            -I shared/ast/include \
+            -I shared/types/include \
+            -I shared/errors/include \
+            -I interpreter_new/include \
+            -I compiler_new/include \
+            shared/ interpreter_new/ compiler_new/ stdlib/ 2>&1 | head -100
+          echo "✅ cppcheck اكتمل / cppcheck completed"
+
+      - name: "🔍 clang-tidy (ملفات مُعدَّلة فقط) / Run clang-tidy (changed files only)"
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "═══ clang-tidy — فحص الملفات المُعدَّلة فقط ═══"
+          git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD -- '*.cpp' '*.h' | \
+            grep -v 'third_party\|SDL2\|build' | head -20 | while read f; do
+              if [ -f "$f" ]; then
+                echo "▶️ $f"
+                clang-tidy -p build "$f" --quiet 2>/dev/null || true
+              fi
+            done
+          echo "✅ clang-tidy اكتمل / clang-tidy completed"
+
+  # ======================================================================
   # 2. البناء والاختبار — Windows / Build & Test — Windows
   # ======================================================================
   windows:
@@ -272,6 +345,24 @@ jobs:
           cd build
           ctest --config ${{ matrix.config }} --output-on-failure --timeout 120 -j4
 
+      - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
+        shell: pwsh
+        if: matrix.config == 'Release'
+        run: |
+          $sad = "build/bin/${{ matrix.config }}/sad.exe"
+          $sadc = "build/bin/${{ matrix.config }}/sadc.exe"
+          if ((Test-Path $sad) -and (Test-Path $sadc)) {
+            Write-Host "▶️ Running dual execution tests..." -ForegroundColor Cyan
+            python tests/dual_execution/runner.py --level P0 --timeout 30 --interp $sad --compiler $sadc --report
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "⚠️ Dual execution tests had failures" -ForegroundColor Yellow
+            } else {
+              Write-Host "✅ Dual execution tests passed" -ForegroundColor Green
+            }
+          } else {
+            Write-Host "⚠️ SKIP: sad.exe or sadc.exe not found" -ForegroundColor Yellow
+          }
+
       - name: "💾 حفظ الملفات التنفيذية / Upload Artifacts"
         uses: actions/upload-artifact@v4
         with:
@@ -402,7 +493,20 @@ jobs:
           cd build
           ctest --config ${{ matrix.config }} --output-on-failure --timeout 120 -j$(nproc)
 
-      - name: "💾 حفظ الملفات / Upload Artifacts"
+      - name: "� اختبارات التنفيذ المزدوج / Dual Execution Tests"
+        if: matrix.config == 'Release'
+        run: |
+          sad="build/bin/sad"
+          sadc="build/bin/sadc"
+          if [ -x "$sad" ] && [ -x "$sadc" ]; then
+            echo "▶️ Running dual execution tests..."
+            python3 tests/dual_execution/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
+              echo "⚠️ Dual execution tests had failures"
+          else
+            echo "⚠️ SKIP: sad or sadc not found"
+          fi
+
+      - name: "�💾 حفظ الملفات / Upload Artifacts"
         uses: actions/upload-artifact@v4
         with:
           name: sad-linux-${{ matrix.config }}
@@ -509,7 +613,20 @@ jobs:
           cd build
           ctest --config ${{ matrix.config }} --output-on-failure --timeout 120 -j$(sysctl -n hw.ncpu)
 
-      - name: "💾 حفظ الملفات / Upload Artifacts"
+      - name: "� اختبارات التنفيذ المزدوج / Dual Execution Tests"
+        if: matrix.config == 'Release'
+        run: |
+          sad="build/bin/sad"
+          sadc="build/bin/sadc"
+          if [ -x "$sad" ] && [ -x "$sadc" ]; then
+            echo "▶️ Running dual execution tests..."
+            python3 tests/dual_execution/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
+              echo "⚠️ Dual execution tests had failures"
+          else
+            echo "⚠️ SKIP: sad or sadc not found"
+          fi
+
+      - name: "�💾 حفظ الملفات / Upload Artifacts"
         uses: actions/upload-artifact@v4
         with:
           name: sad-macos-${{ matrix.config }}

@@ -34,6 +34,12 @@ The format is based on Keep a Changelog, and this project aims to follow Semanti
 - LLVM Debug/Release mismatch guard in `cmake/llvm.cmake` with clear warnings.
 - `analyzeExports()` implementation in `shared/modules/src/module.cpp` — now extracts exported symbols from AST.
 - `checkConflicts()` implementation in `compiler_new/src/types/parallel_solver.cpp`.
+- ✅ **أنواع جبرية (ADT)** — `تعداد` مع حقول بيانات، مدعوم في المفسر والمترجم (22 اختبار).
+- ✅ **Result/Option + عامل انشر** — `نتيجة`/`اختياري` عبر ADT + `انشر` للإرجاع المبكر.
+- ✅ **أسماء مستعارة للأنواع** — `نوع اسم = هدف`، مفسر + مترجم.
+- ✅ **صفوف (Tuples)** — `(قيمة1، قيمة2)` + تفكيك + `.0 .1`، مفسر + مترجم (15 اختبار).
+- ✅ **أصناف محكمة (Sealed Classes)** — `محكم صنف`، مفسر + مترجم + حماية عبر الملفات (10 اختبارات).
+- ✅ **تأجيل مضمون (Defer)** — `أجّل` كلمة سياقية، LIFO، جملة/كتلة، مفسر + مترجم (10 اختبارات).
 
 ### Changed
 - `README.md` refreshed with accurate structure, setup, and references.

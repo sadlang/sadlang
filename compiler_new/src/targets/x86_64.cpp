@@ -589,8 +589,10 @@ struct SadX86CodeGen {
 SadX86CodeGen* sad_x86_codegen_new(int windows) {
     auto cc = windows ? sad::targets::CallingConvention::Win64 
                       : sad::targets::CallingConvention::SystemV;
-    auto* ctx = new SadX86CodeGen();
-    ctx->gen = new sad::targets::X86_64CodeGen(cc);
+    auto* ctx = new (std::nothrow) SadX86CodeGen();
+    if (!ctx) return nullptr;
+    ctx->gen = new (std::nothrow) sad::targets::X86_64CodeGen(cc);
+    if (!ctx->gen) { delete ctx; return nullptr; }
     return ctx;
 }
 

@@ -35,6 +35,34 @@
 namespace sad::compiler {
 
 // =============================================================================
+// (AR) دالة مساعدة: تحقق من سلامة المسار قبل تمريره لشل
+// (EN) Helper: validate path safety before passing to shell
+// =============================================================================
+static bool isPathSafeForShell(const std::string& path) {
+    // (AR) رفض المسارات التي تحتوي أحرف خطيرة (حقن أوامر)
+    // (EN) Reject paths with dangerous characters (command injection)
+    for (char c : path) {
+        if (c == ';' || c == '|' || c == '&' || c == '`' ||
+            c == '$' || c == '(' || c == ')' || c == '\n' || c == '\r') {
+            return false;
+        }
+    }
+    return !path.empty();
+}
+
+static std::string quotePathForShell(const std::string& path) {
+    // (AR) لف المسار بعلامات اقتباس مع هروب الأقواس الداخلية
+    // (EN) Quote path, escaping inner quotes
+    std::string result = "\"";
+    for (char c : path) {
+        if (c == '"') result += "\\\"";
+        else result += c;
+    }
+    result += "\"";
+    return result;
+}
+
+// =============================================================================
 // تكوينات ARM64 المدعومة
 // =============================================================================
 
@@ -310,6 +338,20 @@ public:
         }
         
         std::cout << "🔗 ربط: " << cmd << std::endl;
+        
+        // (AR) تحقق من سلامة المسارات قبل التنفيذ
+        // (EN) Validate path safety before execution
+        if (!isPathSafeForShell(outputPath)) {
+            std::cerr << "❌ مسار الإخراج يحتوي أحرف غير آمنة: " << outputPath << std::endl;
+            return false;
+        }
+        for (const auto& obj : objectFiles) {
+            if (!isPathSafeForShell(obj)) {
+                std::cerr << "❌ مسار ملف كائن يحتوي أحرف غير آمنة: " << obj << std::endl;
+                return false;
+            }
+        }
+        
         int result = std::system(cmd.c_str());
         
         if (result == 0) {

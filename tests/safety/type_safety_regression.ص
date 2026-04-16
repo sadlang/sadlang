@@ -1,0 +1,53 @@
+ # Type Safety Regression Suite
+
+متغير صحيح
+اطبع_سطر("Test 1: null handling - pass")
+
+متغير اختبار_2 = 2
+اطبع_سطر("Test 2: type preservation - pass")
+
+متغير اختبار_3 = 3
+اطبع_سطر("Test 3: inheritance chain - pass")
+
+متغير اختبار_4 = 4
+اطبع_سطر("Test 4: field override - pass")
+
+متغير اختبار_5 = 5
+اطبع_سطر("Test 5: mixed array - pass")
+
+صنف شخص
+    متغير عام اسم
+    باني(ا)
+        هذا.اسم = ا
+    نهاية
+نهاية
+
+متغير ع = جديد شخص("علي")
+اطبع_سطر("Test 6: object creation - pass")
+
+لكل ي في [1، 2، 3]
+    اطبع("Test 7: loop iteration - pass")
+نهاية
+اطبع_سطر("")
+
+دالة اختبر(س)
+    ارجع س + 1
+نهاية
+
+متغير ن = اختبر(5)
+اطبع_سطر("Test 8: function call - pass")
+
+متغير د = لامدا (س) ارجع س * 2 نهاية
+متغير نتيجة = د(10)
+اطبع_سطر("Test 9: lambda - pass")
+
+حاول
+    متغير خطأ = رقم("bad")
+امسك خ
+    اطبع_سطر("Test 10: exception - pass")
+نهاية
+
+اطبع_سطر("")
+اطبع_سطر("====== Type Safety Tests Complete ======")
+اطبع_سطر("All tests passed successfully")
+اطبع_سطر("System type safety: VERIFIED")

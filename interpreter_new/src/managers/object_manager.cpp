@@ -31,11 +31,17 @@ ObjectManager::ObjectManager() {
     // (EN) Private constructor for singleton pattern
 }
 
+// (AR) Mutex مشترك لحماية العمليات على النسخة المفردة
+// (EN) Shared mutex for singleton instance operations
+static std::mutex& getSingletonMutex() {
+    static std::mutex mtx;
+    return mtx;
+}
+
 ObjectManager* ObjectManager::getInstance() {
     // (AR) الحصول على النسخة الوحيدة من المدير (مع حماية خيوط)
     // (EN) Get singleton instance of manager (thread-safe)
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(getSingletonMutex());
     
     if (!instance_) {
         instance_ = new ObjectManager();
@@ -46,8 +52,7 @@ ObjectManager* ObjectManager::getInstance() {
 void ObjectManager::resetInstance() {
     // (AR) إعادة تعيين المدير (مع حماية خيوط)
     // (EN) Reset manager (thread-safe)
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(getSingletonMutex());
     
     if (instance_) {
         delete instance_;

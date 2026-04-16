@@ -175,24 +175,46 @@ set_target_properties(io_functions_tests PROPERTIES
 add_test(NAME IOFunctionsTests COMMAND io_functions_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # ──────────────────────────────────────────────────────────────────────
+# اختبارات Code Actions وتعافي الأخطاء في LSP / LSP Code Actions Tests
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/test_lsp_code_actions.cpp")
+    add_executable(lsp_code_actions_tests tests/test_lsp_code_actions.cpp)
+    target_link_libraries(lsp_code_actions_tests PRIVATE sad_core)
+    set_target_properties(lsp_code_actions_tests PROPERTIES
+        OUTPUT_NAME "lsp_code_actions_tests" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME LspCodeActionsTests COMMAND lsp_code_actions_tests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات Code Actions في LSP / LSP Code Actions tests enabled")
+else()
+    message(STATUS "⚠ اختبارات Code Actions غير متاحة / LSP Code Actions tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
 # اختبارات محسّن اللغة العربية / Arabic Optimizer Tests
 # ──────────────────────────────────────────────────────────────────────
-add_executable(test_arabic_optimizer tests/test_arabic_optimizer.cpp)
-target_include_directories(test_arabic_optimizer PRIVATE
-    ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/compiler/llvm/include)
-set_target_properties(test_arabic_optimizer PROPERTIES
-    OUTPUT_NAME "test_arabic_optimizer" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-add_test(NAME ArabicOptimizerTests COMMAND test_arabic_optimizer WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-message(STATUS "✓ اختبارات محسّن اللغة العربية (standalone) / Arabic Optimizer tests enabled")
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/test_arabic_optimizer.cpp")
+    add_executable(test_arabic_optimizer tests/test_arabic_optimizer.cpp)
+    target_include_directories(test_arabic_optimizer PRIVATE
+        ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/compiler/llvm/include)
+    set_target_properties(test_arabic_optimizer PROPERTIES
+        OUTPUT_NAME "test_arabic_optimizer" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME ArabicOptimizerTests COMMAND test_arabic_optimizer WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات محسّن اللغة العربية (standalone) / Arabic Optimizer tests enabled")
+else()
+    message(STATUS "⊘ اختبارات محسّن اللغة العربية معطلة (ملف مفقود) / Arabic Optimizer tests disabled (missing file)")
+endif()
 
 # ──────────────────────────────────────────────────────────────────────
 # قياسات أداء التحسينات / Optimization Benchmarks
 # ──────────────────────────────────────────────────────────────────────
-add_executable(benchmark_arabic_opt tests/benchmark_arabic_opt.cpp)
-target_include_directories(benchmark_arabic_opt PRIVATE ${CMAKE_SOURCE_DIR}/include)
-set_target_properties(benchmark_arabic_opt PROPERTIES
-    OUTPUT_NAME "benchmark_arabic_opt" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-message(STATUS "✓ قياسات أداء محسّن اللغة العربية / Arabic Optimizer benchmarks enabled")
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/benchmark_arabic_opt.cpp")
+    add_executable(benchmark_arabic_opt tests/benchmark_arabic_opt.cpp)
+    target_include_directories(benchmark_arabic_opt PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    set_target_properties(benchmark_arabic_opt PROPERTIES
+        OUTPUT_NAME "benchmark_arabic_opt" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    message(STATUS "✓ قياسات أداء محسّن اللغة العربية / Arabic Optimizer benchmarks enabled")
+else()
+    message(STATUS "⊘ قياسات أداء محسّن اللغة العربية معطلة (ملف مفقود) / Arabic Optimizer benchmarks disabled (missing file)")
+endif()
 
 # ──────────────────────────────────────────────────────────────────────
 # المحسن المتقدم (معطل - يحتاج GTest) / Advanced Optimizer (disabled)
@@ -279,6 +301,23 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/tests/compiler/optimizer/CMakeLists.txt")
     message(STATUS "✓ اختبارات محسّن SIR / SIR Optimizer tests enabled")
 else()
     message(STATUS "⚠ اختبارات محسّن SIR غير متاحة / SIR Optimizer tests not available")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات طبقة الجسر — ADR-01 Phase 1 / Type Bridge Tests
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/unit/test_type_bridge.cpp")
+    add_executable(test_type_bridge tests/unit/test_type_bridge.cpp)
+    target_link_libraries(test_type_bridge PRIVATE sad_core)
+    target_include_directories(test_type_bridge PRIVATE
+        ${CMAKE_SOURCE_DIR}/shared/types/include
+        ${CMAKE_SOURCE_DIR}/shared/ast/include)
+    set_target_properties(test_type_bridge PROPERTIES
+        OUTPUT_NAME "test_type_bridge" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_test(NAME TypeBridgeTests COMMAND test_type_bridge WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    message(STATUS "✓ اختبارات طبقة الجسر / Type Bridge tests enabled (ADR-01)")
+else()
+    message(STATUS "⚠ اختبارات طبقة الجسر غير متاحة / Type Bridge tests not available")
 endif()
 
 # ──────────────────────────────────────────────────────────────────────

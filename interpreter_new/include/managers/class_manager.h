@@ -31,6 +31,10 @@
 #include <functional>
 
 namespace Sad {
+
+// (AR) تصريح أمامي / (EN) Forward declaration
+namespace AST { class Statement; class BlockStmt; }
+
 namespace Data {
 
 // ======================================================================
@@ -44,8 +48,13 @@ namespace Data {
 struct TraitMethodInfo {
     std::string name;                           ///< (AR) اسم الدالة / (EN) method name
     std::vector<DataType> paramTypes;           ///< (AR) أنواع المعاملات / (EN) parameter types
+    std::vector<std::string> paramNames;        ///< (AR) أسماء المعاملات / (EN) parameter names
     DataType returnType;                        ///< (AR) نوع الإرجاع / (EN) return type
     bool hasDefaultImpl;                        ///< (AR) هل لها تنفيذ افتراضي / (EN) has default implementation
+    
+    /// (AR) جسم التنفيذ الافتراضي — ملكية مشتركة مع AST السمة
+    /// (EN) Default body AST — shared ownership with trait AST
+    std::shared_ptr<AST::BlockStmt> defaultBody;
     
     TraitMethodInfo() : returnType(DataType::NONE), hasDefaultImpl(false) {}
     TraitMethodInfo(const std::string& n, DataType ret, bool hasDef = false)
@@ -222,7 +231,18 @@ public:
      * @brief (EN) Get class by name (const version)
      */
     const ClassType* getClass(const std::string& className) const;
-    
+
+    /**
+     * @brief (AR) تسجيل اسم مستعار لصنف موجود — يُسجّل نسخة جديدة تحت الاسم المستعار
+     *        تُنسخ جميع الحقول والدوال والباني ومعلومات الوراثة
+     * @brief (EN) Register a type alias for an existing class — creates a copy under alias name
+     *
+     * @param aliasName  (AR) الاسم المستعار الجديد / (EN) New alias name
+     * @param originalName (AR) اسم الصنف الأصلي / (EN) Original class name
+     * @return (bool) — true إذا نجح / true if succeeded
+     */
+    bool registerClassAlias(const std::string& aliasName, const std::string& originalName);
+
     /**
      * @brief (AR) هل الصنف موجود؟
      * @brief (EN) Does class exist?
@@ -394,6 +414,12 @@ private:
      * - EN: Value: smart pointer to class
      */
     std::unordered_map<std::string, std::unique_ptr<ClassType>> classes_;
+
+    /**
+     * @brief (AR) خريطة الأسماء المستعارة للأصناف — المفتاح: الاسم المستعار، القيمة: الاسم الأصلي
+     * @brief (EN) Class alias map — key: alias name, value: original class name
+     */
+    std::unordered_map<std::string, std::string> classAliases_;
     
     /**
      * @brief (AR) خريطة الواجهات المسجلة

@@ -1,13 +1,13 @@
-/**
+﻿/**
  * @file test_compiler_comprehensive.cpp
  * @brief (AR) اختبارات شاملة للمترجم - SIR والأنواع والتعليمات
  * @brief (EN) Comprehensive Compiler Tests - SIR, Types, and Instructions
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════
  *  ملف اختبارات المترجم (Compiler) الشاملة
  *  يحتوي على ~100 اختبار موزعة كالتالي:
- * 
- *  ■ القسم 1: أنواع SIR (SIRType) - 15 اختبار
+ *
+ *  ■ القسم 1: أنواع SIR (SadTypeKind) - 15 اختبار
  *  ■ القسم 2: رموز العمليات (SIROpcode) - 25 اختبار
  *  ■ القسم 3: المعاملات (SIROperand) - 15 اختبار
  *  ■ القسم 4: التعليمات (SIRInstruction) - 20 اختبار
@@ -24,31 +24,31 @@
 // ══════════════════════════════════════════════════════════════════════
 
 #if __has_include("sir_types.h")
-    #include "sir_types.h"
-    #define HAS_SIR_TYPES 1
+#include "sir_types.h"
+#define HAS_SIR_TYPES 1
 #else
-    #define HAS_SIR_TYPES 0
+#define HAS_SIR_TYPES 0
 #endif
 
 #if __has_include("sir_instruction.h")
-    #include "sir_instruction.h"
-    #define HAS_SIR_INSTRUCTION 1
+#include "sir_instruction.h"
+#define HAS_SIR_INSTRUCTION 1
 #else
-    #define HAS_SIR_INSTRUCTION 0
+#define HAS_SIR_INSTRUCTION 0
 #endif
 
 #if __has_include("sir_module.h")
-    #include "sir_module.h"
-    #define HAS_SIR_MODULE 1
+#include "sir_module.h"
+#define HAS_SIR_MODULE 1
 #else
-    #define HAS_SIR_MODULE 0
+#define HAS_SIR_MODULE 0
 #endif
 
 #if __has_include("sir_builder.h")
-    #include "sir_builder.h"
-    #define HAS_SIR_BUILDER 1
+#include "sir_builder.h"
+#define HAS_SIR_BUILDER 1
 #else
-    #define HAS_SIR_BUILDER 0
+#define HAS_SIR_BUILDER 0
 #endif
 
 // ══════════════════════════════════════════════════════════════════════
@@ -56,24 +56,24 @@
 // ══════════════════════════════════════════════════════════════════════
 
 #if __has_include("sad_vm_value.h")
-    #include "sad_vm_value.h"
-    #define HAS_VM_VALUE 1
+#include "sad_vm_value.h"
+#define HAS_VM_VALUE 1
 #else
-    #define HAS_VM_VALUE 0
+#define HAS_VM_VALUE 0
 #endif
 
 #if __has_include("sad_vm_chunk.h")
-    #include "sad_vm_chunk.h"
-    #define HAS_VM_CHUNK 1
+#include "sad_vm_chunk.h"
+#define HAS_VM_CHUNK 1
 #else
-    #define HAS_VM_CHUNK 0
+#define HAS_VM_CHUNK 0
 #endif
 
 #if __has_include("sad_vm_opcodes.h")
-    #include "sad_vm_opcodes.h"
-    #define HAS_VM_OPCODES 1
+#include "sad_vm_opcodes.h"
+#define HAS_VM_OPCODES 1
 #else
-    #define HAS_VM_OPCODES 0
+#define HAS_VM_OPCODES 0
 #endif
 
 #include <string>
@@ -83,11 +83,12 @@
 //  نقطة الدخول
 // ══════════════════════════════════════════════════════════════════════
 
-int main() {
+int main()
+{
     SAD_TEST_INIT();
 
     // ╔══════════════════════════════════════════════════════════════════╗
-    // ║  القسم 1: أنواع SIR (SIRType) - 15 اختبار                       ║
+    // ║  القسم 1: أنواع SIR (SadTypeKind) - 15 اختبار                       ║
     // ╚══════════════════════════════════════════════════════════════════╝
 
 #if HAS_SIR_TYPES
@@ -95,84 +96,84 @@ int main() {
     SAD_GROUP("Compiler.SIRTypes / المترجم.أنواع_SIR");
 
     SAD_TEST("SIRT01: نوع VOID", {
-        auto type = Sad::Compiler::SIR::SIRType::VOID;
+        auto type = Sad::Compiler::SIR::SadTypeKind::Void;
         SAD_ASSERT_EQ((int)type, 0);
         auto str = Sad::Compiler::SIR::sirTypeToString(type);
         SAD_ASSERT_TRUE(str != nullptr);
     });
 
     SAD_TEST("SIRT02: نوع I64 (رقم صحيح)", {
-        auto type = Sad::Compiler::SIR::SIRType::I64;
+        auto type = Sad::Compiler::SIR::SadTypeKind::Integer;
         auto str = Sad::Compiler::SIR::sirTypeToString(type);
         SAD_ASSERT_TRUE(std::string(str) == "i64");
     });
 
     SAD_TEST("SIRT03: نوع F64 (رقم عشري)", {
-        auto type = Sad::Compiler::SIR::SIRType::F64;
+        auto type = Sad::Compiler::SIR::SadTypeKind::Float;
         auto str = Sad::Compiler::SIR::sirTypeToString(type);
         SAD_ASSERT_TRUE(std::string(str) == "f64");
     });
 
     SAD_TEST("SIRT04: نوع BOOL (منطقي)", {
-        auto type = Sad::Compiler::SIR::SIRType::BOOL;
+        auto type = Sad::Compiler::SIR::SadTypeKind::Boolean;
         auto str = Sad::Compiler::SIR::sirTypeToString(type);
         SAD_ASSERT_TRUE(std::string(str) == "bool");
     });
 
     SAD_TEST("SIRT05: نوع PTR (مؤشر)", {
-        auto type = Sad::Compiler::SIR::SIRType::PTR;
+        auto type = Sad::Compiler::SIR::SadTypeKind::Pointer;
         auto str = Sad::Compiler::SIR::sirTypeToString(type);
         SAD_ASSERT_TRUE(std::string(str) == "ptr");
     });
 
     SAD_TEST("SIRT06: نوع ARRAY (مصفوفة)", {
-        auto type = Sad::Compiler::SIR::SIRType::ARRAY;
+        auto type = Sad::Compiler::SIR::SadTypeKind::Array;
         auto str = Sad::Compiler::SIR::sirTypeToString(type);
         SAD_ASSERT_TRUE(std::string(str) == "array");
     });
 
     SAD_TEST("SIRT07: نوع STRING (نص)", {
-        auto type = Sad::Compiler::SIR::SIRType::STRING;
+        auto type = Sad::Compiler::SIR::SadTypeKind::String;
         auto str = Sad::Compiler::SIR::sirTypeToString(type);
         SAD_ASSERT_TRUE(std::string(str) == "string");
     });
 
     SAD_TEST("SIRT08: نوع STRUCT (بنية)", {
-        auto type = Sad::Compiler::SIR::SIRType::STRUCT;
+        auto type = Sad::Compiler::SIR::SadTypeKind::Struct;
         auto str = Sad::Compiler::SIR::sirTypeToString(type);
         SAD_ASSERT_TRUE(std::string(str) == "struct");
     });
 
     SAD_TEST("SIRT09: نوع FUNCTION (دالة)", {
-        auto type = Sad::Compiler::SIR::SIRType::FUNCTION;
+        auto type = Sad::Compiler::SIR::SadTypeKind::Function;
         auto str = Sad::Compiler::SIR::sirTypeToString(type);
         SAD_ASSERT_TRUE(std::string(str) == "function");
     });
 
     SAD_TEST("SIRT10: مقارنة الأنواع - VOID != I64", {
-        SAD_ASSERT_TRUE(Sad::Compiler::SIR::SIRType::VOID != Sad::Compiler::SIR::SIRType::I64);
+        SAD_ASSERT_TRUE(Sad::Compiler::SIR::SadTypeKind::Void != Sad::Compiler::SIR::SadTypeKind::Integer);
     });
 
     SAD_TEST("SIRT11: مقارنة الأنواع - F64 == F64", {
-        auto t1 = Sad::Compiler::SIR::SIRType::F64;
-        auto t2 = Sad::Compiler::SIR::SIRType::F64;
+        auto t1 = Sad::Compiler::SIR::SadTypeKind::Float;
+        auto t2 = Sad::Compiler::SIR::SadTypeKind::Float;
         SAD_ASSERT_TRUE(t1 == t2);
     });
 
     SAD_TEST("SIRT12: تحويل جميع الأنواع لنص", {
         // التحقق من أن كل نوع يُرجع نصاً غير فارغ
         const auto types = {
-            Sad::Compiler::SIR::SIRType::VOID,
-            Sad::Compiler::SIR::SIRType::I64,
-            Sad::Compiler::SIR::SIRType::F64,
-            Sad::Compiler::SIR::SIRType::BOOL,
-            Sad::Compiler::SIR::SIRType::PTR,
-            Sad::Compiler::SIR::SIRType::ARRAY,
-            Sad::Compiler::SIR::SIRType::STRING,
-            Sad::Compiler::SIR::SIRType::STRUCT,
-            Sad::Compiler::SIR::SIRType::FUNCTION
-        };
-        for (auto t : types) {
+            Sad::Compiler::SIR::SadTypeKind::Void,
+            Sad::Compiler::SIR::SadTypeKind::Integer,
+            Sad::Compiler::SIR::SadTypeKind::Float,
+            Sad::Compiler::SIR::SadTypeKind::Boolean,
+            Sad::Compiler::SIR::SadTypeKind::Pointer,
+            Sad::Compiler::SIR::SadTypeKind::Array,
+            Sad::Compiler::SIR::SadTypeKind::String,
+            Sad::Compiler::SIR::SadTypeKind::Struct,
+            Sad::Compiler::SIR::SadTypeKind::Function};
+        for (auto t : types)
+        {
             auto str = Sad::Compiler::SIR::sirTypeToString(t);
             SAD_ASSERT_TRUE(str != nullptr);
             SAD_ASSERT_TRUE(strlen(str) > 0);
@@ -181,20 +182,20 @@ int main() {
 
     SAD_TEST("SIRT13: ترتيب الأنواع", {
         // التحقق من أن VOID هو الأول
-        SAD_ASSERT_TRUE((int)Sad::Compiler::SIR::SIRType::VOID < (int)Sad::Compiler::SIR::SIRType::I64);
+        SAD_ASSERT_TRUE((int)Sad::Compiler::SIR::SadTypeKind::Void < (int)Sad::Compiler::SIR::SadTypeKind::Integer);
     });
 
     SAD_TEST("SIRT14: أنواع رقمية", {
         // I64 و F64 هي الأنواع الرقمية
-        auto i64 = Sad::Compiler::SIR::SIRType::I64;
-        auto f64 = Sad::Compiler::SIR::SIRType::F64;
+        auto i64 = Sad::Compiler::SIR::SadTypeKind::Integer;
+        auto f64 = Sad::Compiler::SIR::SadTypeKind::Float;
         SAD_ASSERT_TRUE((int)i64 == 1);
         SAD_ASSERT_TRUE((int)f64 == 2);
     });
 
     SAD_TEST("SIRT15: عدد الأنواع الأساسية", {
-        // 9 أنواع أساسية
-        SAD_ASSERT_TRUE((int)Sad::Compiler::SIR::SIRType::FUNCTION == 8);
+        // SadTypeKind الموحد: Function هو النوع رقم 25 (بعد إضافة الأنواع ذات الحجم المحدد)
+        SAD_ASSERT_TRUE((int)Sad::Compiler::SIR::SadTypeKind::Function == 25);
     });
 
     // ╔══════════════════════════════════════════════════════════════════╗
@@ -368,7 +369,7 @@ int main() {
     });
 
     SAD_TEST("SIROPER06: إنشاء معامل سجل", {
-        auto op = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SIRType::I64);
+        auto op = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SadTypeKind::Integer);
         SAD_ASSERT_EQ((int)op.type, (int)Sad::Compiler::SIR::SIROperandType::REGISTER);
         SAD_ASSERT_EQ(op.name, std::string("%r0"));
     });
@@ -414,13 +415,13 @@ int main() {
     });
 
     SAD_TEST("SIROPER13: سجل بدون اسم", {
-        auto op = Sad::Compiler::SIR::SIROperand::Register("", Sad::Compiler::SIR::SIRType::I64);
+        auto op = Sad::Compiler::SIR::SIROperand::Register("", Sad::Compiler::SIR::SadTypeKind::Integer);
         SAD_ASSERT_TRUE(op.name.empty());
         SAD_ASSERT_EQ((int)op.type, (int)Sad::Compiler::SIR::SIROperandType::REGISTER);
     });
 
     SAD_TEST("SIROPER14: سجل باسم", {
-        auto op = Sad::Compiler::SIR::SIROperand::Register("%r1000", Sad::Compiler::SIR::SIRType::I64);
+        auto op = Sad::Compiler::SIR::SIROperand::Register("%r1000", Sad::Compiler::SIR::SadTypeKind::Integer);
         SAD_ASSERT_EQ(op.name, std::string("%r1000"));
     });
 
@@ -453,14 +454,14 @@ int main() {
 
     SAD_TEST("SIRINST03: إضافة معامل للتعليمة", {
         Sad::Compiler::SIR::SIRInstruction inst(Sad::Compiler::SIR::SIROpcode::ADD_I64);
-        auto op = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SIRType::I64);
+        auto op = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SadTypeKind::Integer);
         inst.operands.push_back(op);
         SAD_ASSERT_EQ(inst.operands.size(), (size_t)1);
     });
 
     SAD_TEST("SIRINST04: تعليمة مع نتيجة", {
         Sad::Compiler::SIR::SIRInstruction inst(Sad::Compiler::SIR::SIROpcode::ADD_I64);
-        auto result = Sad::Compiler::SIR::SIROperand::Register("%r1", Sad::Compiler::SIR::SIRType::I64);
+        auto result = Sad::Compiler::SIR::SIROperand::Register("%r1", Sad::Compiler::SIR::SadTypeKind::Integer);
         inst.result = result;
         SAD_ASSERT_TRUE(inst.result.has_value());
     });
@@ -501,15 +502,15 @@ int main() {
 
     SAD_TEST("SIRINST11: معامل واحد", {
         Sad::Compiler::SIR::SIRInstruction inst(Sad::Compiler::SIR::SIROpcode::NEG);
-        auto op = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SIRType::I64);
+        auto op = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SadTypeKind::Integer);
         inst.operands.push_back(op);
         SAD_ASSERT_EQ(inst.operands.size(), (size_t)1);
     });
 
     SAD_TEST("SIRINST12: معاملان", {
         Sad::Compiler::SIR::SIRInstruction inst(Sad::Compiler::SIR::SIROpcode::ADD_I64);
-        auto op1 = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SIRType::I64);
-        auto op2 = Sad::Compiler::SIR::SIROperand::Register("%r1", Sad::Compiler::SIR::SIRType::I64);
+        auto op1 = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SadTypeKind::Integer);
+        auto op2 = Sad::Compiler::SIR::SIROperand::Register("%r1", Sad::Compiler::SIR::SadTypeKind::Integer);
         inst.operands.push_back(op1);
         inst.operands.push_back(op2);
         SAD_ASSERT_EQ(inst.operands.size(), (size_t)2);
@@ -517,8 +518,9 @@ int main() {
 
     SAD_TEST("SIRINST13: ثلاثة معاملات", {
         Sad::Compiler::SIR::SIRInstruction inst(Sad::Compiler::SIR::SIROpcode::MEMCPY);
-        for (int i = 0; i < 3; i++) {
-            auto op = Sad::Compiler::SIR::SIROperand::Register("%r" + std::to_string(i), Sad::Compiler::SIR::SIRType::PTR);
+        for (int i = 0; i < 3; i++)
+        {
+            auto op = Sad::Compiler::SIR::SIROperand::Register("%r" + std::to_string(i), Sad::Compiler::SIR::SadTypeKind::Pointer);
             inst.operands.push_back(op);
         }
         SAD_ASSERT_EQ(inst.operands.size(), (size_t)3);
@@ -558,8 +560,8 @@ int main() {
 
     SAD_TEST("SIRINST18: تعليمة LOAD", {
         Sad::Compiler::SIR::SIRInstruction inst(Sad::Compiler::SIR::SIROpcode::LOAD);
-        auto result = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SIRType::I64);
-        auto ptr = Sad::Compiler::SIR::SIROperand::Register("%r1", Sad::Compiler::SIR::SIRType::PTR);
+        auto result = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SadTypeKind::Integer);
+        auto ptr = Sad::Compiler::SIR::SIROperand::Register("%r1", Sad::Compiler::SIR::SadTypeKind::Pointer);
         inst.result = result;
         inst.operands.push_back(ptr);
         SAD_ASSERT_TRUE(inst.result.has_value());
@@ -568,8 +570,8 @@ int main() {
 
     SAD_TEST("SIRINST19: تعليمة STORE", {
         Sad::Compiler::SIR::SIRInstruction inst(Sad::Compiler::SIR::SIROpcode::STORE);
-        auto val = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SIRType::I64);
-        auto ptr = Sad::Compiler::SIR::SIROperand::Register("%r1", Sad::Compiler::SIR::SIRType::PTR);
+        auto val = Sad::Compiler::SIR::SIROperand::Register("%r0", Sad::Compiler::SIR::SadTypeKind::Integer);
+        auto ptr = Sad::Compiler::SIR::SIROperand::Register("%r1", Sad::Compiler::SIR::SadTypeKind::Pointer);
         inst.operands.push_back(val);
         inst.operands.push_back(ptr);
         SAD_ASSERT_EQ(inst.operands.size(), (size_t)2);
@@ -612,7 +614,8 @@ int main() {
 
     SAD_TEST("SIRBB04: إضافة عدة تعليمات", {
         Sad::Compiler::SIR::SIRBasicBlock block;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 5; i++)
+        {
             Sad::Compiler::SIR::SIRInstruction inst(Sad::Compiler::SIR::SIROpcode::ADD_I64);
             block.instructions.push_back(inst);
         }

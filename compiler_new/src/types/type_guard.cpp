@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: type_guard.cpp
 // File: type_guard.cpp
 //
@@ -133,7 +133,7 @@ TypeGuardResultPtr TypeGuard::apply(TypePtr currentType) const {
         }
         
         case TypeGuardKind::Null: {
-            if (currentType->getKind() == TypeKind::Void) {
+            if (currentType->getKind() == SadTypeKind::Void) {
                 auto& registry = TypeRegistry::getInstance();
                 return std::make_shared<TypeGuardResult>(true, registry.getVoidType());
             } else {
@@ -146,7 +146,7 @@ TypeGuardResultPtr TypeGuard::apply(TypePtr currentType) const {
         }
         
         case TypeGuardKind::NotNull: {
-            if (currentType->getKind() != TypeKind::Void) {
+            if (currentType->getKind() != SadTypeKind::Void) {
                 // إزالة null من Union إن وُجد / Remove null from Union if present
                 TypePtr narrowed = narrow(currentType);
                 return std::make_shared<TypeGuardResult>(true, narrowed);
@@ -262,10 +262,10 @@ bool TypeGuard::matches(TypePtr type) const {
             return matchesInstanceOf(type);
             
         case TypeGuardKind::Null:
-            return type->getKind() == TypeKind::Void;
+            return type->getKind() == SadTypeKind::Void;
             
         case TypeGuardKind::NotNull:
-            return type->getKind() != TypeKind::Void;
+            return type->getKind() != SadTypeKind::Void;
             
         case TypeGuardKind::And:
             // جميع الحراس يجب أن تنجح / All guards must succeed
@@ -304,7 +304,7 @@ TypePtr TypeGuard::narrow(TypePtr originalType) const {
     
     // إذا كان Union أو Optional، نضيّق بإزالة الأنواع غير المطابقة
     // If Union or Optional, narrow by removing non-matching types
-    if (originalType->getKind() == TypeKind::Union || originalType->getKind() == TypeKind::Optional) {
+    if (originalType->getKind() == SadTypeKind::Union || originalType->getKind() == SadTypeKind::Optional) {
         auto unionType = std::static_pointer_cast<UnionType>(originalType);
         return narrowUnionType(unionType);
     }
@@ -331,7 +331,7 @@ TypePtr TypeGuard::narrowElse(TypePtr originalType) const {
     
     // إذا كان Union أو Optional، نزيل الأنواع المطابقة
     // If Union or Optional, remove matching types
-    if (originalType->getKind() == TypeKind::Union || originalType->getKind() == TypeKind::Optional) {
+    if (originalType->getKind() == SadTypeKind::Union || originalType->getKind() == SadTypeKind::Optional) {
         auto unionType = std::static_pointer_cast<UnionType>(originalType);
         const auto& alternatives = unionType->getAlternatives();
         
@@ -527,7 +527,7 @@ TypeGuardPtr TypeGuard::makeTypeOfGuard(const std::string& variableName, const s
         targetType = registry.getStringType();
     } else if (typeName == "منطقي" || typeName == "boolean" || typeName == "bool") {
         targetType = registry.getBooleanType();
-    } else if (typeName == "عشري" || typeName == "float") {
+    } else if (typeName == "عشري" || typeName == "مضاعف" || typeName == "float" || typeName == "double") {
         targetType = registry.getFloatType();
     } else {
         targetType = nullptr;
@@ -619,7 +619,7 @@ bool TypeGuard::matchesInstanceOf(TypePtr type) const {
     }
     
     // instanceof يفحص الصنف / instanceof checks class
-    if (type->getKind() == TypeKind::Class && targetType_->getKind() == TypeKind::Class) {
+    if (type->getKind() == SadTypeKind::Class && targetType_->getKind() == SadTypeKind::Class) {
         return type->isSubtypeOf(targetType_.get());
     }
     
@@ -636,7 +636,7 @@ bool canNarrow(TypePtr type, TypeGuardPtr guard) {
     }
     
     // Union types يمكن دائماً تضييقها / Union types can always be narrowed
-    if (type->getKind() == TypeKind::Union) {
+    if (type->getKind() == SadTypeKind::Union) {
         return true;
     }
     

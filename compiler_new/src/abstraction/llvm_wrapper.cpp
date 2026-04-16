@@ -14,7 +14,7 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/MC/TargetRegistry.h>
-#include <llvm/Support/Host.h>
+#include <llvm/TargetParser/Host.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Passes/PassBuilder.h>
@@ -803,7 +803,7 @@ std::optional<دالة> وحدة::احصل_على_دالة(const std::string& ا
     return std::nullopt;
 }
 
-نوع وحدة::نوع_أساسي(نوع_أساسي النوع) {
+نوع وحدة::احصل_نوع_أساسي(نوع_أساسي النوع) {
 #ifdef SAD_USE_LLVM
     if (m_context) {
         return نوع::أنشئ_أساسي(النوع, m_context.get());

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * اختبارات أنواع SIR - SIR Types Tests
  * 
  * الوصف: اختبارات شاملة لنظام الأنواع في SIR
@@ -29,19 +29,19 @@ void testBasicTypeCreation() {
     
     // اختبار الأنواع البسيطة / Test primitive types
     auto i64Type = makeI64Type();
-    assert(i64Type->getBaseType() == SIRType::I64);
+    assert(i64Type->getBaseType() == SadTypeKind::Integer);
     assert(i64Type->toString() == "i64");
     
     auto f64Type = makeF64Type();
-    assert(f64Type->getBaseType() == SIRType::F64);
+    assert(f64Type->getBaseType() == SadTypeKind::Float);
     assert(f64Type->toString() == "f64");
     
     auto boolType = makeBoolType();
-    assert(boolType->getBaseType() == SIRType::BOOL);
+    assert(boolType->getBaseType() == SadTypeKind::Boolean);
     assert(boolType->toString() == "bool");
     
     auto voidType = makeVoidType();
-    assert(voidType->getBaseType() == SIRType::VOID);
+    assert(voidType->getBaseType() == SadTypeKind::Void);
     assert(voidType->toString() == "void");
     
     std::cout << "  ✓ Basic types created successfully" << std::endl;
@@ -58,10 +58,10 @@ void testPointerTypes() {
     auto i64Type = makeI64Type();
     auto ptrType = makePtrType(i64Type);
     
-    assert(ptrType->getBaseType() == SIRType::PTR);
+    assert(ptrType->getBaseType() == SadTypeKind::Pointer);
     auto ptrTypeCast = std::dynamic_pointer_cast<PointerType>(ptrType);
     assert(ptrTypeCast && ptrTypeCast->getPointeeType() != nullptr);
-    assert(ptrTypeCast->getPointeeType()->getBaseType() == SIRType::I64);
+    assert(ptrTypeCast->getPointeeType()->getBaseType() == SadTypeKind::Integer);
     assert(ptrType->toString() == "i64*");
     
     // اختبار مؤشر مؤشر / Test pointer to pointer
@@ -82,10 +82,10 @@ void testArrayTypes() {
     auto i64Type = makeI64Type();
     auto arrayType = makeArrayType(i64Type, 10);
     
-    assert(arrayType->getBaseType() == SIRType::ARRAY);
+    assert(arrayType->getBaseType() == SadTypeKind::Array);
     auto arrTypeCast = std::dynamic_pointer_cast<ArrayType>(arrayType);
     assert(arrTypeCast && arrTypeCast->getElementType() != nullptr);
-    assert(arrTypeCast->getElementType()->getBaseType() == SIRType::I64);
+    assert(arrTypeCast->getElementType()->getBaseType() == SadTypeKind::Integer);
     assert(arrTypeCast->getArraySize() == 10);
     assert(arrayType->toString() == "[10 x i64]");
     
@@ -106,7 +106,7 @@ void testStringTypes() {
     
     auto stringType = makeStringType();
     
-    assert(stringType->getBaseType() == SIRType::STRING);
+    assert(stringType->getBaseType() == SadTypeKind::String);
     assert(stringType->toString() == "string");
     
     std::cout << "  ✓ String type works correctly" << std::endl;
@@ -127,7 +127,7 @@ void testStructTypes() {
     
     auto structType = makeStructType("Point", fields);
     
-    assert(structType->getBaseType() == SIRType::STRUCT);
+    assert(structType->getBaseType() == SadTypeKind::Struct);
     auto structTypeCast = std::dynamic_pointer_cast<StructType>(structType);
     assert(structTypeCast && structTypeCast->getStructName() == "Point");
     assert(structTypeCast->getFieldTypes().size() == 3);
@@ -151,10 +151,10 @@ void testFunctionTypes() {
     auto returnType = makeBoolType();
     auto funcType = makeFunctionType(returnType, paramTypes);
     
-    assert(funcType->getBaseType() == SIRType::FUNCTION);
+    assert(funcType->getBaseType() == SadTypeKind::Function);
     auto funcTypeCast = std::dynamic_pointer_cast<FunctionType>(funcType);
     assert(funcTypeCast && funcTypeCast->getReturnType() != nullptr);
-    assert(funcTypeCast->getReturnType()->getBaseType() == SIRType::BOOL);
+    assert(funcTypeCast->getReturnType()->getBaseType() == SadTypeKind::Boolean);
     assert(funcTypeCast->getParameterTypes().size() == 2);
     
     std::cout << "  ✓ Function types work correctly" << std::endl;
@@ -241,19 +241,19 @@ void testTypeAlignment() {
 void testStringConversion() {
     std::cout << "Testing string conversion..." << std::endl;
     
-    // SIRType to string
-    assert(std::string(sirTypeToString(SIRType::I64)) == "i64");
-    assert(std::string(sirTypeToString(SIRType::F64)) == "f64");
-    assert(std::string(sirTypeToString(SIRType::BOOL)) == "bool");
-    assert(std::string(sirTypeToString(SIRType::PTR)) == "ptr");
-    assert(std::string(sirTypeToString(SIRType::ARRAY)) == "array");
-    assert(std::string(sirTypeToString(SIRType::STRING)) == "string");
+    // SadTypeKind to string
+    assert(std::string(sirTypeToString(SadTypeKind::Integer)) == "i64");
+    assert(std::string(sirTypeToString(SadTypeKind::Float)) == "f64");
+    assert(std::string(sirTypeToString(SadTypeKind::Boolean)) == "bool");
+    assert(std::string(sirTypeToString(SadTypeKind::Pointer)) == "ptr");
+    assert(std::string(sirTypeToString(SadTypeKind::Array)) == "array");
+    assert(std::string(sirTypeToString(SadTypeKind::String)) == "string");
     
-    // String to SIRType
-    assert(stringToSIRType("i64") == SIRType::I64);
-    assert(stringToSIRType("f64") == SIRType::F64);
-    assert(stringToSIRType("bool") == SIRType::BOOL);
-    assert(stringToSIRType("string") == SIRType::STRING);
+    // String to SadTypeKind
+    assert(stringToSIRType("i64") == SadTypeKind::Integer);
+    assert(stringToSIRType("f64") == SadTypeKind::Float);
+    assert(stringToSIRType("bool") == SadTypeKind::Boolean);
+    assert(stringToSIRType("string") == SadTypeKind::String);
     
     std::cout << "  ✓ String conversion works correctly" << std::endl;
 }

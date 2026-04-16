@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file no_std_integration.cpp
  * @brief (AR) تنفيذ تكامل وضع بلا مكتبة قياسية مع خط الترجمة
  *        (EN) Implementation of no_std mode integration with compilation pipeline
@@ -88,7 +88,7 @@ NoStdScanResult NoStdIntegration::scanSourceForNoStd(const std::string& sourceCo
             }
             
             // (AR) البحث عن كلمة "دالة" أو "fn"
-            std::string funcKeywordAr = u8"دالة";
+            std::string funcKeywordAr = "دالة";
             std::string funcKeywordEn = "fn";
             
             size_t funcStart = std::string::npos;

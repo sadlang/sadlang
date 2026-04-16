@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file inline_asm.cpp
  * @brief (AR) توليد LLVM IR لـ inline assembly
  *        (EN) LLVM IR generation for inline assembly
@@ -118,7 +118,7 @@ public:
     ) {
         std::ostringstream ir;
         
-        ir << "  ; " << u8"inline assembly" << "\n";
+        ir << "  ; " << "inline assembly" << "\n";
         
         // ─────────────────────────────────────────────────────────────────────
         // (AR) بناء سلسلة القيود
@@ -330,22 +330,22 @@ private:
         std::ostringstream ir;
         
         // (AR) تعليمات ARM الشائعة
-        if (instruction == "wfi" || instruction == u8"انتظر_مقاطعة") {
+        if (instruction == "wfi" || instruction == "انتظر_مقاطعة") {
             ir << "  call void asm sideeffect \"wfi\", \"\"()\n";
         }
-        else if (instruction == "dsb" || instruction == u8"حاجز_بيانات") {
+        else if (instruction == "dsb" || instruction == "حاجز_بيانات") {
             ir << "  call void asm sideeffect \"dsb\", \"~{memory}\"()\n";
         }
-        else if (instruction == "dmb" || instruction == u8"حاجز_ذاكرة") {
+        else if (instruction == "dmb" || instruction == "حاجز_ذاكرة") {
             ir << "  call void asm sideeffect \"dmb\", \"~{memory}\"()\n";
         }
-        else if (instruction == "isb" || instruction == u8"حاجز_تعليمات") {
+        else if (instruction == "isb" || instruction == "حاجز_تعليمات") {
             ir << "  call void asm sideeffect \"isb\", \"~{memory}\"()\n";
         }
-        else if (instruction == "cpsid" || instruction == u8"عطّل_المقاطعات") {
+        else if (instruction == "cpsid" || instruction == "عطّل_المقاطعات") {
             ir << "  call void asm sideeffect \"cpsid i\", \"~{memory}\"()\n";
         }
-        else if (instruction == "cpsie" || instruction == u8"فعّل_المقاطعات") {
+        else if (instruction == "cpsie" || instruction == "فعّل_المقاطعات") {
             ir << "  call void asm sideeffect \"cpsie i\", \"~{memory}\"()\n";
         }
         
@@ -363,35 +363,35 @@ private:
         std::ostringstream ir;
         
         // (AR) تعليمات x86 الشائعة
-        if (instruction == "hlt" || instruction == u8"توقف") {
+        if (instruction == "hlt" || instruction == "توقف") {
             ir << "  call void asm sideeffect \"hlt\", \"\"()\n";
         }
-        else if (instruction == "cli" || instruction == u8"عطّل_المقاطعات") {
+        else if (instruction == "cli" || instruction == "عطّل_المقاطعات") {
             ir << "  call void asm sideeffect \"cli\", \"~{flags}\"()\n";
         }
-        else if (instruction == "sti" || instruction == u8"فعّل_المقاطعات") {
+        else if (instruction == "sti" || instruction == "فعّل_المقاطعات") {
             ir << "  call void asm sideeffect \"sti\", \"~{flags}\"()\n";
         }
-        else if (instruction == "nop" || instruction == u8"لا_شيء") {
+        else if (instruction == "nop" || instruction == "لا_شيء") {
             ir << "  call void asm \"nop\", \"\"()\n";
         }
-        else if (instruction == "pause" || instruction == u8"توقف_مؤقت") {
+        else if (instruction == "pause" || instruction == "توقف_مؤقت") {
             ir << "  call void asm \"pause\", \"~{memory}\"()\n";
         }
-        else if (instruction == "mfence" || instruction == u8"حاجز_ذاكرة") {
+        else if (instruction == "mfence" || instruction == "حاجز_ذاكرة") {
             ir << "  call void asm sideeffect \"mfence\", \"~{memory}\"()\n";
         }
-        else if (instruction == "lfence" || instruction == u8"حاجز_تحميل") {
+        else if (instruction == "lfence" || instruction == "حاجز_تحميل") {
             ir << "  call void asm sideeffect \"lfence\", \"~{memory}\"()\n";
         }
-        else if (instruction == "sfence" || instruction == u8"حاجز_تخزين") {
+        else if (instruction == "sfence" || instruction == "حاجز_تخزين") {
             ir << "  call void asm sideeffect \"sfence\", \"~{memory}\"()\n";
         }
-        else if (instruction == "cpuid" || instruction == u8"معرف_المعالج") {
+        else if (instruction == "cpuid" || instruction == "معرف_المعالج") {
             // (AR) cpuid يُتلف eax, ebx, ecx, edx
             ir << "  call void asm sideeffect \"cpuid\", \"~{eax},~{ebx},~{ecx},~{edx}\"()\n";
         }
-        else if (instruction == "rdtsc" || instruction == u8"اقرأ_عداد_الدورات") {
+        else if (instruction == "rdtsc" || instruction == "اقرأ_عداد_الدورات") {
             ir << "  %tsc = call i64 asm \"rdtsc\", \"=A,~{edx}\"()\n";
         }
         
@@ -417,7 +417,7 @@ public:
      */
     static std::string generateInb(const std::string& resultVar, const std::string& portVar) {
         std::ostringstream ir;
-        ir << "  ; " << u8"قراءة بايت من منفذ I/O" << "\n";
+        ir << "  ; " << "قراءة بايت من منفذ I/O" << "\n";
         ir << "  %" << resultVar << " = call i8 asm \"inb %dx, %al\", ";
         ir << "\"=&{al},{dx}\"(i16 %" << portVar << ")\n";
         return ir.str();
@@ -429,7 +429,7 @@ public:
      */
     static std::string generateOutb(const std::string& valueVar, const std::string& portVar) {
         std::ostringstream ir;
-        ir << "  ; " << u8"كتابة بايت إلى منفذ I/O" << "\n";
+        ir << "  ; " << "كتابة بايت إلى منفذ I/O" << "\n";
         ir << "  call void asm sideeffect \"outb %al, %dx\", ";
         ir << "\"{al},{dx}\"(i8 %" << valueVar << ", i16 %" << portVar << ")\n";
         return ir.str();
@@ -441,7 +441,7 @@ public:
      */
     static std::string generateReadCR(int crNum, const std::string& resultVar) {
         std::ostringstream ir;
-        ir << "  ; " << u8"قراءة سجل CR" << crNum << "\n";
+        ir << "  ; " << "قراءة سجل CR" << crNum << "\n";
         ir << "  %" << resultVar << " = call i64 asm \"mov %cr" << crNum << ", $0\", ";
         ir << "\"=r\"()\n";
         return ir.str();
@@ -453,7 +453,7 @@ public:
      */
     static std::string generateWriteCR(int crNum, const std::string& valueVar) {
         std::ostringstream ir;
-        ir << "  ; " << u8"كتابة إلى سجل CR" << crNum << "\n";
+        ir << "  ; " << "كتابة إلى سجل CR" << crNum << "\n";
         ir << "  call void asm sideeffect \"mov $0, %cr" << crNum << "\", ";
         ir << "\"r\"(i64 %" << valueVar << ")\n";
         return ir.str();
@@ -469,7 +469,7 @@ public:
         const std::string& newValueVar
     ) {
         std::ostringstream ir;
-        ir << "  ; " << u8"تبادل ذري (atomic xchg)" << "\n";
+        ir << "  ; " << "تبادل ذري (atomic xchg)" << "\n";
         ir << "  %" << resultVar << " = call i64 asm sideeffect \"lock xchg $0, $1\", ";
         ir << "\"=r,=*m,0\"(ptr %" << memVar << ", i64 %" << newValueVar << ")\n";
         return ir.str();
@@ -487,7 +487,7 @@ public:
         const std::string& newValueVar
     ) {
         std::ostringstream ir;
-        ir << "  ; " << u8"مقارنة وتبديل ذري (atomic cmpxchg)" << "\n";
+        ir << "  ; " << "مقارنة وتبديل ذري (atomic cmpxchg)" << "\n";
         ir << "  %cmpxchg_result = call {i64, i1} asm sideeffect ";
         ir << "\"lock cmpxchg $2, $1\", ";
         ir << "\"=&{ax},=*m,r,0\"(ptr %" << memVar << ", i64 %" << newValueVar;
@@ -503,7 +503,7 @@ public:
      */
     static std::string generateLoadPageTable(const std::string& addressVar) {
         std::ostringstream ir;
-        ir << "  ; " << u8"تحميل جدول الصفحات (mov to CR3)" << "\n";
+        ir << "  ; " << "تحميل جدول الصفحات (mov to CR3)" << "\n";
         ir << "  call void asm sideeffect \"mov $0, %cr3\", ";
         ir << "\"r,~{memory}\"(i64 %" << addressVar << ")\n";
         return ir.str();
@@ -515,7 +515,7 @@ public:
      */
     static std::string generateInvalidatePage(const std::string& addressVar) {
         std::ostringstream ir;
-        ir << "  ; " << u8"إبطال صفحة في TLB (invlpg)" << "\n";
+        ir << "  ; " << "إبطال صفحة في TLB (invlpg)" << "\n";
         ir << "  call void asm sideeffect \"invlpg ($0)\", ";
         ir << "\"r,~{memory}\"(ptr %" << addressVar << ")\n";
         return ir.str();
@@ -535,7 +535,7 @@ public:
      */
     static std::string generateARMReadCPSR(const std::string& resultVar) {
         std::ostringstream ir;
-        ir << "  ; " << u8"قراءة سجل CPSR" << "\n";
+        ir << "  ; " << "قراءة سجل CPSR" << "\n";
         ir << "  %" << resultVar << " = call i32 asm \"mrs $0, cpsr\", \"=r\"()\n";
         return ir.str();
     }
@@ -546,7 +546,7 @@ public:
      */
     static std::string generateARMWriteCPSR(const std::string& valueVar) {
         std::ostringstream ir;
-        ir << "  ; " << u8"كتابة إلى سجل CPSR" << "\n";
+        ir << "  ; " << "كتابة إلى سجل CPSR" << "\n";
         ir << "  call void asm sideeffect \"msr cpsr, $0\", \"r\"(i32 %" << valueVar << ")\n";
         return ir.str();
     }
@@ -602,25 +602,25 @@ public:
         if (targetArch_.find("arm") != std::string::npos ||
             targetArch_.find("aarch") != std::string::npos) {
             return {
-                {u8"انتظر_مقاطعة", "wfi - Wait For Interrupt"},
-                {u8"حاجز_بيانات", "dsb - Data Synchronization Barrier"},
-                {u8"حاجز_ذاكرة", "dmb - Data Memory Barrier"},
-                {u8"حاجز_تعليمات", "isb - Instruction Synchronization Barrier"},
-                {u8"عطّل_المقاطعات", "cpsid - Disable Interrupts"},
-                {u8"فعّل_المقاطعات", "cpsie - Enable Interrupts"},
+                {"انتظر_مقاطعة", "wfi - Wait For Interrupt"},
+                {"حاجز_بيانات", "dsb - Data Synchronization Barrier"},
+                {"حاجز_ذاكرة", "dmb - Data Memory Barrier"},
+                {"حاجز_تعليمات", "isb - Instruction Synchronization Barrier"},
+                {"عطّل_المقاطعات", "cpsid - Disable Interrupts"},
+                {"فعّل_المقاطعات", "cpsie - Enable Interrupts"},
             };
         } else {
             return {
-                {u8"توقف", "hlt - Halt"},
-                {u8"عطّل_المقاطعات", "cli - Clear Interrupt Flag"},
-                {u8"فعّل_المقاطعات", "sti - Set Interrupt Flag"},
-                {u8"لا_شيء", "nop - No Operation"},
-                {u8"توقف_مؤقت", "pause - Spin Loop Hint"},
-                {u8"حاجز_ذاكرة", "mfence - Memory Fence"},
-                {u8"حاجز_تحميل", "lfence - Load Fence"},
-                {u8"حاجز_تخزين", "sfence - Store Fence"},
-                {u8"معرف_المعالج", "cpuid - CPU Identification"},
-                {u8"اقرأ_عداد_الدورات", "rdtsc - Read Time-Stamp Counter"},
+                {"توقف", "hlt - Halt"},
+                {"عطّل_المقاطعات", "cli - Clear Interrupt Flag"},
+                {"فعّل_المقاطعات", "sti - Set Interrupt Flag"},
+                {"لا_شيء", "nop - No Operation"},
+                {"توقف_مؤقت", "pause - Spin Loop Hint"},
+                {"حاجز_ذاكرة", "mfence - Memory Fence"},
+                {"حاجز_تحميل", "lfence - Load Fence"},
+                {"حاجز_تخزين", "sfence - Store Fence"},
+                {"معرف_المعالج", "cpuid - CPU Identification"},
+                {"اقرأ_عداد_الدورات", "rdtsc - Read Time-Stamp Counter"},
             };
         }
     }
@@ -631,22 +631,22 @@ private:
     
     bool isSimpleInstruction(const std::string& instr) const {
         static const std::set<std::string> simple = {
-            "hlt", u8"توقف",
-            "cli", u8"عطّل_المقاطعات",
-            "sti", u8"فعّل_المقاطعات",
-            "nop", u8"لا_شيء",
-            "pause", u8"توقف_مؤقت",
-            "mfence", u8"حاجز_ذاكرة",
-            "lfence", u8"حاجز_تحميل",
-            "sfence", u8"حاجز_تخزين",
-            "cpuid", u8"معرف_المعالج",
-            "rdtsc", u8"اقرأ_عداد_الدورات",
-            "wfi", u8"انتظر_مقاطعة",
-            "dsb", u8"حاجز_بيانات",
-            "dmb", u8"حاجز_ذاكرة",
-            "isb", u8"حاجز_تعليمات",
-            "cpsid", u8"عطّل_المقاطعات",
-            "cpsie", u8"فعّل_المقاطعات",
+            "hlt", "توقف",
+            "cli", "عطّل_المقاطعات",
+            "sti", "فعّل_المقاطعات",
+            "nop", "لا_شيء",
+            "pause", "توقف_مؤقت",
+            "mfence", "حاجز_ذاكرة",
+            "lfence", "حاجز_تحميل",
+            "sfence", "حاجز_تخزين",
+            "cpuid", "معرف_المعالج",
+            "rdtsc", "اقرأ_عداد_الدورات",
+            "wfi", "انتظر_مقاطعة",
+            "dsb", "حاجز_بيانات",
+            "dmb", "حاجز_ذاكرة",
+            "isb", "حاجز_تعليمات",
+            "cpsid", "عطّل_المقاطعات",
+            "cpsie", "فعّل_المقاطعات",
         };
         
         return simple.count(instr) > 0;

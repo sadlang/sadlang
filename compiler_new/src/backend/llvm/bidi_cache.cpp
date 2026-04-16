@@ -42,6 +42,7 @@
 #include <llvm/ADT/StringMap.h>
 
 #include <string>
+#include <cstring>
 #include <vector>
 #include <unordered_map>
 #include <memory>

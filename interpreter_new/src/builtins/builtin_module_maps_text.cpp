@@ -1,0 +1,454 @@
+/**
+ * @file builtin_module_maps_text.cpp
+ * @brief (AR) وحدة النصوص المتقدمة — دوال نصوص إضافية وتعبيرات نمطية ويونيكود
+ * @brief (EN) Advanced text module — extra string functions, regex, and Unicode
+ *
+ * @details
+ * (AR) الأقسام:
+ *   4. التعبيرات النمطية (مطابقة، بحث، استبدال، تقسيم...)
+ *   6. دوال نصوص إضافية (تقسيم، ضم، تكرار، عكس...)
+ *   14. دوال يونيكود (حرف، رمز، قياس...)
+ *
+ * @see builtin_registry.cpp — التسجيل المركزي
+ * @see BUILTIN_CODING_STANDARDS.md — قواعد الكتابة
+ */
+#include "builtins.h"
+#include "interpreter_core.h"
+#include <algorithm>
+#include <regex>
+#include <sstream>
+
+// (AR) إلغاء ماكرو VOID الخاص بويندوز إن وُجد
+#ifdef VOID
+#undef VOID
+#endif
+
+namespace Sad
+{
+    namespace Interpreter
+    {
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // (AR) دوال مساعدة / (EN) Helper Functions
+        // ═══════════════════════════════════════════════════════════════════════
+
+        static std::shared_ptr<Data::Value> makeVal(int v) { return std::make_shared<Data::Value>(v); }
+        static std::shared_ptr<Data::Value> makeVal(double v) { return std::make_shared<Data::Value>(v); }
+        static std::shared_ptr<Data::Value> makeVal(const std::string &v) { return std::make_shared<Data::Value>(v); }
+        static std::shared_ptr<Data::Value> makeVal(bool v) { return std::make_shared<Data::Value>(v); }
+        static std::shared_ptr<Data::Value> makeVoidVal() { return std::make_shared<Data::Value>(); }
+        static std::shared_ptr<Data::Value> makeArrayVal(const Data::Value::ArrayType &a) { return std::make_shared<Data::Value>(a); }
+        static std::shared_ptr<Data::Value> makeMapVal(const Data::Value::MapType &m) { return std::make_shared<Data::Value>(m); }
+
+        void registerBuiltinsMapsText(Interpreter &interpreter)
+        {
+            auto &fm = interpreter.getFunctionManager();
+
+            // ═══════════════════════════════════════════════════════════════════
+            // 4. التعبيرات النمطية / Regex
+            // (AR) إصلاح نقطة ضعف رقم 4: عدم وجود دعم للتعبيرات النمطية
+            // ═══════════════════════════════════════════════════════════════════
+
+            // regex_match / تعبير_مطابقة — مطابقة كاملة
+            auto regex_match_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2)
+                    throw std::runtime_error("(AR) تعبير_مطابقة تتطلب نص ونمط");
+                try
+                {
+                    std::string text = args[0]->toString();
+                    std::regex pattern(args[1]->toString());
+                    return makeVal(std::regex_match(text, pattern));
+                }
+                catch (const std::regex_error &e)
+                {
+                    throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
+                }
+            };
+            fm.registerBuiltinFunction("تعبير_مطابقة", regex_match_fn);
+            fm.registerBuiltinFunction("regex_match", regex_match_fn);
+
+            // regex_search / تعبير_بحث — بحث جزئي
+            auto regex_search_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2)
+                    throw std::runtime_error("(AR) تعبير_بحث تتطلب نص ونمط");
+                try
+                {
+                    std::string text = args[0]->toString();
+                    std::regex pattern(args[1]->toString());
+                    std::smatch match;
+                    if (std::regex_search(text, match, pattern))
+                    {
+                        return makeVal(match[0].str());
+                    }
+                    return makeVoidVal();
+                }
+                catch (const std::regex_error &e)
+                {
+                    throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
+                }
+            };
+            fm.registerBuiltinFunction("تعبير_بحث", regex_search_fn);
+            fm.registerBuiltinFunction("regex_search", regex_search_fn);
+
+            // regex_replace / تعبير_استبدال — استبدال بنمط
+            auto regex_replace_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 3)
+                    throw std::runtime_error("(AR) تعبير_استبدال تتطلب نص ونمط وبديل");
+                try
+                {
+                    std::string text = args[0]->toString();
+                    std::regex pattern(args[1]->toString());
+                    std::string replacement = args[2]->toString();
+                    return makeVal(std::regex_replace(text, pattern, replacement));
+                }
+                catch (const std::regex_error &e)
+                {
+                    throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
+                }
+            };
+            fm.registerBuiltinFunction("تعبير_استبدال", regex_replace_fn);
+            fm.registerBuiltinFunction("regex_replace", regex_replace_fn);
+
+            // regex_find_all / تعبير_جد_الكل — إيجاد جميع المطابقات
+            auto regex_find_all_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2)
+                    throw std::runtime_error("(AR) تعبير_جد_الكل تتطلب نص ونمط");
+                try
+                {
+                    std::string text = args[0]->toString();
+                    std::regex pattern(args[1]->toString());
+                    Data::Value::ArrayType results;
+                    auto begin = std::sregex_iterator(text.begin(), text.end(), pattern);
+                    auto end = std::sregex_iterator();
+                    for (auto it = begin; it != end; ++it)
+                    {
+                        results.push_back(Data::Value((*it)[0].str()));
+                    }
+                    return makeArrayVal(results);
+                }
+                catch (const std::regex_error &e)
+                {
+                    throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
+                }
+            };
+            fm.registerBuiltinFunction("تعبير_جد_الكل", regex_find_all_fn);
+            fm.registerBuiltinFunction("regex_find_all", regex_find_all_fn);
+
+            // ═══════════════════════════════════════════════════════════════════
+            // 6. دوال نصوص إضافية / Extra String Functions
+            // (AR) إصلاح نقطة ضعف رقم 6: نقص دوال النصوص
+            // ═══════════════════════════════════════════════════════════════════
+
+            // repeat / تكرار_نص — تكرار نص عدة مرات
+            auto repeat_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2)
+                    throw std::runtime_error("(AR) تكرار_نص تتطلب نص وعدد");
+                std::string text = args[0]->toString();
+                int count = args[1]->toInt();
+                std::string result;
+                for (int i = 0; i < count; i++)
+                    result += text;
+                return makeVal(result);
+            };
+            fm.registerBuiltinFunction("تكرار_نص", repeat_fn);
+            fm.registerBuiltinFunction("repeat", repeat_fn);
+
+            // padStart / حشو_بداية — حشو نص من البداية
+            auto padStart_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2)
+                    throw std::runtime_error("(AR) حشو_بداية تتطلب نص وطول");
+                std::string text = args[0]->toString();
+                int targetLen = args[1]->toInt();
+                std::string pad = " ";
+                if (args.size() >= 3)
+                    pad = args[2]->toString();
+                while (static_cast<int>(text.size()) < targetLen)
+                {
+                    text = pad + text;
+                }
+                if (static_cast<int>(text.size()) > targetLen)
+                    text = text.substr(text.size() - targetLen);
+                return makeVal(text);
+            };
+            fm.registerBuiltinFunction("حشو_بداية", padStart_fn);
+            fm.registerBuiltinFunction("padStart", padStart_fn);
+            fm.registerBuiltinFunction("pad_start", padStart_fn);
+
+            // padEnd / حشو_نهاية — حشو نص من النهاية
+            auto padEnd_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2)
+                    throw std::runtime_error("(AR) حشو_نهاية تتطلب نص وطول");
+                std::string text = args[0]->toString();
+                int targetLen = args[1]->toInt();
+                std::string pad = " ";
+                if (args.size() >= 3)
+                    pad = args[2]->toString();
+                while (static_cast<int>(text.size()) < targetLen)
+                {
+                    text += pad;
+                }
+                if (static_cast<int>(text.size()) > targetLen)
+                    text = text.substr(0, targetLen);
+                return makeVal(text);
+            };
+            fm.registerBuiltinFunction("حشو_نهاية", padEnd_fn);
+            fm.registerBuiltinFunction("padEnd", padEnd_fn);
+            fm.registerBuiltinFunction("pad_end", padEnd_fn);
+
+            // reverse_string / عكس_نص — عكس نص
+            auto reverse_string_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.empty())
+                    throw std::runtime_error("(AR) عكس_نص تتطلب نصاً");
+                std::string text = args[0]->toString();
+                std::reverse(text.begin(), text.end());
+                return makeVal(text);
+            };
+            fm.registerBuiltinFunction("عكس_نص", reverse_string_fn);
+            fm.registerBuiltinFunction("reverse_string", reverse_string_fn);
+
+            // charCodeAt / رمز_حرف — الحصول على رمز UTF-8 لحرف
+            auto charCodeAt_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2)
+                    throw std::runtime_error("(AR) رمز_حرف تتطلب نص وموضع");
+                std::string text = args[0]->toString();
+                int idx = args[1]->toInt();
+                if (idx < 0 || idx >= static_cast<int>(text.size()))
+                    throw std::runtime_error("(AR) الموضع خارج النطاق");
+                return makeVal(static_cast<int>(static_cast<unsigned char>(text[idx])));
+            };
+            fm.registerBuiltinFunction("رمز_حرف", charCodeAt_fn);
+            fm.registerBuiltinFunction("charCodeAt", charCodeAt_fn);
+            fm.registerBuiltinFunction("char_code_at", charCodeAt_fn);
+
+            // fromCharCode / حرف_من_رمز — إنشاء حرف من رمز
+            auto fromCharCode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.empty())
+                    throw std::runtime_error("(AR) حرف_من_رمز تتطلب رقماً");
+                return makeVal(std::string(1, static_cast<char>(args[0]->toInt())));
+            };
+            fm.registerBuiltinFunction("حرف_من_رمز", fromCharCode_fn);
+            fm.registerBuiltinFunction("fromCharCode", fromCharCode_fn);
+            fm.registerBuiltinFunction("from_char_code", fromCharCode_fn);
+
+            // count / عدّ — عدد ظهور نص فرعي في نص
+            auto count_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2)
+                    throw std::runtime_error("(AR) عدّ تتطلب نص ونص فرعي");
+                std::string text = args[0]->toString();
+                std::string sub = args[1]->toString();
+                if (sub.empty())
+                    return makeVal(0);
+                int count = 0;
+                size_t pos = 0;
+                while ((pos = text.find(sub, pos)) != std::string::npos)
+                {
+                    count++;
+                    pos += sub.length();
+                }
+                return makeVal(count);
+            };
+            fm.registerBuiltinFunction("عدّ", count_fn);
+            fm.registerBuiltinFunction("count", count_fn);
+
+            // format / تنسيق — تنسيق نص بسيط (استبدال {} بالقيم)
+            auto format_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.empty())
+                    throw std::runtime_error("(AR) تنسيق تتطلب نص قالب على الأقل");
+                std::string tmpl = args[0]->toString();
+                std::string result;
+                size_t argIdx = 1;
+                size_t i = 0;
+                while (i < tmpl.size())
+                {
+                    if (i + 1 < tmpl.size() && tmpl[i] == '{' && tmpl[i + 1] == '}')
+                    {
+                        if (argIdx < args.size())
+                        {
+                            result += args[argIdx]->toString();
+                            argIdx++;
+                        }
+                        else
+                        {
+                            result += "{}";
+                        }
+                        i += 2;
+                    }
+                    else
+                    {
+                        result += tmpl[i];
+                        i++;
+                    }
+                }
+                return makeVal(result);
+            };
+            fm.registerBuiltinFunction("تنسيق", format_fn);
+            fm.registerBuiltinFunction("format", format_fn);
+
+            // ═══════════════════════════════════════════════════════════════════
+            // 14. دوال يونيكود / Unicode Functions
+            // ═══════════════════════════════════════════════════════════════════
+
+            // ازل_تشكيل / strip_diacritics — إزالة التشكيل العربي من النص
+            // Arabic diacritics are U+064B to U+065F (encoded as 2-byte UTF-8: 0xD9 0x8B-0x9F, 0xDA 0x80-0x9F)
+            auto strip_diacritics_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.empty() || !args[0]->isString())
+                    throw std::runtime_error("(AR) ازل_تشكيل تتطلب نصاً");
+                std::string input = args[0]->toString();
+                std::string result;
+                result.reserve(input.size());
+                size_t i = 0;
+                while (i < input.size())
+                {
+                    unsigned char c = static_cast<unsigned char>(input[i]);
+                    if (c < 0x80)
+                    {
+                        // ASCII byte
+                        result += input[i];
+                        ++i;
+                    }
+                    else if ((c & 0xE0) == 0xC0 && i + 1 < input.size())
+                    {
+                        // 2-byte UTF-8 sequence
+                        unsigned char c2 = static_cast<unsigned char>(input[i + 1]);
+                        // Decode codepoint
+                        uint32_t cp = ((c & 0x1F) << 6) | (c2 & 0x3F);
+                        // Arabic diacritics: U+064B to U+065F (Fathatan to Hamza below)
+                        // Also U+0610-U+061A (Quranic signs) and U+06D6-U+06ED
+                        if (cp >= 0x064B && cp <= 0x065F)
+                        {
+                            i += 2; // skip diacritic
+                        }
+                        else if (cp >= 0x0610 && cp <= 0x061A)
+                        {
+                            i += 2; // skip Quranic annotation signs
+                        }
+                        else
+                        {
+                            result += input[i];
+                            result += input[i + 1];
+                            i += 2;
+                        }
+                    }
+                    else if ((c & 0xF0) == 0xE0 && i + 2 < input.size())
+                    {
+                        // 3-byte UTF-8 sequence
+                        unsigned char c2 = static_cast<unsigned char>(input[i + 1]);
+                        unsigned char c3 = static_cast<unsigned char>(input[i + 2]);
+                        uint32_t cp = ((c & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+                        (void)cp;
+                        // U+06D6-U+06ED (Quranic marks in 3-byte range if any, but these are 2-byte)
+                        // U+FE70-U+FEFF (Arabic Presentation Forms-B) — keep these
+                        result += input[i];
+                        result += input[i + 1];
+                        result += input[i + 2];
+                        i += 3;
+                    }
+                    else if ((c & 0xF8) == 0xF0 && i + 3 < input.size())
+                    {
+                        // 4-byte UTF-8 — keep as-is
+                        result += input[i];
+                        result += input[i + 1];
+                        result += input[i + 2];
+                        result += input[i + 3];
+                        i += 4;
+                    }
+                    else
+                    {
+                        result += input[i];
+                        ++i;
+                    }
+                }
+                return makeVal(result);
+            };
+            fm.registerBuiltinFunction("ازل_تشكيل", strip_diacritics_fn);
+            fm.registerBuiltinFunction("strip_diacritics", strip_diacritics_fn);
+
+            // مقارنة_نص / compare_text — مقارنة نصوص مع خيار تجاهل التشكيل
+            // Compares two strings optionally ignoring Arabic diacritics
+            auto compare_text_fn = [&strip_diacritics_fn](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isString() || !args[1]->isString())
+                    throw std::runtime_error("(AR) مقارنة_نص تتطلب نصين");
+
+                bool ignoreDiacritics = false;
+                if (args.size() >= 3 && args[2]->isBoolean())
+                {
+                    ignoreDiacritics = args[2]->toBool();
+                }
+
+                std::string a = args[0]->toString();
+                std::string b = args[1]->toString();
+
+                if (ignoreDiacritics)
+                {
+                    // Strip diacritics from both before comparison
+                    std::vector<std::shared_ptr<Data::Value>> wrapA = {std::make_shared<Data::Value>(a)};
+                    std::vector<std::shared_ptr<Data::Value>> wrapB = {std::make_shared<Data::Value>(b)};
+                    a = strip_diacritics_fn(wrapA)->toString();
+                    b = strip_diacritics_fn(wrapB)->toString();
+                }
+
+                return makeVal(a == b);
+            };
+            fm.registerBuiltinFunction("مقارنة_نص", compare_text_fn);
+            fm.registerBuiltinFunction("compare_text", compare_text_fn);
+
+            // نص_يونيكود / unicode_codepoints — تحويل نص إلى مصفوفة نقاط يونيكود
+            auto unicode_codepoints_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.empty() || !args[0]->isString())
+                    throw std::runtime_error("(AR) نص_يونيكود تتطلب نصاً");
+                std::string input = args[0]->toString();
+                Data::Value::ArrayType codepoints;
+                size_t i = 0;
+                while (i < input.size())
+                {
+                    unsigned char c = static_cast<unsigned char>(input[i]);
+                    uint32_t cp = 0;
+                    int bytes = 1;
+                    if (c < 0x80)
+                    {
+                        cp = c;
+                        bytes = 1;
+                    }
+                    else if ((c & 0xE0) == 0xC0 && i + 1 < input.size())
+                    {
+                        cp = ((c & 0x1F) << 6) | (static_cast<unsigned char>(input[i + 1]) & 0x3F);
+                        bytes = 2;
+                    }
+                    else if ((c & 0xF0) == 0xE0 && i + 2 < input.size())
+                    {
+                        cp = ((c & 0x0F) << 12) | ((static_cast<unsigned char>(input[i + 1]) & 0x3F) << 6) | (static_cast<unsigned char>(input[i + 2]) & 0x3F);
+                        bytes = 3;
+                    }
+                    else if ((c & 0xF8) == 0xF0 && i + 3 < input.size())
+                    {
+                        cp = ((c & 0x07) << 18) | ((static_cast<unsigned char>(input[i + 1]) & 0x3F) << 12) | ((static_cast<unsigned char>(input[i + 2]) & 0x3F) << 6) | (static_cast<unsigned char>(input[i + 3]) & 0x3F);
+                        bytes = 4;
+                    }
+                    codepoints.push_back(Data::Value(static_cast<int>(cp)));
+                    i += bytes;
+                }
+                return makeArrayVal(codepoints);
+            };
+            fm.registerBuiltinFunction("نص_يونيكود", unicode_codepoints_fn);
+            fm.registerBuiltinFunction("unicode_codepoints", unicode_codepoints_fn);
+
+
+        } // registerBuiltinsMapsText
+
+    } // namespace Interpreter
+} // namespace Sad

@@ -28,7 +28,7 @@ set(SAD_WASM_CORE_SOURCES
     ${SAD_SOURCE_DIR}/shared/lexer/src/lexer_core.cpp
     ${SAD_SOURCE_DIR}/shared/lexer/src/lexer_keywords.cpp
     # Parser
-    ${SAD_SOURCE_DIR}/shared/parser/src/parser_core.cpp
+    ${SAD_SOURCE_DIR}/shared/parser/src/core/parser_core.cpp
     # AST
     ${SAD_SOURCE_DIR}/shared/ast/src/ast_node.cpp
     # Types

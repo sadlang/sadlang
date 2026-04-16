@@ -1,4 +1,4 @@
-// ======================================================================
+﻿// ======================================================================
 // sir_frontend_optimizer.cpp - تنفيذ محسّن SIR الأمامي
 //                              Frontend SIR Optimizer Implementation
 // ======================================================================
@@ -18,807 +18,633 @@
 #include <sstream>
 #include <cmath>
 #include <cassert>
+#include <iostream>
 
-namespace Sad {
-namespace Compiler {
-namespace SIR {
+namespace Sad
+{
+    namespace Compiler
+    {
+        namespace SIR
+        {
 
-// ======================================================================
-// FrontendOptStats::toString
-// ======================================================================
-std::string FrontendOptStats::toString() const {
-    std::ostringstream oss;
-    oss << "=== SIR Optimization Stats ===\n"
-        << "  Constants folded:  " << constantsFolded << "\n"
-        << "  Dead code removed: " << deadInstructionsRemoved << "\n"
-        << "  Functions inlined: " << functionsInlined << "\n"
-        << "  CSE eliminated:    " << commonSubexpressionsEliminated << "\n"
-        << "  Loops simplified:  " << loopsSimplified << "\n"
-        << "  Total passes run:  " << totalPassesRun << "\n"
-        << "  Total iterations:  " << totalIterations << "\n"
-        << "  Total optimized:   " << totalOptimizations() << "\n";
-    return oss.str();
-}
+            // ======================================================================
+            // FrontendOptStats::toString
+            // ======================================================================
+            std::string FrontendOptStats::toString() const
+            {
+                std::ostringstream oss;
+                oss << "=== SIR Optimization Stats ===\n"
+                    << "  Constants folded:  " << constantsFolded << "\n"
+                    << "  Dead code removed: " << deadInstructionsRemoved << "\n"
+                    << "  Functions inlined: " << functionsInlined << "\n"
+                    << "  CSE eliminated:    " << commonSubexpressionsEliminated << "\n"
+                    << "  Loops simplified:  " << loopsSimplified << "\n"
+                    << "  Total passes run:  " << totalPassesRun << "\n"
+                    << "  Total iterations:  " << totalIterations << "\n"
+                    << "  Total optimized:   " << totalOptimizations() << "\n";
+                return oss.str();
+            }
 
-// ======================================================================
-// SIRFrontendPass default module pass
-// ======================================================================
-bool SIRFrontendPass::runOnModule(SIRModule& module) {
-    bool changed = false;
-    for (auto& func : module.getFunctions()) {
-        if (func) {
-            changed |= runOnFunction(*func);
-        }
-    }
-    return changed;
-}
+            // ======================================================================
+            // SIRFrontendPass default module pass
+            // ======================================================================
+            bool SIRFrontendPass::runOnModule(SIRModule &module)
+            {
+                bool changed = false;
+                for (auto &func : module.getFunctions())
+                {
+                    if (func)
+                    {
+                        changed |= runOnFunction(*func);
+                    }
+                }
+                return changed;
+            }
 
-// ======================================================================
-// Helper: opcode classification
-// ======================================================================
-static bool isArithmeticOp(SIROpcode op) {
-    switch (op) {
-        case SIROpcode::ADD_I64: case SIROpcode::ADD_F64:
-        case SIROpcode::SUB_I64: case SIROpcode::SUB_F64:
-        case SIROpcode::MUL_I64: case SIROpcode::MUL_F64:
-        case SIROpcode::DIV_I64: case SIROpcode::DIV_F64:
-        case SIROpcode::MOD_I64: case SIROpcode::NEG:
-            return true;
-        default:
-            return false;
-    }
-}
+            // ======================================================================
+            // Helper: opcode classification
+            // ======================================================================
+            static bool isArithmeticOp(SIROpcode op)
+            {
+                switch (op)
+                {
+                case SIROpcode::ADD_I64:
+                case SIROpcode::ADD_F64:
+                case SIROpcode::SUB_I64:
+                case SIROpcode::SUB_F64:
+                case SIROpcode::MUL_I64:
+                case SIROpcode::MUL_F64:
+                case SIROpcode::DIV_I64:
+                case SIROpcode::DIV_F64:
+                case SIROpcode::FLOOR_DIV_I64:
+                case SIROpcode::MOD_I64:
+                case SIROpcode::NEG:
+                    return true;
+                default:
+                    return false;
+                }
+            }
 
-static bool isComparisonOp(SIROpcode op) {
-    switch (op) {
-        case SIROpcode::EQ: case SIROpcode::NE:
-        case SIROpcode::LT: case SIROpcode::LE:
-        case SIROpcode::GT: case SIROpcode::GE:
-            return true;
-        default:
-            return false;
-    }
-}
+            static bool isComparisonOp(SIROpcode op)
+            {
+                switch (op)
+                {
+                case SIROpcode::EQ:
+                case SIROpcode::NE:
+                case SIROpcode::LT:
+                case SIROpcode::LE:
+                case SIROpcode::GT:
+                case SIROpcode::GE:
+                    return true;
+                default:
+                    return false;
+                }
+            }
 
-static bool isBitwiseOp(SIROpcode op) {
-    switch (op) {
-        case SIROpcode::AND: case SIROpcode::OR:
-        case SIROpcode::XOR: case SIROpcode::NOT:
-        case SIROpcode::SHL: case SIROpcode::SHR:
-        case SIROpcode::SAR: case SIROpcode::ROL:
-            return true;
-        default:
-            return false;
-    }
-}
+            static bool isBitwiseOp(SIROpcode op)
+            {
+                switch (op)
+                {
+                case SIROpcode::AND:
+                case SIROpcode::OR:
+                case SIROpcode::XOR:
+                case SIROpcode::NOT:
+                case SIROpcode::SHL:
+                case SIROpcode::SHR:
+                case SIROpcode::SAR:
+                case SIROpcode::ROL:
+                    return true;
+                default:
+                    return false;
+                }
+            }
 
-// ======================================================================
-// ممر 1: طيّ الثوابت / Pass 1: Constant Folding
-// ======================================================================
+            // ======================================================================
+            // ممر 1: طيّ الثوابت / Pass 1: Constant Folding
+            // ======================================================================
 
-bool ConstantFoldingFrontendPass::isConstant(
-    const SIROperand& op,
-    const std::unordered_map<std::string, SIROperand>& constants) const {
-    if (op.type == SIROperandType::CONSTANT) return true;
-    if (op.type == SIROperandType::REGISTER) {
-        return constants.count(op.name) > 0;
-    }
-    return false;
-}
+            bool ConstantFoldingFrontendPass::isConstant(
+                const SIROperand &op,
+                const std::unordered_map<std::string, SIROperand> &constants) const
+            {
+                if (op.type == SIROperandType::CONSTANT)
+                    return true;
+                if (op.type == SIROperandType::REGISTER)
+                {
+                    return constants.count(op.name) > 0;
+                }
+                return false;
+            }
 
-SIROperand ConstantFoldingFrontendPass::resolveConstant(
-    const SIROperand& op,
-    const std::unordered_map<std::string, SIROperand>& constants) const {
-    if (op.type == SIROperandType::CONSTANT) return op;
-    auto it = constants.find(op.name);
-    if (it != constants.end()) return it->second;
-    return op;
-}
+            SIROperand ConstantFoldingFrontendPass::resolveConstant(
+                const SIROperand &op,
+                const std::unordered_map<std::string, SIROperand> &constants) const
+            {
+                if (op.type == SIROperandType::CONSTANT)
+                    return op;
+                auto it = constants.find(op.name);
+                if (it != constants.end())
+                    return it->second;
+                return op;
+            }
 
-bool ConstantFoldingFrontendPass::foldInstruction(
-    SIRInstruction& inst,
-    std::unordered_map<std::string, SIROperand>& constants) {
+            bool ConstantFoldingFrontendPass::foldInstruction(
+                SIRInstruction &inst,
+                std::unordered_map<std::string, SIROperand> &constants)
+            {
 
-    if (!inst.hasResult()) return false;
-    const auto& resultName = inst.result->name;
+                if (!inst.hasResult())
+                    return false;
+                const auto &resultName = inst.result->name;
 
-    // Unary: NEG
-    if (inst.opcode == SIROpcode::NEG && inst.operands.size() == 1) {
-        if (!isConstant(inst.operands[0], constants)) return false;
-        auto val = resolveConstant(inst.operands[0], constants);
-        if (val.dataType == SIRType::I64) {
-            constants[resultName] = SIROperand::ConstantI64(-val.intValue);
-            return true;
-        }
-        if (val.dataType == SIRType::F64) {
-            constants[resultName] = SIROperand::ConstantF64(-val.floatValue);
-            return true;
-        }
-        return false;
-    }
+                // Unary: NEG
+                if (inst.opcode == SIROpcode::NEG && inst.operands.size() == 1)
+                {
+                    if (!isConstant(inst.operands[0], constants))
+                        return false;
+                    auto val = resolveConstant(inst.operands[0], constants);
+                    if (val.dataType == SadTypeKind::Integer)
+                    {
+                        constants[resultName] = SIROperand::ConstantI64(-val.intValue);
+                        return true;
+                    }
+                    if (val.dataType == SadTypeKind::Float)
+                    {
+                        constants[resultName] = SIROperand::ConstantF64(-val.floatValue);
+                        return true;
+                    }
+                    return false;
+                }
 
-    // Binary arithmetic
-    if (inst.operands.size() != 2) return false;
-    if (!isConstant(inst.operands[0], constants) ||
-        !isConstant(inst.operands[1], constants))
-        return false;
+                // Binary arithmetic
+                if (inst.operands.size() != 2)
+                    return false;
+                if (!isConstant(inst.operands[0], constants) ||
+                    !isConstant(inst.operands[1], constants))
+                    return false;
 
-    auto lhs = resolveConstant(inst.operands[0], constants);
-    auto rhs = resolveConstant(inst.operands[1], constants);
+                auto lhs = resolveConstant(inst.operands[0], constants);
+                auto rhs = resolveConstant(inst.operands[1], constants);
 
-    switch (inst.opcode) {
-        // Integer arithmetic
-        case SIROpcode::ADD_I64:
-            constants[resultName] = SIROperand::ConstantI64(lhs.intValue + rhs.intValue);
-            return true;
-        case SIROpcode::SUB_I64:
-            constants[resultName] = SIROperand::ConstantI64(lhs.intValue - rhs.intValue);
-            return true;
-        case SIROpcode::MUL_I64:
-            constants[resultName] = SIROperand::ConstantI64(lhs.intValue * rhs.intValue);
-            return true;
-        case SIROpcode::DIV_I64:
-            if (rhs.intValue == 0) return false;
-            constants[resultName] = SIROperand::ConstantI64(lhs.intValue / rhs.intValue);
-            return true;
-        case SIROpcode::MOD_I64:
-            if (rhs.intValue == 0) return false;
-            constants[resultName] = SIROperand::ConstantI64(lhs.intValue % rhs.intValue);
-            return true;
+                switch (inst.opcode)
+                {
+                // Integer arithmetic
+                case SIROpcode::ADD_I64:
+                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue + rhs.intValue);
+                    return true;
+                case SIROpcode::SUB_I64:
+                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue - rhs.intValue);
+                    return true;
+                case SIROpcode::MUL_I64:
+                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue * rhs.intValue);
+                    return true;
+                case SIROpcode::DIV_I64:
+                    if (rhs.intValue == 0)
+                        return false;
+                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue / rhs.intValue);
+                    return true;
+                case SIROpcode::FLOOR_DIV_I64:
+                {
+                    if (rhs.intValue == 0)
+                        return false;
+                    int64_t q = lhs.intValue / rhs.intValue;
+                    if ((lhs.intValue ^ rhs.intValue) < 0 && lhs.intValue % rhs.intValue != 0)
+                        q -= 1;
+                    constants[resultName] = SIROperand::ConstantI64(q);
+                    return true;
+                }
+                case SIROpcode::MOD_I64:
+                    if (rhs.intValue == 0)
+                        return false;
+                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue % rhs.intValue);
+                    return true;
 
-        // Float arithmetic
-        case SIROpcode::ADD_F64:
-            constants[resultName] = SIROperand::ConstantF64(lhs.floatValue + rhs.floatValue);
-            return true;
-        case SIROpcode::SUB_F64:
-            constants[resultName] = SIROperand::ConstantF64(lhs.floatValue - rhs.floatValue);
-            return true;
-        case SIROpcode::MUL_F64:
-            constants[resultName] = SIROperand::ConstantF64(lhs.floatValue * rhs.floatValue);
-            return true;
-        case SIROpcode::DIV_F64:
-            if (rhs.floatValue == 0.0) return false;
-            constants[resultName] = SIROperand::ConstantF64(lhs.floatValue / rhs.floatValue);
-            return true;
+                // Float arithmetic
+                case SIROpcode::ADD_F64:
+                    constants[resultName] = SIROperand::ConstantF64(lhs.floatValue + rhs.floatValue);
+                    return true;
+                case SIROpcode::SUB_F64:
+                    constants[resultName] = SIROperand::ConstantF64(lhs.floatValue - rhs.floatValue);
+                    return true;
+                case SIROpcode::MUL_F64:
+                    constants[resultName] = SIROperand::ConstantF64(lhs.floatValue * rhs.floatValue);
+                    return true;
+                case SIROpcode::DIV_F64:
+                    if (rhs.floatValue == 0.0)
+                        return false;
+                    constants[resultName] = SIROperand::ConstantF64(lhs.floatValue / rhs.floatValue);
+                    return true;
 
-        // Comparisons (integer)
-        case SIROpcode::EQ:
-            constants[resultName] = SIROperand::ConstantBool(lhs.intValue == rhs.intValue);
-            return true;
-        case SIROpcode::NE:
-            constants[resultName] = SIROperand::ConstantBool(lhs.intValue != rhs.intValue);
-            return true;
-        case SIROpcode::LT:
-            constants[resultName] = SIROperand::ConstantBool(lhs.intValue < rhs.intValue);
-            return true;
-        case SIROpcode::LE:
-            constants[resultName] = SIROperand::ConstantBool(lhs.intValue <= rhs.intValue);
-            return true;
-        case SIROpcode::GT:
-            constants[resultName] = SIROperand::ConstantBool(lhs.intValue > rhs.intValue);
-            return true;
-        case SIROpcode::GE:
-            constants[resultName] = SIROperand::ConstantBool(lhs.intValue >= rhs.intValue);
-            return true;
+                // Comparisons (integer)
+                case SIROpcode::EQ:
+                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue == rhs.intValue);
+                    return true;
+                case SIROpcode::NE:
+                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue != rhs.intValue);
+                    return true;
+                case SIROpcode::LT:
+                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue < rhs.intValue);
+                    return true;
+                case SIROpcode::LE:
+                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue <= rhs.intValue);
+                    return true;
+                case SIROpcode::GT:
+                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue > rhs.intValue);
+                    return true;
+                case SIROpcode::GE:
+                    constants[resultName] = SIROperand::ConstantBool(lhs.intValue >= rhs.intValue);
+                    return true;
 
-        // Bitwise (integer)
-        case SIROpcode::AND:
-            constants[resultName] = SIROperand::ConstantI64(lhs.intValue & rhs.intValue);
-            return true;
-        case SIROpcode::OR:
-            constants[resultName] = SIROperand::ConstantI64(lhs.intValue | rhs.intValue);
-            return true;
-        case SIROpcode::XOR:
-            constants[resultName] = SIROperand::ConstantI64(lhs.intValue ^ rhs.intValue);
-            return true;
-        case SIROpcode::SHL:
-            constants[resultName] = SIROperand::ConstantI64(lhs.intValue << rhs.intValue);
-            return true;
-        case SIROpcode::SHR:
-            constants[resultName] = SIROperand::ConstantI64(
-                static_cast<int64_t>(static_cast<uint64_t>(lhs.intValue) >> rhs.intValue));
-            return true;
+                // Bitwise (integer) — مع حفظ النوع المنطقي
+                // (AR) إذا كان كلا المعاملين منطقيين، تُرجع ConstantBool بدلاً من ConstantI64
+                //      لأن AND/OR على Boolean يجب أن تُحافظ على نوع Boolean
+                //      وإلا يطبع PRINT "1" بدلاً من "صحيح"
+                // (EN) If both operands are Boolean, return ConstantBool instead of ConstantI64
+                //      because AND/OR on Boolean must preserve Boolean type
+                case SIROpcode::AND:
+                {
+                    bool isBoolOp = (lhs.dataType == SadTypeKind::Boolean && rhs.dataType == SadTypeKind::Boolean);
+                    if (isBoolOp)
+                        constants[resultName] = SIROperand::ConstantBool((lhs.intValue & rhs.intValue) != 0);
+                    else
+                        constants[resultName] = SIROperand::ConstantI64(lhs.intValue & rhs.intValue);
+                    return true;
+                }
+                case SIROpcode::OR:
+                {
+                    bool isBoolOp = (lhs.dataType == SadTypeKind::Boolean && rhs.dataType == SadTypeKind::Boolean);
+                    if (isBoolOp)
+                        constants[resultName] = SIROperand::ConstantBool((lhs.intValue | rhs.intValue) != 0);
+                    else
+                        constants[resultName] = SIROperand::ConstantI64(lhs.intValue | rhs.intValue);
+                    return true;
+                }
+                case SIROpcode::XOR:
+                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue ^ rhs.intValue);
+                    return true;
+                case SIROpcode::SHL:
+                    constants[resultName] = SIROperand::ConstantI64(lhs.intValue << rhs.intValue);
+                    return true;
+                case SIROpcode::SHR:
+                    constants[resultName] = SIROperand::ConstantI64(
+                        static_cast<int64_t>(static_cast<uint64_t>(lhs.intValue) >> rhs.intValue));
+                    return true;
 
-        default:
-            return false;
-    }
-}
+                default:
+                    return false;
+                }
+            }
 
-bool ConstantFoldingFrontendPass::runOnFunction(SIRFunction& func) {
-    bool changed = false;
-    std::unordered_map<std::string, SIROperand> constants;
+            bool ConstantFoldingFrontendPass::runOnFunction(SIRFunction &func)
+            {
+                bool changed = false;
+                std::unordered_map<std::string, SIROperand> constants;
 
-    for (auto& block : func.basicBlocks) {
-        if (!block) continue;
-        auto& instructions = block->instructions;
+                for (auto &block : func.basicBlocks)
+                {
+                    if (!block)
+                        continue;
+                    auto &instructions = block->instructions;
 
-        for (size_t i = 0; i < instructions.size(); ++i) {
-            auto& inst = instructions[i];
+                    for (size_t i = 0; i < instructions.size(); ++i)
+                    {
+                        auto &inst = instructions[i];
 
-            if (foldInstruction(inst, constants)) {
-                // Replace operands in subsequent instructions that use this result
-                const auto& resultName = inst.result->name;
-                auto it = constants.find(resultName);
-                if (it != constants.end()) {
-                    // Propagate constant to all users
-                    for (size_t j = i + 1; j < instructions.size(); ++j) {
-                        for (auto& op : instructions[j].operands) {
-                            if (op.type == SIROperandType::REGISTER &&
-                                op.name == resultName) {
-                                op = it->second;
+                        if (foldInstruction(inst, constants))
+                        {
+                            // Replace operands in subsequent instructions that use this result
+                            const auto &resultName = inst.result->name;
+                            auto it = constants.find(resultName);
+                            if (it != constants.end())
+                            {
+                                // Propagate constant to all users
+                                for (size_t j = i + 1; j < instructions.size(); ++j)
+                                {
+                                    for (auto &op : instructions[j].operands)
+                                    {
+                                        if (op.type == SIROperandType::REGISTER &&
+                                            op.name == resultName)
+                                        {
+                                            op = it->second;
+                                        }
+                                    }
+                                }
+                                // Also propagate to subsequent blocks
+                                changed = true;
                             }
                         }
                     }
-                    // Also propagate to subsequent blocks
-                    changed = true;
                 }
+                return changed;
             }
-        }
-    }
-    return changed;
-}
 
-// ======================================================================
-// ممر 2: حذف الكود الميت / Pass 2: Dead Code Elimination
-// ======================================================================
+            // ======================================================================
+            // ممر 2: حذف الكود الميت / Pass 2: Dead Code Elimination
+            // ======================================================================
 
-std::unordered_set<std::string> DeadCodeEliminationFrontendPass::collectUsedRegisters(
-    const SIRFunction& func) const {
-    std::unordered_set<std::string> used;
-    for (const auto& block : func.basicBlocks) {
-        if (!block) continue;
-        for (const auto& inst : block->instructions) {
-            for (const auto& op : inst.operands) {
-                if (op.type == SIROperandType::REGISTER) {
-                    used.insert(op.name);
+            std::unordered_set<std::string> DeadCodeEliminationFrontendPass::collectUsedRegisters(
+                const SIRFunction &func) const
+            {
+                std::unordered_set<std::string> used;
+                for (const auto &block : func.basicBlocks)
+                {
+                    if (!block)
+                        continue;
+                    for (const auto &inst : block->instructions)
+                    {
+                        for (const auto &op : inst.operands)
+                        {
+                            if (op.type == SIROperandType::REGISTER)
+                            {
+                                used.insert(op.name);
+                            }
+                        }
+                    }
                 }
+                return used;
             }
-        }
-    }
-    return used;
-}
 
-bool DeadCodeEliminationFrontendPass::hasSideEffects(const SIRInstruction& inst) const {
-    switch (inst.opcode) {
-        // Control flow
-        case SIROpcode::BR:
-        case SIROpcode::BR_COND:
-        case SIROpcode::RET:
-        case SIROpcode::RET_VOID:
-        case SIROpcode::SWITCH:
-            return true;
+            // (AR) إعادة تصميم: من whitelist إلى blacklist (قائمة العمليات النقيّة)
+            //      النظام القديم كان يسرد كل عملية لها آثار جانبية → return true; default → return false
+            //      المشكلة: أي opcode جديد يُنسى إضافته يُحذف بصمت عبر DCE
+            //      الحل الجذري: نسرد فقط العمليات النقيّة (بدون آثار جانبية) → return false
+            //      أي opcode غير مدرج يُعتبر تلقائياً ذا آثار جانبية → return true (آمن)
+            //      هذا يطابق نفس النمط المُطبّق في middle optimizer (dead_code_elimination_pass.cpp)
+            //
+            // (EN) Redesign: from whitelist to blacklist (pure operations list)
+            //      Old system listed every side-effect opcode → return true; default → return false
+            //      Problem: any new opcode forgotten gets silently removed by DCE
+            //      Root fix: list only PURE ops (no side effects) → return false
+            //      Any unlisted opcode is automatically treated as having side effects → return true (safe)
+            //      This matches the same pattern applied in the middle optimizer (dead_code_elimination_pass.cpp)
+            bool DeadCodeEliminationFrontendPass::hasSideEffects(const SIRInstruction &inst) const
+            {
+                switch (inst.opcode)
+                {
+                // ═══════════════════════════════════════════════════════════════
+                // (1) عمليات حسابية — نقيّة تماماً (Arithmetic — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::ADD_I64:
+                case SIROpcode::SUB_I64:
+                case SIROpcode::MUL_I64:
+                case SIROpcode::DIV_I64:
+                case SIROpcode::FLOOR_DIV_I64:
+                case SIROpcode::MOD_I64:
+                case SIROpcode::NEG:
+                case SIROpcode::ADD_F64:
+                case SIROpcode::SUB_F64:
+                case SIROpcode::MUL_F64:
+                case SIROpcode::DIV_F64:
+                    return false;
 
-        // Memory writes
-        case SIROpcode::STORE:
-        case SIROpcode::FREE:
-        case SIROpcode::MEMCPY:
-        case SIROpcode::MEMSET:
-        case SIROpcode::ARRAY_SET:
-        case SIROpcode::ARRAY_APPEND:
-        case SIROpcode::ARRAY_REMOVE:
-        case SIROpcode::OBJECT_SET:
-            return true;
+                // ═══════════════════════════════════════════════════════════════
+                // (2) عمليات بتّية — نقيّة (Bitwise — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::AND:
+                case SIROpcode::OR:
+                case SIROpcode::XOR:
+                case SIROpcode::NOT:
+                case SIROpcode::SHL:
+                case SIROpcode::SHR:
+                case SIROpcode::SAR:
+                case SIROpcode::ROL:
+                    return false;
 
-        // Calls (may have side effects)
-        case SIROpcode::CALL:
-        case SIROpcode::CALL_INDIRECT:
-        case SIROpcode::OBJECT_CALL:
-        case SIROpcode::CONSTRUCTOR_CALL:
-            return true;
+                // ═══════════════════════════════════════════════════════════════
+                // (3) عمليات المقارنة — نقيّة (Comparisons — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::EQ:
+                case SIROpcode::NE:
+                case SIROpcode::LT:
+                case SIROpcode::LE:
+                case SIROpcode::GT:
+                case SIROpcode::GE:
+                    return false;
 
-        // Builtins with side effects
-        case SIROpcode::BUILTIN_PRINT:
-        case SIROpcode::BUILTIN_DEBUG:
-        case SIROpcode::BUILTIN_ASSERT:
-        case SIROpcode::BUILTIN_EXIT:
-        case SIROpcode::BUILTIN_SLEEP:
-        case SIROpcode::BUILTIN_FILE_WRITE:
-        case SIROpcode::BUILTIN_FILE_APPEND:
-        case SIROpcode::BUILTIN_FILE_DELETE:
-        case SIROpcode::BUILTIN_FILE_COPY:
-        case SIROpcode::BUILTIN_FILE_MOVE:
-        case SIROpcode::BUILTIN_FILE_CREATE_DIR:
-        case SIROpcode::BUILTIN_CLEAR_SCREEN:
-            return true;
+                // ═══════════════════════════════════════════════════════════════
+                // (4) عمليات القراءة من الذاكرة — نقيّة (Memory reads — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::LOAD:
+                case SIROpcode::ADDR:
+                case SIROpcode::PTR_ADD:
+                case SIROpcode::PTR_CAST:
+                case SIROpcode::MOVE:
+                    return false;
 
-        default:
-            return false;
-    }
-}
+                // ═══════════════════════════════════════════════════════════════
+                // (5) قراءة المصفوفات والـ tuples — نقيّة (Array/tuple reads — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::ARRAY_GET:
+                case SIROpcode::ARRAY_LEN:
+                case SIROpcode::ARRAY_NEW:
+                case SIROpcode::ARRAY_CONCAT:
+                case SIROpcode::TUPLE_NEW:
+                case SIROpcode::TUPLE_GET:
+                case SIROpcode::TUPLE_LEN:
+                    return false;
 
-bool DeadCodeEliminationFrontendPass::runOnFunction(SIRFunction& func) {
-    bool changed = false;
-    auto used = collectUsedRegisters(func);
+                // ═══════════════════════════════════════════════════════════════
+                // (6) عمليات النصوص — نقيّة (String operations — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::STRING_NEW:
+                case SIROpcode::STRING_CONCAT:
+                case SIROpcode::STRING_LEN:
+                case SIROpcode::STRING_SUBSTR:
+                case SIROpcode::STRING_CMP:
+                case SIROpcode::STRING_FIND:
+                case SIROpcode::STRING_REPLACE:
+                case SIROpcode::STRING_TO_I64:
+                case SIROpcode::STRING_TO_F64:
+                    return false;
 
-    for (auto& block : func.basicBlocks) {
-        if (!block) continue;
-        auto& instructions = block->instructions;
+                // ═══════════════════════════════════════════════════════════════
+                // (7) قراءة الكائنات — نقيّة (Object reads — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::OBJECT_GET:
+                case SIROpcode::OBJECT_NEW:
+                case SIROpcode::INSTANCEOF:
+                case SIROpcode::OBJECT_CAST:
+                    return false;
 
-        auto newEnd = std::remove_if(instructions.begin(), instructions.end(),
-            [&](const SIRInstruction& inst) {
-                // Keep instructions with side effects
-                if (hasSideEffects(inst)) return false;
-                // Keep instructions without results (labels etc)
-                if (!inst.hasResult()) return false;
-                // Remove if result is never used
-                if (used.find(inst.result->name) == used.end()) {
-                    changed = true;
+                // ═══════════════════════════════════════════════════════════════
+                // (8) قراءة ADT/Enum — نقيّة (ADT/Enum reads — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::ENUM_CONSTRUCT:
+                case SIROpcode::ENUM_GET_TAG:
+                case SIROpcode::ENUM_GET_PAYLOAD:
+                case SIROpcode::ENUM_IS_VARIANT:
+                    return false;
+
+                // ═══════════════════════════════════════════════════════════════
+                // (9) تحويلات الأنواع — نقيّة (Type conversions — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::I64_TO_F64:
+                case SIROpcode::F64_TO_I64:
+                case SIROpcode::I64_TO_BOOL:
+                case SIROpcode::BOOL_TO_I64:
+                case SIROpcode::I64_TO_STRING:
+                case SIROpcode::F64_TO_STRING:
+                case SIROpcode::BOOL_TO_STRING:
+                case SIROpcode::ARRAY_TO_STRING:
+                case SIROpcode::TUPLE_TO_STRING:
+                case SIROpcode::CAST:
+                    return false;
+
+                // ═══════════════════════════════════════════════════════════════
+                // (10) دوال رياضيات مدمجة — نقيّة (Builtin math — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::BUILTIN_SQRT:
+                case SIROpcode::BUILTIN_ABS:
+                case SIROpcode::BUILTIN_FLOOR:
+                case SIROpcode::BUILTIN_CEIL:
+                case SIROpcode::BUILTIN_ROUND:
+                case SIROpcode::BUILTIN_SIN:
+                case SIROpcode::BUILTIN_COS:
+                case SIROpcode::BUILTIN_TAN:
+                case SIROpcode::BUILTIN_POW:
+                case SIROpcode::BUILTIN_MIN:
+                case SIROpcode::BUILTIN_MAX:
+                case SIROpcode::BUILTIN_SUM:
+                    return false;
+
+                // ═══════════════════════════════════════════════════════════════
+                // (11) دوال نصوص مدمجة — نقيّة (Builtin string funcs — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::BUILTIN_STRING_LENGTH:
+                case SIROpcode::BUILTIN_STRING_CHAR_AT:
+                case SIROpcode::BUILTIN_STRING_TO_UPPER:
+                case SIROpcode::BUILTIN_STRING_TO_LOWER:
+                case SIROpcode::BUILTIN_STRING_FIND:
+                case SIROpcode::BUILTIN_STRING_REPLACE:
+                case SIROpcode::BUILTIN_STRING_SUBSTRING:
+                case SIROpcode::BUILTIN_STRING_TRIM:
+                case SIROpcode::BUILTIN_STRING_SPLIT:
+                case SIROpcode::BUILTIN_STRING_JOIN:
+                case SIROpcode::BUILTIN_STRING_STARTS_WITH:
+                case SIROpcode::BUILTIN_STRING_ENDS_WITH:
+                case SIROpcode::BUILTIN_STRING_CONTAINS:
+                    return false;
+
+                // ═══════════════════════════════════════════════════════════════
+                // (12) عمليات مصفوفات مدمجة للقراءة — نقيّة (Builtin array read-only — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::BUILTIN_ARRAY_SIZE:
+                case SIROpcode::BUILTIN_ARRAY_INDEX_OF:
+                case SIROpcode::BUILTIN_ARRAY_CONTAINS:
+                case SIROpcode::BUILTIN_ARRAY_FIRST:
+                case SIROpcode::BUILTIN_ARRAY_LAST:
+                case SIROpcode::BUILTIN_ARRAY_SLICE:
+                    return false;
+
+                // ═══════════════════════════════════════════════════════════════
+                // (13) فحص الأنواع — نقيّة (Type checks — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::BUILTIN_TYPE_OF:
+                case SIROpcode::BUILTIN_IS_INTEGER:
+                case SIROpcode::BUILTIN_IS_FLOAT:
+                case SIROpcode::BUILTIN_IS_STRING:
+                case SIROpcode::BUILTIN_IS_ARRAY:
+                case SIROpcode::BUILTIN_TO_BOOL:
+                case SIROpcode::BUILTIN_READ:
+                    return false;
+
+                // ═══════════════════════════════════════════════════════════════
+                // (14) دوال أمان نقيّة — لا تعدّل الحالة (Pure security — pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::BUILTIN_SECURITY_HASH:
+                case SIROpcode::BUILTIN_SECURITY_VERIFY:
+                case SIROpcode::BUILTIN_SECURITY_IS_SAFE:
+                case SIROpcode::BUILTIN_SECURITY_ENCRYPT:
+                case SIROpcode::BUILTIN_SECURITY_DECRYPT:
+                case SIROpcode::BUILTIN_SECURITY_BASE64_ENCODE:
+                case SIROpcode::BUILTIN_SECURITY_TIMESTAMP:
+                case SIROpcode::BUILTIN_SECURITY_SECURE_RANDOM:
+                    return false;
+
+                // ═══════════════════════════════════════════════════════════════
+                // (15) عمليات متنوعة نقيّة (Misc pure)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::Sizeof:
+                case SIROpcode::ENV_LOAD:
+                case SIROpcode::PHI:
+                case SIROpcode::Nop:
+                    return false;
+
+                // ═══════════════════════════════════════════════════════════════
+                // (16) عمليات FFI نقيّة — قراءة فقط (Pure FFI reads)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::FFI_STRLEN:
+                case SIROpcode::FFI_STRCMP:
+                case SIROpcode::FFI_ATOI:
+                case SIROpcode::FFI_ATOF:
+                    return false;
+
+                // ═══════════════════════════════════════════════════════════════
+                // (17) عمليات أندرويد نقيّة — قراءة فقط (Pure Android reads)
+                // ═══════════════════════════════════════════════════════════════
+                case SIROpcode::ANDROID_STRING_LENGTH:
+                case SIROpcode::ANDROID_STRING_COMPARE:
+                case SIROpcode::ANDROID_STRING_SUBSTR:
+                case SIROpcode::ANDROID_STRING_CONCAT:
+                case SIROpcode::ANDROID_ARRAY_GET:
+                case SIROpcode::ANDROID_ARRAY_LENGTH:
+                case SIROpcode::ANDROID_MAP_GET:
+                case SIROpcode::ANDROID_MAP_HAS:
+                case SIROpcode::ANDROID_MAP_SIZE:
+                    return false;
+
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) كل ما لم يُذكر أعلاه → آثار جانبية محتملة (آمن)
+                // (EN) Everything not listed above → assumed side effects (safe)
+                // ═══════════════════════════════════════════════════════════════
+                default:
                     return true;
                 }
-                return false;
-            });
+            }
 
-        if (newEnd != instructions.end()) {
-            instructions.erase(newEnd, instructions.end());
-        }
-    }
-    return changed;
-}
+            bool DeadCodeEliminationFrontendPass::runOnFunction(SIRFunction &func)
+            {
+                bool changed = false;
+                auto used = collectUsedRegisters(func);
 
-// ======================================================================
-// ممر 3: تضمين الدوال / Pass 3: Function Inlining
-// ======================================================================
+                for (auto &block : func.basicBlocks)
+                {
+                    if (!block)
+                        continue;
+                    auto &instructions = block->instructions;
 
-bool FunctionInliningFrontendPass::shouldInline(const SIRFunction& callee) const {
-    // Don't inline recursive or large functions
-    size_t totalInsts = 0;
-    for (const auto& block : callee.getBasicBlocks()) {
-        if (!block) continue;
-        totalInsts += block->instructions.size();
-    }
-    if (totalInsts > maxInlineSize_) return false;
-    if (totalInsts == 0) return false;
+                    auto newEnd = std::remove_if(instructions.begin(), instructions.end(),
+                                                 [&](const SIRInstruction &inst)
+                                                 {
+                                                     // Keep instructions with side effects
+                                                     if (hasSideEffects(inst))
+                                                         return false;
+                                                     // Keep instructions without results (labels etc)
+                                                     if (!inst.hasResult())
+                                                         return false;
+                                                     // Remove if result is never used
+                                                     if (used.find(inst.result->name) == used.end())
+                                                     {
+                                                         changed = true;
+                                                         return true;
+                                                     }
+                                                     return false;
+                                                 });
 
-    // Don't inline functions with multiple blocks (complex control flow)
-    if (callee.getBasicBlocks().size() > 2) return false;
-
-    return true;
-}
-
-bool FunctionInliningFrontendPass::inlineCallSite(
-    SIRFunction& caller, SIRBasicBlock& block,
-    size_t instIdx, const SIRFunction& callee,
-    size_t& nextReg) {
-
-    const auto& callInst = block.instructions[instIdx];
-
-    // Get callee's instructions from entry block
-    if (callee.getBasicBlocks().empty()) return false;
-    const auto& calleeEntry = callee.getBasicBlocks()[0];
-    if (!calleeEntry || calleeEntry->instructions.empty()) return false;
-
-    // Build parameter mapping: callee param name → caller arg operand
-    std::unordered_map<std::string, SIROperand> paramMap;
-    const auto& params = callee.getParameters();
-    // operands[0] is function name, rest are args
-    for (size_t i = 0; i < params.size() && i + 1 < callInst.operands.size(); ++i) {
-        paramMap[params[i].name] = callInst.operands[i + 1];
-    }
-
-    // Generate unique register prefix for inlined code
-    std::string prefix = "_inl" + std::to_string(nextReg++) + "_";
-
-    // Build inlined instructions
-    std::vector<SIRInstruction> inlinedInsts;
-    for (const auto& calInst : calleeEntry->instructions) {
-        if (calInst.opcode == SIROpcode::RET || calInst.opcode == SIROpcode::RET_VOID) {
-            // Replace return with a move to the call result
-            if (calInst.opcode == SIROpcode::RET && !calInst.operands.empty() &&
-                callInst.hasResult()) {
-                SIRInstruction moveInst(SIROpcode::MOVE);
-                moveInst.result = callInst.result;
-                auto retOp = calInst.operands[0];
-                // Remap operand
-                if (retOp.type == SIROperandType::REGISTER) {
-                    auto pit = paramMap.find(retOp.name);
-                    if (pit != paramMap.end()) {
-                        retOp = pit->second;
-                    } else {
-                        retOp.name = prefix + retOp.name;
+                    if (newEnd != instructions.end())
+                    {
+                        instructions.erase(newEnd, instructions.end());
                     }
                 }
-                moveInst.operands = {retOp};
-                inlinedInsts.push_back(moveInst);
-            }
-            continue;
-        }
-
-        SIRInstruction newInst = calInst;
-        // Remap result register
-        if (newInst.hasResult() && newInst.result->type == SIROperandType::REGISTER) {
-            auto pit = paramMap.find(newInst.result->name);
-            if (pit == paramMap.end()) {
-                newInst.result->name = prefix + newInst.result->name;
-            }
-        }
-        // Remap operand registers
-        for (auto& op : newInst.operands) {
-            if (op.type == SIROperandType::REGISTER) {
-                auto pit = paramMap.find(op.name);
-                if (pit != paramMap.end()) {
-                    op = pit->second;
-                } else {
-                    op.name = prefix + op.name;
-                }
-            }
-        }
-        inlinedInsts.push_back(newInst);
-    }
-
-    // Replace call instruction with inlined instructions
-    block.instructions.erase(block.instructions.begin() + static_cast<ptrdiff_t>(instIdx));
-    block.instructions.insert(
-        block.instructions.begin() + static_cast<ptrdiff_t>(instIdx),
-        inlinedInsts.begin(), inlinedInsts.end());
-
-    return true;
-}
-
-bool FunctionInliningFrontendPass::runOnModule(SIRModule& module) {
-    bool changed = false;
-    size_t nextReg = 0;
-
-    // Build map of inlineable functions
-    std::unordered_map<std::string, const SIRFunction*> inlineableFuncs;
-    for (const auto& func : module.getFunctions()) {
-        if (!func) continue;
-        if (shouldInline(*func)) {
-            inlineableFuncs[func->getName()] = func.get();
-        }
-    }
-
-    // Process each function
-    for (auto& func : module.getFunctions()) {
-        if (!func) continue;
-        for (auto& block : func->basicBlocks) {
-            if (!block) continue;
-            for (size_t i = 0; i < block->instructions.size(); ++i) {
-                auto& inst = block->instructions[i];
-                if (inst.opcode != SIROpcode::CALL) continue;
-                if (inst.operands.empty()) continue;
-
-                const auto& funcOp = inst.operands[0];
-                std::string calleeName = funcOp.name;
-                // Remove @ prefix if present
-                if (!calleeName.empty() && calleeName[0] == '@') {
-                    calleeName = calleeName.substr(1);
-                }
-
-                auto it = inlineableFuncs.find(calleeName);
-                if (it == inlineableFuncs.end()) continue;
-
-                // Don't inline recursive calls
-                if (calleeName == func->getName()) continue;
-
-                if (inlineCallSite(*func, *block, i, *it->second, nextReg)) {
-                    changed = true;
-                    // Re-process this position since we inserted new instructions
-                    --i;
-                }
-            }
-        }
-    }
-    return changed;
-}
-
-// ======================================================================
-// ممر 4: إزالة التعبيرات المتكررة / Pass 4: CSE
-// ======================================================================
-
-bool CommonSubexpressionEliminationPass::ExprKey::operator==(const ExprKey& other) const {
-    return opcode == other.opcode && operandNames == other.operandNames;
-}
-
-size_t CommonSubexpressionEliminationPass::ExprKeyHash::operator()(const ExprKey& key) const {
-    size_t h = std::hash<int>{}(static_cast<int>(key.opcode));
-    for (const auto& name : key.operandNames) {
-        h ^= std::hash<std::string>{}(name) + 0x9e3779b9 + (h << 6) + (h >> 2);
-    }
-    return h;
-}
-
-bool CommonSubexpressionEliminationPass::isPureOperation(SIROpcode opcode) const {
-    return isArithmeticOp(opcode) || isComparisonOp(opcode) || isBitwiseOp(opcode) ||
-           opcode == SIROpcode::I64_TO_F64 || opcode == SIROpcode::F64_TO_I64 ||
-           opcode == SIROpcode::I64_TO_BOOL || opcode == SIROpcode::BOOL_TO_I64;
-}
-
-bool CommonSubexpressionEliminationPass::runOnFunction(SIRFunction& func) {
-    bool changed = false;
-
-    for (auto& block : func.basicBlocks) {
-        if (!block) continue;
-
-        std::unordered_map<ExprKey, std::string, ExprKeyHash> exprMap;
-        // Maps old register name → replacement register name
-        std::unordered_map<std::string, std::string> replacements;
-
-        auto& instructions = block->instructions;
-        for (size_t i = 0; i < instructions.size(); ++i) {
-            auto& inst = instructions[i];
-
-            // Apply existing replacements to operands
-            for (auto& op : inst.operands) {
-                if (op.type == SIROperandType::REGISTER) {
-                    auto rit = replacements.find(op.name);
-                    if (rit != replacements.end()) {
-                        op.name = rit->second;
-                    }
-                }
+                return changed;
             }
 
-            // Only CSE pure operations with results
-            if (!inst.hasResult() || !isPureOperation(inst.opcode)) continue;
+            // ======================================================================
+            // ممر 3: تضمين الدوال / Pass 3: Function Inlining
+            // ======================================================================
 
-            ExprKey key;
-            key.opcode = inst.opcode;
-            for (const auto& op : inst.operands) {
-                if (op.type == SIROperandType::REGISTER) {
-                    key.operandNames.push_back(op.name);
-                } else if (op.type == SIROperandType::CONSTANT) {
-                    // Encode constant as string for hashing
-                    if (op.dataType == SIRType::I64) {
-                        key.operandNames.push_back("$i" + std::to_string(op.intValue));
-                    } else if (op.dataType == SIRType::F64) {
-                        key.operandNames.push_back("$f" + std::to_string(op.floatValue));
-                    } else if (op.dataType == SIRType::BOOL) {
-                        key.operandNames.push_back(op.boolValue ? "$true" : "$false");
-                    }
-                }
-            }
 
-            auto it = exprMap.find(key);
-            if (it != exprMap.end()) {
-                // This expression was computed before — replace with existing
-                replacements[inst.result->name] = it->second;
-                changed = true;
-            } else {
-                exprMap[key] = inst.result->name;
-            }
-        }
-
-        // Remove instructions whose results have been replaced
-        if (!replacements.empty()) {
-            auto newEnd = std::remove_if(instructions.begin(), instructions.end(),
-                [&](const SIRInstruction& inst) {
-                    return inst.hasResult() &&
-                           replacements.count(inst.result->name) > 0;
-                });
-            instructions.erase(newEnd, instructions.end());
-        }
-    }
-    return changed;
-}
-
-// ======================================================================
-// ممر 5: تبسيط الحلقات / Pass 5: Loop Simplification
-// ======================================================================
-
-bool LoopSimplificationFrontendPass::simplifyBranches(SIRFunction& func) {
-    bool changed = false;
-
-    for (auto& block : func.basicBlocks) {
-        if (!block) continue;
-        auto& instructions = block->instructions;
-        if (instructions.empty()) continue;
-
-        auto& lastInst = instructions.back();
-
-        // Simplify conditional branches with constant condition
-        if (lastInst.opcode == SIROpcode::BR_COND && lastInst.operands.size() == 3) {
-            const auto& cond = lastInst.operands[0];
-            if (cond.type == SIROperandType::CONSTANT && cond.dataType == SIRType::BOOL) {
-                // Replace with unconditional branch
-                SIROperand target = cond.boolValue
-                    ? lastInst.operands[1]   // then label
-                    : lastInst.operands[2];  // else label
-                lastInst.opcode = SIROpcode::BR;
-                lastInst.operands = {target};
-                changed = true;
-            }
-        }
-    }
-    return changed;
-}
-
-bool LoopSimplificationFrontendPass::removeEmptyBlocks(SIRFunction& func) {
-    bool changed = false;
-    auto& blocks = func.basicBlocks;
-
-    // Find empty blocks (only have an unconditional branch)
-    std::unordered_map<std::string, std::string> redirects;
-    for (const auto& block : blocks) {
-        if (!block) continue;
-        const auto& insts = block->instructions;
-        if (insts.size() == 1 && insts[0].opcode == SIROpcode::BR &&
-            !insts[0].operands.empty()) {
-            redirects[block->name] = insts[0].operands[0].name;
-        }
-    }
-
-    if (redirects.empty()) return false;
-
-    // Follow redirect chains
-    for (auto& [from, to] : redirects) {
-        std::unordered_set<std::string> visited;
-        visited.insert(from);
-        std::string current = to;
-        while (redirects.count(current) && !visited.count(current)) {
-            visited.insert(current);
-            current = redirects[current];
-        }
-        to = current;
-    }
-
-    // Update branch targets in all blocks
-    for (auto& block : blocks) {
-        if (!block) continue;
-        for (auto& inst : block->instructions) {
-            if (inst.opcode == SIROpcode::BR || inst.opcode == SIROpcode::BR_COND) {
-                for (auto& op : inst.operands) {
-                    if (op.type == SIROperandType::LABEL) {
-                        auto it = redirects.find(op.name);
-                        if (it != redirects.end()) {
-                            op.name = it->second;
-                            changed = true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Remove the empty blocks (don't remove entry block)
-    if (changed && blocks.size() > 1) {
-        blocks.erase(
-            std::remove_if(blocks.begin() + 1, blocks.end(),
-                [&](const std::shared_ptr<SIRBasicBlock>& b) {
-                    return b && redirects.count(b->name) > 0;
-                }),
-            blocks.end());
-    }
-
-    return changed;
-}
-
-bool LoopSimplificationFrontendPass::mergeLinearBlocks(SIRFunction& func) {
-    bool changed = false;
-    auto& blocks = func.basicBlocks;
-
-    for (size_t i = 0; i + 1 < blocks.size(); ++i) {
-        auto& block = blocks[i];
-        auto& nextBlock = blocks[i + 1];
-        if (!block || !nextBlock) continue;
-
-        auto& insts = block->instructions;
-        if (insts.empty()) continue;
-
-        auto& lastInst = insts.back();
-
-        // If this block ends with unconditional branch to the next block
-        if (lastInst.opcode == SIROpcode::BR &&
-            !lastInst.operands.empty() &&
-            lastInst.operands[0].type == SIROperandType::LABEL &&
-            lastInst.operands[0].name == nextBlock->name) {
-
-            // Check no other block branches to nextBlock
-            bool hasOtherPreds = false;
-            for (size_t j = 0; j < blocks.size(); ++j) {
-                if (j == i || !blocks[j]) continue;
-                for (const auto& inst : blocks[j]->instructions) {
-                    for (const auto& op : inst.operands) {
-                        if (op.type == SIROperandType::LABEL &&
-                            op.name == nextBlock->name) {
-                            hasOtherPreds = true;
-                            break;
-                        }
-                    }
-                    if (hasOtherPreds) break;
-                }
-                if (hasOtherPreds) break;
-            }
-
-            if (!hasOtherPreds) {
-                // Merge: remove branch, append next block's instructions
-                insts.pop_back(); // remove BR
-                insts.insert(insts.end(),
-                           nextBlock->instructions.begin(),
-                           nextBlock->instructions.end());
-                blocks.erase(blocks.begin() + static_cast<ptrdiff_t>(i + 1));
-                changed = true;
-                --i; // re-check this block
-            }
-        }
-    }
-    return changed;
-}
-
-bool LoopSimplificationFrontendPass::runOnFunction(SIRFunction& func) {
-    bool changed = false;
-    changed |= simplifyBranches(func);
-    changed |= removeEmptyBlocks(func);
-    changed |= mergeLinearBlocks(func);
-    return changed;
-}
-
-// ======================================================================
-// المحسّن الرئيسي / Main Optimizer
-// ======================================================================
-
-SIRFrontendOptimizer::SIRFrontendOptimizer() {
-    addPass(std::make_unique<ConstantFoldingFrontendPass>());
-    addPass(std::make_unique<DeadCodeEliminationFrontendPass>());
-    addPass(std::make_unique<FunctionInliningFrontendPass>());
-    addPass(std::make_unique<CommonSubexpressionEliminationPass>());
-    addPass(std::make_unique<LoopSimplificationFrontendPass>());
-}
-
-void SIRFrontendOptimizer::addPass(std::unique_ptr<SIRFrontendPass> pass) {
-    if (pass) {
-        enabledPasses_[pass->getName()] = true;
-        passes_.push_back(std::move(pass));
-    }
-}
-
-void SIRFrontendOptimizer::enablePass(const std::string& name, bool enabled) {
-    enabledPasses_[name] = enabled;
-}
-
-bool SIRFrontendOptimizer::optimizeFunction(SIRFunction& func) {
-    bool anyChanged = false;
-
-    for (size_t iter = 0; iter < maxIterations_; ++iter) {
-        bool iterChanged = false;
-        for (auto& pass : passes_) {
-            auto it = enabledPasses_.find(pass->getName());
-            if (it == enabledPasses_.end() || !it->second) continue;
-
-            bool passChanged = pass->runOnFunction(func);
-            if (passChanged) {
-                iterChanged = true;
-                stats_.totalPassesRun++;
-
-                // Update specific counters
-                const auto& name = pass->getName();
-                if (name == "ConstantFolding") stats_.constantsFolded++;
-                else if (name == "DeadCodeElimination") stats_.deadInstructionsRemoved++;
-                else if (name == "FunctionInlining") stats_.functionsInlined++;
-                else if (name == "CSE") stats_.commonSubexpressionsEliminated++;
-                else if (name == "LoopSimplification") stats_.loopsSimplified++;
-            }
-        }
-        stats_.totalIterations++;
-        if (!iterChanged) break;
-        anyChanged = true;
-    }
-    return anyChanged;
-}
-
-bool SIRFrontendOptimizer::optimizeModule(SIRModule& module) {
-    bool changed = false;
-
-    // First run module-level passes (inlining)
-    for (auto& pass : passes_) {
-        auto it = enabledPasses_.find(pass->getName());
-        if (it == enabledPasses_.end() || !it->second) continue;
-        if (pass->getName() == "FunctionInlining") {
-            if (pass->runOnModule(module)) {
-                changed = true;
-                stats_.functionsInlined++;
-                stats_.totalPassesRun++;
-            }
-        }
-    }
-
-    // Then run per-function passes iteratively
-    for (auto& func : module.getFunctions()) {
-        if (func) {
-            changed |= optimizeFunction(*func);
-        }
-    }
-    return changed;
-}
-
-} // namespace SIR
-} // namespace Compiler
+        } // namespace SIR
+    } // namespace Compiler
 } // namespace Sad
+

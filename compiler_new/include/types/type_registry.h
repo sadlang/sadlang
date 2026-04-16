@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: type_registry.h
 // File: type_registry.h
 //
@@ -87,7 +87,7 @@ public:
     // ═══════════════════════════════════════════════════════════════════════════
     
     // الحصول على أو إنشاء نوع بدائي / Get or create primitive type
-    TypePtr internPrimitiveType(TypeKind kind);
+    TypePtr internPrimitiveType(SadTypeKind kind);
     
     // الحصول على أو إنشاء نوع عام / Get or create type with interning
     // يستخدم hash للتحقق من التكرار / Uses hash to check for duplication

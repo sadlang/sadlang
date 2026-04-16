@@ -72,7 +72,7 @@ add_comprehensive_test(test_value_comprehensive test_value_comprehensive.cpp)
 
 # 4. المفسر / Interpreter Tests (76 tests)
 add_comprehensive_test(test_interpreter_comprehensive test_interpreter_comprehensive.cpp)
-target_link_libraries(test_interpreter_comprehensive PRIVATE sad_new_interpreter sad_new_semantic)
+target_link_libraries(test_interpreter_comprehensive PRIVATE sad_new_interpreter sad_new_semantic sad_profiler_lib)
 target_sources(test_interpreter_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/comprehensive/interpreter_test_stubs.cpp)
 
@@ -92,6 +92,9 @@ target_include_directories(test_stdlib_comprehensive PRIVATE
 
 # 6. الأخطاء الذكية / Smart Errors Tests (38 tests)
 add_comprehensive_test(test_errors_comprehensive test_errors_comprehensive.cpp)
+
+# 6.5. استنساخ عُقد AST / AST Clone Tests (18 tests)
+add_comprehensive_test(test_ast_clone test_ast_clone.cpp)
 
 # 7. الآلة الافتراضية والمترجم / VM & Compiler Tests (77 tests)
 add_comprehensive_test(test_vm_compiler_comprehensive test_vm_compiler_comprehensive.cpp)
@@ -123,13 +126,17 @@ target_include_directories(test_compiler_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/compiler_new/include/frontend
     ${CMAKE_SOURCE_DIR}/compiler_new/include/backend)
 
-# 11. الرسومات والأدوات والشبكة / Graphics, Tools & Network Tests (100 tests)
-add_comprehensive_test(test_graphics_tools_comprehensive test_graphics_tools_comprehensive.cpp)
-target_include_directories(test_graphics_tools_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/graphics/include
-    ${CMAKE_SOURCE_DIR}/graphics
-    ${CMAKE_SOURCE_DIR}/network/include
-    ${CMAKE_SOURCE_DIR}/tools)
+# 11.5. اختبارات نظام الاستثناءات / Throw-Catch Exception Tests (35 tests)
+add_comprehensive_test(test_throw_catch_comprehensive test_throw_catch_comprehensive.cpp)
+target_link_libraries(test_throw_catch_comprehensive PRIVATE sad_new_interpreter sad_new_semantic sad_profiler_lib)
+target_sources(test_throw_catch_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/comprehensive/interpreter_test_stubs.cpp)
+
+# 11.6. اختبارات ?. و ?? / Optional Chain & Null Coalesce Tests (30+ tests)
+add_comprehensive_test(test_optional_null_comprehensive test_optional_null_comprehensive.cpp)
+target_link_libraries(test_optional_null_comprehensive PRIVATE sad_new_interpreter sad_new_semantic sad_profiler_lib)
+target_sources(test_optional_null_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/comprehensive/interpreter_test_stubs.cpp)
 
 # 12. اختبارات الانحدار / Regression Tests (22 tests - bugs from مشاكل.md)
 add_comprehensive_test(test_regression_comprehensive test_regression_comprehensive.cpp)
@@ -192,6 +199,41 @@ target_include_directories(test_image_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/stdlib)
 
 # ──────────────────────────────────────────────────────────────────────
+# 14. اختبارات الواجهة الرسومية + المترجم SIR / UI Widget + Compiler SIR Tests
+# ──────────────────────────────────────────────────────────────────────
+add_comprehensive_test(test_ui_comprehensive test_ui_comprehensive.cpp)
+target_include_directories(test_ui_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/compiler_new/src/sir
+    ${CMAKE_SOURCE_DIR}/compiler_new/src)
+
+# 14b. اختبارات منصات الرسومات الشاملة / Comprehensive Backend Tests (IR + Pipeline + Codegen)
+add_comprehensive_test(test_backends_comprehensive test_backends_comprehensive.cpp)
+target_link_libraries(test_backends_comprehensive PRIVATE sad_ui)
+target_include_directories(test_backends_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/sad_ui/core/include
+    ${CMAKE_SOURCE_DIR}/sad_ui/pipeline/include
+    ${CMAKE_SOURCE_DIR}/sad_ui/widgets/include
+    ${CMAKE_SOURCE_DIR}/sad_ui/backends/desktop/include
+    ${CMAKE_SOURCE_DIR}/sad_ui/backends/android/include
+    ${CMAKE_SOURCE_DIR}/sad_ui/backends/ios/include
+    ${CMAKE_SOURCE_DIR}/sad_ui/backends/web/include
+    ${CMAKE_SOURCE_DIR}/sad_ui/backends/macos/include)
+
+# 14c. اختبارات نظام الأحداث الموحد / Unified Event System Tests (IREventType)
+add_comprehensive_test(test_event_system_comprehensive test_event_system_comprehensive.cpp)
+target_link_libraries(test_event_system_comprehensive PRIVATE sad_ui)
+target_include_directories(test_event_system_comprehensive PRIVATE
+    ${CMAKE_SOURCE_DIR}/sad_ui/core/include
+    ${CMAKE_SOURCE_DIR}/sad_ui/pipeline/include)
+
+# 14d. اختبارات أداء Reconciler ونظام الأحداث المستقرة / Reconciler Performance Tests
+add_comprehensive_test(test_reconciler_performance test_reconciler_performance.cpp)
+target_link_libraries(test_reconciler_performance PRIVATE sad_ui)
+target_include_directories(test_reconciler_performance PRIVATE
+    ${CMAKE_SOURCE_DIR}/sad_ui/core/include
+    ${CMAKE_SOURCE_DIR}/sad_ui/pipeline/include)
+
+# ──────────────────────────────────────────────────────────────────────
 # اختبارات .ص فردية مباشرة عبر CTest / Individual .ص CTest entries
 # ──────────────────────────────────────────────────────────────────────
 # تسجيل كل ملف .ص كاختبار CTest مستقل — يسهل التشخيص / Register each .ص as standalone CTest
@@ -226,6 +268,11 @@ set(REGRESSION_P1_TESTS
     test_p28_filesystem_smoke
     test_p29_filesystem_invalid_input
     test_p30_database_availability
+    test_p31_json_unicode_parse
+    test_p32_json_unicode_stringify
+    test_p33_operator_overloading
+    test_p34_conversion_operators
+    test_p35_print_operator
 )
 
 # P2 — تحسين / Enhancement
@@ -262,6 +309,48 @@ endif()
 message(STATUS "  ✅ test_regression_comprehensive (30 regression tests)")
 
 # ──────────────────────────────────────────────────────────────────────
+# اختبارات ?. و ?? عبر ملفات .ص / Optional Chain & Null Coalesce .ص tests
+# ──────────────────────────────────────────────────────────────────────
+if(TARGET sad)
+    set(OPT_TEST_DIR "${CMAKE_SOURCE_DIR}/tests/ownership")
+    file(GLOB OPT_NULL_TESTS "${OPT_TEST_DIR}/test_optional_null*")
+    foreach(OPT_FILE IN LISTS OPT_NULL_TESTS)
+        get_filename_component(OPT_NAME "${OPT_FILE}" NAME_WE)
+        add_test(NAME "OptionalNull_${OPT_NAME}" COMMAND $<TARGET_FILE:sad> "${OPT_FILE}")
+        set_tests_properties("OptionalNull_${OPT_NAME}" PROPERTIES TIMEOUT 15 LABELS "optional_null")
+        message(STATUS "  [test] OptionalNull: ${OPT_NAME}")
+    endforeach()
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# اختبارات المترجم freestanding عبر sadc / Freestanding Compiler Tests (sadc)
+# ──────────────────────────────────────────────────────────────────────
+# تتطلب بناء sadc (LLVM مفعّل) — تشغل سكريبت PowerShell يتحقق من أنماط LLVM IR
+# Requires sadc target (LLVM enabled) — runs PowerShell script that verifies LLVM IR patterns
+if(TARGET sadc AND WIN32)
+    find_program(POWERSHELL_EXE powershell)
+    if(POWERSHELL_EXE)
+        add_test(
+            NAME "Compiler_Freestanding_BugFixes"
+            COMMAND ${POWERSHELL_EXE}
+                -ExecutionPolicy Bypass
+                -File "${CMAKE_SOURCE_DIR}/tests/compiler/run_freestanding_tests.ps1"
+                -SadcPath "$<TARGET_FILE:sadc>"
+                -TestDir "${CMAKE_SOURCE_DIR}/tests/compiler"
+        )
+        set_tests_properties("Compiler_Freestanding_BugFixes" PROPERTIES
+            TIMEOUT 120
+            LABELS "compiler;freestanding"
+        )
+        message(STATUS "  [test] Compiler_Freestanding_BugFixes (sadc IR verification)")
+    else()
+        message(STATUS "  [skip] Compiler_Freestanding_BugFixes: PowerShell not found")
+    endif()
+else()
+    message(STATUS "  [skip] Compiler_Freestanding_BugFixes: sadc target not available or not Windows")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
 # هدف مُجمّع / Combined Target
 # ──────────────────────────────────────────────────────────────────────
 add_custom_target(comprehensive_tests
@@ -272,19 +361,21 @@ add_custom_target(comprehensive_tests
         test_interpreter_comprehensive
         test_stdlib_comprehensive
         test_errors_comprehensive
+        test_ast_clone
         test_vm_compiler_comprehensive
         test_jit_comprehensive
         test_e2e_comprehensive
         test_utils_modules_comprehensive
         test_compiler_comprehensive
-        test_graphics_tools_comprehensive
         test_regression_comprehensive
+        test_optional_null_comprehensive
     COMMENT "بناء جميع الاختبارات الشاملة / Building all comprehensive tests"
 )
 
 message(STATUS "════════════════════════════════════════════════════════")
-message(STATUS "  ✅ الاختبارات الشاملة: 12 ملف | 900+ اختبار + 30 انحدار")
-message(STATUS "  📋 بناء الكل: cmake --build build --target comprehensive_tests")
-message(STATUS "  🧪 تشغيل الكل: ctest --test-dir build -R Comprehensive")
-message(STATUS "  🔄 تشغيل الانحدار: ctest --test-dir build -L regression")
+message(STATUS "  الاختبارات الشاملة: 12 ملف | 900+ اختبار + 30 انحدار + freestanding")
+message(STATUS "  بناء الكل: cmake --build build --target comprehensive_tests")
+message(STATUS "  تشغيل الكل: ctest --test-dir build -R Comprehensive")
+message(STATUS "  تشغيل الانحدار: ctest --test-dir build -L regression")
+message(STATUS "  تشغيل المترجم: ctest --test-dir build -L freestanding")
 message(STATUS "════════════════════════════════════════════════════════")

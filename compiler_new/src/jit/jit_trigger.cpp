@@ -36,6 +36,7 @@
 #include <map>
 #include <unordered_map>
 #include <memory>
+#include <optional>
 #include <functional>
 #include <chrono>
 #include <atomic>

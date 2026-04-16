@@ -286,6 +286,7 @@ bool LICMPass::isSafeToHoist(const SIR::SIRInstruction& inst) const {
         case SIR::SIROpcode::MUL_F64:
         case SIR::SIROpcode::DIV_I64:
         case SIR::SIROpcode::DIV_F64:
+        case SIR::SIROpcode::FLOOR_DIV_I64:
         case SIR::SIROpcode::MOD_I64:
         case SIR::SIROpcode::NEG:
         // Bitwise

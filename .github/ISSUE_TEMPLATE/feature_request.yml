@@ -1,0 +1,71 @@
+name: "✨ طلب ميزة / Feature Request"
+description: "اقتراح ميزة جديدة أو تحسين لغة ص"
+labels: ["ميزة", "بحاجة فرز"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        شكراً لاقتراحك! أفكارك تساعدنا في بناء لغة ص أفضل.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: "المكون"
+      description: "أي جزء من لغة ص يتعلق به الاقتراح؟"
+      options:
+        - اللغة نفسها (نحو/بنية)
+        - المفسر (sad)
+        - المترجم (sadc)
+        - صNet (الشبكات)
+        - المكتبة القياسية
+        - أدوات التطوير (LSP/formatter/pkg)
+        - التوثيق
+        - آخر
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "المشكلة التي تحلها الميزة"
+      description: "ما المشكلة أو الحاجة التي دفعتك لهذا الاقتراح؟"
+      placeholder: "أحتاج إلى... لأن..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: "الحل المقترح"
+      description: "كيف تتخيل عمل الميزة؟ قدم أمثلة كود إن أمكن."
+      render: sad
+      placeholder: |
+        # مثال على الصياغة المقترحة:
+        دالة مثال()
+            # ...
+        نهاية
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "بدائل درستها"
+      description: "هل فكرت في حلول بديلة؟ لماذا لم تكن كافية؟"
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "الأهمية بالنسبة لك"
+      options:
+        - حرجة — لا أستطيع العمل بدونها
+        - مهمة — تُحسّن تجربتي كثيراً
+        - مستحبة — ستكون لطيفة
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: "سياق إضافي"
+      description: "أي معلومات أخرى: روابط، أمثلة من لغات أخرى، لقطات شاشة..."

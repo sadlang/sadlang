@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ═══════════════════════════════════════════════════════════════════════════════
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                    نظام التعبيرات التوليدية - لغة ص                        ║
@@ -143,7 +143,7 @@ namespace TypeSystem {
  * - Comprehension<[عدد], FlatMap> -> تسطيح القوائم
  */
 ComprehensionType::ComprehensionType(TypePtr elementType, ComprehensionOp operation)
-    : Type(TypeKind::Comprehension)
+    : Type(SadTypeKind::Comprehension)
     , elementType_(elementType)
     , operation_(operation)
 {
@@ -213,7 +213,7 @@ std::string ComprehensionType::toString() const {
  *         true if types are equal
  */
 bool ComprehensionType::equals(const Type* other) const {
-    if (!other || other->getKind() != TypeKind::Comprehension) {
+    if (!other || other->getKind() != SadTypeKind::Comprehension) {
         return false;
     }
     

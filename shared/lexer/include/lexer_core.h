@@ -156,6 +156,14 @@ private:
     bool isAlpha(char c) const;
     bool isAlphaNumeric(char c) const;
     bool isWhitespace(char c) const;
+    
+    /**
+     * @brief (AR) التحقق إذا كانت البايتات الحالية تشكل علامة ترقيم عربية (، ؛ ؟)
+     * @brief (EN) Check if current bytes form Arabic punctuation (، ؛ ؟)
+     * @return true إذا كان الحرف فاصلة أو منقوطة أو علامة استفهام عربية
+     */
+    bool isArabicPunctuationAt(size_t pos) const;
+    
     Token makeError(const std::string& message);
     
     /**
@@ -168,6 +176,11 @@ private:
      */
     Token makeToken(TokenType type, const std::string& value);
 
+public:
+    /// (AR) الحصول على النص المصدري الكامل (EN) Get the full source text
+    const std::string& getSource() const { return source_; }
+
+private:
     std::string source_;
     size_t current_;
     size_t line_;

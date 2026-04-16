@@ -696,7 +696,8 @@ private:
     Options options_;
     
 public:
-    Disassembler(const Options& opts = Options()) : options_(opts) {}
+    Disassembler() : options_() {}
+    explicit Disassembler(const Options& opts) : options_(opts) {}
     
     /**
      * 📝 تفريغ تعليمة واحدة

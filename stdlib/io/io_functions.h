@@ -31,6 +31,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <functional>
 #include "value.h"
 
 namespace Sad {
@@ -208,6 +209,17 @@ private:
      * @note Handles arrays and maps specially with proper formatting
      */
     static std::string formatValue(const Data::Value& value);
+
+public:
+    /**
+     * @brief (AR) تسجيل callback لتحويل الكائنات إلى نص عبر عامل نص()
+     * @brief (EN) Register callback for object-to-string conversion via نص() operator
+     */
+    using ObjectToStringCallback = std::function<std::string(const Data::Value&)>;
+    static void setObjectToStringCallback(ObjectToStringCallback callback);
+
+private:
+    static ObjectToStringCallback objectToStringCallback_;
 };
 
 } // namespace IO

@@ -93,6 +93,7 @@ static int token_to_semantic_type(Sad::Lexer::TokenType type) {
         case TT::OP_ASSIGN: case TT::OP_EQUAL: case TT::OP_NOT_EQUAL:
         case TT::OP_LESS: case TT::OP_LESS_EQUAL: case TT::OP_GREATER:
         case TT::OP_GREATER_EQUAL: case TT::OP_AND: case TT::OP_OR: case TT::OP_NOT:
+        case TT::QUESTION_DOT: case TT::QUESTION_QUESTION:
             return static_cast<int>(SemanticTokenType::Operator);
 
         // معرّفات → variable (سيتم تنقيحها لاحقاً بناءً على الفهرس)

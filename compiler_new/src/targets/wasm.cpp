@@ -71,6 +71,8 @@
 #include <sstream>
 #include <iostream>
 #include <cstdint>
+#include <algorithm>
+#include <cassert>
 
 namespace sad::targets {
 
@@ -718,8 +720,10 @@ struct SadWasmCodeGen {
 };
 
 SadWasmCodeGen* sad_wasm_codegen_new() {
-    auto* ctx = new SadWasmCodeGen();
-    ctx->gen = new sad::targets::WasmCodeGen();
+    auto* ctx = new (std::nothrow) SadWasmCodeGen();
+    if (!ctx) return nullptr;
+    ctx->gen = new (std::nothrow) sad::targets::WasmCodeGen();
+    if (!ctx->gen) { delete ctx; return nullptr; }
     return ctx;
 }
 

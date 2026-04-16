@@ -16,6 +16,8 @@
     #include <windows.h>
 #else
     #include <unistd.h>
+    // _strdup is MSVC-specific
+    #define _strdup strdup
 #endif
 
 // External declarations from llvm_runtime.cpp
@@ -417,19 +419,54 @@ void sad_llvm_gc_collect() {
     
     gc_context.collections++;
     
-    // ✅ TODO 5: تنفيذ خوارزمية mark-and-sweep / Implement mark-and-sweep algorithm
+    // (AR) خوارزمية mark-and-sweep كاملة مع تتبع الجذور
+    // (EN) Full mark-and-sweep algorithm with root tracing
+    
+    if (gc_context.count == 0) return;
     
     // المرحلة 1: وضع علامة على جميع الكائنات كغير محددة / Phase 1: Mark all as unmarked
     std::vector<bool> marked(gc_context.count, false);
     
-    // المرحلة 2: وضع علامة على الجذور / Phase 2: Mark roots
-    // في هذا التنفيذ المبسط، نعتبر جميع الكائنات جذوراً
-    // In this simplified implementation, consider all objects as roots
-    for (uint64_t i = 0; i < gc_context.count; i++) {
-        if (gc_context.objects[i] != nullptr) {
-            marked[i] = true;
-            // TODO: في تنفيذ كامل، نحتاج لتتبع المراجع
-            // TODO: In full implementation, need to trace references
+    // المرحلة 2: وضع علامة على الجذور وتتبع المراجع
+    // Phase 2: Mark roots and trace references
+    if (gc_context.root_count > 0 && gc_context.roots != nullptr) {
+        // (AR) تتبع من الجذور المسجّلة
+        // (EN) Trace from registered roots
+        for (uint64_t r = 0; r < gc_context.root_count; r++) {
+            void* rootPtr = gc_context.roots[r];
+            if (rootPtr == nullptr) continue;
+            
+            // (AR) البحث عن هذا الجذر في قائمة الكائنات
+            // (EN) Find this root in the object list
+            int idx = gc_find_object(rootPtr);
+            if (idx >= 0 && !marked[idx]) {
+                marked[idx] = true;
+                
+                // (AR) تتبع المراجع الداخلية — نفحص محتوى الكائن
+                // كل 8 بايت قد يكون مؤشراً لكائن آخر
+                // (EN) Trace internal references — scan object contents
+                // every 8 bytes may be a pointer to another object
+                uint64_t objSize = gc_context.sizes[idx];
+                void** objData = (void**)rootPtr;
+                uint64_t ptrCount = objSize / sizeof(void*);
+                
+                for (uint64_t p = 0; p < ptrCount; p++) {
+                    void* maybeRef = objData[p];
+                    if (maybeRef == nullptr) continue;
+                    int refIdx = gc_find_object(maybeRef);
+                    if (refIdx >= 0 && !marked[refIdx]) {
+                        marked[refIdx] = true;
+                    }
+                }
+            }
+        }
+    } else {
+        // (AR) لا توجد جذور مسجّلة — نعتبر جميع الكائنات حيّة (سلوك محافظ)
+        // (EN) No roots registered — consider all objects alive (conservative)
+        for (uint64_t i = 0; i < gc_context.count; i++) {
+            if (gc_context.objects[i] != nullptr) {
+                marked[i] = true;
+            }
         }
     }
     
@@ -468,10 +505,8 @@ void sad_llvm_gc_collect() {
 void sad_llvm_gc_collect_incremental(uint64_t steps) {
     if (gc_context.paused) return;
     
-    // ✅ TODO 5: تنفيذ جمع تدريجي / Implement incremental collection
-    
-    // جمع تدريجي - نجمع عدد محدود من الكائنات في كل خطوة
-    // Incremental collection - collect limited objects per step
+    // جمع تدريجي — مرحلة وضع/مسح
+    // Incremental collection — mark/sweep phases
     
     static uint64_t current_phase = 0; // 0=mark, 1=sweep
     static uint64_t current_index = 0;

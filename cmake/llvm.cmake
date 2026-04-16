@@ -35,6 +35,7 @@ endif()
 if(NOT LLVM_DIR)
     # جرّب المسارات الشائعة / Try common paths
     foreach(_llvm_hint
+        "C:/llvm_dev/LLVM/lib/cmake/llvm"
         "C:/Program Files/LLVM/lib/cmake/llvm"
         "C:/LLVM/lib/cmake/llvm"
         "C:/LLVM-Dev/lib/cmake/llvm"
@@ -162,5 +163,73 @@ set(LLVM_LINK_COMPONENTS
     WebAssembly XCore native MC CodeGen AsmParser AsmPrinter
 )
 
-llvm_map_components_to_libnames(LLVM_LIBS ${LLVM_LINK_COMPONENTS})
-message(STATUS "   LLVM libs count: ${LLVM_LIBS}")
+# On Linux with shared LLVM, link to the single shared library (includes all targets)
+# On Windows/static builds, use individual component libraries
+if(EXISTS "${LLVM_LIBRARY_DIRS}/libLLVM-${LLVM_VERSION_MAJOR}.so")
+    set(LLVM_LIBS LLVM-${LLVM_VERSION_MAJOR})
+    message(STATUS "   Using shared LLVM library: libLLVM-${LLVM_VERSION_MAJOR}.so")
+else()
+    llvm_map_components_to_libnames(LLVM_LIBS ${LLVM_LINK_COMPONENTS})
+    message(STATUS "   LLVM libs count: ${LLVM_LIBS}")
+endif()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# اكتشاف مكتبات LLD للرابط المدمج / LLD Library Discovery for Embedded Linker
+# ═══════════════════════════════════════════════════════════════════════════════
+# LLD هو رابط LLVM الذي يدعم صيغ COFF (Windows)، ELF (Linux)، Mach-O (macOS)، 
+# MinGW، و WebAssembly. عند تضمينه في sadc، يصبح المترجم مكتفياً ذاتياً
+# بدون الحاجة لرابط خارجي (clang أو link.exe).
+#
+# LLD is the LLVM linker supporting COFF, ELF, Mach-O, MinGW, and WebAssembly.
+# When embedded in sadc, the compiler becomes self-contained without needing
+# an external linker (clang or link.exe).
+# ═══════════════════════════════════════════════════════════════════════════════
+set(LLD_LIBS "")
+set(HAS_EMBEDDED_LLD FALSE)
+
+set(_lld_components lldCOFF lldCommon lldELF lldMachO lldMinGW lldWasm)
+set(_lld_all_found TRUE)
+
+foreach(_lld_comp ${_lld_components})
+    find_library(_lld_lib_${_lld_comp}
+        NAMES ${_lld_comp}
+        PATHS ${LLVM_LIBRARY_DIRS}
+        NO_DEFAULT_PATH
+    )
+    if(_lld_lib_${_lld_comp})
+        list(APPEND LLD_LIBS ${_lld_lib_${_lld_comp}})
+    else()
+        set(_lld_all_found FALSE)
+        message(STATUS "   ⊘ LLD component not found: ${_lld_comp}")
+    endif()
+endforeach()
+
+# (AR) مكتبات LLVM الإضافية اللازمة لـ LLD
+# (EN) Additional LLVM libraries required by LLD
+if(_lld_all_found)
+    set(_lld_llvm_deps LLVMLTO LLVMLibDriver LLVMOption LLVMLinker)
+    foreach(_dep ${_lld_llvm_deps})
+        find_library(_lld_dep_${_dep}
+            NAMES ${_dep}
+            PATHS ${LLVM_LIBRARY_DIRS}
+            NO_DEFAULT_PATH
+        )
+        if(_lld_dep_${_dep})
+            list(APPEND LLD_LIBS ${_lld_dep_${_dep}})
+        else()
+            set(_lld_all_found FALSE)
+            message(STATUS "   ⊘ LLD LLVM dependency not found: ${_dep}")
+        endif()
+    endforeach()
+endif()
+
+if(_lld_all_found)
+    set(HAS_EMBEDDED_LLD TRUE)
+    message(STATUS "✅ LLD موجود — الرابط المدمج مفعّل / LLD found — embedded linker enabled")
+    message(STATUS "   LLD libs: ${LLD_LIBS}")
+else()
+    message(STATUS "⊘ LLD غير مكتمل — سيتم استخدام رابط خارجي / LLD incomplete — external linker")
+endif()
+
+unset(_lld_all_found)
+unset(_lld_components)

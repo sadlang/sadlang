@@ -9,6 +9,7 @@
 #include <iomanip>      // لتنسيق الإخراج / For output formatting
 #include <sstream>      // لمعالجة النصوص / For string processing
 #include <chrono>       // للوقت / For time
+#include <thread>       // للخيوط / For threads
 
 namespace Sad {
 namespace JIT {

@@ -1,0 +1,60 @@
+name: "🔒 بلاغ أمني / Security Report"
+description: "الإبلاغ عن ثغرة أمنية (استخدم هذا فقط للثغرات غير الحرجة — للثغرات الحرجة راجع SECURITY.md)"
+labels: ["أمان", "سري"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **للثغرات الحرجة**: استخدم [الإبلاغ الخاص](https://github.com/sad-lang/sad-language/security/advisories/new) أو أرسل إلى security@sad-lang.org
+
+        هذا النموذج للمشاكل الأمنية **غير الحرجة** فقط.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: "مستوى الخطورة"
+      options:
+        - "🟢 منخفض — تسريب معلومات محدود"
+        - "🟡 متوسط — تعطيل خدمة أو استنزاف موارد"
+      description: "للخطورة العالية أو الحرجة، استخدم الإبلاغ الخاص"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: "المكون المتأثر"
+      options:
+        - المفسر (sad)
+        - المترجم (sadc)
+        - صNet (تشفير/شبكات)
+        - خادم LSP
+        - مدير الحزم (pkg)
+        - المكتبة القياسية
+        - آخر
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "وصف المشكلة الأمنية"
+      description: "وصف دقيق للمشكلة وكيف يمكن استغلالها"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "خطوات إعادة الإنتاج"
+      description: "كيف يمكن إعادة إنتاج المشكلة؟"
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: "التأثير المحتمل"
+      description: "ما الضرر الذي يمكن أن تسببه؟"
+    validations:
+      required: true

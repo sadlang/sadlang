@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: sad-lang
+Upstream-Contact: team@sad-lang.org
+Source: https://github.com/sad-lang/sad-language
+
+Files: *
+Copyright: 2024 Sad Language Team
+License: MIT

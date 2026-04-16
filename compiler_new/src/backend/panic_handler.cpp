@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file panic_handler.cpp
  * @brief (AR) معالج الذعر للأنظمة المدمجة
  *        (EN) Panic handler for embedded systems
@@ -142,24 +142,24 @@ struct PanicInfo {
 
 namespace سمات_الذعر {
     // (AR) السمة الرئيسية
-    const std::string معالج_ذعر = u8"معالج_ذعر";
-    const std::string إيقاف_عند_ذعر = u8"إيقاف_عند_ذعر";
+    const std::string معالج_ذعر = "معالج_ذعر";
+    const std::string إيقاف_عند_ذعر = "إيقاف_عند_ذعر";
     
     // (AR) أنواع الذعر
-    const std::string تأكد_فشل = u8"تأكد_فشل";
-    const std::string فهرس_خارج_الحدود = u8"فهرس_خارج_الحدود";
-    const std::string لا_يمكن_فك_غلاف = u8"لا_يمكن_فك_غلاف";
-    const std::string قسمة_صفر = u8"قسمة_صفر";
-    const std::string طفحان_حسابي = u8"طفحان_حسابي";
-    const std::string نفاد_الذاكرة = u8"نفاد_الذاكرة";
-    const std::string مؤشر_فارغ = u8"مؤشر_فارغ";
+    const std::string تأكد_فشل = "تأكد_فشل";
+    const std::string فهرس_خارج_الحدود = "فهرس_خارج_الحدود";
+    const std::string لا_يمكن_فك_غلاف = "لا_يمكن_فك_غلاف";
+    const std::string قسمة_صفر = "قسمة_صفر";
+    const std::string طفحان_حسابي = "طفحان_حسابي";
+    const std::string نفاد_الذاكرة = "نفاد_الذاكرة";
+    const std::string مؤشر_فارغ = "مؤشر_فارغ";
     
     // (AR) حقول معلومات الذعر
-    const std::string رسالة = u8"رسالة";
-    const std::string موقع = u8"موقع";
-    const std::string ملف = u8"ملف";
-    const std::string سطر = u8"سطر";
-    const std::string عمود = u8"عمود";
+    const std::string رسالة = "رسالة";
+    const std::string موقع = "موقع";
+    const std::string ملف = "ملف";
+    const std::string سطر = "سطر";
+    const std::string عمود = "عمود";
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -212,25 +212,25 @@ public:
         std::ostringstream ir;
         
         ir << "; ═══════════════════════════════════════════════════════════════\n";
-        ir << "; " << u8"هيكل معلومات الذعر" << "\n";
+        ir << "; " << "هيكل معلومات الذعر" << "\n";
         ir << "; Panic Info Structure\n";
         ir << "; ═══════════════════════════════════════════════════════════════\n\n";
         
         // (AR) هيكل الموقع
-        ir << "; " << u8"هيكل موقع الذعر" << "\n";
+        ir << "; " << "هيكل موقع الذعر" << "\n";
         ir << "%PanicLocation = type {\n";
-        ir << "    ptr,      ; " << u8"اسم الملف (file)" << "\n";
-        ir << "    i32,      ; " << u8"رقم السطر (line)" << "\n";
-        ir << "    i32       ; " << u8"رقم العمود (column)" << "\n";
+        ir << "    ptr,      ; " << "اسم الملف (file)" << "\n";
+        ir << "    i32,      ; " << "رقم السطر (line)" << "\n";
+        ir << "    i32       ; " << "رقم العمود (column)" << "\n";
         ir << "}\n\n";
         
         // (AR) هيكل معلومات الذعر
-        ir << "; " << u8"هيكل معلومات الذعر" << "\n";
+        ir << "; " << "هيكل معلومات الذعر" << "\n";
         ir << "%PanicInfo = type {\n";
-        ir << "    ptr,              ; " << u8"رسالة الذعر (message)" << "\n";
-        ir << "    i64,              ; " << u8"طول الرسالة (message_len)" << "\n";
-        ir << "    i1,               ; " << u8"هل يوجد موقع؟ (has_location)" << "\n";
-        ir << "    %PanicLocation    ; " << u8"الموقع (location)" << "\n";
+        ir << "    ptr,              ; " << "رسالة الذعر (message)" << "\n";
+        ir << "    i64,              ; " << "طول الرسالة (message_len)" << "\n";
+        ir << "    i1,               ; " << "هل يوجد موقع؟ (has_location)" << "\n";
+        ir << "    %PanicLocation    ; " << "الموقع (location)" << "\n";
         ir << "}\n\n";
         
         return ir.str();
@@ -244,7 +244,7 @@ public:
         std::ostringstream ir;
         
         ir << "; ═══════════════════════════════════════════════════════════════\n";
-        ir << "; " << u8"معالج الذعر الافتراضي" << "\n";
+        ir << "; " << "معالج الذعر الافتراضي" << "\n";
         ir << "; Default Panic Handler\n";
         ir << "; ═══════════════════════════════════════════════════════════════\n\n";
         
@@ -253,20 +253,20 @@ public:
         
         switch (strategy) {
             case PanicStrategy::ABORT:
-                ir << "  ; " << u8"استراتيجية: إيقاف فوري (trap)" << "\n";
+                ir << "  ; " << "استراتيجية: إيقاف فوري (trap)" << "\n";
                 ir << "  call void @llvm.trap()\n";
                 ir << "  unreachable\n";
                 break;
                 
             case PanicStrategy::HALT:
-                ir << "  ; " << u8"استراتيجية: حلقة لا نهائية" << "\n";
+                ir << "  ; " << "استراتيجية: حلقة لا نهائية" << "\n";
                 ir << "  br label %halt_loop\n";
                 ir << "halt_loop:\n";
                 ir << "  br label %halt_loop\n";
                 break;
                 
             case PanicStrategy::RESET:
-                ir << "  ; " << u8"استراتيجية: إعادة تشغيل" << "\n";
+                ir << "  ; " << "استراتيجية: إعادة تشغيل" << "\n";
                 ir << "  call void @__system_reset()\n";
                 ir << "  unreachable\n";
                 break;
@@ -283,7 +283,7 @@ public:
         ir << "declare void @llvm.trap() noreturn nounwind\n\n";
         
         if (strategy == PanicStrategy::RESET) {
-            ir << "; " << u8"دالة إعادة تشغيل النظام (يجب توفيرها)" << "\n";
+            ir << "; " << "دالة إعادة تشغيل النظام (يجب توفيرها)" << "\n";
             ir << "declare void @__system_reset() noreturn\n\n";
         }
         
@@ -298,20 +298,20 @@ public:
         std::ostringstream ir;
         
         ir << "; ═══════════════════════════════════════════════════════════════\n";
-        ir << "; " << u8"غلاف معالج الذعر المخصص" << "\n";
+        ir << "; " << "غلاف معالج الذعر المخصص" << "\n";
         ir << "; Custom Panic Handler Wrapper\n";
         ir << "; ═══════════════════════════════════════════════════════════════\n\n";
         
         // (AR) إعلان المعالج المخصص
-        ir << "; " << u8"المعالج المخصص" << "\n";
+        ir << "; " << "المعالج المخصص" << "\n";
         ir << "declare void @" << info.functionName << "(ptr) noreturn\n\n";
         
         // (AR) الغلاف
         ir << "define void @__sad_panic_handler(ptr %info) noreturn {\n";
         ir << "entry:\n";
-        ir << "  ; " << u8"استدعاء المعالج المخصص" << "\n";
+        ir << "  ; " << "استدعاء المعالج المخصص" << "\n";
         ir << "  call void @" << info.functionName << "(ptr %info)\n";
-        ir << "  ; " << u8"في حالة العودة (لا يجب أن يحدث)" << "\n";
+        ir << "  ; " << "في حالة العودة (لا يجب أن يحدث)" << "\n";
         ir << "  call void @llvm.trap()\n";
         ir << "  unreachable\n";
         ir << "}\n\n";
@@ -329,12 +329,12 @@ public:
         std::ostringstream ir;
         
         ir << "; ═══════════════════════════════════════════════════════════════\n";
-        ir << "; " << u8"دالة ذعر!" << "\n";
+        ir << "; " << "دالة ذعر!" << "\n";
         ir << "; panic! function\n";
         ir << "; ═══════════════════════════════════════════════════════════════\n\n";
         
         // (AR) دالة ذعر مع رسالة فقط
-        ir << "; " << u8"ذعر مع رسالة" << "\n";
+        ir << "; " << "ذعر مع رسالة" << "\n";
         ir << "define void @__sad_panic_message(ptr %msg, i64 %len) noreturn {\n";
         ir << "entry:\n";
         ir << "  %info = alloca %PanicInfo\n";
@@ -349,16 +349,16 @@ public:
         ir << "}\n\n";
         
         // (AR) دالة ذعر مع موقع
-        ir << "; " << u8"ذعر مع موقع" << "\n";
+        ir << "; " << "ذعر مع موقع" << "\n";
         ir << "define void @__sad_panic_location(ptr %msg, i64 %len, ptr %file, i32 %line, i32 %col) noreturn {\n";
         ir << "entry:\n";
         ir << "  %info = alloca %PanicInfo\n";
-        ir << "  ; " << u8"تعبئة الرسالة" << "\n";
+        ir << "  ; " << "تعبئة الرسالة" << "\n";
         ir << "  %msg_ptr = getelementptr %PanicInfo, ptr %info, i32 0, i32 0\n";
         ir << "  store ptr %msg, ptr %msg_ptr\n";
         ir << "  %len_ptr = getelementptr %PanicInfo, ptr %info, i32 0, i32 1\n";
         ir << "  store i64 %len, ptr %len_ptr\n";
-        ir << "  ; " << u8"تعبئة الموقع" << "\n";
+        ir << "  ; " << "تعبئة الموقع" << "\n";
         ir << "  %has_loc = getelementptr %PanicInfo, ptr %info, i32 0, i32 2\n";
         ir << "  store i1 true, ptr %has_loc\n";
         ir << "  %loc_file = getelementptr %PanicInfo, ptr %info, i32 0, i32 3, i32 0\n";
@@ -382,12 +382,12 @@ public:
         std::ostringstream ir;
         
         ir << "; ═══════════════════════════════════════════════════════════════\n";
-        ir << "; " << u8"دوال التأكيد" << "\n";
+        ir << "; " << "دوال التأكيد" << "\n";
         ir << "; Assertion Functions\n";
         ir << "; ═══════════════════════════════════════════════════════════════\n\n";
         
         // (AR) تأكد! - assert
-        ir << "; " << u8"تأكد!(شرط)" << "\n";
+        ir << "; " << "تأكد!(شرط)" << "\n";
         ir << "@__assert_msg = private constant [20 x i8] c\"assertion failed!\\00\\00\"\n\n";
         
         ir << "define void @__sad_assert(i1 %cond, ptr %file, i32 %line) {\n";
@@ -401,7 +401,7 @@ public:
         ir << "}\n\n";
         
         // (AR) تأكد_مساواة! - assert_eq
-        ir << "; " << u8"تأكد_مساواة!(أ، ب)" << "\n";
+        ir << "; " << "تأكد_مساواة!(أ، ب)" << "\n";
         ir << "@__assert_eq_msg = private constant [30 x i8] c\"assertion failed: a != b\\00\\00\\00\\00\\00\"\n\n";
         
         ir << "define void @__sad_assert_eq_i64(i64 %a, i64 %b, ptr %file, i32 %line) {\n";
@@ -416,10 +416,10 @@ public:
         ir << "}\n\n";
         
         // (AR) debug_assert - في Debug فقط
-        ir << "; " << u8"تأكد_تصحيح! (في Debug فقط)" << "\n";
+        ir << "; " << "تأكد_تصحيح! (في Debug فقط)" << "\n";
         ir << "define void @__sad_debug_assert(i1 %cond, ptr %file, i32 %line) {\n";
         ir << "entry:\n";
-        ir << "  ; " << u8"في Release، هذه الدالة فارغة" << "\n";
+        ir << "  ; " << "في Release، هذه الدالة فارغة" << "\n";
         ir << "  ; In Release, this function is empty\n";
         ir << "  br i1 %cond, label %ok, label %fail\n";
         ir << "ok:\n";
@@ -521,7 +521,7 @@ public:
         
         if (hasCustomHandler_) {
             if (customHandler_.functionName.empty()) {
-                errors.push_back(u8"معالج الذعر المخصص لا يملك اسم دالة");
+                errors.push_back("معالج الذعر المخصص لا يملك اسم دالة");
             }
         }
         
@@ -563,12 +563,12 @@ PanicHandlerInfo createPanicHandlerInfo(
  */
 std::string getPanicStrategyNameArabic(PanicStrategy strategy) {
     switch (strategy) {
-        case PanicStrategy::ABORT: return u8"إيقاف_فوري";
-        case PanicStrategy::HALT: return u8"حلقة_لا_نهائية";
-        case PanicStrategy::RESET: return u8"إعادة_تشغيل";
-        case PanicStrategy::UNWIND: return u8"فك_المكدس";
-        case PanicStrategy::CUSTOM: return u8"مخصص";
-        default: return u8"غير_معروف";
+        case PanicStrategy::ABORT: return "إيقاف_فوري";
+        case PanicStrategy::HALT: return "حلقة_لا_نهائية";
+        case PanicStrategy::RESET: return "إعادة_تشغيل";
+        case PanicStrategy::UNWIND: return "فك_المكدس";
+        case PanicStrategy::CUSTOM: return "مخصص";
+        default: return "غير_معروف";
     }
 }
 
@@ -577,16 +577,16 @@ std::string getPanicStrategyNameArabic(PanicStrategy strategy) {
  *        (EN) Parse panic strategy attribute
  */
 std::optional<PanicStrategy> parsePanicStrategyAttribute(const std::string& value) {
-    if (value == u8"إيقاف" || value == "abort") {
+    if (value == "إيقاف" || value == "abort") {
         return PanicStrategy::ABORT;
     }
-    if (value == u8"توقف" || value == "halt") {
+    if (value == "توقف" || value == "halt") {
         return PanicStrategy::HALT;
     }
-    if (value == u8"إعادة_تشغيل" || value == "reset") {
+    if (value == "إعادة_تشغيل" || value == "reset") {
         return PanicStrategy::RESET;
     }
-    if (value == u8"فك" || value == "unwind") {
+    if (value == "فك" || value == "unwind") {
         return PanicStrategy::UNWIND;
     }
     

@@ -615,8 +615,10 @@ struct SadTargetList {
 };
 
 SadTargetList* sad_target_list_new() {
-    auto* ctx = new SadTargetList();
-    ctx->list = new sad::targets::TargetList();
+    auto* ctx = new (std::nothrow) SadTargetList();
+    if (!ctx) return nullptr;
+    ctx->list = new (std::nothrow) sad::targets::TargetList();
+    if (!ctx->list) { delete ctx; return nullptr; }
     return ctx;
 }
 

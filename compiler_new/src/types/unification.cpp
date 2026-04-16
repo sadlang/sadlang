@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: unification.cpp
 // File: unification.cpp
 //
@@ -266,7 +266,7 @@ UnificationResult Unifier::unifyInternal(TypePtr type1, TypePtr type2, Substitut
         }
         
         // (AR) تحليل عناصر الأنواع المركبة / (EN) Analyze composite type elements
-        if (type1->getKind() == TypeKind::Array) {
+        if (type1->getKind() == SadTypeKind::Array) {
             auto* arr1 = static_cast<ArrayType*>(type1.get());
             auto* arr2 = static_cast<ArrayType*>(type2.get());
             TypePtr elem1 = arr1->getElementType();
@@ -277,7 +277,7 @@ UnificationResult Unifier::unifyInternal(TypePtr type1, TypePtr type2, Substitut
                     return elemResult;
                 }
             }
-        } else if (type1->getKind() == TypeKind::Tuple) {
+        } else if (type1->getKind() == SadTypeKind::Tuple) {
             auto* tup1 = static_cast<TupleType*>(type1.get());
             auto* tup2 = static_cast<TupleType*>(type2.get());
             if (tup1->getArity() != tup2->getArity()) {
@@ -406,13 +406,13 @@ bool Unifier::occursCheck(const std::string& varName, TypePtr type) const {
     
     // (AR) فحص الأنواع المركبة والدوال / (EN) Check composite types and functions
     if (type->isComposite()) {
-        if (type->getKind() == TypeKind::Array) {
+        if (type->getKind() == SadTypeKind::Array) {
             auto* arr = static_cast<ArrayType*>(type.get());
             TypePtr elem = arr->getElementType();
             if (elem && occursCheck(varName, elem)) {
                 return true;
             }
-        } else if (type->getKind() == TypeKind::Tuple) {
+        } else if (type->getKind() == SadTypeKind::Tuple) {
             auto* tup = static_cast<TupleType*>(type.get());
             for (size_t i = 0; i < tup->getArity(); ++i) {
                 TypePtr e = tup->getElementAt(i);

@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: test_type_mapper_integration.cpp
 // File: test_type_mapper_integration.cpp
 //
@@ -181,24 +181,24 @@ llvm::Type* mapSadType(llvm::LLVMContext& ctx, TypePtr sadType) {
 } // namespace TestMapper
 
 // ═════════════════════════════════════════════════════════════
-// SIRType enum for testing mapSIRType / SIRType تعداد للاختبار
+// SadTypeKind تعداد محلي للاختبار / Local enum for testing
 // ═════════════════════════════════════════════════════════════
 
-enum class SIRType {
-    VOID, I64, F64, BOOL, PTR, ARRAY, STRING, STRUCT, FUNCTION
+enum class SadTypeKind {
+    Void, Integer, Float, Boolean, Pointer, Array, String, Struct, Function
 };
 
-llvm::Type* mapSIRType(llvm::LLVMContext& ctx, SIRType sirType) {
+llvm::Type* mapSIRType(llvm::LLVMContext& ctx, SadTypeKind sirType) {
     switch (sirType) {
-        case SIRType::VOID:     return llvm::Type::getVoidTy(ctx);
-        case SIRType::I64:      return llvm::Type::getInt64Ty(ctx);
-        case SIRType::F64:      return llvm::Type::getDoubleTy(ctx);
-        case SIRType::BOOL:     return llvm::Type::getInt1Ty(ctx);
-        case SIRType::PTR:      return llvm::PointerType::get(ctx, 0);
-        case SIRType::STRING:   return llvm::PointerType::get(ctx, 0);
-        case SIRType::ARRAY:    return llvm::PointerType::get(ctx, 0);
-        case SIRType::STRUCT:   return llvm::PointerType::get(ctx, 0);
-        case SIRType::FUNCTION: return llvm::PointerType::get(ctx, 0);
+        case SadTypeKind::Void:     return llvm::Type::getVoidTy(ctx);
+        case SadTypeKind::Integer:      return llvm::Type::getInt64Ty(ctx);
+        case SadTypeKind::Float:      return llvm::Type::getDoubleTy(ctx);
+        case SadTypeKind::Boolean:     return llvm::Type::getInt1Ty(ctx);
+        case SadTypeKind::Pointer:      return llvm::PointerType::get(ctx, 0);
+        case SadTypeKind::String:   return llvm::PointerType::get(ctx, 0);
+        case SadTypeKind::Array:    return llvm::PointerType::get(ctx, 0);
+        case SadTypeKind::Struct:   return llvm::PointerType::get(ctx, 0);
+        case SadTypeKind::Function: return llvm::PointerType::get(ctx, 0);
     }
     return llvm::Type::getInt64Ty(ctx);
 }
@@ -228,7 +228,7 @@ protected:
     TypePtr makeClass(const std::string& n = "Foo") { return std::make_shared<Sad::LLVM::ClassType>(n); }
     
     llvm::Type* map(TypePtr t) { return TestMapper::mapSadType(context, t); }
-    llvm::Type* mapSIR(SIRType t) { return ::mapSIRType(context, t); }
+    llvm::Type* mapSIR(SadTypeKind t) { return ::mapSIRType(context, t); }
 };
 
 // ═══════════════════════════════════════════════════════
@@ -399,40 +399,40 @@ TEST_F(TypeMapperTest, PointerChain_MapsToSinglePointer) {
 // ═══════════════════════════════════════════════════════
 
 TEST_F(TypeMapperTest, SIR_Void_MapsToVoid) {
-    EXPECT_TRUE(mapSIR(SIRType::VOID)->isVoidTy());
+    EXPECT_TRUE(mapSIR(SadTypeKind::Void)->isVoidTy());
 }
 
 TEST_F(TypeMapperTest, SIR_I64_MapsToI64) {
-    auto result = mapSIR(SIRType::I64);
+    auto result = mapSIR(SadTypeKind::Integer);
     EXPECT_TRUE(result->isIntegerTy(64));
 }
 
 TEST_F(TypeMapperTest, SIR_F64_MapsToDouble) {
-    EXPECT_TRUE(mapSIR(SIRType::F64)->isDoubleTy());
+    EXPECT_TRUE(mapSIR(SadTypeKind::Float)->isDoubleTy());
 }
 
 TEST_F(TypeMapperTest, SIR_Bool_MapsToI1) {
-    EXPECT_TRUE(mapSIR(SIRType::BOOL)->isIntegerTy(1));
+    EXPECT_TRUE(mapSIR(SadTypeKind::Boolean)->isIntegerTy(1));
 }
 
 TEST_F(TypeMapperTest, SIR_Ptr_MapsToPointer) {
-    EXPECT_TRUE(mapSIR(SIRType::PTR)->isPointerTy());
+    EXPECT_TRUE(mapSIR(SadTypeKind::Pointer)->isPointerTy());
 }
 
 TEST_F(TypeMapperTest, SIR_String_MapsToPointer) {
-    EXPECT_TRUE(mapSIR(SIRType::STRING)->isPointerTy());
+    EXPECT_TRUE(mapSIR(SadTypeKind::String)->isPointerTy());
 }
 
 TEST_F(TypeMapperTest, SIR_Array_MapsToPointer) {
-    EXPECT_TRUE(mapSIR(SIRType::ARRAY)->isPointerTy());
+    EXPECT_TRUE(mapSIR(SadTypeKind::Array)->isPointerTy());
 }
 
 TEST_F(TypeMapperTest, SIR_Struct_MapsToPointer) {
-    EXPECT_TRUE(mapSIR(SIRType::STRUCT)->isPointerTy());
+    EXPECT_TRUE(mapSIR(SadTypeKind::Struct)->isPointerTy());
 }
 
 TEST_F(TypeMapperTest, SIR_Function_MapsToPointer) {
-    EXPECT_TRUE(mapSIR(SIRType::FUNCTION)->isPointerTy());
+    EXPECT_TRUE(mapSIR(SadTypeKind::Function)->isPointerTy());
 }
 
 // ═══════════════════════════════════════════════════════

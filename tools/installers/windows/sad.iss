@@ -19,27 +19,46 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\SadLang
 DefaultGroupName={#MyAppName}
 LicenseFile=..\..\..\..\LICENSE
-InfoBeforeFile=README_INSTALLER.txt
-InfoAfterFile=POSTINSTALL.txt
 OutputDir=output
 OutputBaseFilename=sad-{#MyAppVersion}-win64-setup
-SetupIconFile=..\..\..\..\graphics\icons\sad.ico
+SetupIconFile=..\..\..\distribution\assets\sad_icon.ico
+WizardImageFile=..\..\..\distribution\assets\wizard_banner.bmp
+WizardSmallImageFile=..\..\..\distribution\assets\wizard_small.bmp
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64
 ChangesEnvironment=yes
 PrivilegesRequired=admin
+ShowLanguageDialog=auto
+LanguageDetectionMethod=uilanguage
 
 ; العربية والإنجليزية
 [Languages]
 Name: "arabic"; MessagesFile: "compiler:Languages\Arabic.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[CustomMessages]
+arabic.TaskAddPath=إضافة لغة ص إلى متغير PATH (تشغيل من أي مكان)
+arabic.TaskFileAssoc=ربط ملفات .ص بمفسر لغة ص
+arabic.TaskDesktop=إنشاء اختصار على سطح المكتب
+arabic.PostInstallRun=تشغيل مفسر لغة ص (REPL)
+arabic.MenuDocs=التوثيق والمرجع
+arabic.MenuExamples=أمثلة لغة ص
+arabic.MenuUninstall=إزالة تثبيت لغة ص
+
+english.TaskAddPath=Add Sad to PATH (run from anywhere)
+english.TaskFileAssoc=Associate .ص files with Sad interpreter
+english.TaskDesktop=Create Desktop shortcut
+english.PostInstallRun=Launch Sad Interpreter (REPL)
+english.MenuDocs=Documentation
+english.MenuExamples=Sad Examples
+english.MenuUninstall=Uninstall Sad
+
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "addtopath"; Description: "إضافة إلى PATH"; GroupDescription: "خيارات إضافية:"; Flags: checkedonce
-Name: "fileassoc"; Description: "ربط ملفات .ص"; GroupDescription: "خيارات إضافية:"; Flags: checkedonce
+Name: "desktopicon"; Description: "{cm:TaskDesktop}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "addtopath";   Description: "{cm:TaskAddPath}";   GroupDescription: "إعدادات النظام:"
+Name: "fileassoc";   Description: "{cm:TaskFileAssoc}"; GroupDescription: "إعدادات النظام:"
 
 [Files]
 ; Main executables
@@ -63,11 +82,11 @@ Source: "examples\*"; DestDir: "{app}\examples"; Flags: ignoreversion recursesub
 Source: "tools\vscode-sad\*"; DestDir: "{app}\vscode-extension"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\Sad REPL"; Filename: "{app}\bin\sad.exe"; WorkingDir: "{userdesktop}"
-Name: "{group}\الوثائق"; Filename: "{app}\docs\SAD_LANGUAGE_COMPLETE_REFERENCE.md"
-Name: "{group}\الأمثلة"; Filename: "{app}\examples"
-Name: "{group}\إلغاء التثبيت"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\Sad REPL"; Filename: "{app}\bin\sad.exe"; Tasks: desktopicon
+Name: "{group}\مفسر لغة ص (REPL)"; Filename: "{app}\bin\sad.exe"; Parameters: "--repl"; WorkingDir: "{userdocs}"
+Name: "{group}\{cm:MenuDocs}";       Filename: "{app}\docs\SAD_LANGUAGE_COMPLETE_REFERENCE.md"
+Name: "{group}\{cm:MenuExamples}";   Filename: "{app}\examples"
+Name: "{group}\{cm:MenuUninstall}";  Filename: "{uninstallexe}"
+Name: "{autodesktop}\لغة ص (REPL)"; Filename: "{app}\bin\sad.exe"; Parameters: "--repl"; Tasks: desktopicon
 
 [Registry]
 ; File association for .ص files
@@ -79,42 +98,53 @@ Root: HKCR; Subkey: "SadSourceFile\shell\compile"; ValueType: string; ValueName:
 Root: HKCR; Subkey: "SadSourceFile\shell\compile\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\sadc.exe"" ""%1"""; Tasks: fileassoc
 
 [Code]
-// Add to PATH
+{ إضافة المجلد لـ PATH }
 procedure CurStepChanged(CurStep: TSetupStep);
 var
     Path: string;
 begin
     if CurStep = ssPostInstall then
     begin
-        if IsTaskSelected('addtopath') then
+        if WizardIsTaskSelected('addtopath') then
         begin
             RegQueryStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 'Path', Path);
             if Pos(ExpandConstant('{app}\bin'), Path) = 0 then
             begin
-                Path := Path + ';' + ExpandConstant('{app}\bin');
+                if (Length(Path) > 0) and (Path[Length(Path)] <> ';') then
+                    Path := Path + ';';
+                Path := Path + ExpandConstant('{app}\bin');
                 RegWriteStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 'Path', Path);
+                { إخطار النظام بتغيير البيئة }
+                SendBroadcastMessage($001A, 0, '');
             end;
         end;
     end;
 end;
 
-// Remove from PATH on uninstall
+{ إزالة من PATH عند إلغاء التثبيت }
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
     Path: string;
+    AppBin: string;
     P: Integer;
 begin
     if CurUninstallStep = usPostUninstall then
     begin
+        AppBin := ExpandConstant('{app}\bin');
         RegQueryStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 'Path', Path);
-        P := Pos(ExpandConstant('{app}\bin'), Path);
-        if P &lt;&gt; 0 then
+        P := Pos(AppBin, Path);
+        if P > 0 then
         begin
-            Delete(Path, P - 1, Length(ExpandConstant('{app}\bin')) + 1);
+            { احذف المسار والفاصلة المحيطة به }
+            if (P > 1) and (Path[P-1] = ';') then
+                Delete(Path, P - 1, Length(AppBin) + 1)
+            else
+                Delete(Path, P, Length(AppBin) + 1);
             RegWriteStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 'Path', Path);
+            SendBroadcastMessage($001A, 0, '');
         end;
     end;
 end;
 
 [Run]
-Filename: "{app}\bin\sad.exe"; Description: "تشغيل Sad REPL"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\bin\sad.exe"; Parameters: "--repl"; Description: "{cm:PostInstallRun}"; Flags: nowait postinstall skipifsilent unchecked

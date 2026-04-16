@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file async_codegen.cpp
  * @brief (AR) توليد الكود لآلات الحالة غير المتزامنة
  *        (EN) Code Generation for Async State Machines
@@ -636,21 +636,21 @@ private:
         
         // (AR) تنفيذ مبسط
         switch (type->kind) {
-            case types::TypeKind::Int8:
+            case types::SadTypeKind::Int8:
                 return llvm::Type::getInt8Ty(context_);
-            case types::TypeKind::Int16:
+            case types::SadTypeKind::Int16:
                 return llvm::Type::getInt16Ty(context_);
-            case types::TypeKind::Int32:
+            case types::SadTypeKind::Int32:
                 return llvm::Type::getInt32Ty(context_);
-            case types::TypeKind::Int64:
+            case types::SadTypeKind::Int64:
                 return llvm::Type::getInt64Ty(context_);
-            case types::TypeKind::Float32:
+            case types::SadTypeKind::Float32:
                 return llvm::Type::getFloatTy(context_);
-            case types::TypeKind::Float64:
+            case types::SadTypeKind::Float64:
                 return llvm::Type::getDoubleTy(context_);
-            case types::TypeKind::Bool:
+            case types::SadTypeKind::Bool:
                 return llvm::Type::getInt1Ty(context_);
-            case types::TypeKind::Unit:
+            case types::SadTypeKind::Unit:
                 return llvm::Type::getVoidTy(context_);
             default:
                 return llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(context_));

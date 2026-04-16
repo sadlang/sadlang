@@ -266,7 +266,7 @@ private:
     std::map&lt;std::string, PackageInfo&gt; packages_;
     std::chrono::system_clock::time_point lastUpdated_;
     std::string cacheFile_;
-    std::string registryUrl_ = "https://registry.sad-pkg.org";
+    std::string registryUrl_ = "http://185.47.174.39:3000";
 };
 
 //==============================================================================

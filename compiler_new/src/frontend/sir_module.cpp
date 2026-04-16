@@ -37,7 +37,7 @@ std::string SIRParameter::toString() const {
 // SIRFunction Implementation
 // ============================================================================
 
-SIRFunction::SIRFunction(const std::string& name, SIRType returnType)
+SIRFunction::SIRFunction(const std::string& name, SadTypeKind returnType)
     : name(name), returnType(returnType) {}
 
 void SIRFunction::addParameter(const SIRParameter& param) {
@@ -121,7 +121,7 @@ std::string SIRFunction::toString() const {
 // ============================================================================
 
 SIRGlobalVariable::SIRGlobalVariable(const std::string& name, 
-                                     SIRType type,
+                                     SadTypeKind type,
                                      const std::string& initialValue,
                                      bool isConstant)
     : name(name), type(type), initialValue(initialValue), isConstant(isConstant) {}
@@ -155,7 +155,7 @@ std::string SIRGlobalVariable::toString() const {
 SIRClass::SIRClass(const std::string& name, const std::string& parentClass)
     : name(name), parentClass(parentClass) {}
 
-void SIRClass::addField(const std::string& name, SIRType type) {
+void SIRClass::addField(const std::string& name, SadTypeKind type) {
     fields_[name] = type;
     fieldOrder_.push_back(name);
 }
@@ -167,7 +167,7 @@ void SIRClass::addMethod(std::shared_ptr<SIRFunction> method) {
     methods_[method->name] = method;
 }
 
-const SIRType* SIRClass::getField(const std::string& name) const {
+const SadTypeKind* SIRClass::getField(const std::string& name) const {
     auto it = fields_.find(name);
     if (it != fields_.end()) {
         return &(it->second);

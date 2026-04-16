@@ -1,0 +1,48 @@
+# اختبار انحدار #31 — تحليل Unicode escapes في JSON
+# Regression Test #31 — JSON Unicode escape parsing (\uXXXX)
+# الهدف: التحقق أن حلل_json يدعم \uXXXX و surrogate pairs
+# الأولوية: P1
+
+استورد محرك
+
+# اختبار 1: ASCII عبر \u
+متغير ر1 = حلل_json("{\"v\":\"\\u0041\\u0042\\u0043\"}")
+إذا (ر1["v"] == "ABC")
+    اطبع("PASS: unicode ascii \\u0041=A")
+وإلا
+    اطبع("FAIL: unicode ascii")
+نهاية
+
+# اختبار 2: عربي عبر \u
+متغير ر2 = حلل_json("{\"v\":\"\\u0645\\u0631\\u062d\\u0628\\u0627\"}")
+إذا (ر2["v"] == "مرحبا")
+    اطبع("PASS: unicode arabic")
+وإلا
+    اطبع("FAIL: unicode arabic")
+نهاية
+
+# اختبار 3: رمز خاص ©
+متغير ر3 = حلل_json("{\"v\":\"\\u00A9\"}")
+إذا (طول(ر3["v"]) > 0)
+    اطبع("PASS: unicode copyright")
+وإلا
+    اطبع("FAIL: unicode copyright")
+نهاية
+
+# اختبار 4: surrogate pair (😀 = U+1F600)
+متغير ر4 = حلل_json("{\"v\":\"\\uD83D\\uDE00\"}")
+إذا (طول(ر4["v"]) > 0)
+    اطبع("PASS: surrogate pair emoji")
+وإلا
+    اطبع("FAIL: surrogate pair")
+نهاية
+
+# اختبار 5: مزيج عادي و unicode
+متغير ر5 = حلل_json("{\"v\":\"hi\\u0020there\"}")
+إذا (ر5["v"] == "hi there")
+    اطبع("PASS: mixed ascii unicode")
+وإلا
+    اطبع("FAIL: mixed ascii unicode")
+نهاية
+
+اطبع("=== انتهى اختبار #31 ===")

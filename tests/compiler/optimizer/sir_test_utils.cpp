@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file sir_test_utils.cpp
  * @brief تطبيق أدوات مساعدة لاختبارات SIR
  * @brief SIR Testing Utilities Implementation
@@ -35,7 +35,7 @@ std::shared_ptr<SIR::SIRModule> SIRTestBuilder::createModule(const std::string& 
 
 SIR::SIRFunction* SIRTestBuilder::createFunction(
     const std::string& name,
-    SIR::SIRType returnType
+    SIR::SadTypeKind returnType
 ) {
     if (!module_) {
         createModule();

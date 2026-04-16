@@ -406,7 +406,8 @@ public:
         bool generateLeakWarnings = true;       // تحذيرات التسرب
     };
     
-    explicit WrapperGenerator(const Config& config = Config());
+    WrapperGenerator();
+    explicit WrapperGenerator(const Config& config);
     
     // --- (AR) توليد الأغلفة / (EN) Generate wrappers ---
     

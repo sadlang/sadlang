@@ -64,6 +64,10 @@ namespace ArabicWrapperKeywords {
 //                    (EN) WrapperGenerator Implementation
 // ============================================================================
 
+WrapperGenerator::WrapperGenerator()
+    : config_() {
+}
+
 WrapperGenerator::WrapperGenerator(const Config& config)
     : config_(config) {
     /*

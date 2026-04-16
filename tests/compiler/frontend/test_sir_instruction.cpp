@@ -1,4 +1,4 @@
-/*
+﻿/*
  * اختبارات تعليمات SIR - SIR Instruction Tests
  * 
  * الوصف: اختبارات شاملة لنظام التعليمات في SIR
@@ -33,34 +33,34 @@ void testOperandCreation() {
     std::cout << "Testing operand creation..." << std::endl;
     
     // اختبار معامل سجل / Test register operand
-    auto regOp = SIROperand::Register("x", SIRType::I64);
+    auto regOp = SIROperand::Register("x", SadTypeKind::Integer);
     assert(regOp.type == SIROperandType::REGISTER);
     assert(regOp.name == "x");
-    assert(regOp.dataType == SIRType::I64);
+    assert(regOp.dataType == SadTypeKind::Integer);
     assert(regOp.toString() == "%x");
     
     // اختبار معامل ثابت صحيح / Test integer constant operand
     auto constOp = SIROperand::ConstantI64(42);
     assert(constOp.type == SIROperandType::CONSTANT);
-    assert(constOp.dataType == SIRType::I64);
+    assert(constOp.dataType == SadTypeKind::Integer);
     assert(constOp.intValue == 42);
     assert(constOp.toString() == "42");
     
     // اختبار معامل ثابت عشري / Test float constant operand
     auto floatOp = SIROperand::ConstantF64(3.14);
     assert(floatOp.type == SIROperandType::CONSTANT);
-    assert(floatOp.dataType == SIRType::F64);
+    assert(floatOp.dataType == SadTypeKind::Float);
     
     // اختبار معامل ثابت منطقي / Test boolean constant operand
     auto boolOp = SIROperand::ConstantBool(true);
     assert(boolOp.type == SIROperandType::CONSTANT);
-    assert(boolOp.dataType == SIRType::BOOL);
+    assert(boolOp.dataType == SadTypeKind::Boolean);
     assert(boolOp.toString() == "true");
     
     // اختبار معامل نصي / Test string constant operand
     auto strOp = SIROperand::ConstantString("hello");
     assert(strOp.type == SIROperandType::CONSTANT);
-    assert(strOp.dataType == SIRType::STRING);
+    assert(strOp.dataType == SadTypeKind::String);
     
     // اختبار معامل تسمية / Test label operand
     auto labelOp = SIROperand::Label("entry");
@@ -69,7 +69,7 @@ void testOperandCreation() {
     assert(labelOp.toString() == "label %entry");
     
     // اختبار معامل عام / Test global operand
-    auto globalOp = SIROperand::Global("counter", SIRType::I64);
+    auto globalOp = SIROperand::Global("counter", SadTypeKind::Integer);
     assert(globalOp.type == SIROperandType::GLOBAL);
     assert(globalOp.name == "counter");
     assert(globalOp.toString() == "$counter");
@@ -93,9 +93,9 @@ void testArithmeticInstructions() {
     // اختبار ADD / Test ADD (using factory method)
     auto addInst = SIRInstruction::Binary(
         SIROpcode::ADD_I64,
-        SIROperand::Register("result", SIRType::I64),
-        SIROperand::Register("a", SIRType::I64),
-        SIROperand::Register("b", SIRType::I64)
+        SIROperand::Register("result", SadTypeKind::Integer),
+        SIROperand::Register("a", SadTypeKind::Integer),
+        SIROperand::Register("b", SadTypeKind::Integer)
     );
     assert(addInst.opcode == SIROpcode::ADD_I64);
     assert(addInst.hasResult());
@@ -104,15 +104,15 @@ void testArithmeticInstructions() {
     
     // اختبار SUB / Test SUB (manual construction)
     SIRInstruction subInst(SIROpcode::SUB_I64);
-    subInst.result = SIROperand::Register("result", SIRType::I64);
-    subInst.operands.push_back(SIROperand::Register("x", SIRType::I64));
+    subInst.result = SIROperand::Register("result", SadTypeKind::Integer);
+    subInst.operands.push_back(SIROperand::Register("x", SadTypeKind::Integer));
     subInst.operands.push_back(SIROperand::ConstantI64(10));
     assert(subInst.toString() == "%result = sub.i64 %x, 10");
     
     // اختبار MUL / Test MUL
     auto mulInst = SIRInstruction::Binary(
         SIROpcode::MUL_I64,
-        SIROperand::Register("product", SIRType::I64),
+        SIROperand::Register("product", SadTypeKind::Integer),
         SIROperand::ConstantI64(5),
         SIROperand::ConstantI64(7)
     );
@@ -121,8 +121,8 @@ void testArithmeticInstructions() {
     // اختبار DIV / Test DIV
     auto divInst = SIRInstruction::Binary(
         SIROpcode::DIV_I64,
-        SIROperand::Register("quotient", SIRType::I64),
-        SIROperand::Register("a", SIRType::I64),
+        SIROperand::Register("quotient", SadTypeKind::Integer),
+        SIROperand::Register("a", SadTypeKind::Integer),
         SIROperand::ConstantI64(2)
     );
     assert(divInst.opcode == SIROpcode::DIV_I64);
@@ -131,8 +131,8 @@ void testArithmeticInstructions() {
     // اختبار NEG / Test NEG (unary)
     auto negInst = SIRInstruction::Unary(
         SIROpcode::NEG,
-        SIROperand::Register("negated", SIRType::I64),
-        SIROperand::Register("x", SIRType::I64)
+        SIROperand::Register("negated", SadTypeKind::Integer),
+        SIROperand::Register("x", SadTypeKind::Integer)
     );
     assert(negInst.operands.size() == 1);
     assert(negInst.toString() == "%negated = neg %x");
@@ -150,17 +150,17 @@ void testComparisonInstructions() {
     // اختبار EQ / Test EQ
     auto eqInst = SIRInstruction::Binary(
         SIROpcode::EQ,
-        SIROperand::Register("cond", SIRType::BOOL),
-        SIROperand::Register("a", SIRType::I64),
-        SIROperand::Register("b", SIRType::I64)
+        SIROperand::Register("cond", SadTypeKind::Boolean),
+        SIROperand::Register("a", SadTypeKind::Integer),
+        SIROperand::Register("b", SadTypeKind::Integer)
     );
     assert(eqInst.toString() == "%cond = eq %a, %b");
     
     // اختبار LT / Test LT
     auto ltInst = SIRInstruction::Binary(
         SIROpcode::LT,
-        SIROperand::Register("less", SIRType::BOOL),
-        SIROperand::Register("x", SIRType::I64),
+        SIROperand::Register("less", SadTypeKind::Boolean),
+        SIROperand::Register("x", SadTypeKind::Integer),
         SIROperand::ConstantI64(100)
     );
     assert(ltInst.toString() == "%less = lt %x, 100");
@@ -168,9 +168,9 @@ void testComparisonInstructions() {
     // اختبار GE / Test GE
     auto geInst = SIRInstruction::Binary(
         SIROpcode::GE,
-        SIROperand::Register("ge_result", SIRType::BOOL),
-        SIROperand::Register("a", SIRType::I64),
-        SIROperand::Register("b", SIRType::I64)
+        SIROperand::Register("ge_result", SadTypeKind::Boolean),
+        SIROperand::Register("a", SadTypeKind::Integer),
+        SIROperand::Register("b", SadTypeKind::Integer)
     );
     assert(geInst.opcode == SIROpcode::GE);
     
@@ -186,8 +186,8 @@ void testMemoryInstructions() {
     
     // اختبار LOAD / Test LOAD (using factory)
     auto loadInst = SIRInstruction::Load(
-        SIROperand::Register("value", SIRType::I64),
-        SIROperand::Register("ptr", SIRType::PTR)
+        SIROperand::Register("value", SadTypeKind::Integer),
+        SIROperand::Register("ptr", SadTypeKind::Pointer)
     );
     assert(loadInst.opcode == SIROpcode::LOAD);
     assert(loadInst.hasResult());
@@ -197,7 +197,7 @@ void testMemoryInstructions() {
     // اختبار STORE / Test STORE (using factory)
     auto storeInst = SIRInstruction::Store(
         SIROperand::ConstantI64(42),
-        SIROperand::Register("ptr", SIRType::PTR)
+        SIROperand::Register("ptr", SadTypeKind::Pointer)
     );
     assert(storeInst.opcode == SIROpcode::STORE);
     assert(!storeInst.hasResult());
@@ -206,8 +206,8 @@ void testMemoryInstructions() {
     
     // اختبار ALLOC / Test ALLOC (using factory)
     auto allocInst = SIRInstruction::Alloc(
-        SIROperand::Register("ptr", SIRType::PTR),
-        SIRType::I64,
+        SIROperand::Register("ptr", SadTypeKind::Pointer),
+        SadTypeKind::Integer,
         SIROperand::ConstantI64(1)
     );
     assert(allocInst.opcode == SIROpcode::ALLOC);
@@ -231,7 +231,7 @@ void testControlFlowInstructions() {
     
     // اختبار BR_COND (conditional) / Test BR_COND (using factory)
     auto brCondInst = SIRInstruction::BranchCond(
-        SIROperand::Register("cond", SIRType::BOOL),
+        SIROperand::Register("cond", SadTypeKind::Boolean),
         SIROperand::Label("then_block"),
         SIROperand::Label("else_block")
     );
@@ -241,7 +241,7 @@ void testControlFlowInstructions() {
     assert(brCondInst.toString() == "br.cond %cond, label %then_block, label %else_block");
     
     // اختبار RET / Test RET (using factory)
-    auto retInst = SIRInstruction::Return(SIROperand::Register("result", SIRType::I64));
+    auto retInst = SIRInstruction::Return(SIROperand::Register("result", SadTypeKind::Integer));
     assert(retInst.opcode == SIROpcode::RET);
     assert(retInst.isTerminatorInst());
     assert(retInst.toString() == "ret %result");
@@ -264,7 +264,7 @@ void testFunctionCalls() {
     
     // اختبار CALL / Test CALL (using factory)
     auto callInst = SIRInstruction::Call(
-        SIROperand::Register("result", SIRType::I64),
+        SIROperand::Register("result", SadTypeKind::Integer),
         SIROperand::Function("factorial"),
         { SIROperand::ConstantI64(5) }
     );
@@ -276,14 +276,14 @@ void testFunctionCalls() {
     // اختبار CALL void / Test CALL void (using factory)
     auto callVoidInst = SIRInstruction::CallVoid(
         SIROperand::Function("print"),
-        { SIROperand::Register("msg", SIRType::STRING) }
+        { SIROperand::Register("msg", SadTypeKind::String) }
     );
     assert(callVoidInst.opcode == SIROpcode::CALL);
     assert(!callVoidInst.hasResult());
     
     // اختبار CALL مع عدة معاملات / Test CALL with multiple args
     auto callMultiInst = SIRInstruction::Call(
-        SIROperand::Register("sum", SIRType::I64),
+        SIROperand::Register("sum", SadTypeKind::Integer),
         SIROperand::Function("add_three"),
         { SIROperand::ConstantI64(1), SIROperand::ConstantI64(2), SIROperand::ConstantI64(3) }
     );
@@ -302,17 +302,17 @@ void testBitwiseOperations() {
     // اختبار AND / Test AND
     auto andInst = SIRInstruction::Binary(
         SIROpcode::AND,
-        SIROperand::Register("result", SIRType::I64),
-        SIROperand::Register("a", SIRType::I64),
-        SIROperand::Register("b", SIRType::I64)
+        SIROperand::Register("result", SadTypeKind::Integer),
+        SIROperand::Register("a", SadTypeKind::Integer),
+        SIROperand::Register("b", SadTypeKind::Integer)
     );
     assert(andInst.toString() == "%result = and %a, %b");
     
     // اختبار OR / Test OR
     auto orInst = SIRInstruction::Binary(
         SIROpcode::OR,
-        SIROperand::Register("result", SIRType::I64),
-        SIROperand::Register("x", SIRType::I64),
+        SIROperand::Register("result", SadTypeKind::Integer),
+        SIROperand::Register("x", SadTypeKind::Integer),
         SIROperand::ConstantI64(0xFF)
     );
     assert(orInst.toString() == "%result = or %x, 255");
@@ -320,8 +320,8 @@ void testBitwiseOperations() {
     // اختبار SHL / Test SHL
     auto shlInst = SIRInstruction::Binary(
         SIROpcode::SHL,
-        SIROperand::Register("shifted", SIRType::I64),
-        SIROperand::Register("value", SIRType::I64),
+        SIROperand::Register("shifted", SadTypeKind::Integer),
+        SIROperand::Register("value", SadTypeKind::Integer),
         SIROperand::ConstantI64(2)
     );
     assert(shlInst.toString() == "%shifted = shl %value, 2");
@@ -329,9 +329,9 @@ void testBitwiseOperations() {
     // اختبار XOR / Test XOR
     auto xorInst = SIRInstruction::Binary(
         SIROpcode::XOR,
-        SIROperand::Register("xor_result", SIRType::I64),
-        SIROperand::Register("a", SIRType::I64),
-        SIROperand::Register("b", SIRType::I64)
+        SIROperand::Register("xor_result", SadTypeKind::Integer),
+        SIROperand::Register("a", SadTypeKind::Integer),
+        SIROperand::Register("b", SadTypeKind::Integer)
     );
     assert(xorInst.opcode == SIROpcode::XOR);
     
@@ -374,15 +374,15 @@ void testBasicBlocks() {
     
     block.addInstruction(SIRInstruction::Binary(
         SIROpcode::ADD_I64,
-        SIROperand::Register("t1", SIRType::I64),
-        SIROperand::Register("a", SIRType::I64),
-        SIROperand::Register("b", SIRType::I64)
+        SIROperand::Register("t1", SadTypeKind::Integer),
+        SIROperand::Register("a", SadTypeKind::Integer),
+        SIROperand::Register("b", SadTypeKind::Integer)
     ));
     assert(block.size() == 1);
     assert(!block.empty());
     
     block.addInstruction(SIRInstruction::Return(
-        SIROperand::Register("t1", SIRType::I64)
+        SIROperand::Register("t1", SadTypeKind::Integer)
     ));
     assert(block.size() == 2);
     
@@ -402,10 +402,10 @@ void testFactoryMethods() {
     
     // PHI instruction
     auto phiInst = SIRInstruction::Phi(
-        SIROperand::Register("merged", SIRType::I64),
+        SIROperand::Register("merged", SadTypeKind::Integer),
         {
-            { SIROperand::Register("val1", SIRType::I64), SIROperand::Label("bb1") },
-            { SIROperand::Register("val2", SIRType::I64), SIROperand::Label("bb2") }
+            { SIROperand::Register("val1", SadTypeKind::Integer), SIROperand::Label("bb1") },
+            { SIROperand::Register("val2", SadTypeKind::Integer), SIROperand::Label("bb2") }
         }
     );
     assert(phiInst.opcode == SIROpcode::PHI);

@@ -175,6 +175,64 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
                 continue;
             }
         }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) إعادة تصدير تلقائي: المتغيرات والأصناف المستوردة عبر * تمر عبر الوحدة
+        //      المتغيرات التي تبدأ بـ _ تُعتبر خاصة ولا تُصدَّر
+        // (EN) Auto re-export: variables and classes imported via * pass through
+        //      Variables starting with _ are considered private and not exported
+        // ═══════════════════════════════════════════════════════════════
+        {
+            // (AR) إعادة تصدير المتغيرات من النطاق (بما فيها المستوردة عبر *)
+            // (EN) Re-export variables from scope (including wildcard-imported ones)
+            auto varNames = variableManager_.getVariableNames();
+            for (const auto& varName : varNames) {
+                if (varName.find("__") == 0) continue;       // internal
+                if (varName.find("_") == 0) continue;        // private by convention
+                if (moduleExports.find(varName) != moduleExports.end()) continue;
+                const auto* val = variableManager_.tryGet(varName);
+                if (val) {
+                    moduleExports[varName] = *val;
+                }
+            }
+            
+            // (AR) إعادة تصدير الأصناف الجديدة (المستوردة عبر *)
+            // (EN) Re-export new classes (wildcard-imported ones)
+            auto* classManager2 = Data::ClassManager::getInstance();
+            if (classManager2) {
+                auto allClassNames = classManager2->getAllClassNames();
+                for (const auto& className : allClassNames) {
+                    if (classNamesBefore.find(className) == classNamesBefore.end()) {
+                        if (className.find("__") == 0) continue;
+                        if (className.find("_") == 0) continue;
+                        if (moduleExports.find(className) != moduleExports.end()) continue;
+                        moduleExports[className] = Data::Value(std::string("__class__:" + className));
+                    }
+                }
+            }
+            
+            // (AR) إعادة تصدير الدوال الجديدة (المستوردة عبر *)
+            // (EN) Re-export new functions (wildcard-imported ones)
+            auto allFuncNames = functionManager_.getFunctionNames();
+            for (const auto& funcName : allFuncNames) {
+                if (funcNamesBefore.find(funcName) == funcNamesBefore.end()) {
+                    if (funcName.find("__") == 0) continue;
+                    if (funcName.find("_") == 0) continue;
+                    if (moduleExports.find(funcName) != moduleExports.end()) continue;
+                    auto overloads = functionManager_.getFunctionOverloads(funcName);
+                    bool hasUserDefined = false;
+                    for (const auto& funcDef : overloads) {
+                        if (funcDef && !funcDef->hasNativeImplementation()) {
+                            hasUserDefined = true;
+                            break;
+                        }
+                    }
+                    if (hasUserDefined) {
+                        moduleExports[funcName] = Data::Value(std::string("__func__:" + funcName));
+                    }
+                }
+            }
+        }
     } else {
         // (AR) لا يوجد تصدير صريح: نصدّر كل الدوال المُعرَّفة من المستخدم
         // (EN) No explicit export: export all user-defined functions
@@ -216,6 +274,22 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
                     if (classNamesBefore.find(className) == classNamesBefore.end()) {
                         moduleExports[className] = Data::Value(std::string("__class__:" + className));
                     }
+                }
+            }
+        }
+
+        // (AR) تصدير ضمني للمتغيرات/الثوابت المعرّفة في الوحدة
+        // (EN) Implicit export of module-level variables/constants
+        {
+            auto varNames = variableManager_.getVariableNames();
+            for (const auto& varName : varNames) {
+                // (AR) تجاهل المتغيرات الداخلية والمُصدَّرة بالفعل
+                // (EN) Skip internal variables and already-exported ones
+                if (varName.find("__") == 0) continue;
+                if (moduleExports.find(varName) != moduleExports.end()) continue;
+                const auto* val = variableManager_.tryGet(varName);
+                if (val) {
+                    moduleExports[varName] = *val;
                 }
             }
         }
@@ -335,18 +409,57 @@ void StatementExecutor::visitImportStmt(AST::ImportStmt& node) {
     );
     
     if (!module) {
-        // (AR) خطأ: الوحدة غير موجودة
-        // (EN) Error: Module not found
+        // (AR) خطأ: الوحدة غير موجودة — مع اقتراحات ذكية
+        // (EN) Error: Module not found — with smart suggestions
         std::string searchedPaths;
         for (const auto& path : moduleResolver_->getSearchPaths()) {
             searchedPaths += "  - " + path.string() + "\n";
         }
         
-        throw ExecutionError(
+        // (AR) البحث عن وحدات مشابهة في نفس المجلد
+        // (EN) Search for similar modules in the same directory
+        std::string suggestions;
+        if (node.modulePath.size() >= 2) {
+            // (AR) بناء المسار الأب (مثل رسومات.أساس)
+            // (EN) Build parent path (e.g. graphics.base)
+            std::vector<std::string> parentPath(node.modulePath.begin(), node.modulePath.end() - 1);
+            std::string targetName = node.modulePath.back();
+            
+            for (const auto& searchPath : moduleResolver_->getSearchPaths()) {
+                auto dirPath = searchPath;
+                for (const auto& part : parentPath) {
+                    dirPath /= part;
+                }
+                if (std::filesystem::exists(dirPath) && std::filesystem::is_directory(dirPath)) {
+                    std::vector<std::string> available;
+                    for (const auto& entry : std::filesystem::directory_iterator(dirPath)) {
+                        if (entry.path().extension().string() == ".ص" ||
+                            entry.path().extension().string() == ".\xd8\xb5") {
+                            available.push_back(entry.path().stem().string());
+                        }
+                    }
+                    if (!available.empty()) {
+                        suggestions += "الوحدات المتوفرة في '" + parentPath.back() + "':\n";
+                        for (const auto& name : available) {
+                            suggestions += "  - " + name + "\n";
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        
+        std::string errorMsg = 
             "خطأ: لم يتم العثور على الوحدة '" + fullModuleName + "'\n"
-            "المسارات التي تم البحث فيها:\n" + searchedPaths +
-            "تأكد من أن الملف '" + fullModuleName + ".ص' موجود في أحد هذه المسارات."
-        );
+            "المسارات التي تم البحث فيها:\n" + searchedPaths;
+        
+        if (!suggestions.empty()) {
+            errorMsg += suggestions;
+        }
+        
+        errorMsg += "تأكد من أن الملف '" + fullModuleName + ".ص' موجود في أحد هذه المسارات.";
+        
+        throw ExecutionError(errorMsg);
     }
     
     // (AR) تنفيذ AST الوحدة واستخراج الرموز المُصدَّرة
@@ -428,15 +541,53 @@ void StatementExecutor::visitFromImportStmt(AST::FromImportStmt& node) {
     );
     
     if (!module) {
+        // (AR) خطأ: الوحدة غير موجودة — مع اقتراحات
+        // (EN) Error: Module not found — with suggestions
         std::string searchedPaths;
         for (const auto& path : moduleResolver_->getSearchPaths()) {
             searchedPaths += "  - " + path.string() + "\n";
         }
         
-        throw ExecutionError(
+        // (AR) البحث عن وحدات مشابهة
+        // (EN) Search for similar modules
+        std::string suggestions;
+        if (node.modulePath.size() >= 2) {
+            std::vector<std::string> parentPath(node.modulePath.begin(), node.modulePath.end() - 1);
+            for (const auto& searchPath : moduleResolver_->getSearchPaths()) {
+                auto dirPath = searchPath;
+                for (const auto& part : parentPath) {
+                    dirPath /= part;
+                }
+                if (std::filesystem::exists(dirPath) && std::filesystem::is_directory(dirPath)) {
+                    std::vector<std::string> available;
+                    for (const auto& entry : std::filesystem::directory_iterator(dirPath)) {
+                        if (entry.path().extension().string() == ".ص" ||
+                            entry.path().extension().string() == ".\xd8\xb5") {
+                            available.push_back(entry.path().stem().string());
+                        }
+                    }
+                    if (!available.empty()) {
+                        suggestions += "الوحدات المتوفرة في '" + parentPath.back() + "':\n";
+                        for (const auto& name : available) {
+                            suggestions += "  - " + name + "\n";
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        
+        std::string errorMsg = 
             "خطأ: لم يتم العثور على الوحدة '" + fullModuleName + "'\n"
-            "المسارات التي تم البحث فيها:\n" + searchedPaths
-        );
+            "المسارات التي تم البحث فيها:\n" + searchedPaths;
+        
+        if (!suggestions.empty()) {
+            errorMsg += suggestions;
+        }
+        
+        errorMsg += "تأكد من صحة مسار الوحدة. الصيغة: استورد * من اسم_الوحدة";
+        
+        throw ExecutionError(errorMsg);
     }
     
     // (AR) تنفيذ AST الوحدة واستخراج الصادرات
@@ -593,10 +744,158 @@ void StatementExecutor::visitExportStmt(AST::ExportStmt& node) {
         exportedName = classDecl->name;
     } else if (auto* varDecl = dynamic_cast<AST::VarDeclStmt*>(node.declaration.get())) {
         exportedName = varDecl->name;
+    } else if (auto* enumDecl = dynamic_cast<AST::EnumDecl*>(node.declaration.get())) {
+        exportedName = enumDecl->name;
+    } else if (auto* structDecl = dynamic_cast<AST::StructDecl*>(node.declaration.get())) {
+        exportedName = structDecl->name;
     }
     
     if (!exportedName.empty()) {
         exportedSymbols_.insert(exportedName);
+    }
+}
+
+// =========================================================================
+// (AR) إعادة التصدير: صدّر * من وحدة / صدّر عنصر1، عنصر2 من وحدة
+// (EN) Re-export: export * from module / export item1, item2 from module
+// =========================================================================
+
+void StatementExecutor::visitReExportStmt(AST::ReExportStmt& node) {
+    // (AR) نحتاج محلل الوحدات
+    if (!moduleResolver_) {
+        throw ExecutionError(
+            "خطأ: نظام الاستيراد غير مُهيَّأ. لا يوجد محلل وحدات.\n"
+            "Error: Import system not initialized. No module resolver."
+        );
+    }
+    
+    // (AR) بناء الاسم الكامل للوحدة
+    std::string fullModuleName;
+    for (size_t i = 0; i < node.modulePath.size(); ++i) {
+        if (i > 0) fullModuleName += ".";
+        fullModuleName += node.modulePath[i];
+    }
+    
+    // (AR) التحقق من الوحدات المُضمّنة
+    auto& builtinRegistry = BuiltinModuleRegistry::getInstance();
+    if (builtinRegistry.isBuiltinModule(fullModuleName)) {
+        builtinRegistry.loadModule(fullModuleName);
+        
+        auto exportedFuncs = builtinRegistry.getExportedFunctions(fullModuleName);
+        if (node.isWildcard) {
+            for (const auto& funcName : exportedFuncs) {
+                exportedSymbols_.insert(funcName);
+            }
+        } else {
+            for (const auto& item : node.items) {
+                if (std::find(exportedFuncs.begin(), exportedFuncs.end(), item.name) != exportedFuncs.end()) {
+                    std::string effectiveName = item.alias.has_value() ? item.alias.value() : item.name;
+                    exportedSymbols_.insert(effectiveName);
+                } else {
+                    throw ExecutionError(
+                        "خطأ: الرمز '" + item.name + "' غير موجود في الوحدة المضمنة '" + fullModuleName + "'"
+                    );
+                }
+            }
+        }
+        return;
+    }
+    
+    // (AR) تحميل الوحدة
+    Modules::Module* module = moduleResolver_->resolveModule(
+        node.modulePath,
+        currentFilePath_
+    );
+    
+    if (!module) {
+        throw ExecutionError(
+            "خطأ: لم يتم العثور على الوحدة '" + fullModuleName + "' لإعادة التصدير.\n"
+            "Error: Module '" + fullModuleName + "' not found for re-export."
+        );
+    }
+    
+    // (AR) تنفيذ الوحدة واستخراج صادراتها
+    Data::Value moduleExports = executeModuleAndExtractExports(module);
+    
+    if (!moduleExports.isMap()) {
+        throw ExecutionError(
+            "خطأ: فشل في استخراج صادرات الوحدة '" + fullModuleName + "' لإعادة التصدير."
+        );
+    }
+    
+    const auto& exportsMap = moduleExports.toMap();
+    
+    if (node.isWildcard) {
+        // (AR) صدّر * من وحدة — إعادة تصدير كل شيء
+        for (const auto& [name, value] : exportsMap) {
+            // (AR) تسجيل الرمز في النطاق الحالي
+            if (value.isString() && value.toString().find("__func__:") == 0) {
+                // (AR) الدالة مُسجَّلة بالفعل في FunctionManager
+            } else if (value.isString() && value.toString().find("__class__:") == 0) {
+                // (AR) الصنف مُسجَّل بالفعل في ClassManager
+            } else {
+                // (AR) متغير/ثابت — نسجله في النطاق الحالي
+                variableManager_.defineOrAssign(name, value);
+            }
+            exportedSymbols_.insert(name);
+        }
+    } else {
+        // (AR) صدّر عنصر1، عنصر2 من وحدة — إعادة تصدير انتقائية
+        for (const auto& item : node.items) {
+            std::string effectiveName = item.alias.has_value() ? item.alias.value() : item.name;
+            
+            auto it = exportsMap.find(item.name);
+            if (it != exportsMap.end()) {
+                const Data::Value& value = it->second;
+                
+                if (value.isString() && value.toString().find("__func__:") == 0) {
+                    // (AR) دالة — إذا كان هناك اسم مستعار نسجل نسخة
+                    if (item.alias.has_value() && item.alias.value() != item.name) {
+                        auto overloads = functionManager_.getFunctionOverloads(item.name);
+                        for (const auto& funcDef : overloads) {
+                            if (funcDef && funcDef->getBody()) {
+                                functionManager_.defineFunction(
+                                    effectiveName,
+                                    funcDef->getParameters(),
+                                    funcDef->getBody(),
+                                    funcDef->getFunctionDecl()
+                                );
+                            }
+                        }
+                    }
+                } else if (value.isString() && value.toString().find("__class__:") == 0) {
+                    // (AR) صنف — مُسجَّل بالفعل
+                } else {
+                    variableManager_.defineOrAssign(effectiveName, value);
+                }
+                
+                exportedSymbols_.insert(effectiveName);
+            } else if (functionManager_.hasFunction(item.name)) {
+                if (item.alias.has_value() && item.alias.value() != item.name) {
+                    auto overloads = functionManager_.getFunctionOverloads(item.name);
+                    for (const auto& funcDef : overloads) {
+                        if (funcDef && funcDef->getBody()) {
+                            functionManager_.defineFunction(
+                                effectiveName,
+                                funcDef->getParameters(),
+                                funcDef->getBody(),
+                                funcDef->getFunctionDecl()
+                            );
+                        }
+                    }
+                }
+                exportedSymbols_.insert(effectiveName);
+            } else {
+                std::string availableSymbols;
+                for (const auto& [symName, _] : exportsMap) {
+                    availableSymbols += "  - " + symName + "\n";
+                }
+                throw ExecutionError(
+                    "خطأ: الرمز '" + item.name + "' غير موجود في الوحدة '" + fullModuleName + "' لإعادة التصدير.\n"
+                    "الرموز المتوفرة:\n" + availableSymbols
+                );
+            }
+        }
     }
 }
 

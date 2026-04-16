@@ -1,41 +1,105 @@
-# Code of Conduct
+# بسم الله الرحمن الرحيم
 
-## Our Pledge
-We as contributors and maintainers pledge to make participation in this project a respectful,
-safe, and harassment-free experience for everyone, regardless of age, body size, disability,
-ethnicity, sex characteristics, gender identity and expression, level of experience, education,
-socio-economic status, nationality, personal appearance, race, religion, or sexual identity
-and orientation.
+# 🤝 ميثاق السلوك للمساهمين / Contributor Covenant Code of Conduct
 
-## Our Standards
-Examples of behavior that contributes to a positive environment include:
-- Using welcoming and inclusive language.
-- Respecting differing viewpoints and experiences.
-- Giving and accepting constructive feedback.
-- Prioritizing the community's long-term health.
+---
 
-Examples of unacceptable behavior include:
-- The use of sexualized language or imagery.
-- Trolling, insulting, or derogatory comments.
-- Public or private harassment.
-- Publishing others' private information without explicit permission.
-- Any conduct which could reasonably be considered inappropriate in a professional setting.
+## تعهدنا
 
-## Enforcement Responsibilities
-Project maintainers are responsible for clarifying and enforcing standards of acceptable behavior.
-They may remove, edit, or reject comments, commits, code, wiki edits, issues, and other
-contributions that are not aligned with this Code of Conduct.
+نحن كأعضاء ومساهمين وقادة في مجتمع لغة ص نلتزم بجعل المشاركة في مجتمعنا تجربة خالية من التحرش للجميع، بغض النظر عن العمر أو حجم الجسم أو الإعاقة الظاهرة أو غير الظاهرة أو العِرق أو الخصائص الجنسية أو الهوية والتعبير الجنسي أو مستوى الخبرة أو التعليم أو الوضع الاجتماعي أو الاقتصادي أو الجنسية أو المظهر الشخصي أو الدين أو الهوية والتوجه.
 
-## Scope
-This Code of Conduct applies in all project spaces and also applies when an individual is
-representing the project in public spaces.
+نلتزم بالتصرف والتفاعل بطرق تساهم في مجتمع مفتوح ومرحّب ومتنوع وشامل وصحي.
 
-## Enforcement
-If you experience or witness unacceptable behavior, report it to the maintainers at:
-- security@sad-lang.org
+---
 
-All reports will be reviewed and investigated promptly and fairly.
+## معاييرنا
 
-## Attribution
-This Code of Conduct is adapted from the Contributor Covenant, version 2.1:
-https://www.contributor-covenant.org/version/2/1/code_of_conduct/
+### أمثلة على السلوك الذي يساهم في بيئة إيجابية:
+
+- إظهار التعاطف واللطف تجاه الآخرين
+- احترام الآراء ووجهات النظر والتجارب المختلفة
+- تقديم النقد البنّاء وتقبّله بلطف
+- تحمّل المسؤولية والاعتذار للمتأثرين بأخطائنا والتعلم من التجربة
+- التركيز على ما هو أفضل ليس فقط لنا كأفراد بل للمجتمع ككل
+- **مساعدة المبتدئين** — لغة ص مصممة لتمكين الناطقين بالعربية، فلنكن صبورين ومرحّبين
+
+### أمثلة على السلوك غير المقبول:
+
+- استخدام لغة أو صور جنسية وأي نوع من الاهتمام أو التقدم الجنسي
+- التعليقات المُستفزة أو المُهينة أو الازدرائية والهجمات الشخصية أو السياسية
+- التحرش العلني أو الخاص
+- نشر معلومات خاصة للآخرين (مثل عنوان فعلي أو بريد إلكتروني) بدون إذن صريح
+- أي سلوك آخر يمكن اعتباره غير لائق في بيئة مهنية
+- **التنمر على مستوى الخبرة** — لا يجوز السخرية من أسئلة المبتدئين
+
+---
+
+## مسؤوليات التنفيذ
+
+يتحمل قادة المجتمع مسؤولية توضيح وتنفيذ معايير السلوك المقبول واتخاذ إجراءات تصحيحية مناسبة وعادلة رداً على أي سلوك يرونه غير مناسب أو مُهدد أو مُسيء أو ضار.
+
+يحق لقادة المجتمع إزالة أو تعديل أو رفض التعليقات والمساهمات والكود ومراجعات الويكي والمشاكل وأي مساهمات أخرى لا تتوافق مع ميثاق السلوك هذا، وسيُبلّغون عن أسباب قرارات الإشراف عند الحاجة.
+
+---
+
+## النطاق
+
+ينطبق ميثاق السلوك هذا في جميع فضاءات المجتمع، كما ينطبق أيضاً عندما يُمثّل شخص المجتمع رسمياً في الفضاءات العامة. تشمل أمثلة تمثيل مجتمعنا:
+
+- استخدام بريد إلكتروني رسمي للمشروع
+- النشر عبر حساب رسمي على وسائل التواصل الاجتماعي
+- التصرف كممثل معيّن في حدث عبر الإنترنت أو على أرض الواقع
+- المشاركة في قنوات Discord/Telegram الرسمية للمشروع
+
+---
+
+## التنفيذ
+
+يمكن الإبلاغ عن حالات السلوك المسيء أو التحرش أو أي سلوك غير مقبول إلى قادة المجتمع المسؤولين عن التنفيذ عبر:
+
+📧 **[conduct@sad-lang.org](mailto:conduct@sad-lang.org)**
+
+سيتم مراجعة جميع الشكاوى والتحقيق فيها بسرعة وعدالة. يلتزم جميع قادة المجتمع باحترام خصوصية وأمان مُبلّغ أي حادثة.
+
+---
+
+## إرشادات التنفيذ
+
+سيتبع قادة المجتمع إرشادات تأثير المجتمع هذه في تحديد عواقب أي إجراء يرونه مخالفاً لميثاق السلوك:
+
+### 1. التصحيح
+
+**تأثير المجتمع**: استخدام لغة غير لائقة أو سلوك آخر يُعتبر غير مهني أو غير مرحّب به.
+
+**العاقبة**: تحذير خاص مكتوب من قادة المجتمع يوضح طبيعة المخالفة وسبب عدم لياقة السلوك. قد يُطلب اعتذار علني.
+
+### 2. التحذير
+
+**تأثير المجتمع**: مخالفة عبر حادثة واحدة أو سلسلة أفعال.
+
+**العاقبة**: تحذير مع عواقب لاستمرار السلوك. لا تفاعل مع الأشخاص المعنيين لفترة محددة، بما في ذلك التفاعل غير المطلوب مع منفذي ميثاق السلوك. يشمل ذلك تجنب التفاعلات في فضاءات المجتمع والقنوات الخارجية. مخالفة هذه الشروط قد تؤدي إلى حظر مؤقت أو دائم.
+
+### 3. الحظر المؤقت
+
+**تأثير المجتمع**: مخالفة جسيمة لمعايير المجتمع، بما في ذلك السلوك غير اللائق المستمر.
+
+**العاقبة**: حظر مؤقت من أي نوع من التفاعل أو التواصل العام مع المجتمع لفترة محددة. لا يُسمح بأي تفاعل علني أو خاص مع الأشخاص المعنيين. مخالفة هذه الشروط قد تؤدي إلى حظر دائم.
+
+### 4. الحظر الدائم
+
+**تأثير المجتمع**: إظهار نمط من مخالفة معايير المجتمع، بما في ذلك السلوك غير اللائق المستمر أو التحرش بفرد أو عدوان تجاه فئات.
+
+**العاقبة**: حظر دائم من أي نوع من التفاعل العام ضمن المجتمع.
+
+---
+
+## الإسناد
+
+هذا الميثاق مُعدّل من [Contributor Covenant](https://www.contributor-covenant.org/)، الإصدار 2.1.
+
+إرشادات تأثير المجتمع مستوحاة من [سُلّم تنفيذ قواعد سلوك Mozilla](https://github.com/mozilla/diversity).
+
+---
+
+**نؤمن بأن لغة ص ليست مجرد مشروع برمجي — إنها جسر لتمكين ملايين الناطقين بالعربية.
+لنبنِ مجتمعاً يليق بهذه الرسالة.** 🌍

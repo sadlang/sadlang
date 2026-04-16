@@ -59,6 +59,16 @@ std::string ExportDecl::getExportedName() const {
         return varDecl->name;
     }
     
+    // (AR) محاولة تحويل إلى تصريح تعداد / (EN) Try casting to enum declaration
+    if (auto* enumDecl = dynamic_cast<EnumDecl*>(declaration.get())) {
+        return enumDecl->name;
+    }
+    
+    // (AR) محاولة تحويل إلى تصريح بنية / (EN) Try casting to struct declaration
+    if (auto* structDecl = dynamic_cast<StructDecl*>(declaration.get())) {
+        return structDecl->name;
+    }
+    
     // (AR) نوع غير معروف / (EN) Unknown type
     return "";
 }

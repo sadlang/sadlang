@@ -35,6 +35,8 @@
 #include "semantic/lifetime_analyzer.h"
 #include "semantic/move_analyzer.h"
 #include "semantic/unsafe_checker.h"
+#include "expressions.h"
+#include "statements.h"
 
 using namespace Sad::Semantic;
 
@@ -502,6 +504,102 @@ void testIntegration() {
 }
 
 // =============================================================================
+//         اختبارات الوصول الآمن والتجميع الفارغ / Optional Chain & Null Coalesce
+// =============================================================================
+
+void testOptionalChainAndNullCoalesce() {
+    printTestHeader("اختبارات ?. و ??", "Optional Chaining & Null Coalescing Tests");
+    
+    using namespace Sad::AST;
+    using namespace Sad::Lexer;
+    
+    // اختبار 1: visitOptionalChainExpr — الكائن متغير صالح
+    {
+        BorrowChecker checker;
+        SourceLocation loc{1, 1, "test_opt.sad"};
+        checker.declareVariable("كائن", "أي", loc);
+        
+        auto varExpr = std::make_unique<VariableExpr>("كائن", Position(1, 1));
+        OptionalChainExpr optChain(std::move(varExpr), "اسم", Position(1, 1));
+        
+        // (AR) لا يجب أن يولد خطأ — المتغير صالح
+        // (EN) Should not produce error — variable is valid
+        checker.visitOptionalChainExpr(optChain);
+        
+        bool noErrors = !checker.hasErrors();
+        printTestResult("?. على متغير صالح لا يولد خطأ", noErrors);
+        stats.record(noErrors);
+    }
+    
+    // اختبار 2: visitNullCoalesceExpr — كلا الطرفين صالحان
+    {
+        BorrowChecker checker;
+        SourceLocation loc1{1, 1, "test_nc.sad"};
+        SourceLocation loc2{1, 10, "test_nc.sad"};
+        checker.declareVariable("أساسي", "نص", loc1);
+        checker.declareVariable("بديل", "نص", loc2);
+        
+        auto leftExpr = std::make_unique<VariableExpr>("أساسي", Position(1, 1));
+        auto rightExpr = std::make_unique<VariableExpr>("بديل", Position(1, 10));
+        NullCoalesceExpr nullCoal(std::move(leftExpr), std::move(rightExpr), Position(1, 1));
+        
+        // (AR) لا يجب أن يولد خطأ
+        // (EN) Should not produce error
+        checker.visitNullCoalesceExpr(nullCoal);
+        
+        bool noErrors = !checker.hasErrors();
+        printTestResult("?? بمتغيرات صالحة لا يولد خطأ", noErrors);
+        stats.record(noErrors);
+    }
+    
+    // اختبار 3: visitOptionalChainExpr — كائن بدون object (nullptr)
+    {
+        BorrowChecker checker;
+        
+        OptionalChainExpr optChain(nullptr, "عضو", Position(1, 1));
+        
+        // (AR) لا يجب أن ينهار — يتعامل مع nullptr بأمان
+        // (EN) Should not crash — handles nullptr safely
+        checker.visitOptionalChainExpr(optChain);
+        
+        printTestResult("?. مع nullptr لا يتسبب في انهيار", true);
+        stats.record(true);
+    }
+    
+    // اختبار 4: visitNullCoalesceExpr — طرف أيمن فقط (أيسر nullptr)
+    {
+        BorrowChecker checker;
+        SourceLocation loc{1, 1, "test_nc2.sad"};
+        checker.declareVariable("بديل", "رقم", loc);
+        
+        auto rightExpr = std::make_unique<VariableExpr>("بديل", Position(1, 10));
+        NullCoalesceExpr nullCoal(nullptr, std::move(rightExpr), Position(1, 1));
+        
+        // (AR) لا يجب أن ينهار
+        // (EN) Should not crash
+        checker.visitNullCoalesceExpr(nullCoal);
+        
+        printTestResult("?? مع طرف أيسر nullptr لا ينهار", true);
+        stats.record(true);
+    }
+    
+    // اختبار 5: visitNullCoalesceExpr — قيمة حرفية كطرف أيسر (بدون ملكية)
+    {
+        BorrowChecker checker;
+        
+        auto litExpr = std::make_unique<LiteralExpr>(42, Position(1, 1));
+        auto rightExpr = std::make_unique<LiteralExpr>(0, Position(1, 10));
+        NullCoalesceExpr nullCoal(std::move(litExpr), std::move(rightExpr), Position(1, 1));
+        
+        checker.visitNullCoalesceExpr(nullCoal);
+        
+        bool noErrors = !checker.hasErrors();
+        printTestResult("?? بقيم حرفية يعمل بدون أخطاء", noErrors);
+        stats.record(noErrors);
+    }
+}
+
+// =============================================================================
 //                    الدالة الرئيسية / Main Function
 // =============================================================================
 
@@ -521,6 +619,7 @@ int main() {
     testMoveAnalyzer();
     testUnsafeChecker();
     testIntegration();
+    testOptionalChainAndNullCoalesce();
     
     // طباعة الملخص
     stats.printSummary();

@@ -1,4 +1,4 @@
-// تعطيل تحذير Unicode للتعليقات العربية
+﻿// تعطيل تحذير Unicode للتعليقات العربية
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4819)
@@ -37,7 +37,7 @@ namespace TypeSystem {
 class ArrayType : public Type {
 public:
     ArrayType(TypePtr elementType, std::optional<size_t> fixedSize = std::nullopt)
-        : Type(TypeKind::Array)
+        : Type(SadTypeKind::Array)
         , elementType_(std::move(elementType))
         , fixedSize_(fixedSize)
         , isSlice_(false) {}
@@ -74,7 +74,7 @@ public:
     std::string toString() const override { return getEnglishName(); }
     
     bool equals(const Type* other) const override {
-        if (!other || other->getKind() != TypeKind::Array) return false;
+        if (!other || other->getKind() != SadTypeKind::Array) return false;
         auto* arr = static_cast<const ArrayType*>(other);
         if (isSlice_ != arr->isSlice_) return false;
         if (fixedSize_ != arr->fixedSize_) return false;
@@ -114,7 +114,7 @@ private:
 class TupleType : public Type {
 public:
     explicit TupleType(TypeList elementTypes)
-        : Type(TypeKind::Tuple)
+        : Type(SadTypeKind::Tuple)
         , elementTypes_(std::move(elementTypes)) {}
     
     const TypeList& getElementTypes() const { return elementTypes_; }
@@ -148,7 +148,7 @@ public:
     std::string toString() const override { return getEnglishName(); }
     
     bool equals(const Type* other) const override {
-        if (!other || other->getKind() != TypeKind::Tuple) return false;
+        if (!other || other->getKind() != SadTypeKind::Tuple) return false;
         auto* tup = static_cast<const TupleType*>(other);
         if (elementTypes_.size() != tup->elementTypes_.size()) return false;
         for (size_t i = 0; i < elementTypes_.size(); ++i) {
@@ -195,7 +195,7 @@ private:
 class FunctionType : public Type {
 public:
     FunctionType(TypeList paramTypes, TypePtr returnType)
-        : Type(TypeKind::Function)
+        : Type(SadTypeKind::Function)
         , paramTypes_(std::move(paramTypes))
         , returnType_(std::move(returnType)) {}
     
@@ -233,7 +233,7 @@ public:
     std::string toString() const override { return getEnglishName(); }
     
     bool equals(const Type* other) const override {
-        if (!other || other->getKind() != TypeKind::Function) return false;
+        if (!other || other->getKind() != SadTypeKind::Function) return false;
         auto* fn = static_cast<const FunctionType*>(other);
         if (paramTypes_.size() != fn->paramTypes_.size()) return false;
         for (size_t i = 0; i < paramTypes_.size(); ++i) {
@@ -273,7 +273,7 @@ private:
 class DictionaryType : public Type {
 public:
     DictionaryType(TypePtr keyType, TypePtr valueType)
-        : Type(TypeKind::Dictionary)
+        : Type(SadTypeKind::Map)
         , keyType_(std::move(keyType))
         , valueType_(std::move(valueType)) {}
     
@@ -295,7 +295,7 @@ public:
     std::string toString() const override { return getEnglishName(); }
     
     bool equals(const Type* other) const override {
-        if (!other || other->getKind() != TypeKind::Dictionary) return false;
+        if (!other || other->getKind() != SadTypeKind::Map) return false;
         auto* dict = static_cast<const DictionaryType*>(other);
         bool keysEq = (!keyType_ && !dict->keyType_) || 
                       (keyType_ && dict->keyType_ && keyType_->equals(dict->keyType_.get()));

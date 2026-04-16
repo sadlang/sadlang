@@ -1,0 +1,474 @@
+/**
+ * @file builtin_module_maps_core.cpp
+ * @brief (AR) وحدة الخرائط الأساسية — منشئات الأنواع وعمليات الخرائط والبرمجة الوظيفية والمجموعات
+ * @brief (EN) Core maps module — type constructors, map operations, functional programming, set operations
+ *
+ * @details
+ * (AR) الأقسام:
+ *   0. منشئات الأنواع (خريطة، مصفوفة)
+ *   1. عمليات الخرائط (احصل، عيّن، مفاتيح، قيم، دمج...)
+ *   2. البرمجة الوظيفية (تخطيط، تصفية، اختزال، ضم...)
+ *   11. عمليات المجموعات (فريد، اتحاد، تقاطع، فرق)
+ *
+ * @note يتطلب: Interpreter& للبرمجة الوظيفية (callUserFunction)
+ * @see builtin_registry.cpp — التسجيل المركزي
+ * @see BUILTIN_CODING_STANDARDS.md — قواعد الكتابة
+ */
+#include "builtins.h"
+#include "interpreter_core.h"
+#include <algorithm>
+#include <unordered_set>
+
+// (AR) إلغاء ماكرو VOID الخاص بويندوز إن وُجد
+#ifdef VOID
+#undef VOID
+#endif
+
+namespace Sad
+{
+    namespace Interpreter
+    {
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // (AR) دوال مساعدة / (EN) Helper Functions
+        // ═══════════════════════════════════════════════════════════════════════
+
+        static std::shared_ptr<Data::Value> makeVal(int v) { return std::make_shared<Data::Value>(v); }
+        static std::shared_ptr<Data::Value> makeVal(double v) { return std::make_shared<Data::Value>(v); }
+        static std::shared_ptr<Data::Value> makeVal(const std::string &v) { return std::make_shared<Data::Value>(v); }
+        static std::shared_ptr<Data::Value> makeVal(bool v) { return std::make_shared<Data::Value>(v); }
+        static std::shared_ptr<Data::Value> makeVoidVal() { return std::make_shared<Data::Value>(); }
+        static std::shared_ptr<Data::Value> makeArrayVal(const Data::Value::ArrayType &a) { return std::make_shared<Data::Value>(a); }
+        static std::shared_ptr<Data::Value> makeMapVal(const Data::Value::MapType &m) { return std::make_shared<Data::Value>(m); }
+
+        void registerBuiltinsMapsCore(Interpreter &interpreter)
+        {
+            auto &fm = interpreter.getFunctionManager();
+
+            // ═══════════════════════════════════════════════════════════════════
+            // 0. منشئات الأنواع / Type Constructors
+            // (AR) دوال إنشاء أنواع البيانات الأساسية
+            // ═══════════════════════════════════════════════════════════════════
+
+            // خريطة() — إنشاء خريطة فارغة أو من أزواج
+            auto map_constructor_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                Data::Value::MapType map;
+                // إذا لم تُعطَ وسائط، أرجع خريطة فارغة
+                if (args.empty())
+                {
+                    return makeMapVal(map);
+                }
+                // إذا أُعطيت وسائط زوجية (مفتاح، قيمة، مفتاح، قيمة...)
+                if (args.size() % 2 == 0)
+                {
+                    for (size_t i = 0; i < args.size(); i += 2)
+                    {
+                        map[args[i]->toString()] = *args[i + 1];
+                    }
+                }
+                return makeMapVal(map);
+            };
+            fm.registerBuiltinFunction("خريطة", map_constructor_fn);
+            fm.registerBuiltinFunction("map", map_constructor_fn);
+
+            // مصفوفة() — إنشاء مصفوفة فارغة أو من عناصر
+
+            // ═══════════════════════════════════════════════════════════════════
+            // 1. عمليات الخرائط / Map Operations
+            // (AR) إصلاح نقطة ضعف رقم 1: عدم وجود دوال للتعامل مع الخرائط
+            // ═══════════════════════════════════════════════════════════════════
+
+            // map_get / خريطة_احصل — الحصول على قيمة من خريطة
+            auto map_get_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2)
+                    throw std::runtime_error("(AR) خريطة_احصل تتطلب وسيطين: الخريطة والمفتاح");
+                if (!args[0]->isMap())
+                    throw std::runtime_error("(AR) الوسيط الأول يجب أن يكون خريطة");
+                const auto &map = args[0]->toMapRef();
+                std::string key = args[1]->toString();
+                auto it = map.find(key);
+                if (it != map.end())
+                    return std::make_shared<Data::Value>(it->second);
+                if (args.size() >= 3)
+                    return args[2]; // قيمة افتراضية
+                return makeVoidVal();
+            };
+            fm.registerBuiltinFunction("خريطة_احصل", map_get_fn);
+            fm.registerBuiltinFunction("map_get", map_get_fn);
+
+            // map_set / خريطة_عيّن — تعيين قيمة في خريطة (يرجع خريطة جديدة)
+            auto map_set_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 3)
+                    throw std::runtime_error("(AR) خريطة_عيّن تتطلب 3 وسائط: الخريطة، المفتاح، القيمة");
+                if (!args[0]->isMap())
+                    throw std::runtime_error("(AR) الوسيط الأول يجب أن يكون خريطة");
+                auto map = args[0]->toMap(); // نسخة
+                map[args[1]->toString()] = *args[2];
+                return makeMapVal(map);
+            };
+            fm.registerBuiltinFunction("خريطة_عيّن", map_set_fn);
+            fm.registerBuiltinFunction("map_set", map_set_fn);
+
+            // map_keys / خريطة_مفاتيح — الحصول على مفاتيح الخريطة
+            auto map_keys_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.empty() || !args[0]->isMap())
+                    throw std::runtime_error("(AR) خريطة_مفاتيح تتطلب خريطة");
+                Data::Value::ArrayType keys;
+                for (const auto &[k, v] : args[0]->toMapRef())
+                {
+                    keys.push_back(Data::Value(k));
+                }
+                return makeArrayVal(keys);
+            };
+            fm.registerBuiltinFunction("خريطة_مفاتيح", map_keys_fn);
+            fm.registerBuiltinFunction("map_keys", map_keys_fn);
+
+            // map_values / خريطة_قيم — الحصول على قيم الخريطة
+            auto map_values_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.empty() || !args[0]->isMap())
+                    throw std::runtime_error("(AR) خريطة_قيم تتطلب خريطة");
+                Data::Value::ArrayType vals;
+                for (const auto &[k, v] : args[0]->toMapRef())
+                {
+                    vals.push_back(v);
+                }
+                return makeArrayVal(vals);
+            };
+            fm.registerBuiltinFunction("خريطة_قيم", map_values_fn);
+            fm.registerBuiltinFunction("map_values", map_values_fn);
+
+            // map_has_key / خريطة_تحتوي — التحقق من وجود مفتاح
+            auto map_has_key_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isMap())
+                    throw std::runtime_error("(AR) خريطة_تحتوي تتطلب خريطة ومفتاح");
+                const auto &map = args[0]->toMapRef();
+                return makeVal(map.find(args[1]->toString()) != map.end());
+            };
+            fm.registerBuiltinFunction("خريطة_تحتوي", map_has_key_fn);
+            fm.registerBuiltinFunction("map_has_key", map_has_key_fn);
+
+            // map_delete / خريطة_احذف — حذف مفتاح (يرجع خريطة جديدة)
+            auto map_delete_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isMap())
+                    throw std::runtime_error("(AR) خريطة_احذف تتطلب خريطة ومفتاح");
+                auto map = args[0]->toMap(); // نسخة
+                map.erase(args[1]->toString());
+                return makeMapVal(map);
+            };
+            fm.registerBuiltinFunction("خريطة_احذف", map_delete_fn);
+            fm.registerBuiltinFunction("map_delete", map_delete_fn);
+
+            // map_size / خريطة_حجم — حجم الخريطة
+            auto map_size_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.empty() || !args[0]->isMap())
+                    throw std::runtime_error("(AR) خريطة_حجم تتطلب خريطة");
+                return makeVal(static_cast<int>(args[0]->toMapRef().size()));
+            };
+            fm.registerBuiltinFunction("خريطة_حجم", map_size_fn);
+            fm.registerBuiltinFunction("map_size", map_size_fn);
+
+            // map_entries / خريطة_عناصر — كل عنصر كمصفوفة [مفتاح، قيمة]
+            auto map_entries_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.empty() || !args[0]->isMap())
+                    throw std::runtime_error("(AR) خريطة_عناصر تتطلب خريطة");
+                Data::Value::ArrayType entries;
+                for (const auto &[k, v] : args[0]->toMapRef())
+                {
+                    Data::Value::ArrayType pair;
+                    pair.push_back(Data::Value(k));
+                    pair.push_back(v);
+                    entries.push_back(Data::Value(pair));
+                }
+                return makeArrayVal(entries);
+            };
+            fm.registerBuiltinFunction("خريطة_عناصر", map_entries_fn);
+            fm.registerBuiltinFunction("map_entries", map_entries_fn);
+
+            // map_merge / خريطة_دمج — دمج خريطتين
+            auto map_merge_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isMap() || !args[1]->isMap())
+                    throw std::runtime_error("(AR) خريطة_دمج تتطلب خريطتين");
+                auto result = args[0]->toMap(); // نسخة
+                for (const auto &[k, v] : args[1]->toMapRef())
+                {
+                    result[k] = v;
+                }
+                return makeMapVal(result);
+            };
+            fm.registerBuiltinFunction("خريطة_دمج", map_merge_fn);
+            fm.registerBuiltinFunction("map_merge", map_merge_fn);
+
+            // ═══════════════════════════════════════════════════════════════════
+            // 2. البرمجة الوظيفية / Functional Programming
+            // (AR) إصلاح نقطة ضعف رقم 2: عدم وجود map/filter/reduce
+            // ═══════════════════════════════════════════════════════════════════
+
+            // map / تخطيط — تطبيق دالة على كل عنصر
+            auto map_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isArray())
+                    throw std::runtime_error("(AR) تخطيط تتطلب مصفوفة واسم دالة");
+                const auto &arr = args[0]->toArrayRef();
+                std::string funcName = args[1]->toString();
+                Data::Value::ArrayType result;
+                for (const auto &item : arr)
+                {
+                    std::vector<Data::Value> callArgs = {item};
+                    auto res = interpreter.callUserFunction(funcName, callArgs);
+                    result.push_back(res);
+                }
+                return makeArrayVal(result);
+            };
+            fm.registerBuiltinFunction("تخطيط", map_fn);
+            fm.registerBuiltinFunction("map", map_fn);
+
+            // filter / تصفية — تصفية عناصر المصفوفة
+            auto filter_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isArray())
+                    throw std::runtime_error("(AR) تصفية تتطلب مصفوفة واسم دالة");
+                const auto &arr = args[0]->toArrayRef();
+                std::string funcName = args[1]->toString();
+                Data::Value::ArrayType result;
+                for (const auto &item : arr)
+                {
+                    std::vector<Data::Value> callArgs = {item};
+                    auto res = interpreter.callUserFunction(funcName, callArgs);
+                    if (res.toBool())
+                        result.push_back(item);
+                }
+                return makeArrayVal(result);
+            };
+            fm.registerBuiltinFunction("تصفية", filter_fn);
+            fm.registerBuiltinFunction("filter", filter_fn);
+
+            // reduce / اختزال — تجميع عناصر المصفوفة
+            auto reduce_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 3 || !args[0]->isArray())
+                    throw std::runtime_error("(AR) اختزال تتطلب مصفوفة واسم دالة وقيمة أولية");
+                const auto &arr = args[0]->toArrayRef();
+                std::string funcName = args[1]->toString();
+                Data::Value accumulator = *args[2];
+                for (const auto &item : arr)
+                {
+                    std::vector<Data::Value> callArgs = {accumulator, item};
+                    accumulator = interpreter.callUserFunction(funcName, callArgs);
+                }
+                return std::make_shared<Data::Value>(accumulator);
+            };
+            fm.registerBuiltinFunction("اختزال", reduce_fn);
+            fm.registerBuiltinFunction("reduce", reduce_fn);
+
+            // forEach / لكل_عنصر — تنفيذ دالة على كل عنصر
+            auto forEach_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isArray())
+                    throw std::runtime_error("(AR) لكل_عنصر تتطلب مصفوفة واسم دالة");
+                const auto &arr = args[0]->toArrayRef();
+                std::string funcName = args[1]->toString();
+                for (const auto &item : arr)
+                {
+                    std::vector<Data::Value> callArgs = {item};
+                    interpreter.callUserFunction(funcName, callArgs);
+                }
+                return makeVoidVal();
+            };
+            fm.registerBuiltinFunction("لكل_عنصر", forEach_fn);
+            fm.registerBuiltinFunction("forEach", forEach_fn);
+            fm.registerBuiltinFunction("for_each", forEach_fn);
+
+            // flatMap / تخطيط_مسطح — تخطيط ثم تسطيح
+            auto flatMap_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isArray())
+                    throw std::runtime_error("(AR) تخطيط_مسطح تتطلب مصفوفة واسم دالة");
+                const auto &arr = args[0]->toArrayRef();
+                std::string funcName = args[1]->toString();
+                Data::Value::ArrayType result;
+                for (const auto &item : arr)
+                {
+                    std::vector<Data::Value> callArgs = {item};
+                    auto res = interpreter.callUserFunction(funcName, callArgs);
+                    if (res.isArray())
+                    {
+                        for (const auto &sub : res.toArrayRef())
+                            result.push_back(sub);
+                    }
+                    else
+                    {
+                        result.push_back(res);
+                    }
+                }
+                return makeArrayVal(result);
+            };
+            fm.registerBuiltinFunction("تخطيط_مسطح", flatMap_fn);
+            fm.registerBuiltinFunction("flatMap", flatMap_fn);
+            fm.registerBuiltinFunction("flat_map", flatMap_fn);
+
+            // zip / ضم — ضم مصفوفتين في مصفوفة أزواج
+            auto zip_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isArray() || !args[1]->isArray())
+                    throw std::runtime_error("(AR) ضم تتطلب مصفوفتين");
+                const auto &a = args[0]->toArrayRef();
+                const auto &b = args[1]->toArrayRef();
+                size_t len = std::min(a.size(), b.size());
+                Data::Value::ArrayType result;
+                for (size_t i = 0; i < len; i++)
+                {
+                    Data::Value::ArrayType pair;
+                    pair.push_back(a[i]);
+                    pair.push_back(b[i]);
+                    result.push_back(Data::Value(pair));
+                }
+                return makeArrayVal(result);
+            };
+            fm.registerBuiltinFunction("ضم", zip_fn);
+            fm.registerBuiltinFunction("zip", zip_fn);
+
+            // any / أي_عنصر — هل هناك عنصر يحقق الشرط
+            auto any_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isArray())
+                    throw std::runtime_error("(AR) أي_عنصر تتطلب مصفوفة واسم دالة");
+                const auto &arr = args[0]->toArrayRef();
+                std::string funcName = args[1]->toString();
+                for (const auto &item : arr)
+                {
+                    std::vector<Data::Value> callArgs = {item};
+                    auto res = interpreter.callUserFunction(funcName, callArgs);
+                    if (res.toBool())
+                        return makeVal(true);
+                }
+                return makeVal(false);
+            };
+            fm.registerBuiltinFunction("أي_عنصر", any_fn);
+            fm.registerBuiltinFunction("any", any_fn);
+
+            // all / كل_العناصر — هل كل العناصر تحقق الشرط
+            auto all_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isArray())
+                    throw std::runtime_error("(AR) كل_العناصر تتطلب مصفوفة واسم دالة");
+                const auto &arr = args[0]->toArrayRef();
+                std::string funcName = args[1]->toString();
+                for (const auto &item : arr)
+                {
+                    std::vector<Data::Value> callArgs = {item};
+                    auto res = interpreter.callUserFunction(funcName, callArgs);
+                    if (!res.toBool())
+                        return makeVal(false);
+                }
+                return makeVal(true);
+            };
+            fm.registerBuiltinFunction("كل_العناصر", all_fn);
+            fm.registerBuiltinFunction("all", all_fn);
+
+            // ═══════════════════════════════════════════════════════════════════
+            // 11. عمليات المجموعات / Set Operations
+            // (AR) إصلاح نقطة ضعف رقم 11: عدم وجود عمليات مجموعات
+            // ═══════════════════════════════════════════════════════════════════
+
+            // unique / فريد — إزالة العناصر المكررة من مصفوفة
+            auto unique_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.empty() || !args[0]->isArray())
+                    throw std::runtime_error("(AR) فريد تتطلب مصفوفة");
+                const auto &arr = args[0]->toArrayRef();
+                Data::Value::ArrayType result;
+                std::unordered_set<std::string> seen;
+                for (const auto &item : arr)
+                {
+                    std::string key = item.toString();
+                    if (seen.find(key) == seen.end())
+                    {
+                        seen.insert(key);
+                        result.push_back(item);
+                    }
+                }
+                return makeArrayVal(result);
+            };
+            fm.registerBuiltinFunction("فريد", unique_fn);
+            fm.registerBuiltinFunction("unique", unique_fn);
+
+            // union / اتحاد — اتحاد مصفوفتين
+            auto union_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isArray() || !args[1]->isArray())
+                    throw std::runtime_error("(AR) اتحاد تتطلب مصفوفتين");
+                Data::Value::ArrayType result = args[0]->toArray();
+                std::unordered_set<std::string> seen;
+                for (const auto &item : result)
+                    seen.insert(item.toString());
+                for (const auto &item : args[1]->toArrayRef())
+                {
+                    std::string key = item.toString();
+                    if (seen.find(key) == seen.end())
+                    {
+                        seen.insert(key);
+                        result.push_back(item);
+                    }
+                }
+                return makeArrayVal(result);
+            };
+            fm.registerBuiltinFunction("اتحاد", union_fn);
+            fm.registerBuiltinFunction("union_arr", union_fn);
+
+            // intersect / تقاطع — تقاطع مصفوفتين
+            auto intersect_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isArray() || !args[1]->isArray())
+                    throw std::runtime_error("(AR) تقاطع تتطلب مصفوفتين");
+                std::unordered_set<std::string> setB;
+                for (const auto &item : args[1]->toArrayRef())
+                    setB.insert(item.toString());
+                Data::Value::ArrayType result;
+                for (const auto &item : args[0]->toArrayRef())
+                {
+                    if (setB.count(item.toString()))
+                    {
+                        result.push_back(item);
+                    }
+                }
+                return makeArrayVal(result);
+            };
+            fm.registerBuiltinFunction("تقاطع", intersect_fn);
+            fm.registerBuiltinFunction("intersect", intersect_fn);
+
+            // difference / فرق — الفرق بين مصفوفتين
+            auto difference_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2 || !args[0]->isArray() || !args[1]->isArray())
+                    throw std::runtime_error("(AR) فرق تتطلب مصفوفتين");
+                std::unordered_set<std::string> setB;
+                for (const auto &item : args[1]->toArrayRef())
+                    setB.insert(item.toString());
+                Data::Value::ArrayType result;
+                for (const auto &item : args[0]->toArrayRef())
+                {
+                    if (!setB.count(item.toString()))
+                    {
+                        result.push_back(item);
+                    }
+                }
+                return makeArrayVal(result);
+            };
+            fm.registerBuiltinFunction("فرق", difference_fn);
+            fm.registerBuiltinFunction("difference", difference_fn);
+
+
+        } // registerBuiltinsMapsCore
+
+    } // namespace Interpreter
+} // namespace Sad

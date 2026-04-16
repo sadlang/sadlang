@@ -619,6 +619,23 @@ bool LLVMTargetManager::linkExecutable(const std::string& object_file, const std
     }
     
     // تنفيذ أمر الربط / Execute linker command
+    // (AR) تحقق من سلامة المسارات قبل التنفيذ
+    // (EN) Validate path safety before shell execution
+    auto isPathSafe = [](const std::string& path) -> bool {
+        for (char c : path) {
+            if (c == ';' || c == '|' || c == '&' || c == '`' ||
+                c == '$' || c == '(' || c == ')' || c == '\n' || c == '\r') {
+                return false;
+            }
+        }
+        return !path.empty();
+    };
+    
+    if (!isPathSafe(executable_file) || !isPathSafe(object_file)) {
+        std::cerr << "خطأ: المسار يحتوي أحرف غير آمنة / Error: path contains unsafe characters" << std::endl;
+        return false;
+    }
+    
     int result = std::system(linker_cmd.c_str());
     
     if (result != 0) {

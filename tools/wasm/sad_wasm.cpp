@@ -5,7 +5,7 @@
  *
  * الترجمة / Build:
  *   emcc sad_wasm.cpp [...sources...] \
- *     -O2 -s WASM=1 -s EXPORTED_FUNCTIONS='["_sad_execute","_sad_version","_malloc","_free"]' \
+ *     -O2 -s WASM=1 -s EXPORTED_FUNCTIONS='["_sad_execute","_sad_render_ui","_sad_version","_malloc","_free"]' \
  *     -s EXPORTED_RUNTIME_METHODS='["cwrap","ccall","UTF8ToString","stringToUTF8","lengthBytesUTF8"]' \
  *     -s MODULARIZE=1 -s EXPORT_NAME=SadWasm \
  *     -s ALLOW_MEMORY_GROWTH=1 \
@@ -141,6 +141,86 @@ char* sad_execute(const char* source_utf8, const char* stdin_utf8) {
     }
 
     std::string json = make_json(success, output, error);
+    char* ret = (char*)malloc(json.size() + 1);
+    memcpy(ret, json.c_str(), json.size() + 1);
+    return ret;
+}
+
+/**
+ * @brief (AR) تنفيذ كود واجهة وإرجاع HTML مولّد
+ * @brief (EN) Execute UI code and return generated HTML
+ *
+ * يُنفّذ كود ص ويلتقط HTML المولّد من _محرك_واجهات.
+ * الاستجابة JSON: {"success":bool,"html":"...","output":"...","error":"..."}
+ */
+char* sad_render_ui(const char* source_utf8) {
+    if (!source_utf8) {
+        std::string err = "{\"success\":false,\"html\":\"\",\"output\":\"\",\"error\":\"source is null\"}";
+        char* ret = (char*)malloc(err.size() + 1);
+        memcpy(ret, err.c_str(), err.size() + 1);
+        return ret;
+    }
+
+    std::string source(source_utf8);
+    std::string output;
+    std::string error;
+    std::string html;
+    bool success = false;
+
+    try {
+        OutputCapture cap;
+        cap.start();
+
+        Sad::Lexer::LexerCore lexer(source);
+        Sad::Parser::ParserCore parser(lexer);
+        auto program = parser.parseProgram();
+
+        if (parser.hasErrors()) {
+            output = cap.stop();
+            error = output;
+            output = "";
+        } else {
+            Sad::Interpreter::InterpreterOptions opts;
+            opts.printResults = false;
+            opts.enableDebugMode = false;
+            opts.enableTypeCheck = false;
+
+            Sad::Interpreter::Interpreter interp(opts);
+            auto result = interp.execute(program);
+
+            output = cap.stop();
+            success = result.success;
+
+            if (!result.success) {
+                error = result.errorMessage;
+            }
+
+            // استخراج HTML المولّد من العلامات الخاصة
+            const std::string startTag = "<!--SAD_UI_HTML_START-->\n";
+            const std::string endTag = "\n<!--SAD_UI_HTML_END-->";
+            auto startPos = output.find("<!--SAD_UI_HTML_START-->");
+            auto endPos = output.find("<!--SAD_UI_HTML_END-->");
+            if (startPos != std::string::npos && endPos != std::string::npos) {
+                size_t htmlStart = startPos + std::string("<!--SAD_UI_HTML_START-->\n").size();
+                html = output.substr(htmlStart, endPos - htmlStart);
+                // إزالة HTML من الإخراج العادي
+                std::string before = output.substr(0, startPos);
+                std::string after = output.substr(endPos + std::string("<!--SAD_UI_HTML_END-->\n").size());
+                output = before + after;
+                // تنظيف أسطر فارغة
+                while (!output.empty() && output.back() == '\n') output.pop_back();
+            }
+        }
+    } catch (const std::exception& e) {
+        error = e.what();
+    } catch (...) {
+        error = "خطأ غير متوقع / Unknown error";
+    }
+
+    std::string json = "{\"success\":" + std::string(success ? "true" : "false") +
+                       ",\"html\":\"" + escape_json(html) +
+                       "\",\"output\":\"" + escape_json(output) +
+                       "\",\"error\":\"" + escape_json(error) + "\"}";
     char* ret = (char*)malloc(json.size() + 1);
     memcpy(ret, json.c_str(), json.size() + 1);
     return ret;

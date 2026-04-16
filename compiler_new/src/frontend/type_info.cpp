@@ -1,4 +1,4 @@
-// ======================================================================
+﻿// ======================================================================
 // type_info.cpp - معلومات نوع البيانات / Type Information System Implementation
 // ======================================================================
 
@@ -17,33 +17,33 @@ namespace SIR {
 
 std::string PrimitiveType::toString() const {
     switch (type) {
-        case SIRType::VOID:     return "void";
-        case SIRType::I64:      return "i64";
-        case SIRType::F64:      return "f64";
-        case SIRType::BOOL:     return "bool";
-        case SIRType::STRING:   return "string";
+        case SadTypeKind::Void:     return "void";
+        case SadTypeKind::Integer:      return "i64";
+        case SadTypeKind::Float:      return "f64";
+        case SadTypeKind::Boolean:     return "bool";
+        case SadTypeKind::String:   return "string";
         default:                return "unknown";
     }
 }
 
 size_t PrimitiveType::getSize() const {
     switch (type) {
-        case SIRType::VOID:     return 0;
-        case SIRType::I64:      return 8;
-        case SIRType::F64:      return 8;
-        case SIRType::BOOL:     return 1;
-        case SIRType::STRING:   return 16;  // pointer + length
+        case SadTypeKind::Void:     return 0;
+        case SadTypeKind::Integer:      return 8;
+        case SadTypeKind::Float:      return 8;
+        case SadTypeKind::Boolean:     return 1;
+        case SadTypeKind::String:   return 16;  // pointer + length
         default:                return 0;
     }
 }
 
 size_t PrimitiveType::getAlignment() const {
     switch (type) {
-        case SIRType::VOID:     return 1;
-        case SIRType::I64:      return 8;
-        case SIRType::F64:      return 8;
-        case SIRType::BOOL:     return 1;
-        case SIRType::STRING:   return 8;
+        case SadTypeKind::Void:     return 1;
+        case SadTypeKind::Integer:      return 8;
+        case SadTypeKind::Float:      return 8;
+        case SadTypeKind::Boolean:     return 1;
+        case SadTypeKind::String:   return 8;
         default:                return 1;
     }
 }
@@ -51,11 +51,11 @@ size_t PrimitiveType::getAlignment() const {
 bool PrimitiveType::equals(const TypePtr& other) const {
     if (!other) return false;
     
-    if (other->getBaseType() != SIRType::I64 &&
-        other->getBaseType() != SIRType::F64 &&
-        other->getBaseType() != SIRType::BOOL &&
-        other->getBaseType() != SIRType::VOID &&
-        other->getBaseType() != SIRType::STRING) {
+    if (other->getBaseType() != SadTypeKind::Integer &&
+        other->getBaseType() != SadTypeKind::Float &&
+        other->getBaseType() != SadTypeKind::Boolean &&
+        other->getBaseType() != SadTypeKind::Void &&
+        other->getBaseType() != SadTypeKind::String) {
         return false;
     }
     
@@ -84,7 +84,7 @@ size_t PointerType::getAlignment() const {
 }
 
 bool PointerType::equals(const TypePtr& other) const {
-    if (!other || other->getBaseType() != SIRType::PTR) return false;
+    if (!other || other->getBaseType() != SadTypeKind::Pointer) return false;
     
     auto otherPtr = std::dynamic_pointer_cast<PointerType>(other);
     if (!otherPtr) return false;
@@ -121,7 +121,7 @@ size_t ArrayType::getAlignment() const {
 }
 
 bool ArrayType::equals(const TypePtr& other) const {
-    if (!other || other->getBaseType() != SIRType::ARRAY) return false;
+    if (!other || other->getBaseType() != SadTypeKind::Array) return false;
     
     auto otherArr = std::dynamic_pointer_cast<ArrayType>(other);
     if (!otherArr) return false;
@@ -178,7 +178,7 @@ size_t StructType::getAlignment() const {
 }
 
 bool StructType::equals(const TypePtr& other) const {
-    if (!other || other->getBaseType() != SIRType::STRUCT) return false;
+    if (!other || other->getBaseType() != SadTypeKind::Struct) return false;
     
     auto otherStruct = std::dynamic_pointer_cast<StructType>(other);
     if (!otherStruct) return false;
@@ -248,7 +248,7 @@ size_t FunctionType::getAlignment() const {
 }
 
 bool FunctionType::equals(const TypePtr& other) const {
-    if (!other || other->getBaseType() != SIRType::FUNCTION) return false;
+    if (!other || other->getBaseType() != SadTypeKind::Function) return false;
     
     auto otherFunc = std::dynamic_pointer_cast<FunctionType>(other);
     if (!otherFunc) return false;
@@ -284,16 +284,16 @@ TypePtr FunctionType::clone() const {
 // Helper Functions
 // ======================================================================
 
-SIRType stringToSIRType(const std::string& str) {
-    if (str == "void") return SIRType::VOID;
-    if (str == "i64") return SIRType::I64;
-    if (str == "f64") return SIRType::F64;
-    if (str == "bool") return SIRType::BOOL;
-    if (str == "string") return SIRType::STRING;
-    if (str == "ptr") return SIRType::PTR;
-    if (str == "array") return SIRType::ARRAY;
-    if (str == "struct") return SIRType::STRUCT;
-    if (str == "function") return SIRType::FUNCTION;
+SadTypeKind stringToSIRType(const std::string& str) {
+    if (str == "void") return SadTypeKind::Void;
+    if (str == "i64") return SadTypeKind::Integer;
+    if (str == "f64") return SadTypeKind::Float;
+    if (str == "bool") return SadTypeKind::Boolean;
+    if (str == "string") return SadTypeKind::String;
+    if (str == "ptr") return SadTypeKind::Pointer;
+    if (str == "array") return SadTypeKind::Array;
+    if (str == "struct") return SadTypeKind::Struct;
+    if (str == "function") return SadTypeKind::Function;
     
     throw std::invalid_argument("Unknown type: " + str);
 }
@@ -305,18 +305,18 @@ bool areTypesCompatible(const TypePtr& type1, const TypePtr& type2) {
     if (type1->equals(type2)) return true;
     
     // Allow implicit conversions for numeric types
-    SIRType t1 = type1->getBaseType();
-    SIRType t2 = type2->getBaseType();
+    SadTypeKind t1 = type1->getBaseType();
+    SadTypeKind t2 = type2->getBaseType();
     
     // I64 and BOOL are compatible
-    if ((t1 == SIRType::I64 && t2 == SIRType::BOOL) ||
-        (t1 == SIRType::BOOL && t2 == SIRType::I64)) {
+    if ((t1 == SadTypeKind::Integer && t2 == SadTypeKind::Boolean) ||
+        (t1 == SadTypeKind::Boolean && t2 == SadTypeKind::Integer)) {
         return true;
     }
     
     // I64 and F64 are compatible
-    if ((t1 == SIRType::I64 && t2 == SIRType::F64) ||
-        (t1 == SIRType::F64 && t2 == SIRType::I64)) {
+    if ((t1 == SadTypeKind::Integer && t2 == SadTypeKind::Float) ||
+        (t1 == SadTypeKind::Float && t2 == SadTypeKind::Integer)) {
         return true;
     }
     

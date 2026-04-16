@@ -23,7 +23,7 @@ namespace TypeSystem {
 // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
 
 // ״§„…†״´״¦ …״¹ †ˆ״¹ …״­״¯״¯ / Constructor with specific kind
-Type::Type(TypeKind kind) : kind_(kind) {
+Type::Type(SadTypeKind kind) : kind_(kind) {
     // ״×‡״¦״© †ˆ״¹ ״§„†ˆ״¹ / Initialize type kind
 }
 
@@ -103,60 +103,60 @@ bool Type::isSubtypeOf(const Type* other) const {
 // ״×†״° ״§„״¯ˆ״§„ ״§„…״³״§״¹״¯״© / Helper Functions Implementation
 // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
 
-// ״×״­ˆ„ TypeKind ״¥„‰ †״µ ״¹״±״¨ / Convert TypeKind to Arabic text
-std::string typeKindToArabic(TypeKind kind) {
+// ״×״­ˆ„ SadTypeKind ״¥„‰ †״µ ״¹״±״¨ / Convert SadTypeKind to Arabic text
+std::string typeKindToArabic(SadTypeKind kind) {
     // ״§״³״×״®״¯״§… switch „„״×״­ˆ„ / Use switch for conversion
     switch (kind) {
         // ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© / Primitive Types
-        case TypeKind::Void:
+        case SadTypeKind::Void:
             return "״±״§״÷"; // Void
-        case TypeKind::Integer:
+        case SadTypeKind::Integer:
             return "״±‚…"; // Integer
-        case TypeKind::Float:
+        case SadTypeKind::Float:
             return "״¹״´״±"; // Float
-        case TypeKind::Boolean:
+        case SadTypeKind::Boolean:
             return "…†״·‚"; // Boolean
-        case TypeKind::String:
+        case SadTypeKind::String:
             return "†״µ"; // String
         
         // ״§„״£†ˆ״§״¹ ״§„…״±ƒ״¨״© / Composite Types
-        case TypeKind::Array:
+        case SadTypeKind::Array:
             return "…״µˆ״©"; // Array
-        case TypeKind::Dictionary:
+        case SadTypeKind::Map:
             return "‚״§…ˆ״³"; // Dictionary
-        case TypeKind::Tuple:
+        case SadTypeKind::Tuple:
             return "״µ"; // Tuple
         
         // ״§„״£†ˆ״§״¹ ״§„ˆ״¸״© / Function Types
-        case TypeKind::Function:
+        case SadTypeKind::Function:
             return "״¯״§„״©"; // Function
         
         // ״§„״£†ˆ״§״¹ ״§„ƒ״§״¦†״© / Object-Oriented Types
-        case TypeKind::Class:
+        case SadTypeKind::Class:
             return "״µ†"; // Class
-        case TypeKind::Interface:
+        case SadTypeKind::Trait:
             return "ˆ״§״¬‡״©"; // Interface
         
         // ״§„״£†ˆ״§״¹ ״§„…״×‚״¯…״© / Advanced Types
-        case TypeKind::Generic:
+        case SadTypeKind::Generic:
             return "†ˆ״¹_״¹״§…"; // Generic
-        case TypeKind::TypeParameter:
+        case SadTypeKind::TypeParameter:
             return "…״¹״§…„_†ˆ״¹"; // Type Parameter
-        case TypeKind::Union:
+        case SadTypeKind::Union:
             return "״§״×״­״§״¯"; // Union
-        case TypeKind::Intersection:
+        case SadTypeKind::Intersection:
             return "״×‚״§״·״¹"; // Intersection
-        case TypeKind::Optional:
+        case SadTypeKind::Optional:
             return "״§״®״×״§״±"; // Optional
         
         // ״£†ˆ״§״¹ ״®״§״µ״© / Special Types
-        case TypeKind::Any:
+        case SadTypeKind::Any:
             return "״£"; // Any
-        case TypeKind::Never:
+        case SadTypeKind::Never:
             return "״£״¨״¯״§‹"; // Never
-        case TypeKind::Unknown:
+        case SadTypeKind::Unknown:
             return "…״¬‡ˆ„"; // Unknown
-        case TypeKind::Error:
+        case SadTypeKind::Error:
             return "״®״·״£"; // Error
         
         // ‚…״© ״§״×״±״§״¶״© („״§ †״¨״÷ ״§„ˆ״µˆ„) / Default (should not reach)
@@ -165,60 +165,60 @@ std::string typeKindToArabic(TypeKind kind) {
     }
 }
 
-// ״×״­ˆ„ TypeKind ״¥„‰ †״µ ״¥†״¬„״² / Convert TypeKind to English text
-std::string typeKindToEnglish(TypeKind kind) {
+// ״×״­ˆ„ SadTypeKind ״¥„‰ †״µ ״¥†״¬„״² / Convert SadTypeKind to English text
+std::string typeKindToEnglish(SadTypeKind kind) {
     // ״§״³״×״®״¯״§… switch „„״×״­ˆ„ / Use switch for conversion
     switch (kind) {
         // ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© / Primitive Types
-        case TypeKind::Void:
+        case SadTypeKind::Void:
             return "Void";
-        case TypeKind::Integer:
+        case SadTypeKind::Integer:
             return "Integer";
-        case TypeKind::Float:
+        case SadTypeKind::Float:
             return "Float";
-        case TypeKind::Boolean:
+        case SadTypeKind::Boolean:
             return "Boolean";
-        case TypeKind::String:
+        case SadTypeKind::String:
             return "String";
         
         // ״§„״£†ˆ״§״¹ ״§„…״±ƒ״¨״© / Composite Types
-        case TypeKind::Array:
+        case SadTypeKind::Array:
             return "Array";
-        case TypeKind::Dictionary:
+        case SadTypeKind::Map:
             return "Dictionary";
-        case TypeKind::Tuple:
+        case SadTypeKind::Tuple:
             return "Tuple";
         
         // ״§„״£†ˆ״§״¹ ״§„ˆ״¸״© / Function Types
-        case TypeKind::Function:
+        case SadTypeKind::Function:
             return "Function";
         
         // ״§„״£†ˆ״§״¹ ״§„ƒ״§״¦†״© / Object-Oriented Types
-        case TypeKind::Class:
+        case SadTypeKind::Class:
             return "Class";
-        case TypeKind::Interface:
+        case SadTypeKind::Trait:
             return "Interface";
         
         // ״§„״£†ˆ״§״¹ ״§„…״×‚״¯…״© / Advanced Types
-        case TypeKind::Generic:
+        case SadTypeKind::Generic:
             return "Generic";
-        case TypeKind::TypeParameter:
+        case SadTypeKind::TypeParameter:
             return "TypeParameter";
-        case TypeKind::Union:
+        case SadTypeKind::Union:
             return "Union";
-        case TypeKind::Intersection:
+        case SadTypeKind::Intersection:
             return "Intersection";
-        case TypeKind::Optional:
+        case SadTypeKind::Optional:
             return "Optional";
         
         // ״£†ˆ״§״¹ ״®״§״µ״© / Special Types
-        case TypeKind::Any:
+        case SadTypeKind::Any:
             return "Any";
-        case TypeKind::Never:
+        case SadTypeKind::Never:
             return "Never";
-        case TypeKind::Unknown:
+        case SadTypeKind::Unknown:
             return "Unknown";
-        case TypeKind::Error:
+        case SadTypeKind::Error:
             return "Error";
         
         // ‚…״© ״§״×״±״§״¶״© / Default

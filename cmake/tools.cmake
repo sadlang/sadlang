@@ -38,11 +38,17 @@ if(BUILD_LSP_SERVER)
         add_subdirectory(tools/formatter)
     endif()
 
+    # المحلل المتقدم / Advanced Analizer
+    if(EXISTS "${CMAKE_SOURCE_DIR}/tools/analizer/CMakeLists.txt")
+        add_subdirectory(tools/analizer)
+    endif()
+
     # (AR) قواعد التثبيت مُجمّعة في cmake/install.cmake
     # (EN) Install rules consolidated in cmake/install.cmake
 
     message(STATUS "✓ خادم LSP / LSP Server: sad-lsp-server")
     message(STATUS "✓ أداة التنسيق / Formatter: sad-fmt")
+    message(STATUS "✓ المحلل المتقدم / Advanced Analizer: sad-analizer")
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
@@ -94,3 +100,9 @@ if(BUILD_ANDROID_TOOL AND NOT ANDROID AND EXISTS "${CMAKE_SOURCE_DIR}/tools/andr
     add_subdirectory(tools/android)
     message(STATUS "✓ أداة Android / Android Tool: sad-android")
 endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# مصحح الأداء / Performance Profiler
+# (AR) ملاحظة: add_subdirectory يتم في CMakeLists.txt الرئيسي قبل sad_core
+# (EN) Note: add_subdirectory is done in root CMakeLists.txt before sad_core
+# ──────────────────────────────────────────────────────────────────────

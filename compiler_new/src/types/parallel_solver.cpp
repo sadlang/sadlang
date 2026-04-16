@@ -1,4 +1,4 @@
-// تعطيل تحذير Unicode للتعليقات العربية
+﻿// تعطيل تحذير Unicode للتعليقات العربية
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -218,12 +218,12 @@ std::unordered_set<size_t> ParallelConstraintSolver::getTypeVariables(const Cons
     auto type1 = constraint.getType1();
     auto type2 = constraint.getType2();
     
-    if (type1 && type1->getKind() == TypeKind::TypeParameter) {
+    if (type1 && type1->getKind() == SadTypeKind::TypeParameter) {
         // افترض أن TypeVariable له getId()
         // vars.insert(type1->asTypeVariable()->getId());
     }
     
-    if (type2 && type2->getKind() == TypeKind::TypeParameter) {
+    if (type2 && type2->getKind() == SadTypeKind::TypeParameter) {
         // vars.insert(type2->asTypeVariable()->getId());
     }
     

@@ -116,6 +116,8 @@ static const std::vector<RegressionTest> REGRESSION_TESTS = {
     {"test_p28_filesystem_smoke.ص",     "Filesystem smoke read/write",           "P1", false, 10},
     {"test_p29_filesystem_invalid_input.ص", "Filesystem invalid input throws",   "P1", false, 10},
     {"test_p30_database_availability.ص", "Database availability contract",        "P1", false, 10},
+    {"test_p31_json_unicode_parse.ص",  "JSON Unicode escape parsing",           "P1", false, 10},
+    {"test_p32_json_unicode_stringify.ص", "JSON Unicode escape stringify",       "P1", false, 10},
 
     // P2 - تحسين / Enhancement
     {"test_p05_mixed_chars.ص",          "خلط عربي-لاتيني في المعرفات",        "P2", false, 10},

@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: destructure.cpp
 // File: destructure.cpp
 //
@@ -200,11 +200,11 @@ public:
         if (!type) return false;
         
         switch (type->getKind()) {
-            case TypeKind::Array:
-            case TypeKind::Tuple:
-            // case TypeKind::Struct:  // TODO: Add when Struct is added to TypeKind
-            case TypeKind::Class:
-            case TypeKind::Union:
+            case SadTypeKind::Array:
+            case SadTypeKind::Tuple:
+            // case SadTypeKind::Struct:  // TODO: Add when Struct is added to SadTypeKind
+            case SadTypeKind::Class:
+            case SadTypeKind::Union:
                 return true;
             default:
                 return false;
@@ -238,7 +238,7 @@ private:
         // (EN) Extract element type
         TypePtr elementType = nullptr;
         if (matchedType) {
-            if (matchedType->getKind() == TypeKind::Array) {
+            if (matchedType->getKind() == SadTypeKind::Array) {
                 // (AR) افتراض نوع عنصر عام
                 // (EN) Assume generic element type
                 auto& registry = TypeRegistry::getInstance();

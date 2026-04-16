@@ -391,14 +391,14 @@ EnhancedError ErrorFactory::typeMismatch(const std::string&amp; expected,
     err.location = loc;
     
     // اقتراح تحويل النوع إذا أمكن
-    if (expected == "نص" &amp;&amp; (actual == "رقم" || actual == "عشري")) {
+    if (expected == "نص" && (actual == "رقم" || actual == "عشري" || actual == "مضاعف")) {
         err.addSuggestion(FixSuggestion(
             "حوّل الرقم إلى نص باستخدام `نص()`",
             "نص(القيمة)",
             loc,
             0.9
         ));
-    } else if ((expected == "رقم" || expected == "عشري") &amp;&amp; actual == "نص") {
+    } else if ((expected == "رقم" || expected == "عشري" || expected == "مضاعف") && actual == "نص") {
         err.addSuggestion(FixSuggestion(
             "حوّل النص إلى رقم باستخدام `رقم()`",
             "رقم(القيمة)",

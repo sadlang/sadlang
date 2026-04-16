@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ============================================================================
  * llvm_codegen_directives.cpp - توليد كود التوجيهات / Directives Codegen
  * ============================================================================
@@ -59,7 +59,7 @@ llvm::Value* LLVMCodeGen::emitSizeof(std::shared_ptr<SIRInstruction> inst) {
     // (EN) Get size from first operand
     int64_t sizeValue = 8; // Default
     if (inst->operands[0].type == SIROperandType::CONSTANT && 
-        inst->operands[0].dataType == SIRType::I64) {
+        inst->operands[0].dataType == SadTypeKind::Integer) {
         sizeValue = inst->operands[0].intValue;
     }
     

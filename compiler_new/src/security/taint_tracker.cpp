@@ -30,6 +30,7 @@
 #include <functional>
 #include <stack>
 #include <algorithm>
+#include <climits>
 
 namespace sad {
 namespace security {
@@ -162,7 +163,7 @@ public:
  */
 struct تحذير_أمني {
     خطورة مستوى;
-    نوع_المصرف نوع_المصرف;
+    نوع_المصرف نوع;
     std::string رسالة;
     std::string ملف;
     int سطر;
@@ -172,7 +173,7 @@ struct تحذير_أمني {
     std::string مثال_الهجوم;
     
     std::string النوع_كنص() const {
-        switch (نوع_المصرف) {
+        switch (نوع) {
             case نوع_المصرف::استعلام_SQL: return "SQL Injection";
             case نوع_المصرف::HTML: return "XSS";
             case نوع_المصرف::أمر_نظام: return "Command Injection";
@@ -319,7 +320,7 @@ public:
         // بناء التحذير
         تحذير_أمني تحذير;
         تحذير.مستوى = خطورة_المصرف(نوع);
-        تحذير.نوع_المصرف = نوع;
+        تحذير.نوع = نوع;
         تحذير.ملف = ملف;
         تحذير.سطر = سطر;
         تحذير.علامات = it->second.العلامات();
@@ -564,12 +565,12 @@ void sad_taint_tracker_taint(SadTaintTracker* tracker,
         return;
     }
     
-    // تم تعطيل تتبع التلوث مؤقتاً بسبب مشاكل الترميز
-    // TODO: إعادة تفعيل عندما يتم إصلاح مشكلة UTF-8
-    (void)tracker;
-    (void)variable;
-    (void)location;
-    return;
+    // (AR) تلويث المتغير عبر المتتبع الداخلي
+    // (EN) Taint the variable through internal tracker
+    auto* impl = reinterpret_cast<متتبع_التلوث*>(tracker);
+    std::string var_name(variable);
+    std::string loc(location ? location : "");
+    impl->لوّث(var_name, static_cast<نوع_المصدر>(source_type), loc);
 }
 
 /**

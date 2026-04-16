@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_vm_compiler_comprehensive.cpp
  * @brief (AR) اختبارات شاملة للآلة الافتراضية والمترجم
  * @brief (EN) Comprehensive VM & Compiler Tests
@@ -785,33 +785,33 @@ int main() {
     SAD_GROUP("Compiler.SIR.Types / المترجم.SIR.الأنواع");
 
     SAD_TEST("SIR_TYPE01: أنواع SIR الأساسية — VOID", {
-        auto t = Sad::Compiler::SIR::SIRType::VOID;
-        SAD_ASSERT_EQ((int)t, (int)Sad::Compiler::SIR::SIRType::VOID);
+        auto t = Sad::Compiler::SIR::SadTypeKind::Void;
+        SAD_ASSERT_EQ((int)t, (int)Sad::Compiler::SIR::SadTypeKind::Void);
     });
 
     SAD_TEST("SIR_TYPE02: أنواع SIR — I64", {
-        auto t = Sad::Compiler::SIR::SIRType::I64;
-        SAD_ASSERT_NE((int)t, (int)Sad::Compiler::SIR::SIRType::VOID);
+        auto t = Sad::Compiler::SIR::SadTypeKind::Integer;
+        SAD_ASSERT_NE((int)t, (int)Sad::Compiler::SIR::SadTypeKind::Void);
     });
 
     SAD_TEST("SIR_TYPE03: أنواع SIR — F64", {
-        auto t = Sad::Compiler::SIR::SIRType::F64;
-        SAD_ASSERT_NE((int)t, (int)Sad::Compiler::SIR::SIRType::I64);
+        auto t = Sad::Compiler::SIR::SadTypeKind::Float;
+        SAD_ASSERT_NE((int)t, (int)Sad::Compiler::SIR::SadTypeKind::Integer);
     });
 
     SAD_TEST("SIR_TYPE04: أنواع SIR — BOOL", {
-        auto t = Sad::Compiler::SIR::SIRType::BOOL;
-        SAD_ASSERT_NE((int)t, (int)Sad::Compiler::SIR::SIRType::STRING);
+        auto t = Sad::Compiler::SIR::SadTypeKind::Boolean;
+        SAD_ASSERT_NE((int)t, (int)Sad::Compiler::SIR::SadTypeKind::String);
     });
 
     SAD_TEST("SIR_TYPE05: أنواع SIR — STRING", {
-        auto t = Sad::Compiler::SIR::SIRType::STRING;
-        SAD_ASSERT_NE((int)t, (int)Sad::Compiler::SIR::SIRType::VOID);
+        auto t = Sad::Compiler::SIR::SadTypeKind::String;
+        SAD_ASSERT_NE((int)t, (int)Sad::Compiler::SIR::SadTypeKind::Void);
     });
 
     SAD_TEST("SIR_TYPE06: أنواع SIR — ARRAY", {
-        auto t = Sad::Compiler::SIR::SIRType::ARRAY;
-        SAD_ASSERT_NE((int)t, (int)Sad::Compiler::SIR::SIRType::STRING);
+        auto t = Sad::Compiler::SIR::SadTypeKind::Array;
+        SAD_ASSERT_NE((int)t, (int)Sad::Compiler::SIR::SadTypeKind::String);
     });
 
 #else

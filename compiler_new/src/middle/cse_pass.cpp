@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file cse_pass.cpp
  * @brief Common Subexpression Elimination Pass Implementation
  * @brief تطبيق تمرير حذف التعابير الفرعية المشتركة
@@ -165,6 +165,7 @@ std::unique_ptr<ExpressionKey> CSEPass::analyzeExpression(
         case SIR::SIROpcode::MUL_F64:
         case SIR::SIROpcode::DIV_I64:
         case SIR::SIROpcode::DIV_F64:
+        case SIR::SIROpcode::FLOOR_DIV_I64:
         case SIR::SIROpcode::MOD_I64:
         
         // Bitwise operations
@@ -197,16 +198,16 @@ std::unique_ptr<ExpressionKey> CSEPass::analyzeExpression(
     for (const auto& operand : inst->operands) {
         if (operand.type == SIR::SIROperandType::CONSTANT) {
             switch (operand.dataType) {
-                case SIR::SIRType::I64:
+                case SIR::SadTypeKind::Integer:
                     operandNames.push_back("$ci64_" + std::to_string(operand.intValue));
                     break;
-                case SIR::SIRType::F64:
+                case SIR::SadTypeKind::Float:
                     operandNames.push_back("$cf64_" + std::to_string(operand.floatValue));
                     break;
-                case SIR::SIRType::BOOL:
+                case SIR::SadTypeKind::Boolean:
                     operandNames.push_back(std::string("$cbool_") + (operand.boolValue ? "1" : "0"));
                     break;
-                case SIR::SIRType::STRING:
+                case SIR::SadTypeKind::String:
                     operandNames.push_back("$cstr_" + operand.name);
                     break;
                 default:

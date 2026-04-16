@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: primitive_type.h
 // File: primitive_type.h
 //
@@ -35,7 +35,7 @@ public:
     // ═══════════════════════════════════════════════════════════════════════════
     
     // منشئ مع نوع محدد / Constructor with specific kind
-    explicit PrimitiveType(TypeKind kind);
+    explicit PrimitiveType(SadTypeKind kind);
     
     // ═══════════════════════════════════════════════════════════════════════════
     // تجاوز الدوال الافتراضية / Override Virtual Functions
@@ -82,8 +82,8 @@ TypePtr createBooleanType();
 // إنشاء نوع نص / Create String type
 TypePtr createStringType();
 
-// إنشاء نوع بدائي من TypeKind / Create primitive type from TypeKind
-TypePtr createPrimitiveType(TypeKind kind);
+// إنشاء نوع بدائي من SadTypeKind / Create primitive type from SadTypeKind
+TypePtr createPrimitiveType(SadTypeKind kind);
 
 } // namespace TypeSystem
 } // namespace Sad

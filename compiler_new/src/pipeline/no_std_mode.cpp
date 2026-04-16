@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file no_std_mode.cpp
  * @brief (AR) تنفيذ وضع #![بلا_مكتبة_قياسية] لبرمجة Bare-metal
  *        (EN) Implementation of #![no_std] mode for Bare-metal programming
@@ -82,32 +82,32 @@ namespace pipeline {
 namespace سمات {
     // (AR) سمة تعطيل المكتبة القياسية
     // (EN) No standard library attribute
-    const std::string بلا_مكتبة_قياسية = u8"بلا_مكتبة_قياسية";
+    const std::string بلا_مكتبة_قياسية = "بلا_مكتبة_قياسية";
     const std::string NO_STD = "no_std";
     
     // (AR) سمة تعطيل نقطة الدخول الافتراضية
     // (EN) No main attribute
-    const std::string بلا_رئيسية = u8"بلا_رئيسية";
+    const std::string بلا_رئيسية = "بلا_رئيسية";
     const std::string NO_MAIN = "no_main";
     
     // (AR) سمة نقطة الدخول المخصصة
     // (EN) Custom entry point attribute
-    const std::string نقطة_دخول = u8"نقطة_دخول";
+    const std::string نقطة_دخول = "نقطة_دخول";
     const std::string ENTRY_POINT = "entry_point";
     
     // (AR) سمة معالج الذعر
     // (EN) Panic handler attribute
-    const std::string معالج_ذعر = u8"معالج_ذعر";
+    const std::string معالج_ذعر = "معالج_ذعر";
     const std::string PANIC_HANDLER = "panic_handler";
     
     // (AR) سمة معالج التخصيص
     // (EN) Alloc error handler attribute
-    const std::string معالج_تخصيص = u8"معالج_تخصيص";
+    const std::string معالج_تخصيص = "معالج_تخصيص";
     const std::string ALLOC_ERROR_HANDLER = "alloc_error_handler";
     
     // (AR) سمة تعطيل فك المكدس
     // (EN) Abort on panic attribute
-    const std::string إيقاف_عند_ذعر = u8"إيقاف_عند_ذعر";
+    const std::string إيقاف_عند_ذعر = "إيقاف_عند_ذعر";
     const std::string ABORT_ON_PANIC = "abort_on_panic";
 }
 
@@ -315,10 +315,10 @@ public:
         
         if (config.noMainEnabled && config.entryPoint.empty()) {
             errors.push_back({
-                u8"ص-EMB-001",
-                u8"وضع بلا_رئيسية يتطلب تحديد نقطة_دخول",
+                "ص-EMB-001",
+                "وضع بلا_رئيسية يتطلب تحديد نقطة_دخول",
                 "no_main mode requires entry_point to be specified",
-                u8"أضف #[نقطة_دخول] لدالة البداية"
+                "أضف #[نقطة_دخول] لدالة البداية"
             });
         }
         
@@ -329,10 +329,10 @@ public:
         
         if (config.panicHandler.empty() && !config.abortOnPanic) {
             errors.push_back({
-                u8"ص-EMB-002",
-                u8"وضع بلا_مكتبة_قياسية يتطلب معالج_ذعر أو إيقاف_عند_ذعر",
+                "ص-EMB-002",
+                "وضع بلا_مكتبة_قياسية يتطلب معالج_ذعر أو إيقاف_عند_ذعر",
                 "no_std mode requires panic_handler or abort_on_panic",
-                u8"أضف #[معالج_ذعر] لدالة معالجة الذعر أو #![إيقاف_عند_ذعر]"
+                "أضف #[معالج_ذعر] لدالة معالجة الذعر أو #![إيقاف_عند_ذعر]"
             });
         }
         
@@ -343,10 +343,10 @@ public:
         
         if (config.allowAlloc && config.allocErrorHandler.empty()) {
             errors.push_back({
-                u8"ص-EMB-003",
-                u8"استخدام التخصيص الديناميكي يتطلب معالج_تخصيص",
+                "ص-EMB-003",
+                "استخدام التخصيص الديناميكي يتطلب معالج_تخصيص",
                 "Dynamic allocation requires alloc_error_handler",
-                u8"أضف #[معالج_تخصيص] أو عطّل التخصيص الديناميكي"
+                "أضف #[معالج_تخصيص] أو عطّل التخصيص الديناميكي"
             });
         }
         
@@ -367,7 +367,7 @@ public:
         // (AR) يجب أن تُرجع never type (!)
         // (EN) Must return never type (!)
         return signature.find("-> !") != std::string::npos ||
-               signature.find(u8"-> أبداً") != std::string::npos;
+               signature.find("-> أبداً") != std::string::npos;
     }
     
     /**
@@ -381,7 +381,7 @@ public:
         return (signature.find("معلومات_ذعر") != std::string::npos ||
                 signature.find("PanicInfo") != std::string::npos) &&
                (signature.find("-> !") != std::string::npos ||
-                signature.find(u8"-> أبداً") != std::string::npos);
+                signature.find("-> أبداً") != std::string::npos);
     }
 };
 
@@ -413,7 +413,7 @@ public:
         // ─────────────────────────────────────────────────────────────────────
         
         if (!config.entryPoint.empty()) {
-            ir << "; " << u8"نقطة الدخول المخصصة" << "\n";
+            ir << "; " << "نقطة الدخول المخصصة" << "\n";
             ir << "; Custom entry point\n";
             ir << "define void @_start() {\n";
             ir << "entry:\n";
@@ -436,7 +436,7 @@ public:
         // ─────────────────────────────────────────────────────────────────────
         
         if (config.abortOnPanic) {
-            ir << "; " << u8"معالج الذعر (إيقاف مباشر)" << "\n";
+            ir << "; " << "معالج الذعر (إيقاف مباشر)" << "\n";
             ir << "; Panic handler (immediate abort)\n";
             ir << "define void @__sad_panic_handler(ptr %info) {\n";
             ir << "entry:\n";
@@ -461,7 +461,7 @@ public:
         
         std::ostringstream ir;
         
-        ir << "; " << u8"معالج الذعر المخصص" << "\n";
+        ir << "; " << "معالج الذعر المخصص" << "\n";
         ir << "; Custom panic handler\n";
         ir << "define void @__sad_panic_handler(ptr %info) {\n";
         ir << "entry:\n";
@@ -486,7 +486,7 @@ public:
     std::string generateDefaultLinkerScript(const NoStdConfig& config) {
         std::ostringstream script;
         
-        script << "/* " << u8"سكريبت رابط لغة ص" << " */\n";
+        script << "/* " << "سكريبت رابط لغة ص" << " */\n";
         script << "/* Sad Language Linker Script */\n\n";
         
         script << "ENTRY(_start)\n\n";
@@ -496,7 +496,7 @@ public:
         
         // (AR) قسم الكود
         // (EN) Code section
-        script << "    /* " << u8"قسم الكود" << " */\n";
+        script << "    /* " << "قسم الكود" << " */\n";
         script << "    .text : {\n";
         script << "        *(.text._start)\n";
         script << "        *(.text*)\n";
@@ -504,21 +504,21 @@ public:
         
         // (AR) قسم البيانات للقراءة فقط
         // (EN) Read-only data section
-        script << "    /* " << u8"بيانات للقراءة فقط" << " */\n";
+        script << "    /* " << "بيانات للقراءة فقط" << " */\n";
         script << "    .rodata : {\n";
         script << "        *(.rodata*)\n";
         script << "    }\n\n";
         
         // (AR) قسم البيانات المهيأة
         // (EN) Initialized data section
-        script << "    /* " << u8"بيانات مهيأة" << " */\n";
+        script << "    /* " << "بيانات مهيأة" << " */\n";
         script << "    .data : {\n";
         script << "        *(.data*)\n";
         script << "    }\n\n";
         
         // (AR) قسم BSS
         // (EN) BSS section
-        script << "    /* " << u8"بيانات غير مهيأة" << " */\n";
+        script << "    /* " << "بيانات غير مهيأة" << " */\n";
         script << "    .bss : {\n";
         script << "        __bss_start = .;\n";
         script << "        *(.bss*)\n";
@@ -528,7 +528,7 @@ public:
         
         // (AR) المكدس
         // (EN) Stack
-        script << "    /* " << u8"المكدس" << " */\n";
+        script << "    /* " << "المكدس" << " */\n";
         script << "    . = ALIGN(4096);\n";
         script << "    __stack_bottom = .;\n";
         script << "    . += 0x4000;  /* 16KB stack */\n";
@@ -690,34 +690,34 @@ public:
      *        (EN) Print configuration info
      */
     void printConfigInfo(std::ostream& out) const {
-        out << u8"\n╔═══════════════════════════════════════════════════════════════╗\n";
-        out << u8"║              وضع بلا مكتبة قياسية (no_std)                     ║\n";
-        out << u8"╠═══════════════════════════════════════════════════════════════╣\n";
+        out << "\n╔═══════════════════════════════════════════════════════════════╗\n";
+        out << "║              وضع بلا مكتبة قياسية (no_std)                     ║\n";
+        out << "╠═══════════════════════════════════════════════════════════════╣\n";
         
-        out << u8"║  بلا_مكتبة_قياسية: " 
-            << (config_.noStdEnabled ? u8"✓ مفعّل" : u8"✗ معطّل") 
-            << std::string(40 - (config_.noStdEnabled ? 10 : 10), ' ') << u8"║\n";
+        out << "║  بلا_مكتبة_قياسية: " 
+            << (config_.noStdEnabled ? "✓ مفعّل" : "✗ معطّل") 
+            << std::string(40 - (config_.noStdEnabled ? 10 : 10), ' ') << "║\n";
         
-        out << u8"║  بلا_رئيسية:       " 
-            << (config_.noMainEnabled ? u8"✓ مفعّل" : u8"✗ معطّل")
-            << std::string(40 - (config_.noMainEnabled ? 10 : 10), ' ') << u8"║\n";
+        out << "║  بلا_رئيسية:       " 
+            << (config_.noMainEnabled ? "✓ مفعّل" : "✗ معطّل")
+            << std::string(40 - (config_.noMainEnabled ? 10 : 10), ' ') << "║\n";
         
-        out << u8"║  نقطة_دخول:        " 
-            << (config_.entryPoint.empty() ? u8"(افتراضي)" : config_.entryPoint)
+        out << "║  نقطة_دخول:        " 
+            << (config_.entryPoint.empty() ? "(افتراضي)" : config_.entryPoint)
             << std::string(40 - (config_.entryPoint.empty() ? 10 : config_.entryPoint.length()), ' ') 
-            << u8"║\n";
+            << "║\n";
         
-        out << u8"║  معالج_ذعر:        "
+        out << "║  معالج_ذعر:        "
             << (config_.panicHandler.empty() ? 
-                (config_.abortOnPanic ? u8"(إيقاف)" : u8"(مطلوب!)") : 
+                (config_.abortOnPanic ? "(إيقاف)" : "(مطلوب!)") : 
                 config_.panicHandler)
             << std::string(40 - (config_.panicHandler.empty() ? 10 : config_.panicHandler.length()), ' ')
-            << u8"║\n";
+            << "║\n";
         
-        out << u8"║  وضع_الذاكرة:      " << u8"ملكية صارمة (بلا GC)"
-            << std::string(20, ' ') << u8"║\n";
+        out << "║  وضع_الذاكرة:      " << "ملكية صارمة (بلا GC)"
+            << std::string(20, ' ') << "║\n";
         
-        out << u8"╚═══════════════════════════════════════════════════════════════╝\n\n";
+        out << "╚═══════════════════════════════════════════════════════════════╝\n\n";
     }
     
     /**
@@ -783,9 +783,9 @@ public:
         // (AR) قائمة الدوال الممنوعة في وضع no_std
         // (EN) List of forbidden functions in no_std mode
         static const std::set<std::string> forbiddenGCFunctions = {
-            u8"اجمع_قمامة",           // collect_garbage
-            u8"فعّل_جامع_القمامة",      // enable_gc
-            u8"عدّ_المراجع",           // ref_count
+            "اجمع_قمامة",           // collect_garbage
+            "فعّل_جامع_القمامة",      // enable_gc
+            "عدّ_المراجع",           // ref_count
             "gc_collect",
             "gc_enable",
             "gc_disable",
@@ -793,9 +793,9 @@ public:
         };
         
         if (forbiddenGCFunctions.count(functionName) > 0) {
-            return u8"خطأ: لا يمكن استخدام '" + functionName + 
-                   u8"' في وضع بلا مكتبة قياسية. "
-                   u8"استخدم نظام الملكية بدلاً من جامع القمامة.\n"
+            return "خطأ: لا يمكن استخدام '" + functionName + 
+                   "' في وضع بلا مكتبة قياسية. "
+                   "استخدم نظام الملكية بدلاً من جامع القمامة.\n"
                    "Error: Cannot use '" + functionName + 
                    "' in no_std mode. Use ownership instead of GC.";
         }

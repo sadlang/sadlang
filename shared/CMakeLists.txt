@@ -14,15 +14,16 @@ add_library(sad_shared STATIC
     lexer/src/token.cpp
     
     # Parser
-    parser/src/parser_core.cpp
-    parser/src/parser_core_helpers.cpp
-    parser/src/parser_core_main.cpp
-    parser/src/parser_core_oop.cpp
-    parser/src/parser_modules.cpp
-    parser/src/parser_statements.cpp
-    parser/src/parser_expressions.cpp
-    parser/src/parser_declarations.cpp
-    parser/src/parser_advanced.cpp
+    parser/src/core/parser_core.cpp
+    parser/src/core/parser_helpers.cpp
+    parser/src/core/parser_main.cpp
+    parser/src/declarations/parser_oop.cpp
+    parser/src/declarations/parser_modules.cpp
+    parser/src/statements/parser_statements.cpp
+    parser/src/core/parser_expressions.cpp
+    parser/src/declarations/parser_declarations.cpp
+    parser/src/statements/parser_advanced.cpp
+    parser/src/ui/parser_ui.cpp
     
     # AST
     ast/src/ast_node.cpp
@@ -34,6 +35,7 @@ add_library(sad_shared STATIC
     ast/src/statements.cpp
     ast/src/type_nodes.cpp
     ast/src/class_nodes.cpp          # OOP AST nodes (ThisExpr, SuperExpr, NewExpr, etc.)
+    ast/src/ast_clone.cpp            # Deep clone for AST nodes (templates, macros, traits)
     
     # OOP Managers (مطلوبة للمترجم sadc)
     ${CMAKE_SOURCE_DIR}/interpreter_new/src/managers/class_manager.cpp
@@ -43,6 +45,8 @@ add_library(sad_shared STATIC
     types/src/generator.cpp
     types/src/object_instance.cpp
     types/src/value.cpp
+    types/src/sad_type_system.cpp
+    types/src/type_bridge.cpp         # ADR-01 Phase 1: جسر SadType ↔ Value
     
     # Errors
     errors/src/diagnostic.cpp

@@ -102,7 +102,8 @@ enum class AnnotationType {
 enum class AnnotationTarget {
     FUNCTION,       ///< (AR) الدالة ككل / (EN) The function
     RETURN_VALUE,   ///< (AR) القيمة المُرجعة / (EN) Return value
-    PARAMETER       ///< (AR) معامل محدد / (EN) Specific parameter
+    PARAMETER,      ///< (AR) معامل محدد / (EN) Specific parameter
+    UNKNOWN         ///< (AR) غير معروف / (EN) Unknown target
 };
 
 // ============================================================================

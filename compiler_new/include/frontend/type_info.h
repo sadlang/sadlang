@@ -1,4 +1,4 @@
-// ======================================================================
+﻿// ======================================================================
 // type_info.h - معلومات نوع البيانات / Type Information System
 //              Type Info Classes for SIR Type System
 // ======================================================================
@@ -72,7 +72,7 @@ public:
      * @brief (AR) الحصول على النوع الأساسي
      * @brief (EN) Get base type
      */
-    virtual SIRType getBaseType() const = 0;
+    virtual SadTypeKind getBaseType() const = 0;
     
     /**
      * @brief (AR) تحويل النوع إلى نص
@@ -123,12 +123,12 @@ public:
  */
 class PrimitiveType : public TypeInfo {
 private:
-    SIRType type;
+    SadTypeKind type;
     
 public:
-    explicit PrimitiveType(SIRType t) : type(t) {}
+    explicit PrimitiveType(SadTypeKind t) : type(t) {}
     
-    SIRType getBaseType() const override { return type; }
+    SadTypeKind getBaseType() const override { return type; }
     std::string toString() const override;
     size_t getSize() const override;
     size_t getAlignment() const override;
@@ -154,7 +154,7 @@ private:
 public:
     explicit PointerType(TypePtr pt) : pointeeType(pt) {}
     
-    SIRType getBaseType() const override { return SIRType::PTR; }
+    SadTypeKind getBaseType() const override { return SadTypeKind::Pointer; }
     std::string toString() const override;
     size_t getSize() const override;
     size_t getAlignment() const override;
@@ -183,7 +183,7 @@ private:
 public:
     ArrayType(TypePtr et, size_t sz) : elementType(et), arraySize(sz) {}
     
-    SIRType getBaseType() const override { return SIRType::ARRAY; }
+    SadTypeKind getBaseType() const override { return SadTypeKind::Array; }
     std::string toString() const override;
     size_t getSize() const override;
     size_t getAlignment() const override;
@@ -220,7 +220,7 @@ public:
         calculateOffsets();
     }
     
-    SIRType getBaseType() const override { return SIRType::STRUCT; }
+    SadTypeKind getBaseType() const override { return SadTypeKind::Struct; }
     std::string toString() const override;
     size_t getSize() const override { return totalSize; }
     size_t getAlignment() const override;
@@ -252,7 +252,7 @@ public:
     FunctionType(TypePtr rt, const std::vector<TypePtr>& pt)
         : returnType(rt), parameterTypes(pt) {}
     
-    SIRType getBaseType() const override { return SIRType::FUNCTION; }
+    SadTypeKind getBaseType() const override { return SadTypeKind::Function; }
     std::string toString() const override;
     size_t getSize() const override;
     size_t getAlignment() const override;
@@ -273,7 +273,7 @@ public:
  * @brief (EN) Create i64 type
  */
 inline TypePtr makeI64Type() {
-    return std::make_shared<PrimitiveType>(SIRType::I64);
+    return std::make_shared<PrimitiveType>(SadTypeKind::Integer);
 }
 
 /**
@@ -281,7 +281,7 @@ inline TypePtr makeI64Type() {
  * @brief (EN) Create f64 type
  */
 inline TypePtr makeF64Type() {
-    return std::make_shared<PrimitiveType>(SIRType::F64);
+    return std::make_shared<PrimitiveType>(SadTypeKind::Float);
 }
 
 /**
@@ -289,7 +289,7 @@ inline TypePtr makeF64Type() {
  * @brief (EN) Create bool type
  */
 inline TypePtr makeBoolType() {
-    return std::make_shared<PrimitiveType>(SIRType::BOOL);
+    return std::make_shared<PrimitiveType>(SadTypeKind::Boolean);
 }
 
 /**
@@ -297,7 +297,7 @@ inline TypePtr makeBoolType() {
  * @brief (EN) Create void type
  */
 inline TypePtr makeVoidType() {
-    return std::make_shared<PrimitiveType>(SIRType::VOID);
+    return std::make_shared<PrimitiveType>(SadTypeKind::Void);
 }
 
 /**
@@ -305,7 +305,7 @@ inline TypePtr makeVoidType() {
  * @brief (EN) Create string type
  */
 inline TypePtr makeStringType() {
-    return std::make_shared<PrimitiveType>(SIRType::STRING);
+    return std::make_shared<PrimitiveType>(SadTypeKind::String);
 }
 
 /**
@@ -346,9 +346,9 @@ inline TypePtr makeFunctionType(TypePtr returnType, const std::vector<TypePtr>& 
 
 /**
  * @brief (AR) تحويل سلسلة نصية إلى نوع SIR
- * @brief (EN) Convert string to SIRType
+ * @brief (EN) Convert string to SadTypeKind
  */
-SIRType stringToSIRType(const std::string& str);
+SadTypeKind stringToSIRType(const std::string& str);
 
 /**
  * @brief (AR) مقارنة نوعين

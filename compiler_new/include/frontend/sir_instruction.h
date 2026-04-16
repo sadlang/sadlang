@@ -1,4 +1,4 @@
-// ======================================================================
+﻿// ======================================================================
 // sir_instruction.h - تعليمات SIR
 //                    SIR Instructions
 // ======================================================================
@@ -160,7 +160,7 @@ public:
      * @example %ptr = alloc i64
      */
     static SIRInstruction Alloc(const SIROperand& result,
-                               SIRType type,
+                               SadTypeKind type,
                                const SIROperand& size) {
         (void)type; // Suppress unused parameter warning - type information preserved in result operand
         SIRInstruction inst(SIROpcode::ALLOC);

@@ -1,11 +1,11 @@
-// Disable Unicode warning for Arabic comments
+﻿// Disable Unicode warning for Arabic comments
 #ifdef _MSC_VER
-#pragma warning(disable: 4819)
+#pragma warning(disable : 4819)
 #endif
 
 /**
  * @file borrow_checker.cpp
- * @brief تنفيذ فاحص الاستعارة / Borrow Checker Implementation
+ * @brief ״×†״° ״§״­״µ ״§„״§״³״×״¹״§״±״© / Borrow Checker Implementation
  * @author Sad Language Team
  * @date January 2026
  * @version 1.0
@@ -16,908 +16,760 @@
 #include <iostream>
 #include <sstream>
 
-namespace Sad {
-namespace Semantic {
+namespace Sad
+{
+    namespace Semantic
+    {
 
-// ============================================================================
-// بناء وهدم / Construction & Destruction
-// ============================================================================
+        // ============================================================================
+        // ״¨†״§״¡ ˆ‡״¯… / Construction & Destruction
+        // ============================================================================
 
-BorrowChecker::BorrowChecker()
-    : tracker_(std::make_unique<OwnershipTracker>())
-    , useArabicMessages_(true)
-    , debugMode_(false)
-    , nllMode_(true)
-    , currentFile_("")
-    , currentFunction_("") {
-    initializeCopyTypes();
-}
+        BorrowChecker::BorrowChecker()
+            : tracker_(std::make_unique<OwnershipTracker>()), useArabicMessages_(true), debugMode_(false), nllMode_(true), currentFile_(""), currentFunction_("")
+        {
+            initializeCopyTypes();
+        }
 
-BorrowChecker::~BorrowChecker() = default;
+        BorrowChecker::~BorrowChecker() = default;
 
-// ============================================================================
-// تهيئة الأنواع القابلة للنسخ / Initialize Copy Types
-// ============================================================================
+        // ============================================================================
+        // ״×‡״¦״© ״§„״£†ˆ״§״¹ ״§„‚״§״¨„״© „„†״³״® / Initialize Copy Types
+        // ============================================================================
 
-void BorrowChecker::initializeCopyTypes() {
-    // (AR) الأنواع البدائية قابلة للنسخ دائماً
-    // (EN) Primitive types are always Copy
-    
-    // الأرقام الصحيحة / Integers
-    copyTypes_.insert("ح8");    // i8
-    copyTypes_.insert("ح16");   // i16
-    copyTypes_.insert("ح32");   // i32
-    copyTypes_.insert("ح64");   // i64
-    copyTypes_.insert("ع8");    // u8
-    copyTypes_.insert("ع16");   // u16
-    copyTypes_.insert("ع32");   // u32
-    copyTypes_.insert("ع64");   // u64
-    copyTypes_.insert("رقم");   // default integer
-    copyTypes_.insert("عدد");   // alias for integer
-    
-    // الأرقام العشرية / Floats
-    copyTypes_.insert("عش32");  // f32
-    copyTypes_.insert("عش64");  // f64
-    copyTypes_.insert("عشري"); // default float
-    
-    // المنطقي / Boolean
-    copyTypes_.insert("منطقي");
-    copyTypes_.insert("bool");
-    
-    // الحرف / Character
-    copyTypes_.insert("حرف");
-    copyTypes_.insert("char");
-    
-    // المؤشرات الخام (unsafe) / Raw pointers
-    copyTypes_.insert("*ثابت");
-    copyTypes_.insert("*متغير");
-    
-    // English aliases
-    copyTypes_.insert("i8");
-    copyTypes_.insert("i16");
-    copyTypes_.insert("i32");
-    copyTypes_.insert("i64");
-    copyTypes_.insert("u8");
-    copyTypes_.insert("u16");
-    copyTypes_.insert("u32");
-    copyTypes_.insert("u64");
-    copyTypes_.insert("f32");
-    copyTypes_.insert("f64");
-    copyTypes_.insert("int");
-    copyTypes_.insert("float");
-    copyTypes_.insert("double");
-}
+        void BorrowChecker::initializeCopyTypes()
+        {
+            // (AR) ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© ‚״§״¨„״© „„†״³״® ״¯״§״¦…״§‹
+            // (EN) Primitive types are always Copy
 
-// ============================================================================
-// واجهة الفحص الرئيسية / Main Check Interface
-// ============================================================================
+            // ״§„״£״±‚״§… ״§„״µ״­״­״© / Integers
+            copyTypes_.insert("״­8");  // i8
+            copyTypes_.insert("״­16"); // i16
+            copyTypes_.insert("״­32"); // i32
+            copyTypes_.insert("״­64"); // i64
+            copyTypes_.insert("״¹8");  // u8
+            copyTypes_.insert("״¹16"); // u16
+            copyTypes_.insert("״¹32"); // u32
+            copyTypes_.insert("״¹64"); // u64
+            copyTypes_.insert("״±‚…"); // default integer
+            copyTypes_.insert("״¹״¯״¯"); // alias for integer
 
-BorrowCheckResult BorrowChecker::check(AST::ASTNode* ast) {
-    reset();
-    
-    if (!ast) {
-        currentResult_.addWarning("AST is null / شجرة AST فارغة");
-        return currentResult_;
-    }
-    
-    if (debugMode_) {
-        std::cout << "[BorrowChecker] Starting check...\n";
-    }
-    
-    // (AR) زيارة الجذر
-    // (EN) Visit root
-    // (AR) إذا كان الجذر BlockStmt، نزور محتوياته مباشرة دون دخول نطاق جديد
-    // (EN) If root is BlockStmt, visit its contents directly without entering a new scope
-    // هذا ضروري لأن المتغيرات العامة يجب أن تُسجَّل في النطاق 0
-    // This is necessary so global variables are registered in scope 0
-    if (auto* blockStmt = dynamic_cast<AST::BlockStmt*>(ast)) {
-        for (auto& stmt : blockStmt->statements) {
-            if (stmt) {
-                stmt->accept(*this);
+            // ״§„״£״±‚״§… ״§„״¹״´״±״© / Floats
+            copyTypes_.insert("״¹״´32"); // f32
+            copyTypes_.insert("״¹״´64"); // f64
+            copyTypes_.insert("״¹״´״±"); // default float
+
+            // ״§„…†״·‚ / Boolean
+            copyTypes_.insert("…†״·‚");
+            copyTypes_.insert("bool");
+
+            // ״§„״­״± / Character
+            copyTypes_.insert("״­״±");
+            copyTypes_.insert("char");
+
+            // ״§„…״₪״´״±״§״× ״§„״®״§… (unsafe) / Raw pointers
+            copyTypes_.insert("*״«״§״¨״×");
+            copyTypes_.insert("*…״×״÷״±");
+
+            // English aliases
+            copyTypes_.insert("i8");
+            copyTypes_.insert("i16");
+            copyTypes_.insert("i32");
+            copyTypes_.insert("i64");
+            copyTypes_.insert("u8");
+            copyTypes_.insert("u16");
+            copyTypes_.insert("u32");
+            copyTypes_.insert("u64");
+            copyTypes_.insert("f32");
+            copyTypes_.insert("f64");
+            copyTypes_.insert("int");
+            copyTypes_.insert("float");
+            copyTypes_.insert("double");
+        }
+
+        // ============================================================================
+        // ˆ״§״¬‡״© ״§„״­״µ ״§„״±״¦״³״© / Main Check Interface
+        // ============================================================================
+
+        BorrowCheckResult BorrowChecker::check(AST::ASTNode *ast)
+        {
+            reset();
+
+            if (!ast)
+            {
+                currentResult_.addWarning("AST is null / ״´״¬״±״© AST ״§״±״÷״©");
+                return currentResult_;
+            }
+
+            if (debugMode_)
+            {
+                std::cout << "[BorrowChecker] Starting check...\n";
+            }
+
+            // (AR) ״²״§״±״© ״§„״¬״°״±
+            // (EN) Visit root
+            // (AR) ״¥״°״§ ƒ״§† ״§„״¬״°״± BlockStmt״ †״²ˆ״± …״­״×ˆ״§״×‡ …״¨״§״´״±״© ״¯ˆ† ״¯״®ˆ„ †״·״§‚ ״¬״¯״¯
+            // (EN) If root is BlockStmt, visit its contents directly without entering a new scope
+            // ‡״°״§ ״¶״±ˆ״± „״£† ״§„…״×״÷״±״§״× ״§„״¹״§…״© ״¬״¨ ״£† ״×״³״¬‘„  ״§„†״·״§‚ 0
+            // This is necessary so global variables are registered in scope 0
+            if (auto *blockStmt = dynamic_cast<AST::BlockStmt *>(ast))
+            {
+                for (auto &stmt : blockStmt->statements)
+                {
+                    if (stmt)
+                    {
+                        stmt->accept(*this);
+                    }
+                }
+            }
+            else
+            {
+                ast->accept(*this);
+            }
+
+            // (AR) ״¬…״¹ ״§„״£״®״·״§״¡ ״§„״¥״¶״§״© …† ״§„…״×״×״¨״¹ (…״«„: ״­״° ״£״«†״§״¡ ״§„״§״³״×״¹״§״±״©)
+            // (EN) Collect additional errors from tracker (e.g. drop while borrowed)
+            // …„״§״­״¸״©: ״§„״£״®״·״§״¡ …† ״§„״²ˆ״§״± ״×״¶״§ …״¨״§״´״±״© ״¥„‰ currentResult_
+            // Note: Visitor errors are added directly to currentResult_
+            // ‡†״§ †״¬…״¹ ‚״· ״§„״£״®״·״§״¡ ״§„״× ƒ״×״´‡״§ ״§„…״×״×״¨״¹ ״¹†״¯ ״®״±ˆ״¬ ״§„†״·״§‚
+            // Here we only collect errors the tracker detects on scope exit
+            // ״×… †‚„ ״§„״£״®״·״§״¡ …† ״§„…״×״×״¨״¹ ״¥„‰ ״§„״²ˆ״§״± …״¨״§״´״±״© - „״§ ״­״§״¬״© „״¬…״¹‡״§ …״±״×†
+            // Errors moved to visitors directly - no need to collect twice
+
+            if (debugMode_)
+            {
+                std::cout << "[BorrowChecker] Check complete. "
+                          << "Errors: " << currentResult_.errors.size() << "\n";
+                tracker_->dump();
+            }
+
+            return currentResult_;
+        }
+
+        BorrowCheckResult BorrowChecker::checkFunction(AST::FunctionDecl *func)
+        {
+            reset();
+
+            if (!func)
+            {
+                currentResult_.addWarning("Function is null / ״§„״¯״§„״© ״§״±״÷״©");
+                return currentResult_;
+            }
+
+            visitFunctionDecl(*func);
+
+            return currentResult_;
+        }
+
+        void BorrowChecker::reset()
+        {
+            tracker_ = std::make_unique<OwnershipTracker>();
+            currentResult_ = BorrowCheckResult();
+            currentFile_ = "";
+            currentFunction_ = "";
+        }
+
+        // ============================================================================
+        // ״²״§״±״© ״§„״×״¹״§״¨״± / Visit Expressions
+        // ============================================================================
+
+        void BorrowChecker::visitBinaryExpr(AST::BinaryExpr &expr)
+        {
+            // (AR) ״­״µ ״§„״·״±†
+            // (EN) Check both sides
+            if (expr.left)
+            {
+                expr.left->accept(*this);
+            }
+            if (expr.right)
+            {
+                expr.right->accept(*this);
             }
         }
-    } else {
-        ast->accept(*this);
-    }
-    
-    // (AR) جمع الأخطاء الإضافية من المتتبع (مثل: حذف أثناء الاستعارة)
-    // (EN) Collect additional errors from tracker (e.g. drop while borrowed)
-    // ملاحظة: الأخطاء من الزوار تُضاف مباشرة إلى currentResult_
-    // Note: Visitor errors are added directly to currentResult_
-    // هنا نجمع فقط الأخطاء التي يكتشفها المتتبع عند خروج النطاق
-    // Here we only collect errors the tracker detects on scope exit
-    // تم نقل الأخطاء من المتتبع إلى الزوار مباشرة - لا حاجة لجمعها مرتين
-    // Errors moved to visitors directly - no need to collect twice
-    
-    if (debugMode_) {
-        std::cout << "[BorrowChecker] Check complete. "
-                  << "Errors: " << currentResult_.errors.size() << "\n";
-        tracker_->dump();
-    }
-    
-    return currentResult_;
-}
 
-BorrowCheckResult BorrowChecker::checkFunction(AST::FunctionDecl* func) {
-    reset();
-    
-    if (!func) {
-        currentResult_.addWarning("Function is null / الدالة فارغة");
-        return currentResult_;
-    }
-    
-    visitFunctionDecl(*func);
-    
-    return currentResult_;
-}
+        void BorrowChecker::visitUnaryExpr(AST::UnaryExpr &expr)
+        {
+            // (AR) ״§„״×״­‚‚ …† †ˆ״¹ ״§„״¹״§…„ ״§„״£״­״§״¯
+            // (EN) Check unary operator type
 
-void BorrowChecker::reset() {
-    tracker_ = std::make_unique<OwnershipTracker>();
-    currentResult_ = BorrowCheckResult();
-    currentFile_ = "";
-    currentFunction_ = "";
-}
+            if (!expr.operand)
+                return;
 
-// ============================================================================
-// زيارة التعابير / Visit Expressions
-// ============================================================================
+            // (AR) …״¹״§„״¬״© ״¹״§…„ ״§„…״±״¬״¹ & (״§״³״×״¹״§״±״©)
+            // (EN) Handle reference operator & (borrow)
+            if (expr.op == Lexer::TokenType::OP_BITWISE_AND)
+            {
+                // (AR) ״×״­‚‚: ‡„ ״§„…״¹״§…„ …״×״÷״± …ƒ† ״§״³״×״¹״§״±״×‡״
+                // (EN) Check: is operand a variable we can borrow?
+                if (auto *varExpr = dynamic_cast<AST::VariableExpr *>(expr.operand.get()))
+                {
+                    std::string varName = varExpr->toString();
+                    std::string borrowerName = "&" + varName;
 
-void BorrowChecker::visitBinaryExpr(AST::BinaryExpr& expr) {
-    // (AR) فحص الطرفين
-    // (EN) Check both sides
-    if (expr.left) {
-        expr.left->accept(*this);
-    }
-    if (expr.right) {
-        expr.right->accept(*this);
-    }
-}
+                    // (AR) ״¥†״´״§״¡ ״§״³״×״¹״§״±״© ״«״§״¨״×״© (‚״±״§״¡״© ‚״·)
+                    // (EN) Create shared (immutable) borrow
+                    auto error = tracker_->createBorrow(
+                        varName, borrowerName,
+                        BorrowKind::Shared,
+                        getLocation(&expr));
 
-void BorrowChecker::visitUnaryExpr(AST::UnaryExpr& expr) {
-    // (AR) التحقق من نوع العامل الأحادي
-    // (EN) Check unary operator type
-
-    if (!expr.operand) return;
-
-    // (AR) معالجة عامل المرجع & (استعارة)
-    // (EN) Handle reference operator & (borrow)
-    if (expr.op == Lexer::TokenType::OP_BITWISE_AND) {
-        // (AR) تحقق: هل المعامل متغير يمكن استعارته؟
-        // (EN) Check: is operand a variable we can borrow?
-        if (auto* varExpr = dynamic_cast<AST::VariableExpr*>(expr.operand.get())) {
-            std::string varName = varExpr->toString();
-            std::string borrowerName = "&" + varName;
-            
-            // (AR) إنشاء استعارة ثابتة (قراءة فقط)
-            // (EN) Create shared (immutable) borrow
-            auto error = tracker_->createBorrow(
-                varName, borrowerName,
-                BorrowKind::Shared,
-                getLocation(&expr));
-            
-            if (error) {
-                currentResult_.addError(*error);
+                    if (error)
+                    {
+                        currentResult_.addError(*error);
+                    }
+                    currentResult_.totalBorrows++;
+                }
+                else
+                {
+                    // (AR) ״­״µ ״§„…״¹״§…„ ״¹״§״¯״§‹
+                    // (EN) Check operand normally
+                    expr.operand->accept(*this);
+                }
+                return;
             }
-            currentResult_.totalBorrows++;
-        } else {
-            // (AR) فحص المعامل عادياً
-            // (EN) Check operand normally
+
+            // (AR) …״¹״§„״¬״© ״¹״§…„ ƒ ״§„…״±״¬״¹ * (dereference)
+            // (EN) Handle dereference operator *
+            if (expr.op == Lexer::TokenType::OP_MULTIPLY)
+            {
+                // (AR) ״­״µ ״£† ״§„…״¹״§…„ …״³״×״¹״§״± ״¨״´ƒ„ ״µ״­״­
+                // (EN) Check that operand is properly borrowed
+                if (auto *varExpr = dynamic_cast<AST::VariableExpr *>(expr.operand.get()))
+                {
+                    std::string varName = varExpr->toString();
+                    // (AR) ״§„״×״­‚‚ …† ״£† ״§„…״×״÷״± ״µ״§„״­ „„״§״³״×״®״¯״§… („״³ …†‚ˆ„״§‹)
+                    // (EN) Verify variable is valid (not moved)
+                    auto error = tracker_->useVariable(varName, getLocation(&expr));
+                    if (error)
+                    {
+                        currentResult_.addError(*error);
+                    }
+                }
+                else
+                {
+                    expr.operand->accept(*this);
+                }
+                return;
+            }
+
+            // (AR) „„״¹ˆ״§…„ ״§„״£״®״±‰ (-, !, ~): ״­״µ ״§„…״¹״§…„ ״¹״§״¯״§‹
+            // (EN) For other operators (-, !, ~): check operand normally
             expr.operand->accept(*this);
         }
-        return;
-    }
 
-    // (AR) معالجة عامل فك المرجع * (dereference)
-    // (EN) Handle dereference operator *
-    if (expr.op == Lexer::TokenType::OP_MULTIPLY) {
-        // (AR) فحص أن المعامل مستعار بشكل صحيح
-        // (EN) Check that operand is properly borrowed
-        if (auto* varExpr = dynamic_cast<AST::VariableExpr*>(expr.operand.get())) {
-            std::string varName = varExpr->toString();
-            // (AR) التحقق من أن المتغير صالح للاستخدام (ليس منقولاً)
-            // (EN) Verify variable is valid (not moved)
-            auto error = tracker_->useVariable(varName, getLocation(&expr));
-            if (error) {
+        void BorrowChecker::visitTernaryExpr(AST::TernaryExpr &expr)
+        {
+            // (AR) ״­״µ ״§„״´״±״· ˆ״§„״±״¹†
+            // (EN) Check condition and both branches
+        }
+
+        void BorrowChecker::visitLiteralExpr(AST::LiteralExpr &expr)
+        {
+            // (AR) ״§„‚… ״§„״­״±״© „״§ ״×״­״×״§״¬ ״­״µ …„ƒ״©
+            // (EN) Literals don't need ownership checking
+            (void)expr;
+        }
+
+        void BorrowChecker::visitVariableExpr(AST::VariableExpr &expr)
+        {
+            // (AR) ״§„״×״­‚‚ …† ״¥…ƒ״§†״© ״§„״§״³״×״®״¯״§…
+            // (EN) Check if can be used
+            auto error = tracker_->useVariable(expr.toString(), getLocation(&expr));
+            if (error)
+            {
                 currentResult_.addError(*error);
             }
-        } else {
-            expr.operand->accept(*this);
         }
-        return;
-    }
 
-    // (AR) للعوامل الأخرى (-, !, ~): فحص المعامل عادياً
-    // (EN) For other operators (-, !, ~): check operand normally
-    expr.operand->accept(*this);
-}
-
-void BorrowChecker::visitTernaryExpr(AST::TernaryExpr& expr) {
-    // (AR) فحص الشرط والفرعين
-    // (EN) Check condition and both branches
-}
-
-void BorrowChecker::visitLiteralExpr(AST::LiteralExpr& expr) {
-    // (AR) القيم الحرفية لا تحتاج فحص ملكية
-    // (EN) Literals don't need ownership checking
-    (void)expr;
-}
-
-void BorrowChecker::visitVariableExpr(AST::VariableExpr& expr) {
-    // (AR) التحقق من إمكانية الاستخدام
-    // (EN) Check if can be used
-    auto error = tracker_->useVariable(expr.toString(), getLocation(&expr));
-    if (error) {
-        currentResult_.addError(*error);
-    }
-}
-
-void BorrowChecker::visitAssignExpr(AST::AssignExpr& expr) {
-    analyzeAssignment(&expr);
-}
-
-void BorrowChecker::visitCallExpr(AST::CallExpr& expr) {
-    analyzeFunctionCall(&expr);
-}
-
-void BorrowChecker::visitIndexExpr(AST::IndexExpr& expr) {
-    // (AR) فحص المصفوفة والفهرس
-    // (EN) Check array and index
-}
-
-void BorrowChecker::visitMemberExpr(AST::MemberExpr& expr) {
-    // (AR) فحص الكائن
-    // (EN) Check object
-}
-
-void BorrowChecker::visitMemberAssignExpr(AST::MemberAssignExpr& expr) {
-    // (AR) فحص تعيين العضو
-    // (EN) Check member assignment
-}
-
-void BorrowChecker::visitIndexAssignExpr(AST::IndexAssignExpr& expr) {
-    // (AR) فحص الإسناد بالفهرس
-    // (EN) Check index assignment
-}
-
-void BorrowChecker::visitArrayExpr(AST::ArrayExpr& expr) {
-    // (AR) فحص عناصر المصفوفة
-    // (EN) Check array elements
-}
-
-void BorrowChecker::visitMapExpr(AST::MapExpr& expr) {
-    // (AR) فحص عناصر القاموس
-    // (EN) Check map entries
-}
-
-void BorrowChecker::visitWalrusExpr(AST::WalrusExpr& expr) {
-    // (AR) فحص تعبير Walrus
-    // (EN) Check walrus expression
-}
-
-void BorrowChecker::visitAwaitExpr(AST::AwaitExpr& expr) {
-    // (AR) فحص تعبير الانتظار
-    // (EN) Check await expression
-}
-
-void BorrowChecker::visitLambdaExpr(AST::LambdaExpr& expr) {
-    // (AR) فحص Lambda
-    // (EN) Check lambda expression
-}
-
-void BorrowChecker::visitListComprehensionExpr(AST::ListComprehensionExpr& expr) {
-    // (AR) فحص استيعاب القائمة
-    // (EN) Check list comprehension
-}
-
-void BorrowChecker::visitDictComprehensionExpr(AST::DictComprehensionExpr& expr) {
-    // (AR) فحص استيعاب القاموس
-    // (EN) Check dict comprehension
-}
-
-void BorrowChecker::visitSetComprehensionExpr(AST::SetComprehensionExpr& expr) {
-    // (AR) فحص استيعاب المجموعة
-    // (EN) Check set comprehension
-}
-
-void BorrowChecker::visitGeneratorExpr(AST::GeneratorExpr& expr) {
-    // (AR) فحص تعبير المولد
-    // (EN) Check generator expression
-}
-
-void BorrowChecker::visitDecoratorExpr(AST::DecoratorExpr& expr) {
-    // (AR) فحص المزخرف
-    // (EN) Check decorator
-}
-
-void BorrowChecker::visitNewExpr(AST::NewExpr& expr) {
-    // (AR) فحص تعبير new
-    // (EN) Check new expression
-}
-
-void BorrowChecker::visitMemberAccessExpr(AST::MemberAccessExpr& expr) {
-    // (AR) فحص الوصول للعضو
-    // (EN) Check member access
-}
-
-void BorrowChecker::visitMethodCallExpr(AST::MethodCallExpr& expr) {
-    // (AR) فحص استدعاء الطريقة
-    // (EN) Check method call
-}
-
-void BorrowChecker::visitThisExpr(AST::ThisExpr& expr) {
-    // (AR) this/هذا لا يحتاج فحص خاص
-    // (EN) this doesn't need special checking
-    (void)expr;
-}
-
-void BorrowChecker::visitSuperExpr(AST::SuperExpr& expr) {
-    // (AR) super/أصل لا يحتاج فحص خاص
-    // (EN) super doesn't need special checking
-    (void)expr;
-}
-
-void BorrowChecker::visitBorrowExpr(AST::BorrowExpr& expr) {
-    // (AR) فحص تعبير الاستعارة &x أو &متغير x
-    // (EN) Check borrow expression &x or &mut x
-    if (!expr.variableName.empty()) {
-        // (AR) تحديد نوع الاستعارة: مشتركة أو متغيرة
-        // (EN) Determine borrow kind: shared or mutable
-        BorrowKind kind = expr.isMutable ? BorrowKind::Mutable : BorrowKind::Shared;
-        std::string borrowerName = (expr.isMutable ? "&متغير " : "&") + expr.variableName;
-        
-        // (AR) إنشاء الاستعارة في متتبع الملكية
-        // (EN) Create borrow in ownership tracker
-        auto error = tracker_->createBorrow(
-            expr.variableName, borrowerName,
-            kind, getLocation(&expr));
-        
-        if (error) {
-            currentResult_.addError(*error);
+        void BorrowChecker::visitAssignExpr(AST::AssignExpr &expr)
+        {
+            analyzeAssignment(&expr);
         }
-        currentResult_.totalBorrows++;
 
-        if (debugMode_) {
-            recordWarning("[debug] " + std::string(expr.isMutable ? "Mutable" : "Shared")
-                + " borrow of '" + expr.variableName + "' at " + getLocation(&expr).toString());
+        void BorrowChecker::visitCallExpr(AST::CallExpr &expr)
+        {
+            analyzeFunctionCall(&expr);
         }
-    }
-}
 
-void BorrowChecker::visitInlineAsmExpr(AST::InlineAsmExpr& expr) {
-    // (AR) تعبير التجميع المضمّن - لا يحتاج فحص ملكية
-    // (EN) Inline assembly expression - no ownership checking needed
-    (void)expr;
-}
-
-void BorrowChecker::visitRangeExpr(AST::RangeExpr& expr) {
-    // (AR) تعبير النطاق — فحص التعبيرات الفرعية
-    // (EN) Range expression — check sub-expressions
-    if (expr.start) expr.start->accept(*this);
-    if (expr.end) expr.end->accept(*this);
-}
-
-// ============================================================================
-// زيارة العبارات / Visit Statements
-// ============================================================================
-
-void BorrowChecker::visitExprStmt(AST::ExprStmt& stmt) {
-    // (AR) فحص التعبير داخل العبارة
-    // (EN) Check expression inside statement
-    if (stmt.expression) {
-        stmt.expression->accept(*this);
-    }
-}
-
-void BorrowChecker::visitVarDeclStmt(AST::VarDeclStmt& stmt) {
-    // (AR) تسجيل المتغير الجديد في المتتبع
-    // (EN) Register new variable with tracker
-    currentResult_.totalVariables++;
-    
-    // (AR) فحص المُعيِّن أولاً (قبل تسجيل المتغير)
-    // (EN) Check initializer first (before registering variable)
-    if (stmt.initializer) {
-        // (AR) تحليل المُعيِّن - قد يتضمن نقل ملكية
-        // (EN) Analyze initializer - may involve ownership transfer
-        
-        // (AR) إذا كان المُعيِّن متغيراً، فهذا نقل ملكية
-        // (EN) If initializer is a variable, this is an ownership move
-        auto* varExpr = dynamic_cast<AST::VariableExpr*>(stmt.initializer.get());
-        if (varExpr) {
-            // (AR) نقل الملكية من المتغير المصدر
-            // (EN) Move ownership from source variable
-            auto error = tracker_->moveVariable(varExpr->toString(), getLocation(varExpr));
-            if (error) {
-                currentResult_.addError(*error);
-            }
-            currentResult_.totalMoves++;
-        } else {
-            // (AR) فحص التعبير بشكل عام
-            // (EN) Check expression generally
-            stmt.initializer->accept(*this);
+        void BorrowChecker::visitIndexExpr(AST::IndexExpr &expr)
+        {
+            // (AR) ״­״µ ״§„…״µˆ״© ˆ״§„‡״±״³
+            // (EN) Check array and index
         }
-    }
-    
-    // (AR) استخراج اسم النوع من DataType
-    // (EN) Extract type name from DataType
-    std::string typeName = dataTypeToString(stmt.type);
-    bool isCopy = isCopyType(typeName);
-    
-    // (AR) إذا كان النوع غير محدد ولكن المُعيِّن قيمة حرفية، استنتج النوع
-    // (EN) If type is unspecified but initializer is a literal, infer the type
-    if (!isCopy && stmt.initializer) {
-        if (auto* lit = dynamic_cast<AST::LiteralExpr*>(stmt.initializer.get())) {
-            // (AR) القيم الحرفية (أرقام، عشرية، منطقية) قابلة للنسخ
-            // (EN) Literal values (integers, floats, booleans) are copy types
-            Data::DataType litType = lit->getType();
-            isCopy = true;
-            if (litType == Data::DataType::INTEGER) typeName = "رقم";
-            else if (litType == Data::DataType::FLOAT) typeName = "عشري";
-            else if (litType == Data::DataType::BOOLEAN) typeName = "منطقي";
-            else if (litType == Data::DataType::STRING) {
-                typeName = "نص";
-                isCopy = false;  // Strings are not copy types
+
+        void BorrowChecker::visitMemberExpr(AST::MemberExpr &expr)
+        {
+            // (AR) ״­״µ ״§„ƒ״§״¦†
+            // (EN) Check object
+        }
+
+        void BorrowChecker::visitMemberAssignExpr(AST::MemberAssignExpr &expr)
+        {
+            // (AR) ״­״µ ״×״¹† ״§„״¹״¶ˆ
+            // (EN) Check member assignment
+        }
+
+        void BorrowChecker::visitIndexAssignExpr(AST::IndexAssignExpr &expr)
+        {
+            // (AR) ״­״µ ״§„״¥״³†״§״¯ ״¨״§„‡״±״³
+            // (EN) Check index assignment
+        }
+
+        void BorrowChecker::visitArrayExpr(AST::ArrayExpr &expr)
+        {
+            // (AR) ״­״µ ״¹†״§״µ״± ״§„…״µˆ״©
+            // (EN) Check array elements
+        }
+
+        void BorrowChecker::visitMapExpr(AST::MapExpr &expr)
+        {
+            // (AR) ״­״µ ״¹†״§״µ״± ״§„‚״§…ˆ״³
+            // (EN) Check map entries
+        }
+
+        void BorrowChecker::visitWalrusExpr(AST::WalrusExpr &expr)
+        {
+            // (AR) ״­״µ ״×״¹״¨״± Walrus
+            // (EN) Check walrus expression
+        }
+
+        void BorrowChecker::visitAwaitExpr(AST::AwaitExpr &expr)
+        {
+            // (AR) ״­״µ ״×״¹״¨״± ״§„״§†״×״¸״§״±
+            // (EN) Check await expression
+        }
+
+        void BorrowChecker::visitLambdaExpr(AST::LambdaExpr &expr)
+        {
+            // (AR) ״­״µ Lambda
+            // (EN) Check lambda expression
+        }
+
+        void BorrowChecker::visitListComprehensionExpr(AST::ListComprehensionExpr &expr)
+        {
+            // (AR) ״­״µ ״§״³״×״¹״§״¨ ״§„‚״§״¦…״©
+            // (EN) Check list comprehension
+        }
+
+        void BorrowChecker::visitDictComprehensionExpr(AST::DictComprehensionExpr &expr)
+        {
+            // (AR) ״­״µ ״§״³״×״¹״§״¨ ״§„‚״§…ˆ״³
+            // (EN) Check dict comprehension
+        }
+
+        void BorrowChecker::visitSetComprehensionExpr(AST::SetComprehensionExpr &expr)
+        {
+            // (AR) ״­״µ ״§״³״×״¹״§״¨ ״§„…״¬…ˆ״¹״©
+            // (EN) Check set comprehension
+        }
+
+        void BorrowChecker::visitGeneratorExpr(AST::GeneratorExpr &expr)
+        {
+            // (AR) ״­״µ ״×״¹״¨״± ״§„…ˆ„״¯
+            // (EN) Check generator expression
+        }
+
+        void BorrowChecker::visitDecoratorExpr(AST::DecoratorExpr &expr)
+        {
+            // (AR) ״­״µ ״§„…״²״®״±
+            // (EN) Check decorator
+        }
+
+        void BorrowChecker::visitNewExpr(AST::NewExpr &expr)
+        {
+            // (AR) ״­״µ ״×״¹״¨״± new
+            // (EN) Check new expression
+        }
+
+        void BorrowChecker::visitMemberAccessExpr(AST::MemberAccessExpr &expr)
+        {
+            // (AR) ״­״µ ״§„ˆ״µˆ„ „„״¹״¶ˆ
+            // (EN) Check member access
+        }
+
+        void BorrowChecker::visitMethodCallExpr(AST::MethodCallExpr &expr)
+        {
+            // (AR) ״­״µ ״§״³״×״¯״¹״§״¡ ״§„״·״±‚״©
+            // (EN) Check method call
+        }
+
+        void BorrowChecker::visitThisExpr(AST::ThisExpr &expr)
+        {
+            // (AR) this/‡״°״§ „״§ ״­״×״§״¬ ״­״µ ״®״§״µ
+            // (EN) this doesn't need special checking
+            (void)expr;
+        }
+
+        void BorrowChecker::visitSuperExpr(AST::SuperExpr &expr)
+        {
+            // (AR) super/״£״µ„ „״§ ״­״×״§״¬ ״­״µ ״®״§״µ
+            // (EN) super doesn't need special checking
+            (void)expr;
+        }
+
+        void BorrowChecker::visitBorrowExpr(AST::BorrowExpr &expr)
+        {
+            // (AR) ״­״µ ״×״¹״¨״± ״§„״§״³״×״¹״§״±״© &x ״£ˆ &…״×״÷״± x
+            // (EN) Check borrow expression &x or &mut x
+            if (!expr.variableName.empty())
+            {
+                // (AR) ״×״­״¯״¯ †ˆ״¹ ״§„״§״³״×״¹״§״±״©: …״´״×״±ƒ״© ״£ˆ …״×״÷״±״©
+                // (EN) Determine borrow kind: shared or mutable
+                BorrowKind kind = expr.isMutable ? BorrowKind::Mutable : BorrowKind::Shared;
+                std::string borrowerName = (expr.isMutable ? "&…״×״÷״± " : "&") + expr.variableName;
+
+                // (AR) ״¥†״´״§״¡ ״§„״§״³״×״¹״§״±״©  …״×״×״¨״¹ ״§„…„ƒ״©
+                // (EN) Create borrow in ownership tracker
+                auto error = tracker_->createBorrow(
+                    expr.variableName, borrowerName,
+                    kind, getLocation(&expr));
+
+                if (error)
+                {
+                    currentResult_.addError(*error);
+                }
+                currentResult_.totalBorrows++;
+
+                if (debugMode_)
+                {
+                    recordWarning("[debug] " + std::string(expr.isMutable ? "Mutable" : "Shared") + " borrow of '" + expr.variableName + "' at " + getLocation(&expr).toString());
+                }
             }
         }
-    }
-    
-    // (AR) إذا كان المُعيِّن متغيراً، استنتج النوع من المتغير المصدر
-    // (EN) If initializer is a variable, infer type from source variable
-    if (!isCopy && stmt.initializer) {
-        if (auto* varExpr = dynamic_cast<AST::VariableExpr*>(stmt.initializer.get())) {
-            auto srcInfo = tracker_->getOwnershipInfo(varExpr->toString());
-            if (srcInfo) {
-                typeName = srcInfo->typeName;
-                isCopy = srcInfo->isCopyType;
+
+        void BorrowChecker::visitInlineAsmExpr(AST::InlineAsmExpr &expr)
+        {
+            // (AR) ״×״¹״¨״± ״§„״×״¬…״¹ ״§„…״¶…‘† - „״§ ״­״×״§״¬ ״­״µ …„ƒ״©
+            // (EN) Inline assembly expression - no ownership checking needed
+            (void)expr;
+        }
+
+        void BorrowChecker::visitRangeExpr(AST::RangeExpr &expr)
+        {
+            // (AR) ״×״¹״¨״± ״§„†״·״§‚ ג€” ״­״µ ״§„״×״¹״¨״±״§״× ״§„״±״¹״©
+            // (EN) Range expression ג€” check sub-expressions
+            if (expr.start)
+                expr.start->accept(*this);
+            if (expr.end)
+                expr.end->accept(*this);
+        }
+
+        void BorrowChecker::visitOptionalChainExpr(AST::OptionalChainExpr &expr)
+        {
+            // (AR) ˆ״µˆ„ ״¢…† ?. ג€” ״­״µ ״§„ƒ״§״¦† „„״×״£ƒ״¯ ״£†‡ „… †‚„
+            // (EN) Optional chaining ?. ג€” check object is not moved
+            if (expr.object)
+            {
+                expr.object->accept(*this);
+
+                // (AR) ״¥״°״§ ƒ״§† ״§„ƒ״§״¦† …״×״÷״±״§‹״ ״×״­‚‚ …† ״µ„״§״­״×‡
+                // (EN) If object is a variable, verify it's still valid
+                if (auto *varExpr = dynamic_cast<AST::VariableExpr *>(expr.object.get()))
+                {
+                    auto error = tracker_->useVariable(varExpr->toString(), getLocation(&expr));
+                    if (error)
+                    {
+                        currentResult_.addError(*error);
+                    }
+                }
             }
         }
-    }
-    
-    // (AR) إذا لم نتمكن من تحديد النوع، نعتبره قابلاً للنسخ
-    // (EN) If we couldn't determine the type, assume it's a copy type
-    // (AR) هذا آمن لأن اللغة حالياً تدعم الأنواع البدائية فقط (أرقام، منطقي، نصوص)
-    // (EN) This is safe because the language currently only supports primitive types
-    if (typeName == "unknown" || typeName.empty()) {
-        isCopy = true;
-    }
-    
-    if (debugMode_) {
-        std::cout << "[BorrowChecker] Declaring variable: " << stmt.name 
-                  << " type: " << typeName << " isCopy: " << isCopy << "\n";
-    }
-    
-    tracker_->declareVariable(stmt.name, typeName, getLocation(&stmt), isCopy);
-}
 
-void BorrowChecker::visitIfStmt(AST::IfStmt& stmt) {
-    // (AR) فحص الشرط والفروع
-    // (EN) Check condition and branches
-    if (stmt.condition) {
-        stmt.condition->accept(*this);
-    }
-    tracker_->enterScope();
-    if (stmt.thenBranch) {
-        stmt.thenBranch->accept(*this);
-    }
-    tracker_->exitScope();
-    if (stmt.elseBranch) {
-        tracker_->enterScope();
-        stmt.elseBranch->accept(*this);
-        tracker_->exitScope();
-    }
-}
+        void BorrowChecker::visitNullCoalesceExpr(AST::NullCoalesceExpr &expr)
+        {
+            // (AR) ״×״¬…״¹ ״§״±״÷ ?? ג€” ״­״µ ״§„״·״± ״§„״£״³״± ˆ״§„״£…†
+            // (EN) Null coalescing ?? ג€” check both left and right
+            if (expr.left)
+            {
+                expr.left->accept(*this);
 
-void BorrowChecker::visitWhileStmt(AST::WhileStmt& stmt) {
-    // (AR) فحص الحلقة
-    // (EN) Check loop
-    if (stmt.condition) {
-        stmt.condition->accept(*this);
-    }
-    tracker_->enterScope();
-    if (stmt.body) {
-        stmt.body->accept(*this);
-    }
-    tracker_->exitScope();
-}
-
-void BorrowChecker::visitForStmt(AST::ForStmt& stmt) {
-    // (AR) فحص حلقة for
-    // (EN) Check for loop
-    tracker_->enterScope();
-    if (stmt.initializer) {
-        stmt.initializer->accept(*this);
-    }
-    if (stmt.condition) {
-        stmt.condition->accept(*this);
-    }
-    if (stmt.increment) {
-        stmt.increment->accept(*this);
-    }
-    if (stmt.body) {
-        stmt.body->accept(*this);
-    }
-    tracker_->exitScope();
-}
-
-void BorrowChecker::visitForRangeStmt(AST::ForRangeStmt& stmt) {
-    // (AR) فحص حلقة for-range
-    // (EN) Check for-range loop
-    tracker_->enterScope();
-    if (stmt.iterable) {
-        stmt.iterable->accept(*this);
-    }
-    if (stmt.body) {
-        stmt.body->accept(*this);
-    }
-    tracker_->exitScope();
-}
-
-void BorrowChecker::visitSwitchStmt(AST::SwitchStmt& stmt) {
-    // (AR) فحص جملة switch
-    // (EN) Check switch statement
-}
-
-void BorrowChecker::visitReturnStmt(AST::ReturnStmt& stmt) {
-    // (AR) فحص جملة return
-    // (EN) Check return statement
-    if (stmt.value) {
-        stmt.value->accept(*this);
-    }
-}
-
-void BorrowChecker::visitYieldStmt(AST::YieldStmt& stmt) {
-    // (AR) فحص جملة yield
-    // (EN) Check yield statement
-}
-
-void BorrowChecker::visitBreakStmt(AST::BreakStmt& stmt) {
-    // (AR) break لا يحتاج فحص ملكية
-    // (EN) break doesn't need ownership checking
-    (void)stmt;
-}
-
-void BorrowChecker::visitContinueStmt(AST::ContinueStmt& stmt) {
-    // (AR) continue لا يحتاج فحص ملكية
-    // (EN) continue doesn't need ownership checking
-    (void)stmt;
-}
-
-void BorrowChecker::visitBlockStmt(AST::BlockStmt& stmt) {
-    // (AR) فحص كتلة العبارات
-    // (EN) Check block statement
-    tracker_->enterScope();
-    
-    // (AR) زيارة كل عبارة في الكتلة
-    // (EN) Visit each statement in the block
-    for (auto& s : stmt.statements) {
-        if (s) {
-            s->accept(*this);
-        }
-    }
-    
-    tracker_->exitScope();
-}
-
-void BorrowChecker::visitTryStmt(AST::TryStmt& stmt) {
-    // (AR) فحص جملة try
-    // (EN) Check try statement
-}
-
-void BorrowChecker::visitRaiseStmt(AST::RaiseStmt& stmt) {
-    // (AR) فحص جملة raise
-    // (EN) Check raise statement
-}
-
-void BorrowChecker::visitWithStmt(AST::WithStmt& stmt) {
-    // (AR) فحص جملة with
-    // (EN) Check with statement
-}
-
-void BorrowChecker::visitMatchStmt(AST::MatchStmt& stmt) {
-    // (AR) فحص جملة match
-    // (EN) Check match statement
-}
-
-void BorrowChecker::visitClassDeclStmt(AST::ClassDeclStmt& stmt) {
-    // (AR) فحص تصريح الصنف
-    // (EN) Check class declaration statement
-}
-
-// ============================================================================
-// زيارة التصريحات / Visit Declarations
-// ============================================================================
-
-void BorrowChecker::visitFunctionDecl(AST::FunctionDecl& decl) {
-    std::string previousFunction = currentFunction_;
-    currentFunction_ = decl.name;
-    
-    tracker_->enterScope();
-    
-    // (AR) تسجيل المعاملات كمتغيرات في النطاق
-    // (EN) Register parameters as variables in scope
-    for (const auto& param : decl.parameters) {
-        std::string typeName = dataTypeToString(param.type);
-        bool isCopy = isCopyType(typeName);
-        tracker_->declareVariable(param.name, typeName, getLocation(&decl), isCopy);
-        currentResult_.totalVariables++;
-    }
-    
-    // (AR) فحص جسم الدالة
-    // (EN) Check function body
-    if (decl.body) {
-        decl.body->accept(*this);
-    }
-    
-    tracker_->exitScope();
-    currentFunction_ = previousFunction;
-}
-
-void BorrowChecker::visitClassDecl(AST::ClassDecl& decl) {
-    // (AR) فحص كل طريقة في الصنف
-    // (EN) Check each method in class
-}
-
-void BorrowChecker::visitFieldDecl(AST::FieldDecl& decl) {
-    // (AR) فحص تصريح الحقل
-    // (EN) Check field declaration
-}
-
-void BorrowChecker::visitMethodDecl(AST::MethodDecl& decl) {
-    // (AR) فحص تصريح الطريقة
-    // (EN) Check method declaration
-}
-
-void BorrowChecker::visitPropertyDecl(AST::PropertyDecl& decl) {
-    // (AR) فحص تصريح الخاصية
-    // (EN) Check property declaration
-}
-
-void BorrowChecker::visitConstructorDecl(AST::ConstructorDecl& decl) {
-    // (AR) فحص تصريح البناء
-    // (EN) Check constructor declaration
-}
-
-void BorrowChecker::visitDestructorDecl(AST::DestructorDecl& decl) {
-    // (AR) فحص تصريح الهدم
-    // (EN) Check destructor declaration
-}
-
-void BorrowChecker::visitEnumDecl(AST::EnumDecl& decl) {
-    // (AR) فحص تصريح التعداد
-    // (EN) Check enum declaration
-}
-
-void BorrowChecker::visitImportStmt(AST::ImportStmt& stmt) {
-    // (AR) فحص جملة الاستيراد
-    // (EN) Check import statement
-    (void)stmt;
-}
-
-void BorrowChecker::visitFromImportStmt(AST::FromImportStmt& stmt) {
-    // (AR) فحص جملة الاستيراد الانتقائي
-    // (EN) Check from-import statement
-    (void)stmt;
-}
-
-void BorrowChecker::visitExportStmt(AST::ExportStmt& stmt) {
-    // (AR) فحص جملة التصدير
-    // (EN) Check export statement
-    (void)stmt;
-}
-
-void BorrowChecker::visitExportDecl(AST::ExportDecl& decl) {
-    // (AR) فحص تصريح التصدير
-    // (EN) Check export declaration
-    (void)decl;
-}
-
-void BorrowChecker::visitTemplateFunctionDecl(AST::TemplateFunctionDecl& decl) {
-    // (AR) فحص تصريح دالة القالب
-    // (EN) Check template function declaration
-}
-
-void BorrowChecker::visitTemplateClassDecl(AST::TemplateClassDecl& decl) {
-    // (AR) فحص تصريح صنف القالب
-    // (EN) Check template class declaration
-}
-
-void BorrowChecker::visitTemplateInstantiation(AST::TemplateInstantiation& inst) {
-    // (AR) فحص تنفيذ القالب
-    // (EN) Check template instantiation
-}
-
-void BorrowChecker::visitNamespaceDecl(AST::NamespaceDecl& decl) {
-    // (AR) فحص تصريح فضاء الأسماء
-    // (EN) Check namespace declaration
-}
-
-void BorrowChecker::visitOperatorDecl(AST::OperatorDecl& decl) {
-    // (AR) فحص تصريح تحميل العامل
-    // (EN) Check operator overload declaration
-}
-
-void BorrowChecker::visitTraitDecl(AST::TraitDecl& decl) {
-    // (AR) فحص تصريح السمة — تحقق من الملكية في الدوال المعلنة
-    // (EN) Check trait declaration — verify ownership in declared methods
-}
-
-void BorrowChecker::visitImplDecl(AST::ImplDecl& decl) {
-    // (AR) فحص تنفيذ السمة — تحليل أجسام الدوال
-    // (EN) Check trait implementation — analyze method bodies
-    for (auto& method : decl.methods) {
-        if (method) method->accept(*this);
-    }
-}
-
-void BorrowChecker::visitStructDecl(AST::StructDecl& decl) {
-    // (AR) فحص تصريح البنية — لا فحوصات ملكية حالياً
-    // (EN) Check struct declaration — no ownership checks currently
-}
-
-void BorrowChecker::visitTestDecl(AST::TestDecl& decl) {
-    // (AR) فحص تصريح الاختبار — تحليل جسم الاختبار
-    // (EN) Check test declaration — analyze test body
-    if (decl.body) decl.body->accept(*this);
-}
-
-// ============================================================================
-// دوال مساعدة / Helper Functions
-// ============================================================================
-
-void BorrowChecker::analyzeExpression(AST::Expression* expr, bool isMoveContext) {
-    if (!expr) return;
-    
-    // (AR) إذا كان متغيراً وسياق نقل
-    // (EN) If variable and move context
-    if (isMoveContext) {
-        auto error = tracker_->moveVariable(
-            expr->toString(),
-            getLocation(expr)
-        );
-        if (error) {
-            currentResult_.addError(*error);
-        }
-        currentResult_.totalMoves++;
-    } else {
-        // (AR) قراءة فقط
-        // (EN) Read only
-        auto error = tracker_->useVariable(
-            expr->toString(),
-            getLocation(expr)
-        );
-        if (error) {
-            currentResult_.addError(*error);
-        }
-    }
-}
-
-void BorrowChecker::analyzeAssignment(AST::AssignExpr* assign) {
-    if (!assign) return;
-    
-    // (AR) فحص الطرف الأيمن أولاً
-    // (EN) Check right side first
-    if (assign->value) {
-        // (AR) إذا كان المصدر متغيراً، فهذا نقل ملكية
-        // (EN) If source is a variable, this is an ownership move
-        auto* varExpr = dynamic_cast<AST::VariableExpr*>(assign->value.get());
-        if (varExpr) {
-            auto error = tracker_->moveVariable(varExpr->toString(), getLocation(varExpr));
-            if (error) {
-                currentResult_.addError(*error);
+                // (AR) ״§„״·״± ״§„״£״³״± ‚״¯ †‚„ …„ƒ״© ״¥״°״§ ƒ״§† …״×״÷״±״§‹
+                // (EN) Left side may transfer ownership if it's a variable
+                if (auto *varExpr = dynamic_cast<AST::VariableExpr *>(expr.left.get()))
+                {
+                    auto error = tracker_->useVariable(varExpr->toString(), getLocation(&expr));
+                    if (error)
+                    {
+                        currentResult_.addError(*error);
+                    }
+                }
             }
-            currentResult_.totalMoves++;
-        } else {
-            assign->value->accept(*this);
+            if (expr.right)
+            {
+                expr.right->accept(*this);
+            }
         }
-    }
-    
-    // (AR) فحص الطرف الأيسر (التعديل)
-    // (EN) Check left side (mutation)
-    auto error = tracker_->mutateVariable(
-        assign->name,
-        getLocation(assign)
-    );
-    if (error) {
-        currentResult_.addError(*error);
-    }
-}
 
-void BorrowChecker::analyzeFunctionCall(AST::CallExpr* call) {
-    if (!call) return;
-    
-    // (AR) فحص المستدعى
-    // (EN) Check callee
-    if (call->callee) {
-        call->callee->accept(*this);
-    }
-    
-    // (AR) فحص كل معامل - كل معامل يُقرأ (وقد يُنقل)
-    // (EN) Check each argument - each is read (and may be moved)
-    for (auto& arg : call->arguments) {
-        if (arg) {
-            arg->accept(*this);
+        void BorrowChecker::visitErrorPropagateExpr(AST::ErrorPropagateExpr &expr)
+        {
+            // (AR) †״´״± ״§„״®״·״£ ג€” ״×״¹״¨״± ֲ«״§†״´״±ֲ» ‚‘… ״§„״×״¹״¨״± ״§„״¯״§״®„:
+            //      - ״¥״°״§ ƒ״§†״× ״§„†״×״¬״© ״®״·״£/„״§״´״¡״ ״±״¬״¹ …״¨ƒ״±״§‹ …† ״§„״¯״§„״©
+            //      - ״¥״°״§ ƒ״§†״× ״§„†״×״¬״© ״µ״­״­״©״ ƒ ״§„״×״÷„ ˆ״±״¬״¹ ״§„‚…״©
+            //      ‡״°״§ ״´״¨‡ ״¹״§…„ ?  Rust ״£ˆ ?. …״¹ ״¥״±״¬״§״¹ …״¨ƒ״±
+            // (EN) Error propagation ג€” 'propagate' expression evaluates inner expression:
+            //      - If result is error/none, returns early from function
+            //      - If result is ok, unwraps and returns value
+            //      Similar to Rust's ? operator
+
+            if (!expr.inner)
+                return;
+
+            // (AR) ״­״µ ״§„״×״¹״¨״± ״§„״¯״§״®„ ג€” ‚״¯ ƒˆ† ״§״³״×״¯״¹״§״¡ ״¯״§„״© ״£ˆ …״×״÷״±
+            // (EN) Check inner expression ג€” could be a function call or variable
+            expr.inner->accept(*this);
+
+            // (AR) ״¥״°״§ ƒ״§† ״§„״×״¹״¨״± ״§„״¯״§״®„ …״×״÷״±״§‹״ †״×״­‚‚ …† ״µ„״§״­״×‡
+            //      †״´״± ״§„״®״·״£ ‚״±״£ ״§„…״×״÷״± („״§ †‚„‡) „״£†‡ ƒ ״§„״×״÷„ ‚״·
+            // (EN) If inner is a variable, verify it's still valid
+            //      Error propagation reads the variable (doesn't move) as it only unwraps
+            if (auto *varExpr = dynamic_cast<AST::VariableExpr *>(expr.inner.get()))
+            {
+                auto error = tracker_->useVariable(varExpr->toString(), getLocation(&expr));
+                if (error)
+                {
+                    currentResult_.addError(*error);
+                }
+            }
+
+            if (debugMode_)
+            {
+                recordWarning("[debug] Error propagation at " + getLocation(&expr).toString());
+            }
         }
-    }
-}
 
-bool BorrowChecker::isCopyType(const std::string& typeName) const {
-    // (AR) الأنواع غير المحددة أو غير المعروفة تُعتبر قابلة للنسخ افتراضياً
-    // (EN) Unknown/unspecified/none types default to copy — safe for ص language
-    // (AR) لغة ص لا تدعم نقل الملكية مثل Rust، لذا الأنواع غير المحددة تُنسخ
-    // (EN) S language doesn't have Rust-like move semantics, so unresolved types are copy
-    if (typeName.empty() || typeName == "unknown" || typeName == "لاشيء") {
-        return true;
-    }
+        void BorrowChecker::visitTupleExpr(AST::TupleExpr &expr)
+        {
+            // (AR) ״×״¹״¨״± ״§„״µ (‚…״©1״ ‚…״©2״ ...) ג€” ״¥†״´״§״¡ ״µ ״¬״¯״¯
+            //      ƒ„ ״¹†״µ״±  ״§„״µ †‚„ ״¥„‡ (…״§ „… ƒ† …† †ˆ״¹ ‚״§״¨„ „„†״³״®)
+            //      „״°„ƒ †״×״­‚‚ …† …„ƒ״© ƒ„ ״¹†״µ״±
+            // (EN) Tuple expression (val1, val2, ...) ג€” create new tuple
+            //      Each element is moved into the tuple (unless Copy type)
+            //      So we verify ownership of each element
 
-    // (AR) التحقق من القائمة
-    // (EN) Check the list
-    if (copyTypes_.find(typeName) != copyTypes_.end()) {
-        return true;
-    }
-    
-    // (AR) المراجع ليست قابلة للنسخ (تُستنسخ المراجع نفسها)
-    // (EN) References are Copy (the references themselves are copied)
-    if (!typeName.empty() && typeName.front() == '&') {
-        return true;
-    }
-    if (typeName.size() >= 4 && typeName.substr(0, 4) == "مرجع") {
-        return true;
-    }
-    
-    return false;
-}
+            for (auto &element : expr.elements)
+            {
+                if (!element)
+                    continue;
 
-std::string BorrowChecker::dataTypeToString(Data::DataType type) const {
-    // (AR) تحويل نوع البيانات إلى نص لمطابقة أنواع النسخ
-    // (EN) Convert DataType enum to string for copy type matching
-    switch (type) {
-        case Data::DataType::INTEGER:   return "رقم";
-        case Data::DataType::FLOAT:     return "عشري";
-        case Data::DataType::BOOLEAN:   return "منطقي";
-        case Data::DataType::STRING:    return "نص";
-        case Data::DataType::BYTE:      return "بايت";
-        case Data::DataType::ARRAY:     return "مصفوفة";
-        case Data::DataType::MAP:       return "قاموس";
-        case Data::DataType::TUPLE:     return "ثنائي";
-        case Data::DataType::FUNCTION:  return "دالة";
-        case Data::DataType::NONE:      return "لاشيء";
-        case Data::DataType::ENUM:      return "تعداد";
-        case Data::DataType::ERROR:     return "خطأ";
-        default:                        return "unknown";
-    }
-}
+                // (AR) ״¥״°״§ ƒ״§† ״§„״¹†״µ״± …״×״÷״±״§‹ ״÷״± ‚״§״¨„ „„†״³״®״ ‡״°״§ †‚„ …„ƒ״©
+                // (EN) If element is a non-Copy variable, this is an ownership move
+                if (auto *varExpr = dynamic_cast<AST::VariableExpr *>(element.get()))
+                {
+                    std::string varName = varExpr->toString();
 
-SourceLocation BorrowChecker::getLocation(AST::ASTNode* node) const {
-    if (!node) {
-        return SourceLocation();
-    }
+                    // (AR) ״×״­‚‚ …† …״¹„ˆ…״§״× ״§„…„ƒ״© „״×״­״¯״¯ ״¥״°״§ ƒ״§† ״§„†ˆ״¹ ‚״§״¨„״§‹ „„†״³״®
+                    // (EN) Check ownership info to determine if type is Copy
+                    auto info = tracker_->getOwnershipInfo(varName);
+                    if (info && !info->isCopyType)
+                    {
+                        // (AR) †‚„ ״§„…„ƒ״© ג€” ״§„…״×״÷״± †‚„ ״¥„‰ ״§„״µ
+                        // (EN) Move ownership ג€” variable is moved into tuple
+                        auto error = tracker_->moveVariable(varName, getLocation(&expr));
+                        if (error)
+                        {
+                            currentResult_.addError(*error);
+                        }
+                        currentResult_.totalMoves++;
+                    }
+                    else
+                    {
+                        // (AR) †ˆ״¹ ‚״§״¨„ „„†״³״® ג€” ‚״±״§״¡״© ‚״·
+                        // (EN) Copy type ג€” read only
+                        auto error = tracker_->useVariable(varName, getLocation(&expr));
+                        if (error)
+                        {
+                            currentResult_.addError(*error);
+                        }
+                    }
+                }
+                else
+                {
+                    // (AR) ״×״¹״¨״± ״÷״± …״×״÷״± (״­״±״ ״§״³״×״¯״¹״§״¡ ״¯״§„״©״ ...) ג€” ״­״µ ״¹״§״¯
+                    // (EN) Non-variable expression (literal, function call, ...) ג€” normal check
+                    element->accept(*this);
+                }
+            }
 
-    // تتبع الموقع الفعلي من العقدة مع fallback آمن إذا كانت الإحداثيات غير مهيأة.
-    const size_t line = (node->position.line == 0) ? 1 : node->position.line;
-    const size_t column = (node->position.column == 0) ? 1 : node->position.column;
-    return SourceLocation(currentFile_, 
-                          line,
-                          column);
-}
-
-void BorrowChecker::recordError(const OwnershipError& error) {
-    currentResult_.addError(error);
-    
-    if (debugMode_) {
-        if (useArabicMessages_) {
-            std::cerr << error.toArabicString();
-        } else {
-            std::cerr << error.toEnglishString();
+            if (debugMode_)
+            {
+                recordWarning("[debug] Tuple with " + std::to_string(expr.elements.size()) + " elements at " + getLocation(&expr).toString());
+            }
         }
-    }
-}
 
-void BorrowChecker::recordWarning(const std::string& warning) {
-    currentResult_.addWarning(warning);
-    
-    if (debugMode_) {
-        std::cerr << "[تحذير/Warning] " << warning << "\n";
-    }
-}
+        // ============================================================================
+        // ״²״§״±״© ״§„״¹״¨״§״±״§״× / Visit Statements
+        // ============================================================================
 
-} // namespace Semantic
+        void BorrowChecker::visitExprStmt(AST::ExprStmt &stmt)
+        {
+            // (AR) ״­״µ ״§„״×״¹״¨״± ״¯״§״®„ ״§„״¹״¨״§״±״©
+            // (EN) Check expression inside statement
+            if (stmt.expression)
+            {
+                stmt.expression->accept(*this);
+            }
+        }
+
+        void BorrowChecker::visitVarDeclStmt(AST::VarDeclStmt &stmt)
+        {
+            // (AR) ״×״³״¬„ ״§„…״×״÷״± ״§„״¬״¯״¯  ״§„…״×״×״¨״¹
+            // (EN) Register new variable with tracker
+            currentResult_.totalVariables++;
+
+            // (AR) ״­״µ ״§„…״¹‘† ״£ˆ„״§‹ (‚״¨„ ״×״³״¬„ ״§„…״×״÷״±)
+            // (EN) Check initializer first (before registering variable)
+            if (stmt.initializer)
+            {
+                // (AR) ״×״­„„ ״§„…״¹‘† - ‚״¯ ״×״¶…† †‚„ …„ƒ״©
+                // (EN) Analyze initializer - may involve ownership transfer
+
+                // (AR) ״¥״°״§ ƒ״§† ״§„…״¹‘† …״×״÷״±״§‹״ ‡״°״§ †‚„ …„ƒ״©
+                // (EN) If initializer is a variable, this is an ownership move
+                auto *varExpr = dynamic_cast<AST::VariableExpr *>(stmt.initializer.get());
+                if (varExpr)
+                {
+                    // (AR) †‚„ ״§„…„ƒ״© …† ״§„…״×״÷״± ״§„…״µ״¯״±
+                    // (EN) Move ownership from source variable
+                    auto error = tracker_->moveVariable(varExpr->toString(), getLocation(varExpr));
+                    if (error)
+                    {
+                        currentResult_.addError(*error);
+                    }
+                    currentResult_.totalMoves++;
+                }
+                else
+                {
+                    // (AR) ״­״µ ״§„״×״¹״¨״± ״¨״´ƒ„ ״¹״§…
+                    // (EN) Check expression generally
+                    stmt.initializer->accept(*this);
+                }
+            }
+
+            // (AR) ״§״³״×״®״±״§״¬ ״§״³… ״§„†ˆ״¹ …† DataType
+            // (EN) Extract type name from DataType
+            std::string typeName = dataTypeToString(stmt.type);
+            bool isCopy = isCopyType(typeName);
+
+            // (AR) ״¥״°״§ ƒ״§† ״§„†ˆ״¹ ״÷״± …״­״¯״¯ ˆ„ƒ† ״§„…״¹‘† ‚…״© ״­״±״©״ ״§״³״×†״×״¬ ״§„†ˆ״¹
+            // (EN) If type is unspecified but initializer is a literal, infer the type
+            if (!isCopy && stmt.initializer)
+            {
+                if (auto *lit = dynamic_cast<AST::LiteralExpr *>(stmt.initializer.get()))
+                {
+                    // (AR) ״§„‚… ״§„״­״±״© (״£״±‚״§…״ ״¹״´״±״©״ …†״·‚״©) ‚״§״¨„״© „„†״³״®
+                    // (EN) Literal values (integers, floats, booleans) are copy types
+                    Data::DataType litType = lit->getDataType();
+                    isCopy = true;
+                    if (litType == Data::DataType::INTEGER)
+                        typeName = "״±‚…";
+                    else if (litType == Data::DataType::FLOAT)
+                        typeName = "״¹״´״±";
+                    else if (litType == Data::DataType::BOOLEAN)
+                        typeName = "…†״·‚";
+                    else if (litType == Data::DataType::STRING)
+                    {
+                        typeName = "†״µ";
+                        isCopy = false; // Strings are not copy types
+                    }
+                }
+            }
+
+            // (AR) ״¥״°״§ ƒ״§† ״§„…״¹‘† …״×״÷״±״§‹״ ״§״³״×†״×״¬ ״§„†ˆ״¹ …† ״§„…״×״÷״± ״§„…״µ״¯״±
+            // (EN) If initializer is a variable, infer type from source variable
+            if (!isCopy && stmt.initializer)
+            {
+                if (auto *varExpr = dynamic_cast<AST::VariableExpr *>(stmt.initializer.get()))
+                {
+                    auto srcInfo = tracker_->getOwnershipInfo(varExpr->toString());
+                    if (srcInfo)
+                    {
+                        typeName = srcInfo->typeName;
+                        isCopy = srcInfo->isCopyType;
+                    }
+                }
+            }
+
+            // (AR) ״¥״°״§ „… †״×…ƒ† …† ״×״­״¯״¯ ״§„†ˆ״¹״ †״¹״×״¨״±‡ ‚״§״¨„״§‹ „„†״³״®
+            // (EN) If we couldn't determine the type, assume it's a copy type
+            // (AR) ‡״°״§ ״¢…† „״£† ״§„„״÷״© ״­״§„״§‹ ״×״¯״¹… ״§„״£†ˆ״§״¹ ״§„״¨״¯״§״¦״© ‚״· (״£״±‚״§…״ …†״·‚״ †״µˆ״µ)
+            // (EN) This is safe because the language currently only supports primitive types
+            if (typeName == "unknown" || typeName.empty())
+            {
+                isCopy = true;
+            }
+
+            if (debugMode_)
+            {
+                std::cout << "[BorrowChecker] Declaring variable: " << stmt.name
+                          << " type: " << typeName << " isCopy: " << isCopy << "\n";
+            }
+
+            tracker_->declareVariable(stmt.name, typeName, getLocation(&stmt), isCopy);
+        }
+
+        void BorrowChecker::visitIfStmt(AST::IfStmt &stmt)
+        {
+            // (AR) ״­״µ ״§„״´״±״· ˆ״§„״±ˆ״¹
+            // (EN) Check condition and branches
+            if (stmt.condition)
+            {
+                stmt.condition->accept(*this);
+            }
+            tracker_->enterScope();
+            if (stmt.thenBranch)
+            {
+                stmt.thenBranch->accept(*this);
+            }
+            tracker_->exitScope();
+            if (stmt.elseBranch)
+            {
+                tracker_->enterScope();
+                stmt.elseBranch->accept(*this);
+                tracker_->exitScope();
+            }
+        }
+
+        void BorrowChecker::visitWhileStmt(AST::WhileStmt &stmt)
+        {
+            // (AR) ״­״µ ״§„״­„‚״©
+            // (EN) Check loop
+            if (stmt.condition)
+            {
+                stmt.condition->accept(*this);
+            }
+            tracker_->enterScope();
+            if (stmt.body)
+            {
+                stmt.body->accept(*this);
+            }
+            tracker_->exitScope();
+        }
+
+        void BorrowChecker::visitForStmt(AST::ForStmt &stmt)
+        {
+            // (AR) ״­״µ ״­„‚״© for
+            // (EN) Check for loop
+            tracker_->enterScope();
+            if (stmt.initializer)
+            {
+                stmt.initializer->accept(*this);
+            }
+            if (stmt.condition)
+            {
+                stmt.condition->accept(*this);
+            }
+            if (stmt.increment)
+            {
+                stmt.increment->accept(*this);
+            }
+            if (stmt.body)
+            {
+                stmt.body->accept(*this);
+            }
+            tracker_->exitScope();
+        }
+
+
+    } // namespace Semantic
 } // namespace Sad
+

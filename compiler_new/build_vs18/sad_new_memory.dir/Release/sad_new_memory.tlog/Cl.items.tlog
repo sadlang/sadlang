@@ -1,5 +1,0 @@
-C:\s\s-programming-language\compiler_new\src\memory\cycle_detector.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_memory.dir\Release\cycle_detector.obj
-C:\s\s-programming-language\compiler_new\src\memory\gc_fallback_mode.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_memory.dir\Release\gc_fallback_mode.obj
-C:\s\s-programming-language\compiler_new\src\memory\gc_mode.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_memory.dir\Release\gc_mode.obj
-C:\s\s-programming-language\compiler_new\src\memory\memory_mode_flag.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_memory.dir\Release\memory_mode_flag.obj
-C:\s\s-programming-language\compiler_new\src\memory\ownership_suggester.cpp;C:\s\s-programming-language\compiler_new\build_vs18\sad_new_memory.dir\Release\ownership_suggester.obj

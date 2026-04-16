@@ -1,4 +1,4 @@
-// تعطيل تحذير Unicode للتعليقات العربية
+﻿// تعطيل تحذير Unicode للتعليقات العربية
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -47,8 +47,8 @@ bool MemoryModeManager::setModeFromFlag(const std::string& flag) {
     // (AR) إذا كان وضع النواة مفعّلاً، يُسمح فقط بـ Production
     // (EN) If no_std mode is active, only Production is allowed
     if (noStdMode_ && *mode != MemoryMode::Production) {
-        std::cerr << u8"تحذير: وضع بلا_مكتبة_قياسية يفرض وضع الإنتاج. "
-                  << u8"تم تجاهل العلم '" << flag << u8"'.\n";
+        std::cerr << "تحذير: وضع بلا_مكتبة_قياسية يفرض وضع الإنتاج. "
+                  << "تم تجاهل العلم '" << flag << "'.\n";
         return false;
     }
     
@@ -160,8 +160,8 @@ std::string MemoryModeManager::validateNoStdCompatibility() const {
     // (AR) التحقق: لا يمكن استخدام GC في وضع النواة
     // (EN) Check: GC cannot be used in kernel mode
     if (settings_.gcStrategy != GCStrategy::None) {
-        return u8"خطأ: لا يمكن استخدام جامع القمامة في وضع بلا مكتبة قياسية. "
-               u8"استخدم نظام الملكية بدلاً من ذلك.\n"
+        return "خطأ: لا يمكن استخدام جامع القمامة في وضع بلا مكتبة قياسية. "
+               "استخدم نظام الملكية بدلاً من ذلك.\n"
                "Error: Cannot use garbage collector in no_std mode. "
                "Use ownership system instead.";
     }
@@ -169,8 +169,8 @@ std::string MemoryModeManager::validateNoStdCompatibility() const {
     // (AR) التحقق: يجب أن يكون مستوى الملكية Strict أو UltraStrict
     // (EN) Check: ownership level must be Strict or UltraStrict
     if (settings_.ownershipMode == OwnershipMode::Disabled) {
-        return u8"خطأ: لا يمكن تعطيل نظام الملكية في وضع بلا مكتبة قياسية. "
-               u8"يجب استخدام ملكية صارمة.\n"
+        return "خطأ: لا يمكن تعطيل نظام الملكية في وضع بلا مكتبة قياسية. "
+               "يجب استخدام ملكية صارمة.\n"
                "Error: Cannot disable ownership in no_std mode. "
                "Strict ownership is required.";
     }

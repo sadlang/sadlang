@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: generic_type.cpp
 // File: generic_type.cpp
 //
@@ -30,7 +30,7 @@ namespace TypeSystem {
 
 GenericType::GenericType(const std::string& baseName, 
                          const std::vector<TypeParameterPtr>& typeParameters)
-    : Type(TypeKind::Generic)
+    : Type(SadTypeKind::Generic)
     , baseName_(baseName)
     , typeParameters_(typeParameters)
     , typeArguments_()
@@ -42,7 +42,7 @@ GenericType::GenericType(const std::string& baseName,
 
 GenericType::GenericType(const std::string& baseName, 
                          const TypeList& typeArguments)
-    : Type(TypeKind::Generic)
+    : Type(SadTypeKind::Generic)
     , baseName_(baseName)
     , typeParameters_()
     , typeArguments_(typeArguments)
@@ -122,7 +122,7 @@ bool GenericType::equals(const Type* other) const {
     if (!other) return false;
     
     // التحقق من نوع النوع / Check type kind
-    if (other->getKind() != TypeKind::Generic) return false;
+    if (other->getKind() != SadTypeKind::Generic) return false;
     
     // تحويل آمن / Safe cast
     const GenericType* otherGeneric = static_cast<const GenericType*>(other);
@@ -232,7 +232,7 @@ TypePtr GenericType::substituteTypeParameters(TypePtr type) const {
     }
     
     // إذا كان النوع عاماً / If type is generic
-    if (type && type->getKind() == TypeKind::Generic) {
+    if (type && type->getKind() == SadTypeKind::Generic) {
         GenericTypePtr genericType = asGenericType(type);
         
         // استبدال معاملات الأنواع الفرعية / Substitute nested type parameters
@@ -305,7 +305,7 @@ bool GenericType::isAssignableTo(const Type* other) const {
     if (equals(other)) return true;
     
     // إذا كان النوع الآخر عاماً / If other is generic
-    if (other->getKind() == TypeKind::Generic) {
+    if (other->getKind() == SadTypeKind::Generic) {
         const GenericType* otherGeneric = static_cast<const GenericType*>(other);
         
         // التحقق من الاسم الأساسي / Check base name
@@ -414,7 +414,7 @@ GenericTypePtr makeSpecializedGenericType(const std::string& baseName,
 }
 
 bool isGenericType(const TypePtr& type) {
-    return type && type->getKind() == TypeKind::Generic;
+    return type && type->getKind() == SadTypeKind::Generic;
 }
 
 GenericTypePtr asGenericType(const TypePtr& type) {

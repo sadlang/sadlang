@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: type_parameter.cpp
 // File: type_parameter.cpp
 //
@@ -28,7 +28,7 @@ namespace TypeSystem {
 // ════════════════════════════════════════════════════════════════════════════════
 
 TypeParameter::TypeParameter(const std::string& name)
-    : Type(TypeKind::TypeParameter)
+    : Type(SadTypeKind::TypeParameter)
     , name_(name)
     , constraints_()
     , upperBound_(nullptr)
@@ -39,7 +39,7 @@ TypeParameter::TypeParameter(const std::string& name)
 
 TypeParameter::TypeParameter(const std::string& name, 
                              const std::vector<TypeConstraintPtr>& constraints)
-    : Type(TypeKind::TypeParameter)
+    : Type(SadTypeKind::TypeParameter)
     , name_(name)
     , constraints_(constraints)
     , upperBound_(nullptr)
@@ -49,7 +49,7 @@ TypeParameter::TypeParameter(const std::string& name,
 }
 
 TypeParameter::TypeParameter(const std::string& name, TypePtr upperBound)
-    : Type(TypeKind::TypeParameter)
+    : Type(SadTypeKind::TypeParameter)
     , name_(name)
     , constraints_()
     , upperBound_(upperBound)
@@ -117,7 +117,7 @@ std::string TypeParameter::toString() const {
 bool TypeParameter::equals(const Type* other) const {
     if (!other) return false;
     
-    if (other->getKind() != TypeKind::TypeParameter) return false;
+    if (other->getKind() != SadTypeKind::TypeParameter) return false;
     
     const TypeParameter* otherParam = static_cast<const TypeParameter*>(other);
     
@@ -210,7 +210,7 @@ bool TypeParameter::isAssignableTo(const Type* other) const {
     // Type parameter can be converted to:
     
     // 1. معامل نوع آخر بنفس الاسم / Another type parameter with same name
-    if (other->getKind() == TypeKind::TypeParameter) {
+    if (other->getKind() == SadTypeKind::TypeParameter) {
         const TypeParameter* otherParam = static_cast<const TypeParameter*>(other);
         return name_ == otherParam->name_;
     }
@@ -278,7 +278,7 @@ TypeParameterPtr makeTypeParameterWithConstraints(const std::string& name,
 }
 
 bool isTypeParameter(const TypePtr& type) {
-    return type && type->getKind() == TypeKind::TypeParameter;
+    return type && type->getKind() == SadTypeKind::TypeParameter;
 }
 
 TypeParameterPtr asTypeParameter(const TypePtr& type) {

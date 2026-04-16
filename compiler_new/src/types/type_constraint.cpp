@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: type_constraint.cpp
 // File: type_constraint.cpp
 //
@@ -222,8 +222,8 @@ bool TypeConstraint::checkSubtypeConstraint(const TypePtr& type) const {
 }
 
 bool TypeConstraint::checkProtocolConstraint(const TypePtr& type) const {
-    // تنفيذ عملي: نربط أشهر البروتوكولات بخصائص TypeKind
-    // Practical implementation: map common protocol names to TypeKind capabilities.
+    // تنفيذ عملي: نربط أشهر البروتوكولات بخصائص SadTypeKind
+    // Practical implementation: map common protocol names to SadTypeKind capabilities.
     if (!type) return false;
 
     std::string proto = protocolName_;
@@ -237,27 +237,27 @@ bool TypeConstraint::checkProtocolConstraint(const TypePtr& type) const {
     
     if (proto.empty()) return false;
 
-    const TypeKind kind = type->getKind();
+    const SadTypeKind kind = type->getKind();
     if (proto == "comparable" || proto == "قابل_للمقارنة" || proto == "equatable") {
-        return kind == TypeKind::Integer || kind == TypeKind::Float ||
-               kind == TypeKind::String || kind == TypeKind::Boolean;
+        return kind == SadTypeKind::Integer || kind == SadTypeKind::Float ||
+               kind == SadTypeKind::String || kind == SadTypeKind::Boolean;
     }
     if (proto == "numeric" || proto == "رقمي") {
-        return kind == TypeKind::Integer || kind == TypeKind::Float;
+        return kind == SadTypeKind::Integer || kind == SadTypeKind::Float;
     }
     if (proto == "iterable" || proto == "قابل_للتكرار") {
-        return kind == TypeKind::Array || kind == TypeKind::String ||
-               kind == TypeKind::Dictionary;
+        return kind == SadTypeKind::Array || kind == SadTypeKind::String ||
+               kind == SadTypeKind::Map;
     }
     if (proto == "hashable" || proto == "قابل_للتجزئة") {
-        return kind == TypeKind::Integer || kind == TypeKind::Float ||
-               kind == TypeKind::Boolean || kind == TypeKind::String;
+        return kind == SadTypeKind::Integer || kind == SadTypeKind::Float ||
+               kind == SadTypeKind::Boolean || kind == SadTypeKind::String;
     }
     if (proto == "callable" || proto == "قابل_للاستدعاء") {
-        return kind == TypeKind::Function;
+        return kind == SadTypeKind::Function;
     }
 
-    return kind == TypeKind::Class || kind == TypeKind::Interface;
+    return kind == SadTypeKind::Class || kind == SadTypeKind::Trait;
 }
 
 bool TypeConstraint::checkSameTypeConstraint(const TypePtr& type, 
@@ -281,7 +281,7 @@ bool TypeConstraint::checkConstructorConstraint(const TypePtr& type) const {
     if (!type) return false;
 
     // الأنواع غير القابلة للإنشاء
-    if (type->getKind() == TypeKind::Never || type->getKind() == TypeKind::Error) {
+    if (type->getKind() == SadTypeKind::Never || type->getKind() == SadTypeKind::Error) {
         return false;
     }
 
@@ -294,7 +294,7 @@ bool TypeConstraint::checkConstructorConstraint(const TypePtr& type) const {
     }
 
     // fallback: وجود وصف غير فارغ يعني مطلوب منشئ خاص — ندعم فقط لأنواع class/interface
-    return type->getKind() == TypeKind::Class || type->getKind() == TypeKind::Interface;
+    return type->getKind() == SadTypeKind::Class || type->getKind() == SadTypeKind::Trait;
 }
 
 bool TypeConstraint::checkMethodConstraint(const TypePtr& type) const {
@@ -302,47 +302,47 @@ bool TypeConstraint::checkMethodConstraint(const TypePtr& type) const {
 
     // بدون اسم طريقة: يكفي أن يكون نوعاً كائنياً
     if (description_.empty()) {
-        return type->getKind() == TypeKind::Class || type->getKind() == TypeKind::Interface;
+        return type->getKind() == SadTypeKind::Class || type->getKind() == SadTypeKind::Trait;
     }
 
     const std::string& m = description_;
-    const TypeKind k = type->getKind();
+    const SadTypeKind k = type->getKind();
 
     // دوال شائعة على النص/المصفوفة/القاموس
     if ((m == "طول" || m == "length") &&
-        (k == TypeKind::String || k == TypeKind::Array || k == TypeKind::Dictionary)) {
+        (k == SadTypeKind::String || k == SadTypeKind::Array || k == SadTypeKind::Map)) {
         return true;
     }
-    if ((m == "أضف" || m == "push") && k == TypeKind::Array) {
+    if ((m == "أضف" || m == "push") && k == SadTypeKind::Array) {
         return true;
     }
     if ((m == "يحتوي" || m == "contains") &&
-        (k == TypeKind::String || k == TypeKind::Array || k == TypeKind::Dictionary)) {
+        (k == SadTypeKind::String || k == SadTypeKind::Array || k == SadTypeKind::Map)) {
         return true;
     }
 
     // الأصناف والواجهات تعتبر داعمة للطرق من حيث المبدأ
-    return k == TypeKind::Class || k == TypeKind::Interface;
+    return k == SadTypeKind::Class || k == SadTypeKind::Trait;
 }
 
 bool TypeConstraint::checkPropertyConstraint(const TypePtr& type) const {
     if (!type) return false;
 
     if (description_.empty()) {
-        return type->getKind() == TypeKind::Class || type->getKind() == TypeKind::Interface;
+        return type->getKind() == SadTypeKind::Class || type->getKind() == SadTypeKind::Trait;
     }
 
     const std::string& p = description_;
-    const TypeKind k = type->getKind();
+    const SadTypeKind k = type->getKind();
 
     if ((p == "length" || p == "الطول" || p == "size") &&
-        (k == TypeKind::String || k == TypeKind::Array || k == TypeKind::Dictionary)) {
+        (k == SadTypeKind::String || k == SadTypeKind::Array || k == SadTypeKind::Map)) {
         return true;
     }
 
     // خصائص أسماء/أنواع شائعة في الأنواع الكائنية
     if ((p == "name" || p == "اسم" || p == "type" || p == "نوع") &&
-        (k == TypeKind::Class || k == TypeKind::Interface)) {
+        (k == SadTypeKind::Class || k == SadTypeKind::Trait)) {
         return true;
     }
 
@@ -350,15 +350,15 @@ bool TypeConstraint::checkPropertyConstraint(const TypePtr& type) const {
 }
 
 bool TypeConstraint::checkNumericConstraint(const TypePtr& type) const {
-    TypeKind kind = type->getKind();
-    return kind == TypeKind::Integer || kind == TypeKind::Float;
+    SadTypeKind kind = type->getKind();
+    return kind == SadTypeKind::Integer || kind == SadTypeKind::Float;
 }
 
 bool TypeConstraint::checkIterableConstraint(const TypePtr& type) const {
-    TypeKind kind = type->getKind();
-    return kind == TypeKind::Array || 
-           kind == TypeKind::String ||
-           kind == TypeKind::Dictionary;
+    SadTypeKind kind = type->getKind();
+    return kind == SadTypeKind::Array || 
+           kind == SadTypeKind::String ||
+           kind == SadTypeKind::Map;
 }
 
 // ════════════════════════════════════════════════════════════════════════════════

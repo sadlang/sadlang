@@ -23,15 +23,15 @@ namespace TypeSystem {
 // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
 
 // ״§„…†״´״¦ …״¹ †ˆ״¹ …״­״¯״¯ / Constructor with specific kind
-PrimitiveType::PrimitiveType(TypeKind kind) : Type(kind) {
+PrimitiveType::PrimitiveType(SadTypeKind kind) : Type(kind) {
     // ״§„״×״­‚‚ …† ״£† ״§„†ˆ״¹ …״³…ˆ״­ ״¨‡ / Verify that kind is allowed
     // ״§„״£†ˆ״§״¹ ״§„…״³…ˆ״­ ״¨‡״§: Void, Integer, Float, Boolean, String, Any, Never, Unknown
     // Allowed types: Void, Integer, Float, Boolean, String, Any, Never, Unknown
     bool isValidType = isPrimitive() || 
-                      kind == TypeKind::Void || 
-                      kind == TypeKind::Any || 
-                      kind == TypeKind::Never || 
-                      kind == TypeKind::Unknown;
+                      kind == SadTypeKind::Void || 
+                      kind == SadTypeKind::Any || 
+                      kind == SadTypeKind::Never || 
+                      kind == SadTypeKind::Unknown;
     
     if (!isValidType) {
         // ״±… ״®״·״£ ״¥״°״§ „… ƒ† †ˆ״¹״§‹ …״³…ˆ״­״§‹ / Throw error if not allowed type
@@ -68,39 +68,39 @@ bool PrimitiveType::equals(const Type* other) const {
         return false; // null „״§ ״³״§ˆ ״´״¦״§‹ / null equals nothing
     }
     
-    // ״§„״×״­‚‚ …† †״³ ״§„†ˆ״¹ / Check same kind
+    // التحقق من نفس النوع / Check same kind
     return getKind() == other->getKind();
 }
 
-// ״§״³״×†״³״§״® ״§„†ˆ״¹ / Clone the type
+// استنساخ النوع / Clone the type
 std::shared_ptr<Type> PrimitiveType::clone() const {
-    // ״¥†״´״§״¡ †״³״®״© ״¬״¯״¯״© / Create new copy
+    // إنشاء نسخة جديدة / Create new copy
     return std::make_shared<PrimitiveType>(getKind());
 }
 
-// ״§„״­״µˆ„ ״¹„‰ ״­״¬… ״§„†ˆ״¹ ״¨״§„״¨״§״×״§״× / Get type size in bytes
+// الحصول على حجم النوع بالبايتات / Get type size in bytes
 size_t PrimitiveType::getSizeInBytes() const {
-    // ״­״³״§״¨ ״§„״­״¬… ״¨†״§״¡ ״¹„‰ ״§„†ˆ״¹ / Calculate size based on kind
+    // حساب الحجم بناء على النوع / Calculate size based on kind
     switch (getKind()) {
-        case TypeKind::Void:
-            return 0;  // ״±״§״÷ „״§ ״­״¬… „‡ / Void has no size
+        case SadTypeKind::Void:
+            return 0;  // فراغ لا حجم له / Void has no size
         
-        case TypeKind::Boolean:
-            return 1;  // …†״·‚ = 1 ״¨״§״× / Boolean = 1 byte
+        case SadTypeKind::Boolean:
+            return 1;  // منطقي = 1 بايت / Boolean = 1 byte
         
-        case TypeKind::Integer:
+        case SadTypeKind::Integer:
             return 8;  // ״±‚… ״µ״­״­ = 8 ״¨״§״× (64-bit) / Integer = 8 bytes (64-bit)
         
-        case TypeKind::Float:
+        case SadTypeKind::Float:
             return 8;  // ״¹״´״± = 8 ״¨״§״× (double) / Float = 8 bytes (double)
         
-        case TypeKind::String:
+        case SadTypeKind::String:
             return sizeof(void*);  // †״µ = ״­״¬… …״₪״´״± / String = pointer size
         
         // ״§„״£†ˆ״§״¹ ״§„״®״§״µ״© / Special types
-        case TypeKind::Any:
-        case TypeKind::Never:
-        case TypeKind::Unknown:
+        case SadTypeKind::Any:
+        case SadTypeKind::Never:
+        case SadTypeKind::Unknown:
             return sizeof(void*);  // ״­״¬… …״₪״´״± „„״£†ˆ״§״¹ ״§„״®״§״µ״© / Pointer size for special types
         
         default:
@@ -114,25 +114,25 @@ size_t PrimitiveType::getAlignment() const {
     // „„״£†ˆ״§״¹ ״§„״µ״÷״±״© / For small types
     
     switch (getKind()) {
-        case TypeKind::Void:
+        case SadTypeKind::Void:
             return 1;  // ״±״§״÷: …״­״§״°״§״© 1 / Void: alignment 1
         
-        case TypeKind::Boolean:
+        case SadTypeKind::Boolean:
             return 1;  // …†״·‚: …״­״§״°״§״© 1 / Boolean: alignment 1
         
-        case TypeKind::Integer:
+        case SadTypeKind::Integer:
             return 8;  // ״±‚…: …״­״§״°״§״© 8 / Integer: alignment 8
         
-        case TypeKind::Float:
+        case SadTypeKind::Float:
             return 8;  // ״¹״´״±: …״­״§״°״§״© 8 / Float: alignment 8
         
-        case TypeKind::String:
+        case SadTypeKind::String:
             return alignof(void*);  // †״µ: …״­״§״°״§״© ״§„…״₪״´״± / String: pointer alignment
         
         // ״§„״£†ˆ״§״¹ ״§„״®״§״µ״© / Special types
-        case TypeKind::Any:
-        case TypeKind::Never:
-        case TypeKind::Unknown:
+        case SadTypeKind::Any:
+        case SadTypeKind::Never:
+        case SadTypeKind::Unknown:
             return alignof(void*);  // …״­״§״°״§״© ״§„…״₪״´״± „„״£†ˆ״§״¹ ״§„״®״§״µ״© / Pointer alignment for special types
         
         default:
@@ -147,50 +147,50 @@ size_t PrimitiveType::getAlignment() const {
 // ״¥†״´״§״¡ †ˆ״¹ ״±״§״÷ / Create Void type
 TypePtr createVoidType() {
     // ״¥†״´״§״¡ ƒ״§״¦† PrimitiveType …״¹ †ˆ״¹ Void / Create PrimitiveType object with Void kind
-    return std::make_shared<PrimitiveType>(TypeKind::Void);
+    return std::make_shared<PrimitiveType>(SadTypeKind::Void);
 }
 
 // ״¥†״´״§״¡ †ˆ״¹ ״±‚… ״µ״­״­ / Create Integer type
 TypePtr createIntegerType() {
     // ״¥†״´״§״¡ ƒ״§״¦† PrimitiveType …״¹ †ˆ״¹ Integer / Create PrimitiveType object with Integer kind
-    return std::make_shared<PrimitiveType>(TypeKind::Integer);
+    return std::make_shared<PrimitiveType>(SadTypeKind::Integer);
 }
 
 // ״¥†״´״§״¡ †ˆ״¹ ״¹״´״± / Create Float type
 TypePtr createFloatType() {
     // ״¥†״´״§״¡ ƒ״§״¦† PrimitiveType …״¹ †ˆ״¹ Float / Create PrimitiveType object with Float kind
-    return std::make_shared<PrimitiveType>(TypeKind::Float);
+    return std::make_shared<PrimitiveType>(SadTypeKind::Float);
 }
 
 // ״¥†״´״§״¡ †ˆ״¹ …†״·‚ / Create Boolean type
 TypePtr createBooleanType() {
     // ״¥†״´״§״¡ ƒ״§״¦† PrimitiveType …״¹ †ˆ״¹ Boolean / Create PrimitiveType object with Boolean kind
-    return std::make_shared<PrimitiveType>(TypeKind::Boolean);
+    return std::make_shared<PrimitiveType>(SadTypeKind::Boolean);
 }
 
 // ״¥†״´״§״¡ †ˆ״¹ †״µ / Create String type
 TypePtr createStringType() {
     // ״¥†״´״§״¡ ƒ״§״¦† PrimitiveType …״¹ †ˆ״¹ String / Create PrimitiveType object with String kind
-    return std::make_shared<PrimitiveType>(TypeKind::String);
+    return std::make_shared<PrimitiveType>(SadTypeKind::String);
 }
 
-// ״¥†״´״§״¡ †ˆ״¹ ״¨״¯״§״¦ …† TypeKind / Create primitive type from TypeKind
-TypePtr createPrimitiveType(TypeKind kind) {
+// ״¥†״´״§״¡ †ˆ״¹ ״¨״¯״§״¦ …† SadTypeKind / Create primitive type from SadTypeKind
+TypePtr createPrimitiveType(SadTypeKind kind) {
     // ״§״³״×״®״¯״§… switch „״§״³״×״¯״¹״§״¡ ״§„״¯״§„״© ״§„…†״§״³״¨״© / Use switch to call appropriate function
     switch (kind) {
-        case TypeKind::Void:
+        case SadTypeKind::Void:
             return createVoidType();  // ״±״§״÷ / Void
         
-        case TypeKind::Integer:
+        case SadTypeKind::Integer:
             return createIntegerType();  // ״±‚… / Integer
         
-        case TypeKind::Float:
+        case SadTypeKind::Float:
             return createFloatType();  // ״¹״´״± / Float
         
-        case TypeKind::Boolean:
+        case SadTypeKind::Boolean:
             return createBooleanType();  // …†״·‚ / Boolean
         
-        case TypeKind::String:
+        case SadTypeKind::String:
             return createStringType();  // †״µ / String
         
         default:

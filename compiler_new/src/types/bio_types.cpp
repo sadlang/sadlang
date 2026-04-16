@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ═══════════════════════════════════════════════════════════════════════════════
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                    أنواع الحوسبة الحيوية - لغة ص                          ║
@@ -202,7 +202,7 @@ public:
  */
 class DNAType : public Type {
 public:
-    DNAType() : Type(TypeKind::Any) {}
+    DNAType() : Type(SadTypeKind::Any) {}
     
     std::string getArabicName() const override { return "دنا"; }
     std::string getEnglishName() const override { return "DNA"; }
@@ -225,7 +225,7 @@ public:
  */
 class RNAType : public Type {
 public:
-    RNAType() : Type(TypeKind::Any) {}
+    RNAType() : Type(SadTypeKind::Any) {}
     
     std::string getArabicName() const override { return "رنا"; }
     std::string getEnglishName() const override { return "RNA"; }
@@ -248,7 +248,7 @@ public:
  */
 class ProteinType : public Type {
 public:
-    ProteinType() : Type(TypeKind::Any) {}
+    ProteinType() : Type(SadTypeKind::Any) {}
     
     std::string getArabicName() const override { return "بروتين"; }
     std::string getEnglishName() const override { return "Protein"; }

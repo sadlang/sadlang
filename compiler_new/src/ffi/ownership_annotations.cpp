@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file ownership_annotations.cpp
  * @brief (AR) تنفيذ تعليقات الملكية لـ FFI
  *        (EN) FFI Ownership Annotations Implementation
@@ -87,7 +87,7 @@ std::optional<Annotation> AnnotationParser::parse(const std::string& text) {
     // (AR) التحقق من الصيغة الأساسية: #[اسم] أو #[اسم: قيمة]
     // (EN) Check basic format: #[name] or #[name: value]
     if (text.empty() || text[0] != '#' || text.length() < 3) {
-        errors_.push_back(u8"صيغة تعليق غير صالحة: " + text);
+        errors_.push_back("صيغة تعليق غير صالحة: " + text);
         return std::nullopt;
     }
     
@@ -98,7 +98,7 @@ std::optional<Annotation> AnnotationParser::parse(const std::string& text) {
     
     if (openBracket == std::string::npos || closeBracket == std::string::npos ||
         openBracket >= closeBracket) {
-        errors_.push_back(u8"أقواس مفقودة في التعليق: " + text);
+        errors_.push_back("أقواس مفقودة في التعليق: " + text);
         return std::nullopt;
     }
     
@@ -132,7 +132,7 @@ std::optional<Annotation> AnnotationParser::parse(const std::string& text) {
     // (EN) Parse name
     auto typeOpt = parseAnnotationName(name);
     if (!typeOpt) {
-        errors_.push_back(u8"تعليق غير معروف: " + name);
+        errors_.push_back("تعليق غير معروف: " + name);
         return std::nullopt;
     }
     
@@ -205,14 +205,14 @@ bool AnnotationParser::validate(const Annotation& annotation, std::vector<std::s
     switch (annotation.type) {
         case AnnotationType::FREED_BY:
             if (annotation.arguments.empty()) {
-                errors.push_back(u8"تعليق يُحرر_بـ يحتاج اسم دالة التحرير");
+                errors.push_back("تعليق يُحرر_بـ يحتاج اسم دالة التحرير");
                 valid = false;
             }
             break;
             
         case AnnotationType::LIFETIME:
             if (annotation.arguments.empty()) {
-                errors.push_back(u8"تعليق عمر يحتاج تحديد العمر");
+                errors.push_back("تعليق عمر يحتاج تحديد العمر");
                 valid = false;
             }
             break;
@@ -221,7 +221,7 @@ bool AnnotationParser::validate(const Annotation& annotation, std::vector<std::s
         case AnnotationType::TRANSFERS:
             if (annotation.target == AnnotationTarget::PARAMETER && 
                 !annotation.parameterName) {
-                errors.push_back(u8"تعليق يستعير/ينقل يحتاج تحديد المعامل");
+                errors.push_back("تعليق يستعير/ينقل يحتاج تحديد المعامل");
                 valid = false;
             }
             break;
@@ -229,7 +229,7 @@ bool AnnotationParser::validate(const Annotation& annotation, std::vector<std::s
         default:
             // (AR) نوع تعليق غير معالج — تحذير مع قبول مشروط
             // (EN) Unknown annotation type — warn but accept conditionally
-            errors.push_back(u8"تحذير: نوع تعليق غير معروف (" + std::to_string(static_cast<int>(annotation.type)) + u8") — قد لا يعمل كما هو متوقع");
+            errors.push_back("تحذير: نوع تعليق غير معروف (" + std::to_string(static_cast<int>(annotation.type)) + ") — قد لا يعمل كما هو متوقع");
             break;
     }
     
@@ -407,8 +407,8 @@ void OwnershipProfileBuilder::inferOwnership(FunctionOwnershipProfile& profile) 
     if (profile.returnOwnership.kind == OwnershipKind::OWNED &&
         !profile.returnOwnership.deallocator) {
         profile.warnings.push_back(
-            u8"الدالة " + profile.functionName + 
-            u8" تُرجع ملكية لكن لم تُحدد دالة التحرير"
+            "الدالة " + profile.functionName + 
+            " تُرجع ملكية لكن لم تُحدد دالة التحرير"
         );
     }
     
@@ -477,7 +477,7 @@ OwnershipChecker::CheckResult OwnershipChecker::checkCall(
     // (EN) Check argument count matches
     if (argumentOwnership.size() != calleeProfile.parameterOwnership.size()) {
         result.isValid = false;
-        result.errors.push_back(u8"عدد الوسائط لا يطابق عدد المعاملات");
+        result.errors.push_back("عدد الوسائط لا يطابق عدد المعاملات");
         return result;
     }
     
@@ -492,8 +492,8 @@ OwnershipChecker::CheckResult OwnershipChecker::checkCall(
         if (paramOwnership.kind == OwnershipKind::TRANSFERRED) {
             if (argOwnership.kind != OwnershipKind::OWNED) {
                 result.errors.push_back(
-                    u8"المعامل " + paramName + 
-                    u8" يتطلب نقل ملكية لكن الوسيط ليس مملوكاً"
+                    "المعامل " + paramName + 
+                    " يتطلب نقل ملكية لكن الوسيط ليس مملوكاً"
                 );
                 result.isValid = false;
             }
@@ -503,8 +503,8 @@ OwnershipChecker::CheckResult OwnershipChecker::checkCall(
         // (EN) If parameter is not optional, must not be null
         if (!paramOwnership.isOptional && argOwnership.isOptional) {
             result.warnings.push_back(
-                u8"المعامل " + paramName + 
-                u8" لا يقبل null لكن الوسيط قد يكون null"
+                "المعامل " + paramName + 
+                " لا يقبل null لكن الوسيط قد يكون null"
             );
         }
         
@@ -525,7 +525,7 @@ OwnershipChecker::CheckResult OwnershipChecker::checkResult(
     // (EN) If result is owned and not stored and no cleanup
     if (resultOwnership.kind == OwnershipKind::OWNED) {
         if (!isStored && !hasCleanup) {
-            result.errors.push_back(u8"تسريب محتمل: النتيجة المملوكة لم تُخزن ولم تُحرر");
+            result.errors.push_back("تسريب محتمل: النتيجة المملوكة لم تُخزن ولم تُحرر");
             result.isValid = false;
         }
     }
@@ -559,8 +559,8 @@ std::string OwnershipCodeGenerator::generateParamCheck(
     std::ostringstream code;
     
     if (!ownership.isOptional) {
-        code << "    " << u8"إذا " << paramName << " == " << u8"فارغ {\n";
-        code << "        " << u8"إرجاع خطأ(\"المعامل " << paramName << u8" فارغ\")\n";
+        code << "    " << "إذا " << paramName << " == " << "فارغ {\n";
+        code << "        " << "إرجاع خطأ(\"المعامل " << paramName << " فارغ\")\n";
         code << "    }\n";
     }
     
@@ -571,8 +571,8 @@ std::string OwnershipCodeGenerator::generateResultCheck(const OwnershipInfo& own
     std::ostringstream code;
     
     if (!ownership.isOptional) {
-        code << "    " << u8"إذا _result == فارغ {\n";
-        code << "        " << u8"إرجاع خطأ(\"النتيجة فارغة\")\n";
+        code << "    " << "إذا _result == فارغ {\n";
+        code << "        " << "إرجاع خطأ(\"النتيجة فارغة\")\n";
         code << "    }\n";
     }
     
@@ -599,15 +599,15 @@ std::string OwnershipCodeGenerator::generateRaiiWrapper(
     std::ostringstream code;
     
     if (ownership.kind == OwnershipKind::OWNED && ownership.deallocator) {
-        code << u8"بنية غلاف_" << typeName << " {\n";
-        code << u8"    _ptr: *" << typeName << "\n";
+        code << "بنية غلاف_" << typeName << " {\n";
+        code << "    _ptr: *" << typeName << "\n";
         code << "\n";
-        code << u8"    دالة حرر(ذاتي)\n";
-        code << "        " << u8"إذا ذاتي._ptr != فارغ {\n";
+        code << "    دالة حرر(ذاتي)\n";
+        code << "        " << "إذا ذاتي._ptr != فارغ {\n";
         code << "            " << *ownership.deallocator << "(ذاتي._ptr)\n";
-        code << "            ذاتي._ptr = " << u8"فارغ\n";
+        code << "            ذاتي._ptr = " << "فارغ\n";
         code << "        }\n";
-        code << u8"    نهاية\n";
+        code << "    نهاية\n";
         code << "}\n";
     }
     
@@ -634,25 +634,25 @@ void OwnershipReport::addError(const std::string& error, const std::string& loca
 std::string OwnershipReport::generateTextReport() const {
     std::ostringstream report;
     
-    report << u8"═══════════════════════════════════════════════════════════\n";
-    report << u8"           تقرير تحليل الملكية - لغة ص                      \n";
-    report << u8"═══════════════════════════════════════════════════════════\n\n";
+    report << "═══════════════════════════════════════════════════════════\n";
+    report << "           تقرير تحليل الملكية - لغة ص                      \n";
+    report << "═══════════════════════════════════════════════════════════\n\n";
     
     // (AR) الإحصائيات
     // (EN) Statistics
     auto stats = getStatistics();
-    report << u8"## الإحصائيات\n\n";
-    report << u8"- إجمالي الدوال: " << stats.totalFunctions << "\n";
-    report << u8"- دوال مع ملكية: " << stats.functionsWithOwnership << "\n";
-    report << u8"- أخطاء: " << stats.errors << "\n";
-    report << u8"- تحذيرات: " << stats.warnings << "\n\n";
+    report << "## الإحصائيات\n\n";
+    report << "- إجمالي الدوال: " << stats.totalFunctions << "\n";
+    report << "- دوال مع ملكية: " << stats.functionsWithOwnership << "\n";
+    report << "- أخطاء: " << stats.errors << "\n";
+    report << "- تحذيرات: " << stats.warnings << "\n\n";
     
     // (AR) الأخطاء
     // (EN) Errors
     if (!errors_.empty()) {
-        report << u8"## الأخطاء\n\n";
+        report << "## الأخطاء\n\n";
         for (const auto& [error, location] : errors_) {
-            report << u8"❌ " << location << ": " << error << "\n";
+            report << "❌ " << location << ": " << error << "\n";
         }
         report << "\n";
     }
@@ -660,46 +660,46 @@ std::string OwnershipReport::generateTextReport() const {
     // (AR) التحذيرات
     // (EN) Warnings
     if (!warnings_.empty()) {
-        report << u8"## التحذيرات\n\n";
+        report << "## التحذيرات\n\n";
         for (const auto& [warning, location] : warnings_) {
-            report << u8"⚠️ " << location << ": " << warning << "\n";
+            report << "⚠️ " << location << ": " << warning << "\n";
         }
         report << "\n";
     }
     
     // (AR) تفاصيل الدوال
     // (EN) Function details
-    report << u8"## تفاصيل الدوال\n\n";
+    report << "## تفاصيل الدوال\n\n";
     for (const auto& func : functions_) {
-        report << u8"### " << func.functionName << "\n\n";
+        report << "### " << func.functionName << "\n\n";
         
         // (AR) ملكية النتيجة
         // (EN) Return ownership
-        report << u8"- النتيجة: ";
+        report << "- النتيجة: ";
         switch (func.returnOwnership.kind) {
             case OwnershipKind::OWNED: 
-                report << u8"مملوكة";
+                report << "مملوكة";
                 if (func.returnOwnership.deallocator) {
-                    report << u8" (تُحرر بـ " << *func.returnOwnership.deallocator << ")";
+                    report << " (تُحرر بـ " << *func.returnOwnership.deallocator << ")";
                 }
                 break;
-            case OwnershipKind::BORROWED: report << u8"مستعارة"; break;
-            default: report << u8"غير محددة"; break;
+            case OwnershipKind::BORROWED: report << "مستعارة"; break;
+            default: report << "غير محددة"; break;
         }
         report << "\n";
         
         // (AR) المعاملات
         // (EN) Parameters
         for (const auto& [name, info] : func.parameterOwnership) {
-            report << u8"- " << name << ": ";
+            report << "- " << name << ": ";
             switch (info.kind) {
-                case OwnershipKind::BORROWED: report << u8"مستعار"; break;
-                case OwnershipKind::TRANSFERRED: report << u8"منقول"; break;
-                case OwnershipKind::OWNED: report << u8"مملوك"; break;
-                default: report << u8"غير محدد"; break;
+                case OwnershipKind::BORROWED: report << "مستعار"; break;
+                case OwnershipKind::TRANSFERRED: report << "منقول"; break;
+                case OwnershipKind::OWNED: report << "مملوك"; break;
+                default: report << "غير محدد"; break;
             }
-            if (info.isOptional) report << u8" (اختياري)";
-            if (info.isOutput) report << u8" (خرج)";
+            if (info.isOptional) report << " (اختياري)";
+            if (info.isOutput) report << " (خرج)";
             report << "\n";
         }
         report << "\n";

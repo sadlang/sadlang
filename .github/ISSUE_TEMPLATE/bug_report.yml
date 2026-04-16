@@ -1,0 +1,96 @@
+name: "🐛 بلاغ خطأ / Bug Report"
+description: "الإبلاغ عن خطأ أو سلوك غير متوقع في لغة ص"
+labels: ["خطأ", "بحاجة فرز"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        شكراً لمساهمتك في تحسين لغة ص! يرجى ملء النموذج التالي بأكبر قدر ممكن من التفاصيل.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: "المكون المتأثر"
+      description: "أي جزء من لغة ص يتأثر بالخطأ؟"
+      options:
+        - المفسر (sad)
+        - المترجم (sadc)
+        - صNet (الشبكات/التشفير)
+        - المكتبة القياسية (stdlib)
+        - خادم LSP
+        - مُنسّق الكود (formatter)
+        - مدير الحزم (pkg)
+        - REPL
+        - آخر
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "وصف الخطأ"
+      description: "وصف واضح ومختصر لما حدث"
+      placeholder: "عند تشغيل ملف .ص يحتوي على حلقة لكل..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "خطوات إعادة الإنتاج"
+      description: "أصغر كود يُظهر المشكلة"
+      render: sad
+      placeholder: |
+        # الكود الذي يسبب المشكلة:
+        دالة رئيسية()
+            # ...
+        نهاية
+
+        # كيفية التشغيل:
+        # sad.exe test.ص
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "السلوك المتوقع"
+      description: "ما الذي كنت تتوقع حدوثه؟"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "السلوك الفعلي"
+      description: "ما الذي حدث فعلاً؟ (انسخ رسالة الخطأ إن وُجدت)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: "نظام التشغيل"
+      options:
+        - Windows 10
+        - Windows 11
+        - Ubuntu 20.04+
+        - macOS 12+
+        - آخر
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: "إصدار لغة ص"
+      description: "شغّل `sad --version` لمعرفته"
+      placeholder: "1.0.0-beta.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: "معلومات إضافية"
+      description: "أي سياق إضافي: لقطات شاشة، سجلات، إصدار المترجم..."

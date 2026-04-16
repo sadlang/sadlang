@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: type_variable.cpp
 // File: type_variable.cpp
 //
@@ -31,7 +31,7 @@ std::atomic<int> TypeVariable::nextId_(0);  // بداية من 0 / Starting from
 // منشئ مع اسم محدد / Constructor with specific name
 // التعريف / Definition: type_variable.h:48
 TypeVariable::TypeVariable(const std::string& name)
-    : Type(TypeKind::TypeParameter),  // استدعاء منشئ الأب / Call parent constructor (type.h:88)
+    : Type(SadTypeKind::TypeParameter),  // استدعاء منشئ الأب / Call parent constructor (type.h:88)
       name_(name),                     // تعيين الاسم / Set name
       id_(generateUniqueId()),         // توليد معرف فريد / Generate unique ID
       isBound_(false)                  // غير مُرتبط في البداية / Not bound initially
@@ -41,7 +41,7 @@ TypeVariable::TypeVariable(const std::string& name)
 // منشئ يُولد اسم فريد تلقائياً / Constructor generating unique name
 // التعريف / Definition: type_variable.h:53
 TypeVariable::TypeVariable()
-    : Type(TypeKind::TypeParameter),  // استدعاء منشئ الأب / Call parent constructor (type.h:88)
+    : Type(SadTypeKind::TypeParameter),  // استدعاء منشئ الأب / Call parent constructor (type.h:88)
       name_(generateUniqueName()),     // توليد اسم فريد / Generate unique name
       id_(generateUniqueId()),         // توليد معرف فريد / Generate unique ID
       isBound_(false)                  // غير مُرتبط في البداية / Not bound initially

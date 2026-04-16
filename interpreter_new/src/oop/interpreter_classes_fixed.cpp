@@ -62,7 +62,9 @@ void executeClassDeclaration(Interpreter* interpreter, AST::ClassDeclStmt* node)
     
     // التحقق من عدم وجود الصنف مسبقاً
     if (classMgr->hasClass(className)) {
-        throw std::runtime_error("خطأ: الصنف '" + className + "' معرّف مسبقاً / Error: Class '" + className + "' already defined");
+        // (AR) تخطي إعادة التعريف — يحدث مع الاستيراد المتعدد
+        // (EN) Skip redefinition — happens with multiple imports
+        return;
     }
     
     // إنشاء نوع الصنف الجديد
@@ -410,8 +412,8 @@ Data::Value executeMethod(Interpreter* interpreter, Data::ObjectInstance* object
     }
     
     // تنفيذ جسم الطريقة إذا كان موجوداً
-    if (method->body) {
-        for (const auto& stmt : method->body->statements) {
+    if (auto* theBody = method->getBody()) {
+        for (const auto& stmt : theBody->statements) {
             auto execResult = interpreter->executeStatement(*stmt);
             if (!execResult.success) {
                 break;
@@ -454,8 +456,8 @@ Data::Value executeStaticMethod(Interpreter* interpreter, Data::ClassType* class
     }
     
     // تنفيذ جسم الطريقة
-    if (method->body) {
-        for (const auto& stmt : method->body->statements) {
+    if (auto* theBody = method->getBody()) {
+        for (const auto& stmt : theBody->statements) {
             interpreter->executeStatement(*stmt);
         }
     }

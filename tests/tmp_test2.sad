@@ -1,6 +1,0 @@
-متغير ن1 = acpi_info()
-اطبع_سطر("acpi_info = OK")
-متغير ن2 = acpi_shutdown()
-اطبع_سطر("acpi_shutdown = " + ن2)
-متغير ن3 = acpi_reboot()
-اطبع_سطر("acpi_reboot = " + ن3)

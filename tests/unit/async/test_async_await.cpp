@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_async_await.cpp
  * @brief (AR) اختبارات نظام async/await
  *        (EN) Async/Await System Tests
@@ -427,7 +427,7 @@ TEST_F(AsyncTypeTest, CreateFutureType) {
     auto future_type = type_manager_->getFutureType(int_type);
     
     ASSERT_NE(future_type, nullptr);
-    EXPECT_EQ(future_type->kind(), types::TypeKind::Future);
+    EXPECT_EQ(future_type->kind(), types::SadTypeKind::Future);
     EXPECT_EQ(future_type->getOutputType(), int_type);
 }
 
@@ -451,7 +451,7 @@ TEST_F(AsyncTypeTest, CreateGeneratorType) {
     auto gen_type = type_manager_->getGeneratorType(yield_type, return_type);
     
     ASSERT_NE(gen_type, nullptr);
-    EXPECT_EQ(gen_type->kind(), types::TypeKind::Generator);
+    EXPECT_EQ(gen_type->kind(), types::SadTypeKind::Generator);
     EXPECT_EQ(gen_type->getYieldType(), yield_type);
 }
 
@@ -463,7 +463,7 @@ TEST_F(AsyncTypeTest, CreateStreamType) {
     auto stream_type = type_manager_->getStreamType(item_type);
     
     ASSERT_NE(stream_type, nullptr);
-    EXPECT_EQ(stream_type->kind(), types::TypeKind::Stream);
+    EXPECT_EQ(stream_type->kind(), types::SadTypeKind::Stream);
 }
 
 /**

@@ -41,11 +41,24 @@ Closes #
 ```
 
 ## قائمة التحقق / Checklist
-<!-- تأكد من إتمام هذه الخطوات قبل الإرسال / Ensure these are completed before submitting -->
-- [ ] الكود يتبع نمط المشروع / Code follows project style
+
+### إلزامي / Required ✅
+- [ ] الكود يبنى بدون أخطاء / Code builds without errors
+- [ ] جميع الاختبارات تنجح (لا تراجع) / All tests pass (no regression)
+- [ ] قرأت CONTRIBUTING.md / Read CONTRIBUTING.md
 - [ ] التعليقات ثنائية اللغة (عربي + إنجليزي) / Bilingual comments (AR + EN)
-- [ ] لا توجد تحذيرات جديدة / No new warnings
-- [ ] الاختبارات الموجودة تنجح / Existing tests pass
-- [ ] أضفت اختبارات للتغييرات الجديدة / Added tests for new changes
-- [ ] وثّقت التغييرات إذا لزم الأمر / Documented changes if needed
+
+### جودة الكود / Code Quality
+- [ ] لا ملف يتجاوز 800 سطر (CW-05) / No file exceeds 800 lines
+- [ ] لا أرقام سحرية (CW-10) / No magic numbers
+- [ ] لا تكرار كود (CW-19) / No code duplication
+- [ ] لا تحذيرات جديدة / No new warnings
+
+### ميزة جديدة / New Feature (if applicable)
+- [ ] أضفت اختبارات تغطي الميزة / Added tests covering the feature
+- [ ] أضفت توثيق `@brief (AR)` + `@brief (EN)` / Added bilingual docs
+
+### إصلاح خطأ / Bug Fix (if applicable)
+- [ ] أضفت اختبار يعيد إنتاج الخطأ / Added test reproducing the bug
+- [ ] أضفت تعليق يشرح السبب الجذري (BF-14) / Added root cause comment
 

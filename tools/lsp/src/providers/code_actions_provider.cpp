@@ -117,6 +117,42 @@ std::vector<CodeAction> LspEngine::code_actions(
     // ╚══════════════════════════════════════════════════════════════╝
     for (const auto& diag : diagnostics) {
 
+        // ──── إصلاح تلقائي: إدراج رمز مفقود (من نظام التعافي) ────
+        // تشخيصات التعافي تحمل كوداً بصيغة "ص-تعافي-INSERT:نص"
+        if (diag.code.rfind("\xd8\xb5-\xd8\xaa\xd8\xb9\xd8\xa7\xd9\x81\xd9\x8a-INSERT:", 0) == 0) {
+            // استخراج النص المُدرج من الكود (بعد "ص-تعافي-INSERT:")
+            std::string prefix = "\xd8\xb5-\xd8\xaa\xd8\xb9\xd8\xa7\xd9\x81\xd9\x8a-INSERT:";
+            std::string inserted_text = diag.code.substr(prefix.size());
+
+            if (!inserted_text.empty()) {
+                CodeAction action;
+                action.title = "\xf0\x9f\x94\xa7 \xd8\xa5\xd8\xaf\xd8\xb1\xd8\xa7\xd8\xac '" + inserted_text + "' \xd8\xa7\xd9\x84\xd9\x85\xd9\x81\xd9\x82\xd9\x88\xd8\xaf\xd8\xa9"; // 🔧 إدراج 'X' المفقودة
+                action.kind = CodeActionKind::QuickFix;
+                action.is_preferred = true;
+                action.diagnostics = {diag};
+
+                WorkspaceEdit edit;
+                TextEdit te;
+                // إدراج الرمز في موضع التشخيص
+                te.range.start = diag.range.start;
+                te.range.end = diag.range.start; // نقطة إدراج (بدون حذف)
+                te.new_text = inserted_text;
+                edit.changes[uri] = {te};
+                action.edit = edit;
+                actions.push_back(action);
+            }
+        }
+
+        // ──── إصلاح تلقائي عام من نظام التعافي ────
+        if (diag.code == "\xd8\xb5-\xd8\xaa\xd8\xb9\xd8\xa7\xd9\x81\xd9\x8a-\xd9\xa0\xd9\xa0\xd9\xa1") { // ص-تعافي-٠٠١
+            CodeAction action;
+            action.title = "\xf0\x9f\x94\x8d " + diag.message; // 🔍 + رسالة التعافي
+            action.kind = CodeActionKind::QuickFix;
+            action.diagnostics = {diag};
+            // لا يوجد edit تلقائي — فقط إشعار
+            actions.push_back(action);
+        }
+
         // ──── إصلاح: استبدال print بـ اطبع ────
         if (diag.code == "\xd8\xb5-\xd8\xaa\xd9\xa0\xd9\xa0\xd9\xa2" || // ص-ت٠٠٢
             (diag.message.find("print") != std::string::npos &&

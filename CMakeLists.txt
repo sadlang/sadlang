@@ -110,6 +110,8 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers
     ${CMAKE_SOURCE_DIR}/interpreter_new/include/builtins
     ${CMAKE_SOURCE_DIR}/interpreter_new/include/debug
+    ${CMAKE_SOURCE_DIR}/interpreter_new/include/ui
+    ${CMAKE_SOURCE_DIR}/interpreter_new/src/ui
     ${CMAKE_SOURCE_DIR}/compiler_new/include
     ${CMAKE_SOURCE_DIR}/compiler_new/include/frontend
     ${CMAKE_SOURCE_DIR}/compiler_new/include/backend
@@ -130,6 +132,9 @@ include(${CMAKE_SOURCE_DIR}/cmake/libraries.cmake)
 # 6. مكتبات الشبكات / Networking Libraries (TCP/UDP, HTTP, WebSocket)
 include(${CMAKE_SOURCE_DIR}/cmake/network.cmake)
 
+# 6.5. صNet — مكتبة الشبكات اللامركزية / SadNet Decentralized Networking
+include(${CMAKE_SOURCE_DIR}/cmake/sadnet.cmake)
+
 # 7. البرامج التنفيذية / Executables (sad, sadc)
 include(${CMAKE_SOURCE_DIR}/cmake/executables.cmake)
 
@@ -142,12 +147,15 @@ include(${CMAKE_SOURCE_DIR}/cmake/tests.cmake)
 # 10. الاختبارات الشاملة / Comprehensive Test Suite (900+ tests)
 include(${CMAKE_SOURCE_DIR}/cmake/tests_comprehensive.cmake)
 
-# 11. WebAssembly (اختياري) / WebAssembly (optional)
+# 11. اختبارات التنفيذ المزدوج / Dual Execution Tests (ADR-03)
+include(${CMAKE_SOURCE_DIR}/cmake/dual_tests.cmake)
+
+# 12. WebAssembly (اختياري) / WebAssembly (optional)
 if(BUILD_WASM)
     include(${CMAKE_SOURCE_DIR}/cmake/wasm.cmake)
 endif()
 
-# 12. قواعد التثبيت و CPack / Install Rules & CPack
+# 13. قواعد التثبيت و CPack / Install Rules & CPack
 include(${CMAKE_SOURCE_DIR}/cmake/install.cmake)
 
 # ══════════════════════════════════════════════════════════════════════

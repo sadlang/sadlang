@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // sir_builder.cpp - بناء SIR من AST / SIR Builder from AST
 // ============================================================================
 // المؤلف / Author: Sad Compiler Team
@@ -16,6 +16,7 @@
 // - AST headers (ast_node.h, expressions.h, statements.h, declarations.h)
 // ============================================================================
 
+
 #include <string>
 #include "sir_builder.h"
 #include "module_nodes.h"
@@ -28,798 +29,1119 @@
 #include <iostream>
 #include <filesystem>
 
-namespace Sad {
-namespace Compiler {
-namespace SIR {
 
-// ============================================================================
-// buildLiteral - بناء ثابت حرفي
-// ============================================================================
-// مصدر التعريف / Source: sir_builder.h:492
-// التوقيع / Signature: BuildResult buildLiteral(AST::LiteralNode* literal);
-//
-// المعاملات / Parameters:
-// - literal: AST::LiteralNode* = Sad::AST::LiteralExpr* (sir_builder.h:71)
-//
-// LiteralExpr Members (expressions.h:174):
-// - token: Lexer::Token (line 175)
-//
-// Token Members (lexer/token.h):
-// - type: TokenType
-// - value: std::string
-// - getType(): TokenType
-// - getValue(): std::string
-//
-// TokenType Values (lexer/token.h):
-// - INTEGER, FLOAT, STRING, TRUE, FALSE, NONE
-//
-// الإرجاع / Returns:
-// - BuildResult with constant value
-// ============================================================================
-BuildResult SIRBuilder::buildLiteral(AST::LiteralNode* literal) {
-    if (!literal) {
-        return BuildResult();
-    }
-    
-    // (AR) الحصول على Token (expressions.h:175 - token member)
-    // (EN) Get token
-    const auto& token = literal->token;
-    Lexer::TokenType tokenType = token.getType();
-    std::string value = token.getValue();
-    
-    // (AR) إنشاء سجل مؤقت للنتيجة
-    // (EN) Create temporary register for result
-    std::string resultReg = newTempRegister();
-    
-    // (AR) تحديد النوع بناءً على نوع Token
-    // (EN) Determine type based on token type
-    SIRType sirType = SIRType::I64; // default
-    
-    // (AR) معالجة الأنواع المختلفة
-    // (EN) Handle different types
-    // أسماء TokenType من token.h:198-202
-    // TokenType names from token.h:198-202
-    BuildResult result;
-    result.registerName = resultReg;
-    result.isConstant = true;
-    result.constantValue = value;
-    
-    if (tokenType == Lexer::TokenType::NUMBER_INTEGER) {
-        result.type = SIRType::I64;
-        // (AR) تحويل الأعداد الست عشرية/الثمانية/الثنائية إلى عشرية
-        //      لأن std::stoll() الافتراضي يستخدم أساس 10 فقط
-        // (EN) Normalize hex/octal/binary literals to decimal strings
-        //      because downstream std::stoll() uses base 10 by default
-        if (value.size() > 2 && value[0] == '0') {
-            char prefix = value[1];
-            if (prefix == 'x' || prefix == 'X') {
-                // Hex: 0x3F8 → "1016", 0xFFFF800000000000 → "-140737488355328"
-                result.constantValue = std::to_string(static_cast<int64_t>(std::stoull(value, nullptr, 16)));
-            } else if (prefix == 'o' || prefix == 'O') {
-                // Octal: 0o755 → "493"
-                result.constantValue = std::to_string(static_cast<int64_t>(std::stoull(value.substr(2), nullptr, 8)));
-            } else if (prefix == 'b' || prefix == 'B') {
-                // Binary: 0b1010 → "10"
-                result.constantValue = std::to_string(static_cast<int64_t>(std::stoull(value.substr(2), nullptr, 2)));
-            }
-        }
-    }
-    else if (tokenType == Lexer::TokenType::NUMBER_DOUBLE) {
-        result.type = SIRType::F64;
-    }
-    else if (tokenType == Lexer::TokenType::STRING_LITERAL) {
-        result.type = SIRType::STRING;
-    }
-    else if (tokenType == Lexer::TokenType::LITERAL_TRUE || tokenType == Lexer::TokenType::LITERAL_FALSE) {
-        result.type = SIRType::BOOL;
-        result.constantValue = (tokenType == Lexer::TokenType::LITERAL_TRUE) ? "true" : "false";
-    }
-    else if (tokenType == Lexer::TokenType::LITERAL_NULL) {
-        // (AR) لاشيء / null — نوع PTR بقيمة 0 (مؤشر فارغ)
-        // (EN) null literal — PTR type with value 0 (null pointer)
-        result.type = SIRType::PTR;
-        result.constantValue = "0";
-        result.isConstant = true;
-    }
-    else {
-        result.type = SIRType::I64;
-    }
-    
-    return result;
-}
+namespace Sad
+{
+    namespace Compiler
+    {
+        namespace SIR
+        {
 
-// ============================================================================
-// buildVariableAccess - بناء وصول لمتغير
-// ============================================================================
-// مصدر التعريف / Source: sir_builder.h:480
-// التوقيع / Signature: BuildResult buildVariableAccess(AST::VariableNode* var);
-//
-// المعاملات / Parameters:
-// - var: AST::VariableNode* = Sad::AST::VariableExpr* (sir_builder.h:70)
-//
-// VariableExpr Members (expressions.h:206):
-// - name: std::string (line 208)
-//
-// الدوال المستدعاة / Called functions:
-// - lookupVariable: sir_builder.h:597 (returns VariableInfo*)
-//
-// الإرجاع / Returns:
-// - BuildResult with variable register and type
-// ============================================================================
-BuildResult SIRBuilder::buildVariableAccess(AST::VariableNode* var) {
-    if (!var) {
-        #ifndef NDEBUG
-        std::cout << "[DEBUG] buildVariableAccess: var is null!" << std::endl;
-        #endif
-        return BuildResult();
-    }
-    
-    #ifndef NDEBUG
-    std::cout << "[DEBUG] buildVariableAccess: looking up variable '" << var->name << "'" << std::endl;
-    #endif
-    
-    // (AR) البحث عن المتغير في النطاقات (expressions.h:208 - name member)
-    // (EN) Lookup variable in scopes
-    VariableInfo* varInfo = lookupVariable(var->name);
-    
-    if (!varInfo) {
-        #ifndef NDEBUG
-        std::cout << "[DEBUG] buildVariableAccess: variable NOT FOUND!" << std::endl;
-        #endif
-        errors_.push_back("Error: Undefined variable '" + var->name + "'");
-        return BuildResult();
-    }
-    
-    #ifndef NDEBUG
-    std::cout << "[DEBUG] buildVariableAccess: found variable, registerName='" 
-              << varInfo->registerName << "', type=" << static_cast<int>(varInfo->type) << std::endl;
-    #endif
-    
-    // (AR) إرجاع معلومات المتغير (sir_builder.h:139 - VariableInfo struct)
-    // (EN) Return variable information
-    // VariableInfo members: registerName (line 143), type (line 142)
-    return BuildResult(varInfo->registerName, varInfo->type);
-}
-
-// ============================================================================
-// buildBinaryOp - بناء عملية ثنائية
-// ============================================================================
-// مصدر التعريف / Source: sir_builder.h:448
-// التوقيع / Signature: BuildResult buildBinaryOp(AST::BinaryOpNode* binOp);
-//
-// المعاملات / Parameters:
-// - binOp: AST::BinaryOpNode* = Sad::AST::BinaryExpr* (sir_builder.h:66)
-//
-// BinaryExpr Members (expressions.h:40-44):
-// - left: ExprPtr (line 42)
-// - op: Lexer::TokenType (line 43)
-// - right: ExprPtr (line 44)
-//
-// TokenType للعمليات (token.h:205-229):
-// - OP_PLUS (205), OP_MINUS (206), OP_MULTIPLY (207), OP_DIVIDE (208)
-// - OP_MODULO (209), OP_POWER (210)
-// - OP_EQUAL (219), OP_NOT_EQUAL (220), OP_LESS (221), OP_LESS_EQUAL (222)
-// - OP_GREATER (223), OP_GREATER_EQUAL (224)
-// - OP_AND (227), OP_OR (228)
-//
-// SIROpcode (sir_types.h:106-130):
-// - ADD_I64/ADD_F64, SUB_I64/SUB_F64, MUL_I64/MUL_F64, DIV_I64/DIV_F64
-// - MOD_I64, EQ, NE, LT, LE, GT, GE, AND, OR
-//
-// SIRInstruction::Binary (sir_instruction.h:100-107):
-// - الاستخدام: SIRInstruction::Binary(opcode, result, left, right)
-//
-// SIROperand::Register (sir_types.h:306-312):
-// - الاستخدام: SIROperand::Register(name, type)
-//
-// الإرجاع / Returns:
-// - BuildResult (sir_builder.h:103-132): registerName, type
-// ============================================================================
-BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode* binOp) {
-    if (!binOp) {
-        return BuildResult();
-    }
-    
-    #ifndef NDEBUG
-    std::cout << "[DEBUG] buildBinaryOp: بدء بناء عملية ثنائية" << std::endl;
-    #endif
-    
-    // (AR) بناء المعامل الأيسر (expressions.h:42 - left: ExprPtr)
-    // (EN) Build left operand
-    auto leftResult = buildExpression(binOp->left.get());
-    #ifndef NDEBUG
-    std::cout << "[DEBUG] buildBinaryOp: leftResult.registerName='" << leftResult.registerName 
-              << "', type=" << static_cast<int>(leftResult.type) 
-              << ", isConstant=" << leftResult.isConstant << std::endl;
-    #endif
-    
-    // (AR) بناء المعامل الأيمن (expressions.h:44 - right: ExprPtr)
-    // (EN) Build right operand
-    auto rightResult = buildExpression(binOp->right.get());
-    #ifndef NDEBUG
-    std::cout << "[DEBUG] buildBinaryOp: rightResult.registerName='" << rightResult.registerName 
-              << "', type=" << static_cast<int>(rightResult.type) 
-              << ", isConstant=" << rightResult.isConstant << std::endl;
-    #endif
-    
-    // ================================================================
-    // (AR) تحميل المعاملات الزائد: إذا كان المعامل الأيسر كائن، استدعاء دالة العامل
-    // (EN) Operator overloading: if left operand is an object, call operator function
-    // ================================================================
-    std::string leftClassName = leftResult.className;
-    if (leftClassName.empty() && !leftResult.registerName.empty()) {
-        auto it = classInstanceTypes_.find(leftResult.registerName);
-        if (it != classInstanceTypes_.end()) {
-            leftClassName = it->second;
-        }
-    }
-    
-    if (!leftClassName.empty()) {
-        // (AR) تحويل رمز العامل إلى اسم دالة
-        // (EN) Convert operator symbol to function name
-        std::string opSafeName;
-        switch (binOp->op) {
-            case Lexer::TokenType::OP_PLUS:          opSafeName = "__op_add__"; break;
-            case Lexer::TokenType::OP_MINUS:         opSafeName = "__op_sub__"; break;
-            case Lexer::TokenType::OP_MULTIPLY:      opSafeName = "__op_mul__"; break;
-            case Lexer::TokenType::OP_DIVIDE:        opSafeName = "__op_div__"; break;
-            case Lexer::TokenType::OP_MODULO:        opSafeName = "__op_mod__"; break;
-            case Lexer::TokenType::OP_POWER:         opSafeName = "__op_pow__"; break;
-            case Lexer::TokenType::OP_EQUAL:         opSafeName = "__op_eq__"; break;
-            case Lexer::TokenType::OP_NOT_EQUAL:     opSafeName = "__op_ne__"; break;
-            case Lexer::TokenType::OP_LESS:          opSafeName = "__op_lt__"; break;
-            case Lexer::TokenType::OP_LESS_EQUAL:    opSafeName = "__op_le__"; break;
-            case Lexer::TokenType::OP_GREATER:       opSafeName = "__op_gt__"; break;
-            case Lexer::TokenType::OP_GREATER_EQUAL: opSafeName = "__op_ge__"; break;
-            default:
-                // (AR) عامل غير مدعوم للتحميل الزائد — لن يُبحّث عن operator overload
-                // (EN) Unsupported operator for overloading — no overload lookup
-                break;
-        }
-        
-        if (!opSafeName.empty()) {
-            // (AR) البحث عن دالة العامل في الصنف أو الأصناف الأب
-            // (EN) Look for operator function in the class or parent classes
-            std::string searchClass = leftClassName;
-            std::string fullOpName;
-            bool found = false;
-            while (!searchClass.empty()) {
-                fullOpName = searchClass + "." + opSafeName;
-                auto funcIt = functionTable_.find(fullOpName);
-                if (funcIt != functionTable_.end()) {
-                    found = true;
-                    break;
+            // ============================================================================
+            // (AR) تم نقل buildLiteral, buildVariableAccess, buildShortCircuitLogical, buildUnaryOp
+            //      إلى sir_builder_expressions.cpp (CW-05)
+            // (EN) buildLiteral, buildVariableAccess, buildShortCircuitLogical, buildUnaryOp
+            //      moved to sir_builder_expressions.cpp (CW-05)
+            // ============================================================================
+            BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode *binOp)
+            {
+                if (!binOp)
+                {
+                    return BuildResult();
                 }
-                // (AR) البحث في الأب
-                // (EN) Search in parent
-                auto parentClass = module_->getClass(searchClass);
-                if (parentClass && !parentClass->parentClass.empty()) {
-                    searchClass = parentClass->parentClass;
-                } else {
-                    break;
+
+#ifndef NDEBUG
+                std::cout << "[DEBUG] buildBinaryOp: بدء بناء عملية ثنائية" << std::endl;
+#endif
+
+                // ================================================================
+                // (AR) التقييم الكسول (Short-circuit) للعوامل المنطقية و/أو (&&/||)
+                //      لا يتم تقييم الطرف الأيمن إذا كان الطرف الأيسر كافياً:
+                //      - «و» (&&): إذا كان الأيسر false → النتيجة false
+                //      - «أو» (||): إذا كان الأيسر true → النتيجة true
+                //      هذا ضروري لمنع الآثار الجانبية غير المرغوبة.
+                //      يُبنى عبر كتل SIR (basic blocks) مع تفرع مشروط.
+                // (EN) Short-circuit evaluation for logical AND/OR (&&/||)
+                //      Right operand is not evaluated if left operand is sufficient:
+                //      - AND (&&): if left is false → result is false
+                //      - OR (||): if left is true → result is true
+                //      Built using SIR basic blocks with conditional branching.
+                // ================================================================
+                if (binOp->op == Lexer::TokenType::OP_AND ||
+                    binOp->op == Lexer::TokenType::OP_OR)
+                {
+                    return buildShortCircuitLogical(binOp);
                 }
-            }
-            
-            if (found) {
-                #ifndef NDEBUG
-                std::cout << "[DEBUG] buildBinaryOp: dispatching to operator overload '" 
-                          << fullOpName << "'" << std::endl;
-                #endif
-                
+
+                // (AR) بناء المعامل الأيسر (expressions.h:42 - left: ExprPtr)
+                // (EN) Build left operand
+                auto leftResult = buildExpression(binOp->left.get());
+#ifndef NDEBUG
+                std::cout << "[DEBUG] buildBinaryOp: leftResult.registerName='" << leftResult.registerName
+                          << "', type=" << static_cast<int>(leftResult.type)
+                          << ", isConstant=" << leftResult.isConstant << std::endl;
+#endif
+
+                // (AR) بناء المعامل الأيمن (expressions.h:44 - right: ExprPtr)
+                // (EN) Build right operand
+                auto rightResult = buildExpression(binOp->right.get());
+#ifndef NDEBUG
+                std::cout << "[DEBUG] buildBinaryOp: rightResult.registerName='" << rightResult.registerName
+                          << "', type=" << static_cast<int>(rightResult.type)
+                          << ", isConstant=" << rightResult.isConstant << std::endl;
+#endif
+
+                // ================================================================
+                // (AR) تحميل المعاملات الزائد: إذا كان المعامل الأيسر كائن، استدعاء دالة العامل
+                // (EN) Operator overloading: if left operand is an object, call operator function
+                // ================================================================
+                std::string leftClassName = leftResult.className;
+                if (leftClassName.empty() && !leftResult.registerName.empty())
+                {
+                    auto it = classInstanceTypes_.find(leftResult.registerName);
+                    if (it != classInstanceTypes_.end())
+                    {
+                        leftClassName = it->second;
+                    }
+                }
+
+                if (!leftClassName.empty())
+                {
+                    // (AR) تحويل رمز العامل إلى اسم دالة
+                    // (EN) Convert operator symbol to function name
+                    std::string opSafeName;
+                    switch (binOp->op)
+                    {
+                    case Lexer::TokenType::OP_PLUS:
+                        opSafeName = "__op_add__";
+                        break;
+                    case Lexer::TokenType::OP_MINUS:
+                        opSafeName = "__op_sub__";
+                        break;
+                    case Lexer::TokenType::OP_MULTIPLY:
+                        opSafeName = "__op_mul__";
+                        break;
+                    case Lexer::TokenType::OP_DIVIDE:
+                        opSafeName = "__op_div__";
+                        break;
+                    case Lexer::TokenType::OP_FLOOR_DIVIDE:
+                        opSafeName = "__op_floordiv__";
+                        break;
+                    case Lexer::TokenType::OP_MODULO:
+                        opSafeName = "__op_mod__";
+                        break;
+                    case Lexer::TokenType::OP_POWER:
+                        opSafeName = "__op_pow__";
+                        break;
+                    case Lexer::TokenType::OP_EQUAL:
+                        opSafeName = "__op_eq__";
+                        break;
+                    case Lexer::TokenType::OP_NOT_EQUAL:
+                        opSafeName = "__op_ne__";
+                        break;
+                    case Lexer::TokenType::OP_LESS:
+                        opSafeName = "__op_lt__";
+                        break;
+                    case Lexer::TokenType::OP_LESS_EQUAL:
+                        opSafeName = "__op_le__";
+                        break;
+                    case Lexer::TokenType::OP_GREATER:
+                        opSafeName = "__op_gt__";
+                        break;
+                    case Lexer::TokenType::OP_GREATER_EQUAL:
+                        opSafeName = "__op_ge__";
+                        break;
+                    // (AR) العوامل البتية والإزاحة
+                    // (EN) Bitwise and shift operators
+                    case Lexer::TokenType::OP_XOR:
+                        opSafeName = "__op_xor__";
+                        break;
+                    case Lexer::TokenType::OP_BITWISE_AND:
+                        opSafeName = "__op_band__";
+                        break;
+                    case Lexer::TokenType::OP_BITWISE_OR:
+                        opSafeName = "__op_bor__";
+                        break;
+                    case Lexer::TokenType::OP_SHIFT_LEFT:
+                        opSafeName = "__op_shl__";
+                        break;
+                    case Lexer::TokenType::OP_SHIFT_RIGHT:
+                        opSafeName = "__op_shr__";
+                        break;
+                    default:
+                        // (AR) عامل غير مدعوم للتحميل الزائد — لن يُبحّث عن operator overload
+                        // (EN) Unsupported operator for overloading — no overload lookup
+                        break;
+                    }
+
+                    if (!opSafeName.empty())
+                    {
+                        // (AR) البحث عن دالة العامل في الصنف أو الأصناف الأب
+                        // (EN) Look for operator function in the class or parent classes
+                        std::string searchClass = leftClassName;
+                        std::string fullOpName;
+                        bool found = false;
+                        while (!searchClass.empty())
+                        {
+                            fullOpName = searchClass + "." + opSafeName;
+                            auto funcIt = functionTable_.find(fullOpName);
+                            if (funcIt != functionTable_.end())
+                            {
+                                found = true;
+                                break;
+                            }
+                            // (AR) البحث في الأب
+                            // (EN) Search in parent
+                            auto parentClass = module_->getClass(searchClass);
+                            if (parentClass && !parentClass->parentClass.empty())
+                            {
+                                searchClass = parentClass->parentClass;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+
+                        if (found)
+                        {
+#ifndef NDEBUG
+                            std::cout << "[DEBUG] buildBinaryOp: dispatching to operator overload '"
+                                      << fullOpName << "'" << std::endl;
+#endif
+
+                            std::string resultReg = newTempRegister();
+                            auto &opInfo = functionTable_[fullOpName];
+                            SadTypeKind returnType = opInfo.returnType;
+
+                            if (currentBlock_)
+                            {
+                                SIRInstruction callInst;
+                                callInst.opcode = SIROpcode::OBJECT_CALL;
+                                callInst.result = SIROperand::Register(resultReg, returnType);
+                                callInst.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
+                                callInst.operands.push_back(SIROperand::ConstantString(opSafeName));
+                                // (AR) إضافة المعامل الأيمن
+                                // (EN) Add right operand
+                                if (rightResult.isConstant && !rightResult.constantValue.empty())
+                                {
+                                    switch (rightResult.type)
+                                    {
+                                    case SadTypeKind::Integer:
+                                        callInst.operands.push_back(SIROperand::ConstantI64(std::stoll(rightResult.constantValue)));
+                                        break;
+                                    case SadTypeKind::Float:
+                                        callInst.operands.push_back(SIROperand::ConstantF64(std::stod(rightResult.constantValue)));
+                                        break;
+                                    case SadTypeKind::String:
+                                        callInst.operands.push_back(SIROperand::ConstantString(rightResult.constantValue));
+                                        break;
+                                    default:
+                                        callInst.operands.push_back(SIROperand::Register(rightResult.registerName, rightResult.type));
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    callInst.operands.push_back(SIROperand::Register(rightResult.registerName, rightResult.type));
+                                }
+                                currentBlock_->addInstruction(callInst);
+                            }
+
+                            BuildResult result(resultReg, returnType);
+                            // (AR) ننشر className فقط إذا كان نوع الإرجاع يمكن أن يمثل كائناً (I64/STRUCT)
+                            //      النتائج BOOL/STRING/F64 ليست كائنات — ننع نشر className لتجنب
+                            //      dispatch خاطئ لـ __op_tobool__/__op_tostring__ على قيم أولية
+                            // (EN) Only propagate className if return type can represent an object (I64/STRUCT)
+                            //      BOOL/STRING/F64 results are NOT objects — prevent className propagation
+                            //      to avoid false __op_tobool__/__op_tostring__ dispatch on primitive values
+                            if (returnType == SadTypeKind::Integer || returnType == SadTypeKind::Struct)
+                            {
+                                result.className = leftClassName;
+                            }
+                            return result;
+                        }
+                    }
+                }
+
+                // (AR) إنشاء سجل للنتيجة (sir_builder.h:511 - newTempRegister)
+                // (EN) Create result register
                 std::string resultReg = newTempRegister();
-                auto& opInfo = functionTable_[fullOpName];
-                SIRType returnType = opInfo.returnType;
-                
-                if (currentBlock_) {
-                    SIRInstruction callInst;
-                    callInst.opcode = SIROpcode::OBJECT_CALL;
-                    callInst.result = SIROperand::Register(resultReg, returnType);
-                    callInst.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
-                    callInst.operands.push_back(SIROperand::ConstantString(opSafeName));
-                    // (AR) إضافة المعامل الأيمن
-                    // (EN) Add right operand
-                    if (rightResult.isConstant && !rightResult.constantValue.empty()) {
-                        switch (rightResult.type) {
-                            case SIRType::I64:
-                                callInst.operands.push_back(SIROperand::ConstantI64(std::stoll(rightResult.constantValue)));
+
+                // ================================================================
+                // (AR) تحويل تلقائي: نص + كائن → نص + __op_tostring__(كائن)
+                //      عند جمع نص مع كائن (+ فقط)، نستدعي __op_tostring__ تلقائياً
+                //      يتوافق مع: المفسر يستدعي toString() ضمنياً عند الجمع مع نص
+                // (EN) Auto-convert: string + object → string + __op_tostring__(object)
+                //      When concatenating string with object (+ only), auto-call __op_tostring__
+                //      Matches: interpreter implicitly calls toString() when concatenating with string
+                // ================================================================
+                if (binOp->op == Lexer::TokenType::OP_PLUS)
+                {
+                    // (AR) تحقق: يسار نص + يمين كائن
+                    // (EN) Check: left is string + right is object
+                    std::string rightClassName = rightResult.className;
+                    if (rightClassName.empty() && !rightResult.registerName.empty())
+                    {
+                        auto it = classInstanceTypes_.find(rightResult.registerName);
+                        if (it != classInstanceTypes_.end())
+                            rightClassName = it->second;
+                    }
+                    if ((leftResult.type == SadTypeKind::String || (leftResult.isConstant && leftResult.type == SadTypeKind::String)) && !rightClassName.empty())
+                    {
+                        // (AR) بحث في سلسلة الوراثة عن __op_tostring__
+                        // (EN) Search inheritance chain for __op_tostring__
+                        std::string searchClass = rightClassName;
+                        std::string tostrName;
+                        bool foundToStr = false;
+                        while (!searchClass.empty())
+                        {
+                            tostrName = searchClass + ".__op_tostring__";
+                            if (functionTable_.find(tostrName) != functionTable_.end())
+                            {
+                                foundToStr = true;
                                 break;
-                            case SIRType::F64:
-                                callInst.operands.push_back(SIROperand::ConstantF64(std::stod(rightResult.constantValue)));
-                                break;
-                            case SIRType::STRING:
-                                callInst.operands.push_back(SIROperand::ConstantString(rightResult.constantValue));
-                                break;
-                            default:
-                                callInst.operands.push_back(SIROperand::Register(rightResult.registerName, rightResult.type));
+                            }
+                            auto classInfo = module_->getClass(searchClass);
+                            if (classInfo && !classInfo->parentClass.empty())
+                                searchClass = classInfo->parentClass;
+                            else
                                 break;
                         }
-                    } else {
-                        callInst.operands.push_back(SIROperand::Register(rightResult.registerName, rightResult.type));
+                        if (foundToStr)
+                        {
+                            std::string strReg = newTempRegister();
+                            SIRInstruction callInst;
+                            callInst.opcode = SIROpcode::OBJECT_CALL;
+                            callInst.result = SIROperand::Register(strReg, SadTypeKind::String);
+                            callInst.operands.push_back(SIROperand::Register(rightResult.registerName, rightResult.type));
+                            callInst.operands.push_back(SIROperand::ConstantString("__op_tostring__"));
+                            if (currentBlock_)
+                                currentBlock_->addInstruction(callInst);
+                            // (AR) استبدال المعامل الأيمن بالنتيجة النصية
+                            rightResult = BuildResult(strReg, SadTypeKind::String);
+                        }
                     }
-                    currentBlock_->addInstruction(callInst);
+                    // (AR) تحقق: يسار كائن + يمين نص
+                    // (EN) Check: left is object + right is string
+                    if (!leftClassName.empty() &&
+                        (rightResult.type == SadTypeKind::String || (rightResult.isConstant && rightResult.type == SadTypeKind::String)))
+                    {
+                        // (AR) بحث في سلسلة الوراثة عن __op_tostring__
+                        // (EN) Search inheritance chain for __op_tostring__
+                        std::string searchClassL = leftClassName;
+                        std::string tostrName;
+                        bool foundToStrL = false;
+                        while (!searchClassL.empty())
+                        {
+                            tostrName = searchClassL + ".__op_tostring__";
+                            if (functionTable_.find(tostrName) != functionTable_.end())
+                            {
+                                foundToStrL = true;
+                                break;
+                            }
+                            auto classInfo = module_->getClass(searchClassL);
+                            if (classInfo && !classInfo->parentClass.empty())
+                                searchClassL = classInfo->parentClass;
+                            else
+                                break;
+                        }
+                        if (foundToStrL)
+                        {
+                            std::string strReg = newTempRegister();
+                            SIRInstruction callInst;
+                            callInst.opcode = SIROpcode::OBJECT_CALL;
+                            callInst.result = SIROperand::Register(strReg, SadTypeKind::String);
+                            callInst.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
+                            callInst.operands.push_back(SIROperand::ConstantString("__op_tostring__"));
+                            if (currentBlock_)
+                                currentBlock_->addInstruction(callInst);
+                            leftResult = BuildResult(strReg, SadTypeKind::String);
+                        }
+                    }
                 }
-                
-                BuildResult result(resultReg, returnType);
-                result.className = leftClassName;
-                return result;
+
+                // (AR) تحديد نوع النتيجة - إذا كان أحد المعاملين عشري، النتيجة عشرية
+                // (EN) Determine result type - if either operand is float, result is float
+                // (AR) === إصلاح شامل لاكتشاف دمج النصوص ===
+                // القاعدة الجديدة:
+                //   1. أحد المعاملين نص حرفي (isConstant + STRING) → دمج نصوص دائماً
+                //   2. أحد المعاملين متغير نصي حقيقي (STRING + !isParameter) + الآخر أي نوع → دمج نصوص
+                //   3. كلا المعاملين STRING وليس أي منهما parameter مُستنتج → دمج نصوص
+                //   4. أحد المعاملين parameter بنوع STRING مُستنتج + الآخر رقمي → حساب مؤشرات (ADD_I64)
+                // هذا يحل:
+                //   - `متغير_نص + 5` → STRING_CONCAT (كان ينتج ADD_I64 خطأ)
+                //   - `نتيجة_دالة_نصية() + رقم` → STRING_CONCAT
+                //   - `param(STRING مُستنتج) + رقم` → ADD_I64 (حساب مؤشرات صحيح)
+                // (EN) === Comprehensive string concat detection fix ===
+                // New rules:
+                //   1. One operand is a string literal (isConstant + STRING) → always string concat
+                //   2. One operand is a real string variable (STRING + !isParameter) + other any type → string concat
+                //   3. Both STRING and neither is an inferred parameter → string concat
+                //   4. One parameter with inferred STRING type + numeric → pointer arithmetic (ADD_I64)
+                // This fixes:
+                //   - `string_var + 5` → STRING_CONCAT (was producing ADD_I64 incorrectly)
+                //   - `string_func_result() + number` → STRING_CONCAT
+                //   - `param(inferred STRING) + number` → ADD_I64 (correct pointer arithmetic)
+                SadTypeKind resultType = leftResult.type;
+                bool isStringOp = false;
+
+                // (AR) معامل نصي حرفي حقيقي = ثابت + نوع STRING
+                // (EN) Real string literal = constant + STRING type
+                bool leftIsStringLiteral = (leftResult.type == SadTypeKind::String && leftResult.isConstant);
+                bool rightIsStringLiteral = (rightResult.type == SadTypeKind::String && rightResult.isConstant);
+
+                // (AR) معامل STRING حقيقي غير مُستنتج: متغير نصي أو نتيجة دالة (ليس parameter)
+                // (EN) Real non-inferred STRING operand: string variable or function result (not parameter)
+                bool leftIsRealString = (leftResult.type == SadTypeKind::String && !leftResult.isParameter);
+                bool rightIsRealString = (rightResult.type == SadTypeKind::String && !rightResult.isParameter);
+
+                // (AR) === دعم المصفوفات: STRING + ARRAY → دمج نصوص (تحويل المصفوفة لنص) ===
+                // (EN) === Array support: STRING + ARRAY → string concat (convert array to string) ===
+                bool leftIsArray = (leftResult.type == SadTypeKind::Array);
+                bool rightIsArray = (rightResult.type == SadTypeKind::Array);
+
+                if (leftIsStringLiteral || rightIsStringLiteral)
+                {
+                    // (AR) أحد المعاملين نص حرفي فعلي — دمج نصوص مؤكد
+                    // (EN) One operand is a real string literal — definitely string concat
+                    isStringOp = true;
+                }
+                else if ((leftIsRealString && rightIsArray) || (rightIsRealString && leftIsArray) || (leftIsStringLiteral && rightIsArray) || (rightIsStringLiteral && leftIsArray))
+                {
+                    // (AR) نص + مصفوفة → دمج نصوص (المصفوفة ستُحوَّل لنص في LLVM codegen)
+                    // (EN) string + array → string concat (array will be converted to string in LLVM codegen)
+                    isStringOp = true;
+                }
+                else if (leftIsRealString || rightIsRealString)
+                {
+                    // (AR) أحد المعاملين متغير/نتيجة نصية حقيقية (ليس parameter مُستنتج) — دمج نصوص
+                    //      هذا يشمل: متغيرات نصية + أرقام، نتائج دوال نصية + أي نوع
+                    // (EN) One operand is a real string variable/result (not inferred parameter) — string concat
+                    //      This covers: string variables + numbers, string function results + any type
+                    isStringOp = true;
+                }
+                else if (leftResult.type == SadTypeKind::String && rightResult.type == SadTypeKind::String)
+                {
+                    // (AR) كلا المعاملين STRING وكلاهما parameter → حساب مؤشرات (لا دمج)
+                    //      هذا يحدث فقط عندما parameter نوعه مُستنتج كـ STRING لكنه فعلياً pointer
+                    // (EN) Both parameters with STRING type → pointer arithmetic (no concat)
+                    //      This only happens when parameter type is inferred as STRING but is actually a pointer
+                    isStringOp = false;
+                }
+                // (AR) الحالة المتبقية: أحد المعاملين parameter(STRING) والآخر رقمي → لا دمج نصوص (حساب مؤشرات)
+                // (EN) Remaining case: one parameter(STRING) + numeric → no string concat (pointer arithmetic)
+
+                if (isStringOp)
+                {
+                    resultType = SadTypeKind::String;
+                }
+                else if (leftResult.type == SadTypeKind::Float || rightResult.type == SadTypeKind::Float)
+                {
+                    resultType = SadTypeKind::Float;
+                }
+
+                // (AR) تحديد رمز العملية (SIROpcode) بناءً على TokenType (token.h:205-229)
+                // (EN) Determine SIROpcode based on TokenType
+                SIROpcode opcode;
+                bool isComparison = false; // (AR) عمليات المقارنة تُرجع BOOL
+
+                // (AR) العملية من expressions.h:43 - op: Lexer::TokenType
+                // (EN) Operation from expressions.h:43
+                switch (binOp->op)
+                {
+                // ========== العمليات الحسابية (token.h:205-210) ==========
+                case Lexer::TokenType::OP_PLUS:
+                    // (AR) إذا كانت العملية على نصوص: STRING_CONCAT (sir_types.h:182)
+                    // (EN) If operation on strings: STRING_CONCAT
+                    if (isStringOp)
+                    {
+                        opcode = SIROpcode::STRING_CONCAT;
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] buildBinaryOp: عملية دمج نصوص (+)" << std::endl;
+#endif
+                    }
+                    else if (leftIsArray && rightIsArray)
+                    {
+                        // (AR) مصفوفة + مصفوفة → دمج مصفوفات (ARRAY_CONCAT)
+                        // (EN) array + array → array concatenation (ARRAY_CONCAT)
+                        opcode = SIROpcode::ARRAY_CONCAT;
+                        resultType = SadTypeKind::Array;
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] buildBinaryOp: عملية دمج مصفوفات (+)" << std::endl;
+#endif
+                    }
+                    else
+                    {
+                        // (AR) جمع: ADD_I64 للأعداد الصحيحة، ADD_F64 للعشرية
+                        opcode = (resultType == SadTypeKind::Float) ? SIROpcode::ADD_F64 : SIROpcode::ADD_I64;
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] buildBinaryOp: عملية جمع (+)" << std::endl;
+#endif
+                    }
+                    break;
+
+                case Lexer::TokenType::OP_MINUS:
+                    // (AR) طرح: SUB_I64 للأعداد الصحيحة، SUB_F64 للعشرية
+                    opcode = (resultType == SadTypeKind::Float) ? SIROpcode::SUB_F64 : SIROpcode::SUB_I64;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية طرح (-)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_MULTIPLY:
+                    // (AR) ضرب: MUL_I64 للأعداد الصحيحة، MUL_F64 للعشرية
+                    opcode = (resultType == SadTypeKind::Float) ? SIROpcode::MUL_F64 : SIROpcode::MUL_I64;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية ضرب (*)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_DIVIDE:
+                    // (AR) القسمة `/` تُنتج عشري دائماً (حسب مواصفات اللغة)
+                    //      استخدم `//` (FLOOR_DIV) للقسمة الصحيحة
+                    // (EN) Division `/` always produces float (per language spec)
+                    //      Use `//` (FLOOR_DIV) for integer division
+                    opcode = SIROpcode::DIV_F64;
+                    resultType = SadTypeKind::Float;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية قسمة (/) → دائماً F64" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_FLOOR_DIVIDE:
+                    // (AR) قسمة صحيحة أرضية: دائماً I64 (// لا تنتج عشري)
+                    // (EN) Floor division: always I64 (// never produces float)
+                    opcode = SIROpcode::FLOOR_DIV_I64;
+                    resultType = SadTypeKind::Integer;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية قسمة صحيحة (//)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_MODULO:
+                    // (AR) باقي القسمة: MOD_I64 (لا يوجد للعشري)
+                    opcode = SIROpcode::MOD_I64;
+                    resultType = SadTypeKind::Integer; // (AR) باقي القسمة دائماً عدد صحيح
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية باقي القسمة (%)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_POWER:
+                    // (AR) الأس: BUILTIN_POW (sir_types.h:223)
+                    opcode = SIROpcode::BUILTIN_POW;
+                    resultType = SadTypeKind::Float; // (AR) نتيجة الأس عادةً عشرية
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية الأس (**)" << std::endl;
+#endif
+                    break;
+
+                // ========== عمليات المقارنة (token.h:219-224) ==========
+                case Lexer::TokenType::OP_EQUAL:
+                    // (AR) يساوي: EQ للأرقام، STRING_CMP للنصوص (sir_types.h:125, 183)
+                    // (EN) Equal: EQ for numbers, STRING_CMP for strings
+                    if (isStringOp)
+                    {
+                        opcode = SIROpcode::STRING_CMP;
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] buildBinaryOp: عملية مقارنة نصوص (==)" << std::endl;
+#endif
+                    }
+                    else
+                    {
+                        opcode = SIROpcode::EQ;
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] buildBinaryOp: عملية يساوي (==)" << std::endl;
+#endif
+                    }
+                    isComparison = true;
+                    break;
+
+                case Lexer::TokenType::OP_NOT_EQUAL:
+                    // (AR) لا يساوي: NE للأرقام، STRING_CMP مع NOT للنصوص
+                    // (EN) Not equal: NE for numbers, STRING_CMP with NOT for strings
+                    if (isStringOp)
+                    {
+                        // (AR) سيتم معالجة النفي لاحقاً
+                        opcode = SIROpcode::STRING_CMP;
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] buildBinaryOp: عملية عدم تساوي نصوص (!=)" << std::endl;
+#endif
+                    }
+                    else
+                    {
+                        opcode = SIROpcode::NE;
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] buildBinaryOp: عملية لا يساوي (!=)" << std::endl;
+#endif
+                    }
+                    isComparison = true;
+                    break;
+
+                case Lexer::TokenType::OP_LESS:
+                    // (AR) أصغر من: LT (sir_types.h:127)
+                    opcode = SIROpcode::LT;
+                    isComparison = true;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية أصغر من (<)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_LESS_EQUAL:
+                    // (AR) أصغر أو يساوي: LE (sir_types.h:128)
+                    opcode = SIROpcode::LE;
+                    isComparison = true;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية أصغر أو يساوي (<=)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_GREATER:
+                    // (AR) أكبر من: GT (sir_types.h:129)
+                    opcode = SIROpcode::GT;
+                    isComparison = true;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية أكبر من (>)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_GREATER_EQUAL:
+                    // (AR) أكبر أو يساوي: GE (sir_types.h:130)
+                    opcode = SIROpcode::GE;
+                    isComparison = true;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية أكبر أو يساوي (>=)" << std::endl;
+#endif
+                    break;
+
+                // ========== العمليات المنطقية (token.h:227-228) ==========
+                case Lexer::TokenType::OP_AND:
+                    // (AR) AND المنطقي: AND (sir_types.h:118)
+                    opcode = SIROpcode::AND;
+                    isComparison = true; // (AR) النتيجة منطقية
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية AND (&&)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_OR:
+                    // (AR) OR المنطقي: OR (sir_types.h:119)
+                    opcode = SIROpcode::OR;
+                    isComparison = true; // (AR) النتيجة منطقية
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية OR (||)" << std::endl;
+#endif
+                    break;
+
+                // ========== العمليات البتية (token.h) ==========
+                case Lexer::TokenType::OP_XOR:
+                    // (AR) XOR بتّي: Xor (sir_opcodes.h)
+                    opcode = SIROpcode::XOR;
+                    resultType = SadTypeKind::Integer;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية XOR بتي (^)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_BITWISE_AND:
+                    // (AR) AND بتّي: AND
+                    opcode = SIROpcode::AND;
+                    resultType = SadTypeKind::Integer;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية AND بتي (&)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_BITWISE_OR:
+                    // (AR) OR بتّي: OR
+                    opcode = SIROpcode::OR;
+                    resultType = SadTypeKind::Integer;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية OR بتي (|)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_SHIFT_LEFT:
+                    // (AR) إزاحة يسار: Shl
+                    opcode = SIROpcode::SHL;
+                    resultType = SadTypeKind::Integer;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يسار (<<)" << std::endl;
+#endif
+                    break;
+
+                case Lexer::TokenType::OP_SHIFT_RIGHT:
+                    // (AR) إزاحة يمين: Shr
+                    opcode = SIROpcode::SHR;
+                    resultType = SadTypeKind::Integer;
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يمين (>>)" << std::endl;
+#endif
+                    break;
+
+                // ================================================================
+                // (AR) عامل العضوية "في" (IN operator) — دعم شامل
+                //      يدعم ثلاثة أنواع على الجانب الأيمن:
+                //      1. مصفوفة: حلقة بحث خطي inline (5 كتل SIR)
+                //      2. نص:     strstr() عبر BUILTIN_STRING_CONTAINS
+                //      3. خريطة:  __sad_map_has() للبحث في المفاتيح
+                //      يُرجع دائماً قيمة منطقية (Boolean/i64: 1=true, 0=false)
+                // (EN) Membership operator "في" (IN) — comprehensive support
+                //      Supports 3 RHS types: Array (inline loop), String (strstr),
+                //      Map (__sad_map_has). Always returns Boolean.
+                // ================================================================
+                case Lexer::TokenType::KEYWORD_IN:
+                {
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عامل العضوية (في) — نوع الأيمن: "
+                              << static_cast<int>(rightResult.type) << std::endl;
+#endif
+                    // ─────────────────────────────────────────────────────
+                    // (AR) الحالة 1: نص في نص → BUILTIN_STRING_CONTAINS
+                    //      "عالم" في "مرحبا بالعالم" → true
+                    //      يستخدم strstr() الموجودة في LLVM codegen
+                    // (EN) Case 1: String IN String → BUILTIN_STRING_CONTAINS
+                    // ─────────────────────────────────────────────────────
+                    if (rightResult.type == SadTypeKind::String)
+                    {
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] في: نص في نص → BUILTIN_STRING_CONTAINS" << std::endl;
+#endif
+                        std::string containsReg = newTempRegister();
+                        SIRInstruction inst(SIROpcode::BUILTIN_STRING_CONTAINS);
+                        inst.result = SIROperand::Register(containsReg, SadTypeKind::Boolean);
+                        // (AR) المعامل 0 = النص الأصلي (haystack)، المعامل 1 = النص المبحوث عنه (needle)
+                        inst.operands.push_back(SIROperand::Register(rightResult.registerName, SadTypeKind::String));
+                        inst.operands.push_back(SIROperand::Register(leftResult.registerName, SadTypeKind::String));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(inst);
+                        return BuildResult(containsReg, SadTypeKind::Boolean);
+                    }
+
+                    // ─────────────────────────────────────────────────────
+                    // (AR) الحالة 2: مفتاح في خريطة → CALL __sad_map_has
+                    //      "لون" في خريطة → true إذا وُجد المفتاح
+                    //      يستخدم __sad_map_has() الموجودة في LLVM codegen
+                    // (EN) Case 2: Key IN Map → CALL __sad_map_has
+                    // ─────────────────────────────────────────────────────
+                    if (rightResult.type == SadTypeKind::Map)
+                    {
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] في: مفتاح في خريطة → CALL __sad_map_has" << std::endl;
+#endif
+                        std::string hasReg = newTempRegister();
+                        SIRInstruction inst(SIROpcode::CALL);
+                        inst.result = SIROperand::Register(hasReg, SadTypeKind::Boolean);
+                        inst.operands.push_back(SIROperand::Label("__sad_map_has"));
+                        // (AR) المعامل 0 = الخريطة، المعامل 1 = المفتاح (نص)
+                        inst.operands.push_back(SIROperand::Register(rightResult.registerName, SadTypeKind::Map));
+                        inst.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(inst);
+                        return BuildResult(hasReg, SadTypeKind::Boolean);
+                    }
+
+                    // ─────────────────────────────────────────────────────
+                    // (AR) الحالة 3: قيمة في مصفوفة → حلقة بحث خطي inline
+                    //      "أحمر" في ["أحمر"، "أخضر"] → true
+                    //      يُنشئ 5 كتل: cond, body, found, inc, exit
+                    //      يدعم مقارنة نصوص (STRING_CMP) وأرقام (EQ)
+                    // (EN) Case 3: Value IN Array → inline linear search loop
+                    // ─────────────────────────────────────────────────────
+                    // (AR) المعامل الأيسر = القيمة المبحوث عنها، الأيمن = المصفوفة
+                    // (EN) Left = value to search, Right = array
+
+                    // (AR) إنشاء متغير نتيجة منطقي (مبدئياً false)
+                    std::string inResultReg = newTempRegister();
+                    {
+                        SIRInstruction allocResult(SIROpcode::ALLOC);
+                        allocResult.result = SIROperand::Register(inResultReg, SadTypeKind::Boolean);
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(allocResult);
+                    }
+                    {
+                        SIRInstruction storeInit(SIROpcode::STORE);
+                        storeInit.operands.push_back(SIROperand::ConstantBool(false));
+                        storeInit.operands.push_back(SIROperand::Register(inResultReg, SadTypeKind::Boolean));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(storeInit);
+                    }
+
+                    // (AR) إنشاء عداد الفهرس
+                    std::string inIdxReg = newTempRegister();
+                    {
+                        SIRInstruction allocIdx(SIROpcode::ALLOC);
+                        allocIdx.result = SIROperand::Register(inIdxReg, SadTypeKind::Integer);
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(allocIdx);
+                    }
+                    {
+                        SIRInstruction storeZero(SIROpcode::STORE);
+                        storeZero.operands.push_back(SIROperand::ConstantI64(0));
+                        storeZero.operands.push_back(SIROperand::Register(inIdxReg, SadTypeKind::Integer));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(storeZero);
+                    }
+
+                    // (AR) حساب طول المصفوفة
+                    std::string inLenReg = newTempRegister();
+                    {
+                        SIRInstruction lenInst(SIROpcode::ARRAY_LEN);
+                        lenInst.result = SIROperand::Register(inLenReg, SadTypeKind::Integer);
+                        SIROperand arrOp = SIROperand::Register(rightResult.registerName, rightResult.type);
+                        lenInst.operands.push_back(arrOp);
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(lenInst);
+                    }
+
+                    // (AR) إنشاء الكتل الأساسية للحلقة
+                    std::string condLabel = newLabel("in_cond");
+                    std::string bodyLabel = newLabel("in_body");
+                    std::string foundLabel = newLabel("in_found");
+                    std::string incLabel = newLabel("in_inc");
+                    std::string exitLabel = newLabel("in_exit");
+
+                    auto condBlock = createBasicBlock(condLabel);
+                    auto bodyBlock = createBasicBlock(bodyLabel);
+                    auto foundBlock = createBasicBlock(foundLabel);
+                    auto incBlock = createBasicBlock(incLabel);
+                    auto exitBlock = createBasicBlock(exitLabel);
+
+                    // (AR) قفز إلى كتلة الشرط
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(
+                            SIRInstruction::Branch(SIROperand::Label(condLabel)));
+
+                    // (AR) كتلة الشرط: index < length
+                    if (currentFunction_)
+                        currentFunction_->addBasicBlock(condBlock);
+                    currentBlock_ = condBlock;
+
+                    std::string loadedIdx = newTempRegister();
+                    {
+                        SIRInstruction loadIdx(SIROpcode::LOAD);
+                        loadIdx.result = SIROperand::Register(loadedIdx, SadTypeKind::Integer);
+                        loadIdx.operands.push_back(SIROperand::Register(inIdxReg, SadTypeKind::Integer));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(loadIdx);
+                    }
+
+                    std::string inCmpReg = newTempRegister();
+                    {
+                        SIRInstruction cmpInst(SIROpcode::LT);
+                        cmpInst.result = SIROperand::Register(inCmpReg, SadTypeKind::Boolean);
+                        cmpInst.operands.push_back(SIROperand::Register(loadedIdx, SadTypeKind::Integer));
+                        cmpInst.operands.push_back(SIROperand::Register(inLenReg, SadTypeKind::Integer));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(cmpInst);
+                    }
+
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(
+                            SIRInstruction::BranchCond(
+                                SIROperand::Register(inCmpReg, SadTypeKind::Boolean),
+                                SIROperand::Label(bodyLabel),
+                                SIROperand::Label(exitLabel)));
+
+                    // (AR) كتلة الجسم: elem = array[index]; if elem == value → found
+                    if (currentFunction_)
+                        currentFunction_->addBasicBlock(bodyBlock);
+                    currentBlock_ = bodyBlock;
+
+                    // (AR) تحديد نوع العنصر من نوع عناصر المصفوفة أو من نوع المعامل الأيسر
+                    SadTypeKind inElemType = (rightResult.elementType != SadTypeKind::Void)
+                                                 ? rightResult.elementType
+                                                 : leftResult.type;
+
+                    std::string inElemReg = newTempRegister();
+                    {
+                        SIRInstruction getInst(SIROpcode::ARRAY_GET);
+                        getInst.result = SIROperand::Register(inElemReg, inElemType);
+                        getInst.operands.push_back(SIROperand::Register(rightResult.registerName, rightResult.type));
+                        getInst.operands.push_back(SIROperand::Register(loadedIdx, SadTypeKind::Integer));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(getInst);
+                    }
+
+                    // (AR) مقارنة: elem == value — نصوص تستخدم STRING_CMP، أرقام تستخدم EQ
+                    std::string inEqReg = newTempRegister();
+                    if (inElemType == SadTypeKind::String)
+                    {
+                        SIRInstruction cmpStr(SIROpcode::STRING_CMP);
+                        cmpStr.result = SIROperand::Register(inEqReg, SadTypeKind::Boolean);
+                        cmpStr.operands.push_back(SIROperand::Register(inElemReg, SadTypeKind::String));
+                        cmpStr.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(cmpStr);
+                    }
+                    else
+                    {
+                        SIRInstruction eqInst(SIROpcode::EQ);
+                        eqInst.result = SIROperand::Register(inEqReg, SadTypeKind::Boolean);
+                        eqInst.operands.push_back(SIROperand::Register(inElemReg, inElemType));
+                        eqInst.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(eqInst);
+                    }
+
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(
+                            SIRInstruction::BranchCond(
+                                SIROperand::Register(inEqReg, SadTypeKind::Boolean),
+                                SIROperand::Label(foundLabel),
+                                SIROperand::Label(incLabel)));
+
+                    // (AR) كتلة الوجود: result = true → exit
+                    if (currentFunction_)
+                        currentFunction_->addBasicBlock(foundBlock);
+                    currentBlock_ = foundBlock;
+                    {
+                        SIRInstruction storeTrue(SIROpcode::STORE);
+                        storeTrue.operands.push_back(SIROperand::ConstantBool(true));
+                        storeTrue.operands.push_back(SIROperand::Register(inResultReg, SadTypeKind::Boolean));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(storeTrue);
+                    }
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(
+                            SIRInstruction::Branch(SIROperand::Label(exitLabel)));
+
+                    // (AR) كتلة الزيادة: index++ → cond
+                    if (currentFunction_)
+                        currentFunction_->addBasicBlock(incBlock);
+                    currentBlock_ = incBlock;
+                    {
+                        std::string incReg = newTempRegister();
+                        SIRInstruction addInst(SIROpcode::ADD_I64);
+                        addInst.result = SIROperand::Register(incReg, SadTypeKind::Integer);
+                        addInst.operands.push_back(SIROperand::Register(loadedIdx, SadTypeKind::Integer));
+                        addInst.operands.push_back(SIROperand::ConstantI64(1));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(addInst);
+
+                        SIRInstruction storeInc(SIROpcode::STORE);
+                        storeInc.operands.push_back(SIROperand::Register(incReg, SadTypeKind::Integer));
+                        storeInc.operands.push_back(SIROperand::Register(inIdxReg, SadTypeKind::Integer));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(storeInc);
+                    }
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(
+                            SIRInstruction::Branch(SIROperand::Label(condLabel)));
+
+                    // (AR) كتلة الخروج: تحميل النتيجة النهائية
+                    if (currentFunction_)
+                        currentFunction_->addBasicBlock(exitBlock);
+                    currentBlock_ = exitBlock;
+
+                    std::string inLoadResult = newTempRegister();
+                    {
+                        SIRInstruction loadRes(SIROpcode::LOAD);
+                        loadRes.result = SIROperand::Register(inLoadResult, SadTypeKind::Boolean);
+                        loadRes.operands.push_back(SIROperand::Register(inResultReg, SadTypeKind::Boolean));
+                        if (currentBlock_)
+                            currentBlock_->instructions.push_back(loadRes);
+                    }
+
+                    return BuildResult(inLoadResult, SadTypeKind::Boolean);
+                }
+
+                default:
+// (AR) عملية غير مدعومة
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: عملية غير مدعومة: "
+                              << static_cast<int>(binOp->op) << std::endl;
+#endif
+                    errors_.push_back("عملية ثنائية غير مدعومة / Unsupported binary operation");
+                    return BuildResult(resultReg, resultType);
+                }
+
+                // (AR) نوع النتيجة للمقارنات هو BOOL
+                // (EN) Result type for comparisons is BOOL
+                if (isComparison)
+                {
+                    resultType = SadTypeKind::Boolean;
+                }
+
+                // (AR) إنشاء معاملات SIR (sir_types.h:306-312 - SIROperand::Register)
+                // (EN) Create SIR operands
+                SIROperand leftOp, rightOp, resultOp;
+
+                // (AR) المعامل الأيسر
+                if (leftResult.isConstant)
+                {
+                    // (AR) قيمة ثابتة - استخدم ConstantI64/ConstantF64/ConstantString/ConstantBool
+                    if (leftResult.type == SadTypeKind::String)
+                    {
+                        leftOp = SIROperand::ConstantString(leftResult.constantValue);
+                    }
+                    else if (leftResult.type == SadTypeKind::Float)
+                    {
+                        leftOp = SIROperand::ConstantF64(std::stod(leftResult.constantValue));
+                    }
+                    else if (leftResult.type == SadTypeKind::Boolean)
+                    {
+                        leftOp = SIROperand::ConstantBool(leftResult.constantValue == "true");
+                    }
+                    else if (leftResult.type == SadTypeKind::Pointer)
+                    {
+                        // (AR) لاشيء/null → عدد صحيح بقيمة 0
+                        leftOp = SIROperand::ConstantI64(0);
+                        leftOp.dataType = SadTypeKind::Integer;
+                    }
+                    else
+                    {
+                        leftOp = SIROperand::ConstantI64(std::stoll(leftResult.constantValue));
+                    }
+                }
+                else
+                {
+                    // (AR) سجل - استخدم Register
+                    leftOp = SIROperand::Register(leftResult.registerName, leftResult.type);
+                }
+
+                // (AR) المعامل الأيمن
+                if (rightResult.isConstant)
+                {
+                    if (rightResult.type == SadTypeKind::String)
+                    {
+                        rightOp = SIROperand::ConstantString(rightResult.constantValue);
+                    }
+                    else if (rightResult.type == SadTypeKind::Float)
+                    {
+                        rightOp = SIROperand::ConstantF64(std::stod(rightResult.constantValue));
+                    }
+                    else if (rightResult.type == SadTypeKind::Boolean)
+                    {
+                        rightOp = SIROperand::ConstantBool(rightResult.constantValue == "true");
+                    }
+                    else if (rightResult.type == SadTypeKind::Pointer)
+                    {
+                        // (AR) لاشيء/null → عدد صحيح بقيمة 0
+                        rightOp = SIROperand::ConstantI64(0);
+                        rightOp.dataType = SadTypeKind::Integer;
+                    }
+                    else
+                    {
+                        rightOp = SIROperand::ConstantI64(std::stoll(rightResult.constantValue));
+                    }
+                }
+                else
+                {
+                    rightOp = SIROperand::Register(rightResult.registerName, rightResult.type);
+                }
+
+                // (AR) سجل النتيجة
+                resultOp = SIROperand::Register(resultReg, resultType);
+
+                // (AR) تحويل i64 إلى f64 إذا كانت العملية عشرية ولكن أحد المعاملين صحيح
+                // (EN) Convert i64 to f64 if operation is float but one operand is integer
+                if (resultType == SadTypeKind::Float)
+                {
+                    if (leftOp.dataType == SadTypeKind::Integer && !leftResult.isConstant)
+                    {
+                        std::string convReg = newTempRegister();
+                        SIRInstruction convInst;
+                        convInst.opcode = SIROpcode::I64_TO_F64;
+                        convInst.result = SIROperand::Register(convReg, SadTypeKind::Float);
+                        convInst.operands.push_back(leftOp);
+                        if (currentBlock_)
+                            currentBlock_->addInstruction(convInst);
+                        leftOp = SIROperand::Register(convReg, SadTypeKind::Float);
+                    }
+                    else if (leftResult.isConstant && leftResult.type == SadTypeKind::Integer)
+                    {
+                        double val = std::stod(leftResult.constantValue);
+                        leftOp = SIROperand::ConstantF64(val);
+                    }
+                    if (rightOp.dataType == SadTypeKind::Integer && !rightResult.isConstant)
+                    {
+                        std::string convReg = newTempRegister();
+                        SIRInstruction convInst;
+                        convInst.opcode = SIROpcode::I64_TO_F64;
+                        convInst.result = SIROperand::Register(convReg, SadTypeKind::Float);
+                        convInst.operands.push_back(rightOp);
+                        if (currentBlock_)
+                            currentBlock_->addInstruction(convInst);
+                        rightOp = SIROperand::Register(convReg, SadTypeKind::Float);
+                    }
+                    else if (rightResult.isConstant && rightResult.type == SadTypeKind::Integer)
+                    {
+                        double val = std::stod(rightResult.constantValue);
+                        rightOp = SIROperand::ConstantF64(val);
+                    }
+                }
+
+                // (AR) إنشاء تعليمة SIR (sir_instruction.h:100-107 - SIRInstruction::Binary)
+                // (EN) Create SIR instruction
+                SIRInstruction inst = SIRInstruction::Binary(opcode, resultOp, leftOp, rightOp);
+
+                // (AR) إضافة التعليمة للكتلة الحالية
+                // (EN) Add instruction to current block
+                if (currentBlock_)
+                {
+                    currentBlock_->addInstruction(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: تمت إضافة التعليمة للكتلة الحالية" << std::endl;
+#endif
+                }
+                else
+                {
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] buildBinaryOp: تحذير - لا توجد كتلة حالية!" << std::endl;
+#endif
+                }
+
+                // (AR) إصلاح: عند مقارنة نصوص بـ != يجب نفي نتيجة STRING_CMP
+                //      STRING_CMP تُرجع true إذا متساويين، لذا != تحتاج NOT
+                // (EN) Fix: For string != comparison, negate STRING_CMP result
+                //      STRING_CMP returns true if equal, so != needs NOT
+                if (opcode == SIROpcode::STRING_CMP && binOp->op == Lexer::TokenType::OP_NOT_EQUAL)
+                {
+                    std::string negReg = newTempRegister();
+                    SIRInstruction notInst;
+                    notInst.opcode = SIROpcode::NOT;
+                    notInst.result = SIROperand::Register(negReg, SadTypeKind::Boolean);
+                    notInst.operands.push_back(SIROperand::Register(resultReg, SadTypeKind::Boolean));
+                    if (currentBlock_)
+                        currentBlock_->addInstruction(notInst);
+                    resultReg = negReg;
+                    resultType = SadTypeKind::Boolean;
+                }
+
+#ifndef NDEBUG
+                std::cout << "[DEBUG] buildBinaryOp: النتيجة في سجل " << resultReg
+                          << " بنوع " << static_cast<int>(resultType) << std::endl;
+#endif
+
+                return BuildResult(resultReg, resultType);
             }
-        }
-    }
-    
-    // (AR) إنشاء سجل للنتيجة (sir_builder.h:511 - newTempRegister)
-    // (EN) Create result register
-    std::string resultReg = newTempRegister();
-    
-    // (AR) تحديد نوع النتيجة - إذا كان أحد المعاملين عشري، النتيجة عشرية
-    // (EN) Determine result type - if either operand is float, result is float
-    // (AR) إذا كان أحد المعاملين نصي، النتيجة نصية (دمج نصوص)
-    // (EN) If either operand is string, result is string (concatenation)
-    SIRType resultType = leftResult.type;
-    bool isStringOp = (leftResult.type == SIRType::STRING || rightResult.type == SIRType::STRING);
-    
-    if (isStringOp) {
-        resultType = SIRType::STRING;
-    } else if (leftResult.type == SIRType::F64 || rightResult.type == SIRType::F64) {
-        resultType = SIRType::F64;
-    }
-    
-    // (AR) تحديد رمز العملية (SIROpcode) بناءً على TokenType (token.h:205-229)
-    // (EN) Determine SIROpcode based on TokenType
-    SIROpcode opcode;
-    bool isComparison = false;  // (AR) عمليات المقارنة تُرجع BOOL
-    
-    // (AR) العملية من expressions.h:43 - op: Lexer::TokenType
-    // (EN) Operation from expressions.h:43
-    switch (binOp->op) {
-        // ========== العمليات الحسابية (token.h:205-210) ==========
-        case Lexer::TokenType::OP_PLUS:
-            // (AR) إذا كانت العملية على نصوص: STRING_CONCAT (sir_types.h:182)
-            // (EN) If operation on strings: STRING_CONCAT
-            if (isStringOp) {
-                opcode = SIROpcode::STRING_CONCAT;
-                #ifndef NDEBUG
-                std::cout << "[DEBUG] buildBinaryOp: عملية دمج نصوص (+)" << std::endl;
-                #endif
-            } else {
-                // (AR) جمع: ADD_I64 للأعداد الصحيحة، ADD_F64 للعشرية
-                opcode = (resultType == SIRType::F64) ? SIROpcode::ADD_F64 : SIROpcode::ADD_I64;
-                #ifndef NDEBUG
-                std::cout << "[DEBUG] buildBinaryOp: عملية جمع (+)" << std::endl;
-                #endif
-            }
-            break;
-            
-        case Lexer::TokenType::OP_MINUS:
-            // (AR) طرح: SUB_I64 للأعداد الصحيحة، SUB_F64 للعشرية
-            opcode = (resultType == SIRType::F64) ? SIROpcode::SUB_F64 : SIROpcode::SUB_I64;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية طرح (-)" << std::endl;
-            #endif
-            break;
-            
-        case Lexer::TokenType::OP_MULTIPLY:
-            // (AR) ضرب: MUL_I64 للأعداد الصحيحة، MUL_F64 للعشرية
-            opcode = (resultType == SIRType::F64) ? SIROpcode::MUL_F64 : SIROpcode::MUL_I64;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية ضرب (*)" << std::endl;
-            #endif
-            break;
-            
-        case Lexer::TokenType::OP_DIVIDE:
-            // (AR) قسمة: DIV_I64 للأعداد الصحيحة، DIV_F64 للعشرية
-            opcode = (resultType == SIRType::F64) ? SIROpcode::DIV_F64 : SIROpcode::DIV_I64;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية قسمة (/)" << std::endl;
-            #endif
-            break;
-            
-        case Lexer::TokenType::OP_MODULO:
-            // (AR) باقي القسمة: MOD_I64 (لا يوجد للعشري)
-            opcode = SIROpcode::MOD_I64;
-            resultType = SIRType::I64;  // (AR) باقي القسمة دائماً عدد صحيح
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية باقي القسمة (%)" << std::endl;
-            #endif
-            break;
-            
-        case Lexer::TokenType::OP_POWER:
-            // (AR) الأس: BUILTIN_POW (sir_types.h:223)
-            opcode = SIROpcode::BUILTIN_POW;
-            resultType = SIRType::F64;  // (AR) نتيجة الأس عادةً عشرية
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية الأس (**)" << std::endl;
-            #endif
-            break;
-        
-        // ========== عمليات المقارنة (token.h:219-224) ==========
-        case Lexer::TokenType::OP_EQUAL:
-            // (AR) يساوي: EQ للأرقام، STRING_CMP للنصوص (sir_types.h:125, 183)
-            // (EN) Equal: EQ for numbers, STRING_CMP for strings
-            if (isStringOp) {
-                opcode = SIROpcode::STRING_CMP;
-                #ifndef NDEBUG
-                std::cout << "[DEBUG] buildBinaryOp: عملية مقارنة نصوص (==)" << std::endl;
-                #endif
-            } else {
-                opcode = SIROpcode::EQ;
-                #ifndef NDEBUG
-                std::cout << "[DEBUG] buildBinaryOp: عملية يساوي (==)" << std::endl;
-                #endif
-            }
-            isComparison = true;
-            break;
-            
-        case Lexer::TokenType::OP_NOT_EQUAL:
-            // (AR) لا يساوي: NE للأرقام، STRING_CMP مع NOT للنصوص
-            // (EN) Not equal: NE for numbers, STRING_CMP with NOT for strings
-            if (isStringOp) {
-                // (AR) سيتم معالجة النفي لاحقاً
-                opcode = SIROpcode::STRING_CMP;
-                #ifndef NDEBUG
-                std::cout << "[DEBUG] buildBinaryOp: عملية عدم تساوي نصوص (!=)" << std::endl;
-                #endif
-            } else {
-                opcode = SIROpcode::NE;
-                #ifndef NDEBUG
-                std::cout << "[DEBUG] buildBinaryOp: عملية لا يساوي (!=)" << std::endl;
-                #endif
-            }
-            isComparison = true;
-            break;
-            
-        case Lexer::TokenType::OP_LESS:
-            // (AR) أصغر من: LT (sir_types.h:127)
-            opcode = SIROpcode::LT;
-            isComparison = true;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية أصغر من (<)" << std::endl;
-            #endif
-            break;
-            
-        case Lexer::TokenType::OP_LESS_EQUAL:
-            // (AR) أصغر أو يساوي: LE (sir_types.h:128)
-            opcode = SIROpcode::LE;
-            isComparison = true;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية أصغر أو يساوي (<=)" << std::endl;
-            #endif
-            break;
-            
-        case Lexer::TokenType::OP_GREATER:
-            // (AR) أكبر من: GT (sir_types.h:129)
-            opcode = SIROpcode::GT;
-            isComparison = true;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية أكبر من (>)" << std::endl;
-            #endif
-            break;
-            
-        case Lexer::TokenType::OP_GREATER_EQUAL:
-            // (AR) أكبر أو يساوي: GE (sir_types.h:130)
-            opcode = SIROpcode::GE;
-            isComparison = true;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية أكبر أو يساوي (>=)" << std::endl;
-            #endif
-            break;
-        
-        // ========== العمليات المنطقية (token.h:227-228) ==========
-        case Lexer::TokenType::OP_AND:
-            // (AR) AND المنطقي: AND (sir_types.h:118)
-            opcode = SIROpcode::AND;
-            isComparison = true;  // (AR) النتيجة منطقية
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية AND (&&)" << std::endl;
-            #endif
-            break;
-            
-        case Lexer::TokenType::OP_OR:
-            // (AR) OR المنطقي: OR (sir_types.h:119)
-            opcode = SIROpcode::OR;
-            isComparison = true;  // (AR) النتيجة منطقية
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية OR (||)" << std::endl;
-            #endif
-            break;
 
-        // ========== العمليات البتية (token.h) ==========
-        case Lexer::TokenType::OP_XOR:
-            // (AR) XOR بتّي: Xor (sir_opcodes.h)
-            opcode = SIROpcode::XOR;
-            resultType = SIRType::I64;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية XOR بتي (^)" << std::endl;
-            #endif
-            break;
-
-        case Lexer::TokenType::OP_BITWISE_AND:
-            // (AR) AND بتّي: AND
-            opcode = SIROpcode::AND;
-            resultType = SIRType::I64;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية AND بتي (&)" << std::endl;
-            #endif
-            break;
-
-        case Lexer::TokenType::OP_BITWISE_OR:
-            // (AR) OR بتّي: OR
-            opcode = SIROpcode::OR;
-            resultType = SIRType::I64;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية OR بتي (|)" << std::endl;
-            #endif
-            break;
-
-        case Lexer::TokenType::OP_SHIFT_LEFT:
-            // (AR) إزاحة يسار: Shl
-            opcode = SIROpcode::SHL;
-            resultType = SIRType::I64;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يسار (<<)" << std::endl;
-            #endif
-            break;
-
-        case Lexer::TokenType::OP_SHIFT_RIGHT:
-            // (AR) إزاحة يمين: Shr
-            opcode = SIROpcode::SHR;
-            resultType = SIRType::I64;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يمين (>>)" << std::endl;
-            #endif
-            break;
-            
-        default:
-            // (AR) عملية غير مدعومة
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildBinaryOp: عملية غير مدعومة: " 
-                      << static_cast<int>(binOp->op) << std::endl;
-            #endif
-            errors_.push_back("عملية ثنائية غير مدعومة / Unsupported binary operation");
-            return BuildResult(resultReg, resultType);
-    }
-    
-    // (AR) نوع النتيجة للمقارنات هو BOOL
-    // (EN) Result type for comparisons is BOOL
-    if (isComparison) {
-        resultType = SIRType::BOOL;
-    }
-    
-    // (AR) إنشاء معاملات SIR (sir_types.h:306-312 - SIROperand::Register)
-    // (EN) Create SIR operands
-    SIROperand leftOp, rightOp, resultOp;
-    
-    // (AR) المعامل الأيسر
-    if (leftResult.isConstant) {
-        // (AR) قيمة ثابتة - استخدم ConstantI64/ConstantF64/ConstantString/ConstantBool
-        if (leftResult.type == SIRType::STRING) {
-            leftOp = SIROperand::ConstantString(leftResult.constantValue);
-        } else if (leftResult.type == SIRType::F64) {
-            leftOp = SIROperand::ConstantF64(std::stod(leftResult.constantValue));
-        } else if (leftResult.type == SIRType::BOOL) {
-            leftOp = SIROperand::ConstantBool(leftResult.constantValue == "true");
-        } else if (leftResult.type == SIRType::PTR) {
-            // (AR) لاشيء/null → مؤشر فارغ
-            leftOp = SIROperand::ConstantI64(0);
-            leftOp.dataType = SIRType::PTR;
-        } else {
-            leftOp = SIROperand::ConstantI64(std::stoll(leftResult.constantValue));
-        }
-    } else {
-        // (AR) سجل - استخدم Register
-        leftOp = SIROperand::Register(leftResult.registerName, leftResult.type);
-    }
-    
-    // (AR) المعامل الأيمن
-    if (rightResult.isConstant) {
-        if (rightResult.type == SIRType::STRING) {
-            rightOp = SIROperand::ConstantString(rightResult.constantValue);
-        } else if (rightResult.type == SIRType::F64) {
-            rightOp = SIROperand::ConstantF64(std::stod(rightResult.constantValue));
-        } else if (rightResult.type == SIRType::BOOL) {
-            rightOp = SIROperand::ConstantBool(rightResult.constantValue == "true");
-        } else if (rightResult.type == SIRType::PTR) {
-            // (AR) لاشيء/null → مؤشر فارغ
-            rightOp = SIROperand::ConstantI64(0);
-            rightOp.dataType = SIRType::PTR;
-        } else {
-            rightOp = SIROperand::ConstantI64(std::stoll(rightResult.constantValue));
-        }
-    } else {
-        rightOp = SIROperand::Register(rightResult.registerName, rightResult.type);
-    }
-    
-    // (AR) سجل النتيجة
-    resultOp = SIROperand::Register(resultReg, resultType);
-    
-    // (AR) تحويل i64 إلى f64 إذا كانت العملية عشرية ولكن أحد المعاملين صحيح
-    // (EN) Convert i64 to f64 if operation is float but one operand is integer
-    if (resultType == SIRType::F64) {
-        if (leftOp.dataType == SIRType::I64 && !leftResult.isConstant) {
-            std::string convReg = newTempRegister();
-            SIRInstruction convInst;
-            convInst.opcode = SIROpcode::I64_TO_F64;
-            convInst.result = SIROperand::Register(convReg, SIRType::F64);
-            convInst.operands.push_back(leftOp);
-            if (currentBlock_) currentBlock_->addInstruction(convInst);
-            leftOp = SIROperand::Register(convReg, SIRType::F64);
-        } else if (leftResult.isConstant && leftResult.type == SIRType::I64) {
-            double val = std::stod(leftResult.constantValue);
-            leftOp = SIROperand::ConstantF64(val);
-        }
-        if (rightOp.dataType == SIRType::I64 && !rightResult.isConstant) {
-            std::string convReg = newTempRegister();
-            SIRInstruction convInst;
-            convInst.opcode = SIROpcode::I64_TO_F64;
-            convInst.result = SIROperand::Register(convReg, SIRType::F64);
-            convInst.operands.push_back(rightOp);
-            if (currentBlock_) currentBlock_->addInstruction(convInst);
-            rightOp = SIROperand::Register(convReg, SIRType::F64);
-        } else if (rightResult.isConstant && rightResult.type == SIRType::I64) {
-            double val = std::stod(rightResult.constantValue);
-            rightOp = SIROperand::ConstantF64(val);
-        }
-    }
-    
-    // (AR) إنشاء تعليمة SIR (sir_instruction.h:100-107 - SIRInstruction::Binary)
-    // (EN) Create SIR instruction
-    SIRInstruction inst = SIRInstruction::Binary(opcode, resultOp, leftOp, rightOp);
-    
-    // (AR) إضافة التعليمة للكتلة الحالية
-    // (EN) Add instruction to current block
-    if (currentBlock_) {
-        currentBlock_->addInstruction(inst);
-        #ifndef NDEBUG
-        std::cout << "[DEBUG] buildBinaryOp: تمت إضافة التعليمة للكتلة الحالية" << std::endl;
-        #endif
-    } else {
-        #ifndef NDEBUG
-        std::cout << "[DEBUG] buildBinaryOp: تحذير - لا توجد كتلة حالية!" << std::endl;
-        #endif
-    }
-    
-    #ifndef NDEBUG
-    std::cout << "[DEBUG] buildBinaryOp: النتيجة في سجل " << resultReg 
-              << " بنوع " << static_cast<int>(resultType) << std::endl;
-    #endif
-    
-    return BuildResult(resultReg, resultType);
-}
-
-// ============================================================================
-// buildUnaryOp - بناء عملية أحادية
-// ============================================================================
-// مصدر التعريف / Source: sir_builder.h:456
-// التوقيع / Signature: BuildResult buildUnaryOp(AST::UnaryOpNode* unaryOp);
-//
-// المعاملات / Parameters:
-// - unaryOp: AST::UnaryOpNode* = Sad::AST::UnaryExpr* (sir_builder.h:67)
-//
-// UnaryExpr Members (expressions.h:78-81):
-// - op: Lexer::TokenType (line 80)
-// - operand: ExprPtr (line 81)
-//
-// TokenType للعمليات الأحادية (token.h):
-// - OP_MINUS (206): السالب
-// - OP_NOT (229): النفي المنطقي
-//
-// SIROpcode (sir_types.h):
-// - NEG (115): السالب
-// - NOT (121): النفي
-//
-// SIRInstruction::Unary (sir_instruction.h:114-120):
-// - الاستخدام: SIRInstruction::Unary(opcode, result, operand)
-// ============================================================================
-BuildResult SIRBuilder::buildUnaryOp(AST::UnaryOpNode* unaryOp) {
-    if (!unaryOp) {
-        return BuildResult();
-    }
-    
-    #ifndef NDEBUG
-    std::cout << "[DEBUG] buildUnaryOp: بدء بناء عملية أحادية" << std::endl;
-    #endif
-    
-    // (AR) بناء المعامل (expressions.h:81 - operand: ExprPtr)
-    // (EN) Build operand
-    auto operandResult = buildExpression(unaryOp->operand.get());
-    #ifndef NDEBUG
-    std::cout << "[DEBUG] buildUnaryOp: operandResult.registerName='" << operandResult.registerName 
-              << "', type=" << static_cast<int>(operandResult.type) << std::endl;
-    #endif
-    
-    // (AR) إنشاء سجل للنتيجة (sir_builder.h:511 - newTempRegister)
-    // (EN) Create result register
-    std::string resultReg = newTempRegister();
-    
-    // (AR) تحديد نوع النتيجة
-    // (EN) Determine result type
-    SIRType resultType = operandResult.type;
-    
-    // (AR) تحديد رمز العملية (SIROpcode) بناءً على TokenType
-    // (EN) Determine SIROpcode based on TokenType
-    SIROpcode opcode;
-    
-    // (AR) العملية من expressions.h:80 - op: Lexer::TokenType
-    switch (unaryOp->op) {
-        case Lexer::TokenType::OP_MINUS:
-            // (AR) السالب: NEG (sir_types.h:115)
-            opcode = SIROpcode::NEG;
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildUnaryOp: عملية السالب (-)" << std::endl;
-            #endif
-            break;
-            
-        case Lexer::TokenType::OP_NOT:
-            // (AR) النفي المنطقي: NOT (sir_types.h:121)
-            opcode = SIROpcode::NOT;
-            resultType = SIRType::BOOL;  // (AR) النفي يُرجع قيمة منطقية
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildUnaryOp: عملية النفي (!)" << std::endl;
-            #endif
-            break;
-            
-        case Lexer::TokenType::OP_BITWISE_NOT:
-            // (AR) النفي البتّي: NOT (sir_types.h:134)
-            opcode = SIROpcode::NOT;
-            // (AR) النتيجة بنفس نوع المعامل (عدد صحيح)
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildUnaryOp: عملية النفي البتّي (~)" << std::endl;
-            #endif
-            break;
-            
-        default:
-            // (AR) عملية غير مدعومة
-            #ifndef NDEBUG
-            std::cout << "[DEBUG] buildUnaryOp: عملية غير مدعومة: " 
-                      << static_cast<int>(unaryOp->op) << std::endl;
-            #endif
-            errors_.push_back("عملية أحادية غير مدعومة / Unsupported unary operation");
-            return BuildResult(resultReg, resultType);
-    }
-    
-    // (AR) إنشاء معاملات SIR
-    // (EN) Create SIR operands
-    SIROperand operandOp, resultOp;
-    
-    // (AR) المعامل
-    if (operandResult.isConstant) {
-        if (operandResult.type == SIRType::F64) {
-            operandOp = SIROperand::ConstantF64(std::stod(operandResult.constantValue));
-        } else if (operandResult.type == SIRType::BOOL) {
-            operandOp = SIROperand::ConstantBool(operandResult.constantValue == "true" || operandResult.constantValue == "صحيح");
-        } else {
-            operandOp = SIROperand::ConstantI64(std::stoll(operandResult.constantValue));
-        }
-    } else {
-        operandOp = SIROperand::Register(operandResult.registerName, operandResult.type);
-    }
-    
-    // (AR) سجل النتيجة
-    resultOp = SIROperand::Register(resultReg, resultType);
-    
-    // (AR) إنشاء تعليمة SIR (sir_instruction.h:114-120 - SIRInstruction::Unary)
-    // (EN) Create SIR instruction
-    SIRInstruction inst = SIRInstruction::Unary(opcode, resultOp, operandOp);
-    
-    // (AR) إضافة التعليمة للكتلة الحالية
-    // (EN) Add instruction to current block
-    if (currentBlock_) {
-        currentBlock_->addInstruction(inst);
-        #ifndef NDEBUG
-        std::cout << "[DEBUG] buildUnaryOp: تمت إضافة التعليمة للكتلة الحالية" << std::endl;
-        #endif
-    } else {
-        #ifndef NDEBUG
-        std::cout << "[DEBUG] buildUnaryOp: تحذير - لا توجد كتلة حالية!" << std::endl;
-        #endif
-    }
-    
-    #ifndef NDEBUG
-    std::cout << "[DEBUG] buildUnaryOp: النتيجة في سجل " << resultReg << std::endl;
-    #endif
-    
-    return BuildResult(resultReg, resultType);
-}
-
-} // namespace SIR
-} // namespace Compiler
+            // ============================================================================
+            // buildUnaryOp - بناء عملية أحادية
+            // ============================================================================
+            // مصدر التعريف / Source: sir_builder.h:456
+            // التوقيع / Signature: BuildResult buildUnaryOp(AST::UnaryOpNode* unaryOp);
+            //
+            // المعاملات / Parameters:
+            // - unaryOp: AST::UnaryOpNode* = Sad::AST::UnaryExpr* (sir_builder.h:67)
+            //
+            // UnaryExpr Members (expressions.h:78-81):
+            // - op: Lexer::TokenType (line 80)
+            // - operand: ExprPtr (line 81)
+            //
+            // TokenType للعمليات الأحادية (token.h):
+            // - OP_MINUS (206): السالب
+            // - OP_NOT (229): النفي المنطقي
+            //
+            // SIROpcode (sir_types.h):
+            // - NEG (115): السالب
+            // - NOT (121): النفي
+            //
+            // SIRInstruction::Unary (sir_instruction.h:114-120):
+            // - الاستخدام: SIRInstruction::Unary(opcode, result, operand)
+            // ============================================================================
+        } // namespace SIR
+    } // namespace Compiler
 } // namespace Sad

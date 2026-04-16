@@ -165,6 +165,27 @@ public:
     }
 
     /**
+     * @brief طلب HTTP عام (GET, POST, PUT, DELETE, PATCH...)
+     * @param method الطريقة (GET, POST, DELETE, ...)
+     * @param url العنوان الكامل
+     * @param body محتوى الطلب (فارغ لطلبات بدون جسم)
+     * @param headers رؤوس HTTP إضافية
+     * @return استجابة HTTP
+     */
+    Response request(const std::string& method,
+                     const std::string& url,
+                     const std::string& body = "",
+                     const std::vector<std::pair<std::string, std::string>>& headers = {}) {
+        std::map<std::string, std::string> hdr_map;
+        for (const auto& [k, v] : headers) hdr_map[k] = v;
+#ifdef _WIN32
+        return winhttp_request(method, url, body, hdr_map);
+#else
+        return curl_cli_request(method, url, body, hdr_map);
+#endif
+    }
+
+    /**
      * @brief تنزيل ملف
      * @param url عنوان التنزيل
      * @param dest_path مسار الملف الهدف
@@ -189,16 +210,18 @@ public:
      * @param file_path مسار الملف
      * @param field_name اسم الحقل
      * @param auth_token رمز المصادقة
+     * @param extra_fields حقول إضافية (اسم → قيمة) ترسل مع الملف
      * @return استجابة HTTP
      */
     Response upload_file(const std::string& url,
                          const std::filesystem::path& file_path,
                          const std::string& field_name = "package",
-                         const std::string& auth_token = "") {
+                         const std::string& auth_token = "",
+                         const std::vector<std::pair<std::string, std::string>>& extra_fields = {}) {
 #ifdef _WIN32
-        return winhttp_upload(url, file_path, field_name, auth_token);
+        return winhttp_upload(url, file_path, field_name, auth_token, extra_fields);
 #else
-        return curl_cli_upload(url, file_path, field_name, auth_token);
+        return curl_cli_upload(url, file_path, field_name, auth_token, extra_fields);
 #endif
     }
 
@@ -452,7 +475,8 @@ private:
     Response winhttp_upload(const std::string& url,
                             const std::filesystem::path& file_path,
                             const std::string& field_name,
-                            const std::string& auth_token) {
+                            const std::string& auth_token,
+                            const std::vector<std::pair<std::string, std::string>>& extra_fields = {}) {
         // قراءة محتوى الملف
         std::ifstream file(file_path, std::ios::binary);
         if (!file.is_open()) {
@@ -469,6 +493,15 @@ private:
         std::string filename = file_path.filename().string();
 
         std::string multipart_body;
+
+        // حقول إضافية (مثل metadata)
+        for (const auto& [key, value] : extra_fields) {
+            multipart_body += "--" + boundary + "\r\n";
+            multipart_body += "Content-Disposition: form-data; name=\"" + key + "\"\r\n\r\n";
+            multipart_body += value + "\r\n";
+        }
+
+        // حقل الملف
         multipart_body += "--" + boundary + "\r\n";
         multipart_body += "Content-Disposition: form-data; name=\"" + field_name +
                           "\"; filename=\"" + filename + "\"\r\n";
@@ -559,8 +592,12 @@ private:
     Response curl_cli_upload(const std::string& url,
                              const std::filesystem::path& file_path,
                              const std::string& field_name,
-                             const std::string& auth_token) {
+                             const std::string& auth_token,
+                             const std::vector<std::pair<std::string, std::string>>& extra_fields = {}) {
         std::string cmd = "curl -s -w '\\n%{http_code}'";
+        for (const auto& [key, value] : extra_fields) {
+            cmd += " -F '" + key + "=" + value + "'";
+        }
         cmd += " -F '" + field_name + "=@" + file_path.string() + "'";
         if (!auth_token.empty()) {
             cmd += " -H 'Authorization: Bearer " + auth_token + "'";

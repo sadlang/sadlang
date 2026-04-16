@@ -15,6 +15,22 @@
 namespace sad {
 namespace wasm {
 
+// Helper: convert DataType enum to string for WASM type mapping
+static std::string dataTypeToStr(Sad::Data::DataType type) {
+    using DT = Sad::Data::DataType;
+    switch (type) {
+        case DT::INTEGER:  return "رقم";
+        case DT::FLOAT:    return "عشري";
+        case DT::STRING:   return "نص";
+        case DT::BOOLEAN:  return "منطقي";
+        case DT::NONE:     return "فراغ";
+        case DT::ARRAY:    return "مصفوفة";
+        case DT::MAP:      return "خريطة";
+        case DT::OBJECT:   return "كائن";
+        default:           return "أي";
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  الدوال القياسية المستوردة من JavaScript
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -327,20 +343,24 @@ void WasmASTVisitor::addError(const std::string& msg) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void WasmASTVisitor::visitLiteralExpr(Sad::AST::LiteralExpr& expr) {
-    const auto& val = expr.getValue();
+    const auto& tok = expr.token;
+    const std::string& val = tok.getValue();
+    auto tokType = tok.getType();
     
-    if (val.isNumber()) {
+    if (tokType == Sad::Lexer::TokenType::NUMBER_INTEGER) {
         // عدد صحيح
-        emit("i32.const " + std::to_string(static_cast<int>(val.asNumber())));
-    } else if (val.isDouble()) {
+        emit("i32.const " + val);
+    } else if (tokType == Sad::Lexer::TokenType::NUMBER_DOUBLE) {
         // عدد عشري
-        emit("f64.const " + std::to_string(val.asDouble()));
-    } else if (val.isString()) {
+        emit("f64.const " + val);
+    } else if (tokType == Sad::Lexer::TokenType::STRING_LITERAL) {
         // نص → إضافة للبيانات وإرجاع المؤشر
-        uint32_t offset = addString(val.asString());
+        uint32_t offset = addString(val);
         emit("i32.const " + std::to_string(offset));
-    } else if (val.isBool()) {
-        emit("i32.const " + std::string(val.asBool() ? "1" : "0"));
+    } else if (tokType == Sad::Lexer::TokenType::LITERAL_TRUE) {
+        emit("i32.const 1");
+    } else if (tokType == Sad::Lexer::TokenType::LITERAL_FALSE) {
+        emit("i32.const 0");
     } else {
         // null
         emit("i32.const 0");
@@ -348,7 +368,7 @@ void WasmASTVisitor::visitLiteralExpr(Sad::AST::LiteralExpr& expr) {
 }
 
 void WasmASTVisitor::visitVariableExpr(Sad::AST::VariableExpr& expr) {
-    const std::string& name = expr.getName();
+    const std::string& name = expr.name;
     
     WasmLocal* local = findLocal(name);
     if (local) {
@@ -360,11 +380,11 @@ void WasmASTVisitor::visitVariableExpr(Sad::AST::VariableExpr& expr) {
 
 void WasmASTVisitor::visitBinaryExpr(Sad::AST::BinaryExpr& expr) {
     // زيارة المعاملين (يضعان القيم على المكدس)
-    expr.getLeft()->accept(*this);
-    expr.getRight()->accept(*this);
+    expr.left->accept(*this);
+    expr.right->accept(*this);
     
     // العملية
-    const std::string& op = expr.getOperator();
+    const std::string op = Sad::Lexer::Token::typeToString(expr.op);
     
     if (op == "+")       emit("i32.add");
     else if (op == "-")  emit("i32.sub");
@@ -385,9 +405,9 @@ void WasmASTVisitor::visitBinaryExpr(Sad::AST::BinaryExpr& expr) {
 }
 
 void WasmASTVisitor::visitUnaryExpr(Sad::AST::UnaryExpr& expr) {
-    expr.getOperand()->accept(*this);
+    expr.operand->accept(*this);
     
-    const std::string& op = expr.getOperator();
+    const std::string op = Sad::Lexer::Token::typeToString(expr.op);
     
     if (op == "-") {
         emit("i32.const 0");
@@ -401,7 +421,7 @@ void WasmASTVisitor::visitUnaryExpr(Sad::AST::UnaryExpr& expr) {
 
 void WasmASTVisitor::visitAssignExpr(Sad::AST::AssignExpr& expr) {
     // الحصول على المتغير
-    const std::string& name = expr.getName();
+    const std::string& name = expr.name;
     
     WasmLocal* local = findLocal(name);
     if (!local) {
@@ -410,7 +430,7 @@ void WasmASTVisitor::visitAssignExpr(Sad::AST::AssignExpr& expr) {
     }
     
     // تقييم القيمة
-    expr.getValue()->accept(*this);
+    expr.value->accept(*this);
     
     // تخزين وإبقاء القيمة على المكدس
     emit("local.tee $" + name);
@@ -418,12 +438,17 @@ void WasmASTVisitor::visitAssignExpr(Sad::AST::AssignExpr& expr) {
 
 void WasmASTVisitor::visitCallExpr(Sad::AST::CallExpr& expr) {
     // تقييم المعاملات
-    for (auto& arg : expr.getArgs()) {
+    for (auto& arg : expr.arguments) {
         arg->accept(*this);
     }
     
-    // استدعاء الدالة
-    const std::string& funcName = expr.getCallee();
+    // استخراج اسم الدالة من تعبير callee
+    std::string funcName;
+    if (auto* varExpr = dynamic_cast<Sad::AST::VariableExpr*>(expr.callee.get())) {
+        funcName = varExpr->name;
+    } else {
+        funcName = expr.callee->toString();
+    }
     uint32_t funcIdx = findFunction(funcName);
     
     emit("call " + std::to_string(funcIdx));
@@ -431,18 +456,18 @@ void WasmASTVisitor::visitCallExpr(Sad::AST::CallExpr& expr) {
 
 void WasmASTVisitor::visitTernaryExpr(Sad::AST::TernaryExpr& expr) {
     // الشرط
-    expr.getCondition()->accept(*this);
+    expr.condition->accept(*this);
     
     emit("if (result i32)");
     blockDepth_++;
     
     // الفرع الصحيح
-    expr.getTrueExpr()->accept(*this);
+    expr.trueExpr->accept(*this);
     
     emit("else");
     
     // الفرع الخطأ
-    expr.getFalseExpr()->accept(*this);
+    expr.falseExpr->accept(*this);
     
     emit("end");
     blockDepth_--;
@@ -484,45 +509,76 @@ void WasmASTVisitor::visitIndexExpr(Sad::AST::IndexExpr& expr) {
     emit("i32.add");
     emit("i32.load");
 }
+void WasmASTVisitor::visitOptionalChainExpr(Sad::AST::OptionalChainExpr& expr) {
+    // (AR) الوصول الاختياري ?. — إذا كان الكائن null/0 يُرجع 0
+    // (EN) Optional chain ?. — if object is null/0, return 0
+    expr.object->accept(*this);
+    // فحص إن كان null
+    emit("if (result i32)");
+    blockDepth_++;
+    // الكائن موجود — الوصول للعضو (حالياً i32.const 0 لعدم دعم الكائنات كاملاً)
+    emit("i32.const 0");
+    emit("else");
+    // null → 0
+    emit("i32.const 0");
+    emit("end");
+    blockDepth_--;
+}
 
+void WasmASTVisitor::visitNullCoalesceExpr(Sad::AST::NullCoalesceExpr& expr) {
+    // (AR) عامل الاندماج الصفري ?? — إذا كان اليسار null/0، يستخدم اليمين
+    // (EN) Null coalesce ?? — if left is null/0, use right value
+    std::string tmpName = "__nc_tmp_" + std::to_string(nextLocalIndex_);
+    addLocal(tmpName, WasmValType::I32);
+
+    expr.left->accept(*this);
+    emit("local.tee $" + tmpName);
+    emit("if (result i32)");
+    blockDepth_++;
+    emit("local.get $" + tmpName); // اليسار غير null
+    emit("else");
+    expr.right->accept(*this);     // قيمة بديلة
+    emit("end");
+    blockDepth_--;
+}
 // ═══════════════════════════════════════════════════════════════════════════════
 //  زوار العبارات
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void WasmASTVisitor::visitExprStmt(Sad::AST::ExprStmt& stmt) {
-    stmt.getExpression()->accept(*this);
+    stmt.expression->accept(*this);
     emit("drop");  // تجاهل النتيجة
 }
 
 void WasmASTVisitor::visitVarDeclStmt(Sad::AST::VarDeclStmt& stmt) {
-    const std::string& name = stmt.getName();
-    std::string type = stmt.getType();
+    const std::string& name = stmt.name;
+    std::string typeName = dataTypeToStr(stmt.type);
     
     // إضافة المتغير المحلي
-    WasmValType wasmType = sadTypeToWasm(type);
+    WasmValType wasmType = sadTypeToWasm(typeName);
     addLocal(name, wasmType);
     
     // تهيئة المتغير إذا وجدت قيمة
-    if (stmt.getInitializer()) {
-        stmt.getInitializer()->accept(*this);
+    if (stmt.initializer) {
+        stmt.initializer->accept(*this);
         emit("local.set $" + name);
     }
 }
 
 void WasmASTVisitor::visitIfStmt(Sad::AST::IfStmt& stmt) {
     // الشرط
-    stmt.getCondition()->accept(*this);
+    stmt.condition->accept(*this);
     
     emit("if");
     blockDepth_++;
     
     // الفرع الصحيح
-    stmt.getThenBranch()->accept(*this);
+    stmt.thenBranch->accept(*this);
     
     // الفرع الخطأ
-    if (stmt.getElseBranch()) {
+    if (stmt.elseBranch) {
         emit("else");
-        stmt.getElseBranch()->accept(*this);
+        stmt.elseBranch->accept(*this);
     }
     
     emit("end");
@@ -548,12 +604,12 @@ void WasmASTVisitor::visitWhileStmt(Sad::AST::WhileStmt& stmt) {
     loopStack_.push({blockDepth_ - 2, blockDepth_ - 1});
     
     // الشرط (معكوس)
-    stmt.getCondition()->accept(*this);
+    stmt.condition->accept(*this);
     emit("i32.eqz");
     emit("br_if $break_" + std::to_string(blockDepth_ - 2));
     
     // الجسم
-    stmt.getBody()->accept(*this);
+    stmt.body->accept(*this);
     
     // العودة لبداية الحلقة
     emit("br $continue_" + std::to_string(blockDepth_ - 1));
@@ -590,8 +646,8 @@ void WasmASTVisitor::visitForRangeStmt(Sad::AST::ForRangeStmt& stmt) {
 }
 
 void WasmASTVisitor::visitReturnStmt(Sad::AST::ReturnStmt& stmt) {
-    if (stmt.getValue()) {
-        stmt.getValue()->accept(*this);
+    if (stmt.value) {
+        stmt.value->accept(*this);
     }
     emit("return");
 }
@@ -613,7 +669,7 @@ void WasmASTVisitor::visitContinueStmt(Sad::AST::ContinueStmt& stmt) {
 }
 
 void WasmASTVisitor::visitBlockStmt(Sad::AST::BlockStmt& stmt) {
-    for (auto& s : stmt.getStatements()) {
+    for (auto& s : stmt.statements) {
         s->accept(*this);
     }
 }
@@ -624,9 +680,9 @@ void WasmASTVisitor::visitBlockStmt(Sad::AST::BlockStmt& stmt) {
 
 void WasmASTVisitor::visitFunctionDecl(Sad::AST::FunctionDecl& decl) {
     WasmFunc func;
-    func.name = decl.getName();
+    func.name = decl.name;
     // اسم الدالة الأصلي (UTF-8) يُستخدم كاسم عربي أيضاً تلقائياً.
-    func.arabicName = decl.getName();
+    func.arabicName = decl.name;
     func.index = module_.nextFuncIndex++;
     func.exported = true;  // تصدير كل الدوال افتراضياً
     
@@ -639,11 +695,11 @@ void WasmASTVisitor::visitFunctionDecl(Sad::AST::FunctionDecl& decl) {
     nextLocalIndex_ = 0;
     
     // المعاملات
-    for (const auto& param : decl.getParams()) {
+    for (const auto& param : decl.parameters) {
         WasmLocal local;
         local.name = param.name;
         local.index = nextLocalIndex_++;
-        local.type = sadTypeToWasm(param.type);
+        local.type = sadTypeToWasm(dataTypeToStr(param.type));
         local.isParam = true;
         
         currentLocals_[param.name] = local;
@@ -651,14 +707,14 @@ void WasmASTVisitor::visitFunctionDecl(Sad::AST::FunctionDecl& decl) {
     }
     
     // نوع الإرجاع
-    std::string retType = decl.getReturnType();
+    std::string retType = dataTypeToStr(decl.returnType);
     if (!retType.empty() && retType != "فراغ" && retType != "void") {
         func.results.push_back(sadTypeToWasm(retType));
     }
     
     // تجميع الجسم
-    if (decl.getBody()) {
-        decl.getBody()->accept(*this);
+    if (decl.body) {
+        decl.body->accept(*this);
     }
     
     // إضافة return إذا لم يكن موجوداً

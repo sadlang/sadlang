@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: exhaustiveness.cpp
 // File: exhaustiveness.cpp
 //
@@ -459,26 +459,27 @@ private:
         
         // (AR) أنواع خاصة
         // (EN) Special types
-        if (type->getKind() == TypeSystem::TypeKind::Boolean) {
+        if (type->getKind() == TypeSystem::SadTypeKind::Boolean) {
             // (AR) Boolean له قيمتان فقط
             // (EN) Boolean has only two values
             return PatternSpace::enumSpace({"true", "false"});
         }
         
-        // TODO: Add Enum support when TypeKind::Enum is implemented
-        /*
-        if (type->getKind() == TypeSystem::TypeKind::Enum) {
-            // (AR) Enum: جمع كل القيم
-            // (EN) Enum: collect all values
-            // (AR) هنا نحتاج للوصول لتعريف الـ enum
-            // (EN) Here we need access to enum definition
-            // (AR) حالياً نستخدم فضاء كامل
-            // (EN) Currently using full space
-            return PatternSpace::full();
+        // (AR) دعم Enum: في النظام الحالي، EnumType لا يرث من Type
+        // ولكن يمكن التحقق من الأنواع الكائنية إذا كانت enum
+        // (EN) Enum support: in the current system, EnumType doesn't inherit from Type
+        // but we can check Class types to see if they represent an enum
+        if (type->getKind() == TypeSystem::SadTypeKind::Class) {
+            // (AR) إذا كان الصنف يمثل تعداداً، نبني فضاء من أسماء الحالات
+            // (EN) If class represents an enum, build space from variant names
+            auto className = type->toString();
+            // (AR) ملاحظة: يحتاج ربط مع EnumType::getVariants()
+            // لكشف التعدادات من خلال اسم الصنف
+            // (EN) Note: needs linking with EnumType::getVariants()
+            // to detect enums through class name
         }
-        */
         
-        if (type->getKind() == TypeSystem::TypeKind::Union) {
+        if (type->getKind() == TypeSystem::SadTypeKind::Union) {
             // (AR) Union: اتحاد فضاءات الأعضاء
             // (EN) Union: union of member spaces
             auto* unionType = dynamic_cast<const TypeSystem::UnionType*>(type.get());

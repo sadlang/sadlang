@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "🔒 ثغرة أمنية حرجة"
+    url: https://github.com/sad-lang/sad-language/security/advisories/new
+    about: "للثغرات الحرجة — استخدم الإبلاغ الخاص (لا تفتح Issue عامة)"
+  - name: "💬 أسئلة ومناقشات"
+    url: https://github.com/sad-lang/sad-language/discussions
+    about: "للأسئلة العامة والنقاشات حول لغة ص"

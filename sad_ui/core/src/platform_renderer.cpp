@@ -1,0 +1,1978 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * ملف: platform_renderer.cpp
+ * المسار: sad_ui/core/src/platform_renderer.cpp
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * المنطق المشترك لرسم عناصر الواجهة (renderNode).
+ *
+ * هذا الملف يحتوي على تنفيذ render() و renderNode() المشترك
+ * عبر جميع المنصات (Desktop, Web, Android, iOS, macOS).
+ *
+ * كل منصة تُطبق فقط ~15 دالة رسم أساسية (drawFilledRect, drawText, etc.)
+ * والمنطق هنا يستخدمها لرسم 40+ نوع عنصر واجهة.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * حقوق النشر (c) 2024-2026 فريق لغة ص
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+#include "sad_ui/platform_renderer.h"
+#include "sad_ui/types.h"
+#include "sad_ui/node.h"
+
+#include <cmath>
+#include <string>
+#include <algorithm>
+#include <chrono>
+
+// Platform-specific includes for PlatformFactory
+#ifdef __EMSCRIPTEN__
+#include "sad_ui/web/web_renderer.h"
+#endif
+#ifdef __ANDROID__
+#include "sad_ui/android/android_renderer.h"
+#endif
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IOS
+#include "sad_ui/ios/ios_renderer.h"
+#else
+#include "sad_ui/macos/macos_renderer.h"
+#endif
+#endif
+
+namespace sad
+{
+    namespace ui
+    {
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // دوال مساعدة مشتركة
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        // قراءة قيمة عددية من خاصية
+        static float getNumericProp(const IRProperty *prop, float defaultVal = 0.0f)
+        {
+            if (!prop)
+                return defaultVal;
+            if (auto *v = std::get_if<double>(&prop->value))
+                return static_cast<float>(*v);
+            if (auto *vi = std::get_if<int64_t>(&prop->value))
+                return static_cast<float>(*vi);
+            return defaultVal;
+        }
+
+        // تحويل نص لوني إلى Color
+        static Color parseColorProp(const IRProperty *prop, const Color &defaultColor)
+        {
+            if (!prop)
+                return defaultColor;
+            auto *cs = std::get_if<std::string>(&prop->value);
+            if (!cs)
+                return defaultColor;
+            auto nc = arabicNameToColor(*cs);
+            if (nc)
+                return Color::fromNamed(*nc);
+            if (cs->size() == 7 && (*cs)[0] == '#')
+            {
+                unsigned int hex = std::stoul(cs->substr(1), nullptr, 16);
+                return {static_cast<float>((hex >> 16) & 0xFF) / 255.0f,
+                        static_cast<float>((hex >> 8) & 0xFF) / 255.0f,
+                        static_cast<float>(hex & 0xFF) / 255.0f, 1.0f};
+            }
+            if (cs->size() == 9 && (*cs)[0] == '#')
+            {
+                unsigned int hex = std::stoul(cs->substr(1), nullptr, 16);
+                return {static_cast<float>((hex >> 24) & 0xFF) / 255.0f,
+                        static_cast<float>((hex >> 16) & 0xFF) / 255.0f,
+                        static_cast<float>((hex >> 8) & 0xFF) / 255.0f,
+                        static_cast<float>(hex & 0xFF) / 255.0f};
+            }
+            return defaultColor;
+        }
+
+        // قراءة قيمة منطقية
+        static bool getBoolProp(const IRProperty *prop, bool defaultVal = false)
+        {
+            if (!prop)
+                return defaultVal;
+            if (auto *b = std::get_if<bool>(&prop->value))
+                return *b;
+            if (auto *s = std::get_if<std::string>(&prop->value))
+            {
+                return (*s == "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad" ||
+                        *s == "true" || *s == "1" ||
+                        *s == "\xd9\x85\xd9\x81\xd8\xb9\xd9\x84");
+            }
+            if (auto *i = std::get_if<int64_t>(&prop->value))
+                return *i != 0;
+            return defaultVal;
+        }
+
+        // الحصول على الوقت الحالي بالمللي ثانية (بديل محمول لـ SDL_GetTicks)
+        static uint32_t getCurrentTimeMs()
+        {
+            auto now = std::chrono::steady_clock::now();
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                now.time_since_epoch());
+            return static_cast<uint32_t>(ms.count());
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // PlatformRenderer — دوال مساعدة
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        bool PlatformRenderer::isArabicText(const std::string &text) const
+        {
+            for (size_t i = 0; i + 1 < text.size(); ++i)
+            {
+                unsigned char c = static_cast<unsigned char>(text[i]);
+                if (c >= 0xD8 && c <= 0xDB)
+                    return true;
+                if (c < 0x80)
+                    continue;
+                if ((c & 0xE0) == 0xC0)
+                {
+                    i += 1;
+                    continue;
+                }
+                if ((c & 0xF0) == 0xE0)
+                {
+                    i += 2;
+                    continue;
+                }
+                if ((c & 0xF8) == 0xF0)
+                {
+                    i += 3;
+                    continue;
+                }
+            }
+            return false;
+        }
+
+        size_t PlatformRenderer::utf8Length(const std::string &text) const
+        {
+            size_t count = 0;
+            for (size_t i = 0; i < text.size(); ++count)
+            {
+                unsigned char c = static_cast<unsigned char>(text[i]);
+                if (c < 0x80)
+                    i += 1;
+                else if ((c & 0xE0) == 0xC0)
+                    i += 2;
+                else if ((c & 0xF0) == 0xE0)
+                    i += 3;
+                else if ((c & 0xF8) == 0xF0)
+                    i += 4;
+                else
+                    i += 1;
+            }
+            return count;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // render() — نقطة الدخول: رسم شجرة كاملة
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        void PlatformRenderer::render(const std::shared_ptr<IRNode> &root,
+                                      const std::shared_ptr<LayoutResult> &layout)
+        {
+            if (!root || !layout)
+                return;
+            renderNode(*root, *layout);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // renderNode() — المنطق المشترك لرسم كل أنواع العناصر
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        void PlatformRenderer::renderNode(const IRNode &node,
+                                          const LayoutResult &layout)
+        {
+            const auto &origRect = layout.rect;
+
+            // ─── 0.A تطبيق تحويلات الانيميشن (إزاحة + مقياس + شفافية + دوران) ───
+            float animOpacity = 1.0f;
+            float animTranslateX = 0.0f;
+            float animTranslateY = 0.0f;
+            float animScale = 1.0f;
+            float animRotation = 0.0f;
+
+            if (animationEngine_ && !node.getId().empty())
+            {
+                const std::string &nid = node.getId();
+                if (animationEngine_->hasAnimation(nid, "__opacity"))
+                    animOpacity = static_cast<float>(animationEngine_->getValue(nid, "__opacity", 1.0));
+                if (animationEngine_->hasAnimation(nid, "__translateX"))
+                    animTranslateX = static_cast<float>(animationEngine_->getValue(nid, "__translateX", 0.0));
+                if (animationEngine_->hasAnimation(nid, "__translateY"))
+                    animTranslateY = static_cast<float>(animationEngine_->getValue(nid, "__translateY", 0.0));
+                if (animationEngine_->hasAnimation(nid, "__scale"))
+                    animScale = static_cast<float>(animationEngine_->getValue(nid, "__scale", 1.0));
+                if (animationEngine_->hasAnimation(nid, "__rotation"))
+                    animRotation = static_cast<float>(animationEngine_->getValue(nid, "__rotation", 0.0));
+            }
+
+            // حساب المستطيل النهائي بعد تطبيق التحويلات
+            LayoutRect rect = origRect;
+            rect.x += animTranslateX;
+            rect.y += animTranslateY;
+
+            // تطبيق المقياس حول مركز العنصر
+            if (animScale != 1.0f && animScale > 0.0f)
+            {
+                float cx = rect.x + rect.width / 2.0f;
+                float cy = rect.y + rect.height / 2.0f;
+                float newW = rect.width * animScale;
+                float newH = rect.height * animScale;
+                rect.x = cx - newW / 2.0f;
+                rect.y = cy - newH / 2.0f;
+                rect.width = newW;
+                rect.height = newH;
+            }
+
+            // إخفاء العنصر بالكامل إذا شفافيته 0
+            if (animOpacity <= 0.001f)
+                return;
+
+            // 0. قص العناصر خارج منفذ العرض (Viewport Culling)
+            if (viewportWidth_ > 0 && viewportHeight_ > 0)
+            {
+                float vpW = static_cast<float>(viewportWidth_);
+                float vpH = static_cast<float>(viewportHeight_);
+                if (rect.x > vpW || rect.y > vpH ||
+                    (rect.x + rect.width) < 0 || (rect.y + rect.height) < 0)
+                {
+                    return; // العنصر خارج الشاشة بالكامل — تخطيه
+                }
+            }
+
+            // 0.5 حالة التفاعل (hover / press)
+            bool isHovered = (hoveredNode_ == &node);
+            bool isPressed = (pressedNode_ == &node);
+
+            // 0.6 حساب الشفافية (خاصية الشفافية + شفافية الانيميشن)
+            float nodeOpacity = getNumericProp(node.findProperty("\xd8\xb4\xd9\x81\xd8\xa7\xd9\x81\xd9\x8a\xd8\xa9"), 1.0f); // شفافية
+            if (nodeOpacity < 0.0f)
+                nodeOpacity = 0.0f;
+            if (nodeOpacity > 1.0f)
+                nodeOpacity = 1.0f;
+            nodeOpacity *= animOpacity; // دمج شفافية الانيميشن مع الشفافية الأصلية
+            currentNodeOpacity_ = nodeOpacity;
+
+            // 0.7 تخزين زاوية الدوران الحالية (للمنصات التي تدعمه)
+            currentNodeRotation_ = animRotation;
+
+            // 0.8 تطبيق تحويل الدوران حول مركز العنصر (إن وُجد)
+            bool rotationApplied = false;
+            if (currentNodeRotation_ != 0.0f)
+            {
+                float cx = rect.x + rect.width / 2.0f;
+                float cy = rect.y + rect.height / 2.0f;
+                pushRotation(cx, cy, currentNodeRotation_);
+                rotationApplied = true;
+            }
+
+            // 0.9 تطبيق تحويل التكبير/التصغير (إن وُجد) — إضافة لتعديل rect السابق
+            bool scaleApplied = false;
+            if (animScale != 1.0f && animScale > 0.0f)
+            {
+                float cx = rect.x + rect.width / 2.0f;
+                float cy = rect.y + rect.height / 2.0f;
+                pushScale(cx, cy, animScale, animScale);
+                scaleApplied = true;
+            }
+
+            // 1. رسم الظل (إن وجد) — قبل الخلفية للتطبيق الصحيح
+            const auto *shadowProp = node.findProperty("\xd8\xb8\xd9\x84"); // ظل
+            if (shadowProp)
+            {
+                float elevation = getNumericProp(shadowProp, 0.0f);
+                if (isHovered && !isPressed)
+                    elevation += 1.5f;
+                if (isPressed)
+                    elevation = std::max(0.5f, elevation - 1.0f);
+                if (elevation > 0)
+                {
+                    // ظل متعدد الطبقات (Material Design style)
+                    int layers = std::min(3, static_cast<int>(elevation));
+                    for (int i = 0; i < layers; ++i)
+                    {
+                        float expand = static_cast<float>(i + 1) * 0.8f;
+                        float alpha = 0.12f / static_cast<float>(i + 1);
+                        float offsetY = elevation * 0.4f * static_cast<float>(i + 1);
+                        Color shadowColor = {0, 0, 0, alpha};
+                        drawFilledRect(rect.x - expand, rect.y + offsetY - expand,
+                                       rect.width + expand * 2, rect.height + expand * 2,
+                                       shadowColor);
+                    }
+                }
+            }
+
+            // 2. رسم الخلفية (إن وجدت)
+            const auto *bgProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // لون_خلفية
+            if (!bgProp)
+                bgProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // خلفية
+            if (bgProp)
+            {
+                Color bgColor = parseColorProp(bgProp, {0, 0, 0, 0});
+                if (bgColor.a > 0)
+                {
+                    // تأثير hover / press على الخلفية
+                    if (isHovered && !isPressed)
+                    {
+                        bgColor.r = std::min(1.0f, bgColor.r + 0.05f);
+                        bgColor.g = std::min(1.0f, bgColor.g + 0.05f);
+                        bgColor.b = std::min(1.0f, bgColor.b + 0.05f);
+                    }
+                    if (isPressed)
+                    {
+                        bgColor.r = std::max(0.0f, bgColor.r - 0.08f);
+                        bgColor.g = std::max(0.0f, bgColor.g - 0.08f);
+                        bgColor.b = std::max(0.0f, bgColor.b - 0.08f);
+                    }
+
+                    const auto *radiusProp = node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"); // زوايا
+                    if (!radiusProp)
+                        radiusProp = node.findProperty("\xd9\x86\xd8\xb5\xd9\x81_\xd9\x82\xd8\xb7\xd8\xb1"); // نصف_قطر
+                    float radius = getNumericProp(radiusProp, 0.0f);
+                    if (radius > 0)
+                    {
+                        drawRoundedRect(rect.x, rect.y, rect.width, rect.height, bgColor, radius);
+                    }
+                    else
+                    {
+                        drawFilledRect(rect.x, rect.y, rect.width, rect.height, bgColor);
+                    }
+                }
+            }
+
+            // 3. رسم المحتوى حسب نوع العنصر
+            switch (node.getType())
+            {
+
+            // ── النص ──
+            case UINodeType::Text:
+            {
+                const auto *textProp = node.findProperty("text");
+                if (!textProp)
+                    textProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89"); // محتوى
+                if (!textProp)
+                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                if (textProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&textProp->value))
+                    {
+                        const auto *sizeProp = node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xae\xd8\xb7"); // حجم_خط
+                        if (!sizeProp)
+                            sizeProp = node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"); // حجم_الخط
+                        if (!sizeProp)
+                            sizeProp = node.findProperty("\xd8\xad\xd8\xac\xd9\x85"); // حجم
+                        float fontSize = getNumericProp(sizeProp, 16.0f);
+
+                        const auto *colorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"); // لون_النص
+                        if (!colorProp)
+                            colorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86"); // لون
+                        Color textColor = parseColorProp(colorProp, {0, 0, 0, 1});
+
+                        const auto *alignProp = node.findProperty("\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9"); // محاذاة
+                        std::string alignment;
+                        if (alignProp)
+                        {
+                            if (auto *s = std::get_if<std::string>(&alignProp->value))
+                                alignment = *s;
+                        }
+
+                        float textX = rect.x;
+                        if (isArabicText(*text) || alignment == "\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86" || alignment == "right")
+                        {
+                            auto sz = measureText(*text, fontSize);
+                            textX = rect.x + rect.width - sz.first;
+                            if (textX < rect.x)
+                                textX = rect.x;
+                        }
+                        else if (alignment == "\xd9\x88\xd8\xb3\xd8\xb7" || alignment == "center")
+                        {
+                            auto sz = measureText(*text, fontSize);
+                            textX = rect.x + (rect.width - sz.first) / 2.0f;
+                        }
+
+                        drawText(*text, textX, rect.y, textColor, fontSize);
+                    }
+                }
+                break;
+            }
+
+            // ── الزر ──
+            case UINodeType::Button:
+            {
+                bool isHovered = (hoveredNode_ == &node);
+                bool isPressed = (pressedNode_ == &node);
+
+                float radius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), 8.0f); // زوايا
+                if (!node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"))
+                    radius = getNumericProp(node.findProperty("\xd9\x86\xd8\xb5\xd9\x81_\xd9\x82\xd8\xb7\xd8\xb1"), 8.0f); // نصف_قطر
+
+                // ظل
+                float elevation = getNumericProp(node.findProperty("\xd8\xb8\xd9\x84"), 2.0f); // ظل
+                if (isHovered && !isPressed)
+                    elevation += 2.0f;
+                if (isPressed)
+                    elevation = std::max(0.5f, elevation - 1.0f);
+                if (elevation > 0)
+                {
+                    Color shadowC = {0, 0, 0, 0.2f};
+                    drawFilledRect(rect.x + 1, rect.y + elevation * 0.6f,
+                                   rect.width, rect.height, shadowC);
+                }
+
+                // خلفية الزر
+                const auto *bgColorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // لون_خلفية
+                if (!bgColorProp)
+                    bgColorProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // خلفية
+                Color btnColor = parseColorProp(bgColorProp, Color::fromNamed(NamedColor::Primary));
+
+                if (isHovered && !isPressed)
+                {
+                    btnColor.r = std::min(1.0f, btnColor.r + 0.08f);
+                    btnColor.g = std::min(1.0f, btnColor.g + 0.08f);
+                    btnColor.b = std::min(1.0f, btnColor.b + 0.08f);
+                }
+                if (isPressed)
+                {
+                    btnColor.r = std::max(0.0f, btnColor.r - 0.1f);
+                    btnColor.g = std::max(0.0f, btnColor.g - 0.1f);
+                    btnColor.b = std::max(0.0f, btnColor.b - 0.1f);
+                }
+
+                const auto *gradProp = node.findProperty("\xd8\xaa\xd8\xaf\xd8\xb1\xd8\xac");                                             // تدرج
+                const auto *gradEndProp = node.findProperty("\xd8\xaa\xd8\xaf\xd8\xb1\xd8\xac_\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9"); // تدرج_نهاية
+                if (gradProp && gradEndProp)
+                {
+                    Color gradStart = parseColorProp(gradProp, btnColor);
+                    Color gradEnd = parseColorProp(gradEndProp, btnColor);
+                    drawLinearGradient(rect.x, rect.y, rect.width, rect.height,
+                                       gradStart, gradEnd, true, radius);
+                }
+                else
+                {
+                    drawRoundedRect(rect.x, rect.y, rect.width, rect.height, btnColor, radius);
+                }
+
+                // نص الزر
+                const auto *textProp = node.findProperty("text");
+                if (!textProp)
+                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                if (textProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&textProp->value))
+                    {
+                        const auto *textColorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd9\x86\xd8\xb5"); // لون_نص
+                        if (!textColorProp)
+                            textColorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"); // لون_النص
+                        Color textColor = parseColorProp(textColorProp, Color::fromNamed(NamedColor::White));
+                        float btnFontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 16.0f); // حجم_الخط
+                        if (btnFontSize <= 1.0f)
+                            btnFontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xae\xd8\xb7"), 16.0f); // حجم_خط
+
+                        auto sz = measureText(*text, btnFontSize);
+                        float textX = rect.x + (rect.width - sz.first) / 2.0f;
+                        float textY = rect.y + (rect.height - sz.second) / 2.0f;
+                        drawText(*text, textX, textY, textColor, btnFontSize);
+                    }
+                }
+                break;
+            }
+
+            // ── الفاصل ──
+            case UINodeType::Divider:
+            {
+                Color divColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), // لون
+                                                Color::fromNamed(NamedColor::Grey));
+                float thickness = getNumericProp(node.findProperty("\xd8\xb3\xd9\x85\xd8\xa7\xd9\x83\xd8\xa9"), rect.height); // سماكة
+                drawFilledRect(rect.x, rect.y, rect.width, thickness, divColor);
+                break;
+            }
+
+            // ── الصورة ──
+            case UINodeType::Image:
+            {
+                const auto *srcProp = node.findProperty("\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1"); // مصدر
+                if (!srcProp)
+                    srcProp = node.findProperty("src");
+                if (!srcProp)
+                    srcProp = node.findProperty("\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1"); // مسار
+                bool loaded = false;
+                if (srcProp)
+                {
+                    if (auto *path = std::get_if<std::string>(&srcProp->value))
+                    {
+                        drawImage(*path, rect.x, rect.y, rect.width, rect.height);
+                        loaded = true;
+                    }
+                }
+                if (!loaded)
+                {
+                    drawFilledRect(rect.x, rect.y, rect.width, rect.height,
+                                   Color::fromNamed(NamedColor::LightGray));
+                    drawText("\xf0\x9f\x96\xbc", rect.x + rect.width / 2 - 8,
+                             rect.y + rect.height / 2 - 8,
+                             Color::fromNamed(NamedColor::Gray), 16.0f);
+                }
+                break;
+            }
+
+            // ── حقل الإدخال ──
+            case UINodeType::TextField:
+            {
+                bool isFocused = (focusedNode_ == &node);
+                Color bgColor = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // خلفية
+                                               Color::fromNamed(NamedColor::White));
+                Color borderColor = parseColorProp(node.findProperty("\xd8\xad\xd8\xaf_\xd9\x84\xd9\x88\xd9\x86"), // حد_لون
+                                                   Color::fromNamed(NamedColor::Gray));
+                float radius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), 4.0f);                     // زوايا
+                float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 14.0f); // حجم_الخط
+
+                if (isFocused)
+                    borderColor = Color::fromNamed(NamedColor::Primary);
+
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, bgColor, radius);
+                float borderW = isFocused ? 2.0f : 1.0f;
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height, borderColor, borderW);
+
+                const auto *valueProp = node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"); // قيمة
+                if (!valueProp)
+                    valueProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                if (!valueProp)
+                    valueProp = node.findProperty("value");
+                std::string inputText;
+                if (valueProp)
+                {
+                    if (auto *s = std::get_if<std::string>(&valueProp->value))
+                        inputText = *s;
+                }
+
+                float textPad = 8.0f;
+                float textY = rect.y + rect.height / 2 - fontSize / 2;
+
+                if (!inputText.empty())
+                {
+                    Color textColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), {0, 0, 0, 1}); // لون_النص
+                    float textX = rect.x + textPad;
+                    if (isArabicText(inputText))
+                    {
+                        auto sz = measureText(inputText, fontSize);
+                        textX = rect.x + rect.width - sz.first - textPad;
+                    }
+                    drawText(inputText, textX, textY, textColor, fontSize);
+                }
+                else
+                {
+                    const auto *hintProp = node.findProperty("\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
+                    if (!hintProp)
+                        hintProp = node.findProperty("placeholder");
+                    if (hintProp)
+                    {
+                        if (auto *hint = std::get_if<std::string>(&hintProp->value))
+                        {
+                            Color hintColor = {0.6f, 0.6f, 0.6f, 1.0f};
+                            float textX = rect.x + textPad;
+                            if (isArabicText(*hint))
+                            {
+                                auto sz = measureText(*hint, fontSize);
+                                textX = rect.x + rect.width - sz.first - textPad;
+                            }
+                            drawText(*hint, textX, textY, hintColor, fontSize);
+                        }
+                    }
+                }
+
+                // المؤشر الوامض
+                if (isFocused)
+                {
+                    uint32_t ticks = getCurrentTimeMs();
+                    if ((ticks / 500) % 2 == 0)
+                    {
+                        float cursorX = rect.x + textPad;
+                        if (!inputText.empty())
+                        {
+                            auto sz = measureText(inputText, fontSize);
+                            if (isArabicText(inputText))
+                                cursorX = rect.x + rect.width - sz.first - textPad - 2;
+                            else
+                                cursorX = rect.x + textPad + sz.first + 1;
+                        }
+                        drawFilledRect(cursorX, rect.y + 4, 2, rect.height - 8, borderColor);
+                    }
+                }
+                break;
+            }
+
+            // ── مفتاح التبديل (Toggle) ──
+            case UINodeType::Toggle:
+            {
+                bool isOn = getBoolProp(node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"), false);                     // مفعل
+                Color activeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd9\x86\xd8\xb4\xd8\xb7"), // لون_نشط
+                                                   Color::fromNamed(NamedColor::Primary));
+                Color inactiveColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), // لون
+                                                     Color::fromNamed(NamedColor::LightGray));
+                Color trackColor = isOn ? activeColor : inactiveColor;
+
+                drawRoundedRect(rect.x, rect.y + rect.height / 4, rect.width, rect.height / 2,
+                                trackColor, rect.height / 4);
+
+                Color knobColor = Color::fromNamed(NamedColor::White);
+                float knobSize = rect.height - 4;
+                float knobX = isOn ? rect.x + rect.width - knobSize - 2 : rect.x + 2;
+                // ظل المقبض
+                drawRoundedRect(knobX - 1, rect.y + 3, knobSize + 2, knobSize + 2,
+                                {0, 0, 0, 0.15f}, (knobSize + 2) / 2);
+                drawRoundedRect(knobX, rect.y + 2, knobSize, knobSize,
+                                knobColor, knobSize / 2);
+                break;
+            }
+
+            // ── الشريط المنزلق (Slider) ──
+            case UINodeType::Slider:
+            {
+                float sliderVal = getNumericProp(node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"), 50.0f) / 100.0f; // قيمة
+                sliderVal = std::max(0.0f, std::min(1.0f, sliderVal));
+                Color trackBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // خلفية
+                                               Color::fromNamed(NamedColor::LightGray));
+                Color trackFill = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), // لون
+                                                 Color::fromNamed(NamedColor::Primary));
+                float trackY = rect.y + rect.height / 2 - 2;
+                drawRoundedRect(rect.x, trackY, rect.width, 4, trackBg, 2.0f);
+                float filledW = rect.width * sliderVal;
+                if (filledW > 0)
+                    drawRoundedRect(rect.x, trackY, filledW, 4, trackFill, 2.0f);
+                // مقبض
+                float thumbX = rect.x + filledW;
+                drawRoundedRect(thumbX - 9, rect.y + rect.height / 2 - 7, 18, 18,
+                                {0, 0, 0, 0.15f}, 9.0f);
+                drawRoundedRect(thumbX - 8, rect.y + rect.height / 2 - 8, 16, 16,
+                                trackFill, 8.0f);
+                break;
+            }
+
+            // ── مربع الاختيار (Checkbox) ──
+            case UINodeType::Checkbox:
+            {
+                bool checked = getBoolProp(node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"), false); // مفعل
+                Color activeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"),         // لون
+                                                   Color::fromNamed(NamedColor::Primary));
+                Color borderColor = checked ? activeColor : Color::fromNamed(NamedColor::Gray);
+                drawRoundedRect(rect.x, rect.y, 20, 20, borderColor, 3.0f);
+                if (checked)
+                {
+                    drawRoundedRect(rect.x + 1, rect.y + 1, 18, 18, activeColor, 2.0f);
+                    drawText("\xe2\x9c\x93", rect.x + 3, rect.y + 1,
+                             Color::fromNamed(NamedColor::White), 15.0f);
+                }
+                else
+                {
+                    drawRoundedRect(rect.x + 1, rect.y + 1, 18, 18,
+                                    Color::fromNamed(NamedColor::White), 2.0f);
+                }
+                // نص
+                const auto *textProp = node.findProperty("text");
+                if (!textProp)
+                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                if (textProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&textProp->value))
+                    {
+                        Color textColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), {0, 0, 0, 1}); // لون_النص
+                        float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 14.0f);         // حجم_الخط
+                        float textX = rect.x + 28;
+                        if (isArabicText(*text))
+                        {
+                            auto sz = measureText(*text, fontSize);
+                            textX = rect.x + rect.width - sz.first - 28;
+                        }
+                        drawText(*text, textX, rect.y + 2, textColor, fontSize);
+                    }
+                }
+                break;
+            }
+
+            // ── زر الراديو ──
+            case UINodeType::Radio:
+            {
+                bool selected = getBoolProp(node.findProperty("\xd9\x85\xd9\x81\xd8\xb9\xd9\x84")); // مفعل
+                Color activeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"),   // لون
+                                                   Color::fromNamed(NamedColor::Primary));
+                Color borderColor = selected ? activeColor : Color::fromNamed(NamedColor::Gray);
+                drawRoundedRect(rect.x, rect.y, 20, 20, borderColor, 10.0f);
+                drawRoundedRect(rect.x + 1, rect.y + 1, 18, 18,
+                                Color::fromNamed(NamedColor::White), 9.0f);
+                if (selected)
+                {
+                    drawRoundedRect(rect.x + 5, rect.y + 5, 10, 10, activeColor, 5.0f);
+                }
+                const auto *textProp = node.findProperty("text");
+                if (!textProp)
+                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                if (textProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&textProp->value))
+                    {
+                        drawText(*text, rect.x + 28, rect.y + 2, {0, 0, 0, 1}, 14.0f);
+                    }
+                }
+                break;
+            }
+
+            // ── البطاقة (Card) ──
+            case UINodeType::Card:
+            {
+                float cardRadius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), 12.0f); // زوايا
+                float cardElevation = getNumericProp(node.findProperty("\xd8\xb1\xd9\x81\xd8\xb9"), 4.0f);               // رفع
+                if (cardElevation > 0)
+                {
+                    drawFilledRect(rect.x + 2, rect.y + cardElevation,
+                                   rect.width, rect.height, {0, 0, 0, 0.15f});
+                }
+                const auto *cardColorProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86"); // لون
+                if (!cardColorProp)
+                    cardColorProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // خلفية
+                Color cardBg = parseColorProp(cardColorProp, Color::fromNamed(NamedColor::White));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, cardBg, cardRadius);
+                break;
+            }
+
+            // ── شريط التقدم ──
+            case UINodeType::ProgressBar:
+            {
+                float barRadius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), rect.height / 2.0f);     // زوايا
+                Color trackColor = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), {0.9f, 0.9f, 0.9f, 1}); // خلفية
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, trackColor, barRadius);
+                float progressValue = getNumericProp(node.findProperty("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9"), 50.0f) / 100.0f; // قيمة
+                progressValue = std::max(0.0f, std::min(1.0f, progressValue));
+                Color fillColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), // لون
+                                                 Color::fromNamed(NamedColor::Primary));
+                float fillWidth = rect.width * progressValue;
+                if (fillWidth > 0)
+                {
+                    Color lighter = {std::min(1.0f, fillColor.r * 1.2f),
+                                     std::min(1.0f, fillColor.g * 1.2f),
+                                     std::min(1.0f, fillColor.b * 1.2f), fillColor.a};
+                    drawLinearGradient(rect.x, rect.y, fillWidth, rect.height,
+                                       lighter, fillColor, true, barRadius);
+                }
+                break;
+            }
+
+            // ── شريط البحث ──
+            case UINodeType::SearchBar:
+            {
+                Color bgColor = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // خلفية
+                                               Color::fromNamed(NamedColor::LightGray));
+                float radius = getNumericProp(node.findProperty("\xd8\xb2\xd9\x88\xd8\xa7\xd9\x8a\xd8\xa7"), rect.height / 2); // زوايا
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, bgColor, radius);
+                drawText("\xf0\x9f\x94\x8d", rect.x + 8, rect.y + rect.height / 2 - 8,
+                         Color::fromNamed(NamedColor::Gray), 14.0f);                                  // 🔍
+                const auto *hintProp = node.findProperty("\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
+                if (!hintProp)
+                    hintProp = node.findProperty("placeholder");
+                if (hintProp)
+                {
+                    if (auto *hint = std::get_if<std::string>(&hintProp->value))
+                        drawText(*hint, rect.x + 30, rect.y + rect.height / 2 - 7,
+                                 {0.5f, 0.5f, 0.5f, 1}, 14.0f);
+                }
+                break;
+            }
+
+            // ── FAB ──
+            case UINodeType::FAB:
+            {
+                Color fabColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // لون_خلفية
+                                                Color::fromNamed(NamedColor::Primary));
+                if (!node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"))
+                    fabColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), fabColor); // لون
+                float radius = std::min(rect.width, rect.height) / 2;
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, fabColor, radius);
+                const auto *textProp = node.findProperty("text");
+                if (!textProp)
+                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                if (!textProp)
+                    textProp = node.findProperty("\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9"); // ايقونة
+                if (textProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&textProp->value))
+                    {
+                        Color textColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), // لون_النص
+                                                         Color::fromNamed(NamedColor::White));
+                        float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 20.0f); // حجم_الخط
+                        auto sz = measureText(*text, fontSize);
+                        drawText(*text, rect.x + (rect.width - sz.first) / 2,
+                                 rect.y + (rect.height - sz.second) / 2, textColor, fontSize);
+                    }
+                }
+                break;
+            }
+
+            // ── شريط التطبيق ──
+            case UINodeType::AppBar:
+            {
+                Color barColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // لون_خلفية
+                                                Color::fromNamed(NamedColor::Primary));
+                if (!node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"))
+                    barColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), barColor); // لون
+                Color barLighter = {std::min(1.0f, barColor.r * 1.15f),
+                                    std::min(1.0f, barColor.g * 1.15f),
+                                    std::min(1.0f, barColor.b * 1.15f), barColor.a};
+                drawLinearGradient(rect.x, rect.y, rect.width, rect.height,
+                                   barLighter, barColor, true);
+                const auto *textProp = node.findProperty("text");
+                if (!textProp)
+                    textProp = node.findProperty("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"); // عنوان
+                if (!textProp)
+                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                if (textProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&textProp->value))
+                    {
+                        Color textColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), // لون_النص
+                                                         Color::fromNamed(NamedColor::White));
+                        float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 20.0f); // حجم_الخط
+                        float textX = rect.x + 16;
+                        if (isArabicText(*text))
+                        {
+                            auto sz = measureText(*text, fontSize);
+                            textX = rect.x + rect.width - sz.first - 16;
+                        }
+                        drawText(*text, textX, rect.y + rect.height / 2 - fontSize / 2,
+                                 textColor, fontSize);
+                    }
+                }
+                break;
+            }
+
+            // ── الشارة (Badge) ──
+            case UINodeType::Badge:
+            {
+                Color badgeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), // لون_خلفية
+                                                  Color::fromNamed(NamedColor::Error));
+                if (!node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"))
+                    badgeColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), badgeColor); // لون
+                float r = std::min(rect.width, rect.height) / 2;
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, badgeColor, r);
+                const auto *textProp = node.findProperty("text");
+                if (!textProp)
+                    textProp = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                if (textProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&textProp->value))
+                    {
+                        Color tC = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xb5"), Color::fromNamed(NamedColor::White));
+                        float fS = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 10.0f);
+                        auto sz = measureText(*text, fS);
+                        drawText(*text, rect.x + (rect.width - sz.first) / 2,
+                                 rect.y + (rect.height - sz.second) / 2, tC, fS);
+                    }
+                }
+                break;
+            }
+
+            // ── حاويات وتخطيطات ──
+            case UINodeType::Scaffold:
+            case UINodeType::Container:
+            case UINodeType::Box:
+            case UINodeType::Surface:
+            case UINodeType::NavigationView:
+            case UINodeType::Stack:
+            case UINodeType::Group:
+            case UINodeType::Center:
+            case UINodeType::Padding:
+            case UINodeType::SizedBox:
+            case UINodeType::Expanded:
+            case UINodeType::Flexible:
+            case UINodeType::Align:
+            case UINodeType::SafeArea:
+            case UINodeType::GestureDetector:
+            case UINodeType::InkWell:
+            case UINodeType::ListView:
+            case UINodeType::FractionallySizedBox:
+            case UINodeType::ConstrainedBox:
+            case UINodeType::AspectRatio:
+            case UINodeType::Column:
+            case UINodeType::Row:
+            case UINodeType::Wrap:
+            case UINodeType::Grid:
+            case UINodeType::LazyColumn:
+            case UINodeType::LazyRow:
+            case UINodeType::LazyGrid:
+            case UINodeType::ScrollView:
+            case UINodeType::List:
+            case UINodeType::AnimatedList:
+            case UINodeType::ForEach:
+            case UINodeType::TabItem:
+            case UINodeType::Section:
+            case UINodeType::Swipeable:
+            case UINodeType::CustomWidget:
+            case UINodeType::Conditional:
+            {
+                // خلفية اختيارية
+                const auto *containerBgProp = node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // خلفية
+                if (!containerBgProp)
+                    containerBgProp = node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"); // لون_خلفية
+                if (containerBgProp)
+                {
+                    Color bg = parseColorProp(containerBgProp, {0, 0, 0, 0});
+                    if (bg.a > 0)
+                        drawFilledRect(rect.x, rect.y, rect.width, rect.height, bg);
+                }
+                // قص المحتوى للعناصر القابلة للتمرير
+                if (node.getType() == UINodeType::ScrollView ||
+                    node.getType() == UINodeType::LazyColumn ||
+                    node.getType() == UINodeType::LazyRow ||
+                    node.getType() == UINodeType::List)
+                {
+                    setClipRect(rect.x, rect.y, rect.width, rect.height);
+                }
+                break;
+            }
+
+            // ── SnackBar، Chip، Avatar — نصوص مع خلفية ──
+            case UINodeType::SnackBar:
+            {
+                Color snackBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), {0.2f, 0.2f, 0.2f, 0.9f});
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, snackBg, 4.0f);
+                const auto *textProp = node.findProperty("text");
+                if (!textProp)
+                    textProp = node.findProperty("\xd9\x86\xd8\xb5");
+                if (textProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&textProp->value))
+                    {
+                        float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"), 14.0f);
+                        drawText(*text, rect.x + 16, rect.y + rect.height / 2 - fontSize / 2,
+                                 Color::fromNamed(NamedColor::White), fontSize);
+                    }
+                }
+                break;
+            }
+
+            case UINodeType::Chip:
+            {
+                Color chipBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), Color::fromNamed(NamedColor::LightGray));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, chipBg, 16.0f);
+                const auto *textProp = node.findProperty("text");
+                if (!textProp)
+                    textProp = node.findProperty("\xd9\x86\xd8\xb5");
+                if (textProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&textProp->value))
+                    {
+                        auto sz = measureText(*text, 13.0f);
+                        drawText(*text, rect.x + (rect.width - sz.first) / 2,
+                                 rect.y + (rect.height - sz.second) / 2, {0, 0, 0, 1}, 13.0f);
+                    }
+                }
+                break;
+            }
+
+            case UINodeType::Avatar:
+            {
+                Color avatarBg = parseColorProp(node.findProperty("\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9"), Color::fromNamed(NamedColor::Primary));
+                float r = std::min(rect.width, rect.height) / 2;
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, avatarBg, r);
+                const auto *textProp = node.findProperty("text");
+                if (!textProp)
+                    textProp = node.findProperty("\xd9\x86\xd8\xb5");
+                if (!textProp)
+                    textProp = node.findProperty("\xd8\xad\xd8\xb1\xd9\x81"); // حرف
+                if (textProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&textProp->value))
+                    {
+                        auto sz = measureText(*text, 18.0f);
+                        drawText(*text, rect.x + (rect.width - sz.first) / 2,
+                                 rect.y + (rect.height - sz.second) / 2,
+                                 Color::fromNamed(NamedColor::White), 18.0f);
+                    }
+                }
+                break;
+            }
+
+            case UINodeType::Icon:
+            {
+                Color iconColor = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), {0, 0, 0, 1});
+                float fontSize = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85"), 24.0f);
+                const auto *textProp = node.findProperty("text");
+                if (!textProp)
+                    textProp = node.findProperty("\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9"); // ايقونة
+                if (!textProp)
+                    textProp = node.findProperty("\xd8\xb1\xd9\x85\xd8\xb2"); // رمز
+                if (textProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&textProp->value))
+                        drawText(*text, rect.x, rect.y, iconColor, fontSize);
+                }
+                break;
+            }
+
+            // ── بقية العناصر — رسم أساسي ──
+            case UINodeType::Spacer:
+                break;
+            case UINodeType::Tooltip:
+            {
+                // رسم tooltip كمستطيل داكن مع نص
+                Color tooltipBg = {0.15f, 0.15f, 0.15f, 0.88f};
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, tooltipBg, 4.0f);
+                const auto *tipText = node.findProperty("text");
+                if (!tipText)
+                    tipText = node.findProperty("\xd9\x86\xd8\xb5"); // نص
+                if (!tipText)
+                    tipText = node.findProperty("\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad"); // تلميح
+                if (tipText)
+                {
+                    if (auto *t = std::get_if<std::string>(&tipText->value))
+                    {
+                        float fs = 12.0f;
+                        auto sz = measureText(*t, fs);
+                        drawText(*t,
+                                 rect.x + (rect.width - sz.first) * 0.5f,
+                                 rect.y + (rect.height - sz.second) * 0.5f,
+                                 Color::fromNamed(NamedColor::White), fs);
+                    }
+                }
+                break;
+            }
+            case UINodeType::Breadcrumb:
+            {
+                // رسم مسارات متصلة بـ "/"
+                const auto *pathProp = node.findProperty("\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1"); // مسار
+                if (!pathProp)
+                    pathProp = node.findProperty("text");
+                if (!pathProp)
+                    pathProp = node.findProperty("\xd9\x86\xd8\xb5");                                             // نص
+                float fs = getNumericProp(node.findProperty("\xd8\xad\xd8\xac\xd9\x85_\xd8\xae\xd8\xb7"), 13.0f); // حجم_خط
+                Color textCol = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), {0.4f, 0.4f, 0.4f, 1});
+                Color activeCol = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86_\xd9\x86\xd8\xb4\xd8\xb7"), Color::fromNamed(NamedColor::Primary)); // لون_نشط
+                if (pathProp)
+                {
+                    if (auto *p = std::get_if<std::string>(&pathProp->value))
+                    {
+                        float cx = rect.x + 8.0f;
+                        float cy = rect.y + (rect.height - fs) * 0.5f;
+                        // قسّم المسار على "/" أو "/"
+                        std::string seg;
+                        std::vector<std::string> segments;
+                        for (char ch : *p)
+                        {
+                            if (ch == '/')
+                            {
+                                if (!seg.empty())
+                                    segments.push_back(seg);
+                                seg.clear();
+                            }
+                            else
+                                seg += ch;
+                        }
+                        if (!seg.empty())
+                            segments.push_back(seg);
+                        if (segments.empty())
+                            segments.push_back(*p);
+                        for (size_t si = 0; si < segments.size(); ++si)
+                        {
+                            bool isLast = (si == segments.size() - 1);
+                            Color col = isLast ? activeCol : textCol;
+                            auto sz = drawText(segments[si], cx, cy, col, fs);
+                            cx += sz.first;
+                            if (!isLast)
+                            {
+                                auto sepSz = drawText(" / ", cx, cy, textCol, fs);
+                                cx += sepSz.first;
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+            case UINodeType::Pagination:
+            {
+                // رسم أزرار ترقيم
+                int total = (int)getNumericProp(node.findProperty("\xd8\xa7\xd9\x84\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9"), 5.0f); // المجموع
+                int current = (int)getNumericProp(node.findProperty("\xd8\xa7\xd9\x84\xd8\xad\xd8\xa7\xd9\x84\xd9\x8a"), 1.0f);       // الحالي
+                total = std::max(1, std::min(total, 20));
+                current = std::max(1, std::min(current, total));
+                float btnW = std::min(36.0f, rect.width / (total + 2));
+                float btnH = std::min(rect.height, 36.0f);
+                float cx = rect.x + 4.0f;
+                float cy = rect.y + (rect.height - btnH) * 0.5f;
+                float fs = 13.0f;
+                Color activeBg = parseColorProp(node.findProperty("\xd9\x84\xd9\x88\xd9\x86"), Color::fromNamed(NamedColor::Primary)); // لون
+                Color inactiveBg = {0.92f, 0.92f, 0.92f, 1};
+                // زر السابق
+                drawRoundedRect(cx, cy, btnW, btnH, inactiveBg, 4.0f);
+                auto szPrev = measureText("<", fs);
+                drawText("<", cx + (btnW - szPrev.first) * 0.5f, cy + (btnH - szPrev.second) * 0.5f, {0.4f, 0.4f, 0.4f, 1}, fs);
+                cx += btnW + 4.0f;
+                // أزرار الأرقام
+                for (int p = 1; p <= total; ++p)
+                {
+                    Color bg = (p == current) ? activeBg : inactiveBg;
+                    Color tc = (p == current) ? Color::fromNamed(NamedColor::White) : Color{0, 0, 0, 1};
+                    drawRoundedRect(cx, cy, btnW, btnH, bg, 4.0f);
+                    std::string num = std::to_string(p);
+                    auto nsz = measureText(num, fs);
+                    drawText(num, cx + (btnW - nsz.first) * 0.5f, cy + (btnH - nsz.second) * 0.5f, tc, fs);
+                    cx += btnW + 4.0f;
+                }
+                // زر التالي
+                drawRoundedRect(cx, cy, btnW, btnH, inactiveBg, 4.0f);
+                auto szNext = measureText(">", fs);
+                drawText(">", cx + (btnW - szNext.first) * 0.5f, cy + (btnH - szNext.second) * 0.5f, {0.4f, 0.4f, 0.4f, 1}, fs);
+                break;
+            }
+            case UINodeType::NavigationLink:
+            {
+                drawText("\xe2\x86\x92", rect.x + 4, rect.y + 4,
+                         Color::fromNamed(NamedColor::Blue), 14.0f);
+                break;
+            }
+
+            case UINodeType::DataTable:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height,
+                               Color::fromNamed(NamedColor::White));
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                float rowH = 30.0f;
+                for (float y = rect.y + rowH; y < rect.y + rect.height; y += rowH)
+                {
+                    drawLine(rect.x, y, rect.x + rect.width, y,
+                             Color::fromNamed(NamedColor::Gray), 1.0f);
+                }
+                break;
+            }
+
+            case UINodeType::Timeline:
+            {
+                drawLine(rect.x + 7, rect.y, rect.x + 7, rect.y + rect.height,
+                         Color::fromNamed(NamedColor::Blue), 2.0f);
+                break;
+            }
+
+            case UINodeType::Carousel:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, {0.95f, 0.95f, 0.95f, 1});
+                drawText("\xe2\x97\x80", rect.x + 4, rect.y + rect.height / 2 - 10,
+                         Color::fromNamed(NamedColor::Gray), 20.0f);
+                drawText("\xe2\x96\xb6", rect.x + rect.width - 20, rect.y + rect.height / 2 - 10,
+                         Color::fromNamed(NamedColor::Gray), 20.0f);
+                break;
+            }
+
+            case UINodeType::Skeleton:
+            {
+                drawLinearGradient(rect.x, rect.y, rect.width, rect.height,
+                                   {0.82f, 0.82f, 0.82f, 1}, {0.92f, 0.92f, 0.92f, 1}, false, 4.0f);
+                break;
+            }
+            case UINodeType::Shimmer:
+            {
+                drawLinearGradient(rect.x, rect.y, rect.width, rect.height,
+                                   {0.88f, 0.88f, 0.88f, 1}, {0.96f, 0.96f, 0.96f, 1}, false);
+                break;
+            }
+
+            case UINodeType::BottomNav:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height,
+                               Color::fromNamed(NamedColor::White));
+                drawLine(rect.x, rect.y, rect.x + rect.width, rect.y,
+                         Color::fromNamed(NamedColor::Gray), 1.0f);
+                break;
+            }
+
+            case UINodeType::Tabs:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, {0.95f, 0.95f, 0.95f, 1});
+                drawFilledRect(rect.x, rect.y + rect.height - 2, rect.width, 2,
+                               Color::fromNamed(NamedColor::Blue));
+                break;
+            }
+
+            case UINodeType::VideoPlayer:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height,
+                               Color::fromNamed(NamedColor::Black));
+                drawText("\xe2\x96\xb6", rect.x + rect.width / 2 - 12, rect.y + rect.height / 2 - 12,
+                         Color::fromNamed(NamedColor::White), 24.0f);
+                break;
+            }
+
+            case UINodeType::MapView:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, {0.85f, 0.92f, 0.85f, 1});
+                break;
+            }
+
+            default:
+                break;
+            }
+
+            // 3. رسم حدود التصحيح
+            if (options_.debugBounds)
+            {
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height, {1, 0, 0, 0.3f});
+            }
+
+            // 4. رسم الأبناء (تكرار) مع دعم scroll offset
+            bool isScrollableContainer = node.getType() == UINodeType::ScrollView ||
+                                         node.getType() == UINodeType::LazyColumn ||
+                                         node.getType() == UINodeType::LazyRow ||
+                                         node.getType() == UINodeType::List;
+            float scrollOffY = isScrollableContainer
+                                   ? getNumericProp(node.findProperty("\xd8\xa5\xd8\xb2\xd8\xa7\xd8\xad\xd8\xa9_\xd8\xb5"), // إزاحة_ص
+                                                    getNumericProp(node.findProperty("scroll_y"), 0.0f))
+                                   : 0.0f;
+            float scrollOffX = isScrollableContainer
+                                   ? getNumericProp(node.findProperty("\xd8\xa5\xd8\xb2\xd8\xa7\xd8\xad\xd8\xa9_\xd8\xb3"), // إزاحة_س
+                                                    getNumericProp(node.findProperty("scroll_x"), 0.0f))
+                                   : 0.0f;
+
+            for (size_t i = 0; i < layout.children.size() && i < node.childCount(); ++i)
+            {
+                if (isScrollableContainer && (scrollOffX != 0.0f || scrollOffY != 0.0f))
+                {
+                    // طبّق إزاحة التمرير على موضع الابن مباشرة
+                    LayoutResult adjusted = *layout.children[i];
+                    adjusted.rect.x -= scrollOffX;
+                    adjusted.rect.y -= scrollOffY;
+                    renderNode(*node.getChildren()[i], adjusted);
+                }
+                else
+                {
+                    renderNode(*node.getChildren()[i], *layout.children[i]);
+                }
+            }
+
+            // 5. إلغاء تحويلات التكبير والدوران
+            if (scaleApplied)
+            {
+                popScale();
+            }
+            if (rotationApplied)
+            {
+                popRotation();
+            }
+
+            // 6. إعادة تعيين القص
+            if (node.getType() == UINodeType::ScrollView ||
+                node.getType() == UINodeType::LazyColumn ||
+                node.getType() == UINodeType::LazyRow ||
+                node.getType() == UINodeType::List)
+            {
+                clearClipRect();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // دوال التحريكات والشفافية (مشتركة — تستخدمها جميع المنصات)
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        EasingType PlatformRenderer::curveToEasing(EasingCurve curve) const
+        {
+            switch (curve)
+            {
+            case EasingCurve::Linear:
+                return EasingType::Linear;
+            case EasingCurve::EaseIn:
+                return EasingType::EaseIn;
+            case EasingCurve::EaseOut:
+                return EasingType::EaseOut;
+            case EasingCurve::EaseInOut:
+                return EasingType::EaseInOut;
+            case EasingCurve::Spring:
+                return EasingType::Spring;
+            case EasingCurve::Bounce:
+                return EasingType::EaseOutBounce;
+            case EasingCurve::Elastic:
+                return EasingType::EaseOutBack;
+            default:
+                return EasingType::EaseOut;
+            }
+        }
+
+        void PlatformRenderer::ensureNodeId(IRNode &node)
+        {
+            if (node.getId().empty())
+            {
+                node.setId("widget_" + std::to_string(1000000 + autoIdCounter_++));
+            }
+            for (size_t i = 0; i < node.childCount(); ++i)
+            {
+                ensureNodeId(*node.getChildren()[i]);
+            }
+        }
+
+        void PlatformRenderer::resetAnimationState()
+        {
+            initializedAnimNodes_.clear();
+            autoIdCounter_ = 0;
+        }
+
+        void PlatformRenderer::initializeAnimations(
+            const std::shared_ptr<IRNode> &root, uint32_t currentTimeMs)
+        {
+            if (!root || !animationEngine_)
+                return;
+            // التأكد من وجود معرّفات لجميع العقد
+            ensureNodeId(*root);
+            // تهيئة تحريكات العقدة الجذر والأبناء
+            initNodeAnimations(*root, currentTimeMs);
+        }
+
+        void PlatformRenderer::initNodeAnimations(const IRNode &node, uint32_t startMs)
+        {
+            if (!animationEngine_)
+                return;
+
+            const std::string &nid = node.getId();
+            if (!nid.empty() && initializedAnimNodes_.find(nid) == initializedAnimNodes_.end())
+            {
+                const auto &anims = node.getAnimations();
+                for (const auto &irAnim : anims)
+                {
+                    uint32_t durationMs = static_cast<uint32_t>(irAnim.duration * 1000.0f);
+                    if (durationMs == 0)
+                        durationMs = 300;
+                    uint32_t delayMs = static_cast<uint32_t>(irAnim.delay * 1000.0f);
+                    EasingType easing = curveToEasing(irAnim.easing);
+                    int repeat = (irAnim.repeatCount == 0) ? -1 : irAnim.repeatCount - 1;
+
+                    // بناء هيكل Animation
+                    Animation anim;
+                    anim.targetNodeId = nid;
+                    anim.durationMs = durationMs;
+                    anim.delayMs = delayMs;
+                    anim.easing = easing;
+                    anim.repeatCount = repeat;
+                    anim.autoReverse = irAnim.autoReverse;
+
+                    // callback انتهاء التحريك
+                    if (onAnimationEndCallback_)
+                    {
+                        std::string nodeIdCopy = nid;
+                        auto cb = onAnimationEndCallback_;
+                        anim.onComplete = [cb, nodeIdCopy]()
+                        {
+                            cb(nodeIdCopy);
+                        };
+                    }
+
+                    switch (irAnim.type)
+                    {
+                    case AnimationType::FadeIn:
+                        anim.propertyKey = "__opacity";
+                        anim.fromValue = 0.0;
+                        anim.toValue = 1.0;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::FadeOut:
+                        anim.propertyKey = "__opacity";
+                        anim.fromValue = 1.0;
+                        anim.toValue = 0.0;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::ScaleUp:
+                        anim.propertyKey = "__scale";
+                        anim.fromValue = 0.0;
+                        anim.toValue = 1.0;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::ScaleDown:
+                        anim.propertyKey = "__scale";
+                        anim.fromValue = 1.0;
+                        anim.toValue = 0.0;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::SlideRight:
+                        anim.propertyKey = "__translateX";
+                        anim.fromValue = -100.0;
+                        anim.toValue = 0.0;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::SlideLeft:
+                        anim.propertyKey = "__translateX";
+                        anim.fromValue = 100.0;
+                        anim.toValue = 0.0;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::SlideUp:
+                        anim.propertyKey = "__translateY";
+                        anim.fromValue = 100.0;
+                        anim.toValue = 0.0;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::SlideDown:
+                        anim.propertyKey = "__translateY";
+                        anim.fromValue = -100.0;
+                        anim.toValue = 0.0;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::Rotate:
+                        anim.propertyKey = "__rotation";
+                        anim.fromValue = 0.0;
+                        anim.toValue = 360.0;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::Pulse:
+                        anim.propertyKey = "__scale";
+                        anim.fromValue = 1.0;
+                        anim.toValue = 1.15;
+                        anim.autoReverse = true;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::Shake:
+                        anim.propertyKey = "__translateX";
+                        anim.fromValue = -8.0;
+                        anim.toValue = 8.0;
+                        anim.durationMs = durationMs / 2;
+                        anim.easing = EasingType::Linear;
+                        anim.autoReverse = true;
+                        if (repeat > 0)
+                            anim.repeatCount = repeat * 2;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::Bounce:
+                        anim.propertyKey = "__translateY";
+                        anim.fromValue = -30.0;
+                        anim.toValue = 0.0;
+                        anim.easing = EasingType::EaseOutBounce;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::CrossFade:
+                        anim.propertyKey = "__opacity";
+                        anim.fromValue = 0.3;
+                        anim.toValue = 1.0;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    case AnimationType::ZoomIn:
+                    {
+                        // تقريب: تكبير من 0.5 مع ظهور تدريجي
+                        anim.propertyKey = "__scale";
+                        anim.fromValue = 0.5;
+                        anim.toValue = 1.0;
+                        animationEngine_->animate(anim, startMs);
+                        // ظهور مصاحب
+                        Animation fadeAnim = anim;
+                        fadeAnim.propertyKey = "__opacity";
+                        fadeAnim.fromValue = 0.0;
+                        fadeAnim.toValue = 1.0;
+                        animationEngine_->animate(fadeAnim, startMs);
+                        break;
+                    }
+                    case AnimationType::ZoomOut:
+                    {
+                        // تبعيد: تصغير من 1.5 مع ظهور تدريجي
+                        anim.propertyKey = "__scale";
+                        anim.fromValue = 1.5;
+                        anim.toValue = 1.0;
+                        animationEngine_->animate(anim, startMs);
+                        // ظهور مصاحب
+                        Animation fadeAnim = anim;
+                        fadeAnim.propertyKey = "__opacity";
+                        fadeAnim.fromValue = 0.0;
+                        fadeAnim.toValue = 1.0;
+                        animationEngine_->animate(fadeAnim, startMs);
+                        break;
+                    }
+                    case AnimationType::DropIn:
+                    {
+                        // سقوط: نزول من أعلى الشاشة مع ارتداد
+                        anim.propertyKey = "__translateY";
+                        anim.fromValue = -200.0;
+                        anim.toValue = 0.0;
+                        anim.easing = EasingType::EaseOutBounce;
+                        animationEngine_->animate(anim, startMs);
+                        // ظهور مصاحب
+                        Animation fadeAnim = anim;
+                        fadeAnim.propertyKey = "__opacity";
+                        fadeAnim.fromValue = 0.0;
+                        fadeAnim.toValue = 1.0;
+                        fadeAnim.easing = EasingType::EaseOut;
+                        fadeAnim.durationMs = durationMs / 2;
+                        animationEngine_->animate(fadeAnim, startMs);
+                        break;
+                    }
+                    case AnimationType::FlyOut:
+                    {
+                        // طيران: انزلاق للخارج (يساراً) مع اختفاء
+                        anim.propertyKey = "__translateX";
+                        anim.fromValue = 0.0;
+                        anim.toValue = -200.0;
+                        animationEngine_->animate(anim, startMs);
+                        // اختفاء مصاحب
+                        Animation fadeAnim = anim;
+                        fadeAnim.propertyKey = "__opacity";
+                        fadeAnim.fromValue = 1.0;
+                        fadeAnim.toValue = 0.0;
+                        animationEngine_->animate(fadeAnim, startMs);
+                        break;
+                    }
+                    case AnimationType::Swing:
+                        // تأرجح: حركة بندولية أفقية مستمرة
+                        anim.propertyKey = "__translateX";
+                        anim.fromValue = -15.0;
+                        anim.toValue = 15.0;
+                        anim.autoReverse = true;
+                        anim.easing = EasingType::EaseInOut;
+                        if (repeat == 0)
+                            anim.repeatCount = -1; // لانهائي افتراضياً
+                        animationEngine_->animate(anim, startMs);
+                        break;
+
+                        // ── الأنواع الجديدة (v4) ──────────────────────────────
+
+                    case AnimationType::FlipX:
+                    {
+                        // قلب أفقي: محاكاة قلب 3D عبر تغيير scale Y من 1 → 0 → 1
+                        // المرحلة الأولى: تصغير Y (الانضغاط)
+                        anim.propertyKey = "__scale";
+                        anim.fromValue = 1.0;
+                        anim.toValue = 0.05;
+                        anim.durationMs = durationMs / 2;
+                        anim.autoReverse = true;
+                        animationEngine_->animate(anim, startMs);
+                        // ظهور مصاحب خفيف
+                        Animation fadeAnim = anim;
+                        fadeAnim.propertyKey = "__opacity";
+                        fadeAnim.fromValue = 1.0;
+                        fadeAnim.toValue = 0.7;
+                        fadeAnim.autoReverse = true;
+                        animationEngine_->animate(fadeAnim, startMs);
+                        break;
+                    }
+                    case AnimationType::FlipY:
+                    {
+                        // قلب عمودي: محاكاة عبر دوران 180° سريع مع تغيير scale
+                        anim.propertyKey = "__rotation";
+                        anim.fromValue = 0.0;
+                        anim.toValue = 180.0;
+                        anim.autoReverse = true;
+                        anim.durationMs = durationMs / 2;
+                        animationEngine_->animate(anim, startMs);
+                        // تصغير خفيف أثناء القلب
+                        Animation scaleAnim = anim;
+                        scaleAnim.propertyKey = "__scale";
+                        scaleAnim.fromValue = 1.0;
+                        scaleAnim.toValue = 0.8;
+                        scaleAnim.autoReverse = true;
+                        animationEngine_->animate(scaleAnim, startMs);
+                        break;
+                    }
+                    case AnimationType::Wobble:
+                    {
+                        // ترنّح: اهتزاز دوراني سريع ذهاباً وإياباً مثل جرس
+                        anim.propertyKey = "__rotation";
+                        anim.fromValue = -15.0;
+                        anim.toValue = 15.0;
+                        anim.durationMs = durationMs / 3;
+                        anim.autoReverse = true;
+                        anim.easing = EasingType::EaseInOut;
+                        if (repeat >= 0)
+                            anim.repeatCount = (repeat + 1) * 3; // عدة اهتزازات
+                        else
+                            anim.repeatCount = -1;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    }
+                    case AnimationType::BounceIn:
+                    {
+                        // ارتداد دخول: انزلاق من اليسار مع ارتداد مرن
+                        anim.propertyKey = "__translateX";
+                        anim.fromValue = -150.0;
+                        anim.toValue = 0.0;
+                        anim.easing = EasingType::EaseOutBounce;
+                        animationEngine_->animate(anim, startMs);
+                        // ظهور مصاحب
+                        Animation fadeAnim = anim;
+                        fadeAnim.propertyKey = "__opacity";
+                        fadeAnim.fromValue = 0.0;
+                        fadeAnim.toValue = 1.0;
+                        fadeAnim.easing = EasingType::EaseOut;
+                        fadeAnim.durationMs = durationMs / 2;
+                        animationEngine_->animate(fadeAnim, startMs);
+                        break;
+                    }
+                    case AnimationType::Blink:
+                    {
+                        // وميض: ظهور/اختفاء متكرر سريع
+                        anim.propertyKey = "__opacity";
+                        anim.fromValue = 1.0;
+                        anim.toValue = 0.0;
+                        anim.durationMs = durationMs / 2;
+                        anim.autoReverse = true;
+                        anim.easing = EasingType::Linear;
+                        if (repeat >= 0)
+                            anim.repeatCount = (repeat + 1) * 2;
+                        else
+                            anim.repeatCount = -1;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    }
+                    case AnimationType::Stretch:
+                    {
+                        // تمطّي: تمدد مطاطي من 0.3 إلى 1.0 مع ارتداد نابضي
+                        anim.propertyKey = "__scale";
+                        anim.fromValue = 0.3;
+                        anim.toValue = 1.0;
+                        anim.easing = EasingType::Spring;
+                        animationEngine_->animate(anim, startMs);
+                        // ظهور مصاحب
+                        Animation fadeAnim = anim;
+                        fadeAnim.propertyKey = "__opacity";
+                        fadeAnim.fromValue = 0.0;
+                        fadeAnim.toValue = 1.0;
+                        fadeAnim.easing = EasingType::EaseOut;
+                        fadeAnim.durationMs = durationMs / 2;
+                        animationEngine_->animate(fadeAnim, startMs);
+                        break;
+                    }
+                    case AnimationType::Explode:
+                    {
+                        // انفجار: تكبير سريع من 1x إلى 3x مع اختفاء
+                        anim.propertyKey = "__scale";
+                        anim.fromValue = 1.0;
+                        anim.toValue = 3.0;
+                        animationEngine_->animate(anim, startMs);
+                        // اختفاء مصاحب
+                        Animation fadeAnim = anim;
+                        fadeAnim.propertyKey = "__opacity";
+                        fadeAnim.fromValue = 1.0;
+                        fadeAnim.toValue = 0.0;
+                        animationEngine_->animate(fadeAnim, startMs);
+                        break;
+                    }
+                    case AnimationType::Spin3D:
+                    {
+                        // دورة 3D: دوران كامل 360° مع تغيّر حجم (محاكاة عمق)
+                        anim.propertyKey = "__rotation";
+                        anim.fromValue = 0.0;
+                        anim.toValue = 360.0;
+                        animationEngine_->animate(anim, startMs);
+                        // نبض حجم مصاحب (يحاكي العمق 3D)
+                        Animation scaleAnim = anim;
+                        scaleAnim.propertyKey = "__scale";
+                        scaleAnim.fromValue = 1.0;
+                        scaleAnim.toValue = 0.6;
+                        scaleAnim.autoReverse = true;
+                        scaleAnim.durationMs = durationMs / 2;
+                        animationEngine_->animate(scaleAnim, startMs);
+                        break;
+                    }
+
+                    case AnimationType::Custom:
+                        anim.propertyKey = irAnim.customProperty.empty() ? "__custom" : irAnim.customProperty;
+                        anim.fromValue = irAnim.customFromValue;
+                        anim.toValue = irAnim.customToValue;
+                        animationEngine_->animate(anim, startMs);
+                        break;
+                    default:
+                        break;
+                    }
+                }
+                initializedAnimNodes_.insert(nid);
+            }
+
+            // تهيئة الأبناء
+            for (size_t i = 0; i < node.childCount(); ++i)
+            {
+                initNodeAnimations(*node.getChildren()[i], startMs);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // PlatformWindow::setContentWithTransition — انتقال بصري بين الصفحات
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        void PlatformWindow::setContentWithTransition(
+            std::shared_ptr<IRNode> root,
+            const std::string &transitionType,
+            float durationSec)
+        {
+            if (!root)
+            {
+                setContent(root);
+                return;
+            }
+
+            // تحويل اسم الانتقال إلى نوع تحريك
+            AnimationType animType = stringToAnimationType(transitionType);
+
+            // إذا كان نوعاً غير معروف، نستخدم ظهور كافتراضي
+            if (animType == AnimationType::Custom)
+                animType = AnimationType::FadeIn;
+
+            // إنشاء تحريك انتقال على العقدة الجذر
+            IRAnimation transAnim;
+            transAnim.type = animType;
+            transAnim.duration = durationSec;
+            transAnim.delay = 0.0f;
+            transAnim.repeatCount = 1;
+            transAnim.autoReverse = false;
+            transAnim.playOnAppear = true;
+
+            // منحنى التسهيل الافتراضي: تباطؤ — يبدو أنسب للانتقالات
+            transAnim.easing = EasingCurve::EaseOut;
+
+            // إضافة التحريك على العنصر الجذر
+            root->addAnimation(transAnim);
+
+            // استدعاء setContent العادية (تهيئة الانيميشن تتم هناك)
+            setContent(std::move(root));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // PlatformWindow::setContentWithExitTransition — انتقال خروج ثم دخول
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        void PlatformWindow::setContentWithExitTransition(
+            std::shared_ptr<IRNode> root,
+            const std::string &entryTransition,
+            const std::string &exitTransition,
+            float durationSec)
+        {
+            if (!root)
+            {
+                setContent(root);
+                return;
+            }
+
+            uint32_t durationMs = static_cast<uint32_t>(durationSec * 1000.0f);
+            uint32_t now = getCurrentTimeMs();
+
+            // ─── (1) تحريك خروج على المحتوى الحالي ───
+            // نحقن animation مباشرة في AnimationEngine على عقدة "__page_exit__" وهمية
+            // ثم في renderNode ستُطبّق الشفافية/الإزاحة على الجذر الحالي
+            AnimationType exitType = stringToAnimationType(exitTransition);
+            if (exitType == AnimationType::Custom)
+                exitType = AnimationType::FadeOut; // خروج افتراضي
+
+            // حقن تحريك خروج: عكس تحريك الدخول
+            // FadeOut: شفافية 1→0
+            // SlideLeft: إزاحة 0→-300
+            // SlideRight: إزاحة 0→300
+            {
+                Animation exitAnim;
+                exitAnim.targetNodeId = "__page_root__";
+                exitAnim.durationMs = durationMs;
+                exitAnim.delayMs = 0;
+                exitAnim.repeatCount = 0;
+                exitAnim.autoReverse = false;
+                exitAnim.easing = EasingType::EaseIn;
+
+                switch (exitType)
+                {
+                case AnimationType::FadeOut:
+                case AnimationType::FadeIn:
+                    exitAnim.propertyKey = "__opacity";
+                    exitAnim.fromValue = 1.0;
+                    exitAnim.toValue = 0.0;
+                    animationEngine_.animate(exitAnim, now);
+                    break;
+
+                case AnimationType::SlideLeft:
+                    exitAnim.propertyKey = "__translateX";
+                    exitAnim.fromValue = 0.0;
+                    exitAnim.toValue = -300.0;
+                    animationEngine_.animate(exitAnim, now);
+                    // اختفاء مصاحب
+                    {
+                        Animation fadeExit = exitAnim;
+                        fadeExit.propertyKey = "__opacity";
+                        fadeExit.fromValue = 1.0;
+                        fadeExit.toValue = 0.0;
+                        animationEngine_.animate(fadeExit, now);
+                    }
+                    break;
+
+                case AnimationType::SlideRight:
+                    exitAnim.propertyKey = "__translateX";
+                    exitAnim.fromValue = 0.0;
+                    exitAnim.toValue = 300.0;
+                    animationEngine_.animate(exitAnim, now);
+                    {
+                        Animation fadeExit = exitAnim;
+                        fadeExit.propertyKey = "__opacity";
+                        fadeExit.fromValue = 1.0;
+                        fadeExit.toValue = 0.0;
+                        animationEngine_.animate(fadeExit, now);
+                    }
+                    break;
+
+                case AnimationType::SlideUp:
+                    exitAnim.propertyKey = "__translateY";
+                    exitAnim.fromValue = 0.0;
+                    exitAnim.toValue = -300.0;
+                    animationEngine_.animate(exitAnim, now);
+                    {
+                        Animation fadeExit = exitAnim;
+                        fadeExit.propertyKey = "__opacity";
+                        fadeExit.fromValue = 1.0;
+                        fadeExit.toValue = 0.0;
+                        animationEngine_.animate(fadeExit, now);
+                    }
+                    break;
+
+                case AnimationType::SlideDown:
+                    exitAnim.propertyKey = "__translateY";
+                    exitAnim.fromValue = 0.0;
+                    exitAnim.toValue = 300.0;
+                    animationEngine_.animate(exitAnim, now);
+                    {
+                        Animation fadeExit = exitAnim;
+                        fadeExit.propertyKey = "__opacity";
+                        fadeExit.fromValue = 1.0;
+                        fadeExit.toValue = 0.0;
+                        animationEngine_.animate(fadeExit, now);
+                    }
+                    break;
+
+                case AnimationType::ScaleDown:
+                case AnimationType::ScaleUp:
+                    exitAnim.propertyKey = "__scale";
+                    exitAnim.fromValue = 1.0;
+                    exitAnim.toValue = 0.1;
+                    animationEngine_.animate(exitAnim, now);
+                    {
+                        Animation fadeExit = exitAnim;
+                        fadeExit.propertyKey = "__opacity";
+                        fadeExit.fromValue = 1.0;
+                        fadeExit.toValue = 0.0;
+                        animationEngine_.animate(fadeExit, now);
+                    }
+                    break;
+
+                default:
+                    // أي نوع آخر: اختفاء تدريجي افتراضي
+                    exitAnim.propertyKey = "__opacity";
+                    exitAnim.fromValue = 1.0;
+                    exitAnim.toValue = 0.0;
+                    animationEngine_.animate(exitAnim, now);
+                    break;
+                }
+            }
+
+            // ─── (2) تخزين المحتوى الجديد للتبديل بعد انتهاء الخروج ───
+            pendingContent_ = std::move(root);
+            pendingEntryTransition_ = entryTransition;
+            pendingEntryDuration_ = durationSec;
+            exitTransitionStartMs_ = now;
+            exitTransitionDurationMs_ = durationMs;
+        }
+
+        bool PlatformWindow::checkPendingTransition()
+        {
+            if (!pendingContent_)
+                return false;
+
+            uint32_t now = getCurrentTimeMs();
+            uint32_t elapsed = now - exitTransitionStartMs_;
+
+            // الخروج انتهى — نُبدّل المحتوى مع تحريك الدخول
+            if (elapsed >= exitTransitionDurationMs_)
+            {
+                // إلغاء أنيميشن الخروج المتبقية
+                animationEngine_.cancelAnimations("__page_root__");
+
+                auto newContent = std::move(pendingContent_);
+                pendingContent_.reset();
+
+                // تطبيق تحريك الدخول على المحتوى الجديد
+                setContentWithTransition(
+                    std::move(newContent),
+                    pendingEntryTransition_,
+                    pendingEntryDuration_);
+
+                pendingEntryTransition_.clear();
+                exitTransitionStartMs_ = 0;
+                exitTransitionDurationMs_ = 0;
+                return true;
+            }
+
+            return false;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // PlatformFactory — مصنع المنصات
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        TargetPlatform PlatformFactory::detectPlatform()
+        {
+#ifdef __EMSCRIPTEN__
+            return TargetPlatform::Web;
+#elif defined(__ANDROID__)
+            return TargetPlatform::Android;
+#elif defined(__APPLE__)
+#if TARGET_OS_IOS
+            return TargetPlatform::iOS;
+#else
+            return TargetPlatform::macOS;
+#endif
+#else
+            return TargetPlatform::Desktop;
+#endif
+        }
+
+        std::unique_ptr<PlatformWindow> PlatformFactory::createWindow(TargetPlatform platform)
+        {
+            switch (platform)
+            {
+#ifdef __EMSCRIPTEN__
+            case TargetPlatform::Web:
+            case TargetPlatform::WASM:
+                return std::make_unique<web::WebWindow>();
+#endif
+#ifdef __ANDROID__
+            case TargetPlatform::Android:
+                return std::make_unique<android::AndroidWindow>();
+#endif
+#if defined(__APPLE__) && TARGET_OS_IOS
+            case TargetPlatform::iOS:
+                return std::make_unique<ios::IOSWindow>();
+#endif
+#if defined(__APPLE__) && !TARGET_OS_IOS
+            case TargetPlatform::macOS:
+                return std::make_unique<macos::MacOSWindow>();
+#endif
+            default:
+                return nullptr;
+            }
+        }
+
+        std::unique_ptr<PlatformRenderer> PlatformFactory::createRenderer(TargetPlatform platform)
+        {
+            switch (platform)
+            {
+#ifdef __EMSCRIPTEN__
+            case TargetPlatform::Web:
+            case TargetPlatform::WASM:
+                return std::make_unique<web::WebRenderer>();
+#endif
+#ifdef __ANDROID__
+            case TargetPlatform::Android:
+                return std::make_unique<android::AndroidRenderer>();
+#endif
+#if defined(__APPLE__) && TARGET_OS_IOS
+            case TargetPlatform::iOS:
+                return std::make_unique<ios::IOSRenderer>();
+#endif
+#if defined(__APPLE__) && !TARGET_OS_IOS
+            case TargetPlatform::macOS:
+                return std::make_unique<macos::MacOSRenderer>();
+#endif
+            default:
+                return nullptr;
+            }
+        }
+
+    } // namespace ui
+} // namespace sad

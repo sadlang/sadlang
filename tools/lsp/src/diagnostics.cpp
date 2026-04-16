@@ -126,6 +126,10 @@ public:
         auto pattern_hints = check_common_patterns(doc);
         diagnostics.insert(diagnostics.end(), pattern_hints.begin(), pattern_hints.end());
         
+        // ٧. فحص عناصر الواجهة
+        auto ui_warnings = check_ui_widgets(doc);
+        diagnostics.insert(diagnostics.end(), ui_warnings.begin(), ui_warnings.end());
+        
         return diagnostics;
     }
 
@@ -574,6 +578,106 @@ private:
             "رئيسية"
         };
         return builtins.count(name) > 0;
+    }
+    
+    /**
+     * @brief أسماء عناصر الواجهة المعروفة
+     */
+    static const std::unordered_set<std::string>& get_known_widgets() {
+        static const std::unordered_set<std::string> widgets = {
+            "نص", "عنوان", "تسمية", "فقرة", "رابط", "كود", "اقتباس",
+            "صورة", "ايقونة", "شارة", "رقاقة", "صورة_رمزية",
+            "زر", "زر_محيط", "زر_نصي", "زر_ايقونة", "زر_عائم", "زر_تبديل",
+            "حقل", "حقل_بحث", "حقل_سر", "منطقة_نص", "مفتاح", "منزلق",
+            "مربع_اختيار", "قائمة_منسدلة", "تقييم",
+            "منتقي_تاريخ", "منتقي_وقت", "منتقي_لون", "عجلة_ألوان", "تقويم",
+            "زر_راديو", "خطوات", "تحكم_مقسم",
+            "شريط_تقدم", "تقدم_دائري", "تحميل", "هيكل_تحميل",
+            "عمود", "صف", "تكديس", "شبكة", "حاوية", "توسيط",
+            "مرن", "موسّع", "فاصل", "خط_فاصل",
+            "التفاف", "صندوق", "سطح", "عمود_كسول", "صف_كسول",
+            "شبكة_كسولة", "عرض_تمرير", "عرض_مقسم",
+            "هيكل", "شريط_تطبيق", "شريط_سفلي", "عنصر_تنقل",
+            "درج", "عنصر_درج", "شريط_تبويب", "تبويب", "محتوى_تبويب",
+            "عرض_تنقل", "رابط_تنقل", "تنقل_جانبي", "شريط_أدوات", "قائمة_ضخمة",
+            "قائمة", "عنصر_قائمة_بيانات", "بطاقة", "قائمة_شبكية",
+            "قائمة_تمرير", "أكورديون",
+            "حوار", "حوار_تأكيد", "لوحة_سفلية", "رسالة_منبثقة",
+            "تلميح", "قائمة_منبثقة", "عنصر_قائمة",
+            "مشغل_فيديو", "مشغل_صوت", "معرض_صور", "عرض_دوار",
+            "نص_منسق", "ماركداون", "لوحة", "عرض_ويب", "خريطة",
+            "جدول_بيانات", "عرض_شجري", "مسار_تنقل", "ترقيم_صفحات",
+            "خط_زمني", "قسم",
+            "وميض", "قائمة_متحركة", "قابل_للطي", "قابل_للسحب", "تنبيه", "مجموعة"
+        };
+        return widgets;
+    }
+    
+    /**
+     * @brief خريطة الأسماء الخاطئة الشائعة → الأسماء الصحيحة
+     */
+    static const std::unordered_map<std::string, std::string>& get_common_typos() {
+        static const std::unordered_map<std::string, std::string> typos = {
+            {"زر_مخطط", "زر_محيط"}, {"مبدل", "مفتاح"}, {"سلايدر", "منزلق"},
+            {"تشيك_بوكس", "مربع_اختيار"}, {"دروب_داون", "قائمة_منسدلة"},
+            {"كولوم", "عمود"}, {"رو", "صف"}, {"قريد", "شبكة"},
+            {"كونتينر", "حاوية"}, {"سكافولد", "هيكل"}, {"آب_بار", "شريط_تطبيق"},
+            {"بوتوم_بار", "شريط_سفلي"}, {"درور", "درج"}, {"كارد", "بطاقة"},
+            {"دايلوج", "حوار"}, {"سناك_بار", "رسالة_منبثقة"},
+            {"تول_تيب", "تلميح"}, {"بوتوم_شيت", "لوحة_سفلية"},
+            {"تايم_لاين", "خط_زمني"}, {"بريدكرامب", "مسار_تنقل"},
+            {"هيكل_عظمي", "هيكل_تحميل"}, {"سكيليتون", "هيكل_تحميل"},
+        };
+        return typos;
+    }
+    
+    /**
+     * @brief فحص عناصر الواجهة - اكتشاف أخطاء الأسماء
+     */
+    std::vector<Diagnostic> check_ui_widgets(const DocumentInfo& doc) {
+        std::vector<Diagnostic> diagnostics;
+        
+        // فحص فقط إذا كان الملف يستخدم واجهات
+        bool uses_ui = false;
+        for (const auto& line : doc.lines) {
+            if (line.find("واجهات") != std::string::npos ||
+                line.find("شغّل") != std::string::npos ||
+                line.find("_محرك_واجهات") != std::string::npos) {
+                uses_ui = true;
+                break;
+            }
+        }
+        if (!uses_ui) return diagnostics;
+        
+        const auto& typos = get_common_typos();
+        
+        for (int line = 0; line < static_cast<int>(doc.lines.size()); ++line) {
+            const std::string& text = doc.lines[line];
+            
+            // البحث عن أنماط إنشاء عناصر: اسم_عنصر(...)
+            std::regex widget_call(R"(([أ-يa-zA-Z_][أ-يa-zA-Z0-9_]*)\s*\()");
+            auto it = std::sregex_iterator(text.begin(), text.end(), widget_call);
+            auto end = std::sregex_iterator();
+            
+            for (; it != end; ++it) {
+                std::string name = (*it)[1].str();
+                
+                // تحقق من الأخطاء الشائعة
+                auto typo_it = typos.find(name);
+                if (typo_it != typos.end()) {
+                    diagnostics.push_back(create_diagnostic(
+                        DiagnosticSeverity::WARNING,
+                        "ص-201",
+                        "\"" + name + "\" غير موجود. هل تقصد \"" + typo_it->second + "\"؟",
+                        line,
+                        static_cast<int>((*it).position(1)),
+                        static_cast<int>((*it).position(1) + name.length())
+                    ));
+                }
+            }
+        }
+        
+        return diagnostics;
     }
 };
 

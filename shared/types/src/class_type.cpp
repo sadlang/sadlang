@@ -215,6 +215,31 @@ bool ClassType::addMethod(const std::string& methodName, AST::Visibility visibil
     return true;
 }
 
+bool ClassType::addDefaultMethod(const std::string& methodName, AST::Visibility visibility,
+                                Type* returnType, const std::vector<AST::Parameter>& parameters,
+                                std::shared_ptr<AST::BlockStmt> sharedBody,
+                                bool isStatic, bool isVirtual) {
+    // (AR) إضافة طريقة بجسم مشترك (من سمة افتراضية)
+    // (EN) Add method with shared body (from trait default)
+    
+    if (methodIndex.find(methodName) != methodIndex.end()) {
+        return false;
+    }
+    
+    ClassMethod method(methodName, visibility, returnType);
+    method.parameters = parameters;
+    method.sharedBody = std::move(sharedBody);
+    method.isStatic = isStatic;
+    method.isVirtual = isVirtual;
+    method.isAbstract = false;
+    
+    size_t index = methods.size();
+    methods.push_back(std::move(method));
+    methodIndex[methodName] = index;
+    
+    return true;
+}
+
 ClassMethod* ClassType::findMethod(const std::string& methodName) {
     // (AR) البحث عن طريقة
     // (EN) Find method

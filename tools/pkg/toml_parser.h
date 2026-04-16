@@ -411,7 +411,7 @@ private:
         if (is_float) {
             return TomlValue(std::stod(num));
         } else {
-            return TomlValue(std::stoll(num));
+            return TomlValue(static_cast<int64_t>(std::stoll(num)));
         }
     }
 

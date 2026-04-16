@@ -1,0 +1,57 @@
+# ══════════════════════════════════════════════════════════════════
+# .clang-tidy — لغة ص / Sad Programming Language
+# ══════════════════════════════════════════════════════════════════
+# (AR) قواعد التحليل الساكن — تتوافق مع معايير كتابة الكود (CW-01 إلى CW-30)
+# (EN) Static analysis rules — aligned with project coding standards
+# ══════════════════════════════════════════════════════════════════
+
+---
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  cppcoreguidelines-init-variables,
+  cppcoreguidelines-pro-type-member-init,
+  misc-redundant-expression,
+  misc-unused-parameters,
+  modernize-use-auto,
+  modernize-use-nullptr,
+  modernize-use-override,
+  modernize-use-using,
+  performance-*,
+  -performance-no-int-to-ptr,
+  readability-braces-around-statements,
+  readability-const-return-type,
+  readability-container-size-empty,
+  readability-duplicate-include,
+  readability-identifier-naming,
+  readability-inconsistent-declaration-parameter-name,
+  readability-misleading-indentation,
+  readability-redundant-string-cstr,
+  readability-simplify-boolean-expr,
+
+WarningsAsErrors: ''
+
+CheckOptions:
+  # (AR) تسمية الأصناف — PascalCase وفق CW-07
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  # (AR) تسمية الدوال — camelCase أو PascalCase
+  - key: readability-identifier-naming.FunctionCase
+    value: camelCase
+  # (AR) تسمية المتغيرات — camelCase
+  - key: readability-identifier-naming.VariableCase
+    value: camelCase
+  # (AR) تسمية الثوابت — UPPER_CASE أو camelCase
+  - key: readability-identifier-naming.ConstantCase
+    value: UPPER_CASE
+  # (AR) تسمية enum members — UPPER_CASE وفق CW-09
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+  # (AR) تسمية المساحات — lowercase
+  - key: readability-identifier-naming.NamespaceCase
+    value: CamelCase
+
+HeaderFilterRegex: '(shared|interpreter_new|compiler_new|stdlib|network/sadnet)/.*\.(h|hpp)$'
+FormatStyle: none

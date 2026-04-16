@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ═══════════════════════════════════════════════════════════════════════════════
  * ╔═══════════════════════════════════════════════════════════════════════════╗
  * ║                      نظام المستقبليات - لغة ص                             ║
@@ -144,7 +144,7 @@ namespace TypeSystem {
  * - Future<نتيجة<T، خطأ>> -> مستقبل سينتج نتيجة قد تكون نجاح أو فشل
  */
 FutureType::FutureType(TypePtr valueType) 
-    : Type(TypeKind::Future)
+    : Type(SadTypeKind::Future)
     , valueType_(valueType)
     , state_(FutureState::Pending) 
 {
@@ -222,7 +222,7 @@ std::string FutureType::toString() const {
  *         true if types are equal
  */
 bool FutureType::equals(const Type* other) const {
-    if (!other || other->getKind() != TypeKind::Future) {
+    if (!other || other->getKind() != SadTypeKind::Future) {
         return false;
     }
     
@@ -262,7 +262,7 @@ bool FutureType::isConvertibleTo(const Type& target) const {
     }
     
     // 2. Future آخر بنوع قيمة متوافق
-    if (target.getKind() == TypeKind::Future) {
+    if (target.getKind() == SadTypeKind::Future) {
         auto targetFuture = static_cast<const FutureType*>(&target);
         return valueType_->equals(targetFuture->valueType_.get());
     }

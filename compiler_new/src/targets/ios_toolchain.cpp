@@ -516,8 +516,10 @@ struct SadiOSCompiler {
 };
 
 SadiOSCompiler* sad_ios_compiler_new() {
-    auto* ctx = new SadiOSCompiler();
-    ctx->compiler = new sad::targets::iOSCompiler();
+    auto* ctx = new (std::nothrow) SadiOSCompiler();
+    if (!ctx) return nullptr;
+    ctx->compiler = new (std::nothrow) sad::targets::iOSCompiler();
+    if (!ctx->compiler) { delete ctx; return nullptr; }
     return ctx;
 }
 

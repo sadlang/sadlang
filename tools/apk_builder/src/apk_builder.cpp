@@ -746,7 +746,35 @@ private:
                 keystore = (buildDir_ / "debug.keystore").string();
                 if (!fs::exists(keystore)) {
                     std::cout << "   ⚠️ لا يوجد keystore، سيتم إنشاء واحد للتطوير..." << std::endl;
-                    // يمكن استخدام keytool لإنشاء keystore
+                    
+                    // البحث عن keytool
+                    std::string keytool = "keytool";
+                    const char* javaHome = std::getenv("JAVA_HOME");
+                    if (javaHome) {
+#ifdef _WIN32
+                        keytool = std::string(javaHome) + "\\bin\\keytool.exe";
+#else
+                        keytool = std::string(javaHome) + "/bin/keytool";
+#endif
+                    }
+                    
+                    // إنشاء debug keystore
+                    std::ostringstream keytoolCmd;
+                    keytoolCmd << "\"" << keytool << "\" -genkeypair"
+                               << " -keystore \"" << keystore << "\""
+                               << " -storepass " << options_.keystorePass
+                               << " -keypass " << options_.keystorePass
+                               << " -alias androiddebugkey"
+                               << " -keyalg RSA -keysize 2048 -validity 10000"
+                               << " -dname \"CN=Debug,OU=Debug,O=Debug,L=Debug,S=Debug,C=SA\"";
+                    
+                    int ret = runCommand(keytoolCmd.str(), options_.verbose);
+                    if (ret != 0) {
+                        std::cerr << "❌ فشل إنشاء debug keystore" << std::endl;
+                        std::cerr << "   💡 تأكد من ضبط JAVA_HOME" << std::endl;
+                        return false;
+                    }
+                    std::cout << "   ✓ تم إنشاء debug.keystore" << std::endl;
                 }
             }
             
@@ -754,7 +782,7 @@ private:
             fs::current_path(cwd);
             
             cmd.str("");
-            cmd << "\"" << apksigner << "\" sign"
+            cmd << apksigner << " sign"
                 << " --ks \"" << keystore << "\""
                 << " --ks-pass pass:" << options_.keystorePass
                 << " --key-pass pass:" << options_.keystorePass
@@ -844,7 +872,8 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--dry-run") {
             options.dryRun = true;
             options.verbose = true;
-        } else if (arg[0] != '-') {
+        } else if (arg[0] != '-' && options.projectPath.empty()) {
+            // Only assign project path once (first non-option argument)
             options.projectPath = arg;
         }
     }

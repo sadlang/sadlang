@@ -1,4 +1,4 @@
-; بسم الله الرحمن الرحيم
+﻿; بسم الله الرحمن الرحيم
 ; ═══════════════════════════════════════════════════════════════════════════════
 ; مُثبّت لغة ص — Sad Programming Language Installer
 ; InnoSetup 6.x — Unicode, RTL Arabic
@@ -7,8 +7,10 @@
 #define MyAppName        "لغة ص"
 #define MyAppNameEn      "Sad Programming Language"
 #define MyAppVersion     "1.0.0"
-#define MyAppPublisher   "فريق لغة ص"
+#define MyAppPublisher   "Saleh Kadah — مطوّر لغة ص"
+#define MyAppPublisherEn "Saleh Kadah — Sad Language Developer"
 #define MyAppURL         "https://sad-lang.org"
+#define MyAppContact     "kadah253@gmail.com"
 #define MyAppExeName     "sad.exe"
 #define MyAppCompiler    "sadc.exe"
 #define MyAppLSP         "sad-lsp.exe"
@@ -26,7 +28,8 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/support
 AppUpdatesURL={#MyAppURL}/releases
-AppCopyright=حقوق محفوظة © 2025-2026 فريق لغة ص
+AppCopyright=Copyright © 2025-2026 Saleh Kadah — حقوق محفوظة © صالح قدح
+AppContact={#MyAppContact}
 
 ; ───── مسار التثبيت
 DefaultDirName={autopf}\SadLang
@@ -65,7 +68,8 @@ RestartIfNeededByRun=no
 ; SignedUninstaller=yes
 
 ; ───── اللغة والاتجاه — عربية RTL
-ShowLanguageDialog=no
+ShowLanguageDialog=auto
+LanguageDetectionMethod=uilanguage
 
 ; ───── السجل
 ChangesEnvironment=yes
@@ -114,8 +118,26 @@ arabic.DesktopIcon=إنشاء اختصار على سطح المكتب
 arabic.StartMenuIcon=إنشاء مجموعة في قائمة ابدأ
 
 ; خطأ
-arabic.LLVM_Warning=تحذير: المترجم (sadc) يتطلب LLVM 18.%n%nيمكنك تحميل LLVM من:%nhttps://github.com/llvm/llvm-project/releases%n%nبدون LLVM، يمكنك فقط استخدام المفسر (sad).
+arabic.LLVM_Warning=تحذير: المترجم (sadc) يتطلب LLVM 18.%n%nيمكنك تحميل LLVM من:%nhttps://github.com/llvm/llvm-project/releases/tag/llvmorg-18.1.8%n%nبدون LLVM، يمكنك فقط استخدام المفسر (sad).
 arabic.VSCode_NotFound=لم يُعثر على VS Code. يمكنك تثبيت الإضافة لاحقاً من:%nhttps://marketplace.visualstudio.com/items?itemName=sad-lang.sad-language
+
+; صفحة LLVM
+arabic.LLVMPageTitle=إعداد مترجم لغة ص (LLVM)
+arabic.LLVMPageDesc=يتطلب المترجم sadc مكتبة LLVM 18 أو أحدث
+arabic.LLVMFound=تم اكتشاف LLVM تلقائياً
+arabic.LLVMNotFound=لم يُعثر على LLVM على جهازك
+arabic.LLVMPathLabel=مسار مجلد LLVM:
+arabic.LLVMBrowse=استعراض...
+arabic.LLVMValidOK=✓ LLVM صالح (الإصدار: %1)
+arabic.LLVMValidFail=✗ المسار لا يحتوي على LLVM صالح
+arabic.LLVMVersionOld=⚠ الإصدار %1 قديم — يُفضّل الإصدار 14 أو أحدث
+arabic.LLVMDownloadBtn=تحميل LLVM 18 من GitHub
+arabic.LLVMSkip=تخطي (تثبيت بدون sadc — يمكن إضافة LLVM لاحقاً)
+arabic.LLVMAutoDetect=إعادة الكشف التلقائي
+arabic.LLVMBinsFound=الملفات المكتشفة: %1
+arabic.LLVMLibsFound=مكتبات: موجودة ✓
+arabic.LLVMLibsMissing=مكتبات: غير موجودة (قد لا يعمل sadc بشكل صحيح)
+arabic.LLVMHeadersFound=ملفات Headers: موجودة ✓
 
 ; ───── رسائل إنجليزية
 english.WelcomeTitle=Welcome to the Sad Language Installer
@@ -142,37 +164,58 @@ english.AssocExt=Associate .ص files with Sad Interpreter
 english.DesktopIcon=Create Desktop Shortcut
 english.StartMenuIcon=Create Start Menu Group
 
-english.LLVM_Warning=Warning: The compiler (sadc) requires LLVM 18.%n%nDownload LLVM from:%nhttps://github.com/llvm/llvm-project/releases%n%nWithout LLVM, you can only use the interpreter (sad).
+english.LLVM_Warning=Warning: The compiler (sadc) requires LLVM 18.%n%nDownload LLVM from:%nhttps://github.com/llvm/llvm-project/releases/tag/llvmorg-18.1.8%n%nWithout LLVM, you can only use the interpreter (sad).
 english.VSCode_NotFound=VS Code not found. You can install the extension later from:%nhttps://marketplace.visualstudio.com/items?itemName=sad-lang.sad-language
+
+; LLVM Page
+english.LLVMPageTitle=Sad Compiler Setup (LLVM)
+english.LLVMPageDesc=The sadc compiler requires LLVM 18 or later
+english.LLVMFound=LLVM was automatically detected
+english.LLVMNotFound=LLVM was not found on your computer
+english.LLVMPathLabel=LLVM installation folder:
+english.LLVMBrowse=Browse...
+english.LLVMValidOK=✓ Valid LLVM (Version: %1)
+english.LLVMValidFail=✗ Path does not contain a valid LLVM installation
+english.LLVMVersionOld=⚠ Version %1 is old — Version 14 or later recommended
+english.LLVMDownloadBtn=Download LLVM 18 from GitHub
+english.LLVMSkip=Skip (install without sadc — LLVM can be added later)
+english.LLVMAutoDetect=Auto-detect again
+english.LLVMBinsFound=Found binaries: %1
+english.LLVMLibsFound=Libraries: present ✓
+english.LLVMLibsMissing=Libraries: missing (sadc may not work correctly)
+english.LLVMHeadersFound=Headers: present ✓
 
 ; ──────────────────────────────────────────────────────────────────────────────
 [Types]
-Name: "full";     Description: "حزمة كاملة — كل المكونات";       DescriptionEn: "Full — All components"
-Name: "dev";      Description: "مطوّر — مفسر + أدوات + VS Code"; DescriptionEn: "Developer — Interpreter + Tools + VS Code"
-Name: "minimal";  Description: "أساسي — المفسر فقط";             DescriptionEn: "Minimal — Interpreter only"
-Name: "custom";   Description: "مخصص — اختر بنفسك";             DescriptionEn: "Custom — Choose your own"; Flags: iscustom
+Name: "full";     Description: "حزمة كاملة — كل المكونات"
+Name: "dev";      Description: "مطوّر — مفسر + أدوات + VS Code"
+Name: "minimal";  Description: "أساسي — المفسر فقط"
+Name: "custom";   Description: "مخصص — اختر بنفسك"; Flags: iscustom
 
 ; ──────────────────────────────────────────────────────────────────────────────
 [Components]
-; ──── ضروري
+; ──── مجموعة: المكونات الأساسية
+Name: "Core";             Description: "{cm:GroupCore}";      Types: full dev minimal custom; Flags: fixed
 Name: "Core\Interpreter"; Description: "{cm:CompInterpreter}"; Types: full dev minimal custom; Flags: fixed
 Name: "Core\Stdlib";      Description: "{cm:CompStdlib}";      Types: full dev custom
 
-; ──── أدوات
-Name: "Tools\Compiler"; Description: "{cm:CompCompiler}";   Types: full custom
-Name: "Tools\LSP";      Description: "{cm:CompLSP}";         Types: full dev custom
-Name: "Tools\Pkg";      Description: "{cm:CompPkg}";         Types: full dev custom
-Name: "Tools\REPL";     Description: "{cm:CompREPL}";        Types: full dev custom
+; ──── مجموعة: أدوات التطوير
+Name: "Tools";            Description: "{cm:GroupTools}";     Types: full dev custom
+Name: "Tools\Compiler";   Description: "{cm:CompCompiler}";   Types: full custom
+Name: "Tools\LSP";        Description: "{cm:CompLSP}";        Types: full dev custom
+Name: "Tools\Pkg";        Description: "{cm:CompPkg}";        Types: full dev custom
+Name: "Tools\REPL";       Description: "{cm:CompREPL}";       Types: full dev custom
 
-; ──── IDE
-Name: "IDE\VSCode"; Description: "{cm:CompVSCode}"; Types: full dev custom
+; ──── مجموعة: دعم بيئات التطوير
+Name: "IDE";              Description: "{cm:GroupIDE}";       Types: full dev custom
+Name: "IDE\VSCode";       Description: "{cm:CompVSCode}";     Types: full dev custom
 
 ; ──────────────────────────────────────────────────────────────────────────────
 [Tasks]
-Name: "addtopath";    Description: "{cm:AddToPath}";    GroupDescription: "إعدادات النظام:"; Flags: checked
-Name: "assocext";     Description: "{cm:AssocExt}";     GroupDescription: "إعدادات النظام:"; Flags: checked
+Name: "addtopath";    Description: "{cm:AddToPath}";    GroupDescription: "إعدادات النظام:"
+Name: "assocext";     Description: "{cm:AssocExt}";     GroupDescription: "إعدادات النظام:"
 Name: "desktopicon";  Description: "{cm:DesktopIcon}";  GroupDescription: "اختصارات:"; Flags: unchecked
-Name: "startmenu";    Description: "{cm:StartMenuIcon}"; GroupDescription: "اختصارات:"; Flags: checked
+Name: "startmenu";    Description: "{cm:StartMenuIcon}"; GroupDescription: "اختصارات:"
 
 ; ──────────────────────────────────────────────────────────────────────────────
 [Dirs]
@@ -212,13 +255,19 @@ Source: "..\..\build\bin\Release\sad-pkg.exe";       DestDir: "{app}\bin"; DestN
 Source: "..\..\build\bin\Release\sad-repl.exe";      DestDir: "{app}\bin"; DestName: "sad-repl.exe"; Flags: ignoreversion skipifsourcedoesntexist; Components: Tools\REPL
 
 ; ──── المكتبة القياسية
-Source: "..\..\stdlib\core\*";     DestDir: "{app}\stdlib\core";     Flags: ignoreversion recursesubdirs createallsubdirs; Components: Core\Stdlib
-Source: "..\..\stdlib\io\*";       DestDir: "{app}\stdlib\io";       Flags: ignoreversion recursesubdirs createallsubdirs; Components: Core\Stdlib
-Source: "..\..\stdlib\math\*";     DestDir: "{app}\stdlib\math";     Flags: ignoreversion recursesubdirs createallsubdirs; Components: Core\Stdlib
-Source: "..\..\stdlib\string\*";   DestDir: "{app}\stdlib\string";   Flags: ignoreversion recursesubdirs createallsubdirs; Components: Core\Stdlib
-Source: "..\..\stdlib\network\*";  DestDir: "{app}\stdlib\network";  Flags: ignoreversion recursesubdirs createallsubdirs; Components: Core\Stdlib
-Source: "..\..\stdlib\graphics\*"; DestDir: "{app}\stdlib\graphics"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: Core\Stdlib
-Source: "..\..\stdlib\database\*"; DestDir: "{app}\stdlib\database"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: Core\Stdlib
+Source: "..\..\stdlib\core\*";       DestDir: "{app}\stdlib\core";       Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\io\*";         DestDir: "{app}\stdlib\io";         Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\math\*";       DestDir: "{app}\stdlib\math";       Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\string\*";     DestDir: "{app}\stdlib\string";     Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\network\*";    DestDir: "{app}\stdlib\network";    Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\database\*";   DestDir: "{app}\stdlib\database";   Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\crypto\*";     DestDir: "{app}\stdlib\crypto";     Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\http\*";       DestDir: "{app}\stdlib\http";       Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\json\*";       DestDir: "{app}\stdlib\json";       Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\async\*";      DestDir: "{app}\stdlib\async";      Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\filesystem\*"; DestDir: "{app}\stdlib\filesystem"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\system\*";     DestDir: "{app}\stdlib\system";     Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
+Source: "..\..\stdlib\ui\*";         DestDir: "{app}\stdlib\ui";         Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: Core\Stdlib
 
 ; ──── إضافة VS Code
 Source: "..\..\tools\vscode-extension\sad-language-2.0.0.vsix"; DestDir: "{tmp}"; Flags: ignoreversion deleteafterinstall; Components: IDE\VSCode
@@ -266,6 +315,8 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 Root: HKLM; Subkey: "SOFTWARE\SadLang"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
 Root: HKLM; Subkey: "SOFTWARE\SadLang"; ValueType: string; ValueName: "Version"; ValueData: "{#MyAppVersion}"
 Root: HKLM; Subkey: "SOFTWARE\SadLang"; ValueType: string; ValueName: "Publisher"; ValueData: "{#MyAppPublisher}"
+Root: HKLM; Subkey: "SOFTWARE\SadLang"; ValueType: string; ValueName: "Contact"; ValueData: "{#MyAppContact}"
+Root: HKLM; Subkey: "SOFTWARE\SadLang"; ValueType: string; ValueName: "URLInfoAbout"; ValueData: "{#MyAppURL}"
 
 ; ──────────────────────────────────────────────────────────────────────────────
 [Run]
@@ -299,12 +350,376 @@ var
   LLVMWarningShown: Boolean;
   VSCodePath: String;
 
+  { صفحة LLVM المخصصة }
+  LLVMPage: TWizardPage;
+  LLVMPathEdit: TEdit;
+  LLVMStatusLabel: TLabel;
+  LLVMBrowseBtn: TButton;
+  LLVMValidateBtn: TButton;
+  LLVMDownloadBtn: TButton;
+  LLVMSkipChk: TCheckBox;
+  LLVMDetectedPath: String;
+  LLVMIsValid: Boolean;
+  LLVMDetectedVersion: String;
+
+{ ═══════════════════════════════════════════════════════════════════════════
+  دوال الكشف عن LLVM
+  ═══════════════════════════════════════════════════════════════════════════ }
+
+{ ── دالة مساعدة: هل الملف موجود؟ ── }
+function FileExists2(const Path: String): Boolean;
+begin
+  Result := FileExists(Path);
+end;
+
+{ ── استخراج إصدار LLVM من llvm-config أو clang ── }
+function GetLLVMVersion(const BinDir: String): String;
+var
+  LLVMConfigPath, ClangPath, TmpFile, Output: String;
+  Lines: TArrayOfString;
+  ExitCode: Integer;
+begin
+  Result := '';
+  LLVMConfigPath := BinDir + '\llvm-config.exe';
+  ClangPath      := BinDir + '\clang.exe';
+  TmpFile        := ExpandConstant('{tmp}\llvm_ver.txt');
+
+  if FileExists(LLVMConfigPath) then begin
+    { نستخدم Exec مع إعادة التوجيه إلى ملف }
+    if Exec('cmd.exe', '/C "' + LLVMConfigPath + '" --version > "' + TmpFile + '" 2>&1',
+            '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then begin
+      if LoadStringsFromFile(TmpFile, Lines) and (GetArrayLength(Lines) > 0) then
+        Result := Trim(Lines[0]);
+    end;
+  end else if FileExists(ClangPath) then begin
+    if Exec('cmd.exe', '/C "' + ClangPath + '" --version > "' + TmpFile + '" 2>&1',
+            '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then begin
+      if LoadStringsFromFile(TmpFile, Lines) and (GetArrayLength(Lines) > 0) then begin
+        Output := Lines[0];
+        { استخراج الرقم مثل "18.1.8" }
+        if Pos('version ', LowerCase(Output)) > 0 then begin
+          Result := Copy(Output, Pos('version ', LowerCase(Output)) + 8, 20);
+          { اقتطع عند أول مسافة }
+          if Pos(' ', Result) > 0 then
+            Result := Copy(Result, 1, Pos(' ', Result) - 1);
+        end;
+      end;
+    end;
+  end;
+  DeleteFile(TmpFile);
+end;
+
+{ ── الحصول على الإصدار الرئيسي ── }
+function GetMajorVersion(const Ver: String): Integer;
+var
+  DotPos: Integer;
+  Major: String;
+begin
+  Result := 0;
+  DotPos := Pos('.', Ver);
+  if DotPos > 0 then
+    Major := Copy(Ver, 1, DotPos - 1)
+  else
+    Major := Ver;
+  if Major <> '' then
+    Result := StrToIntDef(Major, 0);
+end;
+
+{ ── التحقق الكامل من مجلد LLVM ── }
+function ValidateLLVMDirectory(const Dir: String; var Version: String; var StatusMsg: String): Boolean;
+var
+  BinDir: String;
+  FoundBins: String;
+  HasClang, HasLLC, HasOpt, HasAr, HasConfig: Boolean;
+  BinCount: Integer;
+  MajorVer: Integer;
+begin
+  Result   := False;
+  Version  := '';
+  StatusMsg := '';
+
+  if not DirExists(Dir) then begin
+    StatusMsg := CustomMessage('LLVMValidFail') + ' (المجلد غير موجود)';
+    Exit;
+  end;
+
+  BinDir   := Dir + '\bin';
+  FoundBins := '';
+  BinCount  := 0;
+
+  HasClang  := FileExists(BinDir + '\clang.exe');
+  HasLLC    := FileExists(BinDir + '\llc.exe');
+  HasOpt    := FileExists(BinDir + '\opt.exe');
+  HasAr     := FileExists(BinDir + '\llvm-ar.exe');
+  HasConfig := FileExists(BinDir + '\llvm-config.exe');
+
+  if HasClang  then begin FoundBins := FoundBins + 'clang ';   Inc(BinCount); end;
+  if HasLLC    then begin FoundBins := FoundBins + 'llc ';     Inc(BinCount); end;
+  if HasOpt    then begin FoundBins := FoundBins + 'opt ';     Inc(BinCount); end;
+  if HasAr     then begin FoundBins := FoundBins + 'llvm-ar '; Inc(BinCount); end;
+  if HasConfig then begin FoundBins := FoundBins + 'llvm-config'; Inc(BinCount); end;
+
+  if BinCount < 2 then begin
+    StatusMsg := CustomMessage('LLVMValidFail') + ' (ملفات تنفيذية غير كافية)';
+    Exit;
+  end;
+
+  { استخراج الإصدار }
+  Version := GetLLVMVersion(BinDir);
+  if Version = '' then Version := 'unknown';
+
+  { فحص الإصدار }
+  MajorVer := GetMajorVersion(Version);
+  if (MajorVer > 0) and (MajorVer < 14) then begin
+    StatusMsg := FmtMessage(CustomMessage('LLVMVersionOld'), [Version]);
+    Exit;
+  end;
+
+  { نجح الفحص }
+  Result := True;
+  StatusMsg := FmtMessage(CustomMessage('LLVMValidOK'), [Version]) + #13#10 +
+               FmtMessage(CustomMessage('LLVMBinsFound'), [Trim(FoundBins)]);
+
+  if DirExists(Dir + '\lib') then
+    StatusMsg := StatusMsg + #13#10 + CustomMessage('LLVMLibsFound');
+  if DirExists(Dir + '\include\llvm') then
+    StatusMsg := StatusMsg + #13#10 + CustomMessage('LLVMHeadersFound');
+end;
+
+{ ── البحث التلقائي عن LLVM ── }
+function AutoDetectLLVM(var FoundPath: String): Boolean;
+var
+  RegPath, RegVal: String;
+  Paths: TArrayOfString;
+  I: Integer;
+  Ver, Msg: String;
+begin
+  Result    := False;
+  FoundPath := '';
+
+  { البحث في السجل أولاً }
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\LLVM\LLVM', '', RegVal) then begin
+    if DirExists(RegVal) and ValidateLLVMDirectory(RegVal, Ver, Msg) then begin
+      FoundPath := RegVal;
+      Result := True;
+      Exit;
+    end;
+  end;
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\WOW6432Node\LLVM\LLVM', '', RegVal) then begin
+    if DirExists(RegVal) and ValidateLLVMDirectory(RegVal, Ver, Msg) then begin
+      FoundPath := RegVal;
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  { البحث في مسارات شائعة }
+  SetArrayLength(Paths, 12);
+  Paths[0]  := 'C:\Program Files\LLVM';
+  Paths[1]  := 'C:\Program Files\LLVM-18';
+  Paths[2]  := 'C:\LLVM';
+  Paths[3]  := 'C:\LLVM-18';
+  Paths[4]  := 'C:\LLVM-Dev';
+  Paths[5]  := 'C:\tools\LLVM';
+  Paths[6]  := 'C:\msys64\mingw64';
+  Paths[7]  := 'C:\msys64\ucrt64';
+  Paths[8]  := 'C:\msys64\clang64';
+  Paths[9]  := ExpandConstant('{localappdata}\Programs\LLVM');
+  Paths[10] := ExpandConstant('{localappdata}\scoop\apps\llvm\current');
+  Paths[11] := 'D:\Program Files\LLVM';
+
+  for I := 0 to GetArrayLength(Paths) - 1 do begin
+    if DirExists(Paths[I]) and ValidateLLVMDirectory(Paths[I], Ver, Msg) then begin
+      FoundPath := Paths[I];
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+{ ═══════════════════════════════════════════════════════════════════════════
+  إنشاء صفحة LLVM المخصصة
+  ═══════════════════════════════════════════════════════════════════════════ }
+
+procedure LLVMBrowseClick(Sender: TObject);
+var
+  Dir: String;
+begin
+  Dir := LLVMPathEdit.Text;
+  if Dir = '' then Dir := 'C:\Program Files';
+  if BrowseForFolder(CustomMessage('LLVMPageDesc'), Dir, False) then begin
+    LLVMPathEdit.Text := Dir;
+    { التحقق الفوري }
+    LLVMValidateBtn.OnClick(LLVMValidateBtn);
+  end;
+end;
+
+procedure LLVMValidateClick(Sender: TObject);
+var
+  Dir, Ver, Msg: String;
+begin
+  Dir := LLVMPathEdit.Text;
+  if Dir = '' then begin
+    LLVMStatusLabel.Caption  := 'أدخل مسار مجلد LLVM أولاً';
+    LLVMStatusLabel.Font.Color := clRed;
+    LLVMIsValid := False;
+    Exit;
+  end;
+
+  LLVMStatusLabel.Caption   := '...جاري الفحص';
+  LLVMStatusLabel.Font.Color := clBlue;
+
+  if ValidateLLVMDirectory(Dir, Ver, Msg) then begin
+    LLVMIsValid          := True;
+    LLVMDetectedVersion  := Ver;
+    LLVMDetectedPath     := Dir;
+    LLVMStatusLabel.Caption   := Msg;
+    LLVMStatusLabel.Font.Color := clGreen;
+    LLVMSkipChk.Checked  := False;
+  end else begin
+    LLVMIsValid := False;
+    LLVMStatusLabel.Caption   := Msg;
+    LLVMStatusLabel.Font.Color := clRed;
+  end;
+end;
+
+procedure LLVMDownloadClick(Sender: TObject);
+var
+  ErrCode: Integer;
+begin
+  ShellExec('open', 'https://github.com/llvm/llvm-project/releases/tag/llvmorg-18.1.8', '', '', SW_SHOWNORMAL, ewNoWait, ErrCode);
+end;
+
+procedure LLVMAutoDetectClick(Sender: TObject);
+var
+  FoundPath, Ver, Msg: String;
+begin
+  LLVMStatusLabel.Caption   := '...جاري الكشف التلقائي';
+  LLVMStatusLabel.Font.Color := clBlue;
+
+  if AutoDetectLLVM(FoundPath) then begin
+    LLVMPathEdit.Text := FoundPath;
+    ValidateLLVMDirectory(FoundPath, Ver, Msg);
+    LLVMIsValid         := True;
+    LLVMDetectedVersion := Ver;
+    LLVMDetectedPath    := FoundPath;
+    LLVMStatusLabel.Caption    := FmtMessage(CustomMessage('LLVMFound') + ': %1', [FoundPath]) + #13#10 + Msg;
+    LLVMStatusLabel.Font.Color := clGreen;
+    LLVMSkipChk.Checked := False;
+  end else begin
+    LLVMStatusLabel.Caption    := CustomMessage('LLVMNotFound');
+    LLVMStatusLabel.Font.Color := clMaroon;
+  end;
+end;
+
+procedure CreateLLVMPage;
+var
+  TitleLabel, DescLabel, PathLabel: TLabel;
+  AutoDetectBtn: TButton;
+  Y: Integer;
+begin
+  LLVMPage := CreateCustomPage(wpSelectComponents,
+    CustomMessage('LLVMPageTitle'),
+    CustomMessage('LLVMPageDesc'));
+
+  Y := 8;
+
+  { زر الكشف التلقائي }
+  AutoDetectBtn := TButton.Create(LLVMPage);
+  AutoDetectBtn.Parent  := LLVMPage.Surface;
+  AutoDetectBtn.Caption := CustomMessage('LLVMAutoDetect');
+  AutoDetectBtn.Left    := 0;
+  AutoDetectBtn.Top     := Y;
+  AutoDetectBtn.Width   := 180;
+  AutoDetectBtn.Height  := 26;
+  AutoDetectBtn.OnClick := @LLVMAutoDetectClick;
+
+  Y := Y + 36;
+
+  { تسمية حقل المسار }
+  PathLabel := TLabel.Create(LLVMPage);
+  PathLabel.Parent  := LLVMPage.Surface;
+  PathLabel.Caption := CustomMessage('LLVMPathLabel');
+  PathLabel.Left    := 0;
+  PathLabel.Top     := Y;
+  PathLabel.Width   := 400;
+  Y := Y + 18;
+
+  { حقل إدخال المسار }
+  LLVMPathEdit := TEdit.Create(LLVMPage);
+  LLVMPathEdit.Parent := LLVMPage.Surface;
+  LLVMPathEdit.Left   := 0;
+  LLVMPathEdit.Top    := Y;
+  LLVMPathEdit.Width  := 330;
+  LLVMPathEdit.Height := 22;
+  LLVMPathEdit.Text   := '';
+
+  { زر استعراض }
+  LLVMBrowseBtn := TButton.Create(LLVMPage);
+  LLVMBrowseBtn.Parent  := LLVMPage.Surface;
+  LLVMBrowseBtn.Caption := CustomMessage('LLVMBrowse');
+  LLVMBrowseBtn.Left    := 338;
+  LLVMBrowseBtn.Top     := Y - 1;
+  LLVMBrowseBtn.Width   := 80;
+  LLVMBrowseBtn.Height  := 24;
+  LLVMBrowseBtn.OnClick := @LLVMBrowseClick;
+
+  Y := Y + 32;
+
+  { زر التحقق }
+  LLVMValidateBtn := TButton.Create(LLVMPage);
+  LLVMValidateBtn.Parent  := LLVMPage.Surface;
+  LLVMValidateBtn.Caption := '← تحقق من المسار / Validate';
+  LLVMValidateBtn.Left    := 0;
+  LLVMValidateBtn.Top     := Y;
+  LLVMValidateBtn.Width   := 180;
+  LLVMValidateBtn.Height  := 26;
+  LLVMValidateBtn.OnClick := @LLVMValidateClick;
+
+  Y := Y + 36;
+
+  { تسمية الحالة }
+  LLVMStatusLabel := TLabel.Create(LLVMPage);
+  LLVMStatusLabel.Parent    := LLVMPage.Surface;
+  LLVMStatusLabel.Caption   := '';
+  LLVMStatusLabel.Left      := 0;
+  LLVMStatusLabel.Top       := Y;
+  LLVMStatusLabel.Width     := 420;
+  LLVMStatusLabel.Height    := 60;
+  LLVMStatusLabel.WordWrap  := True;
+  LLVMStatusLabel.Font.Size := 9;
+
+  Y := Y + 70;
+
+  { زر تحميل LLVM }
+  LLVMDownloadBtn := TButton.Create(LLVMPage);
+  LLVMDownloadBtn.Parent  := LLVMPage.Surface;
+  LLVMDownloadBtn.Caption := CustomMessage('LLVMDownloadBtn');
+  LLVMDownloadBtn.Left    := 0;
+  LLVMDownloadBtn.Top     := Y;
+  LLVMDownloadBtn.Width   := 250;
+  LLVMDownloadBtn.Height  := 26;
+  LLVMDownloadBtn.Font.Color := clBlue;
+  LLVMDownloadBtn.OnClick := @LLVMDownloadClick;
+
+  Y := Y + 36;
+
+  { مربع تخطي LLVM }
+  LLVMSkipChk := TCheckBox.Create(LLVMPage);
+  LLVMSkipChk.Parent  := LLVMPage.Surface;
+  LLVMSkipChk.Caption := CustomMessage('LLVMSkip');
+  LLVMSkipChk.Left    := 0;
+  LLVMSkipChk.Top     := Y;
+  LLVMSkipChk.Width   := 420;
+  LLVMSkipChk.Height  := 20;
+  LLVMSkipChk.Checked := False;
+end;
+
 { ── البحث عن VS Code ── }
 function FindVSCode(): String;
 var
   Paths: TArrayOfString;
   I: Integer;
-  Path: String;
 begin
   Result := '';
   SetArrayLength(Paths, 6);
@@ -357,6 +772,32 @@ begin
   end;
 end;
 
+{ ── تقسيم النص ── }
+function SplitString(const S, Delimiters: string): TArrayOfString;
+var
+  I, N, StartIdx: Integer;
+  IsDelim: Boolean;
+begin
+  SetArrayLength(Result, 0);
+  N := 0;
+  StartIdx := 1;
+  for I := 1 to Length(S) do begin
+    IsDelim := Pos(S[I], Delimiters) > 0;
+    if IsDelim then begin
+      if I > StartIdx then begin
+        SetArrayLength(Result, N + 1);
+        Result[N] := Copy(S, StartIdx, I - StartIdx);
+        Inc(N);
+      end;
+      StartIdx := I + 1;
+    end;
+  end;
+  if StartIdx <= Length(S) then begin
+    SetArrayLength(Result, N + 1);
+    Result[N] := Copy(S, StartIdx, Length(S) - StartIdx + 1);
+  end;
+end;
+
 { ── إزالة المجلد من PATH ── }
 procedure RemoveFromPath(PathToRemove: String);
 var
@@ -385,67 +826,103 @@ begin
     'Path', NewPath);
 end;
 
-{ ── تقسيم النص ── }
-function SplitString(const S, Delimiters: string): TArrayOfString;
-var
-  I, N, StartIdx: Integer;
-  IsDelim: Boolean;
-begin
-  SetArrayLength(Result, 0);
-  N := 0;
-  StartIdx := 1;
-  for I := 1 to Length(S) do begin
-    IsDelim := Pos(S[I], Delimiters) > 0;
-    if IsDelim then begin
-      if I > StartIdx then begin
-        SetArrayLength(Result, N + 1);
-        Result[N] := Copy(S, StartIdx, I - StartIdx);
-        Inc(N);
-      end;
-      StartIdx := I + 1;
-    end;
-  end;
-  if StartIdx <= Length(S) then begin
-    SetArrayLength(Result, N + 1);
-    Result[N] := Copy(S, StartIdx, Length(S) - StartIdx + 1);
-  end;
-end;
-
 { ═══════════════════════════════════════════════
   أحداث المثبّت
   ═══════════════════════════════════════════════ }
 
 { ── الإعداد الأولي ── }
 procedure InitializeWizard();
+var
+  FoundPath: String;
 begin
   LLVMWarningShown := False;
-  VSCodePath := FindVSCode();
+  VSCodePath       := FindVSCode();
+  LLVMIsValid      := False;
+  LLVMDetectedVersion := '';
+  LLVMDetectedPath := '';
+
+  { إنشاء صفحة LLVM }
+  CreateLLVMPage;
+
+  { الكشف التلقائي عند البداية }
+  if AutoDetectLLVM(FoundPath) then begin
+    LLVMPathEdit.Text   := FoundPath;
+    LLVMIsValid         := True;
+    LLVMDetectedPath    := FoundPath;
+    { استخراج الإصدار وتحديث واجهة الصفحة }
+    LLVMAutoDetectClick(nil);
+  end;
+end;
+
+{ ── إخفاء أو إظهار صفحة LLVM حسب الاختيار ── }
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := False;
+  { تخطي صفحة LLVM إذا لم يختر المستخدم المترجم }
+  if PageID = LLVMPage.ID then begin
+    Result := not WizardIsComponentSelected('Tools\Compiler');
+  end;
 end;
 
 { ── ما يحدث عند اكتمال التثبيت ── }
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  LLVMBin: String;
 begin
   if CurStep = ssPostInstall then begin
     { إضافة bin لـ PATH }
-    if IsTaskSelected('addtopath') then begin
+    if WizardIsTaskSelected('addtopath') then begin
       AddToPath(ExpandConstant('{app}\bin'));
     end;
+    { حفظ مسار LLVM في متغيرات البيئة إذا تم التحقق منه }
+    if LLVMIsValid and (LLVMDetectedPath <> '') then begin
+      RegWriteExpandStringValue(HKEY_LOCAL_MACHINE,
+        'SYSTEM\CurrentControlSet\Control\Session Manager\Environment',
+        'LLVM_DIR', LLVMDetectedPath);
+      LLVMBin := LLVMDetectedPath + '\bin';
+      AddToPath(LLVMBin);
+      { تسجيل المسار في السجل }
+      RegWriteStringValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\SadLang', 'LLVMPath', LLVMDetectedPath);
+      RegWriteStringValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\SadLang', 'LLVMVersion', LLVMDetectedVersion);
+    end;
     { إخطار مدير النوافذ بتغيير البيئة }
-    SendBroadcastMessage($001A, 0, nil);
+    SendBroadcastMessage($001A, 0, '');
   end;
 end;
 
-{ ── إنذار قبل التثبيت ── }
+{ ── التحقق عند الانتقال إلى الصفحة التالية ── }
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
-  { تحذير LLVM إذا اختار المستخدم المترجم }
-  if (CurPageID = wpSelectComponents) and
-     (not LLVMWarningShown) and
-     WizardIsComponentSelected('Tools\Compiler') then begin
-    LLVMWarningShown := True;
-    MsgBox(CustomMessage('LLVM_Warning'), mbInformation, MB_OK);
+
+  { صفحة LLVM — تحقق قبل المتابعة }
+  if CurPageID = LLVMPage.ID then begin
+    if WizardIsComponentSelected('Tools\Compiler') then begin
+      if (not LLVMIsValid) and (not LLVMSkipChk.Checked) then begin
+        if LLVMPathEdit.Text <> '' then begin
+          { حاول التحقق تلقائياً }
+          LLVMValidateClick(nil);
+          if not LLVMIsValid then begin
+            MsgBox('المسار المدخل لا يحتوي على LLVM صالح.' + #13#10 +
+                   'الرجاء تصحيح المسار، أو تفعيل خيار "تخطي" لتثبيت sad بدون sadc.',
+                   mbError, MB_OK);
+            Result := False;
+            Exit;
+          end;
+        end else if not LLVMSkipChk.Checked then begin
+          { لم يُدخل مساراً ولم يختر تخطي }
+          if MsgBox('لم تحدد مسار LLVM ولم تختر "تخطي".' + #13#10 +
+                    'هل تريد المتابعة بدون sadc؟', mbConfirmation, MB_YESNO) = IDNO then begin
+            Result := False;
+            Exit;
+          end else begin
+            LLVMSkipChk.Checked := True;
+          end;
+        end;
+      end;
+    end;
   end;
+
   { تحذير VS Code غير موجود }
   if (CurPageID = wpSelectComponents) and
      WizardIsComponentSelected('IDE\VSCode') and
@@ -459,7 +936,11 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then begin
     RemoveFromPath(ExpandConstant('{app}\bin'));
-    SendBroadcastMessage($001A, 0, nil);
+    { إزالة LLVM_DIR من البيئة إذا كان مضافاً بواسطة المثبت }
+    RegDeleteValue(HKEY_LOCAL_MACHINE,
+      'SYSTEM\CurrentControlSet\Control\Session Manager\Environment',
+      'LLVM_DIR');
+    SendBroadcastMessage($001A, 0, '');
   end;
 end;
 

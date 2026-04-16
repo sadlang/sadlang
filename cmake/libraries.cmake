@@ -43,6 +43,13 @@ if(TARGET sad_rt_runtime)
     message(STATUS "✓ ربط runtime_new بالمفسر / Linked runtime_new to interpreter")
 endif()
 
+# ربط صNet — مكتبة الشبكات اللامركزية / Link SadNet
+if(TARGET sadnet)
+    target_link_libraries(sad_core PRIVATE sadnet)
+    target_compile_definitions(sad_core PRIVATE HAS_SADNET)
+    message(STATUS "✓ ربط صNet بالمفسر / Linked SadNet to interpreter")
+endif()
+
 # SQLite3 (اختياري) / SQLite3 (optional)
 find_package(unofficial-sqlite3 CONFIG QUIET)
 if(unofficial-sqlite3_FOUND)

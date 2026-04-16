@@ -179,6 +179,14 @@ public:
         loadedModules_.clear();
     }
 
+    /**
+     * @brief (AR) اقتراح اسم الوحدة المناسبة لدالة معينة
+     * @brief (EN) Suggest which module to import for a given function name
+     * @param funcName اسم الدالة / Function name
+     * @return اسم الوحدة المقترحة أو سلسلة فارغة / Suggested module name or empty string
+     */
+    std::string suggestModuleForFunction(const std::string& funcName) const;
+
 private:
     BuiltinModuleRegistry() = default;
 

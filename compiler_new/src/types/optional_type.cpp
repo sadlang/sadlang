@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: optional_type.cpp
 // File: optional_type.cpp
 //
@@ -93,7 +93,7 @@ bool isOptionalType(const TypePtr& type) {
     }
     
     // التحقق من union type / Check if union type
-    if (type->getKind() == TypeKind::Union) {
+    if (type->getKind() == SadTypeKind::Union) {
         auto unionType = asUnionType(type);
         if (unionType) {
             return isUnionOptional(unionType);
@@ -125,7 +125,7 @@ TypePtr unwrapOptional(const TypePtr& type) {
             // استخراج النوع غير null / Extract non-null type
             auto alternatives = unionType->getAlternatives();
             for (const auto& alt : alternatives) {
-                if (alt->getKind() != TypeKind::Void) {
+                if (alt->getKind() != SadTypeKind::Void) {
                     return alt;
                 }
             }
@@ -165,7 +165,7 @@ bool isUnionOptional(const UnionTypePtr& unionType) {
     int nonNullCount = 0;
     
     for (const auto& alt : alternatives) {
-        if (alt->getKind() != TypeKind::Void) {
+        if (alt->getKind() != SadTypeKind::Void) {
             nonNullCount++;
         }
     }
@@ -185,7 +185,7 @@ TypePtr unionToOptional(const UnionTypePtr& unionType) {
     // استخراج النوع غير null / Extract non-null type
     const auto& alternatives = unionType->getAlternatives();
     for (const auto& alt : alternatives) {
-        if (alt->getKind() != TypeKind::Void) {
+        if (alt->getKind() != SadTypeKind::Void) {
             return makeOptionalType(alt);
         }
     }

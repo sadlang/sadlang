@@ -18,12 +18,12 @@ target_link_libraries(sad PRIVATE
     sad_http
     sad_websocket
     sad_mobile
+    sad_ui
 )
 
-# ربط مكتبة الرسومات فقط على Windows
-# Link graphics only on Windows
-if(TARGET sad_graphics)
-    target_link_libraries(sad PRIVATE sad_graphics)
+# (AR) ربط مكتبة مصحح الأداء / (EN) Link profiler library
+if(TARGET sad_profiler_lib)
+    target_link_libraries(sad PRIVATE sad_profiler_lib)
 endif()
 
 # (AR) ربط مكتبة وقت التشغيل إذا تم بناؤها / (EN) Link runtime if built
@@ -31,42 +31,20 @@ if(TARGET sad_rt_runtime)
     target_link_libraries(sad PRIVATE sad_rt_runtime)
 endif()
 
-# ربط مكتبة الواجهات الرسومية / Link UI IR library
-if(TARGET sad_ui_ir)
-    target_link_libraries(sad PRIVATE sad_ui_ir)
-endif()
-
 target_include_directories(sad PRIVATE
     ${CMAKE_SOURCE_DIR}/vm/include
     ${CMAKE_SOURCE_DIR}/compiler_new/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/ui
     ${CMAKE_SOURCE_DIR}/compiler_new/include/semantic
     ${CMAKE_SOURCE_DIR}/compiler_new/include/types
     ${CMAKE_SOURCE_DIR}/compiler_new/include/backend
     ${CMAKE_SOURCE_DIR}/tools/compiler/src
     ${CMAKE_SOURCE_DIR}/shared/parser/include
+    ${CMAKE_SOURCE_DIR}/shared/hot_reload/include
 )
 
 set_target_properties(sad PROPERTIES
     OUTPUT_NAME "sad"
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-)
-
-# نسخ SDL2.dll / Copy SDL2.dll
-set(SDL2_DLL_PATH "${CMAKE_SOURCE_DIR}/graphics/third_party/SDL2/SDL2-2.28.5/lib/x64/SDL2.dll")
-if(EXISTS ${SDL2_DLL_PATH})
-    add_custom_command(TARGET sad POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SDL2_DLL_PATH}" $<TARGET_FILE_DIR:sad>
-        COMMENT "نسخ SDL2.dll / Copying SDL2.dll"
-    )
-endif()
-
-# نسخ مكتبة الواجهات / Copy UI library
-add_custom_command(TARGET sad POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:sad>/stdlib"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_SOURCE_DIR}/stdlib/واجهات.ص" "$<TARGET_FILE_DIR:sad>/stdlib/واجهات.ص"
-    COMMENT "نسخ مكتبة الواجهات / Copying UI library"
 )
 
 message(STATUS "✓ المفسر / Interpreter: sad")
@@ -76,6 +54,7 @@ message(STATUS "✓ المفسر / Interpreter: sad")
 # ─────────────────────────────────────────────────────────────────────
 add_library(sad_formatter STATIC
     compiler_new/src/format/sad_formatter.cpp
+    compiler_new/src/format/sad_formatter_rebuild.cpp
 )
 
 target_include_directories(sad_formatter PUBLIC
@@ -106,11 +85,14 @@ set(MOBILE_SOURCES
     tools/compiler/src/run_command.cpp
     tools/compiler/src/test_command.cpp
     tools/compiler/src/build_command.cpp
-    compiler_new/src/build/build_system.cpp
-    shared/parser/src/ui_parser.cpp
-    compiler_new/src/backend/android_compose.cpp
-    compiler_new/src/backend/ios_swiftui.cpp
+    shared/parser/src/specs/ui/parser_ui_maps.cpp
 )
+
+# (AR) التحقق من وجود build_system.cpp قبل إضافته
+# (EN) Check if build_system.cpp exists before adding it
+if(EXISTS "${CMAKE_SOURCE_DIR}/compiler_new/src/build/build_system.cpp")
+    list(APPEND MOBILE_SOURCES "compiler_new/src/build/build_system.cpp")
+endif()
 
 add_library(sad_mobile STATIC ${MOBILE_SOURCES})
 
@@ -145,12 +127,41 @@ message(STATUS "✓ تطبيقات الهاتف / Mobile: Android + iOS")
 # المترجم sadc (يتطلب LLVM) / Compiler sadc (requires LLVM)
 # ──────────────────────────────────────────────────────────────────────
 if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
+
+    # ================================================================
+    # (AR) تضمين ملف runtime كبيانات في C++
+    # (EN) Embed runtime C file as C++ data header
+    # ================================================================
+    set(SAD_RUNTIME_SOURCE "${CMAKE_SOURCE_DIR}/tools/compiler/runtime/sad_embedded_runtime.c")
+    set(SAD_RUNTIME_HEADER "${CMAKE_BINARY_DIR}/generated/sad_embedded_runtime_data.h")
+
+    add_custom_command(
+        OUTPUT "${SAD_RUNTIME_HEADER}"
+        COMMAND ${CMAKE_COMMAND}
+            -DRUNTIME_INPUT_FILE=${SAD_RUNTIME_SOURCE}
+            -DRUNTIME_OUTPUT_FILE=${SAD_RUNTIME_HEADER}
+            -P ${CMAKE_SOURCE_DIR}/cmake/embed_runtime.cmake
+        DEPENDS "${SAD_RUNTIME_SOURCE}"
+        COMMENT "(AR) تضمين runtime... / (EN) Embedding runtime..."
+    )
+
+    # (AR) هدف وهمي لضمان التوليد قبل البناء
+    # (EN) Custom target to ensure generation before build
+    add_custom_target(generate_runtime_header DEPENDS "${SAD_RUNTIME_HEADER}")
+
     add_executable(sadc
         tools/compiler/main.cpp
         tools/compiler/compiler_driver_frontend.cpp
+        tools/compiler/compiler_driver_diagnostics.cpp
+        tools/compiler/compiler_driver_analysis.cpp
         tools/compiler/compiler_driver_backend.cpp
+        tools/compiler/compiler_driver_cli.cpp
+        tools/compiler/compiler_driver_linker.cpp
+        tools/compiler/compiler_driver_lld.cpp
+        tools/compiler/compiler_driver_build_utils.cpp
         tools/compiler/compiler_driver_ui.cpp
         tools/compiler/compiler_driver_android.cpp
+        tools/compiler/compiler_driver_android_linker.cpp
         tools/compiler/compiler_driver_pkg.cpp
     )
 
@@ -163,17 +174,28 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         ${CMAKE_SOURCE_DIR}/shared/types/include
         ${CMAKE_SOURCE_DIR}/shared/errors/include
         ${CMAKE_SOURCE_DIR}/compiler_new/include
-        ${CMAKE_SOURCE_DIR}/compiler_new/include/ui
         ${CMAKE_SOURCE_DIR}/compiler_new/include/frontend
         ${CMAKE_SOURCE_DIR}/compiler_new/include/semantic
         ${CMAKE_SOURCE_DIR}/compiler_new/include/types
         ${CMAKE_SOURCE_DIR}/compiler_new/include/backend/llvm
         ${LLVM_INCLUDE_DIRS}
+        ${CMAKE_BINARY_DIR}/generated
     )
 
+    # (AR) ضمان توليد الهيدر قبل بناء sadc
+    # (EN) Ensure runtime header is generated before building sadc
+    add_dependencies(sadc generate_runtime_header)
+
     target_link_libraries(sadc PRIVATE
-        sad_shared sad_new_compiler sad_mobile sad_graphics ${LLVM_LIBS}
+        sad_shared sad_new_compiler sad_mobile ${LLVM_LIBS}
     )
+
+    # ربط مكتبات LLD إذا كانت متوفرة / Link LLD libraries if available
+    if(HAS_EMBEDDED_LLD)
+        target_link_libraries(sadc PRIVATE ${LLD_LIBS})
+        target_compile_definitions(sadc PRIVATE HAS_EMBEDDED_LLD)
+        message(STATUS "   sadc: LLD مدمج / embedded LLD enabled")
+    endif()
 
     if(MSVC)
         target_compile_options(sadc PRIVATE /wd4819 /FS)
@@ -184,138 +206,15 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
     )
 
+    # (AR) زيادة حجم الـ stack إلى 128 ميغابايت لمعالجة الملفات الكبيرة
+    # (EN) Increase stack size to 128MB for large source files
+    if(MSVC)
+        target_link_options(sadc PRIVATE /STACK:134217728)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_link_options(sadc PRIVATE -Wl,-z,stacksize=134217728)
+    endif()
+
     message(STATUS "✓ المترجم / Compiler: sadc (LLVM ${LLVM_PACKAGE_VERSION})")
 else()
     message(STATUS "⊘ المترجم sadc معطّل (LLVM غير متوفر) / sadc disabled")
 endif()
-
-# ──────────────────────────────────────────────────────────────────────
-# التطبيق التجريبي — ٨ واجهات / Demo App — 8 screens
-# ──────────────────────────────────────────────────────────────────────
-if(TARGET sad_ui_ir)
-    add_executable(sad_ui_demo tools/ui_demo/ui_demo_main.cpp)
-
-    target_include_directories(sad_ui_demo PRIVATE
-        ${CMAKE_SOURCE_DIR}/compiler_new/include
-        ${CMAKE_SOURCE_DIR}/compiler_new/include/ui
-        ${CMAKE_SOURCE_DIR}/shared/parser/include
-        ${CMAKE_SOURCE_DIR}/shared/ast/include
-        ${CMAKE_SOURCE_DIR}/shared/types/include
-        ${CMAKE_SOURCE_DIR}/shared/lexer/include
-        ${CMAKE_SOURCE_DIR}/shared/errors/include
-    )
-
-    target_link_libraries(sad_ui_demo PRIVATE
-        sad_ui_ir
-        sad_shared
-        sad_mobile
-    )
-
-    if(MSVC)
-        target_compile_options(sad_ui_demo PRIVATE /wd4819 /FS)
-    endif()
-
-    set_target_properties(sad_ui_demo PROPERTIES
-        OUTPUT_NAME "sad_ui_demo2"
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    message(STATUS "✓ التطبيق التجريبي / Demo: sad_ui_demo (8 screens)")
-endif()
-
-# ──────────────────────────────────────────────────────────────────────
-# تطبيق سطح المكتب التجريبي — SDL2 مباشر / Desktop Demo — Direct SDL2
-# ──────────────────────────────────────────────────────────────────────
-add_executable(sad_desktop_demo
-    tools/ui_demo/sad_ui_desktop_demo.cpp
-    stdlib/graphics/sad_ui_fonts_arabic.cpp
-    stdlib/graphics/sad_ui_layout_render.cpp
-    stdlib/graphics/sad_ui_api.cpp
-    stdlib/graphics/sad_navigator.cpp
-    stdlib/graphics/sad_state.cpp
-    stdlib/graphics/sad_animation.cpp
-)
-
-target_include_directories(sad_desktop_demo PRIVATE
-    ${CMAKE_SOURCE_DIR}/stdlib/graphics
-    ${CMAKE_SOURCE_DIR}/stdlib/graphics/third_party/SDL2/SDL2-2.28.5/include
-    ${CMAKE_SOURCE_DIR}/graphics/third_party
-)
-
-target_link_libraries(sad_desktop_demo PRIVATE
-    sad_graphics
-)
-
-if(MSVC)
-    target_compile_options(sad_desktop_demo PRIVATE /wd4819 /FS /utf-8)
-endif()
-
-set_target_properties(sad_desktop_demo PROPERTIES
-    OUTPUT_NAME "sad_desktop_demo"
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-)
-
-# Copy SDL2.dll for desktop demo
-if(EXISTS ${SDL2_DLL_PATH})
-    add_custom_command(TARGET sad_desktop_demo POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SDL2_DLL_PATH}" $<TARGET_FILE_DIR:sad_desktop_demo>
-    )
-endif()
-
-message(STATUS "✓ تطبيق سطح المكتب / Desktop Demo: sad_desktop_demo (8 screens, SDL2)")
-
-# ──────────────────────────────────────────────────────────────────────
-# أداة iOS / iOS CLI Tool (sad-ios)
-# ──────────────────────────────────────────────────────────────────────
-add_executable(sad-ios tools/ios/sad_ios_cli.cpp)
-
-target_include_directories(sad-ios PRIVATE
-    ${CMAKE_SOURCE_DIR}/shared/lexer/include
-    ${CMAKE_SOURCE_DIR}/shared/parser/include
-    ${CMAKE_SOURCE_DIR}/shared/ast/include
-    ${CMAKE_SOURCE_DIR}/shared/types/include
-    ${CMAKE_SOURCE_DIR}/shared/errors/include
-)
-
-target_link_libraries(sad-ios PRIVATE sad_core)
-
-if(MSVC)
-    target_compile_options(sad-ios PRIVATE /wd4819 /FS /utf-8)
-endif()
-
-target_compile_features(sad-ios PRIVATE cxx_std_17)
-
-set_target_properties(sad-ios PROPERTIES
-    OUTPUT_NAME "sad-ios"
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-)
-
-message(STATUS "✓ أداة iOS / iOS Tool: sad-ios")
-
-# ──────────────────────────────────────────────────────────────────────
-# أداة أندرويد / Android CLI Tool (sad-android)
-# ──────────────────────────────────────────────────────────────────────
-add_executable(sad-android tools/android/sad_android.cpp)
-
-target_include_directories(sad-android PRIVATE
-    ${CMAKE_SOURCE_DIR}/shared/lexer/include
-    ${CMAKE_SOURCE_DIR}/shared/parser/include
-    ${CMAKE_SOURCE_DIR}/shared/ast/include
-    ${CMAKE_SOURCE_DIR}/shared/types/include
-    ${CMAKE_SOURCE_DIR}/shared/errors/include
-)
-
-target_link_libraries(sad-android PRIVATE sad_core)
-
-if(MSVC)
-    target_compile_options(sad-android PRIVATE /wd4819 /FS /utf-8)
-endif()
-
-target_compile_features(sad-android PRIVATE cxx_std_17)
-
-set_target_properties(sad-android PROPERTIES
-    OUTPUT_NAME "sad-android"
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-)
-
-message(STATUS "✓ أداة أندرويد / Android Tool: sad-android")

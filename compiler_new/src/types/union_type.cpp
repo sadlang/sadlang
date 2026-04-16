@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: union_type.cpp
 // File: union_type.cpp
 //
@@ -28,7 +28,7 @@ namespace TypeSystem {
 // ════════════════════════════════════════════════════════════════════════════════
 
 UnionType::UnionType(const TypeList& alternatives)
-    : Type(TypeKind::Union)
+    : Type(SadTypeKind::Union)
     , alternatives_(alternatives)
 {
     // تسطيح الأنواع المتداخلة / Flatten nested unions
@@ -42,7 +42,7 @@ UnionType::UnionType(const TypeList& alternatives)
 }
 
 UnionType::UnionType(TypePtr type1, TypePtr type2)
-    : Type(TypeKind::Union)
+    : Type(SadTypeKind::Union)
     , alternatives_({type1, type2})
 {
     flatten();
@@ -82,7 +82,7 @@ std::string UnionType::toString() const {
 
 bool UnionType::equals(const Type* other) const {
     if (!other) return false;
-    if (other->getKind() != TypeKind::Union) return false;
+    if (other->getKind() != SadTypeKind::Union) return false;
     
     const UnionType* otherUnion = static_cast<const UnionType*>(other);
     
@@ -249,7 +249,7 @@ TypePtr UnionType::getAlternative(size_t index) const {
 
 bool UnionType::containsNull() const {
     for (const auto& alt : alternatives_) {
-        if (alt->getKind() == TypeKind::Void) {
+        if (alt->getKind() == SadTypeKind::Void) {
             return true;
         }
     }
@@ -260,7 +260,7 @@ UnionTypePtr UnionType::removeNull() const {
     TypeList result;
     
     for (const auto& alt : alternatives_) {
-        if (alt->getKind() != TypeKind::Void) {
+        if (alt->getKind() != SadTypeKind::Void) {
             result.push_back(alt);
         }
     }
@@ -281,7 +281,7 @@ bool UnionType::isAssignableTo(const Type* other) const {
     if (equals(other)) return true;
     
     // إذا كان الآخر union / If other is union
-    if (other->getKind() == TypeKind::Union) {
+    if (other->getKind() == SadTypeKind::Union) {
         const UnionType* otherUnion = static_cast<const UnionType*>(other);
         
         // جميع بدائلنا يجب أن تكون في الآخر / All our alternatives must be in other
@@ -344,7 +344,7 @@ void UnionType::flatten() {
     TypeList flattened;
     
     for (const auto& alt : alternatives_) {
-        if (alt->getKind() == TypeKind::Union) {
+        if (alt->getKind() == SadTypeKind::Union) {
             // إذا كان النوع union، أضف بدائله / If type is union, add its alternatives
             const UnionType* nestedUnion = static_cast<const UnionType*>(alt.get());
             for (const auto& nestedAlt : nestedUnion->getAlternatives()) {
@@ -408,7 +408,7 @@ UnionTypePtr makeUnionType(TypePtr type1, TypePtr type2, TypePtr type3) {
 }
 
 bool isUnionType(const TypePtr& type) {
-    return type && type->getKind() == TypeKind::Union;
+    return type && type->getKind() == SadTypeKind::Union;
 }
 
 UnionTypePtr asUnionType(const TypePtr& type) {

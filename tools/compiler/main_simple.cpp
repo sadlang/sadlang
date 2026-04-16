@@ -1,4 +1,4 @@
-// بسم الله الرحمن الرحيم
+﻿// بسم الله الرحمن الرحيم
 // sad - Sad Language Interpreter
 // مفسر لغة ص البرمجية العربية
 // Simple main.cpp that uses the interpreter directly
@@ -19,10 +19,10 @@
 // CLI Commands for mobile etc.
 #include "cli_commands.hpp"
 
-// UI Pipeline / خط أنابيب الواجهات الرسومية
-#include "ui/sad_ui_pipeline.hpp"
-
 #include "../../shared/utils/include/utf8_utils.h"
+#include "../../tools/profiler/include/profiler_core.h"   // (AR) مصحح الأداء / (EN) Profiler
+#include "../../tools/profiler/include/profiler_hooks.h"  // (AR) خطافات المصحح / (EN) Profiler hooks
+#include "../../shared/hot_reload/include/hot_reload_engine.h"  // (AR) محرك إعادة التحميل الساخن / (EN) Hot Reload Engine
 
 #include <iostream>
 #include <fstream>
@@ -30,6 +30,8 @@
 #include <string>
 #include <clocale>
 #include <vector>
+#include <thread>
+#include <chrono>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -50,6 +52,10 @@ void print_help(const char* program_name) {
               << "  --vm-trace    تتبع تعليمات الآلة / Trace VM instructions\n"
               << "  --vm-disasm   فك البايت كود / Disassemble bytecode\n"
               << "  --debug-server خادم التصحيح (DAP) / Debug server mode (DAP)\n"
+              << "  --profile     تنميط الأداء / Profile performance\n"
+              << "  --تنميط       تنميط الأداء (عربي) / Profile performance (Arabic)\n"
+              << "  --hot-reload  إعادة التحميل الساخن / Hot reload mode\n"
+              << "  --مراقبة      مراقبة التغييرات (عربي) / Watch mode (Arabic)\n"
               << "\n"
               << "  واجهات <ملف>  توليد واجهات رسومية / Generate UI code\n"
               << "    --منصة=X    المنصة: desktop|android|ios|web\n"
@@ -132,122 +138,7 @@ int main(int argc, char* argv[]) {
         sad::cli::CommandManager manager;
         return manager.run(argc, argv);
     }
-    
-    // ═══════════════════════════════════════════════════════════════════════
-    // أمر الواجهات الرسومية: sad واجهات <ملف> [--منصة=desktop|android|ios|web]
-    // UI command: sad ui <file> [--platform=desktop|android|ios|web]
-    // ═══════════════════════════════════════════════════════════════════════
-    if (arg == "ui" || arg == "\xD9\x88\xD8\xA7\xD8\xAC\xD9\x87\xD8\xA7\xD8\xAA") {
-        if (argc < 3) {
-            std::cerr << "الاستخدام / Usage: sad واجهات <ملف.ص> [--منصة=سطح-المكتب]\n";
-            std::cerr << "المنصات / Platforms: desktop|android|ios|web|سطح-المكتب|اندرويد|ايفون|ويب\n";
-            return 1;
-        }
-        
-        std::string uiFile;
-        std::string platform = "desktop";
-        bool verbose = false;
-        
-        for (int i = 2; i < argc; ++i) {
-            std::string a = argv[i];
-            if (a.find("--platform=") == 0 || a.find("--منصة=") == 0) {
-                auto eq = a.find('=');
-                if (eq != std::string::npos) platform = a.substr(eq + 1);
-            } else if (a == "--desktop" || a == "--سطح-المكتب") {
-                platform = "desktop";
-            } else if (a == "--android" || a == "--اندرويد") {
-                platform = "android";
-            } else if (a == "--ios" || a == "--ايفون") {
-                platform = "ios";
-            } else if (a == "--web" || a == "--ويب") {
-                platform = "web";
-            } else if (a == "-v" || a == "--verbose") {
-                verbose = true;
-            } else if (a[0] != '-') {
-                uiFile = a;
-            }
-        }
-        
-        if (uiFile.empty()) {
-            std::cerr << "خطأ: لم يُحدَّد ملف المصدر / Error: No source file specified\n";
-            return 1;
-        }
-        
-        // قراءة الملف
-        std::string source = read_file(uiFile);
-        
-        // تحديد المنصة
-        sad::ui::ir::TargetPlatform tp = sad::ui::ir::TargetPlatform::Desktop;
-        if (platform == "android" || platform == "اندرويد" || platform == "هاتف") {
-            tp = sad::ui::ir::TargetPlatform::Android;
-        } else if (platform == "ios" || platform == "ايفون") {
-            tp = sad::ui::ir::TargetPlatform::iOS;
-        } else if (platform == "web" || platform == "ويب") {
-            tp = sad::ui::ir::TargetPlatform::Web;
-        }
-        
-        // إعداد خط الأنابيب
-        sad::ui::ir::SadUIPipeline pipeline;
-        sad::ui::ir::PipelineConfig config;
-        config.platform = tp;
-        config.validate = true;
-        config.optimize = true;
-        config.applyTheme = true;
-        config.verbose = verbose;
-        config.theme.isRTL = true;
-        config.theme.isDarkMode = false;
-        config.theme.primaryColor = {0, 122, 255, 1.0f};
-        config.theme.secondaryColor = {52, 199, 89, 1.0f};
-        config.theme.backgroundColor = {255, 255, 255, 1.0f};
-        config.theme.surfaceColor = {242, 242, 247, 1.0f};
-        config.theme.textPrimary = {0, 0, 0, 1.0f};
-        config.theme.textSecondary = {142, 142, 147, 1.0f};
-        
-        // اسم التطبيق من اسم الملف
-        std::filesystem::path fp(uiFile);
-        std::string appName = fp.stem().u8string();
-        config.outputDir = "build_" + appName;
-        
-        pipeline.setConfig(config);
-        
-        auto result = pipeline.buildFromSource(source, appName);
-        
-        // طباعة السجل
-        for (const auto& msg : result.log) {
-            std::cout << "  [UI] " << msg << "\n";
-        }
-        
-        if (!result.success) {
-            std::cerr << "✗ فشل توليد الواجهات / UI generation failed\n";
-            for (const auto& err : result.codeGenResult.errors) {
-                std::cerr << "  " << err << "\n";
-            }
-            return 1;
-        }
-        
-        // كتابة الملفات
-        std::filesystem::create_directories(config.outputDir);
-        int written = 0;
-        for (const auto& f : result.codeGenResult.files) {
-            auto path = std::filesystem::path(config.outputDir) / f.path;
-            std::filesystem::create_directories(path.parent_path());
-            std::ofstream out(path, std::ios::binary);
-            if (out.is_open()) {
-                out << f.content;
-                out.close();
-                written++;
-                if (verbose) std::cout << "  ✓ " << f.path << "\n";
-            }
-        }
-        
-        std::cout << "\n✓ تم توليد " << written << " ملف في " << config.outputDir << "\n";
-        if (!result.codeGenResult.buildCommand.empty()) {
-            std::cout << "  أمر البناء:\n    " << result.codeGenResult.buildCommand << "\n";
-        }
-        
-        return 0;
-    }
-    
+
     // Execute file
     try {
         // Parse CLI flags
@@ -265,6 +156,11 @@ int main(int argc, char* argv[]) {
         bool vmTrace = false;
         bool vmDisasm = false;
         bool useDebugServer = false;
+        bool enableProfile = false;
+        bool enableHotReload = false;
+        std::string profileOutput;
+        std::string profileFormat = "text";
+        int profileTop = 20;
         std::string filename;
         for (int i = 1; i < argc; ++i) {
             std::string a = argv[i];
@@ -303,6 +199,16 @@ int main(int argc, char* argv[]) {
                 showOptStats = true;
             } else if (a == "--debug-server") {
                 useDebugServer = true;
+            } else if (a == "--profile" || a == "--\xD8\xAA\xD9\x86\xD9\x85\xD9\x8A\xD8\xB7" /* --تنميط */) {
+                enableProfile = true;
+            } else if (a == "--hot-reload" || a == "--\xD9\x85\xD8\xB1\xD8\xA7\xD9\x82\xD8\xA8\xD8\xA9" /* --مراقبة */) {
+                enableHotReload = true;
+            } else if (a.rfind("--profile-format=", 0) == 0) {
+                profileFormat = a.substr(17);
+            } else if (a.rfind("--profile-output=", 0) == 0) {
+                profileOutput = a.substr(17);
+            } else if (a.rfind("--profile-top=", 0) == 0) {
+                try { profileTop = std::stoi(a.substr(14)); } catch(...) {}
             } else if (a[0] != '-') {
                 filename = a;
             }
@@ -436,14 +342,81 @@ int main(int argc, char* argv[]) {
         options.securityStrictMode = strictSecurity;
         options.securityDebugMode = debugSecurity;
         options.currentFilePath = filename;  // (AR) مسار الملف الحالي لنظام الاستيراد / (EN) Current file path for import system
+        options.enableHotReload = enableHotReload;
         
         Sad::Interpreter::Interpreter interpreter(options);
         
-        // Register built-in functions (if available)
-        // Sad::Interpreter::registerBuiltinFunctions(interpreter);
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) إعداد مصحح الأداء إذا طُلب التنميط
+        // (EN) Setup profiler if profiling was requested
+        // ═══════════════════════════════════════════════════════════════
+        std::unique_ptr<Sad::Tools::ProfilerCore> profiler;
+        if (enableProfile) {
+            Sad::Tools::ProfilerOptions profOpts;
+            profOpts.topFunctionsCount = profileTop;
+            profOpts.colorOutput = true;
+            profOpts.trackCallTree = true;
+            profOpts.trackMemory = true;
+            if (profileFormat == "json") profOpts.format = Sad::Tools::ReportFormat::JSON;
+            else if (profileFormat == "html") profOpts.format = Sad::Tools::ReportFormat::HTML;
+            else if (profileFormat == "flame") profOpts.format = Sad::Tools::ReportFormat::FLAMEGRAPH;
+            else if (profileFormat == "csv") profOpts.format = Sad::Tools::ReportFormat::CSV;
+            else profOpts.format = Sad::Tools::ReportFormat::TEXT;
+            if (!profileOutput.empty()) profOpts.outputFile = profileOutput;
+            
+            profiler = std::make_unique<Sad::Tools::ProfilerCore>(profOpts);
+            Sad::Tools::setGlobalProfiler(profiler.get());
+            profiler->start();
+        }
         
         // Execute program
         auto result = interpreter.execute(program);
+        
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) وضع إعادة التحميل الساخن: مراقبة الملف وإعادة التنفيذ
+        // (EN) Hot Reload Mode: watch file and re-execute on changes
+        // ═══════════════════════════════════════════════════════════════
+        if (enableHotReload && result.success) {
+            Sad::HotReload::HotReloadOptions hrOpts;
+            hrOpts.preserveState = true;
+            hrOpts.showNotifications = true;
+            
+            Sad::HotReload::HotReloadEngine hotEngine(hrOpts);
+            hotEngine.attach(&interpreter, filename);
+            
+            std::cout << "\033[36m🔥 وضع المراقبة نشط — اضغط Ctrl+C للخروج\033[0m\n";
+            std::cout << "\033[36m🔥 Hot Reload active — press Ctrl+C to exit\033[0m\n";
+            
+            hotEngine.start();
+            
+            // (AR) حلقة انتظار — المراقبة تعمل في خيط منفصل
+            // (EN) Wait loop — file watching runs in background thread
+            while (true) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) إيقاف المصحح وتوليد التقرير
+        // (EN) Stop profiler and generate report
+        // ═══════════════════════════════════════════════════════════════
+        if (enableProfile && profiler) {
+            profiler->stop();
+            std::string report = profiler->generateReport(profiler->getOptions().format);
+            if (!profileOutput.empty()) {
+                std::ofstream outFile(profileOutput);
+                if (outFile.is_open()) {
+                    outFile << report;
+                    std::cerr << "\n\033[32m✅ تم حفظ تقرير الأداء في: " << profileOutput << "\033[0m\n";
+                } else {
+                    std::cerr << "\033[91m❌ فشل فتح ملف الإخراج: " << profileOutput << "\033[0m\n";
+                    std::cout << report;
+                }
+            } else {
+                std::cout << report;
+            }
+            Sad::Tools::setGlobalProfiler(nullptr);
+        }
         
         if (!result.success) {
             // Print enriched diagnostics from ErrorManager

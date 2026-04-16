@@ -17,6 +17,7 @@
 #include "frontend/sir_instruction.h"
 #include <iostream>
 #include <algorithm>
+#include <climits>
 
 namespace Sad {
 namespace Compiler {

@@ -23,6 +23,16 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/compiler_new/CMakeLists.txt")
     add_subdirectory(${CMAKE_SOURCE_DIR}/compiler_new ${CMAKE_BINARY_DIR}/compiler_new)
 endif()
 
+# نظام واجهات المستخدم / UI System
+if(EXISTS "${CMAKE_SOURCE_DIR}/sad_ui/CMakeLists.txt")
+    add_subdirectory(${CMAKE_SOURCE_DIR}/sad_ui ${CMAKE_BINARY_DIR}/sad_ui)
+endif()
+
+# مصحح الأداء / Performance Profiler (يجب أن يُبنى قبل sad_core)
+if(EXISTS "${CMAKE_SOURCE_DIR}/tools/profiler/CMakeLists.txt")
+    add_subdirectory(${CMAKE_SOURCE_DIR}/tools/profiler ${CMAKE_BINARY_DIR}/profiler)
+endif()
+
 # (AR) الرسوميات، الآلة الافتراضية، بيئة التشغيل والأدوات تُضاف عبر cmake/libraries.cmake
 # (EN) Graphics, VM, runtime and tools are added via cmake/libraries.cmake
 # NOTE: Do NOT add graphics, vm, runtime_new, tools here to avoid duplicate subdirectory errors.

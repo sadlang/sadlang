@@ -1,4 +1,4 @@
-// تعطيل تحذير Unicode للنصوص العربية
+﻿// تعطيل تحذير Unicode للنصوص العربية
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -127,7 +127,7 @@ FFI::CTypePtr CTypeMapper::sadToC(TypePtr sadType) const {
     // عندما لا تتوفر StructType كـ Type، نمثل الأنواع الكائنية كمؤشر opaque.
     // (EN) Practical Struct/Class hierarchy support:
     // when StructType is not a Type node yet, represent object-like types as opaque pointer.
-    if (sadType->getKind() == TypeKind::Class || sadType->getKind() == TypeKind::Interface) {
+    if (sadType->getKind() == SadTypeKind::Class || sadType->getKind() == SadTypeKind::Interface) {
         auto voidType = std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::VOID);
         return std::make_shared<FFI::CPointerType>(voidType);
     }
@@ -175,27 +175,27 @@ FFI::CBasicType CTypeMapper::sadPrimitiveToCBasic(const PrimitiveType& prim) con
  * @brief (AR) تحويل نوع من خلال Kind
  *        (EN) Convert type through Kind
  */
-FFI::CBasicType CTypeMapper::primitiveKindToCBasic(TypeKind kind) const {
+FFI::CBasicType CTypeMapper::primitiveKindToCBasic(SadTypeKind kind) const {
     
     switch (kind) {
         // (AR) فراغ / (EN) Void
-        case TypeKind::Void:
+        case SadTypeKind::Void:
             return FFI::CBasicType::VOID;
             
         // (AR) منطقي / (EN) Boolean
-        case TypeKind::Boolean:
+        case SadTypeKind::Boolean:
             return FFI::CBasicType::BOOL;
             
         // (AR) أعداد صحيحة / (EN) Integers
-        case TypeKind::Integer:
+        case SadTypeKind::Integer:
             return FFI::CBasicType::INT;
             
         // (AR) أعداد عشرية / (EN) Floats
-        case TypeKind::Float:
+        case SadTypeKind::Float:
             return FFI::CBasicType::DOUBLE;
             
         // (AR) نص / (EN) String — تحويل إلى const char*
-        case TypeKind::String:
+        case SadTypeKind::String:
             // String يُحوّل في sadToC لمعالجة خاصة
             return FFI::CBasicType::CHAR;
             
@@ -313,7 +313,7 @@ TypePtr CTypeMapper::cToSad(FFI::CTypePtr cType) const {
         (void)structType;
         // (AR) fallback آمن: نمثل بنية C كنوع Any حتى يكتمل جسر StructType.
         // (EN) Safe fallback: represent C struct as Any until StructType bridge is complete.
-        return createPrimitiveType(TypeKind::Any);
+        return createPrimitiveType(SadTypeKind::Any);
     }
     
     throw std::runtime_error(
@@ -353,17 +353,17 @@ TypePtr CTypeMapper::cToSad(FFI::CTypePtr cType) const {
  * (EN) Reverse conversion table shown above
  */
 TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
-    TypeKind sadKind;
+    SadTypeKind sadKind;
     
     switch (cBasic) {
         // (AR) فراغ / (EN) Void
         case FFI::CBasicType::VOID:
-            sadKind = TypeKind::Void;
+            sadKind = SadTypeKind::Void;
             break;
             
         // (AR) حرف / (EN) Character — حرف C هو عدد صحيح 8-بت
         case FFI::CBasicType::CHAR:
-            sadKind = TypeKind::Integer;
+            sadKind = SadTypeKind::Integer;
             break;
             
         // (AR) أعداد صحيحة موقّعة / (EN) Signed integers
@@ -371,7 +371,7 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
         case FFI::CBasicType::SHORT:
         case FFI::CBasicType::INT:
         case FFI::CBasicType::LONGLONG:
-            sadKind = TypeKind::Integer;
+            sadKind = SadTypeKind::Integer;
             break;
         case FFI::CBasicType::LONG:
             /*
@@ -383,7 +383,7 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
              *      - Windows (even 64-bit): 32 bits
              *      - Linux/macOS (64-bit): 64 bits
              */
-            sadKind = TypeKind::Integer;
+            sadKind = SadTypeKind::Integer;
             break;
             
         // (AR) أعداد صحيحة غير موقّعة / (EN) Unsigned integers
@@ -392,13 +392,13 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
         case FFI::CBasicType::UINT:
         case FFI::CBasicType::ULONG:
         case FFI::CBasicType::ULONGLONG:
-            sadKind = TypeKind::Integer;
+            sadKind = SadTypeKind::Integer;
             break;
             
         // (AR) أعداد عشرية / (EN) Floating point
         case FFI::CBasicType::FLOAT:
         case FFI::CBasicType::DOUBLE:
-            sadKind = TypeKind::Float;
+            sadKind = SadTypeKind::Float;
             break;
         case FFI::CBasicType::LONGDOUBLE:
             /*
@@ -408,12 +408,12 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
              * (EN) long double: use FLOAT64 as approximation
              *      (actual size varies: 80/128 bits)
              */
-            sadKind = TypeKind::Float;
+            sadKind = SadTypeKind::Float;
             break;
             
         // (AR) منطقي / (EN) Boolean
         case FFI::CBasicType::BOOL:
-            sadKind = TypeKind::Boolean;
+            sadKind = SadTypeKind::Boolean;
             break;
             
         // (AR) أنواع الحجم / (EN) Size types
@@ -421,7 +421,7 @@ TypePtr CTypeMapper::cBasicToSad(FFI::CBasicType cBasic) const {
         case FFI::CBasicType::PTRDIFF_T:
         case FFI::CBasicType::INTPTR_T:
         case FFI::CBasicType::UINTPTR_T:
-            sadKind = TypeKind::Integer;
+            sadKind = SadTypeKind::Integer;
             break;
             
         default:
@@ -843,142 +843,4 @@ FFI::CEnumTypePtr CEnumBuilder::build() const {
 //                    (AR) أنواع C الشائعة
 //                    (EN) Common C Types
 // ============================================================================
-
-namespace CommonCTypes {
-
-FFI::CTypePtr getVoid() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::VOID);
-}
-
-FFI::CTypePtr getChar() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::CHAR);
-}
-
-FFI::CTypePtr getInt() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::INT);
-}
-
-FFI::CTypePtr getLong() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::LONG);
-}
-
-FFI::CTypePtr getFloat() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::FLOAT);
-}
-
-FFI::CTypePtr getDouble() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::DOUBLE);
-}
-
-FFI::CTypePtr getSizeT() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::SIZE_T);
-}
-
-FFI::CTypePtr getBool() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::BOOL);
-}
-
-FFI::CTypePtr getInt8() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::SCHAR);
-}
-
-FFI::CTypePtr getUInt8() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::UCHAR);
-}
-
-FFI::CTypePtr getInt16() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::SHORT);
-}
-
-FFI::CTypePtr getUInt16() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::USHORT);
-}
-
-FFI::CTypePtr getInt32() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::INT);
-}
-
-FFI::CTypePtr getUInt32() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::UINT);
-}
-
-FFI::CTypePtr getInt64() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::LONGLONG);
-}
-
-FFI::CTypePtr getUInt64() {
-    return std::make_shared<FFI::CBasicTypeImpl>(FFI::CBasicType::ULONGLONG);
-}
-
-FFI::CTypePtr getVoidPtr() {
-    return std::make_shared<FFI::CPointerType>(getVoid());
-}
-
-FFI::CTypePtr getCharPtr() {
-    return std::make_shared<FFI::CPointerType>(getChar());
-}
-
-FFI::CTypePtr getConstCharPtr() {
-    /*
-     * (AR) const char*: نستخدم مؤشر عادي مع علامة const
-     * (EN) const char*: use regular pointer with const flag
-     */
-    auto charPtr = std::make_shared<FFI::CPointerType>(getChar());
-    charPtr->setConst(true);
-    return charPtr;
-}
-
-FFI::CTypePtr getFILEPtr() {
-    /*
-     * (AR) FILE*: مؤشر مبهم لبنية FILE
-     * (EN) FILE*: opaque pointer to FILE struct
-     * نستخدم void* كتقريب / Use void* as approximation
-     */
-    return std::make_shared<FFI::CPointerType>(getVoid());
-}
-
-} // namespace CommonCTypes
-
-// ============================================================================
-//                    (AR) دوال التحويل السريع
-//                    (EN) Quick Conversion Functions
-// ============================================================================
-
-/**
- * @brief (AR) تحويل سريع من نوع "ص" إلى نوع C
- *        (EN) Quick conversion from Sad type to C type
- */
-FFI::CTypePtr sadTypeToC(TypePtr sadType) {
-    static CTypeMapper mapper;
-    return mapper.sadToC(sadType);
-}
-
-/**
- * @brief (AR) تحويل سريع من نوع C إلى نوع "ص"
- *        (EN) Quick conversion from C type to Sad type
- */
-TypePtr cTypeToSad(FFI::CTypePtr cType) {
-    static CTypeMapper mapper;
-    return mapper.cToSad(cType);
-}
-
-/**
- * @brief (AR) الحصول على اسم C لنوع "ص"
- *        (EN) Get C name for Sad type
- */
-std::string getSadTypeCName(TypePtr sadType) {
-    auto cType = sadTypeToC(sadType);
-    return cType->getCName();
-}
-
-/**
- * @brief (AR) الحصول على الاسم العربي لنوع C
- *        (EN) Get Arabic name for C type
- */
-std::string getCTypeArabicName(FFI::CTypePtr cType) {
-    return cType->getArabicName();
-}
-
-} // namespace TypeSystem
-} // namespace Sad
 

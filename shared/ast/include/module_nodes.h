@@ -478,12 +478,70 @@ public:
 };
 
 // =========================================================================
+// (AR) جملة إعادة التصدير / (EN) Re-Export Statement
+// =========================================================================
+
+/**
+ * @class ReExportStmt
+ * @brief (AR) عقدة إعادة التصدير - صدّر * من وحدة / صدّر عنصر1، عنصر2 من وحدة
+ *        (EN) Re-export statement - export * from module / export item1, item2 from module
+ *
+ * @details
+ * (AR) تمثل إعادة تصدير رموز من وحدة أخرى.
+ *      الأنماط المدعومة:
+ *      - صدّر * من رياضيات          — إعادة تصدير كل شيء
+ *      - صدّر جذر، قوة من رياضيات   — إعادة تصدير عناصر محددة
+ *
+ * (EN) Represents re-exporting symbols from another module.
+ *      Supported patterns:
+ *      - export * from math           — re-export everything
+ *      - export sqrt, pow from math   — re-export specific items
+ */
+class ReExportStmt : public Statement {
+public:
+    std::vector<std::string> modulePath;   ///< (AR) مسار الوحدة / (EN) Module path
+    std::vector<ImportItem> items;          ///< (AR) العناصر المحددة / (EN) Specific items (empty if wildcard)
+    bool isWildcard;                        ///< (AR) إعادة تصدير شاملة / (EN) Wildcard re-export
+
+    ReExportStmt(std::vector<std::string> path, std::vector<ImportItem> items,
+                 bool wildcard, const Lexer::Position& pos = Lexer::Position())
+        : Statement(pos), modulePath(std::move(path)),
+          items(std::move(items)), isWildcard(wildcard) {}
+
+    void accept(ASTVisitor& visitor) override {
+        visitor.visitReExportStmt(*this);
+    }
+
+    std::string toString() const override {
+        std::string result = "صدّر ";
+        if (isWildcard) {
+            result += "*";
+        } else {
+            for (size_t i = 0; i < items.size(); ++i) {
+                if (i > 0) result += "، ";
+                result += items[i].name;
+                if (items[i].alias.has_value()) {
+                    result += " كـ " + items[i].alias.value();
+                }
+            }
+        }
+        result += " من ";
+        for (size_t i = 0; i < modulePath.size(); ++i) {
+            if (i > 0) result += ".";
+            result += modulePath[i];
+        }
+        return result;
+    }
+};
+
+// =========================================================================
 // (AR) أنواع مؤشرات ذكية / (EN) Smart Pointer Type Aliases
 // =========================================================================
 
 using ImportStmtPtr = std::unique_ptr<ImportStmt>;
 using FromImportStmtPtr = std::unique_ptr<FromImportStmt>;
 using ExportDeclPtr = std::unique_ptr<ExportDecl>;
+using ReExportStmtPtr = std::unique_ptr<ReExportStmt>;
 
 } // namespace AST
 } // namespace Sad

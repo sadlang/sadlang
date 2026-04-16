@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file entry_point.cpp
  * @brief (AR) تنفيذ نقاط الدخول المخصصة للأنظمة المدمجة
  *        (EN) Custom entry point implementation for embedded systems
@@ -176,21 +176,21 @@ struct EntryPointInfo {
 
 namespace سمات_الدخول {
     // (AR) السمة الرئيسية
-    const std::string نقطة_دخول = u8"نقطة_دخول";
+    const std::string نقطة_دخول = "نقطة_دخول";
     const std::string entry_point = "entry_point";
     
     // (AR) سمات التكوين
-    const std::string رابط = u8"رابط";                    // #[رابط(الاسم = "_start")]
-    const std::string عاري = u8"عاري";                    // #[عاري] - بدون prologue/epilogue
-    const std::string قسم = u8"قسم";                      // #[قسم(".text._start")]
-    const std::string بدون_تشويه = u8"بدون_تشويه";        // #[بدون_تشويه]
-    const std::string لا_يرجع = u8"لا_يرجع";              // #[لا_يرجع]
+    const std::string رابط = "رابط";                    // #[رابط(الاسم = "_start")]
+    const std::string عاري = "عاري";                    // #[عاري] - بدون prologue/epilogue
+    const std::string قسم = "قسم";                      // #[قسم(".text._start")]
+    const std::string بدون_تشويه = "بدون_تشويه";        // #[بدون_تشويه]
+    const std::string لا_يرجع = "لا_يرجع";              // #[لا_يرجع]
     
     // (AR) سمات التهيئة
-    const std::string بدون_تهيئة_bss = u8"بدون_تهيئة_bss";
-    const std::string بدون_تهيئة_بيانات = u8"بدون_تهيئة_بيانات";
-    const std::string بدون_مكدس = u8"بدون_مكدس";
-    const std::string بدون_منشئات = u8"بدون_منشئات";
+    const std::string بدون_تهيئة_bss = "بدون_تهيئة_bss";
+    const std::string بدون_تهيئة_بيانات = "بدون_تهيئة_بيانات";
+    const std::string بدون_مكدس = "بدون_مكدس";
+    const std::string بدون_منشئات = "بدون_منشئات";
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -273,7 +273,7 @@ public:
      */
     bool parseLinkAttribute(const std::string& value, EntryPointInfo& info) {
         // (AR) البحث عن الاسم = "..."
-        size_t namePos = value.find(u8"الاسم");
+        size_t namePos = value.find("الاسم");
         if (namePos == std::string::npos) {
             namePos = value.find("name");
         }
@@ -333,7 +333,7 @@ public:
         std::ostringstream ir;
         
         ir << "; ═══════════════════════════════════════════════════════════════\n";
-        ir << "; " << u8"كود بدء التشغيل لـ " << info.name << "\n";
+        ir << "; " << "كود بدء التشغيل لـ " << info.name << "\n";
         ir << "; Startup code for " << info.name << "\n";
         ir << "; ═══════════════════════════════════════════════════════════════\n\n";
         
@@ -354,7 +354,7 @@ private:
     std::string generateExternDeclarations(const EntryPointInfo& info) {
         std::ostringstream ir;
         
-        ir << "; " << u8"رموز خارجية من سكريبت الرابط" << "\n";
+        ir << "; " << "رموز خارجية من سكريبت الرابط" << "\n";
         ir << "; External symbols from linker script\n";
         
         if (info.clearBss) {
@@ -380,7 +380,7 @@ private:
         ir << "\n";
         
         // (AR) الدالة الرئيسية المستخدم
-        ir << "; " << u8"الدالة الرئيسية" << "\n";
+        ir << "; " << "الدالة الرئيسية" << "\n";
         ir << "declare void @" << info.name << "() noreturn\n\n";
         
         // (AR) دوال LLVM intrinsics
@@ -399,7 +399,7 @@ private:
     std::string generateEntryPoint(const EntryPointInfo& info) {
         std::ostringstream ir;
         
-        ir << "; " << u8"نقطة الدخول: " << info.linkName << "\n";
+        ir << "; " << "نقطة الدخول: " << info.linkName << "\n";
         ir << "; Entry point: " << info.linkName << "\n";
         
         // (AR) سمات الدالة
@@ -424,7 +424,7 @@ private:
         // ─────────────────────────────────────────────────────────────────────
         
         if (info.setupStack && !info.isNaked) {
-            ir << "  ; " << u8"المرحلة 1: إعداد المكدس" << "\n";
+            ir << "  ; " << "المرحلة 1: إعداد المكدس" << "\n";
             ir << "  ; Stage 1: Stack setup\n";
             ir << "  ; (Stack pointer is typically set by hardware or bootloader)\n\n";
         }
@@ -435,7 +435,7 @@ private:
         // ─────────────────────────────────────────────────────────────────────
         
         if (info.clearBss && !info.isNaked) {
-            ir << "  ; " << u8"المرحلة 2: مسح قسم .bss" << "\n";
+            ir << "  ; " << "المرحلة 2: مسح قسم .bss" << "\n";
             ir << "  ; Stage 2: Clear .bss section\n";
             ir << "  %bss_start = ptrtoint ptr @__bss_start to i64\n";
             ir << "  %bss_end = ptrtoint ptr @__bss_end to i64\n";
@@ -449,7 +449,7 @@ private:
         // ─────────────────────────────────────────────────────────────────────
         
         if (info.initData && !info.isNaked) {
-            ir << "  ; " << u8"المرحلة 3: تهيئة قسم .data" << "\n";
+            ir << "  ; " << "المرحلة 3: تهيئة قسم .data" << "\n";
             ir << "  ; Stage 3: Initialize .data section\n";
             ir << "  %data_start = ptrtoint ptr @__data_start to i64\n";
             ir << "  %data_end = ptrtoint ptr @__data_end to i64\n";
@@ -463,7 +463,7 @@ private:
         // ─────────────────────────────────────────────────────────────────────
         
         if (info.callGlobalCtors && !info.isNaked) {
-            ir << "  ; " << u8"المرحلة 4: استدعاء المُنشئات العامة" << "\n";
+            ir << "  ; " << "المرحلة 4: استدعاء المُنشئات العامة" << "\n";
             ir << "  ; Stage 4: Call global constructors\n";
             ir << "  br label %ctor_loop\n\n";
             
@@ -488,7 +488,7 @@ private:
         // (EN) Stage 5: Call main function
         // ─────────────────────────────────────────────────────────────────────
         
-        ir << "  ; " << u8"المرحلة 5: استدعاء الدالة الرئيسية" << "\n";
+        ir << "  ; " << "المرحلة 5: استدعاء الدالة الرئيسية" << "\n";
         ir << "  ; Stage 5: Call main function\n";
         ir << "  call void @" << info.name << "()\n\n";
         
@@ -497,7 +497,7 @@ private:
         // (EN) Stage 6: Halt
         // ─────────────────────────────────────────────────────────────────────
         
-        ir << "  ; " << u8"المرحلة 6: التوقف (لا يجب الوصول هنا)" << "\n";
+        ir << "  ; " << "المرحلة 6: التوقف (لا يجب الوصول هنا)" << "\n";
         ir << "  ; Stage 6: Halt (should not reach here)\n";
         ir << "  br label %halt\n\n";
         
@@ -552,7 +552,7 @@ public:
         std::ostringstream ir;
         
         ir << "; ═══════════════════════════════════════════════════════════════\n";
-        ir << "; " << u8"نقطة دخول Arduino" << "\n";
+        ir << "; " << "نقطة دخول Arduino" << "\n";
         ir << "; Arduino Entry Point\n";
         ir << "; ═══════════════════════════════════════════════════════════════\n\n";
         
@@ -562,20 +562,20 @@ public:
         ir << "declare void @__arduino_init()\n\n";
         
         // (AR) نقطة الدخول
-        ir << "; " << u8"دالة main الخاصة بـ Arduino" << "\n";
+        ir << "; " << "دالة main الخاصة بـ Arduino" << "\n";
         ir << "define i32 @main() {\n";
         ir << "entry:\n";
         
         // (AR) تهيئة Arduino
-        ir << "  ; " << u8"تهيئة الأجهزة" << "\n";
+        ir << "  ; " << "تهيئة الأجهزة" << "\n";
         ir << "  call void @__arduino_init()\n\n";
         
         // (AR) استدعاء setup()
-        ir << "  ; " << u8"استدعاء دالة الإعداد" << "\n";
+        ir << "  ; " << "استدعاء دالة الإعداد" << "\n";
         ir << "  call void @" << setupFunction << "()\n\n";
         
         // (AR) حلقة loop() اللانهائية
-        ir << "  ; " << u8"الحلقة الرئيسية اللانهائية" << "\n";
+        ir << "  ; " << "الحلقة الرئيسية اللانهائية" << "\n";
         ir << "  br label %loop\n\n";
         
         ir << "loop:\n";
@@ -671,7 +671,7 @@ public:
         
         // (AR) التحقق من وجود نقطة دخول واحدة على الأقل
         if (entryPoints_.empty()) {
-            errors.push_back(u8"لا توجد نقطة دخول محددة");
+            errors.push_back("لا توجد نقطة دخول محددة");
         }
         
         // (AR) التحقق من نقاط الدخول المتعددة
@@ -684,13 +684,13 @@ public:
             
             // (AR) التحقق من نوع الإرجاع
             if (info.noReturn && info.returnType != "!" && 
-                info.returnType.find(u8"أبداً") == std::string::npos) {
-                errors.push_back(u8"نقطة الدخول '" + name + u8"' يجب أن ترجع نوع 'أبداً' (!)");
+                info.returnType.find("أبداً") == std::string::npos) {
+                errors.push_back("نقطة الدخول '" + name + "' يجب أن ترجع نوع 'أبداً' (!)");
             }
         }
         
         if (primaryCount > 1) {
-            errors.push_back(u8"يوجد أكثر من نقطة دخول رئيسية");
+            errors.push_back("يوجد أكثر من نقطة دخول رئيسية");
         }
         
         return errors;

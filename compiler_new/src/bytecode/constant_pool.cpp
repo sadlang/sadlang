@@ -8,6 +8,7 @@
 
 #include "constant_pool.h"
 #include <algorithm>
+#include <cstring>
 
 namespace sad {
 namespace bytecode {

@@ -5,15 +5,15 @@
  * المهمة: T260 - SIR basic types
  * المرحلة: Phase 27 - User Story 24 (SIR Layer)
  * =============================================================================
- * 
+ *
  * 📚 دليل المبتدئ لطبقة SIR
  * ═══════════════════════════
- * 
+ *
  * ما هي SIR؟
  * ──────────
  * SIR = Sad Intermediate Representation
  * تمثيل وسيط خاص بلغة حزين
- * 
+ *
  * طبقات الترجمة:
  * ```
  *     كود حزين (نص)
@@ -30,14 +30,14 @@
  *          ▼
  *      كود الآلة
  * ```
- * 
+ *
  * لماذا SIR؟
  * ──────────
  * 1. تحليل الملكية أسهل من AST
  * 2. أكثر تعبيراً من LLVM IR
  * 3. تحسينات خاصة بالملكية
  * 4. رسائل خطأ أوضح
- * 
+ *
  * مثال التحويل:
  * ─────────────
  * ```sad
@@ -45,7 +45,7 @@
  * متغير ص = &س        →  SIR: Borrow(ص, س, ثابت)
  * متغير ع = س         →  SIR: Move(ع, س)  أو  Copy(ع, س)
  * ```
- * 
+ *
  * =============================================================================
  */
 
@@ -59,438 +59,394 @@
 #include <variant>
 #include <map>
 #include <algorithm>
+#include "sad_type_system.h"
 
-namespace sad::sir {
+namespace sad::sir
+{
 
-// =============================================================================
-// الأنواع الأساسية
-// =============================================================================
+    // =============================================================================
+    // الأنواع الأساسية
+    // =============================================================================
 
-/**
- * معرف فريد للقيم في SIR
- * 
- * كل قيمة لها معرف فريد:
- * %0 = متغير س
- * %1 = متغير ص
- */
-using ValueId = uint32_t;
+    /**
+     * معرف فريد للقيم في SIR
+     *
+     * كل قيمة لها معرف فريد:
+     * %0 = متغير س
+     * %1 = متغير ص
+     */
+    using ValueId = uint32_t;
 
-/**
- * معرف فريد للكتل الأساسية
- */
-using BlockId = uint32_t;
+    /**
+     * معرف فريد للكتل الأساسية
+     */
+    using BlockId = uint32_t;
 
-/**
- * معرف فريد للدوال
- */
-using FunctionId = uint32_t;
+    /**
+     * معرف فريد للدوال
+     */
+    using FunctionId = uint32_t;
 
-// =============================================================================
-// موقع المصدر
-// =============================================================================
+    // =============================================================================
+    // موقع المصدر
+    // =============================================================================
 
-/**
- * موقع في الكود المصدري
- * 
- * للإشارة إلى مكان الخطأ
- */
-struct SourceLocation {
-    std::string filename;
-    int line = 0;
-    int column = 0;
-    int endLine = 0;
-    int endColumn = 0;
-    
-    std::string toString() const {
-        return filename + ":" + std::to_string(line) + ":" + std::to_string(column);
-    }
-};
+    /**
+     * موقع في الكود المصدري
+     *
+     * للإشارة إلى مكان الخطأ
+     */
+    struct SourceLocation
+    {
+        std::string filename;
+        int line = 0;
+        int column = 0;
+        int endLine = 0;
+        int endColumn = 0;
 
-// =============================================================================
-// أنواع SIR
-// =============================================================================
-
-/**
- * تصنيف الأنواع
- */
-enum class TypeKind {
-    // أنواع بدائية
-    Void,           // لا شيء
-    Bool,           // منطقي
-    Int8,           // عدد8
-    Int16,          // عدد16
-    Int32,          // عدد32
-    Int64,          // عدد64
-    UInt8,          // طبيعي8
-    UInt16,         // طبيعي16
-    UInt32,         // طبيعي32
-    UInt64,         // طبيعي64
-    Float32,        // عشري32
-    Float64,        // عشري64
-    Char,           // حرف
-    
-    // أنواع مركبة
-    String,         // نص
-    Array,          // مصفوفة
-    Slice,          // شريحة
-    Tuple,          // صف
-    Struct,         // صنف
-    Enum,           // تعداد
-    Union,          // اتحاد
-    
-    // أنواع المراجع
-    Reference,      // مرجع &T
-    MutableRef,     // مرجع متغير &متغير T
-    RawPointer,     // مؤشر خام *T
-    
-    // أنواع الدوال
-    Function,       // دالة
-    Closure,        // إغلاق
-    
-    // أنواع خاصة
-    Optional,       // اختياري ?T
-    Result,         // نتيجة<T, E>
-    Never,          // لا يرجع !
-    Generic,        // نوع عام T
-    TypeAlias       // اسم مستعار للنوع
-};
-
-/**
- * نوع SIR
- */
-class SirType {
-public:
-    TypeKind kind;
-    std::string name;                           // اسم النوع (للأصناف والتعدادات)
-    std::vector<std::shared_ptr<SirType>> params;  // معاملات النوع
-    bool isMutable = false;                     // قابل للتغيير؟
-    std::optional<std::string> lifetimeName;    // اسم دورة الحياة
-    
-    // مساعدات للإنشاء
-    static std::shared_ptr<SirType> Void() {
-        auto t = std::make_shared<SirType>();
-        t->kind = TypeKind::Void;
-        t->name = "لاشيء";
-        return t;
-    }
-    
-    static std::shared_ptr<SirType> Bool() {
-        auto t = std::make_shared<SirType>();
-        t->kind = TypeKind::Bool;
-        t->name = "منطقي";
-        return t;
-    }
-    
-    static std::shared_ptr<SirType> Int32() {
-        auto t = std::make_shared<SirType>();
-        t->kind = TypeKind::Int32;
-        t->name = "عدد";
-        return t;
-    }
-    
-    static std::shared_ptr<SirType> Int64() {
-        auto t = std::make_shared<SirType>();
-        t->kind = TypeKind::Int64;
-        t->name = "عدد64";
-        return t;
-    }
-    
-    static std::shared_ptr<SirType> Float64() {
-        auto t = std::make_shared<SirType>();
-        t->kind = TypeKind::Float64;
-        t->name = "عشري64";
-        return t;
-    }
-    
-    static std::shared_ptr<SirType> String() {
-        auto t = std::make_shared<SirType>();
-        t->kind = TypeKind::String;
-        t->name = "نص";
-        return t;
-    }
-    
-    static std::shared_ptr<SirType> Reference(std::shared_ptr<SirType> inner, bool mut = false) {
-        auto t = std::make_shared<SirType>();
-        t->kind = mut ? TypeKind::MutableRef : TypeKind::Reference;
-        t->name = mut ? "&متغير" : "&";
-        t->params.push_back(inner);
-        t->isMutable = mut;
-        return t;
-    }
-    
-    static std::shared_ptr<SirType> Array(std::shared_ptr<SirType> elem, int size = -1) {
-        auto t = std::make_shared<SirType>();
-        t->kind = TypeKind::Array;
-        t->name = "مصفوفة";
-        t->params.push_back(elem);
-        return t;
-    }
-    
-    static std::shared_ptr<SirType> Optional(std::shared_ptr<SirType> inner) {
-        auto t = std::make_shared<SirType>();
-        t->kind = TypeKind::Optional;
-        t->name = "اختياري";
-        t->params.push_back(inner);
-        return t;
-    }
-    
-    // تحقق من نوع المرجع
-    bool isReference() const {
-        return kind == TypeKind::Reference || kind == TypeKind::MutableRef;
-    }
-    
-    bool isMutableReference() const {
-        return kind == TypeKind::MutableRef;
-    }
-    
-    // تحقق من القابلية للنسخ
-    bool isCopyable() const {
-        switch (kind) {
-            case TypeKind::Bool:
-            case TypeKind::Int8:
-            case TypeKind::Int16:
-            case TypeKind::Int32:
-            case TypeKind::Int64:
-            case TypeKind::UInt8:
-            case TypeKind::UInt16:
-            case TypeKind::UInt32:
-            case TypeKind::UInt64:
-            case TypeKind::Float32:
-            case TypeKind::Float64:
-            case TypeKind::Char:
-            case TypeKind::Reference:  // المراجع الثابتة قابلة للنسخ
-                return true;
-            default:
-                return false;
+        std::string toString() const
+        {
+            return filename + ":" + std::to_string(line) + ":" + std::to_string(column);
         }
+    };
+
+    // =============================================================================
+    // أنواع SIR — مأخوذة من نظام الأنواع الموحد
+    // =============================================================================
+
+    /**
+     * (AR) جلب SadTypeKind و SadTypePtr من نظام الأنواع الموحد
+     * (EN) Bring SadTypeKind and SadTypePtr from unified type system
+     */
+    using Sad::Types::SadType;
+    using Sad::Types::SadTypeKind;
+    using Sad::Types::SadTypePtr;
+    using Sad::Types::SadTypeRegistry;
+
+    // =============================================================================
+    // دوال مساعدة لإنشاء أنواع SIR — بديل مباشر لـ SirType factory methods
+    // (AR) تستدعي SadTypeRegistry مباشرة بدون أي غلاف وسيط
+    // (EN) Direct SadTypeRegistry calls — no intermediate wrapper
+    // =============================================================================
+
+    /**
+     * @brief (AR) إرجاع SadTypePtr لنوع Void (لاشيء)
+     * @brief (EN) Return SadTypePtr for Void type
+     */
+    inline SadTypePtr sirVoid()
+    {
+        return SadTypeRegistry::instance().getVoid();
     }
-    
-    // تمثيل نصي
-    std::string toString() const {
-        std::string result = name;
-        
-        if (!params.empty()) {
-            result += "<";
-            for (size_t i = 0; i < params.size(); i++) {
-                if (i > 0) result += "، ";
-                result += params[i]->toString();
-            }
-            result += ">";
+
+    /**
+     * @brief (AR) إرجاع SadTypePtr لنوع Boolean (منطقي)
+     * @brief (EN) Return SadTypePtr for Boolean type
+     */
+    inline SadTypePtr sirBool()
+    {
+        return SadTypeRegistry::instance().getBoolean();
+    }
+
+    /**
+     * @brief (AR) إرجاع SadTypePtr لنوع Integer (عدد صحيح، i32 في LLVM)
+     * @brief (EN) Return SadTypePtr for Integer type (i32 in LLVM)
+     */
+    inline SadTypePtr sirInt32()
+    {
+        return SadTypeRegistry::instance().getInteger();
+    }
+
+    /**
+     * @brief (AR) إرجاع SadTypePtr لنوع Integer 64 بت (عدد كبير، i64 في LLVM)
+     *        ملاحظة: SadTypeRegistry لا يفرّق بين Int32/Int64 — كلاهما Integer
+     *        لكن sadTypeToLlvm يتعامل مع SadTypeKind::Int64 إذا عُيّن صراحة
+     * @brief (EN) Return SadTypePtr for 64-bit Integer type (i64 in LLVM)
+     */
+    inline SadTypePtr sirInt64()
+    {
+        return SadTypeRegistry::instance().getInteger();
+    }
+
+    /**
+     * @brief (AR) إرجاع SadTypePtr لنوع Float (عشري، double في LLVM)
+     * @brief (EN) Return SadTypePtr for Float type (double in LLVM)
+     */
+    inline SadTypePtr sirFloat64()
+    {
+        return SadTypeRegistry::instance().getFloat();
+    }
+
+    /**
+     * @brief (AR) إرجاع SadTypePtr لنوع String (نص)
+     * @brief (EN) Return SadTypePtr for String type
+     */
+    inline SadTypePtr sirString()
+    {
+        return SadTypeRegistry::instance().getString();
+    }
+
+    /**
+     * @brief (AR) إنشاء SadTypePtr لنوع Reference (مرجع)
+     * @brief (EN) Create SadTypePtr for Reference type
+     * @param inner النوع الداخلي / Inner type
+     * @param mut هل المرجع قابل للتغيير / Is mutable reference
+     */
+    inline SadTypePtr sirReference(SadTypePtr inner = nullptr, bool mut = false)
+    {
+        if (!inner)
+            inner = SadTypeRegistry::instance().getAny();
+        return SadTypeRegistry::instance().makeReference(inner, mut);
+    }
+
+    /**
+     * @brief (AR) إنشاء SadTypePtr لنوع Array (مصفوفة)
+     * @brief (EN) Create SadTypePtr for Array type
+     * @param elem نوع العنصر / Element type
+     */
+    inline SadTypePtr sirArray(SadTypePtr elem = nullptr)
+    {
+        return SadTypeRegistry::instance().makeArray(std::move(elem));
+    }
+
+    /**
+     * @brief (AR) إنشاء SadTypePtr لنوع Optional (اختياري)
+     * @brief (EN) Create SadTypePtr for Optional type
+     * @param inner النوع الداخلي / Inner type
+     */
+    inline SadTypePtr sirOptional(SadTypePtr inner = nullptr)
+    {
+        if (!inner)
+            inner = SadTypeRegistry::instance().getAny();
+        return SadTypeRegistry::instance().makeOptional(std::move(inner));
+    }
+
+    // =============================================================================
+    // معلومات الملكية
+    // =============================================================================
+
+    /**
+     * حالة الملكية لقيمة
+     */
+    enum class OwnershipState
+    {
+        Owned,        // مملوكة بالكامل
+        Borrowed,     // مستعارة (للقراءة)
+        MutBorrowed,  // مستعارة (للكتابة)
+        Moved,        // منقولة (غير صالحة)
+        Dropped,      // مُسقطة (تم تحريرها)
+        Uninitialized // غير مُهيأة
+    };
+
+    /**
+     * معلومات الملكية لقيمة
+     */
+    struct OwnershipInfo
+    {
+        OwnershipState state = OwnershipState::Uninitialized;
+        std::optional<ValueId> borrowedFrom;     // مستعارة من أي قيمة؟
+        std::vector<ValueId> borrowedBy;         // من يستعير منها؟
+        std::optional<std::string> lifetimeName; // دورة الحياة
+        SourceLocation definedAt;                // أين عُرفت؟
+        std::optional<SourceLocation> movedAt;   // أين نُقلت؟
+        std::optional<SourceLocation> droppedAt; // أين أُسقطت؟
+    };
+
+    // =============================================================================
+    // القيم في SIR
+    // =============================================================================
+
+    /**
+     * قيمة SIR
+     *
+     * كل متغير أو نتيجة عملية يمثل بقيمة
+     */
+    struct SirValue
+    {
+        ValueId id;
+        std::string name; // اسم المتغير (للتوثيق)
+        SadTypePtr type;  // (AR) النوع الموحد / (EN) Unified type (SadTypePtr)
+        OwnershipInfo ownership;
+        SourceLocation location;
+
+        // هل هذه قيمة مؤقتة؟
+        bool isTemporary() const
+        {
+            return name.empty() || name[0] == '_';
         }
-        
-        if (lifetimeName) {
-            result += "<" + *lifetimeName + ">";
+    };
+
+    // =============================================================================
+    // المعاملات (Parameters)
+    // =============================================================================
+
+    /**
+     * معامل دالة
+     */
+    struct SirParameter
+    {
+        std::string name;
+        SadTypePtr type; // (AR) النوع الموحد / (EN) Unified type (SadTypePtr)
+        bool isMutable = false;
+        std::optional<std::string> lifetime;
+        SourceLocation location;
+    };
+
+    // =============================================================================
+    // دورة الحياة (Lifetime)
+    // =============================================================================
+
+    /**
+     * دورة حياة
+     */
+    struct Lifetime
+    {
+        std::string name;   // اسم دورة الحياة (مثل 'أ)
+        BlockId startBlock; // كتلة البداية
+        BlockId endBlock;   // كتلة النهاية
+        int startLine;
+        int endLine;
+
+        // هل دورة حياة ثابتة؟
+        bool isStatic() const
+        {
+            return name == "ثابت" || name == "static";
         }
-        
-        return result;
-    }
-};
+    };
 
-// =============================================================================
-// معلومات الملكية
-// =============================================================================
+    // =============================================================================
+    // قيود دورة الحياة
+    // =============================================================================
 
-/**
- * حالة الملكية لقيمة
- */
-enum class OwnershipState {
-    Owned,          // مملوكة بالكامل
-    Borrowed,       // مستعارة (للقراءة)
-    MutBorrowed,    // مستعارة (للكتابة)
-    Moved,          // منقولة (غير صالحة)
-    Dropped,        // مُسقطة (تم تحريرها)
-    Uninitialized   // غير مُهيأة
-};
+    /**
+     * قيد دورة حياة
+     *
+     * مثال: 'أ: 'ب (أي 'أ يعيش أطول من 'ب)
+     */
+    struct LifetimeConstraint
+    {
+        std::string longer;   // دورة الحياة الأطول
+        std::string shorter;  // دورة الحياة الأقصر
+        SourceLocation where; // أين نشأ القيد؟
 
-/**
- * معلومات الملكية لقيمة
- */
-struct OwnershipInfo {
-    OwnershipState state = OwnershipState::Uninitialized;
-    std::optional<ValueId> borrowedFrom;        // مستعارة من أي قيمة؟
-    std::vector<ValueId> borrowedBy;            // من يستعير منها؟
-    std::optional<std::string> lifetimeName;    // دورة الحياة
-    SourceLocation definedAt;                   // أين عُرفت؟
-    std::optional<SourceLocation> movedAt;      // أين نُقلت؟
-    std::optional<SourceLocation> droppedAt;    // أين أُسقطت؟
-};
+        std::string toString() const
+        {
+            return longer + ": " + shorter;
+        }
+    };
 
-// =============================================================================
-// القيم في SIR
-// =============================================================================
+    // =============================================================================
+    // معلومات الاستعارة
+    // =============================================================================
 
-/**
- * قيمة SIR
- * 
- * كل متغير أو نتيجة عملية يمثل بقيمة
- */
-struct SirValue {
-    ValueId id;
-    std::string name;                           // اسم المتغير (للتوثيق)
-    std::shared_ptr<SirType> type;
-    OwnershipInfo ownership;
-    SourceLocation location;
-    
-    // هل هذه قيمة مؤقتة؟
-    bool isTemporary() const {
-        return name.empty() || name[0] == '_';
-    }
-};
+    /**
+     * نوع الاستعارة
+     */
+    enum class BorrowKind
+    {
+        Shared, // استعارة مشتركة (للقراءة)
+        Unique  // استعارة حصرية (للكتابة)
+    };
 
-// =============================================================================
-// المعاملات (Parameters)
-// =============================================================================
+    /**
+     * استعارة نشطة
+     */
+    struct ActiveBorrow
+    {
+        ValueId borrower; // من يستعير؟
+        ValueId lender;   // من يُعير؟
+        BorrowKind kind;
+        Lifetime lifetime;
+        SourceLocation location;
+    };
 
-/**
- * معامل دالة
- */
-struct SirParameter {
-    std::string name;
-    std::shared_ptr<SirType> type;
-    bool isMutable = false;
-    std::optional<std::string> lifetime;
-    SourceLocation location;
-};
+    // =============================================================================
+    // السياق العام لـ SIR
+    // =============================================================================
 
-// =============================================================================
-// دورة الحياة (Lifetime)
-// =============================================================================
+    /**
+     * سياق SIR
+     *
+     * يحتوي على كل المعلومات المشتركة
+     */
+    class SirContext
+    {
+    public:
+        // إنشاء قيمة جديدة
+        ValueId createValue(const std::string &name, SadTypePtr type)
+        {
+            ValueId id = nextValueId_++;
+            values_[id] = {id, name, type, {}, {}};
+            return id;
+        }
 
-/**
- * دورة حياة
- */
-struct Lifetime {
-    std::string name;           // اسم دورة الحياة (مثل 'أ)
-    BlockId startBlock;         // كتلة البداية
-    BlockId endBlock;           // كتلة النهاية
-    int startLine;
-    int endLine;
-    
-    // هل دورة حياة ثابتة؟
-    bool isStatic() const {
-        return name == "ثابت" || name == "static";
-    }
-};
+        // الحصول على قيمة
+        SirValue *getValue(ValueId id)
+        {
+            auto it = values_.find(id);
+            return it != values_.end() ? &it->second : nullptr;
+        }
 
-// =============================================================================
-// قيود دورة الحياة
-// =============================================================================
+        // إنشاء كتلة جديدة
+        BlockId createBlock(const std::string &name = "")
+        {
+            BlockId id = nextBlockId_++;
+            blockNames_[id] = name.empty() ? "bb" + std::to_string(id) : name;
+            return id;
+        }
 
-/**
- * قيد دورة حياة
- * 
- * مثال: 'أ: 'ب (أي 'أ يعيش أطول من 'ب)
- */
-struct LifetimeConstraint {
-    std::string longer;     // دورة الحياة الأطول
-    std::string shorter;    // دورة الحياة الأقصر
-    SourceLocation where;   // أين نشأ القيد؟
-    
-    std::string toString() const {
-        return longer + ": " + shorter;
-    }
-};
+        // إدارة دورات الحياة
+        void addLifetime(const Lifetime &lt)
+        {
+            lifetimes_[lt.name] = lt;
+        }
 
-// =============================================================================
-// معلومات الاستعارة
-// =============================================================================
+        const Lifetime *getLifetime(const std::string &name) const
+        {
+            auto it = lifetimes_.find(name);
+            return it != lifetimes_.end() ? &it->second : nullptr;
+        }
 
-/**
- * نوع الاستعارة
- */
-enum class BorrowKind {
-    Shared,     // استعارة مشتركة (للقراءة)
-    Unique      // استعارة حصرية (للكتابة)
-};
+        // إدارة القيود
+        void addConstraint(const LifetimeConstraint &c)
+        {
+            constraints_.push_back(c);
+        }
 
-/**
- * استعارة نشطة
- */
-struct ActiveBorrow {
-    ValueId borrower;           // من يستعير؟
-    ValueId lender;             // من يُعير؟
-    BorrowKind kind;
-    Lifetime lifetime;
-    SourceLocation location;
-};
+        const std::vector<LifetimeConstraint> &getConstraints() const
+        {
+            return constraints_;
+        }
 
-// =============================================================================
-// السياق العام لـ SIR
-// =============================================================================
+        // إدارة الاستعارات
+        void addBorrow(const ActiveBorrow &b)
+        {
+            activeBorrows_.push_back(b);
+        }
 
-/**
- * سياق SIR
- * 
- * يحتوي على كل المعلومات المشتركة
- */
-class SirContext {
-public:
-    // إنشاء قيمة جديدة
-    ValueId createValue(const std::string& name, std::shared_ptr<SirType> type) {
-        ValueId id = nextValueId_++;
-        values_[id] = {id, name, type, {}, {}};
-        return id;
-    }
-    
-    // الحصول على قيمة
-    SirValue* getValue(ValueId id) {
-        auto it = values_.find(id);
-        return it != values_.end() ? &it->second : nullptr;
-    }
-    
-    // إنشاء كتلة جديدة
-    BlockId createBlock(const std::string& name = "") {
-        BlockId id = nextBlockId_++;
-        blockNames_[id] = name.empty() ? "bb" + std::to_string(id) : name;
-        return id;
-    }
-    
-    // إدارة دورات الحياة
-    void addLifetime(const Lifetime& lt) {
-        lifetimes_[lt.name] = lt;
-    }
-    
-    const Lifetime* getLifetime(const std::string& name) const {
-        auto it = lifetimes_.find(name);
-        return it != lifetimes_.end() ? &it->second : nullptr;
-    }
-    
-    // إدارة القيود
-    void addConstraint(const LifetimeConstraint& c) {
-        constraints_.push_back(c);
-    }
-    
-    const std::vector<LifetimeConstraint>& getConstraints() const {
-        return constraints_;
-    }
-    
-    // إدارة الاستعارات
-    void addBorrow(const ActiveBorrow& b) {
-        activeBorrows_.push_back(b);
-    }
-    
-    void removeBorrow(ValueId borrower) {
-        activeBorrows_.erase(
-            std::remove_if(activeBorrows_.begin(), activeBorrows_.end(),
-                [borrower](const ActiveBorrow& b) { return b.borrower == borrower; }),
-            activeBorrows_.end()
-        );
-    }
-    
-    const std::vector<ActiveBorrow>& getActiveBorrows() const {
-        return activeBorrows_;
-    }
-    
-private:
-    std::map<ValueId, SirValue> values_;
-    std::map<BlockId, std::string> blockNames_;
-    std::map<std::string, Lifetime> lifetimes_;
-    std::vector<LifetimeConstraint> constraints_;
-    std::vector<ActiveBorrow> activeBorrows_;
-    
-    ValueId nextValueId_ = 0;
-    BlockId nextBlockId_ = 0;
-};
+        void removeBorrow(ValueId borrower)
+        {
+            activeBorrows_.erase(
+                std::remove_if(activeBorrows_.begin(), activeBorrows_.end(),
+                               [borrower](const ActiveBorrow &b)
+                               { return b.borrower == borrower; }),
+                activeBorrows_.end());
+        }
+
+        const std::vector<ActiveBorrow> &getActiveBorrows() const
+        {
+            return activeBorrows_;
+        }
+
+    private:
+        std::map<ValueId, SirValue> values_;
+        std::map<BlockId, std::string> blockNames_;
+        std::map<std::string, Lifetime> lifetimes_;
+        std::vector<LifetimeConstraint> constraints_;
+        std::vector<ActiveBorrow> activeBorrows_;
+
+        ValueId nextValueId_ = 0;
+        BlockId nextBlockId_ = 0;
+    };
 
 } // namespace sad::sir
 

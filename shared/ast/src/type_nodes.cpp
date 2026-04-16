@@ -96,7 +96,7 @@ Data::DataType SimpleTypeNode::stringToDataType(const std::string& name) {
         return Data::DataType::NONE;
     if (name == "رقم" || name == "صحيح" || name == "integer" || name == "int") 
         return Data::DataType::INTEGER;
-    if (name == "عشري" || name == "float" || name == "double") 
+    if (name == "عشري" || name == "مضاعف" || name == "float" || name == "double") 
         return Data::DataType::FLOAT;
     if (name == "منطقي" || name == "boolean" || name == "bool") 
         return Data::DataType::BOOLEAN;

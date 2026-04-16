@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =============================================================================
  * ملف: test_sir.cpp
  * الوصف: اختبارات SIR
@@ -92,19 +92,19 @@ private:
 
 namespace mock {
 
-enum class TypeKind {
+enum class SadTypeKind {
     Void, Bool, Int32, Int64, Float64, String,
     Reference, MutableRef, Array
 };
 
 struct SirType {
-    TypeKind kind;
+    SadTypeKind kind;
     std::string name;
     bool isCopyable = false;
     
-    static SirType Int32() { return {TypeKind::Int32, "عدد", true}; }
-    static SirType String() { return {TypeKind::String, "نص", false}; }
-    static SirType Reference() { return {TypeKind::Reference, "&", true}; }
+    static SirType Int32() { return {SadTypeKind::Int32, "عدد", true}; }
+    static SirType String() { return {SadTypeKind::String, "نص", false}; }
+    static SirType Reference() { return {SadTypeKind::Reference, "&", true}; }
 };
 
 enum class OwnershipState {
@@ -153,20 +153,20 @@ void test_sir_types() {
     
     suite.addTest("إنشاء نوع Int32", []() {
         auto type = mock::SirType::Int32();
-        ASSERT_EQ(type.kind, mock::TypeKind::Int32);
+        ASSERT_EQ(type.kind, mock::SadTypeKind::Int32);
         ASSERT_EQ(type.name, "عدد");
         ASSERT_TRUE(type.isCopyable);
     });
     
     suite.addTest("إنشاء نوع String", []() {
         auto type = mock::SirType::String();
-        ASSERT_EQ(type.kind, mock::TypeKind::String);
+        ASSERT_EQ(type.kind, mock::SadTypeKind::String);
         ASSERT_FALSE(type.isCopyable);
     });
     
     suite.addTest("إنشاء نوع Reference", []() {
         auto type = mock::SirType::Reference();
-        ASSERT_EQ(type.kind, mock::TypeKind::Reference);
+        ASSERT_EQ(type.kind, mock::SadTypeKind::Reference);
         ASSERT_TRUE(type.isCopyable);  // المراجع الثابتة قابلة للنسخ
     });
     

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // generics_codegen.cpp — توليد كود Generics / Generics Code Generation
 // ============================================================================
 // @brief (AR) محرك توليد الكود لنظام المعممات (Generics Codegen Engine)
@@ -23,14 +23,55 @@
 #include "sir_module.h"
 #include "sir_instruction.h"
 #include "sir_types.h"
-#include "generics.h"
-#include "generic_instantiation.h"
 #include <iostream>
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
 #include <string>
 #include <algorithm>
+
+namespace {
+// (AR) دالة مساعدة محلية: استخراج اسم القالب ومعاملات الأنواع من نص
+//      مثال: "قائمة<عدد, نص>" → ("قائمة", ["عدد", "نص"])
+// (EN) Local helper: extract base name and type parameters from template name
+std::pair<std::string, std::vector<std::string>>
+localExtractTypeParameters(const std::string& name) {
+    auto ltPos = name.find('<');
+    auto gtPos = name.rfind('>');
+    if (ltPos == std::string::npos || gtPos == std::string::npos || gtPos <= ltPos) {
+        return {name, {}};
+    }
+    std::string baseName = name.substr(0, ltPos);
+    std::string params = name.substr(ltPos + 1, gtPos - ltPos - 1);
+    std::vector<std::string> result;
+    size_t start = 0;
+    int depth = 0;
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (params[i] == '<') depth++;
+        else if (params[i] == '>') depth--;
+        else if ((params[i] == ',' || params[i] == '\xd8') && depth == 0) {
+            // ',' or Arabic comma '،' (first byte 0xD8)
+            std::string p = params.substr(start, i - start);
+            // trim whitespace
+            auto a = p.find_first_not_of(" \t");
+            auto b = p.find_last_not_of(" \t");
+            if (a != std::string::npos) result.push_back(p.substr(a, b - a + 1));
+            start = i + 1;
+            // Skip second byte of Arabic comma if present
+            if (params[i] == '\xd8' && i + 1 < params.size() && (unsigned char)params[i+1] == 0x8C) {
+                start = i + 2; i++;
+            }
+        }
+    }
+    if (start < params.size()) {
+        std::string p = params.substr(start);
+        auto a = p.find_first_not_of(" \t");
+        auto b = p.find_last_not_of(" \t");
+        if (a != std::string::npos) result.push_back(p.substr(a, b - a + 1));
+    }
+    return {baseName, result};
+}
+} // anonymous namespace
 
 namespace Sad {
 namespace Compiler {
@@ -69,11 +110,11 @@ public:
     static bool inferTypes(
         const std::vector<std::string>& templateParamNames,
         const std::vector<std::string>& declaredParamTypeNames,
-        const std::vector<SIRType>& actualArgTypes,
-        std::vector<SIRType>& outInferredTypes)
+        const std::vector<SadTypeKind>& actualArgTypes,
+        std::vector<SadTypeKind>& outInferredTypes)
     {
         outInferredTypes.clear();
-        std::unordered_map<std::string, SIRType> inferred;
+        std::unordered_map<std::string, SadTypeKind> inferred;
 
         // (AR) نمر على كل معامل ومقابله في الوسائط الفعلية
         // (EN) Walk each parameter and its corresponding actual argument
@@ -105,7 +146,7 @@ public:
                 outInferredTypes.push_back(it->second);
             } else {
                 // (AR) لم نستطع استنتاج نوع هذا المعامل — نستخدم I64 كافتراضي
-                outInferredTypes.push_back(SIRType::I64);
+                outInferredTypes.push_back(SadTypeKind::Integer);
             }
         }
 
@@ -114,7 +155,7 @@ public:
 
     // (AR) استنتاج نوع SIR من نوع الوسيطة في التعليمة
     // (EN) Infer SIR type from an instruction operand
-    static SIRType inferOperandType(const SIROperand& operand) {
+    static SadTypeKind inferOperandType(const SIROperand& operand) {
         // SIROperandType::CONSTANT — التمييز عبر dataType
         if (operand.type == SIROperandType::CONSTANT) {
             return operand.dataType;
@@ -198,7 +239,7 @@ private:
     // (AR) معالجة استدعاء قالب وإنشاء نسخة محددة
     bool processTemplateCall(SIRInstruction& inst, const std::string& callTarget, SIRBuilder& builder) {
         // (AR) استخراج اسم القالب ومعاملات الأنواع من الاسم
-        auto extracted = Sad::TypeSystem::extractTypeParameters(callTarget);
+        auto extracted = localExtractTypeParameters(callTarget);
         const std::string& baseName = extracted.first;
         const std::vector<std::string>& typeArgNames = extracted.second;
 
@@ -206,8 +247,8 @@ private:
             return false;
         }
 
-        // (AR) تحويل أسماء الأنواع إلى SIRType
-        std::vector<SIRType> typeArgs;
+        // (AR) تحويل أسماء الأنواع إلى SadTypeKind
+        std::vector<SadTypeKind> typeArgs;
         typeArgs.reserve(typeArgNames.size());
         for (const auto& typeName : typeArgNames) {
             typeArgs.push_back(typeNameToSIRType(typeName));
@@ -218,10 +259,10 @@ private:
         for (const auto& type : typeArgs) {
             mangledName += "_";
             switch (type) {
-                case SIRType::I64:    mangledName += "i64"; break;
-                case SIRType::F64:    mangledName += "f64"; break;
-                case SIRType::STRING: mangledName += "str"; break;
-                case SIRType::BOOL:   mangledName += "bool"; break;
+                case SadTypeKind::Integer:    mangledName += "i64"; break;
+                case SadTypeKind::Float:    mangledName += "f64"; break;
+                case SadTypeKind::String: mangledName += "str"; break;
+                case SadTypeKind::Boolean:   mangledName += "bool"; break;
                 default:              mangledName += "obj"; break;
             }
         }
@@ -255,21 +296,21 @@ private:
         }
     }
 
-    // (AR) تحويل اسم النوع العربي إلى SIRType
-    SIRType typeNameToSIRType(const std::string& typeName) const {
+    // (AR) تحويل اسم النوع العربي إلى SadTypeKind
+    SadTypeKind typeNameToSIRType(const std::string& typeName) const {
         if (typeName == "رقم" || typeName == "عدد" || typeName == "int" || typeName == "i64") {
-            return SIRType::I64;
+            return SadTypeKind::Integer;
         }
-        if (typeName == "عشري" || typeName == "float" || typeName == "f64") {
-            return SIRType::F64;
+        if (typeName == "عشري" || typeName == "مضاعف" || typeName == "float" || typeName == "f64") {
+            return SadTypeKind::Float;
         }
         if (typeName == "نص" || typeName == "string" || typeName == "str") {
-            return SIRType::STRING;
+            return SadTypeKind::String;
         }
         if (typeName == "منطقي" || typeName == "bool") {
-            return SIRType::BOOL;
+            return SadTypeKind::Boolean;
         }
-        return SIRType::I64;
+        return SadTypeKind::Integer;
     }
 };
 

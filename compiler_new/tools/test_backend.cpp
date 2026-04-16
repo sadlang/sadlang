@@ -1,4 +1,4 @@
-// ===================================================================
+﻿// ===================================================================
 // اختبار الخلفية LLVM - test_backend.cpp
 // Test LLVM Backend - Creates SIR programmatically and generates LLVM IR
 // ===================================================================
@@ -30,7 +30,7 @@ std::shared_ptr<SIRModule> createHelloWorldModule() {
     auto module = std::make_shared<SIRModule>("hello_world");
     
     // إنشاء الدالة الرئيسية / Create main function
-    auto mainFunc = std::make_shared<SIRFunction>("main", SIRType::I64);
+    auto mainFunc = std::make_shared<SIRFunction>("main", SadTypeKind::Integer);
     
     // كتلة الدخول / Entry block
     auto entryBlock = std::make_shared<SIRBasicBlock>("entry");
@@ -57,60 +57,60 @@ std::shared_ptr<SIRModule> createHelloWorldModule() {
 std::shared_ptr<SIRModule> createArithmeticModule() {
     auto module = std::make_shared<SIRModule>("arithmetic_test");
     
-    auto mainFunc = std::make_shared<SIRFunction>("main", SIRType::I64);
+    auto mainFunc = std::make_shared<SIRFunction>("main", SadTypeKind::Integer);
     auto entryBlock = std::make_shared<SIRBasicBlock>("entry");
     
     // متغير أ = 10 / var a = 10
     auto allocA = SIRInstruction::Alloc(
-        SIROperand::Register("a_ptr", SIRType::PTR),
-        SIRType::I64,
+        SIROperand::Register("a_ptr", SadTypeKind::Pointer),
+        SadTypeKind::Integer,
         SIROperand::ConstantI64(1)
     );
     entryBlock->addInstruction(allocA);
     
     auto storeA = SIRInstruction::Store(
         SIROperand::ConstantI64(10),
-        SIROperand::Register("a_ptr", SIRType::PTR)
+        SIROperand::Register("a_ptr", SadTypeKind::Pointer)
     );
     entryBlock->addInstruction(storeA);
     
     // متغير ب = 20 / var b = 20
     auto allocB = SIRInstruction::Alloc(
-        SIROperand::Register("b_ptr", SIRType::PTR),
-        SIRType::I64,
+        SIROperand::Register("b_ptr", SadTypeKind::Pointer),
+        SadTypeKind::Integer,
         SIROperand::ConstantI64(1)
     );
     entryBlock->addInstruction(allocB);
     
     auto storeB = SIRInstruction::Store(
         SIROperand::ConstantI64(20),
-        SIROperand::Register("b_ptr", SIRType::PTR)
+        SIROperand::Register("b_ptr", SadTypeKind::Pointer)
     );
     entryBlock->addInstruction(storeB);
     
     // متغير ج = أ + ب / var c = a + b
     auto loadA = SIRInstruction::Load(
-        SIROperand::Register("a_val", SIRType::I64),
-        SIROperand::Register("a_ptr", SIRType::PTR)
+        SIROperand::Register("a_val", SadTypeKind::Integer),
+        SIROperand::Register("a_ptr", SadTypeKind::Pointer)
     );
     entryBlock->addInstruction(loadA);
     
     auto loadB = SIRInstruction::Load(
-        SIROperand::Register("b_val", SIRType::I64),
-        SIROperand::Register("b_ptr", SIRType::PTR)
+        SIROperand::Register("b_val", SadTypeKind::Integer),
+        SIROperand::Register("b_ptr", SadTypeKind::Pointer)
     );
     entryBlock->addInstruction(loadB);
     
     auto addInst = SIRInstruction::Binary(
         SIROpcode::ADD_I64,
-        SIROperand::Register("c_val", SIRType::I64),
-        SIROperand::Register("a_val", SIRType::I64),
-        SIROperand::Register("b_val", SIRType::I64)
+        SIROperand::Register("c_val", SadTypeKind::Integer),
+        SIROperand::Register("a_val", SadTypeKind::Integer),
+        SIROperand::Register("b_val", SadTypeKind::Integer)
     );
     entryBlock->addInstruction(addInst);
     
     // إرجاع ج / Return c
-    auto retInst = SIRInstruction::Return(SIROperand::Register("c_val", SIRType::I64));
+    auto retInst = SIRInstruction::Return(SIROperand::Register("c_val", SadTypeKind::Integer));
     entryBlock->addInstruction(retInst);
     
     mainFunc->addBasicBlock(entryBlock);
@@ -124,7 +124,7 @@ std::shared_ptr<SIRModule> createArithmeticModule() {
 std::shared_ptr<SIRModule> createControlFlowModule() {
     auto module = std::make_shared<SIRModule>("control_flow_test");
     
-    auto mainFunc = std::make_shared<SIRFunction>("main", SIRType::I64);
+    auto mainFunc = std::make_shared<SIRFunction>("main", SadTypeKind::Integer);
     
     // كتلة الدخول / Entry block
     auto entryBlock = std::make_shared<SIRBasicBlock>("entry");
@@ -132,7 +132,7 @@ std::shared_ptr<SIRModule> createControlFlowModule() {
     // متغير س = 42 / var x = 42
     auto cmpInst = SIRInstruction::Binary(
         SIROpcode::GT,
-        SIROperand::Register("cond", SIRType::BOOL),
+        SIROperand::Register("cond", SadTypeKind::Boolean),
         SIROperand::ConstantI64(42),
         SIROperand::ConstantI64(10)
     );
@@ -140,7 +140,7 @@ std::shared_ptr<SIRModule> createControlFlowModule() {
     
     // إذا (س > 10) → then وإلا → else
     auto branchInst = SIRInstruction::BranchCond(
-        SIROperand::Register("cond", SIRType::BOOL),
+        SIROperand::Register("cond", SadTypeKind::Boolean),
         SIROperand::Label("then"),
         SIROperand::Label("else_block")
     );

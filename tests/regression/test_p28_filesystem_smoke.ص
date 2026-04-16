@@ -2,6 +2,8 @@
 # Regression Test #28 — Filesystem positive smoke
 # الأولوية: P1
 
+استورد أساسيات
+
 متغير مسار = "tmp_p28_fs.txt"
 متغير نص_متوقع = "hello_fs_p28"
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file sir_test_utils.h
  * @brief أدوات مساعدة لاختبارات SIR
  * @brief SIR Testing Utilities
@@ -38,7 +38,7 @@ public:
     // إنشاء دالة / Create function
     SIR::SIRFunction* createFunction(
         const std::string& name,
-        SIR::SIRType returnType = SIR::SIRType::INT32
+        SIR::SadTypeKind returnType = SIR::SadTypeKind::INT32
     );
     
     // إنشاء كتلة أساسية / Create basic block

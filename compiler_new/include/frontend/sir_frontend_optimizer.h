@@ -127,6 +127,9 @@ public:
 
 private:
     size_t maxInlineSize_ = 10;
+    // (AR) أسماء المتغيرات العالمية — لا تُعاد تسميتها عند التضمين
+    // (EN) Global variable names — NOT renamed during inlining
+    std::unordered_set<std::string> globalVarNames_;
     bool shouldInline(const SIRFunction& callee) const;
     bool inlineCallSite(SIRFunction& caller, SIRBasicBlock& block,
                        size_t instIdx, const SIRFunction& callee,

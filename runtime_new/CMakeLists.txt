@@ -175,6 +175,32 @@ endif()
 message(STATUS "Configured sad_rt_runtime library (vm, memory, thread, ffi, exception, abi, panic, sandbox)")
 
 # ============================================================================
+# UI Runtime Library — مكتبة وقت التشغيل للواجهات
+# (AR) تنفيذ دوال C التي يستدعيها الكود المُترجم بـ LLVM لعناصر الواجهة
+#      يربط بين llvm_codegen_ui.cpp ومكتبة sad_ui
+# (EN) C API implementation called by LLVM-compiled code for UI widgets
+#      Bridges llvm_codegen_ui.cpp to the sad_ui library
+# ============================================================================
+if(TARGET sad_ui)
+    add_library(sad_rt_ui STATIC sad_ui_runtime.cpp)
+    target_include_directories(sad_rt_ui
+        PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_SOURCE_DIR}/sad_ui/core/include
+            ${CMAKE_SOURCE_DIR}/sad_ui/backends/desktop/include
+            ${CMAKE_SOURCE_DIR}/graphics/third_party
+    )
+    target_link_libraries(sad_rt_ui PUBLIC sad_ui)
+    if(MSVC)
+        target_compile_options(sad_rt_ui PRIVATE /utf-8 /wd4819 /FS)
+    endif()
+    target_link_libraries(sad_rt_runtime INTERFACE sad_rt_ui)
+    message(STATUS "  [sad_rt_ui] ✓ مكتبة وقت التشغيل للواجهات مفعّلة / UI runtime enabled")
+else()
+    message(STATUS "  [sad_rt_ui] ⚠ sad_ui غير موجود — مكتبة الواجهات معطّلة / sad_ui not found — UI runtime disabled")
+endif()
+
+# ============================================================================
 # Freestanding Low-Level Runtime — مكتبة وقت التشغيل بلا نظام تشغيل
 # (AR) تُبنى فقط عند الطلب. تحتوي على تنفيذات sad_ll_* لوضع --freestanding
 #      يمكن ترجمتها مع cross-compiler لأي منصة (x86_64, ARM, RISC-V)

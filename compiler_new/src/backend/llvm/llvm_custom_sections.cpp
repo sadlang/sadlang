@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: llvm_custom_sections.cpp
 // File: llvm_custom_sections.cpp
 //
@@ -140,7 +140,7 @@ void LLVMCustomSections::registerKernelSections() {
     {
         SectionInfo info;
         info.name = ".multiboot";
-        info.arabicName = u8"إقلاع_متعدد";
+        info.arabicName = "إقلاع_متعدد";
         info.isReadOnly = true;
         info.keepSection = true;
         info.alignment = 4;
@@ -151,7 +151,7 @@ void LLVMCustomSections::registerKernelSections() {
     {
         SectionInfo info;
         info.name = ".multiboot2";
-        info.arabicName = u8"إقلاع_متعدد2";
+        info.arabicName = "إقلاع_متعدد2";
         info.isReadOnly = true;
         info.keepSection = true;
         info.alignment = 8;
@@ -162,7 +162,7 @@ void LLVMCustomSections::registerKernelSections() {
     {
         SectionInfo info;
         info.name = ".interrupt_table";
-        info.arabicName = u8"جدول_المقاطعات";
+        info.arabicName = "جدول_المقاطعات";
         info.isReadOnly = false;
         info.keepSection = true;
         info.alignment = 4096;
@@ -173,7 +173,7 @@ void LLVMCustomSections::registerKernelSections() {
     {
         SectionInfo info;
         info.name = ".page_tables";
-        info.arabicName = u8"جداول_الصفحات";
+        info.arabicName = "جداول_الصفحات";
         info.isReadOnly = false;
         info.keepSection = true;
         info.alignment = 4096;
@@ -184,7 +184,7 @@ void LLVMCustomSections::registerKernelSections() {
     {
         SectionInfo info;
         info.name = ".isr_vector";
-        info.arabicName = u8"متجه_المقاطعات";
+        info.arabicName = "متجه_المقاطعات";
         info.isReadOnly = true;
         info.keepSection = true;
         info.alignment = 256;
@@ -195,7 +195,7 @@ void LLVMCustomSections::registerKernelSections() {
     {
         SectionInfo info;
         info.name = ".boot";
-        info.arabicName = u8"إقلاع";
+        info.arabicName = "إقلاع";
         info.isReadOnly = true;
         info.isExecutable = true;
         info.keepSection = true;
@@ -206,7 +206,7 @@ void LLVMCustomSections::registerKernelSections() {
     {
         SectionInfo info;
         info.name = ".init";
-        info.arabicName = u8"تهيئة";
+        info.arabicName = "تهيئة";
         info.isExecutable = true;
         info.keepSection = true;
         registerSection(info);
@@ -237,19 +237,19 @@ std::set<std::string> LLVMCustomSections::getUsedSections() const {
 std::string LLVMCustomSections::translateSectionName(const std::string& name) const {
     // ترجمة أسماء الأقسام العربية / Translate Arabic section names
     static const std::map<std::string, std::string> translations = {
-        {u8"إقلاع_متعدد", ".multiboot"},
-        {u8"إقلاع_متعدد2", ".multiboot2"},
-        {u8"جدول_المقاطعات", ".interrupt_table"},
-        {u8"جداول_الصفحات", ".page_tables"},
-        {u8"متجه_المقاطعات", ".isr_vector"},
-        {u8"إقلاع", ".boot"},
-        {u8"تهيئة", ".init"},
-        {u8"كود", ".text"},
-        {u8"بيانات", ".data"},
-        {u8"بيانات_ثابتة", ".rodata"},
-        {u8"غير_مهيأة", ".bss"},
-        {u8"مكدس", ".stack"},
-        {u8"كومة", ".heap"},
+        {"إقلاع_متعدد", ".multiboot"},
+        {"إقلاع_متعدد2", ".multiboot2"},
+        {"جدول_المقاطعات", ".interrupt_table"},
+        {"جداول_الصفحات", ".page_tables"},
+        {"متجه_المقاطعات", ".isr_vector"},
+        {"إقلاع", ".boot"},
+        {"تهيئة", ".init"},
+        {"كود", ".text"},
+        {"بيانات", ".data"},
+        {"بيانات_ثابتة", ".rodata"},
+        {"غير_مهيأة", ".bss"},
+        {"مكدس", ".stack"},
+        {"كومة", ".heap"},
     };
     
     auto it = translations.find(name);

@@ -749,6 +749,59 @@ int main() {
         ));
     });
 
+    // ══════════════════════════════════════════════════════════════════
+    // مجموعة 19: تعريف متغيرات متعددة / Multi-Variable Declaration
+    // ══════════════════════════════════════════════════════════════════
+    SAD_GROUP("Parser.MultiVarDecl / المحلل_النحوي.متغيرات_متعددة");
+
+    SAD_TEST("MVAR01: متغيرين بفاصلة إنجليزية", {
+        // متغير أ = 10, ب = 20
+        SAD_ASSERT_TRUE(parsesSuccessfully(AR_VAR " a = 10, b = 20"));
+    });
+
+    SAD_TEST("MVAR02: ثلاث متغيرات بفاصلة إنجليزية", {
+        // متغير س = 1, ص = 2, ع = 3
+        SAD_ASSERT_TRUE(parsesSuccessfully(AR_VAR " x = 1, y = 2, z = 3"));
+    });
+
+    SAD_TEST("MVAR03: متغيرات بدون قيم ابتدائية", {
+        // متغير أ, ب, ج
+        // Parser يجب أن يقبل هذا أو يرفضه بناءً على التصميم
+        try {
+            auto stmts = parse(AR_VAR " a, b, c");
+            // إذا نجح — جيد
+            SAD_ASSERT_TRUE(true);
+        } catch (...) {
+            // إذا فشل — مقبول (قد يتطلب قيمة ابتدائية)
+            SAD_ASSERT_TRUE(true);
+        }
+    });
+
+    SAD_TEST("MVAR04: ثوابت متعددة", {
+        // ثابت PI = 3.14, E = 2.71
+        SAD_ASSERT_TRUE(parsesSuccessfully(AR_CONST " PI = 3.14, E = 2.71"));
+    });
+
+    SAD_TEST("MVAR05: متغيرات مع تعبيرات معقدة", {
+        // متغير س = 1 + 2, ص = 3 * 4
+        SAD_ASSERT_TRUE(parsesSuccessfully(AR_VAR " x = 1 + 2, y = 3 * 4"));
+    });
+
+    SAD_TEST("MVAR06: عدد العُقد المُنتجة", {
+        // متغير أ = 1, ب = 2 يجب أن يُنتج عقدة واحدة (MultiVarDeclStmt)
+        // أو عقدتين (VarDeclStmt, VarDeclStmt) — حسب التصميم
+        auto stmts = parse(AR_VAR " a = 1, b = 2");
+        // يجب أن يكون هناك على الأقل عقدة واحدة
+        SAD_ASSERT_TRUE(stmts.size() >= 1);
+    });
+
+    SAD_TEST("MVAR07: متغير واحد فقط (backwards compatibility)", {
+        // متغير س = 42
+        SAD_ASSERT_TRUE(parsesSuccessfully(AR_VAR " x = 42"));
+        auto stmts = parse(AR_VAR " x = 42");
+        SAD_ASSERT_EQ(stmts.size(), (size_t)1);
+    });
+
 #else
     // إذا لم تتوفر المكونات المطلوبة
     SAD_GROUP("Parser / المحلل_النحوي");

@@ -386,7 +386,7 @@ private:
     bool isArithmetic(Opcode op) {
         return op == Opcode::Add || op == Opcode::Sub ||
                op == Opcode::Mul || op == Opcode::Div ||
-               op == Opcode::Mod;
+               op == Opcode::FloorDiv || op == Opcode::Mod;
     }
     
     int64_t evaluateOp(Opcode op, int64_t lhs, int64_t rhs) {
@@ -395,6 +395,12 @@ private:
             case Opcode::Sub: return lhs - rhs;
             case Opcode::Mul: return lhs * rhs;
             case Opcode::Div: return rhs != 0 ? lhs / rhs : 0;
+            case Opcode::FloorDiv: {
+                if (rhs == 0) return 0;
+                int64_t q = lhs / rhs;
+                if ((lhs ^ rhs) < 0 && lhs % rhs != 0) q -= 1;
+                return q;
+            }
             case Opcode::Mod: return rhs != 0 ? lhs % rhs : 0;
             default:
                 // (AR) عملية غير حسابية — تحذير + إرجاع 0
