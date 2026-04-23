@@ -16,6 +16,7 @@
  */
 
 #include "builtin_common.h"
+#include "builtin_registry.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -23,6 +24,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <random>
 
 namespace Sad
 {
@@ -30,6 +32,11 @@ namespace Sad
     {
 
         using namespace StdLib;
+
+        // (AR) اختصار لأسماء الدوال المركزية
+        namespace Bm = Builtins::Names::Math;
+        namespace Bp = Builtins::Names::Platform;
+        namespace Bk = Builtins::Names::Kernel;
 
         void registerBuiltinsMath(Interpreter &interpreter)
         {
@@ -47,9 +54,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::log(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("لوغ", math_log_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("log", math_log_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("لوغاريتم", math_log_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::LOG), math_log_func);
 
             // Base-10 logarithm / لوغاريتم عشري
             auto math_log10_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -60,9 +65,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::log10(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("لوغ10", math_log10_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("log10", math_log10_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("لوغاريتم_عشري", math_log10_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::LOG10), math_log10_func);
 
             // Base-2 logarithm / لوغاريتم ثنائي
             auto math_log2_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -73,11 +76,10 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::log2(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("لوغ2", math_log2_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("log2", math_log2_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("لوغاريتم_ثنائي", math_log2_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::LOG2), math_log2_func);
 
-            // Exponential e^x / أُس
+            // (AR) الدالة الأسية e^x — اسمها "أسي" لتجنب تعارض مع "أس" (القوة x^y)
+            // (EN) Exponential e^x — named "أسي" to avoid conflict with "أس" (power x^y)
             auto math_exp_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
             {
                 std::vector<Data::Value> plainArgs;
@@ -86,9 +88,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::exp(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("أس", math_exp_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("exp", math_exp_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("أُس", math_exp_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::EXP), math_exp_func);
 
             // Clamp / تقييد القيمة
             auto math_clamp_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -99,9 +99,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::clamp(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("قيد", math_clamp_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("clamp", math_clamp_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("تقييد", math_clamp_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::CLAMP), math_clamp_func);
 
             // Truncate / اقتطاع
             auto math_trunc_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -112,9 +110,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::trunc(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("اقتطاع", math_trunc_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("trunc", math_trunc_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("اقتطع", math_trunc_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::TRUNCATE), math_trunc_func);
 
             // Modulo / باقي القسمة
             auto math_mod_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -125,9 +121,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::mod(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("باقي", math_mod_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("mod", math_mod_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("باقي_القسمة", math_mod_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::FMOD), math_mod_func);
 
             // Sign / إشارة
             auto math_sign_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -138,8 +132,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::sign(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("إشارة", math_sign_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("sign", math_sign_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::SIGN), math_sign_func);
 
             // Pi constant / ثابت باي
             auto math_pi_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -147,19 +140,58 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::pi());
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("باي", math_pi_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("pi", math_pi_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("ط", math_pi_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::PI), math_pi_func);
 
-            // e constant / ثابت إ (أولر)
+            // (AR) ثابت أويلر e — الاسم الموحد "هـ" (يطابق stdlib_manager)
+            // (EN) Euler's e constant — unified name "هـ" (matches stdlib_manager)
             auto math_e_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
             {
                 return std::make_shared<Data::Value>(StdLib::Math::AdvancedMath::e());
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("إ", math_e_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("e_const", math_e_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("أولر", math_e_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::E), math_e_func);
+
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) دوال رياضية إضافية — نُقلت من وحدة خرائط (كانت في القسم 5)
+            // (EN) Additional math functions — moved from maps module (was Section 5)
+            // ═══════════════════════════════════════════════════════════════
+
+            // (AR) الاستيفاء الخطي — lerp(a, b, t) = a + t*(b-a)
+            // (EN) Linear interpolation — lerp(a, b, t) = a + t*(b-a)
+            auto math_lerp_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 3)
+                    throw std::runtime_error("(AR) استيفاء_خطي تتطلب ثلاث قيم: بداية، نهاية، نسبة");
+                double a = args[0]->toDouble();
+                double b = args[1]->toDouble();
+                double t = args[2]->toDouble();
+                return std::make_shared<Data::Value>(a + t * (b - a));
+            };
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::LERP), math_lerp_func);
+
+            // (AR) عشوائي_نطاق — رقم صحيح عشوائي في نطاق [min, max]
+            // (EN) Random integer in range [min, max]
+            auto math_random_range_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
+            {
+                if (args.size() < 2)
+                    throw std::runtime_error("(AR) عشوائي_نطاق تتطلب حد أدنى وحد أعلى");
+                int lo = args[0]->toInt();
+                int hi = args[1]->toInt();
+                static std::mt19937 gen(std::random_device{}());
+                std::uniform_int_distribution<int> dist(lo, hi);
+                return std::make_shared<Data::Value>(dist(gen));
+            };
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::RANDOM_RANGE), math_random_range_func);
+
+            // (AR) عشوائي_عشري — رقم عشري عشوائي بين 0.0 و 1.0
+            // (EN) Random float between 0.0 and 1.0
+            auto math_random_float_func = [](const std::vector<std::shared_ptr<Data::Value>> &) -> std::shared_ptr<Data::Value>
+            {
+                static std::mt19937 gen(std::random_device{}());
+                std::uniform_real_distribution<double> dist(0.0, 1.0);
+                return std::make_shared<Data::Value>(dist(gen));
+            };
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::RANDOM_FLOAT), math_random_float_func);
 
             // ═══════════════════════════════════════════════════════════════
             // System Functions (environment, directory, execution)
@@ -174,7 +206,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::getEnv(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("احصل_بيئة", sys_getenv_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::GET_ENV), sys_getenv_func);
 
             // Set environment variable / تعيين متغير بيئة
             auto sys_setenv_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -185,9 +217,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::setEnv(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("عيّن_بيئة", sys_setenv_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("setEnv", sys_setenv_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("set_env", sys_setenv_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::SET_ENV), sys_setenv_func);
 
             // Get current directory / الحصول على المجلد الحالي
             auto sys_curdir_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -198,10 +228,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::currentDir(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("مجلد_حالي", sys_curdir_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("currentDir", sys_curdir_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("المجلد_الحالي", sys_curdir_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("pwd", sys_curdir_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::CUR_DIR), sys_curdir_func);
 
             // Change directory / تغيير المجلد
             auto sys_chdir_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -212,9 +239,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::changeDir(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("غيّر_مجلد", sys_chdir_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("changeDir", sys_chdir_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("cd", sys_chdir_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::CHANGE_DIR), sys_chdir_func);
 
             // Execute command / تنفيذ أمر
             auto sys_execute_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -225,8 +250,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::execute(plainArgs));
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("نفّذ", sys_execute_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("تنفذ", sys_execute_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::EXECUTE), sys_execute_func);
 
             // Get platform / المنصة
             auto sys_platform_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -234,8 +258,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::platform());
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("منصة", sys_platform_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("المنصة", sys_platform_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::PLATFORM_NAME), sys_platform_func);
 
             // Get OS name / اسم نظام التشغيل
             auto sys_osname_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -243,9 +266,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::osName());
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("نظام", sys_osname_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("osName", sys_osname_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("os", sys_osname_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::OS_NAME), sys_osname_func);
 
             // Get timestamp / الطابع الزمني
             auto sys_timestamp_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -253,8 +274,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::timestamp());
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("طابع_زمن", sys_timestamp_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("الطابع_الزمني", sys_timestamp_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::TIMESTAMP), sys_timestamp_func);
 
             // Get clock time / وقت الساعة
             auto sys_clock_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -262,9 +282,7 @@ namespace Sad
                 return std::make_shared<Data::Value>(StdLib::System::SystemFunctions::clock_time());
             };
 
-            interpreter.getFunctionManager().registerBuiltinFunction("ساعة", sys_clock_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("clock", sys_clock_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("وقت_الساعة", sys_clock_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bp::CLOCK), sys_clock_func);
 
             // ═══════════════════════════════════════════════════════════════
             // (AR) دوال برمجة أنظمة التشغيل — محاكاة في المفسر
@@ -286,7 +304,7 @@ namespace Sad
                 std::cout << "[OS-SIM] outb(0x" << std::hex << port << ", 0x" << val << std::dec << ")" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("منفذ_اكتب", port_write_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::PORT_WRITE), port_write_func);
 
             // (AR) محاكاة قراءة منفذ — inb(port)
             auto port_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -297,7 +315,7 @@ namespace Sad
                 std::cout << "[OS-SIM] inb(0x" << std::hex << port << std::dec << ") -> 0x00" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("منفذ_اقرأ", port_read_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::PORT_READ), port_read_func);
 
             // (AR) محاكاة كتابة ذاكرة — poke(addr, value)
             auto mem_write_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -309,7 +327,7 @@ namespace Sad
                 std::cout << "[OS-SIM] poke(0x" << std::hex << addr << ", 0x" << val << std::dec << ")" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("ذاكرة_اكتب", mem_write_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::MEM_WRITE), mem_write_func);
 
             // (AR) محاكاة قراءة ذاكرة — peek(addr)
             auto mem_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -320,7 +338,7 @@ namespace Sad
                 std::cout << "[OS-SIM] peek(0x" << std::hex << addr << std::dec << ") -> 0x00" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("ذاكرة_اقرأ", mem_read_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::MEM_READ), mem_read_func);
 
             // (AR) محاكاة مقاطعة — interrupt(n)
             auto interrupt_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -331,9 +349,7 @@ namespace Sad
                 std::cout << "[OS-SIM] int 0x" << std::hex << n << std::dec << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("مقاطعة", interrupt_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("interrupt", interrupt_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("int_call", interrupt_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::INTERRUPT), interrupt_func);
 
             // (AR) محاكاة إيقاف المعالج — hlt
             auto halt_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -341,7 +357,7 @@ namespace Sad
                 std::cout << "[OS-SIM] hlt — CPU halted" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("توقف", halt_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::HALT), halt_func);
 
             // (AR) محاكاة تعطيل المقاطعات — cli
             auto cli_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -349,7 +365,7 @@ namespace Sad
                 std::cout << "[OS-SIM] cli — interrupts disabled" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("تعطيل_مقاطعات", cli_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::CLI), cli_func);
 
             // (AR) محاكاة تفعيل المقاطعات — sti
             auto sti_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -357,7 +373,7 @@ namespace Sad
                 std::cout << "[OS-SIM] sti — interrupts enabled" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("تفعيل_مقاطعات", sti_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::STI), sti_func);
 
             // (AR) محاكاة كتابة VGA — vga_write(row, col, char, color)
             auto vga_write_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -372,8 +388,7 @@ namespace Sad
                           << (char)ch << "' (color=0x" << std::hex << color << std::dec << ")" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("شاشة_اكتب", vga_write_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("vga_write", vga_write_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::VGA_WRITE), vga_write_func);
 
             // (AR) محاكاة مسح الشاشة — vga_clear(color?)
             auto vga_clear_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -384,8 +399,7 @@ namespace Sad
                 std::cout << "[OS-SIM] VGA clear (color=0x" << std::hex << color << std::dec << ")" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("شاشة_امسح", vga_clear_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("vga_clear", vga_clear_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::VGA_CLEAR), vga_clear_func);
 
             // (AR) محاكاة نسخ ذاكرة — memcpy(dest, src, size)
             auto memcpy_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -396,7 +410,7 @@ namespace Sad
                           << ", 0x" << args[1]->toInt() << ", " << std::dec << args[2]->toInt() << ")" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("انسخ_ذاكرة", memcpy_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::MEMCPY), memcpy_func);
 
             // (AR) محاكاة ملء ذاكرة — memset(dest, value, size)
             auto memset_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -407,7 +421,7 @@ namespace Sad
                           << ", 0x" << args[1]->toInt() << ", " << std::dec << args[2]->toInt() << ")" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("املأ_ذاكرة", memset_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::MEMSET), memset_func);
 
             // ══════════════════════════════════════════════════════════════════════
             // ■ دوال Embedded المتقدمة / Advanced Embedded Functions (18)
@@ -426,7 +440,7 @@ namespace Sad
                           << " baud=" << std::dec << baud << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("تسلسل_هئ", serial_init_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::SERIAL_INIT), serial_init_func);
 
             // (AR) إرسال بايت عبر التسلسل — serial_send(port, byte)
             auto serial_write_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -439,7 +453,7 @@ namespace Sad
                           << " byte=0x" << byte << " ('" << (char)byte << "')" << std::dec << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("تسلسل_ارسل", serial_write_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::SERIAL_SEND), serial_write_func);
 
             // (AR) استقبال بايت من التسلسل — serial_receive(port)
             auto serial_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -451,7 +465,7 @@ namespace Sad
                           << " → simulated byte 0x41 ('A')" << std::endl;
                 return std::make_shared<Data::Value>(0x41); // simulated received 'A'
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("تسلسل_استقبل", serial_read_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::SERIAL_RECV), serial_read_func);
 
             // (AR) فحص جاهزية البيانات — serial_ready(port)
             auto serial_ready_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -463,7 +477,7 @@ namespace Sad
                           << " → true (simulated)" << std::endl;
                 return std::make_shared<Data::Value>(1); // simulated: data available
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("تسلسل_جاهز", serial_ready_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::SERIAL_READY), serial_ready_func);
 
             // ─── GPIO (3) ──────────────────────────────────────────────
 
@@ -477,9 +491,7 @@ namespace Sad
                 std::cout << "[OS-SIM] GPIO write: pin=" << pin << " value=" << val << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("منفذ_رقمي_اكتب", gpio_write_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("gpio_write", gpio_write_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("digital_write", gpio_write_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::GPIO_WRITE), gpio_write_func);
 
             // (AR) قراءة GPIO — gpio_read(pin)
             auto gpio_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -490,9 +502,7 @@ namespace Sad
                 std::cout << "[OS-SIM] GPIO read: pin=" << pin << " → 1 (simulated HIGH)" << std::endl;
                 return std::make_shared<Data::Value>(1); // simulated HIGH
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("منفذ_رقمي_اقرأ", gpio_read_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("gpio_read", gpio_read_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("digital_read", gpio_read_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::GPIO_READ), gpio_read_func);
 
             // (AR) تحديد وضع GPIO — gpio_mode(pin, mode)
             auto gpio_mode_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -505,9 +515,7 @@ namespace Sad
                 std::cout << "[OS-SIM] GPIO mode: pin=" << pin << " mode=" << modeName << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("حدد_وضع_منفذ", gpio_mode_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("gpio_mode", gpio_mode_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("pin_mode", gpio_mode_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::GPIO_MODE), gpio_mode_func);
 
             // ─── Timer (3) ─────────────────────────────────────────────
 
@@ -520,8 +528,7 @@ namespace Sad
                 std::cout << "[OS-SIM] Timer init: frequency=" << freq << " Hz" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("مؤقت_هئ", timer_init_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("timer_init", timer_init_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::EMBED_TIMER_INIT), timer_init_func);
 
             // (AR) قراءة المؤقت — timer_read()
             auto timer_read_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -531,8 +538,7 @@ namespace Sad
                 std::cout << "[OS-SIM] Timer read: " << us << " us" << std::endl;
                 return std::make_shared<Data::Value>(static_cast<int>(us & 0x7FFFFFFF));
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("مؤقت_قراءة", timer_read_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("timer_read", timer_read_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::EMBED_TIMER_READ), timer_read_func);
 
             // (AR) انتظار ميكروثانية — timer_wait(us)
             auto timer_wait_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -545,9 +551,7 @@ namespace Sad
                 std::this_thread::sleep_for(std::chrono::microseconds(us));
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("مؤقت_انتظر", timer_wait_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("timer_wait", timer_wait_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("delay_us", timer_wait_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::EMBED_TIMER_WAIT), timer_wait_func);
 
             // ─── System Control (3) ────────────────────────────────────
 
@@ -558,9 +562,7 @@ namespace Sad
                 std::cout << "[OS-SIM] (in simulation: program continues)" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("اعد_تشغيل", reset_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("reset", reset_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("reboot", reset_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::RESET), reset_func);
 
             // (AR) معرّف المعالج — cpu_id(leaf?)
             auto cpuid_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -571,9 +573,7 @@ namespace Sad
                 std::cout << "[OS-SIM] CPUID leaf=" << leaf << " → 0x000306C3 (simulated i7)" << std::endl;
                 return std::make_shared<Data::Value>(0x000306C3); // simulated Haswell i7
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("معرف_المعالج", cpuid_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("cpu_id", cpuid_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("cpuid", cpuid_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::CPUID), cpuid_func);
 
             // (AR) عداد الدورات — rdtsc()
             auto rdtsc_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -584,7 +584,7 @@ namespace Sad
                 std::cout << "[OS-SIM] RDTSC → " << simCycles << " (simulated cycles)" << std::endl;
                 return std::make_shared<Data::Value>(simCycles);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("عداد_الدورات", rdtsc_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::RDTSC), rdtsc_func);
 
             // ─── Memory Barriers (3) ───────────────────────────────────
 
@@ -594,9 +594,7 @@ namespace Sad
                 std::cout << "[OS-SIM] MFENCE — full memory barrier" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("حاجز_ذاكرة", mfence_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("memory_barrier", mfence_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("mfence", mfence_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::MFENCE), mfence_func);
 
             // (AR) حاجز قراءة — lfence()
             auto lfence_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -604,9 +602,7 @@ namespace Sad
                 std::cout << "[OS-SIM] LFENCE — load fence" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("حاجز_قراءة", lfence_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("read_barrier", lfence_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("lfence", lfence_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::LFENCE), lfence_func);
 
             // (AR) حاجز كتابة — sfence()
             auto sfence_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -614,9 +610,7 @@ namespace Sad
                 std::cout << "[OS-SIM] SFENCE — store fence" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("حاجز_كتابة", sfence_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("write_barrier", sfence_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("sfence", sfence_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::SFENCE), sfence_func);
 
             // ─── DMA (2) ───────────────────────────────────────────────
 
@@ -633,8 +627,7 @@ namespace Sad
                           << " dest=0x" << dest << " size=" << std::dec << size << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("نقل_مباشر_هئ", dma_init_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("dma_init", dma_init_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::DMA_INIT), dma_init_func);
 
             // (AR) بدء نقل DMA — dma_start(channel)
             auto dma_start_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -645,8 +638,7 @@ namespace Sad
                 std::cout << "[OS-SIM] DMA start: channel=" << ch << " — transfer in progress" << std::endl;
                 return std::make_shared<Data::Value>(0);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("نقل_مباشر_ابدأ", dma_start_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("dma_start", dma_start_func);
+            interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bk::DMA_START), dma_start_func);
         }
 
     } // namespace Interpreter

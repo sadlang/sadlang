@@ -18,6 +18,7 @@ message(STATUS "═════════════════════�
 set(FORMATTER_SOURCES
     fmt_main.cpp
     ${CMAKE_SOURCE_DIR}/compiler_new/src/format/sad_formatter.cpp
+    ${CMAKE_SOURCE_DIR}/compiler_new/src/format/sad_formatter_rebuild.cpp
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════

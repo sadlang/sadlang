@@ -29,11 +29,11 @@ namespace Sad
     namespace LLVM
     {
 
-// ============================================================================
-// (AR) عمليات القنوات (Channels) - إنشاء، إرسال، استقبال، إغلاق، إلخ
-// (EN) Channel operations - create, send, recv, close, etc.
-// (AR) تم فصل هذا الملف عن llvm_codegen_concurrency.cpp وفق قاعدة CW-05
-// ============================================================================
+        // ============================================================================
+        // (AR) عمليات القنوات (Channels) - إنشاء، إرسال، استقبال، إغلاق، إلخ
+        // (EN) Channel operations - create, send, recv, close, etc.
+        // (AR) تم فصل هذا الملف عن llvm_codegen_concurrency.cpp وفق قاعدة CW-05
+        // ============================================================================
         llvm::Value *LLVMCodeGen::emitAsyncCreateChannel(std::shared_ptr<SIRInstruction> inst)
         {
             // ================================================================
@@ -44,11 +44,13 @@ namespace Sad
             //        [2]  head     (i64)  — مؤشر القراءة (recv)
             //        [3]  tail     (i64)  — مؤشر الكتابة (send)
             //        [4]  closed   (i64)  — علم الإغلاق
-            //        [5+] data[i]  (i64)  — مصفوفة البيانات الدائرية
-            //      الحجم الكلي = 40 + capacity * 8 بايت
+            //        [5+] data pairs: [value, type_tag] × capacity
+            //      الحجم الكلي = 40 + capacity * 16 بايت (فتحتان لكل عنصر)
+            //      وسم النوع: 0=رقم، 1=نص/مؤشر، 2=منطقي
             // (EN) Create multi-buffered ring buffer channel
-            //      Layout: [capacity, count, head, tail, closed, data[0..n]]
-            //      Total size = 40 + capacity * 8 bytes
+            //      Layout: [capacity, count, head, tail, closed, (value,type)×n]
+            //      Total size = 40 + capacity * 16 bytes (2 slots per element)
+            //      Type tags: 0=Integer, 1=String/Pointer, 2=Boolean
             // ================================================================
             auto i64Ty = llvm::Type::getInt64Ty(*context_);
             auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*context_), 0);
@@ -66,9 +68,9 @@ namespace Sad
                 capacity = llvm::ConstantInt::get(i64Ty, 16);
             }
 
-            // (AR) حساب الحجم الكلي: 40 + capacity * 8
-            // (EN) Calculate total size: 40 + capacity * 8
-            auto dataSize = builder_->CreateMul(capacity, llvm::ConstantInt::get(i64Ty, 8));
+            // (AR) حساب الحجم الكلي: 40 + capacity * 16 (فتحتان لكل عنصر: قيمة + وسم نوع)
+            // (EN) Calculate total size: 40 + capacity * 16 (2 slots per element: value + type tag)
+            auto dataSize = builder_->CreateMul(capacity, llvm::ConstantInt::get(i64Ty, 16));
             auto totalSize = builder_->CreateAdd(dataSize, llvm::ConstantInt::get(i64Ty, 40));
 
             // (AR) تخصيص الذاكرة وتصفيرها
@@ -110,6 +112,14 @@ namespace Sad
 
             llvm::Value *chanId = resolveOperand(inst->operands[0]);
             llvm::Value *value = resolveOperand(inst->operands[1]);
+
+            // (AR) تحويل ptr → i64 إذا كان نصاً (مؤشر)
+            // (EN) Convert ptr → i64 if value is a string (pointer)
+            if (value->getType()->isPointerTy())
+            {
+                value = builder_->CreatePtrToInt(value, i64Ty, "chan.send.p2i");
+            }
+
             auto chanPtr = builder_->CreateIntToPtr(chanId, i8PtrTy);
             auto chanI64Ptr = builder_->CreateBitCast(chanPtr, i64PtrTy);
 
@@ -141,10 +151,31 @@ namespace Sad
             auto tailPtr = builder_->CreateGEP(i64Ty, chanI64Ptr, {llvm::ConstantInt::get(i64Ty, 3)});
             auto tail = builder_->CreateLoad(i64Ty, tailPtr);
 
-            // (AR) حساب عنوان data[tail]: ch_i64[5 + tail]
-            auto dataIdx = builder_->CreateAdd(tail, llvm::ConstantInt::get(i64Ty, 5));
+            // (AR) حساب عنوان data[tail*2]: ch_i64[5 + tail*2] — فتحتان لكل عنصر
+            // (EN) Calculate data slot: ch_i64[5 + tail*2] — 2 slots per element
+            auto tailMul2 = builder_->CreateMul(tail, llvm::ConstantInt::get(i64Ty, 2), "tail.x2");
+            auto dataIdx = builder_->CreateAdd(tailMul2, llvm::ConstantInt::get(i64Ty, 5));
             auto dataSlot = builder_->CreateGEP(i64Ty, chanI64Ptr, {dataIdx});
             builder_->CreateStore(value, dataSlot);
+
+            // (AR) تخزين وسم النوع في الفتحة التالية: ch_i64[5 + tail*2 + 1]
+            //      0 = رقم، 1 = نص/مؤشر، 2 = منطقي
+            // (EN) Store type tag in next slot: 0=Integer, 1=String/Pointer, 2=Boolean
+            {
+                int64_t typeTag = 0; // default: integer
+                if (inst->operands.size() > 1)
+                {
+                    auto valType = inst->operands[1].dataType;
+                    if (valType == SadTypeKind::String || valType == SadTypeKind::Pointer ||
+                        valType == SadTypeKind::Class || valType == SadTypeKind::Array)
+                        typeTag = 1;
+                    else if (valType == SadTypeKind::Boolean)
+                        typeTag = 2;
+                }
+                auto typeIdx = builder_->CreateAdd(dataIdx, llvm::ConstantInt::get(i64Ty, 1));
+                auto typeSlot = builder_->CreateGEP(i64Ty, chanI64Ptr, {typeIdx});
+                builder_->CreateStore(llvm::ConstantInt::get(i64Ty, typeTag), typeSlot);
+            }
 
             // (AR) tail = (tail + 1) % capacity
             auto nextTail = builder_->CreateAdd(tail, llvm::ConstantInt::get(i64Ty, 1));
@@ -214,10 +245,28 @@ namespace Sad
             auto headPtr = builder_->CreateGEP(i64Ty, chanI64Ptr, {llvm::ConstantInt::get(i64Ty, 2)});
             auto head = builder_->CreateLoad(i64Ty, headPtr);
 
-            // (AR) حساب عنوان data[head]: ch_i64[5 + head]
-            auto dataIdx = builder_->CreateAdd(head, llvm::ConstantInt::get(i64Ty, 5));
+            // (AR) حساب عنوان data[head*2]: ch_i64[5 + head*2] — فتحتان لكل عنصر
+            // (EN) Calculate data slot: ch_i64[5 + head*2] — 2 slots per element
+            auto headMul2 = builder_->CreateMul(head, llvm::ConstantInt::get(i64Ty, 2), "head.x2");
+            auto dataIdx = builder_->CreateAdd(headMul2, llvm::ConstantInt::get(i64Ty, 5));
             auto dataSlot = builder_->CreateGEP(i64Ty, chanI64Ptr, {dataIdx});
-            auto recvValue = builder_->CreateLoad(i64Ty, dataSlot);
+            auto recvValueRaw = builder_->CreateLoad(i64Ty, dataSlot);
+
+            // (AR) قراءة وسم النوع من الفتحة التالية: ch_i64[5 + head*2 + 1]
+            // (EN) Read type tag from next slot
+            auto typeIdx = builder_->CreateAdd(dataIdx, llvm::ConstantInt::get(i64Ty, 1));
+            auto typeSlot = builder_->CreateGEP(i64Ty, chanI64Ptr, {typeIdx});
+            auto typeTag = builder_->CreateLoad(i64Ty, typeSlot, "chan.typetag");
+
+            // ================================================================
+            // (AR) القيمة الخام تُرجع مباشرة بدون وسم MSB
+            //      النوع يُحدد في SIR (Integer افتراضياً عند عدم معرفة نوع القناة)
+            //      kSadNullSentinel يُستخدم للقناة الفارغة ويُعالج عند الطباعة/الدمج
+            // (EN) Raw value returned directly — no MSB tagging
+            //      Type determined at SIR level (Integer default when channel type unknown)
+            //      kSadNullSentinel used for empty channel, handled at print/concat
+            // ================================================================
+            llvm::Value *recvValue = recvValueRaw;
 
             // (AR) head = (head + 1) % capacity
             auto nextHead = builder_->CreateAdd(head, llvm::ConstantInt::get(i64Ty, 1));
@@ -230,7 +279,7 @@ namespace Sad
 
             builder_->CreateBr(recvDoneBB);
 
-            // ─── كتلة recv_empty: إرجاع 0 ───
+            // ─── كتلة recv_empty: إرجاع sentinel ───
             builder_->SetInsertPoint(recvEmptyBB);
             builder_->CreateBr(recvDoneBB);
 
@@ -240,11 +289,44 @@ namespace Sad
             phi->addIncoming(recvValue, recvOkBB);
             phi->addIncoming(llvm::ConstantInt::get(i64Ty, Sad::Compiler::kSadNullSentinel), recvEmptyBB);
 
+            // ================================================================
+            // (AR) تحويل القيمة المُستقبلة إلى مؤشر إذا كان النوع نصاً/مؤشراً
+            //      عند الإرسال: المؤشرات تُحوّل إلى i64 عبر ptrtoint
+            //      عند الاستقبال: نحتاج inttoptr لإعادة التحويل
+            //      النوع يُحدد في SIR من خلال channelTypeMap_ (يُنشر عبر حدود الدوال)
+            // (EN) Convert received value to pointer if SIR type is String/Pointer
+            //      At send: pointers are converted to i64 via ptrtoint
+            //      At recv: we need inttoptr to convert back
+            //      Type determined at SIR level via channelTypeMap_ (propagated across functions)
+            // ================================================================
+            llvm::Value *finalValue = phi;
+            if (inst->result.has_value() &&
+                (inst->result->dataType == SadTypeKind::String ||
+                 inst->result->dataType == SadTypeKind::Pointer ||
+                 inst->result->dataType == SadTypeKind::Class ||
+                 inst->result->dataType == SadTypeKind::Array))
+            {
+                // (AR) تحويل i64 → ptr مع حماية kSadNullSentinel
+                //      إذا كانت القيمة sentinel (قناة فارغة): نُرجع null ptr
+                //      إذا كانت قيمة حقيقية: نحوّل إلى مؤشر
+                //      بدون هذا: inttoptr(sentinel) ينتج مؤشر وهمي يسبب crash
+                // (EN) Convert i64 → ptr with kSadNullSentinel guard
+                //      If sentinel (empty channel): return null ptr
+                //      If real value: convert to pointer
+                //      Without this: inttoptr(sentinel) produces a bogus pointer → crash
+                auto sentinelConst = llvm::ConstantInt::get(i64Ty, Sad::Compiler::kSadNullSentinel);
+                auto isSentinel = builder_->CreateICmpEQ(phi, sentinelConst);
+                auto ptrVal = builder_->CreateIntToPtr(phi, i8PtrTy);
+                auto nullPtr = llvm::ConstantPointerNull::get(
+                    llvm::cast<llvm::PointerType>(i8PtrTy));
+                finalValue = builder_->CreateSelect(isSentinel, nullPtr, ptrVal);
+            }
+
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = phi;
+                context_info_.namedValues[inst->result->name] = finalValue;
             }
-            return phi;
+            return finalValue;
         }
 
         llvm::Value *LLVMCodeGen::emitAsyncChannelClose(std::shared_ptr<SIRInstruction> inst)
@@ -386,6 +468,13 @@ namespace Sad
 
             llvm::Value *chanId = resolveOperand(inst->operands[0]);
             llvm::Value *value = resolveOperand(inst->operands[1]);
+
+            // (AR) تحويل ptr → i64 إذا كان نصاً
+            if (value->getType()->isPointerTy())
+            {
+                value = builder_->CreatePtrToInt(value, i64Ty, "trysend.p2i");
+            }
+
             auto chanPtr = builder_->CreateIntToPtr(chanId, i8PtrTy);
             auto chanI64Ptr = builder_->CreateBitCast(chanPtr, i64PtrTy);
 
@@ -409,9 +498,27 @@ namespace Sad
             builder_->SetInsertPoint(okBB);
             auto tailPtr = builder_->CreateGEP(i64Ty, chanI64Ptr, {llvm::ConstantInt::get(i64Ty, 3)});
             auto tail = builder_->CreateLoad(i64Ty, tailPtr);
-            auto dataIdx = builder_->CreateAdd(tail, llvm::ConstantInt::get(i64Ty, 5));
+            // (AR) فتحتان لكل عنصر: data[tail*2] = قيمة, data[tail*2+1] = وسم النوع
+            auto tailMul2 = builder_->CreateMul(tail, llvm::ConstantInt::get(i64Ty, 2), "ts.tail.x2");
+            auto dataIdx = builder_->CreateAdd(tailMul2, llvm::ConstantInt::get(i64Ty, 5));
             auto dataSlot = builder_->CreateGEP(i64Ty, chanI64Ptr, {dataIdx});
             builder_->CreateStore(value, dataSlot);
+            // (AR) تخزين وسم النوع
+            {
+                int64_t typeTag = 0;
+                if (inst->operands.size() > 1)
+                {
+                    auto valType = inst->operands[1].dataType;
+                    if (valType == SadTypeKind::String || valType == SadTypeKind::Pointer ||
+                        valType == SadTypeKind::Class || valType == SadTypeKind::Array)
+                        typeTag = 1;
+                    else if (valType == SadTypeKind::Boolean)
+                        typeTag = 2;
+                }
+                auto typeIdx = builder_->CreateAdd(dataIdx, llvm::ConstantInt::get(i64Ty, 1));
+                auto typeSlot = builder_->CreateGEP(i64Ty, chanI64Ptr, {typeIdx});
+                builder_->CreateStore(llvm::ConstantInt::get(i64Ty, typeTag), typeSlot);
+            }
             auto nextTail = builder_->CreateAdd(tail, llvm::ConstantInt::get(i64Ty, 1));
             auto newTail = builder_->CreateURem(nextTail, capacity);
             builder_->CreateStore(newTail, tailPtr);
@@ -462,14 +569,28 @@ namespace Sad
             builder_->SetInsertPoint(recvOkBB);
             auto headPtr = builder_->CreateGEP(i64Ty, chanI64Ptr, {llvm::ConstantInt::get(i64Ty, 2)});
             auto head = builder_->CreateLoad(i64Ty, headPtr);
-            auto dataIdx = builder_->CreateAdd(head, llvm::ConstantInt::get(i64Ty, 5));
+            // (AR) فتحتان لكل عنصر: data[head*2] = قيمة, data[head*2+1] = وسم النوع
+            auto headMul2 = builder_->CreateMul(head, llvm::ConstantInt::get(i64Ty, 2), "tr.head.x2");
+            auto dataIdx = builder_->CreateAdd(headMul2, llvm::ConstantInt::get(i64Ty, 5));
             auto dataSlot = builder_->CreateGEP(i64Ty, chanI64Ptr, {dataIdx});
-            auto recvValue = builder_->CreateLoad(i64Ty, dataSlot);
+            auto recvValueRaw = builder_->CreateLoad(i64Ty, dataSlot);
+
+            // (AR) قراءة وسم النوع من الفتحة التالية
+            auto typeIdx = builder_->CreateAdd(dataIdx, llvm::ConstantInt::get(i64Ty, 1));
+            auto typeSlot = builder_->CreateGEP(i64Ty, chanI64Ptr, {typeIdx});
+            auto typeTag = builder_->CreateLoad(i64Ty, typeSlot, "tr.typetag");
+
             auto nextHead = builder_->CreateAdd(head, llvm::ConstantInt::get(i64Ty, 1));
             auto newHead = builder_->CreateURem(nextHead, capacity);
             builder_->CreateStore(newHead, headPtr);
             auto newCount = builder_->CreateSub(count, llvm::ConstantInt::get(i64Ty, 1));
             builder_->CreateStore(newCount, cntPtr);
+
+            // (AR) القيمة الخام تُرجع مباشرة بدون وسم MSB
+            //      try_recv الآن يُرجع Integer — kSadNullSentinel للقناة الفارغة
+            //      يُعالج sentinel عند الطباعة/الدمج
+            llvm::Value *recvValue = recvValueRaw;
+
             builder_->CreateBr(recvDoneBB);
 
             builder_->SetInsertPoint(recvEmptyBB);
@@ -548,7 +669,9 @@ namespace Sad
             builder_->SetInsertPoint(recvOkBB);
             auto headPtr = builder_->CreateGEP(i64Ty, chanI64Ptr, {llvm::ConstantInt::get(i64Ty, 2)});
             auto head = builder_->CreateLoad(i64Ty, headPtr);
-            auto dataIdx = builder_->CreateAdd(head, llvm::ConstantInt::get(i64Ty, 5));
+            // (AR) فتحتان لكل عنصر: data[head*2] = قيمة — تتوافق مع تخطيط send
+            auto headMul2 = builder_->CreateMul(head, llvm::ConstantInt::get(i64Ty, 2), "rto.head.x2");
+            auto dataIdx = builder_->CreateAdd(headMul2, llvm::ConstantInt::get(i64Ty, 5));
             auto dataSlot = builder_->CreateGEP(i64Ty, chanI64Ptr, {dataIdx});
             auto recvValue = builder_->CreateLoad(i64Ty, dataSlot);
             auto nextHead = builder_->CreateAdd(head, llvm::ConstantInt::get(i64Ty, 1));

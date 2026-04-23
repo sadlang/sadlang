@@ -14,12 +14,16 @@
  */
 #include "builtins.h"
 #include "interpreter_core.h"
+#include "builtin_registry.h"
 #include <sstream>
 
 // (AR) إلغاء ماكرو VOID الخاص بويندوز إن وُجد
 #ifdef VOID
 #undef VOID
 #endif
+
+// (AR) اختصار لفضاء أسماء ثوابت وحدة الخرائط
+namespace Bmp = Sad::Builtins::Names::Maps;
 
 namespace Sad
 {
@@ -669,8 +673,7 @@ namespace Sad
                 auto result = jsonParseValue(json, pos);
                 return std::make_shared<Data::Value>(result);
             };
-            fm.registerBuiltinFunction("تحليل_جيسون", json_parse_fn);
-            fm.registerBuiltinFunction("json_parse", json_parse_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::JSON_PARSE), json_parse_fn);
 
             // (AR) نص_جيسون — تحويل قيمة إلى نص JSON (يستدعي الدالة الـ static)
             // (EN) json_stringify — convert value to JSON string (calls static function)
@@ -680,8 +683,7 @@ namespace Sad
                     return makeVal(std::string("null"));
                 return makeVal(jsonStringifyValue(*args[0]));
             };
-            fm.registerBuiltinFunction("نص_جيسون", json_stringify_fn);
-            fm.registerBuiltinFunction("json_stringify", json_stringify_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::JSON_STRINGIFY), json_stringify_fn);
 
             // (AR) json_منسق — تنسيق JSON بمسافات بادئة
             // (EN) json_pretty — format JSON with indentation
@@ -741,25 +743,15 @@ namespace Sad
                 }
                 return makeVal(result);
             };
-            fm.registerBuiltinFunction("json_منسق", json_pretty_fn);
-            fm.registerBuiltinFunction("json_pretty", json_pretty_fn);
             // (AR) json_مصغر — نفس stringify العادي (بدون مسافات)
-            fm.registerBuiltinFunction("json_minify", json_stringify_fn);
             // (AR) json_مصغر — اسم عربي بديل لـ json_minify
-            fm.registerBuiltinFunction("json_\xd9\x85\xd8\xb5\xd8\xba\xd8\xb1", json_stringify_fn);
             // (AR) json_parse_value — اسم بديل لـ json_parse
-            fm.registerBuiltinFunction("json_parse_value", json_parse_fn);
 
             // ═══════════════════════════════════════════════════════════════════
-            // (AR) أسماء بديلة إضافية — موثقة في 02_الوحدات_المدمجة.md
-            // (EN) Additional aliases — documented in builtin modules reference
+            // (AR) تنسيق_جيسون — دالة تنسيق JSON بمسافات بادئة (دالة مستقلة)
+            // (EN) JSON pretty-print — separate function (not an alias)
             // ═══════════════════════════════════════════════════════════════════
-            // (AR) حلل_json — الاسم العربي الأساسي لتحليل JSON
-            fm.registerBuiltinFunction("\xd8\xad\xd9\x84\xd9\x84_json", json_parse_fn);
-            // (AR) حول_لـjson — الاسم العربي الأساسي لتحويل قيمة إلى JSON
-            fm.registerBuiltinFunction("\xd8\xad\xd9\x88\xd9\x84_\xd9\x84\xd9\x80json", json_stringify_fn);
-            // (AR) تنسيق_جيسون — اسم عربي بديل لـ json_منسق
-            fm.registerBuiltinFunction("\xd8\xaa\xd9\x86\xd8\xb3\xd9\x8a\xd9\x82_\xd8\xac\xd9\x8a\xd8\xb3\xd9\x88\xd9\x86", json_pretty_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::JSON_PRETTY), json_pretty_fn);
 
             // ═══════════════════════════════════════════════════════════════════
             // 12b. XML (parse / stringify) — محلل XML بسيط
@@ -788,8 +780,7 @@ namespace Sad
                 auto root = xmlParseElement(xml, pos);
                 return xmlNodeToValue(root);
             };
-            fm.registerBuiltinFunction("حلل_xml", xml_parse_fn);
-            fm.registerBuiltinFunction("xml_parse", xml_parse_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::XML_PARSE), xml_parse_fn);
 
             // (AR) حول_لـxml — تحويل خريطة إلى نص XML (يستدعي الدالة الـ static)
             // (EN) xml_stringify — convert map to XML string (calls static function)
@@ -799,33 +790,35 @@ namespace Sad
                     throw std::runtime_error("(AR) حول_لـxml تتطلب خريطة / (EN) xml_stringify requires a map");
                 return makeVal(xmlValueToString(*args[0]));
             };
-            fm.registerBuiltinFunction("حول_لـxml", xml_stringify_fn);
-            fm.registerBuiltinFunction("xml_stringify", xml_stringify_fn);
-            // (AR) xml_مصغر — نفس stringify (بدون مسافات)
-            fm.registerBuiltinFunction("xml_minify", xml_stringify_fn);
-            // (AR) xml_مصغر — اسم عربي بديل لـ xml_minify
-            fm.registerBuiltinFunction("xml_\xd9\x85\xd8\xb5\xd8\xba\xd8\xb1", xml_stringify_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::XML_STRINGIFY), xml_stringify_fn);
 
             // (AR) xml_منسق — XML بمسافات بادئة (يستدعي الدالة الـ static)
             // (EN) xml_pretty — XML with indentation (calls static function)
             auto xml_pretty_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
                 if (args.empty() || !args[0]->isMap())
-                    throw std::runtime_error("(AR) xml_منسق تتطلب خريطة / (EN) xml_pretty requires a map");
+                    throw std::runtime_error("(AR) تنسيق_وسائم تتطلب خريطة / (EN) xml_pretty requires a map");
                 int indentSize = (args.size() > 1 && args[1]->isInteger()) ? args[1]->toInt() : 2;
                 return makeVal(xmlValueToPretty(*args[0], 0, indentSize));
             };
-            fm.registerBuiltinFunction("xml_منسق", xml_pretty_fn);
-            fm.registerBuiltinFunction("xml_pretty", xml_pretty_fn);
+            // (AR) BF-04: تسجيل xml_pretty_fn — كان معرّفاً وغير مسجل (bug)
+            // (EN) BF-04: register xml_pretty_fn — was defined but not registered (bug)
+            fm.registerBuiltinFunction(std::string("تنسيق_وسائم"), xml_pretty_fn);
 
             // ═══════════════════════════════════════════════════════════════════
-            // (AR) أسماء بديلة إضافية لـ XML — موثقة في 02_الوحدات_المدمجة.md
-            // (EN) Additional XML aliases — documented in builtin modules reference
+            // (AR) أسماء بديلة عربية بحتة فقط — كل اسم خلفه دلالة واضحة
+            // (EN) Pure Arabic aliases only (no English/mixed legacy)
             // ═══════════════════════════════════════════════════════════════════
-            // (AR) تحليل_xml — اسم عربي بديل لـ حلل_xml
-            fm.registerBuiltinFunction("\xd8\xaa\xd8\xad\xd9\x84\xd9\x8a\xd9\x84_xml", xml_parse_fn);
-            // (AR) نص_xml — اسم عربي بديل لـ حول_لـxml
-            fm.registerBuiltinFunction("\xd9\x86\xd8\xb5_xml", xml_stringify_fn);
+            // (AR) JSON aliases
+            fm.registerBuiltinFunction("حلل_جيسون", json_parse_fn);       // = تحليل_جيسون
+            fm.registerBuiltinFunction("تحويل_جيسون", json_stringify_fn); // = نص_جيسون
+            fm.registerBuiltinFunction("صيغة_جيسون", json_pretty_fn);     // = تنسيق_جيسون
+            fm.registerBuiltinFunction("صغ_جيسون", json_stringify_fn);    // مصغر = stringify
+
+            // (AR) XML aliases
+            fm.registerBuiltinFunction("حلل_وسائم", xml_parse_fn);    // = تحليل_وسائم
+            fm.registerBuiltinFunction("صيغة_وسائم", xml_pretty_fn);  // = تنسيق_وسائم
+            fm.registerBuiltinFunction("صغ_وسائم", xml_stringify_fn); // مصغر = stringify
 
         } // registerBuiltinsMapsJsonXml
 

@@ -14,6 +14,7 @@
  */
 #include "builtins.h"
 #include "interpreter_core.h"
+#include "builtin_registry.h"
 #include <algorithm>
 #include <regex>
 #include <sstream>
@@ -22,6 +23,9 @@
 #ifdef VOID
 #undef VOID
 #endif
+
+// (AR) اختصار لفضاء أسماء ثوابت وحدة الخرائط
+namespace Bmp = Sad::Builtins::Names::Maps;
 
 namespace Sad
 {
@@ -65,8 +69,7 @@ namespace Sad
                     throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
                 }
             };
-            fm.registerBuiltinFunction("تعبير_مطابقة", regex_match_fn);
-            fm.registerBuiltinFunction("regex_match", regex_match_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::REGEX), regex_match_fn);
 
             // regex_search / تعبير_بحث — بحث جزئي
             auto regex_search_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -89,8 +92,7 @@ namespace Sad
                     throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
                 }
             };
-            fm.registerBuiltinFunction("تعبير_بحث", regex_search_fn);
-            fm.registerBuiltinFunction("regex_search", regex_search_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::REGEX_SEARCH), regex_search_fn);
 
             // regex_replace / تعبير_استبدال — استبدال بنمط
             auto regex_replace_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -109,8 +111,7 @@ namespace Sad
                     throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
                 }
             };
-            fm.registerBuiltinFunction("تعبير_استبدال", regex_replace_fn);
-            fm.registerBuiltinFunction("regex_replace", regex_replace_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::REGEX_REPLACE), regex_replace_fn);
 
             // regex_find_all / تعبير_جد_الكل — إيجاد جميع المطابقات
             auto regex_find_all_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -135,8 +136,7 @@ namespace Sad
                     throw std::runtime_error(std::string("(AR) خطأ في التعبير النمطي: ") + e.what());
                 }
             };
-            fm.registerBuiltinFunction("تعبير_جد_الكل", regex_find_all_fn);
-            fm.registerBuiltinFunction("regex_find_all", regex_find_all_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::REGEX_FIND_ALL), regex_find_all_fn);
 
             // ═══════════════════════════════════════════════════════════════════
             // 6. دوال نصوص إضافية / Extra String Functions
@@ -155,8 +155,7 @@ namespace Sad
                     result += text;
                 return makeVal(result);
             };
-            fm.registerBuiltinFunction("تكرار_نص", repeat_fn);
-            fm.registerBuiltinFunction("repeat", repeat_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::TEXT_REPEAT), repeat_fn);
 
             // padStart / حشو_بداية — حشو نص من البداية
             auto padStart_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -176,9 +175,7 @@ namespace Sad
                     text = text.substr(text.size() - targetLen);
                 return makeVal(text);
             };
-            fm.registerBuiltinFunction("حشو_بداية", padStart_fn);
-            fm.registerBuiltinFunction("padStart", padStart_fn);
-            fm.registerBuiltinFunction("pad_start", padStart_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::PAD_START), padStart_fn);
 
             // padEnd / حشو_نهاية — حشو نص من النهاية
             auto padEnd_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -198,9 +195,7 @@ namespace Sad
                     text = text.substr(0, targetLen);
                 return makeVal(text);
             };
-            fm.registerBuiltinFunction("حشو_نهاية", padEnd_fn);
-            fm.registerBuiltinFunction("padEnd", padEnd_fn);
-            fm.registerBuiltinFunction("pad_end", padEnd_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::PAD_END), padEnd_fn);
 
             // reverse_string / عكس_نص — عكس نص
             auto reverse_string_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -211,8 +206,7 @@ namespace Sad
                 std::reverse(text.begin(), text.end());
                 return makeVal(text);
             };
-            fm.registerBuiltinFunction("عكس_نص", reverse_string_fn);
-            fm.registerBuiltinFunction("reverse_string", reverse_string_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::REVERSE_TEXT), reverse_string_fn);
 
             // charCodeAt / رمز_حرف — الحصول على رمز UTF-8 لحرف
             auto charCodeAt_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -225,9 +219,7 @@ namespace Sad
                     throw std::runtime_error("(AR) الموضع خارج النطاق");
                 return makeVal(static_cast<int>(static_cast<unsigned char>(text[idx])));
             };
-            fm.registerBuiltinFunction("رمز_حرف", charCodeAt_fn);
-            fm.registerBuiltinFunction("charCodeAt", charCodeAt_fn);
-            fm.registerBuiltinFunction("char_code_at", charCodeAt_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::CHAR_CODE), charCodeAt_fn);
 
             // fromCharCode / حرف_من_رمز — إنشاء حرف من رمز
             auto fromCharCode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -236,9 +228,7 @@ namespace Sad
                     throw std::runtime_error("(AR) حرف_من_رمز تتطلب رقماً");
                 return makeVal(std::string(1, static_cast<char>(args[0]->toInt())));
             };
-            fm.registerBuiltinFunction("حرف_من_رمز", fromCharCode_fn);
-            fm.registerBuiltinFunction("fromCharCode", fromCharCode_fn);
-            fm.registerBuiltinFunction("from_char_code", fromCharCode_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::FROM_CHAR_CODE), fromCharCode_fn);
 
             // count / عدّ — عدد ظهور نص فرعي في نص
             auto count_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -258,8 +248,7 @@ namespace Sad
                 }
                 return makeVal(count);
             };
-            fm.registerBuiltinFunction("عدّ", count_fn);
-            fm.registerBuiltinFunction("count", count_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::COUNT), count_fn);
 
             // format / تنسيق — تنسيق نص بسيط (استبدال {} بالقيم)
             auto format_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -293,8 +282,7 @@ namespace Sad
                 }
                 return makeVal(result);
             };
-            fm.registerBuiltinFunction("تنسيق", format_fn);
-            fm.registerBuiltinFunction("format", format_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::FORMAT), format_fn);
 
             // ═══════════════════════════════════════════════════════════════════
             // 14. دوال يونيكود / Unicode Functions
@@ -373,8 +361,7 @@ namespace Sad
                 }
                 return makeVal(result);
             };
-            fm.registerBuiltinFunction("ازل_تشكيل", strip_diacritics_fn);
-            fm.registerBuiltinFunction("strip_diacritics", strip_diacritics_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::STRIP_DIACRITICS), strip_diacritics_fn);
 
             // مقارنة_نص / compare_text — مقارنة نصوص مع خيار تجاهل التشكيل
             // Compares two strings optionally ignoring Arabic diacritics
@@ -403,8 +390,7 @@ namespace Sad
 
                 return makeVal(a == b);
             };
-            fm.registerBuiltinFunction("مقارنة_نص", compare_text_fn);
-            fm.registerBuiltinFunction("compare_text", compare_text_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::COMPARE_TEXT), compare_text_fn);
 
             // نص_يونيكود / unicode_codepoints — تحويل نص إلى مصفوفة نقاط يونيكود
             auto unicode_codepoints_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -444,9 +430,7 @@ namespace Sad
                 }
                 return makeArrayVal(codepoints);
             };
-            fm.registerBuiltinFunction("نص_يونيكود", unicode_codepoints_fn);
-            fm.registerBuiltinFunction("unicode_codepoints", unicode_codepoints_fn);
-
+            fm.registerBuiltinFunction(std::string(Bmp::UNICODE_CODEPOINTS), unicode_codepoints_fn);
 
         } // registerBuiltinsMapsText
 

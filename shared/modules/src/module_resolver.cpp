@@ -72,15 +72,60 @@ namespace Sad
             // (AR) 1. المجلد الحالي / (EN) 1. Current directory
             searchPaths_.push_back(std::filesystem::current_path());
 
-            // (AR) 2. المكتبة القياسية / (EN) 2. Standard library
-            // افتراض أن المكتبة القياسية في مجلد stdlib بجوار البرنامج
-            // Assume stdlib is in a stdlib folder next to the executable
-            auto exePath = std::filesystem::current_path();
-            stdlibPath_ = exePath / "stdlib";
-
-            if (std::filesystem::exists(stdlibPath_))
+            // (AR) 2. مجلد stdlib بجوار cwd (للحالات حين يُشغَّل من جذر المشروع)
+            // (EN) stdlib next to cwd (when run from project root)
             {
-                searchPaths_.push_back(stdlibPath_);
+                auto cwdStdlib = std::filesystem::current_path() / "stdlib";
+                if (std::filesystem::exists(cwdStdlib))
+                {
+                    searchPaths_.push_back(cwdStdlib);
+                    if (stdlibPath_.empty())
+                        stdlibPath_ = cwdStdlib;
+                }
+            }
+
+            // (AR) 3. مجلد stdlib بجوار الملف التنفيذي — يصعد المجلدات بحثاً عن stdlib/
+            //      هذا يضمن العثور على المكتبة القياسية بغض النظر عن cwd عند الاستدعاء.
+            //      نُضيف **كل** مجلدات stdlib المرشحة (وليس الأول فقط) لأن مجلدات
+            //      البناء قد تحوي stdlib جزئياً (نسخة منشورة) بينما الجذر يحوي الكامل.
+            // (EN) stdlib next to executable — climbs directories searching for stdlib/.
+            //      We add **all** candidate stdlib dirs (not just the first) because
+            //      build folders may contain a partial deployed stdlib while the
+            //      project root holds the complete one.
+            try
+            {
+                auto exeDir = sad::utf8::get_executable_dir();
+                std::vector<std::filesystem::path> candidateRoots = {
+                    exeDir,
+                    exeDir.parent_path(),
+                    exeDir.parent_path().parent_path(),
+                    exeDir.parent_path().parent_path().parent_path(),
+                    exeDir.parent_path().parent_path().parent_path().parent_path(),
+                };
+                for (const auto &root : candidateRoots)
+                {
+                    if (root.empty())
+                        continue;
+                    auto candidate = root / "stdlib";
+                    if (std::filesystem::exists(candidate))
+                    {
+                        auto normalized = std::filesystem::absolute(candidate).lexically_normal();
+                        auto it = std::find(searchPaths_.begin(), searchPaths_.end(), normalized);
+                        if (it == searchPaths_.end())
+                        {
+                            searchPaths_.push_back(normalized);
+                        }
+                        if (stdlibPath_.empty())
+                            stdlibPath_ = normalized;
+                        // (AR) لا نتوقف — نتابع لإضافة جميع مجلدات stdlib المرشحة
+                        // (EN) Don't break — keep adding all candidate stdlib dirs
+                    }
+                }
+            }
+            catch (...)
+            {
+                // (AR) فشل اكتشاف مسار executable — نتجاهل بصمت
+                // (EN) Executable path discovery failed — silently ignore
             }
 
             // (AR) 3. متغير البيئة SAD_PATH / (EN) 3. SAD_PATH environment variable

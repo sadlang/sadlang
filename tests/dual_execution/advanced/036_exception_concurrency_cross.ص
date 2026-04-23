@@ -1,7 +1,6 @@
 # @description تقاطع الاستثناءات مع التزامن: exception داخل goroutine + cleanup + عدم تعليق
 # @priority P2
-# @skip_compiler
-# @timeout 30
+# @timeout 60
 # @expected X01:PASS\nX02:PASS\nX03:PASS\nX04:PASS\nX05:PASS\nX06:PASS\nX07:PASS\nX08:PASS\nX09:PASS\nX10:PASS\nSUMMARY:10/10
 
 متغير نجاح = 0

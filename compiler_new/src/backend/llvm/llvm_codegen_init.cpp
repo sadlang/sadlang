@@ -644,7 +644,5 @@ namespace Sad
             return std::move(module_);
         }
 
-
     } // namespace LLVM
 } // namespace Sad
-

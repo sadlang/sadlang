@@ -31,7 +31,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::SerialManager::getInstance().scanPorts());
         };
-        fm.registerBuiltinFunction("serial_scan", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd9\x85\xd8\xb3\xd8\xad", f);
     }
 
@@ -41,7 +40,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::SerialManager::getInstance().getPortCount());
         };
-        fm.registerBuiltinFunction("serial_port_count", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xb9\xd8\xaf\xd8\xaf_\xd8\xa7\xd9\x84\xd9\x85\xd9\x86\xd8\xa7\xd9\x81\xd8\xb0", f);
     }
 
@@ -52,7 +50,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             int baud = args.size() > 1 ? args[1]->toInt() : 9600;
             return std::make_shared<Data::Value>(LowLevel::SerialManager::getInstance().initPort(port, baud));
         };
-        fm.registerBuiltinFunction("serial_init", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9", f);
     }
 
@@ -62,7 +59,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             int port = args.size() > 0 ? args[0]->toInt() : 0;
             return std::make_shared<Data::Value>(LowLevel::SerialManager::getInstance().closePort(port));
         };
-        fm.registerBuiltinFunction("serial_close", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xa7\xd8\xba\xd9\x84\xd8\xa7\xd9\x82", f);
     }
 
@@ -73,7 +69,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().isPortOpen(port) ? 1 : 0);
         };
-        fm.registerBuiltinFunction("serial_is_open", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd9\x85\xd9\x81\xd8\xaa\xd9\x88\xd8\xad", f);
     }
 
@@ -83,7 +78,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             (void)args;
             return std::make_shared<Data::Value>(LowLevel::SerialManager::getInstance().generateReport());
         };
-        fm.registerBuiltinFunction("serial_report", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xaa\xd9\x82\xd8\xb1\xd9\x8a\xd8\xb1", f);
     }
 
@@ -98,7 +92,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().sendByte(port, static_cast<uint8_t>(byte)));
         };
-        fm.registerBuiltinFunction("serial_send_byte", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xa7\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", f);
     }
 
@@ -110,7 +103,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().sendString(port, data));
         };
-        fm.registerBuiltinFunction("serial_send_string", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xa7\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84_\xd9\x86\xd8\xb5", f);
     }
 
@@ -122,7 +114,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().sendHex(port, hex));
         };
-        fm.registerBuiltinFunction("serial_send_hex", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xa7\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84_\xd8\xb3\xd8\xaa_\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a", f);
     }
 
@@ -133,7 +124,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().isTxReady(port) ? 1 : 0);
         };
-        fm.registerBuiltinFunction("serial_tx_ready", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xac\xd8\xa7\xd9\x87\xd8\xb2_\xd8\xa7\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84", f);
     }
 
@@ -147,7 +137,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().receiveByte(port));
         };
-        fm.registerBuiltinFunction("serial_receive_byte", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd8\xa7\xd9\x84_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", f);
     }
 
@@ -159,7 +148,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().receiveString(port, maxLen));
         };
-        fm.registerBuiltinFunction("serial_receive_string", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd8\xa7\xd9\x84_\xd9\x86\xd8\xb5", f);
     }
 
@@ -170,7 +158,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().available(port));
         };
-        fm.registerBuiltinFunction("serial_available", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd9\x85\xd8\xaa\xd8\xa7\xd8\xad", f);
     }
 
@@ -181,7 +168,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().isRxReady(port) ? 1 : 0);
         };
-        fm.registerBuiltinFunction("serial_rx_ready", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xac\xd8\xa7\xd9\x87\xd8\xb2_\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd8\xa7\xd9\x84", f);
     }
 
@@ -196,7 +182,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().setBaudRate(port, baud));
         };
-        fm.registerBuiltinFunction("serial_set_baud", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd8\xa8\xd9\x88\xd8\xaf", f);
     }
 
@@ -207,7 +192,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().getBaudRate(port));
         };
-        fm.registerBuiltinFunction("serial_get_baud", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd9\x85\xd8\xb9\xd8\xaf\xd9\x84_\xd8\xa7\xd9\x84\xd8\xa8\xd9\x88\xd8\xaf", f);
     }
 
@@ -219,7 +203,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().setDataBits(port, bits));
         };
-        fm.registerBuiltinFunction("serial_set_data_bits", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xa8\xd8\xaa\xd8\xa7\xd8\xaa_\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa", f);
     }
 
@@ -231,7 +214,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().setStopBits(port, bits));
         };
-        fm.registerBuiltinFunction("serial_set_stop_bits", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xa8\xd8\xaa\xd8\xa7\xd8\xaa_\xd8\xaa\xd9\x88\xd9\x82\xd9\x81", f);
     }
 
@@ -243,7 +225,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().setParity(port, par));
         };
-        fm.registerBuiltinFunction("serial_set_parity", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xaa\xd9\x83\xd8\xa7\xd9\x81\xd8\xa4", f);
     }
 
@@ -255,7 +236,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().setFlowControl(port, rtscts));
         };
-        fm.registerBuiltinFunction("serial_set_flow", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xaa\xd8\xad\xd9\x83\xd9\x85_\xd8\xaa\xd8\xaf\xd9\x81\xd9\x82", f);
     }
 
@@ -269,7 +249,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().getLineStatus(port));
         };
-        fm.registerBuiltinFunction("serial_line_status", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7", f);
     }
 
@@ -280,7 +259,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().getModemStatus(port));
         };
-        fm.registerBuiltinFunction("serial_modem_status", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9_\xd8\xa7\xd9\x84\xd9\x85\xd9\x88\xd8\xaf\xd9\x85", f);
     }
 
@@ -291,7 +269,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<int>(
                 LowLevel::SerialManager::getInstance().getTxCount(port)));
         };
-        fm.registerBuiltinFunction("serial_tx_count", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf_\xd8\xa7\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84", f);
     }
 
@@ -302,7 +279,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<int>(
                 LowLevel::SerialManager::getInstance().getRxCount(port)));
         };
-        fm.registerBuiltinFunction("serial_rx_count", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf_\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd8\xa7\xd9\x84", f);
     }
 
@@ -316,7 +292,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().loopbackTest(port));
         };
-        fm.registerBuiltinFunction("serial_loopback", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xa7\xd8\xae\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb1_\xd8\xad\xd9\x84\xd9\x82\xd9\x8a", f);
     }
 
@@ -327,7 +302,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().clearBuffers(port));
         };
-        fm.registerBuiltinFunction("serial_clear", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd9\x85\xd8\xb3\xd8\xad_\xd8\xa7\xd9\x84\xd9\x85\xd8\xae\xd8\xb2\xd9\x86", f);
     }
 
@@ -338,7 +312,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             LowLevel::SerialManager::getInstance().reset();
             return std::make_shared<Data::Value>(0);
         };
-        fm.registerBuiltinFunction("serial_reset", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xa7\xd8\xb9\xd8\xa7\xd8\xaf\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86", f);
     }
 
@@ -349,7 +322,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 LowLevel::SerialManager::getInstance().getPortInfo(port).exists ? 1 : 0);
         };
-        fm.registerBuiltinFunction("serial_port_exists", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd9\x85\xd9\x86\xd9\x81\xd8\xb0_\xd9\x85\xd9\x88\xd8\xac\xd9\x88\xd8\xaf", f);
     }
 
@@ -360,7 +332,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 static_cast<int>(LowLevel::SerialManager::getInstance().getPortInfo(port).baseAddr));
         };
-        fm.registerBuiltinFunction("serial_port_addr", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_\xd9\x85\xd9\x86\xd9\x81\xd8\xb0", f);
     }
 
@@ -371,7 +342,6 @@ void registerBuiltinsKernelSerial(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(
                 static_cast<int>(LowLevel::SerialManager::getInstance().getPortInfo(port).serialState));
         };
-        fm.registerBuiltinFunction("serial_port_state", f);
         fm.registerBuiltinFunction("\xd8\xaa\xd8\xb3\xd9\x84\xd8\xb3\xd9\x84\xd9\x8a_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9_\xd9\x85\xd9\x86\xd9\x81\xd8\xb0", f);
     }
 

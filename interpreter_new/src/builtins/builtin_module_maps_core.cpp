@@ -16,6 +16,7 @@
  */
 #include "builtins.h"
 #include "interpreter_core.h"
+#include "builtin_registry.h"
 #include <algorithm>
 #include <unordered_set>
 
@@ -23,6 +24,9 @@
 #ifdef VOID
 #undef VOID
 #endif
+
+// (AR) اختصار لفضاء أسماء ثوابت وحدة الخرائط
+namespace Bmp = Sad::Builtins::Names::Maps;
 
 namespace Sad
 {
@@ -69,8 +73,7 @@ namespace Sad
                 }
                 return makeMapVal(map);
             };
-            fm.registerBuiltinFunction("خريطة", map_constructor_fn);
-            fm.registerBuiltinFunction("map", map_constructor_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAP_CTOR), map_constructor_fn);
 
             // مصفوفة() — إنشاء مصفوفة فارغة أو من عناصر
 
@@ -95,8 +98,7 @@ namespace Sad
                     return args[2]; // قيمة افتراضية
                 return makeVoidVal();
             };
-            fm.registerBuiltinFunction("خريطة_احصل", map_get_fn);
-            fm.registerBuiltinFunction("map_get", map_get_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAP_GET), map_get_fn);
 
             // map_set / خريطة_عيّن — تعيين قيمة في خريطة (يرجع خريطة جديدة)
             auto map_set_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -109,8 +111,7 @@ namespace Sad
                 map[args[1]->toString()] = *args[2];
                 return makeMapVal(map);
             };
-            fm.registerBuiltinFunction("خريطة_عيّن", map_set_fn);
-            fm.registerBuiltinFunction("map_set", map_set_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAP_SET), map_set_fn);
 
             // map_keys / خريطة_مفاتيح — الحصول على مفاتيح الخريطة
             auto map_keys_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -124,8 +125,7 @@ namespace Sad
                 }
                 return makeArrayVal(keys);
             };
-            fm.registerBuiltinFunction("خريطة_مفاتيح", map_keys_fn);
-            fm.registerBuiltinFunction("map_keys", map_keys_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAP_KEYS), map_keys_fn);
 
             // map_values / خريطة_قيم — الحصول على قيم الخريطة
             auto map_values_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -139,8 +139,7 @@ namespace Sad
                 }
                 return makeArrayVal(vals);
             };
-            fm.registerBuiltinFunction("خريطة_قيم", map_values_fn);
-            fm.registerBuiltinFunction("map_values", map_values_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAP_VALUES), map_values_fn);
 
             // map_has_key / خريطة_تحتوي — التحقق من وجود مفتاح
             auto map_has_key_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -150,8 +149,7 @@ namespace Sad
                 const auto &map = args[0]->toMapRef();
                 return makeVal(map.find(args[1]->toString()) != map.end());
             };
-            fm.registerBuiltinFunction("خريطة_تحتوي", map_has_key_fn);
-            fm.registerBuiltinFunction("map_has_key", map_has_key_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAP_HAS_KEY), map_has_key_fn);
 
             // map_delete / خريطة_احذف — حذف مفتاح (يرجع خريطة جديدة)
             auto map_delete_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -162,8 +160,7 @@ namespace Sad
                 map.erase(args[1]->toString());
                 return makeMapVal(map);
             };
-            fm.registerBuiltinFunction("خريطة_احذف", map_delete_fn);
-            fm.registerBuiltinFunction("map_delete", map_delete_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAP_DELETE), map_delete_fn);
 
             // map_size / خريطة_حجم — حجم الخريطة
             auto map_size_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -172,8 +169,7 @@ namespace Sad
                     throw std::runtime_error("(AR) خريطة_حجم تتطلب خريطة");
                 return makeVal(static_cast<int>(args[0]->toMapRef().size()));
             };
-            fm.registerBuiltinFunction("خريطة_حجم", map_size_fn);
-            fm.registerBuiltinFunction("map_size", map_size_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAP_SIZE), map_size_fn);
 
             // map_entries / خريطة_عناصر — كل عنصر كمصفوفة [مفتاح، قيمة]
             auto map_entries_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -190,8 +186,7 @@ namespace Sad
                 }
                 return makeArrayVal(entries);
             };
-            fm.registerBuiltinFunction("خريطة_عناصر", map_entries_fn);
-            fm.registerBuiltinFunction("map_entries", map_entries_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAP_ENTRIES), map_entries_fn);
 
             // map_merge / خريطة_دمج — دمج خريطتين
             auto map_merge_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -205,8 +200,7 @@ namespace Sad
                 }
                 return makeMapVal(result);
             };
-            fm.registerBuiltinFunction("خريطة_دمج", map_merge_fn);
-            fm.registerBuiltinFunction("map_merge", map_merge_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAP_MERGE), map_merge_fn);
 
             // ═══════════════════════════════════════════════════════════════════
             // 2. البرمجة الوظيفية / Functional Programming
@@ -229,8 +223,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("تخطيط", map_fn);
-            fm.registerBuiltinFunction("map", map_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAP_FN), map_fn);
 
             // filter / تصفية — تصفية عناصر المصفوفة
             auto filter_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -249,8 +242,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("تصفية", filter_fn);
-            fm.registerBuiltinFunction("filter", filter_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::FILTER), filter_fn);
 
             // reduce / اختزال — تجميع عناصر المصفوفة
             auto reduce_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -267,8 +259,7 @@ namespace Sad
                 }
                 return std::make_shared<Data::Value>(accumulator);
             };
-            fm.registerBuiltinFunction("اختزال", reduce_fn);
-            fm.registerBuiltinFunction("reduce", reduce_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::REDUCE), reduce_fn);
 
             // forEach / لكل_عنصر — تنفيذ دالة على كل عنصر
             auto forEach_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -284,9 +275,7 @@ namespace Sad
                 }
                 return makeVoidVal();
             };
-            fm.registerBuiltinFunction("لكل_عنصر", forEach_fn);
-            fm.registerBuiltinFunction("forEach", forEach_fn);
-            fm.registerBuiltinFunction("for_each", forEach_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::FOR_EACH), forEach_fn);
 
             // flatMap / تخطيط_مسطح — تخطيط ثم تسطيح
             auto flatMap_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -312,9 +301,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("تخطيط_مسطح", flatMap_fn);
-            fm.registerBuiltinFunction("flatMap", flatMap_fn);
-            fm.registerBuiltinFunction("flat_map", flatMap_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::FLAT_MAP), flatMap_fn);
 
             // zip / ضم — ضم مصفوفتين في مصفوفة أزواج
             auto zip_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -334,8 +321,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("ضم", zip_fn);
-            fm.registerBuiltinFunction("zip", zip_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::ZIP), zip_fn);
 
             // any / أي_عنصر — هل هناك عنصر يحقق الشرط
             auto any_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -353,8 +339,7 @@ namespace Sad
                 }
                 return makeVal(false);
             };
-            fm.registerBuiltinFunction("أي_عنصر", any_fn);
-            fm.registerBuiltinFunction("any", any_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::ANY_ELEMENT), any_fn);
 
             // all / كل_العناصر — هل كل العناصر تحقق الشرط
             auto all_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -372,8 +357,7 @@ namespace Sad
                 }
                 return makeVal(true);
             };
-            fm.registerBuiltinFunction("كل_العناصر", all_fn);
-            fm.registerBuiltinFunction("all", all_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::ALL_ELEMENTS), all_fn);
 
             // ═══════════════════════════════════════════════════════════════════
             // 11. عمليات المجموعات / Set Operations
@@ -399,8 +383,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("فريد", unique_fn);
-            fm.registerBuiltinFunction("unique", unique_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::UNIQUE), unique_fn);
 
             // union / اتحاد — اتحاد مصفوفتين
             auto union_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -422,8 +405,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("اتحاد", union_fn);
-            fm.registerBuiltinFunction("union_arr", union_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::UNION), union_fn);
 
             // intersect / تقاطع — تقاطع مصفوفتين
             auto intersect_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -443,8 +425,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("تقاطع", intersect_fn);
-            fm.registerBuiltinFunction("intersect", intersect_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::INTERSECT), intersect_fn);
 
             // difference / فرق — الفرق بين مصفوفتين
             auto difference_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -464,9 +445,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("فرق", difference_fn);
-            fm.registerBuiltinFunction("difference", difference_fn);
-
+            fm.registerBuiltinFunction(std::string(Bmp::DIFFERENCE), difference_fn);
 
         } // registerBuiltinsMapsCore
 

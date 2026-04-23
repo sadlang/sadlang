@@ -36,7 +36,9 @@
 #include "statements.h"
 
 #include <unordered_set>
+#include <unordered_map>
 #include <string>
+#include <iostream>
 
 namespace Sad
 {
@@ -48,59 +50,122 @@ namespace Sad
         using TT = TokenType;
 
         // =====================================================================
-        // (AR) مجموعة أسماء العناصر المسجلة — تُستخدم للتعرف على تعبيرات الواجهة
-        // (EN) Registered widget names — used to recognize UI expressions
+        // (AR) العناصر الأولية الـ 15 — المجموعة الأساسية فقط (ADR-UI-02)
+        // (EN) 15 Primitive Widgets — core set only (ADR-UI-02)
         //
-        // (AR) ملاحظة: العناصر المسجلة هنا هي التي يتعرف عليها البارسر كتعبيرات UI
-        //      داخل دالة بناء(). أي مُعرّف آخر يُعامل كاستدعاء دالة عادي.
-        // (EN) Note: Widgets registered here are recognized as UI expressions
-        //      inside بناء(). Any other identifier is treated as a regular function call.
+        // (AR) القرار المعماري ADR-UI-02:
+        //      تقليص العناصر من 70+ إلى 15 عنصر أولي فقط.
+        //      باقي العناصر (55+) ستُبنى كـ `واجهة` مُركّبة من الأولية.
+        //      العناصر القديمة تبقى مؤقتاً في deprecatedWidgets مع تحذير.
+        //
+        // (EN) Architecture Decision ADR-UI-02:
+        //      Reduce widgets from 70+ to 15 primitives only.
+        //      Remaining 55+ widgets will be composed as user `واجهة` components.
+        //      Old widgets stay temporarily in deprecatedWidgets with warning.
         // =====================================================================
 
-        // (AR) عناصر العرض الأساسية / (EN) Basic display widgets
-        // (AR) عناصر الإدخال / (EN) Input widgets
-        // (AR) عناصر التخطيط / (EN) Layout widgets
-        // (AR) عناصر الحاويات / (EN) Container widgets
-        // (AR) عناصر التنقل / (EN) Navigation widgets
-        // (AR) عناصر الحوارات / (EN) Dialog widgets
-        // (AR) عناصر البيانات / (EN) Data widgets
         static const std::unordered_set<std::string> knownWidgets = {
-            // ── عرض أساسي ──
-            "نص", "صورة", "أيقونة", "نص_منسق",
+            // ── (AR) تخطيط — 4 حاويات أساسية / (EN) Layout — 4 basic containers ──
+            "عمود", "صف", "رصة", "شبكة",
 
-            // ── إدخال ──
-            "زر", "زر_نصي", "زر_محدد", "زر_أيقونة", "زر_عائم",
-            "حقل_نص", "منطقة_نص", "مفتاح", "منزلق",
-            "خانة_اختيار", "زر_راديو", "منتقي",
-            "منتقي_تاريخ", "منتقي_وقت", "منتقي_لون",
+            // ── (AR) عرض — 3 عناصر عرض / (EN) Display — 3 display elements ──
+            "نص", "صورة", "أيقونة",
 
-            // ── تخطيط ──
-            "عمود", "صف", "رصة", "شبكة", "التفاف",
-            "وسط", "حشوة", "محاذاة", "موسع", "مرن",
-            "مقاس", "فاصل", "فاصل_خط", "نسبة_عرض",
+            // ── (AR) تفاعل — 4 عناصر إدخال / (EN) Interaction — 4 input elements ──
+            "زر", "حقل_نص", "مفتاح", "منزلق",
 
-            // ── حاويات ──
-            "حاوية", "بطاقة", "سطح", "صندوق",
-            "هيكل", "عرض_تمرير",
-            "قائمة_عرض", "عمود_كسول",
+            // ── (AR) هيكل — 3 حاويات متقدمة / (EN) Structure — 3 advanced containers ──
+            "حاوية", "عرض_تمرير", "قائمة_كسولة",
 
-            // ── تنقل ──
-            "شريط_تطبيق", "درج", "تنقل_سفلي", "تبويبات", "ملاح",
+            // ── (AR) فراغ — عنصر واحد / (EN) Spacer — 1 element ──
+            "فاصل"};
 
-            // ── حوارات ──
-            "حوار", "ورقة_سفلية", "شريط_إشعار", "تلميح", "قائمة_خيارات",
+        // =====================================================================
+        // (AR) خريطة العناصر المُهملة — المرحلة الأولى من خطة الهجرة (ADR-UI-02)
+        // (EN) Deprecated widgets map — Phase 1 of migration plan (ADR-UI-02)
+        //
+        // (AR) كل عنصر قديم يُربط بالعنصر الأولي البديل.
+        //      عند استخدام عنصر مُهمل، يُصدر البارسر تحذيراً ويُعامله كبديله.
+        //      المرحلة 1 (v1.2): تحذير + عمل عادي
+        //      المرحلة 2 (v1.3): ترجمة داخلية تلقائية
+        //      المرحلة 3 (v2.0): إزالة مع رسالة خطأ
+        //
+        // (EN) Each deprecated widget maps to its primitive replacement.
+        //      Parser emits a warning when a deprecated widget is used, and treats it as its replacement.
+        //      Phase 1 (v1.2): warning + works normally
+        //      Phase 2 (v1.3): automatic internal translation
+        //      Phase 3 (v2.0): removal with error message
+        // =====================================================================
 
-            // ── بيانات ──
-            "جدول_بيانات", "شريط_تقدم", "تقدم_دائري",
-            "شارة", "رقاقة", "شريط_تقييم", "شريط_بحث"};
+        static const std::unordered_map<std::string, std::string> deprecatedWidgets = {
+            // ── (AR) عرض مُهمل → بديل / (EN) Deprecated display → replacement ──
+            {"نص_منسق", "نص"},
 
-        // (AR) العناصر التي تقبل أبناء (حاويات) — يُتوقع `نهاية` بعد الأبناء
-        // (EN) Widgets that accept children (containers) — expect `نهاية` after children
+            // ── (AR) أزرار مُهملة → زر / (EN) Deprecated buttons → زر ──
+            {"زر_نصي", "زر"},
+            {"زر_محدد", "زر"},
+            {"زر_أيقونة", "زر"},
+            {"زر_عائم", "زر"},
+
+            // ── (AR) إدخال مُهمل → حقل_نص أو معادل / (EN) Deprecated input → حقل_نص or equivalent ──
+            {"منطقة_نص", "حقل_نص"},
+            {"خانة_اختيار", "مفتاح"},
+            {"زر_راديو", "مفتاح"},
+            {"منتقي", "حقل_نص"},
+            {"منتقي_تاريخ", "حقل_نص"},
+            {"منتقي_وقت", "حقل_نص"},
+            {"منتقي_لون", "حقل_نص"},
+
+            // ── (AR) تخطيط مُهمل → حاوية أو معادل / (EN) Deprecated layout → container or equivalent ──
+            {"التفاف", "صف"},
+            {"وسط", "حاوية"},
+            {"حشوة", "حاوية"},
+            {"محاذاة", "حاوية"},
+            {"موسع", "حاوية"},
+            {"مرن", "حاوية"},
+            {"مقاس", "حاوية"},
+            {"فاصل_خط", "فاصل"},
+            {"نسبة_عرض", "حاوية"},
+
+            // ── (AR) حاويات مُهملة → حاوية / (EN) Deprecated containers → حاوية ──
+            {"بطاقة", "حاوية"},
+            {"سطح", "حاوية"},
+            {"صندوق", "حاوية"},
+            {"هيكل", "حاوية"},
+            {"قائمة_عرض", "قائمة_كسولة"},
+            {"عمود_كسول", "قائمة_كسولة"},
+
+            // ── (AR) تنقل مُهمل → حاوية أو معادل / (EN) Deprecated nav → container or equivalent ──
+            {"شريط_تطبيق", "حاوية"},
+            {"درج", "حاوية"},
+            {"تنقل_سفلي", "صف"},
+            {"تبويبات", "صف"},
+            {"ملاح", "رصة"},
+
+            // ── (AR) حوارات مُهملة → رصة / (EN) Deprecated dialogs → رصة ──
+            {"حوار", "رصة"},
+            {"ورقة_سفلية", "حاوية"},
+            {"شريط_إشعار", "حاوية"},
+            {"تلميح", "حاوية"},
+            {"قائمة_خيارات", "عمود"},
+
+            // ── (AR) بيانات مُهملة → معادل / (EN) Deprecated data → equivalent ──
+            {"جدول_بيانات", "شبكة"},
+            {"شريط_تقدم", "حاوية"},
+            {"تقدم_دائري", "حاوية"},
+            {"شارة", "حاوية"},
+            {"رقاقة", "حاوية"},
+            {"شريط_تقييم", "صف"},
+            {"شريط_بحث", "حقل_نص"},
+        };
+
+        // (AR) العناصر التي تقبل أبناء (حاويات) — 4 أساسية + 3 متقدمة (ADR-UI-02)
+        // (EN) Container widgets — 4 basic + 3 advanced (ADR-UI-02)
         static const std::unordered_set<std::string> containerWidgets = {
-            "عمود", "صف", "رصة", "شبكة", "التفاف",
-            "وسط", "حاوية", "بطاقة", "سطح", "صندوق",
-            "هيكل", "عرض_تمرير", "قائمة_عرض", "عمود_كسول",
-            "درج", "تبويبات", "ملاح"};
+            // (AR) حاويات تخطيط أساسية
+            "عمود", "صف", "رصة", "شبكة",
+            // (AR) حاويات متقدمة
+            "حاوية", "عرض_تمرير", "قائمة_كسولة"};
 
         // (AR) أسماء الأحداث المعروفة — تُستخدم لتمييز المعدّل-الحدث من المعدّل-القيمة
         // (EN) Known event names — used to distinguish event modifiers from value modifiers
@@ -112,10 +177,36 @@ namespace Sad
         // =====================================================================
         // isKnownWidget — التحقق إذا كان الاسم عنصر واجهة مسجل
         // =====================================================================
+        //
+        // (AR) يتحقق من العناصر الأولية (15) + العناصر المُهملة (55+)
+        //      إذا كان العنصر مُهملاً، يُصدر تحذيراً ويعيد true (ADR-UI-02 مرحلة 1)
+        // (EN) Checks primitives (15) + deprecated (55+)
+        //      If deprecated, emits warning and returns true (ADR-UI-02 phase 1)
+        // =====================================================================
 
         bool ParserCore::isKnownWidget(const std::string &name) const
         {
-            return knownWidgets.count(name) > 0;
+            // (AR) أولاً: هل هو عنصر أولي؟ / (EN) First: is it a primitive?
+            if (knownWidgets.count(name) > 0)
+                return true;
+
+            // (AR) ثانياً: هل هو عنصر مُهمل؟ (ADR-UI-02 مرحلة 1: تحذير + عمل عادي)
+            // (EN) Second: is it deprecated? (ADR-UI-02 phase 1: warning + works normally)
+            auto it = deprecatedWidgets.find(name);
+            if (it != deprecatedWidgets.end())
+            {
+                // (AR) تحذير إهمال: العنصر القديم لا يزال يعمل لكن يجب استبداله
+                // (EN) Deprecation warning: old widget still works but should be replaced
+                std::cerr << "[تحذير/Warning] " << current_.getPosition().line << ":"
+                          << current_.getPosition().column << ": "
+                          << "العنصر \"" << name << "\" مُهمل — استخدم \""
+                          << it->second << "\" بدلاً منه / "
+                          << "Widget \"" << name << "\" is deprecated — use \""
+                          << it->second << "\" instead." << std::endl;
+                return true;
+            }
+
+            return false;
         }
 
         // =====================================================================
@@ -566,11 +657,11 @@ namespace Sad
         //
         // (AR) يُستدعى بعد اسم الحاوية ومعدّلاتها.
         //      يحلل تعبيرات عناصر واجهة حتى `نهاية`.
-        //      يدعم: عناصر واجهة مسجلة + جمل عادية (إذا/وإلا, لكل, ...)
+        //      يدعم: عناصر واجهة مسجلة + الرسم الشرطي (إذا/وإلا) + الحلقات (لكل/بينما)
         //
         // (EN) Called after container name and modifiers.
         //      Parses widget expressions until `نهاية`.
-        //      Supports: registered widgets + regular statements (if/else, for, ...)
+        //      Supports: registered widgets + conditional rendering (if/else) + loops (for/while)
         // =====================================================================
 
         std::vector<std::unique_ptr<UIWidgetExprNode>> ParserCore::parseWidgetChildren()
@@ -582,24 +673,356 @@ namespace Sad
                 // ── (AR) عنصر واجهة مسجل / (EN) Known widget ──
                 if (check(TT::IDENTIFIER) && isKnownWidget(current_.getValue()))
                 {
-                    auto widgetExpr = parseWidgetExpression();
-                    if (auto *w = dynamic_cast<UIWidgetExprNode *>(widgetExpr.get()))
-                    {
-                        widgetExpr.release();
-                        children.push_back(std::unique_ptr<UIWidgetExprNode>(w));
-                    }
+                    children.push_back(parseWidgetExpressionTyped());
                     continue;
                 }
 
-                // ── (AR) جملة عادية داخل حاوية — غير مدعومة حالياً ──
-                // (AR) ملاحظة: في المستقبل قد ندعم إذا/وإلا ولكل داخل الحاويات
-                //      لتمكين الرسم الشرطي. حالياً نوقف عند أي رمز غير عنصر واجهة.
-                // (EN) Note: In the future we may support if/else and for inside containers
-                //      for conditional rendering. Currently we stop at any non-widget token.
+                // ── (AR) رسم شرطي: إذا (شرط) ... وإلا ... نهاية (ADR-UI-01)
+                // (EN) Conditional rendering: if (cond) ... else ... end
+                if (check(TT::KEYWORD_IF))
+                {
+                    children.push_back(parseUIConditional());
+                    continue;
+                }
+
+                // ── (AR) حلقة رسم: لكل عنصر في قائمة ... نهاية (ADR-UI-01)
+                // (EN) Loop rendering: for each item in list ... end
+                if (check(TT::KEYWORD_FOR))
+                {
+                    children.push_back(parseUILoop(/*isForEach=*/true));
+                    continue;
+                }
+
+                // ── (AR) حلقة رسم: بينما (شرط) ... نهاية (ADR-UI-01)
+                // (EN) Loop rendering: while (cond) ... end
+                if (check(TT::KEYWORD_WHILE))
+                {
+                    children.push_back(parseUILoop(/*isForEach=*/false));
+                    continue;
+                }
+
+                // ── (AR) رمز غير معروف داخل حاوية — توقف
+                // (EN) Unknown token inside container — stop
                 break;
             }
 
             return children;
+        }
+
+        // =====================================================================
+        // parseWidgetExpressionTyped — تحليل عنصر واجهة مع النوع الصحيح (ADR-UI-07)
+        // =====================================================================
+        //
+        // (AR) يُغلّف parseWidgetExpression() ويُعيد unique_ptr<UIWidgetExprNode> مباشرةً
+        //      بدون الحاجة إلى dynamic_cast. يُستخدم داخل parseWidgetChildren().
+        //      يحتفظ بـ parseWidgetExpression() لأسباب التوافق الخلفي (BF-15).
+        //
+        // (EN) Wraps parseWidgetExpression() and returns typed unique_ptr<UIWidgetExprNode>
+        //      without dynamic_cast. Used inside parseWidgetChildren().
+        //      Keeps parseWidgetExpression() for backward compatibility (BF-15).
+        // =====================================================================
+
+        std::unique_ptr<UIWidgetExprNode> ParserCore::parseWidgetExpressionTyped()
+        {
+            auto pos = current_.getPosition();
+            std::string widgetName = current_.getValue();
+            advance(); // (AR) استهلاك اسم العنصر / (EN) consume widget name
+
+            auto widget = std::make_unique<UIWidgetExprNode>(widgetName, pos);
+
+            // ── (AR) وسائط الاستدعاء (اختيارية) / (EN) Optional call arguments ──
+            if (check(TT::PAREN_LEFT))
+            {
+                advance(); // (AR) استهلاك '(' / (EN) consume '('
+
+                if (!check(TT::PAREN_RIGHT))
+                {
+                    do
+                    {
+                        if (check(TT::IDENTIFIER) && peekNext().getType() == TT::COLON)
+                        {
+                            std::string argName = current_.getValue();
+                            advance(); // (AR) استهلاك الاسم
+                            advance(); // (AR) استهلاك ':'
+                            auto argValue = parseExpression();
+                            widget->namedArgs.push_back({argName, std::move(argValue)});
+                        }
+                        else
+                        {
+                            auto arg = parseExpression();
+                            widget->arguments.push_back(std::move(arg));
+                        }
+                    } while (match(TT::COMMA) || match(TT::ARABIC_COMMA));
+                }
+
+                consume(TT::PAREN_RIGHT,
+                        "(AR) خطأ نحوي: توقع ')' بعد وسائط '" + widgetName + "'.\n"
+                                                                             "(EN) Syntax error: expected ')' after '" +
+                            widgetName + "' arguments.");
+            }
+
+            // ── (AR) سلسلة المعدّلات / (EN) Modifier chain ──
+            widget->modifiers = parseModifierChain();
+
+            // ── (AR) كتلة الأبناء (للحاويات فقط) / (EN) Children block ──
+            bool isContainer = containerWidgets.count(widgetName) > 0;
+
+            if (isContainer && !check(TT::PAREN_RIGHT) && !check(TT::DOT))
+            {
+                if (check(TT::KEYWORD_END))
+                {
+                    widget->hasChildrenBlock = true;
+                    advance(); // (AR) استهلاك 'نهاية'
+                }
+                else if (!check(TT::END_OF_FILE))
+                {
+                    widget->hasChildrenBlock = true;
+                    widget->children = parseWidgetChildren();
+
+                    consume(TT::KEYWORD_END,
+                            "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق كتلة '" + widgetName + "'.\n"
+                                                                                       "(EN) Syntax error: expected 'نهاية' to close '" +
+                                widgetName + "' block.");
+                }
+            }
+
+            return widget;
+        }
+
+        // =====================================================================
+        // parseUIConditional — تحليل كتلة رسم شرطي (ADR-UI-01)
+        // =====================================================================
+        //
+        // (AR) القاعدة النحوية:
+        //   ui_conditional → 'إذا' '(' تعبير ')' widget_children ('وإلا' widget_children)? 'نهاية'
+        //
+        // أمثلة:
+        //   إذا (مسجّل)
+        //       نص("مرحباً!")
+        //   وإلا
+        //       نص("سجّل أولاً")
+        //   نهاية
+        //
+        // (EN) Grammar:
+        //   ui_conditional → 'if' '(' expr ')' widget_children ('else' widget_children)? 'end'
+        // =====================================================================
+
+        std::unique_ptr<UIConditionalNode> ParserCore::parseUIConditional()
+        {
+            auto pos = current_.getPosition();
+            advance(); // (AR) استهلاك 'إذا' / (EN) consume 'إذا'
+
+            // ── (AR) تحليل الشرط / (EN) Parse condition ──
+            consume(TT::PAREN_LEFT,
+                    "(AR) خطأ نحوي: توقع '(' بعد 'إذا' في كتلة الرسم الشرطي.\n"
+                    "(EN) Syntax error: expected '(' after 'إذا' in conditional rendering block.");
+
+            auto condition = parseExpression();
+
+            consume(TT::PAREN_RIGHT,
+                    "(AR) خطأ نحوي: توقع ')' بعد شرط الرسم الشرطي.\n"
+                    "(EN) Syntax error: expected ')' after conditional rendering condition.");
+
+            // ── (AR) تحليل فرع "صحيح" / (EN) Parse "then" branch ──
+            std::vector<std::unique_ptr<UIWidgetExprNode>> thenChildren;
+            while (!check(TT::KEYWORD_ELSE) && !check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
+            {
+                if (check(TT::IDENTIFIER) && isKnownWidget(current_.getValue()))
+                {
+                    thenChildren.push_back(parseWidgetExpressionTyped());
+                }
+                else if (check(TT::KEYWORD_IF))
+                {
+                    thenChildren.push_back(parseUIConditional());
+                }
+                else if (check(TT::KEYWORD_FOR))
+                {
+                    thenChildren.push_back(parseUILoop(/*isForEach=*/true));
+                }
+                else if (check(TT::KEYWORD_WHILE))
+                {
+                    thenChildren.push_back(parseUILoop(/*isForEach=*/false));
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // ── (AR) فرع "وإلا" (اختياري) / (EN) Optional "else" branch ──
+            std::vector<std::unique_ptr<UIWidgetExprNode>> elseChildren;
+            if (check(TT::KEYWORD_ELSE))
+            {
+                advance(); // (AR) استهلاك 'وإلا' / (EN) consume 'وإلا'
+
+                while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
+                {
+                    if (check(TT::IDENTIFIER) && isKnownWidget(current_.getValue()))
+                    {
+                        elseChildren.push_back(parseWidgetExpressionTyped());
+                    }
+                    else if (check(TT::KEYWORD_IF))
+                    {
+                        elseChildren.push_back(parseUIConditional());
+                    }
+                    else if (check(TT::KEYWORD_FOR))
+                    {
+                        elseChildren.push_back(parseUILoop(/*isForEach=*/true));
+                    }
+                    else if (check(TT::KEYWORD_WHILE))
+                    {
+                        elseChildren.push_back(parseUILoop(/*isForEach=*/false));
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // ── (AR) استهلاك 'نهاية' / (EN) consume 'end' ──
+            consume(TT::KEYWORD_END,
+                    "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق كتلة 'إذا' في الرسم الشرطي.\n"
+                    "(EN) Syntax error: expected 'نهاية' to close conditional rendering 'إذا' block.");
+
+            auto node = std::make_unique<UIConditionalNode>(std::move(condition), pos);
+            node->thenChildren = std::move(thenChildren);
+            node->elseChildren = std::move(elseChildren);
+            return node;
+        }
+
+        // =====================================================================
+        // parseUILoop — تحليل كتلة حلقة رسم (ADR-UI-01)
+        // =====================================================================
+        //
+        // (AR) القاعدة النحوية:
+        //   ui_loop_foreach → 'لكل' IDENTIFIER 'في' تعبير widget_children 'نهاية'
+        //   ui_loop_while   → 'بينما' '(' تعبير ')' widget_children 'نهاية'
+        //
+        // أمثلة:
+        //   لكل عنصر في القائمة
+        //       نص(عنصر)
+        //   نهاية
+        //
+        //   بينما (العدد > 0)
+        //       نص("...")
+        //   نهاية
+        //
+        // (EN) Grammar:
+        //   ui_loop_foreach → 'foreach' IDENTIFIER 'in' expr widget_children 'end'
+        //   ui_loop_while   → 'while' '(' expr ')' widget_children 'end'
+        // =====================================================================
+
+        std::unique_ptr<UILoopNode> ParserCore::parseUILoop(bool isForEach)
+        {
+            auto pos = current_.getPosition();
+
+            if (isForEach)
+            {
+                advance(); // (AR) استهلاك 'لكل' / (EN) consume 'لكل'
+
+                // ── (AR) اسم المتغير التكراري / (EN) Iterator variable name ──
+                if (!check(TT::IDENTIFIER))
+                {
+                    errorBilingual(
+                        "خطأ نحوي: توقع اسم متغير بعد 'لكل' في حلقة الرسم.",
+                        "Syntax error: expected variable name after 'لكل' in rendering loop.");
+                }
+                std::string iterName = current_.getValue();
+                advance(); // (AR) استهلاك اسم المتغير
+
+                // ── (AR) كلمة 'في' / (EN) keyword 'في' ──
+                consume(TT::KEYWORD_IN,
+                        "(AR) خطأ نحوي: توقع 'في' بعد '" + iterName + "' في حلقة 'لكل'.\n"
+                                                                      "(EN) Syntax error: expected 'في' after '" +
+                            iterName + "' in 'لكل' loop.");
+
+                // ── (AR) التعبير القابل للتكرار / (EN) Iterable expression ──
+                auto iterable = parseExpression();
+
+                // ── (AR) تحليل أبناء الحلقة / (EN) Parse loop body children ──
+                std::vector<std::unique_ptr<UIWidgetExprNode>> bodyChildren;
+                while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
+                {
+                    if (check(TT::IDENTIFIER) && isKnownWidget(current_.getValue()))
+                    {
+                        bodyChildren.push_back(parseWidgetExpressionTyped());
+                    }
+                    else if (check(TT::KEYWORD_IF))
+                    {
+                        bodyChildren.push_back(parseUIConditional());
+                    }
+                    else if (check(TT::KEYWORD_FOR))
+                    {
+                        bodyChildren.push_back(parseUILoop(/*isForEach=*/true));
+                    }
+                    else if (check(TT::KEYWORD_WHILE))
+                    {
+                        bodyChildren.push_back(parseUILoop(/*isForEach=*/false));
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                consume(TT::KEYWORD_END,
+                        "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق حلقة 'لكل' في الرسم.\n"
+                        "(EN) Syntax error: expected 'نهاية' to close 'لكل' rendering loop.");
+
+                auto loopNode = UILoopNode::createForEach(iterName, std::move(iterable), pos);
+                loopNode->bodyChildren = std::move(bodyChildren);
+                return loopNode;
+            }
+            else
+            {
+                advance(); // (AR) استهلاك 'بينما' / (EN) consume 'بينما'
+
+                // ── (AR) شرط الحلقة / (EN) Loop condition ──
+                consume(TT::PAREN_LEFT,
+                        "(AR) خطأ نحوي: توقع '(' بعد 'بينما' في حلقة الرسم.\n"
+                        "(EN) Syntax error: expected '(' after 'بينما' in rendering loop.");
+
+                auto condition = parseExpression();
+
+                consume(TT::PAREN_RIGHT,
+                        "(AR) خطأ نحوي: توقع ')' بعد شرط 'بينما' في حلقة الرسم.\n"
+                        "(EN) Syntax error: expected ')' after 'بينما' rendering loop condition.");
+
+                // ── (AR) تحليل أبناء الحلقة / (EN) Parse loop body children ──
+                std::vector<std::unique_ptr<UIWidgetExprNode>> bodyChildren;
+                while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
+                {
+                    if (check(TT::IDENTIFIER) && isKnownWidget(current_.getValue()))
+                    {
+                        bodyChildren.push_back(parseWidgetExpressionTyped());
+                    }
+                    else if (check(TT::KEYWORD_IF))
+                    {
+                        bodyChildren.push_back(parseUIConditional());
+                    }
+                    else if (check(TT::KEYWORD_FOR))
+                    {
+                        bodyChildren.push_back(parseUILoop(/*isForEach=*/true));
+                    }
+                    else if (check(TT::KEYWORD_WHILE))
+                    {
+                        bodyChildren.push_back(parseUILoop(/*isForEach=*/false));
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                consume(TT::KEYWORD_END,
+                        "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق حلقة 'بينما' في الرسم.\n"
+                        "(EN) Syntax error: expected 'نهاية' to close 'بينما' rendering loop.");
+
+                auto loopNode = UILoopNode::createWhile(std::move(condition), pos);
+                loopNode->bodyChildren = std::move(bodyChildren);
+                return loopNode;
+            }
         }
 
     } // namespace Parser

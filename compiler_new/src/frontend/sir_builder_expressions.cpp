@@ -283,6 +283,10 @@ namespace Sad
                     {
                         result.elementType = varInfo->elementType;
                     }
+                    if (!varInfo->elementClassName.empty())
+                    {
+                        result.elementClassName = varInfo->elementClassName;
+                    }
                     auto cit = classInstanceTypes_.find(var->name);
                     if (cit != classInstanceTypes_.end())
                     {
@@ -316,6 +320,10 @@ namespace Sad
                 if (varInfo->elementType != SadTypeKind::Void)
                 {
                     result.elementType = varInfo->elementType;
+                }
+                if (!varInfo->elementClassName.empty())
+                {
+                    result.elementClassName = varInfo->elementClassName;
                 }
 
                 return result;

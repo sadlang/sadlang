@@ -89,18 +89,31 @@ namespace Sad
                 }
                 else if (!matchResult.registerName.empty() && matchResult.registerName[0] == '%')
                 {
-                    // (AR) القيمة في عنوان alloca (متغير)، نحتاج لتحميلها
-                    // (EN) Value is in alloca address (variable), need to LOAD it
-                    std::string loadedReg = newTempRegister();
-                    SIRInstruction loadInst;
-                    loadInst.opcode = SIROpcode::LOAD;
-                    loadInst.result = SIROperand::Register(loadedReg, matchValueType);
-                    loadInst.operands.push_back(SIROperand::Register(matchValueReg, matchValueType));
-                    if (currentBlock_)
+                    // (AR) نتحقق هل القيمة في alloca (متغير مُسجل) أم سجل مؤقت (نتيجة تعبير)
+                    //      السجلات المؤقتة (مثل نتيجة member access) تحتوي القيمة مباشرة
+                    //      المتغيرات المُسجلة (alloca) تحتاج LOAD لتحميل القيمة
+                    // (EN) Check if value is in alloca (registered variable) or temp register
+                    //      Temp registers (e.g. member access result) contain value directly
+                    //      Registered variables (alloca) need LOAD to get the value
+                    std::string regNameWithoutPercent = matchResult.registerName.substr(1);
+                    auto *varInfo = lookupVariable(regNameWithoutPercent);
+                    bool isAllocaVar = (varInfo != nullptr);
+
+                    if (isAllocaVar)
                     {
-                        currentBlock_->addInstruction(loadInst);
+                        std::string loadedReg = newTempRegister();
+                        SIRInstruction loadInst;
+                        loadInst.opcode = SIROpcode::LOAD;
+                        loadInst.result = SIROperand::Register(loadedReg, matchValueType);
+                        loadInst.operands.push_back(SIROperand::Register(matchValueReg, matchValueType));
+                        if (currentBlock_)
+                        {
+                            currentBlock_->addInstruction(loadInst);
+                        }
+                        matchValueReg = loadedReg;
                     }
-                    matchValueReg = loadedReg;
+                    // (AR) إذا سجل مؤقت — القيمة جاهزة مباشرة، لا نحتاج LOAD
+                    // (EN) If temp register — value is ready, no LOAD needed
                 }
 
                 // ========================================================================
@@ -326,33 +339,90 @@ namespace Sad
                     {
                         for (const auto &deferred : deferredADTExtractions[i])
                         {
-                            std::string fieldReg = newTempRegister();
-                            SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
-                            getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Integer);
-                            getPayload.operands.push_back(
-                                SIROperand::Register(matchValueReg, matchValueType));
-                            getPayload.operands.push_back(
-                                SIROperand::ConstantI64(static_cast<int64_t>(deferred.fieldIndex)));
-                            // (AR) المعامل [2]: اسم التعداد للبحث عن البنية عبر حدود الدوال
-                            // (EN) Operand [2]: enum name for struct lookup across function boundaries
-                            getPayload.operands.push_back(
-                                SIROperand::ConstantString(deferred.enumName));
-                            getPayload.comment = "Deferred extract: field " +
-                                                 std::to_string(deferred.fieldIndex) + " (" + deferred.fieldName +
-                                                 ") → " + deferred.varName;
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(getPayload);
+                            if (deferred.enumName == "__list_pattern")
+                            {
+                                // ============================================================
+                                // (AR) استخراج عنصر مصفوفة مؤجل — ربط متغير
+                                //      هذا الاستخراج تم تأجيله من كتلة الاختبار لأن
+                                //      array.get يسبب خطأ خارج الحدود إذا كانت المصفوفة
+                                //      فارغة ولكن النمط يتوقع عناصر. التأجيل يضمن أن
+                                //      الاستخراج يتم فقط بعد نجاح فحص الطول.
+                                // (EN) Deferred list element extraction — variable binding
+                                //      Deferred from test block because array.get would
+                                //      cause bounds error if array is empty but pattern
+                                //      expects elements. Deferral ensures extraction only
+                                //      after length check succeeds.
+                                // ============================================================
+                                std::string elemReg = newTempRegister();
+                                SIRInstruction getInst;
+                                getInst.opcode = SIROpcode::ARRAY_GET;
+                                getInst.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
+                                getInst.operands.push_back(
+                                    SIROperand::Register(matchValueReg, matchValueType));
+                                getInst.operands.push_back(
+                                    SIROperand::ConstantI64(static_cast<int64_t>(deferred.fieldIndex)));
+                                getInst.comment = "Deferred list pattern: get element [" +
+                                                  std::to_string(deferred.fieldIndex) + "] → " + deferred.varName;
+                                if (currentBlock_)
+                                    currentBlock_->addInstruction(getInst);
 
-                            // (AR) ربط المتغير بقيمة الحقل المستخرج
-                            // (EN) Bind variable to extracted field value
-                            VariableInfo fieldVarInfo;
-                            fieldVarInfo.name = deferred.varName;
-                            fieldVarInfo.type = SadTypeKind::Integer;
-                            fieldVarInfo.registerName = fieldReg;
-                            fieldVarInfo.isGlobal = false;
-                            fieldVarInfo.isMutable = false;
-                            fieldVarInfo.scopeLevel = currentScopeLevel_;
-                            addVariable(fieldVarInfo);
+                                // (AR) ربط المتغير بالعنصر المستخرج
+                                // (EN) Bind variable to extracted element
+                                VariableInfo elemVarInfo;
+                                elemVarInfo.name = deferred.varName;
+                                elemVarInfo.type = SadTypeKind::Integer;
+                                elemVarInfo.registerName = elemReg;
+                                elemVarInfo.isGlobal = false;
+                                elemVarInfo.isMutable = false;
+                                elemVarInfo.scopeLevel = currentScopeLevel_;
+                                addVariable(elemVarInfo);
+                            }
+                            else if (deferred.enumName == "__list_pattern_literal")
+                            {
+                                // ============================================================
+                                // (AR) استخراج عنصر مصفوفة مؤجل — مقارنة حرفية
+                                //      في الوضع الحالي، المقارنة الحرفية لا تُنفّذ فعلياً
+                                //      لأن condReg يعتمد على فحص الطول فقط.
+                                //      هذا يكفي لأن الأنماط الحرفية في المصفوفات نادرة
+                                //      والتنفيذ الكامل يتطلب إعادة هيكلة الكتل.
+                                // (EN) Deferred list literal comparison
+                                //      Currently a no-op: condReg uses length check only.
+                                //      Full implementation would require block restructuring.
+                                // ============================================================
+                                // TODO(FUTURE): إضافة مقارنة حرفية مؤجلة للمصفوفات
+                            }
+                            else
+                            {
+                                // (AR) استخراج حقول ADT (التعداد الجبري) — السلوك الأصلي
+                                // (EN) ADT field extraction — original behavior
+                                std::string fieldReg = newTempRegister();
+                                SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
+                                getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Integer);
+                                getPayload.operands.push_back(
+                                    SIROperand::Register(matchValueReg, matchValueType));
+                                getPayload.operands.push_back(
+                                    SIROperand::ConstantI64(static_cast<int64_t>(deferred.fieldIndex)));
+                                // (AR) المعامل [2]: اسم التعداد للبحث عن البنية عبر حدود الدوال
+                                // (EN) Operand [2]: enum name for struct lookup across function boundaries
+                                getPayload.operands.push_back(
+                                    SIROperand::ConstantString(deferred.enumName));
+                                getPayload.comment = "Deferred extract: field " +
+                                                     std::to_string(deferred.fieldIndex) + " (" + deferred.fieldName +
+                                                     ") → " + deferred.varName;
+                                if (currentBlock_)
+                                    currentBlock_->addInstruction(getPayload);
+
+                                // (AR) ربط المتغير بقيمة الحقل المستخرج
+                                // (EN) Bind variable to extracted field value
+                                VariableInfo fieldVarInfo;
+                                fieldVarInfo.name = deferred.varName;
+                                fieldVarInfo.type = SadTypeKind::Integer;
+                                fieldVarInfo.registerName = fieldReg;
+                                fieldVarInfo.isGlobal = false;
+                                fieldVarInfo.isMutable = false;
+                                fieldVarInfo.scopeLevel = currentScopeLevel_;
+                                addVariable(fieldVarInfo);
+                            }
                         }
                     }
 

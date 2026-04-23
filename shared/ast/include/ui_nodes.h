@@ -619,5 +619,208 @@ namespace Sad
             }
         };
 
+        // =====================================================================
+        // UIConditionalNode — رسم شرطي داخل حاوية (ADR-UI-01)
+        // =====================================================================
+
+        /**
+         * @class UIConditionalNode
+         * @brief (AR) عقدة رسم شرطي — تُغلّف إذا/وإلا داخل حاوية واجهة
+         * @brief (EN) Conditional rendering node — wraps if/else inside a UI container
+         *
+         * (AR) يمثل رسماً شرطياً داخل كتلة أبناء حاوية. عند تقييم الشرط:
+         *      - إذا صحيح → تُرسم عناصر thenChildren
+         *      - إذا خاطئ → تُرسم عناصر elseChildren (إن وُجدت)
+         *
+         *      هذه العقدة ترث من UIWidgetExprNode لتكون جزءاً من قائمة أبناء الحاوية.
+         *      المفسر/المترجم يُقيّم الشرط ويختار الفرع المناسب.
+         *
+         * (EN) Represents conditional rendering inside a container's children block.
+         *      When the condition is evaluated:
+         *      - If true → render thenChildren
+         *      - If false → render elseChildren (if present)
+         *
+         *      Inherits from UIWidgetExprNode to fit in a container's children list.
+         *      Interpreter/compiler evaluates condition and picks the correct branch.
+         *
+         * @example مثال / Example:
+         * @code{.ص}
+         * عمود
+         *     إذا (مسجل_دخول)
+         *         نص("مرحباً " + اسم_المستخدم)
+         *     وإلا
+         *         زر("تسجيل دخول").عند_النقر => سجّل()
+         *     نهاية
+         * نهاية
+         * @endcode
+         */
+        class UIConditionalNode : public UIWidgetExprNode
+        {
+        public:
+            ExprPtr condition; ///< (AR) تعبير الشرط / (EN) Condition expression
+
+            /// (AR) عناصر الفرع الصحيح (then) / (EN) Then-branch widget children
+            std::vector<std::unique_ptr<UIWidgetExprNode>> thenChildren;
+
+            /// (AR) عناصر الفرع البديل (else) — فارغ إذا لا يوجد وإلا
+            /// (EN) Else-branch widget children — empty if no else
+            std::vector<std::unique_ptr<UIWidgetExprNode>> elseChildren;
+
+            /**
+             * @brief (AR) باني عقدة الرسم الشرطي
+             * @brief (EN) Conditional rendering node constructor
+             *
+             * @param condition (ExprPtr) — تعبير الشرط
+             * @param pos (Position) — الموقع في الكود المصدري
+             */
+            UIConditionalNode(ExprPtr condition,
+                              const Lexer::Position &pos = Lexer::Position())
+                : UIWidgetExprNode("__conditional__", pos),
+                  condition(std::move(condition)) {}
+
+            /**
+             * @brief (AR) هل يوجد فرع وإلا؟
+             * @brief (EN) Has else branch?
+             */
+            bool hasElseBranch() const { return !elseChildren.empty(); }
+
+            void accept(ASTVisitor &visitor) override
+            {
+                visitor.visitUIConditional(*this);
+            }
+
+            std::string toString() const override
+            {
+                std::string result = "إذا(...) then[" +
+                                     std::to_string(thenChildren.size()) + "]";
+                if (hasElseBranch())
+                    result += " else[" + std::to_string(elseChildren.size()) + "]";
+                return result;
+            }
+        };
+
+        // =====================================================================
+        // UILoopNode — حلقة رسم داخل حاوية (ADR-UI-01)
+        // =====================================================================
+
+        /**
+         * @class UILoopNode
+         * @brief (AR) عقدة حلقة رسم — تُغلّف لكل/بينما داخل حاوية واجهة
+         * @brief (EN) Loop rendering node — wraps for-each/while inside a UI container
+         *
+         * (AR) يمثل حلقة رسم داخل كتلة أبناء حاوية. تُنتج عناصر متكررة:
+         *      - لكل عنصر في مصفوفة → يُنشئ مجموعة عناصر لكل تكرار
+         *      - بينما شرط → يُنشئ عناصر ما دام الشرط صحيحاً
+         *
+         *      ترث من UIWidgetExprNode لتندمج في قائمة أبناء الحاوية.
+         *
+         * (EN) Represents a rendering loop inside a container's children block.
+         *      Produces repeated elements:
+         *      - For each item in array → creates widget group per iteration
+         *      - While condition → creates widgets as long as condition is true
+         *
+         *      Inherits from UIWidgetExprNode to fit in a container's children list.
+         *
+         * @example مثال لكل / For-each example:
+         * @code{.ص}
+         * عمود
+         *     لكل عنصر في القائمة
+         *         نص(عنصر.العنوان).حجم_خط(16)
+         *     نهاية
+         * نهاية
+         * @endcode
+         *
+         * @example مثال بينما / While example:
+         * @code{.ص}
+         * عمود
+         *     بينما (ع < 10)
+         *         نص("صف " + نص(ع))
+         *         ع += 1
+         *     نهاية
+         * نهاية
+         * @endcode
+         */
+        class UILoopNode : public UIWidgetExprNode
+        {
+        public:
+            /**
+             * @enum LoopKind
+             * @brief (AR) نوع الحلقة — لكل أو بينما
+             * @brief (EN) Loop kind — for-each or while
+             */
+            enum class LoopKind
+            {
+                FOR_EACH, ///< (AR) لكل عنصر في مجموعة / (EN) for each item in collection
+                WHILE     ///< (AR) بينما شرط / (EN) while condition
+            };
+
+            LoopKind loopKind; ///< (AR) نوع الحلقة / (EN) Loop kind
+
+            // ── خاص بـ لكل (FOR_EACH) ──
+            std::string iteratorName; ///< (AR) اسم متغير التكرار (مثل: عنصر) / (EN) Iterator variable name
+            ExprPtr iterableExpr;     ///< (AR) تعبير المجموعة المُكرَّر عليها / (EN) Iterable expression
+
+            // ── خاص بـ بينما (WHILE) ──
+            ExprPtr whileCondition; ///< (AR) شرط الاستمرار (بينما فقط) / (EN) While condition
+
+            /// (AR) عناصر جسم الحلقة / (EN) Loop body widget children
+            std::vector<std::unique_ptr<UIWidgetExprNode>> bodyChildren;
+
+            /**
+             * @brief (AR) مصنع عقدة لكل
+             * @brief (EN) For-each node factory
+             *
+             * @param iteratorName (string) — اسم متغير التكرار
+             * @param iterable (ExprPtr) — تعبير المجموعة
+             * @param pos (Position) — الموقع في الكود
+             */
+            static std::unique_ptr<UILoopNode> createForEach(
+                const std::string &iteratorName, ExprPtr iterable,
+                const Lexer::Position &pos = Lexer::Position())
+            {
+                // make_unique لا يستطيع استدعاء بانٍ خاص؛ الإنشاء المباشر هنا آمن لأننا داخل الصنف.
+                auto node = std::unique_ptr<UILoopNode>(new UILoopNode(LoopKind::FOR_EACH, pos));
+                node->iteratorName = iteratorName;
+                node->iterableExpr = std::move(iterable);
+                return node;
+            }
+
+            /**
+             * @brief (AR) مصنع عقدة بينما
+             * @brief (EN) While loop node factory
+             *
+             * @param condition (ExprPtr) — شرط الاستمرار
+             * @param pos (Position) — الموقع في الكود
+             */
+            static std::unique_ptr<UILoopNode> createWhile(
+                ExprPtr condition,
+                const Lexer::Position &pos = Lexer::Position())
+            {
+                // make_unique لا يستطيع استدعاء بانٍ خاص؛ الإنشاء المباشر هنا آمن لأننا داخل الصنف.
+                auto node = std::unique_ptr<UILoopNode>(new UILoopNode(LoopKind::WHILE, pos));
+                node->whileCondition = std::move(condition);
+                return node;
+            }
+
+            void accept(ASTVisitor &visitor) override
+            {
+                visitor.visitUILoop(*this);
+            }
+
+            std::string toString() const override
+            {
+                if (loopKind == LoopKind::FOR_EACH)
+                    return "لكل " + iteratorName + " في ... [" +
+                           std::to_string(bodyChildren.size()) + " children]";
+                else
+                    return "بينما(...) [" +
+                           std::to_string(bodyChildren.size()) + " children]";
+            }
+
+        private:
+            UILoopNode(LoopKind kind, const Lexer::Position &pos)
+                : UIWidgetExprNode("__loop__", pos), loopKind(kind) {}
+        };
+
     } // namespace AST
 } // namespace Sad

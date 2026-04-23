@@ -1,7 +1,6 @@
-# @description اختبار سلبي — فهرس خارج النطاق (Index Out of Bounds)
+﻿# @description اختبار سلبي — فهرس خارج النطاق (Index Out of Bounds)
 # @expect_error IndexOutOfRange
 # @priority P1
-# @skip_compiler
 
 # ============================================================
 # الوصول لعنصر خارج حدود المصفوفة — يجب أن يُنتج خطأ

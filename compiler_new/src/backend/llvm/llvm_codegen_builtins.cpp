@@ -494,7 +494,9 @@ namespace Sad
         llvm::Value *LLVMCodeGen::emitBuiltinPrint(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
-                return nullptr;
+                // (AR) حتى بدون معاملات، الطباعة "نُفّذت" — إرجاع sentinel
+                // (EN) Even with no operands, print was "handled" — return sentinel
+                return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0);
 
             // (AR) في الوضع المستقل (freestanding): استخدم دوال الإخراج التسلسلي المباشرة
             // (EN) In freestanding mode: use direct serial output functions
@@ -564,7 +566,9 @@ namespace Sad
                         builder_->CreateCall(putintFn, {conv});
                     }
                 }
-                return nullptr;
+                // (AR) إرجاع sentinel للوضع المستقل أيضاً
+                // (EN) Return sentinel for freestanding mode too
+                return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0);
             }
 
             // (AR) الوضع العادي: استخدم printf
@@ -691,41 +695,225 @@ namespace Sad
                     llvm::Value *fmt = builder_->CreateGlobalStringPtr("%s", "fmt.s");
                     builder_->CreateCall(printfFunc, {fmt, strPtr});
                 }
-                else if (v->getType()->isIntegerTy(64))
+                // ================================================================
+                // (AR) [إصلاح قنوات] فك وسم MSB 2-bit للقيم المستقبَلة من القنوات
+                //      نوع Any يعني أن القيمة موسومة بنظام:
+                //      bit63=0 → مؤشر (نص) — inttoptr وطباعة %s
+                //      bit63=1, bit62=0 → رقم — مسح bit63 وطباعة %lld
+                //      bit63=1, bit62=1 → منطقي — مسح bit63+62 وطباعة صحيح/خطأ
+                //      kSadNullSentinel → لاشيء
+                // (EN) [Channel fix] Decode MSB 2-bit tagged values received from channels
+                // ================================================================
+                else if (op.dataType == SadTypeKind::Any && v->getType()->isIntegerTy(64))
                 {
-                    // (AR) طباعة قيمة null-sentinel كنص "لاشيء" بدلاً من الرقم الخام.
-                    // (EN) Print null sentinel as "لاشيء" instead of raw integer.
+                    auto i64Ty = llvm::Type::getInt64Ty(*context_);
+                    auto *ptrTy = llvm::PointerType::getUnqual(*context_);
+
+                    // (AR) فحص sentinel أولاً (لاشيء)
                     llvm::Value *isNullSentinel = builder_->CreateICmpEQ(
-                        v,
-                        llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), Sad::Compiler::kSadNullSentinel),
-                        "print.is_null_sentinel");
+                        v, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kSadNullSentinel),
+                        "any.is_null");
 
                     auto *parentFunc = builder_->GetInsertBlock()->getParent();
-                    auto *nullBB = llvm::BasicBlock::Create(*context_, "print_null", parentFunc);
-                    auto *numBB = llvm::BasicBlock::Create(*context_, "print_num", parentFunc);
-                    auto *mergeBB = llvm::BasicBlock::Create(*context_, "print_merge", parentFunc);
+                    auto *nullBB = llvm::BasicBlock::Create(*context_, "any.null", parentFunc);
+                    auto *checkTagBB = llvm::BasicBlock::Create(*context_, "any.check_tag", parentFunc);
+                    auto *ptrBB = llvm::BasicBlock::Create(*context_, "any.ptr", parentFunc);
+                    auto *intOrBoolBB = llvm::BasicBlock::Create(*context_, "any.int_or_bool", parentFunc);
+                    auto *boolBB = llvm::BasicBlock::Create(*context_, "any.bool", parentFunc);
+                    auto *intBB = llvm::BasicBlock::Create(*context_, "any.int", parentFunc);
+                    auto *mergeBB = llvm::BasicBlock::Create(*context_, "any.merge", parentFunc);
 
-                    builder_->CreateCondBr(isNullSentinel, nullBB, numBB);
+                    builder_->CreateCondBr(isNullSentinel, nullBB, checkTagBB);
 
+                    // (AR) لاشيء
                     builder_->SetInsertPoint(nullBB);
-                    llvm::Value *fmtS = builder_->CreateGlobalStringPtr("%s", "fmt.s");
-                    llvm::Value *nullStr = builder_->CreateGlobalStringPtr("\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1", "null.str"); // لاشيء
-                    builder_->CreateCall(printfFunc, {fmtS, nullStr});
+                    {
+                        llvm::Value *fmtS = builder_->CreateGlobalStringPtr("%s", "fmt.s");
+                        llvm::Value *nullStr = builder_->CreateGlobalStringPtr(
+                            "\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1", "null.str"); // لاشيء
+                        builder_->CreateCall(printfFunc, {fmtS, nullStr});
+                    }
                     builder_->CreateBr(mergeBB);
 
-                    builder_->SetInsertPoint(numBB);
-                    llvm::Value *fmt = builder_->CreateGlobalStringPtr("%lld", "fmt.d");
-                    builder_->CreateCall(printfFunc, {fmt, v});
+                    // (AR) فحص bit63
+                    builder_->SetInsertPoint(checkTagBB);
+                    {
+                        llvm::Value *bit63Mask = llvm::ConstantInt::get(i64Ty, 1ULL << 63);
+                        llvm::Value *bit63 = builder_->CreateAnd(v, bit63Mask, "any.bit63");
+                        llvm::Value *isPtr = builder_->CreateICmpEQ(
+                            bit63, llvm::ConstantInt::get(i64Ty, 0), "any.is_ptr");
+                        builder_->CreateCondBr(isPtr, ptrBB, intOrBoolBB);
+                    }
+
+                    // (AR) مؤشر (نص) — bit63=0
+                    builder_->SetInsertPoint(ptrBB);
+                    {
+                        llvm::Value *strPtr = builder_->CreateIntToPtr(v, ptrTy, "any.str.i2p");
+                        llvm::Value *fmtS = builder_->CreateGlobalStringPtr("%s", "fmt.s");
+                        builder_->CreateCall(printfFunc, {fmtS, strPtr});
+                    }
+                    builder_->CreateBr(mergeBB);
+
+                    // (AR) فحص bit62 — منطقي أم رقم
+                    builder_->SetInsertPoint(intOrBoolBB);
+                    {
+                        llvm::Value *bit62Mask = llvm::ConstantInt::get(i64Ty, 1ULL << 62);
+                        llvm::Value *bit62 = builder_->CreateAnd(v, bit62Mask, "any.bit62");
+                        llvm::Value *isBool = builder_->CreateICmpNE(
+                            bit62, llvm::ConstantInt::get(i64Ty, 0), "any.is_bool");
+                        builder_->CreateCondBr(isBool, boolBB, intBB);
+                    }
+
+                    // (AR) منطقي — مسح bit63+62
+                    builder_->SetInsertPoint(boolBB);
+                    {
+                        llvm::Value *clearMask = llvm::ConstantInt::get(i64Ty, ~(3ULL << 62));
+                        llvm::Value *cleanVal = builder_->CreateAnd(v, clearMask, "any.bool.clean");
+                        llvm::Value *fmtS = builder_->CreateGlobalStringPtr("%s", "fmt.s");
+                        llvm::Value *trueStr = builder_->CreateGlobalStringPtr(
+                            "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad", "any.bool.true"); // صحيح
+                        llvm::Value *falseStr = builder_->CreateGlobalStringPtr(
+                            "\xd8\xae\xd8\xb7\xd8\xa3", "any.bool.false"); // خطأ
+                        llvm::Value *cond = builder_->CreateICmpNE(
+                            cleanVal, llvm::ConstantInt::get(i64Ty, 0), "any.bool.cond");
+                        llvm::Value *boolStr = builder_->CreateSelect(cond, trueStr, falseStr, "any.bool.sel");
+                        builder_->CreateCall(printfFunc, {fmtS, boolStr});
+                    }
+                    builder_->CreateBr(mergeBB);
+
+                    // (AR) رقم — مسح bit63
+                    builder_->SetInsertPoint(intBB);
+                    {
+                        llvm::Value *clearBit63 = llvm::ConstantInt::get(i64Ty, ~(1ULL << 63));
+                        llvm::Value *cleanVal = builder_->CreateAnd(v, clearBit63, "any.int.clean");
+                        llvm::Value *fmtD = builder_->CreateGlobalStringPtr("%lld", "fmt.d");
+                        builder_->CreateCall(printfFunc, {fmtD, cleanVal});
+                    }
                     builder_->CreateBr(mergeBB);
 
                     builder_->SetInsertPoint(mergeBB);
                 }
+                else if (v->getType()->isIntegerTy(64))
+                {
+                    // ================================================================
+                    // (AR) [Fix] فك تشفير MSB 2-bit لعناصر الصف/ADT عند الطباعة المباشرة
+                    //      عند استدعاء اطبع_سطر(ص[0]) حيث ص صف (tuple)،
+                    //      القيمة i64 تحمل وسم MSB:
+                    //      bit63=0 → مؤشر (نص) — inttoptr وطباعة %s
+                    //      bit63=1, bit62=0 → رقم — مسح bit63 وطباعة %lld
+                    //      bit63=1, bit62=1 → منطقي — مسح bit63+bit62 وطباعة صحيح/خطأ
+                    //      بدون هذا: القيمة الخام تُطبع كرقم سلبي ضخم
+                    // (EN) [Fix] MSB 2-bit decoding for tuple/ADT elements in direct print
+                    //      When calling print(tuple[0]), the i64 value carries MSB tags:
+                    //      bit63=0 → pointer (string), bit63=1+bit62=0 → int, bit63=1+bit62=1 → bool
+                    // ================================================================
+                    auto isPtrIt = context_info_.namedValues.find(op.name + ".__is_ptr");
+                    if (isPtrIt != context_info_.namedValues.end())
+                    {
+                        llvm::Value *isPtr = isPtrIt->second;
+                        auto *i64Ty = llvm::Type::getInt64Ty(*context_);
+                        auto *ptrTy = llvm::PointerType::getUnqual(*context_);
+
+                        // (AR) فك وسم 2-bit: مسح bit63 و bit62
+                        llvm::Value *clearMask = llvm::ConstantInt::get(i64Ty, ~(3ULL << 62));
+                        llvm::Value *cleanVal = builder_->CreateAnd(v, clearMask, "tup.print.clean");
+
+                        // (AR) فحص bit62 للتمييز بين رقم ومنطقي
+                        llvm::Value *bit62Mask = llvm::ConstantInt::get(i64Ty, 1ULL << 62);
+                        llvm::Value *bit62 = builder_->CreateAnd(v, bit62Mask, "tup.print.bit62");
+                        llvm::Value *isBool = builder_->CreateICmpNE(
+                            bit62, llvm::ConstantInt::get(i64Ty, 0), "tup.print.isbool");
+
+                        auto *parentFunc = builder_->GetInsertBlock()->getParent();
+                        auto *ptrBB = llvm::BasicBlock::Create(*context_, "tup.print.ptr", parentFunc);
+                        auto *nonPtrBB = llvm::BasicBlock::Create(*context_, "tup.print.nonptr", parentFunc);
+                        auto *boolBB = llvm::BasicBlock::Create(*context_, "tup.print.bool", parentFunc);
+                        auto *numBB = llvm::BasicBlock::Create(*context_, "tup.print.num", parentFunc);
+                        auto *mergeBB = llvm::BasicBlock::Create(*context_, "tup.print.merge", parentFunc);
+
+                        builder_->CreateCondBr(isPtr, ptrBB, nonPtrBB);
+
+                        // (AR) مسار المؤشر (نص): inttoptr → printf %s
+                        builder_->SetInsertPoint(ptrBB);
+                        llvm::Value *strPtr = builder_->CreateIntToPtr(cleanVal, ptrTy, "tup.print.str");
+                        llvm::Value *fmtSPtr = builder_->CreateGlobalStringPtr("%s", "fmt.s");
+                        llvm::Value *ptrIsNull = builder_->CreateICmpEQ(
+                            strPtr, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)),
+                            "tup.print.null");
+                        llvm::Value *nullFallback = builder_->CreateGlobalStringPtr(
+                            "\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1", "null.fallback"); // لاشيء
+                        llvm::Value *safeStr = builder_->CreateSelect(ptrIsNull, nullFallback, strPtr, "tup.print.safe");
+                        builder_->CreateCall(printfFunc, {fmtSPtr, safeStr});
+                        builder_->CreateBr(mergeBB);
+
+                        // (AR) مسار غير المؤشر: فحص منطقي أم رقم
+                        builder_->SetInsertPoint(nonPtrBB);
+                        builder_->CreateCondBr(isBool, boolBB, numBB);
+
+                        // (AR) مسار المنطقي: طباعة صحيح/خطأ
+                        builder_->SetInsertPoint(boolBB);
+                        llvm::Value *fmtSBool = builder_->CreateGlobalStringPtr("%s", "fmt.s");
+                        llvm::Value *boolCond = builder_->CreateICmpNE(
+                            cleanVal, llvm::ConstantInt::get(i64Ty, 0), "tup.print.boolcond");
+                        llvm::Value *trueStr = builder_->CreateGlobalStringPtr(
+                            "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad", "tup.bool.true"); // صحيح
+                        llvm::Value *falseStr = builder_->CreateGlobalStringPtr(
+                            "\xd8\xae\xd8\xb7\xd8\xa3", "tup.bool.false"); // خطأ
+                        llvm::Value *boolStr = builder_->CreateSelect(boolCond, trueStr, falseStr, "tup.print.boolstr");
+                        builder_->CreateCall(printfFunc, {fmtSBool, boolStr});
+                        builder_->CreateBr(mergeBB);
+
+                        // (AR) مسار الرقم: مسح MSB وطباعة %lld
+                        builder_->SetInsertPoint(numBB);
+                        llvm::Value *fmtD = builder_->CreateGlobalStringPtr("%lld", "fmt.d");
+                        builder_->CreateCall(printfFunc, {fmtD, cleanVal});
+                        builder_->CreateBr(mergeBB);
+
+                        builder_->SetInsertPoint(mergeBB);
+                    }
+                    else
+                    {
+                        // (AR) طباعة قيمة null-sentinel كنص "لاشيء" بدلاً من الرقم الخام.
+                        // (EN) Print null sentinel as "لاشيء" instead of raw integer.
+                        llvm::Value *isNullSentinel = builder_->CreateICmpEQ(
+                            v,
+                            llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), Sad::Compiler::kSadNullSentinel),
+                            "print.is_null_sentinel");
+
+                        auto *parentFunc = builder_->GetInsertBlock()->getParent();
+                        auto *nullBB = llvm::BasicBlock::Create(*context_, "print_null", parentFunc);
+                        auto *numBB = llvm::BasicBlock::Create(*context_, "print_num", parentFunc);
+                        auto *mergeBB = llvm::BasicBlock::Create(*context_, "print_merge", parentFunc);
+
+                        builder_->CreateCondBr(isNullSentinel, nullBB, numBB);
+
+                        builder_->SetInsertPoint(nullBB);
+                        llvm::Value *fmtS = builder_->CreateGlobalStringPtr("%s", "fmt.s");
+                        llvm::Value *nullStr = builder_->CreateGlobalStringPtr("\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1", "null.str"); // لاشيء
+                        builder_->CreateCall(printfFunc, {fmtS, nullStr});
+                        builder_->CreateBr(mergeBB);
+
+                        builder_->SetInsertPoint(numBB);
+                        llvm::Value *fmt = builder_->CreateGlobalStringPtr("%lld", "fmt.d");
+                        builder_->CreateCall(printfFunc, {fmt, v});
+                        builder_->CreateBr(mergeBB);
+
+                        builder_->SetInsertPoint(mergeBB);
+                    }
+                }
                 else if (v->getType()->isDoubleTy())
                 {
-                    // (AR) %g يزيل الأصفار الزائدة: 3.140000 → 3.14
-                    // (EN) %g removes trailing zeros: 3.140000 → 3.14
-                    llvm::Value *fmt = builder_->CreateGlobalStringPtr("%g", "fmt.f");
-                    builder_->CreateCall(printfFunc, {fmt, v});
+                    // (AR) إصلاح: استخدام __sad_print_double بدلاً من printf("%g")
+                    //      لمطابقة دقة المفسر: 6 خانات عشرية + حذف أصفار زائدة
+                    //      %g يعطي 6 أرقام معنوية (3.14159) بينما المفسر يعطي 6 خانات عشرية (3.141593)
+                    // (EN) Fix: use __sad_print_double instead of printf("%g")
+                    //      to match interpreter precision: 6 decimal places + strip trailing zeros
+                    llvm::FunctionType *printDoubleTy = llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(*context_),
+                        {llvm::Type::getDoubleTy(*context_)},
+                        false);
+                    llvm::FunctionCallee printDoubleFn = module_->getOrInsertFunction("__sad_print_double", printDoubleTy);
+                    builder_->CreateCall(printDoubleFn, {v});
                 }
                 else
                 {
@@ -734,10 +922,14 @@ namespace Sad
                     builder_->CreateCall(printfFunc, {fmt, conv});
                 }
             }
-            return nullptr;
+            // (AR) إرجاع قيمة sentinel (0) بدلاً من nullptr
+            //      لأن nullptr يُفسَّره الـ dispatcher على أنه "opcode غير مدعوم"
+            //      بينما الطباعة نُفّذت بنجاح — هي فقط عملية void بدون قيمة مُرجعة
+            // (EN) Return sentinel (0) instead of nullptr
+            //      nullptr is interpreted by dispatcher as "unsupported opcode"
+            //      but print executed successfully — it's just a void operation
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0);
         }
-
 
     } // namespace LLVM
 } // namespace Sad
-

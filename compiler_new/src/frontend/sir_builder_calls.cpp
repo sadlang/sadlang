@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // sir_builder.cpp - بناء SIR من AST / SIR Builder from AST
 // ============================================================================
 // المؤلف / Author: Sad Compiler Team
@@ -18,6 +18,7 @@
 
 #include <string>
 #include <cstdio>
+#include <set>
 #include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
@@ -83,6 +84,43 @@ namespace Sad
                     std::cout << "[DEBUG] buildFunctionCall: function name = '" << funcName << "'" << std::endl;
 #endif
                 }
+                else if (auto indexExpr = dynamic_cast<Sad::AST::IndexExpr *>(call->callee.get()))
+                {
+                    // (AR) استدعاء غير مباشر: callee هو IndexExpr (مثل: عمليات[0](2) أو حاسبة["جمع"](3,5))
+                    //      نبني IndexExpr أولاً → يُرجع closure pointer
+                    //      ثم نبني الوسائط ونُصدر CLOSURE_CALL
+                    // (EN) Indirect call: callee is IndexExpr (e.g. ops[0](2) or calc["add"](3,5))
+                    //      Build IndexExpr first → returns closure pointer
+                    //      Then build arguments and emit CLOSURE_CALL
+                    BuildResult closureResult = buildExprIndex(indexExpr);
+                    if (closureResult.registerName.empty())
+                        return BuildResult();
+
+                    // (AR) بناء الوسائط
+                    std::vector<SIROperand> argOps;
+                    for (auto &arg : call->arguments)
+                    {
+                        BuildResult argRes = buildExpression(arg.get());
+                        if (!argRes.registerName.empty())
+                            argOps.push_back(SIROperand::Register(argRes.registerName, argRes.type));
+                    }
+
+                    // (AR) إصدار CLOSURE_CALL
+                    std::string resultReg = newTempRegister();
+                    SIRInstruction closureCallInst;
+                    closureCallInst.opcode = SIROpcode::CLOSURE_CALL;
+                    closureCallInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    closureCallInst.operands.push_back(SIROperand::Register(closureResult.registerName, SadTypeKind::Function));
+                    for (const auto &argOp : argOps)
+                    {
+                        closureCallInst.operands.push_back(argOp);
+                    }
+                    closureCallInst.comment = "indexed closure call";
+                    if (currentBlock_)
+                        currentBlock_->addInstruction(closureCallInst);
+
+                    return BuildResult(resultReg, SadTypeKind::Integer);
+                }
                 else
                 {
                     // (AR) لا ندعم استدعاءات غير مباشرة حالياً
@@ -92,560 +130,90 @@ namespace Sad
                 }
 
                 // ========================================================================
-                // (AR) معالجة استدعاء الماكرو: اسم!(وسائط)
-                //      إذا كان isMacroCall = true، نبحث عن الماكرو في macros_ ونوسّعه
-                //      inline: نبني الوسائط، ننشئ نطاقاً معزولاً، نربط المعاملات
-                //      بالوسائط، ونبني جسم الماكرو مباشرة في النطاق الحالي.
-                //
-                //      الاستراتيجية: تحويل الماكرو إلى دالة SIR مُولَّدة تلقائياً
-                //      ثم استدعاؤها — يضمن العزل (hygiene) ويدعم ارجع (return) بشكل طبيعي.
-                //
-                // (EN) Handle macro call: name!(args)
-                //      If isMacroCall = true, find macro in macros_ and expand inline.
-                //      Strategy: convert macro to auto-generated SIR function then call it —
-                //      ensures hygiene and supports return naturally.
+                // (AR) مرحلة 1: توسيع الماكرو (إذا كان isMacroCall = true)
+                //      مستخرجة إلى buildMacroCallExpansion() في sir_builder_calls_macro.cpp
+                // (EN) Phase 1: Macro expansion (if isMacroCall = true)
+                //      Extracted to buildMacroCallExpansion() in sir_builder_calls_macro.cpp
                 // ========================================================================
-                if (call->isMacroCall)
                 {
-                    auto macroIt = macros_.find(funcName);
-                    if (macroIt == macros_.end())
-                    {
-                        errors_.push_back("Error: Macro '" + funcName + "' is not defined / الماكرو غير معرّف");
-                        return BuildResult();
-                    }
-
-                    auto *macroDef = macroIt->second;
-#ifndef NDEBUG
-                    std::cout << "[DEBUG] Expanding macro '" << funcName << "' with "
-                              << call->arguments.size() << " arguments" << std::endl;
-#endif
-
-                    // (AR) الخطوة 1: التحقق من عدد الوسائط
-                    // (EN) Step 1: Validate argument count
-                    size_t requiredParams = macroDef->isVariadic
-                                                ? macroDef->params.size() - 1
-                                                : macroDef->params.size();
-
-                    if (!macroDef->isVariadic && call->arguments.size() != requiredParams)
-                    {
-                        errors_.push_back("Error: Macro '" + funcName + "' expects " +
-                                          std::to_string(requiredParams) + " arguments, got " +
-                                          std::to_string(call->arguments.size()));
-                        return BuildResult();
-                    }
-                    if (macroDef->isVariadic && call->arguments.size() < requiredParams)
-                    {
-                        errors_.push_back("Error: Macro '" + funcName + "' requires at least " +
-                                          std::to_string(requiredParams) + " arguments, got " +
-                                          std::to_string(call->arguments.size()));
-                        return BuildResult();
-                    }
-
-                    // (AR) الخطوة 2: بناء الوسائط في النطاق الحالي (قبل دخول النطاق المعزول)
-                    // (EN) Step 2: Build arguments in current scope (before entering isolated scope)
-                    std::vector<BuildResult> argResults;
-                    for (size_t i = 0; i < call->arguments.size(); ++i)
-                    {
-                        argResults.push_back(buildExpression(call->arguments[i].get()));
-                    }
-
-                    // (AR) الخطوة 3: إنشاء دالة SIR مؤقتة للماكرو
-                    //      نولد اسماً فريداً لكل استدعاء: __macro_اسم_N
-                    //      نوع الإرجاع I64 (يمكن أن يُرجع الماكرو قيمة عبر ارجع)
-                    // (EN) Step 3: Create temporary SIR function for macro
-                    //      Generate unique name per call: __macro_name_N
-                    //      Return type I64 (macro can return value via return)
-                    std::string macroFuncName = "__macro_" + funcName + "_" + std::to_string(nextTempRegister_++);
-
-                    // (AR) استنتاج نوع الإرجاع من جسم الماكرو
-                    // (EN) Infer return type from macro body
-                    SadTypeKind macroRetType = SadTypeKind::Void;
-                    if (macroDef->body && hasReturnWithValue(macroDef->body.get()))
-                    {
-                        macroRetType = inferReturnTypeFromBody(macroDef->body.get());
-                        if (macroRetType == SadTypeKind::Void)
-                        {
-                            macroRetType = SadTypeKind::Integer; // (AR) افتراضي / (EN) default
-                        }
-                    }
-
-                    auto macroFunc = std::make_shared<SIRFunction>(macroFuncName, macroRetType);
-
-                    // (AR) الخطوة 4: إضافة المعاملات للدالة المؤقتة
-                    // (EN) Step 4: Add parameters to temporary function
-                    for (size_t i = 0; i < requiredParams; ++i)
-                    {
-                        SadTypeKind paramType = (i < argResults.size()) ? argResults[i].type : SadTypeKind::Integer;
-                        macroFunc->addParameter(SIRParameter(macroDef->params[i], paramType));
-                    }
-
-                    // (AR) المعامل المتغير: مصفوفة واحدة تحتوي الباقي
-                    // (EN) Variadic parameter: single array containing the rest
-                    if (macroDef->isVariadic)
-                    {
-                        macroFunc->addParameter(SIRParameter(macroDef->params.back(), SadTypeKind::Struct));
-                    }
-
-                    // (AR) الخطوة 5: حفظ السياق الحالي وبناء جسم الماكرو في الدالة المؤقتة
-                    // (EN) Step 5: Save current context and build macro body in temp function
-                    auto savedCtx = saveContext();
-
-                    currentFunction_ = macroFunc;
-                    auto entryBlock = createBasicBlock("macro_entry");
-                    macroFunc->addBasicBlock(entryBlock);
-                    currentBlock_ = entryBlock;
-
-                    // (AR) دخول نطاق معزول وربط المعاملات
-                    // (EN) Enter isolated scope and bind parameters
-                    enterScope();
-
-                    for (size_t i = 0; i < requiredParams; ++i)
-                    {
-                        VariableInfo vi;
-                        vi.name = macroDef->params[i];
-                        vi.type = (i < argResults.size()) ? argResults[i].type : SadTypeKind::Integer;
-                        vi.registerName = "%" + macroDef->params[i];
-                        vi.isMutable = true;
-                        vi.isParameter = true;
-                        vi.scopeLevel = currentScopeLevel_;
-                        addVariable(vi);
-                    }
-
-                    // (AR) المعامل المتغير
-                    // (EN) Variadic parameter
-                    if (macroDef->isVariadic && !macroDef->params.empty())
-                    {
-                        VariableInfo vi;
-                        vi.name = macroDef->params.back();
-                        vi.type = SadTypeKind::Struct;
-                        vi.registerName = "%" + macroDef->params.back();
-                        vi.isMutable = true;
-                        vi.isParameter = true;
-                        vi.scopeLevel = currentScopeLevel_;
-                        addVariable(vi);
-                    }
-
-                    // (AR) بناء جسم الماكرو
-                    // (EN) Build macro body
-                    if (macroDef->body)
-                    {
-                        buildStatement(macroDef->body.get());
-                    }
-
-                    // (AR) إضافة ReturnVoid إذا لم يكن هناك terminator
-                    // (EN) Add ReturnVoid if no terminator exists
-                    if (currentBlock_ && !currentBlock_->getTerminator())
-                    {
-                        currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
-                    }
-
-                    exitScope();
-
-                    // (AR) إضافة الدالة المؤقتة إلى الوحدة
-                    // (EN) Add temporary function to module
-                    module_->addFunction(macroFunc);
-
-                    // (AR) تسجيل الدالة في جدول الدوال
-                    // (EN) Register function in function table
-                    FunctionInfo fi;
-                    fi.name = macroFuncName;
-                    fi.returnType = macroRetType;
-                    fi.sirFunction = macroFunc;
-                    functionTable_[macroFuncName] = fi;
-
-                    // (AR) الخطوة 6: استعادة السياق السابق
-                    // (EN) Step 6: Restore previous context
-                    restoreContext(std::move(savedCtx));
-
-                    // (AR) الخطوة 7: إصدار استدعاء الدالة المؤقتة
-                    // (EN) Step 7: Emit call to temporary function
-                    std::vector<SIROperand> callArgs;
-                    for (size_t i = 0; i < requiredParams && i < argResults.size(); ++i)
-                    {
-                        if (argResults[i].isConstant && !argResults[i].constantValue.empty())
-                        {
-                            switch (argResults[i].type)
-                            {
-                            case SadTypeKind::Integer:
-                                callArgs.push_back(SIROperand::ConstantI64(std::stoll(argResults[i].constantValue)));
-                                break;
-                            case SadTypeKind::Float:
-                                callArgs.push_back(SIROperand::ConstantF64(std::stod(argResults[i].constantValue)));
-                                break;
-                            case SadTypeKind::String:
-                                callArgs.push_back(SIROperand::ConstantString(argResults[i].constantValue));
-                                break;
-                            default:
-                                callArgs.push_back(SIROperand::Register(argResults[i].registerName, argResults[i].type));
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            callArgs.push_back(SIROperand::Register(argResults[i].registerName, argResults[i].type));
-                        }
-                    }
-
-                    // (AR) الوسائط المتغيرة: تُمرر كوسائط إضافية
-                    // (EN) Variadic arguments: passed as extra arguments
-                    if (macroDef->isVariadic)
-                    {
-                        for (size_t i = requiredParams; i < argResults.size(); ++i)
-                        {
-                            if (argResults[i].isConstant && !argResults[i].constantValue.empty())
-                            {
-                                switch (argResults[i].type)
-                                {
-                                case SadTypeKind::Integer:
-                                    callArgs.push_back(SIROperand::ConstantI64(std::stoll(argResults[i].constantValue)));
-                                    break;
-                                case SadTypeKind::Float:
-                                    callArgs.push_back(SIROperand::ConstantF64(std::stod(argResults[i].constantValue)));
-                                    break;
-                                case SadTypeKind::String:
-                                    callArgs.push_back(SIROperand::ConstantString(argResults[i].constantValue));
-                                    break;
-                                default:
-                                    callArgs.push_back(SIROperand::Register(argResults[i].registerName, argResults[i].type));
-                                    break;
-                                }
-                            }
-                            else
-                            {
-                                callArgs.push_back(SIROperand::Register(argResults[i].registerName, argResults[i].type));
-                            }
-                        }
-                    }
-
-                    std::string resultReg = newTempRegister();
-
-                    if (currentBlock_)
-                    {
-                        SIRInstruction callInst;
-                        callInst.opcode = SIROpcode::CALL;
-                        callInst.result = SIROperand::Register(resultReg, macroRetType);
-                        callInst.operands.push_back(SIROperand::Function(macroFuncName));
-                        for (auto &arg : callArgs)
-                        {
-                            callInst.operands.push_back(arg);
-                        }
-                        currentBlock_->addInstruction(callInst);
-                    }
-
-                    return BuildResult(resultReg, macroRetType);
+                    auto macroResult = buildMacroCallExpansion(call, funcName);
+                    if (macroResult.has_value())
+                        return *macroResult;
                 }
 
                 // ========================================================================
-                // (AR) تحميل عامل الاستدعاء الزائد (): إذا كان الاسم كائناً في classInstanceTypes_
-                //      مثال: ض(7) حيث ض كائن من صنف يحتوي 'عامل ()(قيمة)'
-                //      يتوافق مع expression_evaluator_calls.cpp:findOperator("()")
-                // (EN) Call operator overload (): if name is an object in classInstanceTypes_
-                //      Example: ض(7) where ض is an object with 'operator ()(value)'
-                //      Matches expression_evaluator_calls.cpp:findOperator("()")
+                // (AR) مرحلة 2: استدعاء عامل () على كائن (callable object invoke)
+                //      مستخرجة إلى buildCallableObjectInvoke() في sir_builder_calls_special.cpp
+                // (EN) Phase 2: Callable object invoke
+                //      Extracted to buildCallableObjectInvoke() in sir_builder_calls_special.cpp
                 // ========================================================================
                 {
-                    auto classIt = classInstanceTypes_.find(funcName);
-                    if (classIt != classInstanceTypes_.end())
+                    auto callableResult = buildCallableObjectInvoke(call, funcName);
+                    if (callableResult.has_value())
+                        return *callableResult;
+                }
+
+                // ========================================================================
+                // (AR) مرحلة 3: استدعاء باني الأب (super constructor)
+                //      مستخرجة إلى buildSuperConstructorCall() في sir_builder_calls_special.cpp
+                // (EN) Phase 3: Super constructor call
+                //      Extracted to buildSuperConstructorCall() in sir_builder_calls_special.cpp
+                // ========================================================================
+                {
+                    auto superResult = buildSuperConstructorCall(call, funcName);
+                    if (superResult.has_value())
+                        return *superResult;
+                }
+
+                // ========================================================================
+                // (AR) مرحلة 3.5: فحص إنشاء كائن بدون 'جديد' (class-as-function)
+                //      القاعدة: اسم_صنف(معاملات) بدون 'جديد' يُنشئ كائناً
+                //      يُفحص قبل بناء الوسائط لأننا نفوّض لـ buildNewObject
+                //      الذي يبني الوسائط ويستنتج أنواع الحقول بنفسه
+                //      هذا يتوافق مع المفسر الذي يدعم نفس القاعدة
+                // (EN) Phase 3.5: Check for class-as-function (create object without 'new')
+                //      Rule: ClassName(args) without 'new' creates an object
+                //      Checked BEFORE building arguments because we delegate to buildNewObject
+                //      which builds arguments and infers field types itself
+                // ========================================================================
+                {
+                    auto sirClass = module_->getClass(funcName);
+                    if (sirClass)
                     {
-                        std::string objClassName = classIt->second;
-                        // (AR) البحث عن __op_call__ في سلسلة الوراثة
-                        // (EN) Search for __op_call__ in inheritance chain
-                        std::string searchClass = objClassName;
-                        std::string fullOpName;
-                        bool found = false;
-                        while (!searchClass.empty())
+                        // (AR) الاسم صنف → إنشاء NewExpr مؤقت وتفويض لـ buildNewObject
+                        //      نستخدم الوسائط الأصلية من AST (لم تُبنَ بعد)
+                        // (EN) Name is a class → create temp NewExpr and delegate to buildNewObject
+                        //      Using original AST arguments (not yet built)
+                        Sad::AST::NewExpr tempNewExpr(funcName);
+                        for (auto &arg : call->arguments)
                         {
-                            fullOpName = searchClass + ".__op_call__";
-                            auto funcIt = functionTable_.find(fullOpName);
-                            if (funcIt != functionTable_.end())
-                            {
-                                found = true;
-                                break;
-                            }
-                            auto parentClass = module_->getClass(searchClass);
-                            if (parentClass && !parentClass->parentClass.empty())
-                            {
-                                searchClass = parentClass->parentClass;
-                            }
-                            else
-                            {
-                                break;
-                            }
+                            tempNewExpr.arguments.push_back(std::move(arg));
                         }
-
-                        if (found)
+                        auto result = buildNewObject(&tempNewExpr);
+                        // (AR) إعادة الوسائط إلى call node الأصلي (تجنب تدمير AST)
+                        // (EN) Restore arguments to original call node (avoid AST corruption)
+                        for (auto &arg : tempNewExpr.arguments)
                         {
-                            // (AR) بناء المعاملات
-                            // (EN) Build arguments
-                            std::vector<SIROperand> callArgOps;
-                            for (const auto &arg : call->arguments)
-                            {
-                                BuildResult argResult = buildExpression(arg.get());
-                                if (argResult.isConstant && !argResult.constantValue.empty())
-                                {
-                                    switch (argResult.type)
-                                    {
-                                    case SadTypeKind::Integer:
-                                        callArgOps.push_back(SIROperand::ConstantI64(std::stoll(argResult.constantValue)));
-                                        break;
-                                    case SadTypeKind::Float:
-                                        callArgOps.push_back(SIROperand::ConstantF64(std::stod(argResult.constantValue)));
-                                        break;
-                                    case SadTypeKind::String:
-                                        callArgOps.push_back(SIROperand::ConstantString(argResult.constantValue));
-                                        break;
-                                    default:
-                                        callArgOps.push_back(SIROperand::Register(argResult.registerName, argResult.type));
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    callArgOps.push_back(SIROperand::Register(argResult.registerName, argResult.type));
-                                }
-                            }
-
-                            // (AR) إصدار OBJECT_CALL
-                            // (EN) Emit OBJECT_CALL
-                            std::string resultReg = newTempRegister();
-                            auto &opInfo = functionTable_[fullOpName];
-                            SadTypeKind returnType = opInfo.returnType;
-
-                            if (currentBlock_)
-                            {
-                                SIRInstruction callInst;
-                                callInst.opcode = SIROpcode::OBJECT_CALL;
-                                callInst.result = SIROperand::Register(resultReg, returnType);
-                                // (AR) البحث عن سجل الكائن
-                                // (EN) Look up object register
-                                VariableInfo *varInfo = lookupVariable(funcName);
-                                std::string objReg = varInfo ? varInfo->registerName : ("%" + funcName);
-                                callInst.operands.push_back(SIROperand::Register(objReg, SadTypeKind::Integer));
-                                callInst.operands.push_back(SIROperand::ConstantString("__op_call__"));
-                                for (auto &op : callArgOps)
-                                {
-                                    callInst.operands.push_back(op);
-                                }
-                                currentBlock_->addInstruction(callInst);
-                            }
-
-                            BuildResult result(resultReg, returnType);
-                            result.className = objClassName;
-                            return result;
+                            call->arguments.push_back(std::move(arg));
                         }
+                        return result;
                     }
                 }
 
                 // ========================================================================
-                // (AR) التعامل مع استدعاء باني الأب: أساس(...) / الأساس(...) / super(...)
-                // (EN) Handle super constructor call: أساس(...) / الأساس(...) / super(...)
-                // ========================================================================
-                if ((funcName == "\xD8\xA3\xD8\xB3\xD8\xA7\xD8\xB3" ||                 // أساس
-                     funcName == "\xD8\xA7\xD9\x84\xD8\xA3\xD8\xB3\xD8\xA7\xD8\xB3" || // الأساس
-                     funcName == "\xD8\xA7\xD8\xB3\xD8\xA7\xD8\xB3" ||                 // اساس
-                     funcName == "\xD8\xA7\xD9\x84\xD8\xA7\xD8\xB3\xD8\xA7\xD8\xB3" || // الاساس
-                     funcName == "super") &&
-                    !currentClassName_.empty())
-                {
-                    // (AR) البحث عن الصنف الأب
-                    // (EN) Find parent class
-                    auto sirClass = module_->getClass(currentClassName_);
-                    if (sirClass && !sirClass->parentClass.empty())
-                    {
-                        std::string parentCtorName = sirClass->parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
-
-                        // (AR) بناء المعاملات
-                        // (EN) Build arguments
-                        std::vector<SIROperand> superArgs;
-                        superArgs.push_back(SIROperand::Register(kSelfRegisterName, SadTypeKind::Integer)); // self
-                        for (const auto &arg : call->arguments)
-                        {
-                            BuildResult argResult = buildExpression(arg.get());
-                            superArgs.push_back(SIROperand::Register(argResult.registerName, argResult.type));
-                        }
-
-                        // (AR) إصدار تعليمة CALL لباني الأب
-                        // (EN) Emit CALL instruction for parent constructor
-                        std::string superResultReg = newTempRegister();
-                        SIRInstruction callInst;
-                        callInst.opcode = SIROpcode::CALL;
-                        callInst.result = SIROperand::Register(superResultReg, SadTypeKind::Void);
-                        callInst.operands.push_back(SIROperand::Register(parentCtorName, SadTypeKind::Void));
-                        for (auto &op : superArgs)
-                        {
-                            callInst.operands.push_back(op);
-                        }
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(callInst);
-
-                        return BuildResult(superResultReg, SadTypeKind::Void);
-                    }
-                    // (AR) لا يوجد صنف أب - نتجاهل
-                    // (EN) No parent class - ignore
-                    return BuildResult();
-                }
-
-                // ========================================================================
-                // (AR) الخطوة 2: بناء المعاملات (arguments)
-                // (EN) Step 2: Build arguments
-                // المصدر: expressions.h:291 - arguments: ExprList = vector<ExprPtr>
+                // (AR) مرحلة 4: بناء قائمة الوسائط + ملء القيم الافتراضية
+                //      مستخرجة إلى buildCallArgumentsList() و fillDefaultCallArguments()
+                //      في sir_builder_calls_args.cpp
+                // (EN) Phase 4: Build argument list + fill defaults
+                //      Extracted to buildCallArgumentsList() and fillDefaultCallArguments()
+                //      in sir_builder_calls_args.cpp
                 // ========================================================================
                 std::vector<SIROperand> argOperands;
                 std::vector<BuildResult> argResults;
+                if (!buildCallArgumentsList(call, argOperands, argResults))
+                    return BuildResult();
+                fillDefaultCallArguments(call, funcName, argOperands, argResults);
 
-                for (const auto &arg : call->arguments)
-                {
-                    // (AR) بناء كل معامل باستخدام buildExpression (sir_builder.h:440)
-                    // (EN) Build each argument using buildExpression
-                    BuildResult argResult = buildExpression(arg.get());
-
-                    // (AR) فحص الفشل: فقط إذا لم يكن ثابتاً ولا في سجل
-                    // (EN) Check failure: only if neither constant nor in register
-                    if (argResult.registerName.empty() && !argResult.isConstant)
-                    {
-#ifndef NDEBUG
-                        std::cout << "[DEBUG] buildFunctionCall: failed to build argument" << std::endl;
-#endif
-                        errors_.push_back("Error: Failed to build function argument");
-                        return BuildResult();
-                    }
-
-                    argResults.push_back(argResult);
-
-                    // (AR) إنشاء SIROperand للمعامل (sir_types.h:355-362 - Register() أو Constant*)
-                    // (EN) Create SIROperand for argument
-                    SIROperand argOp;
-
-                    // (AR) إذا كان المعامل ثابتاً، استخدم Constant* factory methods
-                    // (EN) If argument is constant, use Constant* factory methods
-                    if (argResult.isConstant)
-                    {
-                        switch (argResult.type)
-                        {
-                        case SadTypeKind::String:
-                            // استخدام ConstantString (sir_types.h:353-361)
-                            argOp = SIROperand::ConstantString(argResult.constantValue);
-#ifndef NDEBUG
-                            std::cout << "[DEBUG] buildFunctionCall: added STRING constant='"
-                                      << argResult.constantValue << "'" << std::endl;
-#endif
-                            break;
-                        case SadTypeKind::Integer:
-                        {
-                            int64_t intVal = std::stoll(argResult.constantValue);
-                            argOp = SIROperand::ConstantI64(intVal);
-#ifndef NDEBUG
-                            std::cout << "[DEBUG] buildFunctionCall: added I64 constant="
-                                      << intVal << std::endl;
-#endif
-                            break;
-                        }
-                        case SadTypeKind::Float:
-                        {
-                            double floatVal = std::stod(argResult.constantValue);
-                            argOp = SIROperand::ConstantF64(floatVal);
-#ifndef NDEBUG
-                            std::cout << "[DEBUG] buildFunctionCall: added F64 constant="
-                                      << floatVal << std::endl;
-#endif
-                            break;
-                        }
-                        case SadTypeKind::Boolean:
-                        {
-                            bool boolVal = (argResult.constantValue == "true");
-                            argOp = SIROperand::ConstantBool(boolVal);
-#ifndef NDEBUG
-                            std::cout << "[DEBUG] buildFunctionCall: added BOOL constant="
-                                      << boolVal << std::endl;
-#endif
-                            break;
-                        }
-                        default:
-                            // للأنواع الأخرى، استخدم Register كافتراضي
-                            argOp = SIROperand::Register(argResult.registerName, argResult.type);
-#ifndef NDEBUG
-                            std::cout << "[DEBUG] buildFunctionCall: added register='"
-                                      << argResult.registerName << "', type="
-                                      << static_cast<int>(argResult.type) << std::endl;
-#endif
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        // (AR) للمتغيرات، استخدم Register
-                        // (EN) For variables, use Register
-                        argOp = SIROperand::Register(argResult.registerName, argResult.type);
-#ifndef NDEBUG
-                        std::cout << "[DEBUG] buildFunctionCall: added register='"
-                                  << argResult.registerName << "', type="
-                                  << static_cast<int>(argResult.type) << std::endl;
-#endif
-                    }
-
-                    argOperands.push_back(argOp);
-                }
-
-                // ========================================================================
-                // (AR) الخطوة 2.3: ملء القيم الافتراضية للمعاملات الناقصة
-                //      إذا كان عدد الوسائط أقل من عدد المعاملات، نبحث عن قيم افتراضية
-                //      في AST ونبنيها كوسائط إضافية
-                // (EN) Step 2.3: Fill default parameter values for missing arguments
-                //      If fewer arguments than parameters, look for default values in AST
-                //      and build them as additional arguments
-                // ========================================================================
-                {
-                    auto ftIt2 = functionTable_.find(funcName);
-                    if (ftIt2 != functionTable_.end() && ftIt2->second.astDecl)
-                    {
-                        auto *astDecl = ftIt2->second.astDecl;
-                        size_t numParams = astDecl->parameters.size();
-                        size_t numArgs = argOperands.size();
-                        if (numArgs < numParams)
-                        {
-                            for (size_t i = numArgs; i < numParams; i++)
-                            {
-                                if (astDecl->parameters[i].defaultValue)
-                                {
-                                    // (AR) بناء التعبير الافتراضي
-                                    // (EN) Build default value expression
-                                    auto defResult = buildExpression(astDecl->parameters[i].defaultValue.get());
-                                    argResults.push_back(defResult);
-
-                                    SIROperand defOp;
-                                    if (defResult.isConstant)
-                                    {
-                                        switch (defResult.type)
-                                        {
-                                        case SadTypeKind::String:
-                                            defOp = SIROperand::ConstantString(defResult.constantValue);
-                                            break;
-                                        case SadTypeKind::Integer:
-                                            defOp = SIROperand::ConstantI64(std::stoll(defResult.constantValue));
-                                            break;
-                                        case SadTypeKind::Float:
-                                            defOp = SIROperand::ConstantF64(std::stod(defResult.constantValue));
-                                            break;
-                                        case SadTypeKind::Boolean:
-                                            defOp = SIROperand::ConstantBool(defResult.constantValue == "true");
-                                            break;
-                                        default:
-                                            defOp = SIROperand::Register(defResult.registerName, defResult.type);
-                                            break;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        defOp = SIROperand::Register(defResult.registerName, defResult.type);
-                                    }
-                                    argOperands.push_back(defOp);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // ========================================================================
                 // (AR) الخطوة 2.5: التحقق من الدوال المضمنة
                 // (EN) Step 2.5: Check for builtin functions
                 // ========================================================================
@@ -698,6 +266,22 @@ namespace Sad
                 {
 #ifdef SIR_BUILDER_DEBUG
                     std::cerr << "[SIR-DBG] buildFunctionCall: handled by BuiltinSystem! type="
+                              << static_cast<int>(builtinResult.value().type) << std::endl;
+#endif
+                    return builtinResult.value();
+                }
+
+                // ========================================================================
+                // (AR) الخطوة 2.6: التحقق من الدوال المضمنة للشبكة
+                //      مقابس TCP/UDP، عميل HTTP، خادم HTTP، أدوات الشبكة
+                // (EN) Step 2.6: Check network builtin functions
+                //      TCP/UDP sockets, HTTP client, HTTP server, network utilities
+                // ========================================================================
+                builtinResult = buildBuiltinCallNetwork(funcName, isUserDefinedFunction, argResults, argOperands);
+                if (builtinResult.has_value())
+                {
+#ifdef SIR_BUILDER_DEBUG
+                    std::cerr << "[SIR-DBG] buildFunctionCall: handled by BuiltinNetwork! type="
                               << static_cast<int>(builtinResult.value().type) << std::endl;
 #endif
                     return builtinResult.value();
@@ -850,12 +434,25 @@ namespace Sad
                                 }
                                 else if (argType == SadTypeKind::Float)
                                 {
-                                    // (AR) استخدام snprintf مع %g لإنتاج تنسيق مطابق لما يُنتجه المترجم في وقت التشغيل
-                                    //      مثال: 3.14 بدلاً من 3.140000 (الذي يُنتجه std::to_string)
-                                    // (EN) Use snprintf with %g to produce format matching runtime output
-                                    //      e.g., 3.14 instead of 3.140000 (which std::to_string produces)
+                                    // (AR) إصلاح: استخدام %.6f + حذف أصفار زائدة لمطابقة دقة المفسر
+                                    //      المفسر يستخدم std::fixed << setprecision(6) + strip trailing zeros
+                                    //      %g يعطي 6 أرقام معنوية (3.14159) بينما المفسر يعطي 6 خانات عشرية (3.141593)
+                                    // (EN) Fix: use %.6f + strip trailing zeros to match interpreter precision
+                                    //      interpreter uses std::fixed << setprecision(6) + strip trailing zeros
                                     char buf[64];
-                                    std::snprintf(buf, sizeof(buf), "%g", argOperands[i].floatValue);
+                                    std::snprintf(buf, sizeof(buf), "%.6f", argOperands[i].floatValue);
+                                    // (AR) حذف الأصفار الزائدة بعد النقطة العشرية
+                                    // (EN) Strip trailing zeros after decimal point
+                                    char *dot = strchr(buf, '.');
+                                    if (dot)
+                                    {
+                                        char *end = buf + strlen(buf) - 1;
+                                        while (end > dot && *end == '0')
+                                            end--;
+                                        if (*end == '.')
+                                            end--;
+                                        *(end + 1) = '\0';
+                                    }
                                     argOperands[i] = SIROperand::ConstantString(buf);
                                 }
                             }
@@ -1044,6 +641,89 @@ namespace Sad
                     }
                 }
 
+                // ================================================================
+                // (AR) [Fix #049-Part2] استنتاج نوع الإرجاع لدوال الرتبة العليا (pass-through)
+                //      إذا كان نوع الإرجاع Integer (الافتراضي الناتج عن استدعاء غير مباشر)
+                //      وأحد الوسائط إغلاق بنوع إرجاع معروف، نفحص SIR الدالة:
+                //      - هل يوجد CLOSURE_CALL/CALL_INDIRECT يُعيد نتيجته مباشرة عبر RET؟
+                //      - إذا نعم: الدالة "pass-through" تُعيد نتيجة اللامدا
+                //      - نستخدم نوع إرجاع اللامدا المُمررة بدلاً من الافتراضي Integer
+                //      مثال: دالة طبّق(دالة_, قيمة) → ارجع دالة_(قيمة)
+                //             طبّق(ربط, "عالم") حيث ربط لامدا تُرجع نصاً → returnType = String
+                // (EN) [Fix #049-Part2] Return type inference for higher-order pass-through functions
+                //      If return type is Integer (default from indirect call inference)
+                //      and an argument is a closure with known return type, check SIR:
+                //      - Does a CLOSURE_CALL/CALL_INDIRECT result flow directly to RET?
+                //      - If yes: function is "pass-through", returns the lambda's result
+                //      - Use the passed lambda's return type instead of default Integer
+                // ================================================================
+                if (returnType == SadTypeKind::Integer && it != functionTable_.end() &&
+                    it->second.sirFunction)
+                {
+                    auto &funcInfo = it->second;
+                    // (AR) الخطوة أ: فحص نمط pass-through في SIR
+                    //      نجمع نتائج CLOSURE_CALL/CALL_INDIRECT ثم نتحقق إذا كان RET يستخدمها
+                    // (EN) Step A: Detect pass-through pattern in SIR
+                    std::set<std::string> indirectCallResults;
+                    bool hasPassThrough = false;
+
+                    for (const auto &block : funcInfo.sirFunction->basicBlocks)
+                    {
+                        for (const auto &inst : block->instructions)
+                        {
+                            if ((inst.opcode == SIROpcode::CLOSURE_CALL ||
+                                 inst.opcode == SIROpcode::CALL_INDIRECT) &&
+                                inst.result.has_value())
+                            {
+                                indirectCallResults.insert(inst.result->name);
+                            }
+                            if (inst.opcode == SIROpcode::RET && !inst.operands.empty())
+                            {
+                                if (indirectCallResults.count(inst.operands[0].name))
+                                {
+                                    hasPassThrough = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // (AR) الخطوة ب: إذا كانت pass-through، ابحث عن نوع إرجاع اللامدا المُمررة
+                    // (EN) Step B: If pass-through, find the passed lambda's return type
+                    if (hasPassThrough)
+                    {
+                        for (size_t i = 0; i < argResults.size() && i < call->arguments.size(); i++)
+                        {
+                            if (argResults[i].type == SadTypeKind::Function)
+                            {
+                                // (AR) فحص: هل الوسيط متغير يحمل إغلاقاً بنوع إرجاع معروف؟
+                                // (EN) Check: is the argument a variable holding a closure with known return type?
+                                if (auto *argVarExpr = dynamic_cast<const Sad::AST::VariableExpr *>(
+                                        call->arguments[i].get()))
+                                {
+                                    VariableInfo *argVarInfo = lookupVariable(argVarExpr->name);
+                                    if (argVarInfo && !argVarInfo->closureLambdaName.empty())
+                                    {
+                                        auto lambdaIt = functionTable_.find(argVarInfo->closureLambdaName);
+                                        if (lambdaIt != functionTable_.end() &&
+                                            lambdaIt->second.returnType != SadTypeKind::Integer &&
+                                            lambdaIt->second.returnType != SadTypeKind::Void)
+                                        {
+                                            returnType = lambdaIt->second.returnType;
+#ifndef NDEBUG
+                                            std::cout << "[DEBUG] buildFunctionCall: pass-through detected for '"
+                                                      << funcName << "', specialized returnType to "
+                                                      << static_cast<int>(returnType) << " from lambda '"
+                                                      << argVarInfo->closureLambdaName << "'" << std::endl;
+#endif
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // ========================================================================
                 // (AR) الخطوة 4: إنشاء سجل النتيجة وتعليمة الاستدعاء
                 // (EN) Step 4: Create result register and call instruction
@@ -1157,6 +837,66 @@ namespace Sad
                     //      even if not stored in variable directly
                     classInstanceTypes_[resultReg] = it->second.returnClassName;
                 }
+
+                // ================================================================
+                // (AR) [Fix #049-Part1] نشر اسم اللامدا المُرجعة إلى BuildResult
+                //      إذا كانت الدالة تُرجع إغلاقاً (لديها returnLambdaName)،
+                //      ننقل هذا الاسم إلى BuildResult.closureLambdaName
+                //      حتى يتمكن buildLocalVariable من تسجيله في VariableInfo.
+                //      هذا يحل مشكلة: متغير أ = مصنع("أ", 10) ثم أ() ← كان يُعيد i64 كرقم
+                //      لأن closureLambdaName لم يكن يُنشر من FunctionInfo.returnLambdaName
+                //      إلى BuildResult، فـ CLOSURE_CALL لم يعرف نوع إرجاع اللامدا.
+                // (EN) [Fix #049-Part1] Propagate returned lambda name to BuildResult
+                //      If function returns a closure (has returnLambdaName),
+                //      transfer to BuildResult.closureLambdaName so buildLocalVariable
+                //      can register it in VariableInfo. Fixes: var a = factory("a", 10)
+                //      then a() was returning i64 as number because closureLambdaName
+                //      was not propagated from FunctionInfo.returnLambdaName.
+                // ================================================================
+                if (it != functionTable_.end() && !it->second.returnLambdaName.empty())
+                {
+                    result.closureLambdaName = it->second.returnLambdaName;
+                }
+
+                // ================================================================
+                // (AR) [Fix #099] نشر أنواع القنوات من معاملات الدالة إلى وسائط الاستدعاء
+                //      عندما تُمرر قناة كوسيط لدالة تُرسل إليها (أرسل)، يُسجّل
+                //      نوع العنصر في channelTypeMap_ باسم المعامل (داخل الدالة).
+                //      لكن عند الاستقبال (استقبل) من نفس القناة في النطاق الخارجي،
+                //      الاسم مختلف (ق_تحيات vs ق) فلا يُعثر على النوع.
+                //      الحل: عند الاستدعاء، ننشر channelTypeMap_ من أسماء المعاملات
+                //      إلى أسماء الوسائط في موقع الاستدعاء.
+                // (EN) [Fix #099] Propagate channel types from function params to call-site args
+                //      When a channel is passed to a function that sends to it,
+                //      the element type is registered under the parameter name.
+                //      But when receiving from the same channel in the outer scope,
+                //      the variable name differs, so type lookup fails.
+                //      Fix: at call site, propagate channelTypeMap_ entries from
+                //      parameter names to argument variable names.
+                // ================================================================
+                if (it != functionTable_.end())
+                {
+                    auto &funcInfo = it->second;
+                    for (size_t i = 0; i < funcInfo.parameters.size() && i < call->arguments.size(); i++)
+                    {
+                        auto ctIt = channelTypeMap_.find(funcInfo.parameters[i].name);
+                        if (ctIt != channelTypeMap_.end())
+                        {
+                            // (AR) وُجد نوع قناة مُسجّل باسم المعامل — ننشره لاسم الوسيط
+                            // (EN) Found channel type registered under param name — propagate to arg name
+                            if (auto *argVar = dynamic_cast<const AST::VariableExpr *>(
+                                    call->arguments[i].get()))
+                            {
+                                channelTypeMap_[argVar->name] = ctIt->second;
+                            }
+                            if (i < argOperands.size())
+                            {
+                                channelTypeMap_[argOperands[i].name] = ctIt->second;
+                            }
+                        }
+                    }
+                }
+
                 return result;
             }
 

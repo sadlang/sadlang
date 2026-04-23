@@ -237,8 +237,6 @@ namespace Sad
                     uint64_t base = args.empty() ? 0xFEE00000ULL : static_cast<uint64_t>(args[0]->toDouble());
                     return std::make_shared<Data::Value>(sehAPICInit(base));
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9", f);
-                fm.registerBuiltinFunction("apic_init", f);
             }
             {
                 // تعطيل وحدة التحكم PIC القديمة عبر SEH
@@ -247,8 +245,6 @@ namespace Sad
                     (void)args;
                     return std::make_shared<Data::Value>(sehAPICDisablePIC());
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xb9\xd8\xb7\xd9\x84_pic", f);
-                fm.registerBuiltinFunction("apic_disable_pic", f);
             }
             {
                 // معايرة مؤقت APIC عبر SEH
@@ -257,8 +253,6 @@ namespace Sad
                     uint32_t hz = args.empty() ? 1000 : static_cast<uint32_t>(args[0]->toInt());
                     return std::make_shared<Data::Value>(static_cast<double>(sehAPICCalibrateTimer(hz)));
                 };
-                fm.registerBuiltinFunction("apic_\xd9\x85\xd8\xb9\xd8\xa7\xd9\x8a\xd8\xb1\xd8\xa9_\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa", f);
-                fm.registerBuiltinFunction("apic_calibrate_timer", f);
             }
 #endif
 
@@ -278,8 +272,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(0);
 #endif
                 };
-                fm.registerBuiltinFunction("acpi_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9", f);
-                fm.registerBuiltinFunction("acpi_init", f);
             }
 
             // 2. acpi_تهيئة_من_rsdp / acpi_init_from_rsdp
@@ -297,8 +289,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(0);
 #endif
                 };
-                fm.registerBuiltinFunction("acpi_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9_\xd9\x85\xd9\x86_rsdp", f);
-                fm.registerBuiltinFunction("acpi_init_from_rsdp", f);
             }
 
             // 3. acpi_بحث_جدول / acpi_find_table
@@ -315,8 +305,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(static_cast<double>(reinterpret_cast<uintptr_t>(ptr)));
 #endif
                 };
-                fm.registerBuiltinFunction("acpi_\xd8\xa8\xd8\xad\xd8\xab_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84", f);
-                fm.registerBuiltinFunction("acpi_find_table", f);
             }
 
             // 4. acpi_تفعيل / acpi_enable
@@ -331,8 +319,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(a.enableACPI() ? 0 : -1);
 #endif
                 };
-                fm.registerBuiltinFunction("acpi_\xd8\xaa\xd9\x81\xd8\xb9\xd9\x8a\xd9\x84", f);
-                fm.registerBuiltinFunction("acpi_enable", f);
             }
 
             // 5. acpi_تعطيل / acpi_disable
@@ -342,8 +328,6 @@ namespace Sad
                     (void)args;
                     return std::make_shared<Data::Value>(0);
                 };
-                fm.registerBuiltinFunction("acpi_\xd8\xaa\xd8\xb9\xd8\xb7\xd9\x8a\xd9\x84", f);
-                fm.registerBuiltinFunction("acpi_disable", f);
             }
 
             // 6. acpi_نوم / acpi_sleep
@@ -358,8 +342,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(a.enterSleepState(static_cast<LowLevel::SleepState>(state)) ? 0 : -1);
 #endif
                 };
-                fm.registerBuiltinFunction("acpi_\xd9\x86\xd9\x88\xd9\x85", f);
-                fm.registerBuiltinFunction("acpi_sleep", f);
             }
 
             // 7. acpi_قراءة_مؤقت / acpi_read_pm_timer
@@ -370,8 +352,6 @@ namespace Sad
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<double>(a.readPMTimer()));
                 };
-                fm.registerBuiltinFunction("acpi_\xd9\x82\xd8\xb1\xd8\xa7\xd8\xa1\xd8\xa9_\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa", f);
-                fm.registerBuiltinFunction("acpi_read_pm_timer", f);
             }
 
             // 8. acpi_مؤقت_32بت / acpi_is_pm_timer_32bit
@@ -382,8 +362,6 @@ namespace Sad
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(a.isPMTimer32Bit() ? 1 : 0);
                 };
-                fm.registerBuiltinFunction("acpi_\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa_32\xd8\xa8\xd8\xaa", f);
-                fm.registerBuiltinFunction("acpi_is_pm_timer_32bit", f);
             }
 
             // 9. acpi_تأخير / acpi_delay_us
@@ -395,8 +373,6 @@ namespace Sad
                     a.delayMicroseconds(us);
                     return std::make_shared<Data::Value>(0);
                 };
-                fm.registerBuiltinFunction("acpi_\xd8\xaa\xd8\xa3\xd8\xae\xd9\x8a\xd8\xb1", f);
-                fm.registerBuiltinFunction("acpi_delay_us", f);
             }
 
             // 10. acpi_عدد_معالجات / acpi_processor_count
@@ -407,8 +383,6 @@ namespace Sad
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(a.getProcessorCount()));
                 };
-                fm.registerBuiltinFunction("acpi_\xd8\xb9\xd8\xaf\xd8\xaf_\xd9\x85\xd8\xb9\xd8\xa7\xd9\x84\xd8\xac\xd8\xa7\xd8\xaa", f);
-                fm.registerBuiltinFunction("acpi_processor_count", f);
             }
 
             // 11. acpi_إصدار / acpi_version
@@ -419,8 +393,6 @@ namespace Sad
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(a.getACPIVersion()));
                 };
-                fm.registerBuiltinFunction("acpi_\xd8\xa5\xd8\xb5\xd8\xaf\xd8\xa7\xd8\xb1", f);
-                fm.registerBuiltinFunction("acpi_version", f);
             }
 
             // 12. acpi_هل_مهيأ / acpi_is_initialized
@@ -431,8 +403,6 @@ namespace Sad
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(a.isInitialized() ? 1 : 0);
                 };
-                fm.registerBuiltinFunction("acpi_\xd9\x87\xd9\x84_\xd9\x85\xd9\x87\xd9\x8a\xd8\xa3", f);
-                fm.registerBuiltinFunction("acpi_is_initialized", f);
             }
 
             // 13. acpi_عنوان_apic / acpi_local_apic_address
@@ -443,8 +413,6 @@ namespace Sad
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<double>(a.getLocalAPICAddress()));
                 };
-                fm.registerBuiltinFunction("acpi_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_apic", f);
-                fm.registerBuiltinFunction("acpi_local_apic_address", f);
             }
 
             // 14. acpi_ecam_قاعدة / acpi_ecam_base
@@ -456,8 +424,6 @@ namespace Sad
                     auto &a = LowLevel::ACPIManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<double>(a.getECAMBase(seg, bus)));
                 };
-                fm.registerBuiltinFunction("acpi_ecam_\xd9\x82\xd8\xa7\xd8\xb9\xd8\xaf\xd8\xa9", f);
-                fm.registerBuiltinFunction("acpi_ecam_base", f);
             }
 
             // ═══════════════════════════════════════════════════════════════
@@ -471,8 +437,6 @@ namespace Sad
                     auto &a = LowLevel::APICManager::getInstance();
                     return std::make_shared<Data::Value>(a.isAPICSupported() ? 1 : 0);
                 };
-                fm.registerBuiltinFunction("apic_\xd9\x85\xd8\xaf\xd8\xb9\xd9\x88\xd9\x85", f);
-                fm.registerBuiltinFunction("apic_supported", f);
             }
 
             // 2. apic_x2_مدعوم / apic_x2_supported
@@ -483,8 +447,6 @@ namespace Sad
                     auto &a = LowLevel::APICManager::getInstance();
                     return std::make_shared<Data::Value>(a.isX2APICSupported() ? 1 : 0);
                 };
-                fm.registerBuiltinFunction("apic_x2_\xd9\x85\xd8\xaf\xd8\xb9\xd9\x88\xd9\x85", f);
-                fm.registerBuiltinFunction("apic_x2_supported", f);
             }
 
             // 3. apic_معرّف / apic_id
@@ -495,8 +457,6 @@ namespace Sad
                     auto &a = LowLevel::APICManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(a.getAPICId()));
                 };
-                fm.registerBuiltinFunction("apic_\xd9\x85\xd8\xb9\xd8\xb1\xd9\x81", f);
-                fm.registerBuiltinFunction("apic_id", f);
             }
 
             // 4. apic_أولوية_مهمة / apic_set_priority
@@ -508,8 +468,6 @@ namespace Sad
                     a.setTaskPriority(prio);
                     return std::make_shared<Data::Value>(0);
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xa3\xd9\x88\xd9\x84\xd9\x88\xd9\x8a\xd8\xa9_\xd9\x85\xd9\x87\xd9\x85\xd8\xa9", f);
-                fm.registerBuiltinFunction("apic_set_priority", f);
             }
 
             // 5. apic_تهيئة_مؤقت / apic_init_timer
@@ -523,8 +481,6 @@ namespace Sad
                     a.initTimer(vec, static_cast<LowLevel::TimerMode>(mode), static_cast<LowLevel::TimerDivide>(div));
                     return std::make_shared<Data::Value>(0);
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9_\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa", f);
-                fm.registerBuiltinFunction("apic_init_timer", f);
             }
 
             // 6. apic_بدء_مؤقت / apic_start_timer
@@ -536,8 +492,6 @@ namespace Sad
                     a.startTimer(count);
                     return std::make_shared<Data::Value>(0);
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xa8\xd8\xaf\xd8\xa1_\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa", f);
-                fm.registerBuiltinFunction("apic_start_timer", f);
             }
 
             // 7. apic_إيقاف_مؤقت / apic_stop_timer
@@ -549,8 +503,6 @@ namespace Sad
                     a.stopTimer();
                     return std::make_shared<Data::Value>(0);
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xa5\xd9\x8a\xd9\x82\xd8\xa7\xd9\x81_\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa", f);
-                fm.registerBuiltinFunction("apic_stop_timer", f);
             }
 
             // 8. apic_عداد_مؤقت / apic_timer_count
@@ -561,8 +513,6 @@ namespace Sad
                     auto &a = LowLevel::APICManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(a.getTimerCount()));
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf_\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa", f);
-                fm.registerBuiltinFunction("apic_timer_count", f);
             }
 
             // 9. apic_أرسل_للكل / apic_send_ipi_all
@@ -575,8 +525,6 @@ namespace Sad
                     a.sendIPIToAll(vec, self);
                     return std::make_shared<Data::Value>(0);
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84_\xd9\x84\xd9\x84\xd9\x83\xd9\x84", f);
-                fm.registerBuiltinFunction("apic_send_ipi_all", f);
             }
 
             // 10. apic_أرسل_init / apic_send_init
@@ -589,8 +537,6 @@ namespace Sad
                     a.sendINIT(dest);
                     return std::make_shared<Data::Value>(0);
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84_init", f);
-                fm.registerBuiltinFunction("apic_send_init", f);
             }
 
             // 11. apic_أرسل_sipi / apic_send_sipi
@@ -605,8 +551,6 @@ namespace Sad
                     a.sendSIPI(dest, page);
                     return std::make_shared<Data::Value>(0);
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84_sipi", f);
-                fm.registerBuiltinFunction("apic_send_sipi", f);
             }
 
             // 12. apic_انتظر_تسليم / apic_wait_delivery
@@ -618,8 +562,6 @@ namespace Sad
                     a.waitForDelivery();
                     return std::make_shared<Data::Value>(0);
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1_\xd8\xaa\xd8\xb3\xd9\x84\xd9\x8a\xd9\x85", f);
-                fm.registerBuiltinFunction("apic_wait_delivery", f);
             }
 
             // 13. apic_قناع_irq / apic_mask_irq
@@ -635,8 +577,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(0);
 #endif
                 };
-                fm.registerBuiltinFunction("apic_\xd9\x82\xd9\x86\xd8\xa7\xd8\xb9_irq", f);
-                fm.registerBuiltinFunction("apic_mask_irq", f);
             }
 
             // 14. apic_إلغاء_قناع_irq / apic_unmask_irq
@@ -652,8 +592,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(0);
 #endif
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xa5\xd9\x84\xd8\xba\xd8\xa7\xd8\xa1_\xd9\x82\xd9\x86\xd8\xa7\xd8\xb9_irq", f);
-                fm.registerBuiltinFunction("apic_unmask_irq", f);
             }
 
             // 15. apic_عدد_io / apic_io_count
@@ -664,8 +602,6 @@ namespace Sad
                     auto &a = LowLevel::APICManager::getInstance();
                     return std::make_shared<Data::Value>(static_cast<int>(a.getIOAPICCount()));
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xb9\xd8\xaf\xd8\xaf_io", f);
-                fm.registerBuiltinFunction("apic_io_count", f);
             }
 
             // 16. apic_تهيئة_io / apic_init_io
@@ -684,8 +620,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(a.initIOAPIC(id, base, gsib) ? 0 : -1);
 #endif
                 };
-                fm.registerBuiltinFunction("apic_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9_io", f);
-                fm.registerBuiltinFunction("apic_init_io", f);
             }
 
             // ═══════════════════════════════════════════════════════════════
@@ -708,7 +642,6 @@ namespace Sad
 #endif
                 };
                 // وجه without shaddah = \xd9\x88\xd8\xac\xd9\x87
-                fm.registerBuiltinFunction("apic_\xd9\x88\xd8\xac\xd9\x87_irq", f);
             }
 
         } // registerBuiltinsKernelACPI

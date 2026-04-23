@@ -72,7 +72,7 @@ bool StandardLibraryManager::registerPhase1_IOFunctions() {
     try {
         // Register print() - طبع()
         registerBuiltin(
-            "طبع",
+            "اطبع",
             "print",
             [](const std::vector<Value>& args) -> Value {
                 return IO::IOFunctions::print(args);

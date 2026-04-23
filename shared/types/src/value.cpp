@@ -392,9 +392,26 @@ namespace Sad
 
             case ValueType::DOUBLE:
             {
+                // (AR) إصلاح: استخدام fixed مع 6 خانات عشرية + حذف أصفار زائدة
+                //      لمطابقة سلوك valueToString() في io_functions.cpp
+                //      هذا يضمن تناسق التنسيق بين اطبع_سطر(ع) و "نص" + ع
+                // (EN) Fix: use fixed with 6 decimal places + strip trailing zeros
+                //      to match valueToString() behavior in io_functions.cpp
+                //      ensures consistent formatting between print(x) and "text" + x
                 std::ostringstream oss;
-                oss << std::get<double>(data_);
-                return oss.str();
+                oss << std::fixed << std::setprecision(6) << std::get<double>(data_);
+                std::string result = oss.str();
+                // (AR) حذف الأصفار الزائدة بعد النقطة العشرية
+                // (EN) Strip trailing zeros after decimal point
+                if (result.find('.') != std::string::npos)
+                {
+                    result.erase(result.find_last_not_of('0') + 1, std::string::npos);
+                    if (result.back() == '.')
+                    {
+                        result.pop_back();
+                    }
+                }
+                return result;
             }
 
             case ValueType::STRING:

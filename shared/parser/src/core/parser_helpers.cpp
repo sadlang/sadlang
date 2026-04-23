@@ -509,18 +509,43 @@ namespace Sad
             // Fetch new nextToken_ for lookahead
             nextToken_ = lexer_.nextToken();
 
+            // ─────────────────────────────────────────────────────────────────
+            // (AR) إصلاح BF-04 (السبب الجذري): ترحيل تعليقات التوثيق التي
+            //      ظهرت في دورة advance() السابقة أثناء ملء nextToken_.
+            //      تلك التعليقات تظهر فعلياً قبل current_ الجديد (لأن
+            //      current_ هو ما كان nextToken_)، فهي تنتمي إلى التصريح
+            //      الذي يبدأ عند current_ — وليس إلى التصريح السابق.
+            //
+            // (EN) BF-04 root-cause fix: promote doc comments that were
+            //      buffered in the previous advance() while refilling
+            //      nextToken_. Those doc comments physically precede the
+            //      new current_ (which IS the previous nextToken_), so they
+            //      belong to the declaration starting at current_, not to
+            //      the declaration that came before current_.
+            // ─────────────────────────────────────────────────────────────────
+            if (!nextDocComment_.empty())
+            {
+                if (!pendingDocComment_.empty())
+                    pendingDocComment_ += '\n';
+                pendingDocComment_ += nextDocComment_;
+                nextDocComment_.clear();
+            }
+
             // Skip whitespace, comments, and doc-comments in current_
             // (AR) تجاوز المسافات والتعليقات — التقاط التعليقات التوثيقية بدل تخطيها
+            // (AR) هذه التعليقات تسبق current_ النهائي فعلياً → pendingDocComment_
             while (current_.getType() == TT::WHITESPACE ||
                    current_.getType() == TT::COMMENT ||
                    current_.getType() == TT::DOC_COMMENT ||
                    current_.getType() == TT::NEWLINE)
             {
-                // (AR) التقاط التعليق التوثيقي الأخير — يُرفق بالتصريح التالي
-                // (EN) Capture last doc comment — will be attached to next declaration
+                // (AR) إصلاح BF-04: تجميع أسطر ## المتتالية (كل سطر = رمز منفصل)
+                // (EN) BF-04 fix: accumulate consecutive ## lines (each line = separate token)
                 if (current_.getType() == TT::DOC_COMMENT)
                 {
-                    pendingDocComment_ = current_.getValue();
+                    if (!pendingDocComment_.empty())
+                        pendingDocComment_ += '\n';
+                    pendingDocComment_ += current_.getValue();
                 }
                 current_ = nextToken_;
                 nextToken_ = lexer_.nextToken();
@@ -528,16 +553,23 @@ namespace Sad
 
             // Also skip whitespace in nextToken_ for correct lookahead (peekNext)
             // (AR) أيضاً تجاوز المسافات في nextToken_ للنظر المسبق الصحيح
+            // (AR) إصلاح BF-04: التعليقات هنا تظهر بعد current_ فعلياً —
+            //      نخزّنها مؤقتاً في nextDocComment_ ولا نضمها إلى pending الآن.
+            //      ستُرحَّل في advance() القادم عندما يصبح هذا الموقع هو current_.
+            // (EN) BF-04 fix: doc comments encountered while refilling
+            //      nextToken_ appear AFTER current_; buffer them in
+            //      nextDocComment_ instead of attaching to pending now. They
+            //      will be promoted on the next advance() once we cross them.
             while (nextToken_.getType() == TT::WHITESPACE ||
                    nextToken_.getType() == TT::COMMENT ||
                    nextToken_.getType() == TT::DOC_COMMENT ||
                    nextToken_.getType() == TT::NEWLINE)
             {
-                // (AR) التقاط التعليق التوثيقي من nextToken_ أيضاً
-                // (EN) Capture doc comment from nextToken_ too
                 if (nextToken_.getType() == TT::DOC_COMMENT)
                 {
-                    pendingDocComment_ = nextToken_.getValue();
+                    if (!nextDocComment_.empty())
+                        nextDocComment_ += '\n';
+                    nextDocComment_ += nextToken_.getValue();
                 }
                 nextToken_ = lexer_.nextToken();
             }

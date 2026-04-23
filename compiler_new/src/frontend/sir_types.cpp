@@ -247,6 +247,22 @@ namespace Sad
                     return "builtin.assert";
                 case SIROpcode::BUILTIN_DEBUG:
                     return "builtin.debug";
+                case SIROpcode::BUILTIN_LOG10:
+                    return "builtin.log10";
+                case SIROpcode::BUILTIN_LOG2:
+                    return "builtin.log2";
+                case SIROpcode::BUILTIN_ASIN:
+                    return "builtin.asin";
+                case SIROpcode::BUILTIN_ACOS:
+                    return "builtin.acos";
+                case SIROpcode::BUILTIN_TRUNC:
+                    return "builtin.trunc";
+                case SIROpcode::BUILTIN_FMOD:
+                    return "builtin.fmod";
+                case SIROpcode::BUILTIN_CLAMP:
+                    return "builtin.clamp";
+                case SIROpcode::BUILTIN_ATAN:
+                    return "builtin.atan";
 
                 // Hardware/OS Builtins
                 case SIROpcode::BUILTIN_PORT_WRITE:
@@ -592,6 +608,7 @@ namespace Sad
                 case SIROpcode::BUILTIN_POW:
                 case SIROpcode::BUILTIN_MIN:
                 case SIROpcode::BUILTIN_MAX:
+                case SIROpcode::BUILTIN_FMOD:
                     return 2;
 
                 // Unary operations (1 operand)
@@ -626,6 +643,12 @@ namespace Sad
                 case SIROpcode::BUILTIN_FLOOR:
                 case SIROpcode::BUILTIN_CEIL:
                 case SIROpcode::BUILTIN_ROUND:
+                case SIROpcode::BUILTIN_LOG10:
+                case SIROpcode::BUILTIN_LOG2:
+                case SIROpcode::BUILTIN_ASIN:
+                case SIROpcode::BUILTIN_ACOS:
+                case SIROpcode::BUILTIN_TRUNC:
+                case SIROpcode::BUILTIN_ATAN:
                     return 1;
 
                 // No operands

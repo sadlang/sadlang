@@ -36,6 +36,7 @@ set(PARSER_SOURCES
     shared/parser/src/core/parser_helpers.cpp
     shared/parser/src/declarations/parser_oop.cpp
     shared/parser/src/declarations/parser_modules.cpp
+    shared/parser/src/ui/parser_ui.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────
@@ -86,7 +87,9 @@ set(INTERPRETER_SOURCES
     interpreter_new/src/builtins/builtin_module_exceptions.cpp
     interpreter_new/src/builtins/builtin_module_platform.cpp
     interpreter_new/src/builtins/builtin_module_sockets.cpp
+    interpreter_new/src/builtins/builtin_module_http.cpp
     interpreter_new/src/builtins/builtin_module_sadnet.cpp
+    interpreter_new/src/builtins/builtin_module_websocket.cpp
     # UI Bridge (يربط المفسر بنظام واجهات sad_ui)
     interpreter_new/src/ui/ui_bridge.cpp
     interpreter_new/src/ui/ui_bridge_events.cpp
@@ -209,7 +212,6 @@ set(STDLIB_SOURCES
     stdlib/math/advanced_math.cpp
     stdlib/io/io_functions.cpp
     stdlib/filesystem/filesystem_module.cpp
-    stdlib/http/http_module.cpp
     stdlib/database/database_module.cpp
     stdlib/json/json_module.cpp
     stdlib/xml/xml_module.cpp
@@ -282,11 +284,13 @@ set(COMPILER_FRONTEND_SOURCES
     compiler_new/src/frontend/sir_builder_calls.cpp
     compiler_new/src/frontend/sir_builder_builtins_core.cpp
     compiler_new/src/frontend/sir_builder_builtins_system.cpp
+    compiler_new/src/frontend/sir_builder_builtins_network.cpp
     compiler_new/src/frontend/sir_builder_builtins_embedded.cpp
     compiler_new/src/frontend/sir_builder_builtins_security.cpp
     compiler_new/src/frontend/sir_builder_builtins_ffi.cpp
     compiler_new/src/frontend/sir_builder_builtins_async.cpp
     compiler_new/src/frontend/sir_builder_builtins_ui.cpp
+    compiler_new/src/frontend/sir_builder_module_check.cpp
     compiler_new/src/frontend/sir_builder_templates.cpp
 )
 

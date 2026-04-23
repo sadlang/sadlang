@@ -39,12 +39,11 @@ namespace Sad
         void registerBuiltinsAssertions(Interpreter &interpreter)
         {
 
-            
-    // ═══════════════════════════════════════════════════════════════
-    // (AR) دوال الأمان / (EN) Security Functions
-            
-    // ═══════════════════════════════════════════════════════════════
-    // تأكد / assert — يتحقق من صحة شرط ويرمي خطأ إذا فشل
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) دوال الأمان / (EN) Security Functions
+
+            // ═══════════════════════════════════════════════════════════════
+            // تأكد / assert — يتحقق من صحة شرط ويرمي خطأ إذا فشل
 
             // تحقق / verify — مثل تأكد لكن يعيد منطقي بدل رمي خطأ
 
@@ -61,7 +60,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("آمن", is_safe_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("is_safe", is_safe_func);
 
             // ذعر / panic — يرمي خطأ ذعر (غير قابل للتعافي عادة)
             auto panic_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -75,15 +73,13 @@ namespace Sad
                 return std::make_shared<Data::Value>(); // unreachable
             };
             interpreter.getFunctionManager().registerBuiltinFunction("ذعر", panic_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("panic", panic_func);
 
-            
-    // ═══════════════════════════════════════════════════════════════
-    // (AR) دوال التأكيد المتقدمة للاختبارات
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) دوال التأكيد المتقدمة للاختبارات
             // (EN) Advanced assertion functions for testing
-            
-    // ═══════════════════════════════════════════════════════════════
-    // تأكد_يساوي / assert_equal — يتحقق أن قيمتين متساويتان
+
+            // ═══════════════════════════════════════════════════════════════
+            // تأكد_يساوي / assert_equal — يتحقق أن قيمتين متساويتان
             auto assert_eq_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
                 if (args.size() < 2)
@@ -102,7 +98,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("تأكد_يساوي", assert_eq_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_eq", assert_eq_func);
 
             // تأكد_لا_يساوي / assert_not_equal — يتحقق أن قيمتين غير متساويتين
             auto assert_neq_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -123,8 +118,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("تأكد_لا_يساوي", assert_neq_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_not_equal", assert_neq_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_ne", assert_neq_func);
 
             // تأكد_صحيح / assert_true — يتحقق أن القيمة صحيحة
             auto assert_true_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -143,7 +136,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("تأكد_صحيح", assert_true_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_true", assert_true_func);
 
             // تأكد_خطأ / assert_false — يتحقق أن القيمة خاطئة
             auto assert_false_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -162,7 +154,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("تأكد_خطأ", assert_false_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_false", assert_false_func);
 
             // تأكد_لاشيء / assert_null — يتحقق أن القيمة لاشيء
             auto assert_null_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -181,7 +172,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("تأكد_لاشيء", assert_null_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_null", assert_null_func);
 
             // تأكد_ليس_لاشيء / assert_not_null — يتحقق أن القيمة ليست لاشيء
             auto assert_not_null_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -200,7 +190,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("تأكد_ليس_لاشيء", assert_not_null_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_not_null", assert_not_null_func);
 
             // تأكد_أكبر / assert_greater — يتحقق أن القيمة الأولى أكبر
             auto assert_gt_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -218,7 +207,6 @@ namespace Sad
                 }
                 return std::make_shared<Data::Value>(true);
             };
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_gt", assert_gt_func);
 
             // تأكد_أصغر / assert_less — يتحقق أن القيمة الأولى أصغر
             auto assert_lt_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -237,16 +225,13 @@ namespace Sad
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("تأكد_أصغر", assert_lt_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_less", assert_lt_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_lt", assert_lt_func);
 
-            
-    // ═══════════════════════════════════════════════════════════════
-    // (AR) SHA-256 نقي بلغة C++ — بدون اعتماد على OpenSSL
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) SHA-256 نقي بلغة C++ — بدون اعتماد على OpenSSL
             // (EN) Pure C++ SHA-256 — no OpenSSL dependency
-            
-    // ═══════════════════════════════════════════════════════════════
-    // هاش / hash — يحسب هاش SHA-256 حقيقي لنص
+
+            // ═══════════════════════════════════════════════════════════════
+            // هاش / hash — يحسب هاش SHA-256 حقيقي لنص
             auto hash_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
                 if (args.empty())
@@ -335,15 +320,13 @@ namespace Sad
                 return std::make_shared<Data::Value>(sha256(input));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("هاش", hash_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("hash", hash_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("sha256", hash_func);
-            
-    // ═══════════════════════════════════════════════════════════════
-    // (AR) تشفير SHA-256-CTR — تشفير تيار آمن مبني على SHA-256
+
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) تشفير SHA-256-CTR — تشفير تيار آمن مبني على SHA-256
             // (EN) SHA-256-CTR encryption — secure stream cipher based on SHA-256
-            
-    // ═══════════════════════════════════════════════════════════════
-    // (AR) دالة مساعدة: SHA-256 خام تُرجع 32 بايت
+
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) دالة مساعدة: SHA-256 خام تُرجع 32 بايت
             auto sha256_raw = [](const std::vector<uint8_t> &data) -> std::array<uint8_t, 32>
             {
                 uint32_t h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
@@ -477,7 +460,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(ss.str());
             };
             interpreter.getFunctionManager().registerBuiltinFunction("شفّر", encrypt_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("encrypt", encrypt_func);
 
             // فك_تشفير / decrypt — فك تشفير SHA-256-CTR
             auto decrypt_func = [sha256_raw, hexToBytes](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -518,7 +500,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(result);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("فك_تشفير", decrypt_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("decrypt", decrypt_func);
 
             // تأكد_نوع / assert_type — يتحقق من نوع القيمة
             auto assert_type_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -529,7 +510,7 @@ namespace Sad
                 std::string expected_type = args[1]->toString();
                 // خريطة ترجمة الأنواع العربية ↔ الإنجليزية
                 static const std::unordered_map<std::string, std::string> type_map = {
-                    {"رقم", "INTEGER"}, {"عدد", "INTEGER"}, {"صحيح", "INTEGER"}, {"integer", "INTEGER"}, {"int", "INTEGER"}, {"عشري", "DOUBLE"}, {"حقيقي", "DOUBLE"}, {"double", "DOUBLE"}, {"float", "DOUBLE"}, {"نص", "STRING"}, {"سلسلة", "STRING"}, {"string", "STRING"}, {"str", "STRING"}, {"منطقي", "BOOLEAN"}, {"bool", "BOOLEAN"}, {"boolean", "BOOLEAN"}, {"مصفوفة", "ARRAY"}, {"array", "ARRAY"}, {"قائمة", "ARRAY"}, {"قاموس", "MAP"}, {"خريطة", "MAP"}, {"map", "MAP"}, {"فراغ", "VOID"}, {"لاشيء", "VOID"}, {"void", "VOID"}, {"none", "VOID"}};
+                    {"رقم", "INTEGER"}, {"عدد", "INTEGER"}, {"صحيح", "INTEGER"}, {"عشري", "DOUBLE"}, {"حقيقي", "DOUBLE"}, {"نص", "STRING"}, {"سلسلة", "STRING"}, {"منطقي", "BOOLEAN"}, {"مصفوفة", "ARRAY"}, {"قائمة", "ARRAY"}, {"قاموس", "MAP"}, {"خريطة", "MAP"}, {"فراغ", "VOID"}, {"لاشيء", "VOID"}};
                 std::string normalized = expected_type;
                 auto it = type_map.find(expected_type);
                 if (it != type_map.end())
@@ -547,12 +528,9 @@ namespace Sad
                 return std::make_shared<Data::Value>(true);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("تأكد_نوع", assert_type_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_type", assert_type_func);
 
             // (AR) الأسماء القديمة تُوجّه للدوال الجديدة (تأكد_يساوي → تأكد_مساواة, assert_gt → تأكد_أكبر)
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_equal", assert_eq_func);
             interpreter.getFunctionManager().registerBuiltinFunction("تأكد_أكبر", assert_gt_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("assert_greater", assert_gt_func);
 
             // نظّف / sanitize — تنظيف نص من الأحرف الخطيرة (XSS/SQL Injection)
             auto sanitize_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -599,7 +577,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(result);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("نظّف", sanitize_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("sanitize", sanitize_func);
 
             // وقت_الآن / timestamp — الوقت الحالي (Unix timestamp)
 
@@ -617,7 +594,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<double>(dist(rd)));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("عشوائي_آمن", secure_random_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("secure_random", secure_random_func);
 
             // base64_encode / ترميز_64
             auto base64_encode_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -645,22 +621,20 @@ namespace Sad
                 return std::make_shared<Data::Value>(result);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("ترميز_64", base64_encode_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("base64_encode", base64_encode_func);
 
-            
-    // ═══════════════════════════════════════════════════════════════
-    // القسم 13: دوال FFI (واجهة الدوال الخارجية C/C++)
+            // ═══════════════════════════════════════════════════════════════
+            // القسم 13: دوال FFI (واجهة الدوال الخارجية C/C++)
             // Section 13: FFI Functions (C/C++ Foreign Function Interface)
-            
-    // ═══════════════════════════════════════════════════════════════
-    
-    // ═══════════════════════════════════════════════════════════════════
+
+            // ═══════════════════════════════════════════════════════════════
+
+            // ═══════════════════════════════════════════════════════════════════
             // (AR) جدول مؤشرات مُدار — يخزّن العناوين الحقيقية بمعرّف int آمن
             //      بدلاً من تخزين uintptr_t كـ double (يفقد الدقة فوق 2^52)
             // (EN) Managed pointer table — stores real addresses with safe int IDs
             //      instead of storing uintptr_t as double (loses precision above 2^52)
-            
-    // ═══════════════════════════════════════════════════════════════════
+
+            // ═══════════════════════════════════════════════════════════════════
             static std::unordered_map<int, void *> ptrTable;
             static int nextPtrId = 1;
             static constexpr size_t MAX_FFI_ALLOC_SIZE = 256 * 1024 * 1024; // 256MB حد أقصى للحجز
@@ -775,8 +749,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<int>(result.size()));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("طباعة_تنسيق", ffi_printf_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("printf", ffi_printf_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_printf", ffi_printf_func);
 
             // 2. malloc — حجز / allocate memory (managed pointer table)
             auto ffi_malloc_func = [&interpreter, registerPtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -803,8 +775,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(registerPtr(ptr));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("حجز", ffi_malloc_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("malloc", ffi_malloc_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_malloc", ffi_malloc_func);
 
             // 3. free — حرر / free memory (managed pointer table)
             auto ffi_free_func = [&interpreter, removePtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -822,8 +792,6 @@ namespace Sad
                 return std::make_shared<Data::Value>();
             };
             interpreter.getFunctionManager().registerBuiltinFunction("حرر", ffi_free_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("free", ffi_free_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_free", ffi_free_func);
 
             // 4. realloc — اعد_حجز (managed pointer table)
             auto ffi_realloc_func = [&interpreter, removePtr, registerPtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -845,8 +813,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(registerPtr(ptr));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("اعد_حجز", ffi_realloc_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("realloc", ffi_realloc_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_realloc", ffi_realloc_func);
 
             // 5. calloc — حجز_صفري (managed pointer table)
             auto ffi_calloc_func = [&interpreter, registerPtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -871,8 +837,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(registerPtr(ptr));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("حجز_صفري", ffi_calloc_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("calloc", ffi_calloc_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_calloc", ffi_calloc_func);
 
             // 6. strlen — طول_نص_س
             auto ffi_strlen_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -883,8 +847,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<double>(s.length()));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("طول_نص_س", ffi_strlen_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("strlen", ffi_strlen_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_strlen", ffi_strlen_func);
 
             // 7. strcpy — انسخ_نص_س
             auto ffi_strcpy_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -895,8 +857,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(args[0]->toString());
             };
             interpreter.getFunctionManager().registerBuiltinFunction("انسخ_نص_س", ffi_strcpy_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("strcpy", ffi_strcpy_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_strcpy", ffi_strcpy_func);
 
             // 8. strcmp — قارن_نص_س
             auto ffi_strcmp_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -907,8 +867,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<double>(result));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("قارن_نص_س", ffi_strcmp_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("strcmp", ffi_strcmp_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_strcmp", ffi_strcmp_func);
 
             // 9. strcat — الحق_نص_س
             auto ffi_strcat_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -918,8 +876,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(args[0]->toString() + args[1]->toString());
             };
             interpreter.getFunctionManager().registerBuiltinFunction("الحق_نص_س", ffi_strcat_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("strcat", ffi_strcat_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_strcat", ffi_strcat_func);
 
             // 10. memcpy — انسخ_ذاكرة_س (simulated with string copy in interpreter)
 
@@ -953,8 +909,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(registerPtr(fp));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("افتح_ملف_س", ffi_fopen_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("fopen", ffi_fopen_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_fopen", ffi_fopen_func);
 
             // 13. fclose — اغلق_ملف_س (managed pointer table)
             auto ffi_fclose_func = [removePtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -971,8 +925,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<double>(result));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("اغلق_ملف_س", ffi_fclose_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("fclose", ffi_fclose_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_fclose", ffi_fclose_func);
 
             // 14. fputs — اكتب_ملف_س (managed pointer table)
             auto ffi_fputs_func = [getPtr](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -990,8 +942,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<double>(result));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("اكتب_ملف_س", ffi_fputs_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("fputs", ffi_fputs_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_fputs", ffi_fputs_func);
 
             // 15. fgets — اقرأ_ملف_س
             auto ffi_fgets_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -1009,8 +959,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(std::string(buf.data()));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("اقرأ_ملف_س", ffi_fgets_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("fgets", ffi_fgets_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_fgets", ffi_fgets_func);
 
             // 16. system — نفذ_امر
             // (AR) أضيفت حماية أمنية: يُمنع تنفيذ أوامر النظام في الوضع الآمن
@@ -1047,8 +995,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<double>(result));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("نفذ_امر", ffi_system_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("system", ffi_system_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_system", ffi_system_func);
 
             // 17. getenv — قيمة_بيئة
             auto ffi_getenv_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -1064,8 +1010,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(); // لاشيء
             };
             interpreter.getFunctionManager().registerBuiltinFunction("قيمة_بيئة", ffi_getenv_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("getenv", ffi_getenv_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_getenv", ffi_getenv_func);
 
             // 18. atoi — نص_لعدد
             auto ffi_atoi_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -1076,8 +1020,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<double>(result));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("نص_لعدد", ffi_atoi_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("atoi", ffi_atoi_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_atoi", ffi_atoi_func);
 
             // 19. atof — نص_لعشري
             auto ffi_atof_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -1088,8 +1030,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(result);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("نص_لعشري", ffi_atof_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("atof", ffi_atof_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_atof", ffi_atof_func);
 
             // 20. snprintf — تنسيق_نص
             auto ffi_snprintf_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -1156,8 +1096,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(result);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("تنسيق_نص", ffi_snprintf_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("snprintf", ffi_snprintf_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("c_snprintf", ffi_snprintf_func);
         }
 
     } // namespace Interpreter

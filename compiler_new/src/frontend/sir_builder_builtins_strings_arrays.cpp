@@ -7,9 +7,14 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builtin_registry.h"
 #include <stdexcept>
 #include <iostream>
 #include <optional>
+
+// (AR) اختصار لأسماء الدوال المركزية
+namespace Bs = Sad::Builtins::Names::Strings;
+namespace Ba = Sad::Builtins::Names::Arrays;
 
 namespace Sad
 {
@@ -27,8 +32,7 @@ namespace Sad
                 // ========================================================================
 
                 // 1. طول_نص / string_length
-                if (funcName == "طول_نص" || funcName == "string_length" || funcName == "str_length" ||
-                    funcName == "نص_طول" || funcName == "نص_الطول")
+                if (funcName == Bs::STR_LENGTH)
                 {
                     if (argResults.empty())
                     {
@@ -49,7 +53,7 @@ namespace Sad
                 }
 
                 // 1b. رمز_حرف / char_at - get character at index
-                if (funcName == "رمز_حرف" || funcName == "char_at" || funcName == "charAt")
+                if (funcName == Bs::CHAR_CODE)
                 {
                     if (argResults.size() < 2)
                     {
@@ -71,7 +75,7 @@ namespace Sad
                 }
 
                 // 2. تحويل_كبير / toUpper
-                if (funcName == "تحويل_كبير" || funcName == "toUpper" || funcName == "uppercase" || funcName == "لأكبر")
+                if (funcName == Bs::TO_UPPER)
                 {
                     if (argResults.empty())
                     {
@@ -92,7 +96,7 @@ namespace Sad
                 }
 
                 // 3. تحويل_صغير / toLower
-                if (funcName == "تحويل_صغير" || funcName == "toLower" || funcName == "lowercase" || funcName == "لأصغر")
+                if (funcName == Bs::TO_LOWER)
                 {
                     if (argResults.empty())
                     {
@@ -113,7 +117,7 @@ namespace Sad
                 }
 
                 // 4. بحث / find
-                if (funcName == "بحث" || funcName == "find" || funcName == "indexOf" || funcName == "ابحث")
+                if (funcName == Bs::FIND)
                 {
                     if (argResults.size() < 2)
                     {
@@ -135,7 +139,7 @@ namespace Sad
                 }
 
                 // 5. استبدل / replace
-                if (funcName == "استبدل" || funcName == "replace" || funcName == "بدل")
+                if (funcName == Bs::REPLACE)
                 {
                     if (argResults.size() < 3)
                     {
@@ -158,7 +162,7 @@ namespace Sad
                 }
 
                 // 6. استخراج / substring
-                if (funcName == "استخراج" || funcName == "substring" || funcName == "substr" || funcName == "slice")
+                if (funcName == Bs::SUBSTRING)
                 {
                     if (argResults.size() < 2)
                     {
@@ -184,7 +188,7 @@ namespace Sad
                 }
 
                 // 7. قص_أطراف / trim
-                if (funcName == "قص_أطراف" || funcName == "trim" || funcName == "strip")
+                if (funcName == Bs::TRIM)
                 {
                     if (argResults.empty())
                     {
@@ -204,8 +208,8 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
 
-                // 8. تقسيم / split (returns array)
-                if (funcName == "تقسيم" || funcName == "split")
+                // 8. تقسيم / split (returns array of strings)
+                if (funcName == Bs::SPLIT)
                 {
                     if (argResults.size() < 2)
                     {
@@ -223,11 +227,18 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
-                    return BuildResult(resultReg, SadTypeKind::Array);
+                    // (AR) تقسيم ترجع مصفوفة نصوص — تعيين elementType=String
+                    //      ضروري لحلقة لكل: بدونه يُحمّل العنصر كـ i64 بدلاً من ptr
+                    //      مما يطبع عناوين خام بدلاً من النصوص الفعلية
+                    // (EN) Split returns array of strings — set elementType=String
+                    //      Required for forEach: without it, elements load as i64 not ptr
+                    BuildResult splitResult(resultReg, SadTypeKind::Array);
+                    splitResult.elementType = SadTypeKind::String;
+                    return splitResult;
                 }
 
                 // 9. دمج / join (array to string)
-                if (funcName == "دمج" || funcName == "join")
+                if (funcName == Bs::JOIN)
                 {
                     if (argResults.size() < 2)
                     {
@@ -249,15 +260,15 @@ namespace Sad
                 }
 
                 // 10. يبدأ_ب / startsWith
-                if (funcName == "يبدأ_ب" || funcName == "startsWith" || funcName == "starts_with")
+                if (funcName == Bs::STARTS_WITH)
                 {
                     if (argResults.size() < 2)
                     {
                         std::cerr << "[Error] دالة يبدأ_ب تتطلب معاملين (نص, بادئة)" << std::endl;
-                        return BuildResult("", SadTypeKind::Integer);
+                        return BuildResult("", SadTypeKind::Boolean);
                     }
                     std::string resultReg = newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_STARTS_WITH);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
@@ -267,19 +278,19 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
                 // 11. ينتهي_ب / endsWith
-                if (funcName == "ينتهي_ب" || funcName == "endsWith" || funcName == "ends_with")
+                if (funcName == Bs::ENDS_WITH)
                 {
                     if (argResults.size() < 2)
                     {
                         std::cerr << "[Error] دالة ينتهي_ب تتطلب معاملين (نص, لاحقة)" << std::endl;
-                        return BuildResult("", SadTypeKind::Integer);
+                        return BuildResult("", SadTypeKind::Boolean);
                     }
                     std::string resultReg = newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_ENDS_WITH);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
@@ -289,19 +300,19 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
                 // 12. يحتوي_على / contains
-                if (funcName == "يحتوي_على" || funcName == "contains" || funcName == "includes")
+                if (funcName == Bs::CONTAINS)
                 {
                     if (argResults.size() < 2)
                     {
                         std::cerr << "[Error] دالة يحتوي_على تتطلب معاملين (نص, نص للبحث عنه)" << std::endl;
-                        return BuildResult("", SadTypeKind::Integer);
+                        return BuildResult("", SadTypeKind::Boolean);
                     }
                     std::string resultReg = newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_CONTAINS);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
@@ -311,7 +322,7 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
                 // ========================================================================
@@ -319,7 +330,7 @@ namespace Sad
                 // ========================================================================
 
                 // 1. إضافة_عنصر / append / أضف
-                if (funcName == "إضافة_عنصر" || funcName == "append" || funcName == "push" || funcName == "add" || funcName == "أضف")
+                if (funcName == Ba::ADD)
                 {
                     if (argResults.size() < 2)
                     {
@@ -338,7 +349,7 @@ namespace Sad
                 }
 
                 // 2. إزالة_عنصر / remove / أزل / احذف
-                if (funcName == "إزالة_عنصر" || funcName == "remove" || funcName == "delete" || funcName == "pop" || funcName == "أزل" || funcName == "احذف")
+                if (funcName == Ba::REMOVE)
                 {
                     if (argResults.size() < 2)
                     {
@@ -357,7 +368,7 @@ namespace Sad
                 }
 
                 // 3. حجم_مصفوفة / array_size / length
-                if (funcName == "حجم_مصفوفة" || funcName == "array_size" || funcName == "حجم")
+                if (funcName == Ba::SIZE)
                 {
                     if (argResults.empty())
                     {
@@ -378,7 +389,7 @@ namespace Sad
                 }
 
                 // 4. فهرس / indexOf (array)
-                if (funcName == "فهرس_مصفوفة" || funcName == "array_indexOf" || funcName == "فهرس_عنصر")
+                if (funcName == Ba::INDEX_OF)
                 {
                     if (argResults.size() < 2)
                     {
@@ -400,7 +411,7 @@ namespace Sad
                 }
 
                 // 5. يحتوي_عنصر / contains (array)
-                if (funcName == "يحتوي_عنصر" || funcName == "array_contains" || funcName == "has")
+                if (funcName == Ba::ARRAY_CONTAINS)
                 {
                     if (argResults.size() < 2)
                     {
@@ -422,7 +433,7 @@ namespace Sad
                 }
 
                 // 6. قلب / reverse
-                if (funcName == "قلب" || funcName == "reverse" || funcName == "اعكس")
+                if (funcName == Ba::REVERSE)
                 {
                     if (argResults.empty())
                     {
@@ -443,11 +454,11 @@ namespace Sad
                 }
 
                 // 7. فرز / sort
-                if (funcName == "فرز" || funcName == "sort" || funcName == "رتب")
+                if (funcName == Ba::SORT)
                 {
                     if (argResults.empty())
                     {
-                        std::cerr << "[Error] دالة فرز تتطلب معامل واحد (مصفوفة)" << std::endl;
+                        std::cerr << "[Error] دالة رتب تتطلب معامل واحد (مصفوفة)" << std::endl;
                         return BuildResult("", SadTypeKind::Array);
                     }
                     std::string resultReg = newTempRegister();
@@ -455,20 +466,26 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SORT);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
+                    // (AR) تمرير نوع عنصر المصفوفة صراحةً إلى backend
+                    //      حتى لا يُفترض الفرز الرقمي لجميع المصفوفات.
+                    inst.operands.push_back(SIROperand::ConstantI64(
+                        static_cast<int64_t>(argResults[0].elementType)));
                     if (currentBlock_)
                         currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
-                    return BuildResult(resultReg, SadTypeKind::Array);
+                    BuildResult result(resultReg, SadTypeKind::Array);
+                    result.elementType = argResults[0].elementType;
+                    return result;
                 }
 
                 // 8. أول / first
-                if (funcName == "أول" || funcName == "first" || funcName == "العنصر_الأول")
+                if (funcName == Ba::FIRST)
                 {
                     if (argResults.empty())
                     {
-                        std::cerr << "[Error] دالة أول تتطلب معامل واحد (مصفوفة)" << std::endl;
+                        std::cerr << "[Error] دالة الأول تتطلب معامل واحد (مصفوفة)" << std::endl;
                         return BuildResult("", SadTypeKind::Void);
                     }
                     std::string resultReg = newTempRegister();
@@ -485,11 +502,11 @@ namespace Sad
                 }
 
                 // 9. آخر / last
-                if (funcName == "آخر" || funcName == "last" || funcName == "العنصر_الأخير")
+                if (funcName == Ba::LAST)
                 {
                     if (argResults.empty())
                     {
-                        std::cerr << "[Error] دالة آخر تتطلب معامل واحد (مصفوفة)" << std::endl;
+                        std::cerr << "[Error] دالة الأخير تتطلب معامل واحد (مصفوفة)" << std::endl;
                         return BuildResult("", SadTypeKind::Void);
                     }
                     std::string resultReg = newTempRegister();
@@ -506,7 +523,7 @@ namespace Sad
                 }
 
                 // 10. شريحة / slice
-                if (funcName == "شريحة" || funcName == "array_slice" || funcName == "قطع")
+                if (funcName == Ba::SLICE)
                 {
                     if (argResults.size() < 2)
                     {
@@ -530,7 +547,6 @@ namespace Sad
 #endif
                     return BuildResult(resultReg, SadTypeKind::Array);
                 }
-
 
                 return std::nullopt;
             }

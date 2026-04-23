@@ -136,7 +136,19 @@ namespace Sad
                         {
                             if (fieldVal->getType()->isIntegerTy() && expectedType->isPointerTy())
                             {
-                                fieldVal = builder_->CreateIntToPtr(fieldVal, expectedType);
+                                // (AR) MSB tagging: الأرقام تُعلّم بـ bit 63 = 1
+                                //      val → val | (1 << 63) → inttoptr
+                                //      هذا يميّز الأرقام عن المؤشرات (bit 63=0 في userspace دائمًا)
+                                //      MSB أفضل من LSB لأن string constants قد تكون بمحاذاة 1 (LSB فردي)
+                                // (EN) MSB tagging: integers tagged with bit 63 = 1
+                                //      val → val | (1 << 63) → inttoptr
+                                //      Distinguishes integers from pointers (bit 63=0 in userspace always)
+                                //      MSB better than LSB because string constants may be 1-aligned (odd LSB)
+                                llvm::Value *tagged = builder_->CreateOr(
+                                    fieldVal,
+                                    llvm::ConstantInt::get(getInt64Type(), static_cast<uint64_t>(1) << 63),
+                                    "tag.msb");
+                                fieldVal = builder_->CreateIntToPtr(tagged, expectedType, "tag.i2p");
                             }
                             else if (fieldVal->getType()->isPointerTy() && expectedType->isIntegerTy())
                             {
@@ -350,17 +362,42 @@ namespace Sad
             if (inst->result.has_value())
             {
                 // (AR) تحويل القيمة إلى i64 إذا كانت ptr
-                //      لأن لغة ص تستخدم i64 كنوع عام للقيم
-                //      والحقول تُخزن كـ ptr لكنها قد تكون أعداد
-                // (EN) Convert value to i64 if it's ptr
-                //      Because Sad uses i64 as the universal value type
-                //      Fields are stored as ptr but may be integers
+                // (EN) Convert value to i64 if ptr
                 if (fieldVal->getType()->isPointerTy())
                 {
                     fieldVal = builder_->CreatePtrToInt(fieldVal, getInt64Type(),
                                                         "payload." + std::to_string(fieldIndex) + ".toi64");
                 }
-                context_info_.namedValues[inst->result->name] = fieldVal;
+
+                // (AR) === MSB pointer tagging: فك التعليم ===
+                //      الأرقام المُخزنة في ADT تُعلّم بـ bit 63=1 عند ENUM_CONSTRUCT
+                //      المؤشرات (نصوص) bit 63=0 (في userspace دائمًا)
+                //      هنا نفحص bit 63 ونعمل untag للأرقام ونحفظ flag للنصوص
+                // (EN) === MSB pointer tagging: untag ===
+                //      Integers stored in ADT are tagged with bit 63=1 at ENUM_CONSTRUCT
+                //      Pointers (strings) have bit 63=0 (always in userspace)
+                //      Here we check bit 63, untag integers, and save flag for strings
+                llvm::Value *msbMask = llvm::ConstantInt::get(getInt64Type(), static_cast<uint64_t>(1) << 63);
+                llvm::Value *msbBit = builder_->CreateAnd(fieldVal, msbMask, "tag.msb.bit");
+                llvm::Value *isInt = builder_->CreateICmpNE(
+                    msbBit, llvm::ConstantInt::get(getInt64Type(), 0), "is.tagged.int");
+                // (AR) فك التعليم: إذا رقم (MSB=1) → val & ~(1<<63) = إزالة العلامة
+                //      إذا مؤشر (MSB=0) → يبقى كما هو
+                // (EN) Untag: if integer (MSB=1) → val & ~(1<<63) = clear tag
+                //      if pointer (MSB=0) → stays as-is
+                llvm::Value *untagged = builder_->CreateAnd(
+                    fieldVal,
+                    llvm::ConstantInt::get(getInt64Type(), ~(static_cast<uint64_t>(1) << 63)),
+                    "untagged");
+                llvm::Value *result = builder_->CreateSelect(
+                    isInt, untagged, fieldVal, "payload.untagged");
+
+                context_info_.namedValues[inst->result->name] = result;
+
+                // (AR) حفظ flag: هل القيمة مؤشر (نص/كائن)؟
+                // (EN) Save flag: is value a pointer (string/object)?
+                llvm::Value *isPtr = builder_->CreateNot(isInt, "is.ptr");
+                context_info_.namedValues[inst->result->name + ".__is_ptr"] = isPtr;
             }
             return fieldVal;
         }
@@ -626,7 +663,6 @@ namespace Sad
 
             return nullptr;
         }
-
 
     } // namespace LLVM
 } // namespace Sad

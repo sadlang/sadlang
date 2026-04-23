@@ -19,6 +19,7 @@
 #include <string>
 #include <optional>
 #include "sir_builder.h"
+#include "expressions.h"
 
 namespace Sad
 {
@@ -26,6 +27,30 @@ namespace Sad
     {
         namespace SIR
         {
+
+            // ================================================================
+            // (AR) دالة مساعدة: تحويل نتيجة التعبير إلى SIROperand بشكل آمن
+            //      تتجنب std::stoll على قيم غير رقمية (مثل النصوص العربية)
+            // (EN) Helper: safely convert BuildResult to SIROperand
+            //      Avoids std::stoll on non-numeric values (e.g. Arabic strings)
+            // ================================================================
+            static SIROperand toSafeOperand(const BuildResult &result)
+            {
+                if (result.isConstant && !result.constantValue.empty() &&
+                    (result.type == SadTypeKind::Integer || result.type == SadTypeKind::Boolean))
+                {
+                    try
+                    {
+                        return SIROperand::ConstantI64(std::stoll(result.constantValue));
+                    }
+                    catch (...)
+                    {
+                        // (AR) إذا فشل التحويل (قيمة غير رقمية)، نستخدم السجل
+                        return SIROperand::Register(result.registerName, result.type);
+                    }
+                }
+                return SIROperand::Register(result.registerName, result.type);
+            }
             // ================================================================
             // buildChannelMethodCall — طرق القنوات
             // (AR) أرسل/استقبل/حاول_ارسل/حاول_استقبل/أرسل_بمهلة/استقبل_بمهلة
@@ -46,10 +71,7 @@ namespace Sad
                     if (!expr->arguments.empty())
                     {
                         auto argResult = buildExpression(expr->arguments[0].get());
-                        if (argResult.isConstant && !argResult.constantValue.empty())
-                            valueOp = SIROperand::ConstantI64(std::stoll(argResult.constantValue));
-                        else
-                            valueOp = SIROperand::Register(argResult.registerName, argResult.type);
+                        valueOp = toSafeOperand(argResult);
                     }
 
                     std::string resultReg = newTempRegister();
@@ -59,6 +81,17 @@ namespace Sad
                     inst.operands.push_back(valueOp);
                     if (currentBlock_)
                         currentBlock_->instructions.push_back(inst);
+
+                    // (AR) تسجيل نوع العنصر المُرسل عبر القناة لاستخدامه عند recv
+                    //      نستخدم اسم المتغير من AST (إن أمكن) واسم السجل كبديل
+                    if (valueOp.dataType != SadTypeKind::Unknown)
+                    {
+                        channelTypeMap_[objResult.registerName] = valueOp.dataType;
+                        // (AR) أيضاً سجّل باسم المتغير الأصلي من AST
+                        if (auto *ident = dynamic_cast<AST::VariableExpr *>(expr->object.get()))
+                            channelTypeMap_[ident->name] = valueOp.dataType;
+                    }
+
                     return BuildResult(resultReg, SadTypeKind::Void);
                 }
 
@@ -69,10 +102,7 @@ namespace Sad
                     if (!expr->arguments.empty())
                     {
                         auto argResult = buildExpression(expr->arguments[0].get());
-                        if (argResult.isConstant && !argResult.constantValue.empty())
-                            valueOp = SIROperand::ConstantI64(std::stoll(argResult.constantValue));
-                        else
-                            valueOp = SIROperand::Register(argResult.registerName, argResult.type);
+                        valueOp = toSafeOperand(argResult);
                     }
 
                     std::string resultReg = newTempRegister();
@@ -93,16 +123,12 @@ namespace Sad
                     if (!expr->arguments.empty())
                     {
                         auto arg0 = buildExpression(expr->arguments[0].get());
-                        valueOp = (arg0.isConstant && !arg0.constantValue.empty())
-                                      ? SIROperand::ConstantI64(std::stoll(arg0.constantValue))
-                                      : SIROperand::Register(arg0.registerName, arg0.type);
+                        valueOp = toSafeOperand(arg0);
                     }
                     if (expr->arguments.size() >= 2)
                     {
                         auto arg1 = buildExpression(expr->arguments[1].get());
-                        timeoutOp = (arg1.isConstant && !arg1.constantValue.empty())
-                                        ? SIROperand::ConstantI64(std::stoll(arg1.constantValue))
-                                        : SIROperand::Register(arg1.registerName, arg1.type);
+                        timeoutOp = toSafeOperand(arg1);
                     }
 
                     std::string resultReg = newTempRegister();
@@ -120,18 +146,37 @@ namespace Sad
                 if (methodName == "\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84" || methodName == "receive" ||
                     methodName == "recv")
                 {
+                    // (AR) استخدم النوع المسجل من send إذا وُجد، وإلا Integer (الافتراضي)
+                    //      السبب: channelTypeMap_ قد لا يجد النوع عند send/recv عبر دوال مختلفة
+                    //      (اسم المتغير مختلف بين الدالة المُرسلة والمُستقبلة)
+                    //      Integer هو النوع الأكثر شيوعاً في القنوات
+                    SadTypeKind recvType = SadTypeKind::Integer;
+                    auto it = channelTypeMap_.find(objResult.registerName);
+                    if (it != channelTypeMap_.end())
+                        recvType = it->second;
+                    else if (auto *ident = dynamic_cast<AST::VariableExpr *>(expr->object.get()))
+                    {
+                        auto it2 = channelTypeMap_.find(ident->name);
+                        if (it2 != channelTypeMap_.end())
+                            recvType = it2->second;
+                    }
+
                     std::string resultReg = newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_RECV);
-                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    inst.result = SIROperand::Register(resultReg, recvType);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     if (currentBlock_)
                         currentBlock_->instructions.push_back(inst);
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    return BuildResult(resultReg, recvType);
                 }
 
                 // حاول_استقبل / try_recv — غير حاجب
                 if (methodName == "\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84_\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84" || methodName == "try_recv")
                 {
+                    // (AR) حاول_استقبل قد تُرجع لاشيء (kSadNullSentinel) أو قيمة فعلية
+                    //      نستخدم Integer — kSadNullSentinel هو قيمة i64 خاصة
+                    //      فحص لاشيء يتم عبر مقارنة مع kSadNullSentinel
+                    //      تحويل لنص يتم عبر فحص sentinel في ensureString
                     std::string resultReg = newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_TRY_RECV);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -148,13 +193,12 @@ namespace Sad
                     if (!expr->arguments.empty())
                     {
                         auto arg0 = buildExpression(expr->arguments[0].get());
-                        timeoutOp = (arg0.isConstant && !arg0.constantValue.empty())
-                                        ? SIROperand::ConstantI64(std::stoll(arg0.constantValue))
-                                        : SIROperand::Register(arg0.registerName, arg0.type);
+                        timeoutOp = toSafeOperand(arg0);
                     }
 
                     std::string resultReg = newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_RECV_TIMEOUT);
+                    // (AR) recv_timeout قد تُرجع لاشيء (kSadNullSentinel) — نستخدم Integer
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     inst.operands.push_back(timeoutOp);
@@ -318,10 +362,7 @@ namespace Sad
                     if (!expr->arguments.empty())
                     {
                         auto argResult = buildExpression(expr->arguments[0].get());
-                        if (argResult.isConstant && !argResult.constantValue.empty())
-                            valueOp = SIROperand::ConstantI64(std::stoll(argResult.constantValue));
-                        else
-                            valueOp = SIROperand::Register(argResult.registerName, argResult.type);
+                        valueOp = toSafeOperand(argResult);
                     }
                     SIRInstruction inst(SIROpcode::ASYNC_RESOLVE_FUTURE);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
@@ -377,10 +418,7 @@ namespace Sad
                     if (!expr->arguments.empty())
                     {
                         auto argResult = buildExpression(expr->arguments[0].get());
-                        if (argResult.isConstant && !argResult.constantValue.empty())
-                            countOp = SIROperand::ConstantI64(std::stoll(argResult.constantValue));
-                        else
-                            countOp = SIROperand::Register(argResult.registerName, argResult.type);
+                        countOp = toSafeOperand(argResult);
                     }
                     else
                     {

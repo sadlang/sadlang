@@ -56,6 +56,16 @@ set(SAD_UI_CORE_SOURCES
     core/src/keyboard_processor.cpp
     core/src/mouse_processor.cpp
     core/src/reconciler.cpp
+    core/src/widget_node.cpp
+    core/src/ui_arena.cpp
+    core/src/command_queue.cpp
+    core/src/ui_event_loop.cpp
+    core/src/property_binding.cpp
+)
+
+# النظام التفاعلي (reactive — المرحلة 1)
+set(SAD_UI_REACTIVE_SOURCES
+    reactive/binding_compiler.cpp
 )
 
 # سطح المكتب
@@ -144,6 +154,7 @@ set(SAD_UI_PIPELINE_SOURCES
 
 set(SAD_UI_ALL_SOURCES
     ${SAD_UI_CORE_SOURCES}
+    ${SAD_UI_REACTIVE_SOURCES}
     ${SAD_UI_DESKTOP_SOURCES}
     ${SAD_UI_ANDROID_SOURCES}
     ${SAD_UI_IOS_SOURCES}
@@ -163,6 +174,7 @@ add_library(sad_ui STATIC ${SAD_UI_ALL_SOURCES})
 target_include_directories(sad_ui
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/core/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/reactive
         ${CMAKE_CURRENT_SOURCE_DIR}/backends/desktop/include
         ${CMAKE_CURRENT_SOURCE_DIR}/backends/android/include
         ${CMAKE_CURRENT_SOURCE_DIR}/backends/ios/include
@@ -177,6 +189,12 @@ target_include_directories(sad_ui
         ${CMAKE_CURRENT_SOURCE_DIR}/widgets/navigation_v2/include
         ${CMAKE_CURRENT_SOURCE_DIR}/pipeline/include
         ${CMAKE_SOURCE_DIR}/graphics/third_party
+    PRIVATE
+        # (AR) مسارات AST المشتركة — يحتاجها binding_compiler.cpp فقط
+        # (EN) Shared AST headers — needed only by binding_compiler.cpp
+        ${CMAKE_SOURCE_DIR}/shared/ast/include
+        ${CMAKE_SOURCE_DIR}/shared/types/include
+        ${CMAKE_SOURCE_DIR}/shared/lexer/include
 )
 
 # ── إعدادات المترجم ─────────────────────────────────────────────

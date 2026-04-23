@@ -1,6 +1,5 @@
-# @description Concurrency Stress Suite (50 tests) — 100+ goroutines, deadlock detection, memory/resource checks
+﻿# @description Concurrency Stress Suite (50 tests) — 100+ goroutines, deadlock detection, memory/resource checks
 # @priority P2
-# @skip_compiler
 # @timeout 60
 # @expected T01:PASS\nT02:PASS\nT03:PASS\nT04:PASS\nT05:PASS\nT06:PASS\nT07:PASS\nT08:PASS\nT09:PASS\nT10:PASS\nT11:PASS\nT12:PASS\nT13:PASS\nT14:PASS\nT15:PASS\nT16:PASS\nT17:PASS\nT18:PASS\nT19:PASS\nT20:PASS\nT21:PASS\nT22:PASS\nT23:PASS\nT24:PASS\nT25:PASS\nT26:PASS\nT27:PASS\nT28:PASS\nT29:PASS\nT30:PASS\nT31:PASS\nT32:PASS\nT33:PASS\nT34:PASS\nT35:PASS\nT36:PASS\nT37:PASS\nT38:PASS\nT39:PASS\nT40:PASS\nT41:PASS\nT42:PASS\nT43:PASS\nT44:PASS\nT45:PASS\nT46:PASS\nT47:PASS\nT48:PASS\nT49:PASS\nT50:PASS\nSUMMARY:50/50
 

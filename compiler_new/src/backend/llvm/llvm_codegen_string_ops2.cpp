@@ -142,7 +142,8 @@ namespace Sad
 
         llvm::Value *LLVMCodeGen::emitBuiltinStringJoin(std::shared_ptr<SIRInstruction> inst)
         {
-            // Join array of strings with separator
+            // (AR) دمج مصفوفة نصوص بفاصل — مثلاً: دمج(["أ","ب","ج"], "-") → "أ-ب-ج"
+            // (EN) Join array of strings with separator
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
             llvm::Value *arrPtr = resolveOperand(inst->operands[0]);
@@ -154,6 +155,16 @@ namespace Sad
             auto i64Ty = getInt64Type();
             auto i8Ty = llvm::Type::getInt8Ty(*context_);
             llvm::StructType *arrTy = getArrayStructType(*context_);
+
+            // ================================================================
+            // (AR) إصلاح خطأ GEP: المتغير المحمّل من alloca(i64) يكون i64 وليس مؤشر.
+            //      CreateStructGEP يتطلب مؤشراً — normalizeArrayPtr يحوّل i64→ptr.
+            //      هذا يحدث عندما: تقسيم() ترجع ptr → STORE يحوّله لـ i64 (PtrToInt)
+            //      → resolveOperand يحمّل i64 → GEP يفشل بدون هذا التحويل.
+            // (EN) Fix GEP error: variable loaded from alloca(i64) is i64 not pointer.
+            //      CreateStructGEP requires pointer — normalizeArrayPtr converts i64→ptr.
+            // ================================================================
+            arrPtr = normalizeArrayPtr(arrPtr, "join");
 
             // Load array length and data
             llvm::Value *lenGep = builder_->CreateStructGEP(arrTy, arrPtr, 0, "join.len.gep");

@@ -1,7 +1,6 @@
-# @description اختبار المستقبل (Future) — تعيين واسترجاع قيمة
+﻿# @description اختبار المستقبل (Future) — تعيين واسترجاع قيمة
 # @expected خطأ\nصحيح\n42
 # @priority P2
-# @skip_compiler المستقبل جزئي في المترجم
 
 متغير م = مستقبل()
 

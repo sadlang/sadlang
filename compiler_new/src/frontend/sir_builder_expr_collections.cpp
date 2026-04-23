@@ -42,6 +42,7 @@ namespace Sad
                 // (AR) تخزين العناصر واحداً تلو الآخر
                 // (EN) Store elements one by one
                 SadTypeKind inferredElementType = SadTypeKind::Void;
+                std::string inferredElementClassName;
                 for (size_t i = 0; i < arrayExpr->elements.size(); ++i)
                 {
                     auto elemResult = buildExpression(arrayExpr->elements[i].get());
@@ -51,6 +52,10 @@ namespace Sad
                     if (i == 0)
                     {
                         inferredElementType = elemResult.type;
+                        if (!elemResult.className.empty())
+                        {
+                            inferredElementClassName = elemResult.className;
+                        }
                     }
 
                     // (AR) تجسيد الثوابت قبل تخزينها (نفس الإصلاح المُطبَّق على MapExpr)
@@ -113,6 +118,10 @@ namespace Sad
                 {
                     result.elementType = inferredElementType;
                 }
+                if (!inferredElementClassName.empty())
+                {
+                    result.elementClassName = inferredElementClassName;
+                }
                 return result;
             }
 
@@ -132,6 +141,9 @@ namespace Sad
                 SIRInstruction allocInst;
                 allocInst.opcode = SIROpcode::TUPLE_NEW;
                 allocInst.result = SIROperand::Register(tupleReg, SadTypeKind::Tuple);
+                allocInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(tupleExpr->elements.size())));
+                // (AR) الطول الابتدائي = عدد العناصر (لتجاوز bounds check عند ARRAY_SET)
+                // (EN) Initial length = element count (to pass bounds check during ARRAY_SET)
                 allocInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(tupleExpr->elements.size())));
                 allocInst.comment = "tuple new (" + std::to_string(tupleExpr->elements.size()) + ")";
 

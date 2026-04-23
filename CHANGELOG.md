@@ -40,10 +40,12 @@ The format is based on Keep a Changelog, and this project aims to follow Semanti
 - ✅ **صفوف (Tuples)** — `(قيمة1، قيمة2)` + تفكيك + `.0 .1`، مفسر + مترجم (15 اختبار).
 - ✅ **أصناف محكمة (Sealed Classes)** — `محكم صنف`، مفسر + مترجم + حماية عبر الملفات (10 اختبارات).
 - ✅ **تأجيل مضمون (Defer)** — `أجّل` كلمة سياقية، LIFO، جملة/كتلة، مفسر + مترجم (10 اختبارات).
+- ✅ **سجل مركزي لأسماء الدوال المدمجة (Builtin Registry)** — `builtin_registry.h` يحتوي ~230 ثابت `constexpr string_view` في 16+ فضاء أسماء (`Core`, `Math`, `UIWidgets`, `UIPlatform`, `UIDevice`...). جميع ملفات التسجيل (~16 ملف) تستخدم `Names::` بدلاً من نصوص hex مباشرة.
 
 ### Changed
 - `README.md` refreshed with accurate structure, setup, and references.
 - `docs/ANNUAL_PLAN_2026.md` updated with execution status, code quality report, and deliverables tracking.
+- **إزالة نظام الأسماء المتعددة** — كل دالة مدمجة لها اسم واحد فقط. حُذفت جميع الأسماء البديلة (aliases): `خزن`←`خزّن`، `حرك`←`حرّك`، `سجل`←`سجّل`، `شغل`←`شغّل`، `محاذي`/`موسّع`/`مقاس_محدد`، وغيرها.
 
 ### Fixed
 - 15× `static std::string` → `thread_local` across C API functions for thread safety.

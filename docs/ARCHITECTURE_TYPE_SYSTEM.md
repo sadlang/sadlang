@@ -318,7 +318,7 @@ graph TB
 متغير عام بيانات = 100  # override آمن
 نهاية
 
-متغير ف = جديد فرع()
+متغير ف = فرع()
 نوع(ف.بيانات)         # "رقم" — Type preserved!
 ```
 
@@ -395,8 +395,7 @@ ValueType oldType = sadTypeToValueType(kind);
 // خطأ قديم
 if (value.getType() == ValueType::INTEGER) { }
 
-// صحيح جديد
-if (value.getSadType() == SadTypeKind::Integer) { }
+// صحيح if(value.getSadType() == SadTypeKind::Integer) { }
 ```
 
 ### ❌ خطأ 2: نسيان الفحص قبل التحويل

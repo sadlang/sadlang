@@ -56,7 +56,6 @@ namespace Sad
     namespace LLVM
     {
 
-
         llvm::Value *LLVMCodeGen::emitDmaInit(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 4)
@@ -326,6 +325,216 @@ namespace Sad
             return fn;
         }
 
+        // ================================================================
+        // (AR) تحويل موقع البايت إلى فهرس الحرف UTF-8
+        // (EN) Convert byte offset to UTF-8 character index
+        // الدالة: i64 __sad_utf8_byte_to_char(i8* str, i64 byte_offset)
+        // تعد عدد الحروف (غير بايتات المتابعة) في أول byte_offset بايت من str
+        // ================================================================
+        llvm::Function *LLVMCodeGen::getOrCreateUtf8ByteToChar()
+        {
+            llvm::Function *existing = module_->getFunction("__sad_utf8_byte_to_char");
+            if (existing && !existing->empty())
+                return existing;
+
+            llvm::Type *i8Ty = llvm::Type::getInt8Ty(*context_);
+            llvm::Type *i64Ty = llvm::Type::getInt64Ty(*context_);
+            llvm::Type *i8p = i8Ty->getPointerTo();
+
+            llvm::FunctionType *ft = llvm::FunctionType::get(i64Ty, {i8p, i64Ty}, false);
+            llvm::Function *fn = llvm::Function::Create(
+                ft, llvm::Function::InternalLinkage, "__sad_utf8_byte_to_char", module_.get());
+
+            // (AR) حفظ نقطة الإدراج الحالية
+            llvm::BasicBlock *savedBB = builder_->GetInsertBlock();
+            llvm::BasicBlock::iterator savedPoint;
+            bool hasSavedPoint = false;
+            if (savedBB)
+            {
+                savedPoint = builder_->GetInsertPoint();
+                hasSavedPoint = true;
+            }
+
+            // (AR) بناء الكتل
+            llvm::BasicBlock *entry = llvm::BasicBlock::Create(*context_, "entry", fn);
+            llvm::BasicBlock *loopCheck = llvm::BasicBlock::Create(*context_, "loop.check", fn);
+            llvm::BasicBlock *loopBody = llvm::BasicBlock::Create(*context_, "loop.body", fn);
+            llvm::BasicBlock *countChar = llvm::BasicBlock::Create(*context_, "count.char", fn);
+            llvm::BasicBlock *loopInc = llvm::BasicBlock::Create(*context_, "loop.inc", fn);
+            llvm::BasicBlock *exitBB = llvm::BasicBlock::Create(*context_, "exit", fn);
+
+            auto argIt = fn->arg_begin();
+            llvm::Argument *strArg = &*argIt++;
+            llvm::Argument *byteOffsetArg = &*argIt;
+            strArg->setName("str");
+            byteOffsetArg->setName("byte_offset");
+
+            // entry: فحص أن byte_offset > 0
+            builder_->SetInsertPoint(entry);
+            llvm::Value *cmpZero = builder_->CreateICmpSLE(byteOffsetArg,
+                                                           llvm::ConstantInt::get(i64Ty, 0), "cmp.zero");
+            builder_->CreateCondBr(cmpZero, exitBB, loopCheck);
+
+            // loop.check: هل وصلنا byte_offset؟
+            builder_->SetInsertPoint(loopCheck);
+            llvm::PHINode *idxPhi = builder_->CreatePHI(i64Ty, 2, "idx");
+            llvm::PHINode *countPhi = builder_->CreatePHI(i64Ty, 2, "count");
+            idxPhi->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entry);
+            countPhi->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entry);
+
+            llvm::Value *cmpEnd = builder_->CreateICmpSLT(idxPhi, byteOffsetArg, "cmp.end");
+            builder_->CreateCondBr(cmpEnd, loopBody, exitBB);
+
+            // loop.body: فحص هل البايت بايت متابعة (continuation byte)
+            builder_->SetInsertPoint(loopBody);
+            llvm::Value *bytePtr = builder_->CreateGEP(i8Ty, strArg, {idxPhi}, "byte.ptr");
+            llvm::Value *byte = builder_->CreateLoad(i8Ty, bytePtr, "byte");
+            llvm::Value *masked = builder_->CreateAnd(byte,
+                                                      llvm::ConstantInt::get(i8Ty, 0xC0), "masked");
+            llvm::Value *isCont = builder_->CreateICmpEQ(masked,
+                                                         llvm::ConstantInt::get(i8Ty, 0x80), "is.cont");
+            builder_->CreateCondBr(isCont, loopInc, countChar);
+
+            // count.char: ليس بايت متابعة → حرف جديد
+            builder_->SetInsertPoint(countChar);
+            llvm::Value *newCount = builder_->CreateAdd(countPhi,
+                                                        llvm::ConstantInt::get(i64Ty, 1), "new.count");
+            builder_->CreateBr(loopInc);
+
+            // loop.inc: التقدم
+            builder_->SetInsertPoint(loopInc);
+            llvm::PHINode *countMerge = builder_->CreatePHI(i64Ty, 2, "count.merge");
+            countMerge->addIncoming(countPhi, loopBody);
+            countMerge->addIncoming(newCount, countChar);
+            llvm::Value *nextIdx = builder_->CreateAdd(idxPhi,
+                                                       llvm::ConstantInt::get(i64Ty, 1), "next.idx");
+            builder_->CreateBr(loopCheck);
+
+            idxPhi->addIncoming(nextIdx, loopInc);
+            countPhi->addIncoming(countMerge, loopInc);
+
+            // exit: إرجاع العداد
+            builder_->SetInsertPoint(exitBB);
+            llvm::PHINode *retPhi = builder_->CreatePHI(i64Ty, 2, "ret.count");
+            retPhi->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entry);
+            retPhi->addIncoming(countPhi, loopCheck);
+            builder_->CreateRet(retPhi);
+
+            // (AR) استعادة نقطة الإدراج
+            if (hasSavedPoint && savedBB)
+                builder_->SetInsertPoint(savedBB, savedPoint);
+
+            return fn;
+        }
+
+        // ================================================================
+        // (AR) تحويل فهرس الحرف UTF-8 إلى موقع البايت
+        // (EN) Convert UTF-8 character index to byte offset
+        // الدالة: i64 __sad_utf8_char_to_byte(i8* str, i64 char_index)
+        // تجد موقع البايت لبداية الحرف رقم char_index في str
+        // ================================================================
+        llvm::Function *LLVMCodeGen::getOrCreateUtf8CharToByte()
+        {
+            llvm::Function *existing = module_->getFunction("__sad_utf8_char_to_byte");
+            if (existing && !existing->empty())
+                return existing;
+
+            llvm::Type *i8Ty = llvm::Type::getInt8Ty(*context_);
+            llvm::Type *i64Ty = llvm::Type::getInt64Ty(*context_);
+            llvm::Type *i32Ty = llvm::Type::getInt32Ty(*context_);
+            llvm::Type *i8p = i8Ty->getPointerTo();
+
+            llvm::FunctionType *ft = llvm::FunctionType::get(i64Ty, {i8p, i64Ty}, false);
+            llvm::Function *fn = llvm::Function::Create(
+                ft, llvm::Function::InternalLinkage, "__sad_utf8_char_to_byte", module_.get());
+
+            // (AR) حفظ نقطة الإدراج الحالية
+            llvm::BasicBlock *savedBB = builder_->GetInsertBlock();
+            llvm::BasicBlock::iterator savedPoint;
+            bool hasSavedPoint = false;
+            if (savedBB)
+            {
+                savedPoint = builder_->GetInsertPoint();
+                hasSavedPoint = true;
+            }
+
+            // (AR) بناء الكتل
+            llvm::BasicBlock *entry = llvm::BasicBlock::Create(*context_, "entry", fn);
+            llvm::BasicBlock *loopCheck = llvm::BasicBlock::Create(*context_, "loop.check", fn);
+            llvm::BasicBlock *readByte = llvm::BasicBlock::Create(*context_, "read.byte", fn);
+            llvm::BasicBlock *classify = llvm::BasicBlock::Create(*context_, "classify", fn);
+            llvm::BasicBlock *advance = llvm::BasicBlock::Create(*context_, "advance", fn);
+            llvm::BasicBlock *exitBB = llvm::BasicBlock::Create(*context_, "exit", fn);
+
+            auto argIt = fn->arg_begin();
+            llvm::Argument *strArg = &*argIt++;
+            llvm::Argument *charIndexArg = &*argIt;
+            strArg->setName("str");
+            charIndexArg->setName("char_index");
+
+            // entry: فحص char_index <= 0
+            builder_->SetInsertPoint(entry);
+            llvm::Value *cmpZero = builder_->CreateICmpSLE(charIndexArg,
+                                                           llvm::ConstantInt::get(i64Ty, 0), "cmp.zero");
+            builder_->CreateCondBr(cmpZero, exitBB, loopCheck);
+
+            // loop.check: هل عددنا الحروف الكافية؟
+            builder_->SetInsertPoint(loopCheck);
+            llvm::PHINode *bytePosP = builder_->CreatePHI(i64Ty, 2, "byte.pos");
+            llvm::PHINode *charsP = builder_->CreatePHI(i64Ty, 2, "chars");
+            bytePosP->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entry);
+            charsP->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entry);
+
+            llvm::Value *reached = builder_->CreateICmpSGE(charsP, charIndexArg, "reached");
+            builder_->CreateCondBr(reached, exitBB, readByte);
+
+            // read.byte: قراءة البايت الأول من الحرف الحالي
+            builder_->SetInsertPoint(readByte);
+            llvm::Value *bp = builder_->CreateGEP(i8Ty, strArg, {bytePosP}, "bp");
+            llvm::Value *b = builder_->CreateLoad(i8Ty, bp, "b");
+            llvm::Value *isNullTerm = builder_->CreateICmpEQ(b,
+                                                             llvm::ConstantInt::get(i8Ty, 0), "is.null");
+            builder_->CreateCondBr(isNullTerm, exitBB, classify);
+
+            // classify: تحديد عرض الحرف UTF-8 (1/2/3/4 بايتات)
+            builder_->SetInsertPoint(classify);
+            llvm::Value *bExt = builder_->CreateZExt(b, i32Ty, "b.ext");
+            // (AR) إذا >= 0xF0 → 4 بايتات، >= 0xE0 → 3، >= 0xC0 → 2، غير ذلك → 1
+            llvm::Value *is4 = builder_->CreateICmpUGE(bExt, llvm::ConstantInt::get(i32Ty, 0xF0), "is4");
+            llvm::Value *is3 = builder_->CreateICmpUGE(bExt, llvm::ConstantInt::get(i32Ty, 0xE0), "is3");
+            llvm::Value *is2 = builder_->CreateICmpUGE(bExt, llvm::ConstantInt::get(i32Ty, 0xC0), "is2");
+            // (AR) اختيار العرض: 4 > 3 > 2 > 1
+            llvm::Value *w = builder_->CreateSelect(is4, llvm::ConstantInt::get(i64Ty, 4),
+                                                    builder_->CreateSelect(is3, llvm::ConstantInt::get(i64Ty, 3),
+                                                                           builder_->CreateSelect(is2, llvm::ConstantInt::get(i64Ty, 2),
+                                                                                                  llvm::ConstantInt::get(i64Ty, 1))));
+            builder_->CreateBr(advance);
+
+            // advance: التقدم بالبايت والحرف
+            builder_->SetInsertPoint(advance);
+            llvm::Value *newBytePos = builder_->CreateAdd(bytePosP, w, "new.byte.pos");
+            llvm::Value *newChars = builder_->CreateAdd(charsP,
+                                                        llvm::ConstantInt::get(i64Ty, 1), "new.chars");
+            builder_->CreateBr(loopCheck);
+
+            bytePosP->addIncoming(newBytePos, advance);
+            charsP->addIncoming(newChars, advance);
+
+            // exit: إرجاع موقع البايت
+            builder_->SetInsertPoint(exitBB);
+            llvm::PHINode *retPhi = builder_->CreatePHI(i64Ty, 3, "ret.byte.pos");
+            retPhi->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entry); // char_index <= 0
+            retPhi->addIncoming(bytePosP, loopCheck);                     // وصلنا العدد المطلوب
+            retPhi->addIncoming(bytePosP, readByte);                      // نهاية النص (null)
+            builder_->CreateRet(retPhi);
+
+            // (AR) استعادة نقطة الإدراج
+            if (hasSavedPoint && savedBB)
+                builder_->SetInsertPoint(savedBB, savedPoint);
+
+            return fn;
+        }
+
         llvm::Value *LLVMCodeGen::emitFFIStrlen(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
@@ -530,7 +739,6 @@ namespace Sad
                 context_info_.namedValues[inst->result->name] = result;
             return result;
         }
-
 
     } // namespace LLVM
 } // namespace Sad

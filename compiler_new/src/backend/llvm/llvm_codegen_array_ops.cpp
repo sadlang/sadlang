@@ -337,6 +337,10 @@ namespace Sad
             }
 
             llvm::Value *result;
+            // (AR) فحص هل المصدر صف (tuple) لفك وسم MSB بعد التحميل
+            // (EN) Check if source is tuple for MSB untagging after load
+            bool isTupleSource = (inst->operands.size() > 0 && inst->operands[0].dataType == SadTypeKind::Tuple);
+
             if (isNestedArray)
             {
                 // (AR) العنصر مؤشر (مصفوفة متداخلة / نص / بنية)
@@ -352,6 +356,28 @@ namespace Sad
                 // (EN) Element is i64 (number / boolean)
                 llvm::Value *elemPtr = builder_->CreateGEP(getInt64Type(), dataPtr, {index}, "arr.elem");
                 result = builder_->CreateLoad(getInt64Type(), elemPtr, "arr.get");
+
+                // (AR) وسم MSB لعناصر الصفوف:
+                //      نحفظ __is_ptr flag بناءً على bit 63:
+                //      bit63=1 → رقم (isPtr=false)، bit63=0 → مؤشر (isPtr=true)
+                //      لا نفك MSB هنا — ensureString يفكه عند الحاجة
+                // (EN) MSB tagging for tuple elements:
+                //      Save __is_ptr flag based on bit 63
+                //      Don't untag here — ensureString handles it
+                if (isTupleSource)
+                {
+                    // (AR) وسم 2-bit: bit63=1 → ليس مؤشر، bit63=0 → مؤشر
+                    llvm::Value *msbMask = llvm::ConstantInt::get(getInt64Type(), 1ULL << 63);
+                    llvm::Value *msbBit = builder_->CreateAnd(result, msbMask, "tup.get.msb");
+                    llvm::Value *isInt = builder_->CreateICmpNE(msbBit, llvm::ConstantInt::get(getInt64Type(), 0), "tup.get.isint");
+                    llvm::Value *isPtr = builder_->CreateNot(isInt, "tup.get.isptr");
+
+                    if (inst->result.has_value())
+                    {
+                        std::string flagName = inst->result->name + ".__is_ptr";
+                        context_info_.namedValues[flagName] = isPtr;
+                    }
+                }
             }
 
             if (inst->result.has_value())
@@ -407,7 +433,59 @@ namespace Sad
             // (EN) Determine element type: if value is pointer type → store as pointer
             bool isPointerValue = value->getType()->isPointerTy();
 
-            if (isPointerValue)
+            // (AR) وسم MSB للصفوف: عناصر الصف مختلطة الأنواع (نص/رقم/منطقي)
+            //      نخزن كل شيء كـ i64:
+            //      - ptr (نص/مصفوفة) → ptrtoint → i64 (bit 63 = 0 دائمًا في userspace x64)
+            //      - i64 (رقم/منطقي) → val | (1<<63) → i64 مع وسم MSB
+            //      عند القراءة: bit63=1 → رقم (أزل MSB)، bit63=0 → مؤشر (inttoptr)
+            // (EN) MSB tagging for tuples: mixed-type elements stored uniformly as i64
+            bool isTupleContainer = (inst->operands.size() > 0 && inst->operands[0].dataType == SadTypeKind::Tuple);
+
+            if (isTupleContainer)
+            {
+                llvm::Value *i64Val = nullptr;
+                if (isPointerValue)
+                {
+                    // (AR) ptr → ptrtoint → i64 (bit 63 = 0 في userspace)
+                    i64Val = builder_->CreatePtrToInt(value, getInt64Type(), "tup.p2i");
+                }
+                else
+                {
+                    // (AR) وسم 2-bit للصفوف:
+                    //      bit 63 = 1: ليس مؤشر
+                    //      bit 62 = 0: رقم عادي
+                    //      bit 62 = 1: boolean
+                    //      bit 63 = 0: مؤشر (نص/مصفوفة)
+                    // (EN) 2-bit tagging for tuples:
+                    //      bit 63 = 1: not a pointer
+                    //      bit 62 = 0: integer
+                    //      bit 62 = 1: boolean
+                    //      bit 63 = 0: pointer (string/array)
+                    bool isBoolVal = value->getType()->isIntegerTy(1) ||
+                                     (inst->operands.size() > 2 && inst->operands[2].dataType == SadTypeKind::Boolean);
+                    i64Val = value;
+                    if (!i64Val->getType()->isIntegerTy(64))
+                    {
+                        if (i64Val->getType()->isDoubleTy() || i64Val->getType()->isFloatTy())
+                        {
+                            if (i64Val->getType()->isFloatTy())
+                                i64Val = builder_->CreateFPExt(i64Val, llvm::Type::getDoubleTy(*context_), "tup.f2d");
+                            i64Val = builder_->CreateBitCast(i64Val, getInt64Type(), "tup.dcast");
+                        }
+                        else
+                        {
+                            i64Val = builder_->CreateZExt(i64Val, getInt64Type(), "tup.zext");
+                        }
+                    }
+                    // (AR) وسم: bit63 للأرقام/منطقي + bit62 إضافي للمنطقي
+                    uint64_t tag = isBoolVal ? (3ULL << 62) : (1ULL << 63); // 0xC0... أو 0x80...
+                    llvm::Value *tagVal = llvm::ConstantInt::get(getInt64Type(), tag);
+                    i64Val = builder_->CreateOr(i64Val, tagVal, "tup.tag");
+                }
+                llvm::Value *elemPtr = builder_->CreateGEP(getInt64Type(), dataPtr, {index}, "tup.elem");
+                builder_->CreateStore(i64Val, elemPtr);
+            }
+            else if (isPointerValue)
             {
                 // (AR) تخزين مؤشر (مصفوفة متداخلة / نص / بنية)
                 // (EN) Store pointer (nested array / string / struct)
@@ -419,18 +497,10 @@ namespace Sad
             {
                 // (AR) تخزين قيمة i64
                 // (EN) Store i64 value
-                // (AR) تحويل القيمة إلى i64 إذا لزم الأمر
-                //      إذا كانت double → bitcast إلى i64 (حفظ التمثيل الثنائي)
-                //      إذا كانت عدد صحيح بحجم آخر → IntCast
-                // (EN) Convert value to i64 if needed
-                //      If double → bitcast to i64 (preserve binary representation)
-                //      If integer of different size → IntCast
                 if (!value->getType()->isIntegerTy(64))
                 {
                     if (value->getType()->isDoubleTy() || value->getType()->isFloatTy())
                     {
-                        // (AR) تحويل عشري إلى i64 عبر bitcast لحفظ البتات كما هي
-                        // (EN) Convert float/double to i64 via bitcast to preserve bits
                         if (value->getType()->isFloatTy())
                         {
                             value = builder_->CreateFPExt(value, llvm::Type::getDoubleTy(*context_), "arr.elem.f2d");
@@ -604,7 +674,6 @@ namespace Sad
             }
             return result;
         }
-
 
     } // namespace LLVM
 } // namespace Sad

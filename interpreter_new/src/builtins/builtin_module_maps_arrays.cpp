@@ -14,6 +14,7 @@
  */
 #include "builtins.h"
 #include "interpreter_core.h"
+#include "builtin_registry.h"
 #include <algorithm>
 #include <cmath>
 #include <random>
@@ -22,6 +23,9 @@
 #ifdef VOID
 #undef VOID
 #endif
+
+// (AR) اختصار لفضاء أسماء ثوابت وحدة الخرائط
+namespace Bmp = Sad::Builtins::Names::Maps;
 
 namespace Sad
 {
@@ -69,8 +73,7 @@ namespace Sad
                 flattenHelper(args[0]->toArrayRef());
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("تسطيح", flatten_fn);
-            fm.registerBuiltinFunction("flatten", flatten_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::FLATTEN), flatten_fn);
 
             // chunk / تقسيم — تقسيم مصفوفة إلى أجزاء
             auto chunk_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -93,8 +96,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("تقطيع", chunk_fn);
-            fm.registerBuiltinFunction("chunk", chunk_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::CHUNK), chunk_fn);
 
             // take / خذ — أخذ أول n عنصر
             auto take_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -110,8 +112,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("خذ", take_fn);
-            fm.registerBuiltinFunction("take", take_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::TAKE), take_fn);
 
             // drop / اترك — حذف أول n عنصر
             auto drop_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -127,8 +128,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("اترك", drop_fn);
-            fm.registerBuiltinFunction("drop", drop_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::DROP), drop_fn);
 
             // enumerate / رقّم — ترقيم عناصر المصفوفة [فهرس، قيمة]
             auto enumerate_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -146,8 +146,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("رقّم", enumerate_fn);
-            fm.registerBuiltinFunction("enumerate", enumerate_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::ENUMERATE), enumerate_fn);
 
             // sum_array / مجموع — مجموع عناصر مصفوفة عددية
             auto sum_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -161,7 +160,6 @@ namespace Sad
                 }
                 return makeVal(sum);
             };
-            fm.registerBuiltinFunction("sum_array", sum_fn);
 
             // average / متوسط — متوسط عناصر مصفوفة عددية
             auto average_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -176,8 +174,7 @@ namespace Sad
                     sum += item.toDouble();
                 return makeVal(sum / static_cast<double>(arr.size()));
             };
-            fm.registerBuiltinFunction("متوسط", average_fn);
-            fm.registerBuiltinFunction("average", average_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::AVERAGE), average_fn);
 
             // min_array / أصغر_المصفوفة — أصغر قيمة في المصفوفة
             auto min_array_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -196,8 +193,7 @@ namespace Sad
                 }
                 return makeVal(minVal);
             };
-            fm.registerBuiltinFunction("أصغر_المصفوفة", min_array_fn);
-            fm.registerBuiltinFunction("min_array", min_array_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MIN_ARRAY), min_array_fn);
 
             // max_array / أكبر_المصفوفة — أكبر قيمة في المصفوفة
             auto max_array_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -216,8 +212,7 @@ namespace Sad
                 }
                 return makeVal(maxVal);
             };
-            fm.registerBuiltinFunction("أكبر_المصفوفة", max_array_fn);
-            fm.registerBuiltinFunction("max_array", max_array_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MAX_ARRAY), max_array_fn);
 
             // sort_array / ترتيب — ترتيب مصفوفة عددية (مع دعم دالة مقارنة اختيارية)
             auto sort_array_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -262,8 +257,7 @@ namespace Sad
             return a.toString() < b.toString(); });
                 return makeArrayVal(arr);
             };
-            fm.registerBuiltinFunction("ترتيب_مصفوفة", sort_array_fn);
-            fm.registerBuiltinFunction("sort_array", sort_array_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::SORT_ARRAY), sort_array_fn);
 
             // reverse_array / عكس_مصفوفة — عكس ترتيب مصفوفة
             auto reverse_arr_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -274,8 +268,7 @@ namespace Sad
                 std::reverse(arr.begin(), arr.end());
                 return makeArrayVal(arr);
             };
-            fm.registerBuiltinFunction("عكس_مصفوفة", reverse_arr_fn);
-            fm.registerBuiltinFunction("reverse_array", reverse_arr_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::REVERSE_ARRAY), reverse_arr_fn);
 
             // range / نطاق — إنشاء مصفوفة أرقام من start إلى end
 
@@ -299,8 +292,7 @@ namespace Sad
                 }
                 return makeVal(result);
             };
-            fm.registerBuiltinFunction("ربط", join_fn);
-            fm.registerBuiltinFunction("join_array", join_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::JOIN), join_fn);
 
             // sleep / انتظر — إيقاف التنفيذ لعدد من المللي ثواني
 
@@ -378,9 +370,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("مصفوفة_جديدة", matrix_new_fn);
-            fm.registerBuiltinFunction("matrix_new", matrix_new_fn);
-            fm.registerBuiltinFunction("matrix", matrix_new_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MATRIX_NEW), matrix_new_fn);
 
             // مصفوفة_وحدة / identity_matrix — إنشاء مصفوفة وحدة n×n
             auto identity_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -402,8 +392,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("مصفوفة_وحدة", identity_fn);
-            fm.registerBuiltinFunction("identity_matrix", identity_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MATRIX_IDENTITY), identity_fn);
 
             // نطاق_مصفوفة / arange — إنشاء مصفوفة أرقام متتالية [start, start+1, ..., end-1]
             auto arange_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -437,8 +426,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("نطاق_مصفوفة", arange_fn);
-            fm.registerBuiltinFunction("arange", arange_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::ARANGE), arange_fn);
 
             // أبعاد / shape — إرجاع أبعاد مصفوفة كدالة مستقلة
             auto shape_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -461,8 +449,7 @@ namespace Sad
                 }
                 return makeArrayVal(dims);
             };
-            fm.registerBuiltinFunction("أبعاد_مصفوفة", shape_fn);
-            fm.registerBuiltinFunction("shape", shape_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::SHAPE), shape_fn);
 
             // قلب_محوري / transpose — تبديل صفوف وأعمدة مصفوفة ثنائية الأبعاد
             auto transpose_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -489,8 +476,7 @@ namespace Sad
                 }
                 return makeArrayVal(result);
             };
-            fm.registerBuiltinFunction("قلب_محوري", transpose_fn);
-            fm.registerBuiltinFunction("transpose", transpose_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::TRANSPOSE), transpose_fn);
 
         } // registerBuiltinsMapsArrays
 

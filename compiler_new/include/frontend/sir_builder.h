@@ -172,6 +172,7 @@ namespace Sad
 
                 // (AR) معلومات إضافية للأنواع المركبة / Additional info for composite types
                 SadTypeKind elementType;       ///< (AR) نوع عنصر المصفوفة / (EN) Array element type
+                std::string elementClassName;  ///< (AR) اسم صنف عنصر المصفوفة إذا كان كائناً / (EN) Array element class name when element is object
                 std::string className;         ///< (AR) اسم الصنف للكائنات / (EN) Class name for objects
                 bool isFieldAccess = false;    ///< (AR) نتيجة وصول لحقل OOP (لا تحتاج LOAD إضافي) / (EN) OOP field access result (no extra LOAD needed)
                 bool isDirectValue = false;    ///< (AR) قيمة مباشرة (نتيجة CALL/CLOSURE_CALL) لا تحتاج LOAD إضافي / (EN) Direct value (CALL/CLOSURE_CALL result) — no extra LOAD needed
@@ -221,16 +222,17 @@ namespace Sad
              */
             struct VariableInfo
             {
-                std::string name;         ///< (AR) الاسم / (EN) Name
-                SadTypeKind type;         ///< (AR) النوع / (EN) Type
-                std::string registerName; ///< (AR) اسم السجل / (EN) Register name
-                bool isGlobal;            ///< (AR) متغير عام؟ / (EN) Is global?
-                bool isMutable;           ///< (AR) قابل للتعديل؟ / (EN) Is mutable?
-                bool isVolatile;          ///< (AR) متطاير؟ / (EN) Is volatile?
-                bool isParameter = false; ///< (AR) هل معامل دالة؟ / (EN) Is function parameter?
-                int scopeLevel;           ///< (AR) مستوى النطاق / (EN) Scope level
-                std::string className;    ///< (AR) اسم الصنف (مثلاً __channel__ للقنوات) / (EN) Class name (e.g. __channel__ for channels)
-                SadTypeKind elementType;  ///< (AR) نوع عنصر المصفوفة — يُستخدم لحلقات foreach / (EN) Array element type — used for foreach loops
+                std::string name;             ///< (AR) الاسم / (EN) Name
+                SadTypeKind type;             ///< (AR) النوع / (EN) Type
+                std::string registerName;     ///< (AR) اسم السجل / (EN) Register name
+                bool isGlobal;                ///< (AR) متغير عام؟ / (EN) Is global?
+                bool isMutable;               ///< (AR) قابل للتعديل؟ / (EN) Is mutable?
+                bool isVolatile;              ///< (AR) متطاير؟ / (EN) Is volatile?
+                bool isParameter = false;     ///< (AR) هل معامل دالة؟ / (EN) Is function parameter?
+                int scopeLevel;               ///< (AR) مستوى النطاق / (EN) Scope level
+                std::string className;        ///< (AR) اسم الصنف (مثلاً __channel__ للقنوات) / (EN) Class name (e.g. __channel__ for channels)
+                SadTypeKind elementType;      ///< (AR) نوع عنصر المصفوفة — يُستخدم لحلقات foreach / (EN) Array element type — used for foreach loops
+                std::string elementClassName; ///< (AR) اسم صنف عنصر المصفوفة عند كون العناصر كائنات / (EN) Array element class name when elements are objects
 
                 // ================================================================
                 // (AR) [Fix #51] معلومات الالتقاط — تُستخدم عندما يكون المتغير ملتقطاً في إغلاق
@@ -283,6 +285,16 @@ namespace Sad
                 //      Example: function makePoint() returns new Point(1,2) → returnClassName = "Point"
                 // ================================================================
                 std::string returnClassName; ///< (AR) اسم الصنف المُرجع / (EN) Return class name
+
+                // ================================================================
+                // (AR) [Fix #52] اسم اللامدا المُرجعة — يُستخدم عندما تُرجع الدالة إغلاقاً
+                //      مثال: دالة صانع() ارجع لامدا()... → returnLambdaName = "__lambda_0"
+                //      هذا يسمح بتتبع نوع الإرجاع الصحيح عند استدعاء الإغلاق عبر متغير
+                // (EN) [Fix #52] Returned lambda name — used when function returns a closure
+                //      Example: func factory() return lambda()... → returnLambdaName = "__lambda_0"
+                //      Enables correct return type tracking when calling closure via variable
+                // ================================================================
+                std::string returnLambdaName; ///< (AR) اسم اللامدا المُرجعة / (EN) Returned lambda name
 
                 // ================================================================
                 // (AR) مرجع إلى تعريف الدالة في AST — يُستخدم لمعالجة القيم الافتراضية
@@ -862,6 +874,53 @@ namespace Sad
                  */
                 BuildResult buildFunctionCall(AST::FunctionCallNode *call);
 
+                // ── دوال مساعدة مستخرجة من buildFunctionCall (CW-05, CW-03) ──
+                // ── Helper methods extracted from buildFunctionCall (CW-05, CW-03) ──
+
+                /**
+                 * @brief (AR) معالجة توسيع استدعاء الماكرو — يُرجع nullopt إذا لم يكن ماكرو
+                 * @brief (EN) Handle macro call expansion — returns nullopt if not a macro call
+                 */
+                std::optional<BuildResult> buildMacroCallExpansion(
+                    AST::FunctionCallNode *call, const std::string &funcName);
+
+                /**
+                 * @brief (AR) معالجة استدعاء الكائن القابل للاستدعاء operator() — يُرجع nullopt إذا لم ينطبق
+                 * @brief (EN) Handle callable object operator() invocation — returns nullopt if not applicable
+                 */
+                std::optional<BuildResult> buildCallableObjectInvoke(
+                    AST::FunctionCallNode *call, const std::string &funcName);
+
+                /**
+                 * @brief (AR) معالجة استدعاء باني الأب أساس/الأساس/super — يُرجع nullopt إذا لم ينطبق
+                 * @brief (EN) Handle super constructor call أساس/الأساس/super — returns nullopt if not applicable
+                 */
+                std::optional<BuildResult> buildSuperConstructorCall(
+                    AST::FunctionCallNode *call, const std::string &funcName);
+
+                /**
+                 * @brief (AR) بناء قائمة الوسائط لاستدعاء دالة عادي
+                 * @brief (EN) Build argument list for regular function call
+                 * @param outArgOperands (AR) الوسائط بصيغة SIROperand / (EN) Arguments as SIROperand
+                 * @param outArgResults  (AR) نتائج تقييم الوسائط / (EN) Argument evaluation results
+                 * @return (AR) true = نجح / false = فشل (خطأ مسجّل في errors_)
+                 * @return (EN) true = success / false = failure (error recorded in errors_)
+                 */
+                bool buildCallArgumentsList(
+                    AST::FunctionCallNode *call,
+                    std::vector<SIROperand> &outArgOperands,
+                    std::vector<BuildResult> &outArgResults);
+
+                /**
+                 * @brief (AR) تعبئة قيم الوسائط الافتراضية الناقصة
+                 * @brief (EN) Fill in missing default argument values
+                 */
+                void fillDefaultCallArguments(
+                    AST::FunctionCallNode *call,
+                    const std::string &funcName,
+                    std::vector<SIROperand> &argOperands,
+                    std::vector<BuildResult> &argResults);
+
                 /**
                  * @brief (AR) معالجة استدعاء دالة مدمجة أساسية
                  * @brief (EN) Handle core builtin function call (type conv, print, math, string, array, file)
@@ -877,6 +936,30 @@ namespace Sad
                 std::optional<BuildResult> buildBuiltinCallSystem(
                     const std::string &funcName, bool isUserDefinedFunction,
                     std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
+
+                /**
+                 * @brief (AR) معالجة استدعاء دالة مدمجة للشبكة
+                 *        مقابس TCP/UDP، عميل HTTP، خادم HTTP، أدوات الشبكة، العناوين
+                 * @brief (EN) Handle network builtin function call
+                 *        TCP/UDP sockets, HTTP client, HTTP server, network utilities, addresses
+                 */
+                std::optional<BuildResult> buildBuiltinCallNetwork(
+                    const std::string &funcName, bool isUserDefinedFunction,
+                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
+
+                /**
+                 * @brief (AR) دالة مساعدة: بناء تعليمة SIR لدالة شبكة
+                 * @brief (EN) Helper: build SIR instruction for a network function
+                 * @param opcode (AR) رمز العملية / (EN) SIR opcode
+                 * @param argOperands (AR) المعاملات / (EN) Operands
+                 * @param returnType (AR) نوع القيمة المُرجعة / (EN) Return type
+                 * @param comment (AR) تعليق التعليمة / (EN) Instruction comment
+                 */
+                BuildResult buildNetworkBuiltinInstruction(
+                    SIROpcode opcode,
+                    std::vector<SIROperand> &argOperands,
+                    SadTypeKind returnType,
+                    const char *comment);
 
                 /**
                  * @brief (AR) بناء إنشاء كائن جديد
@@ -972,6 +1055,27 @@ namespace Sad
                  */
                 std::optional<BuildResult> buildMapBuiltinMethodCall(const BuildResult &objResult,
                                                                      const std::string &methodName, const std::vector<SIROperand> &args);
+
+                // ================================================================
+                // (AR) فحص استيراد الوحدات القياسية — توحيد سلوك المترجم مع المفسر
+                // (EN) Stdlib module import checking — unify compiler behavior with interpreter
+                // ================================================================
+
+                /**
+                 * @brief (AR) تحقق من استيراد وحدة قياسية (مع دعم الأسماء المستعارة)
+                 * @brief (EN) Check if a stdlib module is imported (with alias resolution)
+                 * @param moduleName اسم الوحدة الأساسي (مثال: "نصوص", "رياضيات", "أساسيات")
+                 * @return صحيح إذا تم استيراد الوحدة أو أي من أسمائها المستعارة
+                 */
+                bool isStdlibModuleImported(const std::string &moduleName) const;
+
+                /**
+                 * @brief (AR) تحديد الوحدة المطلوبة لدالة مضمنة (وفق سلوك المفسر)
+                 * @brief (EN) Determine required module for a builtin function (matching interpreter behavior)
+                 * @param funcName اسم الدالة المضمنة
+                 * @return اسم الوحدة المطلوبة، أو سلسلة فارغة إذا كانت أساسية (لا تحتاج استيراد)
+                 */
+                static std::string getRequiredModuleForBuiltin(const std::string &funcName);
 
                 // ================================================================
                 // (AR) دوال مساعدة لـ buildBuiltinCallCore — مستخرجة وفق CW-05
@@ -1510,6 +1614,20 @@ namespace Sad
                 //      Used to create wrappers in LLVM codegen compatible with CLOSURE_CALL
                 std::unordered_set<std::string> funcRefNames_;
 
+                // (AR) خريطة أعضاء الفضاءات: اسم_الفضاء → {اسم_العضو → (نوع: "var"|"func", اسم_SIR)}
+                //      تُستخدم لتحويل رياضيات.PI إلى تحميل المتغير العام رياضيات::PI
+                //      وتحويل رياضيات.مضاعف(5) إلى استدعاء رياضيات::مضاعف(5)
+                // (EN) Namespace members map: namespace_name → {member_name → (kind: "var"|"func", SIR_name)}
+                //      Used to resolve namespace.member → load global namespace::member
+                //      and namespace.method(args) → call namespace::method(args)
+                struct NamespaceMemberInfo
+                {
+                    std::string kind;                        ///< "var" أو "func" أو "class"
+                    std::string sirName;                     ///< الاسم في SIR (مثل: "رياضيات::PI")
+                    SadTypeKind type = SadTypeKind::Integer; ///< نوع العضو (للمتغيرات)
+                };
+                std::unordered_map<std::string, std::unordered_map<std::string, NamespaceMemberInfo>> namespaceMembers_;
+
                 // (AR) جدول التعدادات الجبرية (ADT): اسم_التعداد → معلومات ADT
                 //      يُستخدم أثناء بناء variant constructors ومطابقة الأنماط
                 // (EN) ADT enum table: enum_name → ADT info
@@ -1522,6 +1640,13 @@ namespace Sad
                 // (AR) أسماء مستعارة لدوال Lambda: اسم_المتغير -> اسم_lambda
                 // (EN) Lambda aliases: variable_name -> lambda_function_name
                 std::unordered_map<std::string, std::string> lambdaAliases_;
+
+                // (AR) خريطة أنواع القنوات: اسم_السجل -> نوع العناصر المُرسلة
+                //      تُملأ عند channel.send(value) وتُستخدم عند channel.recv()
+                //      لتحديد نوع القيمة المستقبَلة بدلاً من إرجاع Integer دائماً
+                // (EN) Channel element type map: register_name -> sent element type
+                //      Filled on channel.send(value), used on channel.recv()
+                std::unordered_map<std::string, SadTypeKind> channelTypeMap_;
 
                 // (AR) التقاطات الإغلاقات: اسم_lambda -> [(اسم_متغير, اسم_سجل)]
                 // (EN) Closure captures: lambda_name -> [(var_name, register_name)]
@@ -1798,6 +1923,43 @@ namespace Sad
                 bool buildStatement_Generators(AST::Statement *stmt);
                 bool buildStatement_Types(AST::Statement *stmt);
                 bool buildStatement_Advanced(AST::Statement *stmt);
+
+                // ── دوال مساعدة مستخرجة من buildStatement_Advanced (CW-05, CW-03) ──
+                /**
+                 * @brief (AR) معالجة TestDecl — اختبار عادي واختبار خصائص
+                 * @brief (EN) Handle TestDecl — normal test and property-based test
+                 */
+                bool buildStatement_Test(AST::Statement *stmt);
+
+                /**
+                 * @brief (AR) معالجة PropertyDecl — getter/setter
+                 * @brief (EN) Handle PropertyDecl — getter/setter lowering
+                 */
+                bool buildStatement_Property(AST::Statement *stmt);
+
+                /**
+                 * @brief (AR) معالجة GoStmt — goroutine (أطلق)
+                 * @brief (EN) Handle GoStmt — concurrent goroutine spawn
+                 */
+                bool buildStatement_Go(AST::Statement *stmt);
+
+                /**
+                 * @brief (AR) معالجة SelectStmt — اختر من قنوات متعددة
+                 * @brief (EN) Handle SelectStmt — channel select multiplexer
+                 */
+                bool buildStatement_Select(AST::Statement *stmt);
+
+                /**
+                 * @brief (AR) معالجة ExtensionDecl — امتداد صنف موجود
+                 * @brief (EN) Handle ExtensionDecl — extension methods for existing class
+                 */
+                bool buildStatement_Extension(AST::Statement *stmt);
+
+                /**
+                 * @brief (AR) معالجة TypeAliasDecl + ReExportStmt — أسماء مستعارة وإعادة تصدير
+                 * @brief (EN) Handle TypeAliasDecl + ReExportStmt — type aliases and re-exports
+                 */
+                bool buildStatement_TypesAndReExport(AST::Statement *stmt);
             };
 
         } // namespace SIR

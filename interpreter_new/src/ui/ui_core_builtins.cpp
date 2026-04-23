@@ -8,6 +8,7 @@
 #include "ui_bridge.h"
 #include "builtins.h"
 #include "interpreter_core.h"
+#include "builtin_registry.h"
 #include "object_instance.h"
 #include "widget_builder.h"
 #include "sad_ui/node.h"
@@ -169,6 +170,9 @@ namespace Sad
         {
             auto &fm = interpreter.getFunctionManager();
 
+            // (AR) اختصار لأسماء ثوابت نواة الواجهة
+            namespace Bc = Builtins::Names::UICore;
+
             // ─── _محرك_واجهات(عنصر_جذر) — تشغيل التطبيق بشجرة عناصر تعريحية أو دالة بنّاء ───
             auto engine_fn = [&interpreter](const std::vector<std::shared_ptr<Data::Value>> &args)
                 -> std::shared_ptr<Data::Value>
@@ -209,10 +213,7 @@ namespace Sad
                 }
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("_\xd9\x85\xd8\xad\xd8\xb1\xd9\x83_\xd9\x88\xd8\xa7\xd8\xac\xd9\x87\xd8\xa7\xd8\xaa", engine_fn);
-            fm.registerBuiltinFunction("_ui_engine", engine_fn);
-            fm.registerBuiltinFunction("_\xd8\xb4\xd8\xba\xd9\x91\xd9\x84_\xd9\x86\xd8\xa7\xd9\x81\xd8\xb0\xd8\xa9", engine_fn);
-            fm.registerBuiltinFunction("_\xd8\xb4\xd8\xba\xd9\x84_\xd9\x86\xd8\xa7\xd9\x81\xd8\xb0\xd8\xa9", engine_fn);
+            fm.registerBuiltinFunction(std::string(Bc::ENGINE), engine_fn);
 
             // ─── تشغيل_تطبيق(عنصر_أو_دالة) — نقطة الدخول العامة (مثل runApp في Flutter) ───
             // (AR) هذه الدالة العامة التي يستخدمها المبرمج لتشغيل تطبيق واجهة رسومية
@@ -241,13 +242,7 @@ namespace Sad
                 }
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd8\xaa\xd8\xb4\xd8\xba\xd9\x8a\xd9\x84_\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82", run_app_fn); // تشغيل_تطبيق
-            fm.registerBuiltinFunction("runApp", run_app_fn);
-            fm.registerBuiltinFunction("run_app", run_app_fn);
-            // (AR) شغّل — اسم مختصر للتوافق مع الأسلوب القديم
-            // (EN) شغّل — short alias for backward compatibility
-            fm.registerBuiltinFunction("\xd8\xb4\xd8\xba\xd9\x91\xd9\x84", run_app_fn); // شغّل (with شدة)
-            fm.registerBuiltinFunction("\xd8\xb4\xd8\xba\xd9\x84", run_app_fn);         // شغل (without شدة)
+            fm.registerBuiltinFunction(std::string(Bc::RUN_APP), run_app_fn); // تشغيل_تطبيق
 
             // ─── طباعة_شجرة(عنصر) — طباعة شجرة العناصر للتصحيح ───
             auto print_tree_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -259,8 +254,7 @@ namespace Sad
                 }
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd8\xb7\xd8\xa8\xd8\xa7\xd8\xb9\xd8\xa9_\xd8\xb4\xd8\xac\xd8\xb1\xd8\xa9", print_tree_fn); // طباعة_شجرة
-            fm.registerBuiltinFunction("printWidgetTree", print_tree_fn);
+            fm.registerBuiltinFunction(std::string(Bc::PRINT_TREE), print_tree_fn); // طباعة_شجرة
 
             // ─── دوال التنقل ───
             auto navigate_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -272,8 +266,7 @@ namespace Sad
                     bridge->navigateTo(*args[0]);
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84", navigate_fn);
-            fm.registerBuiltinFunction("navigate", navigate_fn);
+            fm.registerBuiltinFunction(std::string(Bc::NAVIGATE), navigate_fn);
 
             // ─── انتقل_بتحريك(صفحة, نوع_انتقال, مدة؟) — تنقل مع تحريك بصري ───
             // (AR) دالة الانتقال مع تحريك — تدعم أنواع مثل "ظهور"، "انزلاق_يمين"، "تكبير"
@@ -300,10 +293,8 @@ namespace Sad
                 return std::make_shared<Data::Value>();
             };
             fm.registerBuiltinFunction(
-                "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83",
+                std::string(Bc::NAVIGATE_TRANSITION),
                 navigate_transition_fn); // انتقل_بتحريك
-            fm.registerBuiltinFunction("navigateWithTransition", navigate_transition_fn);
-            fm.registerBuiltinFunction("navigate_transition", navigate_transition_fn);
 
             // ─── انتقل_بتحريك_كامل(صفحة, دخول, خروج, مدة؟) — تنقل مع خروج + دخول ───
             // (AR) دالة انتقال مع تحريك خروج على الصفحة الحالية + تحريك دخول على الجديدة
@@ -332,10 +323,8 @@ namespace Sad
                 return std::make_shared<Data::Value>();
             };
             fm.registerBuiltinFunction(
-                "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83_\xd9\x83\xd8\xa7\xd9\x85\xd9\x84",
+                std::string(Bc::NAVIGATE_EXIT_TRANSITION),
                 navigate_exit_transition_fn); // انتقل_بتحريك_كامل
-            fm.registerBuiltinFunction("navigateWithExitTransition", navigate_exit_transition_fn);
-            fm.registerBuiltinFunction("navigate_exit_transition", navigate_exit_transition_fn);
 
             auto back_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
@@ -344,8 +333,7 @@ namespace Sad
                     bridge->navigateBack();
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd8\xb9\xd9\x88\xd8\xaf\xd8\xa9", back_fn);
-            fm.registerBuiltinFunction("goBack", back_fn);
+            fm.registerBuiltinFunction(std::string(Bc::BACK), back_fn);
 
             // ─── عودة_بتحريك(نوع_انتقال, مدة؟) — العودة مع تحريك بصري ───
             // (AR) العودة للصفحة السابقة مع تحريك انتقالي
@@ -366,10 +354,8 @@ namespace Sad
                 return std::make_shared<Data::Value>();
             };
             fm.registerBuiltinFunction(
-                "\xd8\xb9\xd9\x88\xd8\xaf\xd8\xa9_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83",
+                std::string(Bc::BACK_TRANSITION),
                 back_transition_fn); // عودة_بتحريك
-            fm.registerBuiltinFunction("goBackWithTransition", back_transition_fn);
-            fm.registerBuiltinFunction("back_transition", back_transition_fn);
 
             auto root_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
@@ -378,8 +364,7 @@ namespace Sad
                     bridge->navigateToRoot();
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd8\xb9\xd9\x88\xd8\xaf\xd8\xa9_\xd9\x84\xd9\x84\xd8\xa8\xd8\xaf\xd8\xa7\xd9\x8a\xd8\xa9", root_fn);
-            fm.registerBuiltinFunction("goToRoot", root_fn);
+            fm.registerBuiltinFunction(std::string(Bc::BACK_TO_ROOT), root_fn);
 
             auto replace_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
@@ -390,8 +375,7 @@ namespace Sad
                     bridge->replacePage(*args[0]);
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x84", replace_fn);
-            fm.registerBuiltinFunction("replacePage", replace_fn);
+            fm.registerBuiltinFunction(std::string(Bc::REPLACE_PAGE), replace_fn);
 
             // ─── دوال الثيم ───
             auto toggle_theme_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -402,8 +386,7 @@ namespace Sad
                     bridge->rebuildUI();
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x8a\xd9\x84_\xd8\xa7\xd9\x84\xd8\xab\xd9\x8a\xd9\x85", toggle_theme_fn);
-            fm.registerBuiltinFunction("toggleTheme", toggle_theme_fn);
+            fm.registerBuiltinFunction(std::string(Bc::TOGGLE_THEME), toggle_theme_fn);
 
             auto dark_mode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
@@ -413,8 +396,7 @@ namespace Sad
                     bridge->rebuildUI();
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd9\x88\xd8\xb6\xd8\xb9_\xd8\xaf\xd8\xa7\xd9\x83\xd9\x86", dark_mode_fn);
-            fm.registerBuiltinFunction("darkMode", dark_mode_fn);
+            fm.registerBuiltinFunction(std::string(Bc::DARK_MODE), dark_mode_fn);
 
             auto light_mode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
@@ -424,15 +406,13 @@ namespace Sad
                     bridge->rebuildUI();
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd9\x88\xd8\xb6\xd8\xb9_\xd9\x81\xd8\xa7\xd8\xaa\xd8\xad", light_mode_fn);
-            fm.registerBuiltinFunction("lightMode", light_mode_fn);
+            fm.registerBuiltinFunction(std::string(Bc::LIGHT_MODE), light_mode_fn);
 
             auto is_dark_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
             {
                 return std::make_shared<Data::Value>(sad::ui::isDarkMode());
             };
-            fm.registerBuiltinFunction("\xd9\x87\xd9\x84_\xd8\xaf\xd8\xa7\xd9\x83\xd9\x86", is_dark_fn);
-            fm.registerBuiltinFunction("isDarkMode", is_dark_fn);
+            fm.registerBuiltinFunction(std::string(Bc::IS_DARK), is_dark_fn);
 
             // ─── تحديث الحالة ───
             auto set_state_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -442,8 +422,7 @@ namespace Sad
                     bridge->rebuildUI();
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd8\xaa\xd8\xad\xd8\xaf\xd9\x8a\xd8\xab_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9", set_state_fn);
-            fm.registerBuiltinFunction("setState", set_state_fn);
+            fm.registerBuiltinFunction(std::string(Bc::UPDATE_STATE), set_state_fn);
 
             // ─── عنوان النافذة ───
             auto set_title_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -457,8 +436,7 @@ namespace Sad
                     bridge->setWindowTitle(args[0]->toString());
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_\xd8\xa7\xd9\x84\xd9\x86\xd8\xa7\xd9\x81\xd8\xb0\xd8\xa9", set_title_fn);
-            fm.registerBuiltinFunction("setWindowTitle", set_title_fn);
+            fm.registerBuiltinFunction(std::string(Bc::SET_TITLE), set_title_fn);
 
             // ─── عدد الصفحات ───
             auto page_count_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -468,8 +446,7 @@ namespace Sad
                     return std::make_shared<Data::Value>(static_cast<int64_t>(bridge->getNavigationDepth()));
                 return std::make_shared<Data::Value>(static_cast<int64_t>(0));
             };
-            fm.registerBuiltinFunction("\xd8\xb9\xd8\xaf\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xb5\xd9\x81\xd8\xad\xd8\xa7\xd8\xaa", page_count_fn);
-            fm.registerBuiltinFunction("pageCount", page_count_fn);
+            fm.registerBuiltinFunction(std::string(Bc::PAGE_COUNT), page_count_fn);
 
             // ─── إغلاق النافذة ───
             auto close_window_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -479,8 +456,7 @@ namespace Sad
                     bridge->closeWindow();
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd8\xa3\xd8\xba\xd9\x84\xd9\x82_\xd8\xa7\xd9\x84\xd9\x86\xd8\xa7\xd9\x81\xd8\xb0\xd8\xa9", close_window_fn);
-            fm.registerBuiltinFunction("closeWindow", close_window_fn);
+            fm.registerBuiltinFunction(std::string(Bc::CLOSE_WINDOW), close_window_fn);
 
             // ─── عيّن_الحالة(دالة_تحديث) — تحديث حالة + إعادة بناء (مثل setState في Flutter) ───
             // (AR) يستدعي دالة التحديث أولاً ثم يُعيد بناء الواجهة
@@ -512,8 +488,7 @@ namespace Sad
                     bridge->rebuildUI();
                 return std::make_shared<Data::Value>();
             };
-            fm.registerBuiltinFunction("\xd8\xb9\xd9\x8a\xd9\x91\xd9\x86_\xd8\xa7\xd9\x84\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9", set_state_v2_fn); // عيّن_الحالة
-            fm.registerBuiltinFunction("setStateV2", set_state_v2_fn);
+            fm.registerBuiltinFunction(std::string(Bc::SET_STATE), set_state_v2_fn); // عيّن_الحالة
 
             // ─── توليد_ويب(عنصر_أو_دالة) — توليد HTML من شجرة عناصر ───
             // (AR) يحوّل شجرة عناصر ص إلى صفحة HTML كاملة
@@ -588,9 +563,7 @@ namespace Sad
 
                 return std::make_shared<Data::Value>(html);
             };
-            fm.registerBuiltinFunction("\xd8\xaa\xd9\x88\xd9\x84\xd9\x8a\xd8\xaf_\xd9\x88\xd9\x8a\xd8\xa8", gen_web_fn); // توليد_ويب
-            fm.registerBuiltinFunction("generateWeb", gen_web_fn);
-            fm.registerBuiltinFunction("generateHTML", gen_web_fn);
+            fm.registerBuiltinFunction(std::string(Bc::GEN_WEB), gen_web_fn); // توليد_ويب
         }
 
     } // namespace Interpreter

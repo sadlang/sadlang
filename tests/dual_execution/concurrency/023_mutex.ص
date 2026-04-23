@@ -1,7 +1,6 @@
-# @description اختبار القفل (Mutex) — قفل وفتح وحالة
+﻿# @description اختبار القفل (Mutex) — قفل وفتح وحالة
 # @expected خطأ\nصحيح\nخطأ
 # @priority P2
-# @skip_compiler القفل جزئي في المترجم
 
 متغير ق_ف = قفل()
 

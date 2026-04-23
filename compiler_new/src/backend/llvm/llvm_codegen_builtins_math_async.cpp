@@ -26,11 +26,9 @@ using namespace Sad::Compiler::SIR;
 
 static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
 {
-    return llvm::StructType::get(ctx, {
-                                          llvm::Type::getInt64Ty(ctx),
-                                          llvm::Type::getInt64Ty(ctx),
-                                          llvm::PointerType::getUnqual(ctx)
-                                      });
+    return llvm::StructType::get(ctx, {llvm::Type::getInt64Ty(ctx),
+                                       llvm::Type::getInt64Ty(ctx),
+                                       llvm::PointerType::getUnqual(ctx)});
 }
 
 namespace Sad
@@ -273,6 +271,154 @@ namespace Sad
             llvm::Value *dval = builder_->CreateSIToFP(rval, llvm::Type::getDoubleTy(*context_));
             llvm::Value *result = builder_->CreateFDiv(dval, llvm::ConstantFP::get(llvm::Type::getDoubleTy(*context_), 2147483647.0));
             if (inst && inst->result.has_value())
+                context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        // ============================================================================
+        // (AR) دوال رياضية إضافية — وحدة رياضيات الموسّعة
+        // (EN) Extended math builtins — stdlib رياضيات module
+        // ============================================================================
+
+        llvm::Value *LLVMCodeGen::emitBuiltinLog10(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *arg = resolveOperand(inst->operands[0]);
+            if (!arg)
+                return nullptr;
+            llvm::Value *dArg = arg->getType()->isDoubleTy() ? arg : builder_->CreateSIToFP(arg, llvm::Type::getDoubleTy(*context_));
+            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getDoubleTy(*context_), {llvm::Type::getDoubleTy(*context_)}, false);
+            llvm::FunctionCallee fn = module_->getOrInsertFunction("log10", ft);
+            llvm::Value *result = builder_->CreateCall(fn, {dArg}, "log10.ret");
+            if (inst->result.has_value())
+                context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *LLVMCodeGen::emitBuiltinLog2(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *arg = resolveOperand(inst->operands[0]);
+            if (!arg)
+                return nullptr;
+            llvm::Value *dArg = arg->getType()->isDoubleTy() ? arg : builder_->CreateSIToFP(arg, llvm::Type::getDoubleTy(*context_));
+            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getDoubleTy(*context_), {llvm::Type::getDoubleTy(*context_)}, false);
+            llvm::FunctionCallee fn = module_->getOrInsertFunction("log2", ft);
+            llvm::Value *result = builder_->CreateCall(fn, {dArg}, "log2.ret");
+            if (inst->result.has_value())
+                context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *LLVMCodeGen::emitBuiltinAsin(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *arg = resolveOperand(inst->operands[0]);
+            if (!arg)
+                return nullptr;
+            llvm::Value *dArg = arg->getType()->isDoubleTy() ? arg : builder_->CreateSIToFP(arg, llvm::Type::getDoubleTy(*context_));
+            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getDoubleTy(*context_), {llvm::Type::getDoubleTy(*context_)}, false);
+            llvm::FunctionCallee fn = module_->getOrInsertFunction("asin", ft);
+            llvm::Value *result = builder_->CreateCall(fn, {dArg}, "asin.ret");
+            if (inst->result.has_value())
+                context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *LLVMCodeGen::emitBuiltinAcos(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *arg = resolveOperand(inst->operands[0]);
+            if (!arg)
+                return nullptr;
+            llvm::Value *dArg = arg->getType()->isDoubleTy() ? arg : builder_->CreateSIToFP(arg, llvm::Type::getDoubleTy(*context_));
+            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getDoubleTy(*context_), {llvm::Type::getDoubleTy(*context_)}, false);
+            llvm::FunctionCallee fn = module_->getOrInsertFunction("acos", ft);
+            llvm::Value *result = builder_->CreateCall(fn, {dArg}, "acos.ret");
+            if (inst->result.has_value())
+                context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *LLVMCodeGen::emitBuiltinAtan(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *arg = resolveOperand(inst->operands[0]);
+            if (!arg)
+                return nullptr;
+            llvm::Value *dArg = arg->getType()->isDoubleTy() ? arg : builder_->CreateSIToFP(arg, llvm::Type::getDoubleTy(*context_));
+            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getDoubleTy(*context_), {llvm::Type::getDoubleTy(*context_)}, false);
+            llvm::FunctionCallee fn = module_->getOrInsertFunction("atan", ft);
+            llvm::Value *result = builder_->CreateCall(fn, {dArg}, "atan.ret");
+            if (inst->result.has_value())
+                context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *LLVMCodeGen::emitBuiltinTrunc(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *arg = resolveOperand(inst->operands[0]);
+            if (!arg)
+                return nullptr;
+            llvm::Value *dArg = arg->getType()->isDoubleTy() ? arg : builder_->CreateSIToFP(arg, llvm::Type::getDoubleTy(*context_));
+            llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getDoubleTy(*context_), {llvm::Type::getDoubleTy(*context_)}, false);
+            llvm::FunctionCallee fn = module_->getOrInsertFunction("trunc", ft);
+            llvm::Value *result = builder_->CreateFPToSI(builder_->CreateCall(fn, {dArg}, "trunc.ret"), llvm::Type::getInt64Ty(*context_));
+            if (inst->result.has_value())
+                context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *LLVMCodeGen::emitBuiltinFmod(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+                return nullptr;
+            llvm::Value *a = resolveOperand(inst->operands[0]);
+            llvm::Value *b = resolveOperand(inst->operands[1]);
+            if (!a || !b)
+                return nullptr;
+            llvm::Type *dblTy = llvm::Type::getDoubleTy(*context_);
+            llvm::Value *dA = a->getType()->isDoubleTy() ? a : builder_->CreateSIToFP(a, dblTy);
+            llvm::Value *dB = b->getType()->isDoubleTy() ? b : builder_->CreateSIToFP(b, dblTy);
+            llvm::FunctionType *ft = llvm::FunctionType::get(dblTy, {dblTy, dblTy}, false);
+            llvm::FunctionCallee fn = module_->getOrInsertFunction("fmod", ft);
+            llvm::Value *result = builder_->CreateCall(fn, {dA, dB}, "fmod.ret");
+            if (inst->result.has_value())
+                context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *LLVMCodeGen::emitBuiltinClamp(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 3)
+                return nullptr;
+            llvm::Value *val = resolveOperand(inst->operands[0]);
+            llvm::Value *minVal = resolveOperand(inst->operands[1]);
+            llvm::Value *maxVal = resolveOperand(inst->operands[2]);
+            if (!val || !minVal || !maxVal)
+                return nullptr;
+
+            llvm::Type *dblTy = llvm::Type::getDoubleTy(*context_);
+            llvm::Value *dVal = val->getType()->isDoubleTy() ? val : builder_->CreateSIToFP(val, dblTy);
+            llvm::Value *dMin = minVal->getType()->isDoubleTy() ? minVal : builder_->CreateSIToFP(minVal, dblTy);
+            llvm::Value *dMax = maxVal->getType()->isDoubleTy() ? maxVal : builder_->CreateSIToFP(maxVal, dblTy);
+
+            // clamp(x, lo, hi) = max(lo, min(x, hi))
+            // min(x, hi): if x < hi then x else hi
+            llvm::Value *cmpLt = builder_->CreateFCmpOLT(dVal, dMax, "clamp.lt.max");
+            llvm::Value *minResult = builder_->CreateSelect(cmpLt, dVal, dMax, "clamp.min");
+            // max(lo, minResult): if minResult > lo then minResult else lo
+            llvm::Value *cmpGt = builder_->CreateFCmpOGT(minResult, dMin, "clamp.gt.min");
+            llvm::Value *result = builder_->CreateSelect(cmpGt, minResult, dMin, "clamp.ret");
+
+            if (inst->result.has_value())
                 context_info_.namedValues[inst->result->name] = result;
             return result;
         }
@@ -549,7 +695,6 @@ namespace Sad
             }
             return stateVal;
         }
-
 
     } // namespace LLVM
 } // namespace Sad

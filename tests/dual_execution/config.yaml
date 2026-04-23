@@ -31,11 +31,11 @@ levels:
     dirs: ["core"]
     description: "اختبارات أساسية — كل commit"
   P1:
-    dirs: ["core", "oop"]
+    dirs: ["core", "oop", "stdlib"]
     description: "اختبارات كاملة — كل PR"
   P2:
-    dirs: ["core", "oop", "concurrency", "advanced", "negative"]
+    dirs: ["core", "oop", "concurrency", "advanced", "negative", "stdlib"]
     description: "اختبارات متقدمة — Nightly"
   P3:
-    dirs: ["core", "oop", "concurrency", "advanced", "negative"]
+    dirs: ["core", "oop", "concurrency", "advanced", "negative", "stdlib"]
     description: "اختبارات شاملة — جميع الميزات بما فيها P3"

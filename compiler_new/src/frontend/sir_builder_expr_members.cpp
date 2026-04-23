@@ -28,6 +28,47 @@ namespace Sad
                           << memberExpr->member << "'" << std::endl;
 #endif
 
+                // ================================================================
+                // (AR) فحص مبكر: وصول عضو فضاء أسماء (namespace.member)
+                //      مثال: رياضيات.PI → تحميل المتغير العام رياضيات::PI
+                //      هذا يجب أن يأتي قبل buildExpression(object) لأن اسم الفضاء
+                //      ليس متغيراً حقيقياً ولن يُجد في النطاق
+                // (EN) Early check: namespace member access (namespace.member)
+                //      Example: math.PI → load global math::PI
+                //      Must come before buildExpression(object) because namespace name
+                //      is not a real variable and won't be found in scope
+                // ================================================================
+                if (auto *varExpr = dynamic_cast<Sad::AST::VariableExpr *>(memberExpr->object.get()))
+                {
+                    auto nsIt = namespaceMembers_.find(varExpr->name);
+                    if (nsIt != namespaceMembers_.end())
+                    {
+                        auto memIt = nsIt->second.find(memberExpr->member);
+                        if (memIt != nsIt->second.end())
+                        {
+                            const auto &nsInfo = memIt->second;
+                            if (nsInfo.kind == "var")
+                            {
+                                std::string loadReg = newTempRegister();
+                                if (currentBlock_)
+                                {
+                                    SIRInstruction loadInst(SIROpcode::LOAD);
+                                    loadInst.result = SIROperand::Register(loadReg, nsInfo.type);
+                                    loadInst.operands.push_back(
+                                        SIROperand::Global(nsInfo.sirName, nsInfo.type));
+                                    loadInst.comment = "Load namespace member: " + nsInfo.sirName;
+                                    currentBlock_->addInstruction(loadInst);
+                                }
+                                return BuildResult(loadReg, nsInfo.type);
+                            }
+                            else if (nsInfo.kind == "func")
+                            {
+                                return BuildResult(nsInfo.sirName, SadTypeKind::Function);
+                            }
+                        }
+                    }
+                }
+
                 // (AR) الخطوة 1: بناء تعبير الكائن
                 // (EN) Step 1: Build object expression
                 auto objResult = buildExpression(memberExpr->object.get());

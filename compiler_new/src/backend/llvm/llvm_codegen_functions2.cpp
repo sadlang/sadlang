@@ -107,6 +107,24 @@ namespace Sad
             case SadTypeKind::Array:
                 returnType = llvm::PointerType::getUnqual(*context_);
                 break;
+            // (AR) الصفوف تُرجع كمؤشرات — نفس بنية SadArray
+            // (EN) Tuples returned as pointers — same SadArray structure
+            case SadTypeKind::Tuple:
+                returnType = llvm::PointerType::getUnqual(*context_);
+                break;
+            // ================================================================
+            // (AR) [إصلاح الإغلاقات المتداخلة] الدوال التي تُرجع إغلاقاً (closure)
+            //      نوعها في SIR هو Function. الإغلاقات تُخزَّن كـ i64 (مؤشر معبأ).
+            //      بدون هذه الحالة: يقع في default → void → الناتج لا يُخزَّن
+            //      مما يسبب خطأ "Undefined register" عند استدعاء الإغلاق المُرجَع.
+            // (EN) [Fix nested closures] Functions returning a closure (Function type).
+            //      Closures are stored as packed i64 (pointer-as-integer).
+            //      Without this case: falls to default → void → result not stored
+            //      causing "Undefined register" when using the returned closure.
+            // ================================================================
+            case SadTypeKind::Function:
+                returnType = getInt64Type();
+                break;
             default:
                 returnType = getVoidType();
                 break;
@@ -512,6 +530,7 @@ namespace Sad
                     {
                         break;
                     }
+
                     auto instPtr = std::make_shared<SIRInstruction>(inst);
                     emitInstruction(instPtr);
                 }

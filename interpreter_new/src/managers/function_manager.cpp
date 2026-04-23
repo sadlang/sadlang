@@ -14,6 +14,42 @@
 #include <algorithm>
 #include <unordered_set>
 
+namespace
+{
+    // (AR) إزالة الحركات والتنوين من الأسماء العربية حتى تطابق ما يخرجه
+    //      المحلل المعجمي عند تجاهل التشكيل.
+    // (EN) Strip Arabic diacritics so builtin names match lexer-normalized
+    //      identifiers when harakat are ignored.
+    std::string stripArabicDiacritics(const std::string &text)
+    {
+        std::string result;
+        result.reserve(text.size());
+
+        for (size_t i = 0; i < text.size();)
+        {
+            if (i + 1 < text.size())
+            {
+                const unsigned char lead = static_cast<unsigned char>(text[i]);
+                const unsigned char next = static_cast<unsigned char>(text[i + 1]);
+                const bool isArabicHaraka =
+                    (lead == 0xD9 && ((next >= 0x8B && next <= 0x9F) || next == 0xB0)) ||
+                    (lead == 0xDA && (next >= 0x96 && next <= 0x9F));
+
+                if (isArabicHaraka)
+                {
+                    i += 2;
+                    continue;
+                }
+            }
+
+            result.push_back(text[i]);
+            ++i;
+        }
+
+        return result;
+    }
+}
+
 namespace Sad
 {
     namespace Data
@@ -575,6 +611,22 @@ namespace Sad
             // (AR) تخزين الدالة في الخريطة
             // (EN) Store function in map
             functions_[name].push_back(funcDef);
+
+            // (AR) أضف alias بلا تشكيل إذا كان الاسم الأصلي يحتوي شدة/تنوين.
+            //      هذا يمنع تعطل استدعاء الدوال المضمنة عندما يزيل lexer التشكيل.
+            // (EN) Add a diacritics-free alias if the original name contains
+            //      harakat, preventing builtin lookup failures after lexer normalization.
+            const std::string normalizedName = stripArabicDiacritics(name);
+            if (!normalizedName.empty() && normalizedName != name && !hasFunction(normalizedName))
+            {
+                auto normalizedDef = std::make_shared<FunctionDefinition>(normalizedName, params, func);
+                functions_[normalizedName].push_back(normalizedDef);
+
+                if (trackingRegistrations_)
+                {
+                    trackedRegistrations_.push_back(normalizedName);
+                }
+            }
 
             // (AR) تتبع التسجيل إن كان مفعّلاً — يُستخدم بواسطة loadModule
             //      لبناء قائمة الصادرات بدقة (حتى لو كانت الدالة موجودة مسبقاً)

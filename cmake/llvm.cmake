@@ -85,77 +85,112 @@ message(STATUS "   المسار / Directory: ${LLVM_DIR}")
 # linker errors. We detect this early and provide clear guidance.
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# متغير لتتبع حالة التوافق — يُستخدم لاحقاً عند بناء sadc
-# Compatibility flag — used later when building sadc target
+# ═══════════════════════════════════════════════════════════════════════════════
+# (AR) اكتشاف ثنائي Debug/Release لمكتبات LLVM
+# ───────────────────────────────────────────────────────────────────────────────
+# على MSVC، مكتبات LLVM Release تستخدم /MD و Debug تستخدم /MDd.
+# خلط الأنظمة يسبب آلاف أخطاء _ITERATOR_DEBUG_LEVEL.
+# الحل: نبحث عن تثبيتين منفصلين (Release + Debug) ونربط حسب الإعداد.
+#
+# (EN) Dual Debug/Release LLVM library detection
+# On MSVC, Release LLVM uses /MD and Debug uses /MDd.
+# Mixing causes thousands of _ITERATOR_DEBUG_LEVEL errors.
+# Solution: detect separate installations and link per-configuration.
+# ═══════════════════════════════════════════════════════════════════════════════
+
 set(SAD_LLVM_DEBUG_COMPATIBLE TRUE)
+set(SAD_LLVM_HAS_DEBUG FALSE)
+set(SAD_LLVM_DEBUG_LIB_DIR "")
 
 if(MSVC)
-    # ─── الخطوة 1: فحص وجود مكتبات LLVM في وضع Debug ───
-    # نتحقق من عدة مسارات محتملة لأن بنية المجلدات قد تختلف
-    # Check multiple possible paths for Debug LLVM libs
-    set(_llvm_has_debug FALSE)
-    
-    # المسار الأول: بنية LLVM القياسية (lib/cmake/llvm/../../../Debug/lib)
-    if(EXISTS "${LLVM_DIR}/../../../Debug/lib")
-        set(_llvm_has_debug TRUE)
-    endif()
-    
-    # المسار الثاني: مسار LLVM بديل (بجوار مجلد lib الحالي)
+    # (AR) البحث عن تثبيت LLVM Debug في مسارات معروفة
+    # (EN) Look for Debug LLVM installation in known paths
     get_filename_component(_llvm_root "${LLVM_DIR}/../../.." ABSOLUTE)
-    if(EXISTS "${_llvm_root}/Debug/lib")
-        set(_llvm_has_debug TRUE)
-    endif()
 
-    # ─── الخطوة 2: تحديد وضع البناء الفعلي ───
-    # في مولدات متعددة الإعدادات (مثل Visual Studio)، CMAKE_BUILD_TYPE فارغ
-    # لذلك نتحقق من CMAKE_CONFIGURATION_TYPES أيضاً
-    # For multi-config generators, CMAKE_BUILD_TYPE is empty at configure time
-    set(_is_debug_possible FALSE)
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(_is_debug_possible TRUE)
-    elseif(NOT CMAKE_BUILD_TYPE AND CMAKE_CONFIGURATION_TYPES)
-        # مولد متعدد الإعدادات — Debug محتمل في وقت البناء
-        set(_is_debug_possible TRUE)
-    endif()
+    # (AR) المسار 1: مجلد LLVM-Debug بجوار LLVM الأصلي (مثال: C:/llvm_dev/LLVM-Debug)
+    get_filename_component(_llvm_parent "${_llvm_root}/.." ABSOLUTE)
+    set(_debug_search_paths
+        "${_llvm_parent}/LLVM-Debug/lib/cmake/llvm"
+        "${_llvm_root}-Debug/lib/cmake/llvm"
+        "C:/llvm_dev/LLVM-Debug/lib/cmake/llvm"
+        "C:/LLVM-Debug/lib/cmake/llvm"
+    )
 
-    # ─── الخطوة 3: إصدار التحذير المناسب ───
-    if(_is_debug_possible AND NOT _llvm_has_debug)
+    foreach(_debug_hint ${_debug_search_paths})
+        if(EXISTS "${_debug_hint}/LLVMConfig.cmake")
+            get_filename_component(_debug_lib_dir "${_debug_hint}/../../.." ABSOLUTE)
+            set(SAD_LLVM_DEBUG_LIB_DIR "${_debug_lib_dir}/lib")
+            # (AR) مسار include لـ LLVM Debug — يحتوي على abi-breaking.h بقيمة مختلفة
+            # (EN) Include path for LLVM Debug — contains abi-breaking.h with different value
+            set(SAD_LLVM_DEBUG_INCLUDE_DIR "${_debug_lib_dir}/include")
+            set(SAD_LLVM_HAS_DEBUG TRUE)
+            message(STATUS "   LLVM Debug found: ${_debug_lib_dir}")
+            message(STATUS "   LLVM Debug include: ${SAD_LLVM_DEBUG_INCLUDE_DIR}")
+            break()
+        endif()
+    endforeach()
+
+    unset(_llvm_root)
+    unset(_llvm_parent)
+    unset(_debug_search_paths)
+
+    # (AR) إذا لم يُوجد Debug LLVM، نعرض تحذير
+    # (EN) If no Debug LLVM found, show warning
+    if(NOT SAD_LLVM_HAS_DEBUG)
         set(SAD_LLVM_DEBUG_COMPATIBLE FALSE)
         message(WARNING "")
-        message(WARNING "╔══════════════════════════════════════════════════════════════╗")
-        message(WARNING "║  ⚠️  تعارض Debug/Release بين LLVM والمشروع                 ║")
-        message(WARNING "║  ⚠️  LLVM Debug/Release Mismatch Detected                   ║")
-        message(WARNING "╠══════════════════════════════════════════════════════════════╣")
-        message(WARNING "║                                                              ║")
-        message(WARNING "║  LLVM مبني في Release لكن المشروع قد يُبنى في Debug.        ║")
-        message(WARNING "║  هذا سيسبب ~3900 خطأ ربط بسبب _ITERATOR_DEBUG_LEVEL.       ║")
-        message(WARNING "║                                                              ║")
-        message(WARNING "║  LLVM is Release-built but project may build in Debug.       ║")
-        message(WARNING "║  This causes ~3900 linker errors from iterator mismatch.     ║")
-        message(WARNING "║                                                              ║")
-        message(WARNING "╠══════════════════════════════════════════════════════════════╣")
-        message(WARNING "║  الحلول / Solutions:                                         ║")
-        message(WARNING "║  ① ابنِ sadc في Release (الأسهل والأسرع):                   ║")
-        message(WARNING "║     cmake --build build --config Release --target sadc       ║")
-        message(WARNING "║  ② ابنِ LLVM من المصدر في Debug (بطيء لكن شامل):            ║")
-        message(WARNING "║     cmake -DCMAKE_BUILD_TYPE=Debug ../llvm                   ║")
-        message(WARNING "╚══════════════════════════════════════════════════════════════╝")
+        message(WARNING "=== LLVM Debug/Release ===")
+        message(WARNING "  LLVM Release found but no Debug installation detected.")
+        message(WARNING "  sadc can only be built in Release mode.")
+        message(WARNING "  To enable Debug builds:")
+        message(WARNING "    1. Build LLVM Debug from source")
+        message(WARNING "    2. Install to C:/llvm_dev/LLVM-Debug")
+        message(WARNING "    3. Re-run cmake to auto-detect")
+        message(WARNING "  Or build sadc in Release only:")
+        message(WARNING "    cmake --build build --config Release --target sadc")
         message(WARNING "")
     endif()
-    
-    # تنظيف المتغيرات المؤقتة
-    unset(_llvm_has_debug)
-    unset(_llvm_root)
-    unset(_is_debug_possible)
 endif()
 
-# إضافة تعريفات LLVM / Add LLVM definitions
+# (AR) إضافة تعريفات ومسارات LLVM / (EN) Add LLVM definitions and paths
 add_definitions(${LLVM_DEFINITIONS})
-include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
 add_compile_definitions(ENABLE_LLVM_BACKEND)
 
-# مكتبات LLVM المطلوبة / Required LLVM libraries
+# ═══════════════════════════════════════════════════════════════════════════════
+# (AR) متغير LLVM include ثنائي الإعداد — للاستخدام مع target_include_directories
+# ───────────────────────────────────────────────────────────────────────────────
+# المشكلة: ملف abi-breaking.h في LLVM Debug يُعرّف LLVM_ENABLE_ABI_BREAKING_CHECKS=1
+#          بينما في LLVM Release يُعرّفها =0. عدم التوافق يُسبب LNK2038 errors.
+# الحل: نستخدم generator expression لاختيار مسار include الصحيح حسب إعداد البناء.
+#
+# (EN) Dual-config LLVM include variable — for use with target_include_directories
+# Problem: abi-breaking.h in LLVM Debug defines LLVM_ENABLE_ABI_BREAKING_CHECKS=1
+#          while in LLVM Release it's =0. Mismatch causes LNK2038 errors.
+# Solution: Use generator expression to select correct include path per build config.
+# ═══════════════════════════════════════════════════════════════════════════════
+if(SAD_LLVM_HAS_DEBUG AND MSVC)
+    # (AR) اختيار مسار include حسب إعداد البناء (Debug أو Release)
+    # (EN) Select include path based on build configuration (Debug or Release)
+    set(SAD_LLVM_INCLUDES
+        $<$<CONFIG:Debug>:${SAD_LLVM_DEBUG_INCLUDE_DIR}>
+        $<$<NOT:$<CONFIG:Debug>>:${LLVM_INCLUDE_DIRS}>
+    )
+    message(STATUS "   LLVM dual-config includes: Debug=${SAD_LLVM_DEBUG_INCLUDE_DIR}, Release=${LLVM_INCLUDE_DIRS}")
+else()
+    # (AR) استخدام مسار LLVM Release فقط
+    # (EN) Use LLVM Release include path only
+    set(SAD_LLVM_INCLUDES ${LLVM_INCLUDE_DIRS})
+endif()
+
+# (AR) ملاحظة: لا نستخدم include_directories() لأنها لا تدعم generator expressions.
+#      بدلاً من ذلك، يجب استخدام target_include_directories(target PRIVATE ${SAD_LLVM_INCLUDES})
+#      في كل هدف يستخدم LLVM headers.
+# (EN) Note: We don't use include_directories() as it doesn't support generator expressions.
+#      Instead, use target_include_directories(target PRIVATE ${SAD_LLVM_INCLUDES})
+#      for each target that uses LLVM headers.
+
+# (AR) مكتبات LLVM المطلوبة / (EN) Required LLVM libraries
 set(LLVM_LINK_COMPONENTS
     Core Support ExecutionEngine MCJIT OrcJIT RuntimeDyld Target
     X86 AArch64 AMDGPU ARM AVR BPF Hexagon Lanai LoongArch
@@ -163,14 +198,54 @@ set(LLVM_LINK_COMPONENTS
     WebAssembly XCore native MC CodeGen AsmParser AsmPrinter
 )
 
-# On Linux with shared LLVM, link to the single shared library (includes all targets)
-# On Windows/static builds, use individual component libraries
+# (AR) على لينكس: ربط بمكتبة LLVM المشتركة الواحدة
+# (EN) On Linux with shared LLVM, link to single shared lib
 if(EXISTS "${LLVM_LIBRARY_DIRS}/libLLVM-${LLVM_VERSION_MAJOR}.so")
     set(LLVM_LIBS LLVM-${LLVM_VERSION_MAJOR})
     message(STATUS "   Using shared LLVM library: libLLVM-${LLVM_VERSION_MAJOR}.so")
 else()
     llvm_map_components_to_libnames(LLVM_LIBS ${LLVM_LINK_COMPONENTS})
     message(STATUS "   LLVM libs count: ${LLVM_LIBS}")
+endif()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# (AR) بناء قائمة المكتبات ثنائية الإعداد (Debug + Release)
+# ───────────────────────────────────────────────────────────────────────────────
+# عند توفر تثبيت Debug و Release معاً، نستخدم كلمات CMake الخاصة
+# (debug/optimized) لربط المكتبة الصحيحة حسب إعداد البناء.
+# هذا يسمح لـ sadc بالبناء في كلا الوضعين Debug و Release.
+#
+# (EN) Build dual-config library list (Debug + Release)
+# When both Debug and Release LLVM are available, use CMake's
+# debug/optimized keywords to link the right libs per config.
+# This allows sadc to build in both Debug and Release.
+# ═══════════════════════════════════════════════════════════════════════════════
+if(SAD_LLVM_HAS_DEBUG AND MSVC)
+    set(LLVM_LIBS_DUAL "")
+    foreach(_lib ${LLVM_LIBS})
+        # (AR) استخراج اسم الملف فقط (بدون المسار) لبناء المسار الكامل
+        # (EN) Extract filename only to build full path for each config
+        get_filename_component(_lib_name "${_lib}" NAME)
+        if("${_lib_name}" STREQUAL "")
+            set(_lib_name "${_lib}")
+        endif()
+        # (AR) تطبيع الامتداد إلى .lib دائماً لأن بعض توزيعات LLVM
+        #      قد تُرجع أسماء بعناصر .obj في قائمة المكونات.
+        #      الربط النهائي في MSVC يحتاج ملفات مكتبة .lib.
+        # (EN) Normalize extension to .lib because some LLVM distributions
+        #      may expose component names with .obj suffixes.
+        #      MSVC final linking must use .lib archives.
+        get_filename_component(_lib_stem "${_lib_name}" NAME_WE)
+        set(_lib_name "${_lib_stem}.lib")
+        # (AR) إضافة debug lib من مسار Debug و optimized lib من مسار Release
+        list(APPEND LLVM_LIBS_DUAL
+            debug "${SAD_LLVM_DEBUG_LIB_DIR}/${_lib_name}"
+            optimized "${_lib}"
+        )
+    endforeach()
+    set(LLVM_LIBS ${LLVM_LIBS_DUAL})
+    message(STATUS "   LLVM dual-config: Debug + Release libs linked per configuration")
+    unset(LLVM_LIBS_DUAL)
 endif()
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -200,7 +275,7 @@ foreach(_lld_comp ${_lld_components})
         list(APPEND LLD_LIBS ${_lld_lib_${_lld_comp}})
     else()
         set(_lld_all_found FALSE)
-        message(STATUS "   ⊘ LLD component not found: ${_lld_comp}")
+        message(STATUS "   LLD component not found: ${_lld_comp}")
     endif()
 endforeach()
 
@@ -218,17 +293,42 @@ if(_lld_all_found)
             list(APPEND LLD_LIBS ${_lld_dep_${_dep}})
         else()
             set(_lld_all_found FALSE)
-            message(STATUS "   ⊘ LLD LLVM dependency not found: ${_dep}")
+            message(STATUS "   LLD LLVM dependency not found: ${_dep}")
         endif()
     endforeach()
 endif()
 
 if(_lld_all_found)
     set(HAS_EMBEDDED_LLD TRUE)
-    message(STATUS "✅ LLD موجود — الرابط المدمج مفعّل / LLD found — embedded linker enabled")
+    message(STATUS "   LLD found - embedded linker enabled")
     message(STATUS "   LLD libs: ${LLD_LIBS}")
 else()
-    message(STATUS "⊘ LLD غير مكتمل — سيتم استخدام رابط خارجي / LLD incomplete — external linker")
+    message(STATUS "   LLD incomplete - will use external linker")
+endif()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# (AR) بناء قائمة LLD ثنائية الإعداد (Debug + Release)
+# (EN) Build dual-config LLD library list (Debug + Release)
+# ═══════════════════════════════════════════════════════════════════════════════
+if(SAD_LLVM_HAS_DEBUG AND MSVC AND HAS_EMBEDDED_LLD)
+    set(LLD_LIBS_DUAL "")
+    foreach(_lib ${LLD_LIBS})
+        get_filename_component(_lib_name "${_lib}" NAME)
+        if("${_lib_name}" STREQUAL "")
+            set(_lib_name "${_lib}")
+        endif()
+        # (AR) نفس التطبيع هنا لضمان المسارات الثنائية Debug/Release
+        # (EN) Same normalization here to keep dual-config paths consistent
+        get_filename_component(_lib_stem "${_lib_name}" NAME_WE)
+        set(_lib_name "${_lib_stem}.lib")
+        list(APPEND LLD_LIBS_DUAL
+            debug "${SAD_LLVM_DEBUG_LIB_DIR}/${_lib_name}"
+            optimized "${_lib}"
+        )
+    endforeach()
+    set(LLD_LIBS ${LLD_LIBS_DUAL})
+    message(STATUS "   LLD dual-config: Debug + Release libs linked per configuration")
+    unset(LLD_LIBS_DUAL)
 endif()
 
 unset(_lld_all_found)

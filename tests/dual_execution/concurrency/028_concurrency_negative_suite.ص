@@ -1,6 +1,5 @@
-# @description سيناريوهات سلبية للتزامن: send after close, double close, receive after close, waitgroup misuse, unlock misuse
+﻿# @description سيناريوهات سلبية للتزامن: send after close, double close, receive after close, waitgroup misuse, unlock misuse
 # @priority P2
-# @skip_compiler
 # @timeout 30
 # @expected N01:PASS\nN02:PASS\nN03:PASS\nN04:PASS\nN05:PASS\nN06:PASS\nN07:PASS\nN08:PASS\nN09:PASS\nN10:PASS\nSUMMARY:10/10
 

@@ -28,6 +28,13 @@
 // (EN) Module AST nodes — ImportStmt & FromImportStmt for dependency discovery
 #include "../../shared/ast/include/module_nodes.h"
 
+// (AR) دعم استخراج التوثيق المدمج (--docs / --وثّق / --docs-out=)
+// (EN) Built-in documentation extraction support
+#include "../../shared/lexer/include/lexer_core.h"
+#include "../../shared/parser/include/parser_core.h"
+#include "../../shared/ast/include/docs_extractor.h"
+#include "../../shared/ast/include/pdf_exporter.h"
+
 #ifdef _WIN32
 #include <windows.h>
 #undef ERROR
@@ -47,6 +54,8 @@
 #include <algorithm>
 #include <iomanip>
 #include <cstdlib>
+#include <filesystem>
+#include <system_error>
 
 namespace sad
 {
@@ -69,6 +78,20 @@ namespace sad
             if (!validate_options())
             {
                 return 1;
+            }
+
+            // ════════════════════════════════════════════════════════════════════════
+            // (AR) وضع توثيق المشروع متعدد الملفات — لا يحتاج input_files صريحة
+            // (EN) Multi-file project docs mode — no explicit input_files required
+            // ════════════════════════════════════════════════════════════════════════
+            if (options_.emit_docs && !options_.docs_project_dir.empty())
+            {
+                if (!emit_project_docs())
+                {
+                    diagnostics_.print_diagnostics(std::cerr, options_.color_diagnostics);
+                    return 1;
+                }
+                return 0;
             }
 
             // Compile files
@@ -113,8 +136,267 @@ namespace sad
             return 0;
         }
 
+        // ════════════════════════════════════════════════════════════════════════
+        // (AR) emit_project_docs — توثيق Markdown لمشروع متعدد الملفات
+        // (EN) emit_project_docs — multi-file project Markdown documentation
+        // ════════════════════════════════════════════════════════════════════════
+        bool CompilerDriver::emit_project_docs()
+        {
+            using DocsExtractor = Sad::AST::DocsExtractor;
+
+            const std::string &root = options_.docs_project_dir;
+
+            // (AR) جمع جميع ملفات لغة ص تحت المجلد الجذر مع مراعاة الاستبعادات
+            // (EN) Collect all Sad source files honoring exclude patterns
+            auto file_paths = options_.docs_excludes.empty()
+                                  ? DocsExtractor::collectSadFiles(root)
+                                  : DocsExtractor::collectSadFiles(root, options_.docs_excludes);
+            if (file_paths.empty())
+            {
+                diagnostics_.report_fatal(
+                    "no .ص or .sad files found under: " + root +
+                    " / لم يُعثر على ملفات لغة ص في المسار");
+                return false;
+            }
+
+            if (options_.verbose)
+            {
+                std::cout << colors::CYAN
+                          << "Documenting project: " << root
+                          << " (" << file_paths.size() << " files)\n"
+                          << colors::RESET;
+            }
+
+            // (AR) تحليل كل ملف وحفظ AST لكل واحد
+            // (EN) Parse each file and retain its AST
+            //
+            // ملاحظة CW-29: نُمرّر مؤشرات إلى StmtList لتجنّب النسخ العميق
+            // Note CW-29: pass pointers to StmtList to avoid deep copies
+            std::vector<Sad::AST::StmtList> programs;
+            programs.reserve(file_paths.size());
+            std::vector<DocsExtractor::FileEntry> entries;
+            entries.reserve(file_paths.size());
+
+            size_t failures = 0;
+            for (const auto &path : file_paths)
+            {
+                auto src = read_file(path);
+                if (!src)
+                {
+                    std::cerr << "  warning: cannot read " << path << "\n";
+                    ++failures;
+                    continue;
+                }
+
+                Sad::Lexer::LexerCore lexer(*src);
+                Sad::Parser::ParserCore parser(lexer);
+                auto prog = parser.parseProgram();
+
+                if (parser.hasErrors())
+                {
+                    std::cerr << "  warning: parse errors in " << path << "\n";
+                    for (const auto &err : parser.getErrors())
+                        std::cerr << "    " << err << "\n";
+                    ++failures;
+                    continue;
+                }
+
+                programs.push_back(std::move(prog));
+                entries.push_back({path, &programs.back()});
+            }
+
+            if (entries.empty())
+            {
+                diagnostics_.report_fatal(
+                    "no parseable Sad files in project / لا توجد ملفات قابلة للتحليل");
+                return false;
+            }
+
+            // (AR) اسم المشروع: من الخيار، وإلا اسم المجلد الجذر
+            // (EN) Project name: from option, else root directory name
+            std::string project_name = options_.docs_project_name;
+            if (project_name.empty())
+            {
+                std::error_code ec;
+                std::filesystem::path p(root);
+                auto canon = std::filesystem::weakly_canonical(p, ec);
+                if (!ec)
+                    project_name = canon.filename().u8string();
+                if (project_name.empty())
+                    project_name = p.filename().u8string();
+                if (project_name.empty())
+                    project_name = root;
+            }
+
+            std::string md = DocsExtractor::extractProjectMarkdown(
+                project_name, entries);
+
+            // (AR) دعم تصدير المشروع إلى PDF عبر markdownToPrintableHtml + PdfExporter
+            // (EN) Project PDF export via markdownToPrintableHtml + PdfExporter
+            bool isProjPdf = (options_.docs_format == "pdf");
+            if (isProjPdf && options_.docs_output_path.empty())
+            {
+                diagnostics_.report_fatal(
+                    "PDF export requires --docs-out=<file.pdf> / "
+                    "تصدير PDF يتطلب --docs-out");
+                return false;
+            }
+
+            if (isProjPdf)
+            {
+                std::string mer = DocsExtractor::buildProjectClassDiagram(entries);
+                std::string html = DocsExtractor::markdownToPrintableHtml(md, project_name, mer);
+                std::string tmpHtml = options_.docs_output_path + ".tmp.html";
+                {
+                    std::ofstream tf(tmpHtml, std::ios::binary | std::ios::trunc);
+                    if (!tf)
+                    {
+                        diagnostics_.report_fatal("cannot write temp HTML / تعذّرت كتابة HTML المؤقت");
+                        return false;
+                    }
+                    tf << html;
+                }
+                std::string err;
+                bool ok = Sad::AST::PdfExporter::convert(tmpHtml, options_.docs_output_path, err);
+                std::error_code ec_rm;
+                std::filesystem::remove(tmpHtml, ec_rm);
+                if (!ok)
+                {
+                    diagnostics_.report_fatal("PDF export failed: " + err);
+                    return false;
+                }
+                std::cout << u8"✓ Project PDF saved to: "
+                          << options_.docs_output_path
+                          << " (" << entries.size() << " files)\n";
+                return true;
+            }
+
+            if (options_.docs_output_path.empty())
+            {
+                std::cout << md;
+            }
+            else
+            {
+                std::ofstream ofs(options_.docs_output_path,
+                                  std::ios::binary | std::ios::trunc);
+                if (!ofs)
+                {
+                    diagnostics_.report_fatal(
+                        "cannot write docs to: " + options_.docs_output_path +
+                        " / تعذّرت كتابة التوثيق");
+                    return false;
+                }
+                ofs << md;
+                ofs.close();
+                std::cout << u8"✓ Project docs saved to: "
+                          << options_.docs_output_path
+                          << " (" << entries.size() << " files";
+                if (failures)
+                    std::cout << ", " << failures << " skipped";
+                std::cout << ")\n";
+            }
+
+            return true;
+        }
+
         bool CompilerDriver::compile_file(const std::string &input_file)
         {
+            // ════════════════════════════════════════════════════════════════════════
+            // (AR) وضع استخراج التوثيق — يُشغّل Lexer + Parser فقط ثم يُنتج Markdown
+            //      ويتجاوز جميع مراحل middle-end / backend (LLVM، الربط، إلخ).
+            //      وفق CW-01 (SRP): مهمة منفصلة عن التحويل إلى ملف تنفيذي.
+            // (EN) Documentation extraction mode — runs Lexer + Parser only,
+            //      emits Markdown, and skips all middle-end / backend stages.
+            //      Per CW-01 (SRP): a distinct concern from native compilation.
+            // ════════════════════════════════════════════════════════════════════════
+            if (options_.emit_docs)
+            {
+                auto source_opt = read_file(input_file);
+                if (!source_opt)
+                {
+                    diagnostics_.report_fatal("failed to read file: " + input_file +
+                                              " / فشل قراءة الملف");
+                    return false;
+                }
+
+                Sad::Lexer::LexerCore lexer(*source_opt);
+                Sad::Parser::ParserCore parser(lexer);
+                auto program = parser.parseProgram();
+
+                if (parser.hasErrors())
+                {
+                    for (const auto &err : parser.getErrors())
+                    {
+                        std::cerr << err << "\n";
+                    }
+                    return false;
+                }
+
+                std::string md;
+                bool isPdf = (options_.docs_format == "pdf");
+                if (options_.docs_format == "json")
+                    md = Sad::AST::DocsExtractor::extractJson(program, input_file);
+                else if (options_.docs_format == "html")
+                    md = Sad::AST::DocsExtractor::extractHtml(program, input_file);
+                else if (isPdf)
+                    md = Sad::AST::DocsExtractor::extractPrintableHtml(program, input_file);
+                else
+                    md = Sad::AST::DocsExtractor::extractMarkdown(
+                        program, input_file);
+
+                if (options_.docs_output_path.empty())
+                {
+                    if (isPdf)
+                    {
+                        diagnostics_.report_fatal(
+                            "--docs-format=pdf requires --docs-out / يتطلب pdf مساراً");
+                        return false;
+                    }
+                    std::cout << md;
+                }
+                else
+                {
+                    // (AR) لـ PDF: نكتب HTML مؤقت ثم نحوّله
+                    std::string htmlPath = isPdf
+                                               ? (options_.docs_output_path + ".tmp.html")
+                                               : options_.docs_output_path;
+                    std::ofstream ofs(htmlPath,
+                                      std::ios::binary | std::ios::trunc);
+                    if (!ofs)
+                    {
+                        diagnostics_.report_fatal(
+                            "cannot write docs to: " + htmlPath +
+                            " / تعذّرت كتابة التوثيق");
+                        return false;
+                    }
+                    ofs << md;
+                    ofs.close();
+                    if (isPdf)
+                    {
+                        std::string err;
+                        bool ok = Sad::AST::PdfExporter::convert(
+                            htmlPath, options_.docs_output_path, err);
+                        std::error_code ec;
+                        std::filesystem::remove(htmlPath, ec);
+                        if (!ok)
+                        {
+                            diagnostics_.report_fatal(
+                                "PDF export failed: " + err);
+                            return false;
+                        }
+                        std::cout << u8"✓ PDF saved to: "
+                                  << options_.docs_output_path << "\n";
+                    }
+                    else
+                    {
+                        std::cout << u8"✓ Docs saved to: "
+                                  << options_.docs_output_path << "\n";
+                    }
+                }
+
+                return true;
+            }
+
             // ════════════════════════════════════════════════════════════════════════
             // (AR) وضع توليد الواجهات — يُستخدم خط أنابيب UI بدلاً من LLVM
             // (EN) UI generation mode — uses UI pipeline instead of LLVM
@@ -471,6 +753,10 @@ namespace sad
             // Check if we have input files
             if (options_.input_files.empty())
             {
+                // (AR) وضع توثيق المشروع لا يحتاج ملفات إدخال صريحة
+                // (EN) Project docs mode does not require explicit input files
+                if (options_.emit_docs && !options_.docs_project_dir.empty())
+                    return true;
                 diagnostics_.report_fatal("no input files / لا يوجد ملفات إدخال");
                 return false;
             }

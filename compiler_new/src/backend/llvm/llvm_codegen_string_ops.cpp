@@ -280,14 +280,22 @@ namespace Sad
             auto strstrFunc = module_->getOrInsertFunction("strstr", strstrType);
             llvm::Value *found = builder_->CreateCall(strstrFunc, {haystack, needle}, "found");
 
-            // Convert to index: found == null ? -1 : (found - haystack)
+            // (AR) حساب الإزاحة بالبايت ثم تحويلها إلى فهرس حرف UTF-8
+            // (EN) Calculate byte offset then convert to UTF-8 character index
             llvm::Value *isNull = builder_->CreateICmpEQ(found,
                                                          llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(*context_)), "isnull");
             llvm::Value *foundInt = builder_->CreatePtrToInt(found, i64Ty, "found.int");
             llvm::Value *hstackInt = builder_->CreatePtrToInt(haystack, i64Ty, "hstack.int");
-            llvm::Value *offset = builder_->CreateSub(foundInt, hstackInt, "offset");
+            llvm::Value *byteOffset = builder_->CreateSub(foundInt, hstackInt, "byte.offset");
+
+            // (AR) تحويل موقع البايت إلى فهرس الحرف UTF-8
+            // (EN) Convert byte offset to UTF-8 character index
+            llvm::Function *byteToCharFn = getOrCreateUtf8ByteToChar();
+            llvm::Value *charIndex = builder_->CreateCall(byteToCharFn, {haystack, byteOffset}, "char.index");
+
+            // (AR) إذا لم يُعثر → -1، وإلا → فهرس الحرف
             llvm::Value *result = builder_->CreateSelect(isNull,
-                                                         llvm::ConstantInt::get(i64Ty, -1), offset, "find_result");
+                                                         llvm::ConstantInt::get(i64Ty, -1), charIndex, "find_result");
 
             if (inst->result.has_value())
             {
@@ -392,26 +400,42 @@ namespace Sad
 
             auto ptrTy = llvm::PointerType::getUnqual(*context_);
             auto i64Ty = getInt64Type();
+            auto i8Ty = llvm::Type::getInt8Ty(*context_);
 
-            // Allocate buffer: len + 1
-            llvm::Value *bufSize = builder_->CreateAdd(len, llvm::ConstantInt::get(i64Ty, 1));
+            // (AR) تحويل فهرس الحرف والطول إلى إزاحات بايت باستخدام UTF-8
+            // (EN) Convert character start index and length to byte offsets using UTF-8
+            llvm::Function *charToByteFn = getOrCreateUtf8CharToByte();
+
+            // (AR) موقع البايت لبداية الاستخراج
+            // (EN) Byte offset of start character
+            llvm::Value *byteStart = builder_->CreateCall(charToByteFn, {str, start}, "byte.start");
+
+            // (AR) موقع البايت لنهاية الاستخراج (start + len)
+            // (EN) Byte offset of end character (start + len)
+            llvm::Value *charEnd = builder_->CreateAdd(start, len, "char.end");
+            llvm::Value *byteEnd = builder_->CreateCall(charToByteFn, {str, charEnd}, "byte.end");
+
+            // (AR) طول البايتات = byteEnd - byteStart
+            // (EN) Byte length = byteEnd - byteStart
+            llvm::Value *byteLen = builder_->CreateSub(byteEnd, byteStart, "byte.len");
+
+            // (AR) حجز ذاكرة: byteLen + 1
+            llvm::Value *bufSize = builder_->CreateAdd(byteLen, llvm::ConstantInt::get(i64Ty, 1));
             auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
             auto mallocFunc = module_->getOrInsertFunction("malloc", mallocType);
             llvm::Value *buf = builder_->CreateCall(mallocFunc, {bufSize}, "substr_buf");
 
-            // Source pointer: str + start
-            llvm::Value *srcPtr = builder_->CreateGEP(
-                llvm::Type::getInt8Ty(*context_), str, {start}, "substr.src");
+            // (AR) مؤشر المصدر: str + byteStart
+            llvm::Value *srcPtr = builder_->CreateGEP(i8Ty, str, {byteStart}, "substr.src");
 
-            // memcpy(buf, srcPtr, len)
+            // memcpy(buf, srcPtr, byteLen)
             auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty}, false);
             auto memcpyFunc = module_->getOrInsertFunction("memcpy", memcpyType);
-            builder_->CreateCall(memcpyFunc, {buf, srcPtr, len});
+            builder_->CreateCall(memcpyFunc, {buf, srcPtr, byteLen});
 
-            // Null-terminate
-            llvm::Value *endPtr = builder_->CreateGEP(
-                llvm::Type::getInt8Ty(*context_), buf, {len}, "substr.end");
-            builder_->CreateStore(llvm::ConstantInt::get(llvm::Type::getInt8Ty(*context_), 0), endPtr);
+            // (AR) إنهاء النص بـ null
+            llvm::Value *endPtr = builder_->CreateGEP(i8Ty, buf, {byteLen}, "substr.end");
+            builder_->CreateStore(llvm::ConstantInt::get(i8Ty, 0), endPtr);
 
             if (inst->result.has_value())
             {
@@ -510,7 +534,5 @@ namespace Sad
             return buf;
         }
 
-
     } // namespace LLVM
 } // namespace Sad
-

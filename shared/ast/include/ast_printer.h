@@ -525,6 +525,8 @@ namespace Sad
             void visitUIModifier(UIModifierNode &node) override;
             void visitUIEventHandler(UIEventHandlerNode &node) override;
             void visitUIStateDecl(UIStateDecl &node) override;
+            void visitUIConditional(UIConditionalNode &node) override;
+            void visitUILoop(UILoopNode &node) override;
 
         private:
             std::string result_; ///< (AR) النتيجة المُخزنة. (EN) Stored result.

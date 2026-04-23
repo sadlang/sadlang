@@ -36,7 +36,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(oss.str());
                 };
                 fm.registerBuiltinFunction("\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xab\xd9\x86\xd8\xa7\xd8\xa1_\xd8\xac\xd8\xaf\xd9\x8a\xd8\xaf", f); // استثناء_جديد
-                fm.registerBuiltinFunction("exception_new", f);
             }
 
             // (2) استثناء_رسالة / exception_message
@@ -49,7 +48,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(args[0]->toString());
                 };
                 fm.registerBuiltinFunction("\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xab\xd9\x86\xd8\xa7\xd8\xa1_\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa9", f); // استثناء_رسالة
-                fm.registerBuiltinFunction("exception_message", f);
             }
 
             // (3) مكدس_تتبع / stack_trace (stub)
@@ -64,7 +62,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(oss.str());
                 };
                 fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaf\xd8\xb3_\xd8\xaa\xd8\xaa\xd8\xa8\xd8\xb9", f); // مكدس_تتبع
-                fm.registerBuiltinFunction("stack_trace", f);
             }
 
             // (4) مكدس_عمق / stack_depth (stub)
@@ -76,7 +73,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(1.0);
                 };
                 fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaf\xd8\xb3_\xd8\xb9\xd9\x85\xd9\x82", f); // مكدس_عمق
-                fm.registerBuiltinFunction("stack_depth", f);
             }
 
             // (5) خطأ_نوع / error_type
@@ -98,7 +94,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(std::string("عام"));
                 };
                 fm.registerBuiltinFunction("\xd8\xae\xd8\xb7\xd8\xa3_\xd9\x86\xd9\x88\xd8\xb9", f); // خطأ_نوع
-                fm.registerBuiltinFunction("error_type", f);
             }
 
             // (6) أمان_فحص / sandbox_check
@@ -120,7 +115,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(true);
                 };
                 fm.registerBuiltinFunction("\xd8\xa3\xd9\x85\xd8\xa7\xd9\x86_\xd9\x81\xd8\xad\xd8\xb5", f); // أمان_فحص
-                fm.registerBuiltinFunction("sandbox_check", f);
             }
 
             // (7) أمان_قائمة_أذونات / sandbox_permissions
@@ -137,7 +131,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(perms);
                 };
                 fm.registerBuiltinFunction("\xd8\xa3\xd9\x85\xd8\xa7\xd9\x86_\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd8\xa3\xd8\xb0\xd9\x88\xd9\x86\xd8\xa7\xd8\xaa", f); // أمان_قائمة_أذونات
-                fm.registerBuiltinFunction("sandbox_permissions", f);
             }
 
             // (8) أمان_وضع / sandbox_mode
@@ -148,7 +141,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(std::string("تطوير"));
                 };
                 fm.registerBuiltinFunction("\xd8\xa3\xd9\x85\xd8\xa7\xd9\x86_\xd9\x88\xd8\xb6\xd8\xb9", f); // أمان_وضع
-                fm.registerBuiltinFunction("sandbox_mode", f);
             }
 
             // (9) خطأ_تأكيد / assert_error
@@ -167,7 +159,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(true);
                 };
                 fm.registerBuiltinFunction("\xd8\xae\xd8\xb7\xd8\xa3_\xd8\xaa\xd8\xa3\xd9\x83\xd9\x8a\xd8\xaf", f); // خطأ_تأكيد
-                fm.registerBuiltinFunction("assert_error", f);
             }
 
             // (10) خطأ_آخر / last_error
@@ -185,7 +176,6 @@ namespace Sad
                     return std::make_shared<Data::Value>(lastError);
                 };
                 fm.registerBuiltinFunction("\xd8\xae\xd8\xb7\xd8\xa3_\xd8\xa2\xd8\xae\xd8\xb1", f); // خطأ_آخر
-                fm.registerBuiltinFunction("last_error", f);
             }
         }
 

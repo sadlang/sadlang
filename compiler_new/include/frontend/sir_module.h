@@ -301,11 +301,12 @@ namespace Sad
              */
             struct SIRParameter
             {
-                std::string name; ///< (AR) اسم المعامل / (EN) Parameter name
-                SadTypeKind type; ///< (AR) نوع المعامل / (EN) Parameter type
+                std::string name;                            ///< (AR) اسم المعامل / (EN) Parameter name
+                SadTypeKind type;                            ///< (AR) نوع المعامل / (EN) Parameter type
+                SadTypeKind elementType = SadTypeKind::Void; ///< (AR) نوع عنصر المصفوفة (للمصفوفات) / (EN) Array element type (for arrays)
 
                 SIRParameter(const std::string &paramName, SadTypeKind paramType)
-                    : name(paramName), type(paramType) {}
+                    : name(paramName), type(paramType), elementType(SadTypeKind::Void) {}
 
                 std::string toString() const;
             };
@@ -372,6 +373,12 @@ namespace Sad
                  * @brief (EN) Get parameters
                  */
                 const std::vector<SIRParameter> &getParameters() const { return parameters; }
+
+                /**
+                 * @brief (AR) الحصول على المعاملات (قابل للتعديل)
+                 * @brief (EN) Get parameters (mutable)
+                 */
+                std::vector<SIRParameter> &getMutableParameters() { return parameters; }
 
                 /**
                  * @brief (AR) الحصول على الكتل الأساسية

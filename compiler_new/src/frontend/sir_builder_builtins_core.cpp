@@ -65,9 +65,17 @@ namespace Sad
 
                     // (AR) تحديد نوع العملية بناءً على نوع المعامل
                     // (EN) Determine operation based on argument type
-                    SIROpcode opcode = (argResults[0].type == SadTypeKind::String)
-                                           ? SIROpcode::STRING_LEN // (sir_types.h:181)
-                                           : SIROpcode::ARRAY_LEN; // (sir_types.h:176)
+                    // (AR) إصلاح: استخدم ARRAY_LEN فقط إذا كان النوع مصفوفة صريحاً
+                    //      حقول الأصناف بدون تعليق نوع تُسجّل كـ Integer افتراضياً
+                    //      لكن عند استدعاء طول() عليها فهي غالباً نصوص وليست أعداداً
+                    //      لذا نستخدم STRING_LEN لكل ما ليس مصفوفة صريحة
+                    // (EN) Fix: Use ARRAY_LEN only when type is explicitly Array
+                    //      Class fields without type annotations default to Integer
+                    //      but when طول() is called on them, they're likely strings not ints
+                    //      so use STRING_LEN for everything that isn't explicitly Array
+                    SIROpcode opcode = (argResults[0].type == SadTypeKind::Array || argResults[0].type == SadTypeKind::Tuple)
+                                           ? SIROpcode::ARRAY_LEN   // (sir_types.h:176)
+                                           : SIROpcode::STRING_LEN; // (sir_types.h:181)
 
                     SIRInstruction lenInst(opcode);
                     lenInst.result = resultOp;
@@ -383,20 +391,131 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
 
-
                 // ================================================================
                 // (AR) توزيع لدوال مساعدة مستخرجة — CW-05
+                //      مع فحص استيراد الوحدة المطلوبة وفق سلوك المفسر
                 // (EN) Dispatch to extracted helper functions — CW-05
+                //      With module import checking per interpreter behavior
                 // ================================================================
 
+                // (AR) فحص الوحدة المطلوبة للدالة قبل التوزيع
+                //      إذا كانت الدالة تتطلب وحدة لم يتم استيرادها، لا تعاملها كمضمنة
+                //      يدعم الوحدات المتعددة مفصولة بـ "|" (أي واحدة كافية)
+                // (EN) Check required module before dispatch
+                //      If function requires an unimported module, don't treat as builtin
+                //      Supports multi-module with "|" separator (any one is sufficient)
+                {
+                    std::string requiredModule = getRequiredModuleForBuiltin(funcName);
+                    if (!requiredModule.empty())
+                    {
+                        bool moduleFound = false;
+                        // (AR) تحقق من وحدات متعددة مفصولة بـ "|"
+                        // (EN) Check multiple modules separated by "|"
+                        size_t start = 0;
+                        size_t pos = requiredModule.find('|');
+                        while (true)
+                        {
+                            std::string mod = (pos == std::string::npos)
+                                                  ? requiredModule.substr(start)
+                                                  : requiredModule.substr(start, pos - start);
+                            if (isStdlibModuleImported(mod))
+                            {
+                                moduleFound = true;
+                                break;
+                            }
+                            if (pos == std::string::npos)
+                                break;
+                            start = pos + 1;
+                            pos = requiredModule.find('|', start);
+                        }
+
+                        if (!moduleFound)
+                        {
+                            // (AR) الوحدة المطلوبة غير مستوردة — لا تعالج كدالة مضمنة
+                            //      ستُعالج كدالة مستخدم ← خطأ "دالة غير معرّفة" كما في المفسر
+                            // (EN) Required module not imported — don't handle as builtin
+                            //      Will be treated as user function → "undefined function" error like interpreter
+                            return std::nullopt;
+                        }
+                    }
+                }
+
+                // ================================================================
+                // (AR) دالة مدى() / range() — إنشاء مصفوفة أرقام
+                //      تتطلب استيراد وحدة "أساسيات" وفق سلوك المفسر
+                // (EN) range() function — create integer array
+                //      Requires importing "أساسيات" module per interpreter behavior
+                // ================================================================
+                if (funcName == "مدى" || funcName == "range")
+                {
+                    // (AR) فحص استيراد وحدة أساسيات — توحيد مع المفسر
+                    // (EN) Check أساسيات module import — unify with interpreter
+                    if (!isStdlibModuleImported("أساسيات"))
+                    {
+                        // (AR) لا تعامل كدالة مضمنة — ستُعالج كدالة مستخدم → خطأ واضح
+                        // (EN) Don't treat as builtin — will be handled as user function → clear error
+                        return std::nullopt;
+                    }
+                    if (argResults.empty() || argResults.size() > 3)
+                    {
+                        errors_.push_back("Error: مدى() requires 1-3 arguments (stop) or (start, stop) or (start, stop, step)");
+                        return BuildResult();
+                    }
+
+                    // (AR) تحديد المعاملات: مدى(stop), مدى(start, stop), مدى(start, stop, step)
+                    // (EN) Determine args: range(stop), range(start, stop), range(start, stop, step)
+                    SIROperand startOp, endOp, stepOp;
+                    if (argResults.size() == 1)
+                    {
+                        // مدى(stop) → __sad_range(0, stop, 1)
+                        startOp = SIROperand::ConstantI64(0);
+                        endOp = argOperands[0];
+                        stepOp = SIROperand::ConstantI64(1);
+                    }
+                    else if (argResults.size() == 2)
+                    {
+                        // مدى(start, stop) → __sad_range(start, stop, 1)
+                        startOp = argOperands[0];
+                        endOp = argOperands[1];
+                        stepOp = SIROperand::ConstantI64(1);
+                    }
+                    else
+                    {
+                        // مدى(start, stop, step) → __sad_range(start, stop, step)
+                        startOp = argOperands[0];
+                        endOp = argOperands[1];
+                        stepOp = argOperands[2];
+                    }
+
+                    std::string resultReg = newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Array);
+
+                    SIRInstruction callInst(SIROpcode::CALL);
+                    callInst.result = resultOp;
+                    callInst.operands.push_back(SIROperand::Function("__sad_range"));
+                    callInst.operands.push_back(startOp);
+                    callInst.operands.push_back(endOp);
+                    callInst.operands.push_back(stepOp);
+
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(callInst);
+
+                    BuildResult result(resultReg, SadTypeKind::Array);
+                    result.elementType = SadTypeKind::Integer;
+                    return result;
+                }
+
                 auto mathResult = buildBuiltinMathCall(funcName, argResults, argOperands);
-                if (mathResult) return *mathResult;
+                if (mathResult)
+                    return *mathResult;
 
                 auto strArrResult = buildBuiltinStringArrayCall(funcName, argResults, argOperands);
-                if (strArrResult) return *strArrResult;
+                if (strArrResult)
+                    return *strArrResult;
 
                 auto ioResult = buildBuiltinIOUtilsCall(funcName, argResults, argOperands);
-                if (ioResult) return *ioResult;
+                if (ioResult)
+                    return *ioResult;
 
                 // (AR) ليست دالة مضمنة — المتصل يتابع البحث
                 // (EN) Not a core builtin — caller continues lookup

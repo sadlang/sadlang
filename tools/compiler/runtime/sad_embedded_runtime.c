@@ -199,6 +199,107 @@ unsigned long long sad_llvm_string_length(void *str)
     return (unsigned long long)strlen((const char *)str);
 }
 
+/* (AR) الحصول على حرف UTF-8 بالفهرس — يُرجع نصاً من حرف واحد */
+/* (EN) Get UTF-8 character at index — returns a new string of one character */
+void *sad_llvm_string_utf8_char_at(void *str, long long index)
+{
+    if (!str)
+        return sad_llvm_string_new("", 0);
+    const char *s = (const char *)str;
+    unsigned long long slen = (unsigned long long)strlen(s);
+
+    /* (AR) حساب عدد أحرف UTF-8 */
+    long long charCount = 0;
+    unsigned long long i = 0;
+    while (i < slen)
+    {
+        unsigned char c = (unsigned char)s[i];
+        unsigned long long charLen = 1;
+        if (c >= 0xF0)
+            charLen = 4;
+        else if (c >= 0xE0)
+            charLen = 3;
+        else if (c >= 0xC0)
+            charLen = 2;
+        if (i + charLen > slen)
+            charLen = 1;
+
+        if (charCount == index)
+            return sad_llvm_string_new(s + i, charLen);
+        i += charLen;
+        charCount++;
+    }
+
+    /* (AR) دعم الفهرس السلبي */
+    if (index < 0)
+    {
+        long long actualIdx = charCount + index;
+        if (actualIdx < 0)
+            return sad_llvm_string_new("", 0);
+        i = 0;
+        charCount = 0;
+        while (i < slen)
+        {
+            unsigned char c = (unsigned char)s[i];
+            unsigned long long charLen = 1;
+            if (c >= 0xF0)
+                charLen = 4;
+            else if (c >= 0xE0)
+                charLen = 3;
+            else if (c >= 0xC0)
+                charLen = 2;
+            if (i + charLen > slen)
+                charLen = 1;
+
+            if (charCount == actualIdx)
+                return sad_llvm_string_new(s + i, charLen);
+            i += charLen;
+            charCount++;
+        }
+    }
+
+    return sad_llvm_string_new("", 0);
+}
+
+/* ============================================================================
+ * تنسيق الأعداد العشرية / Double Formatting
+ * ============================================================================
+ * (AR) تنسيق عدد عشري بنفس دقة المفسر: 6 خانات عشرية + حذف الأصفار الزائدة
+ *      هذا يضمن تطابق مخرجات المترجم والمفسر تماماً
+ *      مثال: 3.14159265 → "3.141593"، 2.5 → "2.5"، 100.0 → "100"
+ * (EN) Format double with same precision as interpreter: 6 decimal places + strip trailing zeros
+ *      This ensures compiler and interpreter output match exactly
+ *      Example: 3.14159265 → "3.141593", 2.5 → "2.5", 100.0 → "100"
+ * ============================================================================ */
+
+/* (AR) تنسيق عدد عشري إلى مخزن مؤقت — 6 خانات عشرية + حذف أصفار زائدة */
+/* (EN) Format double to buffer — 6 decimal places + strip trailing zeros */
+void __sad_format_double(char *buf, double value)
+{
+    sprintf(buf, "%.6f", value);
+    /* (AR) حذف الأصفار الزائدة بعد النقطة العشرية */
+    /* (EN) Strip trailing zeros after decimal point */
+    char *dot = strchr(buf, '.');
+    if (dot)
+    {
+        char *end = buf + strlen(buf) - 1;
+        while (end > dot && *end == '0')
+            end--;
+        if (*end == '.')
+            end--; /* (AR) حذف النقطة أيضاً إذا كانت كل الخانات أصفار */
+        *(end + 1) = '\0';
+    }
+}
+
+/* (AR) طباعة عدد عشري مباشرة — يُستدعى من الكود المُولّد بدلاً من printf("%g") */
+/* (EN) Print double directly — called from generated code instead of printf("%g") */
+void __sad_print_double(double value)
+{
+    char buf[64];
+    __sad_format_double(buf, value);
+    fputs(buf, stdout);
+}
+
 void sad_llvm_print_string(void *str)
 {
     if (str)
@@ -637,7 +738,7 @@ void __sad_map_set_typed(long long map_i64, const char *key, long long val, int 
                 double dv;
                 memcpy(&dv, &val, sizeof(double));
                 char buf[64];
-                sprintf(buf, "%g", dv);
+                __sad_format_double(buf, dv);
                 map->slots[ins].value = sad_strdup(buf);
             }
             else if (type == SVAL_BOOL)
@@ -677,7 +778,7 @@ void __sad_map_set_typed(long long map_i64, const char *key, long long val, int 
                 double dv;
                 memcpy(&dv, &val, sizeof(double));
                 char buf[64];
-                sprintf(buf, "%g", dv);
+                __sad_format_double(buf, dv);
                 map->slots[idx].value = sad_strdup(buf);
             }
             else if (type == SVAL_BOOL)
@@ -749,4 +850,62 @@ const char *__sad_map_get(long long map_i64, const char *key)
             return map->slots[idx].value;
         idx = (idx + 1) & mask;
     }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * (AR) دالة مدى — إنشاء مصفوفة أرقام من start إلى end-1 بخطوة step
+ *      تُرجع مؤشر SadArray {i64 length, i64 capacity, ptr data}
+ * (EN) Range function — create integer array from start to end-1 with step
+ *      Returns pointer to SadArray {i64 length, i64 capacity, ptr data}
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* (AR) بنية المصفوفة — مطابقة لتعريف SadArray في LLVM codegen */
+/* (EN) Array struct — matching SadArray definition in LLVM codegen */
+typedef struct
+{
+    long long length;
+    long long capacity;
+    void *data;
+} SadRuntimeArray;
+
+/* (AR) مدى(start, end, step) — ثلاث معاملات */
+/* (EN) range(start, end, step) — three arguments */
+SadRuntimeArray *__sad_range(long long start, long long end, long long step)
+{
+    /* (AR) حساب عدد العناصر */
+    /* (EN) Calculate element count */
+    long long count = 0;
+    if (step > 0 && start < end)
+        count = (end - start + step - 1) / step;
+    else if (step < 0 && start > end)
+        count = (start - end - step - 1) / (-step);
+
+    if (count <= 0)
+        count = 0;
+
+    long long capacity = count > 0 ? count : 1;
+
+    /* (AR) تخصيص بنية المصفوفة + مخزن البيانات */
+    /* (EN) Allocate array struct + data buffer */
+    SadRuntimeArray *arr = (SadRuntimeArray *)malloc(sizeof(SadRuntimeArray));
+    long long *data = (long long *)malloc(capacity * sizeof(long long));
+
+    /* (AR) ملء البيانات */
+    /* (EN) Fill data */
+    long long idx = 0;
+    if (step > 0)
+    {
+        for (long long i = start; i < end && idx < count; i += step)
+            data[idx++] = i;
+    }
+    else if (step < 0)
+    {
+        for (long long i = start; i > end && idx < count; i += step)
+            data[idx++] = i;
+    }
+
+    arr->length = idx;
+    arr->capacity = capacity;
+    arr->data = (void *)data;
+    return arr;
 }

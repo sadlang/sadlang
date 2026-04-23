@@ -152,8 +152,10 @@ namespace Sad
                         return inferExprType(unary->operand.get());
                     }
 
-                    // (AR) ״§״³״×״¯״¹״§״¡ ״¯״§„״© ג€” †״¨״­״« ״¹† †ˆ״¹ ״§„״¥״±״¬״§״¹  functionTable_
-                    // (EN) Function call ג€” look up return type in functionTable_
+                    // (AR) استدعاء دالة: نحاول استنتاج نوع الإرجاع من functionTable_
+                    //      مع دعم استدعاءات الأعضاء (obj.method()) حتى داخل اللامدا.
+                    // (EN) Function call: infer return type from functionTable_,
+                    //      with support for member calls (obj.method()) even inside lambdas.
                     if (auto call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
                     {
                         if (auto varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
@@ -164,6 +166,82 @@ namespace Sad
                                 return it->second.returnType;
                             }
                         }
+
+                        if (auto memberCallee = dynamic_cast<const Sad::AST::MemberExpr *>(call->callee.get()))
+                        {
+                            std::string className;
+
+                            if (dynamic_cast<const Sad::AST::ThisExpr *>(memberCallee->object.get()))
+                            {
+                                className = currentClassName_;
+                            }
+                            else if (auto varObj = dynamic_cast<const Sad::AST::VariableExpr *>(memberCallee->object.get()))
+                            {
+                                auto ciIt = classInstanceTypes_.find(varObj->name);
+                                if (ciIt != classInstanceTypes_.end())
+                                {
+                                    className = ciIt->second;
+                                }
+                            }
+
+                            if (!className.empty())
+                            {
+                                std::string searchClass = className;
+                                while (!searchClass.empty())
+                                {
+                                    std::string fullMethodName = searchClass + "." + memberCallee->member;
+                                    auto fit = functionTable_.find(fullMethodName);
+                                    if (fit != functionTable_.end())
+                                    {
+                                        return fit->second.returnType;
+                                    }
+
+                                    if (!module_)
+                                    {
+                                        break;
+                                    }
+                                    auto sirClass = module_->getClass(searchClass);
+                                    if (!sirClass || sirClass->parentClass.empty())
+                                    {
+                                        break;
+                                    }
+                                    searchClass = sirClass->parentClass;
+                                }
+                            }
+
+                            // (AR) احتياط: إذا كان نوع الكائن غير معروف، نبحث عن أي دالة باسم "*.member"
+                            //      وعند توحّد نوع الإرجاع نستخدمه بدلاً من الافتراضي Integer.
+                            // (EN) Fallback: if object type is unknown, look for "*.member" methods and
+                            //      use the return type when all matches agree.
+                            bool foundAny = false;
+                            bool conflict = false;
+                            SadTypeKind unifiedType = SadTypeKind::Integer;
+                            std::string suffix = "." + memberCallee->member;
+                            for (const auto &entry : functionTable_)
+                            {
+                                const auto &name = entry.first;
+                                if (name.size() >= suffix.size() &&
+                                    name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0)
+                                {
+                                    if (!foundAny)
+                                    {
+                                        unifiedType = entry.second.returnType;
+                                        foundAny = true;
+                                    }
+                                    else if (unifiedType != entry.second.returnType)
+                                    {
+                                        conflict = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (foundAny && !conflict)
+                            {
+                                return unifiedType;
+                            }
+                        }
+
                         return SadTypeKind::Integer;
                     }
 
@@ -203,14 +281,48 @@ namespace Sad
                                     auto fieldIt = sirClass->fields_.find(memberExpr->member);
                                     if (fieldIt != sirClass->fields_.end())
                                     {
-                                        // (AR) †״¹״¯ ‚״· ״§„״£†ˆ״§״¹ ״§„…״­״¯״¯״© (STRING, ARRAY, F64, BOOL)
-                                        //      PTR ״¹† "״÷״± …״¹״±ˆ" ג€” †״×״±ƒ‡ „€ I64 ״§„״§״×״±״§״¶
-                                        // (EN) Only return specific types (STRING, ARRAY, F64, BOOL)
-                                        //      PTR means "unknown" ג€” fall through to I64 default
                                         SadTypeKind ft = fieldIt->second;
                                         if (ft == SadTypeKind::String || ft == SadTypeKind::Array ||
                                             ft == SadTypeKind::Float || ft == SadTypeKind::Boolean)
                                             return ft;
+
+                                        // ═══════════════════════════════════════════════════
+                                        // (AR) إصلاح: إذا كان الحقل Pointer (مجهول النوع)،
+                                        //      نبحث عبر paramToFieldMap_ عن المعامل المرتبط
+                                        //      ثم نتحقق من نوعه في functionTable_ (باني الصنف)
+                                        //      Phase 1.7 حدّث نوع المعامل، وPhase 2 حفظه
+                                        //      بدون هذا: ارجع هذا.حقل يُستنتج كـ Integer
+                                        // (EN) Fix: If field is Pointer (unknown), infer from
+                                        //      constructor param via paramToFieldMap_ lookup
+                                        //      Phase 1.7 updated param type, Phase 2 preserved it
+                                        // ═══════════════════════════════════════════════════
+                                        if (ft == SadTypeKind::Pointer)
+                                        {
+                                            for (const auto &[paramName, fieldName] : sirClass->paramToFieldMap_)
+                                            {
+                                                if (fieldName == memberExpr->member)
+                                                {
+                                                    std::string ctorName = currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                                                    auto ctorIt = functionTable_.find(ctorName);
+                                                    if (ctorIt != functionTable_.end())
+                                                    {
+                                                        for (const auto &param : ctorIt->second.parameters)
+                                                        {
+                                                            if (param.name == paramName)
+                                                            {
+                                                                if (param.type == SadTypeKind::String ||
+                                                                    param.type == SadTypeKind::Array ||
+                                                                    param.type == SadTypeKind::Float ||
+                                                                    param.type == SadTypeKind::Boolean)
+                                                                    return param.type;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -231,9 +343,44 @@ namespace Sad
                                             ft == SadTypeKind::Float || ft == SadTypeKind::Boolean)
                                             return ft;
 
-                                        // (AR) ״¥״°״§ ƒ״§† ״§„״­‚„ Pointer (״÷״± …״­״¯״¯)״ †״­״§ˆ„ ״§״³״×†״×״§״¬‡ …† ״¨״§† ״§„״µ†
-                                        //      †״¨״­״« ״¹† ״§„…״¹״§…„ ״§„…״±״×״¨״· ״¨‡״°״§ ״§„״­‚„ ״¹״¨״± paramToFieldMap_
-                                        //      ״«… †״×״­‚‚ …† †ˆ״¹‡  functionTable_ (״§„…״­״¯‘״«  Phase 1.7)
+                                        // ═══════════════════════════════════════════════════
+                                        // (AR) إصلاح: إذا كان الحقل Pointer (مجهول النوع)،
+                                        //      نبحث عبر paramToFieldMap_ عن المعامل المرتبط
+                                        //      ثم نتحقق من نوعه في functionTable_ (باني الصنف)
+                                        //      بدون هذا: ارجع هذا.حقل يُستنتج كـ Integer
+                                        //      بدلاً من String عندما الحقل بلا مُهيئ
+                                        // (EN) Fix: If field is Pointer (unknown type), try to
+                                        //      infer from constructor param via paramToFieldMap_
+                                        //      Without this: return this.field infers as Integer
+                                        //      instead of String when field has no initializer
+                                        // ═══════════════════════════════════════════════════
+                                        if (ft == SadTypeKind::Pointer)
+                                        {
+                                            for (const auto &[paramName, fieldName] : sirClass->paramToFieldMap_)
+                                            {
+                                                if (fieldName == memberExpr->member)
+                                                {
+                                                    std::string ctorName = currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                                                    auto ctorIt = functionTable_.find(ctorName);
+                                                    if (ctorIt != functionTable_.end())
+                                                    {
+                                                        for (const auto &param : ctorIt->second.parameters)
+                                                        {
+                                                            if (param.name == paramName)
+                                                            {
+                                                                if (param.type == SadTypeKind::String ||
+                                                                    param.type == SadTypeKind::Array ||
+                                                                    param.type == SadTypeKind::Float ||
+                                                                    param.type == SadTypeKind::Boolean)
+                                                                    return param.type;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                        }
                                         // (EN) If field is Pointer (unknown), try to infer from constructor
                                         //      Find param linked to this field via paramToFieldMap_
                                         //      then check its type in functionTable_ (updated in Phase 1.7)
@@ -291,6 +438,35 @@ namespace Sad
                                         if (ft == SadTypeKind::String || ft == SadTypeKind::Array ||
                                             ft == SadTypeKind::Float || ft == SadTypeKind::Boolean)
                                             return ft;
+
+                                        // (EN) Same fix as MemberExpr: Pointer → paramToFieldMap_ lookup
+                                        if (ft == SadTypeKind::Pointer)
+                                        {
+                                            for (const auto &[paramName, fieldName] : sirClass->paramToFieldMap_)
+                                            {
+                                                if (fieldName == memberAccessExpr->memberName)
+                                                {
+                                                    std::string ctorName = currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+                                                    auto ctorIt = functionTable_.find(ctorName);
+                                                    if (ctorIt != functionTable_.end())
+                                                    {
+                                                        for (const auto &param : ctorIt->second.parameters)
+                                                        {
+                                                            if (param.name == paramName)
+                                                            {
+                                                                if (param.type == SadTypeKind::String ||
+                                                                    param.type == SadTypeKind::Array ||
+                                                                    param.type == SadTypeKind::Float ||
+                                                                    param.type == SadTypeKind::Boolean)
+                                                                    return param.type;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -321,7 +497,22 @@ namespace Sad
                     // (EN) New object creation
                     if (dynamic_cast<const Sad::AST::NewExpr *>(expr))
                         return SadTypeKind::Struct;
-
+                    // (AR) تعبير صف (Tuple)
+                    // (EN) Tuple expression
+                    if (dynamic_cast<const Sad::AST::TupleExpr *>(expr))
+                        return SadTypeKind::Tuple;
+                    // ================================================================
+                    // (AR) [Fix #52] تعبير لامدا — يُرجع دائماً نوع Function
+                    //      بدون هذا الفحص، inferReturnTypeFromBody يُعيد Integer
+                    //      لدالة مثل: دالة صانع() ارجع لامدا()...نهاية نهاية
+                    //      مما يمنع تتبع returnLambdaName في functionTable_
+                    // (EN) [Fix #52] Lambda expression — always returns Function type
+                    //      Without this check, inferReturnTypeFromBody returns Integer
+                    //      for functions like: function maker() return lambda()...end end
+                    //      which prevents returnLambdaName tracking in functionTable_
+                    // ================================================================
+                    if (dynamic_cast<const Sad::AST::LambdaExpr *>(expr))
+                        return SadTypeKind::Function;
                     // (AR) ״­״µ DataType …† ״§„״×״¹״¨״± †״³‡ (״¥״°״§ ״×ˆ״±)
                     // (EN) Check DataType from expression itself (if available)
                     auto dtype = expr->getDataType();

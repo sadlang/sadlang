@@ -785,10 +785,46 @@ namespace Sad
                     auto args = parseArgumentList();
                     consume(TT::PAREN_RIGHT,
                             "(AR) توقع ')' بعد الوسائط. (EN) Expected ')' after arguments.");
-                    expr = std::make_unique<CallExpr>(
-                        std::move(expr),
-                        std::move(args),
-                        previous().getPosition());
+
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) دعم postfix جديد: اسم_صنف(معاملات) جديد
+                    //      الصفة بعد الموصوف — قاعدة اللغة العربية
+                    //      إذا تلا ')' كلمة 'جديد'، نحوّل CallExpr إلى NewExpr
+                    //      'جديد' اختيارية — بدونها يُعامل كـ CallExpr عادي
+                    //      (المفسر والمترجم يكتشفان الأصناف تلقائياً)
+                    // (EN) Postfix 'new' support: ClassName(args) جديد
+                    //      Adjective after noun — Arabic grammar rule
+                    //      If ')' is followed by 'جديد', convert CallExpr to NewExpr
+                    //      'جديد' is optional — without it, treated as regular CallExpr
+                    //      (interpreter and compiler auto-detect class names)
+                    // ═══════════════════════════════════════════════════════════════
+                    if (check(TT::KEYWORD_NEW))
+                    {
+                        advance(); // (AR) استهلاك 'جديد' / (EN) consume 'جديد'
+                        // (AR) استخراج اسم الصنف من تعبير الدالة
+                        // (EN) Extract class name from callee expression
+                        std::string className;
+                        if (auto *varExpr = dynamic_cast<VariableExpr *>(expr.get()))
+                        {
+                            className = varExpr->name;
+                        }
+                        else
+                        {
+                            error("(AR) توقع اسم صنف قبل '(معاملات) جديد'. "
+                                  "(EN) Expected class name before '(args) جديد'.");
+                            className = "?";
+                        }
+                        auto newExpr = std::make_unique<NewExpr>(className);
+                        newExpr->arguments = std::move(args);
+                        expr = std::move(newExpr);
+                    }
+                    else
+                    {
+                        expr = std::make_unique<CallExpr>(
+                            std::move(expr),
+                            std::move(args),
+                            previous().getPosition());
+                    }
                 }
                 else if (check(TT::BRACE_LEFT))
                 {
@@ -1169,17 +1205,16 @@ namespace Sad
                 return std::make_unique<ErrorPropagateExpr>(std::move(expr), propagateToken.getPosition());
             }
 
-            // OOP: new expression for object instantiation
-            // (AR) تعبير جديد لإنشاء كائن — فقط إذا تبعه اسم صنف (معرّف)
-            //      وإلا يُعامل كمعرّف عادي (مثلاً: متغير جديد = 5; إذا (جديد < 0))
-            // (EN) Only treat as new-expression if followed by class name (IDENTIFIER)
-            //      Otherwise treat as regular identifier (e.g., var جديد = 5; if (جديد < 0))
-            if (check(TT::KEYWORD_NEW) && peekNext().getType() == TT::IDENTIFIER)
-            {
-                advance(); // consume KEYWORD_NEW
-                return parseNewExpr();
-            }
-            // (AR) جديد كمعرّف عادي (لم يتبعه اسم صنف)
+            // ═══════════════════════════════════════════════════════════════════
+            // (AR) 'جديد' لم تعد تُستخدم كبادئة (prefix) لإنشاء الكائنات
+            //      القاعدة الجديدة: اسم_صنف(معاملات) جديد (postfix — الصفة بعد الموصوف)
+            //      أو: اسم_صنف(معاملات) بدون جديد (اختيارية)
+            //      إذا ظهرت 'جديد' في بداية تعبير → تُعامل كمعرّف عادي
+            // (EN) 'جديد' is no longer used as prefix for object creation
+            //      New rule: ClassName(args) جديد (postfix — adjective after noun in Arabic)
+            //      Or: ClassName(args) without جديد (optional)
+            //      If 'جديد' appears at start of expression → treated as regular identifier
+            // ═══════════════════════════════════════════════════════════════════
             if (match(TT::KEYWORD_NEW))
             {
                 return std::make_unique<VariableExpr>(previous().getValue(), previous().getPosition());
@@ -1778,12 +1813,12 @@ namespace Sad
                         exprNode = std::make_unique<VariableExpr>(exprText, pos);
                     }
 
-                    // Wrap in str() call to convert to string
-                    // لف في استدعاء str() للتحويل إلى نص
+                    // Wrap in نص() call to convert to string
+                    // (AR) لف في استدعاء نص() للتحويل إلى نص
                     std::vector<ExprPtr> strArgs;
                     strArgs.push_back(std::move(exprNode));
                     auto strCall = std::make_unique<CallExpr>(
-                        std::make_unique<VariableExpr>("str", pos),
+                        std::make_unique<VariableExpr>("\xd9\x86\xd8\xb5", pos),
                         std::move(strArgs));
 
                     if (result)

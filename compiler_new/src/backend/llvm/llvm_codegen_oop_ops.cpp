@@ -29,11 +29,11 @@ namespace Sad
     namespace LLVM
     {
 
-// ============================================================================
-// (AR) عمليات الكائنات والمؤشرات - ObjectNew, ObjectGet, ObjectSet, Addr, PtrAdd, PtrCast
-// (EN) Object and pointer operations - ObjectNew, ObjectGet, ObjectSet, Addr, PtrAdd, PtrCast
-// (AR) تم فصل هذا الملف عن llvm_codegen_concurrency.cpp وفق قاعدة CW-05
-// ============================================================================
+        // ============================================================================
+        // (AR) عمليات الكائنات والمؤشرات - ObjectNew, ObjectGet, ObjectSet, Addr, PtrAdd, PtrCast
+        // (EN) Object and pointer operations - ObjectNew, ObjectGet, ObjectSet, Addr, PtrAdd, PtrCast
+        // (AR) تم فصل هذا الملف عن llvm_codegen_concurrency.cpp وفق قاعدة CW-05
+        // ============================================================================
         llvm::Value *LLVMCodeGen::emitAddr(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
@@ -345,16 +345,85 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) تطبيع مؤشر الكائن: فك alloca/global إلى مؤشر كائن فعلي
+            // (EN) Normalize object pointer: unwrap alloca/global into actual object pointer
+            llvm::Value *normalizedObjPtr = objPtr;
+            if (auto *allocaInst = llvm::dyn_cast<llvm::AllocaInst>(normalizedObjPtr))
+            {
+                if (!allocaInst->getAllocatedType()->isStructTy())
+                {
+                    llvm::Value *loaded = builder_->CreateLoad(allocaInst->getAllocatedType(), allocaInst, objRegName + ".self.load");
+                    if (loaded->getType()->isIntegerTy())
+                    {
+                        normalizedObjPtr = builder_->CreateIntToPtr(loaded,
+                                                                    llvm::PointerType::getUnqual(*context_), objRegName + ".self.ptr");
+                    }
+                    else if (loaded->getType()->isPointerTy())
+                    {
+                        normalizedObjPtr = loaded;
+                    }
+                }
+            }
+            else if (auto *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(normalizedObjPtr))
+            {
+                llvm::Value *loaded = builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".self.gload");
+                if (loaded->getType()->isIntegerTy())
+                {
+                    normalizedObjPtr = builder_->CreateIntToPtr(loaded,
+                                                                llvm::PointerType::getUnqual(*context_), objRegName + ".self.gptr");
+                }
+                else if (loaded->getType()->isPointerTy())
+                {
+                    normalizedObjPtr = loaded;
+                }
+            }
+            if (normalizedObjPtr->getType()->isIntegerTy())
+            {
+                normalizedObjPtr = builder_->CreateIntToPtr(normalizedObjPtr,
+                                                            llvm::PointerType::getUnqual(*context_), objRegName + ".self.i2p");
+            }
+
             // (AR) فحص الخاصية: إذا وُجدت دالة __get_fieldName → استدعاؤها بدلاً من الوصول المباشر
             // (EN) Property check: if __get_fieldName exists → call it instead of direct access
             {
+                if (!fieldName.empty() && fieldName.front() == '"')
+                    fieldName = fieldName.substr(1);
+                if (!fieldName.empty() && fieldName.back() == '"')
+                    fieldName = fieldName.substr(0, fieldName.size() - 1);
+
                 std::string getterName = className + ".__get_" + fieldName;
                 llvm::Function *getter = module_->getFunction(getterName);
                 if (!getter)
+                {
+                    auto it = context_info_.functions.find(getterName);
+                    if (it != context_info_.functions.end())
+                        getter = it->second;
+                }
+                if (!getter)
                     getter = module_->getFunction("__get_" + fieldName);
+                if (!getter)
+                {
+                    auto it = context_info_.functions.find("__get_" + fieldName);
+                    if (it != context_info_.functions.end())
+                        getter = it->second;
+                }
                 if (getter)
                 {
-                    llvm::Value *result = builder_->CreateCall(getter, {objPtr},
+                    llvm::Value *selfArg = normalizedObjPtr;
+                    if (getter->arg_size() >= 1)
+                    {
+                        llvm::Type *expectedSelfTy = getter->getFunctionType()->getParamType(0);
+                        if (expectedSelfTy->isIntegerTy() && selfArg->getType()->isPointerTy())
+                        {
+                            selfArg = builder_->CreatePtrToInt(selfArg, expectedSelfTy, "prop.get.self.p2i");
+                        }
+                        else if (expectedSelfTy->isPointerTy() && selfArg->getType()->isIntegerTy())
+                        {
+                            selfArg = builder_->CreateIntToPtr(selfArg, expectedSelfTy, "prop.get.self.i2p");
+                        }
+                    }
+
+                    llvm::Value *result = builder_->CreateCall(getter, {selfArg},
                                                                getter->getReturnType()->isVoidTy() ? "" : (fieldName + ".prop"));
                     if (inst->result.has_value())
                     {
@@ -454,7 +523,7 @@ namespace Sad
             }
 
             // Resolve object pointer (may need loading from alloca)
-            llvm::Value *actualObj = objPtr;
+            llvm::Value *actualObj = normalizedObjPtr;
             if (auto *allocaInst = llvm::dyn_cast<llvm::AllocaInst>(objPtr))
             {
                 if (!allocaInst->getAllocatedType()->isStructTy())
@@ -466,6 +535,19 @@ namespace Sad
                         actualObj = builder_->CreateIntToPtr(loaded,
                                                              llvm::PointerType::getUnqual(*context_), objRegName + ".ptr");
                     }
+                }
+            }
+            else if (auto *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(objPtr))
+            {
+                llvm::Value *loaded = builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".load.g");
+                if (loaded->getType()->isIntegerTy())
+                {
+                    actualObj = builder_->CreateIntToPtr(loaded,
+                                                         llvm::PointerType::getUnqual(*context_), objRegName + ".ptr.g");
+                }
+                else if (loaded->getType()->isPointerTy())
+                {
+                    actualObj = loaded;
                 }
             }
             // (AR) إذا كان الكائن لا يزال i64 (مثلاً من array_get) — حوّله إلى ptr
@@ -506,6 +588,24 @@ namespace Sad
             llvm::Value *value = resolveOperand(inst->operands[2]);
 
             llvm::Value *objPtr = context_info_.namedValues[objRegName];
+            if (!objPtr)
+            {
+                // (AR) Fallback: البحث عن الكائن في المتغيرات العامة LLVM
+                // (EN) Fallback: resolve object from LLVM globals
+                auto *globalVar = module_->getNamedGlobal(objRegName);
+                if (!globalVar && !objRegName.empty() && objRegName[0] == '%')
+                {
+                    globalVar = module_->getNamedGlobal(objRegName.substr(1));
+                }
+                if (globalVar)
+                {
+                    llvm::Value *loaded = builder_->CreateLoad(getInt64Type(), globalVar, objRegName + ".glob.load");
+                    objPtr = builder_->CreateIntToPtr(loaded,
+                                                      llvm::PointerType::getUnqual(*context_), objRegName + ".glob.ptr");
+                    context_info_.namedValues[objRegName] = objPtr;
+                }
+            }
+
             if (!objPtr || !value)
             {
                 reportError("Operands not found for OBJECT_SET");
@@ -578,16 +678,116 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) تطبيع مؤشر الكائن قبل استدعاء setter والوصول المباشر للحقل
+            // (EN) Normalize object pointer before setter call and direct field store
+            llvm::Value *normalizedObjPtr = objPtr;
+            if (auto *allocaInst = llvm::dyn_cast<llvm::AllocaInst>(normalizedObjPtr))
+            {
+                if (!allocaInst->getAllocatedType()->isStructTy())
+                {
+                    llvm::Value *loaded = builder_->CreateLoad(allocaInst->getAllocatedType(), allocaInst, objRegName + ".self.load");
+                    if (loaded->getType()->isIntegerTy())
+                    {
+                        normalizedObjPtr = builder_->CreateIntToPtr(loaded,
+                                                                    llvm::PointerType::getUnqual(*context_), objRegName + ".self.ptr");
+                    }
+                    else if (loaded->getType()->isPointerTy())
+                    {
+                        normalizedObjPtr = loaded;
+                    }
+                }
+            }
+            else if (auto *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(normalizedObjPtr))
+            {
+                llvm::Value *loaded = builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".self.gload");
+                if (loaded->getType()->isIntegerTy())
+                {
+                    normalizedObjPtr = builder_->CreateIntToPtr(loaded,
+                                                                llvm::PointerType::getUnqual(*context_), objRegName + ".self.gptr");
+                }
+                else if (loaded->getType()->isPointerTy())
+                {
+                    normalizedObjPtr = loaded;
+                }
+            }
+            if (normalizedObjPtr->getType()->isIntegerTy())
+            {
+                normalizedObjPtr = builder_->CreateIntToPtr(normalizedObjPtr,
+                                                            llvm::PointerType::getUnqual(*context_), objRegName + ".self.i2p");
+            }
+
             // (AR) فحص الخاصية: إذا وُجدت دالة __set_fieldName → استدعاؤها بدلاً من التعيين المباشر
             // (EN) Property check: if __set_fieldName exists → call it instead of direct store
             {
+                if (!fieldName.empty() && fieldName.front() == '"')
+                    fieldName = fieldName.substr(1);
+                if (!fieldName.empty() && fieldName.back() == '"')
+                    fieldName = fieldName.substr(0, fieldName.size() - 1);
+
                 std::string setterName = className + ".__set_" + fieldName;
                 llvm::Function *setter = module_->getFunction(setterName);
                 if (!setter)
+                {
+                    auto it = context_info_.functions.find(setterName);
+                    if (it != context_info_.functions.end())
+                        setter = it->second;
+                }
+                if (!setter)
                     setter = module_->getFunction("__set_" + fieldName);
+                if (!setter)
+                {
+                    auto it = context_info_.functions.find("__set_" + fieldName);
+                    if (it != context_info_.functions.end())
+                        setter = it->second;
+                }
                 if (setter)
                 {
-                    builder_->CreateCall(setter, {objPtr, value});
+                    llvm::Value *selfArg = normalizedObjPtr;
+                    llvm::Value *valueArg = value;
+
+                    if (setter->arg_size() >= 1)
+                    {
+                        llvm::Type *expectedSelfTy = setter->getFunctionType()->getParamType(0);
+                        if (expectedSelfTy->isIntegerTy() && selfArg->getType()->isPointerTy())
+                        {
+                            selfArg = builder_->CreatePtrToInt(selfArg, expectedSelfTy, "prop.set.self.p2i");
+                        }
+                        else if (expectedSelfTy->isPointerTy() && selfArg->getType()->isIntegerTy())
+                        {
+                            selfArg = builder_->CreateIntToPtr(selfArg, expectedSelfTy, "prop.set.self.i2p");
+                        }
+                    }
+
+                    if (setter->arg_size() >= 2)
+                    {
+                        llvm::Type *expectedValTy = setter->getFunctionType()->getParamType(1);
+                        llvm::Type *actualValTy = valueArg->getType();
+                        if (expectedValTy != actualValTy)
+                        {
+                            if (expectedValTy->isIntegerTy() && actualValTy->isIntegerTy())
+                            {
+                                valueArg = builder_->CreateIntCast(valueArg, expectedValTy, true, "prop.set.val.icast");
+                            }
+                            else if (expectedValTy->isDoubleTy() && actualValTy->isIntegerTy())
+                            {
+                                valueArg = builder_->CreateSIToFP(valueArg, expectedValTy, "prop.set.val.i2f");
+                            }
+                            else if (expectedValTy->isIntegerTy() && actualValTy->isDoubleTy())
+                            {
+                                valueArg = builder_->CreateFPToSI(valueArg, expectedValTy, "prop.set.val.f2i");
+                            }
+                            else if (expectedValTy->isPointerTy() && actualValTy->isIntegerTy())
+                            {
+                                valueArg = builder_->CreateIntToPtr(valueArg, expectedValTy, "prop.set.val.i2p");
+                            }
+                            else if (expectedValTy->isIntegerTy() && actualValTy->isPointerTy())
+                            {
+                                valueArg = builder_->CreatePtrToInt(valueArg, expectedValTy, "prop.set.val.p2i");
+                            }
+                        }
+                    }
+
+                    builder_->CreateCall(setter, {selfArg, valueArg});
                     return value;
                 }
             }
@@ -677,7 +877,7 @@ namespace Sad
             }
 
             // Resolve object pointer
-            llvm::Value *actualObj = objPtr;
+            llvm::Value *actualObj = normalizedObjPtr;
             if (auto *allocaInst = llvm::dyn_cast<llvm::AllocaInst>(objPtr))
             {
                 if (!allocaInst->getAllocatedType()->isStructTy())
@@ -689,6 +889,19 @@ namespace Sad
                         actualObj = builder_->CreateIntToPtr(loaded,
                                                              llvm::PointerType::getUnqual(*context_), objRegName + ".ptr");
                     }
+                }
+            }
+            else if (auto *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(objPtr))
+            {
+                llvm::Value *loaded = builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".load.g");
+                if (loaded->getType()->isIntegerTy())
+                {
+                    actualObj = builder_->CreateIntToPtr(loaded,
+                                                         llvm::PointerType::getUnqual(*context_), objRegName + ".ptr.g");
+                }
+                else if (loaded->getType()->isPointerTy())
+                {
+                    actualObj = loaded;
                 }
             }
             // (AR) إذا كان الكائن لا يزال i64 — حوّله إلى ptr

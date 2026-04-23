@@ -1,7 +1,6 @@
-# @description اختبار سلبي — تعديل ثابت (Const Assignment)
+﻿# @description اختبار سلبي — تعديل ثابت (Const Assignment)
 # @expect_error Cannot reassign
 # @priority P1
-# @skip_compiler
 
 # ============================================================
 # محاولة تعديل متغير ثابت — يجب أن تُنتج خطأ

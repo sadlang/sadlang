@@ -55,7 +55,6 @@ namespace Sad
     namespace LLVM
     {
 
-
         llvm::Value *LLVMCodeGen::emitShl(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
@@ -225,6 +224,42 @@ namespace Sad
             // (EN) Handle type mismatches
             if (leftTy != rightTy)
             {
+                // ================================================================
+                // (AR) فحص مقارنة نصوص عندما أحد الطرفين i64 والآخر ptr
+                //      حقول الكائنات تُخزن كـ i64 لكنها فعلياً مؤشرات نصوص
+                //      نحوّل i64 إلى ptr ونستدعي strcmp
+                // (EN) String comparison when one side is i64 and other is ptr
+                //      Object fields stored as i64 but actually string pointers
+                //      Convert i64 to ptr and call strcmp
+                // ================================================================
+                {
+                    bool isStringCmp = (inst->operands[0].dataType == SadTypeKind::String ||
+                                        inst->operands[1].dataType == SadTypeKind::String);
+                    if (isStringCmp &&
+                        ((leftTy->isIntegerTy(64) && rightTy->isPointerTy()) ||
+                         (leftTy->isPointerTy() && rightTy->isIntegerTy(64))))
+                    {
+                        if (leftTy->isIntegerTy(64))
+                            left = builder_->CreateIntToPtr(left, llvm::PointerType::getUnqual(*context_), "i642ptr.l");
+                        if (rightTy->isIntegerTy(64))
+                            right = builder_->CreateIntToPtr(right, llvm::PointerType::getUnqual(*context_), "i642ptr.r");
+
+                        llvm::FunctionType *strcmpType = llvm::FunctionType::get(
+                            llvm::Type::getInt32Ty(*context_),
+                            {llvm::PointerType::getUnqual(*context_), llvm::PointerType::getUnqual(*context_)},
+                            false);
+                        llvm::FunctionCallee strcmpFn = module_->getOrInsertFunction("strcmp", strcmpType);
+                        llvm::Value *cmpResult = builder_->CreateCall(strcmpFn, {left, right}, "strcmp.ret");
+                        result = builder_->CreateICmpEQ(cmpResult,
+                                                        llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0), "streq");
+                        if (inst->result.has_value())
+                        {
+                            context_info_.namedValues[inst->result->name] = result;
+                        }
+                        return result;
+                    }
+                }
+
                 // (AR) تطبيع المؤشرات أولاً: ptr→i64
                 // (EN) Normalize pointers first: ptr→i64
                 if (leftTy->isPointerTy())
@@ -551,7 +586,5 @@ namespace Sad
          * Source: llvm_codegen.h:437
          */
 
-
     } // namespace LLVM
 } // namespace Sad
-

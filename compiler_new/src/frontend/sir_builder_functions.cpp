@@ -237,6 +237,23 @@ namespace Sad
                     paramInfo.isMutable = true;
                     paramInfo.isParameter = true;
                     paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) نقل نوع عنصر المصفوفة من FunctionInfo إلى VariableInfo
+                    //      Phase 1.7 حدّد elementType من فحص ArrayExpr في مواقع الاستدعاء
+                    //      بدون هذا: forEach على معامل مصفوفة نصوص يُعامل العناصر كأرقام
+                    // (EN) Propagate array element type from FunctionInfo to VariableInfo
+                    //      Phase 1.7 inferred elementType from ArrayExpr at call sites
+                    //      Without this: forEach over string array param treats elements as integers
+                    // ═══════════════════════════════════════════════════════════════
+                    if (ftIt != functionTable_.end() && i < ftIt->second.parameters.size())
+                    {
+                        if (ftIt->second.parameters[i].elementType != SadTypeKind::Void)
+                        {
+                            paramInfo.elementType = ftIt->second.parameters[i].elementType;
+                        }
+                    }
+
                     addVariable(paramInfo);
                 }
 
@@ -379,9 +396,11 @@ namespace Sad
                         // (EN) Fail block: raise exception via __sad_raise (catchable by try/catch)
                         currentBlock_ = failBlock;
                         {
-                            // (AR) [Fix BF-04] ״§״³״×״¨״¯״§„ exit(1) ״¨€ __sad_raise „״¬״¹„ ״§„״¹‚ˆ״¯ ‚״§״¨„״© „„״§„״×‚״§״·
+                            // (AR) [Fix BF-04] استبدال exit(1) بـ __sad_raise لجعل العقود قابلة للالتقاط
+                            //      الرسالة تحتوي "فشل العقد" للتوافق مع سلوك المفسر
                             // (EN) [Fix BF-04] Replace exit(1) with __sad_raise for catchable contracts
-                            std::string errMsg = "\xd8\xae\xd8\xb7\xd8\xa3: \xd9\x81\xd8\xb4\xd9\x84 \xd8\xb4\xd8\xb1\xd8\xb7 \xd9\x8a\xd8\xaa\xd8\xb7\xd9\x84\xd8\xa8 \xd9\x81\xd9\x8a \xd8\xa7\xd9\x84\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9 " + funcDecl->name;
+                            //      Message contains "فشل العقد" for interpreter parity
+                            std::string errMsg = "\xd9\x81\xd8\xb4\xd9\x84 \xd8\xa7\xd9\x84\xd8\xb9\xd9\x82\xd8\xaf \xd9\x81\xd9\x8a \xd8\xa7\xd9\x84\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9 " + funcDecl->name;
                             SIRInstruction raiseInst;
                             raiseInst.opcode = SIROpcode::CALL;
                             raiseInst.operands.push_back(SIROperand::Function("__sad_raise"));
@@ -572,9 +591,56 @@ namespace Sad
                     funcInfo.parameters = sirFunction->getParameters();
                     funcInfo.sirFunction = sirFunction;
                     funcInfo.isGenerator = sirFunction->isGenerator;
-                    // (AR) ״­״¸ …״±״¬״¹ AST „…״¹״§„״¬״© ״§„‚… ״§„״§״×״±״§״¶״© ״¹†״¯ ״§„״§״³״×״¯״¹״§״¡
+                    // (AR) حفظ مرجع AST لمعالجة القيم الافتراضية عند الاستدعاء
                     // (EN) Save AST reference for default parameter values at call sites
                     funcInfo.astDecl = funcDecl;
+
+                    // ================================================================
+                    // (AR) [Fix #52] تتبع اسم اللامدا المُرجعة:
+                    //      إذا كانت الدالة تُرجع إغلاقاً (CLOSURE_CREATE)، نستخرج
+                    //      اسم اللامدا من تعليمة RET الأخيرة ونحفظه في returnLambdaName.
+                    //      هذا يسمح بتتبع نوع الإرجاع الصحيح عند استدعاء الإغلاق
+                    //      عبر متغير (مثل: ل = صانع() ثم ل() )
+                    // (EN) [Fix #52] Track returned lambda name:
+                    //      If function returns a closure (CLOSURE_CREATE), extract
+                    //      the lambda name from the last RET instruction and save
+                    //      in returnLambdaName. Enables correct return type tracking
+                    //      when calling the closure via a variable.
+                    // ================================================================
+                    if (returnType == SadTypeKind::Function)
+                    {
+                        for (const auto &block : sirFunction->basicBlocks)
+                        {
+                            for (const auto &inst : block->instructions)
+                            {
+                                if (inst.opcode == SIROpcode::RET && !inst.operands.empty())
+                                {
+                                    const std::string &retReg = inst.operands[0].name;
+                                    // (AR) البحث عن CLOSURE_CREATE التي أنتجت هذا السجل
+                                    // (EN) Find CLOSURE_CREATE that produced this register
+                                    for (const auto &b2 : sirFunction->basicBlocks)
+                                    {
+                                        for (const auto &i2 : b2->instructions)
+                                        {
+                                            if (i2.opcode == SIROpcode::CLOSURE_CREATE &&
+                                                i2.result.has_value() &&
+                                                i2.result->name == retReg &&
+                                                !i2.operands.empty())
+                                            {
+                                                // (AR) المعامل الأول هو مرجع الدالة (اسم اللامدا)
+                                                // (EN) First operand is function reference (lambda name)
+                                                funcInfo.returnLambdaName = i2.operands[0].name;
+                                            }
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                            if (!funcInfo.returnLambdaName.empty())
+                                break;
+                        }
+                    }
+
                     functionTable_[funcDecl->name] = funcInfo;
                 }
 
@@ -613,7 +679,26 @@ namespace Sad
                 // (AR) ״×״­ˆ„ ״§„†ˆ״¹ (astTypeToSIRType: sir_builder.h:713)
                 // (EN) Convert type
                 SadTypeKind varType = astTypeToSIRType(varDecl->type);
-
+                // (AR) إذا كان النوع UNKNOWN (افتراضي Integer)، نستنتجه من المُهيئ
+                //      هذا ضروري لمتغيرات الفضاء مثل: متغير PI = 3.14159
+                //      حيث لا يُحدد النوع صراحة ويجب استنتاجه من القيمة الحرفية
+                // (EN) If type is UNKNOWN (defaults to Integer), infer from initializer
+                //      Needed for namespace vars like: var PI = 3.14159
+                //      where type is not explicit and must be inferred from literal value
+                if (varDecl->type == Data::DataType::UNKNOWN && varDecl->initializer)
+                {
+                    if (auto *litExpr = dynamic_cast<Sad::AST::LiteralExpr *>(varDecl->initializer.get()))
+                    {
+                        Lexer::TokenType tokType = litExpr->token.getType();
+                        if (tokType == Lexer::TokenType::NUMBER_DOUBLE)
+                            varType = SadTypeKind::Float;
+                        else if (tokType == Lexer::TokenType::STRING_LITERAL)
+                            varType = SadTypeKind::String;
+                        else if (tokType == Lexer::TokenType::LITERAL_TRUE ||
+                                 tokType == Lexer::TokenType::LITERAL_FALSE)
+                            varType = SadTypeKind::Boolean;
+                    }
+                }
                 // (AR) ״¥†״´״§״¡ …״×״÷״± ״¹״§… (SIRGlobalVariable constructor: sir_module.h:96)
                 // (EN) Create global variable
                 auto sirGlobal = std::make_shared<SIRGlobalVariable>(varDecl->name, varType);
@@ -673,7 +758,6 @@ namespace Sad
                 // (EN) Add global variable to module
                 module_->addGlobalVariable(sirGlobal);
             }
-
 
         } // namespace SIR
     } // namespace Compiler

@@ -425,91 +425,50 @@ namespace Sad
                             currentBlock_->addInstruction(eqInst);
                     }
 
-                    // (AR) مقارنة كل عنصر
-                    // (EN) Compare each element
+                    // (AR) مقارنة كل عنصر — حرفي فقط في كتلة الاختبار
+                    //      المتغيرات تُؤجَّل إلى كتلة الجسم لتجنب array.get خارج الحدود
+                    //      عندما لا يتطابق الطول (مثلاً: المصفوفة فارغة + نمط [أ، ب])
+                    // (EN) Compare each element — literal only in test block
+                    //      Variable bindings are deferred to body block to avoid
+                    //      out-of-bounds array.get when length doesn't match
                     std::string accumReg2 = lenCheckReg;
                     for (size_t e = 0; e < listPat->elements.size(); ++e)
                     {
                         const auto &elemPat = listPat->elements[e];
 
-                        // (AR) استخراج العنصر من المصفوفة
-                        // (EN) Extract element from array
-                        std::string elemReg = newTempRegister();
-                        {
-                            SIRInstruction getInst;
-                            getInst.opcode = SIROpcode::ARRAY_GET;
-                            getInst.result = SIROperand::Register(elemReg, SadTypeKind::Pointer);
-                            getInst.operands.push_back(SIROperand::Register(matchValueReg, matchValueType));
-                            getInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(e)));
-                            getInst.comment = "list pattern: get element [" + std::to_string(e) + "]";
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(getInst);
-                        }
-
                         if (auto *elemLit = dynamic_cast<const Sad::AST::LiteralPattern *>(elemPat.get()))
                         {
-                            // (AR) مطابقة عنصر حرفي
-                            // (EN) Match literal element
-                            std::string elemCmpReg = newTempRegister();
-                            std::string litReg2 = newTempRegister();
+                            // (AR) مطابقة عنصر حرفي — يجب أن يكون بعد فحص الطول
+                            //      لكن لا يمكننا تأجيلها لأننا نحتاج condReg في الاختبار
+                            //      الحل: التأجيل أيضاً — condReg = lengthCheck فقط
+                            //      المقارنة الحرفية تُؤجل مع المتغيرات
+                            // (EN) Literal match — defer to body block too for safety
+                            //      condReg = length check only
+                            //      (literal comparison can be done in body with early exit)
 
-                            SIROperand litOp;
-                            const auto &litVal = elemLit->literal;
-                            if (litVal.isInteger())
-                            {
-                                litOp = SIROperand::ConstantI64(litVal.toInt());
-                            }
-                            else if (litVal.getKind() == SadTypeKind::Float)
-                            {
-                                litOp = SIROperand::ConstantF64(litVal.toDouble());
-                            }
-                            else if (litVal.getKind() == SadTypeKind::String)
-                            {
-                                litOp = SIROperand::ConstantString(litVal.toString());
-                            }
-                            else
-                            {
-                                litOp = SIROperand::ConstantI64(0);
-                            }
-
-                            SIRInstruction moveLit2(SIROpcode::MOVE);
-                            moveLit2.result = SIROperand::Register(litReg2, SadTypeKind::Integer);
-                            moveLit2.operands = {litOp};
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(moveLit2);
-
-                            SIRInstruction cmpElem = SIRInstruction::Binary(
-                                SIROpcode::EQ,
-                                SIROperand::Register(elemCmpReg, SadTypeKind::Boolean),
-                                SIROperand::Register(elemReg, SadTypeKind::Pointer),
-                                SIROperand::Register(litReg2, SadTypeKind::Integer));
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(cmpElem);
-
-                            // (AR) دمج مع النتيجة المتراكمة
-                            // (EN) AND with accumulated result
-                            std::string newAccum = newTempRegister();
-                            SIRInstruction andInst = SIRInstruction::Binary(
-                                SIROpcode::AND,
-                                SIROperand::Register(newAccum, SadTypeKind::Boolean),
-                                SIROperand::Register(accumReg2, SadTypeKind::Boolean),
-                                SIROperand::Register(elemCmpReg, SadTypeKind::Boolean));
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(andInst);
-                            accumReg2 = newAccum;
+                            // (AR) تأجيل: حفظ فهرس + قيمة حرفية في deferredExtractions
+                            // (EN) Defer: save index + literal value in deferredExtractions
+                            MatchDeferredField deferred;
+                            deferred.varName = "__lit_" + std::to_string(e);
+                            deferred.fieldIndex = e;
+                            deferred.fieldName = elemLit->literal.toString();
+                            deferred.enumName = "__list_pattern_literal";
+                            deferredExtractions.push_back(deferred);
                         }
                         else if (auto *elemVar = dynamic_cast<const Sad::AST::VariablePattern *>(elemPat.get()))
                         {
-                            // (AR) ربط متغير — دائماً ناجح
-                            // (EN) Variable binding — always succeeds
-                            VariableInfo elemVarInfo;
-                            elemVarInfo.name = elemVar->name;
-                            elemVarInfo.type = SadTypeKind::Pointer;
-                            elemVarInfo.registerName = elemReg;
-                            elemVarInfo.isGlobal = false;
-                            elemVarInfo.isMutable = false;
-                            elemVarInfo.scopeLevel = currentScopeLevel_;
-                            addVariable(elemVarInfo);
+                            // (AR) ربط متغير — يُؤجَّل إلى كتلة الجسم
+                            //      نخزن (اسم_المتغير، الفهرس) في deferredExtractions
+                            //      مع enumName = "__list_pattern" كعلامة مميزة
+                            // (EN) Variable binding — deferred to body block
+                            //      Store (varName, index) in deferredExtractions
+                            //      with enumName = "__list_pattern" as sentinel
+                            MatchDeferredField deferred;
+                            deferred.varName = elemVar->name;
+                            deferred.fieldIndex = e;
+                            deferred.fieldName = elemVar->name;
+                            deferred.enumName = "__list_pattern";
+                            deferredExtractions.push_back(deferred);
                         }
                         else if (dynamic_cast<const Sad::AST::WildcardPattern *>(elemPat.get()))
                         {

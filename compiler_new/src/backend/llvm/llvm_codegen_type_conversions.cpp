@@ -262,15 +262,17 @@ namespace Sad
             }
             else
             {
-                auto *sprintfType = llvm::FunctionType::get(
-                    llvm::Type::getInt32Ty(*context_),
+                // (AR) إصلاح: استخدام __sad_format_double بدلاً من sprintf("%g")
+                //      لمطابقة دقة المفسر: 6 خانات عشرية + حذف أصفار زائدة
+                // (EN) Fix: use __sad_format_double instead of sprintf("%g")
+                //      to match interpreter precision: 6 decimal places + strip trailing zeros
+                auto *fmtDblType = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*context_),
                     {llvm::PointerType::getUnqual(*context_),
-                     llvm::PointerType::getUnqual(*context_)},
-                    true);
-                auto sprintfFunc = module_->getOrInsertFunction("sprintf", sprintfType);
-
-                llvm::Value *fmt = builder_->CreateGlobalStringPtr("%g", "fmt_f64");
-                builder_->CreateCall(sprintfFunc, {buf, fmt, val});
+                     llvm::Type::getDoubleTy(*context_)},
+                    false);
+                auto fmtDblFunc = module_->getOrInsertFunction("__sad_format_double", fmtDblType);
+                builder_->CreateCall(fmtDblFunc, {buf, val});
             }
 
             if (inst->result.has_value())

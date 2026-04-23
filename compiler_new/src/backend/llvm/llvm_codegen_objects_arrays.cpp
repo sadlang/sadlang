@@ -61,7 +61,13 @@ namespace Sad
             std::string objRegName = inst->operands[0].name;
             std::string methodName = inst->operands[1].name;
 
-            llvm::Value *objPtr = context_info_.namedValues[objRegName];
+            // (AR) مهم: يجب حلّ المعامل عبر resolveOperand أولاً حتى نحمّل قيمة
+            //      المتغير (i64/ptr) بدلاً من استعمال عنوان خانة alloca نفسه.
+            //      استعمال عنوان alloca ككائن يؤدي إلى GEP/Load على ذاكرة خاطئة.
+            // (EN) Important: resolve object operand first so we load the variable value
+            //      (i64/ptr) instead of using alloca slot address as the object itself.
+            //      Using alloca address as object causes invalid GEP/Load memory access.
+            llvm::Value *objPtr = resolveOperand(inst->operands[0]);
             if (!objPtr)
             {
                 // (AR) Fallback: البحث في المتغيرات العامة LLVM
@@ -107,6 +113,55 @@ namespace Sad
             // (EN) Look up class name
             auto classIt = context_info_.objectClassMap.find(objRegName);
             std::string className = (classIt != context_info_.objectClassMap.end()) ? classIt->second : "";
+
+            // (AR) تطبيع قيمة الإرجاع إلى نوع نتيجة SIR المتوقع في OBJECT_CALL.
+            // (EN) Normalize return value to expected SIR result type for OBJECT_CALL.
+            auto normalizeToSIRResultType = [&](llvm::Value *value) -> llvm::Value *
+            {
+                if (!value || !inst->result.has_value())
+                    return value;
+
+                llvm::Type *targetType = getInt64Type();
+                switch (inst->result->dataType)
+                {
+                case SadTypeKind::Float:
+                    targetType = getDoubleType();
+                    break;
+                case SadTypeKind::Boolean:
+                    targetType = builder_->getInt1Ty();
+                    break;
+                case SadTypeKind::String:
+                case SadTypeKind::Pointer:
+                case SadTypeKind::Class:
+                case SadTypeKind::Array:
+                case SadTypeKind::Struct:
+                    targetType = llvm::PointerType::getUnqual(*context_);
+                    break;
+                default:
+                    targetType = getInt64Type();
+                    break;
+                }
+
+                if (value->getType() == targetType)
+                    return value;
+
+                if (targetType->isIntegerTy(64) && value->getType()->isPointerTy())
+                    return builder_->CreatePtrToInt(value, targetType, "obj.res.p2i");
+                if (targetType->isPointerTy() && value->getType()->isIntegerTy(64))
+                    return builder_->CreateIntToPtr(value, targetType, "obj.res.i2p");
+                if (targetType->isIntegerTy() && value->getType()->isIntegerTy())
+                    return builder_->CreateIntCast(value, targetType, true, "obj.res.icast");
+                if (targetType->isFloatingPointTy() && value->getType()->isIntegerTy())
+                    return builder_->CreateSIToFP(value, targetType, "obj.res.i2f");
+                if (targetType->isIntegerTy() && value->getType()->isFloatingPointTy())
+                    return builder_->CreateFPToSI(value, targetType, "obj.res.f2i");
+                if (targetType->isFloatingPointTy() && value->getType()->isFloatingPointTy())
+                    return builder_->CreateFPCast(value, targetType, "obj.res.fcast");
+                if (targetType->isPointerTy() && value->getType()->isPointerTy())
+                    return builder_->CreateBitCast(value, targetType, "obj.res.bitcast");
+
+                return value;
+            };
 
             // (AR) Fallback: استنتاج الصنف من اسم الدالة المسجلة
             // (EN) Fallback: infer class from registered method name
@@ -164,11 +219,129 @@ namespace Sad
                     // (AR) PHI node لجمع النتائج من كل فرع
                     // (EN) PHI node to collect results from each branch
                     llvm::PHINode *phi = nullptr;
+                    llvm::Type *phiType = getInt64Type();
+
+                    // (AR) أولوية صريحة: إذا كان نوع النتيجة في SIR مرجعياً (نص/مؤشر/كائن...)
+                    //      نفرض PHI كمؤشر مباشرة. كثير من دوال المشروع تُشفّر المرجع كـ i64
+                    //      في التوقيع LLVM لكن الاستهلاك اللاحق يعتمد كونه مرجعاً.
+                    // (EN) Explicit priority: if SIR result is reference-like (string/pointer/object...)
+                    //      force PHI to pointer directly. Many project methods encode references as i64
+                    //      in LLVM signatures, while downstream consumers expect reference semantics.
+                    bool forcedBySIRReferenceType = false;
                     if (inst->result.has_value())
+                    {
+                        switch (inst->result->dataType)
+                        {
+                        case SadTypeKind::String:
+                        case SadTypeKind::Pointer:
+                        case SadTypeKind::Class:
+                        case SadTypeKind::Array:
+                        case SadTypeKind::Struct:
+                            phiType = llvm::PointerType::getUnqual(*context_);
+                            forcedBySIRReferenceType = true;
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+
+                    // (AR) استنتاج نوع PHI من جميع التنفيذات المحتملة للدالة في الأصناف المرشحة.
+                    //      هذا يعالج حالة أن type hint في SIR يأتي Integer من الصنف الأب
+                    //      بينما بعض التنفيذات الفعلية تُرجع Float (مثل override لمساحة).
+                    // (EN) Infer PHI type from all candidate class implementations.
+                    //      This fixes cases where SIR hint is Integer from base class
+                    //      while real overrides return Float (e.g., area()).
+                    bool hasPtrReturn = false;
+                    bool hasFloatReturn = false;
+                    bool hasIntReturn = false;
+                    bool hasBoolReturn = false;
+                    bool hasVoidReturn = false;
+                    bool hasNonVoidReturn = false;
+                    for (const auto &candClass : candidateClasses)
+                    {
+                        auto layoutItCand = context_info_.classVtableLayout.find(candClass);
+                        if (layoutItCand == context_info_.classVtableLayout.end())
+                            continue;
+
+                        for (const auto &fullMethodName : layoutItCand->second)
+                        {
+                            std::string shortName = fullMethodName;
+                            auto dotPos = fullMethodName.rfind('.');
+                            if (dotPos != std::string::npos)
+                                shortName = fullMethodName.substr(dotPos + 1);
+                            if (shortName != methodName)
+                                continue;
+
+                            llvm::Function *methodFn = module_->getFunction(fullMethodName);
+                            if (!methodFn)
+                                continue;
+
+                            llvm::Type *retTy = methodFn->getReturnType();
+                            if (retTy->isVoidTy())
+                                hasVoidReturn = true;
+                            else
+                                hasNonVoidReturn = true;
+                            if (retTy->isPointerTy())
+                                hasPtrReturn = true;
+                            else if (retTy->isFloatingPointTy())
+                                hasFloatReturn = true;
+                            else if (retTy->isIntegerTy(1))
+                                hasBoolReturn = true;
+                            else if (retTy->isIntegerTy())
+                                hasIntReturn = true;
+                            break;
+                        }
+                    }
+
+                    // (AR) إذا كانت كل المرشحات void، لا ننشئ PHI أصلاً — لا قيمة نتيجة.
+                    // (EN) If all candidates are void, skip PHI creation — no result value.
+                    bool allVoid = hasVoidReturn && !hasNonVoidReturn;
+
+                    if (forcedBySIRReferenceType)
+                    {
+                        // نوع PHI مضبوط مسبقاً من SIR
+                    }
+                    else if (hasPtrReturn)
+                    {
+                        phiType = llvm::PointerType::getUnqual(*context_);
+                    }
+                    else if (hasFloatReturn)
+                    {
+                        phiType = getDoubleType();
+                    }
+                    else if (hasBoolReturn && !hasIntReturn)
+                    {
+                        phiType = builder_->getInt1Ty();
+                    }
+                    else if (inst->result.has_value())
+                    {
+                        // (AR) Fallback: عند غياب معلومات المرشحين نعود لنوع SIR.
+                        // (EN) Fallback: when candidate info is unavailable, use SIR type.
+                        switch (inst->result->dataType)
+                        {
+                        case SadTypeKind::Float:
+                            phiType = getDoubleType();
+                            break;
+                        case SadTypeKind::Boolean:
+                            phiType = builder_->getInt1Ty();
+                            break;
+                        case SadTypeKind::String:
+                        case SadTypeKind::Pointer:
+                        case SadTypeKind::Class:
+                        case SadTypeKind::Array:
+                        case SadTypeKind::Struct:
+                            phiType = llvm::PointerType::getUnqual(*context_);
+                            break;
+                        default:
+                            phiType = getInt64Type();
+                            break;
+                        }
+                    }
+                    if (inst->result.has_value() && !allVoid)
                     {
                         auto savedIP = builder_->saveIP();
                         builder_->SetInsertPoint(mergeBlock);
-                        phi = builder_->CreatePHI(getInt64Type(), candidateClasses.size(), "vtable.dispatch.result");
+                        phi = builder_->CreatePHI(phiType, candidateClasses.size(), "vtable.dispatch.result");
                         builder_->restoreIP(savedIP);
                     }
 
@@ -254,24 +427,53 @@ namespace Sad
                                 }
                             }
 
-                            if (phi && branchResult)
+                            if (phi && branchResult && !branchResult->getType()->isVoidTy())
                             {
-                                // (AR) تحويل النتيجة إلى i64 إذا لزم
-                                // (EN) Convert result to i64 if needed
-                                llvm::Value *resultAsI64 = branchResult;
-                                if (branchResult->getType()->isPointerTy())
+                                llvm::Value *normalizedResult = branchResult;
+                                if (normalizedResult->getType() != phiType)
                                 {
-                                    resultAsI64 = builder_->CreatePtrToInt(branchResult, getInt64Type(), "vt.res.p2i");
+                                    if (phiType->isIntegerTy(64) && normalizedResult->getType()->isPointerTy())
+                                    {
+                                        normalizedResult = builder_->CreatePtrToInt(normalizedResult, phiType, "vt.res.p2i");
+                                    }
+                                    else if (phiType->isPointerTy() && normalizedResult->getType()->isIntegerTy(64))
+                                    {
+                                        normalizedResult = builder_->CreateIntToPtr(normalizedResult, phiType, "vt.res.i2p");
+                                    }
+                                    else if (phiType->isIntegerTy() && normalizedResult->getType()->isIntegerTy())
+                                    {
+                                        normalizedResult = builder_->CreateIntCast(normalizedResult, phiType, true, "vt.res.icast");
+                                    }
+                                    else if (phiType->isFloatingPointTy() && normalizedResult->getType()->isIntegerTy())
+                                    {
+                                        normalizedResult = builder_->CreateSIToFP(normalizedResult, phiType, "vt.res.i2f");
+                                    }
+                                    else if (phiType->isIntegerTy() && normalizedResult->getType()->isFloatingPointTy())
+                                    {
+                                        normalizedResult = builder_->CreateFPToSI(normalizedResult, phiType, "vt.res.f2i");
+                                    }
+                                    else if (phiType->isFloatingPointTy() && normalizedResult->getType()->isFloatingPointTy())
+                                    {
+                                        normalizedResult = builder_->CreateFPCast(normalizedResult, phiType, "vt.res.fcast");
+                                    }
+                                    else if (phiType->isPointerTy() && normalizedResult->getType()->isPointerTy())
+                                    {
+                                        normalizedResult = builder_->CreateBitCast(normalizedResult, phiType, "vt.res.bitcast");
+                                    }
+                                    else
+                                    {
+                                        // (AR) لا تحويل ممكن — استخدم poison لتفادي <badref>
+                                        // (EN) No conversion possible — use poison to avoid <badref>
+                                        normalizedResult = llvm::PoisonValue::get(phiType);
+                                    }
                                 }
-                                else if (branchResult->getType()->isIntegerTy(1))
-                                {
-                                    resultAsI64 = builder_->CreateZExt(branchResult, getInt64Type(), "vt.res.zext");
-                                }
-                                phi->addIncoming(resultAsI64, builder_->GetInsertBlock());
+                                phi->addIncoming(normalizedResult, builder_->GetInsertBlock());
                             }
                             else if (phi)
                             {
-                                phi->addIncoming(llvm::ConstantInt::get(getInt64Type(), 0), builder_->GetInsertBlock());
+                                // (AR) branchResult مفقود أو void — مرّر poison بدل null لتمييز «لا قيمة»
+                                // (EN) branchResult missing or void — pass poison instead of null
+                                phi->addIncoming(llvm::PoisonValue::get(phiType), builder_->GetInsertBlock());
                             }
                             builder_->CreateBr(mergeBlock);
 
@@ -290,6 +492,12 @@ namespace Sad
                         // (AR) لا نعرف الصنف بعد runtime dispatch — لكن الدالة أُنجزت
                         // (EN) Don't know class after runtime dispatch — but the call is done
                     }
+                    // (AR) عند allVoid لا يوجد phi — لكن الاستدعاء أُنجز فعلياً في كل branch.
+                    //      نُرجع قيمة dummy لإعلام المُرسِل بأن المعالجة تمت (تجنب «Unsupported opcode»).
+                    // (EN) When allVoid there is no phi — but the call is actually done in each branch.
+                    //      Return a dummy value to signal handled (avoid "Unsupported opcode" misreport).
+                    if (!phi)
+                        return llvm::ConstantInt::get(getInt64Type(), 0);
                     return phi;
                 }
             }
@@ -311,6 +519,7 @@ namespace Sad
                 llvm::Value *virtualResult = emitVirtualCall(objPtr, className, methodName, extraArgs);
                 if (virtualResult)
                 {
+                    virtualResult = normalizeToSIRResultType(virtualResult);
                     if (inst->result.has_value())
                     {
                         context_info_.namedValues[inst->result->name] = virtualResult;
@@ -405,6 +614,7 @@ namespace Sad
 
             llvm::Value *result = builder_->CreateCall(method, args,
                                                        method->getReturnType()->isVoidTy() ? "" : (methodName + "_result"));
+            result = normalizeToSIRResultType(result);
 
             if (inst->result.has_value() && !method->getReturnType()->isVoidTy())
             {

@@ -436,7 +436,7 @@ namespace Sad
                     allocType = getDoubleType();
                     break;
                 case SadTypeKind::Boolean:
-                    allocType = llvm::Type::getInt1Ty(*context_);
+                    allocType = getInt64Type(); // store as i64 for uniform handling
                     break;
                 case SadTypeKind::String:
                 case SadTypeKind::Pointer:
@@ -452,62 +452,81 @@ namespace Sad
 
             // ================================================================
             // (AR) فحص إذا كان الاسم يطابق متغيراً عاماً — نستخدمه بدلاً من alloca محلي
+            //      [Fix #067] هذا الفحص يُنفَّذ فقط في __sad_main حيث المتغيرات
+            //      المستوى الأعلى هي فعلاً متغيرات عامة. في الدوال الأخرى
+            //      (خاصة دوال الماكرو __macro_*) يجب إنشاء alloca محلي
+            //      حتى لو تشابه الاسم مع متغير عام — لضمان عزل النطاق (hygiene).
             // (EN) Check if name matches a global variable — use it instead of local alloca
+            //      [Fix #067] Only do this in __sad_main where top-level variables
+            //      ARE global variables. In other functions (especially macro functions
+            //      __macro_*), always create local alloca even if the name matches
+            //      a global — to ensure scope isolation (macro hygiene).
             // ================================================================
             if (inst->result.has_value())
             {
-                std::string cleanName = regName;
-                if (!cleanName.empty() && cleanName[0] == '%')
+                // (AR) [Fix #067] نحصل على اسم الدالة الحالية
+                // (EN) [Fix #067] Get current function name
+                llvm::Function *currentLLVMFunc = builder_->GetInsertBlock()->getParent();
+                std::string currentFuncName = currentLLVMFunc ? currentLLVMFunc->getName().str() : "";
+                bool isMainFunction = (currentFuncName == "__sad_main" || currentFuncName == "main");
+
+                // (AR) [Fix #067] البحث عن المتغير العام فقط في الدالة الرئيسية
+                // (EN) [Fix #067] Only look up globals in the main function
+                if (isMainFunction)
                 {
-                    cleanName = cleanName.substr(1);
-                }
-                // (AR) البحث في المتغيرات العامة
-                // (EN) Search global variables
-                llvm::GlobalVariable *gv = module_->getGlobalVariable(cleanName);
-                if (!gv && cleanName != regName)
-                {
-                    gv = module_->getGlobalVariable(regName);
-                }
-                if (!gv)
-                {
-                    // (AR) البحث في الخريطة الدائمة
-                    // (EN) Search persistent map
-                    auto git = context_info_.globalValues.find(cleanName);
-                    if (git == context_info_.globalValues.end())
+                    std::string cleanName = regName;
+                    if (!cleanName.empty() && cleanName[0] == '%')
                     {
-                        git = context_info_.globalValues.find(regName);
+                        cleanName = cleanName.substr(1);
                     }
-                    if (git != context_info_.globalValues.end() && git->second != nullptr)
+                    // (AR) البحث في المتغيرات العامة
+                    // (EN) Search global variables
+                    llvm::GlobalVariable *gv = module_->getGlobalVariable(cleanName);
+                    if (!gv && cleanName != regName)
                     {
-                        if (auto *gvFromMap = llvm::dyn_cast<llvm::GlobalVariable>(git->second))
+                        gv = module_->getGlobalVariable(regName);
+                    }
+                    if (!gv)
+                    {
+                        // (AR) البحث في الخريطة الدائمة
+                        // (EN) Search persistent map
+                        auto git = context_info_.globalValues.find(cleanName);
+                        if (git == context_info_.globalValues.end())
                         {
-                            gv = gvFromMap;
+                            git = context_info_.globalValues.find(regName);
+                        }
+                        if (git != context_info_.globalValues.end() && git->second != nullptr)
+                        {
+                            if (auto *gvFromMap = llvm::dyn_cast<llvm::GlobalVariable>(git->second))
+                            {
+                                gv = gvFromMap;
+                            }
                         }
                     }
-                }
-                if (gv)
-                {
-                    // (AR) إذا كان المتغير العالمي مصفوفة [N x i8] (ثابت نصي من CreateGlobalStringPtr)
-                    //      نُنشئ GEP للعنصر الأول بدلاً من تخزين GlobalVariable مباشرة
-                    //      هذا يمنع خطأ load [N x i8] + inttoptr في resolveOperand
-                    // (EN) If global is [N x i8] array (string constant from CreateGlobalStringPtr),
-                    //      create GEP to first element instead of storing GlobalVariable directly.
-                    //      This prevents load [N x i8] + inttoptr error in resolveOperand
-                    if (gv->getValueType()->isArrayTy())
+                    if (gv)
                     {
-                        llvm::Value *gepVal = builder_->CreateInBoundsGEP(
-                            gv->getValueType(), gv,
-                            {llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0),
-                             llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0)},
-                            inst->result->name + ".ptr");
-                        context_info_.namedValues[inst->result->name] = gepVal;
-                        return gepVal;
+                        // (AR) إذا كان المتغير العالمي مصفوفة [N x i8] (ثابت نصي من CreateGlobalStringPtr)
+                        //      نُنشئ GEP للعنصر الأول بدلاً من تخزين GlobalVariable مباشرة
+                        //      هذا يمنع خطأ load [N x i8] + inttoptr في resolveOperand
+                        // (EN) If global is [N x i8] array (string constant from CreateGlobalStringPtr),
+                        //      create GEP to first element instead of storing GlobalVariable directly.
+                        //      This prevents load [N x i8] + inttoptr error in resolveOperand
+                        if (gv->getValueType()->isArrayTy())
+                        {
+                            llvm::Value *gepVal = builder_->CreateInBoundsGEP(
+                                gv->getValueType(), gv,
+                                {llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0),
+                                 llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0)},
+                                inst->result->name + ".ptr");
+                            context_info_.namedValues[inst->result->name] = gepVal;
+                            return gepVal;
+                        }
+                        // (AR) المتغير العام موجود — نستخدمه مباشرة بدلاً من alloca
+                        // (EN) Global variable exists — use it directly instead of alloca
+                        context_info_.namedValues[inst->result->name] = gv;
+                        return gv;
                     }
-                    // (AR) المتغير العام موجود — نستخدمه مباشرة بدلاً من alloca
-                    // (EN) Global variable exists — use it directly instead of alloca
-                    context_info_.namedValues[inst->result->name] = gv;
-                    return gv;
-                }
+                } // (AR) نهاية isMainFunction / (EN) end isMainFunction
             }
 
             // Hoist alloca to entry block to avoid stack growth in loops

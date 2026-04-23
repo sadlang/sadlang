@@ -607,6 +607,151 @@
 			"type": "shell",
 			"command": "Get-Process qemu* -ErrorAction SilentlyContinue | Stop-Process -Force 2>$null; Start-Sleep 2; Remove-Item 'C:\\s_lang\\ufuq_serial.log' -Force -EA SilentlyContinue; Start-Process 'C:\\qemu\\qemu-system-x86_64.exe' -ArgumentList '-kernel','C:\\s_lang\\ufuq_build\\boot32.elf','-initrd','C:\\s_lang\\ufuq_build\\ufuq_kernel.elf','-m','256M','-vga','std','-serial','file:C:\\s_lang\\ufuq_serial.log','-display','sdl','-no-reboot'; Start-Sleep 40; Write-Host '=== LOG TAIL ==='; Get-Content 'C:\\s_lang\\ufuq_serial.log' -EA SilentlyContinue | Select-Object -Last 20; Write-Host '=== QEMU ==='; $p=Get-Process qemu* -EA SilentlyContinue; if($p){Write-Host 'ALIVE'}else{Write-Host 'DEAD'}",
 			"isBackground": false
+		},
+		{
+			"label": "Run Dual Tests",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-Object -Last 30"
+		},
+		{
+			"label": "Run Tests After Cleanup",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-Object -Last 25"
+		},
+		{
+			"label": "Run Tests After SuggestModule Cleanup",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-Object -Last 30"
+		},
+		{
+			"label": "Run Tests After Maps Cleanup",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-Object -Last 30"
+		},
+		{
+			"label": "Find Failed Test",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-String 'FAIL'"
+		},
+		{
+			"label": "Run Tests After Fix 120",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-Object -Last 20"
+		},
+		{
+			"label": "Find Failed Test 2",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-String 'FAIL'"
+		},
+		{
+			"label": "Run Tests After sadc Rebuild",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-Object -Last 20"
+		},
+		{
+			"label": "Find All Failed Tests",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-String 'FAIL'"
+		},
+		{
+			"label": "Test 122 Alone",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .venv\\Scripts\\python.exe tests/dual_execution/runner.py --filter 122 2>&1 | Select-Object -Last 40"
+		},
+		{
+			"label": "Test 122 Verbose",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .venv\\Scripts\\python.exe tests/dual_execution/runner.py --file tests/dual_execution/stdlib/122_stdlib_strings.ص --verbose 2>&1 | Select-Object -Last 50"
+		},
+		{
+			"label": "Compile Test 122 Direct",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .\\build\\bin\\Release\\sadc.exe tests\\dual_execution\\stdlib\\122_stdlib_strings.ص -o _test_122.exe 2>&1"
+		},
+		{
+			"label": "Compile Test 125 Direct",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .\\build\\bin\\Release\\sadc.exe tests\\dual_execution\\stdlib\\125_stdlib_utf8_find_substr.ص -o _test_125.exe 2>&1"
+		},
+		{
+			"label": "Run Tests After Fix",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .venv\\Scripts\\python.exe tests/dual_execution/runner.py --level P1 --report 2>&1 | Select-Object -Last 30"
+		},
+		{
+			"label": "Run ALL Tests",
+			"type": "shell",
+			"command": "cd C:\\s_lang\\s-programming-language ; .venv\\Scripts\\python.exe tests/dual_execution/runner.py --report 2>&1 | Select-Object -Last 20"
+		},
+		{
+			"label": "Build SAD + SADC",
+			"type": "shell",
+			"command": "cmake --build build --config Debug --target sad 2>&1 | Select-String -Pattern 'error|Build|succeeded|failed' | Select-Object -Last 15; Write-Host '--- SADC ---'; cmake --build build --config Release --target sadc 2>&1 | Select-String -Pattern 'error|Build|succeeded|failed' | Select-Object -Last 15"
+		},
+		{
+			"label": "Run Tests 178",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-Object -Last 25"
+		},
+		{
+			"label": "Terminal Test",
+			"type": "shell",
+			"command": "Write-Host 'hello world'"
+		},
+		{
+			"label": "Run Dual Tests Final",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-Object -Last 30"
+		},
+		{
+			"label": "Check Test Results",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe -c \"import json; d=json.load(open(r'build/_dual_report.json',encoding='utf-8')); total=len(d['tests']); p=sum(1 for t in d['tests'] if t['status']=='PASS'); f=total-p; print(f'Total: {total}, Pass: {p}, Fail: {f}'); [print(t['file'].split(chr(92))[-1], t['status']) for t in d['tests'] if t['status']!='PASS']\""
+		},
+		{
+			"label": "Check Results",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe _check_results.py"
+		},
+		{
+			"label": "Find Failed Test",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe _find_fail.py"
+		},
+		{
+			"label": "Check Fail Details",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe _find_fail.py"
+		},
+		{
+			"label": "Grep FAIL from tests",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-String 'FAIL'"
+		},
+		{
+			"label": "Read Report Fails",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe -c \"import json; d=json.load(open('build/_dual_report.json','r',encoding='utf-8')); [print(t['file'],t['status']) for t in d['tests'] if t['status']!='PASS']\""
+		},
+		{
+			"label": "Find Fail v2",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe _find_fail2.py"
+		},
+		{
+			"label": "Run 178 Tests",
+			"type": "shell",
+			"command": "chcp 65001 > $null; .venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-Object -Last 10"
+		},
+		{
+			"label": "Run Tests Fresh",
+			"type": "shell",
+			"command": "chcp 65001 > $null; .venv\\Scripts\\python.exe tests/dual_execution/runner.py 2>&1 | Select-Object -Last 15"
+		},
+		{
+			"label": "Run Tests v2",
+			"type": "shell",
+			"command": "New-Item -ItemType Directory -Force C:\\s_lang\\s-programming-language\\build\\_tmp > $null; chcp 65001 > $null; .venv\\Scripts\\python.exe tests/dual_execution/runner.py > build\\_tmp\\test_out.txt 2>&1; Get-Content build\\_tmp\\test_out.txt | Select-Object -Last 15"
 		}
 	]
 }

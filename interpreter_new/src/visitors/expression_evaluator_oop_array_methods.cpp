@@ -59,13 +59,13 @@ namespace Sad
                 const std::string &m = node.methodName;
 
                 // ─── الطول / الحجم ───
-                if (m == "الطول" || m == "الحجم" || m == "طول" || m == "length" || m == "size")
+                if (m == "الطول" || m == "الحجم" || m == "طول")
                 {
                     lastResult_ = Value(static_cast<int>(arr.size()));
                     return;
                 }
                 // ─── إضافة عنصر (تعديل موضعي) ───
-                if (m == "اضف" || m == "أضف" || m == "ادفع" || m == "push" || m == "append")
+                if (m == "اضف" || m == "أضف" || m == "ادفع")
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) اضف() يتطلب معاملاً واحداً على الأقل. (EN) push() requires at least one argument.", node.position);
@@ -77,7 +77,7 @@ namespace Sad
                     return;
                 }
                 // ─── حذف وإرجاع آخر عنصر ───
-                if (m == "احذف_اخير" || m == "انزع" || m == "pop")
+                if (m == "احذف_اخير" || m == "انزع")
                 {
                     if (arr.empty())
                         throw RuntimeError("(AR) لا يمكن الحذف من مصفوفة فارغة. (EN) Cannot pop from empty array.", node.position);
@@ -89,7 +89,7 @@ namespace Sad
                     return;
                 }
                 // ─── حذف عنصر بالفهرس ───
-                if (m == "احذف" || m == "ازل" || m == "أزل" || m == "remove" || m == "removeAt")
+                if (m == "احذف" || m == "ازل" || m == "أزل")
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) احذف() يتطلب فهرس العنصر. (EN) remove() requires an index.", node.position);
@@ -106,7 +106,7 @@ namespace Sad
                     return;
                 }
                 // ─── إدخال عنصر في موقع محدد ───
-                if (m == "ادخل" || m == "أدخل" || m == "insert")
+                if (m == "ادخل" || m == "أدخل")
                 {
                     if (args.size() < 2)
                         throw RuntimeError("(AR) ادخل() يتطلب فهرساً وعنصراً. (EN) insert() requires index and value.", node.position);
@@ -124,7 +124,7 @@ namespace Sad
                     return;
                 }
                 // ─── أول عنصر ───
-                if (m == "اول" || m == "أول" || m == "first")
+                if (m == "اول" || m == "أول")
                 {
                     if (arr.empty())
                         throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
@@ -132,7 +132,7 @@ namespace Sad
                     return;
                 }
                 // ─── آخر عنصر ───
-                if (m == "اخر" || m == "آخر" || m == "last")
+                if (m == "اخر" || m == "آخر")
                 {
                     if (arr.empty())
                         throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
@@ -140,7 +140,7 @@ namespace Sad
                     return;
                 }
                 // ─── يحتوي ───
-                if (m == "يحتوي" || m == "contains" || m == "includes")
+                if (m == "يحتوي")
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) يحتوي() يتطلب معاملاً. (EN) contains() requires argument.", node.position);
@@ -157,7 +157,7 @@ namespace Sad
                     return;
                 }
                 // ─── فهرس العنصر ───
-                if (m == "فهرس" || m == "indexOf" || m == "findIndex")
+                if (m == "فهرس")
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) فهرس() يتطلب معاملاً. (EN) indexOf() requires argument.", node.position);
@@ -173,7 +173,7 @@ namespace Sad
                     return;
                 }
                 // ─── عكس ───
-                if (m == "اقلب" || m == "قلب" || m == "reverse")
+                if (m == "اقلب" || m == "قلب")
                 {
                     std::reverse(arr.begin(), arr.end());
                     Value newArr(arr);
@@ -182,7 +182,7 @@ namespace Sad
                     return;
                 }
                 // ─── ترتيب ───
-                if (m == "رتب" || m == "فرز" || m == "sort")
+                if (m == "رتب" || m == "فرز")
                 {
                     bool ascending = true;
                     if (!args.empty() && args[0].isBoolean())
@@ -206,7 +206,7 @@ namespace Sad
                     return;
                 }
                 // ─── شريحة ───
-                if (m == "شريحة" || m == "slice")
+                if (m == "شريحة")
                 {
                     int start = args.empty() ? 0 : args[0].toInt();
                     int end = args.size() < 2 ? static_cast<int>(arr.size()) : args[1].toInt();
@@ -228,13 +228,13 @@ namespace Sad
                     return;
                 }
                 // ─── فارغة ───
-                if (m == "فارغ" || m == "فارغة" || m == "empty" || m == "isEmpty")
+                if (m == "فارغ" || m == "فارغة")
                 {
                     lastResult_ = Value(arr.empty());
                     return;
                 }
                 // ─── مسح ───
-                if (m == "امسح" || m == "نظف" || m == "clear")
+                if (m == "امسح" || m == "نظف")
                 {
                     Value newArr(Value::ArrayType{});
                     writeBackChain(node.object.get(), newArr);
@@ -242,7 +242,7 @@ namespace Sad
                     return;
                 }
                 // ─── صل / اربط (join) ───
-                if (m == "صل" || m == "اربط" || m == "join")
+                if (m == "صل" || m == "اربط")
                 {
                     std::string sep = args.empty() ? "" : args[0].toString();
                     std::string result;
@@ -256,14 +256,14 @@ namespace Sad
                     return;
                 }
                 // ─── نسخ ───
-                if (m == "نسخ" || m == "انسخ" || m == "استنسخ" || m == "clone" || m == "copy")
+                if (m == "نسخ" || m == "انسخ" || m == "استنسخ")
                 {
                     Value::ArrayType copy(arr.begin(), arr.end());
                     lastResult_ = Value(copy);
                     return;
                 }
                 // ─── تسطيح (flatten) ───
-                if (m == "مسطح" || m == "افرد" || m == "flatten")
+                if (m == "مسطح" || m == "افرد")
                 {
                     // (AR) حد العمق الأقصى لمنع التكرار اللانهائي
                     // (EN) Max depth limit to prevent infinite recursion
@@ -289,7 +289,7 @@ namespace Sad
                     return;
                 }
                 // ─── فريد (unique) ───
-                if (m == "فريد" || m == "مميز" || m == "unique" || m == "distinct")
+                if (m == "فريد" || m == "مميز")
                 {
                     Value::ArrayType unique;
                     for (auto &el : arr)
@@ -312,7 +312,7 @@ namespace Sad
                     return;
                 }
                 // ─── عدّ (count) ───
-                if (m == "عدّ" || m == "عد" || m == "count")
+                if (m == "عدّ" || m == "عد")
                 {
                     if (args.empty())
                     {
@@ -404,7 +404,7 @@ namespace Sad
                 };
 
                 // ─── لكل (forEach) ───
-                if (m == "لكل" || m == "forEach" || m == "each")
+                if (m == "لكل")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         throw RuntimeError("(AR) لكل() يتطلب دالة أو اسم دالة. (EN) forEach() requires a function or function name.", node.position);
@@ -417,7 +417,7 @@ namespace Sad
                     return;
                 }
                 // ─── خريطة / حوّل (map) ───
-                if (m == "خريطة" || m == "حوّل" || m == "حول" || m == "map" || m == "transform")
+                if (m == "خريطة" || m == "حوّل" || m == "حول")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         throw RuntimeError("(AR) خريطة() يتطلب دالة أو اسم دالة. (EN) map() requires a function or function name.", node.position);
@@ -431,7 +431,7 @@ namespace Sad
                     return;
                 }
                 // ─── رشح / صفّي (filter) ───
-                if (m == "رشح" || m == "صفّي" || m == "صفي" || m == "filter")
+                if (m == "رشح" || m == "صفّي" || m == "صفي")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         throw RuntimeError("(AR) رشح() يتطلب دالة أو اسم دالة. (EN) filter() requires a function or function name.", node.position);
@@ -447,7 +447,7 @@ namespace Sad
                     return;
                 }
                 // ─── اختزل (reduce) ───
-                if (m == "اختزل" || m == "reduce" || m == "fold")
+                if (m == "اختزل")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         throw RuntimeError("(AR) اختزل() يتطلب دالة أو اسم دالة. (EN) reduce() requires a function or function name.", node.position);
@@ -467,7 +467,7 @@ namespace Sad
                     return;
                 }
                 // ─── أي / بعض (some/any) ───
-                if (m == "أي" || m == "اي" || m == "بعض" || m == "some" || m == "any")
+                if (m == "أي" || m == "اي" || m == "بعض")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         throw RuntimeError("(AR) أي() يتطلب دالة أو اسم دالة. (EN) some() requires a function or function name.", node.position);
@@ -484,7 +484,7 @@ namespace Sad
                     return;
                 }
                 // ─── كل / جميع (every) ───
-                if (m == "كل" || m == "جميع" || m == "every" || m == "all")
+                if (m == "كل" || m == "جميع")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         throw RuntimeError("(AR) كل() يتطلب دالة أو اسم دالة. (EN) every() requires a function or function name.", node.position);
@@ -501,7 +501,7 @@ namespace Sad
                     return;
                 }
                 // ─── جد (find) ───
-                if (m == "جد" || m == "find")
+                if (m == "جد")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         throw RuntimeError("(AR) جد() يتطلب دالة أو اسم دالة. (EN) find() requires a function or function name.", node.position);
@@ -518,7 +518,7 @@ namespace Sad
                     return;
                 }
                 // ─── جد_فهرس (findIndex) ───
-                if (m == "جد_فهرس" || m == "findIndex")
+                if (m == "جد_فهرس")
                 {
                     if (args.empty() || !args[0].isFunctionOrString())
                         throw RuntimeError("(AR) جد_فهرس() يتطلب دالة أو اسم دالة. (EN) findIndex() requires a function or function name.", node.position);
@@ -535,7 +535,7 @@ namespace Sad
                     return;
                 }
                 // ─── ازدوج / zip ───
-                if (m == "ازدوج" || m == "zip")
+                if (m == "ازدوج")
                 {
                     if (args.empty() || !args[0].isArray())
                         throw RuntimeError("(AR) ازدوج() يتطلب مصفوفة ثانية. (EN) zip() requires another array.", node.position);
@@ -553,14 +553,14 @@ namespace Sad
                     return;
                 }
                 // ─── عكس المصفوفة بدون تعديل (reversed) ───
-                if (m == "معكوس" || m == "reversed")
+                if (m == "معكوس")
                 {
                     Value::ArrayType rev(arr.rbegin(), arr.rend());
                     lastResult_ = Value(rev);
                     return;
                 }
                 // ─── حد_أقصى / max ───
-                if (m == "حد_اقصى" || m == "أقصى" || m == "max")
+                if (m == "حد_اقصى" || m == "أقصى")
                 {
                     if (arr.empty())
                         throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
@@ -579,7 +579,7 @@ namespace Sad
                     return;
                 }
                 // ─── حد_أدنى / min ───
-                if (m == "حد_ادنى" || m == "أدنى" || m == "min")
+                if (m == "حد_ادنى" || m == "أدنى")
                 {
                     if (arr.empty())
                         throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
@@ -598,7 +598,7 @@ namespace Sad
                     return;
                 }
                 // ─── مجموع / sum ───
-                if (m == "مجموع" || m == "sum")
+                if (m == "مجموع")
                 {
                     double sum = 0;
                     for (auto &el : arr)
@@ -613,7 +613,7 @@ namespace Sad
                     return;
                 }
                 // ─── متوسط / average ───
-                if (m == "متوسط" || m == "average" || m == "avg")
+                if (m == "متوسط")
                 {
                     if (arr.empty())
                         throw RuntimeError("(AR) المصفوفة فارغة. (EN) Array is empty.", node.position);
@@ -636,7 +636,7 @@ namespace Sad
                     return;
                 }
                 // ─── ملء / fill ───
-                if (m == "املأ" || m == "املا" || m == "fill")
+                if (m == "املأ" || m == "املا")
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) املأ() يتطلب قيمة. (EN) fill() requires a value.", node.position);
@@ -656,7 +656,7 @@ namespace Sad
                 // ─── أبعاد / شكل / dimensions / shape ───
                 // (AR) تُرجع مصفوفة بأبعاد المصفوفة، مثلاً [3, 4] لمصفوفة 3×4
                 // (EN) Returns an array with the dimensions, e.g. [3, 4] for a 3×4 matrix
-                if (m == "أبعاد" || m == "ابعاد" || m == "شكل" || m == "dimensions" || m == "shape")
+                if (m == "أبعاد" || m == "ابعاد" || m == "شكل")
                 {
                     Value::ArrayType dims;
                     std::function<void(const Value::ArrayType &)> getDims;
@@ -676,7 +676,7 @@ namespace Sad
                 // ─── صفوف / rows ───
                 // (AR) تُرجع عدد الصفوف (البُعد الأول)
                 // (EN) Returns the number of rows (first dimension)
-                if (m == "صفوف" || m == "rows")
+                if (m == "صفوف")
                 {
                     lastResult_ = Value(static_cast<int64_t>(arr.size()));
                     return;
@@ -685,7 +685,7 @@ namespace Sad
                 // ─── أعمدة / cols / columns ───
                 // (AR) تُرجع عدد الأعمدة (البُعد الثاني) أو 0 إذا كانت المصفوفة أحادية
                 // (EN) Returns the number of columns (second dimension) or 0 if 1D
-                if (m == "أعمدة" || m == "اعمدة" || m == "cols" || m == "columns")
+                if (m == "أعمدة" || m == "اعمدة")
                 {
                     if (!arr.empty() && arr[0].isArray())
                     {
@@ -701,7 +701,7 @@ namespace Sad
                 // ─── قلب_محوري / transpose ───
                 // (AR) تقلب المصفوفة ثنائية الأبعاد (تبادل الصفوف والأعمدة)
                 // (EN) Transpose a 2D matrix (swap rows and columns)
-                if (m == "قلب_محوري" || m == "تبديل" || m == "transpose")
+                if (m == "قلب_محوري" || m == "تبديل")
                 {
                     if (arr.empty())
                     {
@@ -739,7 +739,7 @@ namespace Sad
                 // ─── أعد_تشكيل / reshape ───
                 // (AR) تُعيد تشكيل مصفوفة مسطحة إلى أبعاد جديدة، مثال: [1,2,3,4,5,6].أعد_تشكيل(2, 3) → [[1,2,3],[4,5,6]]
                 // (EN) Reshape a flat array into new dimensions, e.g. [1,2,3,4,5,6].reshape(2, 3) → [[1,2,3],[4,5,6]]
-                if (m == "أعد_تشكيل" || m == "اعد_تشكيل" || m == "reshape")
+                if (m == "أعد_تشكيل" || m == "اعد_تشكيل")
                 {
                     if (args.size() < 2)
                     {
@@ -821,7 +821,7 @@ namespace Sad
                 // ─── ضرب_مصفوفات / matmul / dot ───
                 // (AR) ضرب مصفوفتين ثنائيتي الأبعاد: أ(m×n) · ب(n×p) = ج(m×p)
                 // (EN) Matrix multiplication: A(m×n) · B(n×p) = C(m×p)
-                if (m == "ضرب_مصفوفات" || m == "ضرب" || m == "matmul" || m == "dot")
+                if (m == "ضرب_مصفوفات" || m == "ضرب")
                 {
                     if (args.empty() || !args[0].isArray())
                     {
@@ -870,7 +870,7 @@ namespace Sad
                 // ─── عنصر / element / at ───
                 // (AR) الوصول إلى عنصر بإحداثيات متعددة: م.عنصر(ص، ع) = م[ص][ع]
                 // (EN) Access element by multiple indices: m.element(r, c) = m[r][c]
-                if (m == "عنصر" || m == "element" || m == "at")
+                if (m == "عنصر")
                 {
                     Value current(arr);
                     for (size_t i = 0; i < args.size(); ++i)
@@ -898,7 +898,7 @@ namespace Sad
                 // ─── عمود / column ───
                 // (AR) تُرجع عموداً معيناً من مصفوفة ثنائية الأبعاد كمصفوفة أحادية
                 // (EN) Returns a specific column from a 2D matrix as a 1D array
-                if (m == "عمود" || m == "column")
+                if (m == "عمود")
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) عمود() يتطلب رقم العمود. (EN) column() requires column index.", node.position);
@@ -931,7 +931,7 @@ namespace Sad
                 // ─── صف / row ───
                 // (AR) تُرجع صفاً معيناً من المصفوفة (مكافئ لـ م[ف])
                 // (EN) Returns a specific row (equivalent to m[r])
-                if (m == "صف" || m == "row")
+                if (m == "صف")
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) صف() يتطلب رقم الصف. (EN) row() requires row index.", node.position);
@@ -951,7 +951,7 @@ namespace Sad
                 // ─── مصفوفة_وحدة / identity ───
                 // (AR) إنشاء مصفوفة وحدة n×n (مصفوفة ساكنة — تُستدعى على أي مصفوفة)
                 // (EN) Create an n×n identity matrix
-                if (m == "مصفوفة_وحدة" || m == "وحدة" || m == "identity")
+                if (m == "مصفوفة_وحدة" || m == "وحدة")
                 {
                     int64_t n = args.empty() ? static_cast<int64_t>(arr.size()) : args[0].toInt();
                     Value::ArrayType result;
@@ -971,7 +971,7 @@ namespace Sad
                 // ─── البُعد / dimension / ndim ───
                 // (AR) تُرجع عدد الأبعاد (عمق التداخل)
                 // (EN) Returns the number of dimensions (nesting depth)
-                if (m == "البُعد" || m == "البعد" || m == "بعد" || m == "dimension" || m == "ndim")
+                if (m == "البُعد" || m == "البعد" || m == "بعد")
                 {
                     int depth = 1;
                     const Value::ArrayType *current = &arr;

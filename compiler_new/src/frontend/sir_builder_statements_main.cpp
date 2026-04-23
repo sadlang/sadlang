@@ -2,6 +2,7 @@
 // sir_builder_statements_main.cpp - buildStatement implementation
 // ============================================================================
 #include <string>
+#include <set>
 #include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
@@ -48,28 +49,336 @@ namespace Sad
                 }
 
                 // (AR) FunctionDecl — تعريف دالة متداخلة (declarations.h:19)
-                //      عندما يُعرَّف تعريف دالة داخل جسم دالة أخرى (مثل دالة رئيسية)،
-                //      نبنيها كدالة مستقلة في الوحدة (module-level) لأن LLVM لا يدعم
-                //      الدوال المتداخلة. نحفظ ونستعيد حالة الدالة الحالية والكتلة الحالية
-                //      والنطاق حتى لا يتأثر سياق الدالة الأم.
+                //      عندما يُعرَّف تعريف دالة داخل جسم دالة أخرى:
+                //      1) نحلل المتغيرات الحرة (من النطاق الأب) المُستخدمة في الدالة
+                //      2) إذا وُجدت متغيرات حرة: نبنيها كإغلاق (closure) مع __env
+                //      3) إذا لم تُوجد: نبنيها كدالة مستقلة (السلوك القديم)
+                //      هذا يحلّ مشكلة "Undefined register" للدوال المسمّاة الداخلية
+                //      التي تلتقط متغيرات من الدالة الأم (مثل: إنشاء_جامع/أضف)
                 // (EN) Nested function declaration (declarations.h:19)
-                //      When a function declaration appears inside another function body
-                //      (e.g. inside main), we build it as a module-level function since
-                //      LLVM doesn't support nested functions. We save/restore the current
-                //      function, block, and scope so the parent function context is preserved.
+                //      1) Analyze free variables (from parent scope) used in function
+                //      2) If free vars found: build as closure with __env
+                //      3) If none: build as standalone module-level function
+                //      This fixes "Undefined register" for named inner functions
+                //      that capture variables from the parent (e.g. factory/accumulator pattern)
                 if (auto funcDecl = dynamic_cast<Sad::AST::FunctionDecl *>(stmt))
                 {
-                    // (AR) حفظ حالة الدالة الأم (الدالة الحالية، الكتلة الحالية)
-                    // (EN) Save parent function state
-                    auto savedCtxNested = saveContext();
+                    // ================================================================
+                    // (AR) الخطوة 1: جمع أسماء المعاملات كأسماء مربوطة
+                    // (EN) Step 1: Collect parameter names as bound names
+                    // ================================================================
+                    std::set<std::string> paramNames;
+                    for (const auto &param : funcDecl->parameters)
+                    {
+                        paramNames.insert(param.name);
+                    }
+                    // (AR) اسم الدالة نفسها مربوط أيضاً (لتجنب اعتبارها حرة عند الاستدعاء الذاتي)
+                    // (EN) Function's own name is also bound (avoid treating recursive calls as free)
+                    paramNames.insert(funcDecl->name);
 
-                    // (AR) بناء الدالة المتداخلة كدالة مستقلة في الوحدة
-                    // (EN) Build nested function as module-level function
-                    buildFunction(funcDecl);
+                    // ================================================================
+                    // (AR) الخطوة 2: جمع المتغيرات الحرة من جسم الدالة
+                    // (EN) Step 2: Collect free variables from function body
+                    // ================================================================
+                    std::set<std::string> freeVars;
+                    if (funcDecl->body)
+                    {
+                        std::set<std::string> boundCopy = paramNames;
+                        collectFreeVarsStmt(funcDecl->body.get(), boundCopy, freeVars);
+                    }
 
-                    // (AR) استعادة حالة الدالة الأم
-                    // (EN) Restore parent function state
-                    restoreContext(std::move(savedCtxNested));
+                    // ================================================================
+                    // (AR) الخطوة 3: تصفية — فقط المتغيرات الموجودة في النطاق الحالي (الأب)
+                    // (EN) Step 3: Filter — only vars that exist in current (parent) scope
+                    // ================================================================
+                    std::vector<CaptureInfo> captures;
+                    for (const auto &fv : freeVars)
+                    {
+                        auto *varPtr = lookupVariable(fv);
+                        if (varPtr)
+                        {
+                            CaptureInfo ci;
+                            ci.varName = fv;
+                            ci.registerName = varPtr->registerName;
+                            ci.type = varPtr->type;
+                            captures.push_back(ci);
+                        }
+                    }
+
+                    if (captures.empty())
+                    {
+                        // ================================================================
+                        // (AR) لا التقاطات — السلوك القديم: بناء دالة مستقلة
+                        // (EN) No captures — old behavior: build standalone function
+                        // ================================================================
+                        auto savedCtxNested = saveContext();
+                        buildFunction(funcDecl);
+                        restoreContext(std::move(savedCtxNested));
+                    }
+                    else
+                    {
+                        // ================================================================
+                        // (AR) وُجدت التقاطات — بناء الدالة كإغلاق (مثل لامدا)
+                        //      نُنشئ دالة بمعامل __env مخفي + نحمّل المتغيرات الملتقطة
+                        //      ثم نُنشئ CLOSURE_CREATE ونسجّل اسم الدالة كمتغير محلي
+                        // (EN) Captures found — build function as closure (like lambda)
+                        //      Create function with hidden __env param + load captured vars
+                        //      Then create CLOSURE_CREATE and register function name as local var
+                        // ================================================================
+                        std::string innerFuncName = "__inner_" + funcDecl->name + "_" + std::to_string(nextTempRegister_++);
+
+                        // (AR) تخزين التقاطات الإغلاق للـ codegen
+                        // (EN) Store closure captures for codegen
+                        closureCaptures_[innerFuncName] = captures;
+
+                        // (AR) بناء معاملات الدالة: المعاملات الصريحة + __env
+                        // (EN) Build function params: explicit params + __env
+                        auto ftIt = functionTable_.find(funcDecl->name);
+                        std::vector<SIRParameter> sirParams;
+                        for (size_t i = 0; i < funcDecl->parameters.size(); i++)
+                        {
+                            const auto &param = funcDecl->parameters[i];
+                            SadTypeKind paramType = astTypeToSIRType(param.type);
+                            // (AR) استخدام النوع المُستنتج من functionTable_ إن وُجد
+                            // (EN) Use inferred type from functionTable_ if available
+                            if (paramType == SadTypeKind::Integer &&
+                                param.type == Data::DataType::UNKNOWN &&
+                                ftIt != functionTable_.end() &&
+                                i < ftIt->second.parameters.size() &&
+                                ftIt->second.parameters[i].type != SadTypeKind::Integer)
+                            {
+                                paramType = ftIt->second.parameters[i].type;
+                            }
+                            sirParams.push_back(SIRParameter(param.name, paramType));
+                        }
+                        sirParams.push_back(SIRParameter("__env", SadTypeKind::Integer));
+
+                        // (AR) استنتاج نوع الإرجاع
+                        // (EN) Infer return type
+                        SadTypeKind returnType;
+                        if (funcDecl->returnType == Data::DataType::UNKNOWN ||
+                            funcDecl->returnType == Data::DataType::NONE)
+                        {
+                            returnType = inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
+                        }
+                        else
+                        {
+                            returnType = astTypeToSIRType(funcDecl->returnType);
+                        }
+
+                        // (AR) إنشاء دالة SIR
+                        // (EN) Create SIR function
+                        auto innerFunc = std::make_shared<SIRFunction>(innerFuncName, returnType);
+                        for (const auto &sp : sirParams)
+                            innerFunc->addParameter(sp);
+
+                        // (AR) حفظ السياق وتعيين سياق الدالة الجديدة
+                        // (EN) Save context and set new function context
+                        auto savedCtx = saveContext();
+                        currentFunction_ = innerFunc;
+                        auto entryBlock = createBasicBlock("lambda_entry");
+                        innerFunc->addBasicBlock(entryBlock);
+                        currentBlock_ = entryBlock;
+
+                        enterScope();
+
+                        // (AR) تسجيل المعاملات الصريحة كمتغيرات محلية
+                        // (EN) Register explicit parameters as local variables
+                        for (size_t i = 0; i < funcDecl->parameters.size(); ++i)
+                        {
+                            std::string paramReg = "%" + funcDecl->parameters[i].name;
+                            VariableInfo paramVar;
+                            paramVar.name = funcDecl->parameters[i].name;
+                            paramVar.type = sirParams[i].type;
+                            paramVar.registerName = paramReg;
+                            paramVar.isMutable = true;
+                            paramVar.isParameter = true;
+                            paramVar.scopeLevel = currentScopeLevel_;
+                            addVariable(paramVar);
+                        }
+
+                        // (AR) تحميل المتغيرات الملتقطة من بيئة الإغلاق __env
+                        // (EN) Load captured variables from closure environment __env
+                        for (size_t i = 0; i < captures.size(); i++)
+                        {
+                            std::string loadReg = newTempRegister();
+                            SIRInstruction envLoadInst;
+                            envLoadInst.opcode = SIROpcode::ENV_LOAD;
+                            envLoadInst.result = SIROperand::Register(loadReg, captures[i].type);
+                            envLoadInst.operands.push_back(SIROperand::Register("%__env", SadTypeKind::Integer));
+                            envLoadInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i)));
+                            if (currentBlock_)
+                                currentBlock_->addInstruction(envLoadInst);
+
+                            std::string allocaName = "%__cap_" + captures[i].varName + "_" + std::to_string(i);
+                            SIRInstruction storeInit;
+                            storeInit.opcode = SIROpcode::STORE;
+                            storeInit.operands.push_back(SIROperand::Register(loadReg, captures[i].type));
+                            storeInit.operands.push_back(SIROperand::Register(allocaName, captures[i].type));
+                            storeInit.comment = "init captured var from env[" + std::to_string(i) + "]";
+                            if (currentBlock_)
+                                currentBlock_->addInstruction(storeInit);
+
+                            VariableInfo capVar;
+                            capVar.name = captures[i].varName;
+                            capVar.type = captures[i].type;
+                            capVar.registerName = allocaName;
+                            capVar.isMutable = true;
+                            capVar.scopeLevel = currentScopeLevel_;
+                            capVar.isCaptured = true;
+                            capVar.captureIndex = static_cast<int>(i);
+                            capVar.envRegister = "%__env";
+                            addVariable(capVar);
+                        }
+
+                        // (AR) بناء جسم الدالة
+                        // (EN) Build function body
+                        if (funcDecl->body)
+                        {
+                            buildStatement(funcDecl->body.get());
+                        }
+
+                        // (AR) تحديث نوع الإرجاع من تعليمات RET الفعلية
+                        // (EN) Update return type from actual RET instructions
+                        if (innerFunc)
+                        {
+                            for (const auto &block : innerFunc->basicBlocks)
+                            {
+                                for (const auto &inst : block->instructions)
+                                {
+                                    if (inst.opcode == SIROpcode::RET && !inst.operands.empty())
+                                    {
+                                        SadTypeKind actualRetType = inst.operands[0].dataType;
+                                        if (actualRetType != SadTypeKind::Void &&
+                                            actualRetType != SadTypeKind::Unknown &&
+                                            actualRetType != SadTypeKind::Integer &&
+                                            returnType == SadTypeKind::Integer)
+                                        {
+                                            returnType = actualRetType;
+                                            innerFunc->returnType = returnType;
+                                        }
+                                        else if (returnType == SadTypeKind::Integer &&
+                                                 actualRetType == SadTypeKind::Integer)
+                                        {
+                                            const std::string &srcReg = inst.operands[0].name;
+                                            for (const auto &cap : captures)
+                                            {
+                                                std::string capAllocaName = "%__cap_" + cap.varName + "_";
+                                                if (srcReg.find(capAllocaName) != std::string::npos ||
+                                                    srcReg == "%" + cap.varName)
+                                                {
+                                                    if (cap.type != SadTypeKind::Integer)
+                                                    {
+                                                        returnType = cap.type;
+                                                        innerFunc->returnType = returnType;
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                                if (returnType != SadTypeKind::Integer)
+                                    break;
+                            }
+                        }
+
+                        // (AR) إضافة RET_VOID إذا لم يكن هناك return
+                        // (EN) Add RET_VOID if no return statement
+                        if (currentBlock_ && !currentBlock_->instructions.empty())
+                        {
+                            auto &lastInst = currentBlock_->instructions.back();
+                            if (lastInst.opcode != SIROpcode::RET &&
+                                lastInst.opcode != SIROpcode::RET_VOID &&
+                                lastInst.opcode != SIROpcode::BR &&
+                                lastInst.opcode != SIROpcode::BR_COND)
+                            {
+                                SIRInstruction retVoid;
+                                retVoid.opcode = SIROpcode::RET_VOID;
+                                currentBlock_->addInstruction(retVoid);
+                            }
+                        }
+
+                        exitScope();
+
+                        // (AR) إضافة الدالة للوحدة
+                        // (EN) Add function to module
+                        if (module_)
+                        {
+                            module_->addFunction(innerFunc);
+                        }
+
+                        // (AR) تسجيل في جدول الدوال
+                        // (EN) Register in function table
+                        FunctionInfo funcInfo;
+                        funcInfo.name = innerFuncName;
+                        funcInfo.returnType = returnType;
+                        funcInfo.parameters = innerFunc->getParameters();
+                        funcInfo.sirFunction = innerFunc;
+                        functionTable_[innerFuncName] = funcInfo;
+
+                        // (AR) استعادة السياق السابق
+                        // (EN) Restore previous context
+                        restoreContext(std::move(savedCtx));
+
+                        // ================================================================
+                        // (AR) إنشاء CLOSURE_CREATE مع القيم الملتقطة في السياق الأب
+                        // (EN) Create CLOSURE_CREATE with captured values in parent context
+                        // ================================================================
+                        std::string closureReg = newTempRegister();
+                        SIRInstruction closureInst;
+                        closureInst.opcode = SIROpcode::CLOSURE_CREATE;
+                        closureInst.result = SIROperand::Register(closureReg, SadTypeKind::Function);
+                        closureInst.operands.push_back(SIROperand::Function(innerFuncName));
+                        for (const auto &cap : captures)
+                        {
+                            VariableInfo *capVar = lookupVariable(cap.varName);
+                            if (capVar)
+                            {
+                                std::string capLoadReg = newTempRegister();
+                                SIRInstruction capLoadInst;
+                                capLoadInst.opcode = SIROpcode::LOAD;
+                                capLoadInst.result = SIROperand::Register(capLoadReg, capVar->type);
+                                capLoadInst.operands.push_back(SIROperand::Register(capVar->registerName, capVar->type));
+                                if (currentBlock_)
+                                    currentBlock_->addInstruction(capLoadInst);
+                                closureInst.operands.push_back(SIROperand::Register(capLoadReg, capVar->type));
+                            }
+                            else
+                            {
+                                closureInst.operands.push_back(SIROperand::Register(cap.registerName, cap.type));
+                            }
+                        }
+                        if (currentBlock_)
+                            currentBlock_->addInstruction(closureInst);
+                        // ================================================================
+                        // (AR) تسجيل اسم الدالة الأصلي كمتغير محلي يحمل الإغلاق
+                        //      هذا يسمح بـ: جامع = إنشاء_جامع() ثم جامع(5)
+                        //      حيث "ارجع أضف" يُرجع قيمة الإغلاق المخزّنة في المتغير
+                        // (EN) Register original function name as local variable holding closure
+                        //      This enables: acc = create_accumulator() then acc(5)
+                        //      where "return add" returns the closure value stored in the variable
+                        // ================================================================
+                        VariableInfo closureVar;
+                        closureVar.name = funcDecl->name;
+                        closureVar.type = SadTypeKind::Function;
+                        closureVar.registerName = closureReg;
+                        closureVar.isMutable = false;
+                        closureVar.scopeLevel = currentScopeLevel_;
+                        closureVar.closureLambdaName = innerFuncName;
+                        addVariable(closureVar);
+
+                        // (AR) لا نُسجّل في functionTable_ باسم الدالة الأصلي
+                        //      لأن ذلك يتسبب بأن buildCallExpression يُصدر CALL عادي
+                        //      بدلاً من CLOSURE_CALL — مما يسبب خطأ linker
+                        //      (unresolved external symbol)
+                        //      المتغير المُسجّل أعلاه يكفي لتوجيه الاستدعاء إلى CLOSURE_CALL
+                        // (EN) Do NOT register in functionTable_ with original name
+                        //      because buildCallExpression would emit a direct CALL
+                        //      instead of CLOSURE_CALL — causing linker error
+                        //      The variable registered above is sufficient for CLOSURE_CALL routing
+                    }
                     return;
                 }
 

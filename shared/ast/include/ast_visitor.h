@@ -122,6 +122,8 @@ namespace Sad
         class UIModifierNode;     // (AR) معدّل سلسلي (.حجم، .لون...) / (EN) Chained modifier
         class UIEventHandlerNode; // (AR) معالج حدث (.عند_النقر...) / (EN) Event handler
         class UIStateDecl;        // (AR) تصريح حالة (@حالة، @ربط...) / (EN) State declaration
+        class UIConditionalNode;  // (AR) عقدة شرطية داخل شجرة الواجهة / (EN) UI conditional node
+        class UILoopNode;         // (AR) عقدة تكرار داخل شجرة الواجهة / (EN) UI loop node
         /**
          * @brief Abstract visitor interface for AST traversal / واجهة الزائر المجردة لاجتياز AST
          *
@@ -961,6 +963,18 @@ namespace Sad
              * @brief (EN) Visit state declaration — @حالة، @ربط، @بيئة، @محسوب
              */
             virtual void visitUIStateDecl(UIStateDecl &decl) {}
+
+            /**
+             * @brief (AR) زيارة عقدة رسم شرطي — إذا/وإلا داخل حاوية (ADR-UI-01)
+             * @brief (EN) Visit conditional rendering node — if/else inside container
+             */
+            virtual void visitUIConditional(UIConditionalNode &node) {}
+
+            /**
+             * @brief (AR) زيارة عقدة حلقة رسم — لكل/بينما داخل حاوية (ADR-UI-01)
+             * @brief (EN) Visit loop rendering node — for-each/while inside container
+             */
+            virtual void visitUILoop(UILoopNode &node) {}
         };
 
         /**
@@ -1085,6 +1099,8 @@ namespace Sad
             void visitUIModifier(UIModifierNode &expr) override {}         ///< (AR) معدّل سلسلي / (EN) Chained modifier
             void visitUIEventHandler(UIEventHandlerNode &expr) override {} ///< (AR) معالج حدث / (EN) Event handler
             void visitUIStateDecl(UIStateDecl &decl) override {}           ///< (AR) تصريح حالة / (EN) State declaration
+            void visitUIConditional(UIConditionalNode &node) override {}   ///< (AR) رسم شرطي / (EN) Conditional rendering
+            void visitUILoop(UILoopNode &node) override {}                 ///< (AR) حلقة رسم / (EN) Loop rendering
         };
 
     } // namespace AST

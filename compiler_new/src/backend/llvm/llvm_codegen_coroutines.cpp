@@ -28,11 +28,11 @@ namespace Sad
 {
     namespace LLVM
     {
-// ============================================================================
-// (AR) عمليات الكوروتينات والمولدات
-// (EN) Coroutine and generator operations
-// (AR) تم فصله من llvm_codegen_array_file_coro.cpp وفق CW-05
-// ============================================================================
+        // ============================================================================
+        // (AR) عمليات الكوروتينات والمولدات
+        // (EN) Coroutine and generator operations
+        // (AR) تم فصله من llvm_codegen_array_file_coro.cpp وفق CW-05
+        // ============================================================================
         void LLVMCodeGen::emitCoroutinePreamble(std::shared_ptr<SIRFunction> sirFunc, llvm::Function *llvmFunc)
         {
             auto ptrTy = llvm::PointerType::getUnqual(*context_);
@@ -428,9 +428,10 @@ namespace Sad
         }
 
         // ============================================================================
-        // emitGeneratorConsume - استهلاك مولّد (حلقة استئناف لجمع كل القيم)
-        // Consume a generator (resume loop collecting all yielded values)
-        // Returns the sum of all yielded values
+        // ============================================================================
+        // emitGeneratorConsume - استهلاك مولّد وتجميع القيم المُنتَجة في مصفوفة SadArray
+        // Consume a generator and collect all yielded values into a SadArray
+        // Returns a pointer to a SadArray { i64 length, i64 capacity, ptr data }
         // ============================================================================
         llvm::Value *LLVMCodeGen::emitGeneratorConsume(std::shared_ptr<SIRInstruction> inst)
         {
@@ -444,6 +445,14 @@ namespace Sad
             auto i64Ty = llvm::Type::getInt64Ty(*context_);
             auto i32Ty = llvm::Type::getInt32Ty(*context_);
             auto i1Ty = llvm::Type::getInt1Ty(*context_);
+
+            // (AR) نوع بنية SadArray: {i64 length, i64 capacity, ptr data}
+            // (EN) SadArray struct type: {i64 length, i64 capacity, ptr data}
+            llvm::StructType *arrTy = llvm::StructType::getTypeByName(*context_, "SadArray");
+            if (!arrTy)
+            {
+                arrTy = llvm::StructType::create(*context_, {i64Ty, i64Ty, ptrTy}, "SadArray");
+            }
 
             // (AR) الحصول على مقبض المولّد
             // (EN) Get generator handle
@@ -463,15 +472,45 @@ namespace Sad
 
             auto *curFunc = context_info_.currentFunction;
 
-            // (AR) تخصيص متغير للمجموع
-            // (EN) Allocate sum variable
-            llvm::Value *sumAlloca = builder_->CreateAlloca(i64Ty, nullptr, "gen.sum");
-            builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), sumAlloca);
+            // ================================================================
+            // (AR) الخطوة 1: تخصيص SadArray أولية بسعة 8
+            // (EN) Step 1: Allocate initial SadArray with capacity 8
+            // ================================================================
+            auto mallocTy = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
+            auto mallocFn = module_->getOrInsertFunction("malloc", mallocTy);
 
-            // (AR) إنشاء كتل حلقة الاستهلاك
-            // (EN) Create consume loop blocks
+            // (AR) حساب حجم بنية SadArray
+            // (EN) Calculate SadArray struct size
+            const llvm::DataLayout &DL = module_->getDataLayout();
+            uint64_t arrStructSize = DL.getTypeAllocSize(arrTy);
+
+            llvm::Value *arrPtr = builder_->CreateCall(
+                mallocFn, {llvm::ConstantInt::get(i64Ty, arrStructSize)}, "gen.arr");
+
+            // length = 0
+            llvm::Value *lenGep = builder_->CreateStructGEP(arrTy, arrPtr, 0, "gen.arr.len");
+            builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), lenGep);
+
+            // capacity = 8
+            llvm::Value *capGep = builder_->CreateStructGEP(arrTy, arrPtr, 1, "gen.arr.cap");
+            llvm::Value *initCap = llvm::ConstantInt::get(i64Ty, 8);
+            builder_->CreateStore(initCap, capGep);
+
+            // data = malloc(8 * 8) — 8 عناصر × 8 بايت لكل i64
+            // data = malloc(8 * 8) — 8 elements × 8 bytes per i64
+            llvm::Value *dataPtr = builder_->CreateCall(
+                mallocFn, {llvm::ConstantInt::get(i64Ty, 64)}, "gen.arr.data");
+            llvm::Value *dataGep = builder_->CreateStructGEP(arrTy, arrPtr, 2, "gen.arr.datagep");
+            builder_->CreateStore(dataPtr, dataGep);
+
+            // ================================================================
+            // (AR) الخطوة 2: حلقة استئناف المولّد وجمع القيم
+            // (EN) Step 2: Resume loop collecting yielded values
+            // ================================================================
             auto *loopBB = llvm::BasicBlock::Create(*context_, "gen.loop", curFunc);
             auto *yieldBB = llvm::BasicBlock::Create(*context_, "gen.yield", curFunc);
+            auto *growBB = llvm::BasicBlock::Create(*context_, "gen.grow", curFunc);
+            auto *storeBB = llvm::BasicBlock::Create(*context_, "gen.store", curFunc);
             auto *endBB = llvm::BasicBlock::Create(*context_, "gen.end", curFunc);
 
             builder_->CreateBr(loopBB);
@@ -486,7 +525,7 @@ namespace Sad
             llvm::Value *done = builder_->CreateCall(coroDoneFn, {genHdl}, "gen.isdone");
             builder_->CreateCondBr(done, endBB, yieldBB);
 
-            // === Yield: read value from promise and accumulate ===
+            // === Yield: read value from promise ===
             builder_->SetInsertPoint(yieldBB);
 
             auto coroPromiseFn = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::coro_promise, {});
@@ -498,21 +537,67 @@ namespace Sad
 
             llvm::Value *yieldedVal = builder_->CreateLoad(i64Ty, promisePtr, "gen.val");
 
-            // (AR) إضافة القيمة للمجموع: sum += val
-            // (EN) Add value to sum: sum += val
-            llvm::Value *curSum = builder_->CreateLoad(i64Ty, sumAlloca, "gen.cursum");
-            llvm::Value *newSum = builder_->CreateAdd(curSum, yieldedVal, "gen.newsum");
-            builder_->CreateStore(newSum, sumAlloca);
+            // (AR) فحص: هل الطول == السعة؟ إذا نعم → توسيع المصفوفة
+            // (EN) Check: is length == capacity? If yes → grow array
+            llvm::Value *curLen = builder_->CreateLoad(i64Ty,
+                                                       builder_->CreateStructGEP(arrTy, arrPtr, 0, "gen.len.gep1"), "gen.curlen");
+            llvm::Value *curCap = builder_->CreateLoad(i64Ty,
+                                                       builder_->CreateStructGEP(arrTy, arrPtr, 1, "gen.cap.gep1"), "gen.curcap");
+            llvm::Value *needGrow = builder_->CreateICmpEQ(curLen, curCap, "gen.needgrow");
+            builder_->CreateCondBr(needGrow, growBB, storeBB);
+
+            // === Grow: double capacity and realloc data ===
+            builder_->SetInsertPoint(growBB);
+
+            llvm::Value *newCap = builder_->CreateMul(curCap, llvm::ConstantInt::get(i64Ty, 2), "gen.newcap");
+            builder_->CreateStore(newCap,
+                                  builder_->CreateStructGEP(arrTy, arrPtr, 1, "gen.cap.gep2"));
+
+            // (AR) realloc(data, newCap * 8)
+            // (EN) realloc(data, newCap * 8)
+            auto reallocTy = llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty}, false);
+            auto reallocFn = module_->getOrInsertFunction("realloc", reallocTy);
+            llvm::Value *oldData = builder_->CreateLoad(ptrTy,
+                                                        builder_->CreateStructGEP(arrTy, arrPtr, 2, "gen.data.gep.grow"), "gen.olddata");
+            llvm::Value *newSize = builder_->CreateMul(newCap, llvm::ConstantInt::get(i64Ty, 8), "gen.newsz");
+            llvm::Value *newData = builder_->CreateCall(reallocFn, {oldData, newSize}, "gen.newdata");
+            builder_->CreateStore(newData,
+                                  builder_->CreateStructGEP(arrTy, arrPtr, 2, "gen.data.gep.grow2"));
+
+            builder_->CreateBr(storeBB);
+
+            // === Store: write yielded value into array[length], increment length ===
+            builder_->SetInsertPoint(storeBB);
+
+            // (AR) PHI لمؤشر البيانات (من yieldBB أو growBB)
+            // (EN) PHI for data pointer (from yieldBB or growBB)
+            // (AR) نعيد قراءة الطول والبيانات من البنية لتجنب PHI المعقد
+            // (EN) Re-read length and data from struct to avoid complex PHI
+            llvm::Value *storeLen = builder_->CreateLoad(i64Ty,
+                                                         builder_->CreateStructGEP(arrTy, arrPtr, 0, "gen.len.gep.store"), "gen.storelen");
+            llvm::Value *storeData = builder_->CreateLoad(ptrTy,
+                                                          builder_->CreateStructGEP(arrTy, arrPtr, 2, "gen.data.gep.store"), "gen.storedata");
+
+            // data[length] = yieldedVal
+            llvm::Value *elemPtr = builder_->CreateGEP(i64Ty, storeData, {storeLen}, "gen.elemptr");
+            builder_->CreateStore(yieldedVal, elemPtr);
+
+            // length++
+            llvm::Value *newLen = builder_->CreateAdd(storeLen, llvm::ConstantInt::get(i64Ty, 1), "gen.newlen");
+            builder_->CreateStore(newLen,
+                                  builder_->CreateStructGEP(arrTy, arrPtr, 0, "gen.len.gep.inc"));
 
             builder_->CreateBr(loopBB);
 
-            // === End: destroy generator and return sum ===
+            // === End: destroy generator and return array pointer as i64 ===
             builder_->SetInsertPoint(endBB);
 
             auto coroDestroyFn = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::coro_destroy);
             builder_->CreateCall(coroDestroyFn, {genHdl});
 
-            llvm::Value *finalSum = builder_->CreateLoad(i64Ty, sumAlloca, "gen.result");
+            // (AR) تحويل مؤشر المصفوفة إلى i64 (MSB tagging: bit63=0 → ptr)
+            // (EN) Convert array pointer to i64 (MSB tagging: bit63=0 → ptr)
+            llvm::Value *arrAsI64 = builder_->CreatePtrToInt(arrPtr, i64Ty, "gen.arr.i64");
 
             context_info_.currentBlock = endBB;
 
@@ -520,11 +605,11 @@ namespace Sad
             // (EN) Store result in register
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = finalSum;
+                context_info_.namedValues[inst->result->name] = arrAsI64;
             }
 
             std::cerr << "[GEN] Emitted GENERATOR_CONSUME" << std::endl;
-            return finalSum;
+            return arrAsI64;
         }
     } // namespace LLVM
 } // namespace Sad

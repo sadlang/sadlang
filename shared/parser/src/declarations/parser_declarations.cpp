@@ -880,6 +880,11 @@ namespace Sad
                 // ─────────────────────────────────────────────────────────────
                 if (check(TT::KEYWORD_CONST))
                 {
+                    // (AR) التقاط تعليق التوثيق المعلَّق قبل أي عمل آخر
+                    //      حتى لا يتسرب إلى تصريح آخر (BF-04: ربط ## بحقل ثابت)
+                    // (EN) Capture pending doc comment up-front so it doesn't
+                    //      leak into another declaration
+                    std::string capturedDoc = consumePendingDocComment();
                     advance(); // consume 'ثابت'
                     // (AR) قراءة المعدلات بعد 'ثابت' (الصفة بعد الموصوف)
                     access = parseModifiers(isStatic, isVirtual, isAbstract);
@@ -912,6 +917,10 @@ namespace Sad
                     auto field = std::make_unique<FieldDecl>(
                         fieldName.getValue(), Data::DataType::UNKNOWN,
                         std::move(initializer), access, true, fieldName.getPosition());
+                    // (AR) إرفاق التوثيق الملتقط بالحقل الأول فقط — الحقول التالية
+                    //      في نفس السطر (بفاصلة) لا تأخذ نفس التعليق
+                    // (EN) Attach the captured doc to the first field only
+                    field->docComment = std::move(capturedDoc);
                     members.push_back(std::move(field));
 
                     // ═══════════════════════════════════════════════════════════════
@@ -962,6 +971,10 @@ namespace Sad
                 // ─────────────────────────────────────────────────────────────
                 if (check(TT::KEYWORD_VAR))
                 {
+                    // (AR) التقاط تعليق التوثيق المعلَّق قبل أي عمل آخر
+                    //      (BF-04: ربط ## بحقل متغير داخل الصنف)
+                    // (EN) Capture pending doc comment up-front
+                    std::string capturedDoc = consumePendingDocComment();
                     advance(); // consume 'متغير'
                     // (AR) قراءة المعدلات بعد 'متغير' (الصفة بعد الموصوف)
                     access = parseModifiers(isStatic, isVirtual, isAbstract);
@@ -1027,6 +1040,9 @@ namespace Sad
                     auto field = std::make_unique<FieldDecl>(
                         fieldName.getValue(), fieldType,
                         std::move(initializer), access, isStatic, fieldName.getPosition());
+                    // (AR) إرفاق التوثيق الملتقط بالحقل الأول فقط
+                    // (EN) Attach the captured doc to the first field only
+                    field->docComment = std::move(capturedDoc);
                     members.push_back(std::move(field));
 
                     // ═══════════════════════════════════════════════════════════════

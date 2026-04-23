@@ -1,6 +1,5 @@
-# @description اختبار مركب عالي الكثافة: defer + try/catch/finally + return + rethrow + resource cleanup
+﻿# @description اختبار مركب عالي الكثافة: defer + try/catch/finally + return + rethrow + resource cleanup
 # @priority P2
-# @skip_compiler
 # @timeout 30
 # @expected C01:PASS\nC02:PASS\nC04:PASS\nC05:PASS\nC07:PASS\nC08:PASS\nC09:PASS\nC10:PASS\nC03:PASS\nC06:PASS\nSUMMARY:10/10
 

@@ -49,6 +49,14 @@ namespace Sad
             // ================================================================
             if (inst->operands.size() >= 3)
             {
+                // (AR) توحيد المسار: تعيين العضو عبر OBJECT_SET لضمان دعم الخصائص
+                // (EN) Unified path: member assignment via OBJECT_SET to ensure property support
+                auto objectSetInst = std::make_shared<SIRInstruction>(SIROpcode::OBJECT_SET);
+                objectSetInst->operands.push_back(inst->operands[1]); // object
+                objectSetInst->operands.push_back(inst->operands[2]); // field name
+                objectSetInst->operands.push_back(inst->operands[0]); // value
+                return emitObjectSet(objectSetInst);
+
                 llvm::Value *value = resolveOperand(inst->operands[0]);
                 if (!value)
                 {

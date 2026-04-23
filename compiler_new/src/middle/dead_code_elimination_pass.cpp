@@ -560,6 +560,14 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_MIN:
                 case SIR::SIROpcode::BUILTIN_MAX:
                 case SIR::SIROpcode::BUILTIN_SUM:
+                case SIR::SIROpcode::BUILTIN_LOG10:
+                case SIR::SIROpcode::BUILTIN_LOG2:
+                case SIR::SIROpcode::BUILTIN_ASIN:
+                case SIR::SIROpcode::BUILTIN_ACOS:
+                case SIR::SIROpcode::BUILTIN_ATAN:
+                case SIR::SIROpcode::BUILTIN_TRUNC:
+                case SIR::SIROpcode::BUILTIN_FMOD:
+                case SIR::SIROpcode::BUILTIN_CLAMP:
 
                 // ────────────────────────────────────────────────────────────────
                 // (AR) 11. دوال النصوص المدمجة — قراءة/تحويل نقي

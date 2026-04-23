@@ -71,7 +71,7 @@ namespace Sad
                 }
 
                 // ─── أرسل (send) ───
-                if (m == "\xD8\xA3\xD8\xB1\xD8\xB3\xD9\x84" || m == "\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84" || m == "send")
+                if (m == "\xD8\xA3\xD8\xB1\xD8\xB3\xD9\x84" || m == "\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84")
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) أرسل() يتطلب قيمة واحدة. (EN) send() requires one value.", node.position);
@@ -81,14 +81,14 @@ namespace Sad
                 }
 
                 // ─── استقبل (receive) ───
-                if (m == "\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84" || m == "receive" || m == "recv")
+                if (m == "\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84")
                 {
                     lastResult_ = channel->receive();
                     return true;
                 }
 
                 // ─── أغلق (close) ───
-                if (m == "\xD8\xA3\xD8\xBA\xD9\x84\xD9\x82" || m == "\xD8\xA7\xD8\xBA\xD9\x84\xD9\x82" || m == "close")
+                if (m == "\xD8\xA3\xD8\xBA\xD9\x84\xD9\x82" || m == "\xD8\xA7\xD8\xBA\xD9\x84\xD9\x82")
                 {
                     channel->close();
                     lastResult_ = Value(); // void
@@ -96,7 +96,7 @@ namespace Sad
                 }
 
                 // ─── حاول_استقبل (tryReceive) ───
-                if (m == "\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84_\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84" || m == "tryReceive" || m == "try_receive")
+                if (m == "\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84_\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84")
                 {
                     auto result = channel->tryReceive();
                     if (result.has_value())
@@ -111,7 +111,7 @@ namespace Sad
                 }
 
                 // ─── حاول_ارسل (trySend) ───
-                if (m == "\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84_\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84" || m == "trySend" || m == "try_send")
+                if (m == "\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84_\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84")
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) حاول_ارسل() يتطلب قيمة. (EN) trySend() requires a value.", node.position);
@@ -121,35 +121,35 @@ namespace Sad
                 }
 
                 // ─── مغلقة (isClosed) ───
-                if (m == "\xD9\x85\xD8\xBA\xD9\x84\xD9\x82\xD8\xA9" || m == "isClosed" || m == "is_closed")
+                if (m == "\xD9\x85\xD8\xBA\xD9\x84\xD9\x82\xD8\xA9")
                 {
                     lastResult_ = Value(channel->isClosed());
                     return true;
                 }
 
                 // ─── الحجم (size) ───
-                if (m == "\xD8\xA7\xD9\x84\xD8\xAD\xD8\xAC\xD9\x85" || m == "\xD8\xB7\xD9\x88\xD9\x84" || m == "size" || m == "length")
+                if (m == "\xD8\xA7\xD9\x84\xD8\xAD\xD8\xAC\xD9\x85" || m == "\xD8\xB7\xD9\x88\xD9\x84")
                 {
                     lastResult_ = Value(static_cast<int>(channel->size()));
                     return true;
                 }
 
                 // ─── السعة (capacity) ───
-                if (m == "\xD8\xA7\xD9\x84\xD8\xB3\xD8\xB9\xD8\xA9" || m == "capacity")
+                if (m == "\xD8\xA7\xD9\x84\xD8\xB3\xD8\xB9\xD8\xA9")
                 {
                     lastResult_ = Value(static_cast<int>(channel->capacity()));
                     return true;
                 }
 
                 // ─── فارغة (empty) ───
-                if (m == "\xD9\x81\xD8\xA7\xD8\xB1\xD8\xBA\xD8\xA9" || m == "empty")
+                if (m == "\xD9\x81\xD8\xA7\xD8\xB1\xD8\xBA\xD8\xA9")
                 {
                     lastResult_ = Value(channel->empty());
                     return true;
                 }
 
                 // ─── أرسل_بمهلة (sendTimeout) ───
-                if (m == "\xD8\xA3\xD8\xB1\xD8\xB3\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9" || m == "\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9" || m == "sendTimeout" || m == "send_timeout")
+                if (m == "\xD8\xA3\xD8\xB1\xD8\xB3\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9" || m == "\xD8\xA7\xD8\xB1\xD8\xB3\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9")
                 {
                     if (args.size() < 2)
                         throw RuntimeError("(AR) أرسل_بمهلة(قيمة، مللي_ثانية). (EN) sendTimeout(value, ms).", node.position);
@@ -160,7 +160,7 @@ namespace Sad
                 }
 
                 // ─── استقبل_بمهلة (receiveTimeout) ───
-                if (m == "\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9" || m == "receiveTimeout" || m == "receive_timeout")
+                if (m == "\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84_\xD8\xA8\xD9\x85\xD9\x87\xD9\x84\xD8\xA9")
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) استقبل_بمهلة(مللي_ثانية). (EN) receiveTimeout(ms).", node.position);
@@ -213,7 +213,7 @@ namespace Sad
                 }
 
                 // ─── أضف (add) ───
-                if (m == "\xD8\xA3\xD8\xB6\xD9\x81" || m == "\xD8\xA7\xD8\xB6\xD9\x81" || m == "add")
+                if (m == "\xD8\xA3\xD8\xB6\xD9\x81" || m == "\xD8\xA7\xD8\xB6\xD9\x81")
                 {
                     int delta = 1;
                     if (!args.empty())
@@ -224,7 +224,7 @@ namespace Sad
                 }
 
                 // ─── أنهي (done) ───
-                if (m == "\xD8\xA3\xD9\x86\xD9\x87\xD9\x8A" || m == "\xD8\xA7\xD9\x86\xD9\x87\xD9\x8A" || m == "done")
+                if (m == "\xD8\xA3\xD9\x86\xD9\x87\xD9\x8A" || m == "\xD8\xA7\xD9\x86\xD9\x87\xD9\x8A")
                 {
                     wg->done();
                     lastResult_ = Value();
@@ -232,7 +232,7 @@ namespace Sad
                 }
 
                 // ─── انتظر (wait) ───
-                if (m == "\xD8\xA7\xD9\x86\xD8\xAA\xD8\xB8\xD8\xB1" || m == "wait")
+                if (m == "\xD8\xA7\xD9\x86\xD8\xAA\xD8\xB8\xD8\xB1")
                 {
                     if (!args.empty())
                     {
@@ -250,7 +250,7 @@ namespace Sad
                 }
 
                 // ─── العداد (count) ───
-                if (m == "\xD8\xA7\xD9\x84\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF" || m == "count")
+                if (m == "\xD8\xA7\xD9\x84\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF")
                 {
                     lastResult_ = Value(wg->count());
                     return true;
@@ -292,7 +292,7 @@ namespace Sad
                 }
 
                 // ─── اقفل (lock) ───
-                if (m == "\xD8\xA7\xD9\x82\xD9\x81\xD9\x84" || m == "lock")
+                if (m == "\xD8\xA7\xD9\x82\xD9\x81\xD9\x84")
                 {
                     mtx->lock();
                     lastResult_ = Value();
@@ -300,7 +300,7 @@ namespace Sad
                 }
 
                 // ─── افتح (unlock) ───
-                if (m == "\xD8\xA7\xD9\x81\xD8\xAA\xD8\xAD" || m == "unlock")
+                if (m == "\xD8\xA7\xD9\x81\xD8\xAA\xD8\xAD")
                 {
                     mtx->unlock();
                     lastResult_ = Value();
@@ -308,14 +308,14 @@ namespace Sad
                 }
 
                 // ─── حاول_قفل (tryLock) ───
-                if (m == "\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84_\xD9\x82\xD9\x81\xD9\x84" || m == "tryLock" || m == "try_lock")
+                if (m == "\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84_\xD9\x82\xD9\x81\xD9\x84")
                 {
                     lastResult_ = Value(mtx->tryLock());
                     return true;
                 }
 
                 // ─── مقفل (isLocked) ───
-                if (m == "\xD9\x85\xD9\x82\xD9\x81\xD9\x84" || m == "isLocked" || m == "is_locked")
+                if (m == "\xD9\x85\xD9\x82\xD9\x81\xD9\x84")
                 {
                     lastResult_ = Value(mtx->isLocked());
                     return true;
@@ -357,7 +357,7 @@ namespace Sad
                 }
 
                 // ─── احصل (get) — يحجب حتى تجهز النتيجة ───
-                if (m == "\xD8\xA7\xD8\xAD\xD8\xB5\xD9\x84" || m == "get")
+                if (m == "\xD8\xA7\xD8\xAD\xD8\xB5\xD9\x84")
                 {
                     if (!args.empty())
                     {
@@ -383,14 +383,14 @@ namespace Sad
                 }
 
                 // ─── جاهز (isReady) ───
-                if (m == "\xD8\xAC\xD8\xA7\xD9\x87\xD8\xB2" || m == "isReady" || m == "is_ready")
+                if (m == "\xD8\xAC\xD8\xA7\xD9\x87\xD8\xB2")
                 {
                     lastResult_ = Value(fut->isReady());
                     return true;
                 }
 
                 // ─── عيّن (set / setResult) — تعيين النتيجة ───
-                if (m == "\xD8\xB9\xD9\x8A\xD9\x91\xD9\x86" || m == "\xD8\xB9\xD9\x8A\xD9\x86" || m == "set" || m == "setResult" || m == "set_result")
+                if (m == "\xD8\xB9\xD9\x8A\xD9\x91\xD9\x86" || m == "\xD8\xB9\xD9\x8A\xD9\x86")
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) عيّن() يتطلب قيمة واحدة. (EN) set() requires one value.", node.position);

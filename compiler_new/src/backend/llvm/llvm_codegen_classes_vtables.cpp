@@ -213,8 +213,8 @@ namespace Sad
             // Emit constants
             emitConstants(sirModule);
 
-            // إصدار الدوال العامة
-            // Emit global functions
+            // (AR) إصدار الدوال العامة
+            // (EN) Emit global functions
             emitGlobalFunctions(sirModule);
 
             // (AR) في الوضع المستقل: توليد تطبيقات مدمجة لدوال C الأساسية
@@ -758,7 +758,6 @@ namespace Sad
             // كل صنف يملك vtable pointer في الحقل 0
             return userFieldIndex + 1;
         }
-
 
     } // namespace LLVM
 } // namespace Sad

@@ -1,7 +1,6 @@
-# @description اختبار سلبي — القسمة على صفر
+﻿# @description اختبار سلبي — القسمة على صفر
 # @expect_error DivisionByZeroError
 # @priority P0
-# @skip_compiler
 
 # ============================================================
 # القسمة على صفر — خطأ وقت التشغيل

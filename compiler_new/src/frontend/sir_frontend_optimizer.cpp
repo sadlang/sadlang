@@ -505,6 +505,14 @@ namespace Sad
                 case SIROpcode::BUILTIN_MIN:
                 case SIROpcode::BUILTIN_MAX:
                 case SIROpcode::BUILTIN_SUM:
+                case SIROpcode::BUILTIN_LOG10:
+                case SIROpcode::BUILTIN_LOG2:
+                case SIROpcode::BUILTIN_ASIN:
+                case SIROpcode::BUILTIN_ACOS:
+                case SIROpcode::BUILTIN_ATAN:
+                case SIROpcode::BUILTIN_TRUNC:
+                case SIROpcode::BUILTIN_FMOD:
+                case SIROpcode::BUILTIN_CLAMP:
                     return false;
 
                 // ═══════════════════════════════════════════════════════════════
@@ -643,8 +651,6 @@ namespace Sad
             // ممر 3: تضمين الدوال / Pass 3: Function Inlining
             // ======================================================================
 
-
         } // namespace SIR
     } // namespace Compiler
 } // namespace Sad
-

@@ -53,6 +53,9 @@ set(HTTP_SOURCES
     stdlib/network/src/http/http_response.cpp
     stdlib/network/src/http/http_url.cpp
     stdlib/network/src/http/http_cookie.cpp
+    stdlib/network/src/http/http_client.cpp
+    stdlib/network/src/http/http_server.cpp
+    stdlib/network/src/http/http_bindings.cpp
 )
 
 add_library(sad_http STATIC ${HTTP_SOURCES})
@@ -67,6 +70,12 @@ target_include_directories(sad_http PUBLIC
 target_link_libraries(sad_http PUBLIC sad_network)
 target_compile_features(sad_http PUBLIC cxx_std_17)
 
+if(TARGET sad_core)
+    target_link_libraries(sad_core PUBLIC sad_network sad_http)
+    target_compile_definitions(sad_core PRIVATE HAS_NETWORK_LIB)
+    message(STATUS "✓ دعم الشبكة HTTP بالمفسر / Enabled HTTP network support in interpreter")
+endif()
+
 set_target_properties(sad_http PROPERTIES
     OUTPUT_NAME "sad_http"
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
@@ -80,6 +89,7 @@ message(STATUS "✓ HTTP: HTTP/1.0 + HTTP/1.1 + Cookies")
 set(WEBSOCKET_SOURCES
     stdlib/network/src/websocket/websocket_client.cpp
     stdlib/network/src/websocket/websocket_server.cpp
+    stdlib/network/src/websocket/websocket_bindings.cpp
 )
 
 add_library(sad_websocket STATIC ${WEBSOCKET_SOURCES})

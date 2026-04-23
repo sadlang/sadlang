@@ -1725,5 +1725,73 @@ namespace Sad
             result_ += "\n";
         }
 
+        // =====================================================================
+        // (AR) طباعة عقدة الرسم الشرطي (ADR-UI-01)
+        // (EN) Print conditional rendering node
+        // =====================================================================
+
+        void ASTPrinter::visitUIConditional(UIConditionalNode &node)
+        {
+            result_ += indent() + "إذا (";
+            if (node.condition)
+                node.condition->accept(*this);
+            result_ += ")\n";
+
+            indentLevel_++;
+            for (auto &child : node.thenChildren)
+            {
+                if (child)
+                    child->accept(*this);
+            }
+            indentLevel_--;
+
+            if (node.hasElseBranch())
+            {
+                result_ += indent() + "وإلا\n";
+                indentLevel_++;
+                for (auto &child : node.elseChildren)
+                {
+                    if (child)
+                        child->accept(*this);
+                }
+                indentLevel_--;
+            }
+
+            result_ += indent() + "نهاية\n";
+        }
+
+        // =====================================================================
+        // (AR) طباعة عقدة حلقة الرسم (ADR-UI-01)
+        // (EN) Print loop rendering node
+        // =====================================================================
+
+        void ASTPrinter::visitUILoop(UILoopNode &node)
+        {
+            if (node.loopKind == UILoopNode::LoopKind::FOR_EACH)
+            {
+                result_ += indent() + "لكل " + node.iteratorName + " في ";
+                if (node.iterableExpr)
+                    node.iterableExpr->accept(*this);
+                result_ += "\n";
+            }
+            else
+            {
+                result_ += indent() + "بينما (";
+                if (node.whileCondition)
+                    node.whileCondition->accept(*this);
+                result_ += ")\n";
+            }
+
+            indentLevel_++;
+            for (auto &child : node.bodyChildren)
+            {
+                if (child)
+                    child->accept(*this);
+            }
+            indentLevel_--;
+
+            result_ += indent() + "نهاية\n";
+        }
+
     } // namespace AST
 } // namespace Sad

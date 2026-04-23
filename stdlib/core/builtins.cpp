@@ -608,31 +608,31 @@ namespace Sad
             {
                 if (args.empty() || !args[0])
                 {
-                    return std::make_shared<Data::Value>(std::string("void"));
+                    return std::make_shared<Data::Value>(std::string("\xd9\x81\xd8\xb1\xd8\xa7\xd8\xba")); // فراغ
                 }
 
                 switch (args[0]->getKind())
                 {
                 case Types::SadTypeKind::Integer:
-                    return std::make_shared<Data::Value>(std::string("integer"));
+                    return std::make_shared<Data::Value>(std::string("\xd8\xb1\xd9\x82\xd9\x85")); // رقم
                 case Types::SadTypeKind::Float:
-                    return std::make_shared<Data::Value>(std::string("double"));
+                    return std::make_shared<Data::Value>(std::string("\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a")); // عشري
                 case Types::SadTypeKind::String:
-                    return std::make_shared<Data::Value>(std::string("string"));
+                    return std::make_shared<Data::Value>(std::string("\xd9\x86\xd8\xb5")); // نص
                 case Types::SadTypeKind::Boolean:
-                    return std::make_shared<Data::Value>(std::string("boolean"));
+                    return std::make_shared<Data::Value>(std::string("\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a")); // منطقي
                 case Types::SadTypeKind::Array:
-                    return std::make_shared<Data::Value>(std::string("array"));
+                    return std::make_shared<Data::Value>(std::string("\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9")); // مصفوفة
                 case Types::SadTypeKind::Map:
-                    return std::make_shared<Data::Value>(std::string("map"));
+                    return std::make_shared<Data::Value>(std::string("\xd8\xae\xd8\xb1\xd9\x8a\xd8\xb7\xd8\xa9")); // خريطة
                 case Types::SadTypeKind::Class:
-                    return std::make_shared<Data::Value>(std::string("object"));
+                    return std::make_shared<Data::Value>(std::string("\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86")); // كائن
                 case Types::SadTypeKind::Function:
-                    return std::make_shared<Data::Value>(std::string("function"));
+                    return std::make_shared<Data::Value>(std::string("\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9")); // دالة
                 case Types::SadTypeKind::Void:
-                    return std::make_shared<Data::Value>(std::string("void"));
+                    return std::make_shared<Data::Value>(std::string("\xd9\x81\xd8\xb1\xd8\xa7\xd8\xba")); // فراغ
                 default:
-                    return std::make_shared<Data::Value>(std::string("unknown"));
+                    return std::make_shared<Data::Value>(std::string("\xd9\x85\xd8\xac\xd9\x87\xd9\x88\xd9\x84")); // مجهول
                 }
             }
 

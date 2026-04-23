@@ -99,7 +99,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             }
         };
         fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xad\xd9\x85\xd9\x84", f); // مكتبة_حمل
-        fm.registerBuiltinFunction("ffi_load", f);
     }
 
     // (2) مكتبة_أفرغ / ffi_unload
@@ -111,7 +110,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(g_libraries.erase(id) > 0);
         };
         fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xa3\xd9\x81\xd8\xb1\xd8\xba", f); // مكتبة_أفرغ
-        fm.registerBuiltinFunction("ffi_unload", f);
     }
 
     // (3) مكتبة_دالة / ffi_get_func
@@ -127,7 +125,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(hasFunc);
         };
         fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9", f); // مكتبة_دالة
-        fm.registerBuiltinFunction("ffi_get_func", f);
     }
 
     // (4) مكتبة_استدع / ffi_call
@@ -150,7 +147,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(false);
         };
         fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9", f); // مكتبة_استدع
-        fm.registerBuiltinFunction("ffi_call", f);
     }
 
     // (5) مكتبة_استدع_رقم / ffi_call_int
@@ -170,7 +166,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(-1.0);
         };
         fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9_\xd8\xb1\xd9\x82\xd9\x85", f); // مكتبة_استدع_رقم
-        fm.registerBuiltinFunction("ffi_call_int", f);
     }
 
     // (6) مكتبة_استدع_نص / ffi_call_string
@@ -190,7 +185,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(std::string(""));
         };
         fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9_\xd9\x86\xd8\xb5", f); // مكتبة_استدع_نص
-        fm.registerBuiltinFunction("ffi_call_string", f);
     }
 
     // (7) مكتبة_رمز / ffi_has_symbol
@@ -205,7 +199,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(it->second->hasSymbol(symbol));
         };
         fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xb1\xd9\x85\xd8\xb2", f); // مكتبة_رمز
-        fm.registerBuiltinFunction("ffi_has_symbol", f);
     }
 
     // (8) مكتبة_مسار / ffi_path
@@ -219,7 +212,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(it->second->getPath());
         };
         fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd9\x85\xd8\xb3\xd8\xa7\xd8\xb1", f); // مكتبة_مسار
-        fm.registerBuiltinFunction("ffi_path", f);
     }
 
     // (9) مكتبة_قائمة / ffi_list
@@ -233,7 +225,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(result);
         };
         fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9", f); // مكتبة_قائمة
-        fm.registerBuiltinFunction("ffi_list", f);
     }
 
     // (10) مكتبة_عدد / ffi_count
@@ -243,7 +234,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(g_libraries.size()));
         };
         fm.registerBuiltinFunction("\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9_\xd8\xb9\xd8\xaf\xd8\xaf", f); // مكتبة_عدد
-        fm.registerBuiltinFunction("ffi_count", f);
     }
 
     // (11) نوع_حجم / type_size
@@ -263,7 +253,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(size));
         };
         fm.registerBuiltinFunction("\xd9\x86\xd9\x88\xd8\xb9_\xd8\xad\xd8\xac\xd9\x85", f); // نوع_حجم
-        fm.registerBuiltinFunction("type_size", f);
     }
 
     // (12) نوع_محاذاة / type_alignment
@@ -281,7 +270,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(align));
         };
         fm.registerBuiltinFunction("\xd9\x86\xd9\x88\xd8\xb9_\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9", f); // نوع_محاذاة
-        fm.registerBuiltinFunction("type_alignment", f);
     }
 
     // (13) نوع_مؤشر / pointer_size
@@ -291,7 +279,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(sizeof(void*) * 8));
         };
         fm.registerBuiltinFunction("\xd9\x86\xd9\x88\xd8\xb9_\xd9\x85\xd8\xa4\xd8\xb4\xd8\xb1", f); // نوع_مؤشر
-        fm.registerBuiltinFunction("pointer_size", f);
     }
 
     // (14) منصة / platform
@@ -309,7 +296,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 #endif
         };
         fm.registerBuiltinFunction("\xd9\x85\xd9\x86\xd8\xb5\xd8\xa9", f); // منصة
-        fm.registerBuiltinFunction("platform", f);
     }
 
     // (15) امتداد_مكتبة / lib_extension
@@ -325,7 +311,6 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
 #endif
         };
         fm.registerBuiltinFunction("\xd8\xa7\xd9\x85\xd8\xaa\xd8\xaf\xd8\xa7\xd8\xaf_\xd9\x85\xd9\x83\xd8\xaa\xd8\xa8\xd8\xa9", f); // امتداد_مكتبة
-        fm.registerBuiltinFunction("lib_extension", f);
     }
 }
 

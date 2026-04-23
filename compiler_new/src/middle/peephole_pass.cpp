@@ -331,12 +331,16 @@ namespace Sad
                     return false;
 
                 // (AR) أزواج التحويلات العكسية
+                // (AR) ملاحظة: I64_TO_F64(F64_TO_I64(x)) ليس زائداً!
+                //      F64_TO_I64 يبتر الجزء العشري (مثلاً: 761.577 → 761)
+                //      ثم I64_TO_F64 يحول الناتج (761 → 761.0)
+                //      النتيجة 761.0 ≠ 761.577 — لذا لا يجوز حذفهما
+                // (EN) Note: I64_TO_F64(F64_TO_I64(x)) is NOT redundant!
+                //      F64_TO_I64 truncates the fractional part (e.g. 761.577 → 761)
+                //      then I64_TO_F64 converts back (761 → 761.0)
+                //      Result 761.0 ≠ 761.577 — so this pair must NOT be eliminated
                 SIROpcode expectedInner = SIROpcode::Nop;
-                if (inst.opcode == SIROpcode::I64_TO_F64)
-                {
-                    expectedInner = SIROpcode::F64_TO_I64;
-                }
-                else if (inst.opcode == SIROpcode::F64_TO_I64)
+                if (inst.opcode == SIROpcode::F64_TO_I64)
                 {
                     expectedInner = SIROpcode::I64_TO_F64;
                 }

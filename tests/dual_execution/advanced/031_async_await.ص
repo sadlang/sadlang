@@ -1,7 +1,6 @@
-# @description اختبار async/await — تنفيذ غير متزامن أساسي
+﻿# @description اختبار async/await — تنفيذ غير متزامن أساسي
 # @expected 42\n100
 # @priority P3
-# @skip_compiler async/await جزئي في المترجم
 
 # دالة غير متزامنة بسيطة
 دالة غير_متزامن حساب()

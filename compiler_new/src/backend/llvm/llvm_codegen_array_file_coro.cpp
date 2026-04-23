@@ -264,31 +264,90 @@ namespace Sad
                 llvm::Value *lenGep = builder_->CreateStructGEP(arrTy, arrPtr, 0, "arr.len.gep");
                 llvm::Value *len = builder_->CreateLoad(i64Ty, lenGep, "arr.len");
 
+                // (AR) نوع العنصر يُمرَّر من الـ frontend كمعامل ثانٍ لتعليمة الفرز.
+                //      القيمة الافتراضية تبقى Integer للحفاظ على التوافق مع أي SIR قديم.
+                SadTypeKind elementType = SadTypeKind::Integer;
+                if (inst->operands.size() > 1 &&
+                    inst->operands[1].type == SIROperandType::CONSTANT)
+                {
+                    elementType = static_cast<SadTypeKind>(inst->operands[1].intValue);
+                }
+
                 // Call qsort(data, len, sizeof(i64), comparator)
-                // We need a comparison function
+                // (AR) نختار المقارن المناسب حسب نوع العنصر.
                 auto *qsortType = llvm::FunctionType::get(
                     llvm::Type::getVoidTy(*context_),
                     {ptrTy, i64Ty, i64Ty, ptrTy}, false);
                 auto qsortFunc = module_->getOrInsertFunction("qsort", qsortType);
 
-                // Create or get comparison function
-                llvm::Function *cmpFunc = module_->getFunction("__sad_i64_cmp");
-                if (!cmpFunc)
+                llvm::Function *cmpFunc = nullptr;
+                if (elementType == SadTypeKind::String)
                 {
-                    auto i32Ty = llvm::Type::getInt32Ty(*context_);
-                    auto *cmpFType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
-                    cmpFunc = llvm::Function::Create(cmpFType, llvm::Function::InternalLinkage,
-                                                     "__sad_i64_cmp", module_.get());
-                    auto *entry = llvm::BasicBlock::Create(*context_, "entry", cmpFunc);
-                    llvm::IRBuilder<> tmpBuilder(entry);
-                    auto args = cmpFunc->arg_begin();
-                    llvm::Value *aPtr = &*args++;
-                    llvm::Value *bPtr = &*args;
-                    llvm::Value *aVal = tmpBuilder.CreateLoad(i64Ty, aPtr, "a");
-                    llvm::Value *bVal = tmpBuilder.CreateLoad(i64Ty, bPtr, "b");
-                    llvm::Value *diff = tmpBuilder.CreateSub(aVal, bVal, "diff");
-                    llvm::Value *truncated = tmpBuilder.CreateTrunc(diff, i32Ty, "trunc");
-                    tmpBuilder.CreateRet(truncated);
+                    cmpFunc = module_->getFunction("__sad_str_cmp");
+                    if (!cmpFunc)
+                    {
+                        auto i32Ty = llvm::Type::getInt32Ty(*context_);
+                        auto *cmpFType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
+                        cmpFunc = llvm::Function::Create(cmpFType, llvm::Function::InternalLinkage,
+                                                         "__sad_str_cmp", module_.get());
+
+                        auto *entry = llvm::BasicBlock::Create(*context_, "entry", cmpFunc);
+                        auto *nullA = llvm::BasicBlock::Create(*context_, "null_a", cmpFunc);
+                        auto *compare = llvm::BasicBlock::Create(*context_, "compare", cmpFunc);
+                        llvm::IRBuilder<> tmpBuilder(entry);
+
+                        auto args = cmpFunc->arg_begin();
+                        llvm::Value *aSlot = &*args++;
+                        llvm::Value *bSlot = &*args;
+                        llvm::Value *aVal = tmpBuilder.CreateLoad(ptrTy, aSlot, "a.ptr");
+                        llvm::Value *bVal = tmpBuilder.CreateLoad(ptrTy, bSlot, "b.ptr");
+                        llvm::Value *aIsNull = tmpBuilder.CreateICmpEQ(
+                            aVal, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "a.null");
+                        llvm::Value *bIsNull = tmpBuilder.CreateICmpEQ(
+                            bVal, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "b.null");
+                        llvm::Value *anyNull = tmpBuilder.CreateOr(aIsNull, bIsNull, "any.null");
+                        tmpBuilder.CreateCondBr(anyNull, nullA, compare);
+
+                        llvm::IRBuilder<> nullABuilder(nullA);
+                        llvm::Value *bothNull = nullABuilder.CreateAnd(aIsNull, bIsNull, "both.null");
+                        llvm::Value *aOnlyNull = nullABuilder.CreateAnd(
+                            aIsNull, nullABuilder.CreateNot(bIsNull), "a.only.null");
+                        llvm::Value *nullResult = nullABuilder.CreateSelect(
+                            bothNull,
+                            llvm::ConstantInt::get(i32Ty, 0),
+                            nullABuilder.CreateSelect(
+                                aOnlyNull,
+                                llvm::ConstantInt::getSigned(i32Ty, -1),
+                                llvm::ConstantInt::get(i32Ty, 1)));
+                        nullABuilder.CreateRet(nullResult);
+
+                        llvm::IRBuilder<> compareBuilder(compare);
+                        llvm::FunctionType *strcmpType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
+                        llvm::FunctionCallee strcmpFn = module_->getOrInsertFunction("strcmp", strcmpType);
+                        llvm::Value *cmpResult = compareBuilder.CreateCall(strcmpFn, {aVal, bVal}, "strcmp.ret");
+                        compareBuilder.CreateRet(cmpResult);
+                    }
+                }
+                else
+                {
+                    cmpFunc = module_->getFunction("__sad_i64_cmp");
+                    if (!cmpFunc)
+                    {
+                        auto i32Ty = llvm::Type::getInt32Ty(*context_);
+                        auto *cmpFType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
+                        cmpFunc = llvm::Function::Create(cmpFType, llvm::Function::InternalLinkage,
+                                                         "__sad_i64_cmp", module_.get());
+                        auto *entry = llvm::BasicBlock::Create(*context_, "entry", cmpFunc);
+                        llvm::IRBuilder<> tmpBuilder(entry);
+                        auto args = cmpFunc->arg_begin();
+                        llvm::Value *aPtr = &*args++;
+                        llvm::Value *bPtr = &*args;
+                        llvm::Value *aVal = tmpBuilder.CreateLoad(i64Ty, aPtr, "a");
+                        llvm::Value *bVal = tmpBuilder.CreateLoad(i64Ty, bPtr, "b");
+                        llvm::Value *diff = tmpBuilder.CreateSub(aVal, bVal, "diff");
+                        llvm::Value *truncated = tmpBuilder.CreateTrunc(diff, i32Ty, "trunc");
+                        tmpBuilder.CreateRet(truncated);
+                    }
                 }
 
                 builder_->CreateCall(qsortFunc, {dataPtr, len, llvm::ConstantInt::get(i64Ty, 8), cmpFunc});

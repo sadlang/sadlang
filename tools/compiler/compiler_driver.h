@@ -289,6 +289,20 @@ namespace sad
             bool emit_llvm = false;   // طباعة LLVM IR
             bool emit_asm = false;    // طباعة assembly
             bool time_passes = false; // توقيت المراحل / Time each pass
+            // (AR) استخراج التوثيق من شجرة AST (Markdown)
+            // (EN) Extract documentation from AST (Markdown)
+            bool emit_docs = false;
+            std::string docs_output_path; // فارغ → stdout / empty → stdout
+            // (AR) توثيق مشروع متعدد الملفات: مجلد جذر يُمسح تكرارياً
+            // (EN) Multi-file project docs: root directory scanned recursively
+            std::string docs_project_dir;
+            std::string docs_project_name; // (AR) اسم المشروع (اختياري)
+            // (AR) صيغة الإخراج: markdown (افتراضي)، json، html
+            // (EN) Output format: markdown (default), json, html
+            std::string docs_format = "markdown";
+            // (AR) أنماط استبعاد ملفات (تطابق سلسلة فرعية في المسار)
+            // (EN) Exclude patterns (substring match in path)
+            std::vector<std::string> docs_excludes;
 
             // ========== Diagnostics ==========
             bool warnings_as_errors = false; // اعتبار التحذيرات أخطاء / Warnings as errors
@@ -451,6 +465,18 @@ namespace sad
              * @return true on success
              */
             bool compile_files(const std::vector<std::string> &input_files);
+
+            /**
+             * @brief (AR) توليد توثيق Markdown لمشروع متعدد الملفات من مجلد
+             *        (EN) Generate multi-file project Markdown documentation
+             * @return (AR) صحيح عند النجاح (EN) true on success
+             *
+             * @details (AR) يقرأ docs_project_dir من الخيارات، يمسح المجلد
+             *               تكرارياً عن ملفات .ص و.sad، يحلّل كل ملف، ثم يُولّد
+             *               مستند Markdown موحّد ويكتبه إلى docs_output_path
+             *               (أو stdout إذا فارغ).
+             */
+            bool emit_project_docs();
 
             /**
              * @brief ربط ملفات الكائن / Link object files
@@ -632,6 +658,26 @@ namespace sad
                                   const std::string &obj_output_path,
                                   const std::string &c_compiler);
 #endif
+
+            /**
+             * @brief (AR) إضافة مكتبات الشبكة المضمّنة المكتشفة تلقائياً
+             * @brief (EN) Append auto-discovered bundled network libraries
+             */
+            void append_bundled_network_libraries(std::vector<std::string> &library_paths,
+                                                  std::vector<std::string> &libraries) const;
+
+            /**
+             * @brief (AR) علم توافق CRT الذي يجب تمريره إلى clang على ويندوز
+             * @brief (EN) Windows CRT compatibility flag to pass to clang
+             */
+            std::string get_windows_clang_runtime_flag() const;
+
+            /**
+             * @brief (AR) إضافة مكتبات CRT وC++ runtime المناسبة للربط المستضاف على ويندوز
+             * @brief (EN) Append the proper hosted CRT/C++ runtime libraries on Windows
+             */
+            void append_windows_hosted_runtime_libraries(std::vector<std::string> &libraries,
+                                                         bool include_cpp_runtime) const;
 
         private:
             // ========== Member Variables ==========

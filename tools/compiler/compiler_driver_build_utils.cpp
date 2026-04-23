@@ -28,6 +28,31 @@ namespace sad
     namespace driver
     {
 
+        namespace
+        {
+            void append_unique_value(std::vector<std::string> &values, const std::string &value)
+            {
+                if (!value.empty() &&
+                    std::find(values.begin(), values.end(), value) == values.end())
+                {
+                    values.push_back(value);
+                }
+            }
+
+            bool has_library_file_in_dir(const std::filesystem::path &directory,
+                                         const std::string &library_name)
+            {
+                if (!std::filesystem::exists(directory) || !std::filesystem::is_directory(directory))
+                {
+                    return false;
+                }
+
+                return std::filesystem::exists(directory / (library_name + ".lib")) ||
+                       std::filesystem::exists(directory / (library_name + ".a")) ||
+                       std::filesystem::exists(directory / ("lib" + library_name + ".a"));
+            }
+        }
+
         void CompilerDriver::cleanup_temp_files()
         {
             for (const auto &file : temp_files_)
@@ -42,6 +67,108 @@ namespace sad
                 }
             }
             temp_files_.clear();
+        }
+
+        void CompilerDriver::append_bundled_network_libraries(std::vector<std::string> &library_paths,
+                                                              std::vector<std::string> &libraries) const
+        {
+            const auto exe_dir = get_executable_dir();
+            const std::vector<std::filesystem::path> candidates = {
+                exe_dir,
+                exe_dir.parent_path(),
+                exe_dir / ".." / "lib",
+                exe_dir / ".." / ".." / "lib",
+                exe_dir / ".." / ".." / "lib" / "Release",
+                exe_dir / ".." / ".." / "lib" / "Debug",
+                exe_dir / ".." / ".." / "lib" / "RelWithDebInfo",
+                exe_dir / ".." / ".." / "lib" / "MinSizeRel"};
+
+            bool found_http = false;
+            bool found_network = false;
+            bool found_websocket = false;
+
+            for (const auto &candidate : candidates)
+            {
+                const auto normalized = std::filesystem::absolute(candidate).lexically_normal();
+                const bool has_http = has_library_file_in_dir(normalized, "sad_http");
+                const bool has_network = has_library_file_in_dir(normalized, "sad_network");
+                const bool has_websocket = has_library_file_in_dir(normalized, "sad_websocket");
+
+                if (!has_http && !has_network && !has_websocket)
+                {
+                    continue;
+                }
+
+                append_unique_value(library_paths, normalized.string());
+                found_http = found_http || has_http;
+                found_network = found_network || has_network;
+                found_websocket = found_websocket || has_websocket;
+            }
+
+            if (found_http)
+            {
+                append_unique_value(libraries, "sad_http");
+            }
+            if (found_network)
+            {
+                append_unique_value(libraries, "sad_network");
+            }
+            // (AR) إضافة مكتبة WebSocket عند توفّرها — تحوي sad_ws_client_*, sad_ws_server_*
+            // (EN) Add WebSocket library when available — contains sad_ws_client_*, sad_ws_server_*
+            if (found_websocket)
+            {
+                append_unique_value(libraries, "sad_websocket");
+            }
+
+#ifdef _WIN32
+            if (found_http || found_network || found_websocket)
+            {
+                append_unique_value(libraries, "ws2_32");
+            }
+#endif
+        }
+
+        std::string CompilerDriver::get_windows_clang_runtime_flag() const
+        {
+#ifdef _WIN32
+            return options_.link_static ? "-fms-runtime-lib=static" : "-fms-runtime-lib=dll";
+#else
+            return "";
+#endif
+        }
+
+        void CompilerDriver::append_windows_hosted_runtime_libraries(std::vector<std::string> &libraries,
+                                                                     bool include_cpp_runtime) const
+        {
+#ifdef _WIN32
+            if (options_.link_static)
+            {
+                if (include_cpp_runtime)
+                {
+                    append_unique_value(libraries, "libcpmt.lib");
+                }
+                append_unique_value(libraries, "libcmt.lib");
+                append_unique_value(libraries, "libvcruntime.lib");
+                append_unique_value(libraries, "libucrt.lib");
+            }
+            else
+            {
+                if (include_cpp_runtime)
+                {
+                    append_unique_value(libraries, "msvcprt.lib");
+                }
+                append_unique_value(libraries, "msvcrt.lib");
+                append_unique_value(libraries, "vcruntime.lib");
+                append_unique_value(libraries, "ucrt.lib");
+            }
+
+            append_unique_value(libraries, "oldnames.lib");
+            append_unique_value(libraries, "legacy_stdio_definitions.lib");
+            append_unique_value(libraries, "kernel32.lib");
+#else
+            (void)libraries;
+            (void)include_cpp_runtime;
+#endif
         }
 
         // ============================================================================
@@ -316,16 +443,29 @@ namespace sad
             // (EN) Detect compiler type — cl.exe uses different command syntax
             bool is_msvc = (c_compiler.find("cl.exe") != std::string::npos ||
                             c_compiler.find("cl.EXE") != std::string::npos);
+            bool is_clang = (c_compiler.find("clang") != std::string::npos ||
+                             c_compiler.find("CLANG") != std::string::npos);
 
             if (is_msvc)
             {
                 command = "\"" + c_compiler + "\" /c /O2 /TC /W0 /nologo";
+                command += options_.link_static ? " /MT" : " /MD";
                 command += " /Fo\"" + obj_output_path + "\"";
                 command += " \"" + c_source_path + "\"";
             }
             else
             {
                 command = "\"" + c_compiler + "\" -c -O2 -w";
+#ifdef _WIN32
+                if (is_clang)
+                {
+                    const std::string runtime_flag = get_windows_clang_runtime_flag();
+                    if (!runtime_flag.empty())
+                    {
+                        command += " " + runtime_flag;
+                    }
+                }
+#endif
                 command += " -o \"" + obj_output_path + "\"";
                 command += " \"" + c_source_path + "\"";
             }

@@ -390,7 +390,11 @@ namespace Sad
 #endif
 
                     // (AR) بناء أعضاء الفضاء (الدوال، الأصناف، المتغيرات)
+                    //      نحفظ السياق قبل بناء الدوال لأن buildFunction يكتب على
+                    //      currentFunction_ و currentBlock_ ثم يُصفّرهما
                     // (EN) Build namespace members (functions, classes, variables)
+                    //      Save context before building functions because buildFunction
+                    //      overwrites currentFunction_ and currentBlock_ then nullifies them
                     enterScope();
 
                     for (const auto &member : nsDecl->members)
@@ -398,30 +402,82 @@ namespace Sad
                         if (!member)
                             continue;
 
-                        // (AR) محاولة بناء كتعريف عام أو جملة
-                        // (EN) Try to build as top-level declaration or statement
                         auto funcDecl = dynamic_cast<Sad::AST::FunctionDecl *>(member.get());
                         auto varDecl = dynamic_cast<Sad::AST::VarDeclStmt *>(member.get());
                         auto classDecl = dynamic_cast<Sad::AST::ClassDecl *>(member.get());
 
                         if (funcDecl)
                         {
-                            // (AR) بناء الدالة مع بادئة الفضاء
-                            // (EN) Build function with namespace prefix
+                            // (AR) بناء الدالة مع بادئة الفضاء — نحفظ السياق ونستعيده
+                            // (EN) Build function with namespace prefix — save and restore context
                             std::string originalName = funcDecl->name;
                             funcDecl->name = nsDecl->name + "::" + originalName;
+
+                            auto savedCtxNs = saveContext();
                             buildFunction(funcDecl);
+                            restoreContext(std::move(savedCtxNs));
+
+                            // (AR) تسجيل العضو في خريطة الفضاء
+                            // (EN) Register member in namespace map
+                            NamespaceMemberInfo info;
+                            info.kind = "func";
+                            info.sirName = funcDecl->name;
+                            namespaceMembers_[nsDecl->name][originalName] = info;
+
                             funcDecl->name = originalName;
                         }
                         else if (varDecl)
                         {
+                            // (AR) بناء المتغير العام مع بادئة الفضاء
+                            // (EN) Build global variable with namespace prefix
+                            std::string originalName = varDecl->name;
+                            varDecl->name = nsDecl->name + "::" + originalName;
                             buildGlobalVariable(varDecl);
+
+                            // (AR) تحديد نوع المتغير من المُهيئ
+                            // (EN) Determine variable type from initializer
+                            SadTypeKind varType = SadTypeKind::Integer;
+                            if (varDecl->initializer)
+                            {
+                                if (auto *litExpr = dynamic_cast<Sad::AST::LiteralExpr *>(varDecl->initializer.get()))
+                                {
+                                    auto tokType = litExpr->token.getType();
+                                    if (tokType == Sad::Lexer::TokenType::NUMBER_DOUBLE)
+                                        varType = SadTypeKind::Float;
+                                    else if (tokType == Sad::Lexer::TokenType::STRING_LITERAL)
+                                        varType = SadTypeKind::String;
+                                    else if (tokType == Sad::Lexer::TokenType::LITERAL_TRUE ||
+                                             tokType == Sad::Lexer::TokenType::LITERAL_FALSE)
+                                        varType = SadTypeKind::Boolean;
+                                }
+                            }
+
+                            // (AR) تسجيل العضو في خريطة الفضاء
+                            // (EN) Register member in namespace map
+                            NamespaceMemberInfo info;
+                            info.kind = "var";
+                            info.sirName = varDecl->name;
+                            info.type = varType;
+                            namespaceMembers_[nsDecl->name][originalName] = info;
+
+                            varDecl->name = originalName;
                         }
                         else if (classDecl)
                         {
                             std::string originalName = classDecl->name;
                             classDecl->name = nsDecl->name + "::" + originalName;
+
+                            auto savedCtxNs = saveContext();
                             buildClass(classDecl);
+                            restoreContext(std::move(savedCtxNs));
+
+                            // (AR) تسجيل العضو في خريطة الفضاء
+                            // (EN) Register member in namespace map
+                            NamespaceMemberInfo info;
+                            info.kind = "class";
+                            info.sirName = classDecl->name;
+                            namespaceMembers_[nsDecl->name][originalName] = info;
+
                             classDecl->name = originalName;
                         }
                         else
@@ -458,7 +514,32 @@ namespace Sad
                     // (EN) Process fields
                     for (const auto &field : classDeclStmt->fields)
                     {
+                        // (AR) استنتاج نوع الحقل من التعليق النوعي (DataType) في FieldDecl
+                        //      الحقول بدون تعليق نوع صريح تبقى Integer (الافتراضي)
+                        // (EN) Infer field type from DataType annotation in FieldDecl
+                        //      Fields without explicit type annotation remain Integer (default)
                         SadTypeKind fieldType = SadTypeKind::Integer;
+                        switch (field->type)
+                        {
+                        case Sad::Data::DataType::INTEGER:
+                            fieldType = SadTypeKind::Integer;
+                            break;
+                        case Sad::Data::DataType::FLOAT:
+                            fieldType = SadTypeKind::Float;
+                            break;
+                        case Sad::Data::DataType::BOOLEAN:
+                            fieldType = SadTypeKind::Boolean;
+                            break;
+                        case Sad::Data::DataType::STRING:
+                            fieldType = SadTypeKind::String;
+                            break;
+                        case Sad::Data::DataType::ARRAY:
+                            fieldType = SadTypeKind::Array;
+                            break;
+                        default:
+                            fieldType = SadTypeKind::Integer;
+                            break;
+                        }
 
                         // (AR) الحقول الساكنة: تُنشأ كمتغيرات عامة بدلاً من حقول نسخة
                         // (EN) Static fields: created as global variables instead of instance fields

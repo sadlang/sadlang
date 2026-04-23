@@ -52,6 +52,7 @@ add_library(sad_shared STATIC
     errors/src/diagnostic.cpp
     errors/src/error_codes.cpp
     errors/src/error_manager.cpp
+    errors/src/error_hints.cpp
     
     # Smart Errors - Phase 15
     errors/src/smart_errors.cpp
@@ -86,6 +87,7 @@ target_include_directories(sad_shared
         ${CMAKE_CURRENT_SOURCE_DIR}/errors/include
         ${CMAKE_CURRENT_SOURCE_DIR}/modules/include
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/builtins/include           # السجل المركزي الموحّد (ADR-003)
         ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers   # ClassManager header
 )
 

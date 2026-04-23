@@ -66,7 +66,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(addr));
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xae\xd8\xb5\xd8\xb5", f); // ذاكرة_خصص
-        fm.registerBuiltinFunction("memory_alloc", f);
     }
 
     // (2) ذاكرة_حرر / memory_free
@@ -86,7 +85,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(true);
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xad\xd8\xb1\xd8\xb1", f); // ذاكرة_حرر
-        fm.registerBuiltinFunction("memory_free", f);
     }
 
     // (3) ذاكرة_إحصائيات / memory_stats
@@ -105,7 +103,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(oss.str());
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xa5\xd8\xad\xd8\xb5\xd8\xa7\xd8\xa6\xd9\x8a\xd8\xa7\xd8\xaa", f); // ذاكرة_إحصائيات
-        fm.registerBuiltinFunction("memory_stats", f);
     }
 
     // (4) ذاكرة_حجم / memory_size
@@ -115,7 +112,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(g_allocStats.current_usage));
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xad\xd8\xac\xd9\x85", f); // ذاكرة_حجم
-        fm.registerBuiltinFunction("memory_size", f);
     }
 
     // (5) ذاكرة_ذروة / memory_peak
@@ -125,7 +121,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(g_allocStats.peak_usage));
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xb0\xd8\xb1\xd9\x88\xd8\xa9", f); // ذاكرة_ذروة
-        fm.registerBuiltinFunction("memory_peak", f);
     }
 
     // (6) ذاكرة_صفر / memory_zero (stub)
@@ -137,7 +132,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(true);
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xb5\xd9\x81\xd8\xb1", f); // ذاكرة_صفر
-        fm.registerBuiltinFunction("memory_zero", f);
     }
 
     // (7) ذاكرة_انسخ / memory_copy (stub)
@@ -149,7 +143,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(true);
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xa7\xd9\x86\xd8\xb3\xd8\xae", f); // ذاكرة_انسخ
-        fm.registerBuiltinFunction("memory_copy", f);
     }
 
     // (8) ذاكرة_أعد_حجم / memory_resize
@@ -169,7 +162,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(addr));
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xa3\xd8\xb9\xd8\xaf_\xd8\xad\xd8\xac\xd9\x85", f); // ذاكرة_أعد_حجم
-        fm.registerBuiltinFunction("memory_resize", f);
     }
 
     // (9) ذاكرة_محاذاة / memory_aligned_alloc
@@ -190,7 +182,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(addr));
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd8\xa7\xd8\xa9", f); // ذاكرة_محاذاة
-        fm.registerBuiltinFunction("memory_aligned_alloc", f);
     }
 
     // (10) ذاكرة_تسرب / memory_check_leaks
@@ -207,7 +198,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(std::string("لا يوجد تسرب"));
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xaa\xd8\xb3\xd8\xb1\xd8\xa8", f); // ذاكرة_تسرب
-        fm.registerBuiltinFunction("memory_check_leaks", f);
     }
 
     // (11) قمامة_اجمع / gc_collect
@@ -218,7 +208,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(true);
         };
         fm.registerBuiltinFunction("\xd9\x82\xd9\x85\xd8\xa7\xd9\x85\xd8\xa9_\xd8\xa7\xd8\xac\xd9\x85\xd8\xb9", f); // قمامة_اجمع
-        fm.registerBuiltinFunction("gc_collect", f);
     }
 
     // (12) قمامة_إحصائيات / gc_stats
@@ -237,7 +226,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(oss.str());
         };
         fm.registerBuiltinFunction("\xd9\x82\xd9\x85\xd8\xa7\xd9\x85\xd8\xa9_\xd8\xa5\xd8\xad\xd8\xb5\xd8\xa7\xd8\xa6\xd9\x8a\xd8\xa7\xd8\xaa", f); // قمامة_إحصائيات
-        fm.registerBuiltinFunction("gc_stats", f);
     }
 
     // (13) قمامة_فعل / gc_enable
@@ -248,7 +236,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(true);
         };
         fm.registerBuiltinFunction("\xd9\x82\xd9\x85\xd8\xa7\xd9\x85\xd8\xa9_\xd9\x81\xd8\xb9\xd9\x84", f); // قمامة_فعل
-        fm.registerBuiltinFunction("gc_enable", f);
     }
 
     // (14) قمامة_عطل / gc_disable
@@ -259,7 +246,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(true);
         };
         fm.registerBuiltinFunction("\xd9\x82\xd9\x85\xd8\xa7\xd9\x85\xd8\xa9_\xd8\xb9\xd8\xb7\xd9\x84", f); // قمامة_عطل
-        fm.registerBuiltinFunction("gc_disable", f);
     }
 
     // (15) قمامة_عتبة / gc_threshold
@@ -273,7 +259,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(g_gcThreshold));
         };
         fm.registerBuiltinFunction("\xd9\x82\xd9\x85\xd8\xa7\xd9\x85\xd8\xa9_\xd8\xb9\xd8\xaa\xd8\xa8\xd8\xa9", f); // قمامة_عتبة
-        fm.registerBuiltinFunction("gc_threshold", f);
     }
 
     // (16) قمامة_كائنات_حية / gc_live_objects
@@ -283,7 +268,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(g_gcStats.live_objects));
         };
         fm.registerBuiltinFunction("\xd9\x82\xd9\x85\xd8\xa7\xd9\x85\xd8\xa9_\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86\xd8\xa7\xd8\xaa_\xd8\xad\xd9\x8a\xd8\xa9", f); // قمامة_كائنات_حية
-        fm.registerBuiltinFunction("gc_live_objects", f);
     }
 
     // (17) قمامة_حجم_كومة / gc_heap_size
@@ -293,7 +277,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(g_gcStats.heap_size));
         };
         fm.registerBuiltinFunction("\xd9\x82\xd9\x85\xd8\xa7\xd9\x85\xd8\xa9_\xd8\xad\xd8\xac\xd9\x85_\xd9\x83\xd9\x88\xd9\x85\xd8\xa9", f); // قمامة_حجم_كومة
-        fm.registerBuiltinFunction("gc_heap_size", f);
     }
 
     // (18) قمامة_أقصى_توقف / gc_max_pause
@@ -303,7 +286,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(g_gcStats.max_pause_ms);
         };
         fm.registerBuiltinFunction("\xd9\x82\xd9\x85\xd8\xa7\xd9\x85\xd8\xa9_\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89_\xd8\xaa\xd9\x88\xd9\x82\xd9\x81", f); // قمامة_أقصى_توقف
-        fm.registerBuiltinFunction("gc_max_pause", f);
     }
 
     // (19) ذاكرة_عدد_تخصيصات / memory_alloc_count
@@ -313,7 +295,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(g_allocStats.allocation_count));
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xb9\xd8\xaf\xd8\xaf_\xd8\xaa\xd8\xae\xd8\xb5\xd9\x8a\xd8\xb5\xd8\xa7\xd8\xaa", f); // ذاكرة_عدد_تخصيصات
-        fm.registerBuiltinFunction("memory_alloc_count", f);
     }
 
     // (20) ذاكرة_إجمالي / memory_total
@@ -323,7 +304,6 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<double>(g_allocStats.total_allocated));
         };
         fm.registerBuiltinFunction("\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xa5\xd8\xac\xd9\x85\xd8\xa7\xd9\x84\xd9\x8a", f); // ذاكرة_إجمالي
-        fm.registerBuiltinFunction("memory_total", f);
     }
 }
 

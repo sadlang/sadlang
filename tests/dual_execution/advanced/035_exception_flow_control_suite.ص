@@ -1,6 +1,5 @@
-# @description Exception Flow Control Suite (25 tests) — nested defer, stack flow, cleanup verification
+﻿# @description Exception Flow Control Suite (25 tests) — nested defer, stack flow, cleanup verification
 # @priority P2
-# @skip_compiler
 # @timeout 60
 # @expected E01:PASS\nE02:PASS\nE03:PASS\nE04:PASS\nE05:PASS\nE06:PASS\nE07:PASS\nE08:PASS\nE09:PASS\nE10:PASS\nE11:PASS\nE12:PASS\nE13:PASS\nE14:PASS\nE15:PASS\nE16:PASS\nE17:PASS\nE18:PASS\nE19:PASS\nE20:PASS\nE21:PASS\nE22:PASS\nE23:PASS\nE24:PASS\nE25:PASS\nSUMMARY:25/25
 

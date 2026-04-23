@@ -52,7 +52,6 @@ namespace Sad
                 {
                     return BuildResult();
                 }
-
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildMethodCall: calling method '"
                           << methodCallExpr->methodName << "'" << std::endl;
@@ -146,6 +145,14 @@ namespace Sad
                     if (classInstanceTypes_.find(varExpr->name) != classInstanceTypes_.end())
                     {
                         className = classInstanceTypes_[varExpr->name];
+                    }
+                    else
+                    {
+                        VariableInfo *objVar = lookupVariable(varExpr->name);
+                        if (objVar && !objVar->className.empty())
+                        {
+                            className = objVar->className;
+                        }
                     }
                 }
 
@@ -243,17 +250,20 @@ namespace Sad
                         return *wgResult;
                 }
 
-                // (AR) ??? ??? ?? ?????: ???? ?? ???? ??????? ???????? ?? ????? ??????.
-                //      ??? ???? ?? ??????? currentClassName_ ???? ?? ???? ????? ???????.
-                //      ????: ???? ????_?????.??_????() ?????? ????.????_???() �
-                //        currentClassName_ = "????_?????" ??? ????_??? ?? ?? ????_vfs
+                // (AR) [Fix #063-1] متغيرات لتتبع استنتاج className عبر smart lookup
+                //      تُستخدم لاحقاً لتحديد الحاجة لـ OBJECT_CALL (توزيع vtable ديناميكي)
+                // (EN) [Fix #063-1] Variables to track className inference via smart lookup
+                //      Used later to determine if OBJECT_CALL (vtable dispatch) is needed
+                bool classNameWasInferred = false;
+                int methodClassCount = 0;
+
+                // (AR) بحث ذكي عن الصنف: بحث في جميع الأصناف المعروفة عن الطريقة المطلوبة.
+                //      أفضل من استخدام currentClassName_ الذي قد يكون الصنف الخاطئ.
                 // (EN) Smart class lookup: search all known classes for matching method.
                 //      Better than currentClassName_ fallback which may be the wrong class.
-                //      e.g., inside ????_?????.??_????() calling ????.????_???() �
-                //        currentClassName_="????_?????" but ????_??? belongs to ????_vfs
                 {
                     std::string methodToFind = methodCallExpr->methodName;
-                    // (AR) ?????: ???? ??? ??? ????? ??????/??????? ????? ??? ???????
+                    // (AR) أولاً: تحقق أن الصنف الحالي/المعروف يملك الطريقة فعلاً
                     // (EN) First: check if currently found class actually has the method
                     if (!className.empty())
                     {
@@ -294,17 +304,26 @@ namespace Sad
                     }
                     if (className.empty())
                     {
+                        // (AR) أولاً: عدّ الأصناف التي تملك هذه الطريقة
+                        // (EN) First: count how many classes have this method
                         for (const auto &[fname, finfo] : functionTable_)
                         {
                             auto dotPos = fname.find('.');
                             if (dotPos != std::string::npos && fname.substr(dotPos + 1) == methodToFind)
                             {
-                                className = fname.substr(0, dotPos);
-                                if (auto varExpr = dynamic_cast<Sad::AST::VariableExpr *>(methodCallExpr->object.get()))
+                                methodClassCount++;
+                                if (className.empty())
                                 {
-                                    classInstanceTypes_[varExpr->name] = className;
+                                    className = fname.substr(0, dotPos);
                                 }
-                                break;
+                            }
+                        }
+                        if (!className.empty())
+                        {
+                            classNameWasInferred = true;
+                            if (auto varExpr = dynamic_cast<Sad::AST::VariableExpr *>(methodCallExpr->object.get()))
+                            {
+                                classInstanceTypes_[varExpr->name] = className;
                             }
                         }
                     }
@@ -399,7 +418,38 @@ namespace Sad
                     // (EN) Try basic array methods (push/size/remove/empty/contains/sort/...)
                     auto arrBasicResult = buildArrayBasicMethodCall(objResult, methodName, args);
                     if (arrBasicResult)
+                    {
+                        // ================================================================
+                        // (AR) نشر نوع عنصر المصفوفة عند استدعاء اضف()
+                        //      عندما نضيف عنصراً لمصفوفة فارغة (elementType == Void)،
+                        //      نُحدّث VariableInfo.elementType من نوع العنصر المُضاف.
+                        //      هذا يسمح لحلقات foreach لاحقاً بمعرفة نوع العناصر.
+                        //      بدون هذا: متغير نتائج = [] ثم نتائج.اضف(نص) →
+                        //      foreach يفترض Integer → يطبع أرقام بدل نصوص
+                        // (EN) Propagate array element type on append()
+                        //      When appending to an empty-typed array (elementType == Void),
+                        //      update VariableInfo.elementType from the appended element's type.
+                        //      This lets subsequent foreach loops know the element type.
+                        //      Without this: var arr = [] then arr.append(string) →
+                        //      foreach assumes Integer → prints numbers instead of strings
+                        // ================================================================
+                        if (methodName == "\xD8\xA3\xD8\xB6\xD9\x81" || // أضف
+                            methodName == "\xD8\xA7\xD8\xB6\xD9\x81" || // اضف
+                            methodName == "push" || methodName == "append")
+                        {
+                            if (auto *varExpr = dynamic_cast<Sad::AST::VariableExpr *>(
+                                    methodCallExpr->object.get()))
+                            {
+                                VariableInfo *arrVar = lookupVariable(varExpr->name);
+                                if (arrVar && arrVar->elementType == SadTypeKind::Void &&
+                                    args.size() > 1 && args[1].dataType != SadTypeKind::Void)
+                                {
+                                    arrVar->elementType = args[1].dataType;
+                                }
+                            }
+                        }
                         return *arrBasicResult;
+                    }
 
                     // (AR) محاولة طرق المصفوفات العليا (خريطة/رشح/اختزل/لكل)
                     // (EN) Try higher-order array methods (map/filter/reduce/forEach)
@@ -456,9 +506,145 @@ namespace Sad
                 //             if object is ?????2 ? calls ?????2.???() not ???.???()
                 bool isThisCall = dynamic_cast<Sad::AST::ThisExpr *>(methodCallExpr->object.get()) != nullptr;
 
+                // (AR) نستخدم OBJECT_CALL عند الحاجة الفعلية لتعدد الأشكال:
+                //      1) استدعاء this (قد يُعاد تعريفه في الأصناف الابنة)
+                //      2) وجود صنف ابن يملك نفس اسم الدالة ويَرِث من className
+                //      3) [Fix #063-1] وجود أصناف أخوات (siblings) تشترك في أب مشترك وتملك نفس الطريقة
+                //         هذا ضروري عندما يكون className مستنتجاً من نوع عنصر المصفوفة
+                //         مثال: [دائرة، مربع، مثلث] → ش.مساحة() حيث className="دائرة"
+                //         مربع ومثلث لا يرثان من دائرة بل من شكل (أب مشترك)
+                //         بدون هذا الإصلاح: جميع العناصر تستدعي دائرة.مساحة()
+                //      غير ذلك نفضّل CALL المباشر للحفاظ على دقة نوع الإرجاع.
+                // (EN) Use OBJECT_CALL when polymorphic dispatch is needed:
+                //      1) this-call (can be overridden in subclasses)
+                //      2) a subclass defines same method name and inherits from className
+                //      3) [Fix #063-1] sibling classes sharing a common ancestor have the same method
+                //         Needed when className is inferred from array element type
+                //         e.g., [circle, square, triangle] → s.area() where className="circle"
+                //         square/triangle don't inherit from circle but from shape (common parent)
+                //         Without this: all elements call circle.area()
+                //      Otherwise prefer direct CALL to preserve return-type fidelity.
+                bool hasOverridingSubclassMethod = false;
+                if (!className.empty())
+                {
+                    // (AR) الفحص الأول: أصناف ابنة ترث مباشرة من className
+                    // (EN) Check 1: subclasses that inherit directly from className
+                    for (const auto &[fname, _finfo] : functionTable_)
+                    {
+                        auto dotPos = fname.find('.');
+                        if (dotPos == std::string::npos)
+                            continue;
+
+                        std::string candClass = fname.substr(0, dotPos);
+                        std::string candMethod = fname.substr(dotPos + 1);
+                        if (candMethod != methodCallExpr->methodName || candClass == className)
+                            continue;
+
+                        std::string walkClass = candClass;
+                        while (module_)
+                        {
+                            auto ci = module_->getClass(walkClass);
+                            if (!ci || ci->parentClass.empty())
+                                break;
+                            if (ci->parentClass == className)
+                            {
+                                hasOverridingSubclassMethod = true;
+                                break;
+                            }
+                            walkClass = ci->parentClass;
+                        }
+
+                        if (hasOverridingSubclassMethod)
+                            break;
+                    }
+
+                    // (AR) [Fix #063-1] الفحص الثاني: أصناف أخوات عبر سلسلة الوراثة
+                    //      نبحث عن الأب الأعلى الذي يملك نفس الطريقة، ثم نتحقق
+                    //      إن كان هناك أصناف أخرى ترث منه وتملك نفس الطريقة
+                    // (EN) [Fix #063-1] Check 2: sibling classes via inheritance chain
+                    //      Find the highest ancestor with the same method, then check
+                    //      if other classes inherit from it and have the same method
+                    if (!hasOverridingSubclassMethod && module_)
+                    {
+                        const std::string &methodNameToFind = methodCallExpr->methodName;
+
+                        // (AR) ابحث عن الأب الأعلى الذي يملك الطريقة
+                        // (EN) Find the highest ancestor with the method
+                        std::string ancestor = className;
+                        {
+                            std::string walk = className;
+                            while (true)
+                            {
+                                auto ci = module_->getClass(walk);
+                                if (!ci || ci->parentClass.empty())
+                                    break;
+                                std::string parentKey = ci->parentClass + "." + methodNameToFind;
+                                if (functionTable_.find(parentKey) != functionTable_.end())
+                                {
+                                    ancestor = ci->parentClass;
+                                }
+                                walk = ci->parentClass;
+                            }
+                        }
+
+                        // (AR) إن وجدنا أباً مختلفاً عن className، نبحث عن أصناف أخوات
+                        //      ترث من نفس الأب وتملك نفس الطريقة
+                        // (EN) If we found an ancestor different from className, look for siblings
+                        //      that inherit from the same ancestor and have the same method
+                        if (ancestor != className)
+                        {
+                            for (const auto &[fname, _finfo2] : functionTable_)
+                            {
+                                auto dotPos = fname.find('.');
+                                if (dotPos == std::string::npos)
+                                    continue;
+                                std::string candClass = fname.substr(0, dotPos);
+                                std::string candMethod = fname.substr(dotPos + 1);
+                                if (candMethod != methodNameToFind || candClass == className)
+                                    continue;
+
+                                // (AR) تحقق إن كان candClass يرث من ancestor
+                                // (EN) Check if candClass inherits from ancestor
+                                std::string walk = candClass;
+                                while (module_)
+                                {
+                                    auto ci = module_->getClass(walk);
+                                    if (!ci || ci->parentClass.empty())
+                                        break;
+                                    if (ci->parentClass == ancestor)
+                                    {
+                                        hasOverridingSubclassMethod = true;
+                                        break;
+                                    }
+                                    walk = ci->parentClass;
+                                }
+                                if (hasOverridingSubclassMethod)
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                bool isObjectCall = isThisCall || hasOverridingSubclassMethod;
+
+                // (AR) [Fix #063-1] إذا تم استنتاج className عبر smart lookup وعدة أصناف تملك نفس الطريقة،
+                //      يجب استخدام OBJECT_CALL لتوزيع vtable الديناميكي وقت التشغيل.
+                //      هذا ضروري عند تكرار حلقة forEach على مصفوفة كائنات من أصناف مختلفة:
+                //      مثال: [دائرة، مربع، مثلث].مساحة() — كل كائن يحتاج استدعاء دالته الخاصة.
+                //      بدون هذا الإصلاح: جميع الكائنات تستدعي أول صنف وُجد (مثلاً دائرة.مساحة).
+                // (EN) [Fix #063-1] If className was inferred via smart lookup AND multiple classes
+                //      have the same method, use OBJECT_CALL for runtime vtable dispatch.
+                //      Essential for forEach over mixed-type object arrays:
+                //      e.g., [circle, square, triangle].area() — each object needs its own method.
+                //      Without this fix: all objects call the first class found (e.g., circle.area).
+                if (classNameWasInferred && methodClassCount > 1)
+                {
+                    isObjectCall = true;
+                }
+
                 if (currentBlock_)
                 {
-                    if (isThisCall && !isADTCtor)
+                    if ((isThisCall || isObjectCall) && !isADTCtor)
                     {
                         // (AR) ??????? ????????? ??? vtable � OBJECT_CALL
                         // (EN) Virtual dispatch through vtable � OBJECT_CALL

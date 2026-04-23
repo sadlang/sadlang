@@ -85,6 +85,16 @@ namespace sad
             os << "  --time-passes          " << "Time each compilation pass / توقيت المراحل\n";
             os << "\n";
 
+            os << "Documentation / التوثيق:\n";
+            os << "  --docs                 " << "Extract Markdown docs to stdout / استخراج التوثيق إلى stdout\n";
+            os << "  --وثّق                  " << "Arabic alias of --docs / مرادف عربي\n";
+            os << "  --docs-out=<file>      " << "Write extracted docs to file / كتابة التوثيق إلى ملف\n";
+            os << "  --docs-project=<dir>   " << "Recursively document all .ص files in dir / توثيق مشروع كامل\n";
+            os << "  --docs-project-name=<name>  " << "Project title for project docs / اسم المشروع في التوثيق\n";
+            os << "  --docs-format=<fmt>    " << "Output format: markdown|json|html / صيغة الإخراج\n";
+            os << "  --docs-exclude=<sub>   " << "Exclude files containing substring (repeatable) / استبعاد ملفات\n";
+            os << "\n";
+
             os << "Target / الهدف:\n";
             os << "  --target=<triple>      " << "Target platform / المنصة المستهدفة\n";
             os << "  --freestanding         " << "Freestanding (no OS) / مستقل بلا نظام تشغيل\n";
@@ -284,6 +294,48 @@ namespace sad
             else if (arg == "--time-passes")
             {
                 options.time_passes = true;
+            }
+            // ────────────────────────────────────────────────────────────────────
+            // (AR) استخراج التوثيق Markdown من شجرة AST
+            //      --docs                 → طباعة على stdout
+            //      --وثّق                  → مرادف عربي
+            //      --docs-out=<ملف>       → كتابة إلى ملف
+            // (EN) Extract Markdown documentation from AST
+            //      --docs                 → print to stdout
+            //      --وثّق                  → Arabic alias
+            //      --docs-out=<file>      → write to file
+            // ────────────────────────────────────────────────────────────────────
+            else if (arg == "--docs" || arg == u8"--وثّق")
+            {
+                options.emit_docs = true;
+            }
+            else if (arg.size() >= 11 && arg.substr(0, 11) == "--docs-out=")
+            {
+                options.emit_docs = true;
+                options.docs_output_path = arg.substr(11);
+            }
+            // (AR) --docs-project=<dir> توثيق مشروع متعدد الملفات
+            // (EN) --docs-project=<dir> multi-file project documentation
+            else if (arg.size() >= 15 && arg.substr(0, 15) == "--docs-project=")
+            {
+                options.emit_docs = true;
+                options.docs_project_dir = arg.substr(15);
+            }
+            // (AR) --docs-project-name=<name> اسم المشروع المعروض في العنوان
+            else if (arg.size() >= 20 && arg.substr(0, 20) == "--docs-project-name=")
+            {
+                options.docs_project_name = arg.substr(20);
+            }
+            // (AR) --docs-format=markdown|json|html
+            else if (arg.size() >= 14 && arg.substr(0, 14) == "--docs-format=")
+            {
+                options.emit_docs = true;
+                options.docs_format = arg.substr(14);
+            }
+            // (AR) --docs-exclude=<sub> — يمكن تكراره
+            else if (arg.size() >= 15 && arg.substr(0, 15) == "--docs-exclude=")
+            {
+                options.docs_excludes.push_back(arg.substr(15));
             }
 
             // Target

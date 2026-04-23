@@ -333,6 +333,10 @@ namespace Sad
                     {
                         varInfo.elementType = initResult.elementType;
                     }
+                    if (!initResult.elementClassName.empty())
+                    {
+                        varInfo.elementClassName = initResult.elementClassName;
+                    }
 
                     // (AR) ״×״×״¨״¹ ״§״³… ״¯״§„״© ״§„„״§…״¯״§ ״§„…״±״×״¨״·״© („״×״­״¯״¯ †ˆ״¹ ״§„״¥״±״¬״§״¹  CLOSURE_CALL)
                     // (EN) Track associated lambda function name (for CLOSURE_CALL return type)
@@ -757,7 +761,6 @@ namespace Sad
             //   3. Body block: execute code
             //   4. Jump to merge block
             // ============================================================================
-
 
         } // namespace SIR
     } // namespace Compiler

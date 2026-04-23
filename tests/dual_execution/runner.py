@@ -83,6 +83,7 @@ class TestMetadata:
     description: str = ""
     priority: str = "P1"
     expect_error: str = ""  # (AR) إذا غير فارغ: الاختبار يتوقع خطأ يحتوي هذا النص
+    stdin_data: str = ""    # (AR) إذا غير فارغ: يُمرَّر كـ stdin للمفسر والمترجم
 
 
 @dataclass
@@ -113,6 +114,7 @@ _RE_SKIP_INTERP = re.compile(r"^#\s*@skip_interpreter\b")
 _RE_EXPECT_ERROR = re.compile(r"^#\s*@expect_error:?\s*(.*)$")
 _RE_DESC = re.compile(r"^#\s*@description:?\s+(.+)$")
 _RE_PRIORITY = re.compile(r"^#\s*@priority:?\s+(P[0-3])$")
+_RE_STDIN = re.compile(r"^#\s*@stdin_data:?\s+(.+)$")  # (AR) بيانات stdin للاختبارات التفاعلية
 
 
 def parse_metadata(filepath: Path) -> TestMetadata:
@@ -160,6 +162,11 @@ def parse_metadata(filepath: Path) -> TestMetadata:
                 m = _RE_PRIORITY.match(line)
                 if m:
                     meta.priority = m.group(1)
+                    continue
+                m = _RE_STDIN.match(line)
+                if m:
+                    # (AR) تحويل \n الحرفي إلى سطر جديد فعلي في stdin_data
+                    meta.stdin_data = m.group(1).replace(r"\n", "\n")
     except (OSError, UnicodeDecodeError):
         pass
     return meta
@@ -170,7 +177,8 @@ def parse_metadata(filepath: Path) -> TestMetadata:
 # Part ③: Test execution
 # ═══════════════════════════════════════════════════════════════════════════════════
 
-def run_interpreter(sad_exe: Path, test_file: Path, timeout: int) -> tuple[str, float, str]:
+def run_interpreter(sad_exe: Path, test_file: Path, timeout: int,
+                    stdin_data: str = "") -> tuple[str, float, str]:
     """
     (AR) تشغيل ملف .ص عبر المفسر وإرجاع (المخرج، الوقت_بالمللي، رسالة_خطأ)
     (EN) Run .ص file via interpreter, return (output, time_ms, error_msg)
@@ -184,6 +192,7 @@ def run_interpreter(sad_exe: Path, test_file: Path, timeout: int) -> tuple[str, 
             timeout=timeout,
             encoding="utf-8",
             errors="replace",
+            input=stdin_data if stdin_data else None,
         )
         elapsed = (time.perf_counter() - start) * 1000
         output = result.stdout.rstrip("\n")
@@ -197,7 +206,8 @@ def run_interpreter(sad_exe: Path, test_file: Path, timeout: int) -> tuple[str, 
         return "", elapsed, str(e)
 
 
-def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int) -> tuple[str, float, str]:
+def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
+                 stdin_data: str = "") -> tuple[str, float, str]:
     """
     (AR) ترجمة ملف .ص عبر المترجم ثم تشغيل الملف المُنتج
     (EN) Compile .ص file, then run the produced executable
@@ -246,6 +256,7 @@ def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int) 
             timeout=timeout,
             encoding="utf-8",
             errors="replace",
+            input=stdin_data if stdin_data else None,
         )
         elapsed = (time.perf_counter() - start) * 1000
         output = run_result.stdout.rstrip("\n")
@@ -294,7 +305,8 @@ def run_single_test(
     if meta.skip_interpreter:
         interp_out, interp_time, interp_err = "", 0.0, ""
     else:
-        interp_out, interp_time, interp_err = run_interpreter(sad_exe, test_file, timeout)
+        interp_out, interp_time, interp_err = run_interpreter(sad_exe, test_file, timeout,
+                                                                   stdin_data=meta.stdin_data)
 
     if interp_err == "TIMEOUT":
         return TestResult(file=rel_path, status=Status.FAIL_TIMEOUT,
@@ -347,7 +359,8 @@ def run_single_test(
         return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
                           error_message="تخطي: skip_compiler بدون @expected")
 
-    compiler_out, compiler_time, compiler_err = run_compiler(sadc_exe, test_file, temp_dir, timeout)
+    compiler_out, compiler_time, compiler_err = run_compiler(sadc_exe, test_file, temp_dir, timeout,
+                                                               stdin_data=meta.stdin_data)
 
     if compiler_err == "TIMEOUT":
         return TestResult(file=rel_path, status=Status.FAIL_TIMEOUT,
@@ -402,12 +415,12 @@ def collect_tests(tests_dir: Path, subdirs: Optional[list[str]] = None) -> list[
         for sd in subdirs:
             d = tests_dir / sd
             if d.is_dir():
-                files.extend(sorted(d.glob("*.ص")))
+                files.extend(sorted(d.rglob("*.ص")))
     else:
         # (AR) جمع من جميع المجلدات الفرعية
         for d in sorted(tests_dir.iterdir()):
             if d.is_dir():
-                files.extend(sorted(d.glob("*.ص")))
+                files.extend(sorted(d.rglob("*.ص")))
         # (AR) + ملفات في الجذر
         files.extend(sorted(tests_dir.glob("*.ص")))
     return files
@@ -639,6 +652,145 @@ def write_report(results: list[TestResult], report_path: Path, elapsed_total: fl
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════
+# الجزء ⑤ب: Performance Baselines — تسجيل ومقارنة أزمنة الاختبارات
+# Part ⑤b: Performance baselines — record and compare test timing
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+def save_baselines(results: list[TestResult], baselines_path: Path) -> None:
+    """
+    (AR) حفظ أزمنة تنفيذ الاختبارات كقيم مرجعية للمقارنة المستقبلية.
+    (EN) Save test execution times as reference baselines for future comparison.
+
+    الصيغة:
+    {
+      "version": 1,
+      "timestamp": "ISO-8601",
+      "baselines": {
+        "001_hello.ص": {"interp_ms": 12.3, "compiler_ms": 456.7},
+        ...
+      }
+    }
+    """
+    baselines: dict[str, dict] = {}
+    for r in results:
+        if r.status == Status.PASS:
+            name = Path(r.file).name
+            baselines[name] = {
+                "interp_ms": round(r.interp_time_ms, 1),
+                "compiler_ms": round(r.compiler_time_ms, 1),
+            }
+
+    data = {
+        "version": 1,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "note": "قيم مرجعية لأزمنة التنفيذ — تحذير عند تجاوز 2× القيمة المرجعية",
+        "total_tests": len(baselines),
+        "baselines": baselines,
+    }
+
+    baselines_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(baselines_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def check_baselines(
+    results: list[TestResult],
+    baselines_path: Path,
+    threshold: float = 2.0,
+    use_colors: bool = True,
+) -> int:
+    """
+    (AR) مقارنة أزمنة الاختبارات مع القيم المرجعية.
+         يُحذّر إذا تجاوز الزمن (threshold × القيمة المرجعية).
+         يُرجع عدد التحذيرات.
+
+    (EN) Compare test times against baselines.
+         Warns if time exceeds (threshold × baseline).
+         Returns warning count.
+    """
+    if not baselines_path.exists():
+        print(f"⚠️  لا يوجد ملف baselines: {baselines_path}")
+        print("     شغّل: python runner.py --save-baselines لإنشائه")
+        return 0
+
+    try:
+        with open(baselines_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"⚠️  خطأ في قراءة baselines: {e}")
+        return 0
+
+    saved = data.get("baselines", {})
+    if not saved:
+        return 0
+
+    b = _BOLD if use_colors else ""
+    r = _RESET if use_colors else ""
+    y = _YELLOW if use_colors else ""
+    g = _GREEN if use_colors else ""
+
+    warnings = 0
+    regressions: list[str] = []
+    improvements: list[str] = []
+
+    for result in results:
+        if result.status != Status.PASS:
+            continue
+        name = Path(result.file).name
+        if name not in saved:
+            continue
+
+        base = saved[name]
+        base_interp = base.get("interp_ms", 0)
+        base_comp = base.get("compiler_ms", 0)
+
+        # (AR) فحص المفسر
+        if base_interp > 0 and result.interp_time_ms > base_interp * threshold:
+            ratio = result.interp_time_ms / base_interp
+            regressions.append(
+                f"  {y}⏱  {name} — مفسر: {result.interp_time_ms:.0f}ms "
+                f"(مرجع: {base_interp:.0f}ms, ×{ratio:.1f}){r}"
+            )
+            warnings += 1
+
+        # (AR) فحص المترجم (فقط إذا يوجد زمن مترجم فعلي)
+        if base_comp > 50 and result.compiler_time_ms > base_comp * threshold:
+            ratio = result.compiler_time_ms / base_comp
+            regressions.append(
+                f"  {y}⏱  {name} — مترجم: {result.compiler_time_ms:.0f}ms "
+                f"(مرجع: {base_comp:.0f}ms, ×{ratio:.1f}){r}"
+            )
+            warnings += 1
+
+        # (AR) رصد التحسينات الكبيرة (أسرع بـ 3× أو أكثر)
+        if base_interp > 0 and result.interp_time_ms < base_interp / 3.0:
+            ratio = base_interp / result.interp_time_ms
+            improvements.append(
+                f"  {g}🚀 {name} — مفسر أسرع ×{ratio:.1f} "
+                f"({result.interp_time_ms:.0f}ms ← {base_interp:.0f}ms){r}"
+            )
+
+    print()
+    print(f"{b}═══ مقارنة الأداء مع Baselines ═══{r}")
+    print(f"  مرجع: {data.get('timestamp', 'غير معروف')} | {len(saved)} اختبار")
+
+    if regressions:
+        print(f"\n  {y}⚠️  تراجعات أداء (تجاوز {threshold}× المرجع):{r}")
+        for msg in regressions:
+            print(msg)
+    else:
+        print(f"\n  {g}✅ لا تراجعات أداء — الكود ضمن النطاق المقبول{r}")
+
+    if improvements:
+        print(f"\n  {g}تحسينات مُكتشفة:{r}")
+        for msg in improvements:
+            print(msg)
+
+    print(f"{b}══════════════════════════════════{r}")
+    return warnings
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════
 # الجزء ⑥: نقطة الدخول
 # Part ⑥: Entry point
 # ═══════════════════════════════════════════════════════════════════════════════════
@@ -669,6 +821,22 @@ def main():
                         help="مهلة التنفيذ بالثواني (يتجاوز القيمة في config.yaml)")
     parser.add_argument("--interp", help="مسار المفسر")
     parser.add_argument("--compiler", help="مسار المترجم")
+    parser.add_argument(
+        "--save-baselines",
+        action="store_true",
+        help="حفظ أزمنة التنفيذ الحالية كقيم مرجعية (يُنشئ build/_perf_baselines.json)",
+    )
+    parser.add_argument(
+        "--check-baselines",
+        action="store_true",
+        help="مقارنة الأزمنة مع القيم المرجعية المحفوظة، تحذير عند تجاوز 2×",
+    )
+    parser.add_argument(
+        "--baselines-threshold",
+        type=float,
+        default=2.0,
+        help="نسبة التجاوز المقبولة (الافتراضي: 2.0 = ضعف المرجع)",
+    )
     args = parser.parse_args()
 
     # (AR) تحديد جذر المشروع
@@ -850,6 +1018,22 @@ def main():
             elapsed=elapsed_total,
         )
         print(f"\n🌐 تقرير HTML: {html_path}")
+
+    # (AR) مسار ملف الـ baselines المرجعية
+    baselines_path = project_root / "build" / "_perf_baselines.json"
+
+    # (AR) حفظ الـ baselines — يُحفظ فقط الاختبارات التي نجحت
+    if args.save_baselines:
+        save_baselines(results, baselines_path)
+        passed_count = sum(1 for t in results if t.status == Status.PASS)
+        print(f"\n✅ تم حفظ Baselines: {passed_count} اختبار → {baselines_path}")
+
+    # (AR) مقارنة الأداء مع الـ baselines المحفوظة
+    if args.check_baselines:
+        threshold = args.baselines_threshold
+        warnings_count = check_baselines(results, baselines_path, threshold, use_colors)
+        if warnings_count > 0:
+            print(f"\n⚠️  {warnings_count} تحذير أداء — راجع الاختبارات أعلاه")
 
     # (AR) كود الخروج: 0 = كل شيء نجح أو تخطي، 1 = يوجد فشل (أو burn-in به فشل)
     failed = sum(1 for t in results if t.status.value.startswith("FAIL"))

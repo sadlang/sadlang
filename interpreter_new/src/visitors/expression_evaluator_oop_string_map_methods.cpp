@@ -45,7 +45,7 @@ namespace Sad
             std::string str = objectValue.toString();
             const std::string &m = node.methodName;
 
-            if (m == "الطول" || m == "الحجم" || m == "طول" || m == "حجم" || m == "length" || m == "size")
+            if (m == "الطول" || m == "الحجم" || m == "طول" || m == "حجم")
             {
                 // (AR) نحسب عدد أحرف UTF-8 (وليس البايتات)
                 // (EN) Count UTF-8 characters, not bytes
@@ -66,14 +66,14 @@ namespace Sad
                 lastResult_ = Value(charCount);
                 return;
             }
-            if (m == "يحتوي" || m == "contains" || m == "includes")
+            if (m == "يحتوي")
             {
                 if (args.empty())
                     throw RuntimeError("(AR) يحتوي() يتطلب معاملاً. (EN) contains() requires argument.", node.position);
                 lastResult_ = Value(str.find(args[0].toString()) != std::string::npos);
                 return;
             }
-            if (m == "قسّم" || m == "قسم" || m == "split")
+            if (m == "قسّم" || m == "قسم")
             {
                 std::string sep = args.empty() ? " " : args[0].toString();
                 Value::ArrayType parts;
@@ -87,12 +87,12 @@ namespace Sad
                 lastResult_ = Value(parts);
                 return;
             }
-            if (m == "فارغ" || m == "فارغة" || m == "empty" || m == "isEmpty")
+            if (m == "فارغ" || m == "فارغة")
             {
                 lastResult_ = Value(str.empty());
                 return;
             }
-            if (m == "استبدل" || m == "replace")
+            if (m == "استبدل")
             {
                 if (args.size() < 2)
                     throw RuntimeError("(AR) استبدل() يتطلب معاملين. (EN) replace() requires 2 arguments.", node.position);
@@ -107,7 +107,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "جزء" || m == "substr" || m == "substring")
+            if (m == "جزء")
             {
                 // (AR) فهرسة بالحروف (UTF-8) وليس بالبايتات
                 // (EN) Index by UTF-8 characters, not bytes
@@ -147,7 +147,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "حرف_عند" || m == "charAt" || m == "at")
+            if (m == "حرف_عند")
             {
                 if (args.empty())
                     throw RuntimeError("(AR) حرف_عند() يتطلب فهرساً. (EN) charAt() requires index.", node.position);
@@ -180,7 +180,7 @@ namespace Sad
                 lastResult_ = Value(chars[idx]);
                 return;
             }
-            if (m == "يبدأ_بـ" || m == "يبدأ" || m == "startsWith")
+            if (m == "يبدأ_بـ" || m == "يبدأ")
             {
                 if (args.empty())
                     throw RuntimeError("(AR) يبدأ_بـ() يتطلب معاملاً. (EN) startsWith() requires argument.", node.position);
@@ -188,7 +188,7 @@ namespace Sad
                 lastResult_ = Value(str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix);
                 return;
             }
-            if (m == "ينتهي_بـ" || m == "ينتهي" || m == "endsWith")
+            if (m == "ينتهي_بـ" || m == "ينتهي")
             {
                 if (args.empty())
                     throw RuntimeError("(AR) ينتهي_بـ() يتطلب معاملاً. (EN) endsWith() requires argument.", node.position);
@@ -196,7 +196,7 @@ namespace Sad
                 lastResult_ = Value(str.size() >= suffix.size() && str.substr(str.size() - suffix.size()) == suffix);
                 return;
             }
-            if (m == "قص" || m == "trim")
+            if (m == "قص")
             {
                 std::string result = str;
                 result.erase(0, result.find_first_not_of(" \t\r\n"));
@@ -204,7 +204,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "كرر" || m == "repeat")
+            if (m == "كرر")
             {
                 if (args.empty())
                     throw RuntimeError("(AR) كرر() يتطلب عدداً. (EN) repeat() requires count.", node.position);
@@ -215,7 +215,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "عكس" || m == "reverse")
+            if (m == "عكس")
             {
                 // (AR) عكس بأحرف UTF-8 (وليس بايتات)
                 // (EN) Reverse by UTF-8 codepoints, not bytes
@@ -243,7 +243,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "تحويل_صغير" || m == "لأصغر" || m == "toLower" || m == "lowercase")
+            if (m == "تحويل_صغير" || m == "لأصغر")
             {
                 std::string result = str;
                 std::transform(result.begin(), result.end(), result.begin(),
@@ -252,7 +252,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "تحويل_كبير" || m == "لأكبر" || m == "toUpper" || m == "uppercase")
+            if (m == "تحويل_كبير" || m == "لأكبر")
             {
                 std::string result = str;
                 std::transform(result.begin(), result.end(), result.begin(),
@@ -261,7 +261,7 @@ namespace Sad
                 lastResult_ = Value(result);
                 return;
             }
-            if (m == "بحث" || m == "جد" || m == "find" || m == "indexOf")
+            if (m == "بحث" || m == "جد")
             {
                 if (args.empty())
                     throw RuntimeError("(AR) بحث() يتطلب معاملاً. (EN) find() requires argument.", node.position);
@@ -298,7 +298,7 @@ namespace Sad
             const std::string &m = node.methodName;
 
             // ─── احصل (get) — الحصول على قيمة بالمفتاح ───
-            if (m == "احصل" || m == "get")
+            if (m == "احصل")
             {
                 if (args.empty())
                     throw RuntimeError("(AR) احصل() يتطلب مفتاحاً. (EN) get() requires a key.", node.position);
@@ -317,7 +317,7 @@ namespace Sad
                 return;
             }
             // ─── عيّن / عين (set) — تعيين قيمة بالمفتاح ───
-            if (m == "عيّن" || m == "عين" || m == "set")
+            if (m == "عيّن" || m == "عين")
             {
                 if (args.size() < 2)
                     throw RuntimeError("(AR) عيّن() يتطلب مفتاحاً وقيمة. (EN) set() requires key and value.", node.position);
@@ -330,7 +330,7 @@ namespace Sad
             }
 
             // ─── المفاتيح ───
-            if (m == "مفاتيح" || m == "keys")
+            if (m == "مفاتيح")
             {
                 Value::ArrayType keys;
                 for (const auto &[k, v] : mapData)
@@ -341,7 +341,7 @@ namespace Sad
                 return;
             }
             // ─── القيم ───
-            if (m == "القيم" || m == "قيم" || m == "values")
+            if (m == "القيم" || m == "قيم")
             {
                 Value::ArrayType vals;
                 for (const auto &[k, v] : mapData)
@@ -352,13 +352,13 @@ namespace Sad
                 return;
             }
             // ─── الطول / الحجم ───
-            if (m == "الطول" || m == "الحجم" || m == "طول" || m == "حجم" || m == "length" || m == "size")
+            if (m == "الطول" || m == "الحجم" || m == "طول" || m == "حجم")
             {
                 lastResult_ = Value(static_cast<int>(mapData.size()));
                 return;
             }
             // ─── يحتوي (على مفتاح) ───
-            if (m == "يحتوي" || m == "يحتوي_مفتاح" || m == "has" || m == "containsKey" || m == "contains")
+            if (m == "يحتوي" || m == "يحتوي_مفتاح")
             {
                 if (args.empty())
                     throw RuntimeError("(AR) يحتوي() يتطلب معاملاً. (EN) has() requires argument.", node.position);
@@ -367,7 +367,7 @@ namespace Sad
                 return;
             }
             // ─── احذف ───
-            if (m == "احذف" || m == "أزل" || m == "remove" || m == "delete")
+            if (m == "احذف" || m == "أزل")
             {
                 if (args.empty())
                     throw RuntimeError("(AR) احذف() يتطلب مفتاحاً. (EN) remove() requires a key.", node.position);
@@ -379,7 +379,7 @@ namespace Sad
                 return;
             }
             // ─── دمج ───
-            if (m == "دمج" || m == "merge")
+            if (m == "دمج")
             {
                 if (args.empty() || !args[0].isMap())
                     throw RuntimeError("(AR) دمج() يتطلب خريطة. (EN) merge() requires a map argument.", node.position);
@@ -394,7 +394,7 @@ namespace Sad
                 return;
             }
             // ─── امسح / نظف ───
-            if (m == "امسح" || m == "نظف" || m == "clear")
+            if (m == "امسح" || m == "نظف")
             {
                 Value newMap(Value::MapType{});
                 writeBackChain(node.object.get(), newMap);
@@ -402,20 +402,20 @@ namespace Sad
                 return;
             }
             // ─── فارغ / فارغة ───
-            if (m == "فارغ" || m == "فارغة" || m == "empty" || m == "isEmpty")
+            if (m == "فارغ" || m == "فارغة")
             {
                 lastResult_ = Value(mapData.empty());
                 return;
             }
             // ─── نسخ ───
-            if (m == "نسخ" || m == "انسخ" || m == "استنسخ" || m == "clone" || m == "copy")
+            if (m == "نسخ" || m == "انسخ" || m == "استنسخ")
             {
                 Value::MapType copy(mapData.begin(), mapData.end());
                 lastResult_ = Value(copy);
                 return;
             }
             // ─── عناصر (entries) ───
-            if (m == "عناصر" || m == "entries")
+            if (m == "عناصر")
             {
                 Value::ArrayType entries;
                 for (const auto &[k, v] : mapData)

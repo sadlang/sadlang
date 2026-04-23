@@ -1,5 +1,5 @@
-# ============================================================================
-# Compiler - المترجم
+﻿# ============================================================================
+# Compiler - ״§„…״×״±״¬…
 # ============================================================================
 
 cmake_minimum_required(VERSION 3.15)
@@ -21,13 +21,16 @@ endif()
 
 # Find LLVM (use the same path from main CMakeLists.txt)
 if(NOT LLVM_FOUND)
-    # لا نُثبّت LLVM_DIR هنا - يأتي من cmake/llvm.cmake أو من سطر الأوامر
+    # „״§ †״«״¨‘״× LLVM_DIR ‡†״§ - ״£״× …† cmake/llvm.cmake ״£ˆ …† ״³״·״± ״§„״£ˆ״§…״±
     find_package(LLVM QUIET CONFIG)
 endif()
 
 if(LLVM_FOUND)
     message(STATUS "compiler_new: Found LLVM ${LLVM_PACKAGE_VERSION}")
-    include_directories(${LLVM_INCLUDE_DIRS})
+    # (AR) ملاحظة: لا نستخدم include_directories هنا — نستخدم SAD_LLVM_INCLUDES
+    #      في كل هدف يستخدم LLVM headers لدعم Debug/Release ثنائي الإعداد.
+    # (EN) Note: Don't use include_directories here — use SAD_LLVM_INCLUDES
+    #      in each target that uses LLVM headers for dual Debug/Release support.
     add_definitions(${LLVM_DEFINITIONS})
 else()
     message(WARNING "compiler_new: LLVM not found - some features disabled")
@@ -39,7 +42,7 @@ endif()
 file(GLOB FRONTEND_SOURCES "src/frontend/*.cpp")
 file(GLOB FRONTEND_HEADERS "include/frontend/*.h")
 
-# (AR) استبعاد الملف القديم sir_builder.cpp لتجنب التكرار مع الملفات المقسمة
+# (AR) ״§״³״×״¨״¹״§״¯ ״§„…„ ״§„‚״¯… sir_builder.cpp „״×״¬†״¨ ״§„״×ƒ״±״§״± …״¹ ״§„…„״§״× ״§„…‚״³…״©
 # (EN) Exclude legacy sir_builder.cpp to avoid duplication with split files
 list(FILTER FRONTEND_SOURCES EXCLUDE REGEX "sir_builder\\.cpp$")
 
@@ -56,9 +59,10 @@ target_include_directories(sad_new_frontend
         ${SAD_SHARED_DIR}/shared/lexer/include
         ${SAD_SHARED_DIR}/shared/parser/include
         ${SAD_SHARED_DIR}/shared/modules/include
+        ${SAD_SHARED_DIR}/shared/builtins/include
 )
 
-# إصلاح تحذيرات UTF-8 / Fix UTF-8 encoding warnings for frontend
+# ״¥״µ„״§״­ ״×״­״°״±״§״× UTF-8 / Fix UTF-8 encoding warnings for frontend
 if(MSVC)
     target_compile_options(sad_new_frontend PRIVATE /utf-8 /FS)
 endif()
@@ -68,7 +72,7 @@ endif()
 # FIXED: API updated to use new SIRInstruction API (January 2026)
 # ============================================================================
 file(GLOB MIDDLE_SOURCES "src/middle/*.cpp")
-# (AR) تم إعادة تضمين async_transform.cpp بعد إصلاح الأخطاء
+# (AR) ״×… ״¥״¹״§״¯״© ״×״¶…† async_transform.cpp ״¨״¹״¯ ״¥״µ„״§״­ ״§„״£״®״·״§״¡
 # (EN) Re-included async_transform.cpp after fixing errors
 file(GLOB MIDDLE_HEADERS "include/middle/*.h")
 add_library(sad_new_optimizer STATIC ${MIDDLE_SOURCES})
@@ -87,7 +91,7 @@ target_include_directories(sad_new_optimizer
 
 target_link_libraries(sad_new_optimizer PUBLIC sad_new_frontend)
 
-# م-ب03: إصلاح PDB locking بإضافة /FS
+# …-״¨03: ״¥״µ„״§״­ PDB locking ״¨״¥״¶״§״© /FS
 if(MSVC)
     target_compile_options(sad_new_optimizer PRIVATE /FS /utf-8)
 endif()
@@ -99,17 +103,17 @@ if(LLVM_FOUND)
     file(GLOB LLVM_BACKEND_SOURCES "src/backend/llvm/*.cpp")
     file(GLOB LLVM_BACKEND_HEADERS "include/backend/llvm/*.h")
     
-    # م-ب01: إضافة ملفات backend غير-LLVM المطلوبة لنظام النحلة
-    # تم إصلاح أخطاء الترجمة في الملفات التالية:
-    # - interrupt_handlers.cpp: إصلاح تعارض ماكروات Windows (BREAKPOINT/OVERFLOW)
-    # - solidity_ffi.cpp: إضافة <iomanip> و <functional>
-    # - pattern_codegen.cpp: إصلاح أسماء enum (NUMBER→DOUBLE, NULL_TYPE→VOID)
+    # …-״¨01: ״¥״¶״§״© …„״§״× backend ״÷״±-LLVM ״§„…״·„ˆ״¨״© „†״¸״§… ״§„†״­„״©
+    # ״×… ״¥״µ„״§״­ ״£״®״·״§״¡ ״§„״×״±״¬…״©  ״§„…„״§״× ״§„״×״§„״©:
+    # - interrupt_handlers.cpp: ״¥״µ„״§״­ ״×״¹״§״±״¶ …״§ƒ״±ˆ״§״× Windows (BREAKPOINT/OVERFLOW)
+    # - solidity_ffi.cpp: ״¥״¶״§״© <iomanip> ˆ <functional>
+    # - pattern_codegen.cpp: ״¥״µ„״§״­ ״£״³…״§״¡ enum (NUMBERג†’DOUBLE, NULL_TYPEג†’VOID)
     #
-    # الملفات التالية تحتاج إصلاحات أعمق وتم تأجيلها:
-    # - async_codegen.cpp: أخطاء متعددة في تعريفات الأنواع
-    # - ffi_wrapper.cpp: أخطاء في c_abi.h و c_types.h headers
-    # - inline_asm.cpp: أخطاء في IRBuilder template
-    # - llvm_compiler_pipeline.cpp: مسارات include غير صحيحة في الهيدر
+    # ״§„…„״§״× ״§„״×״§„״© ״×״­״×״§״¬ ״¥״µ„״§״­״§״× ״£״¹…‚ ˆ״×… ״×״£״¬„‡״§:
+    # - async_codegen.cpp: ״£״®״·״§״¡ …״×״¹״¯״¯״©  ״×״¹״±״§״× ״§„״£†ˆ״§״¹
+    # - ffi_wrapper.cpp: ״£״®״·״§״¡  c_abi.h ˆ c_types.h headers
+    # - inline_asm.cpp: ״£״®״·״§״¡  IRBuilder template
+    # - llvm_compiler_pipeline.cpp: …״³״§״±״§״× include ״÷״± ״µ״­״­״©  ״§„‡״¯״±
     set(BACKEND_COMMON_SOURCES
         src/backend/entry_point.cpp
         src/backend/linker_script.cpp
@@ -137,11 +141,11 @@ if(LLVM_FOUND)
         src/backend/wasm_bindgen.cpp
         src/backend/wasm_codegen.cpp
         src/backend/wasm_optimizer.cpp
-        # (AR) ملفات wasm_direct وwasm32_target مؤجلة — تعتمد على ASTNode API مفقود
-        # (EN) wasm_direct and wasm32_target deferred — depend on missing ASTNode API
+        # (AR) …„״§״× wasm_direct ˆwasm32_target …״₪״¬„״© ג€” ״×״¹״×…״¯ ״¹„‰ ASTNode API …‚ˆ״¯
+        # (EN) wasm_direct and wasm32_target deferred ג€” depend on missing ASTNode API
     )
     
-    # م-ب02: إضافة ملفات pipeline
+    # …-״¨02: ״¥״¶״§״© …„״§״× pipeline
     set(PIPELINE_SOURCES
         src/pipeline/no_std_mode.cpp
         src/pipeline/no_std_integration.cpp
@@ -164,17 +168,17 @@ if(LLVM_FOUND)
             ${CMAKE_CURRENT_SOURCE_DIR}/src/backend
             ${CMAKE_CURRENT_SOURCE_DIR}/src/backend/wasm_direct
             ${CMAKE_SOURCE_DIR}
-            ${LLVM_INCLUDE_DIRS}
+            ${SAD_LLVM_INCLUDES}
     )
 
-    # ════════════════════════════════════════════════════════════════════
-    # (AR) مكونات LLVM المطلوبة:
-    #   - X86: للمضيف (ويندوز/لينكس x86_64)
-    #   - AArch64: لأندرويد ARM64 و macOS Apple Silicon
-    #   - ARM: لأندرويد ARM 32-bit (armeabi-v7a)
-    #   - WebAssembly: لتطبيقات الويب
-    #   - native: للمضيف الحالي
-    # ════════════════════════════════════════════════════════════════════
+    # ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
+    # (AR) …ƒˆ†״§״× LLVM ״§„…״·„ˆ״¨״©:
+    #   - X86: „„…״¶ (ˆ†״¯ˆ״²/„†ƒ״³ x86_64)
+    #   - AArch64: „״£†״¯״±ˆ״¯ ARM64 ˆ macOS Apple Silicon
+    #   - ARM: „״£†״¯״±ˆ״¯ ARM 32-bit (armeabi-v7a)
+    #   - WebAssembly: „״×״·״¨‚״§״× ״§„ˆ״¨
+    #   - native: „„…״¶ ״§„״­״§„
+    # ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
     llvm_map_components_to_libnames(llvm_libs
         Core
         Support
@@ -183,17 +187,17 @@ if(LLVM_FOUND)
         ExecutionEngine
         OrcJIT
         MCJIT
-        # X86 — المضيف
+        # X86 ג€” ״§„…״¶
         X86CodeGen
         X86AsmParser
         X86Desc
         X86Info
-        # AArch64 — أندرويد ARM64 + macOS Apple Silicon
+        # AArch64 ג€” ״£†״¯״±ˆ״¯ ARM64 + macOS Apple Silicon
         AArch64CodeGen
         AArch64AsmParser
         AArch64Desc
         AArch64Info
-        # ARM — أندرويد 32-bit
+        # ARM ג€” ״£†״¯״±ˆ״¯ 32-bit
         ARMCodeGen
         ARMAsmParser
         ARMDesc
@@ -213,7 +217,7 @@ if(LLVM_FOUND)
             sad_new_optimizer
     )
     
-    # م-ب01: إصلاح ترميز Unicode للملفات التي تحتوي على معرّفات عربية
+    # …-״¨01: ״¥״µ„״§״­ ״×״±…״² Unicode „„…„״§״× ״§„״× ״×״­״×ˆ ״¹„‰ …״¹״±‘״§״× ״¹״±״¨״©
     if(MSVC)
         target_compile_options(sad_new_llvm_backend PRIVATE /utf-8 /wd4819 /FS)
     endif()
@@ -247,22 +251,22 @@ if(LLVM_FOUND)
             ${SAD_SHARED_DIR}/shared/ast/include
             ${SAD_SHARED_DIR}/shared/types/include
             ${SAD_SHARED_DIR}/shared/errors/include
-            ${LLVM_INCLUDE_DIRS}
+            ${SAD_LLVM_INCLUDES}
     )
     target_link_libraries(sad_new_jit PUBLIC sad_new_llvm_backend ${llvm_libs})
 endif()
 
 # ============================================================================
-# Bytecode Library (تنسيق ملفات البايت كود)
+# Bytecode Library (״×†״³‚ …„״§״× ״§„״¨״§״× ƒˆ״¯)
 # ============================================================================
-# (AR) الملفات المستقلة (format): decoder, encoder, constant_pool, symbol_table, magic, version, validator, opcodes
+# (AR) ״§„…„״§״× ״§„…״³״×‚„״© (format): decoder, encoder, constant_pool, symbol_table, magic, version, validator, opcodes
 # (EN) Standalone format files: decoder, encoder, constant_pool, symbol_table, magic, version, validator, opcodes
-# (AR) ملفات SIR المعتمدة (emitter.cpp, bytecode.cpp) مؤجلة - تحتاج تحديث SIR API
+# (AR) …„״§״× SIR ״§„…״¹״×…״¯״© (emitter.cpp, bytecode.cpp) …״₪״¬„״© - ״×״­״×״§״¬ ״×״­״¯״« SIR API
 # (EN) SIR-dependent files (emitter.cpp, bytecode.cpp) deferred - need SIR API update
 file(GLOB BYTECODE_SOURCES "src/bytecode/*.cpp")
 file(GLOB BYTECODE_HEADERS "include/bytecode/*.h")
 
-# استبعاد الملفات المعتمدة على SIR API القديم
+# ״§״³״×״¨״¹״§״¯ ״§„…„״§״× ״§„…״¹״×…״¯״© ״¹„‰ SIR API ״§„‚״¯…
 list(FILTER BYTECODE_SOURCES EXCLUDE REGEX "emitter\\.cpp")
 list(FILTER BYTECODE_SOURCES EXCLUDE REGEX "emitter_optimize\\.cpp")
 list(FILTER BYTECODE_SOURCES EXCLUDE REGEX "bytecode\\.cpp")
@@ -283,7 +287,7 @@ endif()
 message(STATUS "Configured sad_new_bytecode library (format utilities)")
 
 # ============================================================================
-# Semantic Analysis Library (نظام الملكية والاستعارة)
+# Semantic Analysis Library (†״¸״§… ״§„…„ƒ״© ˆ״§„״§״³״×״¹״§״±״©)
 # ============================================================================
 file(GLOB SEMANTIC_SOURCES "src/semantic/*.cpp")
 file(GLOB SEMANTIC_HEADERS "include/semantic/*.h")
@@ -342,7 +346,7 @@ if(SECURITY_ALL_SOURCES)
 endif()
 
 # ============================================================================
-# Memory System Library (نظام الذاكرة الذكي)
+# Memory System Library (†״¸״§… ״§„״°״§ƒ״±״© ״§„״°ƒ)
 # ============================================================================
 file(GLOB MEMORY_SOURCES "src/memory/*.cpp")
 file(GLOB MEMORY_HEADERS "include/memory/*.h")
@@ -369,15 +373,15 @@ target_include_directories(sad_new_memory
 file(GLOB TYPE_SYSTEM_SOURCES "src/types/*.cpp")
 file(GLOB TYPE_SYSTEM_HEADERS "include/types/*.h")
 
-# (AR) c_types.cpp يعتمد على أنواع FFI غير مكتملة التعريف (CStructType, CUnionType, CEnumType, CTypedefType)
-#      ويحتاج LLVM headers عبر c_abi.h - سيُفعَّل عند اكتمال تعريف هذه الأنواع
+# (AR) c_types.cpp ״¹״×…״¯ ״¹„‰ ״£†ˆ״§״¹ FFI ״÷״± …ƒ״×…„״© ״§„״×״¹״± (CStructType, CUnionType, CEnumType, CTypedefType)
+#      ˆ״­״×״§״¬ LLVM headers ״¹״¨״± c_abi.h - ״³״¹‘„ ״¹†״¯ ״§ƒ״×…״§„ ״×״¹״± ‡״°‡ ״§„״£†ˆ״§״¹
 # (EN) c_types.cpp depends on incomplete FFI types (CStructType, CUnionType, CEnumType, CTypedefType)
 #      and needs LLVM headers via c_abi.h - will be enabled when these types are fully defined
 list(FILTER TYPE_SYSTEM_SOURCES EXCLUDE REGEX "c_types.*\\.cpp")
 
 add_library(sad_new_type_system STATIC ${TYPE_SYSTEM_SOURCES})
 
-# تعطيل تحذيرات Unicode للنصوص العربية / Disable Unicode warnings for Arabic text
+# ״×״¹״·„ ״×״­״°״±״§״× Unicode „„†״µˆ״µ ״§„״¹״±״¨״© / Disable Unicode warnings for Arabic text
 if(MSVC)
     target_compile_options(sad_new_type_system PRIVATE /utf-8 /wd4819 /FS)
 endif()
@@ -394,7 +398,7 @@ target_include_directories(sad_new_type_system
 )
 
 # ============================================================================
-# Tools Library (الأدوات المدمجة: المنسّق، الحارس الأمني، التوثيق، البناء)
+# Tools Library (״§„״£״¯ˆ״§״× ״§„…״¯…״¬״©: ״§„…†״³‘‚״ ״§„״­״§״±״³ ״§„״£…†״ ״§„״×ˆ״«‚״ ״§„״¨†״§״¡)
 # Merged tools: formatter, security scanner, docs emitter, build system
 # ============================================================================
 set(TOOLS_SOURCES
@@ -408,7 +412,7 @@ set(TOOLS_SOURCES
     src/build/build_system.cpp
 )
 
-# إضافة ملفات موجودة فعلاً
+# ״¥״¶״§״© …„״§״× …ˆ״¬ˆ״¯״© ״¹„״§‹
 set(TOOLS_VERIFIED_SOURCES "")
 foreach(src ${TOOLS_SOURCES})
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
@@ -439,11 +443,11 @@ if(TOOLS_VERIFIED_SOURCES)
     endif()
     message(STATUS "Configured sad_new_tools library (formatter, guard, docs, build)")
 else()
-    message(STATUS "  [tools] No verified source files — sad_new_tools skipped")
+    message(STATUS "  [tools] No verified source files ג€” sad_new_tools skipped")
 endif()
 
 # ============================================================================
-# SadUI IR Library (نظام الواجهات الموحد عبر المنصات)
+# SadUI IR Library (†״¸״§… ״§„ˆ״§״¬‡״§״× ״§„…ˆ״­״¯ ״¹״¨״± ״§„…†״µ״§״×)
 # ============================================================================
 set(UI_IR_SOURCES
     src/ui/sad_ui_ir.cpp
@@ -455,12 +459,12 @@ set(UI_IR_SOURCES
     src/ui/ios_swiftui_codegen.cpp
     src/ui/web_html_codegen.cpp
     src/ui/sad_ui_pipeline.cpp
-    # (AR) تنفيذ UIParser المطلوب من sad_ui_pipeline.cpp
+    # (AR) ״×†״° UIParser ״§„…״·„ˆ״¨ …† sad_ui_pipeline.cpp
     # (EN) UIParser implementation required by sad_ui_pipeline.cpp
     ${SAD_SHARED_DIR}/shared/parser/src/specs/ui/parser_ui_maps.cpp
 )
 
-# التحقق من وجود الملفات
+# ״§„״×״­‚‚ …† ˆ״¬ˆ״¯ ״§„…„״§״×
 set(UI_IR_VERIFIED_SOURCES "")
 foreach(src ${UI_IR_SOURCES})
     if(IS_ABSOLUTE "${src}")
@@ -496,11 +500,11 @@ if(UI_IR_VERIFIED_SOURCES)
     endif()
     message(STATUS "Configured sad_ui_ir library (SadUI IR: builder, validator, optimizer, codegen)")
 else()
-    message(STATUS "  [ui_ir] No source files found — sad_ui_ir skipped")
+    message(STATUS "  [ui_ir] No source files found ג€” sad_ui_ir skipped")
 endif()
 
 # ============================================================================
-# Borrow Checker / Lifetime Library (تحليل الأعمار والاستعارة)
+# Borrow Checker / Lifetime Library (״×״­„„ ״§„״£״¹…״§״± ˆ״§„״§״³״×״¹״§״±״©)
 # Phase 20: T204-T206 (Lifetime Annotations)
 # ============================================================================
 file(GLOB BORROW_SOURCES "src/borrow/*.cpp")
@@ -523,7 +527,7 @@ if(BORROW_SOURCES)
 endif()
 
 # ============================================================================
-# Cross-Compilation Targets Library (أهداف الترجمة المتقاطعة)
+# Cross-Compilation Targets Library (״£‡״¯״§ ״§„״×״±״¬…״© ״§„…״×‚״§״·״¹״©)
 # ============================================================================
 file(GLOB TARGETS_SOURCES "src/targets/*.cpp")
 
@@ -545,10 +549,10 @@ if(TARGETS_SOURCES)
 endif()
 
 # ============================================================================
-# Advanced Optimizer Library (محسن متقدم لشجرة AST)
+# Advanced Optimizer Library (…״­״³† …״×‚״¯… „״´״¬״±״© AST)
 # ============================================================================
-# (AR) optimization_pass.cpp و advanced_optimizer.cpp لا يعتمدان على LLVM
-# (AR) arabic_passes.cpp يعتمد على LLVM — يُضاف فقط عند توفر LLVM
+# (AR) optimization_pass.cpp ˆ advanced_optimizer.cpp „״§ ״¹״×…״¯״§† ״¹„‰ LLVM
+# (AR) arabic_passes.cpp ״¹״×…״¯ ״¹„‰ LLVM ג€” ״¶״§ ‚״· ״¹†״¯ ״×ˆ״± LLVM
 set(ADV_OPT_SOURCES
     src/optimizer/optimization_pass.cpp
     src/optimizer/advanced_optimizer.cpp
@@ -579,7 +583,7 @@ if(ADV_OPT_VERIFIED)
             ${SAD_SHARED_DIR}/shared/lexer/include
     )
     if(LLVM_FOUND)
-        target_include_directories(sad_new_advanced_optimizer PUBLIC ${LLVM_INCLUDE_DIRS})
+        target_include_directories(sad_new_advanced_optimizer PUBLIC ${SAD_LLVM_INCLUDES})
     endif()
     if(MSVC)
         target_compile_options(sad_new_advanced_optimizer PRIVATE /utf-8 /FS)
@@ -588,7 +592,7 @@ if(ADV_OPT_VERIFIED)
 endif()
 
 # ============================================================================
-# FFI Library (واجهة استدعاء الدوال الخارجية)
+# FFI Library (ˆ״§״¬‡״© ״§״³״×״¯״¹״§״¡ ״§„״¯ˆ״§„ ״§„״®״§״±״¬״©)
 # ============================================================================
 set(FFI_SOURCES
     src/ffi/c_api_bridge.cpp
@@ -622,7 +626,7 @@ if(FFI_VERIFIED)
 endif()
 
 # ============================================================================
-# LLVM Abstraction Library (طبقة تجريد LLVM)
+# LLVM Abstraction Library (״·״¨‚״© ״×״¬״±״¯ LLVM)
 # Phase 91: T1030
 # ============================================================================
 if(LLVM_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/abstraction/llvm_wrapper.cpp")
@@ -632,7 +636,7 @@ if(LLVM_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/abstraction/llvm_wrapp
             ${CMAKE_CURRENT_SOURCE_DIR}/include
             ${CMAKE_CURRENT_SOURCE_DIR}/src/abstraction
             ${CMAKE_SOURCE_DIR}/include
-            ${LLVM_INCLUDE_DIRS}
+            ${SAD_LLVM_INCLUDES}
     )
     target_compile_definitions(sad_new_abstraction PRIVATE SAD_USE_LLVM=1)
     if(MSVC)
@@ -643,7 +647,7 @@ if(LLVM_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/abstraction/llvm_wrapp
 endif()
 
 # ============================================================================
-# Compile-Time Evaluation Library (تقييم وقت الترجمة)
+# Compile-Time Evaluation Library (״×‚… ˆ‚״× ״§„״×״±״¬…״©)
 # ============================================================================
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/comptime/comptime.cpp")
     add_library(sad_new_comptime STATIC src/comptime/comptime.cpp)
@@ -676,7 +680,7 @@ if(LLVM_FOUND)
             sad_new_semantic
             sad_new_memory
     )
-    # م-ب04: تفعيل مكتبة الأمان (إصلاح ترميز Unicode بـ /utf-8)
+    # …-״¨04: ״×״¹„ …ƒ״×״¨״© ״§„״£…״§† (״¥״µ„״§״­ ״×״±…״² Unicode ״¨€ /utf-8)
     if(TARGET sad_new_security)
         target_link_libraries(sad_new_compiler INTERFACE sad_new_security)
     endif()
@@ -686,7 +690,7 @@ if(LLVM_FOUND)
     if(TARGET sad_ui_ir)
         target_link_libraries(sad_new_compiler INTERFACE sad_ui_ir)
     endif()
-    # المكتبات الجديدة المدمجة (Phase 96)
+    # ״§„…ƒ״×״¨״§״× ״§„״¬״¯״¯״© ״§„…״¯…״¬״© (Phase 96)
     if(TARGET sad_new_borrow)
         target_link_libraries(sad_new_compiler INTERFACE sad_new_borrow)
     endif()
@@ -724,7 +728,7 @@ else()
     if(TARGET sad_ui_ir)
         target_link_libraries(sad_new_compiler INTERFACE sad_ui_ir)
     endif()
-    # المكتبات الجديدة المدمجة (Phase 96) — بدون LLVM
+    # ״§„…ƒ״×״¨״§״× ״§„״¬״¯״¯״© ״§„…״¯…״¬״© (Phase 96) ג€” ״¨״¯ˆ† LLVM
     if(TARGET sad_new_borrow)
         target_link_libraries(sad_new_compiler INTERFACE sad_new_borrow)
     endif()
@@ -742,7 +746,7 @@ else()
     endif()
 endif()
 
-# للتوافق مع الكود القديم
+# „„״×ˆ״§‚ …״¹ ״§„ƒˆ״¯ ״§„‚״¯…
 target_include_directories(sad_new_compiler
     INTERFACE
         ${CMAKE_SOURCE_DIR}/compiler/frontend/include
@@ -756,10 +760,20 @@ target_include_directories(sad_new_compiler
 message(STATUS "Configured sad_new_compiler library (frontend, optimizer, llvm_backend, jit, type_system, semantic, memory)")
 
 # ============================================================================
-# Test Backend Executable (اختبار الخلفية)
+# Test Backend Executable (״§״®״×״¨״§״± ״§„״®„״©)
 # ============================================================================
+# (AR) ״×״·„״¨ LLVM ג€” ״¹†״¯ ״×ˆ״± Debug + Release ״¨†‰  ƒ„״§ ״§„ˆ״¶״¹†
+#      ˆ״¥„״§ ״¨†‰  Release ‚״· (EXCLUDE_FROM_ALL)
+# (EN) Requires LLVM ג€” when both Debug + Release available, builds in both configs
+#      Otherwise Release-only (EXCLUDE_FROM_ALL)
 if(LLVM_FOUND)
-    add_executable(test_backend tools/test_backend.cpp)
+    if(SAD_LLVM_HAS_DEBUG)
+        add_executable(test_backend tools/test_backend.cpp)
+        message(STATUS "Configured test_backend executable (dual-config: Debug + Release)")
+    else()
+        add_executable(test_backend EXCLUDE_FROM_ALL tools/test_backend.cpp)
+        message(STATUS "Configured test_backend executable (EXCLUDE_FROM_ALL ג€” Release only)")
+    endif()
     target_include_directories(test_backend PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/include/frontend
@@ -768,28 +782,26 @@ if(LLVM_FOUND)
         ${SAD_SHARED_DIR}/shared/types/include
         ${SAD_SHARED_DIR}/shared/errors/include
         ${SAD_SHARED_DIR}/shared/lexer/include
-        ${LLVM_INCLUDE_DIRS}
+        ${SAD_LLVM_INCLUDES}
     )
-    # Link all LLVM static libraries (exclude LLVM-C.lib DLL import)
-    file(GLOB LLVM_ALL_LIBS "C:/LLVM/lib/LLVM*.lib")
-    list(REMOVE_ITEM LLVM_ALL_LIBS "C:/LLVM/lib/LLVM-C.lib")
+    # (AR) ״±״¨״· …ƒ״×״¨״§״× LLVM ״¹״¨״± ״§„…״×״÷״± ״§„״¹״§… ״§„…״­״³ˆ״¨ …† cmake/llvm.cmake
+    # (EN) Link LLVM libs via the global variable computed by cmake/llvm.cmake
     target_link_libraries(test_backend PRIVATE
         sad_new_llvm_backend
         sad_new_frontend
         sad_new_optimizer
-        ${LLVM_ALL_LIBS}
+        ${LLVM_LIBS}
     )
     if(MSVC)
         target_compile_options(test_backend PRIVATE /utf-8 /wd4819)
     endif()
-    message(STATUS "Configured test_backend executable")
 endif()
 
 # ============================================================================
-# Tool Tests (اختبارات الأدوات المدمجة)
+# Tool Tests (״§״®״×״¨״§״±״§״× ״§„״£״¯ˆ״§״× ״§„…״¯…״¬״©)
 # ============================================================================
 if(TARGET sad_new_tools)
-    # اختبار الحارس الأمني
+    # ״§״®״×״¨״§״± ״§„״­״§״±״³ ״§„״£…†
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_security_scanner.cpp")
         add_executable(test_security_scanner tests/test_security_scanner.cpp)
         target_link_libraries(test_security_scanner PRIVATE sad_new_tools)
@@ -805,7 +817,7 @@ if(TARGET sad_new_tools)
         message(STATUS "Configured test: test_security_scanner")
     endif()
 
-    # اختبار المنسّق
+    # ״§״®״×״¨״§״± ״§„…†״³‘‚
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_formatter.cpp")
         add_executable(test_formatter tests/test_formatter.cpp)
         target_link_libraries(test_formatter PRIVATE sad_new_tools)
@@ -821,7 +833,7 @@ if(TARGET sad_new_tools)
         message(STATUS "Configured test: test_formatter")
     endif()
 
-    # اختبار مولّد التوثيق
+    # ״§״®״×״¨״§״± …ˆ„‘״¯ ״§„״×ˆ״«‚
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_docs_emitter.cpp")
         add_executable(test_docs_emitter tests/test_docs_emitter.cpp)
         target_link_libraries(test_docs_emitter PRIVATE sad_new_tools)
@@ -837,7 +849,7 @@ if(TARGET sad_new_tools)
         message(STATUS "Configured test: test_docs_emitter")
     endif()
 
-    # اختبار نظام البناء
+    # ״§״®״×״¨״§״± †״¸״§… ״§„״¨†״§״¡
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_build_system.cpp")
         add_executable(test_build_system tests/test_build_system.cpp)
         target_link_libraries(test_build_system PRIVATE sad_new_tools)
@@ -855,7 +867,7 @@ if(TARGET sad_new_tools)
 endif()
 
 # ============================================================================
-# SIR Extended Library (Phase 95+: SIR Core — جميع ملفات SIR)
+# SIR Extended Library (Phase 95+: SIR Core ג€” ״¬…״¹ …„״§״× SIR)
 # ============================================================================
 set(SIR_EXTENDED_SOURCES
     src/sir/sir_validator.cpp
@@ -866,11 +878,11 @@ set(SIR_EXTENDED_SOURCES
     src/sir/sir_optimizer.cpp
     src/sir/sir_printer.cpp
     src/sir/sir_to_llvm.cpp
-    # (AR) sir_to_llvm_v2.cpp مؤجل — يعتمد على TypeKind::Pointer/Widget و compiler::instance المفقودة
-    # (EN) sir_to_llvm_v2.cpp deferred — depends on missing TypeKind::Pointer/Widget and compiler::instance
+    # (AR) sir_to_llvm_v2.cpp …״₪״¬„ ג€” ״¹״×…״¯ ״¹„‰ TypeKind::Pointer/Widget ˆ compiler::instance ״§„…‚ˆ״¯״©
+    # (EN) sir_to_llvm_v2.cpp deferred ג€” depends on missing TypeKind::Pointer/Widget and compiler::instance
 )
 
-# التحقق من وجود الملفات
+# ״§„״×״­‚‚ …† ˆ״¬ˆ״¯ ״§„…„״§״×
 set(SIR_VERIFIED_SOURCES "")
 foreach(src ${SIR_EXTENDED_SOURCES})
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
@@ -894,7 +906,7 @@ if(SIR_VERIFIED_SOURCES)
             ${SAD_SHARED_DIR}/shared/lexer/include
     )
     if(LLVM_FOUND)
-        target_include_directories(sad_sir_extended PUBLIC ${LLVM_INCLUDE_DIRS})
+        target_include_directories(sad_sir_extended PUBLIC ${SAD_LLVM_INCLUDES})
         target_link_libraries(sad_sir_extended PUBLIC sad_new_frontend)
     endif()
     if(MSVC)
@@ -904,7 +916,7 @@ if(SIR_VERIFIED_SOURCES)
 endif()
 
 # ============================================================================
-# Compiler Security Library (Phase 95: 200+ إصلاحات أمنية)
+# Compiler Security Library (Phase 95: 200+ ״¥״µ„״§״­״§״× ״£…†״©)
 # ============================================================================
 set(SECURITY_EXT_SOURCES
     src/security/compiler_security.cpp
@@ -931,7 +943,7 @@ if(SECURITY_EXT_VERIFIED)
 endif()
 
 # ============================================================================
-# Graphics Backend Support (Phase 95: دعم الرسومات في sadc)
+# Graphics Backend Support (Phase 95: ״¯״¹… ״§„״±״³ˆ…״§״×  sadc)
 # ============================================================================
 set(GRAPHICS_BACKEND_SOURCES
     src/backend/sadc_graphics_support.cpp
@@ -959,9 +971,9 @@ if(GRAPHICS_BACKEND_VERIFIED)
 endif()
 
 # ============================================================================
-# Runtime Library (مكتبة Runtime للرسومات)
+# Runtime Library (…ƒ״×״¨״© Runtime „„״±״³ˆ…״§״×)
 # ============================================================================
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/runtime/CMakeLists.txt")
     add_subdirectory(runtime)
-    message(STATUS "✓ تم تفعيل مجلد runtime للرسومات")
+    message(STATUS "ג“ ״×… ״×״¹„ …״¬„״¯ runtime „„״±״³ˆ…״§״×")
 endif()

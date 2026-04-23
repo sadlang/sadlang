@@ -600,6 +600,11 @@ namespace sad
                 // and platform differences.
                 // ============================================================
                 std::string clang = *clang_opt;
+                std::vector<std::string> auto_library_paths;
+                std::vector<std::string> auto_libraries;
+                std::vector<std::string> windows_runtime_libraries;
+                append_bundled_network_libraries(auto_library_paths, auto_libraries);
+                append_windows_hosted_runtime_libraries(windows_runtime_libraries, true);
 
                 // (AR) بناء أمر الربط الأساسي
                 // (EN) Build basic link command
@@ -612,6 +617,13 @@ namespace sad
                 // (AR) تعطيل تحذيرات الدوال المهملة (scanf, fopen, ...)
                 // (EN) Suppress deprecation warnings (scanf, fopen, ...)
                 command += " -w";
+#ifdef _WIN32
+                const std::string runtime_flag = get_windows_clang_runtime_flag();
+                if (!runtime_flag.empty())
+                {
+                    command += " " + runtime_flag;
+                }
+#endif
 
                 // ============================================================
                 // (AR) إنشاء ملف runtime مؤقت بلغة C خالصة
@@ -645,6 +657,35 @@ namespace sad
                     }
                 }
 
+                for (const auto &path : auto_library_paths)
+                {
+                    command += " -L\"" + path + "\"";
+                }
+
+#ifdef _WIN32
+                // (AR) قراءة متغير البيئة LIB (يضبطه vcvars64.bat) وإضافة كل مسار
+                //      كـ -L لـ clang. بدون هذا، clang لا يجد msvcrt.lib وبقية مكتبات MSVC.
+                // (EN) Read LIB env var (set by vcvars64.bat) and add each path as -L for clang.
+                //      Without this, clang cannot find msvcrt.lib and other MSVC libs.
+                if (const char *lib_env = std::getenv("LIB"))
+                {
+                    std::string lib_paths(lib_env);
+                    size_t start = 0;
+                    while (start < lib_paths.size())
+                    {
+                        size_t end = lib_paths.find(';', start);
+                        if (end == std::string::npos)
+                            end = lib_paths.size();
+                        std::string p = lib_paths.substr(start, end - start);
+                        if (!p.empty())
+                        {
+                            command += " -L\"" + p + "\"";
+                        }
+                        start = end + 1;
+                    }
+                }
+#endif
+
                 // (AR) إضافة مسارات المكتبات المحددة من المستخدم
                 // (EN) Add user-specified library paths
                 for (const auto &path : options_.library_paths)
@@ -658,6 +699,18 @@ namespace sad
                 {
                     command += " -l" + lib;
                 }
+
+                for (const auto &lib : auto_libraries)
+                {
+                    command += " -l" + lib;
+                }
+
+#ifdef _WIN32
+                for (const auto &lib : windows_runtime_libraries)
+                {
+                    command += " " + lib;
+                }
+#endif
 
                 // (AR) إضافة علم الربط الثابت إذا طُلب
                 // (EN) Add static linking flag if requested
@@ -712,17 +765,26 @@ namespace sad
                 // (EN) Try to find link.exe
                 if (std::system("where link.exe > nul 2>&1") == 0)
                 {
+                    std::vector<std::string> auto_library_paths;
+                    std::vector<std::string> auto_libraries;
+                    std::vector<std::string> windows_runtime_libraries;
+                    append_bundled_network_libraries(auto_library_paths, auto_libraries);
+                    append_windows_hosted_runtime_libraries(windows_runtime_libraries, true);
+
                     // (AR) بناء أمر link.exe
                     // (EN) Build link.exe command
                     std::string command = "link.exe /OUT:\"" + output_file + "\"";
                     command += " \"" + obj_path + "\"";
 
-                    // (AR) مكتبات C القياسية اللازمة
-                    // (EN) Required C standard libraries
-                    command += " libcmt.lib";                   // C runtime
-                    command += " libucrt.lib";                  // Universal CRT
-                    command += " kernel32.lib";                 // Windows kernel
-                    command += " legacy_stdio_definitions.lib"; // printf/scanf
+                    for (const auto &lib : windows_runtime_libraries)
+                    {
+                        command += " " + lib;
+                    }
+
+                    for (const auto &path : auto_library_paths)
+                    {
+                        command += " /LIBPATH:\"" + path + "\"";
+                    }
 
                     // (AR) إضافة مسارات المكتبات
                     for (const auto &path : options_.library_paths)
@@ -731,6 +793,11 @@ namespace sad
                     }
 
                     for (const auto &lib : options_.libraries)
+                    {
+                        command += " " + lib + ".lib";
+                    }
+
+                    for (const auto &lib : auto_libraries)
                     {
                         command += " " + lib + ".lib";
                     }

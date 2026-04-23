@@ -530,6 +530,24 @@ namespace Sad
             AST::ExprPtr parseWidgetExpression();
 
             /**
+             * @brief (AR) يحلل تعبير عنصر واجهة ويعيد النوع الفعلي بدون dynamic_cast (ADR-UI-07)
+             * @brief (EN) Parses widget expression returning typed unique_ptr — no dynamic_cast needed
+             */
+            std::unique_ptr<AST::UIWidgetExprNode> parseWidgetExpressionTyped();
+
+            /**
+             * @brief (AR) يحلل كتلة رسم شرطي داخل حاوية: إذا (شرط) ... وإلا ... نهاية (ADR-UI-01)
+             * @brief (EN) Parses conditional rendering block inside container: if (cond) ... else ... end
+             */
+            std::unique_ptr<AST::UIConditionalNode> parseUIConditional();
+
+            /**
+             * @brief (AR) يحلل كتلة حلقة رسم: لكل عنصر في قائمة ... نهاية / بينما (شرط) ... نهاية (ADR-UI-01)
+             * @brief (EN) Parses loop rendering: for each item in list ... end / while (cond) ... end
+             */
+            std::unique_ptr<AST::UILoopNode> parseUILoop(bool isForEach);
+
+            /**
              * @brief (AR) يحلل سلسلة معدّلات: .حجم(32).لون(.أزرق).عند_النقر => ...
              * @brief (EN) Parses modifier chain: .حجم(32).لون(.أزرق).عند_النقر => ...
              */
@@ -1549,6 +1567,13 @@ namespace Sad
             bool pendingConst_ = false;                  ///< (AR) علامة تصريح ثابت معلق (EN) Pending const declaration flag
             std::string pendingDocComment_;              ///< (AR) تعليق توثيقي معلق يُرفق بالتصريح التالي
                                                          ///< (EN) Pending doc comment to attach to next declaration
+            std::string nextDocComment_;                 ///< (AR) تعليق توثيقي ظهر بعد current_ أثناء ملء nextToken_
+                                                         ///<      يُرحَّل إلى pendingDocComment_ في المرة التالية لـ advance()
+                                                         ///<      حتى لا يُنسب خطأً إلى تصريح يسبقه فعلياً.
+                                                         ///< (EN) Doc comment encountered AFTER current_ while refilling
+                                                         ///<      nextToken_; promoted to pendingDocComment_ on the next
+                                                         ///<      advance() so it cannot be wrongly attached to a declaration
+                                                         ///<      that precedes it physically (BF-04 fix).
             Errors::ErrorRecoverySystem recoverySystem_; ///< (AR) نظام التعافي الذكي من الأخطاء
                                                          ///< (EN) Smart error recovery system
 

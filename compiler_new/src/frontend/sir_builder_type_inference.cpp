@@ -150,16 +150,102 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ????? ??????? - ?? ???? ???? (??? ?????? ?????)
-                // (EN) Nested lambda - don't recurse into it (has its own scope)
-                if (dynamic_cast<Sad::AST::LambdaExpr *>(expr))
+                // ================================================================
+                // (AR) [إصلاح الإغلاقات المتداخلة] لامدا داخل لامدا:
+                //      نحلل المتغيرات الحرة في اللامدا المتداخلة
+                //      ثم نُضيف منها ما ليس مربوطاً في نطاقنا الحالي
+                //      هذا يضمن "النقل العابر" (transitive capture):
+                //      إذا لامدا داخلية تستخدم متغيراً من جد-الدالة،
+                //      فاللامدا الوسطية يجب أن تلتقطه أيضاً وتمرره.
+                //      مثال: دالة(أ) → لامدا(ب) → لامدا(ج) → أ*ب+ج
+                //      اللامدا الوسطية تحتاج التقاط `أ` لتمريره للداخلية.
+                // (EN) [Fix nested closures] Lambda inside lambda:
+                //      Analyze the nested lambda's free variables
+                //      then add those not bound in our current scope
+                //      This ensures "transitive capture":
+                //      If an inner lambda uses a var from grandparent function,
+                //      the middle lambda must also capture and forward it.
+                // ================================================================
+                if (auto *nestedLambda = dynamic_cast<Sad::AST::LambdaExpr *>(expr))
                 {
+                    // (AR) جمع معاملات اللامدا المتداخلة كأسماء مربوطة
+                    // (EN) Collect nested lambda's params as bound names
+                    std::set<std::string> nestedBound;
+                    for (const auto &param : nestedLambda->parameters)
+                    {
+                        nestedBound.insert(param.name);
+                    }
+
+                    // (AR) جمع المتغيرات الحرة في جسم اللامدا المتداخلة
+                    // (EN) Collect free vars from nested lambda's body
+                    std::set<std::string> nestedFreeVars;
+                    if (nestedLambda->body)
+                    {
+                        collectFreeVarsExpr(nestedLambda->body.get(), nestedBound, nestedFreeVars);
+                    }
+                    if (nestedLambda->blockBody)
+                    {
+                        std::set<std::string> nestedBoundCopy = nestedBound;
+                        collectFreeVarsStmt(nestedLambda->blockBody.get(), nestedBoundCopy, nestedFreeVars);
+                    }
+
+                    // (AR) المتغيرات الحرة في اللامدا المتداخلة التي ليست مربوطة عندنا
+                    //      تصبح متغيرات حرة لنا أيضاً (نقل عابر)
+                    // (EN) Nested lambda's free vars that are not bound in OUR scope
+                    //      become free vars for us too (transitive capture)
+                    for (const auto &nfv : nestedFreeVars)
+                    {
+                        if (boundNames.find(nfv) == boundNames.end())
+                        {
+                            auto *varOpt = lookupVariable(nfv);
+                            if (varOpt)
+                            {
+                                freeVars.insert(nfv);
+                            }
+                        }
+                    }
                     return;
                 }
 
                 // (AR) ????? ??????? (?????? ????? ??????) - ???? ??????? ???
                 // (EN) Literals (numbers, strings, booleans) - not free variables
                 // No action needed for NumberLiteral, StringLiteral, BoolLiteral, NullLiteral
+
+                // ================================================================
+                // (AR) [إصلاح شامل] MethodCallExpr — استدعاء طريقة على كائن
+                //      مثال: ق.أرسل("مرحبا") — الكائن `ق` قد يكون متغيراً حراً
+                //      يجب زيارة الكائن والوسائط لاكتشاف المتغيرات الحرة
+                // (EN) [Comprehensive fix] MethodCallExpr — method call on object
+                //      Example: ch.send("hello") — object `ch` may be a free variable
+                //      Must visit object and arguments to discover free variables
+                // ================================================================
+                if (auto *methodCall = dynamic_cast<Sad::AST::MethodCallExpr *>(expr))
+                {
+                    collectFreeVarsExpr(methodCall->object.get(), boundNames, freeVars);
+                    for (auto &arg : methodCall->arguments)
+                    {
+                        collectFreeVarsExpr(arg.get(), boundNames, freeVars);
+                    }
+                    return;
+                }
+
+                // ================================================================
+                // (AR) AssignExpr — تعبير إسناد (متغير = قيمة)
+                //      مهم: لا نزور تعبيرات الإسناد لاكتشاف المتغيرات الحرة.
+                //      السبب: saveContext() لا تحفظ/تستعيد scope stack، لذا الدوال المستقلة
+                //      تصل للمتغيرات الخارجية عبر scope stack المشترك بشكل صحيح.
+                //      زيارة الإسناد تكشف المتغير عبر VariableExpr في الجانب الأيمن
+                //      (مثل: عداد + 1) → يحوّل الدالة لإغلاق → التقاط بالقيمة → كسر الدلالات.
+                //      MethodCallExpr والتعبيرات الأخرى تُكتشف من مواقعها الأصلية (ExprStmt).
+                // (EN) AssignExpr — assignment expression (variable = value)
+                //      Important: We do NOT visit assignment expressions for free var detection.
+                //      Reason: saveContext() doesn't save/restore scope stack, so standalone
+                //      functions access outer variables correctly through the shared scope stack.
+                //      Visiting the RHS detects vars via VariableExpr (e.g. counter + 1)
+                //      → converts function to closure → capture by value → breaks semantics.
+                //      MethodCallExpr and other expressions are detected from their own sites.
+                // ================================================================
+                // AssignExpr — intentionally not handled (see above)
             }
 
             // ============================================================================
@@ -255,6 +341,92 @@ namespace Sad
                     if (forStmt->body)
                     {
                         collectFreeVarsStmt(forStmt->body.get(), boundNames, freeVars);
+                    }
+                    return;
+                }
+
+                // ================================================================
+                // (AR) [إصلاح شامل] TryStmt — حاول/امسك/أخيراً
+                //      يجب زيارة كتلة المحاولة وجميع بنود الالتقاط وكتلة أخيراً
+                // (EN) [Comprehensive fix] TryStmt — try/catch/finally
+                //      Must visit try block, all catch clauses, and finally block
+                // ================================================================
+                if (auto *tryStmt = dynamic_cast<Sad::AST::TryStmt *>(stmt))
+                {
+                    if (tryStmt->tryBlock)
+                        collectFreeVarsStmt(tryStmt->tryBlock.get(), boundNames, freeVars);
+                    for (auto &catchClause : tryStmt->catchClauses)
+                    {
+                        // (AR) متغير الاستثناء يصبح مربوطاً داخل catch
+                        // (EN) Exception variable becomes bound inside catch
+                        std::set<std::string> catchBound = boundNames;
+                        if (!catchClause.exceptionVar.empty())
+                            catchBound.insert(catchClause.exceptionVar);
+                        if (catchClause.body)
+                            collectFreeVarsStmt(catchClause.body.get(), catchBound, freeVars);
+                    }
+                    if (tryStmt->finallyBlock)
+                        collectFreeVarsStmt(tryStmt->finallyBlock.get(), boundNames, freeVars);
+                    return;
+                }
+
+                // ================================================================
+                // (AR) [إصلاح شامل] RaiseStmt — ارمي (throw)
+                //      التعبير المرمي قد يحتوي متغيرات حرة
+                // (EN) [Comprehensive fix] RaiseStmt — throw
+                //      The thrown expression may contain free variables
+                // ================================================================
+                if (auto *raiseStmt = dynamic_cast<Sad::AST::RaiseStmt *>(stmt))
+                {
+                    if (raiseStmt->exception)
+                        collectFreeVarsExpr(raiseStmt->exception.get(), boundNames, freeVars);
+                    return;
+                }
+
+                // ================================================================
+                // (AR) [إصلاح شامل] DeferStmt — أجّل
+                //      الجملة المؤجلة قد تحتوي متغيرات حرة
+                // (EN) [Comprehensive fix] DeferStmt — defer
+                //      The deferred statement may contain free variables
+                // ================================================================
+                if (auto *deferStmt = dynamic_cast<Sad::AST::DeferStmt *>(stmt))
+                {
+                    if (deferStmt->body)
+                        collectFreeVarsStmt(deferStmt->body.get(), boundNames, freeVars);
+                    return;
+                }
+
+                // ================================================================
+                // (AR) [إصلاح شامل] GoStmt — أطلق
+                //      التعبير أو كتلة الكود قد تحتوي متغيرات حرة
+                // (EN) [Comprehensive fix] GoStmt — go
+                //      The expression or block body may contain free variables
+                // ================================================================
+                if (auto *goStmt = dynamic_cast<Sad::AST::GoStmt *>(stmt))
+                {
+                    if (goStmt->expression)
+                        collectFreeVarsExpr(goStmt->expression.get(), boundNames, freeVars);
+                    if (goStmt->blockBody)
+                        collectFreeVarsStmt(goStmt->blockBody.get(), boundNames, freeVars);
+                    return;
+                }
+
+                // ================================================================
+                // (AR) [إصلاح شامل] MatchStmt — طابق
+                //      التعبير المُطابق وأجسام الحالات قد تحتوي متغيرات حرة
+                // (EN) [Comprehensive fix] MatchStmt — match
+                //      The matched expression and case bodies may contain free variables
+                // ================================================================
+                if (auto *matchStmt = dynamic_cast<Sad::AST::MatchStmt *>(stmt))
+                {
+                    if (matchStmt->value)
+                        collectFreeVarsExpr(matchStmt->value.get(), boundNames, freeVars);
+                    for (auto &matchCase : matchStmt->cases)
+                    {
+                        for (auto &bodyStmt : matchCase.body)
+                        {
+                            collectFreeVarsStmt(bodyStmt.get(), boundNames, freeVars);
+                        }
                     }
                     return;
                 }
@@ -457,4 +629,3 @@ namespace Sad
         } // namespace SIR
     } // namespace Compiler
 } // namespace Sad
-

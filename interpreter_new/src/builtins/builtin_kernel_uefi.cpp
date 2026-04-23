@@ -37,8 +37,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto status = mgr.initialize(handle, sysTable);
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_تهيئة", uefi_init);
-    fm.registerBuiltinFunction("uefi_initialize", uefi_init);
 
     // uefi_إنهاء_خدمات_إقلاع / uefi_exit_boot_services
     auto uefi_exit_bs = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -48,8 +46,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto status = mgr.exitBootServices(mapKey);
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_إنهاء_خدمات_إقلاع", uefi_exit_bs);
-    fm.registerBuiltinFunction("uefi_exit_boot_services", uefi_exit_bs);
 
     // uefi_هل_مهيأ / uefi_is_initialized
     auto uefi_is_init = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -57,8 +53,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(mgr.isInitialized() ? 1 : 0);
     };
-    fm.registerBuiltinFunction("uefi_هل_مهيأ", uefi_is_init);
-    fm.registerBuiltinFunction("uefi_is_initialized", uefi_is_init);
 
     // uefi_خدمات_إقلاع_منتهية / uefi_boot_services_exited
     auto uefi_bs_exited = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -66,8 +60,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(mgr.bootServicesExited() ? 1 : 0);
     };
-    fm.registerBuiltinFunction("uefi_خدمات_إقلاع_منتهية", uefi_bs_exited);
-    fm.registerBuiltinFunction("uefi_boot_services_exited", uefi_bs_exited);
 
     // uefi_إعادة_تشغيل / uefi_reset_system
     auto uefi_reset = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -77,8 +69,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         mgr.resetSystem(resetType);
         return std::make_shared<Data::Value>(0);
     };
-    fm.registerBuiltinFunction("uefi_إعادة_تشغيل", uefi_reset);
-    fm.registerBuiltinFunction("uefi_reset_system", uefi_reset);
 
     // ═══════════════════════════════════════════════════════════════
     // 2. إدارة الذاكرة / Memory Services
@@ -100,8 +90,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         }
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_تخصيص_صفحات", uefi_alloc_pages);
-    fm.registerBuiltinFunction("uefi_allocate_pages", uefi_alloc_pages);
 
     // uefi_تحرير_صفحات / uefi_free_pages
     auto uefi_free_pages = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -112,8 +100,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto status = mgr.freePages(address, pages);
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_تحرير_صفحات", uefi_free_pages);
-    fm.registerBuiltinFunction("uefi_free_pages", uefi_free_pages);
 
     // uefi_تخصيص_كتلة / uefi_allocate_pool
     auto uefi_alloc_pool = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -130,8 +116,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         }
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_تخصيص_كتلة", uefi_alloc_pool);
-    fm.registerBuiltinFunction("uefi_allocate_pool", uefi_alloc_pool);
 
     // uefi_تحرير_كتلة / uefi_free_pool
     auto uefi_free_pool = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -141,8 +125,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto status = mgr.freePool(buffer);
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_تحرير_كتلة", uefi_free_pool);
-    fm.registerBuiltinFunction("uefi_free_pool", uefi_free_pool);
 
     // uefi_خريطة_ذاكرة / uefi_get_memory_map
     auto uefi_memmap = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -164,8 +146,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         }
         return std::make_shared<Data::Value>(oss.str());
     };
-    fm.registerBuiltinFunction("uefi_خريطة_ذاكرة", uefi_memmap);
-    fm.registerBuiltinFunction("uefi_get_memory_map", uefi_memmap);
 
     // uefi_مفتاح_خريطة / uefi_get_memory_map_key — إرجاع المفتاح فقط
     auto uefi_memmap_key = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -175,8 +155,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         mgr.getMemoryMap(mapKey);
         return std::make_shared<Data::Value>(static_cast<double>(mapKey));
     };
-    fm.registerBuiltinFunction("uefi_مفتاح_خريطة", uefi_memmap_key);
-    fm.registerBuiltinFunction("uefi_get_memory_map_key", uefi_memmap_key);
 
     // uefi_ذاكرة_متاحة / uefi_total_memory
     auto uefi_total_mem = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -185,8 +163,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         uint64_t total = mgr.getTotalAvailableMemory();
         return std::make_shared<Data::Value>(static_cast<double>(total));
     };
-    fm.registerBuiltinFunction("uefi_ذاكرة_متاحة", uefi_total_mem);
-    fm.registerBuiltinFunction("uefi_total_memory", uefi_total_mem);
 
     // ═══════════════════════════════════════════════════════════════
     // 3. بروتوكول الرسوميات GOP / Graphics Output Protocol
@@ -198,8 +174,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto status = mgr.initializeGOP();
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_تهيئة_رسوميات", uefi_init_gop);
-    fm.registerBuiltinFunction("uefi_init_gop", uefi_init_gop);
 
     // uefi_تعيين_وضع_رسوميات / uefi_set_gop_mode
     auto uefi_set_gop = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -209,8 +183,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto status = mgr.setGOPMode(mode);
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_تعيين_وضع_رسوميات", uefi_set_gop);
-    fm.registerBuiltinFunction("uefi_set_gop_mode", uefi_set_gop);
 
     // uefi_استعلام_وضع / uefi_query_gop_mode
     auto uefi_query_gop = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -230,8 +202,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
             << " بكسل_لكل_سطر=" << info.pixelsPerScanLine;
         return std::make_shared<Data::Value>(oss.str());
     };
-    fm.registerBuiltinFunction("uefi_استعلام_وضع", uefi_query_gop);
-    fm.registerBuiltinFunction("uefi_query_gop_mode", uefi_query_gop);
 
     // uefi_عدد_أوضاع_رسوميات / uefi_gop_mode_count
     auto uefi_gop_count = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -239,8 +209,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(static_cast<int>(mgr.getGOPModeCount()));
     };
-    fm.registerBuiltinFunction("uefi_عدد_أوضاع_رسوميات", uefi_gop_count);
-    fm.registerBuiltinFunction("uefi_gop_mode_count", uefi_gop_count);
 
     // uefi_وضع_رسوميات_حالي / uefi_current_gop_mode
     auto uefi_cur_gop = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -248,8 +216,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(static_cast<int>(mgr.getCurrentGOPMode()));
     };
-    fm.registerBuiltinFunction("uefi_وضع_رسوميات_حالي", uefi_cur_gop);
-    fm.registerBuiltinFunction("uefi_current_gop_mode", uefi_cur_gop);
 
     // uefi_عنوان_إطار / uefi_framebuffer_base
     auto uefi_fb_base = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -257,8 +223,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(static_cast<double>(mgr.getFramebufferBase()));
     };
-    fm.registerBuiltinFunction("uefi_عنوان_إطار", uefi_fb_base);
-    fm.registerBuiltinFunction("uefi_framebuffer_base", uefi_fb_base);
 
     // uefi_حجم_إطار / uefi_framebuffer_size
     auto uefi_fb_size = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -266,8 +230,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(static_cast<double>(mgr.getFramebufferSize()));
     };
-    fm.registerBuiltinFunction("uefi_حجم_إطار", uefi_fb_size);
-    fm.registerBuiltinFunction("uefi_framebuffer_size", uefi_fb_size);
 
     // uefi_ملء_شاشة / uefi_fill_screen — ملء شاشة بلون (GOP BLT)
     auto uefi_fill = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -287,8 +249,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
                                   0, 0, 0, 0, mode.horizontalResolution, mode.verticalResolution);
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_ملء_شاشة", uefi_fill);
-    fm.registerBuiltinFunction("uefi_fill_screen", uefi_fill);
 
     // uefi_رسم_مستطيل / uefi_draw_rect — رسم مستطيل (GOP BLT)
     auto uefi_draw_rect = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -308,8 +268,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
                                   0, 0, x, y, w, h);
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_رسم_مستطيل", uefi_draw_rect);
-    fm.registerBuiltinFunction("uefi_draw_rect", uefi_draw_rect);
 
     // ═══════════════════════════════════════════════════════════════
     // 4. خدمات وقت التشغيل / Runtime Services
@@ -328,8 +286,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
             << (time.second < 10 ? "0" : "") << static_cast<int>(time.second);
         return std::make_shared<Data::Value>(oss.str());
     };
-    fm.registerBuiltinFunction("uefi_الوقت", uefi_time);
-    fm.registerBuiltinFunction("uefi_get_time", uefi_time);
 
     // uefi_قراءة_متغير / uefi_get_variable
     auto uefi_get_var = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -346,8 +302,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         std::string result(data.begin(), data.end());
         return std::make_shared<Data::Value>(result);
     };
-    fm.registerBuiltinFunction("uefi_قراءة_متغير", uefi_get_var);
-    fm.registerBuiltinFunction("uefi_get_variable", uefi_get_var);
 
     // uefi_كتابة_متغير / uefi_set_variable
     auto uefi_set_var = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -363,8 +317,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto status = mgr.setVariable(name, guid, attrs, data);
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_كتابة_متغير", uefi_set_var);
-    fm.registerBuiltinFunction("uefi_set_variable", uefi_set_var);
 
     // ═══════════════════════════════════════════════════════════════
     // 5. نظام الملفات / File System Protocol
@@ -376,8 +328,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         int64_t fd = mgr.openVolume();
         return std::make_shared<Data::Value>(static_cast<int>(fd));
     };
-    fm.registerBuiltinFunction("uefi_فتح_وحدة_تخزين", uefi_open_vol);
-    fm.registerBuiltinFunction("uefi_open_volume", uefi_open_vol);
 
     // uefi_فتح_ملف / uefi_open_file
     auto uefi_open_file = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -390,8 +340,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         int64_t fd = mgr.openFile(parentFd, filename, mode);
         return std::make_shared<Data::Value>(static_cast<int>(fd));
     };
-    fm.registerBuiltinFunction("uefi_فتح_ملف", uefi_open_file);
-    fm.registerBuiltinFunction("uefi_open_file", uefi_open_file);
 
     // uefi_قراءة_ملف / uefi_read_file
     auto uefi_read = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -408,8 +356,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         std::string result(buffer.begin(), buffer.end());
         return std::make_shared<Data::Value>(result);
     };
-    fm.registerBuiltinFunction("uefi_قراءة_ملف", uefi_read);
-    fm.registerBuiltinFunction("uefi_read_file", uefi_read);
 
     // uefi_كتابة_ملف / uefi_write_file
     auto uefi_write = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -421,8 +367,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         int64_t written = mgr.writeFile(fd, buffer);
         return std::make_shared<Data::Value>(static_cast<int>(written));
     };
-    fm.registerBuiltinFunction("uefi_كتابة_ملف", uefi_write);
-    fm.registerBuiltinFunction("uefi_write_file", uefi_write);
 
     // uefi_إغلاق_ملف / uefi_close_file
     auto uefi_close = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -432,8 +376,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto status = mgr.closeFile(fd);
         return std::make_shared<Data::Value>(static_cast<int>(status));
     };
-    fm.registerBuiltinFunction("uefi_إغلاق_ملف", uefi_close);
-    fm.registerBuiltinFunction("uefi_close_file", uefi_close);
 
     // uefi_معلومات_ملف / uefi_file_info
     auto uefi_finfo = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -447,8 +389,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
             << " سمات=0x" << std::hex << info.attribute << std::dec;
         return std::make_shared<Data::Value>(oss.str());
     };
-    fm.registerBuiltinFunction("uefi_معلومات_ملف", uefi_finfo);
-    fm.registerBuiltinFunction("uefi_file_info", uefi_finfo);
 
     // ═══════════════════════════════════════════════════════════════
     // 6. بروتوكولات ومعلومات النظام / Protocol & System Info
@@ -472,8 +412,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         uint64_t handle = mgr.locateProtocol(guid);
         return std::make_shared<Data::Value>(static_cast<double>(handle));
     };
-    fm.registerBuiltinFunction("uefi_بحث_بروتوكول", uefi_locate);
-    fm.registerBuiltinFunction("uefi_locate_protocol", uefi_locate);
 
     // uefi_إصدار / uefi_revision
     auto uefi_rev = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -481,8 +419,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(mgr.getUefiRevision());
     };
-    fm.registerBuiltinFunction("uefi_إصدار", uefi_rev);
-    fm.registerBuiltinFunction("uefi_revision", uefi_rev);
 
     // uefi_بائع / uefi_firmware_vendor
     auto uefi_vendor = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -490,8 +426,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(mgr.getFirmwareVendor());
     };
-    fm.registerBuiltinFunction("uefi_بائع", uefi_vendor);
-    fm.registerBuiltinFunction("uefi_firmware_vendor", uefi_vendor);
 
     // uefi_إصدار_بائع / uefi_firmware_revision
     auto uefi_fw_rev = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -499,8 +433,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(static_cast<int>(mgr.getFirmwareRevision()));
     };
-    fm.registerBuiltinFunction("uefi_إصدار_بائع", uefi_fw_rev);
-    fm.registerBuiltinFunction("uefi_firmware_revision", uefi_fw_rev);
 
     // ═══════════════════════════════════════════════════════════════
     // 7. التقارير / Reports
@@ -511,8 +443,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(mgr.generateReport());
     };
-    fm.registerBuiltinFunction("uefi_تقرير", uefi_report);
-    fm.registerBuiltinFunction("uefi_report", uefi_report);
 
     // uefi_تقرير_ذاكرة / uefi_memory_report
     auto uefi_mem_report = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -520,8 +450,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(mgr.generateMemoryMapReport());
     };
-    fm.registerBuiltinFunction("uefi_تقرير_ذاكرة", uefi_mem_report);
-    fm.registerBuiltinFunction("uefi_memory_report", uefi_mem_report);
 
     // uefi_تقرير_رسوميات / uefi_gop_report
     auto uefi_gop_report = [](const std::vector<std::shared_ptr<Data::Value>>& args) -> std::shared_ptr<Data::Value> {
@@ -529,8 +457,6 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
         auto& mgr = LowLevel::UefiManager::getInstance();
         return std::make_shared<Data::Value>(mgr.generateGOPReport());
     };
-    fm.registerBuiltinFunction("uefi_تقرير_رسوميات", uefi_gop_report);
-    fm.registerBuiltinFunction("uefi_gop_report", uefi_gop_report);
 
 } // registerBuiltinsKernelUEFI
 

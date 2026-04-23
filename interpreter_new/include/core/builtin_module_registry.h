@@ -38,175 +38,211 @@
 #include <functional>
 #include <algorithm>
 
-namespace Sad {
-namespace Interpreter {
+// (AR) السجل المركزي الموحّد — ADR-003
+// (EN) Unified central registry — ADR-003
+#include "module_definitions.h"
 
-// Forward declaration
-class Interpreter;
+namespace Sad
+{
+    namespace Interpreter
+    {
 
-/**
- * @brief (AR) معلومات وحدة مُضمّنة
- * @brief (EN) Built-in module information
- */
-struct BuiltinModuleInfo {
-    /// (AR) اسم الوحدة العربي / (EN) Arabic module name
-    std::string name;
+        // Forward declaration
+        class Interpreter;
 
-    /// (AR) الأسماء البديلة (عربي + إنجليزي)
-    /// (EN) Alternate names (Arabic + English)
-    std::vector<std::string> aliases;
+        /**
+         * @brief (AR) معلومات وحدة مُضمّنة
+         * @brief (EN) Built-in module information
+         */
+        struct BuiltinModuleInfo
+        {
+            /// (AR) اسم الوحدة العربي الوحيد — لا أسماء بديلة
+            /// (EN) Sole Arabic module name — no aliases
+            std::string name;
 
-    /// (AR) وصف مختصر / (EN) Short description
-    std::string description;
+            /// (AR) وصف مختصر / (EN) Short description
+            std::string description;
 
-    /// (AR) دالة التسجيل — تُنادى عند الاستيراد الأول
-    /// (EN) Registration callback — called on first import
-    std::function<void(Interpreter&)> registrar;
+            /// (AR) دالة التسجيل — تُنادى عند الاستيراد الأول
+            /// (EN) Registration callback — called on first import
+            std::function<void(Interpreter &)> registrar;
 
-    /// (AR) أسماء الدوال المُصدَّرة — تُملأ بعد التسجيل
-    /// (EN) Exported function names — populated after registration
-    std::vector<std::string> exportedFunctions;
-};
+            /// (AR) أسماء الدوال المُصدَّرة — تُملأ بعد التسجيل
+            /// (EN) Exported function names — populated after registration
+            std::vector<std::string> exportedFunctions;
+        };
 
-/**
- * @class BuiltinModuleRegistry
- * @brief (AR) سجل مركزي لجميع الوحدات المُضمّنة مع دعم التحميل الكسول
- * @brief (EN) Central registry for all builtin modules with lazy loading support
- */
-class BuiltinModuleRegistry {
-public:
-    /// @brief (AR) الحصول على المثيل الوحيد / (EN) Get singleton instance
-    static BuiltinModuleRegistry& getInstance() {
-        static BuiltinModuleRegistry instance;
-        return instance;
-    }
+        /**
+         * @class BuiltinModuleRegistry
+         * @brief (AR) سجل مركزي لجميع الوحدات المُضمّنة مع دعم التحميل الكسول
+         * @brief (EN) Central registry for all builtin modules with lazy loading support
+         */
+        class BuiltinModuleRegistry
+        {
+        public:
+            /// @brief (AR) الحصول على المثيل الوحيد / (EN) Get singleton instance
+            static BuiltinModuleRegistry &getInstance()
+            {
+                static BuiltinModuleRegistry instance;
+                return instance;
+            }
 
-    /**
-     * @brief (AR) تسجيل وحدة مُضمّنة جديدة
-     * @brief (EN) Register a new builtin module
-     * @param info معلومات الوحدة / Module info
-     */
-    void registerModule(const BuiltinModuleInfo& info) {
-        modules_[info.name] = info;
-        for (const auto& alias : info.aliases) {
-            moduleAliases_[alias] = info.name;
-        }
-    }
+            /**
+             * @brief (AR) تسجيل وحدة مُضمّنة جديدة
+             * @brief (EN) Register a new builtin module
+             * @param info معلومات الوحدة / Module info
+             */
+            void registerModule(const BuiltinModuleInfo &info)
+            {
+                modules_[info.name] = info;
+            }
 
-    /**
-     * @brief (AR) هل هذا اسم وحدة مُضمّنة؟
-     * @brief (EN) Is this a builtin module name?
-     */
-    bool isBuiltinModule(const std::string& name) const {
-        return modules_.count(name) > 0 || moduleAliases_.count(name) > 0;
-    }
+            /**
+             * @brief (AR) هل هذا اسم وحدة مُضمّنة؟
+             * @brief (EN) Is this a builtin module name?
+             */
+            bool isBuiltinModule(const std::string &name) const
+            {
+                if (modules_.count(name) > 0)
+                    return true;
+                // (AR) فحص السجل المركزي — ADR-003
+                // (EN) Check central registry — ADR-003
+                return Sad::Builtins::isKnownModule(std::string_view(name));
+            }
 
-    /**
-     * @brief (AR) هل تم تحميل هذه الوحدة؟
-     * @brief (EN) Has this module been loaded?
-     */
-    bool isModuleLoaded(const std::string& name) const {
-        std::string canonical = resolveAlias(name);
-        return loadedModules_.count(canonical) > 0;
-    }
+            /**
+             * @brief (AR) هل تم تحميل هذه الوحدة؟
+             * @brief (EN) Has this module been loaded?
+             */
+            bool isModuleLoaded(const std::string &name) const
+            {
+                std::string canonical = resolveAlias(name);
+                return loadedModules_.count(canonical) > 0;
+            }
 
-    /**
-     * @brief (AR) تعيين مرجع المفسر (يُنادى مرة واحدة عند البدء)
-     * @brief (EN) Set interpreter reference (called once at startup)
-     */
-    void setInterpreter(Interpreter* interp) {
-        interpreter_ = interp;
-    }
+            /**
+             * @brief (AR) تعيين مرجع المفسر (يُنادى مرة واحدة عند البدء)
+             * @brief (EN) Set interpreter reference (called once at startup)
+             */
+            void setInterpreter(Interpreter *interp)
+            {
+                interpreter_ = interp;
+            }
 
-    /**
-     * @brief (AR) تحميل وحدة مُضمّنة (تسجيل الدوال عند الطلب)
-     * @brief (EN) Load a builtin module (register functions on demand)
-     * @param name اسم الوحدة / Module name
-     * @return true إذا نجح التحميل / if loaded successfully
-     *
-     * @note يُنفَّذ في builtin_registry.cpp لأنه يحتاج FunctionManager
-     */
-    bool loadModule(const std::string& name);
+            /**
+             * @brief (AR) تحميل وحدة مُضمّنة (تسجيل الدوال عند الطلب)
+             * @brief (EN) Load a builtin module (register functions on demand)
+             * @param name اسم الوحدة / Module name
+             * @return true إذا نجح التحميل / if loaded successfully
+             *
+             * @note يُنفَّذ في builtin_registry.cpp لأنه يحتاج FunctionManager
+             */
+            bool loadModule(const std::string &name);
 
-    /**
-     * @brief (AR) الحصول على قائمة الدوال المُصدَّرة من وحدة
-     * @brief (EN) Get list of exported functions from a module
-     */
-    const std::vector<std::string>& getExportedFunctions(const std::string& name) const {
-        std::string canonical = resolveAlias(name);
-        auto it = modules_.find(canonical);
-        if (it != modules_.end()) return it->second.exportedFunctions;
-        static const std::vector<std::string> empty;
-        return empty;
-    }
+            /**
+             * @brief (AR) الحصول على قائمة الدوال المُصدَّرة من وحدة
+             * @brief (EN) Get list of exported functions from a module
+             */
+            const std::vector<std::string> &getExportedFunctions(const std::string &name) const
+            {
+                std::string canonical = resolveAlias(name);
+                auto it = modules_.find(canonical);
+                if (it != modules_.end())
+                    return it->second.exportedFunctions;
+                static const std::vector<std::string> empty;
+                return empty;
+            }
 
-    /**
-     * @brief (AR) الحصول على معلومات وحدة
-     * @brief (EN) Get module info
-     */
-    const BuiltinModuleInfo* getModuleInfo(const std::string& name) const {
-        std::string canonical = resolveAlias(name);
-        auto it = modules_.find(canonical);
-        return (it != modules_.end()) ? &it->second : nullptr;
-    }
+            /**
+             * @brief (AR) الحصول على معلومات وحدة
+             * @brief (EN) Get module info
+             */
+            const BuiltinModuleInfo *getModuleInfo(const std::string &name) const
+            {
+                std::string canonical = resolveAlias(name);
+                auto it = modules_.find(canonical);
+                return (it != modules_.end()) ? &it->second : nullptr;
+            }
 
-    /**
-     * @brief (AR) الحصول على جميع أسماء الوحدات المسجلة
-     * @brief (EN) Get all registered module names
-     */
-    std::vector<std::string> getModuleNames() const {
-        std::vector<std::string> names;
-        names.reserve(modules_.size());
-        for (const auto& [name, _] : modules_) {
-            names.push_back(name);
-        }
-        return names;
-    }
+            /**
+             * @brief (AR) الحصول على جميع أسماء الوحدات المسجلة
+             * @brief (EN) Get all registered module names
+             */
+            std::vector<std::string> getModuleNames() const
+            {
+                std::vector<std::string> names;
+                names.reserve(modules_.size());
+                for (const auto &[name, _] : modules_)
+                {
+                    names.push_back(name);
+                }
+                return names;
+            }
 
-    /**
-     * @brief (AR) الحصول على جميع الوحدات المُحمَّلة
-     * @brief (EN) Get all loaded module names
-     */
-    const std::unordered_set<std::string>& getLoadedModules() const {
-        return loadedModules_;
-    }
+            /**
+             * @brief (AR) الحصول على جميع الوحدات المُحمَّلة
+             * @brief (EN) Get all loaded module names
+             */
+            const std::unordered_set<std::string> &getLoadedModules() const
+            {
+                return loadedModules_;
+            }
 
-    /**
-     * @brief (AR) إعادة تعيين حالة التحميل (للاختبارات)
-     * @brief (EN) Reset loading state (for tests)
-     */
-    void reset() {
-        loadedModules_.clear();
-    }
+            /**
+             * @brief (AR) إعادة تعيين حالة التحميل (للاختبارات)
+             * @brief (EN) Reset loading state (for tests)
+             */
+            void reset()
+            {
+                loadedModules_.clear();
+            }
 
-    /**
-     * @brief (AR) اقتراح اسم الوحدة المناسبة لدالة معينة
-     * @brief (EN) Suggest which module to import for a given function name
-     * @param funcName اسم الدالة / Function name
-     * @return اسم الوحدة المقترحة أو سلسلة فارغة / Suggested module name or empty string
-     */
-    std::string suggestModuleForFunction(const std::string& funcName) const;
+            /**
+             * @brief (AR) اقتراح اسم الوحدة المناسبة لدالة معينة
+             * @brief (EN) Suggest which module to import for a given function name
+             * @param funcName اسم الدالة / Function name
+             * @return اسم الوحدة المقترحة أو سلسلة فارغة / Suggested module name or empty string
+             */
+            std::string suggestModuleForFunction(const std::string &funcName) const;
 
-private:
-    BuiltinModuleRegistry() = default;
+        private:
+            BuiltinModuleRegistry() = default;
 
-    std::string resolveAlias(const std::string& name) const {
-        auto it = moduleAliases_.find(name);
-        return (it != moduleAliases_.end()) ? it->second : name;
-    }
+            std::string resolveAlias(const std::string &name) const
+            {
+                // (AR) لا أسماء بديلة — كل وحدة لها اسم واحد فقط
+                // (EN) No aliases — each module has exactly one name
+                if (modules_.count(name) > 0)
+                    return name;
 
-    /// (AR) خريطة الوحدات: اسم → معلومات
-    std::unordered_map<std::string, BuiltinModuleInfo> modules_;
+                // (AR) فحص السجل المركزي للتوافق (ADR-003)
+                // (EN) Check central registry for compatibility (ADR-003)
+                auto moduleId = Sad::Builtins::resolveModuleId(std::string_view(name));
+                if (moduleId != Sad::Builtins::ModuleId::NONE)
+                {
+                    auto canonical = Sad::Builtins::getCanonicalModuleName(moduleId);
+                    if (!canonical.empty())
+                    {
+                        auto localIt = modules_.find(std::string(canonical));
+                        if (localIt != modules_.end())
+                        {
+                            return std::string(canonical);
+                        }
+                    }
+                }
 
-    /// (AR) خريطة الأسماء البديلة → الاسم القانوني
-    std::unordered_map<std::string, std::string> moduleAliases_;
+                return name;
+            }
 
-    /// (AR) الوحدات المُحمَّلة
-    std::unordered_set<std::string> loadedModules_;
+            /// (AR) خريطة الوحدات: اسم → معلومات
+            std::unordered_map<std::string, BuiltinModuleInfo> modules_;
 
-    /// (AR) مرجع المفسر / (EN) Interpreter reference
-    Interpreter* interpreter_ = nullptr;
-};
+            /// (AR) الوحدات المُحمَّلة
+            std::unordered_set<std::string> loadedModules_;
 
-} // namespace Interpreter
+            /// (AR) مرجع المفسر / (EN) Interpreter reference
+            Interpreter *interpreter_ = nullptr;
+        };
+
+    } // namespace Interpreter
 } // namespace Sad

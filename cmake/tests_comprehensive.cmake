@@ -96,6 +96,9 @@ add_comprehensive_test(test_errors_comprehensive test_errors_comprehensive.cpp)
 # 6.5. استنساخ عُقد AST / AST Clone Tests (18 tests)
 add_comprehensive_test(test_ast_clone test_ast_clone.cpp)
 
+# 6.6. مستخرج التوثيق / Documentation Extractor Tests (28 tests)
+add_comprehensive_test(test_docs_extractor_comprehensive test_docs_extractor_comprehensive.cpp)
+
 # 7. الآلة الافتراضية والمترجم / VM & Compiler Tests (77 tests)
 add_comprehensive_test(test_vm_compiler_comprehensive test_vm_compiler_comprehensive.cpp)
 target_link_libraries(test_vm_compiler_comprehensive PRIVATE sad_vm sad_new_interpreter sad_new_frontend)
@@ -202,9 +205,27 @@ target_include_directories(test_image_comprehensive PRIVATE
 # 14. اختبارات الواجهة الرسومية + المترجم SIR / UI Widget + Compiler SIR Tests
 # ──────────────────────────────────────────────────────────────────────
 add_comprehensive_test(test_ui_comprehensive test_ui_comprehensive.cpp)
+target_link_libraries(test_ui_comprehensive PRIVATE sad_ui)
 target_include_directories(test_ui_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/compiler_new/src/sir
-    ${CMAKE_SOURCE_DIR}/compiler_new/src)
+    ${CMAKE_SOURCE_DIR}/compiler_new/src
+    ${CMAKE_SOURCE_DIR}/sad_ui/core/include)
+
+# 14a. اختبارات قبول المرحلة 0: Parser UI (إذا/وإلا + لكل + knownWidgets)
+# Phase 0 Acceptance Tests: UI Parser (conditional rendering + loops + widget registry)
+add_comprehensive_test(test_ui_phase0 test_ui_phase0.cpp)
+
+# 14c. اختبارات قبول المرحلة 1: النظام التفاعلي (BindingCompiler)
+# Phase 1 Acceptance Tests: Reactive System (BindingCompiler)
+add_comprehensive_test(test_ui_phase1 test_ui_phase1.cpp)
+target_link_libraries(test_ui_phase1 PRIVATE sad_ui)
+target_include_directories(test_ui_phase1 PRIVATE
+    ${CMAKE_SOURCE_DIR}/sad_ui/core/include
+    ${CMAKE_SOURCE_DIR}/sad_ui/reactive
+    ${CMAKE_SOURCE_DIR}/shared/ast/include
+    ${CMAKE_SOURCE_DIR}/shared/types/include
+    ${CMAKE_SOURCE_DIR}/shared/lexer/include
+)
 
 # 14b. اختبارات منصات الرسومات الشاملة / Comprehensive Backend Tests (IR + Pipeline + Codegen)
 add_comprehensive_test(test_backends_comprehensive test_backends_comprehensive.cpp)
@@ -362,6 +383,7 @@ add_custom_target(comprehensive_tests
         test_stdlib_comprehensive
         test_errors_comprehensive
         test_ast_clone
+        test_docs_extractor_comprehensive
         test_vm_compiler_comprehensive
         test_jit_comprehensive
         test_e2e_comprehensive

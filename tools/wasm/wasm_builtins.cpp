@@ -9,6 +9,7 @@
 
 #include "builtins.h"
 #include "interpreter_core.h"
+#include "builtin_registry.h"
 
 namespace Sad
 {
@@ -18,50 +19,39 @@ namespace Sad
         using Data::Value;
         using VV = std::vector<std::shared_ptr<Value>>;
 
+        // (AR) اختصارات لفضاءات الأسماء المركزية
+        namespace Bc = Sad::Builtins::Names::Core;
+        namespace Bt = Sad::Builtins::Names::TypeCtor;
+        namespace Bm = Sad::Builtins::Names::Math;
+        namespace Bs = Sad::Builtins::Names::Strings;
+        namespace Bb = Sad::Builtins::Names::Basics;
+
         // ─── builtin_module_strings: نصوص + مصفوفات ──────────────────────────────────
         void registerBuiltinsStrings(Interpreter &interpreter)
         {
             auto &fm = interpreter.getFunctionManager();
 
-            fm.registerBuiltinFunction("اطبع",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::print(a); });
-            fm.registerBuiltinFunction("print",
+            fm.registerBuiltinFunction(std::string(Bc::PRINT),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::print(a); });
 
-            fm.registerBuiltinFunction("اطبع_سطر",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::println(a); });
-            fm.registerBuiltinFunction("println",
+            fm.registerBuiltinFunction(std::string(Bc::PRINTLN),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::println(a); });
 
-            fm.registerBuiltinFunction("اقرأ",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::input(a); });
-            fm.registerBuiltinFunction("input",
+            fm.registerBuiltinFunction(std::string(Bc::READ),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::input(a); });
 
-            fm.registerBuiltinFunction("طول",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::length(a); });
-            fm.registerBuiltinFunction("length",
+            fm.registerBuiltinFunction(std::string(Bc::LENGTH),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::length(a); });
 
-            fm.registerBuiltinFunction("أضف",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::append(a); });
-            fm.registerBuiltinFunction("append",
+            fm.registerBuiltinFunction(std::string(Bs::APPEND),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::append(a); });
 
-            fm.registerBuiltinFunction("أزل",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::remove(a); });
-            fm.registerBuiltinFunction("remove",
+            fm.registerBuiltinFunction(std::string(Bs::REMOVE_ELEM),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::remove(a); });
         }
@@ -71,38 +61,23 @@ namespace Sad
         {
             auto &fm = interpreter.getFunctionManager();
 
-            fm.registerBuiltinFunction("رقم",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::to_int(a); });
-            fm.registerBuiltinFunction("int",
+            fm.registerBuiltinFunction(std::string(Bt::TO_INT),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::to_int(a); });
 
-            fm.registerBuiltinFunction("عشري",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::to_float(a); });
-            fm.registerBuiltinFunction("float",
+            fm.registerBuiltinFunction(std::string(Bt::TO_FLOAT),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::to_float(a); });
 
-            fm.registerBuiltinFunction("نص",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::to_string(a); });
-            fm.registerBuiltinFunction("str",
+            fm.registerBuiltinFunction(std::string(Bt::TO_STRING),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::to_string(a); });
 
-            fm.registerBuiltinFunction("نوع",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::type_of(a); });
-            fm.registerBuiltinFunction("type",
+            fm.registerBuiltinFunction(std::string(Bc::TYPE),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::type_of(a); });
 
-            fm.registerBuiltinFunction("مدى",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::range(a); });
-            fm.registerBuiltinFunction("range",
+            fm.registerBuiltinFunction(std::string(Bb::RANGE),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::range(a); });
         }
@@ -112,38 +87,23 @@ namespace Sad
         {
             auto &fm = interpreter.getFunctionManager();
 
-            fm.registerBuiltinFunction("جذر",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::sqrt(a); });
-            fm.registerBuiltinFunction("sqrt",
+            fm.registerBuiltinFunction(std::string(Bm::SQRT),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::sqrt(a); });
 
-            fm.registerBuiltinFunction("مطلق",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::abs(a); });
-            fm.registerBuiltinFunction("abs",
+            fm.registerBuiltinFunction(std::string(Bm::ABS),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::abs(a); });
 
-            fm.registerBuiltinFunction("أكبر",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::max(a); });
-            fm.registerBuiltinFunction("max",
+            fm.registerBuiltinFunction(std::string(Bm::MAX),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::max(a); });
 
-            fm.registerBuiltinFunction("أصغر",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::min(a); });
-            fm.registerBuiltinFunction("min",
+            fm.registerBuiltinFunction(std::string(Bm::MIN),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::min(a); });
 
-            fm.registerBuiltinFunction("جمع",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::sum(a); });
-            fm.registerBuiltinFunction("sum",
+            fm.registerBuiltinFunction(std::string(Bm::SUM),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::sum(a); });
         }
@@ -156,31 +116,19 @@ namespace Sad
         {
             auto &fm = interpreter.getFunctionManager();
 
-            fm.registerBuiltinFunction("قسم",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::split(a); });
-            fm.registerBuiltinFunction("split",
+            fm.registerBuiltinFunction(std::string(Bs::SPLIT),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::split(a); });
 
-            fm.registerBuiltinFunction("صل",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::join(a); });
-            fm.registerBuiltinFunction("join",
+            fm.registerBuiltinFunction(std::string(Bs::JOIN),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::join(a); });
 
-            fm.registerBuiltinFunction("أحرف_كبيرة",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::upper(a); });
-            fm.registerBuiltinFunction("upper",
+            fm.registerBuiltinFunction(std::string(Bs::TO_UPPER),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::upper(a); });
 
-            fm.registerBuiltinFunction("أحرف_صغيرة",
-                                       [](const VV &a)
-                                       { return StdLib::BuiltinFunctions::lower(a); });
-            fm.registerBuiltinFunction("lower",
+            fm.registerBuiltinFunction(std::string(Bs::TO_LOWER),
                                        [](const VV &a)
                                        { return StdLib::BuiltinFunctions::lower(a); });
         }

@@ -191,7 +191,7 @@ namespace Sad
                 }
 
                 // 9. channel_send
-                if (funcName == "\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "channel_send" || funcName == "\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84")
+                if (funcName == "\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "channel_send")
                 {
                     if (argResults.size() < 2)
                     {

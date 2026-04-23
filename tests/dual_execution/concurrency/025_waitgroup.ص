@@ -1,7 +1,6 @@
-# @description اختبار مجموعة الانتظار (WaitGroup) — إضافة وإنهاء وعداد
+﻿# @description اختبار مجموعة الانتظار (WaitGroup) — إضافة وإنهاء وعداد
 # @expected 3\n2\n0
 # @priority P2
-# @skip_compiler مجموعة_انتظار جزئية في المترجم
 
 متغير مج = مجموعة_انتظار()
 

@@ -7,9 +7,13 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builtin_registry.h"
 #include <stdexcept>
 #include <iostream>
 #include <optional>
+
+// (AR) اختصار لأسماء الدوال المركزية — مصدر حقيقة واحد
+namespace Bm = Sad::Builtins::Names::Math;
 
 namespace Sad
 {
@@ -30,7 +34,7 @@ namespace Sad
                 // (AR) دالة جذر() - sqrt
                 // (EN) sqrt() function - Square root
                 // الأسماء المدعومة: جذر, sqrt, الجذر_التربيعي
-                if (funcName == "جذر" || funcName == "sqrt" || funcName == "الجذر_التربيعي")
+                if (funcName == Bm::SQRT)
                 {
                     if (argResults.empty())
                     {
@@ -59,7 +63,7 @@ namespace Sad
                 // (AR) دالة لوغ() - natural logarithm
                 // (EN) log() function - natural logarithm
                 // الأسماء المدعومة: لوغ, log, ln, لوغاريتم
-                if (funcName == "لوغ" || funcName == "log" || funcName == "ln" || funcName == "لوغاريتم")
+                if (funcName == Bm::LOG)
                 {
                     if (argResults.empty())
                     {
@@ -88,7 +92,7 @@ namespace Sad
                 // (AR) دالة إشارة() - signum
                 // (EN) sign() function - returns -1, 0, or 1
                 // الأسماء المدعومة: إشارة, اشارة, sign, signum
-                if (funcName == "إشارة" || funcName == "اشارة" || funcName == "sign" || funcName == "signum")
+                if (funcName == Bm::SIGN)
                 {
                     if (argResults.empty())
                     {
@@ -196,7 +200,7 @@ namespace Sad
                 // (AR) دالة أس() - power
                 // (EN) power() function - Base^Exponent
                 // الأسماء المدعومة: أس, power, pow
-                if (funcName == "أس" || funcName == "power" || funcName == "pow")
+                if (funcName == Bm::POWER)
                 {
                     if (argResults.size() < 2)
                     {
@@ -226,7 +230,7 @@ namespace Sad
                 // (AR) دالة مطلق() - abs
                 // (EN) abs() function - Absolute value
                 // الأسماء المدعومة: مطلق, abs, القيمة_المطلقة, absolute
-                if (funcName == "مطلق" || funcName == "abs" || funcName == "القيمة_المطلقة" || funcName == "absolute")
+                if (funcName == Bm::ABS)
                 {
                     if (argResults.empty())
                     {
@@ -256,7 +260,7 @@ namespace Sad
                 // (AR) دالة تقريب() - round
                 // (EN) round() function
                 // الأسماء المدعومة: تقريب, round
-                if (funcName == "تقريب" || funcName == "round")
+                if (funcName == Bm::ROUND)
                 {
                     if (argResults.empty())
                     {
@@ -285,7 +289,7 @@ namespace Sad
                 // (AR) دالة أرضية() - floor
                 // (EN) floor() function
                 // الأسماء المدعومة: أرضية, floor
-                if (funcName == "أرضية" || funcName == "floor")
+                if (funcName == Bm::FLOOR)
                 {
                     if (argResults.empty())
                     {
@@ -314,7 +318,7 @@ namespace Sad
                 // (AR) دالة سقف() - ceil
                 // (EN) ceil() function
                 // الأسماء المدعومة: سقف, ceil, ceiling
-                if (funcName == "سقف" || funcName == "ceil" || funcName == "ceiling")
+                if (funcName == Bm::CEIL)
                 {
                     if (argResults.empty())
                     {
@@ -343,7 +347,7 @@ namespace Sad
                 // (AR) دالة مربع() - square
                 // (EN) square() function - x^2
                 // الأسماء المدعومة: مربع, square
-                if (funcName == "مربع" || funcName == "square")
+                if (funcName == Bm::SQUARE)
                 {
                     if (argResults.empty())
                     {
@@ -373,7 +377,7 @@ namespace Sad
                 // (AR) دالة جيب() - sin
                 // (EN) sin() function - sine
                 // الأسماء المدعومة: جيب, sin, sine
-                if (funcName == "جيب" || funcName == "sin" || funcName == "sine")
+                if (funcName == Bm::SIN)
                 {
                     if (argResults.empty())
                     {
@@ -402,7 +406,7 @@ namespace Sad
                 // (AR) دالة جيب_تمام() - cos
                 // (EN) cos() function - cosine
                 // الأسماء المدعومة: جيب_تمام, cos, cosine
-                if (funcName == "جيب_تمام" || funcName == "cos" || funcName == "cosine")
+                if (funcName == Bm::COS)
                 {
                     if (argResults.empty())
                     {
@@ -431,7 +435,7 @@ namespace Sad
                 // (AR) دالة ظل() - tan
                 // (EN) tan() function - tangent
                 // الأسماء المدعومة: ظل, tan, tangent
-                if (funcName == "ظل" || funcName == "tan" || funcName == "tangent")
+                if (funcName == Bm::TAN)
                 {
                     if (argResults.empty())
                     {
@@ -457,13 +461,12 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
-
                 // ========================================================================
                 // Math Functions - أكبر/أصغر/جمع (3 functions)
                 // ========================================================================
 
                 // أكبر / max - الأكبر من قيمتين
-                if (funcName == "أكبر" || funcName == "max" || funcName == "maximum")
+                if (funcName == Bm::MAX)
                 {
                     if (argResults.size() < 2)
                     {
@@ -482,7 +485,7 @@ namespace Sad
                 }
 
                 // أصغر / min - الأصغر من قيمتين
-                if (funcName == "أصغر" || funcName == "min" || funcName == "minimum")
+                if (funcName == Bm::MIN)
                 {
                     if (argResults.size() < 2)
                     {
@@ -501,7 +504,7 @@ namespace Sad
                 }
 
                 // جمع / sum - مجموع عناصر مصفوفة
-                if (funcName == "جمع" || funcName == "sum")
+                if (funcName == Bm::SUM)
                 {
                     if (argResults.empty())
                     {
@@ -518,6 +521,195 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
+                // ========================================================================
+                // (AR) دوال رياضية إضافية — وحدة رياضيات الموسّعة
+                // (EN) Extended math functions — stdlib رياضيات module
+                // ========================================================================
+
+                // (AR) دالة لوغ10() - لوغاريتم عشري
+                // (EN) log10() function - Base-10 logarithm
+                if (funcName == Bm::LOG10)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة لوغ10 تتطلب معامل واحد" << std::endl;
+                        return BuildResult("", SadTypeKind::Float);
+                    }
+                    std::string resultReg = newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
+                    SIRInstruction inst(SIROpcode::BUILTIN_LOG10);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Float);
+                }
+
+                // (AR) دالة لوغ2() - لوغاريتم ثنائي
+                // (EN) log2() function - Base-2 logarithm
+                if (funcName == Bm::LOG2)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة لوغ2 تتطلب معامل واحد" << std::endl;
+                        return BuildResult("", SadTypeKind::Float);
+                    }
+                    std::string resultReg = newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
+                    SIRInstruction inst(SIROpcode::BUILTIN_LOG2);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Float);
+                }
+
+                // (AR) دالة قوس_جيب() - asin
+                // (EN) asin() function - Arc sine
+                if (funcName == Bm::ASIN)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة قوس_جيب تتطلب معامل واحد" << std::endl;
+                        return BuildResult("", SadTypeKind::Float);
+                    }
+                    std::string resultReg = newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
+                    SIRInstruction inst(SIROpcode::BUILTIN_ASIN);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Float);
+                }
+
+                // (AR) دالة قوس_جيب_تمام() - acos
+                // (EN) acos() function - Arc cosine
+                if (funcName == Bm::ACOS)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة قوس_جيب_تمام تتطلب معامل واحد" << std::endl;
+                        return BuildResult("", SadTypeKind::Float);
+                    }
+                    std::string resultReg = newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
+                    SIRInstruction inst(SIROpcode::BUILTIN_ACOS);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Float);
+                }
+
+                // (AR) دالة قوس_ظل() - atan
+                // (EN) atan() function - Arc tangent
+                if (funcName == Bm::ATAN)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة قوس_ظل تتطلب معامل واحد" << std::endl;
+                        return BuildResult("", SadTypeKind::Float);
+                    }
+                    std::string resultReg = newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
+                    SIRInstruction inst(SIROpcode::BUILTIN_ATAN);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Float);
+                }
+
+                // (AR) دالة اقتطاع() - truncate (قطع نحو الصفر)
+                // (EN) trunc() function - Truncate toward zero
+                if (funcName == Bm::TRUNCATE)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة اقتطاع تتطلب معامل واحد" << std::endl;
+                        return BuildResult("", SadTypeKind::Integer);
+                    }
+                    std::string resultReg = newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    SIRInstruction inst(SIROpcode::BUILTIN_TRUNC);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Integer);
+                }
+
+                // (AR) دالة باقي() - باقي القسمة العشرية (fmod)
+                // (EN) fmod() function - Floating-point remainder
+                if (funcName == Bm::FMOD)
+                {
+                    if (argResults.size() < 2)
+                    {
+                        std::cerr << "[Error] دالة باقي تتطلب معاملين (البسط والمقام)" << std::endl;
+                        return BuildResult("", SadTypeKind::Float);
+                    }
+                    std::string resultReg = newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
+                    SIRInstruction inst(SIROpcode::BUILTIN_FMOD);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Float);
+                }
+
+                // (AR) دالة حصر() - تقييد القيمة ضمن نطاق [حد_أدنى، حد_أعلى]
+                // (EN) clamp() function - Clamp value between min and max
+                if (funcName == Bm::CLAMP)
+                {
+                    if (argResults.size() < 3)
+                    {
+                        std::cerr << "[Error] دالة حصر تتطلب 3 معاملات (القيمة، الحد_الأدنى، الحد_الأعلى)" << std::endl;
+                        return BuildResult("", SadTypeKind::Float);
+                    }
+                    std::string resultReg = newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
+                    SIRInstruction inst(SIROpcode::BUILTIN_CLAMP);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]); // value
+                    inst.operands.push_back(argOperands[1]); // min
+                    inst.operands.push_back(argOperands[2]); // max
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Float);
+                }
+
+                // (AR) ثابت باي/ط — النسبة التقريبية π
+                // (EN) Pi constant — returns 3.141592653589793
+                if (funcName == Bm::PI || funcName == Bm::PI_ALT)
+                {
+                    std::string resultReg = newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
+                    SIRInstruction inst(SIROpcode::MOVE);
+                    inst.result = resultOp;
+                    inst.operands.push_back(SIROperand::ConstantF64(3.141592653589793));
+                    inst.comment = "π constant";
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Float);
+                }
+
+                // (AR) ثابت إ/أولر — العدد e (أساس اللوغاريتم الطبيعي)
+                // (EN) Euler's number constant — returns 2.718281828459045
+                if (funcName == Bm::E)
+                {
+                    std::string resultReg = newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
+                    SIRInstruction inst(SIROpcode::MOVE);
+                    inst.result = resultOp;
+                    inst.operands.push_back(SIROperand::ConstantF64(2.718281828459045));
+                    inst.comment = "e constant (Euler)";
+                    if (currentBlock_)
+                        currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Float);
+                }
 
                 return std::nullopt;
             }

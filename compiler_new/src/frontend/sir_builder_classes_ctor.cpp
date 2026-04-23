@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // sir_builder_classes_ctor.cpp
 // ============================================================================
 // (AR) معالجة بواني الأصناف — مستخرج من sir_builder_classes.cpp (CW-05)
@@ -491,13 +491,48 @@ namespace Sad
 
                     module_->addFunction(sirCtor);
 
-                    // (AR) تسجيل في جدول الدوال
-                    // (EN) Register in function table
+                    // ═══════════════════════════════════════════════════════════
+                    // (AR) تسجيل في جدول الدوال مع الحفاظ على أنواع Phase 1.7
+                    //      Phase 1.35 يسجّل الباني مبكراً ثم Phase 1.7 يُحدّث
+                    //      أنواع المعاملات من call-sites. إذا كتبنا فوقه نفقد
+                    //      التحديثات. الحل: دمج الأنواع المُستنتجة من Phase 1.7
+                    // (EN) Register in function table while preserving Phase 1.7 types
+                    //      Phase 1.35 pre-registers ctor, Phase 1.7 updates param
+                    //      types from call-sites. Overwriting loses those updates.
+                    //      Solution: merge inferred types from Phase 1.7
+                    // ═══════════════════════════════════════════════════════════
                     FunctionInfo ctorInfo;
                     ctorInfo.name = fullCtorName;
                     ctorInfo.returnType = SadTypeKind::Void;
                     ctorInfo.parameters = sirCtor->getParameters();
                     ctorInfo.sirFunction = sirCtor;
+
+                    // (AR) دمج أنواع المعاملات من Phase 1.7 إذا كانت أدق
+                    // (EN) Merge param types from Phase 1.7 if they're more specific
+                    auto prevIt = functionTable_.find(fullCtorName);
+                    if (prevIt != functionTable_.end())
+                    {
+                        const auto &prevParams = prevIt->second.parameters;
+                        for (size_t pi = 0; pi < ctorInfo.parameters.size() && pi < prevParams.size(); pi++)
+                        {
+                            // (AR) إذا كان Phase 1.7 قد حدّث النوع من Integer إلى نوع أدق
+                            // (EN) If Phase 1.7 updated the type from Integer to a more specific type
+                            if (ctorInfo.parameters[pi].type == SadTypeKind::Integer &&
+                                prevParams[pi].type != SadTypeKind::Integer &&
+                                prevParams[pi].type != SadTypeKind::Void &&
+                                prevParams[pi].type != SadTypeKind::Pointer)
+                            {
+                                ctorInfo.parameters[pi].type = prevParams[pi].type;
+                                // (AR) أيضاً نحدّث المعاملات في دالة SIR نفسها
+                                // (EN) Also update the params in the SIR function itself
+                                if (pi < sirCtor->getParameters().size())
+                                {
+                                    sirCtor->getMutableParameters()[pi].type = prevParams[pi].type;
+                                }
+                            }
+                        }
+                    }
+
                     functionTable_[fullCtorName] = ctorInfo;
 
                     currentFunction_ = prevFunction;

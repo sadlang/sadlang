@@ -264,6 +264,69 @@ namespace Sad
                     // (AR) جسم كتلي - بناء الجمل
                     // (EN) Block body - build statements
                     buildStatement(lambdaExpr->blockBody.get());
+
+                    // ================================================================
+                    // (AR) [Fix #52] تحديث نوع الإرجاع من تعليمات RET الفعلية
+                    //      inferReturnTypeFromBody يعمل على AST قبل بناء المتغيرات الملتقطة
+                    //      لذا لا يعرف أنواعها. بعد بناء الجسم، المتغيرات مسجلة بأنواعها
+                    //      الصحيحة، فنفحص تعليمات RET الفعلية ونأخذ النوع منها.
+                    //      هذا يصلح مشكلة إرجاع مؤشر بدل نص من الإغلاقات.
+                    // (EN) [Fix #52] Update return type from actual RET instructions
+                    //      inferReturnTypeFromBody works on AST before captured vars are built,
+                    //      so it doesn't know their types. After building body, vars are registered
+                    //      with correct types, so we scan actual RET instructions for the real type.
+                    //      This fixes closures returning pointer instead of string.
+                    // ================================================================
+                    if (lambdaFunc)
+                    {
+                        for (const auto &block : lambdaFunc->basicBlocks)
+                        {
+                            for (const auto &inst : block->instructions)
+                            {
+                                if (inst.opcode == SIROpcode::RET && !inst.operands.empty())
+                                {
+                                    SadTypeKind actualRetType = inst.operands[0].dataType;
+                                    if (actualRetType != SadTypeKind::Void &&
+                                        actualRetType != SadTypeKind::Unknown &&
+                                        actualRetType != SadTypeKind::Integer &&
+                                        retType == SadTypeKind::Integer)
+                                    {
+                                        // (AR) النوع الفعلي أدق من Integer الافتراضي
+                                        // (EN) Actual type is more specific than default Integer
+                                        retType = actualRetType;
+                                        lambdaFunc->returnType = retType;
+                                    }
+                                    else if (retType == SadTypeKind::Integer &&
+                                             actualRetType == SadTypeKind::Integer)
+                                    {
+                                        // (AR) قد يكون Integer فعلياً — نفحص السجل المصدري
+                                        //      إذا كان من متغير ملتقط بنوع مختلف، نعتمد نوع الملتقط
+                                        // (EN) Might truly be Integer — check source register
+                                        //      If from a captured var with different type, use capture type
+                                        const std::string &srcReg = inst.operands[0].name;
+                                        for (const auto &cap : captures)
+                                        {
+                                            std::string capAllocaName = "%__cap_" + cap.varName + "_";
+                                            if (srcReg.find(capAllocaName) != std::string::npos ||
+                                                srcReg == "%" + cap.varName)
+                                            {
+                                                if (cap.type != SadTypeKind::Integer)
+                                                {
+                                                    retType = cap.type;
+                                                    lambdaFunc->returnType = retType;
+                                                }
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    break; // (AR) أول RET يكفي / (EN) First RET is enough
+                                }
+                            }
+                            if (retType != SadTypeKind::Integer)
+                                break;
+                        }
+                    }
+
                     // (AR) إضافة RET_VOID في نهاية الكتلة إن لم يكن هناك return
                     // (EN) Add RET_VOID at end if no return
                     if (currentBlock_ && !currentBlock_->instructions.empty())

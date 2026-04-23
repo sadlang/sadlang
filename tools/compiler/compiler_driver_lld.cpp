@@ -134,6 +134,11 @@ namespace sad
                                                     const std::string &output_file)
         {
             std::vector<std::string> arg_storage;
+            std::vector<std::string> auto_library_paths;
+            std::vector<std::string> auto_libraries;
+            std::vector<std::string> windows_runtime_libraries;
+            append_bundled_network_libraries(auto_library_paths, auto_libraries);
+            append_windows_hosted_runtime_libraries(windows_runtime_libraries, true);
 
 #ifdef _WIN32
             // ── Windows: COFF/PE mode (lld-link) ──
@@ -146,12 +151,10 @@ namespace sad
                 arg_storage.push_back(runtime_obj_path);
             }
 
-            // (AR) مكتبات C القياسية اللازمة
-            // (EN) Required C standard libraries
-            arg_storage.push_back("libcmt.lib");
-            arg_storage.push_back("libucrt.lib");
-            arg_storage.push_back("kernel32.lib");
-            arg_storage.push_back("legacy_stdio_definitions.lib");
+            for (const auto &lib : windows_runtime_libraries)
+            {
+                arg_storage.push_back(lib);
+            }
 
             // (AR) مكتبات المستخدم
             // (EN) User-specified libraries
@@ -160,10 +163,19 @@ namespace sad
                 arg_storage.push_back(lib + ".lib");
             }
 
+            for (const auto &lib : auto_libraries)
+            {
+                arg_storage.push_back(lib + ".lib");
+            }
+
             // (AR) مسارات المكتبات — MSVC + Windows SDK
             // (EN) Library paths — MSVC + Windows SDK
             auto msvc_paths = find_msvc_lib_paths();
             for (const auto &path : msvc_paths)
+            {
+                arg_storage.push_back("/LIBPATH:" + path);
+            }
+            for (const auto &path : auto_library_paths)
             {
                 arg_storage.push_back("/LIBPATH:" + path);
             }

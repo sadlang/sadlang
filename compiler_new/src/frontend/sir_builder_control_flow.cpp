@@ -566,22 +566,41 @@ namespace Sad
                         currentFunction_->addBasicBlock(exitBlock);
                     }
 
-                    // (AR) ״×״®״µ״µ …״×״÷״± ״§„״­„‚״©
-                    // (EN) Allocate loop variable
+                    // (AR) تخصيص متغير الحلقة وتحديد نوعه من channelTypeMap_
+                    // (EN) Allocate loop variable and infer its type from channelTypeMap_
                     std::string loopVarAllocName = "%" + forRange->variable;
+                    SadTypeKind chanElemType = SadTypeKind::Integer;
+                    {
+                        // (AR) البحث عن نوع عنصر القناة من اسم السجل أو اسم المتغير الأصلي
+                        // (EN) Look up the channel element type by register or source variable name
+                        auto ctIt = channelTypeMap_.find(iterableResult.registerName);
+                        if (ctIt != channelTypeMap_.end())
+                        {
+                            chanElemType = ctIt->second;
+                        }
+                        else if (auto *iterVar = dynamic_cast<Sad::AST::VariableExpr *>(
+                                     forRange->iterable.get()))
+                        {
+                            ctIt = channelTypeMap_.find(iterVar->name);
+                            if (ctIt != channelTypeMap_.end())
+                            {
+                                chanElemType = ctIt->second;
+                            }
+                        }
+                    }
                     {
                         SIRInstruction allocLoop(SIROpcode::ALLOC);
-                        allocLoop.result = SIROperand::Register(loopVarAllocName, SadTypeKind::Integer);
+                        allocLoop.result = SIROperand::Register(loopVarAllocName, chanElemType);
                         if (currentBlock_)
                             currentBlock_->instructions.push_back(allocLoop);
                     }
 
-                    // (AR) ״×״³״¬„ …״×״÷״± ״§„״­„‚״©
-                    // (EN) Register loop variable
+                    // (AR) تسجيل متغير الحلقة بالنوع المستنتج
+                    // (EN) Register the loop variable with the inferred type
                     VariableInfo chanVarInfo;
                     chanVarInfo.name = forRange->variable;
                     chanVarInfo.registerName = loopVarAllocName;
-                    chanVarInfo.type = SadTypeKind::Integer;
+                    chanVarInfo.type = chanElemType;
                     chanVarInfo.isMutable = true;
                     addVariable(chanVarInfo);
 
@@ -670,7 +689,7 @@ namespace Sad
                     std::string recvReg = newTempRegister();
                     {
                         SIRInstruction recvInst(SIROpcode::ASYNC_CHANNEL_RECV);
-                        recvInst.result = SIROperand::Register(recvReg, SadTypeKind::Integer);
+                        recvInst.result = SIROperand::Register(recvReg, chanElemType);
                         recvInst.operands.push_back(chanOp);
                         if (currentBlock_)
                             currentBlock_->instructions.push_back(recvInst);
@@ -680,8 +699,8 @@ namespace Sad
                     // (EN) Store received value into loop variable
                     {
                         SIRInstruction storeElem(SIROpcode::STORE);
-                        storeElem.operands.push_back(SIROperand::Register(recvReg, SadTypeKind::Integer));
-                        storeElem.operands.push_back(SIROperand::Register(loopVarAllocName, SadTypeKind::Integer));
+                        storeElem.operands.push_back(SIROperand::Register(recvReg, chanElemType));
+                        storeElem.operands.push_back(SIROperand::Register(loopVarAllocName, chanElemType));
                         if (currentBlock_)
                             currentBlock_->instructions.push_back(storeElem);
                     }
@@ -812,8 +831,18 @@ namespace Sad
                 varInfo.registerName = loopVarAllocName;
                 varInfo.type = (iterableResult.elementType != SadTypeKind::Void) ? iterableResult.elementType : SadTypeKind::Integer;
                 varInfo.isMutable = true;
+                if (!iterableResult.elementClassName.empty())
+                {
+                    varInfo.className = iterableResult.elementClassName;
+                }
 
                 addVariable(varInfo);
+
+                if (!varInfo.className.empty())
+                {
+                    classInstanceTypes_[forRange->variable] = varInfo.className;
+                    classInstanceTypes_[loopVarAllocName] = varInfo.className;
+                }
 
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildForRangeLoop: registered loop var '"
@@ -1023,8 +1052,6 @@ namespace Sad
 #endif
             }
 
-
         } // namespace SIR
     } // namespace Compiler
 } // namespace Sad
-

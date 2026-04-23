@@ -29,6 +29,7 @@
  */
 
 #include "interpreter_core.h"
+#include "builtin_registry.h"
 #include "value.h"
 
 #ifdef HAS_SADNET
@@ -187,6 +188,9 @@ namespace Sad
         {
             auto &fm = interpreter.getFunctionManager();
 
+            // (AR) اختصار لأسماء ثوابت الشبكة اللامركزية
+            namespace Bn = Builtins::Names::SadNet;
+
             // ═════════════════════════════════════════════════════════════════
             // القسم 1: تهيئة العقدة
             // ═════════════════════════════════════════════════════════════════
@@ -202,8 +206,7 @@ namespace Sad
                     g_nodes[id] = std::move(node);
                     return makeNum(static_cast<double>(id));
                 };
-                fm.registerBuiltinFunction("\xd8\xb9\xd9\x82\xd8\xaf\xd8\xa9_\xd8\xac\xd8\xaf\xd9\x8a\xd8\xaf\xd8\xa9", f); // عقدة_جديدة
-                fm.registerBuiltinFunction("snet_new_node", f);
+                fm.registerBuiltinFunction(std::string(Bn::NEW_NODE), f); // عقدة_جديدة
             }
 
             // ─── معرّف_العقدة(عقدة) → نص ───────────────────────────────────
@@ -217,8 +220,7 @@ namespace Sad
                         return makeStr("");
                     return makeStr(nodeIdToHex(node->id));
                 };
-                fm.registerBuiltinFunction("\xd9\x85\xd8\xb9\xd8\xb1\xd9\x91\xd9\x81_\xd8\xa7\xd9\x84\xd8\xb9\xd9\x82\xd8\xaf\xd8\xa9", f); // معرّف_العقدة
-                fm.registerBuiltinFunction("snet_node_id", f);
+                fm.registerBuiltinFunction(std::string(Bn::NODE_ID), f); // معرّف_العقدة
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -244,8 +246,7 @@ namespace Sad
                     }
                     return makeStr(hex);
                 };
-                fm.registerBuiltinFunction("\xd8\xaa\xd8\xb4\xd9\x81\xd9\x8a\xd8\xb1_sha256", f); // تشفير_sha256
-                fm.registerBuiltinFunction("snet_sha256", f);
+                fm.registerBuiltinFunction(std::string(Bn::SHA256), f); // تشفير_sha256
             }
 
             // ─── بايتات_عشوائية(عدد) → نص (hex) ─────────────────────────────
@@ -267,8 +268,7 @@ namespace Sad
                     }
                     return makeStr(hex);
                 };
-                fm.registerBuiltinFunction("\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa\xd8\xa7\xd8\xaa_\xd8\xb9\xd8\xb4\xd9\x88\xd8\xa7\xd8\xa6\xd9\x8a\xd8\xa9", f); // بايتات_عشوائية
-                fm.registerBuiltinFunction("snet_random_bytes", f);
+                fm.registerBuiltinFunction(std::string(Bn::RANDOM_BYTES), f); // بايتات_عشوائية
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -301,8 +301,6 @@ namespace Sad
 
                     return makeBool(node->dht->store(key, val));
                 };
-                fm.registerBuiltinFunction("dht_\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86", f); // dht_تخزين
-                fm.registerBuiltinFunction("snet_dht_store", f);
             }
 
             // ─── dht_بحث(عقدة، مفتاح_نص) → نص|لاشيء ──────────────────────
@@ -330,8 +328,6 @@ namespace Sad
                     }
                     return makeNull();
                 };
-                fm.registerBuiltinFunction("dht_\xd8\xa8\xd8\xad\xd8\xab", f); // dht_بحث
-                fm.registerBuiltinFunction("snet_dht_find", f);
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -360,8 +356,7 @@ namespace Sad
                     }
                     return makeStr("");
                 };
-                fm.registerBuiltinFunction("\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x85\xd9\x84\xd9\x81", f); // تخزين_ملف
-                fm.registerBuiltinFunction("snet_store_file", f);
+                fm.registerBuiltinFunction(std::string(Bn::STORE_FILE), f); // تخزين_ملف
             }
 
             // ─── استرجاع_ملف(عقدة، معرّف_hex) → نص|لاشيء ──────────────────
@@ -385,8 +380,7 @@ namespace Sad
                     }
                     return makeNull();
                 };
-                fm.registerBuiltinFunction("\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xb1\xd8\xac\xd8\xa7\xd8\xb9_\xd9\x85\xd9\x84\xd9\x81", f); // استرجاع_ملف
-                fm.registerBuiltinFunction("snet_retrieve_file", f);
+                fm.registerBuiltinFunction(std::string(Bn::RETRIEVE_FILE), f); // استرجاع_ملف
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -409,8 +403,6 @@ namespace Sad
 
                     return makeBool(node->dns->register_name(name, ip));
                 };
-                fm.registerBuiltinFunction("dns_\xd8\xaa\xd8\xb3\xd8\xac\xd9\x8a\xd9\x84", f); // dns_تسجيل
-                fm.registerBuiltinFunction("snet_dns_register", f);
             }
 
             // ─── dns_حل(عقدة، اسم) → نص|لاشيء ───────────────────────────
@@ -432,8 +424,6 @@ namespace Sad
                     }
                     return makeNull();
                 };
-                fm.registerBuiltinFunction("dns_\xd8\xad\xd9\x84", f); // dns_حل
-                fm.registerBuiltinFunction("snet_dns_resolve", f);
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -466,8 +456,7 @@ namespace Sad
                     }
                     return makeStr("");
                 };
-                fm.registerBuiltinFunction("\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa9_\xd9\x85\xd8\xb4\xd9\x81\xd8\xb1\xd8\xa9", f); // رسالة_مشفرة
-                fm.registerBuiltinFunction("snet_send_encrypted", f);
+                fm.registerBuiltinFunction(std::string(Bn::ENCRYPTED_MSG), f); // رسالة_مشفرة
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -488,8 +477,7 @@ namespace Sad
                     auto pow = node->security->generate_pow();
                     return makeBool(pow.verify());
                 };
-                fm.registerBuiltinFunction("\xd8\xa5\xd8\xab\xd8\xa8\xd8\xa7\xd8\xaa_\xd8\xb9\xd9\x85\xd9\x84", f); // إثبات_عمل
-                fm.registerBuiltinFunction("snet_proof_of_work", f);
+                fm.registerBuiltinFunction(std::string(Bn::PROOF_OF_WORK), f); // إثبات_عمل
             }
 
             // ─── سمعة_قرين(عقدة، قرين_hex) → رقم ─────────────────────────
@@ -508,8 +496,7 @@ namespace Sad
                     auto rep = node->security->get_reputation(peer);
                     return makeNum(static_cast<double>(rep.score));
                 };
-                fm.registerBuiltinFunction("\xd8\xb3\xd9\x85\xd8\xb9\xd8\xa9_\xd9\x82\xd8\xb1\xd9\x8a\xd9\x86", f); // سمعة_قرين
-                fm.registerBuiltinFunction("snet_peer_reputation", f);
+                fm.registerBuiltinFunction(std::string(Bn::PEER_REPUTATION), f); // سمعة_قرين
             }
 
             // ─── حظر_قرين(عقدة، قرين_hex) → منطقي ────────────────────────
@@ -528,8 +515,7 @@ namespace Sad
                     node->security->ban(peer);
                     return makeBool(true);
                 };
-                fm.registerBuiltinFunction("\xd8\xad\xd8\xb8\xd8\xb1_\xd9\x82\xd8\xb1\xd9\x8a\xd9\x86", f); // حظر_قرين
-                fm.registerBuiltinFunction("snet_ban_peer", f);
+                fm.registerBuiltinFunction(std::string(Bn::BLOCK_PEER), f); // حظر_قرين
             }
 
             // ─── قرين_موثوق(عقدة، قرين_hex) → منطقي ─────────────────────
@@ -547,8 +533,7 @@ namespace Sad
                     sad::net::NodeId peer = sad::net::NodeId::from_hex(peer_hex);
                     return makeBool(node->security->is_trusted(peer));
                 };
-                fm.registerBuiltinFunction("\xd9\x82\xd8\xb1\xd9\x8a\xd9\x86_\xd9\x85\xd9\x88\xd8\xab\xd9\x88\xd9\x82", f); // قرين_موثوق
-                fm.registerBuiltinFunction("snet_is_trusted", f);
+                fm.registerBuiltinFunction(std::string(Bn::TRUSTED_PEER), f); // قرين_موثوق
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -573,8 +558,7 @@ namespace Sad
                     }
                     return makeStr("");
                 };
-                fm.registerBuiltinFunction("\xd9\x87\xd9\x88\xd9\x8a\xd8\xa9_\xd8\xac\xd8\xaf\xd9\x8a\xd8\xaf\xd8\xa9", f); // هوية_جديدة
-                fm.registerBuiltinFunction("snet_create_identity", f);
+                fm.registerBuiltinFunction(std::string(Bn::NEW_IDENTITY), f); // هوية_جديدة
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -605,8 +589,7 @@ namespace Sad
                     uint64_t sid = node->streaming->create_stream(title, levels);
                     return makeNum(static_cast<double>(sid));
                 };
-                fm.registerBuiltinFunction("\xd8\xa8\xd8\xab_\xd8\xac\xd8\xaf\xd9\x8a\xd8\xaf", f); // بث_جديد
-                fm.registerBuiltinFunction("snet_create_stream", f);
+                fm.registerBuiltinFunction(std::string(Bn::NEW_BROADCAST), f); // بث_جديد
             }
 
             // ─── بث_إيقاف(عقدة، معرّف_البث) → منطقي ─────────────────────
@@ -624,8 +607,7 @@ namespace Sad
                     node->streaming->stop_stream(sid);
                     return makeBool(true);
                 };
-                fm.registerBuiltinFunction("\xd8\xa8\xd8\xab_\xd8\xa5\xd9\x8a\xd9\x82\xd8\xa7\xd9\x81", f); // بث_إيقاف
-                fm.registerBuiltinFunction("snet_stop_stream", f);
+                fm.registerBuiltinFunction(std::string(Bn::STOP_BROADCAST), f); // بث_إيقاف
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -651,8 +633,6 @@ namespace Sad
                     auto id = node->cdn->publish_content(name, mime, data);
                     return makeStr(id.to_hex());
                 };
-                fm.registerBuiltinFunction("cdn_\xd9\x86\xd8\xb4\xd8\xb1", f); // cdn_نشر
-                fm.registerBuiltinFunction("snet_cdn_publish", f);
             }
 
             // ─── cdn_محتوى(عقدة، معرّف_hex) → نص|لاشيء ───────────────────
@@ -676,8 +656,6 @@ namespace Sad
                     }
                     return makeNull();
                 };
-                fm.registerBuiltinFunction("cdn_\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89", f); // cdn_محتوى
-                fm.registerBuiltinFunction("snet_cdn_get", f);
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -691,8 +669,6 @@ namespace Sad
                     (void)args;
                     return makeStr("sadnet 1.0.0");
                 };
-                fm.registerBuiltinFunction("snet_\xd8\xa5\xd8\xb5\xd8\xaf\xd8\xa7\xd8\xb1", f); // snet_إصدار
-                fm.registerBuiltinFunction("snet_version", f);
             }
 
             // ─── تدمير_عقدة(عقدة) → منطقي ──────────────────────────────
@@ -705,8 +681,7 @@ namespace Sad
                     std::lock_guard<std::mutex> lock(g_nodes_mtx);
                     return makeBool(g_nodes.erase(id) > 0);
                 };
-                fm.registerBuiltinFunction("\xd8\xaa\xd8\xaf\xd9\x85\xd9\x8a\xd8\xb1_\xd8\xb9\xd9\x82\xd8\xaf\xd8\xa9", f); // تدمير_عقدة
-                fm.registerBuiltinFunction("snet_destroy_node", f);
+                fm.registerBuiltinFunction(std::string(Bn::DESTROY_NODE), f); // تدمير_عقدة
             }
         }
 

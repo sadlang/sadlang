@@ -372,7 +372,19 @@ namespace Sad
                 }
                 else if (objResult.type == SadTypeKind::String)
                 {
-                    resultType = SadTypeKind::String;
+                    // (AR) فهرسة نص — استدعاء sad_llvm_string_utf8_char_at لإرجاع حرف UTF-8 كنص
+                    // (EN) String indexing — call sad_llvm_string_utf8_char_at to return UTF-8 char as string
+                    std::string resultReg = newTempRegister();
+                    SIRInstruction callInst;
+                    callInst.opcode = SIROpcode::CALL;
+                    callInst.result = SIROperand::Register(resultReg, SadTypeKind::String);
+                    callInst.operands.push_back(SIROperand::ConstantString("sad_llvm_string_utf8_char_at"));
+                    callInst.operands.push_back(SIROperand::Register(objResult.registerName, SadTypeKind::String));
+                    callInst.operands.push_back(SIROperand::Register(idxResult.registerName, SadTypeKind::Integer));
+                    callInst.comment = "string UTF-8 char at index";
+                    if (currentBlock_)
+                        currentBlock_->addInstruction(callInst);
+                    return BuildResult(resultReg, SadTypeKind::String);
                 }
                 else if (objResult.type == SadTypeKind::Map || objResult.type == SadTypeKind::Struct)
                 {

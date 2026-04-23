@@ -60,9 +60,18 @@ namespace Sad
             {
                 // (AR) التقاط التعليق التوثيقي — يُرفق بأول تصريح
                 // (EN) Capture doc comment — will attach to first declaration
+                //
+                // (AR) إصلاح BF-04: تجميع أسطر ## المتتالية بدل الكتابة فوقها
+                //      كل سطر ## يولد رمز DOC_COMMENT منفصل من lexer،
+                //      فإذا كان هناك تعليق سابق نضيف فاصل سطر ثم نلحق المحتوى.
+                // (EN) BF-04 fix: accumulate consecutive ## lines instead of overwriting
+                //      each ## line produces a separate DOC_COMMENT from the lexer;
+                //      if a previous one exists, append with newline separator.
                 if (current_.getType() == TT::DOC_COMMENT)
                 {
-                    pendingDocComment_ = current_.getValue();
+                    if (!pendingDocComment_.empty())
+                        pendingDocComment_ += '\n';
+                    pendingDocComment_ += current_.getValue();
                 }
                 current_ = lexer_.nextToken();
             }
@@ -74,11 +83,18 @@ namespace Sad
                    nextToken_.getType() == TT::DOC_COMMENT ||
                    nextToken_.getType() == TT::NEWLINE)
             {
-                // (AR) التقاط التعليق التوثيقي من nextToken_ أيضاً
-                // (EN) Capture doc comment from nextToken_ too
+                // (AR) إصلاح BF-04 (السبب الجذري): التعليقات التي تظهر بين current_
+                //      و nextToken_ تأتي بعد current_ فعلياً — يجب ألا تُرفق بأول
+                //      تصريح. نخزّنها في nextDocComment_ ليتم ترحيلها لاحقاً.
+                // (EN) BF-04 root-cause fix: doc comments appearing between
+                //      current_ and nextToken_ are physically AFTER current_ —
+                //      they must NOT attach to the first declaration. Buffer
+                //      them in nextDocComment_ for later promotion.
                 if (nextToken_.getType() == TT::DOC_COMMENT)
                 {
-                    pendingDocComment_ = nextToken_.getValue();
+                    if (!nextDocComment_.empty())
+                        nextDocComment_ += '\n';
+                    nextDocComment_ += nextToken_.getValue();
                 }
                 nextToken_ = lexer_.nextToken();
             }

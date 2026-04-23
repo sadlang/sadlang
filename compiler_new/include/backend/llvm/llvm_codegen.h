@@ -52,6 +52,7 @@
 #define SAD_LLVM_CODEGEN_H
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -608,6 +609,14 @@ namespace Sad
             llvm::Value *emitBuiltinSin(std::shared_ptr<SIRInstruction> inst);   // جيب / Sin
             llvm::Value *emitBuiltinCos(std::shared_ptr<SIRInstruction> inst);   // جيب_تمام / Cos
             llvm::Value *emitBuiltinTan(std::shared_ptr<SIRInstruction> inst);   // ظل / Tan
+            llvm::Value *emitBuiltinLog10(std::shared_ptr<SIRInstruction> inst); // لوغ10 / Log base 10
+            llvm::Value *emitBuiltinLog2(std::shared_ptr<SIRInstruction> inst);  // لوغ2 / Log base 2
+            llvm::Value *emitBuiltinAsin(std::shared_ptr<SIRInstruction> inst);  // قوس_جيب / Arc sine
+            llvm::Value *emitBuiltinAcos(std::shared_ptr<SIRInstruction> inst);  // قوس_جيب_تمام / Arc cosine
+            llvm::Value *emitBuiltinAtan(std::shared_ptr<SIRInstruction> inst);  // قوس_ظل / Arc tangent
+            llvm::Value *emitBuiltinTrunc(std::shared_ptr<SIRInstruction> inst); // اقتطاع / Truncate
+            llvm::Value *emitBuiltinFmod(std::shared_ptr<SIRInstruction> inst);  // باقي / Fmod
+            llvm::Value *emitBuiltinClamp(std::shared_ptr<SIRInstruction> inst); // قيد / Clamp
 
             // String Functions (12)
             llvm::Value *emitBuiltinStringLength(std::shared_ptr<SIRInstruction> inst);
@@ -633,6 +642,43 @@ namespace Sad
             // ================================================================
             llvm::Function *getOrCreateMapFindSlot();
             llvm::Function *getOrCreateMapCollect();
+
+            // (AR) دوال مساعدة تُفوّض إليها emitCall لتقليل حجم الملف (Strangler Fig)
+            //      emitCallException: معالجة دوال runtime الاستثناءات (__sad_alloc_jmpbuf, __sad_raise, ...)
+            //      emitCallMap: معالجة دوال runtime الخرائط (__sad_map_create, __sad_map_get, ...)
+            // (EN) Helper functions called by emitCall to reduce file size (Strangler Fig)
+            //      emitCallException: handle exception runtime functions
+            //      emitCallMap: handle map runtime functions
+            std::optional<llvm::Value *> emitCallException(const std::string &funcName,
+                                                           std::vector<llvm::Value *> &args, std::shared_ptr<SIRInstruction> inst);
+            std::optional<llvm::Value *> emitCallMap(const std::string &funcName,
+                                                     std::vector<llvm::Value *> &args, std::shared_ptr<SIRInstruction> inst);
+
+            // (AR) دوال dispatcher الفرعية للتعليمات — مستخرجة من emitInstruction (Strangler Fig v3.1)
+            //      emitInstructionCore     : الجوهر (حساب، async، كائنات، سلاسل، FFI، مصفوفات...)
+            //      emitInstructionLowlevel : مستوى منخفض (CPU، UEFI، APIC، GDT، Paging...)
+            //      emitInstructionPlatform : منصات (Android، UI، توجيهات @حجم/@ذري، وحدات)
+            // (EN) Sub-dispatchers for emitInstruction — extracted by Strangler Fig v3.1
+            //      emitInstructionCore     : core (arithmetic, async, objects, strings, FFI, arrays...)
+            //      emitInstructionLowlevel : low-level (CPU, UEFI, APIC, GDT, Paging...)
+            //      emitInstructionPlatform : platform (Android, UI, @sizeof/@atomic directives, modules)
+            llvm::Value *emitInstructionCore(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitInstructionLowlevel(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitInstructionPlatform(std::shared_ptr<SIRInstruction> inst);
+
+            // (AR) الطبقة الرابعة: دوال الشبكة (TCP/UDP، HTTP، عناوين)
+            //      تُصدر استدعاءات لدوال C API من stdlib/network
+            // (EN) Tier 4: Network functions (TCP/UDP, HTTP, addresses)
+            //      Emits calls to C API functions from stdlib/network
+            llvm::Value *emitNetworkBuiltin(std::shared_ptr<SIRInstruction> inst);
+
+            // (AR) دالة مساعدة: إصدار استدعاء دالة C خارجية للشبكة
+            // (EN) Helper: emit call to an extern C network function
+            llvm::Value *emitNetworkCall(
+                std::shared_ptr<SIRInstruction> inst,
+                const char *cFuncName,
+                llvm::Type *returnType,
+                const std::vector<llvm::Type *> &paramTypes);
 
             // (AR) دالة مساعدة موحّدة: تطبيع مؤشر المصفوفة من أيّ تمثيل داخلي
             //      (AllocaInst i64 / GlobalVariable i64 / قيمة i64 خام) إلى مؤشر SadArray*
@@ -769,6 +815,8 @@ namespace Sad
             llvm::Value *emitFFICalloc(std::shared_ptr<SIRInstruction> inst);   // حجز_صفري / calloc
             llvm::Value *emitFFIStrlen(std::shared_ptr<SIRInstruction> inst);   // طول_نص_س / strlen → __sad_utf8_strlen
             llvm::Function *getOrCreateUtf8Strlen();                            // (AR) بناء __sad_utf8_strlen عند الحاجة
+            llvm::Function *getOrCreateUtf8ByteToChar();                        // (AR) تحويل موقع البايت إلى فهرس الحرف UTF-8
+            llvm::Function *getOrCreateUtf8CharToByte();                        // (AR) تحويل فهرس الحرف إلى موقع البايت UTF-8
             llvm::Value *emitFFIStrcpy(std::shared_ptr<SIRInstruction> inst);   // انسخ_نص_س / strcpy
             llvm::Value *emitFFIStrcmp(std::shared_ptr<SIRInstruction> inst);   // قارن_نص_س / strcmp
             llvm::Value *emitFFIStrcat(std::shared_ptr<SIRInstruction> inst);   // الحق_نص_س / strcat

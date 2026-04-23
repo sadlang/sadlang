@@ -288,6 +288,19 @@ namespace Sad
                         buildClassConstructor(classDecl, sirClass, ctorDecl);
                     }
 
+                    // (AR) الخصائص (PropertyDecl): تخفيضها إلى __get_*/__set_* ضمن سياق الصنف الحالي
+                    // (EN) Properties: lower to __get_*/__set_* within current class context
+                    else if (auto propDecl = dynamic_cast<Sad::AST::PropertyDecl *>(member.get()))
+                    {
+#ifndef NDEBUG
+                        std::cout << "[DEBUG] buildClass: found property '" << propDecl->name << "'" << std::endl;
+#endif
+                        auto savedClassName = currentClassName_;
+                        currentClassName_ = classDecl->name;
+                        buildStatement(propDecl);
+                        currentClassName_ = savedClassName;
+                    }
+
                     // (AR) الدوال (MethodDecl - declarations.h:222)
                     // (EN) Methods
                     else if (auto methodDecl = dynamic_cast<AST::MethodDecl *>(member.get()))

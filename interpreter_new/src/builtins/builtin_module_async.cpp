@@ -90,8 +90,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<int>(taskId));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x85\xd9\x87\xd9\x85\xd8\xa9", async_spawn_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("spawn", async_spawn_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("async_spawn", async_spawn_func);
 
             // 2. await / async_await
             auto async_await_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -122,8 +120,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1_\xd9\x85\xd9\x87\xd9\x85\xd8\xa9", async_await_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("await", async_await_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("async_await", async_await_func);
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1", async_await_func);
 
             // 3. yield / async_yield
@@ -134,8 +130,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd9\x86\xd8\xaa\xd8\xac", async_yield_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("yield", async_yield_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("async_yield", async_yield_func);
 
             // 4. async_sleep
             auto async_sleep_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -152,8 +146,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x86\xd9\x88\xd9\x85_\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xaa\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86", async_sleep_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("async_sleep", async_sleep_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("sleep_async", async_sleep_func);
 
             // 5. create_future
             auto create_future_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -168,7 +160,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<int>(futureId));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84", create_future_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("create_future", create_future_func);
             interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84", create_future_func);
 
             // 6. resolve_future
@@ -195,7 +186,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd9\x88\xd9\x81_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84", resolve_future_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("resolve_future", resolve_future_func);
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xad\xd9\x82\xd9\x82_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84", resolve_future_func);
 
             // 7. get_future
@@ -219,7 +209,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa7\xd8\xad\xd8\xb5\xd9\x84_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84", get_future_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("get_future", get_future_func);
 
             // 8. create_channel
             auto create_channel_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -238,7 +227,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<int>(chanId));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9", create_channel_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("create_channel", create_channel_func);
             interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9", create_channel_func);
 
             // 9. channel_send
@@ -264,7 +252,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9", channel_send_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("channel_send", channel_send_func);
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84", channel_send_func);
 
             // 10. channel_recv
@@ -292,7 +279,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9", channel_recv_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("channel_recv", channel_recv_func);
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84", channel_recv_func);
 
             // 11. channel_close
@@ -312,7 +298,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd8\xba\xd9\x84\xd9\x82_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9", channel_close_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("channel_close", channel_close_func);
 
             // 12. create_mutex
             auto create_mutex_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -327,7 +312,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<int>(mutexId));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x82\xd9\x81\xd9\x84", create_mutex_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("create_mutex", create_mutex_func);
             interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x82\xd9\x81\xd9\x84", create_mutex_func);
 
             // 13. mutex_lock
@@ -372,7 +356,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<int>(threadId));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd8\xae\xd9\x8a\xd8\xb7", thread_spawn_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("thread_spawn", thread_spawn_func);
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xae\xd9\x8a\xd8\xb7", thread_spawn_func);
 
             // 16. thread_join
@@ -402,7 +385,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<int>(id));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd8\xb0\xd8\xb1\xd9\x8a", create_atomic_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("create_atomic", create_atomic_func);
 
             // 17. atomic_load
             auto atomic_load_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -422,7 +404,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xad\xd9\x85\xd9\x84_\xd8\xb0\xd8\xb1\xd9\x8a", atomic_load_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("atomic_load", atomic_load_func);
 
             // 18. atomic_store
             auto atomic_store_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -445,7 +426,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xae\xd8\xb2\xd9\x86_\xd8\xb0\xd8\xb1\xd9\x8a", atomic_store_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("atomic_store", atomic_store_func);
 
             // 19. atomic_add
             auto atomic_add_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -469,7 +449,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(static_cast<int>(oldVal));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa3\xd8\xb6\xd9\x81_\xd8\xb0\xd8\xb1\xd9\x8a", atomic_add_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("atomic_add", atomic_add_func);
 
             // 20. compare_and_swap / CAS
             auto atomic_cas_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -491,9 +470,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x82\xd8\xa7\xd8\xb1\xd9\x86_\xd9\x88\xd8\xa8\xd8\xaf\xd9\x84", atomic_cas_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("compare_and_swap", atomic_cas_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("cas", atomic_cas_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("atomic_cas", atomic_cas_func);
 
             // 21. wait_all
             auto wait_all_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -518,7 +494,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1_\xd8\xa3\xd9\x8a", wait_any_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("wait_any", wait_any_func);
 
             // 23. select / channel_select
             auto channel_select_func = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -532,8 +507,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(0);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xa7\xd8\xae\xd8\xaa\xd8\xb1_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9", channel_select_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("select", channel_select_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("channel_select", channel_select_func);
 
             // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
             // (AR) ״¯ˆ״§„ ״§„״¨״±…״¬״© ״§„ƒ״§״¦†״© ״§„…״¨†״© / (EN) OOP Built-in Functions
@@ -559,7 +532,6 @@ namespace Sad
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x87\xd9\x88_\xd9\x85\xd8\xab\xd9\x8a\xd9\x84", instanceof_func); // ‡ˆ_…״«„
             interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x85\xd8\xab\xd9\x8a\xd9\x84_\xd9\x85\xd9\x86", instanceof_func); // …״«„_…†
-            interpreter.getFunctionManager().registerBuiltinFunction("instanceof", instanceof_func);
 
             // ג”€ג”€ג”€ †ˆ״¹_״§„ƒ״§״¦†(ƒ״§״¦†) ג€” get object class name ג”€ג”€ג”€
             // (AR) ״±״¬״¹ ״§״³… ״µ† ״§„ƒ״§״¦† ƒ†״µ
@@ -608,7 +580,6 @@ namespace Sad
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x86\xd9\x88\xd8\xb9_\xd8\xa7\xd9\x84\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86", get_class_func); // †ˆ״¹_״§„ƒ״§״¦†
             interpreter.getFunctionManager().registerBuiltinFunction("\xd9\x86\xd9\x88\xd8\xb9", get_class_func);                                                  // †ˆ״¹
-            interpreter.getFunctionManager().registerBuiltinFunction("classof", get_class_func);
 
             // ג”€ג”€ג”€ ״­‚ˆ„_״§„ƒ״§״¦†(ƒ״§״¦†) ג€” get object fields as map ג”€ג”€ג”€
             // (AR) ״±״¬״¹ ‚״§…ˆ״³ ״¨״­‚ˆ„ ״§„ƒ״§״¦†
@@ -631,7 +602,6 @@ namespace Sad
                 return std::make_shared<Data::Value>(result);
             };
             interpreter.getFunctionManager().registerBuiltinFunction("\xd8\xad\xd9\x82\xd9\x88\xd9\x84_\xd8\xa7\xd9\x84\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86", get_fields_func); // ״­‚ˆ„_״§„ƒ״§״¦†
-            interpreter.getFunctionManager().registerBuiltinFunction("fields", get_fields_func);
         }
 
     } // namespace Interpreter

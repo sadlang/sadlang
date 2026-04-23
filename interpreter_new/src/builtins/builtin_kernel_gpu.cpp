@@ -88,7 +88,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
 #endif
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9_\xd9\x8a\xd8\xaf\xd9\x88\xd9\x8a", f);
-        fm.registerBuiltinFunction("fb_init_manual", f);
     }
 
     // 2. شاشة_تعيين_وضع / fb_set_mode
@@ -105,7 +104,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
 #endif
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd9\x88\xd8\xb6\xd8\xb9", f);
-        fm.registerBuiltinFunction("fb_set_mode", f);
     }
 
     // 3. شاشة_هل_مهيأ / fb_is_initialized
@@ -116,7 +114,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(fb.isInitialized() ? 1 : 0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x87\xd9\x84_\xd9\x85\xd9\x87\xd9\x8a\xd8\xa3", f);
-        fm.registerBuiltinFunction("fb_is_initialized", f);
     }
 
     // 4. شاشة_تهيئة_gpu / fb_init_gpu
@@ -132,7 +129,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
 #endif
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd9\x87\xd9\x8a\xd8\xa6\xd8\xa9_gpu", f);
-        fm.registerBuiltinFunction("fb_init_gpu", f);
     }
 
     // 5. شاشة_الوضع_الحالي / fb_current_mode
@@ -147,7 +143,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(info);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xa7\xd9\x84\xd9\x88\xd8\xb6\xd8\xb9_\xd8\xa7\xd9\x84\xd8\xad\xd8\xa7\xd9\x84\xd9\x8a", f);
-        fm.registerBuiltinFunction("fb_current_mode", f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -164,7 +159,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(static_cast<int>(c.toUint32()));
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x82\xd8\xb1\xd8\xa7\xd8\xa1\xd8\xa9_\xd9\x86\xd9\x82\xd8\xb7\xd8\xa9", f);
-        fm.registerBuiltinFunction("fb_get_pixel", f);
     }
 
     // 7. شاشة_نقطة_شفافة / fb_pixel_alpha
@@ -182,7 +176,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x86\xd9\x82\xd8\xb7\xd8\xa9_\xd8\xb4\xd9\x81\xd8\xa7\xd9\x81\xd8\xa9", f);
-        fm.registerBuiltinFunction("fb_pixel_alpha", f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -202,7 +195,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaf\xd8\xa7\xd8\xa6\xd8\xb1\xd8\xa9_\xd9\x85\xd9\x85\xd8\xaa\xd9\x84\xd8\xa6\xd8\xa9", f);
-        fm.registerBuiltinFunction("fb_fill_circle", f);
     }
 
     // 9. شاشة_مثلث / fb_triangle
@@ -220,7 +212,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x85\xd8\xab\xd9\x84\xd8\xab", f);
-        fm.registerBuiltinFunction("fb_triangle", f);
     }
 
     // 10. شاشة_مثلث_ممتلئ / fb_fill_triangle
@@ -238,7 +229,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x85\xd8\xab\xd9\x84\xd8\xab_\xd9\x85\xd9\x85\xd8\xaa\xd9\x84\xd8\xa6", f);
-        fm.registerBuiltinFunction("fb_fill_triangle", f);
     }
 
     // 11. شاشة_قوس / fb_arc
@@ -257,7 +247,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x82\xd9\x88\xd8\xb3", f);
-        fm.registerBuiltinFunction("fb_arc", f);
     }
 
     // 12. شاشة_مستطيل_دائري / fb_rounded_rect
@@ -275,7 +264,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x85\xd8\xb3\xd8\xaa\xd8\xb7\xd9\x8a\xd9\x84_\xd8\xaf\xd8\xa7\xd8\xa6\xd8\xb1\xd9\x8a", f);
-        fm.registerBuiltinFunction("fb_rounded_rect", f);
     }
 
     // 13. شاشة_مستطيل_دائري_ممتلئ / fb_fill_rounded_rect
@@ -293,7 +281,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x85\xd8\xb3\xd8\xaa\xd8\xb7\xd9\x8a\xd9\x84_\xd8\xaf\xd8\xa7\xd8\xa6\xd8\xb1\xd9\x8a_\xd9\x85\xd9\x85\xd8\xaa\xd9\x84\xd8\xa6", f);
-        fm.registerBuiltinFunction("fb_fill_rounded_rect", f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -319,7 +306,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xad\xd8\xb1\xd9\x81", f);
-        fm.registerBuiltinFunction("fb_char", f);
     }
 
     // 15. شاشة_نص_utf8 / fb_text_utf8
@@ -337,7 +323,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x86\xd8\xb5_utf8", f);
-        fm.registerBuiltinFunction("fb_text_utf8", f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -354,7 +339,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_\xd9\x82\xd8\xb5", f);
-        fm.registerBuiltinFunction("fb_set_clip", f);
     }
 
     // 17. شاشة_إلغاء_قص / fb_reset_clip
@@ -366,7 +350,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xa5\xd9\x84\xd8\xba\xd8\xa7\xd8\xa1_\xd9\x82\xd8\xb5", f);
-        fm.registerBuiltinFunction("fb_reset_clip", f);
     }
 
     // 18. شاشة_تمرير / fb_scroll
@@ -382,7 +365,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd9\x85\xd8\xb1\xd9\x8a\xd8\xb1", f);
-        fm.registerBuiltinFunction("fb_scroll", f);
     }
 
     // 19. شاشة_تخزين_مزدوج / fb_double_buffer
@@ -394,7 +376,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xae\xd8\xb2\xd9\x8a\xd9\x86_\xd9\x85\xd8\xb2\xd8\xaf\xd9\x88\xd8\xac", f);
-        fm.registerBuiltinFunction("fb_double_buffer", f);
     }
 
     // 20. شاشة_هل_مزدوج / fb_is_double_buffered
@@ -405,7 +386,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(fb.isDoubleBuffered() ? 1 : 0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd9\x87\xd9\x84_\xd9\x85\xd8\xb2\xd8\xaf\xd9\x88\xd8\xac", f);
-        fm.registerBuiltinFunction("fb_is_double_buffered", f);
     }
 
     // 21. شاشة_انتظار_متزامن / fb_wait_vsync
@@ -427,7 +407,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
 #endif
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xa7\xd8\xb1_\xd9\x85\xd8\xaa\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86", f);
-        fm.registerBuiltinFunction("fb_wait_vsync", f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -442,7 +421,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83_\xd9\x85\xd8\xa4\xd8\xb4\xd8\xb1", f);
-        fm.registerBuiltinFunction("fb_move_cursor", f);
     }
 
     // 23. شاشة_إظهار_مؤشر / fb_show_cursor
@@ -454,7 +432,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xa5\xd8\xb8\xd9\x87\xd8\xa7\xd8\xb1_\xd9\x85\xd8\xa4\xd8\xb4\xd8\xb1", f);
-        fm.registerBuiltinFunction("fb_show_cursor", f);
     }
 
     // 24. شاشة_تعيين_vsync / fb_set_vsync
@@ -466,7 +443,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xb9\xd9\x8a\xd9\x8a\xd9\x86_vsync", f);
-        fm.registerBuiltinFunction("fb_set_vsync", f);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -489,7 +465,6 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
             return std::make_shared<Data::Value>(0);
         };
         fm.registerBuiltinFunction("\xd8\xb4\xd8\xa7\xd8\xb4\xd8\xa9_\xd8\xaa\xd8\xaf\xd8\xb1\xd8\xac_\xd8\xb9\xd9\x85\xd9\x88\xd8\xaf\xd9\x8a", f);
-        fm.registerBuiltinFunction("fb_gradient_v", f);
     }
 
 } // registerBuiltinsKernelGPU

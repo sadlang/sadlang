@@ -75,6 +75,26 @@ namespace Sad
 
             bool FunctionInliningFrontendPass::shouldInline(const SIRFunction &callee) const
             {
+                // ================================================================
+                // (AR) [Fix #067] منع تضمين دوال الماكرو (__macro_*):
+                //      دوال الماكرو تُنشأ كدوال منفصلة لضمان عزل النطاق (hygiene).
+                //      التضمين يكسر العزل لأن المتغيرات المحلية في الماكرو قد تطابق
+                //      أسماء متغيرات عامة — فيقوم المُحسّن بعدم إعادة تسميتها
+                //      (يعتبرها متغيرات عامة) مما يؤدي لتلويث النطاق الخارجي.
+                //      مثال: ماكرو يحتوي `متغير قيمة = "داخلي"` — إذا ضُمّن،
+                //      يُكتب "داخلي" على المتغير العام @قيمة بدلاً من alloca محلي.
+                // (EN) [Fix #067] Don't inline macro functions (__macro_*):
+                //      Macro functions are created as separate functions to ensure scope
+                //      isolation (hygiene). Inlining breaks isolation because local variables
+                //      in the macro may match global variable names — the optimizer won't
+                //      rename them (treats them as globals) causing outer scope pollution.
+                //      Example: macro with `var value = "inner"` — if inlined, writes "inner"
+                //      to global @value instead of local alloca.
+                // ================================================================
+                const std::string &name = callee.getName();
+                if (name.size() > 8 && name.substr(0, 8) == "__macro_")
+                    return false;
+
                 // Don't inline recursive or large functions
                 size_t totalInsts = 0;
                 for (const auto &block : callee.getBasicBlocks())

@@ -17,6 +17,7 @@
  */
 #include "builtins.h"
 #include "interpreter_core.h"
+#include "builtin_registry.h"
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -44,6 +45,9 @@ namespace Sad
 {
     namespace Interpreter
     {
+
+        // (AR) اختصارات لأسماء الدوال المركزية
+        namespace Bmp = Builtins::Names::Maps;
 
         // ═══════════════════════════════════════════════════════════════════════
         // (AR) دوال مساعدة / (EN) Helper Functions
@@ -74,8 +78,7 @@ namespace Sad
                 double secs = std::chrono::duration<double>(epoch).count();
                 return makeVal(secs);
             };
-            fm.registerBuiltinFunction("الآن", now_fn);
-            fm.registerBuiltinFunction("now", now_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::NOW), now_fn);
             // now_ms / الآن_مللي — الطابع الزمني بالمللي ثانية
             auto now_ms_fn = [](const std::vector<std::shared_ptr<Data::Value>> &) -> std::shared_ptr<Data::Value>
             {
@@ -84,8 +87,7 @@ namespace Sad
                 double ms = std::chrono::duration<double, std::milli>(epoch).count();
                 return makeVal(ms);
             };
-            fm.registerBuiltinFunction("الآن_مللي", now_ms_fn);
-            fm.registerBuiltinFunction("now_ms", now_ms_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::NOW_MS), now_ms_fn);
 
             // date_format / صيغة_تاريخ — تنسيق التاريخ
             auto date_format_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -112,8 +114,7 @@ namespace Sad
                 std::strftime(buffer, sizeof(buffer), fmt.c_str(), &timeinfo);
                 return makeVal(std::string(buffer));
             };
-            fm.registerBuiltinFunction("صيغة_تاريخ", date_format_fn);
-            fm.registerBuiltinFunction("date_format", date_format_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::DATE_FORMAT), date_format_fn);
 
             // date components / مكونات التاريخ — استخراج مكونات التاريخ
             auto date_component_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -150,8 +151,7 @@ namespace Sad
                 dateMap["weekday"] = Data::Value(timeinfo.tm_wday);
                 return makeMapVal(dateMap);
             };
-            fm.registerBuiltinFunction("مكونات_تاريخ", date_component_fn);
-            fm.registerBuiltinFunction("date_components", date_component_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::DATE_COMPONENTS), date_component_fn);
 
             // year, month, day, hour, minute, second, weekday
             auto year_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -165,8 +165,7 @@ namespace Sad
 #endif
                 return makeVal(ti.tm_year + 1900);
             };
-            fm.registerBuiltinFunction("سنة", year_fn);
-            fm.registerBuiltinFunction("year", year_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::YEAR), year_fn);
 
             // (AR) شهر — استخراج الشهر من كائن تاريخ
             // (EN) month — extract month from date object
@@ -181,8 +180,7 @@ namespace Sad
 #endif
                 return makeVal(ti.tm_mon + 1);
             };
-            fm.registerBuiltinFunction("شهر", month_fn);
-            fm.registerBuiltinFunction("month", month_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MONTH), month_fn);
 
             // (AR) يوم — استخراج اليوم من كائن تاريخ
             // (EN) day — extract day from date object
@@ -197,8 +195,7 @@ namespace Sad
 #endif
                 return makeVal(ti.tm_mday);
             };
-            fm.registerBuiltinFunction("يوم", day_fn);
-            fm.registerBuiltinFunction("day", day_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::DAY), day_fn);
 
             // (AR) ساعة — استخراج الساعة من كائن تاريخ
             // (EN) hour — extract hour from date object
@@ -213,8 +210,7 @@ namespace Sad
 #endif
                 return makeVal(ti.tm_hour);
             };
-            fm.registerBuiltinFunction("ساعة", hour_fn);
-            fm.registerBuiltinFunction("hour", hour_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::HOUR), hour_fn);
 
             // (AR) دقيقة — استخراج الدقيقة من كائن تاريخ
             // (EN) minute — extract minute from date object
@@ -229,8 +225,7 @@ namespace Sad
 #endif
                 return makeVal(ti.tm_min);
             };
-            fm.registerBuiltinFunction("دقيقة", minute_fn);
-            fm.registerBuiltinFunction("minute", minute_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::MINUTE), minute_fn);
 
             // (AR) ثانية — استخراج الثانية من كائن تاريخ
             // (EN) second — extract second from date object
@@ -245,8 +240,7 @@ namespace Sad
 #endif
                 return makeVal(ti.tm_sec);
             };
-            fm.registerBuiltinFunction("ثانية", second_fn);
-            fm.registerBuiltinFunction("second", second_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::SECOND), second_fn);
 
             // (AR) يوم_الأسبوع — استخراج يوم الأسبوع من كائن تاريخ
             // (EN) weekday — extract weekday from date object
@@ -261,8 +255,7 @@ namespace Sad
 #endif
                 return makeVal(ti.tm_wday);
             };
-            fm.registerBuiltinFunction("يوم_الأسبوع", weekday_fn);
-            fm.registerBuiltinFunction("weekday", weekday_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::WEEKDAY), weekday_fn);
 
             // time_diff / فرق_وقت — الفرق بين طابعين زمنيين (بالثواني)
             auto time_diff_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -271,174 +264,14 @@ namespace Sad
                     throw std::runtime_error("(AR) فرق_وقت تتطلب طابعين زمنيين");
                 return makeVal(args[0]->toDouble() - args[1]->toDouble());
             };
-            fm.registerBuiltinFunction("فرق_وقت", time_diff_fn);
-            fm.registerBuiltinFunction("time_diff", time_diff_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::TIME_DIFF), time_diff_fn);
 
             // ═══════════════════════════════════════════════════════════════════
-            // 5. ثوابت ودوال رياضية متقدمة / Advanced Math
-            // (AR) إصلاح نقطة ضعف رقم 5: نقص الثوابت والدوال الرياضية
+            // (AR) القسم 5 (رياضيات) — حُذف: جميع هذه الدوال متوفرة الآن عبر:
+            //   - stdlib_manager (عند بدء التشغيل): جيب، جتا، ظل، معكوس_جيب...
+            //   - وحدة رياضيات (builtin_module_math.cpp): لوغ، أسي، حصر...
+            //   انظر: CLEANUP_LOG.md للتفاصيل
             // ═══════════════════════════════════════════════════════════════════
-
-            // PI / ط — ثابت باي
-            auto pi_fn = [](const std::vector<std::shared_ptr<Data::Value>> &) -> std::shared_ptr<Data::Value>
-            {
-                return makeVal(3.14159265358979323846);
-            };
-            fm.registerBuiltinFunction("ط", pi_fn);
-            fm.registerBuiltinFunction("PI", pi_fn);
-
-            // E / هـ — ثابت أويلر
-            auto e_fn = [](const std::vector<std::shared_ptr<Data::Value>> &) -> std::shared_ptr<Data::Value>
-            {
-                return makeVal(2.71828182845904523536);
-            };
-            fm.registerBuiltinFunction("هـ", e_fn);
-            fm.registerBuiltinFunction("E", e_fn);
-
-            // log / لوغاريتم — اللوغاريتم الطبيعي
-            auto log_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.empty())
-                    throw std::runtime_error("(AR) لوغاريتم تتطلب رقماً");
-                return makeVal(std::log(args[0]->toDouble()));
-            };
-            fm.registerBuiltinFunction("لوغاريتم", log_fn);
-
-            // log2 / لوغاريتم2
-            auto log2_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.empty())
-                    throw std::runtime_error("(AR) لوغاريتم2 تتطلب رقماً");
-                return makeVal(std::log2(args[0]->toDouble()));
-            };
-            fm.registerBuiltinFunction("لوغاريتم2", log2_fn);
-
-            // log10 / لوغاريتم10
-            auto log10_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.empty())
-                    throw std::runtime_error("(AR) لوغاريتم10 تتطلب رقماً");
-                return makeVal(std::log10(args[0]->toDouble()));
-            };
-            fm.registerBuiltinFunction("لوغاريتم10", log10_fn);
-
-            // exp / أسي — الدالة الأسية
-            auto exp_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.empty())
-                    throw std::runtime_error("(AR) أسي تتطلب رقماً");
-                return makeVal(std::exp(args[0]->toDouble()));
-            };
-            fm.registerBuiltinFunction("أسي", exp_fn);
-
-            // sin / جيب
-            auto sin_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.empty())
-                    throw std::runtime_error("(AR) جيب تتطلب رقماً");
-                return makeVal(std::sin(args[0]->toDouble()));
-            };
-            fm.registerBuiltinFunction("جيب", sin_fn);
-            fm.registerBuiltinFunction("sin", sin_fn);
-
-            // cos / جيب_تمام
-            auto cos_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.empty())
-                    throw std::runtime_error("(AR) جيب_تمام تتطلب رقماً");
-                return makeVal(std::cos(args[0]->toDouble()));
-            };
-            fm.registerBuiltinFunction("جيب_تمام", cos_fn);
-            fm.registerBuiltinFunction("cos", cos_fn);
-
-            // tan / ظل
-            auto tan_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.empty())
-                    throw std::runtime_error("(AR) ظل تتطلب رقماً");
-                return makeVal(std::tan(args[0]->toDouble()));
-            };
-            fm.registerBuiltinFunction("ظل", tan_fn);
-            fm.registerBuiltinFunction("tan", tan_fn);
-
-            // asin / جيب_عكسي
-            auto asin_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.empty())
-                    throw std::runtime_error("(AR) جيب_عكسي تتطلب رقماً");
-                return makeVal(std::asin(args[0]->toDouble()));
-            };
-            fm.registerBuiltinFunction("جيب_عكسي", asin_fn);
-            fm.registerBuiltinFunction("asin", asin_fn);
-
-            // acos / جيب_تمام_عكسي
-            auto acos_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.empty())
-                    throw std::runtime_error("(AR) جيب_تمام_عكسي تتطلب رقماً");
-                return makeVal(std::acos(args[0]->toDouble()));
-            };
-            fm.registerBuiltinFunction("جيب_تمام_عكسي", acos_fn);
-            fm.registerBuiltinFunction("acos", acos_fn);
-
-            // atan2 / ظل_عكسي2
-            auto atan2_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.size() < 2)
-                    throw std::runtime_error("(AR) ظل_عكسي2 تتطلب رقمين");
-                return makeVal(std::atan2(args[0]->toDouble(), args[1]->toDouble()));
-            };
-            fm.registerBuiltinFunction("ظل_عكسي2", atan2_fn);
-            fm.registerBuiltinFunction("atan2", atan2_fn);
-
-            // clamp / حصر — حصر قيمة ضمن نطاق
-            auto clamp_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.size() < 3)
-                    throw std::runtime_error("(AR) حصر تتطلب قيمة وحد أدنى وحد أعلى");
-                double val = args[0]->toDouble();
-                double lo = args[1]->toDouble();
-                double hi = args[2]->toDouble();
-                return makeVal(std::max(lo, std::min(val, hi)));
-            };
-            fm.registerBuiltinFunction("حصر", clamp_fn);
-
-            // lerp / استيفاء_خطي — الاستيفاء الخطي
-            auto lerp_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.size() < 3)
-                    throw std::runtime_error("(AR) استيفاء_خطي تتطلب ثلاث قيم");
-                double a = args[0]->toDouble();
-                double b = args[1]->toDouble();
-                double t = args[2]->toDouble();
-                return makeVal(a + t * (b - a));
-            };
-            fm.registerBuiltinFunction("استيفاء_خطي", lerp_fn);
-            fm.registerBuiltinFunction("lerp", lerp_fn);
-
-            // random_range / عشوائي_نطاق — رقم عشوائي في نطاق
-            auto random_range_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
-            {
-                if (args.size() < 2)
-                    throw std::runtime_error("(AR) عشوائي_نطاق تتطلب حد أدنى وحد أعلى");
-                int lo = args[0]->toInt();
-                int hi = args[1]->toInt();
-                static std::mt19937 gen(std::random_device{}());
-                std::uniform_int_distribution<int> dist(lo, hi);
-                return makeVal(dist(gen));
-            };
-            fm.registerBuiltinFunction("عشوائي_نطاق", random_range_fn);
-            fm.registerBuiltinFunction("random_range", random_range_fn);
-
-            // random_float / عشوائي_عشري — رقم عشوائي عشري بين 0 و 1
-            auto random_float_fn = [](const std::vector<std::shared_ptr<Data::Value>> &) -> std::shared_ptr<Data::Value>
-            {
-                static std::mt19937 gen(std::random_device{}());
-                std::uniform_real_distribution<double> dist(0.0, 1.0);
-                return makeVal(dist(gen));
-            };
-            fm.registerBuiltinFunction("عشوائي_عشري", random_float_fn);
-            fm.registerBuiltinFunction("random_float", random_float_fn);
 
             // ═══════════════════════════════════════════════════════════════════
             // 7. دوال الملفات الإضافية / Extra File Functions
@@ -456,8 +289,7 @@ namespace Sad
                     throw std::runtime_error("(AR) لا يمكن فتح الملف: " + path);
                 return makeVal(static_cast<int>(file.tellg()));
             };
-            fm.registerBuiltinFunction("حجم_ملف", file_size_fn);
-            fm.registerBuiltinFunction("file_size", file_size_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::FILE_SIZE), file_size_fn);
 
             // path_join / ضم_مسار — ضم أجزاء مسار
             auto path_join_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -480,8 +312,7 @@ namespace Sad
                 }
                 return makeVal(result);
             };
-            fm.registerBuiltinFunction("ضم_مسار", path_join_fn);
-            fm.registerBuiltinFunction("path_join", path_join_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::PATH_JOIN), path_join_fn);
 
             // path_dirname / مجلد_مسار — استخراج المجلد من مسار
             auto path_dirname_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -494,8 +325,7 @@ namespace Sad
                     return makeVal(std::string("."));
                 return makeVal(path.substr(0, pos));
             };
-            fm.registerBuiltinFunction("مجلد_مسار", path_dirname_fn);
-            fm.registerBuiltinFunction("path_dirname", path_dirname_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::PATH_DIRNAME), path_dirname_fn);
 
             // path_basename / اسم_ملف — استخراج اسم الملف من مسار
             auto path_basename_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -508,8 +338,7 @@ namespace Sad
                     return makeVal(path);
                 return makeVal(path.substr(pos + 1));
             };
-            fm.registerBuiltinFunction("اسم_ملف", path_basename_fn);
-            fm.registerBuiltinFunction("path_basename", path_basename_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::PATH_BASENAME), path_basename_fn);
 
             // path_extension / امتداد_ملف — استخراج الامتداد من مسار
             auto path_extension_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -522,8 +351,7 @@ namespace Sad
                     return makeVal(std::string(""));
                 return makeVal(path.substr(pos));
             };
-            fm.registerBuiltinFunction("امتداد_ملف", path_extension_fn);
-            fm.registerBuiltinFunction("path_extension", path_extension_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::PATH_EXT), path_extension_fn);
 
             // ═══════════════════════════════════════════════════════════════════
             // 8. التسلسل / Serialization (base64, hex, url)
@@ -556,7 +384,7 @@ namespace Sad
                     output.push_back('=');
                 return makeVal(output);
             };
-            fm.registerBuiltinFunction("ترميز_قاعدة64", base64_encode_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::BASE64_ENCODE), base64_encode_fn);
 
             // base64_decode / فك_قاعدة64 — فك ترميز Base64
             auto base64_decode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -584,8 +412,7 @@ namespace Sad
                 }
                 return makeVal(output);
             };
-            fm.registerBuiltinFunction("فك_قاعدة64", base64_decode_fn);
-            fm.registerBuiltinFunction("base64_decode", base64_decode_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::BASE64_DECODE), base64_decode_fn);
 
             // hex_encode / ترميز_ست_عشري — ترميز إلى سداسي عشري
             auto hex_encode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -600,8 +427,7 @@ namespace Sad
                 }
                 return makeVal(oss.str());
             };
-            fm.registerBuiltinFunction("ترميز_ست_عشري", hex_encode_fn);
-            fm.registerBuiltinFunction("hex_encode", hex_encode_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::HEX_ENCODE), hex_encode_fn);
 
             // url_encode / ترميز_عنوان — ترميز URL
             auto url_encode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -623,8 +449,7 @@ namespace Sad
                 }
                 return makeVal(oss.str());
             };
-            fm.registerBuiltinFunction("ترميز_عنوان", url_encode_fn);
-            fm.registerBuiltinFunction("url_encode", url_encode_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::URL_ENCODE), url_encode_fn);
 
             // url_decode / فك_عنوان — فك ترميز URL
             auto url_decode_fn = [](const std::vector<std::shared_ptr<Data::Value>> &args) -> std::shared_ptr<Data::Value>
@@ -682,8 +507,7 @@ namespace Sad
                 }
                 return makeVal(output);
             };
-            fm.registerBuiltinFunction("فك_عنوان", url_decode_fn);
-            fm.registerBuiltinFunction("url_decode", url_decode_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::URL_DECODE), url_decode_fn);
 
             // ═══════════════════════════════════════════════════════════════════
             // 9. بيئة النظام / System Environment
@@ -714,8 +538,7 @@ namespace Sad
                     return args[1]; // قيمة افتراضية
                 return makeVoidVal();
             };
-            fm.registerBuiltinFunction("متغير_بيئة", env_get_fn);
-            fm.registerBuiltinFunction("env_get", env_get_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::ENV_GET), env_get_fn);
 
             // cwd / المجلد_الحالي — الحصول على المجلد الحالي
             auto cwd_fn = [](const std::vector<std::shared_ptr<Data::Value>> &) -> std::shared_ptr<Data::Value>
@@ -727,8 +550,7 @@ namespace Sad
                 }
                 return makeVal(std::string("."));
             };
-            fm.registerBuiltinFunction("المجلد_الحالي", cwd_fn);
-            fm.registerBuiltinFunction("cwd", cwd_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::CWD), cwd_fn);
 
             // platform / المنصة — اسم نظام التشغيل
 
@@ -744,11 +566,9 @@ namespace Sad
                 throw std::runtime_error(msg);
                 return makeVoidVal(); // لن يصل هنا
             };
-            fm.registerBuiltinFunction("خطأ", error_fn);
-            fm.registerBuiltinFunction("error", error_fn);
+            fm.registerBuiltinFunction(std::string(Bmp::ERROR_FN), error_fn);
 
             // typeof / نوع_القيمة — الحصول على نوع القيمة كنص
-
 
         } // registerBuiltinsMapsUtils
 

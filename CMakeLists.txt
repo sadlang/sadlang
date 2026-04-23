@@ -77,6 +77,29 @@ include(${CMAKE_SOURCE_DIR}/cmake/llvm.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/platform.cmake)
 
 # ══════════════════════════════════════════════════════════════════════
+# توافق MSVC مع LLVM Release فقط
+# MSVC compatibility with Release-only LLVM
+# ══════════════════════════════════════════════════════════════════════
+# (AR) عند تفعيل وضع التوافق، يجب توحيد Runtime على /MD لكل الأهداف
+#      حتى لا تظهر رموز Debug CRT مثل __imp__calloc_dbg أثناء الربط.
+# (EN) In compatibility mode, force /MD runtime for all targets
+#      to avoid Debug CRT symbols like __imp__calloc_dbg at link time.
+if(MSVC AND ENABLE_LLVM_BACKEND AND SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL" CACHE STRING "MSVC runtime library" FORCE)
+
+    # (AR) في Debug نلغي تعريف _DEBUG ونوحد STL debug iterators مع Release.
+    # (EN) In Debug, undefine _DEBUG and align STL debug iterators with Release.
+    add_compile_options($<$<CONFIG:Debug>:/U_DEBUG>)
+    add_compile_definitions(
+        $<$<CONFIG:Debug>:NDEBUG>
+        $<$<CONFIG:Debug>:_ITERATOR_DEBUG_LEVEL=0>
+        $<$<CONFIG:Debug>:_HAS_ITERATOR_DEBUGGING=0>
+    )
+
+    message(STATUS "MSVC release-compat: forcing /MD runtime and Release-compatible debug defines")
+endif()
+
+# ══════════════════════════════════════════════════════════════════════
 # تضمين المكونات الفرعية المعاد تنظيمها
 # Include reorganized sub-components (shared/, interpreter_new/, compiler_new/)
 # ══════════════════════════════════════════════════════════════════════
@@ -104,6 +127,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/shared/types/include
     ${CMAKE_SOURCE_DIR}/shared/errors/include
     ${CMAKE_SOURCE_DIR}/shared/modules/include
+    ${CMAKE_SOURCE_DIR}/shared/builtins/include
     ${CMAKE_SOURCE_DIR}/interpreter_new/include
     ${CMAKE_SOURCE_DIR}/interpreter_new/include/core
     ${CMAKE_SOURCE_DIR}/interpreter_new/include/visitors
@@ -149,6 +173,9 @@ include(${CMAKE_SOURCE_DIR}/cmake/tests_comprehensive.cmake)
 
 # 11. اختبارات التنفيذ المزدوج / Dual Execution Tests (ADR-03)
 include(${CMAKE_SOURCE_DIR}/cmake/dual_tests.cmake)
+
+# 11.b اختبارات استخراج التوثيق المزدوج / Doc Generation Dual Tests (sad ↔ sadc)
+include(${CMAKE_SOURCE_DIR}/cmake/doc_gen_dual_tests.cmake)
 
 # 12. WebAssembly (اختياري) / WebAssembly (optional)
 if(BUILD_WASM)

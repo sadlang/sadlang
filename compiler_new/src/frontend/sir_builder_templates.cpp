@@ -27,6 +27,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
+#include <unordered_set>
 
 namespace Sad
 {
@@ -34,6 +35,45 @@ namespace Sad
     {
         namespace SIR
         {
+
+            namespace
+            {
+                // ====================================================================
+                // (AR) قائمة موحّدة لوحدات المكتبة القياسية التي يعترضها المترجم
+                //      مباشرةً ويعامل دوالها كـ builtins بدون تحليل ملف .ص الخارجي.
+                //      السبب الجذري لهذا الاستخراج هو منع انجراف قائمتين منفصلتين بين
+                //      buildImportStmt و buildFromImportStmt، لأن أي اختلاف بينهما يولّد
+                //      سلوكاً متناقضاً: استيراد كامل ينجح بينما الاستيراد الانتقائي من
+                //      نفس الوحدة قد يحاول تحميل ملف wrapper خارجي ويؤدي إلى أخطاء ربط.
+                //
+                // (EN) Unified set of stdlib modules intercepted directly by the
+                //      compiler and treated as builtins without parsing external .ص
+                //      wrapper files. This shared helper prevents drift between the
+                //      regular import and selective from-import paths.
+                // ====================================================================
+                const std::unordered_set<std::string> &getCompilerBuiltinStdlibModules()
+                {
+                    static const std::unordered_set<std::string> modules = {
+                        "رياضيات", "math", "حساب",
+                        "نصوص", "strings", "str", "سلاسل",
+                        "أساسيات", "basics", "base", "ملفات",
+                        "خرائط", "maps", "json", "xml",
+                        "وقت", "time", "تاريخ",
+                        "تأكيدات", "assertions", "اختبار",
+                        "تزامن_متقدم", "async", "توازي",
+                        "منصة", "platform", "نظام_تشغيل",
+                        "شبكة", "شبكة_عالية", "http", "اتصالات",
+                        "تشفير", "crypto", "أمان_بيانات",
+                        "مقابس", "sockets", "tcp", "udp",
+                        "ويبسوكت", "websocket", "ws"};
+                    return modules;
+                }
+
+                bool isCompilerBuiltinStdlibModule(const std::string &moduleName)
+                {
+                    return getCompilerBuiltinStdlibModules().count(moduleName) > 0;
+                }
+            }
 
             // ============================================================================
             // بناء دالة قالب / Build Template Function
@@ -397,6 +437,24 @@ namespace Sad
                     return;
                 }
 
+                // ====================================================================
+                // (AR) اعتراض وحدات المكتبة القياسية — الدوال المضمنة مدعومة مباشرة
+                //      في المترجم بدون الحاجة لتحليل ملف .ص الخارجي.
+                //      عند استيراد وحدة قياسية، نُعلّمها كمعالجة ونعود فوراً —
+                //      لأن جميع دوالها معروفة للمترجم كدوال مضمنة (builtins).
+                // (EN) Stdlib module intercept — builtin functions are supported directly
+                //      in the compiler without needing to parse the external .ص file.
+                //      When importing a stdlib module, mark it as processed and return —
+                //      all its functions are known to the compiler as builtins.
+                // ====================================================================
+                if (isCompilerBuiltinStdlibModule(fullModuleName))
+                {
+                    // (AR) تسجيل الوحدة كمعالجة — دوالها مضمنة في المترجم
+                    // (EN) Mark module as processed — its functions are compiler builtins
+                    processedModules_.insert(fullModuleName);
+                    return;
+                }
+
                 // (AR) إصدار تعليمة تحميل الوحدة في SIR
                 // (EN) Emit MODULE_LOAD SIR instruction for linker tracking
                 if (currentBlock_)
@@ -525,41 +583,19 @@ namespace Sad
 
                 std::string fullModuleName = fromImportStmt->getFullModuleName();
 
-                // (AR) تحسين جذري: إذا كانت جميع الرموز المطلوبة builtins معروفة للمترجم،
-                //      فلا حاجة لتحليل ملف الوحدة أو تحميله. هذا يمنع أخطاء parser داخل
-                //      وحدات المكتبة القياسية عندما يكون المطلوب مجرد أسماء مضمّنة أصلاً.
-                // (EN) Root fix: if all requested symbols are compiler-known builtins,
-                //      skip parsing/loading the module file entirely. This avoids parser
-                //      failures inside stdlib modules when we only need builtin names.
-                if (!fromImportStmt->isWildcard)
+                // (AR) تحسين جذري: إذا كانت الوحدة من المكتبة القياسية المعروفة للمترجم،
+                //      فلا حاجة لتحليل ملف الوحدة أو تحميله. جميع الدوال مضمنة في المترجم.
+                //      هذا يمنع أخطاء الرابط عند تحميل ملفات .ص القياسية التي تستدعي
+                //      دوال داخلية غير موجودة في وقت التشغيل المضمن.
+                // (EN) Root fix: if the module is a known stdlib module, skip parsing/loading
+                //      the module file entirely. All functions are compiler builtins.
+                //      This prevents linker errors from .ص wrappers calling undefined internals.
+                if (isCompilerBuiltinStdlibModule(fullModuleName))
                 {
-                    static const std::unordered_set<std::string> compilerBuiltinImports = {
-                        "جذر", "sqrt", "الجذر_التربيعي",
-                        "لوغ", "log", "ln", "لوغاريتم",
-                        "إشارة", "اشارة", "sign", "signum",
-                        "أس", "pow", "power",
-                        "مطلق", "abs", "القيمة_المطلقة",
-                        "تقريب", "round",
-                        "أرضية", "floor",
-                        "سقف", "ceil", "ceiling",
-                        "جيب", "sin", "sine",
-                        "جيب_تمام", "cos", "cosine",
-                        "ظل", "tan", "tangent"};
-
-                    bool allRequestedAreBuiltins = !fromImportStmt->items.empty();
-                    for (const auto &item : fromImportStmt->items)
-                    {
-                        if (compilerBuiltinImports.find(item.name) == compilerBuiltinImports.end())
-                        {
-                            allRequestedAreBuiltins = false;
-                            break;
-                        }
-                    }
-
-                    if (allRequestedAreBuiltins)
-                    {
-                        return;
-                    }
+                    // (AR) وحدة قياسية — جميع دوالها مضمنة، لا حاجة لتحميل الملف
+                    // (EN) Stdlib module — all functions are builtins, skip file loading
+                    processedModules_.insert(fullModuleName);
+                    return;
                 }
 
                 // (AR) التحقق مما إذا تمت معالجة الوحدة بالفعل

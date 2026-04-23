@@ -46,7 +46,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("اطبع", print_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("print", print_func);
             // (AR) اطبع_سطر — طباعة قيمة مع سطر جديد
             // (EN) println — print value with newline
             auto println_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -55,7 +54,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("اطبع_سطر", println_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("println", println_func);
             // ═════════════════════════════════════════════════════════════════
             // (AR) دوال الإدخال / (EN) Input Functions
             // ═════════════════════════════════════════════════════════════════
@@ -66,7 +64,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("اقرأ", input_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("input", input_func);
             // ═════════════════════════════════════════════════════════════════
             // (AR) دوال الطول الأساسية / (EN) Basic Length Functions
             // ═════════════════════════════════════════════════════════════════
@@ -77,8 +74,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("طول", len_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("len", len_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("length", len_func);
             // ═════════════════════════════════════════════════════════════════
             // (AR) دوال النوع / (EN) Type Functions
             // ═════════════════════════════════════════════════════════════════
@@ -89,7 +84,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("النوع", type_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("type", type_func);
             // ═════════════════════════════════════════════════════════════════
             // (AR) تحويل الأنواع الأساسية / (EN) Basic Type Conversion
             // ═════════════════════════════════════════════════════════════════
@@ -101,8 +95,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("نص", to_string_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("str", to_string_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("to_string", to_string_func);
 
             // رقم / int / to_int
             auto to_int_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -111,8 +103,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("رقم", to_int_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("int", to_int_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("to_int", to_int_func);
             // عشري / float / to_float
             auto to_float_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
             {
@@ -120,8 +110,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("عشري", to_float_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("float", to_float_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("to_float", to_float_func);
 
             // منطقي / bool / to_bool
             auto to_bool_func = [](const std::vector<std::shared_ptr<Data::Value>> &args)
@@ -133,8 +121,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("منطقي", to_bool_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("bool", to_bool_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("to_bool", to_bool_func);
 
             // ═════════════════════════════════════════════════════════════════
             // (AR) دوال القنوات والتزامن / (EN) Channel & Concurrency Functions
@@ -168,8 +154,6 @@ namespace Sad
 
             // (AR) تسجيل بالعربية والإنجليزية
             interpreter.getFunctionManager().registerBuiltinFunction("\xD9\x82\xD9\x86\xD8\xA7\xD8\xA9", channel_func); // قناة
-            interpreter.getFunctionManager().registerBuiltinFunction("channel", channel_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("chan", channel_func);
 
             // (AR) انتظر_الكل() — انتظار جميع المهام المتزامنة (goroutines)
             // (EN) waitAll() — wait for all concurrent goroutines to complete
@@ -181,8 +165,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("\xD8\xA7\xD9\x86\xD8\xAA\xD8\xB8\xD8\xB1_\xD8\xA7\xD9\x84\xD9\x83\xD9\x84", wait_all_func); // انتظر_الكل
-            interpreter.getFunctionManager().registerBuiltinFunction("wait_all", wait_all_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("waitAll", wait_all_func);
 
             // (AR) عدد_المهام() — عدد المهام المتزامنة النشطة
             // (EN) activeGoroutines() — number of active goroutines
@@ -194,7 +176,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("\xD8\xB9\xD8\xAF\xD8\xAF_\xD8\xA7\xD9\x84\xD9\x85\xD9\x87\xD8\xA7\xD9\x85", active_count_func); // عدد_المهام
-            interpreter.getFunctionManager().registerBuiltinFunction("active_goroutines", active_count_func);
 
             // ═══════════════════════════════════════════════════════════════
             // (AR) مجموعة_انتظار() — إنشاء WaitGroup جديدة
@@ -216,8 +197,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("\xD9\x85\xD8\xAC\xD9\x85\xD9\x88\xD8\xB9\xD8\xA9_\xD8\xA7\xD9\x86\xD8\xAA\xD8\xB8\xD8\xA7\xD8\xB1", waitgroup_func); // مجموعة_انتظار
-            interpreter.getFunctionManager().registerBuiltinFunction("wait_group", waitgroup_func);
-            interpreter.getFunctionManager().registerBuiltinFunction("waitGroup", waitgroup_func);
 
             // ═══════════════════════════════════════════════════════════════
             // (AR) قفل() — إنشاء Mutex جديد
@@ -238,7 +217,6 @@ namespace Sad
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction("\xD9\x82\xD9\x81\xD9\x84", mutex_func); // قفل
-            interpreter.getFunctionManager().registerBuiltinFunction("mutex", mutex_func);
 
             // ═══════════════════════════════════════════════════════════════
             // (AR) مستقبل() — إنشاء Future جديد لإرجاع قيمة من goroutine
@@ -276,7 +254,6 @@ namespace Sad
 
             // (AR) تسجيل بالعربية والإنجليزية / (EN) Register in Arabic and English
             interpreter.getFunctionManager().registerBuiltinFunction("\xD9\x85\xD8\xB3\xD8\xAA\xD9\x82\xD8\xA8\xD9\x84", future_func); // مستقبل
-            interpreter.getFunctionManager().registerBuiltinFunction("future", future_func);
         }
 
     } // namespace Interpreter

@@ -29,11 +29,11 @@ namespace Sad
     namespace LLVM
     {
 
-// ============================================================================
-// (AR) عمليات الإغلاق والذاكرة - bitwise, heap, closures, environment
-// (EN) Closure and memory operations - bitwise, heap, closures, environment
-// (AR) تم فصل هذا الملف عن llvm_codegen_concurrency.cpp وفق قاعدة CW-05
-// ============================================================================
+        // ============================================================================
+        // (AR) عمليات الإغلاق والذاكرة - bitwise, heap, closures, environment
+        // (EN) Closure and memory operations - bitwise, heap, closures, environment
+        // (AR) تم فصل هذا الملف عن llvm_codegen_concurrency.cpp وفق قاعدة CW-05
+        // ============================================================================
         llvm::Value *LLVMCodeGen::emitSar(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
@@ -248,6 +248,41 @@ namespace Sad
                 needsWrapper = true;
             }
 
+            // ================================================================
+            // (AR) [إصلاح UB في Release — شامل] — BF-04/CW-13
+            //      بروتوكول CLOSURE_CALL يفترض دائماً أن اللامدا ترجع i64.
+            //      أي نوع إرجاع آخر يُسبب تعارض نوع → سلوك غير محدد في Release.
+            //      الحالات المُصلَحة:
+            //        • i1  (bool)   → i64: ZExt (توسيع صفري)
+            //        • i32 (int32)  → i64: SExt (توسيع بالإشارة)
+            //        • double/float → i64: BitCast (إعادة تفسير البتات)
+            //        • ptr          → i64: PtrToInt
+            //
+            // (AR) تمييز مسارين:
+            //      1. isFuncRefWrapper: دالة عادية تُضاف لها __env
+            //      2. isRetConvWrapper: لامدا تحمل __env أصلاً، تحتاج تحويل نوع إرجاع فقط
+            //
+            // (EN) [Comprehensive UB fix in Release] — BF-04/CW-13
+            //      Two distinct wrapper paths:
+            //      1. isFuncRefWrapper: regular func, __env added as extra param
+            //      2. isRetConvWrapper: lambda already has __env, only return type conversion needed
+            // ================================================================
+            bool isFuncRefWrapper = needsWrapper; // set by func-ref check above
+            bool isRetConvWrapper = false;
+            {
+                llvm::Type *origRet = lambdaFn->getReturnType();
+                isRetConvWrapper = !isFuncRefWrapper &&
+                                   !origRet->isVoidTy() &&
+                                   !origRet->isIntegerTy(64) &&
+                                   (origRet->isIntegerTy(1) ||  // bool
+                                    origRet->isIntegerTy(32) || // int32
+                                    origRet->isDoubleTy() ||    // double
+                                    origRet->isFloatTy() ||     // float
+                                    origRet->isPointerTy());    // ptr
+                if (isRetConvWrapper)
+                    needsWrapper = true;
+            }
+
             llvm::Function *targetFn = lambdaFn;
             if (needsWrapper)
             {
@@ -260,16 +295,50 @@ namespace Sad
                 }
                 else
                 {
-                    // (AR) بناء نوع العلاقة للـ wrapper: (params..., i64 __env) → retType
+                    llvm::Type *origRetType = lambdaFn->getReturnType();
+
+                    // ============================================================
+                    // (AR) تحديد نوع إرجاع الـ wrapper:
+                    //      - func-ref بدون تحويل نوع: إرجاع i64 (البروتوكول)
+                    //      - lambda مع تحويل نوع إرجاع: i64 دائماً
+                    //      - void: يبقى void
+                    // (EN) Determine wrapper return type:
+                    //      - func-ref without return conv: i64 (protocol)
+                    //      - lambda with return type conv: always i64
+                    //      - void: stays void
+                    // ============================================================
+                    bool needsRetConv = isRetConvWrapper &&
+                                        !origRetType->isVoidTy() &&
+                                        !origRetType->isIntegerTy(64);
+                    llvm::Type *wrapperRetType = origRetType->isVoidTy()
+                                                     ? origRetType
+                                                     : (isFuncRefWrapper ? origRetType
+                                                                         : getInt64Type());
+
+                    // ============================================================
+                    // (AR) مسار 1: func-ref — أضف __env كمعامل أخير (تُتجاهل)
+                    //      لأن الدالة الأصلية لا تعرف __env.
+                    // (AR) مسار 2: lambda conv — نفس المعاملات بالضبط (تحمل __env أصلاً).
+                    //
+                    // (EN) Path 1: func-ref — add __env as extra param (ignored)
+                    //      because original function doesn't know about __env.
+                    // (EN) Path 2: lambda conv — exact same params (already has __env).
+                    // ============================================================
                     std::vector<llvm::Type *> wrapperParamTypes;
                     for (auto &arg : lambdaFn->args())
                     {
                         wrapperParamTypes.push_back(arg.getType());
                     }
-                    wrapperParamTypes.push_back(getInt64Type()); // __env
+                    if (isFuncRefWrapper)
+                    {
+                        // (AR) func-ref: أضف __env (سيُتجاهل في الاستدعاء الداخلي)
+                        // (EN) func-ref: add __env (ignored in inner call)
+                        wrapperParamTypes.push_back(getInt64Type());
+                    }
+                    // (AR) lambda conv: المعاملات كافية، لا إضافة
 
                     auto *wrapperFnType = llvm::FunctionType::get(
-                        lambdaFn->getReturnType(), wrapperParamTypes, false);
+                        wrapperRetType, wrapperParamTypes, false);
                     auto *wrapperFn = llvm::Function::Create(
                         wrapperFnType, llvm::Function::InternalLinkage, wrapperName, module_.get());
 
@@ -277,20 +346,84 @@ namespace Sad
                     auto *entryBB = llvm::BasicBlock::Create(*context_, "entry", wrapperFn);
                     llvm::IRBuilder<> wrapperBuilder(entryBB);
 
-                    // (AR) استدعاء الدالة الأصلية بكل المعاملات ما عدا __env
+                    // ============================================================
+                    // (AR) بناء قائمة الوسائط للاستدعاء الداخلي:
+                    //      - func-ref: كل معاملات الدالة الأصلية (بدون __env الجديدة)
+                    //      - lambda conv: كل معاملات الـ wrapper (مطابقة للامدا)
+                    // (EN) Build call args:
+                    //      - func-ref: all original fn params (without new __env)
+                    //      - lambda conv: all wrapper params (same as lambda)
+                    // ============================================================
                     std::vector<llvm::Value *> callArgs;
-                    for (size_t i = 0; i < lambdaFn->arg_size(); i++)
+                    size_t callArgCount = isFuncRefWrapper
+                                              ? lambdaFn->arg_size()  // استبعاد __env المُضافة
+                                              : lambdaFn->arg_size(); // lambda: كل المعاملات
+                    for (size_t i = 0; i < callArgCount; i++)
                     {
                         callArgs.push_back(wrapperFn->getArg(static_cast<unsigned>(i)));
                     }
 
-                    llvm::Value *retVal = wrapperBuilder.CreateCall(lambdaFn, callArgs,
-                                                                    lambdaFn->getReturnType()->isVoidTy() ? "" : "wrap.call");
+                    llvm::Value *retVal = wrapperBuilder.CreateCall(
+                        lambdaFn, callArgs,
+                        origRetType->isVoidTy() ? "" : "wrap.call");
 
-                    if (lambdaFn->getReturnType()->isVoidTy())
+                    // ============================================================
+                    // (AR) تحويل قيمة الإرجاع حسب النوع
+                    // (EN) Convert return value based on type
+                    // ============================================================
+                    if (origRetType->isVoidTy())
+                    {
                         wrapperBuilder.CreateRetVoid();
-                    else
+                    }
+                    else if (!needsRetConv)
+                    {
+                        // (AR) func-ref أو i64 — لا تحويل
+                        // (EN) func-ref or i64 — no conversion
                         wrapperBuilder.CreateRet(retVal);
+                    }
+                    else if (origRetType->isIntegerTy(1))
+                    {
+                        // (AR) i1 → i64: توسيع صفري
+                        // (EN) i1 → i64: zero-extend
+                        wrapperBuilder.CreateRet(
+                            wrapperBuilder.CreateZExt(retVal, getInt64Type(), "bool.to.i64"));
+                    }
+                    else if (origRetType->isIntegerTy(32))
+                    {
+                        // (AR) i32 → i64: توسيع بالإشارة
+                        // (EN) i32 → i64: sign-extend
+                        wrapperBuilder.CreateRet(
+                            wrapperBuilder.CreateSExt(retVal, getInt64Type(), "i32.to.i64"));
+                    }
+                    else if (origRetType->isDoubleTy())
+                    {
+                        // (AR) double → i64: إعادة تفسير البتات (IEEE 754)
+                        // (EN) double → i64: bit-reinterpret (IEEE 754)
+                        wrapperBuilder.CreateRet(
+                            wrapperBuilder.CreateBitCast(retVal, getInt64Type(), "dbl.to.i64"));
+                    }
+                    else if (origRetType->isFloatTy())
+                    {
+                        // (AR) float → double → i64: توسيع ثم إعادة تفسير
+                        // (EN) float → double → i64: extend then bit-reinterpret
+                        llvm::Value *asDouble = wrapperBuilder.CreateFPExt(
+                            retVal, getDoubleType(), "flt.to.dbl");
+                        wrapperBuilder.CreateRet(
+                            wrapperBuilder.CreateBitCast(asDouble, getInt64Type(), "dbl.to.i64"));
+                    }
+                    else if (origRetType->isPointerTy())
+                    {
+                        // (AR) ptr → i64: PtrToInt
+                        // (EN) ptr → i64: PtrToInt
+                        wrapperBuilder.CreateRet(
+                            wrapperBuilder.CreatePtrToInt(retVal, getInt64Type(), "ptr.to.i64"));
+                    }
+                    else
+                    {
+                        // (AR) نوع غير متوقع — إرجاع كما هو (احتياطي)
+                        // (EN) Unexpected type — return as-is (fallback)
+                        wrapperBuilder.CreateRet(retVal);
+                    }
 
                     targetFn = wrapperFn;
                 }
@@ -539,6 +672,20 @@ namespace Sad
                     retType = llvm::PointerType::getUnqual(*context_);
             }
 
+            // ================================================================
+            // (AR) [شبكة أمان] إذا كان نوع الإرجاع void لكن SIR يتوقع نتيجة،
+            //      نستخدم i64 كنوع إرجاع افتراضي. هذا يحل حالة الدوال التي
+            //      تُرجع إغلاقات ولكن أُعلنت بنوع void خطأً.
+            // (EN) [Safety net] If return type is void but SIR expects a result,
+            //      use i64 as default return type. This handles functions that
+            //      return closures but were incorrectly declared as void.
+            // ================================================================
+            if (retType->isVoidTy() && inst->result.has_value() &&
+                inst->result->dataType != SadTypeKind::Void)
+            {
+                retType = getInt64Type();
+            }
+
             // (AR) إنشاء نوع الدالة واستدعاءها
             // (EN) Create function type and call
             auto *funcType = llvm::FunctionType::get(retType, argTypes, false);
@@ -666,7 +813,6 @@ namespace Sad
 
             return value;
         }
-
 
     } // namespace LLVM
 } // namespace Sad

@@ -35,6 +35,22 @@ if(MSVC)
     target_compile_options(sad_core PRIVATE /FS /utf-8 /Z7)
 endif()
 
+# (AR) تفعيل المسار الحقيقي لوحدة HTTP داخل sad_core وربط مكتبات الشبكة
+#      حتى تتوفر دوال stdlib/network للمفسر ولكل المستهلكين لـ sad_core.
+# (EN) Enable the real HTTP path inside sad_core and link network libraries
+#      so stdlib/network builtins are available to the interpreter and all sad_core consumers.
+if(TARGET sad_network AND TARGET sad_http)
+    target_link_libraries(sad_core PUBLIC sad_network sad_http)
+    target_compile_definitions(sad_core PRIVATE HAS_NETWORK_LIB)
+    message(STATUS "✓ دعم الشبكة HTTP بالمفسر / Enabled HTTP network support in interpreter")
+endif()
+
+# ربط مكتبة WebSocket بالمفسر / Link sad_websocket to interpreter
+if(TARGET sad_websocket)
+    target_link_libraries(sad_core PUBLIC sad_websocket)
+    message(STATUS "✓ ربط WebSocket بالمفسر / Linked WebSocket to interpreter")
+endif()
+
 # ربط وقت التشغيل الجديد / Link runtime_new
 if(TARGET sad_rt_runtime)
     target_link_libraries(sad_core PRIVATE sad_rt_runtime)

@@ -73,13 +73,43 @@ namespace Sad
                     if (!funcName.empty())
                     {
                         auto it = functionTable_.find(funcName);
+
+                        // ═══════════════════════════════════════════════════════════════
+                        // (AR) إصلاح: إذا لم نجد الدالة، نتحقق إذا كان استدعاء باني صنف
+                        //      بدون كلمة "جديد". في لغة ص، كائن_حي("حي") يُحلَّل كـ CallExpr
+                        //      لكن الباني مسجّل كـ "كائن_حي.باني" في functionTable_
+                        //      بدون هذا: أنواع معاملات الباني لا تُحدَّث من call-site
+                        //      مما يؤدي لبقاء المعاملات كـ Integer بدلاً من String
+                        // (EN) Fix: If function not found, check if it's a class constructor
+                        //      call without "new" keyword. In Sad, ClassName("arg") is parsed
+                        //      as CallExpr but constructor is registered as "ClassName.باني"
+                        //      Without this: constructor param types don't get updated from call-site
+                        //      causing params to remain Integer instead of String
+                        // ═══════════════════════════════════════════════════════════════
+                        bool isImplicitCtorCall = false;
+                        if (it == functionTable_.end())
+                        {
+                            // (AR) إصلاح: بدلاً من module_->getClass() (غير متاح في Phase 1.7)
+                            //      نبحث مباشرة عن "اسم.باني" في functionTable_
+                            //      مسجّل في Phase 1.35 قبل Phase 1.7
+                            // (EN) Fix: Instead of module_->getClass() (unavailable in Phase 1.7)
+                            //      look directly for "name.باني" in functionTable_
+                            //      registered in Phase 1.35 before Phase 1.7
+                            std::string ctorName = funcName + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                            it = functionTable_.find(ctorName);
+                            isImplicitCtorCall = (it != functionTable_.end());
+                        }
+
                         if (it != functionTable_.end())
                         {
                             auto &funcInfo = it->second;
-                            for (size_t i = 0; i < call->arguments.size() && i < funcInfo.parameters.size(); i++)
+                            // (AR) عند استدعاء الباني ضمنياً، المعامل الأول هو self → نزيح بـ 1
+                            // (EN) For implicit constructor calls, first param is self → offset by 1
+                            size_t paramOffset = isImplicitCtorCall ? 1 : 0;
+                            for (size_t i = 0; i < call->arguments.size() && (i + paramOffset) < funcInfo.parameters.size(); i++)
                             {
                                 SadTypeKind argType = inferExprType(call->arguments[i].get());
-                                SadTypeKind &paramType = funcInfo.parameters[i].type;
+                                SadTypeKind &paramType = funcInfo.parameters[i + paramOffset].type;
 
                                 // (AR) ??? ??? ??????? I64 (??????? ?? UNKNOWN) ??????? ??? ???? ???????
                                 // (EN) If param is I64 (default from UNKNOWN) and arg is a more specific type
@@ -88,7 +118,7 @@ namespace Sad
                                     paramType = SadTypeKind::String;
 #ifdef SIR_BUILDER_DEBUG
                                     std::cerr << "[TYPE-INFER] " << funcName << " param[" << i
-                                              << "] '" << funcInfo.parameters[i].name
+                                              << "] '" << funcInfo.parameters[i + paramOffset].name
                                               << "': I64 -> STRING" << std::endl;
 #endif
                                 }
@@ -100,11 +130,35 @@ namespace Sad
                                 {
                                     paramType = SadTypeKind::Boolean;
                                 }
-                                // (AR) ????? ????: ??? ?????? ??????? (????? STRING ?? BOOL)
-                                //      ????? STRING ???? ????? � ??????? ??? ??? ?????????
-                                //      ?? sir_builder_calls.cpp ??? BOOL_TO_STRING/I64_TO_STRING
+                                // ═══════════════════════════════════════════════════════════
+                                // (AR) إصلاح: استنتاج نوع المصفوفة + نوع عناصرها
+                                //      عند تمرير مصفوفة كوسيط، نحدّث نوع المعامل إلى Array
+                                //      ونفحص عناصر المصفوفة (إن كانت ArrayExpr) لتحديد elementType
+                                //      بدون هذا: forEach على مصفوفة نصوص يعامل العناصر كأرقام
+                                // (EN) Fix: Infer array type + element type
+                                //      When array literal is passed, update param to Array
+                                //      and inspect elements to determine elementType
+                                //      Without this: forEach over string array treats elements as integers
+                                // ═══════════════════════════════════════════════════════════
+                                else if (paramType == SadTypeKind::Integer && argType == SadTypeKind::Array)
+                                {
+                                    paramType = SadTypeKind::Array;
+                                    // (AR) فحص عناصر المصفوفة لتحديد نوع العنصر
+                                    // (EN) Inspect array elements to determine element type
+                                    if (auto *arrExpr = dynamic_cast<const Sad::AST::ArrayExpr *>(call->arguments[i].get()))
+                                    {
+                                        if (!arrExpr->elements.empty())
+                                        {
+                                            SadTypeKind firstElemType = inferExprType(arrExpr->elements[0].get());
+                                            funcInfo.parameters[i + paramOffset].elementType = firstElemType;
+                                        }
+                                    }
+                                }
+                                // (AR) إصلاح جذري: عند تضارب الأنواع (مثلاً STRING ثم BOOL)
+                                //      نبقي STRING كنوع عام — التحويل يحدث عند الاستدعاء
+                                //      في sir_builder_calls.cpp عبر BOOL_TO_STRING/I64_TO_STRING
                                 // (EN) Radical fix: if types conflict (e.g. STRING then BOOL)
-                                //      keep STRING as common type � conversion happens at call site
+                                //      keep STRING as common type — conversion happens at call site
                                 //      in sir_builder_calls.cpp via BOOL_TO_STRING/I64_TO_STRING
                                 else if (paramType == SadTypeKind::String && argType != SadTypeKind::String)
                                 {
@@ -112,7 +166,7 @@ namespace Sad
                                     // (EN) STRING stays � conversion happens at call site
 #ifdef SIR_BUILDER_DEBUG
                                     std::cerr << "[TYPE-INFER] " << funcName << " param[" << i
-                                              << "] '" << funcInfo.parameters[i].name
+                                              << "] '" << funcInfo.parameters[i + paramOffset].name
                                               << "': keeping STRING (call-site will convert "
                                               << static_cast<int>(argType) << ")" << std::endl;
 #endif
@@ -124,7 +178,7 @@ namespace Sad
                                     paramType = SadTypeKind::String;
 #ifdef SIR_BUILDER_DEBUG
                                     std::cerr << "[TYPE-INFER] " << funcName << " param[" << i
-                                              << "] '" << funcInfo.parameters[i].name
+                                              << "] '" << funcInfo.parameters[i + paramOffset].name
                                               << "': " << static_cast<int>(paramType)
                                               << " -> STRING (widened)" << std::endl;
 #endif
@@ -141,17 +195,17 @@ namespace Sad
                             //      register class name in paramClassTypes_ for later use
                             //      in buildFunction when building body + inferReturnTypeFromBody
                             // ================================================================
-                            for (size_t i = 0; i < call->arguments.size() && i < funcInfo.parameters.size(); i++)
+                            for (size_t i = 0; i < call->arguments.size() && (i + paramOffset) < funcInfo.parameters.size(); i++)
                             {
                                 const auto &arg = call->arguments[i];
                                 if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(arg.get()))
                                 {
-                                    // (AR) ???: ?? ??? ??????? ???? ???? ?? classInstanceTypes_?
+                                    // (AR) تحقق: هل هذا المتغير كائن مسجل في classInstanceTypes_?
                                     // (EN) Check: is this variable an object tracked in classInstanceTypes_?
                                     auto ciIt = classInstanceTypes_.find(varExpr->name);
                                     if (ciIt != classInstanceTypes_.end())
                                     {
-                                        paramClassTypes_[funcName][funcInfo.parameters[i].name] = ciIt->second;
+                                        paramClassTypes_[funcName][funcInfo.parameters[i + paramOffset].name] = ciIt->second;
                                     }
                                 }
                             }
@@ -360,12 +414,27 @@ namespace Sad
                     return;
                 }
 
-                // (AR) ???? return
+                // (AR) جملة return
                 // (EN) Return statement
                 if (auto *retStmt = dynamic_cast<const Sad::AST::ReturnStmt *>(stmt))
                 {
                     if (retStmt->value)
                         scanCallSitesInExpr(retStmt->value.get());
+                    return;
+                }
+
+                // (AR) جملة أطلق (goroutine) — يجب فحص تعبير الاستدعاء وكتلة الجسم
+                //      بدون هذا: أطلق دالة("نص") لا يُستنتج نوع المعامل كـ String
+                //      مما يؤدي لمعاملة المعامل كـ Integer داخل الدالة
+                // (EN) GoStmt (goroutine) — must scan call expression and block body
+                //      Without this: go func("text") doesn't infer param as String
+                //      causing the parameter to be treated as Integer inside the function
+                if (auto *goStmt = dynamic_cast<const Sad::AST::GoStmt *>(stmt))
+                {
+                    if (goStmt->expression)
+                        scanCallSitesInExpr(goStmt->expression.get());
+                    if (goStmt->blockBody)
+                        scanCallSitesInStmt(goStmt->blockBody.get());
                     return;
                 }
             }

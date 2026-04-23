@@ -149,21 +149,50 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     # (EN) Custom target to ensure generation before build
     add_custom_target(generate_runtime_header DEPENDS "${SAD_RUNTIME_HEADER}")
 
-    add_executable(sadc
-        tools/compiler/main.cpp
-        tools/compiler/compiler_driver_frontend.cpp
-        tools/compiler/compiler_driver_diagnostics.cpp
-        tools/compiler/compiler_driver_analysis.cpp
-        tools/compiler/compiler_driver_backend.cpp
-        tools/compiler/compiler_driver_cli.cpp
-        tools/compiler/compiler_driver_linker.cpp
-        tools/compiler/compiler_driver_lld.cpp
-        tools/compiler/compiler_driver_build_utils.cpp
-        tools/compiler/compiler_driver_ui.cpp
-        tools/compiler/compiler_driver_android.cpp
-        tools/compiler/compiler_driver_android_linker.cpp
-        tools/compiler/compiler_driver_pkg.cpp
-    )
+    # (AR) إذا توفر LLVM Debug + Release، يمكن بناء sadc في كلا الوضعين
+    #      وإلا يُستثنى من ALL_BUILD ويُبنى يدوياً في Release فقط
+    # (EN) If both Debug + Release LLVM available, sadc builds in both configs
+    #      Otherwise excluded from ALL_BUILD, build manually in Release only
+    if(SAD_LLVM_HAS_DEBUG)
+        add_executable(sadc
+            tools/compiler/main.cpp
+            tools/compiler/compiler_driver_frontend.cpp
+            tools/compiler/compiler_driver_diagnostics.cpp
+            tools/compiler/compiler_driver_analysis.cpp
+            tools/compiler/compiler_driver_backend.cpp
+            tools/compiler/compiler_driver_cli.cpp
+            tools/compiler/compiler_driver_linker.cpp
+            tools/compiler/compiler_driver_lld.cpp
+            tools/compiler/compiler_driver_build_utils.cpp
+            tools/compiler/compiler_driver_ui.cpp
+            tools/compiler/compiler_driver_android.cpp
+            tools/compiler/compiler_driver_android_linker.cpp
+            tools/compiler/compiler_driver_pkg.cpp
+        )
+        message(STATUS "   sadc: dual-config (Debug + Release)")
+    else()
+        add_executable(sadc EXCLUDE_FROM_ALL
+            tools/compiler/main.cpp
+            tools/compiler/compiler_driver_frontend.cpp
+            tools/compiler/compiler_driver_diagnostics.cpp
+            tools/compiler/compiler_driver_analysis.cpp
+            tools/compiler/compiler_driver_backend.cpp
+            tools/compiler/compiler_driver_cli.cpp
+            tools/compiler/compiler_driver_linker.cpp
+            tools/compiler/compiler_driver_lld.cpp
+            tools/compiler/compiler_driver_build_utils.cpp
+            tools/compiler/compiler_driver_ui.cpp
+            tools/compiler/compiler_driver_android.cpp
+            tools/compiler/compiler_driver_android_linker.cpp
+            tools/compiler/compiler_driver_pkg.cpp
+        )
+        message(STATUS "   sadc: Release-only (EXCLUDE_FROM_ALL)")
+    endif()
+
+    # (AR) استخدام SAD_LLVM_INCLUDES — يُعرّف في cmake/llvm.cmake مع generator expression
+    #      للاختيار بين مسار Debug و Release تلقائياً.
+    # (EN) Use SAD_LLVM_INCLUDES — defined in cmake/llvm.cmake with generator expression
+    #      to automatically select between Debug and Release paths.
 
     target_include_directories(sadc PRIVATE
         ${CMAKE_SOURCE_DIR}/tools/compiler
@@ -178,7 +207,7 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         ${CMAKE_SOURCE_DIR}/compiler_new/include/semantic
         ${CMAKE_SOURCE_DIR}/compiler_new/include/types
         ${CMAKE_SOURCE_DIR}/compiler_new/include/backend/llvm
-        ${LLVM_INCLUDE_DIRS}
+        ${SAD_LLVM_INCLUDES}
         ${CMAKE_BINARY_DIR}/generated
     )
 

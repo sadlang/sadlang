@@ -253,6 +253,64 @@ namespace Sad
                     }
                 }
 
+                // ═══════════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 1.35: تسجيل توقيعات البُناة مبكراً (قبل Phase 1.7/1.8)
+                //      بدون هذا: Phase 1.7 لا يستطيع تحديث أنواع معاملات الباني
+                //      و Phase 1.8 لا يستطيع استنتاج أنواع الحقول من وسائط الباني
+                //      مما يُبقي الحقول كـ Pointer والمعاملات كـ Integer
+                // (EN) Phase 1.35: Pre-register constructor signatures (before Phase 1.7/1.8)
+                //      Without this: Phase 1.7 can't update constructor param types
+                //      and Phase 1.8 can't infer field types from constructor arguments
+                //      leaving fields as Pointer and params as Integer
+                // ═══════════════════════════════════════════════════════════════════════
+                for (const auto &stmt : *program)
+                {
+                    if (!stmt)
+                        continue;
+
+                    auto *classDecl = dynamic_cast<Sad::AST::ClassDecl *>(stmt.get());
+                    if (!classDecl)
+                        continue;
+
+                    for (const auto &member : classDecl->members)
+                    {
+                        if (!member)
+                            continue;
+
+                        auto *ctorDecl = dynamic_cast<Sad::AST::ConstructorDecl *>(member.get());
+                        if (!ctorDecl)
+                            continue;
+
+                        std::string fullCtorName = classDecl->name + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+
+                        // (AR) تخطي إذا سبق التسجيل
+                        // (EN) Skip if already registered
+                        if (functionTable_.count(fullCtorName) > 0)
+                            continue;
+
+                        FunctionInfo ctorInfo;
+                        ctorInfo.name = fullCtorName;
+                        ctorInfo.returnType = SadTypeKind::Void;
+
+                        // (AR) المعامل الأول دائماً self
+                        // (EN) First parameter is always self
+                        ctorInfo.parameters.push_back(SIRParameter(kSelfParamName, SadTypeKind::Integer));
+
+                        for (const auto &param : ctorDecl->parameters)
+                        {
+                            SadTypeKind paramType = astTypeToSIRType(param.type);
+                            ctorInfo.parameters.push_back(SIRParameter(param.name, paramType));
+                        }
+
+                        ctorInfo.sirFunction = nullptr;
+                        functionTable_[fullCtorName] = ctorInfo;
+#ifdef SIR_BUILDER_DEBUG
+                        std::cerr << "[SIR-DBG] Phase1.35: registered ctor '" << fullCtorName
+                                  << "' params=" << ctorInfo.parameters.size() << std::endl;
+#endif
+                    }
+                }
+
                 // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
                 // (AR) ״§„…״±״­„״© 1.5: ״×״³״¬„ ״§„…״×״÷״±״§״× ״§„״¹״§…״© …״³״¨‚״§‹  †״·״§‚ ״¹״§… ״«״§״¨״×
                 // (EN) Phase 1.5: Pre-register global variables in a persistent global scope
@@ -703,6 +761,68 @@ namespace Sad
                         }
                         if (auto *call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
                         {
+                            // (EN) Fix: Handle constructor calls via CallExpr (without "new" keyword)
+                            //      In Sad, ClassName("arg") is parsed as CallExpr not NewExpr
+                            //      Without this: field types don't get updated from implicit ctor args
+                            if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
+                            {
+                                auto callSirClass = module_->getClass(varExpr->name);
+                                if (callSirClass && !callSirClass->paramToFieldMap_.empty())
+                                {
+                                    std::string ctorCallName = varExpr->name + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                                    // (AR) نبحث في functionTable_ (مسجّل في Phase 1.35) بدلاً من module_
+                                    //      لأن الباني لم يُضف إلى module_ بعد (يحدث في Phase 2)
+                                    // (EN) Look up in functionTable_ (registered in Phase 1.35) instead of module_
+                                    //      because constructor isn't added to module_ until Phase 2
+                                    auto ctorIt = functionTable_.find(ctorCallName);
+                                    if (ctorIt != functionTable_.end())
+                                    {
+                                        const auto &ctorParams = ctorIt->second.parameters;
+                                        for (size_t ci = 1; ci < ctorParams.size() && (ci - 1) < call->arguments.size(); ci++)
+                                        {
+                                            const std::string &cpName = ctorParams[ci].name;
+                                            auto cfIt = callSirClass->paramToFieldMap_.find(cpName);
+                                            if (cfIt != callSirClass->paramToFieldMap_.end())
+                                            {
+                                                const std::string &cfName = cfIt->second;
+                                                auto cfType = callSirClass->fields_.find(cfName);
+                                                if (cfType != callSirClass->fields_.end() &&
+                                                    cfType->second == SadTypeKind::Pointer)
+                                                {
+                                                    const auto &cArg = call->arguments[ci - 1];
+                                                    SadTypeKind cArgType = SadTypeKind::Pointer;
+                                                    if (auto *lit = dynamic_cast<const Sad::AST::LiteralExpr *>(cArg.get()))
+                                                    {
+                                                        auto tt = lit->token.getType();
+                                                        if (tt == Lexer::TokenType::STRING_LITERAL)
+                                                            cArgType = SadTypeKind::String;
+                                                        else if (tt == Lexer::TokenType::NUMBER_INTEGER)
+                                                            cArgType = SadTypeKind::Integer;
+                                                        else if (tt == Lexer::TokenType::NUMBER_DOUBLE)
+                                                            cArgType = SadTypeKind::Float;
+                                                        else if (tt == Lexer::TokenType::LITERAL_TRUE || tt == Lexer::TokenType::LITERAL_FALSE)
+                                                            cArgType = SadTypeKind::Boolean;
+                                                    }
+                                                    else if (dynamic_cast<const Sad::AST::ArrayExpr *>(cArg.get()))
+                                                    {
+                                                        cArgType = SadTypeKind::Array;
+                                                    }
+                                                    else if (auto *varArg = dynamic_cast<const Sad::AST::VariableExpr *>(cArg.get()))
+                                                    {
+                                                        auto *varInfo = lookupVariable(varArg->name);
+                                                        if (varInfo && varInfo->type != SadTypeKind::Void)
+                                                            cArgType = varInfo->type;
+                                                    }
+                                                    if (cArgType != SadTypeKind::Pointer && cArgType != SadTypeKind::Void)
+                                                    {
+                                                        callSirClass->fields_[cfName] = cArgType;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             scanExprForNewExpr(call->callee.get());
                             for (const auto &arg : call->arguments)
                                 scanExprForNewExpr(arg.get());
@@ -760,6 +880,68 @@ namespace Sad
                     }
                 }
 
+                // ═══════════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 2B2: نشر أنواع الحقول الموروثة من الأب إلى الابن
+                //      المشكلة: عند نسخ حقول الأب في Phase 2A، قد تكون أنواعها لم تُحدَّث بعد
+                //      (ستُحدَّث لاحقاً في Phase 2B). الحل: بعد Phase 2B، ننشر أنواع الحقول
+                //      المُحدَّثة من الأب إلى جميع الأبناء عبر سلسلة الوراثة.
+                // (EN) Phase 2B2: Propagate inherited field types from parent to child classes
+                //      Problem: when copying parent fields in Phase 2A, their types may not be
+                //      updated yet (Phase 2B updates them later). Fix: after Phase 2B, propagate
+                //      updated field types from parent to all children down the inheritance chain.
+                // ═══════════════════════════════════════════════════════════════════════
+                {
+                    const auto &allClasses = module_->getClasses();
+                    // (AR) نمرر عدة مرات لضمان النشر في سلاسل الوراثة العميقة
+                    //      (قاعدة → وسط → فرع): المرة الأولى تنشر من قاعدة لوسط،
+                    //      المرة الثانية تنشر من وسط لفرع
+                    // (EN) Multiple passes to handle deep chains (base->middle->child):
+                    //      Pass 1 propagates base->middle, pass 2 propagates middle->child
+                    for (size_t pass = 0; pass < allClasses.size(); pass++)
+                    {
+                        bool anyUpdated = false;
+                        for (const auto &sirClass : allClasses)
+                        {
+                            if (sirClass->parentClass.empty())
+                                continue;
+
+                            auto parentSirClass = module_->getClass(sirClass->parentClass);
+                            if (!parentSirClass)
+                                continue;
+
+                            // (AR) لكل حقل موروث: إذا كان الأب يملك نوعاً أدق، نحدّث الابن
+                            // (EN) For each inherited field: if parent has more specific type, update child
+                            for (const auto &fieldName : sirClass->fieldOrder_)
+                            {
+                                auto parentFieldIt = parentSirClass->fields_.find(fieldName);
+                                if (parentFieldIt == parentSirClass->fields_.end())
+                                    continue; // (AR) ليس حقلاً موروثاً / (EN) not an inherited field
+
+                                auto childFieldIt = sirClass->fields_.find(fieldName);
+                                if (childFieldIt == sirClass->fields_.end())
+                                    continue;
+
+                                // (AR) إذا الأب أدق (ليس Pointer) والابن لا يزال Pointer → حدّث
+                                // (EN) If parent is more specific (not Pointer) and child is still Pointer -> update
+                                if (parentFieldIt->second != SadTypeKind::Pointer &&
+                                    childFieldIt->second == SadTypeKind::Pointer)
+                                {
+                                    sirClass->fields_[fieldName] = parentFieldIt->second;
+                                    anyUpdated = true;
+#ifndef NDEBUG
+                                    std::cout << "[DEBUG] Phase2B2: propagated field '"
+                                              << fieldName << "' type from parent '"
+                                              << sirClass->parentClass << "' to child '"
+                                              << sirClass->name << "'" << std::endl;
+#endif
+                                }
+                            }
+                        }
+                        if (!anyUpdated)
+                            break; // (AR) لا تحديثات — توقف مبكراً / (EN) No updates — early exit
+                    }
+                }
+
                 // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
                 // (AR) ״§„…״±״­„״© 2״¬: ״¨†״§״¡ ״§„״¯ˆ״§„ ˆ״§„‚ˆ״§„״¨ ˆ״§„״µ״§״¯״±״§״× + ״¬…״¹ ״§„״¬…„ ״§„״×†״°״©
                 // (EN) Phase 2C: Build functions, templates, exports + collect executable stmts
@@ -781,6 +963,16 @@ namespace Sad
                         continue;
                     if (dynamic_cast<Sad::AST::ImplDecl *>(stmt.get()))
                         continue;
+
+                    // (AR) فضاء الأسماء: يُبنى في المرحلة 2 لأن أعضاءه (دوال/متغيرات/أصناف)
+                    //      تعريفات على مستوى الوحدة وليست جملاً تنفيذية
+                    // (EN) Namespace: build in Phase 2 because its members (functions/vars/classes)
+                    //      are module-level declarations, not executable statements
+                    if (auto nsDecl = dynamic_cast<Sad::AST::NamespaceDecl *>(stmt.get()))
+                    {
+                        buildStatement(nsDecl);
+                        continue;
+                    }
 
                     // (AR) ״¯״§„״©״ (declarations.h:19 - class FunctionDecl)
                     // (EN) Function declaration?
@@ -1036,8 +1228,6 @@ namespace Sad
                 return module_;
             }
 
-
         } // namespace SIR
     } // namespace Compiler
 } // namespace Sad
-

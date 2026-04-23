@@ -25,6 +25,7 @@
 #include <memory>
 #include <vector>
 #include <cstdint>
+#include <iostream>
 #include "sad_type_system.h"
 
 namespace Sad
@@ -310,6 +311,16 @@ namespace Sad
                 BUILTIN_MAX,    ///< الأكبر / Maximum
                 BUILTIN_ASSERT, ///< تأكيد / Assert
                 BUILTIN_DEBUG,  ///< تنقيح / Debug print
+
+                // Math functions - extended (8)
+                BUILTIN_LOG10, ///< لوغ10 / Log base 10
+                BUILTIN_LOG2,  ///< لوغ2 / Log base 2
+                BUILTIN_ASIN,  ///< قوس_جيب / Arc sine
+                BUILTIN_ACOS,  ///< قوس_جيب_تمام / Arc cosine
+                BUILTIN_TRUNC, ///< اقتطاع / Truncate (toward zero)
+                BUILTIN_FMOD,  ///< باقي / Floating-point remainder
+                BUILTIN_CLAMP, ///< قيد / Clamp (min ≤ x ≤ max)
+                BUILTIN_ATAN,  ///< قوس_ظل / Arc tangent
 
                 // String functions (12)
                 BUILTIN_STRING_LENGTH,      ///< طول_نص / String length
@@ -951,6 +962,134 @@ namespace Sad
                            ///< operands[0] = value to store (i64)
                            ///< operands[1] = env pointer (i64, from __env param)
                            ///< operands[2] = index (constant i64)
+
+                // ========================================================================
+                // القسم 21: وحدة الشبكة — مقابس TCP/UDP وعميل/خادم HTTP
+                // Section 21: Network Module — TCP/UDP sockets and HTTP client/server
+                // ========================================================================
+                // (AR) هذا القسم يدعم مكتبة الشبكة الكاملة في المترجم (sadc).
+                //      كل opcode يُترجم إلى استدعاء دالة C API من stdlib/network.
+                //      الأسماء العربية مُعرّفة في shared/builtins/include/builtin_registry.h
+                // (EN) This section supports the full network library in the compiler (sadc).
+                //      Each opcode maps to a C API call from stdlib/network.
+                //      Arabic names are defined in shared/builtins/include/builtin_registry.h
+
+                // --- 21a. مقابس TCP / TCP Sockets (10) ---
+                BUILTIN_NET_TCP_NEW,         ///< أنشئ_وصلة / sad_tcp_socket_new
+                BUILTIN_NET_TCP_CONNECT,     ///< اتصل_بـ / sad_tcp_connect
+                BUILTIN_NET_TCP_SEND,        ///< أرسل_عبر_وصلة / sad_tcp_send
+                BUILTIN_NET_TCP_RECV,        ///< استقبل_عبر_وصلة / sad_tcp_recv
+                BUILTIN_NET_TCP_CLOSE,       ///< أغلق_وصلة / sad_tcp_close
+                BUILTIN_NET_TCP_BIND,        ///< خصص_منفذ / sad_tcp_bind
+                BUILTIN_NET_TCP_LISTEN,      ///< انتظر_اتصالات / sad_tcp_listen
+                BUILTIN_NET_TCP_ACCEPT,      ///< اقبل_متصل / sad_tcp_accept
+                BUILTIN_NET_TCP_CONNECTED,   ///< هل_متصلة / sad_tcp_is_connected
+                BUILTIN_NET_TCP_REMOTE_ADDR, ///< عنوان_الطرف_الآخر / sad_tcp_remote_addr
+
+                // --- 21b. مقابس UDP / UDP Sockets (5) ---
+                BUILTIN_NET_UDP_NEW,   ///< أنشئ_مرسال / sad_udp_socket_new
+                BUILTIN_NET_UDP_BIND,  ///< خصص_منفذ_رسائل / sad_udp_bind
+                BUILTIN_NET_UDP_SEND,  ///< أرسل_رسالة / sad_udp_send_to
+                BUILTIN_NET_UDP_RECV,  ///< استقبل_رسالة / sad_udp_recv_from
+                BUILTIN_NET_UDP_CLOSE, ///< أغلق_مرسال / sad_udp_close
+
+                // --- 21c. إعدادات المقابس / Socket Settings (3) ---
+                BUILTIN_NET_RECV_TIMEOUT, ///< حدد_انتظار_الاستقبال / sad_socket_set_recv_timeout
+                BUILTIN_NET_SEND_TIMEOUT, ///< حدد_انتظار_الإرسال / sad_socket_set_send_timeout
+                BUILTIN_NET_NO_DELAY,     ///< أرسل_فوراً / sad_tcp_set_nodelay
+                BUILTIN_NET_LOCAL_PORT,   ///< منفذ_محلي / sad_socket_local_port
+
+                // --- 21d. عميل HTTP — إنشاء وطلبات / HTTP Client (13) ---
+                BUILTIN_NET_HTTP_NEW_CLIENT,  ///< أنشئ_متصفح / sad_http_client_new
+                BUILTIN_NET_HTTP_FREE_CLIENT, ///< أغلق_متصفح / sad_http_client_free
+                BUILTIN_NET_HTTP_GET,         ///< اجلب / sad_http_get
+                BUILTIN_NET_HTTP_POST,        ///< أرسل / sad_http_post
+                BUILTIN_NET_HTTP_PUT,         ///< استبدل / sad_http_put
+                BUILTIN_NET_HTTP_DELETE,      ///< احذف_مورد / sad_http_delete
+                BUILTIN_NET_HTTP_PATCH,       ///< عدّل_مورد / sad_http_patch
+                BUILTIN_NET_HTTP_SET_BASE,    ///< حدد_الموقع / sad_http_client_set_base_url
+                BUILTIN_NET_HTTP_SET_HEADER,  ///< أضف_ترويسة / sad_http_client_set_header
+                BUILTIN_NET_HTTP_SET_TIMEOUT, ///< حدد_الانتظار / sad_http_client_set_timeout
+                BUILTIN_NET_HTTP_SET_BEARER,  ///< سجّل_دخول_برمز / sad_http_client_set_bearer_token
+                BUILTIN_NET_HTTP_LAST_ERROR,  ///< سبب_الفشل / sad_http_client_last_error
+                BUILTIN_NET_HTTP_IS_OK,       ///< هل_نجح / sad_http_client_is_ok
+
+                // --- 21e. استجابة HTTP / HTTP Response (5) ---
+                BUILTIN_NET_RESP_FREE,    ///< تجاهل_الرد / sad_http_response_free
+                BUILTIN_NET_RESP_STATUS,  ///< رمز_الحالة / sad_http_response_status
+                BUILTIN_NET_RESP_BODY,    ///< نص_الرد / sad_http_response_body
+                BUILTIN_NET_RESP_HEADER,  ///< معلومة_الرد / sad_http_response_header
+                BUILTIN_NET_RESP_SUCCESS, ///< هل_الرد_ناجح / sad_http_response_is_success
+
+                // --- 21f. خادم HTTP / HTTP Server (9) ---
+                BUILTIN_NET_SRV_NEW,       ///< أنشئ_خادم / sad_http_server_new
+                BUILTIN_NET_SRV_FREE,      ///< أزل_خادم / sad_http_server_free
+                BUILTIN_NET_SRV_ON_GET,    ///< عند_طلب_جلب / sad_http_server_get_cb
+                BUILTIN_NET_SRV_ON_POST,   ///< عند_طلب_إرسال / sad_http_server_post_cb
+                BUILTIN_NET_SRV_ON_PUT,    ///< عند_طلب_استبدال / sad_http_server_put_cb
+                BUILTIN_NET_SRV_ON_DELETE, ///< عند_طلب_حذف / sad_http_server_delete_cb
+                BUILTIN_NET_SRV_LISTEN,    ///< ابدأ_الاستماع / sad_http_server_listen
+                BUILTIN_NET_SRV_STOP,      ///< أوقف_الخادم / sad_http_server_stop
+                BUILTIN_NET_SRV_CORS,      ///< اسمح_بالوصول_الخارجي / sad_http_server_enable_cors
+
+                // --- 21g. بيانات الطلب الوارد / Incoming Request (5) ---
+                BUILTIN_NET_REQ_METHOD, ///< نوع_الطلب / sad_http_request_method
+                BUILTIN_NET_REQ_PATH,   ///< وجهة_الطلب / sad_http_request_path
+                BUILTIN_NET_REQ_BODY,   ///< بيانات_الطلب / sad_http_request_body
+                BUILTIN_NET_REQ_HEADER, ///< معلومة_الطلب / sad_http_request_header
+                BUILTIN_NET_REQ_QUERY,  ///< قيمة_من_الرابط / sad_http_request_query_param
+
+                // --- 21h. بناء الاستجابة / Response Building (5) ---
+                BUILTIN_NET_RESP_SET_STATUS, ///< عيّن_حالة_الرد / sad_http_response_set_status
+                BUILTIN_NET_RESP_SET_BODY,   ///< عيّن_نص_الرد / sad_http_response_set_body
+                BUILTIN_NET_RESP_SET_JSON,   ///< عيّن_رد_جيسون / sad_http_response_set_json
+                BUILTIN_NET_RESP_SET_HTML,   ///< عيّن_رد_صفحة / sad_http_response_set_html
+                BUILTIN_NET_RESP_SET_HEADER, ///< عيّن_ترويسة_الرد / sad_http_response_set_header
+
+                // --- 21i. أدوات الشبكة العامة / Network Utilities (4) ---
+                BUILTIN_NET_INIT,       ///< جهّز_الشبكة / sad_network_init
+                BUILTIN_NET_CLEANUP,    ///< نظّف_الشبكة / sad_network_cleanup
+                BUILTIN_NET_ERROR_CODE, ///< رمز_آخر_خطأ / sad_network_last_error_code
+                BUILTIN_NET_ERROR_MSG,  ///< وصف_آخر_خطأ / sad_network_last_error_message
+
+                // --- 21j. العناوين / Network Addresses (8) ---
+                BUILTIN_NET_ADDR_NEW,    ///< عنوان / sad_address_new
+                BUILTIN_NET_ADDR_NEW_V6, ///< عنوان_حديث / sad_address_new_v6
+                BUILTIN_NET_ADDR_FREE,   ///< حرر_عنوان / sad_address_free
+                BUILTIN_NET_ADDR_IP,     ///< رقم_الجهاز / sad_address_ip
+                BUILTIN_NET_ADDR_PORT,   ///< رقم_المنفذ / sad_address_port
+                BUILTIN_NET_ADDR_IS_V4,  ///< هل_عنوان_قديم / sad_address_is_v4
+                BUILTIN_NET_ADDR_IS_V6,  ///< هل_عنوان_حديث / sad_address_is_v6
+                BUILTIN_NET_ADDR_STR,    ///< العنوان_كنص / sad_address_to_string
+
+                // --- 21k. عميل WebSocket / WebSocket Client (13) ---
+                BUILTIN_NET_WS_CLIENT_NEW,          ///< أنشئ_عميل_ويبسوكت / sad_ws_client_new
+                BUILTIN_NET_WS_CLIENT_FREE,         ///< أزل_عميل_ويبسوكت / sad_ws_client_free
+                BUILTIN_NET_WS_CLIENT_CONNECT,      ///< اتصل_بويبسوكت / sad_ws_client_connect
+                BUILTIN_NET_WS_CLIENT_CLOSE,        ///< أغلق_ويبسوكت / sad_ws_client_close
+                BUILTIN_NET_WS_CLIENT_IS_CONNECTED, ///< هل_متصل_ويبسوكت / sad_ws_client_is_connected
+                BUILTIN_NET_WS_CLIENT_SEND,         ///< أرسل_ويبسوكت / sad_ws_client_send
+                BUILTIN_NET_WS_CLIENT_PING,         ///< نبض_ويبسوكت / sad_ws_client_ping
+                BUILTIN_NET_WS_CLIENT_RECEIVE,      ///< استقبل_ويبسوكت / sad_ws_client_receive
+                BUILTIN_NET_WS_CLIENT_HAS_MESSAGE,  ///< يوجد_رسالة_ويبسوكت / sad_ws_client_has_message
+                BUILTIN_NET_WS_CLIENT_GET_URL,      ///< رابط_ويبسوكت / sad_ws_client_get_url
+                BUILTIN_NET_WS_CLIENT_LAST_ERROR,   ///< خطأ_ويبسوكت / sad_ws_client_last_error
+                BUILTIN_NET_WS_CLIENT_RECV_TIMEOUT, ///< حدد_مهلة_استقبال_ويبسوكت / sad_ws_client_set_recv_timeout
+                BUILTIN_NET_WS_CLIENT_SEND_TIMEOUT, ///< حدد_مهلة_إرسال_ويبسوكت / sad_ws_client_set_send_timeout
+
+                // --- 21l. خادم WebSocket / WebSocket Server (12) ---
+                BUILTIN_NET_WS_SERVER_NEW,            ///< أنشئ_خادم_ويبسوكت / sad_ws_server_new
+                BUILTIN_NET_WS_SERVER_FREE,           ///< أزل_خادم_ويبسوكت / sad_ws_server_free
+                BUILTIN_NET_WS_SERVER_START,          ///< ابدأ_خادم_ويبسوكت / sad_ws_server_start
+                BUILTIN_NET_WS_SERVER_STOP,           ///< أوقف_خادم_ويبسوكت / sad_ws_server_stop
+                BUILTIN_NET_WS_SERVER_IS_RUNNING,     ///< هل_يعمل_خادم_ويبسوكت / sad_ws_server_is_running
+                BUILTIN_NET_WS_SERVER_CONN_COUNT,     ///< عدد_اتصالات_ويبسوكت / sad_ws_server_connection_count
+                BUILTIN_NET_WS_SERVER_GET_PORT,       ///< منفذ_خادم_ويبسوكت / sad_ws_server_get_port
+                BUILTIN_NET_WS_SERVER_BROADCAST,      ///< بث_ويبسوكت / sad_ws_server_broadcast
+                BUILTIN_NET_WS_SERVER_BROADCAST_ROOM, ///< بث_لغرفة_ويبسوكت / sad_ws_server_broadcast_to_room
+                BUILTIN_NET_WS_SERVER_ROOM_COUNT,     ///< عدد_غرف_ويبسوكت / sad_ws_server_room_count
+                BUILTIN_NET_WS_SERVER_ROOM_SIZE,      ///< حجم_غرفة_ويبسوكت / sad_ws_server_room_size
+                BUILTIN_NET_WS_SERVER_CLOSE_ALL,      ///< أغلق_كل_اتصالات_ويبسوكت / sad_ws_server_close_all
 
                 Nop ///< لا عملية (markers) / No operation (for markers)
             };
