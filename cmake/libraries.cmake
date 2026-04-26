@@ -133,6 +133,12 @@ endif()
 target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/shared/hot_reload/include)
 message(STATUS "✓ إعادة التحميل الساخن / Hot Reload")
 
+# (AR) Phase 3 (F-01): مسار فاحص الأنواع المشترك بعد نقله من compiler/.
+#      المفسر يضم "semantic/type_checker.h" مباشرة دون مسار نسبي.
+# (EN) Phase 3 (F-01): shared type checker include path after move from compiler/.
+#      Interpreter includes "semantic/type_checker.h" directly without relative path.
+target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/shared/semantic/include)
+
 # ──────────────────────────────────────────────────────────────────────
 # المكونات المشتركة والمترجم / Shared & Compiler (if not already added)
 # ──────────────────────────────────────────────────────────────────────

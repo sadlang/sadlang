@@ -118,3 +118,12 @@ endif()
 
 # رسالة تأكيد
 message(STATUS "Configured sad_shared library")
+
+# ============================================================================
+# (AR) المكتبة الفرعية: فاحص الأنواع المشترك (sad_semantic_shared)
+# (EN) Sub-library: shared type checker (sad_semantic_shared)
+# (AR) نُقلت من compiler/ في Phase 3 (F-01) لإصلاح اعتماد المفسر على المترجم.
+# (EN) Moved from compiler/ in Phase 3 (F-01) to fix interpreter→compiler dep.
+# ============================================================================
+add_subdirectory(semantic)
+

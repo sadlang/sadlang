@@ -245,6 +245,17 @@ endif()
 # ============================================================================
 # Semantic Analysis Library ( )
 # ============================================================================
+# (AR) ملاحظة (Phase 3 F-01): type_checker.{h,cpp,*_visitors.cpp} نُقلت إلى
+#      shared/semantic/ كمكتبة sad_semantic_shared، لأن المفسر يحتاجها أيضاً.
+#      هنا نضم باقي ملفات الفحص الدلالي الخاصة بالمترجم فقط (borrow checker،
+#      lifetime analyzer، إلخ) ونربط sad_semantic_shared كـ PUBLIC dep ليظل
+#      العملاء قادرين على استعمال type_checker عبر sad_semantic.
+# (EN) Note (Phase 3 F-01): type_checker.{h,cpp,*_visitors.cpp} moved to
+#      shared/semantic/ as sad_semantic_shared, since the interpreter needs
+#      it too. Here we keep only compiler-specific semantic files (borrow
+#      checker, lifetime analyzer, etc.) and link sad_semantic_shared as a
+#      PUBLIC dep so consumers can still reach type_checker via sad_semantic.
+# ============================================================================
 file(GLOB SEMANTIC_SOURCES "src/semantic/*.cpp")
 file(GLOB SEMANTIC_HEADERS "include/semantic/*.h")
 
@@ -267,7 +278,10 @@ target_include_directories(sad_semantic
  ${CMAKE_SOURCE_DIR}/include
 )
 
-target_link_libraries(sad_semantic PUBLIC sad_shared sad_type_system)
+# (AR) sad_semantic_shared يصدر type_checker للعملاء عبر هذه المكتبة.
+# (EN) sad_semantic_shared re-exports type_checker for clients via this lib.
+target_link_libraries(sad_semantic PUBLIC sad_shared sad_type_system sad_semantic_shared)
+
 
 # ============================================================================
 # Security Library (Triple Guard + Permissions + Diagnostics)

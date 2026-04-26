@@ -40,6 +40,9 @@ target_include_directories(sad PRIVATE
     ${CMAKE_SOURCE_DIR}/tools/compiler/src
     ${CMAKE_SOURCE_DIR}/shared/parser/include
     ${CMAKE_SOURCE_DIR}/shared/hot_reload/include
+    # (AR) Phase 3 (F-01): فاحص الأنواع المشترك بعد نقله إلى shared/semantic/
+    # (EN) Phase 3 (F-01): shared type checker after move to shared/semantic/
+    ${CMAKE_SOURCE_DIR}/shared/semantic/include
 )
 
 set_target_properties(sad PROPERTIES
@@ -202,6 +205,8 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         ${CMAKE_SOURCE_DIR}/shared/ast/include
         ${CMAKE_SOURCE_DIR}/shared/types/include
         ${CMAKE_SOURCE_DIR}/shared/errors/include
+        # (AR) Phase 3 (F-01): فاحص الأنواع المشترك / (EN) Shared type checker
+        ${CMAKE_SOURCE_DIR}/shared/semantic/include
         ${CMAKE_SOURCE_DIR}/compiler/include
         ${CMAKE_SOURCE_DIR}/compiler/include/frontend
         ${CMAKE_SOURCE_DIR}/compiler/include/semantic

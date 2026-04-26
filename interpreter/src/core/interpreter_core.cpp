@@ -18,8 +18,12 @@
 #include "object_instance.h"
 
 // (AR) فاحص الأنواع المتقدم / (EN) Advanced Type Checker
+// (AR) Phase 3 (F-01): نُقل من compiler/include/semantic/ إلى shared/semantic/
+//      ليصبح طبقة دلالية مشتركة بين المفسر والمترجم.
+// (EN) Phase 3 (F-01): moved from compiler/include/semantic/ to shared/semantic/
+//      to become a semantic layer shared by interpreter and compiler.
 #ifndef __EMSCRIPTEN__
-#include "../../../compiler/include/semantic/type_checker.h"
+#include "semantic/type_checker.h"
 #endif
 
 // (AR) المكتبة القياسية / (EN) Standard Library Manager
