@@ -62,9 +62,9 @@
  *       <iostream>, <cstring>, <cstdlib>, <cassert>
  * @note يُنشئ كائن CABI داخلياً لحساب تخطيط البنى والمحاذاة
  *
- * @see runtime_new/include/abi/type_marshal.h — تصريح صنف TypeMarshaller
- * @see runtime_new/src/abi/c_abi.cpp — نظام ABI الذي يعتمد عليه
- * @see runtime_new/src/ffi/memory_tracker.cpp — تتبع تسريبات الذاكرة
+ * @see runtime/include/abi/type_marshal.h — تصريح صنف TypeMarshaller
+ * @see runtime/src/abi/c_abi.cpp — نظام ABI الذي يعتمد عليه
+ * @see runtime/src/ffi/memory_tracker.cpp — تتبع تسريبات الذاكرة
  *
  * @author فريق لغة ص / Sad Language Team
  * @date ديسمبر 2025 — فبراير 2026 / December 2025 — February 2026

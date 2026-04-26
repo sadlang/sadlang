@@ -58,9 +58,9 @@
  *       <cstring>, <cassert>
  * @note يُحدَّد نمط الاستدعاء الافتراضي تلقائياً حسب المنصة عند الإنشاء
  *
- * @see runtime_new/include/abi/c_abi.h — تصريح صنف CABI
- * @see runtime_new/src/abi/type_marshal.cpp — نظام تحويل الأنواع
- * @see runtime_new/src/ffi/memory_tracker.cpp — تتبع ذاكرة FFI
+ * @see runtime/include/abi/c_abi.h — تصريح صنف CABI
+ * @see runtime/src/abi/type_marshal.cpp — نظام تحويل الأنواع
+ * @see runtime/src/ffi/memory_tracker.cpp — تتبع ذاكرة FFI
  *
  * @author فريق لغة ص / Sad Language Team
  * @date ديسمبر 2025 — فبراير 2026 / December 2025 — February 2026

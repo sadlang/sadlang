@@ -42,8 +42,8 @@
  *
  * @note الاعتماديات / Dependencies: <string>, <vector>, <unordered_map>,
  *       <chrono>, <mutex>, <sstream>
- * @see runtime_new/src/abi/c_abi.cpp — نظام ABI الذي يُخصص الذاكرة
- * @see runtime_new/src/abi/type_marshal.cpp — تحويل الأنواع الذي يُخصص الذاكرة
+ * @see runtime/src/abi/c_abi.cpp — نظام ABI الذي يُخصص الذاكرة
+ * @see runtime/src/abi/type_marshal.cpp — تحويل الأنواع الذي يُخصص الذاكرة
  *
  * @author فريق لغة ص / Sad Language Team
  * @date ديسمبر 2025 — فبراير 2026 / December 2025 — February 2026

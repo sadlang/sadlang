@@ -11,8 +11,8 @@
  *      It bridges simple C functions to the sad_ui C++ library containing
  *      IRNode, PlatformRenderer, and Layout systems.
  *
- * المسار: runtime_new/sad_ui_runtime.cpp
- * يتطابق مع: compiler_new/src/backend/llvm/llvm_codegen_ui.cpp
+ * المسار: runtime/sad_ui_runtime.cpp
+ * يتطابق مع: compiler/src/backend/llvm/llvm_codegen_ui.cpp
  *
  * ============================================================================
  * حقوق النشر (c) 2024-2026 فريق لغة ص

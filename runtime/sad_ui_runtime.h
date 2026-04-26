@@ -10,7 +10,7 @@
  *      It bridges llvm_codegen_ui.cpp and the sad_ui library.
  *
  * الدوال المُعرّفة هنا تتطابق 1:1 مع emitUIRuntimeCall() في:
- *   compiler_new/src/backend/llvm/llvm_codegen_ui.cpp
+ *   compiler/src/backend/llvm/llvm_codegen_ui.cpp
  *
  * ============================================================================
  * حقوق النشر (c) 2024-2026 فريق لغة ص
