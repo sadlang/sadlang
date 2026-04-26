@@ -40,7 +40,7 @@
 #include <functional>
 
 // تضمين محلل الواجهة
-#include "../../shared/parser/include/ui_parser.hpp"
+#include "ui_parser.hpp"
 
 namespace sad {
 namespace codegen {

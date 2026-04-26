@@ -33,7 +33,7 @@
 #include "compiler_driver.h"
 
 // UTF-8 utilities for Arabic filename support
-#include "../../shared/utils/include/utf8_utils.h"
+#include "utf8_utils.h"
 
 #ifdef _WIN32
 #include <windows.h>

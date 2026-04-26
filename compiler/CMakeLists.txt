@@ -60,6 +60,10 @@ target_include_directories(sad_frontend
  ${SAD_SHARED_DIR}/shared/parser/include
  ${SAD_SHARED_DIR}/shared/modules/include
  ${SAD_SHARED_DIR}/shared/builtins/include
+ # (AR) Phase 4 (F-03): إضافة utils لتجنب مسارات #include النسبية
+ # (EN) Phase 4 (F-03): add utils to avoid relative #include workarounds
+ ${SAD_SHARED_DIR}/shared/utils/include
+ ${SAD_SHARED_DIR}/shared/hot_reload/include
 )
 
 # (AR) إصلاح تحذيرات UTF-8 / Fix UTF-8 encoding warnings for frontend

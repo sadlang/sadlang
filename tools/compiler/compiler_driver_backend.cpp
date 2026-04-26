@@ -10,7 +10,7 @@
 // ============================================================================
 
 #include "compiler_driver.h"
-#include "../../shared/utils/include/utf8_utils.h"
+#include "utf8_utils.h"
 #include "../../compiler/include/frontend/sir_module.h"
 #include "../../compiler/include/backend/llvm/llvm_codegen.h"
 #include "../../compiler/include/backend/llvm/arabic_optimizer.h"

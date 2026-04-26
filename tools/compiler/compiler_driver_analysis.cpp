@@ -23,12 +23,12 @@
 #include "compiler_driver.h"
 
 // UTF-8 utilities for Arabic filename support
-#include "../../shared/utils/include/utf8_utils.h"
+#include "utf8_utils.h"
 
 // Lexer and Parser
-#include "../../shared/lexer/include/lexer_core.h"
-#include "../../shared/parser/include/parser_core.h"
-#include "../../shared/ast/include/ast_printer.h"
+#include "lexer_core.h"
+#include "parser_core.h"
+#include "ast_printer.h"
 
 // SIR Builder
 #include "../../compiler/include/frontend/sir_builder.h"
@@ -50,15 +50,15 @@
 
 // Borrow Checker / فاحص الاستعارة
 #include "../../compiler/include/semantic/borrow_checker.h"
-#include "../../shared/ast/include/statements.h"
+#include "statements.h"
 
 // (AR) عقد الوحدات — ImportStmt و FromImportStmt لحل التبعيات تلقائياً
 // (EN) Module AST nodes — ImportStmt & FromImportStmt for auto dependency resolution
-#include "../../shared/ast/include/module_nodes.h"
+#include "module_nodes.h"
 
 // (AR) محلل الوحدات — يبحث عن ملفات .ص المستوردة على القرص
 // (EN) Module Resolver — finds imported .ص files on disk
-#include "../../shared/modules/include/module_resolver.h"
+#include "module_resolver.h"
 
 // LLVM headers for file output
 #include <llvm/Support/FileSystem.h>

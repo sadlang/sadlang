@@ -4,7 +4,7 @@
 // Phase 7.2: Compiler Driver
 
 #include "compiler_driver.h"
-#include "../../shared/utils/include/utf8_utils.h"
+#include "utf8_utils.h"
 #include <iostream>
 #include <cstdlib>
 #include <vector>

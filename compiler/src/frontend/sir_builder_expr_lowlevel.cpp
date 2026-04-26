@@ -5,7 +5,7 @@
 // ============================================================================
 #include "sir_builder.h"
 #include "directive_nodes.h"
-#include "../../../shared/utils/include/utf8_utils.h"
+#include "utf8_utils.h"
 
 #include <iostream>
 

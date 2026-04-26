@@ -55,7 +55,7 @@
 #include "error_manager.h"
 #include "value.h"
 #include "../../interpreter/include/exception.h"
-#include "../../shared/utils/include/utf8_utils.h"
+#include "utf8_utils.h"
 
 #include <iostream>
 #include <fstream>

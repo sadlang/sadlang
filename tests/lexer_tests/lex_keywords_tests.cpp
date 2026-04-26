@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include "../../shared/lexer/include/lexer_keywords.h"
+#include "lexer_keywords.h"
 #include <string>
 
 using namespace Sad::Lexer;

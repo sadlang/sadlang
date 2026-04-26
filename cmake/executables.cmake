@@ -43,6 +43,14 @@ target_include_directories(sad PRIVATE
     # (AR) Phase 3 (F-01): فاحص الأنواع المشترك بعد نقله إلى shared/semantic/
     # (EN) Phase 3 (F-01): shared type checker after move to shared/semantic/
     ${CMAKE_SOURCE_DIR}/shared/semantic/include
+    # (AR) Phase 4 (F-03): دوال utf8_utils وأدوات مشتركة دون مسارات نسبية
+    # (EN) Phase 4 (F-03): utf8_utils + shared utilities without relative paths
+    ${CMAKE_SOURCE_DIR}/shared/utils/include
+    ${CMAKE_SOURCE_DIR}/shared/ast/include
+    ${CMAKE_SOURCE_DIR}/shared/lexer/include
+    ${CMAKE_SOURCE_DIR}/shared/types/include
+    ${CMAKE_SOURCE_DIR}/shared/errors/include
+    ${CMAKE_SOURCE_DIR}/shared/modules/include
 )
 
 set_target_properties(sad PROPERTIES
@@ -207,6 +215,11 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         ${CMAKE_SOURCE_DIR}/shared/errors/include
         # (AR) Phase 3 (F-01): فاحص الأنواع المشترك / (EN) Shared type checker
         ${CMAKE_SOURCE_DIR}/shared/semantic/include
+        # (AR) Phase 4 (F-03): utils + modules + hot_reload لتجنب المسارات النسبية
+        # (EN) Phase 4 (F-03): utils + modules + hot_reload to avoid relative paths
+        ${CMAKE_SOURCE_DIR}/shared/utils/include
+        ${CMAKE_SOURCE_DIR}/shared/modules/include
+        ${CMAKE_SOURCE_DIR}/shared/hot_reload/include
         ${CMAKE_SOURCE_DIR}/compiler/include
         ${CMAKE_SOURCE_DIR}/compiler/include/frontend
         ${CMAKE_SOURCE_DIR}/compiler/include/semantic

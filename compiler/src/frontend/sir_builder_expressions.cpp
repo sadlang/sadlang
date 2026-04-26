@@ -16,7 +16,7 @@
 #include "lexer_core.h"
 #include "parser_core.h"
 #include "pattern_nodes.h"
-#include "../../../shared/utils/include/utf8_utils.h"
+#include "utf8_utils.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>

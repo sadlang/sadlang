@@ -38,7 +38,7 @@
 // ============================================================================
 
 #include "sir_builder.h"
-#include "../../../shared/utils/include/utf8_utils.h"
+#include "utf8_utils.h"
 #include <iostream>
 #include <optional>
 

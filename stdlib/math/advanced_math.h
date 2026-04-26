@@ -7,7 +7,7 @@
 #ifndef SAD_ADVANCED_MATH_H
 #define SAD_ADVANCED_MATH_H
 
-#include "../../shared/types/include/value.h"
+#include "value.h"
 #include <vector>
 
 namespace Sad {

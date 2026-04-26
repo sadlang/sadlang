@@ -32,6 +32,14 @@ target_include_directories(sad-repl PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}
+    # (AR) Phase 4 (F-03): مسارات shared لتجنب #include النسبية
+    # (EN) Phase 4 (F-03): shared paths to avoid relative #includes
+    ${CMAKE_SOURCE_DIR}/shared/lexer/include
+    ${CMAKE_SOURCE_DIR}/shared/parser/include
+    ${CMAKE_SOURCE_DIR}/shared/ast/include
+    ${CMAKE_SOURCE_DIR}/shared/types/include
+    ${CMAKE_SOURCE_DIR}/shared/errors/include
+    ${CMAKE_SOURCE_DIR}/shared/utils/include
 )
 
 # Link libraries

@@ -24,10 +24,10 @@
 // CLI Commands for mobile etc.
 #include "cli_commands.hpp"
 
-#include "../../shared/utils/include/utf8_utils.h"
-#include "profiler_core.h"        // (AR) مصحح الأداء / (EN) Profiler
-#include "profiler_hooks.h"       // (AR) خطافات المصحح / (EN) Profiler hooks
-#include "../../shared/hot_reload/include/hot_reload_engine.h" // (AR) محرك إعادة التحميل الساخن / (EN) Hot Reload Engine
+#include "utf8_utils.h"
+#include "profiler_core.h"                                     // (AR) مصحح الأداء / (EN) Profiler
+#include "profiler_hooks.h"                                    // (AR) خطافات المصحح / (EN) Profiler hooks
+#include "hot_reload_engine.h" // (AR) محرك إعادة التحميل الساخن / (EN) Hot Reload Engine
 
 #include <iostream>
 #include <fstream>

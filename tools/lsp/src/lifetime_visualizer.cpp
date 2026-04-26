@@ -45,12 +45,12 @@
 #include <iomanip>
 
 // ── ربط مع المحلل النحوي الحقيقي ──
-#include "../../shared/parser/include/lexer_core.h"
-#include "../../shared/parser/include/parser_core.h"
-#include "../../shared/parser/include/lexer_keywords.h"
-#include "../../shared/ast/include/declarations.h"
-#include "../../shared/ast/include/statements.h"
-#include "../../shared/ast/include/expressions.h"
+#include "lexer_core.h"
+#include "parser_core.h"
+#include "lexer_keywords.h"
+#include "declarations.h"
+#include "statements.h"
+#include "expressions.h"
 
 namespace sad::lsp {
 

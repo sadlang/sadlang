@@ -14,7 +14,7 @@
 
 #include "llvm_compiler_pipeline.h"
 #include "llvm_linker.h"
-#include "../../../shared/utils/include/utf8_utils.h"
+#include "utf8_utils.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -550,7 +550,7 @@ namespace Sad
 
 #include "llvm_compiler_pipeline.h"
 #include "llvm_linker.h"
-#include "../../../shared/utils/include/utf8_utils.h"
+#include "utf8_utils.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>

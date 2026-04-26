@@ -26,14 +26,14 @@
 
 // (AR) عقد الوحدات — ImportStmt و FromImportStmt لاكتشاف التبعيات
 // (EN) Module AST nodes — ImportStmt & FromImportStmt for dependency discovery
-#include "../../shared/ast/include/module_nodes.h"
+#include "module_nodes.h"
 
 // (AR) دعم استخراج التوثيق المدمج (--docs / --وثّق / --docs-out=)
 // (EN) Built-in documentation extraction support
-#include "../../shared/lexer/include/lexer_core.h"
-#include "../../shared/parser/include/parser_core.h"
-#include "../../shared/ast/include/docs_extractor.h"
-#include "../../shared/ast/include/pdf_exporter.h"
+#include "lexer_core.h"
+#include "parser_core.h"
+#include "docs_extractor.h"
+#include "pdf_exporter.h"
 
 #ifdef _WIN32
 #include <windows.h>

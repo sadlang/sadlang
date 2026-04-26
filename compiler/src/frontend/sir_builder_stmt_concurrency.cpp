@@ -8,7 +8,7 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
-#include "../../../shared/utils/include/utf8_utils.h"
+#include "utf8_utils.h"
 #include <iostream>
 #include <set>
 
