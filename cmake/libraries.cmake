@@ -15,8 +15,8 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 # وقت التشغيل الجديد / Runtime New (VM, Memory, Thread, FFI, ABI)
 # ──────────────────────────────────────────────────────────────────────
-if(EXISTS "${CMAKE_SOURCE_DIR}/runtime_new/CMakeLists.txt")
-    add_subdirectory(runtime_new)
+if(EXISTS "${CMAKE_SOURCE_DIR}/runtime/CMakeLists.txt")
+    add_subdirectory(runtime)
     message(STATUS "✓ وقت التشغيل الجديد / Runtime New: VM, Memory, Thread, FFI, ABI, Exception, Sandbox")
 endif()
 
@@ -51,12 +51,14 @@ if(TARGET sad_websocket)
     message(STATUS "✓ ربط WebSocket بالمفسر / Linked WebSocket to interpreter")
 endif()
 
-# ربط وقت التشغيل الجديد / Link runtime_new
+# ربط مكتبة وقت التشغيل بالمفسر / Link runtime to interpreter
+# (AR) sad_rt_runtime معرّف في runtime/CMakeLists.txt كمكتبة INTERFACE تجمع abi + ffi + ui
+# (EN) sad_rt_runtime is defined in runtime/CMakeLists.txt as an INTERFACE library
+#      aggregating abi + ffi + ui
 if(TARGET sad_rt_runtime)
     target_link_libraries(sad_core PRIVATE sad_rt_runtime)
-    target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/runtime_new/include)
-    target_compile_definitions(sad_core PRIVATE HAS_RUNTIME_NEW)
-    message(STATUS "✓ ربط runtime_new بالمفسر / Linked runtime_new to interpreter")
+    target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/runtime/include)
+    message(STATUS "✓ ربط runtime بالمفسر / Linked runtime to interpreter")
 endif()
 
 # ربط صNet — مكتبة الشبكات اللامركزية / Link SadNet
@@ -137,6 +139,6 @@ message(STATUS "✓ إعادة التحميل الساخن / Hot Reload")
 if(NOT TARGET sad_shared)
     add_subdirectory(shared)
 endif()
-if(NOT TARGET sad_new_compiler)
-    add_subdirectory(compiler_new)
+if(NOT TARGET sad_compiler)
+    add_subdirectory(compiler)
 endif()

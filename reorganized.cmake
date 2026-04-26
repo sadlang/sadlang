@@ -1,6 +1,6 @@
 # ============================================================================
 # reorganized.cmake - تضمين المكونات المعاد تنظيمها
-# Include reorganized sub-components (shared/, interpreter_new/, compiler_new/)
+# Include reorganized sub-components (shared/, interpreter/, compiler/)
 # ============================================================================
 # (AR) هذا الملف يضيف المجلدات الفرعية التي تحتوي على CMakeLists.txt
 #      للمكونات الرئيسية المعاد تنظيمها.
@@ -14,13 +14,13 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/shared/CMakeLists.txt")
 endif()
 
 # المفسر / Interpreter
-if(EXISTS "${CMAKE_SOURCE_DIR}/interpreter_new/CMakeLists.txt")
-    add_subdirectory(${CMAKE_SOURCE_DIR}/interpreter_new ${CMAKE_BINARY_DIR}/interpreter_new)
+if(EXISTS "${CMAKE_SOURCE_DIR}/interpreter/CMakeLists.txt")
+    add_subdirectory(${CMAKE_SOURCE_DIR}/interpreter ${CMAKE_BINARY_DIR}/interpreter)
 endif()
 
 # المترجم / Compiler
-if(EXISTS "${CMAKE_SOURCE_DIR}/compiler_new/CMakeLists.txt")
-    add_subdirectory(${CMAKE_SOURCE_DIR}/compiler_new ${CMAKE_BINARY_DIR}/compiler_new)
+if(EXISTS "${CMAKE_SOURCE_DIR}/compiler/CMakeLists.txt")
+    add_subdirectory(${CMAKE_SOURCE_DIR}/compiler ${CMAKE_BINARY_DIR}/compiler)
 endif()
 
 # نظام واجهات المستخدم / UI System
@@ -35,4 +35,4 @@ endif()
 
 # (AR) الرسوميات، الآلة الافتراضية، بيئة التشغيل والأدوات تُضاف عبر cmake/libraries.cmake
 # (EN) Graphics, VM, runtime and tools are added via cmake/libraries.cmake
-# NOTE: Do NOT add graphics, vm, runtime_new, tools here to avoid duplicate subdirectory errors.
+# NOTE: Do NOT add graphics, vm, runtime, tools here to avoid duplicate subdirectory errors.
