@@ -23,7 +23,7 @@
 #include "exception.h"
 #include "async_runtime.h"                               // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include "channel.h"                                     // (AR) قنوات الاتصال بين المهام / (EN) Channel communication
-#include "../../tools/profiler/include/profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
+#include "profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
 #include "../include/ui/ui_state_manager.h"              // (AR) مدير الحالة التفاعلية / (EN) Reactive state manager
 #if __has_include("sad_ui/ir.h")
 #include "../ui/widget_builder.h" // (AR) دعم سلسلة المعدّلات / (EN) Modifier chain support

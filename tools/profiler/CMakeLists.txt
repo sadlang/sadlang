@@ -14,14 +14,15 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ──────────────────────────────────────────────────────────────────────
-# (AR) مكتبة نواة المصحح / (EN) Profiler core library
+# (AR) مكتبة نواة المصحح — المصدر الآن في shared/profiler/
+# (EN) Profiler core library — sources now live in shared/profiler/
 # ──────────────────────────────────────────────────────────────────────
 add_library(sad_profiler_lib STATIC
-    src/profiler_core.cpp
+    ${CMAKE_SOURCE_DIR}/shared/profiler/src/profiler_core.cpp
 )
 
 target_include_directories(sad_profiler_lib PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/shared/profiler/include
 )
 
 # (AR) لا تعتمد على مكونات المفسر — المكتبة مستقلة
@@ -43,7 +44,7 @@ add_executable(sad-profiler
 )
 
 target_include_directories(sad-profiler PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/shared/profiler/include
     ${CMAKE_SOURCE_DIR}/shared/lexer/include
     ${CMAKE_SOURCE_DIR}/shared/parser/include
     ${CMAKE_SOURCE_DIR}/shared/ast/include

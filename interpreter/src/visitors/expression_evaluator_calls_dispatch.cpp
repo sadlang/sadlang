@@ -27,7 +27,7 @@
 #include "error_manager.h"
 #include "exception.h"
 #include "suggestions.h"
-#include "../../tools/profiler/include/profiler_hooks.h"
+#include "profiler_hooks.h"
 #include <iostream>
 #include <unordered_map>
 #include <algorithm>

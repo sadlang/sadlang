@@ -17,7 +17,7 @@
 #include "class_manager.h"
 #include "channel.h"
 #include "sad_type_system.h"
-#include "../../tools/profiler/include/profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
+#include "profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
 #include <iostream>
 #include <sstream>
 #include <map>

@@ -125,7 +125,7 @@ endif()
 # (AR) ربط مكتبة مصحح الأداء / (EN) Link profiler library
 if(TARGET sad_profiler_lib)
     target_link_libraries(sad_core PRIVATE sad_profiler_lib)
-    target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/tools/profiler/include)
+    target_include_directories(sad_core PRIVATE ${CMAKE_SOURCE_DIR}/shared/profiler/include)
     message(STATUS "✓ ربط مصحح الأداء بالمفسر / Linked profiler to interpreter")
 endif()
 

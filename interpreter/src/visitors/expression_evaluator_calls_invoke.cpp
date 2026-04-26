@@ -20,7 +20,7 @@
 #include "exception.h"
 #include "async_runtime.h"                               // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include "suggestions.h"                                 // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
-#include "../../tools/profiler/include/profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
+#include "profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
 #include <atomic>
 #include <cmath>
 #include <climits>

@@ -26,7 +26,7 @@
 #include "ownership_manager.h"
 #include "exception.h"
 #include "async_runtime.h"
-#include "../../tools/profiler/include/profiler_hooks.h"
+#include "profiler_hooks.h"
 #include <atomic>
 #include <cmath>
 #include <climits>

@@ -39,7 +39,7 @@
 #include "object_instance.h"
 #include "error_manager.h"
 #include "exception.h"
-#include "../../tools/profiler/include/profiler_hooks.h"
+#include "profiler_hooks.h"
 #include "../include/ui/ui_state_manager.h"
 #include <functional>
 #include <set>
