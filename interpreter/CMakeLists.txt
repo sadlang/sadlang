@@ -63,13 +63,20 @@ target_include_directories(sad_interpreter
         ${CMAKE_SOURCE_DIR}/include/interpreter/visitors
         ${CMAKE_SOURCE_DIR}/include/data/managers
         ${CMAKE_SOURCE_DIR}/include/data/scope
-        ${CMAKE_SOURCE_DIR}/compiler/include
-        ${CMAKE_SOURCE_DIR}/compiler/include/semantic
+        # (AR) Phase 3 (F-01): فاحص الأنواع نُقل إلى shared/semantic/.
+        #      أُزيل compiler/include + compiler/include/semantic (F-10) لأن المفسر
+        #      يجب ألا يعتمد على رؤوس المترجم. type_checker.h يأتي عبر sad_shared.
+        # (EN) Phase 3 (F-01): type checker moved to shared/semantic/.
+        #      Removed compiler/include + compiler/include/semantic (F-10) — interpreter
+        #      must not depend on compiler headers. type_checker.h comes via sad_shared.
+        ${CMAKE_SOURCE_DIR}/shared/semantic/include
 )
 
 target_link_libraries(sad_interpreter
     PUBLIC
         sad_shared
+        # (AR) Phase 3 (F-01): ربط فاحص الأنواع المشترك / (EN) Link shared type checker
+        sad_semantic_shared
 )
 
 target_compile_features(sad_interpreter PUBLIC cxx_std_17)
