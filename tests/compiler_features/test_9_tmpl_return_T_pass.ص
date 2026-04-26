@@ -1,0 +1,37 @@
+# ============================================================================
+# اختبار المرحلة 9 — قالب بنوع إرجاع T (معامل النوع نفسه) — حالة النجاح
+# Phase 9 Test — Template with return type T (same type param) — pass case
+#
+# (AR) قالب بنوع إرجاع T (غير محدد) — لا فحص للإرجاع مطلوب → يجتاز (EXIT=0).
+#      هذا اختبار عدم الفشل الزائف عند استخدام T كنوع إرجاع.
+#
+# (EN) Template with return type T (unspecified) — no return check needed → pass (EXIT=0).
+#      This tests that T as return type does NOT trigger false type errors.
+# ============================================================================
+
+# (AR) قالب: نوع الإرجاع T — لا يمكن فحصه حتى يُستدعى → لا خطأ
+# (EN) Template with T return type — cannot check until call site → no error
+
+قالب<نوع T>
+دالة هوية(T أ) T
+    # (AR) يُرجع المعامل نفسه — T مجهول وقت التعريف → لا فحص
+    # (EN) Returns the parameter itself — T is unknown at definition → no check
+    ارجع أ
+نهاية
+
+قالب<نوع T: قابل_للمقارنة>
+دالة الأول(T أ، T ب) T
+    # (AR) يُرجع أحد المعاملات — T هو نوع الإرجاع → لا فحص ثابت
+    # (EN) Returns one of the params — T is return type → no static check
+    إذا (أ > ب)
+        ارجع أ
+    وإلا
+        ارجع ب
+    نهاية
+نهاية
+
+دالة رئيسية()
+    متغير ن = هوية(42)
+    اطبع_سطر(ن)
+    ارجع 0
+نهاية

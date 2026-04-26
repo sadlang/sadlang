@@ -94,6 +94,20 @@ namespace Sad
             bool matches(const Data::Value &value,
                          std::map<std::string, Data::Value> &bindings) const override
             {
+                // (AR) مقارنة نوع + قيمة: إذا كلاهما رقمي (INTEGER أو DOUBLE) قارن بالقيمة الرقمية
+                //      لتجنب فشل المقارنة بسبب تنسيق النص ("1" vs "1.0")
+                //      مثال: ق = 1.0 (مُخزَّن كـ DOUBLE) يجب أن يُطابق "عندما 1:"
+                // (EN) Type-aware comparison: if both are numeric (INTEGER or DOUBLE) compare by numeric value
+                //      to avoid mismatch due to string formatting ("1" vs "1.0")
+                //      Example: x = 1.0 (stored as DOUBLE) must match "when 1:"
+                auto vk = value.getType();
+                auto lk = literal.getType();
+                bool vIsNum = (vk == Data::ValueType::INTEGER || vk == Data::ValueType::DOUBLE);
+                bool lIsNum = (lk == Data::ValueType::INTEGER || lk == Data::ValueType::DOUBLE);
+                if (vIsNum && lIsNum)
+                {
+                    return value.toDouble() == literal.toDouble();
+                }
                 return value.toString() == literal.toString();
             }
 

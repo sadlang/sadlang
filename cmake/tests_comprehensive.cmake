@@ -39,8 +39,8 @@ macro(add_comprehensive_test TEST_NAME TEST_SOURCE)
         ${CMAKE_SOURCE_DIR}/include/errors
         ${CMAKE_SOURCE_DIR}/include/modules
         ${CMAKE_SOURCE_DIR}/include/utils
-        ${CMAKE_SOURCE_DIR}/interpreter_new/include
-        ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers
+        ${CMAKE_SOURCE_DIR}/interpreter/include
+        ${CMAKE_SOURCE_DIR}/interpreter/include/managers
     )
 
     if(MSVC)
@@ -72,7 +72,7 @@ add_comprehensive_test(test_value_comprehensive test_value_comprehensive.cpp)
 
 # 4. المفسر / Interpreter Tests (76 tests)
 add_comprehensive_test(test_interpreter_comprehensive test_interpreter_comprehensive.cpp)
-target_link_libraries(test_interpreter_comprehensive PRIVATE sad_new_interpreter sad_new_semantic sad_profiler_lib)
+target_link_libraries(test_interpreter_comprehensive PRIVATE sad_interpreter sad_semantic sad_profiler_lib)
 target_sources(test_interpreter_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/comprehensive/interpreter_test_stubs.cpp)
 
@@ -85,7 +85,7 @@ target_sources(test_stdlib_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/stdlib/io/io_functions.cpp
     ${CMAKE_SOURCE_DIR}/stdlib/string/string_functions.cpp
     ${CMAKE_SOURCE_DIR}/stdlib/math/math_functions.cpp
-    ${CMAKE_SOURCE_DIR}/interpreter_new/src/managers/function_manager.cpp)
+    ${CMAKE_SOURCE_DIR}/interpreter/src/managers/function_manager.cpp)
 target_include_directories(test_stdlib_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/stdlib ${CMAKE_SOURCE_DIR}/stdlib/core
     ${CMAKE_SOURCE_DIR}/stdlib/string ${CMAKE_SOURCE_DIR}/stdlib/math)
@@ -101,13 +101,13 @@ add_comprehensive_test(test_docs_extractor_comprehensive test_docs_extractor_com
 
 # 7. الآلة الافتراضية والمترجم / VM & Compiler Tests (77 tests)
 add_comprehensive_test(test_vm_compiler_comprehensive test_vm_compiler_comprehensive.cpp)
-target_link_libraries(test_vm_compiler_comprehensive PRIVATE sad_vm sad_new_interpreter sad_new_frontend)
+target_link_libraries(test_vm_compiler_comprehensive PRIVATE sad_vm sad_interpreter sad_frontend)
 target_include_directories(test_vm_compiler_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/vm/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/frontend
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers)
+    ${CMAKE_SOURCE_DIR}/compiler/include
+    ${CMAKE_SOURCE_DIR}/compiler/include/frontend
+    ${CMAKE_SOURCE_DIR}/interpreter/include
+    ${CMAKE_SOURCE_DIR}/interpreter/include/managers)
 
 # 7.5. اختبارات محرك JIT / JIT Engine Tests (74 tests)
 add_comprehensive_test(test_jit_comprehensive test_jit_comprehensive.cpp)
@@ -125,19 +125,19 @@ add_comprehensive_test(test_utils_modules_comprehensive test_utils_modules_compr
 add_comprehensive_test(test_compiler_comprehensive test_compiler_comprehensive.cpp)
 target_include_directories(test_compiler_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/vm/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/frontend
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/backend)
+    ${CMAKE_SOURCE_DIR}/compiler/include
+    ${CMAKE_SOURCE_DIR}/compiler/include/frontend
+    ${CMAKE_SOURCE_DIR}/compiler/include/backend)
 
 # 11.5. اختبارات نظام الاستثناءات / Throw-Catch Exception Tests (35 tests)
 add_comprehensive_test(test_throw_catch_comprehensive test_throw_catch_comprehensive.cpp)
-target_link_libraries(test_throw_catch_comprehensive PRIVATE sad_new_interpreter sad_new_semantic sad_profiler_lib)
+target_link_libraries(test_throw_catch_comprehensive PRIVATE sad_interpreter sad_semantic sad_profiler_lib)
 target_sources(test_throw_catch_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/comprehensive/interpreter_test_stubs.cpp)
 
 # 11.6. اختبارات ?. و ?? / Optional Chain & Null Coalesce Tests (30+ tests)
 add_comprehensive_test(test_optional_null_comprehensive test_optional_null_comprehensive.cpp)
-target_link_libraries(test_optional_null_comprehensive PRIVATE sad_new_interpreter sad_new_semantic sad_profiler_lib)
+target_link_libraries(test_optional_null_comprehensive PRIVATE sad_interpreter sad_semantic sad_profiler_lib)
 target_sources(test_optional_null_comprehensive PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/comprehensive/interpreter_test_stubs.cpp)
 
@@ -207,8 +207,8 @@ target_include_directories(test_image_comprehensive PRIVATE
 add_comprehensive_test(test_ui_comprehensive test_ui_comprehensive.cpp)
 target_link_libraries(test_ui_comprehensive PRIVATE sad_ui)
 target_include_directories(test_ui_comprehensive PRIVATE
-    ${CMAKE_SOURCE_DIR}/compiler_new/src/sir
-    ${CMAKE_SOURCE_DIR}/compiler_new/src
+    ${CMAKE_SOURCE_DIR}/compiler/src/sir
+    ${CMAKE_SOURCE_DIR}/compiler/src
     ${CMAKE_SOURCE_DIR}/sad_ui/core/include)
 
 # 14a. اختبارات قبول المرحلة 0: Parser UI (إذا/وإلا + لكل + knownWidgets)

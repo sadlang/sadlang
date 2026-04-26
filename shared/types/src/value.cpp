@@ -405,11 +405,13 @@ namespace Sad
                 // (EN) Strip trailing zeros after decimal point
                 if (result.find('.') != std::string::npos)
                 {
-                    result.erase(result.find_last_not_of('0') + 1, std::string::npos);
-                    if (result.back() == '.')
-                    {
-                        result.pop_back();
-                    }
+                    // (AR) حذف الأصفار الزائدة مع إبقاء رقم واحد بعد النقطة: 10.0 لا 10
+                    // (EN) Remove trailing zeros but keep at least one digit after dot: 10.0 not 10
+                    size_t dot_pos = result.find('.');
+                    size_t last = result.find_last_not_of('0');
+                    if (last <= dot_pos)
+                        last = dot_pos + 1;
+                    result.erase(last + 1);
                 }
                 return result;
             }

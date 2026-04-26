@@ -54,6 +54,7 @@ namespace Sad
             // Optional return type BEFORE function name: دالة [type] name(...)
             // (AR) نوع الإرجاع الاختياري قبل اسم الدالة: دالة [نوع] اسم(...)
             Data::DataType returnType = Data::DataType::UNKNOWN;
+            std::string returnTypeName; // (AR) [Phase 5e] لأنواع الأصناف المُعرَّفة من المستخدم
 
             // (AR) راية للإشارة إذا كانت هذه هي الدالة الرئيسية
             // (EN) Flag to indicate if this is the main function
@@ -81,6 +82,18 @@ namespace Sad
             {
                 is_async = true;
                 advance(); // consume 'غير_متزامنة' / 'غير_متزامن'
+            }
+
+            // (AR) [Phase 5e] نوع إرجاع من صنف مُعرَّف من المستخدم: "دالة نقطة احصل_نقطة()"
+            // (EN) [Phase 5e] User-defined class return type: "function نقطة getPoint()"
+            // شرط: returnType لا يزال UNKNOWN (لم يُحدَّد بعد) + رمزان متتاليان من نوع IDENTIFIER
+            if (returnType == Data::DataType::UNKNOWN &&
+                check(TT::IDENTIFIER) &&
+                peekNext().getType() == TT::IDENTIFIER)
+            {
+                returnTypeName = current_.getValue();
+                returnType = Data::DataType::OBJECT;
+                advance(); // (AR) استهلاك اسم الصنف / (EN) consume class name
             }
 
             // (AR) التحقق إذا كانت الدالة الرئيسية (كلمة سياقية — لم تعد محجوزة)
@@ -394,6 +407,7 @@ namespace Sad
                 funcDecl->postconditions = std::move(postconditions);
                 funcDecl->whereConstraints = std::move(whereConstraints);
                 funcDecl->docComment = std::move(docComment);
+                funcDecl->returnTypeName = returnTypeName; // (AR) [Phase 5e] حفظ اسم صنف الإرجاع
                 return funcDecl;
             }
 
@@ -416,6 +430,7 @@ namespace Sad
             funcDecl->postconditions = std::move(postconditions);
             funcDecl->whereConstraints = std::move(whereConstraints);
             funcDecl->docComment = std::move(docComment);
+            funcDecl->returnTypeName = returnTypeName; // (AR) [Phase 5e] حفظ اسم صنف الإرجاع
             return funcDecl;
         }
 
@@ -2330,13 +2345,32 @@ namespace Sad
                 // (AR) توقع 'دالة'
                 if (match(TT::KEYWORD_FUNCTION))
                 {
+                    // (AR) استهلاك 'مجرد' الاختياري بعد 'دالة' في السمة
+                    //      يدعم الصيغة: دالة مجرد اسم() — isAbstract للتوثيق فقط
+                    // (EN) Optionally consume 'مجرد' after 'دالة' in trait body
+                    //      Supports: دالة مجرد name() — isAbstract for documentation only
+                    bool methodIsAbstract = false;
+                    if (match(TT::KEYWORD_ABSTRACT))
+                    {
+                        methodIsAbstract = true;
+                    }
+                    (void)methodIsAbstract; // (AR) جميع دوال السمة مجردة ضمنياً إن لم يكن لها جسم
                     // (AR) نوع الإرجاع (اختياري قبل الاسم)
                     Data::DataType returnType = Data::DataType::NONE;
+                    std::string returnTypeName; // (AR) [Phase 5e] لأنواع الأصناف المُعرَّفة من المستخدم
 
                     // (AR) التحقق من نوع الإرجاع (دعم الأنواع كمُعرّفات مدمجة)
                     if (isTypeToken(current_.getType()))
                     {
                         returnType = parseType();
+                    }
+                    // (AR) [Phase 5e] نوع إرجاع من صنف مُعرَّف من المستخدم: "نقطة اسم_الدالة(...)"
+                    // (EN) [Phase 5e] User-defined class return type: "نقطة methodName(...)"
+                    else if (check(TT::IDENTIFIER) && peekNext().getType() == TT::IDENTIFIER)
+                    {
+                        returnTypeName = current_.getValue();
+                        returnType = Data::DataType::OBJECT;
+                        advance(); // (AR) استهلاك اسم الصنف / (EN) consume class name
                     }
 
                     // (AR) اسم الدالة
@@ -2374,6 +2408,7 @@ namespace Sad
                     }
 
                     methods.emplace_back(methodName.getValue(), std::move(params), returnType, std::move(defaultImpl));
+                    methods.back().returnTypeName = returnTypeName; // (AR) [Phase 5e] حفظ اسم الصنف المُرجَع
                 }
                 else
                 {

@@ -557,7 +557,7 @@ private:
 // ═══════════════════════════════════════════════════════════════════════════════
 
 extern "C" {
-    int sad_new_project(
+    int sad_project(
         const char* name,
         const char* templateName,
         int isLibrary,

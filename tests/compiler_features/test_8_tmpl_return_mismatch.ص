@@ -1,0 +1,27 @@
+# ============================================================================
+# اختبار المرحلة 8 — فحص نوع الإرجاع في قالب دالة (حالة الانتهاك)
+# Phase 8 Test — Template function return type check (mismatch case)
+#
+# (AR) قالب دالة يُصرِّح عن نوع إرجاع رقم، لكن جسم الدالة يُرجع نصاً.
+#      يجب أن يفشل الفحص (EXIT=1).
+#
+# (EN) Template function declares return type رقم but function body
+#      returns a string literal.
+#      Type check must fail (EXIT=1).
+# ============================================================================
+
+# (AR) قالب دالة مع نوع إرجاع رقم — جسم الدالة يُرجع نصاً (خطأ)
+# (EN) Template function with رقم return type — body returns نص (error)
+
+قالب<نوع T>
+دالة نوع_خاطئ(T أ) ترجع رقم
+    # (AR) يُرجع نصاً رغم أن نوع الإرجاع المُصرَّح رقم → خطأ في النوع
+    # (EN) Returns string despite declared return type being رقم → type error
+    ارجع "هذا نص وليس رقم"
+نهاية
+
+دالة رئيسية()
+    متغير ن = نوع_خاطئ(42)
+    اطبع_سطر(ن)
+    ارجع 0
+نهاية

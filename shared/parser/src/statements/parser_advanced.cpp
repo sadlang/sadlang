@@ -839,16 +839,49 @@ namespace Sad
          */
         std::unique_ptr<AST::Pattern> ParserCore::parsePrimaryPattern()
         {
-            // Number literal (INTEGER or DOUBLE) — may be start of range
-            // (AR) قيمة رقمية حرفية — قد تكون بداية نطاق
-            if (check(TT::NUMBER_INTEGER) || check(TT::NUMBER_DOUBLE))
+            // (AR) دالة مساعدة: تحليل رقم مع دعم الإشارة السالبة
+            //      تستهلك رمز الطرح الاختياري ثم الرقم وتُعيد القيمة
+            // (EN) Helper lambda: parse a number with optional leading minus
+            //      Consumes optional OP_MINUS then the number token, returns value
+            auto parseSignedNumber = [&]() -> std::pair<bool, double>
             {
-                Token token = current_;
+                bool negative = false;
+                if (check(TT::OP_MINUS))
+                {
+                    negative = true;
+                    advance(); // (AR) استهلاك '-' / (EN) consume '-'
+                }
+                if (!check(TT::NUMBER_INTEGER) && !check(TT::NUMBER_DOUBLE))
+                {
+                    return {false, 0.0}; // (AR) فشل / (EN) failure
+                }
+                double v = std::stod(current_.getValue());
                 advance();
-                double value = std::stod(token.getValue());
+                return {true, negative ? -v : v};
+            };
 
-                // Check for range pattern: 1..10 or 1..=10
-                // (AR) التحقق من نمط نطاق: 1..10 أو 1..=10
+            // Number literal (INTEGER or DOUBLE, optionally negative) — may be start of range
+            // (AR) قيمة رقمية حرفية (موجبة أو سالبة) — قد تكون بداية نطاق
+            bool startsWithMinus = check(TT::OP_MINUS);
+            bool startsWithNumber = check(TT::NUMBER_INTEGER) || check(TT::NUMBER_DOUBLE);
+
+            if (startsWithMinus || startsWithNumber)
+            {
+                // (AR) محاولة تحليل الرقم (مع إشارة سالبة اختيارية)
+                // (EN) Attempt to parse the number (with optional negative sign)
+                auto [ok, value] = parseSignedNumber();
+                if (!ok)
+                {
+                    // (AR) لم يكن رقماً بعد الناقص — خطأ نحوي
+                    // (EN) Not a number after minus — syntax error
+                    errorBilingual(
+                        "خطأ: توقعت رقماً بعد '-' في نمط طابق",
+                        "Error: Expected number after '-' in match pattern");
+                    return nullptr;
+                }
+
+                // Check for range pattern: 1..10 or 1..=10 (or -10..0 etc.)
+                // (AR) التحقق من نمط نطاق: 1..10 أو 1..=10 أو -10..0
                 if (check(TT::DOT_DOT))
                 {
                     advance(); // consume ..
@@ -861,18 +894,16 @@ namespace Sad
                         inclusive = true;
                     }
 
-                    // Parse end value
-                    if (!check(TT::NUMBER_INTEGER) && !check(TT::NUMBER_DOUBLE))
+                    // (AR) تحليل قيمة النهاية مع دعم الإشارة السالبة
+                    // (EN) Parse end value with optional negative sign support
+                    auto [endOk, endValue] = parseSignedNumber();
+                    if (!endOk)
                     {
                         errorBilingual(
                             "خطأ: توقعت رقم بعد '..' في نمط النطاق",
                             "Error: Expected number after '..' in range pattern");
                         return nullptr;
                     }
-
-                    Token endToken = current_;
-                    advance();
-                    double endValue = std::stod(endToken.getValue());
 
                     return std::make_unique<AST::RangePattern>(
                         Data::Value(value), Data::Value(endValue), inclusive);
@@ -1196,52 +1227,102 @@ namespace Sad
             // (EN) Parse type parameters
             do
             {
-                // (AR) توقع 'نوع' أو 'typename' — كلمة سياقية: تحقق مزدوج
-                // (EN) Expect 'typename' keyword — contextual: double check
-                if (!match(TT::KEYWORD_TYPENAME) &&
-                    !(check(TT::IDENTIFIER) && current_.getValue() == "\xD9\x86\xD9\x88\xD8\xB9" && (advance(), true)))
-                { // نوع
-                    errorBilingual(
-                        "خطأ نحوي: توقعت 'نوع' في معامل القالب",
-                        "Syntax error: Expected 'typename' in template parameter");
-                    break;
+                // ==================================================================
+                // (AR) [Phase 4 — Monomorphization] دعم const-generic:
+                //      صيغة: ثابت <نوع> <اسم>  مثل: ثابت رقم N
+                //      تُمثَّل كـ TypeParameter::makeConst(name, typeName)
+                // (EN) [Phase 4] const-generic syntax: const <type> <name>
+                //      e.g. const int N → TypeParameter::makeConst("N", "رقم")
+                // ==================================================================
+                bool isConstParam = false;
+                if (check(TT::KEYWORD_CONST) ||
+                    (check(TT::IDENTIFIER) && current_.getValue() == "\xD8\xAB\xD8\xA7\xD8\xA8\xD8\xAA")) // ثابت
+                {
+                    advance();
+                    isConstParam = true;
                 }
 
-                // (AR) توقع اسم المعامل (مثل T أو ت)
-                // (EN) Expect parameter name (e.g., T)
-                if (!check(TT::IDENTIFIER))
+                if (isConstParam)
                 {
-                    errorBilingual(
-                        "خطأ نحوي: توقعت اسم معامل النوع",
-                        "Syntax error: Expected type parameter name");
-                    break;
-                }
-
-                std::string paramName = current_.getValue();
-                advance();
-
-                // (AR) تحقق من وجود قيد (constraint)
-                // (EN) Check for constraint — supports multiple: ت: قيد1 + قيد2
-                std::vector<std::string> constraintsList;
-                if (match(TT::COLON))
-                {
-                    // (AR) تحليل قيود مفصولة بـ +
-                    // (EN) Parse constraints separated by +
-                    do
+                    // (AR) توقع اسم نوع الثابت — يأتي كـ IDENTIFIER (رقم/عشري/نص/منطقي)
+                    if (!check(TT::IDENTIFIER))
                     {
-                        if (!check(TT::IDENTIFIER))
-                        {
-                            errorBilingual(
-                                "خطأ نحوي: توقعت اسم القيد بعد ':'",
-                                "Syntax error: Expected constraint name after ':'");
-                            break;
-                        }
-                        constraintsList.push_back(current_.getValue());
-                        advance();
-                    } while (match(TT::OP_PLUS));
-                }
+                        errorBilingual(
+                            "خطأ نحوي: توقعت اسم نوع بعد 'ثابت' في معامل القالب",
+                            "Syntax error: Expected type name after 'const' in template parameter");
+                        break;
+                    }
+                    std::string constTypeName = current_.getValue();
+                    advance();
 
-                params.emplace_back(paramName, constraintsList);
+                    if (!check(TT::IDENTIFIER))
+                    {
+                        errorBilingual(
+                            "خطأ نحوي: توقعت اسم المعامل الثابت",
+                            "Syntax error: Expected const parameter name");
+                        break;
+                    }
+                    std::string paramName = current_.getValue();
+                    advance();
+
+                    // (AR) قيمة افتراضية اختيارية: ثابت رقم N = 4
+                    AST::ExprPtr defaultExpr;
+                    if (match(TT::OP_ASSIGN))
+                    {
+                        defaultExpr = parseExpression();
+                    }
+
+                    params.push_back(AST::TypeParameter::makeConst(paramName, constTypeName, std::move(defaultExpr)));
+                }
+                else
+                {
+                    // (AR) توقع 'نوع' أو 'typename' — كلمة سياقية: تحقق مزدوج
+                    // (EN) Expect 'typename' keyword — contextual: double check
+                    if (!match(TT::KEYWORD_TYPENAME) &&
+                        !(check(TT::IDENTIFIER) && current_.getValue() == "\xD9\x86\xD9\x88\xD8\xB9" && (advance(), true)))
+                    { // نوع
+                        errorBilingual(
+                            "خطأ نحوي: توقعت 'نوع' في معامل القالب",
+                            "Syntax error: Expected 'typename' in template parameter");
+                        break;
+                    }
+
+                    // (AR) توقع اسم المعامل (مثل T أو ت)
+                    // (EN) Expect parameter name (e.g., T)
+                    if (!check(TT::IDENTIFIER))
+                    {
+                        errorBilingual(
+                            "خطأ نحوي: توقعت اسم معامل النوع",
+                            "Syntax error: Expected type parameter name");
+                        break;
+                    }
+
+                    std::string paramName = current_.getValue();
+                    advance();
+
+                    // (AR) تحقق من وجود قيد (constraint)
+                    // (EN) Check for constraint — supports multiple: ت: قيد1 + قيد2
+                    std::vector<std::string> constraintsList;
+                    if (match(TT::COLON))
+                    {
+                        // (AR) تحليل قيود مفصولة بـ +
+                        // (EN) Parse constraints separated by +
+                        do
+                        {
+                            if (!check(TT::IDENTIFIER))
+                            {
+                                errorBilingual(
+                                    "خطأ نحوي: توقعت اسم القيد بعد ':'",
+                                    "Syntax error: Expected constraint name after ':'");
+                                break;
+                            }
+                            constraintsList.push_back(current_.getValue());
+                            advance();
+                        } while (match(TT::OP_PLUS));
+                    }
+
+                    params.emplace_back(paramName, constraintsList);
+                }
 
             } while (matchComma());
 
@@ -1386,6 +1467,12 @@ namespace Sad
                 std::string funcName = current_.getValue();
                 advance();
 
+                // (AR) [Phase 4] تسجيل اسم القالب ليُميَّز `اسم<...>` لاحقاً
+                //      عن عمليات المقارنة `اسم < قيمة` — انظر parser_expressions.cpp.
+                // (EN) [Phase 4] Register template name so later `name<...>` can be
+                //      disambiguated from comparison `name < value` — see parser_expressions.cpp.
+                knownTemplateNames_.insert(funcName);
+
                 // (AR) تحليل المعاملات
                 // (EN) Parse parameters
                 if (!match(TT::PAREN_LEFT))
@@ -1472,7 +1559,7 @@ namespace Sad
                             }
                         }
 
-                        params.emplace_back(paramName, paramType);
+                        params.emplace_back(paramName, paramType, nullptr, templateTypeName);
 
                     } while (matchComma());
                 }
@@ -1493,8 +1580,20 @@ namespace Sad
                 // (AR) البحث عن نوع الإرجاع بعد المعاملات مع كلمة "ترجع" الاختيارية
                 // (EN) Look for return type after parameters with optional "ترجع" keyword
 
-                // Check for "ترجع" keyword or arrow
-                if (match(TT::KEYWORD_RETURNS) || match(TT::ARROW))
+                // (AR) [إصلاح Phase 8] KEYWORD_RETURNS كلمة سياقية — المحلل المعجمي يُنتجها دائماً كـ IDENTIFIER
+                //      لذا يجب الفحص عن كليهما: التوكن السياقي والنص العربي "ترجع"
+                // (EN) [Fix Phase 8] KEYWORD_RETURNS is contextual — lexer always produces IDENTIFIER
+                //      Must check both token type AND Arabic string "ترجع" (= \xD8\xAA\xD8\xB1\xD8\xAC\xD8\xB9)
+                bool consumedReturnsKeyword = match(TT::KEYWORD_RETURNS) || match(TT::ARROW);
+                if (!consumedReturnsKeyword &&
+                    check(TT::IDENTIFIER) &&
+                    current_.getValue() == "\xD8\xAA\xD8\xB1\xD8\xAC\xD8\xB9") // ترجع
+                {
+                    advance();
+                    consumedReturnsKeyword = true;
+                }
+
+                if (consumedReturnsKeyword)
                 {
                     if (isTypeToken(current_.getType()))
                     {
@@ -1503,8 +1602,27 @@ namespace Sad
                     }
                     else if (check(TT::IDENTIFIER))
                     {
-                        returnTypeName = current_.getValue();
-                        returnType = Data::DataType::OBJECT;
+                        const std::string &rn = current_.getValue();
+                        // (AR) [Phase 8] أسماء الأنواع البدائية كنوع إرجاع في قوالب الدوال
+                        //      مثال: قالب<نوع T> دالة اسم(T أ) ترجع رقم
+                        // (EN) [Phase 8] Primitive type names as return type in template functions
+                        //      Example: template<type T> function name(T a) returns int
+                        if (rn == "\xD8\xB1\xD9\x82\xD9\x85") // رقم
+                            returnType = Data::DataType::INTEGER;
+                        else if (rn == "\xD9\x86\xD8\xB5") // نص
+                            returnType = Data::DataType::STRING;
+                        else if (rn == "\xD8\xB9\xD8\xB4\xD8\xB1\xD9\x8A" ||
+                                 rn == "\xD9\x85\xD8\xB6\xD8\xA7\xD8\xB9\xD9\x81") // عشري/مضاعف
+                            returnType = Data::DataType::FLOAT;
+                        else if (rn == "\xD9\x85\xD9\x86\xD8\xB7\xD9\x82\xD9\x8A") // منطقي
+                            returnType = Data::DataType::BOOLEAN;
+                        else if (rn == "\xD9\x81\xD8\xB1\xD8\xA7\xD8\xBA") // فراغ
+                            returnType = Data::DataType::NONE;
+                        else
+                        {
+                            returnTypeName = rn;
+                            returnType = Data::DataType::OBJECT;
+                        }
                         advance();
                     }
                 }
@@ -1597,6 +1715,10 @@ namespace Sad
 
                 std::string className = current_.getValue();
                 advance();
+
+                // (AR) [Phase 4] تسجيل اسم الصنف القالب للتمييز لاحقاً.
+                // (EN) [Phase 4] Register template class name for later disambiguation.
+                knownTemplateNames_.insert(className);
 
                 // (AR) التحقق من الوراثة
                 // (EN) Check for inheritance
@@ -2334,10 +2456,22 @@ namespace Sad
             // (EN) Parse type arguments
             std::vector<Data::DataType> typeArgs;
             std::vector<std::string> typeArgNames;
+            // ==========================================================================
+            // (AR) [Phase 4] وسائط ثابتة (const-generic args) موازية لوسائط الأنواع
+            //      مثال: f<عشري، 4> → typeArgs=[Float], constArgs=[4]
+            //      argumentKindOrder يحفظ الترتيب الأصلي (0=type, 1=const)
+            //      لإعادة بنائه عند instantiation
+            // ==========================================================================
+            std::vector<AST::ExprPtr> constArgs;
+            std::vector<int> argKindOrder;
 
-            // (AR) التحقق من وجود نوع بعد <
-            // (EN) Check for type after <
-            if (!isTypeArgumentStart())
+            // (AR) التحقق من وجود نوع/قيمة بعد <
+            // (EN) Check for type or constant after <
+            //      (نسمح بالحرفيات أيضاً لدعم const-generics)
+            if (!isTypeArgumentStart() &&
+                !check(TT::NUMBER_INTEGER) && !check(TT::NUMBER_DOUBLE) &&
+                !check(TT::STRING_LITERAL) &&
+                !check(TT::LITERAL_TRUE) && !check(TT::LITERAL_FALSE))
             {
                 // (AR) ليس تنفيذ قالب
                 // (EN) Not template instantiation
@@ -2346,34 +2480,59 @@ namespace Sad
 
             do
             {
-                Data::DataType argType = Data::DataType::UNKNOWN;
-                std::string typeName;
-
-                if (isTypeToken(current_.getType()))
+                // ==================================================================
+                // (AR) [Phase 4] التمييز بين وسيط نوع ووسيط ثابت:
+                //      حرفيات (أرقام/نصوص/منطقي) → وسائط ثابتة
+                //      أسماء أنواع/معرفات → وسائط أنواع
+                // (EN) [Phase 4] Distinguish type-arg vs const-arg by token kind:
+                //      literals → const-generic args; type tokens/identifiers → type args
+                // ==================================================================
+                if (check(TT::NUMBER_INTEGER) || check(TT::NUMBER_DOUBLE) ||
+                    check(TT::STRING_LITERAL) ||
+                    check(TT::LITERAL_TRUE) || check(TT::LITERAL_FALSE))
                 {
-                    // (AR) نوع مدمج
-                    // (EN) Built-in type
-                    argType = mapTokenTypeToDataType(current_.getType());
-                    typeName = current_.getValue();
+                    // (AR) وسيط ثابت — نقرأ رمزاً حرفياً واحداً فقط
+                    //      (لا نستخدم parseExpression لأنه يبتلع '>' كعامل مقارنة)
+                    // (EN) Const-generic argument — consume a single literal token only
+                    //      (avoid parseExpression which would swallow '>' as comparison op)
+                    Lexer::Token litTok = current_;
                     advance();
-                }
-                else if (check(TT::IDENTIFIER))
-                {
-                    // (AR) قد يكون اسم صنف
-                    // (EN) Could be class name
-                    typeName = current_.getValue();
-                    argType = Data::DataType::OBJECT;
-                    advance();
+                    auto litExpr = std::make_unique<AST::LiteralExpr>(litTok);
+                    constArgs.push_back(std::move(litExpr));
+                    argKindOrder.push_back(1);
                 }
                 else
                 {
-                    // (AR) خطأ: توقعت نوع
-                    // (EN) Error: expected type
-                    return nullptr;
-                }
+                    Data::DataType argType = Data::DataType::UNKNOWN;
+                    std::string typeName;
 
-                typeArgs.push_back(argType);
-                typeArgNames.push_back(typeName);
+                    if (isTypeToken(current_.getType()))
+                    {
+                        // (AR) نوع مدمج
+                        // (EN) Built-in type
+                        argType = mapTokenTypeToDataType(current_.getType());
+                        typeName = current_.getValue();
+                        advance();
+                    }
+                    else if (check(TT::IDENTIFIER))
+                    {
+                        // (AR) قد يكون اسم صنف
+                        // (EN) Could be class name
+                        typeName = current_.getValue();
+                        argType = Data::DataType::OBJECT;
+                        advance();
+                    }
+                    else
+                    {
+                        // (AR) خطأ: توقعت نوع
+                        // (EN) Error: expected type
+                        return nullptr;
+                    }
+
+                    typeArgs.push_back(argType);
+                    typeArgNames.push_back(typeName);
+                    argKindOrder.push_back(0);
+                }
 
             } while (matchComma());
 
@@ -2386,13 +2545,16 @@ namespace Sad
                 return nullptr;
             }
 
-            // (AR) إنشاء عقدة TemplateInstantiation
-            // (EN) Create TemplateInstantiation node
-            return std::make_unique<AST::TemplateInstantiation>(
+            // (AR) إنشاء عقدة TemplateInstantiation مع وسائط النوع والثابت
+            // (EN) Create TemplateInstantiation node with both type and const args
+            auto node = std::make_unique<AST::TemplateInstantiation>(
                 templateName,
                 std::move(typeArgs),
                 std::move(typeArgNames),
                 pos);
+            node->constArguments = std::move(constArgs);
+            node->argumentKindOrder = std::move(argKindOrder);
+            return node;
         }
 
     } // namespace Parser

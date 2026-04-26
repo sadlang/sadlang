@@ -50,17 +50,17 @@ target_include_directories(sad-profiler PRIVATE
     ${CMAKE_SOURCE_DIR}/shared/types/include
     ${CMAKE_SOURCE_DIR}/shared/errors/include
     ${CMAKE_SOURCE_DIR}/shared/utils/include
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include/core
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include/visitors
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers
+    ${CMAKE_SOURCE_DIR}/interpreter/include
+    ${CMAKE_SOURCE_DIR}/interpreter/include/core
+    ${CMAKE_SOURCE_DIR}/interpreter/include/visitors
+    ${CMAKE_SOURCE_DIR}/interpreter/include/managers
     ${CMAKE_SOURCE_DIR}/include
 )
 
 target_link_libraries(sad-profiler PRIVATE
     sad_profiler_lib
     sad_core
-    sad_new_semantic
+    sad_semantic
 )
 
 # (AR) ربط مكتبات النظام / (EN) Link system libraries

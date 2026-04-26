@@ -6,7 +6,7 @@
  */
 
 #include "sad_test_framework.h"
-#include "../../compiler_new/src/sir/sir_opcodes.h"
+#include "../../compiler/src/sir/sir_opcodes.h"
 #include "sad_ui/ui_arena.h"
 #include "sad_ui/command_queue.h"
 #include "sad_ui/ui_command.h"

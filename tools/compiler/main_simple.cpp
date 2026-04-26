@@ -13,8 +13,8 @@
 // (EN) AST-based documentation extractor — built-in feature of sad
 #include "docs_extractor.h"
 #include "pdf_exporter.h"
-#include "../../interpreter_new/include/exception.h"
-#include "../../interpreter_new/include/debug/debug_server.h"
+#include "../../interpreter/include/exception.h"
+#include "../../interpreter/include/debug/debug_server.h"
 
 // الآلة الافتراضية / Bytecode VM
 #include "sad_vm_compiler.h"

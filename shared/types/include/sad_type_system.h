@@ -7,8 +7,8 @@
  *
  * (AR) هذا الملف هو المصدر الوحيد لنظام الأنواع في المشروع بأكمله.
  *      يُستخدم من:
- *        • المفسر (interpreter_new/)
- *        • المترجم (compiler_new/)
+ *        • المفسر (interpreter/)
+ *        • المترجم (compiler/)
  *        • المحلل النحوي (shared/parser/)
  *        • شجرة AST (shared/ast/)
  *
@@ -134,6 +134,14 @@ namespace Sad
             Widget, ///< عنصر واجهة / widget
             Window, ///< نافذة / window
             Event,  ///< حدث / event
+
+            // ─── متجهات SIMD / SIMD vectors ───
+            // (AR) متجه SIMD <نوع_عنصر، عدد_عناصر> — يقابل <N x T> في LLVM
+            //      الأنواع الفرعية المسموح بها: Float32, Float64, Int8, Int16,
+            //      Int32, Int64, UInt8, UInt16, UInt32, UInt64, Boolean.
+            //      الحجم يجب أن يكون قوة 2 (2, 4, 8, 16, 32, 64).
+            // (EN) SIMD vector <element_type, count> — maps to <N x T> in LLVM
+            Vector,
         };
 
         // ═══════════════════════════════════════════════════════════════════════════════════
@@ -241,6 +249,8 @@ namespace Sad
                 return "نافذة";
             case SadTypeKind::Event:
                 return "حدث";
+            case SadTypeKind::Vector:
+                return "متجه";
             }
             return "مجهول";
         }
@@ -346,6 +356,8 @@ namespace Sad
                 return "Window";
             case SadTypeKind::Event:
                 return "Event";
+            case SadTypeKind::Vector:
+                return "Vector";
             }
             return "Unknown";
         }

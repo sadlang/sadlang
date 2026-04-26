@@ -1,0 +1,34 @@
+# ============================================================================
+# اختبار المرحلة 9 — فحص نوع الإرجاع في الدوال العادية (حالة النجاح)
+# Phase 9 Test — Regular function return type check (pass case)
+#
+# (AR) دالة عادية تُصرِّح عن نوع إرجاع رقم قبل اسمها.
+#      جسم الدالة يُرجع قيمة رقمية صحيحة — يجب أن يجتاز الفحص (EXIT=0).
+#
+# (EN) Regular (non-template) function declares return type رقم before name.
+#      Function body returns a valid integer.
+#      Type check must succeed (EXIT=0).
+# ============================================================================
+
+# (AR) دالة عادية: دالة [نوع_الإرجاع] [اسم](معاملات)
+# (EN) Regular function: function [return_type] [name](params)
+
+دالة رقم مربع(رقم أ)
+    # (AR) يُرجع رقم — يتطابق مع نوع الإرجاع المُصرَّح رقم → OK
+    # (EN) Returns integer — matches declared return type رقم → OK
+    ارجع أ * أ
+نهاية
+
+دالة رقم جمع(رقم أ، رقم ب)
+    # (AR) يُرجع رقم — يتطابق مع نوع الإرجاع المُصرَّح رقم → OK
+    # (EN) Returns integer — matches declared return type رقم → OK
+    ارجع أ + ب
+نهاية
+
+دالة رئيسية()
+    متغير ن = مربع(5)
+    متغير ج = جمع(3، 7)
+    اطبع_سطر(ن)
+    اطبع_سطر(ج)
+    ارجع 0
+نهاية

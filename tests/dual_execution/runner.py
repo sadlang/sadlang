@@ -113,7 +113,7 @@ _RE_SKIP_COMPILER = re.compile(r"^#\s*@skip_compiler\b")
 _RE_SKIP_INTERP = re.compile(r"^#\s*@skip_interpreter\b")
 _RE_EXPECT_ERROR = re.compile(r"^#\s*@expect_error:?\s*(.*)$")
 _RE_DESC = re.compile(r"^#\s*@description:?\s+(.+)$")
-_RE_PRIORITY = re.compile(r"^#\s*@priority:?\s+(P[0-3])$")
+_RE_PRIORITY = re.compile(r"^#\s*@priority:?\s+(P[0-9]+(?:\.[\w.]+)?)$")
 _RE_STDIN = re.compile(r"^#\s*@stdin_data:?\s+(.+)$")  # (AR) بيانات stdin للاختبارات التفاعلية
 
 
@@ -460,6 +460,12 @@ def load_config(config_path: Path) -> dict:
             # (AR) تحميل مستويات الاختبار
             if "levels" in loaded and isinstance(loaded["levels"], dict):
                 config["levels"] = loaded["levels"]
+            # (AR) تحميل أقسام الميزات المختصرة
+            if "sections" in loaded and isinstance(loaded["sections"], dict):
+                config["sections"] = loaded["sections"]
+            # (AR) تحميل مُسبقات قوة CPU
+            if "cpu_presets" in loaded and isinstance(loaded["cpu_presets"], dict):
+                config["cpu_presets"] = loaded["cpu_presets"]
     except ImportError:
         # (AR) PyYAML غير متاح — نستخدم القيم الافتراضية
         pass
@@ -801,8 +807,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="مُشغّل اختبارات التنفيذ المزدوج (المفسر + المترجم)"
     )
-    parser.add_argument("--level", choices=["P0", "P1", "P2", "P3"],
-                        help="مستوى الاختبار")
+    parser.add_argument("--level",
+                        help="مستوى الاختبار: P0، P0.متغيرات، P0.أنماط، P1، P2، P3، P4، full، match، oop، ...")
     parser.add_argument("--dir", help="مجلد فرعي محدد (مثل: core)")
     parser.add_argument("--file", help="ملف اختبار واحد")
     parser.add_argument("--verbose", "-v", action="store_true",
@@ -814,7 +820,15 @@ def main():
     parser.add_argument("--no-color", action="store_true",
                         help="بدون ألوان")
     parser.add_argument("--parallel", type=int, default=0,
-                        help="عدد الخيوط المتوازية (0 = تسلسلي)")
+                        help="عدد الخيوط المتوازية (0 = تسلسلي) — [قديم، استخدم --workers]")
+    parser.add_argument("--workers", type=int, default=0,
+                        help="عدد أنوية CPU للتشغيل المتوازي (1=تسلسلي، 0=من config)"
+                             " — يتجاوز --parallel")
+    parser.add_argument("--cpu",
+                        choices=["sequential", "light", "moderate", "full", "max"],
+                        help="مُسبق قوة CPU: sequential=1، light=2، moderate=4، full=8، max=أقصى")
+    parser.add_argument("--section",
+                        help="اسم قسم الميزات المختصر (مثل: متغيرات، أنواع، كائني، أنماط، أخطاء، ...)")
     parser.add_argument("--repeat", type=int, default=1,
                         help="عدد تكرارات التشغيل (burn-in). الافتراضي: 1")
     parser.add_argument("--timeout", type=int, default=0,
@@ -852,9 +866,27 @@ def main():
     tests_dir = runner_dir
     temp_dir = project_root / config["execution"]["temp_dir"]
     timeout = args.timeout if args.timeout > 0 else config["execution"]["timeout_seconds"]
-    max_parallel = args.parallel if args.parallel is not None else config["execution"]["max_parallel"]
     use_colors = not args.no_color and config["output"].get("colors", True)
     verbose = args.verbose or config["output"].get("verbose", False)
+
+    # (AR) حل تعارض --workers / --cpu / --parallel بالأولوية:
+    #      workers > cpu > parallel > config
+    cpu_presets = config.get("cpu_presets", {
+        "sequential": 1, "light": 2, "moderate": 4, "full": 8, "max": 0
+    })
+    if args.workers > 0:
+        max_parallel = args.workers
+    elif args.cpu:
+        preset_val = cpu_presets.get(args.cpu, 4)
+        if preset_val == 0:  # max = كل الأنوية
+            import os as _os
+            max_parallel = _os.cpu_count() or 4
+        else:
+            max_parallel = preset_val
+    elif args.parallel > 0:
+        max_parallel = args.parallel
+    else:
+        max_parallel = config["execution"]["max_parallel"]
 
     # (AR) التحقق من الملفات التنفيذية
     if not sad_exe.exists():
@@ -880,11 +912,35 @@ def main():
             print(f"❌ الملف غير موجود: {args.file}")
             sys.exit(1)
         test_files = [test_file]
+    elif args.section:
+        # (AR) --section: تشغيل قسم ميزة محدد بالاسم المختصر
+        sections_map = config.get("sections", {})
+        if args.section not in sections_map:
+            b = _BOLD if use_colors else ""
+            r = _RESET if use_colors else ""
+            print(f"❌ القسم '{args.section}' غير موجود في config.yaml.")
+            print(f"\n{b}الأقسام المتاحة:{r}")
+            for name, path in sections_map.items():
+                print(f"  {name:<14} → {path}")
+            sys.exit(1)
+        test_files = collect_tests(tests_dir, [sections_map[args.section]])
     elif args.dir:
         test_files = collect_tests(tests_dir, [args.dir])
     elif args.level:
-        # (AR) مستويات من config.yaml
+        # (AR) مستويات من config.yaml — يدعم P0.x والأسماء المخصصة
         level_config = config.get("levels", {}).get(args.level, {})
+        if not level_config:
+            b = _BOLD if use_colors else ""
+            r = _RESET if use_colors else ""
+            print(f"❌ المستوى '{args.level}' غير موجود في config.yaml.")
+            print(f"\n{b}المستويات المتاحة:{r}")
+            for name, lconf in config.get("levels", {}).items():
+                desc = lconf.get("description", "") if isinstance(lconf, dict) else ""
+                print(f"  {name:<20} — {desc}")
+            print(f"\n{b}الأقسام المتاحة (--section):{r}")
+            for name in config.get("sections", {}):
+                print(f"  {name}")
+            sys.exit(1)
         dirs = level_config.get("dirs", ["core"])
         test_files = collect_tests(tests_dir, dirs)
     else:
@@ -898,10 +954,26 @@ def main():
     b = _BOLD if use_colors else ""
     r = _RESET if use_colors else ""
     repeat_count = max(1, args.repeat)
+    # (AR) وصف قوة CPU المُستخدمة
+    if max_parallel <= 1:
+        cpu_label = "تسلسلي (1 نواة)"
+    elif args.cpu == "max":
+        import os as _os2
+        cpu_label = f"أقصى ({max_parallel} نواة من {_os2.cpu_count() or '?'})"
+    else:
+        cpu_label = f"{max_parallel} أنوية متوازية"
+
     print(f"\n{b}═══ اختبارات التنفيذ المزدوج ═══{r}")
     print(f"  مفسر:   {sad_exe.name}")
     print(f"  مترجم: {sadc_exe.name}")
     print(f"  ملفات:  {len(test_files)}")
+    print(f"  CPU:    {cpu_label}")
+    if args.level:
+        level_desc = config.get("levels", {}).get(args.level, {}).get("description", "")
+        if level_desc:
+            print(f"  طبقة:   {args.level} — {level_desc}")
+    if args.section:
+        print(f"  قسم:    {args.section}")
     if repeat_count > 1:
         print(f"  تكرار:  {repeat_count}× (burn-in)")
     print()

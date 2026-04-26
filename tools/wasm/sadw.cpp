@@ -31,8 +31,8 @@
 #include "shared/ast/include/ast_nodes.h"
 
 // WASM generator
-#include "compiler_new/src/targets/wasm_direct.h"
-#include "compiler_new/src/targets/sir_to_wasm.h"
+#include "compiler/src/targets/wasm_direct.h"
+#include "compiler/src/targets/sir_to_wasm.h"
 
 namespace fs = std::filesystem;
 using namespace sad::wasm;

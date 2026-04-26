@@ -1,0 +1,27 @@
+# ============================================================================
+# اختبار المرحلة 8 — فحص نوع الإرجاع المنطقي في قالب دالة (حالة الانتهاك)
+# Phase 8 Test — Template function منطقي return type check (mismatch case)
+#
+# (AR) قالب دالة يُصرِّح عن نوع إرجاع منطقي، لكن جسم الدالة يُرجع رقماً.
+#      يجب أن يفشل الفحص (EXIT=1).
+#
+# (EN) Template function declares return type منطقي but function body
+#      returns an integer literal.
+#      Type check must fail (EXIT=1).
+# ============================================================================
+
+# (AR) قالب دالة مع نوع إرجاع منطقي — جسم الدالة يُرجع رقم (خطأ)
+# (EN) Template function with منطقي return type — body returns integer (error)
+
+قالب<نوع T>
+دالة فعل_ما(T أ) ترجع منطقي
+    # (AR) يُرجع رقم 42 رغم أن نوع الإرجاع المُصرَّح منطقي → خطأ في النوع
+    # (EN) Returns integer 42 despite declared return type being منطقي → type error
+    ارجع 42
+نهاية
+
+دالة رئيسية()
+    متغير ن = فعل_ما(10)
+    اطبع_سطر(ن)
+    ارجع 0
+نهاية

@@ -11,10 +11,10 @@
 
 #include "compiler_driver.h"
 #include "../../shared/utils/include/utf8_utils.h"
-#include "../../compiler_new/include/frontend/sir_module.h"
-#include "../../compiler_new/include/backend/llvm/llvm_codegen.h"
-#include "../../compiler_new/include/backend/llvm/arabic_optimizer.h"
-#include "../../compiler_new/include/middle/optimizer.h"
+#include "../../compiler/include/frontend/sir_module.h"
+#include "../../compiler/include/backend/llvm/llvm_codegen.h"
+#include "../../compiler/include/backend/llvm/arabic_optimizer.h"
+#include "../../compiler/include/middle/optimizer.h"
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
@@ -252,6 +252,15 @@ namespace sad
                 {
                     diagnostics_.report_fatal("فشل تهيئة الواجهة الخلفية LLVM / Failed to initialize LLVM backend");
                     return false;
+                }
+
+                // (AR) تطبيق وضع LTO حسب خيارات سطر الأوامر
+                // (EN) Apply LTO mode from CLI options
+                llvm_codegen_->setLTOMode(options_.enable_lto_full, options_.enable_lto_thin);
+                if (options_.verbose && (options_.enable_lto_full || options_.enable_lto_thin))
+                {
+                    std::cout << "  ✓ LTO enabled: "
+                              << (options_.enable_lto_full ? "Full" : "Thin") << "\n";
                 }
 
                 // ================================================================

@@ -1,0 +1,27 @@
+# ============================================================================
+# اختبار المرحلة 8 — فحص نوع الإرجاع المنطقي في قالب دالة (حالة النجاح)
+# Phase 8 Test — Template function منطقي return type check (pass case)
+#
+# (AR) قالب دالة يُصرِّح عن نوع إرجاع منطقي.
+#      جسم الدالة يُرجع قيمة منطقية صحيحة/خطأ — يجب أن يجتاز الفحص (EXIT=0).
+#
+# (EN) Template function declares return type منطقي (boolean).
+#      Function body returns a valid boolean literal.
+#      Type check must succeed (EXIT=0).
+# ============================================================================
+
+# (AR) قالب دالة مع نوع إرجاع صريح منطقي
+# (EN) Template function with explicit boolean return type
+
+قالب<نوع T: قابل_للمقارنة>
+دالة أكبر_من_صفر(T أ) ترجع منطقي
+    # (AR) يُرجع صحيح — يتطابق مع نوع الإرجاع المُصرَّح منطقي → OK
+    # (EN) Returns صحيح (true) — matches declared return type منطقي → OK
+    ارجع صحيح
+نهاية
+
+دالة رئيسية()
+    متغير نتيجة = أكبر_من_صفر(5)
+    اطبع_سطر(نتيجة)
+    ارجع 0
+نهاية

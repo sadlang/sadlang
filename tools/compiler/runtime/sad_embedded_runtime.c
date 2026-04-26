@@ -282,11 +282,11 @@ void __sad_format_double(char *buf, double value)
     char *dot = strchr(buf, '.');
     if (dot)
     {
+        /* (AR) احذف الأصفار الزائدة لكن ابق رقماً واحداً بعد النقطة: 10.0 لا 10 */
+        /* (EN) Remove trailing zeros but keep at least one digit after dot: 10.0 not 10 */
         char *end = buf + strlen(buf) - 1;
-        while (end > dot && *end == '0')
+        while (end > dot + 1 && *end == '0')
             end--;
-        if (*end == '.')
-            end--; /* (AR) حذف النقطة أيضاً إذا كانت كل الخانات أصفار */
         *(end + 1) = '\0';
     }
 }

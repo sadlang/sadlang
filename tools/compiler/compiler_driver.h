@@ -208,6 +208,12 @@ namespace sad
             bool constant_folding = true;      // طي الثوابت / Constant folding
             bool loop_optimization = true;     // تحسين الحلقات / Loop optimization
 
+            // ─── Link-Time Optimization (LTO) ───
+            // (AR) تفعيل LTO الكامل أو ThinLTO
+            // (EN) Enable Full LTO or ThinLTO
+            bool enable_lto_full = false;
+            bool enable_lto_thin = false;
+
             // ========== Target ==========
             TargetTriple target = TargetTriple::get_host_target();
             bool freestanding = false;              // نظام مستقل / Freestanding (no OS)

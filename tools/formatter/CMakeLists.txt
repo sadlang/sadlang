@@ -17,8 +17,8 @@ message(STATUS "═════════════════════�
 
 set(FORMATTER_SOURCES
     fmt_main.cpp
-    ${CMAKE_SOURCE_DIR}/compiler_new/src/format/sad_formatter.cpp
-    ${CMAKE_SOURCE_DIR}/compiler_new/src/format/sad_formatter_rebuild.cpp
+    ${CMAKE_SOURCE_DIR}/compiler/src/format/sad_formatter.cpp
+    ${CMAKE_SOURCE_DIR}/compiler/src/format/sad_formatter_rebuild.cpp
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -33,7 +33,7 @@ target_compile_features(sad-fmt PUBLIC cxx_std_17)
 # مسارات التضمين / Include directories
 target_include_directories(sad-fmt PRIVATE
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include
+    ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}/tools/compiler/src
     ${CMAKE_SOURCE_DIR}/shared/lexer/include
     ${CMAKE_SOURCE_DIR}/shared/ast/include

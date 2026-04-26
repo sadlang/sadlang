@@ -12,8 +12,8 @@ add_executable(sad tools/compiler/main_simple.cpp)
 target_link_libraries(sad PRIVATE
     sad_core
     sad_vm
-    sad_new_type_system
-    sad_new_semantic
+    sad_type_system
+    sad_semantic
     sad_network
     sad_http
     sad_websocket
@@ -33,10 +33,10 @@ endif()
 
 target_include_directories(sad PRIVATE
     ${CMAKE_SOURCE_DIR}/vm/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/semantic
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/types
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/backend
+    ${CMAKE_SOURCE_DIR}/compiler/include
+    ${CMAKE_SOURCE_DIR}/compiler/include/semantic
+    ${CMAKE_SOURCE_DIR}/compiler/include/types
+    ${CMAKE_SOURCE_DIR}/compiler/include/backend
     ${CMAKE_SOURCE_DIR}/tools/compiler/src
     ${CMAKE_SOURCE_DIR}/shared/parser/include
     ${CMAKE_SOURCE_DIR}/shared/hot_reload/include
@@ -53,12 +53,12 @@ message(STATUS "✓ المفسر / Interpreter: sad")
 # مكتبة المنسّق / Formatter Library
 # ─────────────────────────────────────────────────────────────────────
 add_library(sad_formatter STATIC
-    compiler_new/src/format/sad_formatter.cpp
-    compiler_new/src/format/sad_formatter_rebuild.cpp
+    compiler/src/format/sad_formatter.cpp
+    compiler/src/format/sad_formatter_rebuild.cpp
 )
 
 target_include_directories(sad_formatter PUBLIC
-    ${CMAKE_SOURCE_DIR}/compiler_new/include
+    ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}/shared/lexer/include
     ${CMAKE_SOURCE_DIR}/shared/types/include
     ${CMAKE_SOURCE_DIR}/shared/errors/include
@@ -90,8 +90,8 @@ set(MOBILE_SOURCES
 
 # (AR) التحقق من وجود build_system.cpp قبل إضافته
 # (EN) Check if build_system.cpp exists before adding it
-if(EXISTS "${CMAKE_SOURCE_DIR}/compiler_new/src/build/build_system.cpp")
-    list(APPEND MOBILE_SOURCES "compiler_new/src/build/build_system.cpp")
+if(EXISTS "${CMAKE_SOURCE_DIR}/compiler/src/build/build_system.cpp")
+    list(APPEND MOBILE_SOURCES "compiler/src/build/build_system.cpp")
 endif()
 
 add_library(sad_mobile STATIC ${MOBILE_SOURCES})
@@ -108,8 +108,8 @@ target_include_directories(sad_mobile PUBLIC
     ${CMAKE_SOURCE_DIR}/shared/types/include
     ${CMAKE_SOURCE_DIR}/shared/lexer/include
     ${CMAKE_SOURCE_DIR}/shared/errors/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/backend
+    ${CMAKE_SOURCE_DIR}/compiler/include
+    ${CMAKE_SOURCE_DIR}/compiler/include/backend
 )
 
 target_compile_features(sad_mobile PUBLIC cxx_std_17)
@@ -202,11 +202,11 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         ${CMAKE_SOURCE_DIR}/shared/ast/include
         ${CMAKE_SOURCE_DIR}/shared/types/include
         ${CMAKE_SOURCE_DIR}/shared/errors/include
-        ${CMAKE_SOURCE_DIR}/compiler_new/include
-        ${CMAKE_SOURCE_DIR}/compiler_new/include/frontend
-        ${CMAKE_SOURCE_DIR}/compiler_new/include/semantic
-        ${CMAKE_SOURCE_DIR}/compiler_new/include/types
-        ${CMAKE_SOURCE_DIR}/compiler_new/include/backend/llvm
+        ${CMAKE_SOURCE_DIR}/compiler/include
+        ${CMAKE_SOURCE_DIR}/compiler/include/frontend
+        ${CMAKE_SOURCE_DIR}/compiler/include/semantic
+        ${CMAKE_SOURCE_DIR}/compiler/include/types
+        ${CMAKE_SOURCE_DIR}/compiler/include/backend/llvm
         ${SAD_LLVM_INCLUDES}
         ${CMAKE_BINARY_DIR}/generated
     )
@@ -216,7 +216,7 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     add_dependencies(sadc generate_runtime_header)
 
     target_link_libraries(sadc PRIVATE
-        sad_shared sad_new_compiler sad_mobile ${LLVM_LIBS}
+        sad_shared sad_compiler sad_mobile ${LLVM_LIBS}
     )
 
     # ربط مكتبات LLD إذا كانت متوفرة / Link LLD libraries if available

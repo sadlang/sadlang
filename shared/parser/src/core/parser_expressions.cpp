@@ -1386,13 +1386,25 @@ namespace Sad
                 std::string identName = previous().getValue();
                 auto identPos = previous().getPosition();
 
-                // (AR) تحقق إذا كان تنفيذ قالب: اسم<نوع>
-                // (EN) Check if template instantiation: name<type>
-                // (AR) نتحقق أن الرمز بعد < هو نوع مدمج فقط (رقم، نص، إلخ)
-                //      لتجنب التعارض مع عامل المقارنة <
-                // (EN) Only attempt template parsing if the token after < is a
-                //      built-in type keyword, to avoid conflict with < operator
-                if (check(TT::OP_LESS) && isTypeToken(nextToken_.getType()))
+                // (AR) تحقق إذا كان تنفيذ قالب: اسم<نوع> أو اسم<قيمة>
+                // (EN) Check if template instantiation: name<type> or name<const-value>
+                // ══════════════════════════════════════════════════════════════════
+                // (AR) الحل الجذري (BF-09): نُميّز تخصيص القالب عن عامل المقارنة `<`
+                //      عبر فحص مزدوج:
+                //        (1) اسم المعرف مُسجَّل في knownTemplateNames_ (أي عُرِّف كقالب)، أو
+                //        (2) الرمز بعد `<` نوعٌ مدمج صراحةً (هذا لم يكن متعارضاً سابقاً).
+                //      هذا يمنع تفسير `عداد < 5` كتخصيص قالب ويسمح بـ `مكعب<4>` عند
+                //      كون `مكعب` قالباً معروفاً.
+                // (EN) Root-cause fix: Disambiguate template instantiation from `<`
+                //      comparison operator via two-pronged check:
+                //        (1) identifier is in knownTemplateNames_ (declared as a template), OR
+                //        (2) the token after `<` is an explicit built-in type keyword.
+                //      Prevents `counter < 5` from being parsed as template and still
+                //      supports `Cube<4>` when `Cube` is a known template.
+                // ══════════════════════════════════════════════════════════════════
+                bool isKnownTemplate = knownTemplateNames_.count(identName) > 0;
+                if (check(TT::OP_LESS) &&
+                    (isTypeToken(nextToken_.getType()) || isKnownTemplate))
                 {
                     // (AR) حاول تحليل كتنفيذ قالب
                     // (EN) Try to parse as template instantiation

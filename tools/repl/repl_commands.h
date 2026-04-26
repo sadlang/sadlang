@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include "../../interpreter_new/include/core/interpreter_core.h"
+#include "../../interpreter/include/core/interpreter_core.h"
 #include "history_manager.h"
 #include <string>
 #include <functional>

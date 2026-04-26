@@ -1,0 +1,35 @@
+# ============================================================================
+# اختبار المرحلة 9 — فحص أنواع معاملات الاستدعاء (حالة النجاح)
+# Phase 9 Test — Typed function parameter call check (pass case)
+#
+# (AR) استدعاء دالة بوسائط من النوع الصحيح — يجب أن يجتاز (EXIT=0).
+#
+# (EN) Calling function with correct argument types.
+#      Type check must succeed (EXIT=0).
+# ============================================================================
+
+# (AR) دالة تقبل رقماً → استدعاء بقيمة رقمية → OK
+# (EN) Function accepting integer → called with integer → OK
+دالة رقم ضعف(رقم أ)
+    ارجع أ * 2
+نهاية
+
+# (AR) دالة تقبل نصاً → استدعاء بنص → OK
+# (EN) Function accepting string → called with string → OK
+دالة نص ألقِ_تحية(نص اسم)
+    ارجع "مرحباً " + اسم
+نهاية
+
+دالة رئيسية()
+    # (AR) رقم ← رقم → OK
+    # (EN) integer ← integer → OK
+    متغير ن = ضعف(5)
+    اطبع_سطر(ن)
+
+    # (AR) نص ← نص → OK
+    # (EN) string ← string → OK
+    متغير رسالة = ألقِ_تحية("أحمد")
+    اطبع_سطر(رسالة)
+
+    ارجع 0
+نهاية

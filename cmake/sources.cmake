@@ -57,87 +57,87 @@ set(AST_SOURCES
 # 5. المفسر / Interpreter
 # ──────────────────────────────────────────────────────────────────────
 set(INTERPRETER_SOURCES
-    interpreter_new/src/core/interpreter_core.cpp
-    interpreter_new/src/builtins/builtin_registry.cpp
-    interpreter_new/src/builtins/builtin_core_io.cpp
-    interpreter_new/src/builtins/builtin_module_strings.cpp
-    interpreter_new/src/builtins/builtin_module_basics.cpp
-    interpreter_new/src/builtins/builtin_module_math.cpp
-    interpreter_new/src/builtins/builtin_module_assertions.cpp
-    interpreter_new/src/builtins/builtin_module_async.cpp
-    interpreter_new/src/builtins/builtin_module_maps.cpp
-    interpreter_new/src/builtins/builtin_module_maps_core.cpp
-    interpreter_new/src/builtins/builtin_module_maps_json_xml.cpp
-    interpreter_new/src/builtins/builtin_module_maps_arrays.cpp
-    interpreter_new/src/builtins/builtin_module_maps_text.cpp
-    interpreter_new/src/builtins/builtin_module_maps_utils.cpp
-    interpreter_new/src/builtins/builtin_kernel_cpu.cpp
-    interpreter_new/src/builtins/builtin_kernel_uefi.cpp
-    interpreter_new/src/builtins/builtin_kernel_acpi.cpp
-    interpreter_new/src/builtins/builtin_kernel_gpu.cpp
-    interpreter_new/src/builtins/builtin_kernel_usb.cpp
-    interpreter_new/src/builtins/builtin_kernel_storage.cpp
-    interpreter_new/src/builtins/builtin_kernel_network.cpp
-    interpreter_new/src/builtins/builtin_kernel_audio.cpp
-    interpreter_new/src/builtins/builtin_kernel_timers.cpp
-    interpreter_new/src/builtins/builtin_kernel_serial.cpp
-    interpreter_new/src/builtins/builtin_kernel_memory.cpp
-    interpreter_new/src/builtins/builtin_kernel_threads.cpp
-    interpreter_new/src/builtins/builtin_module_ffi.cpp
-    interpreter_new/src/builtins/builtin_module_exceptions.cpp
-    interpreter_new/src/builtins/builtin_module_platform.cpp
-    interpreter_new/src/builtins/builtin_module_sockets.cpp
-    interpreter_new/src/builtins/builtin_module_http.cpp
-    interpreter_new/src/builtins/builtin_module_sadnet.cpp
-    interpreter_new/src/builtins/builtin_module_websocket.cpp
+    interpreter/src/core/interpreter_core.cpp
+    interpreter/src/builtins/builtin_registry.cpp
+    interpreter/src/builtins/builtin_core_io.cpp
+    interpreter/src/builtins/builtin_module_strings.cpp
+    interpreter/src/builtins/builtin_module_basics.cpp
+    interpreter/src/builtins/builtin_module_math.cpp
+    interpreter/src/builtins/builtin_module_assertions.cpp
+    interpreter/src/builtins/builtin_module_async.cpp
+    interpreter/src/builtins/builtin_module_maps.cpp
+    interpreter/src/builtins/builtin_module_maps_core.cpp
+    interpreter/src/builtins/builtin_module_maps_json_xml.cpp
+    interpreter/src/builtins/builtin_module_maps_arrays.cpp
+    interpreter/src/builtins/builtin_module_maps_text.cpp
+    interpreter/src/builtins/builtin_module_maps_utils.cpp
+    interpreter/src/builtins/builtin_kernel_cpu.cpp
+    interpreter/src/builtins/builtin_kernel_uefi.cpp
+    interpreter/src/builtins/builtin_kernel_acpi.cpp
+    interpreter/src/builtins/builtin_kernel_gpu.cpp
+    interpreter/src/builtins/builtin_kernel_usb.cpp
+    interpreter/src/builtins/builtin_kernel_storage.cpp
+    interpreter/src/builtins/builtin_kernel_network.cpp
+    interpreter/src/builtins/builtin_kernel_audio.cpp
+    interpreter/src/builtins/builtin_kernel_timers.cpp
+    interpreter/src/builtins/builtin_kernel_serial.cpp
+    interpreter/src/builtins/builtin_kernel_memory.cpp
+    interpreter/src/builtins/builtin_kernel_threads.cpp
+    interpreter/src/builtins/builtin_module_ffi.cpp
+    interpreter/src/builtins/builtin_module_exceptions.cpp
+    interpreter/src/builtins/builtin_module_platform.cpp
+    interpreter/src/builtins/builtin_module_sockets.cpp
+    interpreter/src/builtins/builtin_module_http.cpp
+    interpreter/src/builtins/builtin_module_sadnet.cpp
+    interpreter/src/builtins/builtin_module_websocket.cpp
     # UI Bridge (يربط المفسر بنظام واجهات sad_ui)
-    interpreter_new/src/ui/ui_bridge.cpp
-    interpreter_new/src/ui/ui_bridge_events.cpp
-    interpreter_new/src/ui/ui_bridge_platform.cpp
-    interpreter_new/src/ui/ui_builtins.cpp
-    interpreter_new/src/ui/ui_core_builtins.cpp
-    interpreter_new/src/ui/ui_state_builtins.cpp
-    interpreter_new/src/ui/ui_timer_builtins.cpp
-    interpreter_new/src/ui/ui_storage_builtins.cpp
-    interpreter_new/src/ui/ui_dialog_builtins.cpp
-    interpreter_new/src/ui/ui_audio_builtins.cpp
-    interpreter_new/src/ui/ui_io_builtins.cpp
-    interpreter_new/src/ui/ui_device_builtins.cpp
-    interpreter_new/src/ui/ui_network_builtins.cpp
-    interpreter_new/src/ui/ui_crypto_builtins.cpp
-    interpreter_new/src/ui/ui_platform_builtins.cpp
-    interpreter_new/src/ui/ui_state_manager.cpp
-    interpreter_new/src/ui/widget_builder.cpp
-    interpreter_new/src/ui/widget_builtins.cpp
-    interpreter_new/src/visitors/expression_evaluator_core.cpp
-    interpreter_new/src/visitors/expression_evaluator_binary_ops.cpp
-    interpreter_new/src/visitors/expression_evaluator_binary_logic.cpp
-    interpreter_new/src/visitors/expression_evaluator_overloads.cpp
-    interpreter_new/src/visitors/expression_evaluator_calls.cpp
-    interpreter_new/src/visitors/expression_evaluator_calls_invoke.cpp
-    interpreter_new/src/visitors/expression_evaluator_calls_macro.cpp
-    interpreter_new/src/visitors/expression_evaluator_calls_user_func.cpp
-    interpreter_new/src/visitors/expression_evaluator_calls_macro.cpp
-    interpreter_new/src/visitors/expression_evaluator_calls_user_func.cpp    interpreter_new/src/visitors/expression_evaluator_calls_dispatch.cpp    interpreter_new/src/visitors/expression_evaluator_oop.cpp
-    interpreter_new/src/visitors/expression_evaluator_oop_new.cpp
-    interpreter_new/src/visitors/expression_evaluator_oop_array_methods.cpp
-    interpreter_new/src/visitors/expression_evaluator_oop_string_map_methods.cpp
-    interpreter_new/src/visitors/expression_evaluator_oop_concurrency.cpp
-    interpreter_new/src/visitors/expression_evaluator_members.cpp
-    interpreter_new/src/visitors/expression_evaluator_members_assign.cpp
-    interpreter_new/src/visitors/expression_evaluator_members_advanced.cpp
-    interpreter_new/src/visitors/expression_evaluator_ui.cpp
-    interpreter_new/src/visitors/statement_executor.cpp
-    interpreter_new/src/visitors/statement_executor_control.cpp
-    interpreter_new/src/visitors/statement_executor_control_exceptions.cpp
-    interpreter_new/src/visitors/statement_executor_functions.cpp
-    interpreter_new/src/visitors/statement_executor_functions_templates.cpp
-    interpreter_new/src/visitors/statement_executor_oop.cpp
-    interpreter_new/src/visitors/statement_executor_oop_types.cpp
-    interpreter_new/src/visitors/statement_executor_oop_struct_test.cpp
-    interpreter_new/src/visitors/statement_executor_modules.cpp
-    interpreter_new/src/exception.cpp
-    interpreter_new/src/debug/debug_server.cpp
+    interpreter/src/ui/ui_bridge.cpp
+    interpreter/src/ui/ui_bridge_events.cpp
+    interpreter/src/ui/ui_bridge_platform.cpp
+    interpreter/src/ui/ui_builtins.cpp
+    interpreter/src/ui/ui_core_builtins.cpp
+    interpreter/src/ui/ui_state_builtins.cpp
+    interpreter/src/ui/ui_timer_builtins.cpp
+    interpreter/src/ui/ui_storage_builtins.cpp
+    interpreter/src/ui/ui_dialog_builtins.cpp
+    interpreter/src/ui/ui_audio_builtins.cpp
+    interpreter/src/ui/ui_io_builtins.cpp
+    interpreter/src/ui/ui_device_builtins.cpp
+    interpreter/src/ui/ui_network_builtins.cpp
+    interpreter/src/ui/ui_crypto_builtins.cpp
+    interpreter/src/ui/ui_platform_builtins.cpp
+    interpreter/src/ui/ui_state_manager.cpp
+    interpreter/src/ui/widget_builder.cpp
+    interpreter/src/ui/widget_builtins.cpp
+    interpreter/src/visitors/expression_evaluator_core.cpp
+    interpreter/src/visitors/expression_evaluator_binary_ops.cpp
+    interpreter/src/visitors/expression_evaluator_binary_logic.cpp
+    interpreter/src/visitors/expression_evaluator_overloads.cpp
+    interpreter/src/visitors/expression_evaluator_calls.cpp
+    interpreter/src/visitors/expression_evaluator_calls_invoke.cpp
+    interpreter/src/visitors/expression_evaluator_calls_macro.cpp
+    interpreter/src/visitors/expression_evaluator_calls_user_func.cpp
+    interpreter/src/visitors/expression_evaluator_calls_macro.cpp
+    interpreter/src/visitors/expression_evaluator_calls_user_func.cpp    interpreter/src/visitors/expression_evaluator_calls_dispatch.cpp    interpreter/src/visitors/expression_evaluator_oop.cpp
+    interpreter/src/visitors/expression_evaluator_oop_new.cpp
+    interpreter/src/visitors/expression_evaluator_oop_array_methods.cpp
+    interpreter/src/visitors/expression_evaluator_oop_string_map_methods.cpp
+    interpreter/src/visitors/expression_evaluator_oop_concurrency.cpp
+    interpreter/src/visitors/expression_evaluator_members.cpp
+    interpreter/src/visitors/expression_evaluator_members_assign.cpp
+    interpreter/src/visitors/expression_evaluator_members_advanced.cpp
+    interpreter/src/visitors/expression_evaluator_ui.cpp
+    interpreter/src/visitors/statement_executor.cpp
+    interpreter/src/visitors/statement_executor_control.cpp
+    interpreter/src/visitors/statement_executor_control_exceptions.cpp
+    interpreter/src/visitors/statement_executor_functions.cpp
+    interpreter/src/visitors/statement_executor_functions_templates.cpp
+    interpreter/src/visitors/statement_executor_oop.cpp
+    interpreter/src/visitors/statement_executor_oop_types.cpp
+    interpreter/src/visitors/statement_executor_oop_struct_test.cpp
+    interpreter/src/visitors/statement_executor_modules.cpp
+    interpreter/src/exception.cpp
+    interpreter/src/debug/debug_server.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────
@@ -148,10 +148,10 @@ set(DATA_SOURCES
     shared/types/src/generator.cpp
     shared/types/src/sad_type_system.cpp
     shared/types/src/type_bridge.cpp         # ADR-01 Phase 1: جسر SadType ↔ Value
-    interpreter_new/src/managers/variable_manager.cpp
-    interpreter_new/src/managers/function_manager.cpp
-    interpreter_new/src/managers/scope_manager.cpp
-    interpreter_new/src/managers/ownership_manager.cpp
+    interpreter/src/managers/variable_manager.cpp
+    interpreter/src/managers/function_manager.cpp
+    interpreter/src/managers/scope_manager.cpp
+    interpreter/src/managers/ownership_manager.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────
@@ -163,8 +163,8 @@ set(OOP_TYPES_SOURCES
 )
 
 set(OOP_MANAGERS_SOURCES
-    interpreter_new/src/managers/class_manager.cpp
-    interpreter_new/src/managers/object_manager.cpp
+    interpreter/src/managers/class_manager.cpp
+    interpreter/src/managers/object_manager.cpp
 )
 
 set(OOP_AST_SOURCES
@@ -224,8 +224,8 @@ set(STDLIB_SOURCES
 # 11. المحسن / Optimizer
 # ──────────────────────────────────────────────────────────────────────
 set(OPTIMIZER_SOURCES
-    compiler_new/src/optimizer/advanced_optimizer.cpp
-    compiler_new/src/optimizer/optimization_pass.cpp
+    compiler/src/optimizer/advanced_optimizer.cpp
+    compiler/src/optimizer/optimization_pass.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────
@@ -264,34 +264,35 @@ set(LOW_LEVEL_SOURCES
 # 13. الواجهة الأمامية للمترجم / Compiler Frontend (SIR)
 # ──────────────────────────────────────────────────────────────────────
 set(COMPILER_FRONTEND_SOURCES
-    compiler_new/src/frontend/sir_types.cpp
-    compiler_new/src/frontend/sir_module.cpp
-    compiler_new/src/frontend/sir_instruction.cpp
-    compiler_new/src/frontend/sir_builder_module.cpp
-    compiler_new/src/frontend/sir_builder_classes.cpp
-    compiler_new/src/frontend/sir_builder_statements.cpp
-    compiler_new/src/frontend/sir_builder_stmt_exceptions.cpp
-    compiler_new/src/frontend/sir_builder_stmt_generators.cpp
-    compiler_new/src/frontend/sir_builder_stmt_types.cpp
-    compiler_new/src/frontend/sir_builder_stmt_advanced.cpp
-    compiler_new/src/frontend/sir_builder_control_flow.cpp
-    compiler_new/src/frontend/sir_builder_control_branch.cpp
-    compiler_new/src/frontend/sir_builder_control_match.cpp
-    compiler_new/src/frontend/sir_builder_helpers.cpp
-    compiler_new/src/frontend/sir_builder_expressions_dispatch.cpp
-    compiler_new/src/frontend/sir_builder_type_inference.cpp
-    compiler_new/src/frontend/sir_builder_operators.cpp
-    compiler_new/src/frontend/sir_builder_calls.cpp
-    compiler_new/src/frontend/sir_builder_builtins_core.cpp
-    compiler_new/src/frontend/sir_builder_builtins_system.cpp
-    compiler_new/src/frontend/sir_builder_builtins_network.cpp
-    compiler_new/src/frontend/sir_builder_builtins_embedded.cpp
-    compiler_new/src/frontend/sir_builder_builtins_security.cpp
-    compiler_new/src/frontend/sir_builder_builtins_ffi.cpp
-    compiler_new/src/frontend/sir_builder_builtins_async.cpp
-    compiler_new/src/frontend/sir_builder_builtins_ui.cpp
-    compiler_new/src/frontend/sir_builder_module_check.cpp
-    compiler_new/src/frontend/sir_builder_templates.cpp
+    compiler/src/frontend/sir_types.cpp
+    compiler/src/frontend/sir_module.cpp
+    compiler/src/frontend/sir_instruction.cpp
+    compiler/src/frontend/sir_builder_module.cpp
+    compiler/src/frontend/sir_builder_classes.cpp
+    compiler/src/frontend/sir_builder_statements.cpp
+    compiler/src/frontend/sir_builder_stmt_exceptions.cpp
+    compiler/src/frontend/sir_builder_stmt_generators.cpp
+    compiler/src/frontend/sir_builder_stmt_types.cpp
+    compiler/src/frontend/sir_builder_stmt_advanced.cpp
+    compiler/src/frontend/sir_builder_control_flow.cpp
+    compiler/src/frontend/sir_builder_control_branch.cpp
+    compiler/src/frontend/sir_builder_control_match.cpp
+    compiler/src/frontend/sir_builder_helpers.cpp
+    compiler/src/frontend/sir_builder_expressions_dispatch.cpp
+    compiler/src/frontend/sir_builder_type_inference.cpp
+    compiler/src/frontend/sir_builder_operators.cpp
+    compiler/src/frontend/sir_builder_calls.cpp
+    compiler/src/frontend/sir_builder_builtins_core.cpp
+    compiler/src/frontend/sir_builder_builtins_simd.cpp
+    compiler/src/frontend/sir_builder_builtins_system.cpp
+    compiler/src/frontend/sir_builder_builtins_network.cpp
+    compiler/src/frontend/sir_builder_builtins_embedded.cpp
+    compiler/src/frontend/sir_builder_builtins_security.cpp
+    compiler/src/frontend/sir_builder_builtins_ffi.cpp
+    compiler/src/frontend/sir_builder_builtins_async.cpp
+    compiler/src/frontend/sir_builder_builtins_ui.cpp
+    compiler/src/frontend/sir_builder_module_check.cpp
+    compiler/src/frontend/sir_builder_templates.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────
@@ -302,16 +303,16 @@ set(COMPILER_FRONTEND_SOURCES
 # ──────────────────────────────────────────────────────────────────────
 set(FREESTANDING_SOURCES
     # ─── runtime: بيئة التشغيل الحرة ───────────────────────────────
-    runtime_new/freestanding/sad_core.cpp       # دوال الذاكرة الأساسية
-    runtime_new/freestanding/sad_panic.cpp      # معالج الذعر
-    runtime_new/freestanding/sad_allocator.cpp  # واجهة المُخصّص
-    runtime_new/freestanding/sad_bump_allocator.cpp   # مُخصّص bump
-    runtime_new/freestanding/sad_port_io.cpp    # منافذ I/O للـ bare-metal
+    runtime/freestanding/sad_core.cpp       # دوال الذاكرة الأساسية
+    runtime/freestanding/sad_panic.cpp      # معالج الذعر
+    runtime/freestanding/sad_allocator.cpp  # واجهة المُخصّص
+    runtime/freestanding/sad_bump_allocator.cpp   # مُخصّص bump
+    runtime/freestanding/sad_port_io.cpp    # منافذ I/O للـ bare-metal
 
     # ─── مولّد الكود للمترجم ────────────────────────────────────────
-    compiler_new/src/pipeline/freestanding_codegen.cpp  # مولّد كود freestanding
-    compiler_new/src/pipeline/no_std_mode.cpp           # وضع بلا_مكتبة_قياسية
-    compiler_new/src/pipeline/no_std_integration.cpp    # تكامل مع خط الترجمة
+    compiler/src/pipeline/freestanding_codegen.cpp  # مولّد كود freestanding
+    compiler/src/pipeline/no_std_mode.cpp           # وضع بلا_مكتبة_قياسية
+    compiler/src/pipeline/no_std_integration.cpp    # تكامل مع خط الترجمة
 )
 
 # ──────────────────────────────────────────────────────────────────────

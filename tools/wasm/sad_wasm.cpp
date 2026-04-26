@@ -21,7 +21,7 @@
 // --- لغة ص core includes ---
 #include "shared/lexer/include/lexer_core.h"
 #include "shared/parser/include/parser_core.h"
-#include "interpreter_new/include/core/interpreter_core.h"
+#include "interpreter/include/core/interpreter_core.h"
 
 // ================================================
 // (AR) إعادة توجيه cout إلى بفر داخلي

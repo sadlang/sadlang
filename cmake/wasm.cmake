@@ -34,10 +34,10 @@ set(SAD_WASM_CORE_SOURCES
     # Types
     ${SAD_SOURCE_DIR}/shared/types/src/value.cpp
     # Interpreter core
-    ${SAD_SOURCE_DIR}/interpreter_new/src/core/interpreter_core.cpp
-    ${SAD_SOURCE_DIR}/interpreter_new/src/core/statement_executor.cpp
-    ${SAD_SOURCE_DIR}/interpreter_new/src/core/expression_evaluator.cpp
-    ${SAD_SOURCE_DIR}/interpreter_new/src/builtin/builtin_functions.cpp
+    ${SAD_SOURCE_DIR}/interpreter/src/core/interpreter_core.cpp
+    ${SAD_SOURCE_DIR}/interpreter/src/core/statement_executor.cpp
+    ${SAD_SOURCE_DIR}/interpreter/src/core/expression_evaluator.cpp
+    ${SAD_SOURCE_DIR}/interpreter/src/builtin/builtin_functions.cpp
     # WASM entry point
     ${SAD_SOURCE_DIR}/tools/wasm/sad_wasm.cpp
 )
@@ -50,7 +50,7 @@ target_include_directories(sad_wasm PRIVATE
     ${SAD_SOURCE_DIR}/shared/ast/include
     ${SAD_SOURCE_DIR}/shared/types/include
     ${SAD_SOURCE_DIR}/shared/errors/include
-    ${SAD_SOURCE_DIR}/interpreter_new/include
+    ${SAD_SOURCE_DIR}/interpreter/include
     ${SAD_SOURCE_DIR}
 )
 

@@ -1,0 +1,23 @@
+# ============================================================================
+# اختبار المرحلة 9 — فحص أنواع معاملات الاستدعاء (حالة الانتهاك)
+# Phase 9 Test — Typed function parameter call check (mismatch case)
+#
+# (AR) استدعاء دالة تقبل رقماً لكن تُمرَّر نصاً — يجب أن يفشل (EXIT=1).
+#
+# (EN) Calling function expecting integer with a string argument.
+#      Type check must fail (EXIT=1).
+# ============================================================================
+
+# (AR) دالة تقبل رقماً فقط
+# (EN) Function expecting only an integer
+دالة رقم ضعف(رقم أ)
+    ارجع أ * 2
+نهاية
+
+دالة رئيسية()
+    # (AR) تمرير نص لمعامل من نوع رقم → خطأ في النوع
+    # (EN) Passing string to integer parameter → type error
+    متغير ن = ضعف("نص خاطئ")
+    اطبع_سطر(ن)
+    ارجع 0
+نهاية

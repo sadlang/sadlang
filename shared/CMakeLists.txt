@@ -38,7 +38,7 @@ add_library(sad_shared STATIC
     ast/src/ast_clone.cpp            # Deep clone for AST nodes (templates, macros, traits)
     
     # OOP Managers (مطلوبة للمترجم sadc)
-    ${CMAKE_SOURCE_DIR}/interpreter_new/src/managers/class_manager.cpp
+    ${CMAKE_SOURCE_DIR}/interpreter/src/managers/class_manager.cpp
     
     # Types
     types/src/class_type.cpp
@@ -63,6 +63,9 @@ add_library(sad_shared STATIC
     errors/src/smart_teacher_mode.cpp
     errors/src/smart_error_recovery.cpp
     errors/src/smart_cascade_prevention.cpp
+    # Pattern + Permission diagnostics (Fix #26 — نُقلت من compiler/src/diagnostics/)
+    errors/src/pattern_diagnostics.cpp
+    errors/src/permission_diagnostics.cpp
     
     # Modules
     modules/src/dependency_graph.cpp
@@ -88,7 +91,7 @@ target_include_directories(sad_shared
         ${CMAKE_CURRENT_SOURCE_DIR}/modules/include
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/include
         ${CMAKE_CURRENT_SOURCE_DIR}/builtins/include           # السجل المركزي الموحّد (ADR-003)
-        ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers   # ClassManager header
+        ${CMAKE_SOURCE_DIR}/interpreter/include/managers   # ClassManager header
 )
 
 # للتوافق مع الكود القديم
@@ -102,8 +105,8 @@ target_include_directories(sad_shared
         ${CMAKE_SOURCE_DIR}/include/errors
         ${CMAKE_SOURCE_DIR}/include/modules
         ${CMAKE_SOURCE_DIR}/include/utils
-        ${CMAKE_SOURCE_DIR}/interpreter_new/include
-        ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers
+        ${CMAKE_SOURCE_DIR}/interpreter/include
+        ${CMAKE_SOURCE_DIR}/interpreter/include/managers
 )
 
 target_compile_features(sad_shared PUBLIC cxx_std_17)

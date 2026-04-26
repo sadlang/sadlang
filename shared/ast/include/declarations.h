@@ -52,9 +52,12 @@ namespace Sad
         class FunctionDecl : public Statement
         {
         public:
-            std::string name;                        ///< Function name / اسم الدالة
-            std::vector<Parameter> parameters;       ///< Parameters / المعاملات
-            Data::DataType returnType;               ///< Return type (legacy) / نوع الإرجاع (قديم)
+            std::string name;                  ///< Function name / اسم الدالة
+            std::vector<Parameter> parameters; ///< Parameters / المعاملات
+            Data::DataType returnType;         ///< Return type (legacy) / نوع الإرجاع (قديم)
+            // (AR) [Phase 5e] اسم نوع الإرجاع للأصناف المُعرَّفة من المستخدم.
+            // (EN) [Phase 5e] Return type name for user-defined classes.
+            std::string returnTypeName;
             Types::SadTypePtr sadReturnType;         ///< (AR) نوع الإرجاع الموحد / (EN) Unified return type
             StmtPtr body;                            ///< Function body / جسم الدالة
             bool isExported;                         ///< Is exported? / مصدّر؟
@@ -65,6 +68,13 @@ namespace Sad
             std::string linkName;                    ///< FFI link name (empty = use function name) / اسم الربط الخارجي
             ExprList decorators;                     ///< Decorators (@decorator) / المُزخرِفات
             std::vector<std::string> lifetimeParams; ///< Lifetime parameters <'أ, 'ب> / معاملات العمر
+
+            /// (AR) سمات الدالة [[سمة]] — تُترجم إلى LLVM function attributes
+            ///      الأسماء المدعومة: مضمن_دائماً، لا_تضمن، بارد، ساخن، لا_تعرّج، محاذاة(N)
+            /// (EN) Function attributes [[attr]] — lowered to LLVM function attributes
+            ///      Supported: مضمن_دائماً(AlwaysInline), لا_تضمن(NoInline),
+            ///      بارد(Cold), ساخن(Hot), لا_تعرّج(NoAlias), محاذاة(N)(Alignment)
+            std::vector<std::string> attributes;
 
             // ═══ العقود البرمجية (Design by Contract) ═══
             /// (AR) شروط مسبقة: يتطلب تعبير — تُفحص قبل تنفيذ الدالة
@@ -268,13 +278,16 @@ namespace Sad
             std::string name;                  ///< Method name / اسم الطريقة
             std::vector<Parameter> parameters; ///< Parameters / المعاملات
             Data::DataType returnType;         ///< Return type / نوع الإرجاع
-            StmtPtr body;                      ///< Method body / جسم الطريقة
-            AccessModifier access;             ///< Access modifier / معدّل الوصول
-            bool isStatic;                     ///< Is static? / ثابت؟
-            bool isVirtual;                    ///< Is virtual? / افتراضي؟
-            bool isOverride;                   ///< Is override? / تجاوز؟
-            bool isAbstract;                   ///< Is abstract? / مجرد؟
-            bool isAsync;                      ///< Is async? / غير متزامن؟
+            // (AR) [Phase 5e] اسم نوع الإرجاع للأصناف المُعرَّفة من المستخدم.
+            // (EN) [Phase 5e] Return type name for user-defined classes.
+            std::string returnTypeName;
+            StmtPtr body;          ///< Method body / جسم الطريقة
+            AccessModifier access; ///< Access modifier / معدّل الوصول
+            bool isStatic;         ///< Is static? / ثابت؟
+            bool isVirtual;        ///< Is virtual? / افتراضي؟
+            bool isOverride;       ///< Is override? / تجاوز؟
+            bool isAbstract;       ///< Is abstract? / مجرد؟
+            bool isAsync;          ///< Is async? / غير متزامن؟
 
             // ═══ العقود البرمجية (Design by Contract) ═══
             /// (AR) شروط مسبقة: يتطلب تعبير — تُفحص قبل تنفيذ الطريقة
@@ -566,6 +579,20 @@ namespace Sad
             std::vector<std::string> constraints; ///< All constraints / جميع القيود (e.g., ["قابل_للمقارنة", "قابل_للتجزئة"])
             ExprPtr defaultType;                  ///< Default type (optional) / النوع الافتراضي
 
+            // ==========================================================================
+            // (AR) [Phase 4 — Monomorphization] دعم const-generics:
+            //      معامل القالب يمكن أن يكون قيمة ثابتة بدلاً من نوع.
+            //      مثال: قالب<نوع T، ثابت رقم N> دالة... (N معامل ثابت من نوع رقم)
+            //      عند instantiation: f<عشري، 4>(...) — 4 قيمة ثابتة تُستبدل في جسم القالب
+            // (EN) [Phase 4 — Monomorphization] const-generics support:
+            //      A template parameter may be a compile-time constant value instead of a type.
+            //      Example: template<typename T, const int N> func... (N is a const param of type int)
+            //      At instantiation: f<float, 4>(...) — 4 is a literal substituted into template body
+            // ==========================================================================
+            bool isConst = false;      ///< (AR) معامل ثابت بدلاً من نوع / (EN) const-generic param
+            std::string constTypeName; ///< (AR) اسم نوع الثابت (رقم/عشري/نص/منطقي) / (EN) const param type name
+            ExprPtr defaultConstValue; ///< (AR) قيمة ثابتة افتراضية / (EN) optional default constant value
+
             TypeParameter(const std::string &n, const std::string &c = "",
                           ExprPtr def = nullptr)
                 : name(n), constraint(c), defaultType(std::move(def))
@@ -582,6 +609,19 @@ namespace Sad
                     constraint = cs[0];
             }
 
+            // (AR) باني خاص بـ const-generic
+            // (EN) Constructor for const-generic parameter
+            static TypeParameter makeConst(const std::string &name,
+                                           const std::string &typeName,
+                                           ExprPtr defaultValue = nullptr)
+            {
+                TypeParameter p(name, std::string());
+                p.isConst = true;
+                p.constTypeName = typeName;
+                p.defaultConstValue = std::move(defaultValue);
+                return p;
+            }
+
             // Move operations
             TypeParameter(TypeParameter &&) = default;
             TypeParameter &operator=(TypeParameter &&) = default;
@@ -589,7 +629,9 @@ namespace Sad
             // Copy constructor
             TypeParameter(const TypeParameter &other)
                 : name(other.name), constraint(other.constraint),
-                  constraints(other.constraints), defaultType(nullptr) {}
+                  constraints(other.constraints), defaultType(nullptr),
+                  isConst(other.isConst), constTypeName(other.constTypeName),
+                  defaultConstValue(nullptr) {}
         };
 
         // =========================================================================
@@ -765,6 +807,22 @@ namespace Sad
             std::string templateName;                   ///< Template name / اسم القالب
             std::vector<Data::DataType> typeArguments;  ///< Type arguments / وسائط الأنواع
             std::vector<std::string> typeArgumentNames; ///< Type argument names / أسماء وسائط الأنواع (e.g., "رقم", "مركبة")
+
+            // ==========================================================================
+            // (AR) [Phase 4 — Monomorphization] دعم const-generics:
+            //      وسائط ثابتة موازية للوسائط النوعية. كل عنصر يقابل معامل
+            //      isConst في تعريف القالب. نُخزّنها كتعابير لتُقيَّم وقت
+            //      التخصيص (instantiation) ثم تُستبدل بقيم حرفية في جسم القالب.
+            //      مثال: f<عشري، 4> → typeArguments=[Float], constArguments=[4]
+            // (EN) [Phase 4] const-generic arguments parallel to type arguments.
+            //      Each entry corresponds to an isConst parameter in the template
+            //      declaration. Stored as expressions for compile-time evaluation
+            //      during monomorphization, then substituted as literals in the
+            //      template body.
+            //      Example: f<float, 4> → typeArguments=[Float], constArguments=[4]
+            // ==========================================================================
+            std::vector<ExprPtr> constArguments; ///< Const-generic arg values / قيم الوسائط الثابتة
+            std::vector<int> argumentKindOrder;  ///< 0=type, 1=const — preserves original order
 
             /**
              * @brief Constructor / البناء
@@ -969,6 +1027,11 @@ namespace Sad
             std::string name;              ///< Method name / اسم الدالة
             std::vector<Parameter> params; ///< Parameters / المعاملات
             Data::DataType returnType;     ///< Return type / نوع الإرجاع
+            // (AR) [Phase 5e] اسم نوع الإرجاع للأصناف المُعرَّفة من المستخدم.
+            //      غير فارغ عندما يكون نوع الإرجاع صنفاً مثل: "نقطة"، "شخص".
+            // (EN) [Phase 5e] Return type name for user-defined classes.
+            //      Non-empty when return type is a class, e.g. "نقطة", "شخص".
+            std::string returnTypeName;
 
             /// (AR) التنفيذ الافتراضي — shared_ptr للسماح بالمشاركة مع الأصناف المنفذة
             /// (EN) Default implementation — shared_ptr to allow sharing with implementing classes

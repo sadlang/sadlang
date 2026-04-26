@@ -76,6 +76,8 @@ namespace sad
             os << "  -O2                    " << "Standard optimization (default) / تحسين عادي\n";
             os << "  -O3                    " << "Aggressive optimization / تحسين قصوى\n";
             os << "  -Os                    " << "Size optimization / تحسين الحجم\n";
+            os << "  --lto, --lto=full      " << "Full Link-Time Optimization / تحسين كامل وقت الربط\n";
+            os << "  --lto=thin             " << "ThinLTO (faster builds) / ThinLTO (بناء أسرع)\n";
             os << "\n";
 
             os << "Debug / التنقيح:\n";
@@ -254,6 +256,26 @@ namespace sad
             else if (arg == "-Oz")
             {
                 options.opt_level = OptimizationLevel::Oz;
+            }
+
+            // ─── Link-Time Optimization ───
+            // (AR) --lto أو --lto=full → FullLTO
+            //      --lto=thin → ThinLTO (بناء أسرع)
+            // (EN) --lto / --lto=full → FullLTO; --lto=thin → ThinLTO
+            else if (arg == "--lto" || arg == "--lto=full")
+            {
+                options.enable_lto_full = true;
+                options.enable_lto_thin = false;
+            }
+            else if (arg == "--lto=thin")
+            {
+                options.enable_lto_thin = true;
+                options.enable_lto_full = false;
+            }
+            else if (arg == "--no-lto")
+            {
+                options.enable_lto_full = false;
+                options.enable_lto_thin = false;
             }
 
             // Output types

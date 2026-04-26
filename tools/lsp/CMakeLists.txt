@@ -110,7 +110,7 @@ target_include_directories(sad_lsp_engine PUBLIC
     ${CMAKE_SOURCE_DIR}/shared/types/include
     ${CMAKE_SOURCE_DIR}/shared/utils/include
     ${CMAKE_SOURCE_DIR}/shared/errors/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include
+    ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}/include
 )
 

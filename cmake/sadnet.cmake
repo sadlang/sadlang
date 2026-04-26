@@ -100,7 +100,7 @@ endif()
 # (AR) ملف ربط المفسر (يُضاف لـ sad_core إذا تم تفعيل صNet)
 # ═══════════════════════════════════════════════════════════════════
 set(SADNET_BINDINGS_SOURCE
-    "${CMAKE_CURRENT_SOURCE_DIR}/interpreter_new/src/builtins/builtin_module_sadnet.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/interpreter/src/builtins/builtin_module_sadnet.cpp"
 )
 
 # (AR) يمكن للملف الرئيسي CMakeLists.txt استخدام:

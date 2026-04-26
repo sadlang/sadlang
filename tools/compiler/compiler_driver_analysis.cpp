@@ -31,25 +31,25 @@
 #include "../../shared/ast/include/ast_printer.h"
 
 // SIR Builder
-#include "../../compiler_new/include/frontend/sir_builder.h"
-#include "../../compiler_new/include/frontend/sir_module.h"
+#include "../../compiler/include/frontend/sir_builder.h"
+#include "../../compiler/include/frontend/sir_module.h"
 
 // LLVM Backend
-#include "../../compiler_new/include/backend/llvm/llvm_codegen.h"
+#include "../../compiler/include/backend/llvm/llvm_codegen.h"
 
 // Arabic Optimizer / المحسّن العربي
-#include "../../compiler_new/include/backend/llvm/arabic_optimizer.h"
+#include "../../compiler/include/backend/llvm/arabic_optimizer.h"
 
 // SIR Optimizer / محسّن التمثيل الوسيط
 // (AR) يحتوي على تمريرات التحسين: طي الثوابت، إزالة الكود الميت، CSE، نشر النسخ
 // (EN) Contains optimization passes: constant folding, DCE, CSE, copy propagation
-#include "../../compiler_new/include/middle/optimizer.h"
+#include "../../compiler/include/middle/optimizer.h"
 
 // Frontend SIR Optimizer / محسّن SIR الأمامي (5 ممرات)
-#include "../../compiler_new/include/frontend/sir_frontend_optimizer.h"
+#include "../../compiler/include/frontend/sir_frontend_optimizer.h"
 
 // Borrow Checker / فاحص الاستعارة
-#include "../../compiler_new/include/semantic/borrow_checker.h"
+#include "../../compiler/include/semantic/borrow_checker.h"
 #include "../../shared/ast/include/statements.h"
 
 // (AR) عقد الوحدات — ImportStmt و FromImportStmt لحل التبعيات تلقائياً

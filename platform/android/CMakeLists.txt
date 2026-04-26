@@ -92,26 +92,26 @@ set(SAD_AST_SOURCES
 
 # --- Interpreter Core ---
 set(SAD_INTERP_SOURCES
-    ${SAD_ROOT_DIR}/interpreter_new/src/core/interpreter_core.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/visitors/expression_evaluator_core.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/visitors/expression_evaluator_calls.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/visitors/expression_evaluator_oop.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/visitors/expression_evaluator_members.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/visitors/statement_executor.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/visitors/statement_executor_oop.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/visitors/statement_executor_modules.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/exception.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/debug/debug_server.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/core/interpreter_core.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/visitors/expression_evaluator_core.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/visitors/expression_evaluator_calls.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/visitors/expression_evaluator_oop.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/visitors/expression_evaluator_members.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/visitors/statement_executor.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/visitors/statement_executor_oop.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/visitors/statement_executor_modules.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/exception.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/debug/debug_server.cpp
 )
 
 # --- Managers ---
 set(SAD_MANAGERS_SOURCES
-    ${SAD_ROOT_DIR}/interpreter_new/src/managers/variable_manager.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/managers/function_manager.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/managers/scope_manager.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/managers/ownership_manager.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/managers/class_manager.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/managers/object_manager.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/managers/variable_manager.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/managers/function_manager.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/managers/scope_manager.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/managers/ownership_manager.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/managers/class_manager.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/managers/object_manager.cpp
 )
 
 # --- Data Types ---
@@ -150,17 +150,17 @@ set(SAD_UI_SOURCES
     ${SAD_ROOT_DIR}/sad_ui/core/src/hybrid_routing.cpp
     ${SAD_ROOT_DIR}/sad_ui/core/src/reconciler.cpp
     ${SAD_ROOT_DIR}/sad_ui/backends/web/src/html_codegen.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/ui/ui_bridge.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/ui/ui_bridge_events.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/ui/ui_bridge_platform.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/ui/ui_bridge.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/ui/ui_bridge_events.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/ui/ui_bridge_platform.cpp
 )
 
 # --- Builtins (core + modules + kernel) ---
-file(GLOB SAD_BUILTIN_MODULES "${SAD_ROOT_DIR}/interpreter_new/src/builtins/builtin_module_*.cpp")
-file(GLOB SAD_BUILTIN_KERNELS "${SAD_ROOT_DIR}/interpreter_new/src/builtins/builtin_kernel_*.cpp")
+file(GLOB SAD_BUILTIN_MODULES "${SAD_ROOT_DIR}/interpreter/src/builtins/builtin_module_*.cpp")
+file(GLOB SAD_BUILTIN_KERNELS "${SAD_ROOT_DIR}/interpreter/src/builtins/builtin_kernel_*.cpp")
 set(SAD_BUILTINS_SOURCES
-    ${SAD_ROOT_DIR}/interpreter_new/src/builtins/builtin_registry.cpp
-    ${SAD_ROOT_DIR}/interpreter_new/src/builtins/builtin_core_io.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/builtins/builtin_registry.cpp
+    ${SAD_ROOT_DIR}/interpreter/src/builtins/builtin_core_io.cpp
     ${SAD_BUILTIN_MODULES}
     ${SAD_BUILTIN_KERNELS}
     ${SAD_ROOT_DIR}/stdlib/core/builtins.cpp
@@ -199,8 +199,8 @@ set(SAD_MODULES_SOURCES
 
 # --- Compiler Frontend (optimizer only — TypeChecker guarded out on Android) ---
 set(SAD_COMPILER_SOURCES
-    ${SAD_ROOT_DIR}/compiler_new/src/optimizer/advanced_optimizer.cpp
-    ${SAD_ROOT_DIR}/compiler_new/src/optimizer/optimization_pass.cpp
+    ${SAD_ROOT_DIR}/compiler/src/optimizer/advanced_optimizer.cpp
+    ${SAD_ROOT_DIR}/compiler/src/optimizer/optimization_pass.cpp
 )
 set(SAD_ANDROID_SOURCES
     src/sad_app_main.cpp
@@ -246,11 +246,11 @@ target_include_directories(sad_app PRIVATE
     ${SAD_ROOT_DIR}/shared/errors/include
     ${SAD_ROOT_DIR}/shared/utils/include
     ${SAD_ROOT_DIR}/shared/modules/include
-    ${SAD_ROOT_DIR}/interpreter_new/include
-    ${SAD_ROOT_DIR}/interpreter_new/include/core
-    ${SAD_ROOT_DIR}/interpreter_new/include/visitors
-    ${SAD_ROOT_DIR}/interpreter_new/include/managers
-    ${SAD_ROOT_DIR}/interpreter_new/include/debug
+    ${SAD_ROOT_DIR}/interpreter/include
+    ${SAD_ROOT_DIR}/interpreter/include/core
+    ${SAD_ROOT_DIR}/interpreter/include/visitors
+    ${SAD_ROOT_DIR}/interpreter/include/managers
+    ${SAD_ROOT_DIR}/interpreter/include/debug
     ${SAD_ROOT_DIR}/stdlib/core
     ${SAD_ROOT_DIR}/stdlib/string
     ${SAD_ROOT_DIR}/stdlib/math
@@ -264,14 +264,14 @@ target_include_directories(sad_app PRIVATE
     ${SAD_ROOT_DIR}/stdlib/crypto
     ${SAD_ROOT_DIR}/stdlib/system
     ${SAD_ROOT_DIR}/stdlib/low_level/include
-    ${SAD_ROOT_DIR}/compiler_new/include
-    ${SAD_ROOT_DIR}/compiler_new/include/semantic
-    ${SAD_ROOT_DIR}/compiler_new/src/optimizer
+    ${SAD_ROOT_DIR}/compiler/include
+    ${SAD_ROOT_DIR}/compiler/include/semantic
+    ${SAD_ROOT_DIR}/compiler/src/optimizer
     ${SAD_ROOT_DIR}/sad_ui/core/include
     ${SAD_ROOT_DIR}/sad_ui/pipeline/include
     ${SAD_ROOT_DIR}/sad_ui/widgets/include
     ${SAD_ROOT_DIR}/sad_ui/backends/web/include
-    ${SAD_ROOT_DIR}/interpreter_new/src/ui
+    ${SAD_ROOT_DIR}/interpreter/src/ui
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════

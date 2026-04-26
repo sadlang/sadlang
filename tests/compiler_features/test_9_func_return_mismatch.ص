@@ -1,0 +1,25 @@
+# ============================================================================
+# اختبار المرحلة 9 — فحص نوع الإرجاع في الدوال العادية (حالة الانتهاك)
+# Phase 9 Test — Regular function return type check (mismatch case)
+#
+# (AR) دالة عادية تُصرِّح عن نوع إرجاع رقم، لكن جسمها يُرجع نصاً.
+#      يجب أن يفشل الفحص (EXIT=1).
+#
+# (EN) Regular function declares return type رقم but body returns a string.
+#      Type check must fail (EXIT=1).
+# ============================================================================
+
+# (AR) دالة تُصرِّح عن نوع إرجاع رقم لكن تُرجع نصاً — خطأ في النوع
+# (EN) Function declares رقم return type but returns string — type error
+
+دالة رقم احسب(رقم أ)
+    # (AR) يُرجع نصاً رغم أن نوع الإرجاع المُصرَّح رقم → خطأ في النوع
+    # (EN) Returns string despite declared return type being رقم → type error
+    ارجع "هذا نص خاطئ"
+نهاية
+
+دالة رئيسية()
+    متغير ن = احسب(5)
+    اطبع_سطر(ن)
+    ارجع 0
+نهاية

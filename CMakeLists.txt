@@ -101,7 +101,7 @@ endif()
 
 # ══════════════════════════════════════════════════════════════════════
 # تضمين المكونات الفرعية المعاد تنظيمها
-# Include reorganized sub-components (shared/, interpreter_new/, compiler_new/)
+# Include reorganized sub-components (shared/, interpreter/, compiler/)
 # ══════════════════════════════════════════════════════════════════════
 include(${CMAKE_SOURCE_DIR}/reorganized.cmake)
 
@@ -128,23 +128,23 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/shared/errors/include
     ${CMAKE_SOURCE_DIR}/shared/modules/include
     ${CMAKE_SOURCE_DIR}/shared/builtins/include
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include/core
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include/visitors
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include/managers
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include/builtins
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include/debug
-    ${CMAKE_SOURCE_DIR}/interpreter_new/include/ui
-    ${CMAKE_SOURCE_DIR}/interpreter_new/src/ui
-    ${CMAKE_SOURCE_DIR}/compiler_new/include
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/frontend
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/backend
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/types
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/optimizer
+    ${CMAKE_SOURCE_DIR}/interpreter/include
+    ${CMAKE_SOURCE_DIR}/interpreter/include/core
+    ${CMAKE_SOURCE_DIR}/interpreter/include/visitors
+    ${CMAKE_SOURCE_DIR}/interpreter/include/managers
+    ${CMAKE_SOURCE_DIR}/interpreter/include/builtins
+    ${CMAKE_SOURCE_DIR}/interpreter/include/debug
+    ${CMAKE_SOURCE_DIR}/interpreter/include/ui
+    ${CMAKE_SOURCE_DIR}/interpreter/src/ui
+    ${CMAKE_SOURCE_DIR}/compiler/include
+    ${CMAKE_SOURCE_DIR}/compiler/include/frontend
+    ${CMAKE_SOURCE_DIR}/compiler/include/backend
+    ${CMAKE_SOURCE_DIR}/compiler/include/types
+    ${CMAKE_SOURCE_DIR}/compiler/include/optimizer
     # (AR) مسارات include لوضع Freestanding
     # (EN) Include paths for Freestanding mode
-    ${CMAKE_SOURCE_DIR}/compiler_new/include/pipeline
-    ${CMAKE_SOURCE_DIR}/runtime_new/freestanding
+    ${CMAKE_SOURCE_DIR}/compiler/include/pipeline
+    ${CMAKE_SOURCE_DIR}/runtime/freestanding
 )
 
 # 4. تعريفات ملفات المصدر / Source File Definitions

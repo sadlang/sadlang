@@ -61,6 +61,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 namespace Sad
 {
@@ -1576,6 +1577,19 @@ namespace Sad
                                                          ///<      that precedes it physically (BF-04 fix).
             Errors::ErrorRecoverySystem recoverySystem_; ///< (AR) نظام التعافي الذكي من الأخطاء
                                                          ///< (EN) Smart error recovery system
+
+            // ==================================================================
+            // (AR) [Phase 4] جدول أسماء القوالب المُعرَّفة داخل هذا الملف.
+            //      يُملأ عند parseTemplateDecl، ويُستخدم في parser_expressions.cpp
+            //      لتمييز `اسم<...>` كتخصيص قالب فقط إذا كان الاسم معروفاً كقالب،
+            //      مما يمنع كسر عمليات المقارنة مثل `عداد < 5`.
+            // (EN) [Phase 4] Registry of template names declared in this file.
+            //      Populated by parseTemplateDecl; consulted in parser_expressions.cpp
+            //      to treat `name<...>` as a template instantiation only when the
+            //      name is a known template — preventing false positives that
+            //      break comparisons like `counter < 5`.
+            // ==================================================================
+            std::unordered_set<std::string> knownTemplateNames_;
 
             /**
              * @brief (AR) يستهلك تعليق التوثيق المعلق ويُرجعه (يُفرغ المخزن)

@@ -235,14 +235,16 @@ namespace Sad
                     oss << std::fixed << std::setprecision(6) << value.toDouble();
                     std::string result = oss.str();
 
-                    // Remove trailing zeros after decimal point
+                    // (AR) حذف الأصفار الزائدة مع إبقاء رقم واحد بعد النقطة: 10.0 لا 10
+                    // (EN) Remove trailing zeros but keep at least one digit after dot: 10.0 not 10
                     if (result.find('.') != std::string::npos)
                     {
-                        result.erase(result.find_last_not_of('0') + 1, std::string::npos);
-                        if (result.back() == '.')
-                        {
-                            result.pop_back();
-                        }
+                        // (AR) احذف الأصفار الزائدة لكن توقف قبل الرقم الذي يلي النقطة مباشرة
+                        size_t dot_pos = result.find('.');
+                        size_t last = result.find_last_not_of('0');
+                        if (last <= dot_pos)
+                            last = dot_pos + 1; // حافظ على رقم واحد بعد النقطة
+                        result.erase(last + 1);
                     }
                     return result;
                 }

@@ -213,6 +213,7 @@ namespace Sad
             // (EN) Return type (optional - comes BEFORE method name)
             // Spec: docs\language_spec\rules\03_oop.md §1 - method_decl ::= ... 'دالة' [type] IDENTIFIER ...
             Data::DataType returnType = Data::DataType::NONE;
+            std::string returnTypeName; // (AR) [Phase 5e] لأنواع الأصناف المُعرَّفة من المستخدم
 
             // Check if next token is a type (keyword like رقم، نص) or identifier (for method name)
             Token nameToken = current_; // Initialize with current for line number tracking
@@ -271,6 +272,24 @@ namespace Sad
                 // (EN) Built-in type as method name: function text() — text is method name
                 nameToken = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                 advance();
+            }
+            // (AR) [Phase 5e] نوع إرجاع من صنف مُعرَّف من المستخدم: "نقطة احصل_النقطة()"
+            // (EN) [Phase 5e] User-defined class return type: "نقطة getPoint()"
+            else if (check(TT::IDENTIFIER) && peekNext().getType() == TT::IDENTIFIER)
+            {
+                returnTypeName = current_.getValue();
+                returnType = Data::DataType::OBJECT;
+                advance(); // (AR) استهلاك اسم الصنف / (EN) consume class name
+                if (check(TT::IDENTIFIER))
+                {
+                    nameToken = current_;
+                    advance();
+                }
+                else
+                {
+                    nameToken = consume(TT::IDENTIFIER,
+                                        "(AR) توقع اسم الطريقة بعد نوع الإرجاع. (EN) Expected method name after return type.");
+                }
             }
             else if (isTokenUsableAsName(current_.getType()) ||
                      current_.getType() == TT::LITERAL_FALSE || current_.getType() == TT::LITERAL_TRUE ||
@@ -479,6 +498,9 @@ namespace Sad
             auto methodDecl = std::make_unique<MethodDecl>(methodName, std::move(parameters), returnType,
                                                            std::move(body), access, isStatic, isVirtual,
                                                            isOverride, isAbstract, nameToken.getPosition());
+            // (AR) [Phase 5e] حفظ اسم صنف الإرجاع (إن وُجد)
+            // (EN) [Phase 5e] Store class return type name (if any)
+            methodDecl->returnTypeName = returnTypeName;
             // (AR) تعيين العقود البرمجية على الطريقة
             // (EN) Set Design by Contract on the method
             methodDecl->preconditions = std::move(preconditions);

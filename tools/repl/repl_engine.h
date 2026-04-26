@@ -23,7 +23,7 @@
 #include "../../shared/lexer/include/lexer_core.h"
 #include "../../shared/parser/include/parser_core.h"
 // interpreter_core.h path updated
-#include "../../interpreter_new/include/core/interpreter_core.h"
+#include "../../interpreter/include/core/interpreter_core.h"
 #include "../../shared/errors/include/error_manager.h"
 #include "history_manager.h"
 #include "repl_commands.h"

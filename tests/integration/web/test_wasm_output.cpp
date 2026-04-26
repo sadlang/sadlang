@@ -18,10 +18,10 @@
 #include "llvm/MC/TargetRegistry.h"
 
 // Sad compiler headers
-#include "compiler_new/include/lexer.hpp"
-#include "compiler_new/include/parser.hpp"
-#include "compiler_new/include/semantic_analyzer.hpp"
-#include "compiler_new/include/codegen.hpp"
+#include "compiler/include/lexer.hpp"
+#include "compiler/include/parser.hpp"
+#include "compiler/include/semantic_analyzer.hpp"
+#include "compiler/include/codegen.hpp"
 
 namespace sad::test {
 

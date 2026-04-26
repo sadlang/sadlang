@@ -385,6 +385,70 @@ namespace Sad
                 decorators.push_back(parseDecorator());
             }
 
+            // ══════════════════════════════════════════════════════════════════
+            // (AR) التحقق من سمات الدوال [[سمة، سمة(N)، ...]]
+            //      تُجمع كنصوص خام ثم تُمرّر إلى FunctionDecl لتُترجم
+            //      إلى LLVM function attributes في codegen.
+            //      الأمثلة: [[مضمن_دائماً]]، [[بارد، لا_تعرّج]]، [[محاذاة(64)]]
+            // (EN) Function attributes [[attr, attr(N), ...]]
+            //      Collected as raw strings, attached to FunctionDecl, then
+            //      lowered to LLVM function attributes during codegen.
+            // ══════════════════════════════════════════════════════════════════
+            std::vector<std::string> functionAttributes;
+            if (check(TT::BRACKET_LEFT) && peekNext().getType() == TT::BRACKET_LEFT)
+            {
+                advance(); // consume first '['
+                advance(); // consume second '['
+                while (!check(TT::BRACKET_RIGHT) && !isAtEnd())
+                {
+                    if (!check(TT::IDENTIFIER))
+                    {
+                        errorBilingual(
+                            "خطأ نحوي: توقعت اسم سمة داخل [[ ]].",
+                            "Syntax error: expected attribute name inside [[ ]].");
+                        break;
+                    }
+                    std::string attrName = current_.getValue();
+                    advance(); // consume identifier
+                    // (AR) سمة بمعامل مثل محاذاة(64) → نخزّن "محاذاة(64)"
+                    // (EN) Attribute with argument like محاذاة(64) → store "محاذاة(64)"
+                    if (check(TT::PAREN_LEFT))
+                    {
+                        advance(); // consume '('
+                        std::string argStr;
+                        while (!check(TT::PAREN_RIGHT) && !isAtEnd())
+                        {
+                            argStr += current_.getValue();
+                            advance();
+                        }
+                        if (!match(TT::PAREN_RIGHT))
+                        {
+                            errorBilingual(
+                                "خطأ نحوي: توقعت ')' بعد معامل السمة.",
+                                "Syntax error: expected ')' after attribute argument.");
+                            break;
+                        }
+                        attrName += "(" + argStr + ")";
+                    }
+                    functionAttributes.push_back(attrName);
+                    // (AR) فاصلة اختيارية بين السمات (عربية أو لاتينية)
+                    if (check(TT::COMMA) || check(TT::ARABIC_COMMA))
+                        advance();
+                }
+                if (!match(TT::BRACKET_RIGHT))
+                {
+                    errorBilingual(
+                        "خطأ نحوي: توقعت ']' لإغلاق قائمة السمات.",
+                        "Syntax error: expected ']' to close attribute list.");
+                }
+                if (!match(TT::BRACKET_RIGHT))
+                {
+                    errorBilingual(
+                        "خطأ نحوي: توقعت ']' ثانية لإكمال [[...]].",
+                        "Syntax error: expected second ']' to complete [[...]].");
+                }
+            }
+
             // Check for declaration keywords
             // (AR) التحقق من كلمات التصريح المفتاحية
 
@@ -473,7 +537,10 @@ namespace Sad
                     return nullptr;
                 }
                 advance(); // consume 'دالة'
-                return parseFunctionDecl(std::move(decorators), true, false);
+                auto __fd = parseFunctionDecl(std::move(decorators), true, false);
+                if (auto *fp = dynamic_cast<AST::FunctionDecl *>(__fd.get()))
+                    fp->attributes = std::move(functionAttributes);
+                return __fd;
             }
 
             // (AR) مولد دالة — الصيغة العربية المعتمدة (مضاف + مضاف إليه)
@@ -490,7 +557,10 @@ namespace Sad
                         "Syntax error: Expected 'دالة' after 'مولد'.");
                     return nullptr;
                 }
-                return parseFunctionDecl(std::move(decorators), false, true);
+                auto __fd = parseFunctionDecl(std::move(decorators), false, true);
+                if (auto *fp = dynamic_cast<AST::FunctionDecl *>(__fd.get()))
+                    fp->attributes = std::move(functionAttributes);
+                return __fd;
             }
 
             if (match(TT::KEYWORD_FUNCTION))
@@ -507,9 +577,15 @@ namespace Sad
                         "💡 Example: مولد دالة counter()\n    yield 1\n    yield 2\nend");
                     if (check(TT::IDENTIFIER) && current_.getValue() == "مولد")
                         advance();
-                    return parseFunctionDecl(std::move(decorators), false, true);
+                    auto __fd = parseFunctionDecl(std::move(decorators), false, true);
+                    if (auto *fp = dynamic_cast<AST::FunctionDecl *>(__fd.get()))
+                        fp->attributes = std::move(functionAttributes);
+                    return __fd;
                 }
-                return parseFunctionDecl(std::move(decorators), false, false);
+                auto __fd = parseFunctionDecl(std::move(decorators), false, false);
+                if (auto *fp = dynamic_cast<AST::FunctionDecl *>(__fd.get()))
+                    fp->attributes = std::move(functionAttributes);
+                return __fd;
             }
 
             // ======================================================================
@@ -908,10 +984,42 @@ namespace Sad
             }
 
             // (AR) حالة (switch) — كلمة سياقية بدون أقواس
+            // (AR) فارق: إذا تلاها '(' مباشرةً → constructor call/function call (ليس switch)
+            //            إذا تلاها '.' مباشرةً → وصول لعضو صنف (ليس switch)
+            //            إذا تلاها '=' أو عوامل تعيين مركَّبة → تعيين متغير (ليس switch)
+            //            إذا تلاها '[' → فهرسة (ليس switch)
+            //            مثال: حالة(42).method() → constructor call صحيح
+            //            مثال: حالة س عندما ... → switch statement
+            //            مثال: حالة = 5 → variable assignment (إصلاح VE-004)
+            //            مثال: حالة += 1 → compound assignment (إصلاح VE-004)
+            // (EN) Disambiguation:
+            //      حالة + ( . [ → expression / member access / index → not switch
+            //      حالة + = += -= *= /= %= //= → assignment to variable named حالة
+            //      حالة + IDENTIFIER → switch statement
+            // (EN) [BF-04 fix VE-004] previously حالة was always treated as switch
+            //      unless followed by ( or . — now also exclude assignments and indexing.
             if (check(TT::IDENTIFIER) && current_.getValue() == "حالة")
             {
-                advance(); // consume "حالة"
-                return parseSwitchStmt();
+                TT nextTT = peekNext().getType();
+                bool isExpressionContext =
+                    nextTT == TT::PAREN_LEFT ||         // حالة(...)
+                    nextTT == TT::DOT ||                // حالة.x
+                    nextTT == TT::BRACKET_LEFT ||       // حالة[i]
+                    nextTT == TT::OP_ASSIGN ||          // حالة = ...
+                    nextTT == TT::OP_PLUS_ASSIGN ||     // حالة += ...
+                    nextTT == TT::OP_MINUS_ASSIGN ||    // حالة -= ...
+                    nextTT == TT::OP_MULTIPLY_ASSIGN || // حالة *= ...
+                    nextTT == TT::OP_DIVIDE_ASSIGN ||   // حالة /= ...
+                    nextTT == TT::OP_FLOOR_DIVIDE_ASSIGN ||
+                    nextTT == TT::OP_MODULO_ASSIGN;
+
+                if (!isExpressionContext)
+                {
+                    advance(); // consume "حالة"
+                    return parseSwitchStmt();
+                }
+                // (AR) سقوط: لا نتقدم — `حالة` تُعامل كمُعرّف عادي عبر expression statement أدناه
+                // (EN) Fall through — حالة is treated as a regular identifier
             }
 
             // ═══════════════════════════════════════════════════════════════════
@@ -1085,12 +1193,35 @@ namespace Sad
 
             // ─────────────────────────────────────────────────────────────────────
             // (AR) حالة (switch/case) — بدون أقواس: `حالة تعبير`
-            // (EN) حالة (switch) — without parens: `حالة expr`
+            // (AR) لا تطابق إذا تلاها '(' أو '.' أو '[' أو عوامل تعيين — فهي expression
+            //      [إصلاح BF-04 VE-004] إضافة استثناءات لعوامل التعيين والفهرسة
+            //      حتى يعمل `حالة = 5` و `حالة += 1` و `حالة[0] = ...` كتعيين متغير
+            // (EN) Skip if followed by '(' '.' '[' or assignment operators
             // ─────────────────────────────────────────────────────────────────────
-            if (match(TT::KEYWORD_CASE) ||
-                (check(TT::IDENTIFIER) && current_.getValue() == "حالة" && (advance(), true)))
+            if (match(TT::KEYWORD_CASE))
             {
                 return parseSwitchStmt();
+            }
+            if (check(TT::IDENTIFIER) && current_.getValue() == "حالة")
+            {
+                TT nextTT2 = peekNext().getType();
+                bool isExprCtx2 =
+                    nextTT2 == TT::PAREN_LEFT ||
+                    nextTT2 == TT::DOT ||
+                    nextTT2 == TT::BRACKET_LEFT ||
+                    nextTT2 == TT::OP_ASSIGN ||
+                    nextTT2 == TT::OP_PLUS_ASSIGN ||
+                    nextTT2 == TT::OP_MINUS_ASSIGN ||
+                    nextTT2 == TT::OP_MULTIPLY_ASSIGN ||
+                    nextTT2 == TT::OP_DIVIDE_ASSIGN ||
+                    nextTT2 == TT::OP_FLOOR_DIVIDE_ASSIGN ||
+                    nextTT2 == TT::OP_MODULO_ASSIGN;
+                if (!isExprCtx2)
+                {
+                    advance(); // consume "حالة"
+                    return parseSwitchStmt();
+                }
+                // (AR) سقوط: `حالة` كمُعرّف عادي — يُعالَج بمعالجة الجمل التعبيرية أدناه
             }
 
             if (match(TT::KEYWORD_MATCH))
