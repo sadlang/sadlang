@@ -88,6 +88,7 @@
 #include "builders/exception_codegen.h"      // (AR) Phase 7 Step 10: ExceptionCodeGen
 #include "builders/lowlevel_codegen.h"       // (AR) Phase 7 Step 11: LowlevelCodeGen
 #include "builders/enum_ops_codegen.h"      // (AR) Phase 7 Step 12: EnumOpsCodeGen
+#include "builders/hardware_ffi_codegen.h"  // (AR) Phase 7 Step 13: HardwareFFICodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -271,6 +272,8 @@ namespace Sad
             friend class LowlevelCodeGen;
             // (AR) Phase 7 Step 12: EnumOpsCodeGen
             friend class EnumOpsCodeGen;
+            // (AR) Phase 7 Step 13: HardwareFFICodeGen
+            friend class HardwareFFICodeGen;
 
         public:
             // ========================================================================
@@ -812,49 +815,49 @@ namespace Sad
             // عمليات برمجة أنظمة التشغيل — OS Development Operations
             // ================================================================
             llvm::Value *emitInlineAsm(std::shared_ptr<SIRInstruction> inst); // تجميع مضمّن
-            llvm::Value *emitPortWrite(std::shared_ptr<SIRInstruction> inst); // منفذ_اكتب / outb/outw/outl
-            llvm::Value *emitPortRead(std::shared_ptr<SIRInstruction> inst);  // منفذ_اقرأ / inb/inw/inl
-            llvm::Value *emitMemWrite(std::shared_ptr<SIRInstruction> inst);  // ذاكرة_اكتب / poke
-            llvm::Value *emitMemRead(std::shared_ptr<SIRInstruction> inst);   // ذاكرة_اقرأ / peek
-            llvm::Value *emitInterrupt(std::shared_ptr<SIRInstruction> inst); // مقاطعة / int
-            llvm::Value *emitHalt(std::shared_ptr<SIRInstruction> inst);      // توقف / hlt
-            llvm::Value *emitCli(std::shared_ptr<SIRInstruction> inst);       // تعطيل_مقاطعات / cli
-            llvm::Value *emitSti(std::shared_ptr<SIRInstruction> inst);       // تفعيل_مقاطعات / sti
-            llvm::Value *emitVgaWrite(std::shared_ptr<SIRInstruction> inst);  // شاشة_اكتب / vga_write
-            llvm::Value *emitVgaClear(std::shared_ptr<SIRInstruction> inst);  // شاشة_امسح / vga_clear
-            llvm::Value *emitMemCopy(std::shared_ptr<SIRInstruction> inst);   // انسخ_ذاكرة / memcpy
-            llvm::Value *emitMemSet(std::shared_ptr<SIRInstruction> inst);    // املأ_ذاكرة / memset
-            llvm::Value *emitMemFill32(std::shared_ptr<SIRInstruction> inst); // ذاكرة_املأ32 / memset32 (REP STOSD)
-            llvm::Value *emitMemCopy32(std::shared_ptr<SIRInstruction> inst); // ذاكرة_انسخ32 / memcpy32 (REP MOVSD)
-            llvm::Value *emitAddrOf(std::shared_ptr<SIRInstruction> inst);    // عنوان / addr_of
+            llvm::Value *emitPortWrite(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitPortWrite(inst); } // منفذ_اكتب / outb/outw/outl
+            llvm::Value *emitPortRead(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitPortRead(inst); }  // منفذ_اقرأ / inb/inw/inl
+            llvm::Value *emitMemWrite(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitMemWrite(inst); }  // ذاكرة_اكتب / poke
+            llvm::Value *emitMemRead(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitMemRead(inst); }   // ذاكرة_اقرأ / peek
+            llvm::Value *emitInterrupt(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitInterrupt(inst); } // مقاطعة / int
+            llvm::Value *emitHalt(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitHalt(inst); }      // توقف / hlt
+            llvm::Value *emitCli(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitCli(inst); }       // تعطيل_مقاطعات / cli
+            llvm::Value *emitSti(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitSti(inst); }       // تفعيل_مقاطعات / sti
+            llvm::Value *emitVgaWrite(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitVgaWrite(inst); }  // شاشة_اكتب / vga_write
+            llvm::Value *emitVgaClear(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitVgaClear(inst); }  // شاشة_امسح / vga_clear
+            llvm::Value *emitMemCopy(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitMemCopy(inst); }   // انسخ_ذاكرة / memcpy
+            llvm::Value *emitMemSet(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitMemSet(inst); }    // املأ_ذاكرة / memset
+            llvm::Value *emitMemFill32(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitMemFill32(inst); } // ذاكرة_املأ32 / memset32 (REP STOSD)
+            llvm::Value *emitMemCopy32(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitMemCopy32(inst); } // ذاكرة_انسخ32 / memcpy32 (REP MOVSD)
+            llvm::Value *emitAddrOf(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitAddrOf(inst); }    // عنوان / addr_of
 
             // ================================================================
             // عمليات Embedded المتقدمة — Advanced Embedded Operations (18)
             // ================================================================
             // Serial I/O (4)
-            llvm::Value *emitSerialInit(std::shared_ptr<SIRInstruction> inst);  // تسلسلي_هيئ / serial_init
-            llvm::Value *emitSerialWrite(std::shared_ptr<SIRInstruction> inst); // تسلسلي_ارسل / serial_send
-            llvm::Value *emitSerialRead(std::shared_ptr<SIRInstruction> inst);  // تسلسلي_استقبل / serial_receive
-            llvm::Value *emitSerialReady(std::shared_ptr<SIRInstruction> inst); // تسلسلي_جاهز / serial_ready
+            llvm::Value *emitSerialInit(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitSerialInit(inst); }  // تسلسلي_هيئ / serial_init
+            llvm::Value *emitSerialWrite(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitSerialWrite(inst); } // تسلسلي_ارسل / serial_send
+            llvm::Value *emitSerialRead(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitSerialRead(inst); }  // تسلسلي_استقبل / serial_receive
+            llvm::Value *emitSerialReady(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitSerialReady(inst); } // تسلسلي_جاهز / serial_ready
             // GPIO (3)
-            llvm::Value *emitGpioWrite(std::shared_ptr<SIRInstruction> inst); // منفذ_رقمي_اكتب / gpio_write
-            llvm::Value *emitGpioRead(std::shared_ptr<SIRInstruction> inst);  // منفذ_رقمي_اقرأ / gpio_read
-            llvm::Value *emitGpioMode(std::shared_ptr<SIRInstruction> inst);  // حدد_وضع_منفذ / gpio_mode
+            llvm::Value *emitGpioWrite(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitGpioWrite(inst); } // منفذ_رقمي_اكتب / gpio_write
+            llvm::Value *emitGpioRead(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitGpioRead(inst); }  // منفذ_رقمي_اقرأ / gpio_read
+            llvm::Value *emitGpioMode(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitGpioMode(inst); }  // حدد_وضع_منفذ / gpio_mode
             // Timer (3)
-            llvm::Value *emitTimerInit(std::shared_ptr<SIRInstruction> inst); // مؤقت_هيئ / timer_init
-            llvm::Value *emitTimerRead(std::shared_ptr<SIRInstruction> inst); // مؤقت_قراءة / timer_read
-            llvm::Value *emitTimerWait(std::shared_ptr<SIRInstruction> inst); // مؤقت_انتظر / timer_wait
+            llvm::Value *emitTimerInit(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitTimerInit(inst); } // مؤقت_هيئ / timer_init
+            llvm::Value *emitTimerRead(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitTimerRead(inst); } // مؤقت_قراءة / timer_read
+            llvm::Value *emitTimerWait(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitTimerWait(inst); } // مؤقت_انتظر / timer_wait
             // System Control (3)
-            llvm::Value *emitReset(std::shared_ptr<SIRInstruction> inst); // اعد_تشغيل / reset
-            llvm::Value *emitCpuId(std::shared_ptr<SIRInstruction> inst); // معرف_المعالج / cpuid
-            llvm::Value *emitRdtsc(std::shared_ptr<SIRInstruction> inst); // عداد_الدورات / rdtsc
+            llvm::Value *emitReset(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitReset(inst); } // اعد_تشغيل / reset
+            llvm::Value *emitCpuId(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitCpuId(inst); } // معرف_المعالج / cpuid
+            llvm::Value *emitRdtsc(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitRdtsc(inst); } // عداد_الدورات / rdtsc
             // Memory Barriers (3)
-            llvm::Value *emitMfence(std::shared_ptr<SIRInstruction> inst); // حاجز_ذاكرة / mfence
-            llvm::Value *emitLfence(std::shared_ptr<SIRInstruction> inst); // حاجز_قراءة / lfence
-            llvm::Value *emitSfence(std::shared_ptr<SIRInstruction> inst); // حاجز_كتابة / sfence
+            llvm::Value *emitMfence(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitMfence(inst); } // حاجز_ذاكرة / mfence
+            llvm::Value *emitLfence(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitLfence(inst); } // حاجز_قراءة / lfence
+            llvm::Value *emitSfence(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitSfence(inst); } // حاجز_كتابة / sfence
             // DMA (2)
-            llvm::Value *emitDmaInit(std::shared_ptr<SIRInstruction> inst);  // نقل_مباشر_هيئ / dma_init
-            llvm::Value *emitDmaStart(std::shared_ptr<SIRInstruction> inst); // نقل_مباشر_ابدأ / dma_start
+            llvm::Value *emitDmaInit(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitDmaInit(inst); }  // نقل_مباشر_هيئ / dma_init
+            llvm::Value *emitDmaStart(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitDmaStart(inst); } // نقل_مباشر_ابدأ / dma_start
 
             // ================================================================
             // دوال الأمان — Security Functions (14)
@@ -877,24 +880,24 @@ namespace Sad
             // ================================================================
             // التكامل مع C/C++ — FFI Functions (20)
             // ================================================================
-            llvm::Value *emitFFIPrintf(std::shared_ptr<SIRInstruction> inst);   // طباعة_تنسيق / printf
-            llvm::Value *emitFFIMalloc(std::shared_ptr<SIRInstruction> inst);   // حجز / malloc
-            llvm::Value *emitFFIFree(std::shared_ptr<SIRInstruction> inst);     // حرر / free
-            llvm::Value *emitFFIRealloc(std::shared_ptr<SIRInstruction> inst);  // اعد_حجز / realloc
-            llvm::Value *emitFFICalloc(std::shared_ptr<SIRInstruction> inst);   // حجز_صفري / calloc
-            llvm::Value *emitFFIStrlen(std::shared_ptr<SIRInstruction> inst);   // طول_نص_س / strlen → __sad_utf8_strlen
-            llvm::Function *getOrCreateUtf8Strlen();                            // (AR) بناء __sad_utf8_strlen عند الحاجة
-            llvm::Function *getOrCreateUtf8ByteToChar();                        // (AR) تحويل موقع البايت إلى فهرس الحرف UTF-8
-            llvm::Function *getOrCreateUtf8CharToByte();                        // (AR) تحويل فهرس الحرف إلى موقع البايت UTF-8
-            llvm::Value *emitFFIStrcpy(std::shared_ptr<SIRInstruction> inst);   // انسخ_نص_س / strcpy
-            llvm::Value *emitFFIStrcmp(std::shared_ptr<SIRInstruction> inst);   // قارن_نص_س / strcmp
-            llvm::Value *emitFFIStrcat(std::shared_ptr<SIRInstruction> inst);   // الحق_نص_س / strcat
-            llvm::Value *emitFFIMemcpy(std::shared_ptr<SIRInstruction> inst);   // انسخ_ذاكرة_س / memcpy
-            llvm::Value *emitFFIMemset(std::shared_ptr<SIRInstruction> inst);   // عبئ_ذاكرة_س / memset
-            llvm::Value *emitFFIFopen(std::shared_ptr<SIRInstruction> inst);    // افتح_ملف_س / fopen
-            llvm::Value *emitFFIFclose(std::shared_ptr<SIRInstruction> inst);   // اغلق_ملف_س / fclose
-            llvm::Value *emitFFIFwrite(std::shared_ptr<SIRInstruction> inst);   // اكتب_ملف_س / fputs
-            llvm::Value *emitFFIFread(std::shared_ptr<SIRInstruction> inst);    // اقرأ_ملف_س / fgets
+            llvm::Value *emitFFIPrintf(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIPrintf(inst); }   // طباعة_تنسيق / printf
+            llvm::Value *emitFFIMalloc(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIMalloc(inst); }   // حجز / malloc
+            llvm::Value *emitFFIFree(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIFree(inst); }     // حرر / free
+            llvm::Value *emitFFIRealloc(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIRealloc(inst); }  // اعد_حجز / realloc
+            llvm::Value *emitFFICalloc(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFICalloc(inst); }   // حجز_صفري / calloc
+            llvm::Value *emitFFIStrlen(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIStrlen(inst); }   // طول_نص_س / strlen → __sad_utf8_strlen
+            llvm::Function *getOrCreateUtf8Strlen() { return hwffi_->getOrCreateUtf8Strlen(); }                            // (AR) بناء __sad_utf8_strlen عند الحاجة
+            llvm::Function *getOrCreateUtf8ByteToChar() { return hwffi_->getOrCreateUtf8ByteToChar(); }                        // (AR) تحويل موقع البايت إلى فهرس الحرف UTF-8
+            llvm::Function *getOrCreateUtf8CharToByte() { return hwffi_->getOrCreateUtf8CharToByte(); }                        // (AR) تحويل فهرس الحرف إلى موقع البايت UTF-8
+            llvm::Value *emitFFIStrcpy(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIStrcpy(inst); }   // انسخ_نص_س / strcpy
+            llvm::Value *emitFFIStrcmp(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIStrcmp(inst); }   // قارن_نص_س / strcmp
+            llvm::Value *emitFFIStrcat(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIStrcat(inst); }   // الحق_نص_س / strcat
+            llvm::Value *emitFFIMemcpy(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIMemcpy(inst); }   // انسخ_ذاكرة_س / memcpy
+            llvm::Value *emitFFIMemset(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIMemset(inst); }   // عبئ_ذاكرة_س / memset
+            llvm::Value *emitFFIFopen(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIFopen(inst); }    // افتح_ملف_س / fopen
+            llvm::Value *emitFFIFclose(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIFclose(inst); }   // اغلق_ملف_س / fclose
+            llvm::Value *emitFFIFwrite(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIFwrite(inst); }   // اكتب_ملف_س / fputs
+            llvm::Value *emitFFIFread(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIFread(inst); }    // اقرأ_ملف_س / fgets
             llvm::Value *emitFFISystem(std::shared_ptr<SIRInstruction> inst);   // نفذ_امر / system
             llvm::Value *emitFFIGetenv(std::shared_ptr<SIRInstruction> inst);   // قيمة_بيئة / getenv
             llvm::Value *emitFFIAtoi(std::shared_ptr<SIRInstruction> inst);     // نص_لعدد / atoi
@@ -1513,6 +1516,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 12: مكوّن فرعي لعمليات التعدادات ADT (5 methods)
             std::unique_ptr<EnumOpsCodeGen> enumops_;
+
+            // (AR) Phase 7 Step 13: مكوّن فرعي لـ OS/Embedded/FFI (51 methods)
+            std::unique_ptr<HardwareFFICodeGen> hwffi_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
