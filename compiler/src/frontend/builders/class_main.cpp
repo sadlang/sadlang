@@ -16,6 +16,8 @@
 // - AST headers (ast_node.h, expressions.h, statements.h, declarations.h)
 // ============================================================================
 
+#include "sir_builder.h"
+#include "builders/class_builder.h"
 #include <string>
 #include "sir_builder.h"
 #include "module_nodes.h"
@@ -54,9 +56,9 @@ namespace Sad
             //
             // الدوال المستدعاة / Called functions:
             // - std::make_shared<SIRClass>: sir_module.h:409
-            // - module_->addClass: sir_module.h:608
+            // - b_.module_->addClass: sir_module.h:608
             // ============================================================================
-            void SIRBuilder::buildClass(AST::ClassDeclNode *classDecl)
+            void ClassBuilder::buildClass(AST::ClassDeclNode *classDecl)
             {
                 if (!classDecl)
                 {
@@ -92,7 +94,7 @@ namespace Sad
                 // (AR) فحص الوراثة من صنف محكم / (EN) Check inheritance from sealed class
                 if (!parentClass.empty())
                 {
-                    auto parentSirClass = module_->getClass(parentClass);
+                    auto parentSirClass = b_.module_->getClass(parentClass);
                     if (parentSirClass && parentSirClass->isSealed && !parentSirClass->sourceFile.empty())
                     {
                         if (classDecl->sourceFile != parentSirClass->sourceFile)
@@ -110,7 +112,7 @@ namespace Sad
                 // (EN) Copy parent class fields into child class (inheritance support)
                 if (!parentClass.empty())
                 {
-                    auto parentSirClass = module_->getClass(parentClass);
+                    auto parentSirClass = b_.module_->getClass(parentClass);
                     if (parentSirClass)
                     {
 #ifndef NDEBUG
@@ -137,17 +139,17 @@ namespace Sad
 
                 // ═══════════════════════════════════════════════════════════════════════
                 // (AR) تسجيل الصنف مبكراً في الوحدة قبل بناء أجسام الميثودات والعوامل
-                //      هذا ضروري لأن buildNewObject داخل جسم عامل (مثل: ارجع جديد متجه(...))
-                //      يبحث عن الصنف في module_->getClass() — إذا لم يكن مسجلاً سيفشل.
+                //      هذا ضروري لأن b_.buildNewObject داخل جسم عامل (مثل: ارجع جديد متجه(...))
+                //      يبحث عن الصنف في b_.module_->getClass() — إذا لم يكن مسجلاً سيفشل.
                 //      بما أن sirClass هو shared_ptr، أي تعديلات لاحقة (إضافة حقول/ميثودات)
-                //      تنعكس تلقائياً على المرجع المخزن في module_.
+                //      تنعكس تلقائياً على المرجع المخزن في b_.module_.
                 // (EN) Register class early in module BEFORE building method/operator bodies.
-                //      This is necessary because buildNewObject inside an operator body
-                //      (e.g., return new Vector(...)) searches module_->getClass() — it fails
+                //      This is necessary because b_.buildNewObject inside an operator body
+                //      (e.g., return new Vector(...)) searches b_.module_->getClass() — it fails
                 //      if class isn't registered yet. Since sirClass is shared_ptr, later
-                //      modifications (adding fields/methods) auto-reflect in module_.
+                //      modifications (adding fields/methods) auto-reflect in b_.module_.
                 // ═══════════════════════════════════════════════════════════════════════
-                module_->addClass(sirClass);
+                b_.module_->addClass(sirClass);
 
                 // (AR) معالجة أعضاء الصنف (members)
                 // (EN) Process class members
@@ -167,7 +169,7 @@ namespace Sad
 
                         // (AR) تحويل النوع وإضافة الحقل
                         // (EN) Convert type and add field
-                        SadTypeKind fieldType = astTypeToSIRType(fieldDecl->type);
+                        SadTypeKind fieldType = b_.astTypeToSIRType(fieldDecl->type);
 
                         // (AR) الحقول الديناميكية (UNKNOWN/OBJECT): استنتاج النوع من المُهيئ أولاً
                         // (EN) Dynamic fields (UNKNOWN/OBJECT): infer type from initializer first
@@ -256,14 +258,14 @@ namespace Sad
                             globalVar.type = fieldType;
                             globalVar.registerName = "@" + globalName;
                             globalVar.isGlobal = true;
-                            addVariable(globalVar);
+                            b_.addVariable(globalVar);
 
-                            if (module_)
+                            if (b_.module_)
                             {
                                 std::string initVal = "0";
                                 if (fieldDecl->initializer)
                                 {
-                                    auto initResult = buildExpression(fieldDecl->initializer.get());
+                                    auto initResult = b_.buildExpression(fieldDecl->initializer.get());
                                     if (initResult.isConstant && !initResult.constantValue.empty())
                                     {
                                         initVal = initResult.constantValue;
@@ -271,10 +273,10 @@ namespace Sad
                                 }
                                 auto gv = std::make_shared<SIRGlobalVariable>(
                                     globalName, fieldType, initVal, false);
-                                module_->addGlobalVariable(gv);
+                                b_.module_->addGlobalVariable(gv);
                             }
 
-                            staticFields_[globalName] = fieldType;
+                            b_.staticFields_[globalName] = fieldType;
                             continue; // (AR) لا نضيفه كحقل نسخة
                         }
 
@@ -295,10 +297,10 @@ namespace Sad
 #ifndef NDEBUG
                         std::cout << "[DEBUG] buildClass: found property '" << propDecl->name << "'" << std::endl;
 #endif
-                        auto savedClassName = currentClassName_;
-                        currentClassName_ = classDecl->name;
-                        buildStatement(propDecl);
-                        currentClassName_ = savedClassName;
+                        auto savedClassName = b_.currentClassName_;
+                        b_.currentClassName_ = classDecl->name;
+                        b_.buildStatement(propDecl);
+                        b_.currentClassName_ = savedClassName;
                     }
 
                     // (AR) الدوال (MethodDecl - declarations.h:222)
@@ -325,20 +327,20 @@ namespace Sad
                         if (methodDecl->returnType == Data::DataType::UNKNOWN ||
                             methodDecl->returnType == Data::DataType::NONE)
                         {
-                            // (AR) تعيين اسم الصنف الحالي مؤقتاً لتمكين inferReturnTypeFromBody
-                            //      من البحث عن أنواع الحقول عبر module_->getClass(currentClassName_)
+                            // (AR) تعيين اسم الصنف الحالي مؤقتاً لتمكين b_.inferReturnTypeFromBody
+                            //      من البحث عن أنواع الحقول عبر b_.module_->getClass(b_.currentClassName_)
                             //      عند مطابقة MemberExpr (هذا.حقل)
-                            // (EN) Temporarily set currentClassName_ so inferReturnTypeFromBody
-                            //      can look up field types via module_->getClass(currentClassName_)
+                            // (EN) Temporarily set b_.currentClassName_ so b_.inferReturnTypeFromBody
+                            //      can look up field types via b_.module_->getClass(b_.currentClassName_)
                             //      when matching MemberExpr (this.field)
-                            auto savedClassName = currentClassName_;
-                            currentClassName_ = classDecl->name;
-                            returnType = inferReturnTypeFromBody(methodDecl->body.get());
-                            currentClassName_ = savedClassName;
+                            auto savedClassName = b_.currentClassName_;
+                            b_.currentClassName_ = classDecl->name;
+                            returnType = b_.inferReturnTypeFromBody(methodDecl->body.get());
+                            b_.currentClassName_ = savedClassName;
                         }
                         else
                         {
-                            returnType = astTypeToSIRType(methodDecl->returnType);
+                            returnType = b_.astTypeToSIRType(methodDecl->returnType);
                         }
                         std::string fullMethodName = classDecl->name + "." + methodDecl->name;
                         auto sirMethod = std::make_shared<SIRFunction>(fullMethodName, returnType);
@@ -352,21 +354,21 @@ namespace Sad
                         }
 
                         // ================================================================
-                        // (AR) استخدام الأنواع المُستنتجة من functionTable_ (المرحلة 1.7)
+                        // (AR) استخدام الأنواع المُستنتجة من b_.functionTable_ (المرحلة 1.7)
                         //      إذا كانت الدالة سُجلت مسبقاً في المرحلة 1.3 وتم تحديث أنواعها
                         //      نستخدم الأنواع المحدثة بدلاً من أنواع AST الافتراضية
-                        // (EN) Use inferred types from functionTable_ (Phase 1.7)
+                        // (EN) Use inferred types from b_.functionTable_ (Phase 1.7)
                         //      If the method was pre-registered in Phase 1.3 and types were updated
                         //      use the updated types instead of default AST types
                         // ================================================================
                         {
-                            auto ftIt = functionTable_.find(fullMethodName);
-                            if (ftIt != functionTable_.end())
+                            auto ftIt = b_.functionTable_.find(fullMethodName);
+                            if (ftIt != b_.functionTable_.end())
                             {
                                 auto &inferredParams = ftIt->second.parameters;
                                 for (const auto &param : methodDecl->parameters)
                                 {
-                                    SadTypeKind paramType = astTypeToSIRType(param.type);
+                                    SadTypeKind paramType = b_.astTypeToSIRType(param.type);
                                     // (AR) ابحث عن النوع المُستنتج للمعامل
                                     for (const auto &ip : inferredParams)
                                     {
@@ -389,7 +391,7 @@ namespace Sad
                             {
                                 for (const auto &param : methodDecl->parameters)
                                 {
-                                    SadTypeKind paramType = astTypeToSIRType(param.type);
+                                    SadTypeKind paramType = b_.astTypeToSIRType(param.type);
                                     sirMethod->addParameter(SIRParameter(param.name, paramType));
                                 }
                             }
@@ -401,14 +403,14 @@ namespace Sad
                         // (EN) Build method body
                         if (methodDecl->body)
                         {
-                            auto prevFunction = currentFunction_;
-                            auto prevBlock = currentBlock_;
-                            auto prevClassName = currentClassName_;
+                            auto prevFunction = b_.currentFunction_;
+                            auto prevBlock = b_.currentBlock_;
+                            auto prevClassName = b_.currentClassName_;
 
-                            currentFunction_ = sirMethod;
-                            currentClassName_ = classDecl->name;
+                            b_.currentFunction_ = sirMethod;
+                            b_.currentClassName_ = classDecl->name;
 
-                            enterScope();
+                            b_.enterScope();
 
                             // (AR) تسجيل self + معاملات + حقول الصنف
                             // (EN) Register self + params + class fields
@@ -421,8 +423,8 @@ namespace Sad
                                     selfInfo.registerName = kSelfRegisterName;
                                     selfInfo.isGlobal = false;
                                     selfInfo.isMutable = false;
-                                    selfInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                                    addVariable(selfInfo);
+                                    selfInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                    b_.addVariable(selfInfo);
                                 }
 
                                 // (AR) تسجيل "هذا" كمرادف لـ self
@@ -434,8 +436,8 @@ namespace Sad
                                     thisInfo.registerName = kSelfRegisterName;
                                     thisInfo.isGlobal = false;
                                     thisInfo.isMutable = false;
-                                    thisInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                                    addVariable(thisInfo);
+                                    thisInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                    b_.addVariable(thisInfo);
                                 }
                             }
 
@@ -447,13 +449,13 @@ namespace Sad
                                 methodParamNames.insert(param.name);
                                 VariableInfo paramInfo;
                                 paramInfo.name = param.name;
-                                paramInfo.type = astTypeToSIRType(param.type);
+                                paramInfo.type = b_.astTypeToSIRType(param.type);
                                 paramInfo.registerName = "%" + param.name;
                                 paramInfo.isGlobal = false;
                                 paramInfo.isMutable = false;
                                 paramInfo.isParameter = true;
-                                paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                                addVariable(paramInfo);
+                                paramInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                b_.addVariable(paramInfo);
                             }
 
                             // (AR) تسجيل الحقول — تخطي المتطابقة مع المعاملات
@@ -474,14 +476,14 @@ namespace Sad
                                     fieldInfo.registerName = "%" + field.first;
                                     fieldInfo.isGlobal = false;
                                     fieldInfo.isMutable = true;
-                                    fieldInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                                    addVariable(fieldInfo);
+                                    fieldInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                    b_.addVariable(fieldInfo);
                                 }
                             }
 
-                            auto entryBlock = createBasicBlock(kEntryBlockName);
+                            auto entryBlock = b_.createBasicBlock(kEntryBlockName);
                             sirMethod->addBasicBlock(entryBlock);
-                            currentBlock_ = entryBlock;
+                            b_.currentBlock_ = entryBlock;
 
                             // (AR) Alloca لكل حقل — تخطي الدوال الساكنة والمتطابقة مع المعاملات
                             // (EN) Alloca for each field — skip static methods and param-matching fields
@@ -496,19 +498,19 @@ namespace Sad
                                     SIRInstruction allocInst;
                                     allocInst.opcode = SIROpcode::ALLOC;
                                     allocInst.result = SIROperand::Register("%" + field.first, field.second);
-                                    currentBlock_->addInstruction(allocInst);
+                                    b_.currentBlock_->addInstruction(allocInst);
                                 }
                             }
 
-                            // (AR) تسجيل/تحديث في functionTable_ قبل بناء الجسم
+                            // (AR) تسجيل/تحديث في b_.functionTable_ قبل بناء الجسم
                             //      نحافظ على الأنواع المُستنتجة من المرحلة 1.7
                             //      ونُحدّث فقط returnType و sirFunction
-                            // (EN) Register/update in functionTable_ before building body
+                            // (EN) Register/update in b_.functionTable_ before building body
                             //      Preserve inferred types from Phase 1.7
                             //      Only update returnType and sirFunction
                             {
-                                auto existingIt = functionTable_.find(fullMethodName);
-                                if (existingIt != functionTable_.end())
+                                auto existingIt = b_.functionTable_.find(fullMethodName);
+                                if (existingIt != b_.functionTable_.end())
                                 {
                                     // (AR) تحديث فقط — لا تمسح الأنواع المُستنتجة
                                     existingIt->second.returnType = returnType;
@@ -520,7 +522,7 @@ namespace Sad
                                     preInfo.name = fullMethodName;
                                     preInfo.returnType = returnType;
                                     preInfo.sirFunction = sirMethod;
-                                    functionTable_[fullMethodName] = preInfo;
+                                    b_.functionTable_[fullMethodName] = preInfo;
                                 }
                             }
 
@@ -528,19 +530,19 @@ namespace Sad
                             // (EN) Register static method
                             if (isStaticMethod)
                             {
-                                staticMethods_.insert(fullMethodName);
+                                b_.staticMethods_.insert(fullMethodName);
                             }
 
-                            buildStatement(methodDecl->body.get());
+                            b_.buildStatement(methodDecl->body.get());
 
                             // (AR) إضافة terminator
                             // (EN) Add terminator
-                            if (currentBlock_)
+                            if (b_.currentBlock_)
                             {
                                 bool hasTerminator = false;
-                                if (!currentBlock_->instructions.empty())
+                                if (!b_.currentBlock_->instructions.empty())
                                 {
-                                    auto lastOp = currentBlock_->instructions.back().opcode;
+                                    auto lastOp = b_.currentBlock_->instructions.back().opcode;
                                     hasTerminator = (lastOp == SIROpcode::RET || lastOp == SIROpcode::RET_VOID);
                                 }
                                 if (!hasTerminator)
@@ -562,19 +564,19 @@ namespace Sad
                                             retInst.operands.push_back(SIROperand::ConstantI64(0));
                                         }
                                     }
-                                    currentBlock_->addInstruction(retInst);
+                                    b_.currentBlock_->addInstruction(retInst);
                                 }
                             }
 
-                            exitScope();
+                            b_.exitScope();
 
-                            module_->addFunction(sirMethod);
+                            b_.module_->addFunction(sirMethod);
 
                             // (AR) حفظ returnClassName المُعيَّن أثناء بناء جسم الطريقة
                             // (EN) Preserve returnClassName set during method body build
                             std::string savedReturnClassName1;
-                            auto prevFtIt1 = functionTable_.find(fullMethodName);
-                            if (prevFtIt1 != functionTable_.end())
+                            auto prevFtIt1 = b_.functionTable_.find(fullMethodName);
+                            if (prevFtIt1 != b_.functionTable_.end())
                             {
                                 savedReturnClassName1 = prevFtIt1->second.returnClassName;
                             }
@@ -585,11 +587,11 @@ namespace Sad
                             methodInfo.parameters = sirMethod->getParameters();
                             methodInfo.sirFunction = sirMethod;
                             methodInfo.returnClassName = savedReturnClassName1;
-                            functionTable_[fullMethodName] = methodInfo;
+                            b_.functionTable_[fullMethodName] = methodInfo;
 
-                            currentFunction_ = prevFunction;
-                            currentBlock_ = prevBlock;
-                            currentClassName_ = prevClassName;
+                            b_.currentFunction_ = prevFunction;
+                            b_.currentBlock_ = prevBlock;
+                            b_.currentClassName_ = prevClassName;
                         }
                     }
 
@@ -607,14 +609,14 @@ namespace Sad
                         if (funcDecl->returnType == Data::DataType::UNKNOWN ||
                             funcDecl->returnType == Data::DataType::NONE)
                         {
-                            auto savedClassName = currentClassName_;
-                            currentClassName_ = classDecl->name;
-                            returnType = inferReturnTypeFromBody(funcDecl->body.get());
-                            currentClassName_ = savedClassName;
+                            auto savedClassName = b_.currentClassName_;
+                            b_.currentClassName_ = classDecl->name;
+                            returnType = b_.inferReturnTypeFromBody(funcDecl->body.get());
+                            b_.currentClassName_ = savedClassName;
                         }
                         else
                         {
-                            returnType = astTypeToSIRType(funcDecl->returnType);
+                            returnType = b_.astTypeToSIRType(funcDecl->returnType);
                         }
                         std::string fullMethodName = classDecl->name + "." + funcDecl->name;
                         auto sirMethod = std::make_shared<SIRFunction>(fullMethodName, returnType);
@@ -623,7 +625,7 @@ namespace Sad
 
                         for (const auto &param : funcDecl->parameters)
                         {
-                            SadTypeKind paramType = astTypeToSIRType(param.type);
+                            SadTypeKind paramType = b_.astTypeToSIRType(param.type);
                             sirMethod->addParameter(SIRParameter(param.name, paramType));
                         }
 
@@ -633,14 +635,14 @@ namespace Sad
                         // (EN) Build function body (same as method)
                         if (funcDecl->body)
                         {
-                            auto prevFunction = currentFunction_;
-                            auto prevBlock = currentBlock_;
-                            auto prevClassName = currentClassName_;
+                            auto prevFunction = b_.currentFunction_;
+                            auto prevBlock = b_.currentBlock_;
+                            auto prevClassName = b_.currentClassName_;
 
-                            currentFunction_ = sirMethod;
-                            currentClassName_ = classDecl->name;
+                            b_.currentFunction_ = sirMethod;
+                            b_.currentClassName_ = classDecl->name;
 
-                            enterScope();
+                            b_.enterScope();
 
                             {
                                 VariableInfo selfInfo;
@@ -649,8 +651,8 @@ namespace Sad
                                 selfInfo.registerName = kSelfRegisterName;
                                 selfInfo.isGlobal = false;
                                 selfInfo.isMutable = false;
-                                selfInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                                addVariable(selfInfo);
+                                selfInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                b_.addVariable(selfInfo);
                             }
 
                             // (AR) تسجيل "هذا" كمرادف لـ self
@@ -662,20 +664,20 @@ namespace Sad
                                 thisInfo.registerName = kSelfRegisterName;
                                 thisInfo.isGlobal = false;
                                 thisInfo.isMutable = false;
-                                thisInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                                addVariable(thisInfo);
+                                thisInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                b_.addVariable(thisInfo);
                             }
 
                             for (const auto &param : funcDecl->parameters)
                             {
                                 VariableInfo paramInfo;
                                 paramInfo.name = param.name;
-                                paramInfo.type = astTypeToSIRType(param.type);
+                                paramInfo.type = b_.astTypeToSIRType(param.type);
                                 paramInfo.registerName = "%" + param.name;
                                 paramInfo.isGlobal = false;
                                 paramInfo.isMutable = false;
-                                paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                                addVariable(paramInfo);
+                                paramInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                b_.addVariable(paramInfo);
                             }
 
                             for (const auto &field : sirClass->fields_)
@@ -686,42 +688,42 @@ namespace Sad
                                 fieldInfo.registerName = "%" + field.first;
                                 fieldInfo.isGlobal = false;
                                 fieldInfo.isMutable = true;
-                                fieldInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                                addVariable(fieldInfo);
+                                fieldInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                b_.addVariable(fieldInfo);
                             }
 
-                            auto entryBlock = createBasicBlock(kEntryBlockName);
+                            auto entryBlock = b_.createBasicBlock(kEntryBlockName);
                             sirMethod->addBasicBlock(entryBlock);
-                            currentBlock_ = entryBlock;
+                            b_.currentBlock_ = entryBlock;
 
                             for (const auto &field : sirClass->fields_)
                             {
                                 SIRInstruction allocInst;
                                 allocInst.opcode = SIROpcode::ALLOC;
                                 allocInst.result = SIROperand::Register("%" + field.first, field.second);
-                                currentBlock_->addInstruction(allocInst);
+                                b_.currentBlock_->addInstruction(allocInst);
                             }
 
-                            // (AR) تسجيل مبدئي في functionTable_ قبل بناء الجسم
+                            // (AR) تسجيل مبدئي في b_.functionTable_ قبل بناء الجسم
                             //      حتى يتمكن buildReturnStatement من تعيين returnClassName
-                            // (EN) Pre-register in functionTable_ before building body
+                            // (EN) Pre-register in b_.functionTable_ before building body
                             //      so buildReturnStatement can set returnClassName
                             {
                                 FunctionInfo preInfo;
                                 preInfo.name = fullMethodName;
                                 preInfo.returnType = returnType;
                                 preInfo.sirFunction = sirMethod;
-                                functionTable_[fullMethodName] = preInfo;
+                                b_.functionTable_[fullMethodName] = preInfo;
                             }
 
-                            buildStatement(funcDecl->body.get());
+                            b_.buildStatement(funcDecl->body.get());
 
-                            if (currentBlock_)
+                            if (b_.currentBlock_)
                             {
                                 bool hasTerminator = false;
-                                if (!currentBlock_->instructions.empty())
+                                if (!b_.currentBlock_->instructions.empty())
                                 {
-                                    auto lastOp = currentBlock_->instructions.back().opcode;
+                                    auto lastOp = b_.currentBlock_->instructions.back().opcode;
                                     hasTerminator = (lastOp == SIROpcode::RET || lastOp == SIROpcode::RET_VOID);
                                 }
                                 if (!hasTerminator)
@@ -743,19 +745,19 @@ namespace Sad
                                             retInst.operands.push_back(SIROperand::ConstantI64(0));
                                         }
                                     }
-                                    currentBlock_->addInstruction(retInst);
+                                    b_.currentBlock_->addInstruction(retInst);
                                 }
                             }
 
-                            exitScope();
+                            b_.exitScope();
 
-                            module_->addFunction(sirMethod);
+                            b_.module_->addFunction(sirMethod);
 
                             // (AR) حفظ returnClassName المُعيَّن أثناء بناء جسم الطريقة
                             // (EN) Preserve returnClassName set during method body build
                             std::string savedReturnClassName2;
-                            auto prevFtIt2 = functionTable_.find(fullMethodName);
-                            if (prevFtIt2 != functionTable_.end())
+                            auto prevFtIt2 = b_.functionTable_.find(fullMethodName);
+                            if (prevFtIt2 != b_.functionTable_.end())
                             {
                                 savedReturnClassName2 = prevFtIt2->second.returnClassName;
                             }
@@ -766,11 +768,11 @@ namespace Sad
                             methodInfo.parameters = sirMethod->getParameters();
                             methodInfo.sirFunction = sirMethod;
                             methodInfo.returnClassName = savedReturnClassName2;
-                            functionTable_[fullMethodName] = methodInfo;
+                            b_.functionTable_[fullMethodName] = methodInfo;
 
-                            currentFunction_ = prevFunction;
-                            currentBlock_ = prevBlock;
-                            currentClassName_ = prevClassName;
+                            b_.currentFunction_ = prevFunction;
+                            b_.currentBlock_ = prevBlock;
+                            b_.currentClassName_ = prevClassName;
                         }
                     }
 

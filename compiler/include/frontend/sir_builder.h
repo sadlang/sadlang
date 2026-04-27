@@ -42,6 +42,7 @@
 #include "builders/method_call_builder.h"
 #include "builders/builtin_builder.h"
 #include "builders/call_builder.h"
+#include "builders/class_builder.h"
 #include <memory>
 #include <string>
 #include <set>
@@ -564,6 +565,7 @@ namespace Sad
                 friend class MethodCallBuilder;
                 friend class BuiltinBuilder;
                 friend class CallBuilder;
+                friend class ClassBuilder;
 
             public:
                 // ==================================================================
@@ -686,7 +688,9 @@ namespace Sad
                  *
                  * @param classDecl (AR) تصريح الصنف / (EN) Class declaration
                  */
-                void buildClass(AST::ClassDeclNode *classDecl);
+                void buildClass(Sad::AST::ClassDecl *classDecl)
+                { classes_->buildClass(classDecl); }
+
 
                 /**
                  * @brief (AR) بناء سمة/واجهة
@@ -694,7 +698,9 @@ namespace Sad
                  *
                  * @param traitDecl (AR) تصريح السمة / (EN) Trait declaration
                  */
-                void buildTrait(AST::TraitDecl *traitDecl);
+                void buildTrait(Sad::AST::TraitDecl *traitDecl)
+                { classes_->buildTrait(traitDecl); }
+
 
                 /**
                  * @brief (AR) بناء كتلة تنفيذ سمة
@@ -702,7 +708,9 @@ namespace Sad
                  *
                  * @param implDecl (AR) تصريح التنفيذ / (EN) Impl declaration
                  */
-                void buildImpl(AST::ImplDecl *implDecl);
+                void buildImpl(Sad::AST::ImplDecl *implDecl)
+                { classes_->buildImpl(implDecl); }
+
 
                 // ==================================================================
                 // (AR) بناء جمل الاستيراد / (EN) Building Import Statements
@@ -1162,19 +1170,17 @@ namespace Sad
                  * @brief (AR) بناء باني صنف — مستخرج من buildClass (CW-05)
                  * @brief (EN) Build class constructor — extracted from buildClass
                  */
-                void buildClassConstructor(
-                    AST::ClassDeclNode *classDecl,
-                    std::shared_ptr<SIRClass> sirClass,
-                    Sad::AST::ConstructorDecl *ctorDecl);
+                void buildClassConstructor(Sad::AST::ClassDecl *classDecl, std::shared_ptr<SIRClass> sirClass, Sad::AST::ConstructorDecl *ctorDecl)
+                { classes_->buildClassConstructor(classDecl, sirClass, ctorDecl); }
+
 
                 /**
                  * @brief (AR) بناء عامل زائد في صنف — مستخرج من buildClass (CW-05)
                  * @brief (EN) Build class operator overload — extracted from buildClass
                  */
-                void buildClassOperator(
-                    AST::ClassDeclNode *classDecl,
-                    std::shared_ptr<SIRClass> sirClass,
-                    Sad::AST::OperatorDecl *operatorDecl);
+                void buildClassOperator(Sad::AST::ClassDecl *classDecl, std::shared_ptr<SIRClass> sirClass, Sad::AST::OperatorDecl *operatorDecl)
+                { classes_->buildClassOperator(classDecl, sirClass, operatorDecl); }
+
 
                 /**
                  * @brief (AR) بناء وصول لمتغير
@@ -1459,6 +1465,12 @@ namespace Sad
                 // (EN) Phase 6 — Step 4: separated function call builder
                 // ==================================================================
                 std::unique_ptr<CallBuilder> calls_;
+
+                // ==================================================================
+                // (AR) Phase 6 — Step 5: بنّاء الأصناف والسمات المنفصل
+                // (EN) Phase 6 — Step 5: separated class/trait builder
+                // ==================================================================
+                std::unique_ptr<ClassBuilder> classes_;
 
                 /**
                  * @brief (AR) تجميع وحدة وحفظها في الذاكرة المخبئية

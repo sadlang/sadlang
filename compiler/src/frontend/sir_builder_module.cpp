@@ -62,6 +62,9 @@ namespace Sad
                 // (AR) تهيئة بنّاء استدعاءات الدوال (Phase 6 Step 4)
                 // (EN) Initialize function call builder (Phase 6 Step 4)
                 calls_ = std::make_unique<CallBuilder>(*this);
+                // (AR) تهيئة بنّاء الأصناف والسمات (Phase 6 Step 5)
+                // (EN) Initialize class/trait builder (Phase 6 Step 5)
+                classes_ = std::make_unique<ClassBuilder>(*this);
                 // (AR) „״§ ״×ˆ״¬״¯ ״×‡״¦״© ״¥״¶״§״© …״·„ˆ״¨״©
                 // (EN) No additional initialization required
             }

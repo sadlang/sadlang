@@ -7,6 +7,8 @@
 //      Constructor analysis, field type inference, super args, body building
 // ============================================================================
 
+#include "sir_builder.h"
+#include "builders/class_builder.h"
 #include <string>
 #include <iostream>
 #include <functional>
@@ -22,7 +24,7 @@ namespace Sad
     {
         namespace SIR
         {
-            void SIRBuilder::buildClassConstructor(
+            void ClassBuilder::buildClassConstructor(
                 AST::ClassDeclNode *classDecl,
                 std::shared_ptr<SIRClass> sirClass,
                 Sad::AST::ConstructorDecl *ctorDecl)
@@ -45,7 +47,7 @@ namespace Sad
 
                 for (const auto &param : ctorDecl->parameters)
                 {
-                    SadTypeKind paramType = astTypeToSIRType(param.type);
+                    SadTypeKind paramType = b_.astTypeToSIRType(param.type);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildClass: constructor param '" << param.name
                               << "' AST type=" << static_cast<int>(param.type)
@@ -96,7 +98,7 @@ namespace Sad
                                                     if (param.type != Data::DataType::UNKNOWN &&
                                                         param.type != Data::DataType::OBJECT)
                                                     {
-                                                        fieldType = astTypeToSIRType(param.type);
+                                                        fieldType = b_.astTypeToSIRType(param.type);
                                                     }
                                                     break;
                                                 }
@@ -158,7 +160,7 @@ namespace Sad
                                             if (dataType != Data::DataType::UNKNOWN &&
                                                 dataType != Data::DataType::OBJECT)
                                             {
-                                                exprType = astTypeToSIRType(dataType);
+                                                exprType = b_.astTypeToSIRType(dataType);
                                             }
                                         }
                                         // (AR) هذا.حقل = تعبير_أحادي → استنتاج النوع
@@ -169,7 +171,7 @@ namespace Sad
                                             if (dataType != Data::DataType::UNKNOWN &&
                                                 dataType != Data::DataType::OBJECT)
                                             {
-                                                exprType = astTypeToSIRType(dataType);
+                                                exprType = b_.astTypeToSIRType(dataType);
                                             }
                                         }
                                         if (sirClass->fields_.find(fieldName) == sirClass->fields_.end())
@@ -198,14 +200,14 @@ namespace Sad
                 // (EN) Build constructor body
                 if (ctorDecl->body)
                 {
-                    auto prevFunction = currentFunction_;
-                    auto prevBlock = currentBlock_;
-                    auto prevClassName = currentClassName_;
+                    auto prevFunction = b_.currentFunction_;
+                    auto prevBlock = b_.currentBlock_;
+                    auto prevClassName = b_.currentClassName_;
 
-                    currentFunction_ = sirCtor;
-                    currentClassName_ = classDecl->name;
+                    b_.currentFunction_ = sirCtor;
+                    b_.currentClassName_ = classDecl->name;
 
-                    enterScope();
+                    b_.enterScope();
 
                     // (AR) تسجيل معامل self
                     // (EN) Register self parameter
@@ -216,8 +218,8 @@ namespace Sad
                         selfInfo.registerName = kSelfRegisterName;
                         selfInfo.isGlobal = false;
                         selfInfo.isMutable = false;
-                        selfInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                        addVariable(selfInfo);
+                        selfInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        b_.addVariable(selfInfo);
                     }
 
                     // (AR) تسجيل "هذا" كمرادف لـ self
@@ -229,8 +231,8 @@ namespace Sad
                         thisInfo.registerName = kSelfRegisterName;
                         thisInfo.isGlobal = false;
                         thisInfo.isMutable = false;
-                        thisInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                        addVariable(thisInfo);
+                        thisInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        b_.addVariable(thisInfo);
                     }
 
                     // (AR) تسجيل المعاملات + حقول الصنف كمتغيرات محلية
@@ -239,11 +241,11 @@ namespace Sad
                     // ═══════════════════════════════════════════════════════════════
                     // (AR) إصلاح حرج: بناء مجموعة أسماء المعاملات لمنع تضارب الأسماء
                     //      عندما يكون اسم الحقل مطابقاً لاسم المعامل (مثل هذا.الاسم = الاسم)
-                    //      يجب أن يأخذ المعامل الأولوية حتى يقرأ buildExpression من المعامل
+                    //      يجب أن يأخذ المعامل الأولوية حتى يقرأ b_.buildExpression من المعامل
                     //      وليس من الحقل (غير المُهيّأ) عند تعيين هذا.حقل = معامل
                     // (EN) Critical fix: build parameter name set to prevent name collision
                     //      When field name matches param name (e.g., this.name = name)
-                    //      parameter must take priority so buildExpression reads from param
+                    //      parameter must take priority so b_.buildExpression reads from param
                     //      not from the (uninitialized) field when assigning this.field = param
                     // ═══════════════════════════════════════════════════════════════
                     std::unordered_set<std::string> ctorParamNames;
@@ -252,13 +254,13 @@ namespace Sad
                         ctorParamNames.insert(param.name);
                         VariableInfo paramInfo;
                         paramInfo.name = param.name;
-                        paramInfo.type = astTypeToSIRType(param.type);
+                        paramInfo.type = b_.astTypeToSIRType(param.type);
                         paramInfo.registerName = "%" + param.name;
                         paramInfo.isGlobal = false;
                         paramInfo.isMutable = false;
                         paramInfo.isParameter = true;
-                        paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                        addVariable(paramInfo);
+                        paramInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        b_.addVariable(paramInfo);
                     }
 
                     // (AR) تسجيل حقول الصنف كمتغيرات محلية للوصول المباشر
@@ -279,13 +281,13 @@ namespace Sad
                         fieldInfo.registerName = "%" + field.first;
                         fieldInfo.isGlobal = false;
                         fieldInfo.isMutable = true;
-                        fieldInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                        addVariable(fieldInfo);
+                        fieldInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        b_.addVariable(fieldInfo);
                     }
 
-                    auto entryBlock = createBasicBlock(kEntryBlockName);
+                    auto entryBlock = b_.createBasicBlock(kEntryBlockName);
                     sirCtor->addBasicBlock(entryBlock);
-                    currentBlock_ = entryBlock;
+                    b_.currentBlock_ = entryBlock;
 
                     // (AR) Alloca لكل حقل — تخطي الحقول المتطابقة مع المعاملات
                     //      الحقول المتطابقة تُعيَّن عبر STORE member (هذا.حقل = معامل)
@@ -302,7 +304,7 @@ namespace Sad
                         SIRInstruction allocInst;
                         allocInst.opcode = SIROpcode::ALLOC;
                         allocInst.result = SIROperand::Register("%" + field.first, field.second);
-                        currentBlock_->addInstruction(allocInst);
+                        b_.currentBlock_->addInstruction(allocInst);
                     }
 
                     // ═══════════════════════════════════════════════════════════════
@@ -351,7 +353,7 @@ namespace Sad
                                 }
                             }
 
-                            BuildResult argResult = buildExpression(arg.get());
+                            BuildResult argResult = b_.buildExpression(arg.get());
                             // (AR) تحويل النتيجة الثابتة إلى SIROperand::Constant
                             // (EN) Convert constant result to SIROperand::Constant
                             if (argResult.isConstant)
@@ -411,7 +413,7 @@ namespace Sad
                         // ═══════════════════════════════════════════════════════════════
                         if (!sirClass->superConstantMapping_.empty())
                         {
-                            auto parentSirClass = module_->getClass(parentClass);
+                            auto parentSirClass = b_.module_->getClass(parentClass);
                             if (parentSirClass)
                             {
                                 // (AR) الحصول على معاملات باني الأب
@@ -457,39 +459,39 @@ namespace Sad
                         // (EN) Emit CALL instruction for parent constructor
                         SIRInstruction callInst;
                         callInst.opcode = SIROpcode::CALL;
-                        callInst.result = SIROperand::Register(newTempRegister(), SadTypeKind::Void);
+                        callInst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Void);
                         callInst.operands.push_back(SIROperand::Register(parentCtorName, SadTypeKind::Void));
                         for (auto &op : superArgOperands)
                         {
                             callInst.operands.push_back(op);
                         }
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(callInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(callInst);
                     }
 
-                    buildStatement(ctorDecl->body.get());
+                    b_.buildStatement(ctorDecl->body.get());
 
                     // (AR) إضافة RET_VOID
                     // (EN) Add RET_VOID
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
                         bool hasTerminator = false;
-                        if (!currentBlock_->instructions.empty())
+                        if (!b_.currentBlock_->instructions.empty())
                         {
-                            auto lastOp = currentBlock_->instructions.back().opcode;
+                            auto lastOp = b_.currentBlock_->instructions.back().opcode;
                             hasTerminator = (lastOp == SIROpcode::RET || lastOp == SIROpcode::RET_VOID);
                         }
                         if (!hasTerminator)
                         {
                             SIRInstruction retInst;
                             retInst.opcode = SIROpcode::RET_VOID;
-                            currentBlock_->addInstruction(retInst);
+                            b_.currentBlock_->addInstruction(retInst);
                         }
                     }
 
-                    exitScope();
+                    b_.exitScope();
 
-                    module_->addFunction(sirCtor);
+                    b_.module_->addFunction(sirCtor);
 
                     // ═══════════════════════════════════════════════════════════
                     // (AR) تسجيل في جدول الدوال مع الحفاظ على أنواع Phase 1.7
@@ -509,8 +511,8 @@ namespace Sad
 
                     // (AR) دمج أنواع المعاملات من Phase 1.7 إذا كانت أدق
                     // (EN) Merge param types from Phase 1.7 if they're more specific
-                    auto prevIt = functionTable_.find(fullCtorName);
-                    if (prevIt != functionTable_.end())
+                    auto prevIt = b_.functionTable_.find(fullCtorName);
+                    if (prevIt != b_.functionTable_.end())
                     {
                         const auto &prevParams = prevIt->second.parameters;
                         for (size_t pi = 0; pi < ctorInfo.parameters.size() && pi < prevParams.size(); pi++)
@@ -533,11 +535,11 @@ namespace Sad
                         }
                     }
 
-                    functionTable_[fullCtorName] = ctorInfo;
+                    b_.functionTable_[fullCtorName] = ctorInfo;
 
-                    currentFunction_ = prevFunction;
-                    currentBlock_ = prevBlock;
-                    currentClassName_ = prevClassName;
+                    b_.currentFunction_ = prevFunction;
+                    b_.currentBlock_ = prevBlock;
+                    b_.currentClassName_ = prevClassName;
                 }
             }
         } // namespace SIR

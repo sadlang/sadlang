@@ -7,6 +7,8 @@
 //      Split from sir_builder_classes.cpp per CW-05 (800 line limit)
 // ============================================================================
 
+#include "sir_builder.h"
+#include "builders/class_builder.h"
 #include <string>
 #include "sir_builder.h"
 #include "module_nodes.h"
@@ -33,7 +35,7 @@ namespace Sad
             // السمة هي عقد موصفة — لا تولّد كوداً مباشراً، بل تُسجَّل للتحقق والتوثيق
             // Traits are descriptive nodes — no direct code generated, registered for validation
             // ============================================================================
-            void SIRBuilder::buildTrait(AST::TraitDecl *traitDecl)
+            void ClassBuilder::buildTrait(AST::TraitDecl *traitDecl)
             {
                 if (!traitDecl)
                     return;
@@ -58,20 +60,20 @@ namespace Sad
                 {
                     SIR::SIRTraitMethod tm;
                     tm.name = method.name;
-                    tm.returnType = astTypeToSIRType(method.returnType);
+                    tm.returnType = b_.astTypeToSIRType(method.returnType);
                     tm.hasDefaultImpl = (method.defaultImpl != nullptr);
                     for (const auto &param : method.params)
                     {
-                        tm.paramTypes.push_back(astTypeToSIRType(param.type));
+                        tm.paramTypes.push_back(b_.astTypeToSIRType(param.type));
                     }
                     sirTrait.methods.push_back(tm);
                 }
 
-                module_->addTrait(sirTrait);
+                b_.module_->addTrait(sirTrait);
 
                 // (AR) حفظ AST السمة لتوليد الدوال الافتراضية لاحقاً
                 // (EN) Store trait AST for generating default methods later
-                traitDefaultImpls_[traitDecl->name] = traitDecl;
+                b_.traitDefaultImpls_[traitDecl->name] = traitDecl;
 
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildTrait: registered trait '" << traitDecl->name
@@ -86,7 +88,7 @@ namespace Sad
             // كتلة التنفيذ تضيف دوال إلى صنف موجود
             // Impl block adds methods to an existing class
             // ============================================================================
-            void SIRBuilder::buildImpl(AST::ImplDecl *implDecl)
+            void ClassBuilder::buildImpl(AST::ImplDecl *implDecl)
             {
                 if (!implDecl)
                     return;
@@ -103,7 +105,7 @@ namespace Sad
 
                 // (AR) البحث عن الصنف المستهدف في وحدة SIR
                 // (EN) Find target class in SIR module
-                auto sirClass = module_->getClass(className);
+                auto sirClass = b_.module_->getClass(className);
                 if (!sirClass)
                 {
                     std::cerr << "[WARNING] buildImpl: class '" << className
@@ -128,31 +130,31 @@ namespace Sad
 #endif
 
                     // (AR) تحويل نوع الإرجاع — مع استنتاج تلقائي إذا لم يُحدد
-                    //      [إصلاح BF-04] buildImpl كان يستخدم astTypeToSIRType مباشرة
-                    //      بدون inferReturnTypeFromBody، مما يجعل نوع الإرجاع Integer
+                    //      [إصلاح BF-04] buildImpl كان يستخدم b_.astTypeToSIRType مباشرة
+                    //      بدون b_.inferReturnTypeFromBody، مما يجعل نوع الإرجاع Integer
                     //      للدوال التي ترجع نصاً (مثل وصف() في trait impl)
-                    //      الحل: استخدام inferReturnTypeFromBody كما في buildClass
+                    //      الحل: استخدام b_.inferReturnTypeFromBody كما في buildClass
                     // (EN) Convert return type — with automatic inference if not specified
-                    //      [Fix BF-04] buildImpl was using astTypeToSIRType directly
-                    //      without inferReturnTypeFromBody, causing return type to be Integer
+                    //      [Fix BF-04] buildImpl was using b_.astTypeToSIRType directly
+                    //      without b_.inferReturnTypeFromBody, causing return type to be Integer
                     //      for string-returning functions (e.g. وصف() in trait impl)
-                    //      Fix: use inferReturnTypeFromBody as in buildClass
+                    //      Fix: use b_.inferReturnTypeFromBody as in buildClass
                     SIR::SadTypeKind retType;
                     if (funcDecl->returnType == Data::DataType::UNKNOWN ||
                         funcDecl->returnType == Data::DataType::NONE)
                     {
-                        // (AR) تعيين الصنف الحالي مؤقتاً لتمكين inferReturnTypeFromBody
-                        //      من الوصول لحقول الصنف عبر module_->getClass(currentClassName_)
-                        // (EN) Temporarily set currentClassName_ so inferReturnTypeFromBody
-                        //      can access class fields via module_->getClass(currentClassName_)
-                        auto savedClassName = currentClassName_;
-                        currentClassName_ = className;
-                        retType = inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
-                        currentClassName_ = savedClassName;
+                        // (AR) تعيين الصنف الحالي مؤقتاً لتمكين b_.inferReturnTypeFromBody
+                        //      من الوصول لحقول الصنف عبر b_.module_->getClass(b_.currentClassName_)
+                        // (EN) Temporarily set b_.currentClassName_ so b_.inferReturnTypeFromBody
+                        //      can access class fields via b_.module_->getClass(b_.currentClassName_)
+                        auto savedClassName = b_.currentClassName_;
+                        b_.currentClassName_ = className;
+                        retType = b_.inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
+                        b_.currentClassName_ = savedClassName;
                     }
                     else
                     {
-                        retType = astTypeToSIRType(funcDecl->returnType);
+                        retType = b_.astTypeToSIRType(funcDecl->returnType);
                     }
                     auto sirMethod = std::make_shared<SIR::SIRFunction>(fullMethodName, retType);
 
@@ -164,7 +166,7 @@ namespace Sad
                     // (EN) Add parameters
                     for (const auto &param : funcDecl->parameters)
                     {
-                        SIR::SadTypeKind paramType = astTypeToSIRType(param.type);
+                        SIR::SadTypeKind paramType = b_.astTypeToSIRType(param.type);
                         sirMethod->addParameter(SIR::SIRParameter(param.name, paramType));
                     }
 
@@ -176,20 +178,20 @@ namespace Sad
                     // (EN) Build method body
                     if (funcDecl->body)
                     {
-                        auto prevFunction = currentFunction_;
-                        auto prevBlock = currentBlock_;
-                        auto prevClassName = currentClassName_;
+                        auto prevFunction = b_.currentFunction_;
+                        auto prevBlock = b_.currentBlock_;
+                        auto prevClassName = b_.currentClassName_;
 
-                        currentFunction_ = sirMethod;
-                        currentClassName_ = className;
+                        b_.currentFunction_ = sirMethod;
+                        b_.currentClassName_ = className;
 
                         // (AR) إنشاء كتلة الدخول — ضروري لتوليد التعليمات
                         // (EN) Create entry basic block — required for instruction generation
-                        auto entryBlock = createBasicBlock(kEntryBlockName);
+                        auto entryBlock = b_.createBasicBlock(kEntryBlockName);
                         sirMethod->addBasicBlock(entryBlock);
-                        currentBlock_ = entryBlock;
+                        b_.currentBlock_ = entryBlock;
 
-                        enterScope();
+                        b_.enterScope();
 
                         // (AR) Alloca لحقول الصنف — لتمكين الوصول لها عبر self
                         // (EN) Alloca for class fields — enables access through self
@@ -198,7 +200,7 @@ namespace Sad
                             SIR::SIRInstruction allocInst;
                             allocInst.opcode = SIR::SIROpcode::ALLOC;
                             allocInst.result = SIR::SIROperand::Register("%" + field.first, field.second);
-                            currentBlock_->addInstruction(allocInst);
+                            b_.currentBlock_->addInstruction(allocInst);
                         }
 
                         // (AR) تسجيل معامل self
@@ -210,8 +212,8 @@ namespace Sad
                             selfInfo.registerName = kSelfRegisterName;
                             selfInfo.isGlobal = false;
                             selfInfo.isMutable = false;
-                            selfInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                            addVariable(selfInfo);
+                            selfInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                            b_.addVariable(selfInfo);
                         }
 
                         // (AR) تسجيل "هذا" كمرادف لـ self — ضروري لدوال trait impl
@@ -226,8 +228,8 @@ namespace Sad
                             thisInfo.registerName = kSelfRegisterName;
                             thisInfo.isGlobal = false;
                             thisInfo.isMutable = false;
-                            thisInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                            addVariable(thisInfo);
+                            thisInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                            b_.addVariable(thisInfo);
                         }
 
                         // (AR) تسجيل المعاملات
@@ -236,12 +238,12 @@ namespace Sad
                         {
                             VariableInfo paramInfo;
                             paramInfo.name = param.name;
-                            paramInfo.type = astTypeToSIRType(param.type);
+                            paramInfo.type = b_.astTypeToSIRType(param.type);
                             paramInfo.registerName = "%" + param.name;
                             paramInfo.isGlobal = false;
                             paramInfo.isMutable = true;
-                            paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                            addVariable(paramInfo);
+                            paramInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                            b_.addVariable(paramInfo);
                         }
 
                         // (AR) بناء جسم الدالة
@@ -252,25 +254,25 @@ namespace Sad
                             {
                                 if (bodyStmt)
                                 {
-                                    buildStatement(bodyStmt.get());
+                                    b_.buildStatement(bodyStmt.get());
                                 }
                             }
                         }
                         else
                         {
-                            buildStatement(funcDecl->body.get());
+                            b_.buildStatement(funcDecl->body.get());
                         }
 
-                        exitScope();
+                        b_.exitScope();
 
                         // (AR) إضافة terminator إن لم يوجد
                         // (EN) Add terminator if none present
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
                             bool hasTerminator = false;
-                            if (!currentBlock_->instructions.empty())
+                            if (!b_.currentBlock_->instructions.empty())
                             {
-                                auto lastOp = currentBlock_->instructions.back().opcode;
+                                auto lastOp = b_.currentBlock_->instructions.back().opcode;
                                 hasTerminator = (lastOp == SIR::SIROpcode::RET || lastOp == SIR::SIROpcode::RET_VOID);
                             }
                             if (!hasTerminator)
@@ -292,18 +294,18 @@ namespace Sad
                                         retInst.operands.push_back(SIR::SIROperand::ConstantI64(0));
                                     }
                                 }
-                                currentBlock_->addInstruction(retInst);
+                                b_.currentBlock_->addInstruction(retInst);
                             }
                         }
 
-                        currentFunction_ = prevFunction;
-                        currentBlock_ = prevBlock;
-                        currentClassName_ = prevClassName;
+                        b_.currentFunction_ = prevFunction;
+                        b_.currentBlock_ = prevBlock;
+                        b_.currentClassName_ = prevClassName;
                     }
 
                     // (AR) إضافة الدالة للوحدة
                     // (EN) Add function to module
-                    module_->addFunction(sirMethod);
+                    b_.module_->addFunction(sirMethod);
 
                     // (AR) تسجيل الدالة في جدول الدوال — مطلوب لبحث الطرق عند الاستدعاء
                     // (EN) Register function in function table — required for method lookup at call site
@@ -312,7 +314,7 @@ namespace Sad
                         methodInfo.name = fullMethodName;
                         methodInfo.returnType = retType;
                         methodInfo.sirFunction = sirMethod;
-                        functionTable_[fullMethodName] = methodInfo;
+                        b_.functionTable_[fullMethodName] = methodInfo;
                     }
                 }
 
@@ -320,7 +322,7 @@ namespace Sad
                 // (EN) Validate all required trait methods + generate default methods
                 if (!implDecl->traitName.empty())
                 {
-                    auto *trait = module_->getTrait(implDecl->traitName);
+                    auto *trait = b_.module_->getTrait(implDecl->traitName);
                     if (trait)
                     {
                         // (AR) جمع كل السمات المطلوبة (بما فيها سمات الأب بشكل متعدٍّ)
@@ -337,14 +339,14 @@ namespace Sad
                             // (EN) Collect super traits first
                             for (const auto &superName : t->superTraits)
                             {
-                                auto *superTrait = module_->getTrait(superName);
+                                auto *superTrait = b_.module_->getTrait(superName);
                                 if (superTrait)
                                 {
                                     collectTraits(superTrait);
                                 }
                                 else
                                 {
-                                    errors_.push_back(
+                                    b_.errors_.push_back(
                                         "(AR) ❌ السمة '" + t->name + "' ترث من سمة غير معرّفة '" + superName + "'.\n"
                                                                                                                "(EN) Trait '" +
                                         t->name + "' extends undefined trait '" + superName + "'.");
@@ -360,8 +362,8 @@ namespace Sad
                         {
                             // (AR) ابحث عن AST السمة لاستخراج الدوال الافتراضية
                             // (EN) Find trait AST for extracting default implementations
-                            auto traitAstIt = traitDefaultImpls_.find(requiredTrait->name);
-                            AST::TraitDecl *traitAst = (traitAstIt != traitDefaultImpls_.end()) ? traitAstIt->second : nullptr;
+                            auto traitAstIt = b_.traitDefaultImpls_.find(requiredTrait->name);
+                            AST::TraitDecl *traitAst = (traitAstIt != b_.traitDefaultImpls_.end()) ? traitAstIt->second : nullptr;
 
                             for (size_t mi = 0; mi < requiredTrait->methods.size(); mi++)
                             {
@@ -390,14 +392,14 @@ namespace Sad
                                             if (traitMethod.returnType == Data::DataType::UNKNOWN ||
                                                 traitMethod.returnType == Data::DataType::NONE)
                                             {
-                                                auto savedClassName = currentClassName_;
-                                                currentClassName_ = className;
-                                                retType = inferReturnTypeFromBody(traitMethod.defaultImpl.get());
-                                                currentClassName_ = savedClassName;
+                                                auto savedClassName = b_.currentClassName_;
+                                                b_.currentClassName_ = className;
+                                                retType = b_.inferReturnTypeFromBody(traitMethod.defaultImpl.get());
+                                                b_.currentClassName_ = savedClassName;
                                             }
                                             else
                                             {
-                                                retType = astTypeToSIRType(traitMethod.returnType);
+                                                retType = b_.astTypeToSIRType(traitMethod.returnType);
                                             }
                                             auto sirMethod = std::make_shared<SIR::SIRFunction>(fullName, retType);
 
@@ -407,7 +409,7 @@ namespace Sad
 
                                             for (const auto &param : traitMethod.params)
                                             {
-                                                SIR::SadTypeKind paramType = astTypeToSIRType(param.type);
+                                                SIR::SadTypeKind paramType = b_.astTypeToSIRType(param.type);
                                                 sirMethod->addParameter(SIR::SIRParameter(param.name, paramType));
                                             }
 
@@ -415,18 +417,18 @@ namespace Sad
 
                                             // (AR) بناء جسم الدالة الافتراضية
                                             // (EN) Build default method body
-                                            auto prevFunction = currentFunction_;
-                                            auto prevBlock = currentBlock_;
-                                            auto prevClassName = currentClassName_;
+                                            auto prevFunction = b_.currentFunction_;
+                                            auto prevBlock = b_.currentBlock_;
+                                            auto prevClassName = b_.currentClassName_;
 
-                                            currentFunction_ = sirMethod;
-                                            currentClassName_ = className;
+                                            b_.currentFunction_ = sirMethod;
+                                            b_.currentClassName_ = className;
 
                                             // (AR) إنشاء كتلة الدخول — مطلوب لتوليد التعليمات
                                             // (EN) Create entry basic block — required for instruction generation
-                                            auto defaultEntryBlock = createBasicBlock(kEntryBlockName);
+                                            auto defaultEntryBlock = b_.createBasicBlock(kEntryBlockName);
                                             sirMethod->addBasicBlock(defaultEntryBlock);
-                                            currentBlock_ = defaultEntryBlock;
+                                            b_.currentBlock_ = defaultEntryBlock;
 
                                             // (AR) تخصيص حقول الصنف — لإتاحة الوصول عبر self
                                             // (EN) Alloca for class fields — enables access through self
@@ -435,10 +437,10 @@ namespace Sad
                                                 SIR::SIRInstruction allocInst;
                                                 allocInst.opcode = SIR::SIROpcode::ALLOC;
                                                 allocInst.result = SIR::SIROperand::Register("%" + field.first, field.second);
-                                                currentBlock_->addInstruction(allocInst);
+                                                b_.currentBlock_->addInstruction(allocInst);
                                             }
 
-                                            enterScope();
+                                            b_.enterScope();
 
                                             {
                                                 VariableInfo selfInfo;
@@ -447,20 +449,20 @@ namespace Sad
                                                 selfInfo.registerName = kSelfRegisterName;
                                                 selfInfo.isGlobal = false;
                                                 selfInfo.isMutable = false;
-                                                selfInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                                                addVariable(selfInfo);
+                                                selfInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                                b_.addVariable(selfInfo);
                                             }
 
                                             for (const auto &param : traitMethod.params)
                                             {
                                                 VariableInfo paramInfo;
                                                 paramInfo.name = param.name;
-                                                paramInfo.type = astTypeToSIRType(param.type);
+                                                paramInfo.type = b_.astTypeToSIRType(param.type);
                                                 paramInfo.registerName = "%" + param.name;
                                                 paramInfo.isGlobal = false;
                                                 paramInfo.isMutable = true;
-                                                paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
-                                                addVariable(paramInfo);
+                                                paramInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                                b_.addVariable(paramInfo);
                                             }
 
                                             if (auto blockStmt = dynamic_cast<Sad::AST::BlockStmt *>(traitMethod.defaultImpl.get()))
@@ -469,25 +471,25 @@ namespace Sad
                                                 {
                                                     if (bodyStmt)
                                                     {
-                                                        buildStatement(bodyStmt.get());
+                                                        b_.buildStatement(bodyStmt.get());
                                                     }
                                                 }
                                             }
                                             else
                                             {
-                                                buildStatement(traitMethod.defaultImpl.get());
+                                                b_.buildStatement(traitMethod.defaultImpl.get());
                                             }
 
-                                            exitScope();
+                                            b_.exitScope();
 
                                             // (AR) إضافة terminator إن لم يوجد
                                             // (EN) Add terminator if none present
-                                            if (currentBlock_)
+                                            if (b_.currentBlock_)
                                             {
                                                 bool hasTerminator = false;
-                                                if (!currentBlock_->instructions.empty())
+                                                if (!b_.currentBlock_->instructions.empty())
                                                 {
-                                                    auto lastOp = currentBlock_->instructions.back().opcode;
+                                                    auto lastOp = b_.currentBlock_->instructions.back().opcode;
                                                     hasTerminator = (lastOp == SIR::SIROpcode::RET || lastOp == SIR::SIROpcode::RET_VOID);
                                                 }
                                                 if (!hasTerminator)
@@ -509,15 +511,15 @@ namespace Sad
                                                             retInst.operands.push_back(SIR::SIROperand::ConstantI64(0));
                                                         }
                                                     }
-                                                    currentBlock_->addInstruction(retInst);
+                                                    b_.currentBlock_->addInstruction(retInst);
                                                 }
                                             }
 
-                                            currentFunction_ = prevFunction;
-                                            currentBlock_ = prevBlock;
-                                            currentClassName_ = prevClassName;
+                                            b_.currentFunction_ = prevFunction;
+                                            b_.currentBlock_ = prevBlock;
+                                            b_.currentClassName_ = prevClassName;
 
-                                            module_->addFunction(sirMethod);
+                                            b_.module_->addFunction(sirMethod);
 
                                             // (AR) تسجيل الدالة في جدول الدوال
                                             // (EN) Register function in function table
@@ -526,7 +528,7 @@ namespace Sad
                                                 defaultMethodInfo.name = fullName;
                                                 defaultMethodInfo.returnType = retType;
                                                 defaultMethodInfo.sirFunction = sirMethod;
-                                                functionTable_[fullName] = defaultMethodInfo;
+                                                b_.functionTable_[fullName] = defaultMethodInfo;
                                             }
                                         }
                                     }
@@ -538,7 +540,7 @@ namespace Sad
                                             "(AR) ❌ الصنف '" + className + "' لا ينفّذ الدالة المطلوبة '" + reqMethod.name + "' من السمة '" + requiredTrait->name + "'.\n"
                                                                                                                                                                     "(EN) Class '" +
                                             className + "' does not implement required method '" + reqMethod.name + "' from trait '" + requiredTrait->name + "'.";
-                                        errors_.push_back(errorMsg);
+                                        b_.errors_.push_back(errorMsg);
                                     }
                                 }
                             }
@@ -565,7 +567,7 @@ namespace Sad
                     }
                     else
                     {
-                        errors_.push_back(
+                        b_.errors_.push_back(
                             "(AR) ❌ السمة '" + implDecl->traitName + "' غير معرّفة.\n"
                                                                       "(EN) Trait '" +
                             implDecl->traitName + "' is not defined.");

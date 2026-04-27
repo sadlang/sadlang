@@ -272,7 +272,6 @@ set(COMPILER_FRONTEND_SOURCES
     compiler/src/frontend/sir_module.cpp
     compiler/src/frontend/sir_instruction.cpp
     compiler/src/frontend/sir_builder_module.cpp
-    compiler/src/frontend/sir_builder_classes.cpp
     compiler/src/frontend/sir_builder_statements.cpp
     compiler/src/frontend/sir_builder_stmt_exceptions.cpp
     compiler/src/frontend/sir_builder_stmt_generators.cpp
