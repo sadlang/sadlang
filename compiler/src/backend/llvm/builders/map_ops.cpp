@@ -1,7 +1,7 @@
 /*
  * ============================================================================
  * LLVM IR Code Generator - Map (Hash Map) Call Handlers
- * (AR) معالجة دوال runtime الخرائط المستدعاة عبر emitCall
+ * (AR) معالجة دوال runtime الخرائط المستدعاة عبر cg_.emitCall
  *      + دوال LLVM مساعدة: getOrCreateMapFindSlot, getOrCreateMapCollect
  *      مستخرجة من llvm_codegen_branch_call.cpp بواسطة نمط Strangler Fig (CW-05)
  * (EN) Hash Map runtime call handlers + LLVM helper functions
@@ -10,6 +10,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "builders/map_ops_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
@@ -35,18 +36,18 @@ namespace Sad
     namespace LLVM
     {
         /**
-         * @brief (AR) معالجة دوال runtime الخرائط المضمنة في emitCall
+         * @brief (AR) معالجة دوال runtime الخرائط المضمنة في cg_.emitCall
          *             __sad_map_create, __sad_map_set_typed, __sad_map_get,
          *             __sad_map_size, __sad_map_has, __sad_map_delete,
          *             __sad_map_keys, __sad_map_values, __sad_map_merge
-         *        (EN) Handle built-in map runtime functions dispatched from emitCall
+         *        (EN) Handle built-in map runtime functions dispatched from cg_.emitCall
          *
          * @return std::nullopt اذا لم يكن funcName دالة خريطة (تابع البحث)
          *         std::optional(value) اذا جرى التعامل معها (قد تكون nullptr عند الخطأ)
          * @return std::nullopt if funcName is not a map function (keep looking)
          *         std::optional(value) if handled (value may be nullptr on error)
          */
-        std::optional<llvm::Value *> LLVMCodeGen::emitCallMap(
+        std::optional<llvm::Value *> MapOpsCodeGen::emitCallMap(
             const std::string &funcName,
             std::vector<llvm::Value *> &args,
             std::shared_ptr<SIRInstruction> inst)
@@ -69,57 +70,57 @@ namespace Sad
                 //      ثم malloc(cap * 8) لكل من keys, values, types
                 //      وتصفير keys بـ memset(0) لتعليم الخانات الفارغة
                 // (EN) Create new map with initial capacity — malloc header + 3 arrays
-                auto *i64Ty = getInt64Type();
-                auto *ptrTy = llvm::PointerType::getUnqual(*context_);
-                auto *i8Ty = llvm::Type::getInt8Ty(*context_);
+                auto *i64Ty = cg_.getInt64Type();
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
 
                 // (AR) حساب السعة: max(حجم_المُعطى * 2, 8)
                 llvm::Value *hint = args.empty() ? llvm::ConstantInt::get(i64Ty, 0) : args[0];
-                llvm::Value *doubled = builder_->CreateMul(hint, llvm::ConstantInt::get(i64Ty, 2), "cap.hint");
+                llvm::Value *doubled = cg_.builder_->CreateMul(hint, llvm::ConstantInt::get(i64Ty, 2), "cap.hint");
                 llvm::Value *minCap = llvm::ConstantInt::get(i64Ty, 8);
-                llvm::Value *cmp = builder_->CreateICmpUGT(doubled, minCap, "cap.cmp");
-                llvm::Value *capacity = builder_->CreateSelect(cmp, doubled, minCap, "cap.final");
+                llvm::Value *cmp = cg_.builder_->CreateICmpUGT(doubled, minCap, "cap.cmp");
+                llvm::Value *capacity = cg_.builder_->CreateSelect(cmp, doubled, minCap, "cap.final");
 
                 // (AR) تخصيص البنية الرئيسية: 5 حقول * 8 = 40 بايت
                 auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-                auto mallocFunc = module_->getOrInsertFunction("malloc", mallocType);
-                llvm::Value *mapPtr = builder_->CreateCall(mallocFunc,
+                auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
+                llvm::Value *mapPtr = cg_.builder_->CreateCall(mallocFunc,
                                                            {llvm::ConstantInt::get(i64Ty, 40)}, "map.ptr");
 
                 // (AR) تخصيص المصفوفات (keys, values, types)
-                llvm::Value *arrBytes = builder_->CreateMul(capacity, llvm::ConstantInt::get(i64Ty, 8), "arr.bytes");
-                llvm::Value *keysPtr = builder_->CreateCall(mallocFunc, {arrBytes}, "map.keys");
-                llvm::Value *valsPtr = builder_->CreateCall(mallocFunc, {arrBytes}, "map.vals");
-                llvm::Value *typesPtr = builder_->CreateCall(mallocFunc, {arrBytes}, "map.types");
+                llvm::Value *arrBytes = cg_.builder_->CreateMul(capacity, llvm::ConstantInt::get(i64Ty, 8), "arr.bytes");
+                llvm::Value *keysPtr = cg_.builder_->CreateCall(mallocFunc, {arrBytes}, "map.keys");
+                llvm::Value *valsPtr = cg_.builder_->CreateCall(mallocFunc, {arrBytes}, "map.vals");
+                llvm::Value *typesPtr = cg_.builder_->CreateCall(mallocFunc, {arrBytes}, "map.types");
 
                 // (AR) تصفير keys بالكامل — null يعني خانة فارغة
-                auto *memsetType = llvm::FunctionType::get(ptrTy, {ptrTy, llvm::Type::getInt32Ty(*context_), i64Ty}, false);
-                auto memsetFunc = module_->getOrInsertFunction("memset", memsetType);
-                builder_->CreateCall(memsetFunc, {keysPtr, builder_->getInt32(0), arrBytes});
+                auto *memsetType = llvm::FunctionType::get(ptrTy, {ptrTy, llvm::Type::getInt32Ty(*cg_.context_), i64Ty}, false);
+                auto memsetFunc = cg_.module_->getOrInsertFunction("memset", memsetType);
+                cg_.builder_->CreateCall(memsetFunc, {keysPtr, cg_.builder_->getInt32(0), arrBytes});
 
                 // (AR) تخزين الحقول في البنية: [0]=count, [1]=capacity, [2]=keys, [3]=values, [4]=types
-                llvm::Value *countGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *countGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                             {llvm::ConstantInt::get(i64Ty, 0)}, "map.count.gep");
-                builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), countGep);
+                cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), countGep);
 
-                llvm::Value *capGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *capGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                           {llvm::ConstantInt::get(i64Ty, 1)}, "map.cap.gep");
-                builder_->CreateStore(capacity, capGep);
+                cg_.builder_->CreateStore(capacity, capGep);
 
-                llvm::Value *keysGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *keysGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                            {llvm::ConstantInt::get(i64Ty, 2)}, "map.keys.gep");
-                builder_->CreateStore(builder_->CreatePtrToInt(keysPtr, i64Ty), keysGep);
+                cg_.builder_->CreateStore(cg_.builder_->CreatePtrToInt(keysPtr, i64Ty), keysGep);
 
-                llvm::Value *valsGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *valsGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                            {llvm::ConstantInt::get(i64Ty, 3)}, "map.vals.gep");
-                builder_->CreateStore(builder_->CreatePtrToInt(valsPtr, i64Ty), valsGep);
+                cg_.builder_->CreateStore(cg_.builder_->CreatePtrToInt(valsPtr, i64Ty), valsGep);
 
-                llvm::Value *typesGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *typesGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                             {llvm::ConstantInt::get(i64Ty, 4)}, "map.types.gep");
-                builder_->CreateStore(builder_->CreatePtrToInt(typesPtr, i64Ty), typesGep);
+                cg_.builder_->CreateStore(cg_.builder_->CreatePtrToInt(typesPtr, i64Ty), typesGep);
 
                 if (inst->result.has_value())
-                    context_info_.namedValues[inst->result->name] = mapPtr;
+                    cg_.context_info_.namedValues[inst->result->name] = mapPtr;
                 return mapPtr;
             }
 
@@ -133,89 +134,89 @@ namespace Sad
                 if (args.size() < 4)
                     return nullptr;
 
-                auto *i64Ty = getInt64Type();
-                auto *ptrTy = llvm::PointerType::getUnqual(*context_);
+                auto *i64Ty = cg_.getInt64Type();
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr — المتغيرات تُخزَن كـ i64
                 llvm::Value *mapPtr = args[0];
                 if (mapPtr->getType() == i64Ty)
-                    mapPtr = builder_->CreateIntToPtr(mapPtr, ptrTy, "mset.map.ptr");
+                    mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "mset.map.ptr");
                 llvm::Value *key = args[1];
                 llvm::Value *value = args[2];
                 llvm::Value *typeTag = args[3];
 
                 // (AR) تحميل count, capacity, keys, values, types من البنية
-                llvm::Value *countGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *countGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                             {llvm::ConstantInt::get(i64Ty, 0)}, "mset.count.gep");
-                llvm::Value *count = builder_->CreateLoad(i64Ty, countGep, "mset.count");
-                llvm::Value *capGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *count = cg_.builder_->CreateLoad(i64Ty, countGep, "mset.count");
+                llvm::Value *capGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                           {llvm::ConstantInt::get(i64Ty, 1)}, "mset.cap.gep");
-                llvm::Value *cap = builder_->CreateLoad(i64Ty, capGep, "mset.cap");
+                llvm::Value *cap = cg_.builder_->CreateLoad(i64Ty, capGep, "mset.cap");
 
-                llvm::Value *keysArrGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *keysArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                               {llvm::ConstantInt::get(i64Ty, 2)}, "mset.keys.gep");
-                llvm::Value *keysI64 = builder_->CreateLoad(i64Ty, keysArrGep, "mset.keys.i64");
-                llvm::Value *keysArr = builder_->CreateIntToPtr(keysI64, ptrTy, "mset.keys.ptr");
+                llvm::Value *keysI64 = cg_.builder_->CreateLoad(i64Ty, keysArrGep, "mset.keys.i64");
+                llvm::Value *keysArr = cg_.builder_->CreateIntToPtr(keysI64, ptrTy, "mset.keys.ptr");
 
-                llvm::Value *valsArrGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *valsArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                               {llvm::ConstantInt::get(i64Ty, 3)}, "mset.vals.gep");
-                llvm::Value *valsI64 = builder_->CreateLoad(i64Ty, valsArrGep, "mset.vals.i64");
-                llvm::Value *valsArr = builder_->CreateIntToPtr(valsI64, ptrTy, "mset.vals.ptr");
+                llvm::Value *valsI64 = cg_.builder_->CreateLoad(i64Ty, valsArrGep, "mset.vals.i64");
+                llvm::Value *valsArr = cg_.builder_->CreateIntToPtr(valsI64, ptrTy, "mset.vals.ptr");
 
-                llvm::Value *typesArrGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *typesArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                                {llvm::ConstantInt::get(i64Ty, 4)}, "mset.types.gep");
-                llvm::Value *typesI64 = builder_->CreateLoad(i64Ty, typesArrGep, "mset.types.i64");
-                llvm::Value *typesArr = builder_->CreateIntToPtr(typesI64, ptrTy, "mset.types.ptr");
+                llvm::Value *typesI64 = cg_.builder_->CreateLoad(i64Ty, typesArrGep, "mset.types.i64");
+                llvm::Value *typesArr = cg_.builder_->CreateIntToPtr(typesI64, ptrTy, "mset.types.ptr");
 
                 // (AR) بحث خطي: استدعاء __sad_map_find_slot لإيجاد الخانة
                 // (EN) Linear search: call __sad_map_find_slot helper
                 llvm::Function *findSlotFn = getOrCreateMapFindSlot();
-                llvm::Value *slotIdx = builder_->CreateCall(findSlotFn,
+                llvm::Value *slotIdx = cg_.builder_->CreateCall(findSlotFn,
                                                             {keysArr, cap, key}, "mset.slot");
 
                 // (AR) فحص: هل الخانة فارغة (مفتاح المفتاح == null)؟
-                llvm::Value *slotKeyGep = builder_->CreateGEP(ptrTy, keysArr,
+                llvm::Value *slotKeyGep = cg_.builder_->CreateGEP(ptrTy, keysArr,
                                                               {slotIdx}, "mset.slot.key.gep");
-                llvm::Value *existingKey = builder_->CreateLoad(ptrTy, slotKeyGep, "mset.existing.key");
-                llvm::Value *isNull = builder_->CreateICmpEQ(existingKey,
+                llvm::Value *existingKey = cg_.builder_->CreateLoad(ptrTy, slotKeyGep, "mset.existing.key");
+                llvm::Value *isNull = cg_.builder_->CreateICmpEQ(existingKey,
                                                              llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "mset.is.new");
 
                 // (AR) تخزين المفتاح (نسخة strdup)
                 auto *strdupType = llvm::FunctionType::get(ptrTy, {ptrTy}, false);
-                auto strdupFunc = module_->getOrInsertFunction("_strdup", strdupType);
-                llvm::Value *keyCopy = builder_->CreateCall(strdupFunc, {key}, "mset.key.copy");
+                auto strdupFunc = cg_.module_->getOrInsertFunction("_strdup", strdupType);
+                llvm::Value *keyCopy = cg_.builder_->CreateCall(strdupFunc, {key}, "mset.key.copy");
                 // (AR) إذا كان الخانة جديدة، استخدم النسخة — وإلا احتفظ بالمفتاح القديم
-                llvm::Value *finalKey = builder_->CreateSelect(isNull, keyCopy, existingKey, "mset.final.key");
-                builder_->CreateStore(finalKey, slotKeyGep);
+                llvm::Value *finalKey = cg_.builder_->CreateSelect(isNull, keyCopy, existingKey, "mset.final.key");
+                cg_.builder_->CreateStore(finalKey, slotKeyGep);
 
                 // (AR) تخزين القيمة بتحويل نوعها حسب typeTag
                 // (EN) Store value — for strings (type 0), store ptr as i64; for ints, store directly
                 llvm::Value *valAsI64;
                 if (value->getType()->isPointerTy())
-                    valAsI64 = builder_->CreatePtrToInt(value, i64Ty, "mset.val.i64");
+                    valAsI64 = cg_.builder_->CreatePtrToInt(value, i64Ty, "mset.val.i64");
                 else if (value->getType() == i64Ty)
                     valAsI64 = value;
                 else
-                    valAsI64 = builder_->CreateZExtOrTrunc(value, i64Ty, "mset.val.ext");
+                    valAsI64 = cg_.builder_->CreateZExtOrTrunc(value, i64Ty, "mset.val.ext");
 
-                llvm::Value *valSlotGep = builder_->CreateGEP(i64Ty, valsArr,
+                llvm::Value *valSlotGep = cg_.builder_->CreateGEP(i64Ty, valsArr,
                                                               {slotIdx}, "mset.val.gep");
-                builder_->CreateStore(valAsI64, valSlotGep);
+                cg_.builder_->CreateStore(valAsI64, valSlotGep);
 
                 // (AR) تخزين نوع القيمة
-                llvm::Value *typeSlotGep = builder_->CreateGEP(i64Ty, typesArr,
+                llvm::Value *typeSlotGep = cg_.builder_->CreateGEP(i64Ty, typesArr,
                                                                {slotIdx}, "mset.type.gep");
                 llvm::Value *typeAsI64;
                 if (typeTag->getType() == i64Ty)
                     typeAsI64 = typeTag;
                 else
-                    typeAsI64 = builder_->CreateZExtOrTrunc(typeTag, i64Ty, "mset.type.ext");
-                builder_->CreateStore(typeAsI64, typeSlotGep);
+                    typeAsI64 = cg_.builder_->CreateZExtOrTrunc(typeTag, i64Ty, "mset.type.ext");
+                cg_.builder_->CreateStore(typeAsI64, typeSlotGep);
 
                 // (AR) زيادة count فقط إذا كانت الخانة جديدة
-                llvm::Value *newCount = builder_->CreateAdd(count, llvm::ConstantInt::get(i64Ty, 1), "mset.new.count");
-                llvm::Value *finalCount = builder_->CreateSelect(isNull, newCount, count, "mset.final.count");
-                builder_->CreateStore(finalCount, countGep);
+                llvm::Value *newCount = cg_.builder_->CreateAdd(count, llvm::ConstantInt::get(i64Ty, 1), "mset.new.count");
+                llvm::Value *finalCount = cg_.builder_->CreateSelect(isNull, newCount, count, "mset.final.count");
+                cg_.builder_->CreateStore(finalCount, countGep);
 
                 return llvm::ConstantInt::get(i64Ty, 0);
             }
@@ -232,48 +233,48 @@ namespace Sad
                 if (args.size() < 2)
                     return nullptr;
 
-                auto *i64Ty = getInt64Type();
-                auto *ptrTy = llvm::PointerType::getUnqual(*context_);
+                auto *i64Ty = cg_.getInt64Type();
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr — المتغيرات تُخزَن كـ i64
                 llvm::Value *mapPtr = args[0];
                 if (mapPtr->getType() == i64Ty)
-                    mapPtr = builder_->CreateIntToPtr(mapPtr, ptrTy, "mget.map.ptr");
+                    mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "mget.map.ptr");
                 llvm::Value *key = args[1];
 
                 // (AR) تحميل capacity, keys, values, types من البنية
-                llvm::Value *capGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *capGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                           {llvm::ConstantInt::get(i64Ty, 1)}, "mget.cap.gep");
-                llvm::Value *cap = builder_->CreateLoad(i64Ty, capGep, "mget.cap");
+                llvm::Value *cap = cg_.builder_->CreateLoad(i64Ty, capGep, "mget.cap");
 
-                llvm::Value *keysArrGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *keysArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                               {llvm::ConstantInt::get(i64Ty, 2)}, "mget.keys.gep");
-                llvm::Value *keysI64 = builder_->CreateLoad(i64Ty, keysArrGep, "mget.keys.i64");
-                llvm::Value *keysArr = builder_->CreateIntToPtr(keysI64, ptrTy, "mget.keys.ptr");
+                llvm::Value *keysI64 = cg_.builder_->CreateLoad(i64Ty, keysArrGep, "mget.keys.i64");
+                llvm::Value *keysArr = cg_.builder_->CreateIntToPtr(keysI64, ptrTy, "mget.keys.ptr");
 
-                llvm::Value *valsArrGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *valsArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                               {llvm::ConstantInt::get(i64Ty, 3)}, "mget.vals.gep");
-                llvm::Value *valsI64 = builder_->CreateLoad(i64Ty, valsArrGep, "mget.vals.i64");
-                llvm::Value *valsArr = builder_->CreateIntToPtr(valsI64, ptrTy, "mget.vals.ptr");
+                llvm::Value *valsI64 = cg_.builder_->CreateLoad(i64Ty, valsArrGep, "mget.vals.i64");
+                llvm::Value *valsArr = cg_.builder_->CreateIntToPtr(valsI64, ptrTy, "mget.vals.ptr");
 
-                llvm::Value *typesArrGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *typesArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                                {llvm::ConstantInt::get(i64Ty, 4)}, "mget.types.gep");
-                llvm::Value *typesI64 = builder_->CreateLoad(i64Ty, typesArrGep, "mget.types.i64");
-                llvm::Value *typesArr = builder_->CreateIntToPtr(typesI64, ptrTy, "mget.types.ptr");
+                llvm::Value *typesI64 = cg_.builder_->CreateLoad(i64Ty, typesArrGep, "mget.types.i64");
+                llvm::Value *typesArr = cg_.builder_->CreateIntToPtr(typesI64, ptrTy, "mget.types.ptr");
 
                 // (AR) بحث عن المفتاح
                 llvm::Function *findSlotFn = getOrCreateMapFindSlot();
-                llvm::Value *slotIdx = builder_->CreateCall(findSlotFn,
+                llvm::Value *slotIdx = cg_.builder_->CreateCall(findSlotFn,
                                                             {keysArr, cap, key}, "mget.slot");
 
                 // (AR) قراءة القيمة ونوعها
-                llvm::Value *valGep = builder_->CreateGEP(i64Ty, valsArr,
+                llvm::Value *valGep = cg_.builder_->CreateGEP(i64Ty, valsArr,
                                                           {slotIdx}, "mget.val.gep");
-                llvm::Value *valI64 = builder_->CreateLoad(i64Ty, valGep, "mget.val");
+                llvm::Value *valI64 = cg_.builder_->CreateLoad(i64Ty, valGep, "mget.val");
 
-                llvm::Value *typeGep = builder_->CreateGEP(i64Ty, typesArr,
+                llvm::Value *typeGep = cg_.builder_->CreateGEP(i64Ty, typesArr,
                                                            {slotIdx}, "mget.type.gep");
-                llvm::Value *typeTag = builder_->CreateLoad(i64Ty, typeGep, "mget.type");
+                llvm::Value *typeTag = cg_.builder_->CreateLoad(i64Ty, typeGep, "mget.type");
 
                 if (funcName == "__sad_map_get")
                 {
@@ -281,32 +282,32 @@ namespace Sad
                     //      إذا type=1 (رقم) نحول بـ sprintf لنص
                     //      هذا يحل مشكلة الخرائط المختلطة الأنواع
                     // (EN) Return ptr — but check type: if string → inttoptr, if int → sprintf to string
-                    llvm::Value *isString = builder_->CreateICmpEQ(typeTag,
+                    llvm::Value *isString = cg_.builder_->CreateICmpEQ(typeTag,
                                                                    llvm::ConstantInt::get(i64Ty, 0), "mget.is.str");
 
                     // (AR) نستخدم select: إذا نص → inttoptr(val)
                     //      إذا رقم → sprintf(buf, "%lld", val) → buf
-                    llvm::Value *strPtr = builder_->CreateIntToPtr(valI64, ptrTy, "mget.as.ptr");
+                    llvm::Value *strPtr = cg_.builder_->CreateIntToPtr(valI64, ptrTy, "mget.as.ptr");
 
                     // (AR) تخصيص ذاكرة مؤقتة 32 بايت لتحويل الرقم لنص
                     auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-                    auto mallocFn = module_->getOrInsertFunction("malloc", mallocType);
-                    llvm::Value *buf = builder_->CreateCall(mallocFn,
+                    auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
+                    llvm::Value *buf = cg_.builder_->CreateCall(mallocFn,
                                                             {llvm::ConstantInt::get(i64Ty, 32)}, "mget.sprintf.buf");
 
                     // (AR) استدعاء sprintf لتحويل الرقم لنص
                     auto *sprintfType = llvm::FunctionType::get(
-                        llvm::Type::getInt32Ty(*context_),
+                        llvm::Type::getInt32Ty(*cg_.context_),
                         {ptrTy, ptrTy, i64Ty}, true);
-                    auto sprintfFn = module_->getOrInsertFunction("sprintf", sprintfType);
-                    llvm::Value *fmtStr = builder_->CreateGlobalStringPtr("%lld", "mget.fmt.lld");
-                    builder_->CreateCall(sprintfFn, {buf, fmtStr, valI64});
+                    auto sprintfFn = cg_.module_->getOrInsertFunction("sprintf", sprintfType);
+                    llvm::Value *fmtStr = cg_.builder_->CreateGlobalStringPtr("%lld", "mget.fmt.lld");
+                    cg_.builder_->CreateCall(sprintfFn, {buf, fmtStr, valI64});
 
                     // (AR) اختيار: نص أصلي أو الرقم المُحوّل
-                    llvm::Value *result = builder_->CreateSelect(isString, strPtr, buf, "mget.result");
+                    llvm::Value *result = cg_.builder_->CreateSelect(isString, strPtr, buf, "mget.result");
 
                     if (inst->result.has_value())
-                        context_info_.namedValues[inst->result->name] = result;
+                        cg_.context_info_.namedValues[inst->result->name] = result;
                     return result;
                 }
                 else
@@ -316,7 +317,7 @@ namespace Sad
                     llvm::Value *result = valI64;
 
                     if (inst->result.has_value())
-                        context_info_.namedValues[inst->result->name] = result;
+                        cg_.context_info_.namedValues[inst->result->name] = result;
                     return result;
                 }
             }
@@ -328,19 +329,19 @@ namespace Sad
                 if (args.empty())
                     return nullptr;
 
-                auto *i64Ty = getInt64Type();
-                auto *ptrTy = llvm::PointerType::getUnqual(*context_);
+                auto *i64Ty = cg_.getInt64Type();
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr
                 llvm::Value *mapArg = args[0];
                 if (mapArg->getType() == i64Ty)
-                    mapArg = builder_->CreateIntToPtr(mapArg, ptrTy, "msize.map.ptr");
-                llvm::Value *countGep = builder_->CreateGEP(i64Ty, mapArg,
+                    mapArg = cg_.builder_->CreateIntToPtr(mapArg, ptrTy, "msize.map.ptr");
+                llvm::Value *countGep = cg_.builder_->CreateGEP(i64Ty, mapArg,
                                                             {llvm::ConstantInt::get(i64Ty, 0)}, "msize.count.gep");
-                llvm::Value *result = builder_->CreateLoad(i64Ty, countGep, "msize.count");
+                llvm::Value *result = cg_.builder_->CreateLoad(i64Ty, countGep, "msize.count");
 
                 if (inst->result.has_value())
-                    context_info_.namedValues[inst->result->name] = result;
+                    cg_.context_info_.namedValues[inst->result->name] = result;
                 return result;
             }
 
@@ -351,38 +352,38 @@ namespace Sad
                 if (args.size() < 2)
                     return nullptr;
 
-                auto *i64Ty = getInt64Type();
-                auto *ptrTy = llvm::PointerType::getUnqual(*context_);
+                auto *i64Ty = cg_.getInt64Type();
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr
                 llvm::Value *mapPtr = args[0];
                 if (mapPtr->getType() == i64Ty)
-                    mapPtr = builder_->CreateIntToPtr(mapPtr, ptrTy, "mhas.map.ptr");
+                    mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "mhas.map.ptr");
                 llvm::Value *key = args[1];
 
-                llvm::Value *capGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *capGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                           {llvm::ConstantInt::get(i64Ty, 1)}, "mhas.cap.gep");
-                llvm::Value *cap = builder_->CreateLoad(i64Ty, capGep, "mhas.cap");
+                llvm::Value *cap = cg_.builder_->CreateLoad(i64Ty, capGep, "mhas.cap");
 
-                llvm::Value *keysArrGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *keysArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                               {llvm::ConstantInt::get(i64Ty, 2)}, "mhas.keys.gep");
-                llvm::Value *keysI64 = builder_->CreateLoad(i64Ty, keysArrGep, "mhas.keys.i64");
-                llvm::Value *keysArr = builder_->CreateIntToPtr(keysI64, ptrTy, "mhas.keys.ptr");
+                llvm::Value *keysI64 = cg_.builder_->CreateLoad(i64Ty, keysArrGep, "mhas.keys.i64");
+                llvm::Value *keysArr = cg_.builder_->CreateIntToPtr(keysI64, ptrTy, "mhas.keys.ptr");
 
                 llvm::Function *findSlotFn = getOrCreateMapFindSlot();
-                llvm::Value *slotIdx = builder_->CreateCall(findSlotFn,
+                llvm::Value *slotIdx = cg_.builder_->CreateCall(findSlotFn,
                                                             {keysArr, cap, key}, "mhas.slot");
 
                 // (AR) قراءة المفتاح في الخانة — إذا != null → موجود
-                llvm::Value *slotKeyGep = builder_->CreateGEP(ptrTy, keysArr,
+                llvm::Value *slotKeyGep = cg_.builder_->CreateGEP(ptrTy, keysArr,
                                                               {slotIdx}, "mhas.slot.key.gep");
-                llvm::Value *slotKey = builder_->CreateLoad(ptrTy, slotKeyGep, "mhas.slot.key");
-                llvm::Value *isNotNull = builder_->CreateICmpNE(slotKey,
+                llvm::Value *slotKey = cg_.builder_->CreateLoad(ptrTy, slotKeyGep, "mhas.slot.key");
+                llvm::Value *isNotNull = cg_.builder_->CreateICmpNE(slotKey,
                                                                 llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "mhas.found");
-                llvm::Value *result = builder_->CreateZExt(isNotNull, i64Ty, "mhas.result");
+                llvm::Value *result = cg_.builder_->CreateZExt(isNotNull, i64Ty, "mhas.result");
 
                 if (inst->result.has_value())
-                    context_info_.namedValues[inst->result->name] = result;
+                    cg_.context_info_.namedValues[inst->result->name] = result;
                 return result;
             }
 
@@ -393,54 +394,54 @@ namespace Sad
                 if (args.size() < 2)
                     return nullptr;
 
-                auto *i64Ty = getInt64Type();
-                auto *ptrTy = llvm::PointerType::getUnqual(*context_);
+                auto *i64Ty = cg_.getInt64Type();
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 llvm::Value *mapPtr = args[0];
                 if (mapPtr->getType() == i64Ty)
-                    mapPtr = builder_->CreateIntToPtr(mapPtr, ptrTy, "mdel.map.ptr");
+                    mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "mdel.map.ptr");
                 llvm::Value *key = args[1];
 
                 // (AR) تحميل capacity و keys array
-                llvm::Value *capGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *capGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                           {llvm::ConstantInt::get(i64Ty, 1)}, "mdel.cap.gep");
-                llvm::Value *cap = builder_->CreateLoad(i64Ty, capGep, "mdel.cap");
+                llvm::Value *cap = cg_.builder_->CreateLoad(i64Ty, capGep, "mdel.cap");
 
-                llvm::Value *keysArrGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *keysArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                               {llvm::ConstantInt::get(i64Ty, 2)}, "mdel.keys.gep");
-                llvm::Value *keysI64 = builder_->CreateLoad(i64Ty, keysArrGep, "mdel.keys.i64");
-                llvm::Value *keysArr = builder_->CreateIntToPtr(keysI64, ptrTy, "mdel.keys.ptr");
+                llvm::Value *keysI64 = cg_.builder_->CreateLoad(i64Ty, keysArrGep, "mdel.keys.i64");
+                llvm::Value *keysArr = cg_.builder_->CreateIntToPtr(keysI64, ptrTy, "mdel.keys.ptr");
 
                 // (AR) البحث عن الخانة
                 llvm::Function *findSlotFn = getOrCreateMapFindSlot();
-                llvm::Value *slotIdx = builder_->CreateCall(findSlotFn,
+                llvm::Value *slotIdx = cg_.builder_->CreateCall(findSlotFn,
                                                             {keysArr, cap, key}, "mdel.slot");
 
                 // (AR) فحص وجود المفتاح في الخانة
-                llvm::Value *slotKeyGep = builder_->CreateGEP(ptrTy, keysArr,
+                llvm::Value *slotKeyGep = cg_.builder_->CreateGEP(ptrTy, keysArr,
                                                               {slotIdx}, "mdel.slot.key.gep");
-                llvm::Value *slotKey = builder_->CreateLoad(ptrTy, slotKeyGep, "mdel.slot.key");
-                llvm::Value *isNotNull = builder_->CreateICmpNE(slotKey,
+                llvm::Value *slotKey = cg_.builder_->CreateLoad(ptrTy, slotKeyGep, "mdel.slot.key");
+                llvm::Value *isNotNull = cg_.builder_->CreateICmpNE(slotKey,
                                                                 llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "mdel.found");
 
                 // (AR) إذا موجود: null المفتاح + إنقاص العداد
-                llvm::Function *parentFn = builder_->GetInsertBlock()->getParent();
-                llvm::BasicBlock *deleteBB = llvm::BasicBlock::Create(*context_, "mdel.do", parentFn);
-                llvm::BasicBlock *endBB = llvm::BasicBlock::Create(*context_, "mdel.end", parentFn);
-                builder_->CreateCondBr(isNotNull, deleteBB, endBB);
+                llvm::Function *parentFn = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *deleteBB = llvm::BasicBlock::Create(*cg_.context_, "mdel.do", parentFn);
+                llvm::BasicBlock *endBB = llvm::BasicBlock::Create(*cg_.context_, "mdel.end", parentFn);
+                cg_.builder_->CreateCondBr(isNotNull, deleteBB, endBB);
 
-                builder_->SetInsertPoint(deleteBB);
+                cg_.builder_->SetInsertPoint(deleteBB);
                 // (AR) تصفير المفتاح
-                builder_->CreateStore(llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), slotKeyGep);
+                cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), slotKeyGep);
                 // (AR) إنقاص العداد
-                llvm::Value *countGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *countGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                             {llvm::ConstantInt::get(i64Ty, 0)}, "mdel.count.gep");
-                llvm::Value *count = builder_->CreateLoad(i64Ty, countGep, "mdel.count");
-                llvm::Value *newCount = builder_->CreateSub(count, llvm::ConstantInt::get(i64Ty, 1), "mdel.new.count");
-                builder_->CreateStore(newCount, countGep);
-                builder_->CreateBr(endBB);
+                llvm::Value *count = cg_.builder_->CreateLoad(i64Ty, countGep, "mdel.count");
+                llvm::Value *newCount = cg_.builder_->CreateSub(count, llvm::ConstantInt::get(i64Ty, 1), "mdel.new.count");
+                cg_.builder_->CreateStore(newCount, countGep);
+                cg_.builder_->CreateBr(endBB);
 
-                builder_->SetInsertPoint(endBB);
+                cg_.builder_->SetInsertPoint(endBB);
                 return llvm::ConstantInt::get(i64Ty, 0);
             }
 
@@ -453,27 +454,27 @@ namespace Sad
                 if (args.empty())
                     return nullptr;
 
-                auto *i64Ty = getInt64Type();
-                auto *ptrTy = llvm::PointerType::getUnqual(*context_);
+                auto *i64Ty = cg_.getInt64Type();
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr
                 llvm::Value *mapPtr = args[0];
                 if (mapPtr->getType() == i64Ty)
-                    mapPtr = builder_->CreateIntToPtr(mapPtr, ptrTy, "mkvs.map.ptr");
+                    mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "mkvs.map.ptr");
                 bool isKeys = (funcName == "__sad_map_keys");
 
                 // (AR) تحميل count, capacity, keys, values
-                llvm::Value *countGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *countGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                             {llvm::ConstantInt::get(i64Ty, 0)}, "mkvs.count.gep");
-                llvm::Value *count = builder_->CreateLoad(i64Ty, countGep, "mkvs.count");
-                llvm::Value *capGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *count = cg_.builder_->CreateLoad(i64Ty, countGep, "mkvs.count");
+                llvm::Value *capGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                           {llvm::ConstantInt::get(i64Ty, 1)}, "mkvs.cap.gep");
-                llvm::Value *cap = builder_->CreateLoad(i64Ty, capGep, "mkvs.cap");
+                llvm::Value *cap = cg_.builder_->CreateLoad(i64Ty, capGep, "mkvs.cap");
 
-                llvm::Value *keysArrGep = builder_->CreateGEP(i64Ty, mapPtr,
+                llvm::Value *keysArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                               {llvm::ConstantInt::get(i64Ty, 2)}, "mkvs.keys.gep");
-                llvm::Value *keysI64 = builder_->CreateLoad(i64Ty, keysArrGep, "mkvs.keys.i64");
-                llvm::Value *keysArr = builder_->CreateIntToPtr(keysI64, ptrTy, "mkvs.keys.ptr");
+                llvm::Value *keysI64 = cg_.builder_->CreateLoad(i64Ty, keysArrGep, "mkvs.keys.i64");
+                llvm::Value *keysArr = cg_.builder_->CreateIntToPtr(keysI64, ptrTy, "mkvs.keys.ptr");
 
                 llvm::Value *srcArrGep;
                 if (isKeys)
@@ -482,19 +483,19 @@ namespace Sad
                 }
                 else
                 {
-                    srcArrGep = builder_->CreateGEP(i64Ty, mapPtr,
+                    srcArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                     {llvm::ConstantInt::get(i64Ty, 3)}, "mkvs.vals.gep"); // (AR) نسخ القيم
                 }
-                llvm::Value *srcI64 = builder_->CreateLoad(i64Ty, srcArrGep, "mkvs.src.i64");
-                llvm::Value *srcArr = builder_->CreateIntToPtr(srcI64, ptrTy, "mkvs.src.ptr");
+                llvm::Value *srcI64 = cg_.builder_->CreateLoad(i64Ty, srcArrGep, "mkvs.src.i64");
+                llvm::Value *srcArr = cg_.builder_->CreateIntToPtr(srcI64, ptrTy, "mkvs.src.ptr");
 
                 // (AR) استدعاء دالة مساعدة لبناء المصفوفة من الخانات غير الفارغة
                 llvm::Function *collectFn = getOrCreateMapCollect();
-                llvm::Value *result = builder_->CreateCall(collectFn,
+                llvm::Value *result = cg_.builder_->CreateCall(collectFn,
                                                            {keysArr, srcArr, cap, count}, "mkvs.result");
 
                 if (inst->result.has_value())
-                    context_info_.namedValues[inst->result->name] = result;
+                    cg_.context_info_.namedValues[inst->result->name] = result;
                 return result;
             }
 
@@ -502,7 +503,7 @@ namespace Sad
             {
                 // (AR) دمج خريطة مصدر في خريطة هدف — غير مدعوم حالياً، يُتجاهل بهدوء
                 // (EN) Merge source map into target — not supported yet, silently ignored
-                return llvm::ConstantInt::get(getInt64Type(), 0);
+                return llvm::ConstantInt::get(cg_.getInt64Type(), 0);
             }
 
             return std::nullopt;
@@ -525,35 +526,35 @@ namespace Sad
          *      خلاف ذلك → استمر
          *      إذا وصلنا النهاية بدون إيجاد → ارجع 0 (fallback)
          */
-        llvm::Function *LLVMCodeGen::getOrCreateMapFindSlot()
+        llvm::Function *MapOpsCodeGen::getOrCreateMapFindSlot()
         {
             const char *fnName = "__sad_map_find_slot";
-            llvm::Function *fn = module_->getFunction(fnName);
+            llvm::Function *fn = cg_.module_->getFunction(fnName);
             if (fn)
                 return fn;
 
-            auto *i64Ty = getInt64Type();
-            auto *ptrTy = llvm::PointerType::getUnqual(*context_);
-            auto *i32Ty = llvm::Type::getInt32Ty(*context_);
+            auto *i64Ty = cg_.getInt64Type();
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
 
             // (AR) التوقيع: (ptr keysArr, i64 capacity, ptr key) → i64
             auto *fnType = llvm::FunctionType::get(i64Ty, {ptrTy, i64Ty, ptrTy}, false);
-            fn = llvm::Function::Create(fnType, llvm::Function::InternalLinkage, fnName, *module_);
+            fn = llvm::Function::Create(fnType, llvm::Function::InternalLinkage, fnName, *cg_.module_);
 
-            auto *entry = llvm::BasicBlock::Create(*context_, "entry", fn);
-            auto *loop = llvm::BasicBlock::Create(*context_, "loop", fn);
-            auto *body = llvm::BasicBlock::Create(*context_, "body", fn);
-            auto *checkKey = llvm::BasicBlock::Create(*context_, "check.key", fn);
-            auto *found = llvm::BasicBlock::Create(*context_, "found", fn);
-            auto *next = llvm::BasicBlock::Create(*context_, "next", fn);
-            auto *notFound = llvm::BasicBlock::Create(*context_, "not.found", fn);
+            auto *entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+            auto *loop = llvm::BasicBlock::Create(*cg_.context_, "loop", fn);
+            auto *body = llvm::BasicBlock::Create(*cg_.context_, "body", fn);
+            auto *checkKey = llvm::BasicBlock::Create(*cg_.context_, "check.key", fn);
+            auto *found = llvm::BasicBlock::Create(*cg_.context_, "found", fn);
+            auto *next = llvm::BasicBlock::Create(*cg_.context_, "next", fn);
+            auto *notFound = llvm::BasicBlock::Create(*cg_.context_, "not.found", fn);
 
             auto argIt = fn->arg_begin();
             llvm::Value *keysArr = &*argIt++;
             llvm::Value *capacity = &*argIt++;
             llvm::Value *searchKey = &*argIt++;
 
-            llvm::IRBuilder<> b(*context_);
+            llvm::IRBuilder<> b(*cg_.context_);
 
             // entry: → loop
             b.SetInsertPoint(entry);
@@ -577,7 +578,7 @@ namespace Sad
             // checkKey: strcmp(keys[idx], searchKey) == 0?
             b.SetInsertPoint(checkKey);
             auto *strcmpType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
-            auto strcmpFn = module_->getOrInsertFunction("strcmp", strcmpType);
+            auto strcmpFn = cg_.module_->getOrInsertFunction("strcmp", strcmpType);
             auto *cmpRes = b.CreateCall(strcmpFn, {slotKey, searchKey}, "cmp");
             auto *isMatch = b.CreateICmpEQ(cmpRes, b.getInt32(0), "match");
             b.CreateCondBr(isMatch, found, next);
@@ -608,26 +609,26 @@ namespace Sad
          * (AR) بنية SadArray: {i64 length, i64 capacity, ptr data}
          *      تخصص المصفوفة + بيانات، ثم تنسخ العناصر غير الفارغة
          */
-        llvm::Function *LLVMCodeGen::getOrCreateMapCollect()
+        llvm::Function *MapOpsCodeGen::getOrCreateMapCollect()
         {
             const char *fnName = "__sad_map_collect";
-            llvm::Function *fn = module_->getFunction(fnName);
+            llvm::Function *fn = cg_.module_->getFunction(fnName);
             if (fn)
                 return fn;
 
-            auto *i64Ty = getInt64Type();
-            auto *ptrTy = llvm::PointerType::getUnqual(*context_);
+            auto *i64Ty = cg_.getInt64Type();
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
             // (AR) التوقيع: (ptr keysArr, ptr srcArr, i64 capacity, i64 count) → ptr
             auto *fnType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, i64Ty, i64Ty}, false);
-            fn = llvm::Function::Create(fnType, llvm::Function::InternalLinkage, fnName, *module_);
+            fn = llvm::Function::Create(fnType, llvm::Function::InternalLinkage, fnName, *cg_.module_);
 
-            auto *entry = llvm::BasicBlock::Create(*context_, "entry", fn);
-            auto *loop = llvm::BasicBlock::Create(*context_, "loop", fn);
-            auto *body = llvm::BasicBlock::Create(*context_, "body", fn);
-            auto *copySlot = llvm::BasicBlock::Create(*context_, "copy.slot", fn);
-            auto *skip = llvm::BasicBlock::Create(*context_, "skip", fn);
-            auto *done = llvm::BasicBlock::Create(*context_, "done", fn);
+            auto *entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+            auto *loop = llvm::BasicBlock::Create(*cg_.context_, "loop", fn);
+            auto *body = llvm::BasicBlock::Create(*cg_.context_, "body", fn);
+            auto *copySlot = llvm::BasicBlock::Create(*cg_.context_, "copy.slot", fn);
+            auto *skip = llvm::BasicBlock::Create(*cg_.context_, "skip", fn);
+            auto *done = llvm::BasicBlock::Create(*cg_.context_, "done", fn);
 
             auto argIt = fn->arg_begin();
             llvm::Value *keysArr = &*argIt++;
@@ -635,12 +636,12 @@ namespace Sad
             llvm::Value *capacity = &*argIt++;
             llvm::Value *count = &*argIt++;
 
-            llvm::IRBuilder<> b(*context_);
+            llvm::IRBuilder<> b(*cg_.context_);
 
             // entry: allocate SadArray {len, cap, data}
             b.SetInsertPoint(entry);
             auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFn = module_->getOrInsertFunction("malloc", mallocType);
+            auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
 
             // (AR) بنية SadArray: 3 حقول i64 = 24 bytes
             llvm::Value *arrPtr = b.CreateCall(mallocFn,

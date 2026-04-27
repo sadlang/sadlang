@@ -84,6 +84,7 @@
 #include "builders/string_ops_codegen.h"    // (AR) Phase 7 Step 6: StringOpsCodeGen
 #include "builders/array_builtins_codegen.h" // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
 #include "builders/math_builtins_codegen.h"  // (AR) Phase 7 Step 8: MathBuiltinsCodeGen
+#include "builders/map_ops_codegen.h"        // (AR) Phase 7 Step 9: MapOpsCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -259,6 +260,8 @@ namespace Sad
             friend class ArrayBuiltinsCodeGen;
             // (AR) Phase 7 Step 8: MathBuiltinsCodeGen
             friend class MathBuiltinsCodeGen;
+            // (AR) Phase 7 Step 9: MapOpsCodeGen
+            friend class MapOpsCodeGen;
 
         public:
             // ========================================================================
@@ -683,8 +686,8 @@ namespace Sad
             //      getOrCreateMapFindSlot: linear search for key or first empty slot
             //      getOrCreateMapCollect: collect non-null entries into array
             // ================================================================
-            llvm::Function *getOrCreateMapFindSlot();
-            llvm::Function *getOrCreateMapCollect();
+            llvm::Function *getOrCreateMapFindSlot() { return mapops_->getOrCreateMapFindSlot(); }
+            llvm::Function *getOrCreateMapCollect()  { return mapops_->getOrCreateMapCollect(); }
 
             // ================================================================
             // (AR) إصلاح setjmp/longjmp مع optimizer:
@@ -713,7 +716,8 @@ namespace Sad
             std::optional<llvm::Value *> emitCallException(const std::string &funcName,
                                                            std::vector<llvm::Value *> &args, std::shared_ptr<SIRInstruction> inst);
             std::optional<llvm::Value *> emitCallMap(const std::string &funcName,
-                                                     std::vector<llvm::Value *> &args, std::shared_ptr<SIRInstruction> inst);
+                                                     std::vector<llvm::Value *> &args, std::shared_ptr<SIRInstruction> inst)
+            { return mapops_->emitCallMap(funcName, args, inst); }
 
             // (AR) دوال dispatcher الفرعية للتعليمات — مستخرجة من emitInstruction (Strangler Fig v3.1)
             //      emitInstructionCore     : الجوهر (حساب، async، كائنات، سلاسل، FFI، مصفوفات...)
@@ -1483,6 +1487,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 8: مكوّن فرعي لدوال الرياضيات (21 methods: Min/Max + Sqrt..Clamp + Random)
             std::unique_ptr<MathBuiltinsCodeGen> mathb_;
+
+            // (AR) Phase 7 Step 9: مكوّن فرعي لعمليات الخرائط (3 methods: emitCallMap + 2 helpers)
+            std::unique_ptr<MapOpsCodeGen> mapops_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
