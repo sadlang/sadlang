@@ -112,6 +112,12 @@ endif()
 if(LLVM_FOUND)
  file(GLOB LLVM_BACKEND_SOURCES "src/backend/llvm/*.cpp")
  file(GLOB LLVM_BACKEND_HEADERS "include/backend/llvm/*.h")
+ # (AR) Phase 7 — Step 1: ضم ملفات backend/llvm/builders/ (sub-codegens)
+ # (EN) Phase 7 — Step 1: include backend/llvm/builders/ files (sub-codegens)
+ file(GLOB LLVM_BACKEND_BUILDERS_SOURCES "src/backend/llvm/builders/*.cpp")
+ list(APPEND LLVM_BACKEND_SOURCES ${LLVM_BACKEND_BUILDERS_SOURCES})
+ file(GLOB LLVM_BACKEND_BUILDERS_HEADERS "include/backend/llvm/builders/*.h")
+ list(APPEND LLVM_BACKEND_HEADERS ${LLVM_BACKEND_BUILDERS_HEADERS})
  
  # - 01: backend -LLVM
  # :
