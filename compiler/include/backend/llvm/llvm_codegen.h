@@ -89,6 +89,7 @@
 #include "builders/lowlevel_codegen.h"       // (AR) Phase 7 Step 11: LowlevelCodeGen
 #include "builders/enum_ops_codegen.h"      // (AR) Phase 7 Step 12: EnumOpsCodeGen
 #include "builders/hardware_ffi_codegen.h"  // (AR) Phase 7 Step 13: HardwareFFICodeGen
+#include "builders/closure_codegen.h"       // (AR) Phase 7 Step 14: ClosureCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -274,6 +275,8 @@ namespace Sad
             friend class EnumOpsCodeGen;
             // (AR) Phase 7 Step 13: HardwareFFICodeGen
             friend class HardwareFFICodeGen;
+            // (AR) Phase 7 Step 14: ClosureCodeGen
+            friend class ClosureCodeGen;
 
         public:
             // ========================================================================
@@ -1287,15 +1290,15 @@ namespace Sad
             // ------------------------------------------------------------------------
             // Missing Bitwise / عمليات ثنائية ناقصة
             // ------------------------------------------------------------------------
-            llvm::Value *emitSar(std::shared_ptr<SIRInstruction> inst); // إزاحة حسابية يمين
-            llvm::Value *emitRol(std::shared_ptr<SIRInstruction> inst); // دوران يسار
+            llvm::Value *emitSar(std::shared_ptr<SIRInstruction> inst) { return closure_->emitSar(inst); } // إزاحة حسابية يمين
+            llvm::Value *emitRol(std::shared_ptr<SIRInstruction> inst) { return closure_->emitRol(inst); } // دوران يسار
 
             // ------------------------------------------------------------------------
             // Missing Memory / عمليات ذاكرة ناقصة
             // ------------------------------------------------------------------------
-            llvm::Value *emitCallIndirect(std::shared_ptr<SIRInstruction> inst); // استدعاء غير مباشر
-            llvm::Value *emitAllocHeap(std::shared_ptr<SIRInstruction> inst);    // تخصيص كومة
-            llvm::Value *emitFreeMem(std::shared_ptr<SIRInstruction> inst);      // تحرير ذاكرة
+            llvm::Value *emitCallIndirect(std::shared_ptr<SIRInstruction> inst) { return closure_->emitCallIndirect(inst); } // استدعاء غير مباشر
+            llvm::Value *emitAllocHeap(std::shared_ptr<SIRInstruction> inst) { return closure_->emitAllocHeap(inst); }    // تخصيص كومة
+            llvm::Value *emitFreeMem(std::shared_ptr<SIRInstruction> inst) { return closure_->emitFreeMem(inst); }      // تحرير ذاكرة
             llvm::Value *emitAddr(std::shared_ptr<SIRInstruction> inst);         // عنوان متغير
             llvm::Value *emitPtrAdd(std::shared_ptr<SIRInstruction> inst);       // حساب مؤشرات
             llvm::Value *emitPtrCast(std::shared_ptr<SIRInstruction> inst);      // تحويل مؤشر
@@ -1303,10 +1306,10 @@ namespace Sad
             // ------------------------------------------------------------------------
             // Closures / الإغلاقات
             // ------------------------------------------------------------------------
-            llvm::Value *emitClosureCreate(std::shared_ptr<SIRInstruction> inst); // إنشاء بنية إغلاق
-            llvm::Value *emitClosureCall(std::shared_ptr<SIRInstruction> inst);   // استدعاء إغلاق
-            llvm::Value *emitEnvLoad(std::shared_ptr<SIRInstruction> inst);       // تحميل من بيئة إغلاق
-            llvm::Value *emitEnvStore(std::shared_ptr<SIRInstruction> inst);      // [Fix #51] تخزين في بيئة إغلاق
+            llvm::Value *emitClosureCreate(std::shared_ptr<SIRInstruction> inst) { return closure_->emitClosureCreate(inst); } // إنشاء بنية إغلاق
+            llvm::Value *emitClosureCall(std::shared_ptr<SIRInstruction> inst) { return closure_->emitClosureCall(inst); }   // استدعاء إغلاق
+            llvm::Value *emitEnvLoad(std::shared_ptr<SIRInstruction> inst) { return closure_->emitEnvLoad(inst); }       // تحميل من بيئة إغلاق
+            llvm::Value *emitEnvStore(std::shared_ptr<SIRInstruction> inst) { return closure_->emitEnvStore(inst); }      // [Fix #51] تخزين في بيئة إغلاق
 
             // ------------------------------------------------------------------------
             // Array core / عمليات المصفوفات الأساسية
@@ -1519,6 +1522,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 13: مكوّن فرعي لـ OS/Embedded/FFI (51 methods)
             std::unique_ptr<HardwareFFICodeGen> hwffi_;
+
+            // (AR) Phase 7 Step 14: مكوّن فرعي للإغلاقات والاستدعاءات غير المباشرة (9 methods)
+            std::unique_ptr<ClosureCodeGen> closure_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة

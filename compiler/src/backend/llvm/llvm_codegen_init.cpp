@@ -111,6 +111,7 @@ namespace Sad
             ll_ = std::make_unique<LowlevelCodeGen>(*this);
             enumops_ = std::make_unique<EnumOpsCodeGen>(*this);
             hwffi_ = std::make_unique<HardwareFFICodeGen>(*this);
+            closure_ = std::make_unique<ClosureCodeGen>(*this);
         }
 
         /**

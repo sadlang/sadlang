@@ -6,6 +6,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "builders/closure_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
@@ -34,45 +35,45 @@ namespace Sad
         // (EN) Closure and memory operations - bitwise, heap, closures, environment
         // (AR) تم فصل هذا الملف عن llvm_codegen_concurrency.cpp وفق قاعدة CW-05
         // ============================================================================
-        llvm::Value *LLVMCodeGen::emitSar(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ClosureCodeGen::emitSar(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
             {
-                reportError("SAR requires 2 operands");
+                cg_.reportError("SAR requires 2 operands");
                 return nullptr;
             }
-            llvm::Value *lhs = resolveOperand(inst->operands[0]);
-            llvm::Value *rhs = resolveOperand(inst->operands[1]);
+            llvm::Value *lhs = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *rhs = cg_.resolveOperand(inst->operands[1]);
             if (!lhs || !rhs)
                 return nullptr;
-            llvm::Value *result = builder_->CreateAShr(lhs, rhs, "sar");
+            llvm::Value *result = cg_.builder_->CreateAShr(lhs, rhs, "sar");
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
 
-        llvm::Value *LLVMCodeGen::emitRol(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ClosureCodeGen::emitRol(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
             {
-                reportError("ROL requires 2 operands");
+                cg_.reportError("ROL requires 2 operands");
                 return nullptr;
             }
-            llvm::Value *val = resolveOperand(inst->operands[0]);
-            llvm::Value *amount = resolveOperand(inst->operands[1]);
+            llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *amount = cg_.resolveOperand(inst->operands[1]);
             if (!val || !amount)
                 return nullptr;
             // ROL(x, n) = (x << n) | (x >> (64 - n))
-            auto *bits = llvm::ConstantInt::get(getInt64Type(), 64);
-            llvm::Value *shl = builder_->CreateShl(val, amount, "rol.shl");
-            llvm::Value *sub = builder_->CreateSub(bits, amount, "rol.sub");
-            llvm::Value *shr = builder_->CreateLShr(val, sub, "rol.shr");
-            llvm::Value *result = builder_->CreateOr(shl, shr, "rol");
+            auto *bits = llvm::ConstantInt::get(cg_.getInt64Type(), 64);
+            llvm::Value *shl = cg_.builder_->CreateShl(val, amount, "rol.shl");
+            llvm::Value *sub = cg_.builder_->CreateSub(bits, amount, "rol.sub");
+            llvm::Value *shr = cg_.builder_->CreateLShr(val, sub, "rol.shr");
+            llvm::Value *result = cg_.builder_->CreateOr(shl, shr, "rol");
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
@@ -81,22 +82,22 @@ namespace Sad
         // Phase N: Missing Control Flow / تدفق تحكم ناقص
         // ============================================================================
 
-        llvm::Value *LLVMCodeGen::emitCallIndirect(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ClosureCodeGen::emitCallIndirect(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
             {
-                reportError("CALL_INDIRECT requires at least 1 operand (function pointer)");
+                cg_.reportError("CALL_INDIRECT requires at least 1 operand (function pointer)");
                 return nullptr;
             }
             // operand[0] = function pointer, rest = args
-            llvm::Value *fnPtr = resolveOperand(inst->operands[0]);
+            llvm::Value *fnPtr = cg_.resolveOperand(inst->operands[0]);
             if (!fnPtr)
                 return nullptr;
 
             // If fnPtr is an integer, convert to pointer
             if (fnPtr->getType()->isIntegerTy())
             {
-                fnPtr = builder_->CreateIntToPtr(fnPtr, llvm::PointerType::getUnqual(*context_), "fnptr");
+                fnPtr = cg_.builder_->CreateIntToPtr(fnPtr, llvm::PointerType::getUnqual(*cg_.context_), "fnptr");
             }
 
             // Collect arguments
@@ -104,7 +105,7 @@ namespace Sad
             std::vector<llvm::Type *> argTypes;
             for (size_t i = 1; i < inst->operands.size(); i++)
             {
-                llvm::Value *arg = resolveOperand(inst->operands[i]);
+                llvm::Value *arg = cg_.resolveOperand(inst->operands[i]);
                 if (arg)
                 {
                     args.push_back(arg);
@@ -113,24 +114,24 @@ namespace Sad
             }
 
             // Determine return type
-            llvm::Type *retType = getInt64Type();
+            llvm::Type *retType = cg_.getInt64Type();
             if (inst->result.has_value())
             {
                 if (inst->result->dataType == SadTypeKind::Void)
-                    retType = llvm::Type::getVoidTy(*context_);
+                    retType = llvm::Type::getVoidTy(*cg_.context_);
                 else if (inst->result->dataType == SadTypeKind::Float)
-                    retType = getDoubleType();
+                    retType = cg_.getDoubleType();
                 else if (inst->result->dataType == SadTypeKind::Boolean)
-                    retType = llvm::Type::getInt1Ty(*context_);
+                    retType = llvm::Type::getInt1Ty(*cg_.context_);
             }
 
             auto *funcType = llvm::FunctionType::get(retType, argTypes, false);
-            llvm::Value *result = builder_->CreateCall(funcType, fnPtr, args,
+            llvm::Value *result = cg_.builder_->CreateCall(funcType, fnPtr, args,
                                                        retType->isVoidTy() ? "" : "call_indirect");
 
             if (inst->result.has_value() && !retType->isVoidTy())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
@@ -139,51 +140,51 @@ namespace Sad
         // Phase N: Missing Memory Operations / عمليات ذاكرة ناقصة
         // ============================================================================
 
-        llvm::Value *LLVMCodeGen::emitAllocHeap(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ClosureCodeGen::emitAllocHeap(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
             {
-                reportError("ALLOC_HEAP requires 1 operand (size)");
+                cg_.reportError("ALLOC_HEAP requires 1 operand (size)");
                 return nullptr;
             }
-            llvm::Value *size = resolveOperand(inst->operands[0]);
+            llvm::Value *size = cg_.resolveOperand(inst->operands[0]);
             if (!size)
                 return nullptr;
 
             auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*context_), {getInt64Type()}, false);
-            auto mallocFunc = module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *result = builder_->CreateCall(mallocFunc, {size}, "heap_alloc");
+                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
+            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
+            llvm::Value *result = cg_.builder_->CreateCall(mallocFunc, {size}, "heap_alloc");
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
 
-        llvm::Value *LLVMCodeGen::emitFreeMem(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ClosureCodeGen::emitFreeMem(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
             {
-                reportError("FREE requires 1 operand (pointer)");
+                cg_.reportError("FREE requires 1 operand (pointer)");
                 return nullptr;
             }
-            llvm::Value *ptr = resolveOperand(inst->operands[0]);
+            llvm::Value *ptr = cg_.resolveOperand(inst->operands[0]);
             if (!ptr)
                 return nullptr;
 
             if (ptr->getType()->isIntegerTy())
             {
-                ptr = builder_->CreateIntToPtr(ptr, llvm::PointerType::getUnqual(*context_), "free.ptr");
+                ptr = cg_.builder_->CreateIntToPtr(ptr, llvm::PointerType::getUnqual(*cg_.context_), "free.ptr");
             }
 
             auto *freeType = llvm::FunctionType::get(
-                llvm::Type::getVoidTy(*context_), {llvm::PointerType::getUnqual(*context_)}, false);
-            auto freeFunc = module_->getOrInsertFunction("free", freeType);
-            builder_->CreateCall(freeFunc, {ptr});
+                llvm::Type::getVoidTy(*cg_.context_), {llvm::PointerType::getUnqual(*cg_.context_)}, false);
+            auto freeFunc = cg_.module_->getOrInsertFunction("free", freeType);
+            cg_.builder_->CreateCall(freeFunc, {ptr});
 
-            return llvm::ConstantInt::get(getInt64Type(), 0);
+            return llvm::ConstantInt::get(cg_.getInt64Type(), 0);
         }
 
         // ============================================================================
@@ -211,11 +212,11 @@ namespace Sad
         //      3. Store fn_ptr at [0], env_ptr at [1]
         //      4. Return closure pointer as i64
         // ============================================================================
-        llvm::Value *LLVMCodeGen::emitClosureCreate(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ClosureCodeGen::emitClosureCreate(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
             {
-                reportError("CLOSURE_CREATE requires at least 1 operand (function)");
+                cg_.reportError("CLOSURE_CREATE requires at least 1 operand (function)");
                 return nullptr;
             }
 
@@ -223,10 +224,10 @@ namespace Sad
             // (EN) Get lambda function pointer
             llvm::Function *lambdaFn = nullptr;
             std::string fnName = inst->operands[0].name;
-            lambdaFn = module_->getFunction(fnName);
+            lambdaFn = cg_.module_->getFunction(fnName);
             if (!lambdaFn)
             {
-                reportError("CLOSURE_CREATE: function '" + fnName + "' not found in module");
+                cg_.reportError("CLOSURE_CREATE: function '" + fnName + "' not found in module");
                 return nullptr;
             }
 
@@ -288,7 +289,7 @@ namespace Sad
             {
                 // (AR) إنشاء wrapper: نفس المعاملات + i64 __env → يستدعي الأصلية بدون __env
                 std::string wrapperName = "__wrap_" + fnName;
-                llvm::Function *existingWrapper = module_->getFunction(wrapperName);
+                llvm::Function *existingWrapper = cg_.module_->getFunction(wrapperName);
                 if (existingWrapper)
                 {
                     targetFn = existingWrapper;
@@ -313,7 +314,7 @@ namespace Sad
                     llvm::Type *wrapperRetType = origRetType->isVoidTy()
                                                      ? origRetType
                                                      : (isFuncRefWrapper ? origRetType
-                                                                         : getInt64Type());
+                                                                         : cg_.getInt64Type());
 
                     // ============================================================
                     // (AR) مسار 1: func-ref — أضف __env كمعامل أخير (تُتجاهل)
@@ -333,17 +334,17 @@ namespace Sad
                     {
                         // (AR) func-ref: أضف __env (سيُتجاهل في الاستدعاء الداخلي)
                         // (EN) func-ref: add __env (ignored in inner call)
-                        wrapperParamTypes.push_back(getInt64Type());
+                        wrapperParamTypes.push_back(cg_.getInt64Type());
                     }
                     // (AR) lambda conv: المعاملات كافية، لا إضافة
 
                     auto *wrapperFnType = llvm::FunctionType::get(
                         wrapperRetType, wrapperParamTypes, false);
                     auto *wrapperFn = llvm::Function::Create(
-                        wrapperFnType, llvm::Function::InternalLinkage, wrapperName, module_.get());
+                        wrapperFnType, llvm::Function::InternalLinkage, wrapperName, cg_.module_.get());
 
                     // (AR) بناء جسم الـ wrapper
-                    auto *entryBB = llvm::BasicBlock::Create(*context_, "entry", wrapperFn);
+                    auto *entryBB = llvm::BasicBlock::Create(*cg_.context_, "entry", wrapperFn);
                     llvm::IRBuilder<> wrapperBuilder(entryBB);
 
                     // ============================================================
@@ -386,37 +387,37 @@ namespace Sad
                         // (AR) i1 → i64: توسيع صفري
                         // (EN) i1 → i64: zero-extend
                         wrapperBuilder.CreateRet(
-                            wrapperBuilder.CreateZExt(retVal, getInt64Type(), "bool.to.i64"));
+                            wrapperBuilder.CreateZExt(retVal, cg_.getInt64Type(), "bool.to.i64"));
                     }
                     else if (origRetType->isIntegerTy(32))
                     {
                         // (AR) i32 → i64: توسيع بالإشارة
                         // (EN) i32 → i64: sign-extend
                         wrapperBuilder.CreateRet(
-                            wrapperBuilder.CreateSExt(retVal, getInt64Type(), "i32.to.i64"));
+                            wrapperBuilder.CreateSExt(retVal, cg_.getInt64Type(), "i32.to.i64"));
                     }
                     else if (origRetType->isDoubleTy())
                     {
                         // (AR) double → i64: إعادة تفسير البتات (IEEE 754)
                         // (EN) double → i64: bit-reinterpret (IEEE 754)
                         wrapperBuilder.CreateRet(
-                            wrapperBuilder.CreateBitCast(retVal, getInt64Type(), "dbl.to.i64"));
+                            wrapperBuilder.CreateBitCast(retVal, cg_.getInt64Type(), "dbl.to.i64"));
                     }
                     else if (origRetType->isFloatTy())
                     {
                         // (AR) float → double → i64: توسيع ثم إعادة تفسير
                         // (EN) float → double → i64: extend then bit-reinterpret
                         llvm::Value *asDouble = wrapperBuilder.CreateFPExt(
-                            retVal, getDoubleType(), "flt.to.dbl");
+                            retVal, cg_.getDoubleType(), "flt.to.dbl");
                         wrapperBuilder.CreateRet(
-                            wrapperBuilder.CreateBitCast(asDouble, getInt64Type(), "dbl.to.i64"));
+                            wrapperBuilder.CreateBitCast(asDouble, cg_.getInt64Type(), "dbl.to.i64"));
                     }
                     else if (origRetType->isPointerTy())
                     {
                         // (AR) ptr → i64: PtrToInt
                         // (EN) ptr → i64: PtrToInt
                         wrapperBuilder.CreateRet(
-                            wrapperBuilder.CreatePtrToInt(retVal, getInt64Type(), "ptr.to.i64"));
+                            wrapperBuilder.CreatePtrToInt(retVal, cg_.getInt64Type(), "ptr.to.i64"));
                     }
                     else
                     {
@@ -429,7 +430,7 @@ namespace Sad
                 }
             }
 
-            llvm::Value *fnPtrI64 = builder_->CreatePtrToInt(targetFn, getInt64Type(), "fn.ptr.i64");
+            llvm::Value *fnPtrI64 = cg_.builder_->CreatePtrToInt(targetFn, cg_.getInt64Type(), "fn.ptr.i64");
 
             // (AR) عدد المتغيرات الملتقطة
             // (EN) Number of captured variables
@@ -437,22 +438,22 @@ namespace Sad
 
             // (AR) إنشاء مصفوفة البيئة (env) إذا كانت هناك التقاطات
             // (EN) Create environment array if there are captures
-            llvm::Value *envI64 = llvm::ConstantInt::get(getInt64Type(), 0); // default: no env
+            llvm::Value *envI64 = llvm::ConstantInt::get(cg_.getInt64Type(), 0); // default: no env
             if (numCaptures > 0)
             {
                 // (AR) تخصيص مصفوفة env على الكومة: numCaptures * 8 بايت
                 // (EN) Allocate env array on heap: numCaptures * 8 bytes
-                llvm::Value *envSize = llvm::ConstantInt::get(getInt64Type(), numCaptures * 8);
+                llvm::Value *envSize = llvm::ConstantInt::get(cg_.getInt64Type(), numCaptures * 8);
                 auto *mallocType = llvm::FunctionType::get(
-                    llvm::PointerType::getUnqual(*context_), {getInt64Type()}, false);
-                auto mallocFunc = module_->getOrInsertFunction("malloc", mallocType);
-                llvm::Value *envPtr = builder_->CreateCall(mallocFunc, {envSize}, "env.alloc");
+                    llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
+                auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
+                llvm::Value *envPtr = cg_.builder_->CreateCall(mallocFunc, {envSize}, "env.alloc");
 
                 // (AR) تخزين كل قيمة ملتقطة في env[i]
                 // (EN) Store each captured value at env[i]
                 for (size_t i = 0; i < numCaptures; i++)
                 {
-                    llvm::Value *capVal = resolveOperand(inst->operands[1 + i]);
+                    llvm::Value *capVal = cg_.resolveOperand(inst->operands[1 + i]);
                     if (!capVal)
                         continue;
 
@@ -461,50 +462,50 @@ namespace Sad
                     if (!capVal->getType()->isIntegerTy(64))
                     {
                         if (capVal->getType()->isIntegerTy())
-                            capVal = builder_->CreateZExt(capVal, getInt64Type(), "cap.ext");
+                            capVal = cg_.builder_->CreateZExt(capVal, cg_.getInt64Type(), "cap.ext");
                         else if (capVal->getType()->isDoubleTy())
-                            capVal = builder_->CreateBitCast(capVal, getInt64Type(), "cap.dbl2i64");
+                            capVal = cg_.builder_->CreateBitCast(capVal, cg_.getInt64Type(), "cap.dbl2i64");
                         else if (capVal->getType()->isPointerTy())
-                            capVal = builder_->CreatePtrToInt(capVal, getInt64Type(), "cap.ptr2i64");
+                            capVal = cg_.builder_->CreatePtrToInt(capVal, cg_.getInt64Type(), "cap.ptr2i64");
                     }
 
-                    llvm::Value *idx = llvm::ConstantInt::get(getInt64Type(), i);
-                    llvm::Value *gep = builder_->CreateGEP(getInt64Type(), envPtr, idx, "env.slot");
-                    builder_->CreateStore(capVal, gep);
+                    llvm::Value *idx = llvm::ConstantInt::get(cg_.getInt64Type(), i);
+                    llvm::Value *gep = cg_.builder_->CreateGEP(cg_.getInt64Type(), envPtr, idx, "env.slot");
+                    cg_.builder_->CreateStore(capVal, gep);
                 }
 
                 // (AR) تحويل مؤشر البيئة إلى i64
                 // (EN) Convert env pointer to i64
-                envI64 = builder_->CreatePtrToInt(envPtr, getInt64Type(), "env.i64");
+                envI64 = cg_.builder_->CreatePtrToInt(envPtr, cg_.getInt64Type(), "env.i64");
             }
 
             // (AR) تخصيص بنية الإغلاق: 2 * i64 = 16 بايت
             // (EN) Allocate closure struct: 2 * i64 = 16 bytes
-            llvm::Value *closureSize = llvm::ConstantInt::get(getInt64Type(), 16);
+            llvm::Value *closureSize = llvm::ConstantInt::get(cg_.getInt64Type(), 16);
             auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*context_), {getInt64Type()}, false);
-            auto mallocFunc = module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *closurePtr = builder_->CreateCall(mallocFunc, {closureSize}, "closure.alloc");
+                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
+            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
+            llvm::Value *closurePtr = cg_.builder_->CreateCall(mallocFunc, {closureSize}, "closure.alloc");
 
             // (AR) تخزين fn_ptr في offset 0
             // (EN) Store fn_ptr at offset 0
-            llvm::Value *slot0 = builder_->CreateGEP(getInt64Type(), closurePtr,
-                                                     llvm::ConstantInt::get(getInt64Type(), 0), "closure.fn.slot");
-            builder_->CreateStore(fnPtrI64, slot0);
+            llvm::Value *slot0 = cg_.builder_->CreateGEP(cg_.getInt64Type(), closurePtr,
+                                                     llvm::ConstantInt::get(cg_.getInt64Type(), 0), "closure.fn.slot");
+            cg_.builder_->CreateStore(fnPtrI64, slot0);
 
             // (AR) تخزين env_ptr في offset 1
             // (EN) Store env_ptr at offset 1
-            llvm::Value *slot1 = builder_->CreateGEP(getInt64Type(), closurePtr,
-                                                     llvm::ConstantInt::get(getInt64Type(), 1), "closure.env.slot");
-            builder_->CreateStore(envI64, slot1);
+            llvm::Value *slot1 = cg_.builder_->CreateGEP(cg_.getInt64Type(), closurePtr,
+                                                     llvm::ConstantInt::get(cg_.getInt64Type(), 1), "closure.env.slot");
+            cg_.builder_->CreateStore(envI64, slot1);
 
             // (AR) إرجاع مؤشر بنية الإغلاق كـ i64
             // (EN) Return closure struct pointer as i64
-            llvm::Value *result = builder_->CreatePtrToInt(closurePtr, getInt64Type(), "closure.i64");
+            llvm::Value *result = cg_.builder_->CreatePtrToInt(closurePtr, cg_.getInt64Type(), "closure.i64");
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
@@ -527,38 +528,38 @@ namespace Sad
         //      Lambda always takes __env as last param
         //      CLOSURE_CALL extracts fn_ptr + env_ptr, calls fn(args, env)
         // ============================================================================
-        llvm::Value *LLVMCodeGen::emitClosureCall(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ClosureCodeGen::emitClosureCall(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
             {
-                reportError("CLOSURE_CALL requires at least 1 operand (closure pointer)");
+                cg_.reportError("CLOSURE_CALL requires at least 1 operand (closure pointer)");
                 return nullptr;
             }
 
             // (AR) تحميل مؤشر بنية الإغلاق
             // (EN) Load closure struct pointer
-            llvm::Value *closureI64 = resolveOperand(inst->operands[0]);
+            llvm::Value *closureI64 = cg_.resolveOperand(inst->operands[0]);
             if (!closureI64)
                 return nullptr;
 
             // (AR) تحويل i64 إلى مؤشر i64*
             // (EN) Convert i64 to i64* pointer
-            llvm::Value *closurePtr = builder_->CreateIntToPtr(
-                closureI64, llvm::PointerType::getUnqual(getInt64Type()), "closure.ptr");
+            llvm::Value *closurePtr = cg_.builder_->CreateIntToPtr(
+                closureI64, llvm::PointerType::getUnqual(cg_.getInt64Type()), "closure.ptr");
 
             // (AR) استخراج fn_ptr من closure[0]
             // (EN) Extract fn_ptr from closure[0]
-            llvm::Value *fnSlot = builder_->CreateGEP(getInt64Type(), closurePtr,
-                                                      llvm::ConstantInt::get(getInt64Type(), 0), "fn.slot");
-            llvm::Value *fnPtrI64 = builder_->CreateLoad(getInt64Type(), fnSlot, "fn.ptr.i64");
-            llvm::Value *fnPtr = builder_->CreateIntToPtr(
-                fnPtrI64, llvm::PointerType::getUnqual(*context_), "fn.ptr");
+            llvm::Value *fnSlot = cg_.builder_->CreateGEP(cg_.getInt64Type(), closurePtr,
+                                                      llvm::ConstantInt::get(cg_.getInt64Type(), 0), "fn.slot");
+            llvm::Value *fnPtrI64 = cg_.builder_->CreateLoad(cg_.getInt64Type(), fnSlot, "fn.ptr.i64");
+            llvm::Value *fnPtr = cg_.builder_->CreateIntToPtr(
+                fnPtrI64, llvm::PointerType::getUnqual(*cg_.context_), "fn.ptr");
 
             // (AR) استخراج env_ptr من closure[1]
             // (EN) Extract env_ptr from closure[1]
-            llvm::Value *envSlot = builder_->CreateGEP(getInt64Type(), closurePtr,
-                                                       llvm::ConstantInt::get(getInt64Type(), 1), "env.slot");
-            llvm::Value *envI64 = builder_->CreateLoad(getInt64Type(), envSlot, "env.ptr.i64");
+            llvm::Value *envSlot = cg_.builder_->CreateGEP(cg_.getInt64Type(), closurePtr,
+                                                       llvm::ConstantInt::get(cg_.getInt64Type(), 1), "env.slot");
+            llvm::Value *envI64 = cg_.builder_->CreateLoad(cg_.getInt64Type(), envSlot, "env.ptr.i64");
 
             // (AR) بناء قائمة الوسائط: الوسائط الصريحة + env_ptr
             //      [إصلاح] نبحث عن الدالة الهدف من comment لمعرفة أنواع المعاملات المتوقعة
@@ -578,12 +579,12 @@ namespace Sad
             if (!inst->comment.empty() && inst->comment.find("lambda:") == 0)
             {
                 std::string lambdaName = inst->comment.substr(7);
-                targetLambdaFn = module_->getFunction(lambdaName);
+                targetLambdaFn = cg_.module_->getFunction(lambdaName);
             }
 
             for (size_t i = 1; i < inst->operands.size(); i++)
             {
-                llvm::Value *arg = resolveOperand(inst->operands[i]);
+                llvm::Value *arg = cg_.resolveOperand(inst->operands[i]);
                 if (arg)
                 {
                     // (AR) تحويل الوسيط ليطابق نوع المعامل المتوقع في اللامدا
@@ -605,27 +606,27 @@ namespace Sad
                                     // (EN) i64 → ptr: arg is integer but lambda expects string
                                     //      Convert number to string via sprintf
                                     auto sprintfType = llvm::FunctionType::get(
-                                        llvm::Type::getInt32Ty(*context_),
-                                        {llvm::PointerType::getUnqual(*context_),
-                                         llvm::PointerType::getUnqual(*context_)},
+                                        llvm::Type::getInt32Ty(*cg_.context_),
+                                        {llvm::PointerType::getUnqual(*cg_.context_),
+                                         llvm::PointerType::getUnqual(*cg_.context_)},
                                         true);
-                                    auto sprintfFn = module_->getOrInsertFunction("sprintf", sprintfType);
+                                    auto sprintfFn = cg_.module_->getOrInsertFunction("sprintf", sprintfType);
                                     auto mallocType = llvm::FunctionType::get(
-                                        llvm::PointerType::getUnqual(*context_),
-                                        {getInt64Type()}, false);
-                                    auto mallocFn = module_->getOrInsertFunction("malloc", mallocType);
+                                        llvm::PointerType::getUnqual(*cg_.context_),
+                                        {cg_.getInt64Type()}, false);
+                                    auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
                                     // (AR) تخصيص 32 بايت للنص
-                                    llvm::Value *buf = builder_->CreateCall(
-                                        mallocFn, {llvm::ConstantInt::get(getInt64Type(), 32)}, "num2str.buf");
-                                    llvm::Value *fmt = builder_->CreateGlobalStringPtr("%lld", "num2str.fmt");
-                                    builder_->CreateCall(sprintfFn, {buf, fmt, arg});
+                                    llvm::Value *buf = cg_.builder_->CreateCall(
+                                        mallocFn, {llvm::ConstantInt::get(cg_.getInt64Type(), 32)}, "num2str.buf");
+                                    llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%lld", "num2str.fmt");
+                                    cg_.builder_->CreateCall(sprintfFn, {buf, fmt, arg});
                                     arg = buf;
                                 }
                                 else if (expectedType->isIntegerTy(64) && arg->getType()->isPointerTy())
                                 {
                                     // (AR) ptr → i64: تحويل مؤشر لعدد صحيح
                                     // (EN) ptr → i64: convert pointer to integer
-                                    arg = builder_->CreatePtrToInt(arg, getInt64Type(), "arg.p2i");
+                                    arg = cg_.builder_->CreatePtrToInt(arg, cg_.getInt64Type(), "arg.p2i");
                                 }
                                 else if (expectedType->isPointerTy() && arg->getType()->isPointerTy())
                                 {
@@ -640,13 +641,13 @@ namespace Sad
                 }
                 else
                 {
-                    reportError("CLOSURE_CALL: failed to resolve argument: " + inst->operands[i].name);
+                    cg_.reportError("CLOSURE_CALL: failed to resolve argument: " + inst->operands[i].name);
                     return nullptr;
                 }
             } // (AR) إضافة env_ptr كمعامل أخير (دائماً)
             // (EN) Append env_ptr as last argument (always)
             args.push_back(envI64);
-            argTypes.push_back(getInt64Type());
+            argTypes.push_back(cg_.getInt64Type());
 
             // (AR) تحديد نوع الإرجاع
             //      [إصلاح] إذا وجدنا الدالة الهدف، نأخذ نوع الإرجاع من توقيعها الحقيقي
@@ -654,7 +655,7 @@ namespace Sad
             // (EN) Determine return type
             //      [Fix] If we found the target function, use its actual return type
             //      This is more accurate than relying on SIR dataType which may default to Integer
-            llvm::Type *retType = getInt64Type();
+            llvm::Type *retType = cg_.getInt64Type();
             if (targetLambdaFn)
             {
                 retType = targetLambdaFn->getReturnType();
@@ -662,14 +663,14 @@ namespace Sad
             else if (inst->result.has_value())
             {
                 if (inst->result->dataType == SadTypeKind::Void)
-                    retType = llvm::Type::getVoidTy(*context_);
+                    retType = llvm::Type::getVoidTy(*cg_.context_);
                 else if (inst->result->dataType == SadTypeKind::Float)
-                    retType = getDoubleType();
+                    retType = cg_.getDoubleType();
                 else if (inst->result->dataType == SadTypeKind::Boolean)
-                    retType = llvm::Type::getInt1Ty(*context_);
+                    retType = llvm::Type::getInt1Ty(*cg_.context_);
                 else if (inst->result->dataType == SadTypeKind::String ||
                          inst->result->dataType == SadTypeKind::Pointer)
-                    retType = llvm::PointerType::getUnqual(*context_);
+                    retType = llvm::PointerType::getUnqual(*cg_.context_);
             }
 
             // ================================================================
@@ -683,18 +684,18 @@ namespace Sad
             if (retType->isVoidTy() && inst->result.has_value() &&
                 inst->result->dataType != SadTypeKind::Void)
             {
-                retType = getInt64Type();
+                retType = cg_.getInt64Type();
             }
 
             // (AR) إنشاء نوع الدالة واستدعاءها
             // (EN) Create function type and call
             auto *funcType = llvm::FunctionType::get(retType, argTypes, false);
-            llvm::Value *result = builder_->CreateCall(funcType, fnPtr, args,
+            llvm::Value *result = cg_.builder_->CreateCall(funcType, fnPtr, args,
                                                        retType->isVoidTy() ? "" : "closure.call");
 
             if (inst->result.has_value() && !retType->isVoidTy())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
@@ -711,28 +712,28 @@ namespace Sad
         // (EN) emitEnvLoad — Load captured variable from closure env array
         //      Converts env_ptr (i64) to pointer, reads env[INDEX]
         // ============================================================================
-        llvm::Value *LLVMCodeGen::emitEnvLoad(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ClosureCodeGen::emitEnvLoad(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
             {
-                reportError("ENV_LOAD requires 2 operands (env pointer, index)");
+                cg_.reportError("ENV_LOAD requires 2 operands (env pointer, index)");
                 return nullptr;
             }
 
             // (AR) تحميل مؤشر البيئة
             // (EN) Load env pointer
-            llvm::Value *envI64 = resolveOperand(inst->operands[0]);
+            llvm::Value *envI64 = cg_.resolveOperand(inst->operands[0]);
             if (!envI64)
                 return nullptr;
 
             // (AR) تحويل i64 إلى i64*
             // (EN) Convert i64 to i64*
-            llvm::Value *envPtr = builder_->CreateIntToPtr(
-                envI64, llvm::PointerType::getUnqual(getInt64Type()), "env.ptr");
+            llvm::Value *envPtr = cg_.builder_->CreateIntToPtr(
+                envI64, llvm::PointerType::getUnqual(cg_.getInt64Type()), "env.ptr");
 
             // (AR) الحصول على الفهرس
             // (EN) Get index
-            llvm::Value *idx = resolveOperand(inst->operands[1]);
+            llvm::Value *idx = cg_.resolveOperand(inst->operands[1]);
             if (!idx)
                 return nullptr;
 
@@ -740,8 +741,8 @@ namespace Sad
             //      (البيئة تُخزّن كل القيم كـ i64 — النصوص كـ PtrToInt)
             // (EN) Compute env[index] address and load value always as i64
             //      (env stores all values as i64 — strings stored as PtrToInt)
-            llvm::Value *gep = builder_->CreateGEP(getInt64Type(), envPtr, idx, "env.gep");
-            llvm::Value *val = builder_->CreateLoad(getInt64Type(), gep, "env.val");
+            llvm::Value *gep = cg_.builder_->CreateGEP(cg_.getInt64Type(), envPtr, idx, "env.gep");
+            llvm::Value *val = cg_.builder_->CreateLoad(cg_.getInt64Type(), gep, "env.val");
 
             // ============================================================
             // (AR) [Fix #53] تحويل i64 → ptr للأنواع المؤشرية (نص/بنية/إغلاق)
@@ -765,10 +766,10 @@ namespace Sad
                 {
                     // (AR) عكس PtrToInt: تحويل i64 → ptr لاستخدامه كنص/بنية
                     // (EN) Reverse PtrToInt: convert i64 → ptr for use as string/struct
-                    val = builder_->CreateIntToPtr(val,
-                                                   llvm::PointerType::getUnqual(*context_), "env.val.ptr");
+                    val = cg_.builder_->CreateIntToPtr(val,
+                                                   llvm::PointerType::getUnqual(*cg_.context_), "env.val.ptr");
                 }
-                context_info_.namedValues[inst->result->name] = val;
+                cg_.context_info_.namedValues[inst->result->name] = val;
             }
             return val;
         }
@@ -788,34 +789,34 @@ namespace Sad
         //      Converts env_ptr (i64) to pointer, writes value at env[INDEX]
         //      Ensures captured variable mutations persist across closure calls
         // ============================================================================
-        llvm::Value *LLVMCodeGen::emitEnvStore(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ClosureCodeGen::emitEnvStore(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 3)
             {
-                reportError("ENV_STORE requires 3 operands (value, env pointer, index)");
+                cg_.reportError("ENV_STORE requires 3 operands (value, env pointer, index)");
                 return nullptr;
             }
 
             // (AR) تحميل القيمة المراد تخزينها
             // (EN) Load value to store
-            llvm::Value *value = resolveOperand(inst->operands[0]);
+            llvm::Value *value = cg_.resolveOperand(inst->operands[0]);
             if (!value)
                 return nullptr;
 
             // (AR) تحميل مؤشر البيئة
             // (EN) Load env pointer
-            llvm::Value *envI64 = resolveOperand(inst->operands[1]);
+            llvm::Value *envI64 = cg_.resolveOperand(inst->operands[1]);
             if (!envI64)
                 return nullptr;
 
             // (AR) تحويل i64 إلى i64*
             // (EN) Convert i64 to i64*
-            llvm::Value *envPtr = builder_->CreateIntToPtr(
-                envI64, llvm::PointerType::getUnqual(getInt64Type()), "env.store.ptr");
+            llvm::Value *envPtr = cg_.builder_->CreateIntToPtr(
+                envI64, llvm::PointerType::getUnqual(cg_.getInt64Type()), "env.store.ptr");
 
             // (AR) الحصول على الفهرس
             // (EN) Get index
-            llvm::Value *idx = resolveOperand(inst->operands[2]);
+            llvm::Value *idx = cg_.resolveOperand(inst->operands[2]);
             if (!idx)
                 return nullptr;
 
@@ -824,17 +825,17 @@ namespace Sad
             if (!value->getType()->isIntegerTy(64))
             {
                 if (value->getType()->isIntegerTy())
-                    value = builder_->CreateZExt(value, getInt64Type(), "env.store.ext");
+                    value = cg_.builder_->CreateZExt(value, cg_.getInt64Type(), "env.store.ext");
                 else if (value->getType()->isDoubleTy())
-                    value = builder_->CreateBitCast(value, getInt64Type(), "env.store.dbl2i64");
+                    value = cg_.builder_->CreateBitCast(value, cg_.getInt64Type(), "env.store.dbl2i64");
                 else if (value->getType()->isPointerTy())
-                    value = builder_->CreatePtrToInt(value, getInt64Type(), "env.store.ptr2i64");
+                    value = cg_.builder_->CreatePtrToInt(value, cg_.getInt64Type(), "env.store.ptr2i64");
             }
 
             // (AR) حساب عنوان env[index] وتخزين القيمة
             // (EN) Compute env[index] address and store value
-            llvm::Value *gep = builder_->CreateGEP(getInt64Type(), envPtr, idx, "env.store.gep");
-            builder_->CreateStore(value, gep);
+            llvm::Value *gep = cg_.builder_->CreateGEP(cg_.getInt64Type(), envPtr, idx, "env.store.gep");
+            cg_.builder_->CreateStore(value, gep);
 
             return value;
         }
