@@ -1322,29 +1322,10 @@ namespace Sad
                  */
                 std::shared_ptr<SIRBasicBlock> createBasicBlock(const std::string &name);
 
-                /**
-                 * @brief (AR) تعيين الكتلة الحالية للكتابة فيها
-                 * @brief (EN) Set current block for writing
-                 *
-                 * @param block (AR) الكتلة الجديدة / (EN) New block
-                 */
-                void setCurrentBlock(std::shared_ptr<SIRBasicBlock> block);
-
-                /**
-                 * @brief (AR) الحصول على الكتلة الحالية
-                 * @brief (EN) Get current block
-                 *
-                 * @return (AR) الكتلة الحالية / (EN) Current block
-                 */
-                std::shared_ptr<SIRBasicBlock> getCurrentBlock() const;
-
-                /**
-                 * @brief (AR) إضافة تعليمة للكتلة الحالية
-                 * @brief (EN) Add instruction to current block
-                 *
-                 * @param inst (AR) التعليمة / (EN) Instruction
-                 */
-                void addInstruction(const SIRInstruction &inst);
+                // (AR) ملاحظة Phase 6: حُذفت setCurrentBlock/getCurrentBlock/addInstruction
+                //      (إعلانات بلا تنفيذ ولا استخدام). الكود يصل للحقول مباشرة.
+                // (EN) Phase 6 note: removed setCurrentBlock/getCurrentBlock/addInstruction
+                //      (declarations without implementation or use). Code accesses fields directly.
 
                 // ==================================================================
                 // إدارة النطاقات / Scope Management
@@ -1423,44 +1404,21 @@ namespace Sad
                  */
                 void exitGenericScope();
 
-                /**
-                 * @brief (AR) تعيين استبدال نوع (عند استدعاء دالة عامة)
-                 * @brief (EN) Set type substitution (when calling generic function)
-                 *
-                 * @param paramName (AR) اسم معامل النوع / (EN) Type parameter name
-                 * @param concreteType (AR) النوع الفعلي / (EN) Concrete type
-                 */
-                void setTypeSubstitution(const std::string &paramName, SadTypeKind concreteType);
-
-                /**
-                 * @brief (AR) حل نوع (قد يكون معامل نوع عام)
-                 * @brief (EN) Resolve type (might be generic type parameter)
-                 *
-                 * @param typeName (AR) اسم النوع / (EN) Type name
-                 * @return (AR) النوع المحلول (SadTypeKind فعلي أو VOID إذا لم يُحل) / (EN) Resolved type (actual SadTypeKind or VOID if not resolved)
-                 */
-                SadTypeKind resolveType(const std::string &typeName);
-
-                /**
-                 * @brief (AR) التحقق من صحة معاملات الأنواع
-                 * @brief (EN) Validate type parameters
-                 *
-                 * @param typeParams (AR) معاملات الأنواع / (EN) Type parameters
-                 * @return true (AR) إذا كانت صحيحة / (EN) if valid
-                 */
-                bool validateTypeParameters(const std::vector<TypeParameter> &typeParams);
+                // (AR) ملاحظة Phase 6: حُذفت setTypeSubstitution/resolveType/validateTypeParameters
+                //      (إعلانات بلا تنفيذ ولا استخدام). أي كود يحتاجها يستخدم
+                //      genericScopeStack_.back().typeSubstitutions[name] = type مباشرة.
+                // (EN) Phase 6 note: removed setTypeSubstitution/resolveType/validateTypeParameters
+                //      (unimplemented and unused). Code uses
+                //      genericScopeStack_.back().typeSubstitutions[name] = type directly.
 
                 // ==================================================================
                 // معالجة الأخطاء / Error Handling
                 // ==================================================================
 
-                /**
-                 * @brief (AR) إصدار خطأ مع رسالة
-                 * @brief (EN) Report error with message
-                 *
-                 * @param message (AR) رسالة الخطأ / (EN) Error message
-                 */
-                void reportError(const std::string &message);
+                // (AR) ملاحظة Phase 6: حُذفت reportError(message) — الكود يضيف
+                //      مباشرة إلى errors_.push_back(...) في 67 ملف.
+                // (EN) Phase 6 note: removed reportError(message) — code uses
+                //      errors_.push_back(...) directly across 67 files.
 
                 /**
                  * @brief (AR) هل توجد أخطاء؟
@@ -1905,11 +1863,8 @@ namespace Sad
                  */
                 SIROpcode unaryOpToOpcode(AST::UnaryOperator op, SadTypeKind operandType);
 
-                /**
-                 * @brief (AR) التحقق من توافق الأنواع
-                 * @brief (EN) Check type compatibility
-                 */
-                bool areTypesCompatible(SadTypeKind t1, SadTypeKind t2);
+                // (AR) ملاحظة Phase 6: حُذفت areTypesCompatible (إعلان بلا تنفيذ ولا استخدام)
+                // (EN) Phase 6 note: removed areTypesCompatible (declared but never defined or used)
 
                 /**
                  * @brief (AR) جمع المتغيرات الحرة في تعبير (لاكتشاف التقاطات الإغلاقات)
@@ -1927,11 +1882,8 @@ namespace Sad
                                          std::set<std::string> &boundNames,
                                          std::set<std::string> &freeVars);
 
-                /**
-                 * @brief (AR) إنشاء تعليمة تحويل نوع إذا لزم
-                 * @brief (EN) Create type conversion instruction if needed
-                 */
-                BuildResult convertType(const BuildResult &value, SadTypeKind targetType);
+                // (AR) ملاحظة Phase 6: حُذفت convertType (إعلان بلا تنفيذ ولا استخدام)
+                // (EN) Phase 6 note: removed convertType (declared but never defined or used)
 
                 // ── دوال فرعية لتقسيم buildBuiltinCallSystem ──
                 std::optional<BuildResult> buildBuiltinSystem_Embedded(
