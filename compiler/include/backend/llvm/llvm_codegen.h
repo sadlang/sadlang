@@ -90,6 +90,9 @@
 #include "builders/enum_ops_codegen.h"      // (AR) Phase 7 Step 12: EnumOpsCodeGen
 #include "builders/hardware_ffi_codegen.h"  // (AR) Phase 7 Step 13: HardwareFFICodeGen
 #include "builders/closure_codegen.h"       // (AR) Phase 7 Step 14: ClosureCodeGen
+#include "builders/io_builtins_codegen.h"   // (AR) Phase 7 Step 15: IOBuiltinsCodeGen
+#include "builders/security_builtins_codegen.h" // (AR) Phase 7 Step 15: SecurityBuiltinsCodeGen
+#include "builders/ffi_remain_codegen.h"   // (AR) Phase 7 Step 15: FFIRemainCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -277,6 +280,10 @@ namespace Sad
             friend class HardwareFFICodeGen;
             // (AR) Phase 7 Step 14: ClosureCodeGen
             friend class ClosureCodeGen;
+            // (AR) Phase 7 Step 15: IO/Security/FFI builtins
+            friend class IOBuiltinsCodeGen;
+            friend class SecurityBuiltinsCodeGen;
+            friend class FFIRemainCodeGen;
 
         public:
             // ========================================================================
@@ -645,7 +652,7 @@ namespace Sad
             // Builtin Functions / الدوال المضمنة
             // ------------------------------------------------------------------------
 
-            llvm::Value *emitBuiltinPrint(std::shared_ptr<SIRInstruction> inst); // اطبع / Print
+            llvm::Value *emitBuiltinPrint(std::shared_ptr<SIRInstruction> inst) { return iob_->emitBuiltinPrint(inst); } // اطبع / Print
             llvm::Value *emitBuiltinRead(std::shared_ptr<SIRInstruction> inst);  // اقرأ / Read/Input
             // (AR) Phase 7 Step 6: delegate إلى StringOpsCodeGen
             llvm::Value *emitStringConcat(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringConcat(inst); }
@@ -865,20 +872,20 @@ namespace Sad
             // ================================================================
             // دوال الأمان — Security Functions (14)
             // ================================================================
-            llvm::Value *emitBuiltinSecurityAssert(std::shared_ptr<SIRInstruction> inst);        // تأكد
-            llvm::Value *emitBuiltinSecurityVerify(std::shared_ptr<SIRInstruction> inst);        // تحقق
-            llvm::Value *emitBuiltinSecurityIsSafe(std::shared_ptr<SIRInstruction> inst);        // آمن
-            llvm::Value *emitBuiltinSecurityPanic(std::shared_ptr<SIRInstruction> inst);         // ذعر
-            llvm::Value *emitBuiltinSecurityHash(std::shared_ptr<SIRInstruction> inst);          // هاش
-            llvm::Value *emitBuiltinSecurityEncrypt(std::shared_ptr<SIRInstruction> inst);       // شفّر
-            llvm::Value *emitBuiltinSecurityDecrypt(std::shared_ptr<SIRInstruction> inst);       // فك_تشفير
-            llvm::Value *emitBuiltinSecurityAssertType(std::shared_ptr<SIRInstruction> inst);    // تأكد_نوع
-            llvm::Value *emitBuiltinSecurityAssertEqual(std::shared_ptr<SIRInstruction> inst);   // تأكد_مساواة
-            llvm::Value *emitBuiltinSecurityAssertGreater(std::shared_ptr<SIRInstruction> inst); // تأكد_أكبر
-            llvm::Value *emitBuiltinSecuritySanitize(std::shared_ptr<SIRInstruction> inst);      // نظّف
-            llvm::Value *emitBuiltinSecurityTimestamp(std::shared_ptr<SIRInstruction> inst);     // وقت_الآن
-            llvm::Value *emitBuiltinSecuritySecureRandom(std::shared_ptr<SIRInstruction> inst);  // عشوائي_آمن
-            llvm::Value *emitBuiltinSecurityBase64Encode(std::shared_ptr<SIRInstruction> inst);  // ترميز_64
+            llvm::Value *emitBuiltinSecurityAssert(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityAssert(inst); }        // تأكد
+            llvm::Value *emitBuiltinSecurityVerify(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityVerify(inst); }        // تحقق
+            llvm::Value *emitBuiltinSecurityIsSafe(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityIsSafe(inst); }        // آمن
+            llvm::Value *emitBuiltinSecurityPanic(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityPanic(inst); }         // ذعر
+            llvm::Value *emitBuiltinSecurityHash(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityHash(inst); }          // هاش
+            llvm::Value *emitBuiltinSecurityEncrypt(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityEncrypt(inst); }       // شفّر
+            llvm::Value *emitBuiltinSecurityDecrypt(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityDecrypt(inst); }       // فك_تشفير
+            llvm::Value *emitBuiltinSecurityAssertType(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityAssertType(inst); }    // تأكد_نوع
+            llvm::Value *emitBuiltinSecurityAssertEqual(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityAssertEqual(inst); }   // تأكد_مساواة
+            llvm::Value *emitBuiltinSecurityAssertGreater(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityAssertGreater(inst); } // تأكد_أكبر
+            llvm::Value *emitBuiltinSecuritySanitize(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecuritySanitize(inst); }      // نظّف
+            llvm::Value *emitBuiltinSecurityTimestamp(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityTimestamp(inst); }     // وقت_الآن
+            llvm::Value *emitBuiltinSecuritySecureRandom(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecuritySecureRandom(inst); }  // عشوائي_آمن
+            llvm::Value *emitBuiltinSecurityBase64Encode(std::shared_ptr<SIRInstruction> inst) { return secb_->emitBuiltinSecurityBase64Encode(inst); }  // ترميز_64
 
             // ================================================================
             // التكامل مع C/C++ — FFI Functions (20)
@@ -901,11 +908,11 @@ namespace Sad
             llvm::Value *emitFFIFclose(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIFclose(inst); }   // اغلق_ملف_س / fclose
             llvm::Value *emitFFIFwrite(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIFwrite(inst); }   // اكتب_ملف_س / fputs
             llvm::Value *emitFFIFread(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitFFIFread(inst); }    // اقرأ_ملف_س / fgets
-            llvm::Value *emitFFISystem(std::shared_ptr<SIRInstruction> inst);   // نفذ_امر / system
-            llvm::Value *emitFFIGetenv(std::shared_ptr<SIRInstruction> inst);   // قيمة_بيئة / getenv
-            llvm::Value *emitFFIAtoi(std::shared_ptr<SIRInstruction> inst);     // نص_لعدد / atoi
-            llvm::Value *emitFFIAtof(std::shared_ptr<SIRInstruction> inst);     // نص_لعشري / atof
-            llvm::Value *emitFFISnprintf(std::shared_ptr<SIRInstruction> inst); // تنسيق_نص / snprintf
+            llvm::Value *emitFFISystem(std::shared_ptr<SIRInstruction> inst) { return ffir_->emitFFISystem(inst); }   // نفذ_امر / system
+            llvm::Value *emitFFIGetenv(std::shared_ptr<SIRInstruction> inst) { return ffir_->emitFFIGetenv(inst); }   // قيمة_بيئة / getenv
+            llvm::Value *emitFFIAtoi(std::shared_ptr<SIRInstruction> inst) { return ffir_->emitFFIAtoi(inst); }     // نص_لعدد / atoi
+            llvm::Value *emitFFIAtof(std::shared_ptr<SIRInstruction> inst) { return ffir_->emitFFIAtof(inst); }     // نص_لعشري / atof
+            llvm::Value *emitFFISnprintf(std::shared_ptr<SIRInstruction> inst) { return ffir_->emitFFISnprintf(inst); } // تنسيق_نص / snprintf
 
             // ================================================================
             // (AR) دوال مساعدة لتوليد وقت التشغيل المستقل (freestanding)
@@ -1525,6 +1532,11 @@ namespace Sad
 
             // (AR) Phase 7 Step 14: مكوّن فرعي للإغلاقات والاستدعاءات غير المباشرة (9 methods)
             std::unique_ptr<ClosureCodeGen> closure_;
+
+            // (AR) Phase 7 Step 15: مكوّنات فرعية لـ IO/Security/FFI builtins (20 methods total)
+            std::unique_ptr<IOBuiltinsCodeGen> iob_;
+            std::unique_ptr<SecurityBuiltinsCodeGen> secb_;
+            std::unique_ptr<FFIRemainCodeGen> ffir_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة

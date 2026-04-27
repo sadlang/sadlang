@@ -112,6 +112,9 @@ namespace Sad
             enumops_ = std::make_unique<EnumOpsCodeGen>(*this);
             hwffi_ = std::make_unique<HardwareFFICodeGen>(*this);
             closure_ = std::make_unique<ClosureCodeGen>(*this);
+            iob_ = std::make_unique<IOBuiltinsCodeGen>(*this);
+            secb_ = std::make_unique<SecurityBuiltinsCodeGen>(*this);
+            ffir_ = std::make_unique<FFIRemainCodeGen>(*this);
         }
 
         /**
