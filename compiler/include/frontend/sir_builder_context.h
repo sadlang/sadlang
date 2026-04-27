@@ -1,0 +1,319 @@
+// ======================================================================
+// sir_builder_context.h - حالة بناء SIR المشتركة / Shared SIR Builder State
+// ======================================================================
+// الوصف بالعربية:
+//   يحتوي هذا الملف على struct SIRBuilderContext الذي يجمع كل حالة
+//   مُنشئ SIR (الوحدة، الدالة الحالية، النطاقات، الجداول، إلخ) في موقع
+//   واحد. SIRBuilder يرث من هذا الـstruct (Phase 6 — F-06) كخطوة أولى
+//   نحو فصل المُنشئ إلى builders فرعية تتشارك السياق.
+//
+// English Description:
+//   This file contains struct SIRBuilderContext which gathers all the
+//   state of the SIR builder (module, current function, scopes, tables,
+//   etc.) in one place. SIRBuilder inherits from this struct (Phase 6 —
+//   F-06) as a first step towards splitting the builder into sub-builders
+//   sharing the context.
+//
+// المؤلف / Author: Sad Compiler Team — Phase 6 Step 1
+// التاريخ / Date: 2025-12
+// ======================================================================
+
+#pragma once
+
+#include "sir_module.h"
+#include "sir_instruction.h"
+#include "sir_types.h"
+#include "module_resolver.h"
+#include "ast_node.h"
+#include "statements.h"
+#include "declarations.h"
+#include "class_nodes.h"
+#include "module_nodes.h"
+
+#include <memory>
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
+
+namespace Sad
+{
+    namespace Compiler
+    {
+        namespace SIR
+        {
+            // (AR) إعلانات مسبقة للأنواع المعرّفة في sir_builder.h
+            // (EN) Forward declarations for types defined in sir_builder.h
+            struct VariableInfo;
+            struct FunctionInfo;
+            struct LoopContext;
+            struct GenericScope;
+            struct ADTEnumInfo;
+
+            /**
+             * @brief (AR) السياق المشترك لبناء SIR — يجمع كل حقول الحالة
+             * @brief (EN) Shared SIR build context — gathers all state fields
+             *
+             * @details
+             * (AR) Phase 6 — Step 1: نقل حرفي لجميع الحقول الخاصة من
+             *      SIRBuilder إلى هذا الـstruct. SIRBuilder يرث منه عبر
+             *      `class SIRBuilder : public SIRBuilderContext` لذا تبقى
+             *      جميع الـ67 ملف cpp تعمل بدون تغيير (الوصول للحقول
+             *      مباشر عبر this->field_ أو field_).
+             *
+             * (EN) Phase 6 — Step 1: literal move of all private state
+             *      fields from SIRBuilder into this struct. SIRBuilder
+             *      inherits via `class SIRBuilder : public SIRBuilderContext`
+             *      so all 67 cpp files keep working without modification
+             *      (direct field access via this->field_ or field_).
+             */
+            struct SIRBuilderContext
+            {
+                // ──────────────────────────────────────────────────────────
+                // (AR) بنية سياق finally — تضمن تشغيل finally حتى عند ارجع
+                //      داخل try/catch
+                // (EN) Finally context — ensures finally runs even on return
+                //      inside try/catch
+                // ──────────────────────────────────────────────────────────
+                struct FinallyContext
+                {
+                    std::string finallyLabel; ///< (AR) تسمية كتلة finally / (EN) Label of finally block
+                    std::string exitLabel;    ///< (AR) تسمية كتلة الخروج / (EN) Label of exit block
+                    std::string retValI64Reg; ///< (AR) alloca i64 لقيم الأرقام/البوليين / (EN) alloca i64 for int/bool returns
+                    std::string retValPtrReg; ///< (AR) alloca ptr للنصوص/الكائنات / (EN) alloca ptr for string/object returns
+                    std::string retTypeReg;   ///< (AR) alloca i64 لنوع القيمة / (EN) alloca i64 for return type tag
+                    std::string hasReturnReg; ///< (AR) alloca i64 علامة "تم ارجع" / (EN) alloca i64 "did return" flag
+                };
+
+                // ──────────────────────────────────────────────────────────
+                // (AR) حالة سياق البناء — تجمع المتغيرات التي تُحفظ وتُستعاد
+                //      عند الدخول/الخروج من بناء دالة أو lambda أو defer
+                // (EN) Builder context state — saves/restores variables when
+                //      entering/exiting function, lambda, or defer building
+                // ──────────────────────────────────────────────────────────
+                struct SIRBuilderContextState
+                {
+                    std::shared_ptr<SIRFunction> function;            ///< (AR) الدالة الحالية / (EN) Current function
+                    std::shared_ptr<SIRBasicBlock> block;             ///< (AR) الكتلة الحالية / (EN) Current block
+                    std::vector<Sad::AST::Statement *> deferredStatements; ///< (AR) جمل التأجيل / (EN) Deferred stmts
+                    std::string deferStackReg;                        ///< (AR) سجل مكدس التأجيل / (EN) Defer stack reg
+                    std::string deferExecutedFlagReg;                 ///< (AR) علامة تنفيذ التأجيل / (EN) Defer executed flag
+                    bool cleanupHandlerActive = false;                ///< (AR) معالج التنظيف نشط / (EN) Cleanup handler active
+                    std::vector<FinallyContext> finallyStack;         ///< (AR) مكدس finally / (EN) Finally stack
+                    std::string className;                            ///< (AR) اسم الصنف الحالي / (EN) Current class name
+                };
+
+                // ──────────────────────────────────────────────────────────
+                // (AR) معلومات عضو فضاء أسماء (namespace member)
+                // (EN) Namespace member info
+                // ──────────────────────────────────────────────────────────
+                struct NamespaceMemberInfo
+                {
+                    std::string kind;                        ///< "var" | "func" | "class"
+                    std::string sirName;                     ///< (AR) الاسم في SIR / (EN) Name in SIR
+                    SadTypeKind type = SadTypeKind::Integer; ///< (AR) نوع العضو / (EN) Member type
+                };
+
+                // ──────────────────────────────────────────────────────────
+                // (AR) معلومات التقاط متغير في إغلاق
+                // (EN) Closure variable capture info
+                // ──────────────────────────────────────────────────────────
+                struct CaptureInfo
+                {
+                    std::string varName;      ///< (AR) اسم المتغير الملتقط / (EN) Captured variable name
+                    std::string registerName; ///< (AR) اسم السجل في النطاق الخارجي / (EN) Register name in outer scope
+                    SadTypeKind type;         ///< (AR) نوع المتغير / (EN) Variable type
+                };
+
+                // ──────────────────────────────────────────────────────────
+                // (AR) نتائج SIR المُجمَّعة من وحدة مستوردة (ذاكرة مخبئية)
+                // (EN) Compiled SIR artifacts from imported module (cache)
+                // ──────────────────────────────────────────────────────────
+                struct ModuleSIRArtifacts
+                {
+                    std::vector<std::shared_ptr<SIRFunction>> functions;         ///< (AR) الدوال / (EN) Functions
+                    std::vector<std::shared_ptr<SIRGlobalVariable>> globals;     ///< (AR) المتغيرات العامة / (EN) Globals
+                    std::vector<std::shared_ptr<SIRClass>> classes;              ///< (AR) الأصناف / (EN) Classes
+                    std::unordered_map<std::string, FunctionInfo> functionTable; ///< (AR) جدول الدوال / (EN) Function table
+                    std::vector<std::string> exportedSymbols;                    ///< (AR) الرموز المُصدَّرة / (EN) Exported symbols
+                };
+
+                // ==================================================================
+                // الحقول / State Fields
+                // ==================================================================
+
+                std::shared_ptr<SIRModule> module_;            ///< (AR) الوحدة الحالية / (EN) Current module
+                std::shared_ptr<SIRFunction> currentFunction_; ///< (AR) الدالة الحالية / (EN) Current function
+                std::shared_ptr<SIRBasicBlock> currentBlock_;  ///< (AR) الكتلة الحالية / (EN) Current block
+
+                // (AR) مكدس التأجيل (defer) للدالة الحالية
+                // (EN) Deferred statements stack for current function
+                std::vector<Sad::AST::Statement *> deferredStatements_;
+
+                // (AR) حالة defer وقت التشغيل / (EN) Runtime defer state
+                std::string currentDeferStackReg_;
+                std::string currentDeferExecutedFlagReg_;
+                bool currentFunctionCleanupHandlerActive_ = false;
+
+                // (AR) مكدس سياق finally / (EN) Finally context stack
+                std::vector<FinallyContext> finallyStack_;
+
+                // (AR) اسم الصنف الحالي أثناء بناء دوال الصنف
+                // (EN) Current class name during method building
+                std::string currentClassName_;
+
+                // (AR) اسم الدالة الحالية أثناء مسح مواقع الاستدعاء
+                // (EN) Current function name during call site scanning
+                std::string currentScanFuncName_;
+
+                // (AR) خريطة أسماء المتغيرات → أسماء الأصناف التي هي كائنات منها
+                // (EN) Variable names → class names they are instances of
+                std::unordered_map<std::string, std::string> classInstanceTypes_;
+
+                // (AR) خريطة أنواع الأصناف للمعاملات (مُستنتجة من call sites)
+                // (EN) Class type map for function parameters (inferred from call sites)
+                std::unordered_map<std::string, std::unordered_map<std::string, std::string>> paramClassTypes_;
+
+                int nextTempRegister_ = 0;  ///< (AR) رقم السجل المؤقت التالي / (EN) Next temp register
+                int nextLabel_ = 0;         ///< (AR) رقم التسمية التالية / (EN) Next label number
+                int currentScopeLevel_ = 0; ///< (AR) مستوى النطاق الحالي / (EN) Current scope level
+
+                // (AR) مكدس النطاقات / (EN) Scope stack
+                std::vector<std::unordered_map<std::string, VariableInfo>> scopeStack_;
+
+                // (AR) جدول الدوال / (EN) Function table
+                std::unordered_map<std::string, FunctionInfo> functionTable_;
+
+                // (AR) جدول الأصناف / (EN) Class table
+                std::unordered_map<std::string, std::shared_ptr<SIRClass>> classTable_;
+
+                // (AR) الحقول الساكنة: "صنف.حقل" → نوع
+                // (EN) Static fields: "class.field" → type
+                std::unordered_map<std::string, SadTypeKind> staticFields_;
+
+                // (AR) الدوال الساكنة: "صنف.دالة"
+                // (EN) Static methods: "class.method"
+                std::unordered_set<std::string> staticMethods_;
+
+                // (AR) أسماء الدوال المُستخدمة كمراجع (function references)
+                // (EN) Function names used as references
+                std::unordered_set<std::string> funcRefNames_;
+
+                // (AR) خريطة أعضاء الفضاءات
+                // (EN) Namespace members map
+                std::unordered_map<std::string, std::unordered_map<std::string, NamespaceMemberInfo>> namespaceMembers_;
+
+                // (AR) جدول التعدادات الجبرية (ADT)
+                // (EN) ADT enum table
+                std::unordered_map<std::string, ADTEnumInfo> adtEnumTable_;
+
+                // (AR) مكدس سياق الحلقات / (EN) Loop context stack
+                std::vector<LoopContext> loopStack_;
+
+                // (AR) أسماء مستعارة لدوال Lambda
+                // (EN) Lambda aliases
+                std::unordered_map<std::string, std::string> lambdaAliases_;
+
+                // (AR) خريطة أنواع القنوات
+                // (EN) Channel element type map
+                std::unordered_map<std::string, SadTypeKind> channelTypeMap_;
+
+                // (AR) التقاطات الإغلاقات
+                // (EN) Closure captures
+                std::unordered_map<std::string, std::vector<CaptureInfo>> closureCaptures_;
+
+                // (AR) مكدس نطاقات الأنواع العامة
+                // (EN) Generic scopes stack
+                std::vector<GenericScope> genericScopeStack_;
+
+                // (AR) خريطة قوالب الدوال
+                // (EN) Template function map
+                std::unordered_map<std::string, Sad::AST::TemplateFunctionDecl *> templateFunctions_;
+
+                // (AR) خريطة قوالب الأصناف
+                // (EN) Template class map
+                std::unordered_map<std::string, Sad::AST::TemplateClassDecl *> templateClasses_;
+
+                // (AR) التنفيذات الافتراضية للسمات
+                // (EN) Trait default implementations
+                std::unordered_map<std::string, Sad::AST::TraitDecl *> traitDefaultImpls_;
+
+                // (AR) الدوال المُنشأة من القوالب
+                // (EN) Instantiated template functions
+                std::unordered_map<std::string, std::shared_ptr<SIRFunction>> instantiatedTemplates_;
+
+                // (AR) خريطة الماكروز
+                // (EN) Macros map
+                std::unordered_map<std::string, Sad::AST::MacroDecl *> macros_;
+
+                // (AR) قائمة الأخطاء / (EN) Error list
+                std::vector<std::string> errors_;
+
+                // (AR) محلل الوحدات للاستيراد / (EN) Module resolver
+                std::unique_ptr<Modules::ModuleResolver> moduleResolver_;
+
+                // (AR) مسار الملف الحالي / (EN) Current file path
+                std::string currentFilePath_;
+
+                // (AR) وضع الوحدة (تخطي __sad_main)
+                // (EN) Module mode (skip __sad_main)
+                bool moduleMode_ = false;
+
+                // (AR) الوحدات التي تمت معالجتها / (EN) Processed modules
+                std::unordered_set<std::string> processedModules_;
+
+                // (AR) ذاكرة مخبئية للوحدات المُجمَّعة
+                // (EN) Compiled module cache
+                std::unordered_map<std::string, ModuleSIRArtifacts> moduleCache_;
+
+                // ==================================================================
+                // helpers — حفظ/استعادة الحالة / Save/Restore Helpers
+                // ==================================================================
+
+                /**
+                 * @brief (AR) حفظ حالة السياق الحالية وإعادة تعيين المتغيرات لنطاق جديد
+                 * @brief (EN) Save current context state and reset for a new scope
+                 */
+                SIRBuilderContextState saveContext()
+                {
+                    SIRBuilderContextState state;
+                    state.function = currentFunction_;
+                    state.block = currentBlock_;
+                    state.deferredStatements = std::move(deferredStatements_);
+                    state.deferStackReg = currentDeferStackReg_;
+                    state.deferExecutedFlagReg = currentDeferExecutedFlagReg_;
+                    state.cleanupHandlerActive = currentFunctionCleanupHandlerActive_;
+                    state.finallyStack = std::move(finallyStack_);
+                    state.className = currentClassName_;
+
+                    // (AR) إعادة تعيين الحالة لنطاق جديد نظيف
+                    // (EN) Reset state for a clean new scope
+                    deferredStatements_.clear();
+                    currentDeferStackReg_.clear();
+                    currentDeferExecutedFlagReg_.clear();
+                    currentFunctionCleanupHandlerActive_ = false;
+                    finallyStack_.clear();
+
+                    return state;
+                }
+
+                /**
+                 * @brief (AR) استعادة حالة السياق من حالة محفوظة سابقاً
+                 * @brief (EN) Restore context state from a previously saved state
+                 */
+                void restoreContext(SIRBuilderContextState &&state)
+                {
+                    currentFunction_ = state.function;
+                    currentBlock_ = state.block;
+                    deferredStatements_ = std::move(state.deferredStatements);
+                    currentDeferStackReg_ = state.deferStackReg;
+                    currentDeferExecutedFlagReg_ = state.deferExecutedFlagReg;
+                    currentFunctionCleanupHandlerActive_ = state.cleanupHandlerActive;
+                    finallyStack_ = std::move(state.finallyStack);
+                    currentClassName_ = state.className;
+                }
+            };
+
+        } // namespace SIR
+    }     // namespace Compiler
+} // namespace Sad

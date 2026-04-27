@@ -50,8 +50,9 @@ namespace Sad
             // - labelCounter_: sir_builder.h:601 (int)
             // ============================================================================
             SIRBuilder::SIRBuilder()
-                : module_(nullptr), currentFunction_(nullptr), currentBlock_(nullptr), nextTempRegister_(0), nextLabel_(0), currentScopeLevel_(0)
             {
+                // (AR) جميع الحقول مُهيّأة في SIRBuilderContext (base class) بقيم افتراضية
+                // (EN) All fields are default-initialized in SIRBuilderContext (base class)
                 // (AR) „״§ ״×ˆ״¬״¯ ״×‡״¦״© ״¥״¶״§״© …״·„ˆ״¨״©
                 // (EN) No additional initialization required
             }
