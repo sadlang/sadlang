@@ -75,6 +75,7 @@
 // Sad LLVM Components (مكونات Sad LLVM)
 #include "llvm_type_mapper.h"
 #include "llvm_optimizer.h" // إضافة محسّن LLVM / Add LLVM optimizer
+#include "llvm_codegen_context.h" // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -227,7 +228,11 @@ namespace Sad
          *   gen.emitToFile("output.ll");
          *   ```
          */
-        class LLVMCodeGen
+        // (AR) LLVMCodeGen يرث من LLVMCodeGenContext (Phase 7 Step 0)
+        //      الحالة المشتركة (context_, module_, builder_, ...) معرّفة في القاعدة.
+        // (EN) LLVMCodeGen inherits from LLVMCodeGenContext (Phase 7 Step 0)
+        //      Shared state (context_, module_, builder_, ...) defined in the base.
+        class LLVMCodeGen : public LLVMCodeGenContext
         {
         public:
             // ========================================================================
@@ -1418,100 +1423,31 @@ namespace Sad
             // ========================================================================
             // Error Handling / معالجة الأخطاء
             // ========================================================================
-
-            /**
-             * الإبلاغ عن خطأ
-             * Report error
-             *
-             * @param message رسالة الخطأ / Error message
-             */
-            void reportError(const std::string &message);
-
-            /**
-             * هل حدثت أخطاء؟
-             * Has errors occurred?
-             *
-             * @return true إذا حدثت أخطاء / true if errors occurred
-             */
-            bool hasErrors() const { return hasErrors_; }
-
-            /**
-             * الحصول على رسائل الأخطاء
-             * Get error messages
-             *
-             * @return قائمة الأخطاء / Error list
-             */
-            const std::vector<std::string> &getErrors() const { return errors_; }
+            // (AR) reportError() / hasErrors() / getErrors() مُعرَّفة في
+            //      LLVMCodeGenContext (القاعدة) — لا حاجة لإعادة الإعلان هنا.
+            // (EN) reportError() / hasErrors() / getErrors() are defined in the
+            //      LLVMCodeGenContext base — no need to redeclare here.
 
         private:
             // ========================================================================
             // Private Members / الأعضاء الخاصة
             // ========================================================================
+            // (AR) الحقول المنقولة إلى LLVMCodeGenContext (Phase 7 Step 0):
+            //      context_, module_, builder_, targetMachine_, typeMapper_,
+            //      optimizer_, sirModule_, optimizationLevel_, autoOptimize_,
+            //      moduleMode_, freestanding_, hasErrors_, errors_
+            // (EN) Fields relocated to LLVMCodeGenContext (Phase 7 Step 0).
 
-            // LLVM Context (سياق LLVM الرئيسي)
-            std::unique_ptr<llvm::LLVMContext> context_;
-
-            // LLVM Module (الوحدة)
-            std::unique_ptr<llvm::Module> module_;
-
-            // LLVM IR Builder (بناء التعليمات)
-            std::unique_ptr<llvm::IRBuilder<>> builder_;
-
-            // Target Machine (الآلة الهدف)
-            llvm::TargetMachine *targetMachine_;
-
-            // Code Generation Context (سياق التوليد)
+            // Code Generation Context (سياق التوليد) — يبقى هنا لأنه per-function state
             CodeGenContext context_info_;
-
-            // Type Mapper (محول الأنواع) - NEW
-            std::unique_ptr<LLVMTypeMapper> typeMapper_;
-
-            // Optimizer (محسّن LLVM) - NEW Phase 1.1.3
-            std::unique_ptr<sad::LLVMOptimizer> optimizer_;
-
-            // SIR Module reference for class info access
-            // مرجع وحدة SIR للوصول لمعلومات الأصناف
-            std::shared_ptr<SIRModule> sirModule_;
-
-            // Optimization settings (إعدادات التحسين)
-            sad::OptimizationLevel optimizationLevel_; // مستوى التحسين / Optimization level
-            bool autoOptimize_;                        // تحسين تلقائي / Auto optimize
-
-            // (AR) وضع الوحدة: تخطي دالة main wrapper
-            // (EN) Module mode: skip main wrapper generation
-            bool moduleMode_ = false;
-
-            // (AR) وضع مستقل: توليد وقت تشغيل مدمج بدلاً من الاعتماد على مكتبة C
-            // (EN) Freestanding mode: emit built-in runtime instead of relying on C library
-            bool freestanding_ = false;
-
-            // Error tracking (تتبع الأخطاء)
-            bool hasErrors_;
-            std::vector<std::string> errors_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
             // ========================================================================
-
-            /**
-             * الحصول على قيمة متغير
-             * Get variable value
-             */
-            llvm::Value *getNamedValue(const std::string &name);
-
-            /**
-             * تخزين قيمة متغير
-             * Store variable value
-             */
-            void setNamedValue(const std::string &name, llvm::Value *value);
-
-            /**
-             * إنشاء entry block alloca لمتغير
-             * Create entry block alloca for variable
-             */
-            llvm::AllocaInst *createEntryBlockAlloca(llvm::Function *function,
-                                                     const std::string &varName,
-                                                     llvm::Type *type);
+            // (AR) getNamedValue/setNamedValue/createEntryBlockAlloca أُزيلت في
+            //      Phase 7 Step 0 (إعلانات ميتة — لم تُستدعَ أبداً ولم تُعرّف).
+            // (EN) getNamedValue/setNamedValue/createEntryBlockAlloca removed in
+            //      Phase 7 Step 0 (dead declarations — never called, never defined).
 
             /**
              * الحصول على الكتلة الحالية

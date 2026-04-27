@@ -79,27 +79,8 @@ namespace Sad
          *   - errors_ (line 665): std::vector<std::string>
          */
         LLVMCodeGen::LLVMCodeGen()
-            : context_(nullptr) // Source: llvm_codegen.h:631
-              ,
-              module_(nullptr) // Source: llvm_codegen.h:634
-              ,
-              builder_(nullptr) // Source: llvm_codegen.h:637
-              ,
-              targetMachine_(nullptr) // Source: llvm_codegen.h:640
-              ,
-              context_info_() // Source: llvm_codegen.h:643
-              ,
-              typeMapper_(nullptr) // Source: llvm_codegen.h:646
-              ,
-              optimizer_(nullptr) // Source: llvm_codegen.h:657
-              ,
-              optimizationLevel_(sad::OptimizationLevel::O0) // Source: llvm_codegen.h:660
-              ,
-              autoOptimize_(false) // Source: llvm_codegen.h:661
-              ,
-              hasErrors_(false) // Source: llvm_codegen.h:664
-              ,
-              errors_() // Source: llvm_codegen.h:665
+            : context_info_() // (AR) per-function state — الحقول الأخرى تحّّد في LLVMCodeGenContext
+                              // (EN) per-function state — other fields default-init via base
         {
             // تهيئة LLVM
             // Initialize LLVM targets
@@ -561,26 +542,8 @@ namespace Sad
         // ============================================================================
         // Error Handling Methods / طرق معالجة الأخطاء
         // ============================================================================
-
-        /**
-         * الإبلاغ عن خطأ
-         * Report an error
-         *
-         * Source: llvm_codegen.h:614
-         * @param message رسالة الخطأ / Error message
-         */
-        void LLVMCodeGen::reportError(const std::string &message)
-        {
-            // Source: hasErrors_ is defined at llvm_codegen.h:664
-            hasErrors_ = true;
-
-            // Source: errors_ is defined at llvm_codegen.h:665
-            errors_.push_back(message);
-
-            // طباعة الخطأ
-            // Print error
-            std::cerr << "LLVM CodeGen Error: " << message << std::endl;
-        }
+        // (AR) reportError() نُقلت إلى llvm_codegen_context.cpp (Phase 7 Step 0)
+        // (EN) reportError() moved to llvm_codegen_context.cpp (Phase 7 Step 0)
 
         // ============================================================================
         // المرحلة 2: إصدار الوحدة والمتغيرات العامة
