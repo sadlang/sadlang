@@ -109,6 +109,7 @@ namespace Sad
             mapops_ = std::make_unique<MapOpsCodeGen>(*this);
             exc_ = std::make_unique<ExceptionCodeGen>(*this);
             ll_ = std::make_unique<LowlevelCodeGen>(*this);
+            enumops_ = std::make_unique<EnumOpsCodeGen>(*this);
         }
 
         /**

@@ -1,10 +1,11 @@
-﻿/*
+/*
  * ============================================================================
  * LLVM IR Code Generator - Enum/ADT Operations
  * ============================================================================
  */
 
 #include "llvm_codegen.h"
+#include "builders/enum_ops_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -52,7 +53,7 @@ namespace Sad
         //      }
         // ============================================================================
 
-        llvm::Value *LLVMCodeGen::emitEnumConstruct(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *EnumOpsCodeGen::emitEnumConstruct(std::shared_ptr<SIRInstruction> inst)
         {
             // (AR) بناء حالة تعداد جبري
             //      المُعاملات: [0]=اسم البنية، [1]=المميّز (tag)، [2..N]=قيم الحقول
@@ -63,7 +64,7 @@ namespace Sad
 
             if (!inst || inst->operands.size() < 2)
             {
-                reportError("ENUM_CONSTRUCT requires at least 2 operands (struct name, tag)");
+                cg_.reportError("ENUM_CONSTRUCT requires at least 2 operands (struct name, tag)");
                 return nullptr;
             }
 
@@ -74,10 +75,10 @@ namespace Sad
             //      أثناء SIR→LLVM المعالجة المسبقة، CLASS_DEF ينشئ StructType
             // (EN) Look up the struct type registered in classStructTypes
             //      During SIR→LLVM preprocessing, CLASS_DEF creates the StructType
-            auto structIt = context_info_.classStructTypes.find(structName);
+            auto structIt = cg_.context_info_.classStructTypes.find(structName);
             llvm::StructType *structType = nullptr;
 
-            if (structIt != context_info_.classStructTypes.end())
+            if (structIt != cg_.context_info_.classStructTypes.end())
             {
                 structType = structIt->second;
             }
@@ -88,36 +89,36 @@ namespace Sad
                 // (EN) If struct not registered — create anonymous type based on field count
                 //      field 0 = i64 (tag), rest = ptr
                 std::vector<llvm::Type *> fieldTypes;
-                fieldTypes.push_back(getInt64Type()); // __tag
+                fieldTypes.push_back(cg_.getInt64Type()); // __tag
                 for (size_t i = 2; i < inst->operands.size(); ++i)
                 {
-                    fieldTypes.push_back(llvm::PointerType::getUnqual(*context_));
+                    fieldTypes.push_back(llvm::PointerType::getUnqual(*cg_.context_));
                 }
-                structType = llvm::StructType::create(*context_, fieldTypes, structName);
-                context_info_.classStructTypes[structName] = structType;
+                structType = llvm::StructType::create(*cg_.context_, fieldTypes, structName);
+                cg_.context_info_.classStructTypes[structName] = structType;
             }
 
             // (AR) تخصيص ذاكرة على الكومة
             // (EN) Heap allocate
             auto *structSize = llvm::ConstantExpr::getSizeOf(structType);
             auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*context_), {getInt64Type()}, false);
-            auto mallocFunc = module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *objPtr = builder_->CreateCall(
+                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
+            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
+            llvm::Value *objPtr = cg_.builder_->CreateCall(
                 mallocFunc,
-                {builder_->CreateIntCast(structSize, getInt64Type(), false)},
+                {cg_.builder_->CreateIntCast(structSize, cg_.getInt64Type(), false)},
                 structName + ".adt");
 
             // (AR) تخزين المميّز في الحقل 0 (__tag)
             // (EN) Store discriminant in field 0 (__tag)
-            llvm::Value *tagGEP = builder_->CreateStructGEP(structType, objPtr, 0, "tag.gep");
-            builder_->CreateStore(llvm::ConstantInt::get(getInt64Type(), tagValue), tagGEP);
+            llvm::Value *tagGEP = cg_.builder_->CreateStructGEP(structType, objPtr, 0, "tag.gep");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(cg_.getInt64Type(), tagValue), tagGEP);
 
             // (AR) تخزين حقول الحمولة في الحقول التالية
             // (EN) Store payload fields in subsequent fields
             for (size_t i = 2; i < inst->operands.size(); ++i)
             {
-                llvm::Value *fieldVal = resolveOperand(inst->operands[i]);
+                llvm::Value *fieldVal = cg_.resolveOperand(inst->operands[i]);
                 if (fieldVal)
                 {
                     // (AR) الحقول تبدأ من الفهرس 1 (الفهرس 0 للمميّز)
@@ -125,7 +126,7 @@ namespace Sad
                     unsigned fieldIdx = static_cast<unsigned>(i - 1);
                     if (fieldIdx < structType->getNumElements())
                     {
-                        llvm::Value *fieldGEP = builder_->CreateStructGEP(
+                        llvm::Value *fieldGEP = cg_.builder_->CreateStructGEP(
                             structType, objPtr, fieldIdx,
                             "field." + std::to_string(fieldIdx - 1) + ".gep");
 
@@ -144,15 +145,15 @@ namespace Sad
                                 //      val → val | (1 << 63) → inttoptr
                                 //      Distinguishes integers from pointers (bit 63=0 in userspace always)
                                 //      MSB better than LSB because string constants may be 1-aligned (odd LSB)
-                                llvm::Value *tagged = builder_->CreateOr(
+                                llvm::Value *tagged = cg_.builder_->CreateOr(
                                     fieldVal,
-                                    llvm::ConstantInt::get(getInt64Type(), static_cast<uint64_t>(1) << 63),
+                                    llvm::ConstantInt::get(cg_.getInt64Type(), static_cast<uint64_t>(1) << 63),
                                     "tag.msb");
-                                fieldVal = builder_->CreateIntToPtr(tagged, expectedType, "tag.i2p");
+                                fieldVal = cg_.builder_->CreateIntToPtr(tagged, expectedType, "tag.i2p");
                             }
                             else if (fieldVal->getType()->isPointerTy() && expectedType->isIntegerTy())
                             {
-                                fieldVal = builder_->CreatePtrToInt(fieldVal, expectedType);
+                                fieldVal = cg_.builder_->CreatePtrToInt(fieldVal, expectedType);
                             }
                             else if (fieldVal->getType()->isPointerTy() && expectedType->isPointerTy())
                             {
@@ -160,7 +161,7 @@ namespace Sad
                                 // (EN) No cast needed — pointer types compatible (opaque)
                             }
                         }
-                        builder_->CreateStore(fieldVal, fieldGEP);
+                        cg_.builder_->CreateStore(fieldVal, fieldGEP);
                     }
                 }
             }
@@ -169,13 +170,13 @@ namespace Sad
             // (EN) Store result
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = objPtr;
-                context_info_.objectClassMap[inst->result->name] = structName;
+                cg_.context_info_.namedValues[inst->result->name] = objPtr;
+                cg_.context_info_.objectClassMap[inst->result->name] = structName;
             }
             return objPtr;
         }
 
-        llvm::Value *LLVMCodeGen::emitEnumGetTag(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *EnumOpsCodeGen::emitEnumGetTag(std::shared_ptr<SIRInstruction> inst)
         {
             // (AR) استخراج المميّز (tag) من بنية تعداد جبري
             //      المُعاملات: [0]=مؤشر البنية
@@ -186,14 +187,14 @@ namespace Sad
 
             if (!inst || inst->operands.empty())
             {
-                reportError("ENUM_GET_TAG requires 1 operand (enum value)");
+                cg_.reportError("ENUM_GET_TAG requires 1 operand (enum value)");
                 return nullptr;
             }
 
-            llvm::Value *enumPtr = resolveOperand(inst->operands[0]);
+            llvm::Value *enumPtr = cg_.resolveOperand(inst->operands[0]);
             if (!enumPtr)
             {
-                reportError("ENUM_GET_TAG: could not resolve enum value");
+                cg_.reportError("ENUM_GET_TAG: could not resolve enum value");
                 return nullptr;
             }
 
@@ -201,18 +202,18 @@ namespace Sad
             // (EN) Ensure the value is a pointer — may be i64 if passed through a global variable
             if (!enumPtr->getType()->isPointerTy())
             {
-                enumPtr = builder_->CreateIntToPtr(enumPtr,
-                                                   llvm::PointerType::getUnqual(*context_), "gettag.toptr");
+                enumPtr = cg_.builder_->CreateIntToPtr(enumPtr,
+                                                   llvm::PointerType::getUnqual(*cg_.context_), "gettag.toptr");
             }
 
             // (AR) البحث عن نوع البنية من objectClassMap
             // (EN) Look up struct type from objectClassMap
             llvm::StructType *structType = nullptr;
-            auto classIt = context_info_.objectClassMap.find(inst->operands[0].name);
-            if (classIt != context_info_.objectClassMap.end())
+            auto classIt = cg_.context_info_.objectClassMap.find(inst->operands[0].name);
+            if (classIt != cg_.context_info_.objectClassMap.end())
             {
-                auto typeIt = context_info_.classStructTypes.find(classIt->second);
-                if (typeIt != context_info_.classStructTypes.end())
+                auto typeIt = cg_.context_info_.classStructTypes.find(classIt->second);
+                if (typeIt != cg_.context_info_.classStructTypes.end())
                 {
                     structType = typeIt->second;
                 }
@@ -223,8 +224,8 @@ namespace Sad
             {
                 // (AR) GEP + load للحقل 0
                 // (EN) GEP + load for field 0
-                llvm::Value *tagGEP = builder_->CreateStructGEP(structType, enumPtr, 0, "tag.gep");
-                tagVal = builder_->CreateLoad(getInt64Type(), tagGEP, "tag.val");
+                llvm::Value *tagGEP = cg_.builder_->CreateStructGEP(structType, enumPtr, 0, "tag.gep");
+                tagVal = cg_.builder_->CreateLoad(cg_.getInt64Type(), tagGEP, "tag.val");
             }
             else
             {
@@ -232,17 +233,17 @@ namespace Sad
                 //      ونستخدم GEP بدون StructType عبر bitcast
                 // (EN) If type unknown — assume first field is i64
                 //      Use raw pointer arithmetic
-                tagVal = builder_->CreateLoad(getInt64Type(), enumPtr, "tag.val.raw");
+                tagVal = cg_.builder_->CreateLoad(cg_.getInt64Type(), enumPtr, "tag.val.raw");
             }
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = tagVal;
+                cg_.context_info_.namedValues[inst->result->name] = tagVal;
             }
             return tagVal;
         }
 
-        llvm::Value *LLVMCodeGen::emitEnumGetPayload(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *EnumOpsCodeGen::emitEnumGetPayload(std::shared_ptr<SIRInstruction> inst)
         {
             // (AR) استخراج حقل من حمولة تعداد جبري
             //      المُعاملات: [0]=مؤشر البنية، [1]=فهرس الحقل (i64)
@@ -259,14 +260,14 @@ namespace Sad
 
             if (!inst || inst->operands.size() < 2)
             {
-                reportError("ENUM_GET_PAYLOAD requires 2 operands (enum value, field index)");
+                cg_.reportError("ENUM_GET_PAYLOAD requires 2 operands (enum value, field index)");
                 return nullptr;
             }
 
-            llvm::Value *enumPtr = resolveOperand(inst->operands[0]);
+            llvm::Value *enumPtr = cg_.resolveOperand(inst->operands[0]);
             if (!enumPtr)
             {
-                reportError("ENUM_GET_PAYLOAD: could not resolve enum value");
+                cg_.reportError("ENUM_GET_PAYLOAD: could not resolve enum value");
                 return nullptr;
             }
 
@@ -274,8 +275,8 @@ namespace Sad
             // (EN) Ensure the value is a pointer — may be i64 if passed through a global variable
             if (!enumPtr->getType()->isPointerTy())
             {
-                enumPtr = builder_->CreateIntToPtr(enumPtr,
-                                                   llvm::PointerType::getUnqual(*context_), "getpay.toptr");
+                enumPtr = cg_.builder_->CreateIntToPtr(enumPtr,
+                                                   llvm::PointerType::getUnqual(*cg_.context_), "getpay.toptr");
             }
 
             int64_t fieldIndex = inst->operands[1].intValue;
@@ -290,11 +291,11 @@ namespace Sad
             //      2. extra operands[2] (enum name — if added)
             //      3. scan classStructTypes for structs with __tag as first field
             llvm::StructType *structType = nullptr;
-            auto classIt = context_info_.objectClassMap.find(inst->operands[0].name);
-            if (classIt != context_info_.objectClassMap.end())
+            auto classIt = cg_.context_info_.objectClassMap.find(inst->operands[0].name);
+            if (classIt != cg_.context_info_.objectClassMap.end())
             {
-                auto typeIt = context_info_.classStructTypes.find(classIt->second);
-                if (typeIt != context_info_.classStructTypes.end())
+                auto typeIt = cg_.context_info_.classStructTypes.find(classIt->second);
+                if (typeIt != cg_.context_info_.classStructTypes.end())
                 {
                     structType = typeIt->second;
                 }
@@ -304,8 +305,8 @@ namespace Sad
             // (EN) Fallback: if not found via objectClassMap, try extra enum name operand
             if (!structType && inst->operands.size() >= 3 && !inst->operands[2].name.empty())
             {
-                auto typeIt = context_info_.classStructTypes.find(inst->operands[2].name);
-                if (typeIt != context_info_.classStructTypes.end())
+                auto typeIt = cg_.context_info_.classStructTypes.find(inst->operands[2].name);
+                if (typeIt != cg_.context_info_.classStructTypes.end())
                 {
                     structType = typeIt->second;
                 }
@@ -317,13 +318,13 @@ namespace Sad
             //      (last resort when name is unknown)
             if (!structType)
             {
-                for (const auto &[cname, ctype] : context_info_.classStructTypes)
+                for (const auto &[cname, ctype] : cg_.context_info_.classStructTypes)
                 {
                     if (ctype && ctype->getNumElements() > 1 + fieldIndex)
                     {
                         // (AR) فحص أن الحقل الأول هو i64 (للـ __tag)
                         // (EN) Check that first field is i64 (for __tag)
-                        if (ctype->getElementType(0) == getInt64Type())
+                        if (ctype->getElementType(0) == cg_.getInt64Type())
                         {
                             structType = ctype;
                             break;
@@ -337,11 +338,11 @@ namespace Sad
             {
                 // (AR) GEP + load للحقل المطلوب
                 // (EN) GEP + load for requested field
-                llvm::Value *fieldGEP = builder_->CreateStructGEP(
+                llvm::Value *fieldGEP = cg_.builder_->CreateStructGEP(
                     structType, enumPtr, structFieldIdx,
                     "payload." + std::to_string(fieldIndex) + ".gep");
                 llvm::Type *fieldType = structType->getElementType(structFieldIdx);
-                fieldVal = builder_->CreateLoad(fieldType, fieldGEP,
+                fieldVal = cg_.builder_->CreateLoad(fieldType, fieldGEP,
                                                 "payload." + std::to_string(fieldIndex) + ".val");
             }
             else
@@ -350,12 +351,12 @@ namespace Sad
                 //      نحسب الإزاحة يدوياً: offset = (fieldIndex + 1) * 8
                 // (EN) Type unknown — assume ptr
                 //      Calculate offset manually: offset = (fieldIndex + 1) * 8
-                auto *ptrTy = llvm::PointerType::getUnqual(*context_);
-                llvm::Value *offset = llvm::ConstantInt::get(getInt64Type(), (fieldIndex + 1) * 8);
-                llvm::Value *rawGEP = builder_->CreateGEP(
-                    llvm::Type::getInt8Ty(*context_), enumPtr, offset,
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                llvm::Value *offset = llvm::ConstantInt::get(cg_.getInt64Type(), (fieldIndex + 1) * 8);
+                llvm::Value *rawGEP = cg_.builder_->CreateGEP(
+                    llvm::Type::getInt8Ty(*cg_.context_), enumPtr, offset,
                     "payload." + std::to_string(fieldIndex) + ".raw");
-                fieldVal = builder_->CreateLoad(ptrTy, rawGEP,
+                fieldVal = cg_.builder_->CreateLoad(ptrTy, rawGEP,
                                                 "payload." + std::to_string(fieldIndex) + ".val");
             }
 
@@ -365,7 +366,7 @@ namespace Sad
                 // (EN) Convert value to i64 if ptr
                 if (fieldVal->getType()->isPointerTy())
                 {
-                    fieldVal = builder_->CreatePtrToInt(fieldVal, getInt64Type(),
+                    fieldVal = cg_.builder_->CreatePtrToInt(fieldVal, cg_.getInt64Type(),
                                                         "payload." + std::to_string(fieldIndex) + ".toi64");
                 }
 
@@ -377,32 +378,32 @@ namespace Sad
                 //      Integers stored in ADT are tagged with bit 63=1 at ENUM_CONSTRUCT
                 //      Pointers (strings) have bit 63=0 (always in userspace)
                 //      Here we check bit 63, untag integers, and save flag for strings
-                llvm::Value *msbMask = llvm::ConstantInt::get(getInt64Type(), static_cast<uint64_t>(1) << 63);
-                llvm::Value *msbBit = builder_->CreateAnd(fieldVal, msbMask, "tag.msb.bit");
-                llvm::Value *isInt = builder_->CreateICmpNE(
-                    msbBit, llvm::ConstantInt::get(getInt64Type(), 0), "is.tagged.int");
+                llvm::Value *msbMask = llvm::ConstantInt::get(cg_.getInt64Type(), static_cast<uint64_t>(1) << 63);
+                llvm::Value *msbBit = cg_.builder_->CreateAnd(fieldVal, msbMask, "tag.msb.bit");
+                llvm::Value *isInt = cg_.builder_->CreateICmpNE(
+                    msbBit, llvm::ConstantInt::get(cg_.getInt64Type(), 0), "is.tagged.int");
                 // (AR) فك التعليم: إذا رقم (MSB=1) → val & ~(1<<63) = إزالة العلامة
                 //      إذا مؤشر (MSB=0) → يبقى كما هو
                 // (EN) Untag: if integer (MSB=1) → val & ~(1<<63) = clear tag
                 //      if pointer (MSB=0) → stays as-is
-                llvm::Value *untagged = builder_->CreateAnd(
+                llvm::Value *untagged = cg_.builder_->CreateAnd(
                     fieldVal,
-                    llvm::ConstantInt::get(getInt64Type(), ~(static_cast<uint64_t>(1) << 63)),
+                    llvm::ConstantInt::get(cg_.getInt64Type(), ~(static_cast<uint64_t>(1) << 63)),
                     "untagged");
-                llvm::Value *result = builder_->CreateSelect(
+                llvm::Value *result = cg_.builder_->CreateSelect(
                     isInt, untagged, fieldVal, "payload.untagged");
 
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
 
                 // (AR) حفظ flag: هل القيمة مؤشر (نص/كائن)؟
                 // (EN) Save flag: is value a pointer (string/object)?
-                llvm::Value *isPtr = builder_->CreateNot(isInt, "is.ptr");
-                context_info_.namedValues[inst->result->name + ".__is_ptr"] = isPtr;
+                llvm::Value *isPtr = cg_.builder_->CreateNot(isInt, "is.ptr");
+                cg_.context_info_.namedValues[inst->result->name + ".__is_ptr"] = isPtr;
             }
             return fieldVal;
         }
 
-        llvm::Value *LLVMCodeGen::emitEnumIsVariant(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *EnumOpsCodeGen::emitEnumIsVariant(std::shared_ptr<SIRInstruction> inst)
         {
             // ================================================================
             // (AR) فحص ما إذا كان التعداد في حالة معيّنة
@@ -442,14 +443,14 @@ namespace Sad
 
             if (!inst || inst->operands.size() < 2)
             {
-                reportError("ENUM_IS_VARIANT requires at least 2 operands (enum value, variant tag)");
+                cg_.reportError("ENUM_IS_VARIANT requires at least 2 operands (enum value, variant tag)");
                 return nullptr;
             }
 
-            llvm::Value *enumVal = resolveOperand(inst->operands[0]);
+            llvm::Value *enumVal = cg_.resolveOperand(inst->operands[0]);
             if (!enumVal)
             {
-                reportError("ENUM_IS_VARIANT: could not resolve enum value");
+                cg_.reportError("ENUM_IS_VARIANT: could not resolve enum value");
                 return nullptr;
             }
 
@@ -491,12 +492,12 @@ namespace Sad
 
             // (AR) المحاولة 1: objectClassMap
             // (EN) Attempt 1: objectClassMap
-            auto classIt = context_info_.objectClassMap.find(inst->operands[0].name);
-            if (classIt != context_info_.objectClassMap.end())
+            auto classIt = cg_.context_info_.objectClassMap.find(inst->operands[0].name);
+            if (classIt != cg_.context_info_.objectClassMap.end())
             {
                 isDataVariant = true;
-                auto typeIt = context_info_.classStructTypes.find(classIt->second);
-                if (typeIt != context_info_.classStructTypes.end())
+                auto typeIt = cg_.context_info_.classStructTypes.find(classIt->second);
+                if (typeIt != cg_.context_info_.classStructTypes.end())
                 {
                     structType = typeIt->second;
                 }
@@ -506,8 +507,8 @@ namespace Sad
             // (EN) Attempt 2: enum name from SIR metadata
             if (!isDataVariant && !enumName.empty())
             {
-                auto typeIt = context_info_.classStructTypes.find(enumName);
-                if (typeIt != context_info_.classStructTypes.end())
+                auto typeIt = cg_.context_info_.classStructTypes.find(enumName);
+                if (typeIt != cg_.context_info_.classStructTypes.end())
                 {
                     structType = typeIt->second;
                     isDataVariant = true;
@@ -543,13 +544,13 @@ namespace Sad
                 //      هذا يحدث فقط مع تعدادات بسيطة (C-style) بدون أي data variant
                 // (EN) True unit variant: value IS the tag — compare directly
                 //      Only happens with simple (C-style) enums without any data variants
-                llvm::Value *cmpResult = builder_->CreateICmpEQ(
+                llvm::Value *cmpResult = cg_.builder_->CreateICmpEQ(
                     enumVal,
-                    llvm::ConstantInt::get(getInt64Type(), expectedTag),
+                    llvm::ConstantInt::get(cg_.getInt64Type(), expectedTag),
                     "isvar.cmp.unit");
                 if (inst->result.has_value())
                 {
-                    context_info_.namedValues[inst->result->name] = cmpResult;
+                    cg_.context_info_.namedValues[inst->result->name] = cmpResult;
                 }
                 return cmpResult;
             }
@@ -559,8 +560,8 @@ namespace Sad
             llvm::Value *enumPtr = enumVal;
             if (!enumPtr->getType()->isPointerTy())
             {
-                enumPtr = builder_->CreateIntToPtr(enumPtr,
-                                                   llvm::PointerType::getUnqual(*context_), "isvar.toptr");
+                enumPtr = cg_.builder_->CreateIntToPtr(enumPtr,
+                                                   llvm::PointerType::getUnqual(*cg_.context_), "isvar.toptr");
             }
 
             // (AR) قراءة المميّز من البنية
@@ -568,26 +569,26 @@ namespace Sad
             llvm::Value *tagVal;
             if (structType)
             {
-                llvm::Value *tagGEP = builder_->CreateStructGEP(structType, enumPtr, 0, "isvar.tag.gep");
-                tagVal = builder_->CreateLoad(getInt64Type(), tagGEP, "isvar.tag");
+                llvm::Value *tagGEP = cg_.builder_->CreateStructGEP(structType, enumPtr, 0, "isvar.tag.gep");
+                tagVal = cg_.builder_->CreateLoad(cg_.getInt64Type(), tagGEP, "isvar.tag");
             }
             else
             {
                 // (AR) بدون structType: نحمّل مباشرة كـ i64 (أول عنصر في البنية)
                 // (EN) Without structType: load directly as i64 (first element in struct)
-                tagVal = builder_->CreateLoad(getInt64Type(), enumPtr, "isvar.tag.raw");
+                tagVal = cg_.builder_->CreateLoad(cg_.getInt64Type(), enumPtr, "isvar.tag.raw");
             }
 
             // (AR) المقارنة: tag == expected_tag
             // (EN) Comparison: tag == expected_tag
-            llvm::Value *cmpResult = builder_->CreateICmpEQ(
+            llvm::Value *cmpResult = cg_.builder_->CreateICmpEQ(
                 tagVal,
-                llvm::ConstantInt::get(getInt64Type(), expectedTag),
+                llvm::ConstantInt::get(cg_.getInt64Type(), expectedTag),
                 "isvar.cmp");
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = cmpResult;
+                cg_.context_info_.namedValues[inst->result->name] = cmpResult;
             }
             return cmpResult;
         }
@@ -609,18 +610,18 @@ namespace Sad
         //      Note: checks for null and that it's a ptr (not i64)
         //      to avoid freeing Unit variants that may be i64 constants
         // ============================================================================
-        llvm::Value *LLVMCodeGen::emitEnumFree(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *EnumOpsCodeGen::emitEnumFree(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
             {
-                reportError("ENUM_FREE requires 1 operand (enum value)");
+                cg_.reportError("ENUM_FREE requires 1 operand (enum value)");
                 return nullptr;
             }
 
-            llvm::Value *enumPtr = resolveOperand(inst->operands[0]);
+            llvm::Value *enumPtr = cg_.resolveOperand(inst->operands[0]);
             if (!enumPtr)
             {
-                reportError("ENUM_FREE: could not resolve enum value");
+                cg_.reportError("ENUM_FREE: could not resolve enum value");
                 return nullptr;
             }
 
@@ -633,33 +634,33 @@ namespace Sad
 
             // (AR) فحص null قبل التحرير
             // (EN) Null check before free
-            llvm::Value *isNull = builder_->CreateICmpEQ(
+            llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
                 enumPtr,
                 llvm::ConstantPointerNull::get(
-                    llvm::PointerType::getUnqual(*context_)),
+                    llvm::PointerType::getUnqual(*cg_.context_)),
                 "enum.isnull");
 
-            llvm::Function *currentFunc = builder_->GetInsertBlock()->getParent();
+            llvm::Function *currentFunc = cg_.builder_->GetInsertBlock()->getParent();
             llvm::BasicBlock *freeBlock = llvm::BasicBlock::Create(
-                *context_, "enum.free", currentFunc);
+                *cg_.context_, "enum.free", currentFunc);
             llvm::BasicBlock *contBlock = llvm::BasicBlock::Create(
-                *context_, "enum.free.cont", currentFunc);
+                *cg_.context_, "enum.free.cont", currentFunc);
 
-            builder_->CreateCondBr(isNull, contBlock, freeBlock);
+            cg_.builder_->CreateCondBr(isNull, contBlock, freeBlock);
 
             // (AR) كتلة التحرير
             // (EN) Free block
-            builder_->SetInsertPoint(freeBlock);
+            cg_.builder_->SetInsertPoint(freeBlock);
             auto freeType = llvm::FunctionType::get(
-                llvm::Type::getVoidTy(*context_),
-                {llvm::PointerType::getUnqual(*context_)}, false);
-            auto freeFunc = module_->getOrInsertFunction("free", freeType);
-            builder_->CreateCall(freeFunc, {enumPtr});
-            builder_->CreateBr(contBlock);
+                llvm::Type::getVoidTy(*cg_.context_),
+                {llvm::PointerType::getUnqual(*cg_.context_)}, false);
+            auto freeFunc = cg_.module_->getOrInsertFunction("free", freeType);
+            cg_.builder_->CreateCall(freeFunc, {enumPtr});
+            cg_.builder_->CreateBr(contBlock);
 
             // (AR) الاستمرار بعد التحرير
             // (EN) Continue after free
-            builder_->SetInsertPoint(contBlock);
+            cg_.builder_->SetInsertPoint(contBlock);
 
             return nullptr;
         }

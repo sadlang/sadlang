@@ -87,6 +87,7 @@
 #include "builders/map_ops_codegen.h"        // (AR) Phase 7 Step 9: MapOpsCodeGen
 #include "builders/exception_codegen.h"      // (AR) Phase 7 Step 10: ExceptionCodeGen
 #include "builders/lowlevel_codegen.h"       // (AR) Phase 7 Step 11: LowlevelCodeGen
+#include "builders/enum_ops_codegen.h"      // (AR) Phase 7 Step 12: EnumOpsCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -268,6 +269,8 @@ namespace Sad
             friend class ExceptionCodeGen;
             // (AR) Phase 7 Step 11: LowlevelCodeGen
             friend class LowlevelCodeGen;
+            // (AR) Phase 7 Step 12: EnumOpsCodeGen
+            friend class EnumOpsCodeGen;
 
         public:
             // ========================================================================
@@ -1242,11 +1245,11 @@ namespace Sad
             // (AR) أنواع البيانات الجبرية — تعدادات ADT
             // (EN) Algebraic Data Types — ADT Enums
             // ========================================================================
-            llvm::Value *emitEnumConstruct(std::shared_ptr<SIRInstruction> inst);  // بناء حالة تعداد
-            llvm::Value *emitEnumGetTag(std::shared_ptr<SIRInstruction> inst);     // قراءة المميّز
-            llvm::Value *emitEnumGetPayload(std::shared_ptr<SIRInstruction> inst); // استخراج حقل حمولة
-            llvm::Value *emitEnumIsVariant(std::shared_ptr<SIRInstruction> inst);  // فحص الحالة
-            llvm::Value *emitEnumFree(std::shared_ptr<SIRInstruction> inst);       // تحرير ذاكرة ADT
+            llvm::Value *emitEnumConstruct(std::shared_ptr<SIRInstruction> inst)  { return enumops_->emitEnumConstruct(inst); }
+            llvm::Value *emitEnumGetTag(std::shared_ptr<SIRInstruction> inst)     { return enumops_->emitEnumGetTag(inst); }
+            llvm::Value *emitEnumGetPayload(std::shared_ptr<SIRInstruction> inst) { return enumops_->emitEnumGetPayload(inst); }
+            llvm::Value *emitEnumIsVariant(std::shared_ptr<SIRInstruction> inst)  { return enumops_->emitEnumIsVariant(inst); }
+            llvm::Value *emitEnumFree(std::shared_ptr<SIRInstruction> inst)       { return enumops_->emitEnumFree(inst); }
 
             // ========================================================================
             // vtable & Virtual Dispatch / جدول الدوال الافتراضية
@@ -1507,6 +1510,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 11: مكوّن فرعي لتعليمات منخفضة المستوى (153 methods: CPU/UEFI/ACPI/APIC/...)
             std::unique_ptr<LowlevelCodeGen> ll_;
+
+            // (AR) Phase 7 Step 12: مكوّن فرعي لعمليات التعدادات ADT (5 methods)
+            std::unique_ptr<EnumOpsCodeGen> enumops_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
