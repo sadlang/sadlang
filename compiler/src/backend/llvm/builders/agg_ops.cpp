@@ -40,6 +40,8 @@
 #include <llvm/IR/InlineAsm.h>
 #include <iostream>
 #include <fstream>
+#include "builders/aggregate_ops_codegen.h" // (Phase 7 Step 4)
+#include "llvm_codegen.h"
 
 // Source: llvm_codegen.h:103-108 - using declarations
 using namespace Sad::Compiler::SIR;  // For SIRModule, SIRFunction, SIRBasicBlock, SIRInstruction, SadTypeKind
@@ -47,83 +49,83 @@ using namespace Sad::Compiler::SIR;  // For SIRModule, SIRFunction, SIRBasicBloc
 namespace Sad {
 namespace LLVM {
 
-llvm::Value* LLVMCodeGen::emitExtractValue(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* AggregateOpsCodeGen::emitExtractValue(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 2) return nullptr;
-    llvm::Value* agg = resolveOperand(inst->operands[0]);
-    llvm::Value* idxVal = resolveOperand(inst->operands[1]);
+    llvm::Value* agg = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* idxVal = cg_.resolveOperand(inst->operands[1]);
     if (!agg || !idxVal) return nullptr;
     
     // Index must be a constant for LLVM extractvalue
     if (auto* ci = llvm::dyn_cast<llvm::ConstantInt>(idxVal)) {
         unsigned idx = (unsigned)ci->getZExtValue();
-        llvm::Value* result = builder_->CreateExtractValue(agg, {idx}, "extractval");
+        llvm::Value* result = cg_.builder_->CreateExtractValue(agg, {idx}, "extractval");
         if (inst->result.has_value()) {
-            context_info_.namedValues[inst->result->name] = result;
+            cg_.context_info_.namedValues[inst->result->name] = result;
         }
         return result;
     }
     
-    reportError("EXTRACT_VALUE requires constant index");
+    cg_.reportError("EXTRACT_VALUE requires constant index");
     return nullptr;
 }
 
-llvm::Value* LLVMCodeGen::emitInsertValue(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* AggregateOpsCodeGen::emitInsertValue(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 3) return nullptr;
-    llvm::Value* agg = resolveOperand(inst->operands[0]);
-    llvm::Value* val = resolveOperand(inst->operands[1]);
-    llvm::Value* idxVal = resolveOperand(inst->operands[2]);
+    llvm::Value* agg = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* val = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* idxVal = cg_.resolveOperand(inst->operands[2]);
     if (!agg || !val || !idxVal) return nullptr;
     
     if (auto* ci = llvm::dyn_cast<llvm::ConstantInt>(idxVal)) {
         unsigned idx = (unsigned)ci->getZExtValue();
-        llvm::Value* result = builder_->CreateInsertValue(agg, val, {idx}, "insertval");
+        llvm::Value* result = cg_.builder_->CreateInsertValue(agg, val, {idx}, "insertval");
         if (inst->result.has_value()) {
-            context_info_.namedValues[inst->result->name] = result;
+            cg_.context_info_.namedValues[inst->result->name] = result;
         }
         return result;
     }
     
-    reportError("INSERT_VALUE requires constant index");
+    cg_.reportError("INSERT_VALUE requires constant index");
     return nullptr;
 }
 
-llvm::Value* LLVMCodeGen::emitExtractElement(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* AggregateOpsCodeGen::emitExtractElement(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 2) return nullptr;
-    llvm::Value* vec = resolveOperand(inst->operands[0]);
-    llvm::Value* idx = resolveOperand(inst->operands[1]);
+    llvm::Value* vec = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* idx = cg_.resolveOperand(inst->operands[1]);
     if (!vec || !idx) return nullptr;
     
-    llvm::Value* result = builder_->CreateExtractElement(vec, idx, "extractelem");
+    llvm::Value* result = cg_.builder_->CreateExtractElement(vec, idx, "extractelem");
     if (inst->result.has_value()) {
-        context_info_.namedValues[inst->result->name] = result;
+        cg_.context_info_.namedValues[inst->result->name] = result;
     }
     return result;
 }
 
-llvm::Value* LLVMCodeGen::emitInsertElement(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* AggregateOpsCodeGen::emitInsertElement(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 3) return nullptr;
-    llvm::Value* vec = resolveOperand(inst->operands[0]);
-    llvm::Value* val = resolveOperand(inst->operands[1]);
-    llvm::Value* idx = resolveOperand(inst->operands[2]);
+    llvm::Value* vec = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* val = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* idx = cg_.resolveOperand(inst->operands[2]);
     if (!vec || !val || !idx) return nullptr;
     
-    llvm::Value* result = builder_->CreateInsertElement(vec, val, idx, "insertelem");
+    llvm::Value* result = cg_.builder_->CreateInsertElement(vec, val, idx, "insertelem");
     if (inst->result.has_value()) {
-        context_info_.namedValues[inst->result->name] = result;
+        cg_.context_info_.namedValues[inst->result->name] = result;
     }
     return result;
 }
 
-llvm::Value* LLVMCodeGen::emitSelect(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* AggregateOpsCodeGen::emitSelect(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 3) return nullptr;
-    llvm::Value* cond = resolveOperand(inst->operands[0]);
-    llvm::Value* trueVal = resolveOperand(inst->operands[1]);
-    llvm::Value* falseVal = resolveOperand(inst->operands[2]);
+    llvm::Value* cond = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* trueVal = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* falseVal = cg_.resolveOperand(inst->operands[2]);
     if (!cond || !trueVal || !falseVal) return nullptr;
     
     // Ensure cond is i1
     if (!cond->getType()->isIntegerTy(1)) {
-        cond = builder_->CreateICmpNE(cond, 
+        cond = cg_.builder_->CreateICmpNE(cond, 
             llvm::ConstantInt::get(cond->getType(), 0), "select.cond");
     }
     
@@ -132,14 +134,14 @@ llvm::Value* LLVMCodeGen::emitSelect(std::shared_ptr<SIRInstruction> inst) {
         if (trueVal->getType()->isIntegerTy() && falseVal->getType()->isIntegerTy()) {
             unsigned tBits = trueVal->getType()->getIntegerBitWidth();
             unsigned fBits = falseVal->getType()->getIntegerBitWidth();
-            if (tBits < fBits) trueVal = builder_->CreateSExt(trueVal, falseVal->getType());
-            else falseVal = builder_->CreateSExt(falseVal, trueVal->getType());
+            if (tBits < fBits) trueVal = cg_.builder_->CreateSExt(trueVal, falseVal->getType());
+            else falseVal = cg_.builder_->CreateSExt(falseVal, trueVal->getType());
         }
     }
     
-    llvm::Value* result = builder_->CreateSelect(cond, trueVal, falseVal, "select");
+    llvm::Value* result = cg_.builder_->CreateSelect(cond, trueVal, falseVal, "select");
     if (inst->result.has_value()) {
-        context_info_.namedValues[inst->result->name] = result;
+        cg_.context_info_.namedValues[inst->result->name] = result;
     }
     return result;
 }

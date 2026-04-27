@@ -79,6 +79,7 @@
 #include "builders/arithmetic_codegen.h" // (AR) Phase 7 Step 1: ArithmeticCodeGen
 #include "builders/memory_codegen.h"     // (AR) Phase 7 Step 2: MemoryCodeGen
 #include "builders/controlflow_codegen.h" // (AR) Phase 7 Step 3: ControlFlowCodeGen
+#include "builders/aggregate_ops_codegen.h" // (AR) Phase 7 Step 4: AggregateOpsCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -244,6 +245,8 @@ namespace Sad
             friend class MemoryCodeGen;
             // (AR) Phase 7 Step 3: ControlFlowCodeGen
             friend class ControlFlowCodeGen;
+            // (AR) Phase 7 Step 4: AggregateOpsCodeGen
+            friend class AggregateOpsCodeGen;
 
         public:
             // ========================================================================
@@ -1310,17 +1313,18 @@ namespace Sad
             // Aggregate Instructions / تعليمات التجميع
             // ------------------------------------------------------------------------
 
-            llvm::Value *emitExtractValue(std::shared_ptr<SIRInstruction> inst);   // استخراج قيمة
-            llvm::Value *emitInsertValue(std::shared_ptr<SIRInstruction> inst);    // إدراج قيمة
-            llvm::Value *emitExtractElement(std::shared_ptr<SIRInstruction> inst); // استخراج عنصر
-            llvm::Value *emitInsertElement(std::shared_ptr<SIRInstruction> inst);  // إدراج عنصر
+            // (AR) Phase 7 Step 4: delegate إلى AggregateOpsCodeGen
+            llvm::Value *emitExtractValue(std::shared_ptr<SIRInstruction> inst)   { return agg_->emitExtractValue(inst); }
+            llvm::Value *emitInsertValue(std::shared_ptr<SIRInstruction> inst)    { return agg_->emitInsertValue(inst); }
+            llvm::Value *emitExtractElement(std::shared_ptr<SIRInstruction> inst) { return agg_->emitExtractElement(inst); }
+            llvm::Value *emitInsertElement(std::shared_ptr<SIRInstruction> inst)  { return agg_->emitInsertElement(inst); }
 
             // ------------------------------------------------------------------------
             // Phi & Select / فاي والاختيار
             // ------------------------------------------------------------------------
 
             llvm::Value *emitPhi(std::shared_ptr<SIRInstruction> inst);    // عقدة فاي / Phi node
-            llvm::Value *emitSelect(std::shared_ptr<SIRInstruction> inst); // اختيار / Select
+            llvm::Value *emitSelect(std::shared_ptr<SIRInstruction> inst) { return agg_->emitSelect(inst); }
 
             // ========================================================================
             // Type Conversion / تحويل الأنواع
@@ -1467,6 +1471,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 3: مكوّن فرعي لتدفق التحكم (Branch/CondBranch/Call/Return/Switch)
             std::unique_ptr<ControlFlowCodeGen> cf_;
+
+            // (AR) Phase 7 Step 4: مكوّن فرعي لعمليات التجميع (ExtractValue/InsertValue/ExtractElement/InsertElement/Select)
+            std::unique_ptr<AggregateOpsCodeGen> agg_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
