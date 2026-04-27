@@ -107,6 +107,7 @@ namespace Sad
             arrb_ = std::make_unique<ArrayBuiltinsCodeGen>(*this);
             mathb_ = std::make_unique<MathBuiltinsCodeGen>(*this);
             mapops_ = std::make_unique<MapOpsCodeGen>(*this);
+            exc_ = std::make_unique<ExceptionCodeGen>(*this);
         }
 
         /**

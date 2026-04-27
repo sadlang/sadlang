@@ -85,6 +85,7 @@
 #include "builders/array_builtins_codegen.h" // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
 #include "builders/math_builtins_codegen.h"  // (AR) Phase 7 Step 8: MathBuiltinsCodeGen
 #include "builders/map_ops_codegen.h"        // (AR) Phase 7 Step 9: MapOpsCodeGen
+#include "builders/exception_codegen.h"      // (AR) Phase 7 Step 10: ExceptionCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -262,6 +263,8 @@ namespace Sad
             friend class MathBuiltinsCodeGen;
             // (AR) Phase 7 Step 9: MapOpsCodeGen
             friend class MapOpsCodeGen;
+            // (AR) Phase 7 Step 10: ExceptionCodeGen
+            friend class ExceptionCodeGen;
 
         public:
             // ========================================================================
@@ -705,7 +708,7 @@ namespace Sad
             //      callee-saved registers. longjmp restores those registers to their old
             //      values (at setjmp time) corrupting the results. Volatile prevents this.
             // ================================================================
-            void markSetjmpGlobalsVolatile();
+            void markSetjmpGlobalsVolatile() { exc_->markSetjmpGlobalsVolatile(); }
 
             // (AR) دوال مساعدة تُفوّض إليها emitCall لتقليل حجم الملف (Strangler Fig)
             //      emitCallException: معالجة دوال runtime الاستثناءات (__sad_alloc_jmpbuf, __sad_raise, ...)
@@ -714,7 +717,8 @@ namespace Sad
             //      emitCallException: handle exception runtime functions
             //      emitCallMap: handle map runtime functions
             std::optional<llvm::Value *> emitCallException(const std::string &funcName,
-                                                           std::vector<llvm::Value *> &args, std::shared_ptr<SIRInstruction> inst);
+                                                           std::vector<llvm::Value *> &args, std::shared_ptr<SIRInstruction> inst)
+            { return exc_->emitCallException(funcName, args, inst); }
             std::optional<llvm::Value *> emitCallMap(const std::string &funcName,
                                                      std::vector<llvm::Value *> &args, std::shared_ptr<SIRInstruction> inst)
             { return mapops_->emitCallMap(funcName, args, inst); }
@@ -1490,6 +1494,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 9: مكوّن فرعي لعمليات الخرائط (3 methods: emitCallMap + 2 helpers)
             std::unique_ptr<MapOpsCodeGen> mapops_;
+
+            // (AR) Phase 7 Step 10: مكوّن فرعي للاستثناءات (2 methods: emitCallException + markSetjmpGlobalsVolatile)
+            std::unique_ptr<ExceptionCodeGen> exc_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
