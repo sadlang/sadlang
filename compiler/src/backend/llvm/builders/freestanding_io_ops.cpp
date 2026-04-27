@@ -23,6 +23,7 @@
 // ============================================================================
 
 #include "llvm_codegen.h"
+#include "builders/freestanding_codegen.h"
 #include <llvm/IR/InlineAsm.h>
 #include <llvm/IR/Intrinsics.h>
 
@@ -161,59 +162,59 @@ namespace Sad
         //     (AR) تنفيذ كامل لـ printf مع تحليل محددات التنسيق عبر va_arg
         //          الإخراج مباشرة إلى المنفذ التسلسلي COM1
         // ============================================================================
-        void LLVMCodeGen::emitFreestandingPrintf(
+        void FreestandingCodeGen::emitFreestandingPrintf(
             llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy)
         {
             llvm::FunctionType *ft = llvm::FunctionType::get(i32Ty, {ptrTy}, true);
-            llvm::Function *fn = getOrCreateFreestandingFunc(module_.get(), *context_, "printf", ft);
+            llvm::Function *fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "printf", ft);
             if (!fn)
                 return;
 
-            auto savedIP = builder_->saveIP();
-            auto *dblTy = llvm::Type::getDoubleTy(*context_);
-            auto *i16Ty = llvm::Type::getInt16Ty(*context_);
-            auto *voidTy = llvm::Type::getVoidTy(*context_);
+            auto savedIP = cg_.builder_->saveIP();
+            auto *dblTy = llvm::Type::getDoubleTy(*cg_.context_);
+            auto *i16Ty = llvm::Type::getInt16Ty(*cg_.context_);
+            auto *voidTy = llvm::Type::getVoidTy(*cg_.context_);
 
             // --- Basic blocks ---
-            auto *BB_entry = llvm::BasicBlock::Create(*context_, "entry", fn);
-            auto *BB_loop = llvm::BasicBlock::Create(*context_, "loop", fn);
-            auto *BB_not_null = llvm::BasicBlock::Create(*context_, "not_null", fn);
-            auto *BB_normal = llvm::BasicBlock::Create(*context_, "normal", fn);
-            auto *BB_pct = llvm::BasicBlock::Create(*context_, "pct", fn);
-            auto *BB_chk_l = llvm::BasicBlock::Create(*context_, "chk_l", fn);
-            auto *BB_chk_ll = llvm::BasicBlock::Create(*context_, "chk_ll", fn);
-            auto *BB_do_lld = llvm::BasicBlock::Create(*context_, "do_lld", fn);
-            auto *BB_copy_ll = llvm::BasicBlock::Create(*context_, "copy_ll", fn);
-            auto *BB_chk_ld = llvm::BasicBlock::Create(*context_, "chk_ld", fn);
-            auto *BB_do_ld = llvm::BasicBlock::Create(*context_, "do_ld", fn);
-            auto *BB_copy_l = llvm::BasicBlock::Create(*context_, "copy_l", fn);
-            auto *BB_chk_d = llvm::BasicBlock::Create(*context_, "chk_d", fn);
-            auto *BB_do_d = llvm::BasicBlock::Create(*context_, "do_d", fn);
-            auto *BB_chk_s = llvm::BasicBlock::Create(*context_, "chk_s", fn);
-            auto *BB_do_s = llvm::BasicBlock::Create(*context_, "do_s", fn);
-            auto *BB_chk_gf = llvm::BasicBlock::Create(*context_, "chk_gf", fn);
-            auto *BB_do_gf = llvm::BasicBlock::Create(*context_, "do_gf", fn);
-            auto *BB_chk_x = llvm::BasicBlock::Create(*context_, "chk_x", fn);
-            auto *BB_do_x = llvm::BasicBlock::Create(*context_, "do_x", fn);
-            auto *BB_chk_c = llvm::BasicBlock::Create(*context_, "chk_c", fn);
-            auto *BB_do_c = llvm::BasicBlock::Create(*context_, "do_c", fn);
-            auto *BB_chk_p = llvm::BasicBlock::Create(*context_, "chk_p", fn);
-            auto *BB_do_p = llvm::BasicBlock::Create(*context_, "do_p", fn);
-            auto *BB_chk_pct2 = llvm::BasicBlock::Create(*context_, "chk_pct2", fn);
-            auto *BB_do_pct2 = llvm::BasicBlock::Create(*context_, "do_pct2", fn);
-            auto *BB_default = llvm::BasicBlock::Create(*context_, "do_default", fn);
-            auto *BB_done = llvm::BasicBlock::Create(*context_, "done", fn);
+            auto *BB_entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+            auto *BB_loop = llvm::BasicBlock::Create(*cg_.context_, "loop", fn);
+            auto *BB_not_null = llvm::BasicBlock::Create(*cg_.context_, "not_null", fn);
+            auto *BB_normal = llvm::BasicBlock::Create(*cg_.context_, "normal", fn);
+            auto *BB_pct = llvm::BasicBlock::Create(*cg_.context_, "pct", fn);
+            auto *BB_chk_l = llvm::BasicBlock::Create(*cg_.context_, "chk_l", fn);
+            auto *BB_chk_ll = llvm::BasicBlock::Create(*cg_.context_, "chk_ll", fn);
+            auto *BB_do_lld = llvm::BasicBlock::Create(*cg_.context_, "do_lld", fn);
+            auto *BB_copy_ll = llvm::BasicBlock::Create(*cg_.context_, "copy_ll", fn);
+            auto *BB_chk_ld = llvm::BasicBlock::Create(*cg_.context_, "chk_ld", fn);
+            auto *BB_do_ld = llvm::BasicBlock::Create(*cg_.context_, "do_ld", fn);
+            auto *BB_copy_l = llvm::BasicBlock::Create(*cg_.context_, "copy_l", fn);
+            auto *BB_chk_d = llvm::BasicBlock::Create(*cg_.context_, "chk_d", fn);
+            auto *BB_do_d = llvm::BasicBlock::Create(*cg_.context_, "do_d", fn);
+            auto *BB_chk_s = llvm::BasicBlock::Create(*cg_.context_, "chk_s", fn);
+            auto *BB_do_s = llvm::BasicBlock::Create(*cg_.context_, "do_s", fn);
+            auto *BB_chk_gf = llvm::BasicBlock::Create(*cg_.context_, "chk_gf", fn);
+            auto *BB_do_gf = llvm::BasicBlock::Create(*cg_.context_, "do_gf", fn);
+            auto *BB_chk_x = llvm::BasicBlock::Create(*cg_.context_, "chk_x", fn);
+            auto *BB_do_x = llvm::BasicBlock::Create(*cg_.context_, "do_x", fn);
+            auto *BB_chk_c = llvm::BasicBlock::Create(*cg_.context_, "chk_c", fn);
+            auto *BB_do_c = llvm::BasicBlock::Create(*cg_.context_, "do_c", fn);
+            auto *BB_chk_p = llvm::BasicBlock::Create(*cg_.context_, "chk_p", fn);
+            auto *BB_do_p = llvm::BasicBlock::Create(*cg_.context_, "do_p", fn);
+            auto *BB_chk_pct2 = llvm::BasicBlock::Create(*cg_.context_, "chk_pct2", fn);
+            auto *BB_do_pct2 = llvm::BasicBlock::Create(*cg_.context_, "do_pct2", fn);
+            auto *BB_default = llvm::BasicBlock::Create(*cg_.context_, "do_default", fn);
+            auto *BB_done = llvm::BasicBlock::Create(*cg_.context_, "done", fn);
 
             // Helper function refs
             auto itoaFT = llvm::FunctionType::get(i32Ty, {ptrTy, i64Ty}, false);
             auto ftoaFT = llvm::FunctionType::get(i32Ty, {ptrTy, dblTy}, false);
             auto xtoaFT = llvm::FunctionType::get(i32Ty, {ptrTy, i64Ty}, false);
-            auto itoaFn = module_->getOrInsertFunction("__sad_itoa", itoaFT);
-            auto ftoaFn = module_->getOrInsertFunction("__sad_ftoa", ftoaFT);
-            auto xtoaFn = module_->getOrInsertFunction("__sad_xtoa", xtoaFT);
+            auto itoaFn = cg_.module_->getOrInsertFunction("__sad_itoa", itoaFT);
+            auto ftoaFn = cg_.module_->getOrInsertFunction("__sad_ftoa", ftoaFT);
+            auto xtoaFn = cg_.module_->getOrInsertFunction("__sad_xtoa", xtoaFT);
             // __sad_serial_puts for outputting converted strings
             auto putsFT = llvm::FunctionType::get(voidTy, {ptrTy}, false);
-            auto putsFn = module_->getOrInsertFunction("__sad_serial_puts", putsFT);
+            auto putsFn = cg_.module_->getOrInsertFunction("__sad_serial_puts", putsFT);
 
             // Inline asm for single char serial output
             llvm::InlineAsm *outAsm = llvm::InlineAsm::get(
@@ -224,33 +225,33 @@ namespace Sad
             llvm::Value *port3F8 = llvm::ConstantInt::get(i16Ty, 0x3F8);
 
             // === Entry ===
-            builder_->SetInsertPoint(BB_entry);
+            cg_.builder_->SetInsertPoint(BB_entry);
             auto *fmt = fn->getArg(0);
 
-            auto *pI = builder_->CreateAlloca(i64Ty, nullptr, "p.i");
-            builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), pI);
+            auto *pI = cg_.builder_->CreateAlloca(i64Ty, nullptr, "p.i");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), pI);
 
             // Temp buffer for itoa/ftoa/xtoa conversions (64 bytes on stack)
-            auto *tmpBuf = builder_->CreateAlloca(
+            auto *tmpBuf = cg_.builder_->CreateAlloca(
                 llvm::ArrayType::get(i8Ty, 64), nullptr, "tmp_buf");
 
             // va_list
-            auto vaTagTy = llvm::StructType::get(*context_, {i32Ty, i32Ty, ptrTy, ptrTy});
+            auto vaTagTy = llvm::StructType::get(*cg_.context_, {i32Ty, i32Ty, ptrTy, ptrTy});
             auto *vaListTy = llvm::ArrayType::get(vaTagTy, 1);
-            auto *vaList = builder_->CreateAlloca(vaListTy, nullptr, "va_list");
-            auto vaStartDecl = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::vastart);
-            auto vaEndDecl = llvm::Intrinsic::getDeclaration(module_.get(), llvm::Intrinsic::vaend);
-            builder_->CreateCall(vaStartDecl, {vaList});
-            builder_->CreateBr(BB_loop);
+            auto *vaList = cg_.builder_->CreateAlloca(vaListTy, nullptr, "va_list");
+            auto vaStartDecl = llvm::Intrinsic::getDeclaration(cg_.module_.get(), llvm::Intrinsic::vastart);
+            auto vaEndDecl = llvm::Intrinsic::getDeclaration(cg_.module_.get(), llvm::Intrinsic::vaend);
+            cg_.builder_->CreateCall(vaStartDecl, {vaList});
+            cg_.builder_->CreateBr(BB_loop);
 
             // Helpers
             auto loadI = [&]()
-            { return builder_->CreateLoad(i64Ty, pI, "i"); };
+            { return cg_.builder_->CreateLoad(i64Ty, pI, "i"); };
             auto storeI = [&](llvm::Value *v)
-            { builder_->CreateStore(v, pI); };
+            { cg_.builder_->CreateStore(v, pI); };
             auto loadCh = [&](llvm::Value *base, llvm::Value *idx) -> llvm::Value *
             {
-                return builder_->CreateLoad(i8Ty, builder_->CreateGEP(i8Ty, base, idx));
+                return cg_.builder_->CreateLoad(i8Ty, cg_.builder_->CreateGEP(i8Ty, base, idx));
             };
             auto C64 = [&](int64_t v)
             { return llvm::ConstantInt::get(i64Ty, v); };
@@ -258,223 +259,223 @@ namespace Sad
             { return llvm::ConstantInt::get(i8Ty, (uint8_t)v); };
             auto emitOutb = [&](llvm::Value *byte)
             {
-                builder_->CreateCall(outAsm, {port3F8, byte});
+                cg_.builder_->CreateCall(outAsm, {port3F8, byte});
             };
 
             // === Main Loop ===
-            builder_->SetInsertPoint(BB_loop);
+            cg_.builder_->SetInsertPoint(BB_loop);
             auto *curI = loadI();
             auto *ch = loadCh(fmt, curI);
-            auto *isNull = builder_->CreateICmpEQ(ch, C8(0));
-            builder_->CreateCondBr(isNull, BB_done, BB_not_null);
+            auto *isNull = cg_.builder_->CreateICmpEQ(ch, C8(0));
+            cg_.builder_->CreateCondBr(isNull, BB_done, BB_not_null);
 
-            builder_->SetInsertPoint(BB_not_null);
-            auto *isPct = builder_->CreateICmpEQ(ch, C8('%'));
-            builder_->CreateCondBr(isPct, BB_pct, BB_normal);
+            cg_.builder_->SetInsertPoint(BB_not_null);
+            auto *isPct = cg_.builder_->CreateICmpEQ(ch, C8('%'));
+            cg_.builder_->CreateCondBr(isPct, BB_pct, BB_normal);
 
             // === Normal char → serial ===
-            builder_->SetInsertPoint(BB_normal);
+            cg_.builder_->SetInsertPoint(BB_normal);
             emitOutb(ch);
-            storeI(builder_->CreateAdd(curI, C64(1)));
-            builder_->CreateBr(BB_loop);
+            storeI(cg_.builder_->CreateAdd(curI, C64(1)));
+            cg_.builder_->CreateBr(BB_loop);
 
             // === Handle '%' ===
-            builder_->SetInsertPoint(BB_pct);
-            auto *iPlusOne = builder_->CreateAdd(curI, C64(1));
+            cg_.builder_->SetInsertPoint(BB_pct);
+            auto *iPlusOne = cg_.builder_->CreateAdd(curI, C64(1));
             storeI(iPlusOne);
             auto *spec = loadCh(fmt, iPlusOne);
-            auto *isL = builder_->CreateICmpEQ(spec, C8('l'));
-            builder_->CreateCondBr(isL, BB_chk_l, BB_chk_d);
+            auto *isL = cg_.builder_->CreateICmpEQ(spec, C8('l'));
+            cg_.builder_->CreateCondBr(isL, BB_chk_l, BB_chk_d);
 
             // === %l... ===
-            builder_->SetInsertPoint(BB_chk_l);
-            auto *iPlusTwo = builder_->CreateAdd(iPlusOne, C64(1));
+            cg_.builder_->SetInsertPoint(BB_chk_l);
+            auto *iPlusTwo = cg_.builder_->CreateAdd(iPlusOne, C64(1));
             storeI(iPlusTwo);
             auto *spec2 = loadCh(fmt, iPlusTwo);
-            builder_->CreateCondBr(
-                builder_->CreateICmpEQ(spec2, C8('l')), BB_chk_ll, BB_chk_ld);
+            cg_.builder_->CreateCondBr(
+                cg_.builder_->CreateICmpEQ(spec2, C8('l')), BB_chk_ll, BB_chk_ld);
 
             // === %ll... ===
-            builder_->SetInsertPoint(BB_chk_ll);
-            auto *iPlusThree = builder_->CreateAdd(iPlusTwo, C64(1));
+            cg_.builder_->SetInsertPoint(BB_chk_ll);
+            auto *iPlusThree = cg_.builder_->CreateAdd(iPlusTwo, C64(1));
             storeI(iPlusThree);
             auto *spec3 = loadCh(fmt, iPlusThree);
-            auto *isLLD = builder_->CreateOr(
-                builder_->CreateICmpEQ(spec3, C8('d')),
-                builder_->CreateICmpEQ(spec3, C8('i')));
-            builder_->CreateCondBr(isLLD, BB_do_lld, BB_copy_ll);
+            auto *isLLD = cg_.builder_->CreateOr(
+                cg_.builder_->CreateICmpEQ(spec3, C8('d')),
+                cg_.builder_->CreateICmpEQ(spec3, C8('i')));
+            cg_.builder_->CreateCondBr(isLLD, BB_do_lld, BB_copy_ll);
 
             // === do %lld → itoa → serial_puts ===
-            builder_->SetInsertPoint(BB_do_lld);
+            cg_.builder_->SetInsertPoint(BB_do_lld);
             {
-                auto *val = builder_->CreateVAArg(vaList, i64Ty, "va.lld");
-                builder_->CreateCall(itoaFn, {tmpBuf, val});
-                builder_->CreateCall(putsFn, {tmpBuf});
-                storeI(builder_->CreateAdd(iPlusThree, C64(1)));
-                builder_->CreateBr(BB_loop);
+                auto *val = cg_.builder_->CreateVAArg(vaList, i64Ty, "va.lld");
+                cg_.builder_->CreateCall(itoaFn, {tmpBuf, val});
+                cg_.builder_->CreateCall(putsFn, {tmpBuf});
+                storeI(cg_.builder_->CreateAdd(iPlusThree, C64(1)));
+                cg_.builder_->CreateBr(BB_loop);
             }
 
             // === copy %ll literally ===
-            builder_->SetInsertPoint(BB_copy_ll);
+            cg_.builder_->SetInsertPoint(BB_copy_ll);
             emitOutb(C8('%'));
             emitOutb(C8('l'));
             emitOutb(C8('l'));
-            builder_->CreateBr(BB_loop);
+            cg_.builder_->CreateBr(BB_loop);
 
             // === %ld ===
-            builder_->SetInsertPoint(BB_chk_ld);
-            builder_->CreateCondBr(
-                builder_->CreateOr(
-                    builder_->CreateICmpEQ(spec2, C8('d')),
-                    builder_->CreateICmpEQ(spec2, C8('i'))),
+            cg_.builder_->SetInsertPoint(BB_chk_ld);
+            cg_.builder_->CreateCondBr(
+                cg_.builder_->CreateOr(
+                    cg_.builder_->CreateICmpEQ(spec2, C8('d')),
+                    cg_.builder_->CreateICmpEQ(spec2, C8('i'))),
                 BB_do_ld, BB_copy_l);
 
-            builder_->SetInsertPoint(BB_do_ld);
+            cg_.builder_->SetInsertPoint(BB_do_ld);
             {
-                auto *val = builder_->CreateVAArg(vaList, i64Ty, "va.ld");
-                builder_->CreateCall(itoaFn, {tmpBuf, val});
-                builder_->CreateCall(putsFn, {tmpBuf});
-                storeI(builder_->CreateAdd(iPlusTwo, C64(1)));
-                builder_->CreateBr(BB_loop);
+                auto *val = cg_.builder_->CreateVAArg(vaList, i64Ty, "va.ld");
+                cg_.builder_->CreateCall(itoaFn, {tmpBuf, val});
+                cg_.builder_->CreateCall(putsFn, {tmpBuf});
+                storeI(cg_.builder_->CreateAdd(iPlusTwo, C64(1)));
+                cg_.builder_->CreateBr(BB_loop);
             }
 
-            builder_->SetInsertPoint(BB_copy_l);
+            cg_.builder_->SetInsertPoint(BB_copy_l);
             emitOutb(C8('%'));
             emitOutb(C8('l'));
-            builder_->CreateBr(BB_loop);
+            cg_.builder_->CreateBr(BB_loop);
 
             // === %d / %i ===
-            builder_->SetInsertPoint(BB_chk_d);
-            builder_->CreateCondBr(
-                builder_->CreateOr(
-                    builder_->CreateICmpEQ(spec, C8('d')),
-                    builder_->CreateICmpEQ(spec, C8('i'))),
+            cg_.builder_->SetInsertPoint(BB_chk_d);
+            cg_.builder_->CreateCondBr(
+                cg_.builder_->CreateOr(
+                    cg_.builder_->CreateICmpEQ(spec, C8('d')),
+                    cg_.builder_->CreateICmpEQ(spec, C8('i'))),
                 BB_do_d, BB_chk_s);
 
-            builder_->SetInsertPoint(BB_do_d);
+            cg_.builder_->SetInsertPoint(BB_do_d);
             {
-                auto *val = builder_->CreateVAArg(vaList, i64Ty, "va.d");
-                builder_->CreateCall(itoaFn, {tmpBuf, val});
-                builder_->CreateCall(putsFn, {tmpBuf});
-                storeI(builder_->CreateAdd(iPlusOne, C64(1)));
-                builder_->CreateBr(BB_loop);
+                auto *val = cg_.builder_->CreateVAArg(vaList, i64Ty, "va.d");
+                cg_.builder_->CreateCall(itoaFn, {tmpBuf, val});
+                cg_.builder_->CreateCall(putsFn, {tmpBuf});
+                storeI(cg_.builder_->CreateAdd(iPlusOne, C64(1)));
+                cg_.builder_->CreateBr(BB_loop);
             }
 
             // === %s → serial_puts ===
-            builder_->SetInsertPoint(BB_chk_s);
-            builder_->CreateCondBr(
-                builder_->CreateICmpEQ(spec, C8('s')), BB_do_s, BB_chk_gf);
+            cg_.builder_->SetInsertPoint(BB_chk_s);
+            cg_.builder_->CreateCondBr(
+                cg_.builder_->CreateICmpEQ(spec, C8('s')), BB_do_s, BB_chk_gf);
 
-            builder_->SetInsertPoint(BB_do_s);
+            cg_.builder_->SetInsertPoint(BB_do_s);
             {
-                auto *strVal = builder_->CreateVAArg(vaList, ptrTy, "va.s");
-                auto *notNull = builder_->CreateICmpNE(strVal,
-                                                       llvm::ConstantPointerNull::get(llvm::PointerType::get(*context_, 0)));
+                auto *strVal = cg_.builder_->CreateVAArg(vaList, ptrTy, "va.s");
+                auto *notNull = cg_.builder_->CreateICmpNE(strVal,
+                                                       llvm::ConstantPointerNull::get(llvm::PointerType::get(*cg_.context_, 0)));
                 // Call serial_puts only if non-null (conditional call via select is not
                 // possible — use branch-free approach: call puts with dummy if null)
                 // Actually, serial_puts handles reading from null poorly, so we branch:
-                auto *BB_s_out = llvm::BasicBlock::Create(*context_, "s_out", fn);
-                auto *BB_s_skip = llvm::BasicBlock::Create(*context_, "s_skip", fn);
-                builder_->CreateCondBr(notNull, BB_s_out, BB_s_skip);
+                auto *BB_s_out = llvm::BasicBlock::Create(*cg_.context_, "s_out", fn);
+                auto *BB_s_skip = llvm::BasicBlock::Create(*cg_.context_, "s_skip", fn);
+                cg_.builder_->CreateCondBr(notNull, BB_s_out, BB_s_skip);
 
-                builder_->SetInsertPoint(BB_s_out);
-                builder_->CreateCall(putsFn, {strVal});
-                builder_->CreateBr(BB_s_skip);
+                cg_.builder_->SetInsertPoint(BB_s_out);
+                cg_.builder_->CreateCall(putsFn, {strVal});
+                cg_.builder_->CreateBr(BB_s_skip);
 
-                builder_->SetInsertPoint(BB_s_skip);
-                storeI(builder_->CreateAdd(iPlusOne, C64(1)));
-                builder_->CreateBr(BB_loop);
+                cg_.builder_->SetInsertPoint(BB_s_skip);
+                storeI(cg_.builder_->CreateAdd(iPlusOne, C64(1)));
+                cg_.builder_->CreateBr(BB_loop);
             }
 
             // === %g / %f ===
-            builder_->SetInsertPoint(BB_chk_gf);
-            builder_->CreateCondBr(
-                builder_->CreateOr(
-                    builder_->CreateOr(
-                        builder_->CreateICmpEQ(spec, C8('g')),
-                        builder_->CreateICmpEQ(spec, C8('f'))),
-                    builder_->CreateICmpEQ(spec, C8('e'))),
+            cg_.builder_->SetInsertPoint(BB_chk_gf);
+            cg_.builder_->CreateCondBr(
+                cg_.builder_->CreateOr(
+                    cg_.builder_->CreateOr(
+                        cg_.builder_->CreateICmpEQ(spec, C8('g')),
+                        cg_.builder_->CreateICmpEQ(spec, C8('f'))),
+                    cg_.builder_->CreateICmpEQ(spec, C8('e'))),
                 BB_do_gf, BB_chk_x);
 
-            builder_->SetInsertPoint(BB_do_gf);
+            cg_.builder_->SetInsertPoint(BB_do_gf);
             {
-                auto *fval = builder_->CreateVAArg(vaList, dblTy, "va.gf");
-                builder_->CreateCall(ftoaFn, {tmpBuf, fval});
-                builder_->CreateCall(putsFn, {tmpBuf});
-                storeI(builder_->CreateAdd(iPlusOne, C64(1)));
-                builder_->CreateBr(BB_loop);
+                auto *fval = cg_.builder_->CreateVAArg(vaList, dblTy, "va.gf");
+                cg_.builder_->CreateCall(ftoaFn, {tmpBuf, fval});
+                cg_.builder_->CreateCall(putsFn, {tmpBuf});
+                storeI(cg_.builder_->CreateAdd(iPlusOne, C64(1)));
+                cg_.builder_->CreateBr(BB_loop);
             }
 
             // === %x / %X ===
-            builder_->SetInsertPoint(BB_chk_x);
-            builder_->CreateCondBr(
-                builder_->CreateOr(
-                    builder_->CreateICmpEQ(spec, C8('x')),
-                    builder_->CreateICmpEQ(spec, C8('X'))),
+            cg_.builder_->SetInsertPoint(BB_chk_x);
+            cg_.builder_->CreateCondBr(
+                cg_.builder_->CreateOr(
+                    cg_.builder_->CreateICmpEQ(spec, C8('x')),
+                    cg_.builder_->CreateICmpEQ(spec, C8('X'))),
                 BB_do_x, BB_chk_c);
 
-            builder_->SetInsertPoint(BB_do_x);
+            cg_.builder_->SetInsertPoint(BB_do_x);
             {
-                auto *val = builder_->CreateVAArg(vaList, i64Ty, "va.x");
-                builder_->CreateCall(xtoaFn, {tmpBuf, val});
-                builder_->CreateCall(putsFn, {tmpBuf});
-                storeI(builder_->CreateAdd(iPlusOne, C64(1)));
-                builder_->CreateBr(BB_loop);
+                auto *val = cg_.builder_->CreateVAArg(vaList, i64Ty, "va.x");
+                cg_.builder_->CreateCall(xtoaFn, {tmpBuf, val});
+                cg_.builder_->CreateCall(putsFn, {tmpBuf});
+                storeI(cg_.builder_->CreateAdd(iPlusOne, C64(1)));
+                cg_.builder_->CreateBr(BB_loop);
             }
 
             // === %c ===
-            builder_->SetInsertPoint(BB_chk_c);
-            builder_->CreateCondBr(
-                builder_->CreateICmpEQ(spec, C8('c')), BB_do_c, BB_chk_p);
+            cg_.builder_->SetInsertPoint(BB_chk_c);
+            cg_.builder_->CreateCondBr(
+                cg_.builder_->CreateICmpEQ(spec, C8('c')), BB_do_c, BB_chk_p);
 
-            builder_->SetInsertPoint(BB_do_c);
+            cg_.builder_->SetInsertPoint(BB_do_c);
             {
-                auto *val = builder_->CreateVAArg(vaList, i64Ty, "va.c");
-                emitOutb(builder_->CreateTrunc(val, i8Ty));
-                storeI(builder_->CreateAdd(iPlusOne, C64(1)));
-                builder_->CreateBr(BB_loop);
+                auto *val = cg_.builder_->CreateVAArg(vaList, i64Ty, "va.c");
+                emitOutb(cg_.builder_->CreateTrunc(val, i8Ty));
+                storeI(cg_.builder_->CreateAdd(iPlusOne, C64(1)));
+                cg_.builder_->CreateBr(BB_loop);
             }
 
             // === %p ===
-            builder_->SetInsertPoint(BB_chk_p);
-            builder_->CreateCondBr(
-                builder_->CreateICmpEQ(spec, C8('p')), BB_do_p, BB_chk_pct2);
+            cg_.builder_->SetInsertPoint(BB_chk_p);
+            cg_.builder_->CreateCondBr(
+                cg_.builder_->CreateICmpEQ(spec, C8('p')), BB_do_p, BB_chk_pct2);
 
-            builder_->SetInsertPoint(BB_do_p);
+            cg_.builder_->SetInsertPoint(BB_do_p);
             {
-                auto *val = builder_->CreateVAArg(vaList, ptrTy, "va.p");
-                auto *ptrInt = builder_->CreatePtrToInt(val, i64Ty);
+                auto *val = cg_.builder_->CreateVAArg(vaList, ptrTy, "va.p");
+                auto *ptrInt = cg_.builder_->CreatePtrToInt(val, i64Ty);
                 emitOutb(C8('0'));
                 emitOutb(C8('x'));
-                builder_->CreateCall(xtoaFn, {tmpBuf, ptrInt});
-                builder_->CreateCall(putsFn, {tmpBuf});
-                storeI(builder_->CreateAdd(iPlusOne, C64(1)));
-                builder_->CreateBr(BB_loop);
+                cg_.builder_->CreateCall(xtoaFn, {tmpBuf, ptrInt});
+                cg_.builder_->CreateCall(putsFn, {tmpBuf});
+                storeI(cg_.builder_->CreateAdd(iPlusOne, C64(1)));
+                cg_.builder_->CreateBr(BB_loop);
             }
 
             // === %% ===
-            builder_->SetInsertPoint(BB_chk_pct2);
-            builder_->CreateCondBr(
-                builder_->CreateICmpEQ(spec, C8('%')), BB_do_pct2, BB_default);
+            cg_.builder_->SetInsertPoint(BB_chk_pct2);
+            cg_.builder_->CreateCondBr(
+                cg_.builder_->CreateICmpEQ(spec, C8('%')), BB_do_pct2, BB_default);
 
-            builder_->SetInsertPoint(BB_do_pct2);
+            cg_.builder_->SetInsertPoint(BB_do_pct2);
             emitOutb(C8('%'));
-            storeI(builder_->CreateAdd(iPlusOne, C64(1)));
-            builder_->CreateBr(BB_loop);
+            storeI(cg_.builder_->CreateAdd(iPlusOne, C64(1)));
+            cg_.builder_->CreateBr(BB_loop);
 
             // === Default ===
-            builder_->SetInsertPoint(BB_default);
+            cg_.builder_->SetInsertPoint(BB_default);
             emitOutb(C8('%'));
             emitOutb(spec);
-            storeI(builder_->CreateAdd(iPlusOne, C64(1)));
-            builder_->CreateBr(BB_loop);
+            storeI(cg_.builder_->CreateAdd(iPlusOne, C64(1)));
+            cg_.builder_->CreateBr(BB_loop);
 
             // === Done ===
-            builder_->SetInsertPoint(BB_done);
-            builder_->CreateCall(vaEndDecl, {vaList});
-            builder_->CreateRet(llvm::ConstantInt::get(i32Ty, 0));
+            cg_.builder_->SetInsertPoint(BB_done);
+            cg_.builder_->CreateCall(vaEndDecl, {vaList});
+            cg_.builder_->CreateRet(llvm::ConstantInt::get(i32Ty, 0));
 
-            builder_->restoreIP(savedIP);
+            cg_.builder_->restoreIP(savedIP);
         }
 
         // ============================================================================

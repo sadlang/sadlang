@@ -93,6 +93,7 @@
 #include "builders/io_builtins_codegen.h"   // (AR) Phase 7 Step 15: IOBuiltinsCodeGen
 #include "builders/security_builtins_codegen.h" // (AR) Phase 7 Step 15: SecurityBuiltinsCodeGen
 #include "builders/ffi_remain_codegen.h"   // (AR) Phase 7 Step 15: FFIRemainCodeGen
+#include "builders/freestanding_codegen.h"  // (AR) Phase 7 Step 16: FreestandingCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -284,6 +285,8 @@ namespace Sad
             friend class IOBuiltinsCodeGen;
             friend class SecurityBuiltinsCodeGen;
             friend class FFIRemainCodeGen;
+            // (AR) Phase 7 Step 16: FreestandingCodeGen
+            friend class FreestandingCodeGen;
 
         public:
             // ========================================================================
@@ -495,7 +498,7 @@ namespace Sad
              *      realloc, calloc, printf, sprintf, pow
              *      Uses linkonce_odr linkage so user can override with custom implementations
              */
-            void emitFreestandingRuntime();
+            void emitFreestandingRuntime() { freest_->emitFreestandingRuntime(); }
 
             /**
              * إصدار المتغيرات العامة
@@ -918,24 +921,24 @@ namespace Sad
             // (AR) دوال مساعدة لتوليد وقت التشغيل المستقل (freestanding)
             // (EN) Freestanding runtime helper functions
             // ================================================================
-            void emitFreestandingMalloc(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingFree(llvm::Type *ptrTy, llvm::Type *voidTy);
-            void emitFreestandingMemcpy(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingMemset(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingStrlen(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingStrcmp(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingStrcpy(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingStrcat(llvm::Type *ptrTy);
-            void emitFreestandingRealloc(llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingCalloc(llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingPrintf(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingSprintf(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingPow(llvm::Type *dblTy);
-            void emitFreestandingSerialPuts(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingSerialPutInt(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingItoa(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingFtoa(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
-            void emitFreestandingXtoa(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
+            void emitFreestandingMalloc(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingMalloc(i8Ty, i64Ty, ptrTy); }
+            void emitFreestandingFree(llvm::Type *ptrTy, llvm::Type *voidTy) { freest_->emitFreestandingFree(ptrTy, voidTy); }
+            void emitFreestandingMemcpy(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingMemcpy(i8Ty, i64Ty, ptrTy); }
+            void emitFreestandingMemset(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingMemset(i8Ty, i32Ty, i64Ty, ptrTy); }
+            void emitFreestandingStrlen(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingStrlen(i8Ty, i64Ty, ptrTy); }
+            void emitFreestandingStrcmp(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingStrcmp(i8Ty, i32Ty, i64Ty, ptrTy); }
+            void emitFreestandingStrcpy(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingStrcpy(i8Ty, i64Ty, ptrTy); }
+            void emitFreestandingStrcat(llvm::Type *ptrTy) { freest_->emitFreestandingStrcat(ptrTy); }
+            void emitFreestandingRealloc(llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingRealloc(i64Ty, ptrTy); }
+            void emitFreestandingCalloc(llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingCalloc(i64Ty, ptrTy); }
+            void emitFreestandingPrintf(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingPrintf(i8Ty, i32Ty, i64Ty, ptrTy); }
+            void emitFreestandingSprintf(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingSprintf(i8Ty, i32Ty, i64Ty, ptrTy); }
+            void emitFreestandingPow(llvm::Type *dblTy) { freest_->emitFreestandingPow(dblTy); }
+            void emitFreestandingSerialPuts(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingSerialPuts(i8Ty, i64Ty, ptrTy); }
+            void emitFreestandingSerialPutInt(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingSerialPutInt(i8Ty, i64Ty, ptrTy); }
+            void emitFreestandingItoa(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingItoa(i8Ty, i32Ty, i64Ty, ptrTy); }
+            void emitFreestandingFtoa(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingFtoa(i8Ty, i32Ty, i64Ty, ptrTy); }
+            void emitFreestandingXtoa(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy) { freest_->emitFreestandingXtoa(i8Ty, i32Ty, i64Ty, ptrTy); }
 
             // ========================================================================
             // Async/Await & Concurrency / تعليمات التزامن
@@ -1537,6 +1540,9 @@ namespace Sad
             std::unique_ptr<IOBuiltinsCodeGen> iob_;
             std::unique_ptr<SecurityBuiltinsCodeGen> secb_;
             std::unique_ptr<FFIRemainCodeGen> ffir_;
+
+            // (AR) Phase 7 Step 16: مكوّن فرعي لدوال البيئة بدون نظام تشغيل (19 methods)
+            std::unique_ptr<FreestandingCodeGen> freest_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة

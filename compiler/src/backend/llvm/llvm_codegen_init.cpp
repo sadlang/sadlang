@@ -115,6 +115,7 @@ namespace Sad
             iob_ = std::make_unique<IOBuiltinsCodeGen>(*this);
             secb_ = std::make_unique<SecurityBuiltinsCodeGen>(*this);
             ffir_ = std::make_unique<FFIRemainCodeGen>(*this);
+            freest_ = std::make_unique<FreestandingCodeGen>(*this);
         }
 
         /**
