@@ -44,8 +44,18 @@ public:
     llvm::Value *emitCmpNe(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitCmpLt(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitCmpLe(std::shared_ptr<SIRInstruction>);
+    // (AR) Phase 7 Step 1.5: Gt/Ge منقولتان الآن
+    llvm::Value *emitCmpGt(std::shared_ptr<SIRInstruction>);
+    llvm::Value *emitCmpGe(std::shared_ptr<SIRInstruction>);
     // التحويلات
     llvm::Value *emitCast(std::shared_ptr<SIRInstruction>);
+    // (AR) Phase 7 Step 1.5: 6 LLVM casts منقولة من file_casts.cpp
+    llvm::Value *emitBitCast(std::shared_ptr<SIRInstruction>);
+    llvm::Value *emitIntToPtr(std::shared_ptr<SIRInstruction>);
+    llvm::Value *emitPtrToInt(std::shared_ptr<SIRInstruction>);
+    llvm::Value *emitTrunc(std::shared_ptr<SIRInstruction>);
+    llvm::Value *emitZExt(std::shared_ptr<SIRInstruction>);
+    llvm::Value *emitSExt(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitI64ToF64(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitF64ToI64(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitI64ToBool(std::shared_ptr<SIRInstruction>);

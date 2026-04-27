@@ -95,15 +95,15 @@ namespace Sad
                 if (!macroDef->isVariadic && call->arguments.size() != requiredParams)
                 {
                     b_.errors_.push_back("Error: Macro '" + funcName + "' expects " +
-                                      std::to_string(requiredParams) + " arguments, got " +
-                                      std::to_string(call->arguments.size()));
+                                         std::to_string(requiredParams) + " arguments, got " +
+                                         std::to_string(call->arguments.size()));
                     return BuildResult();
                 }
                 if (macroDef->isVariadic && call->arguments.size() < requiredParams)
                 {
                     b_.errors_.push_back("Error: Macro '" + funcName + "' requires at least " +
-                                      std::to_string(requiredParams) + " arguments, got " +
-                                      std::to_string(call->arguments.size()));
+                                         std::to_string(requiredParams) + " arguments, got " +
+                                         std::to_string(call->arguments.size()));
                     return BuildResult();
                 }
 

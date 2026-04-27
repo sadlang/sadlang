@@ -643,8 +643,9 @@ namespace Sad
                  * Will instantiate copies when called with specific types
                  */
                 void buildTemplateFunction(Sad::AST::TemplateFunctionDecl *templateDecl)
-                { templates_->buildTemplateFunction(templateDecl); }
-
+                {
+                    templates_->buildTemplateFunction(templateDecl);
+                }
 
                 /**
                  * @brief (AR) إنشاء نسخة محددة من دالة قالب
@@ -661,7 +662,9 @@ namespace Sad
                  * Example: max<int> creates max_i64
                  */
                 std::string instantiateTemplate(const std::string &templateName, const std::vector<SadTypeKind> &typeArguments)
-                { return templates_->instantiateTemplate(templateName, typeArguments); }
+                {
+                    return templates_->instantiateTemplate(templateName, typeArguments);
+                }
 
                 /**
                  * @brief (AR) إنشاء قالب مع وسائط أنواع ووسائط ثوابت (const-generics).
@@ -679,7 +682,9 @@ namespace Sad
                  *      `const` params. Generated name combines both (e.g. f_i64_4).
                  */
                 std::string instantiateTemplate(const std::string &templateName, const std::vector<SadTypeKind> &typeArguments, const std::vector<SIROperand> &constArguments)
-                { return templates_->instantiateTemplate(templateName, typeArguments, constArguments); }
+                {
+                    return templates_->instantiateTemplate(templateName, typeArguments, constArguments);
+                }
 
                 /**
                  * @brief (AR) بناء متغير عام
@@ -696,8 +701,9 @@ namespace Sad
                  * @param classDecl (AR) تصريح الصنف / (EN) Class declaration
                  */
                 void buildClass(Sad::AST::ClassDecl *classDecl)
-                { classes_->buildClass(classDecl); }
-
+                {
+                    classes_->buildClass(classDecl);
+                }
 
                 /**
                  * @brief (AR) بناء سمة/واجهة
@@ -706,8 +712,9 @@ namespace Sad
                  * @param traitDecl (AR) تصريح السمة / (EN) Trait declaration
                  */
                 void buildTrait(Sad::AST::TraitDecl *traitDecl)
-                { classes_->buildTrait(traitDecl); }
-
+                {
+                    classes_->buildTrait(traitDecl);
+                }
 
                 /**
                  * @brief (AR) بناء كتلة تنفيذ سمة
@@ -716,8 +723,9 @@ namespace Sad
                  * @param implDecl (AR) تصريح التنفيذ / (EN) Impl declaration
                  */
                 void buildImpl(Sad::AST::ImplDecl *implDecl)
-                { classes_->buildImpl(implDecl); }
-
+                {
+                    classes_->buildImpl(implDecl);
+                }
 
                 // ==================================================================
                 // (AR) بناء جمل الاستيراد / (EN) Building Import Statements
@@ -730,8 +738,9 @@ namespace Sad
                  * @param importStmt (AR) عقدة الاستيراد / (EN) Import statement node
                  */
                 void buildImportStmt(Sad::AST::ImportStmt *importStmt)
-                { templates_->buildImportStmt(importStmt); }
-
+                {
+                    templates_->buildImportStmt(importStmt);
+                }
 
                 /**
                  * @brief (AR) بناء جملة استيراد انتقائي: من وحدة استورد ...
@@ -740,8 +749,9 @@ namespace Sad
                  * @param fromImportStmt (AR) عقدة الاستيراد الانتقائي / (EN) From-import statement node
                  */
                 void buildFromImportStmt(Sad::AST::FromImportStmt *fromImportStmt)
-                { templates_->buildFromImportStmt(fromImportStmt); }
-
+                {
+                    templates_->buildFromImportStmt(fromImportStmt);
+                }
 
                 /**
                  * @brief (AR) تعيين مسار الملف الحالي (لحل مسارات الاستيراد النسبية)
@@ -750,8 +760,9 @@ namespace Sad
                  * @param filePath (AR) مسار الملف / (EN) File path
                  */
                 void setCurrentFilePath(const std::string &filePath)
-                { templates_->setCurrentFilePath(filePath); }
-
+                {
+                    templates_->setCurrentFilePath(filePath);
+                }
 
                 /**
                  * @brief (AR) تعيين وضع الوحدة — تخطي إنشاء __sad_main ودالة main wrapper
@@ -772,8 +783,9 @@ namespace Sad
                  * @param stmt (AR) عقدة الجملة / (EN) Statement node
                  */
                 void buildStatement(Sad::AST::Statement *stmt)
-                { statements_->buildStatement(stmt); }
-
+                {
+                    statements_->buildStatement(stmt);
+                }
 
                 /**
                  * @brief (AR) بناء جملة if مع else اختياري
@@ -786,8 +798,9 @@ namespace Sad
                  * (EN) Builds CFG with basic blocks for condition, then, and else
                  */
                 void buildIfStatement(Sad::AST::IfStmt *ifStmt)
-                { statements_->buildIfStatement(ifStmt); }
-
+                {
+                    statements_->buildIfStatement(ifStmt);
+                }
 
                 /**
                  * @brief (AR) بناء جملة match (مطابقة أنماط)
@@ -800,8 +813,9 @@ namespace Sad
                  * (EN) Lowers match to chain of BR_COND using existing SIR
                  */
                 void buildMatchStatement(Sad::AST::MatchStmt *matchStmt)
-                { statements_->buildMatchStatement(matchStmt); }
-
+                {
+                    statements_->buildMatchStatement(matchStmt);
+                }
 
                 /**
                  * @brief (AR) بناء حلقة while
@@ -810,8 +824,9 @@ namespace Sad
                  * @param whileLoop (AR) حلقة while / (EN) While loop
                  */
                 void buildWhileLoop(Sad::AST::WhileStmt *whileLoop)
-                { statements_->buildWhileLoop(whileLoop); }
-
+                {
+                    statements_->buildWhileLoop(whileLoop);
+                }
 
                 /**
                  * @brief (AR) بناء حلقة for
@@ -820,8 +835,9 @@ namespace Sad
                  * @param forLoop (AR) حلقة for / (EN) For loop
                  */
                 void buildForLoop(Sad::AST::ForStmt *forLoop)
-                { statements_->buildForLoop(forLoop); }
-
+                {
+                    statements_->buildForLoop(forLoop);
+                }
 
                 /**
                  * @brief (AR) بناء حلقة for-range (لكل في)
@@ -830,8 +846,9 @@ namespace Sad
                  * @param forRange (AR) حلقة لكل في / (EN) For-range loop
                  */
                 void buildForRangeLoop(Sad::AST::ForRangeStmt *forRange)
-                { statements_->buildForRangeLoop(forRange); }
-
+                {
+                    statements_->buildForRangeLoop(forRange);
+                }
 
                 /**
                  * @brief (AR) بناء جملة return
@@ -840,8 +857,9 @@ namespace Sad
                  * @param retStmt (AR) جملة return / (EN) Return statement
                  */
                 void buildReturnStatement(Sad::AST::ReturnStmt *retStmt)
-                { statements_->buildReturnStatement(retStmt); }
-
+                {
+                    statements_->buildReturnStatement(retStmt);
+                }
 
                 /**
                  * @brief (AR) بناء جملة break
@@ -850,8 +868,9 @@ namespace Sad
                  * @param breakStmt (AR) جملة break / (EN) Break statement
                  */
                 void buildBreakStatement(Sad::AST::BreakStmt *breakStmt)
-                { statements_->buildBreakStatement(breakStmt); }
-
+                {
+                    statements_->buildBreakStatement(breakStmt);
+                }
 
                 /**
                  * @brief (AR) بناء جملة continue
@@ -860,8 +879,9 @@ namespace Sad
                  * @param continueStmt (AR) جملة continue / (EN) Continue statement
                  */
                 void buildContinueStatement(Sad::AST::ContinueStmt *continueStmt)
-                { statements_->buildContinueStatement(continueStmt); }
-
+                {
+                    statements_->buildContinueStatement(continueStmt);
+                }
 
                 /**
                  * @brief (AR) بناء إسناد متغير
@@ -870,8 +890,9 @@ namespace Sad
                  * @param assignment (AR) جملة الإسناد / (EN) Assignment statement
                  */
                 void buildAssignment(Sad::AST::AssignExpr *assignment)
-                { statements_->buildAssignment(assignment); }
-
+                {
+                    statements_->buildAssignment(assignment);
+                }
 
                 /**
                  * @brief (AR) بناء إغلاق مخفي لجسم defer من جملة خام
@@ -881,24 +902,27 @@ namespace Sad
                  * @return (AR) الإغلاق الناتج / (EN) Resulting closure value
                  */
                 BuildResult buildDeferredClosure(Sad::AST::Statement *stmt)
-                { return statements_->buildDeferredClosure(stmt); }
-
+                {
+                    return statements_->buildDeferredClosure(stmt);
+                }
 
                 /**
                  * @brief (AR) تنفيذ كل الإغلاقات المؤجلة للدالة الحالية بترتيب LIFO مرة واحدة فقط
                  * @brief (EN) Execute all deferred closures for the current function in LIFO order exactly once
                  */
                 void emitRunDeferredClosures()
-                { statements_->emitRunDeferredClosures(); }
-
+                {
+                    statements_->emitRunDeferredClosures();
+                }
 
                 /**
                  * @brief (AR) إزالة معالج تنظيف الدالة الحالي إذا كان مفعلاً
                  * @brief (EN) Pop the current function cleanup handler if active
                  */
                 void emitPopFunctionCleanupHandler()
-                { statements_->emitPopFunctionCleanupHandler(); }
-
+                {
+                    statements_->emitPopFunctionCleanupHandler();
+                }
 
                 /**
                  * @brief (AR) بناء تصريح متغير محلي
@@ -907,8 +931,9 @@ namespace Sad
                  * @param varDecl (AR) تصريح المتغير / (EN) Variable declaration
                  */
                 void buildLocalVariable(Sad::AST::VarDeclStmt *varDecl)
-                { statements_->buildLocalVariable(varDecl); }
-
+                {
+                    statements_->buildLocalVariable(varDecl);
+                }
 
                 // ==================================================================
                 // بناء التعابير / Building Expressions
@@ -922,8 +947,9 @@ namespace Sad
                  * @return (AR) نتيجة البناء مع السجل والنوع / (EN) Build result with register and type
                  */
                 BuildResult buildExpression(Sad::AST::Expression *expr)
-                { return expressions_->buildExpression(expr); }
-
+                {
+                    return expressions_->buildExpression(expr);
+                }
 
                 /**
                  * @brief (AR) بناء عملية ثنائية (+ - * / % < > == && ||)
@@ -933,8 +959,9 @@ namespace Sad
                  * @return (AR) نتيجة العملية / (EN) Operation result
                  */
                 BuildResult buildBinaryOp(Sad::AST::BinaryExpr *binOp)
-                { return expressions_->buildBinaryOp(binOp); }
-
+                {
+                    return expressions_->buildBinaryOp(binOp);
+                }
 
                 /**
                  * @brief (AR) بناء تقييم كسول (short-circuit) للعوامل المنطقية و/أو
@@ -954,8 +981,9 @@ namespace Sad
                  * @return (AR) نتيجة العملية المنطقية / (EN) Logical operation result
                  */
                 BuildResult buildShortCircuitLogical(Sad::AST::BinaryExpr *binOp)
-                { return expressions_->buildShortCircuitLogical(binOp); }
-
+                {
+                    return expressions_->buildShortCircuitLogical(binOp);
+                }
 
                 /**
                  * @brief (AR) بناء عملية أحادية (- !)
@@ -965,8 +993,9 @@ namespace Sad
                  * @return (AR) نتيجة العملية / (EN) Operation result
                  */
                 BuildResult buildUnaryOp(Sad::AST::UnaryExpr *unOp)
-                { return expressions_->buildUnaryOp(unOp); }
-
+                {
+                    return expressions_->buildUnaryOp(unOp);
+                }
 
                 /**
                  * @brief (AR) بناء استدعاء دالة
@@ -976,8 +1005,9 @@ namespace Sad
                  * @return (AR) قيمة الإرجاع / (EN) Return value
                  */
                 BuildResult buildFunctionCall(Sad::AST::CallExpr *call)
-                { return calls_->buildFunctionCall(call); }
-
+                {
+                    return calls_->buildFunctionCall(call);
+                }
 
                 // ── دوال مساعدة مستخرجة من buildFunctionCall (CW-05, CW-03) ──
                 // ── Helper methods extracted from buildFunctionCall (CW-05, CW-03) ──
@@ -987,24 +1017,27 @@ namespace Sad
                  * @brief (EN) Handle macro call expansion — returns nullopt if not a macro call
                  */
                 std::optional<BuildResult> buildMacroCallExpansion(Sad::AST::CallExpr *call, const std::string &funcName)
-                { return calls_->buildMacroCallExpansion(call, funcName); }
-
+                {
+                    return calls_->buildMacroCallExpansion(call, funcName);
+                }
 
                 /**
                  * @brief (AR) معالجة استدعاء الكائن القابل للاستدعاء operator() — يُرجع nullopt إذا لم ينطبق
                  * @brief (EN) Handle callable object operator() invocation — returns nullopt if not applicable
                  */
                 std::optional<BuildResult> buildCallableObjectInvoke(Sad::AST::CallExpr *call, const std::string &funcName)
-                { return calls_->buildCallableObjectInvoke(call, funcName); }
-
+                {
+                    return calls_->buildCallableObjectInvoke(call, funcName);
+                }
 
                 /**
                  * @brief (AR) معالجة استدعاء باني الأب أساس/الأساس/super — يُرجع nullopt إذا لم ينطبق
                  * @brief (EN) Handle super constructor call أساس/الأساس/super — returns nullopt if not applicable
                  */
                 std::optional<BuildResult> buildSuperConstructorCall(Sad::AST::CallExpr *call, const std::string &funcName)
-                { return calls_->buildSuperConstructorCall(call, funcName); }
-
+                {
+                    return calls_->buildSuperConstructorCall(call, funcName);
+                }
 
                 /**
                  * @brief (AR) بناء قائمة الوسائط لاستدعاء دالة عادي
@@ -1015,24 +1048,27 @@ namespace Sad
                  * @return (EN) true = success / false = failure (error recorded in errors_)
                  */
                 bool buildCallArgumentsList(Sad::AST::CallExpr *call, std::vector<SIROperand> &outArgOperands, std::vector<BuildResult> &outArgResults)
-                { return calls_->buildCallArgumentsList(call, outArgOperands, outArgResults); }
-
+                {
+                    return calls_->buildCallArgumentsList(call, outArgOperands, outArgResults);
+                }
 
                 /**
                  * @brief (AR) تعبئة قيم الوسائط الافتراضية الناقصة
                  * @brief (EN) Fill in missing default argument values
                  */
                 void fillDefaultCallArguments(Sad::AST::CallExpr *call, const std::string &funcName, std::vector<SIROperand> &argOperands, std::vector<BuildResult> &argResults)
-                { calls_->fillDefaultCallArguments(call, funcName, argOperands, argResults); }
-
+                {
+                    calls_->fillDefaultCallArguments(call, funcName, argOperands, argResults);
+                }
 
                 /**
                  * @brief (AR) معالجة استدعاء دالة مدمجة أساسية
                  * @brief (EN) Handle core builtin function call (type conv, print, math, string, array, file)
                  */
                 std::optional<BuildResult> buildBuiltinCallCore(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands); }
-
+                {
+                    return builtins_->buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
 
                 /**
                  * @brief (AR) معالجة استدعاءات SIMD للمتجهات (Phase 3)
@@ -1042,16 +1078,18 @@ namespace Sad
                  *        vector(), splat, hsum, sqrt, abs, min, max, fma, dot, etc.
                  */
                 std::optional<BuildResult> buildBuiltinCallSimd(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinCallSimd(funcName, isUserDefinedFunction, argResults, argOperands); }
-
+                {
+                    return builtins_->buildBuiltinCallSimd(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
 
                 /**
                  * @brief (AR) معالجة استدعاء دالة مدمجة للنظام
                  * @brief (EN) Handle system builtin function call (hardware, GPIO, timer, atomic, async, security)
                  */
                 std::optional<BuildResult> buildBuiltinCallSystem(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinCallSystem(funcName, isUserDefinedFunction, argResults, argOperands); }
-
+                {
+                    return builtins_->buildBuiltinCallSystem(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
 
                 /**
                  * @brief (AR) معالجة استدعاء دالة مدمجة للشبكة
@@ -1060,8 +1098,9 @@ namespace Sad
                  *        TCP/UDP sockets, HTTP client, HTTP server, network utilities, addresses
                  */
                 std::optional<BuildResult> buildBuiltinCallNetwork(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinCallNetwork(funcName, isUserDefinedFunction, argResults, argOperands); }
-
+                {
+                    return builtins_->buildBuiltinCallNetwork(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
 
                 /**
                  * @brief (AR) دالة مساعدة: بناء تعليمة SIR لدالة شبكة
@@ -1072,8 +1111,9 @@ namespace Sad
                  * @param comment (AR) تعليق التعليمة / (EN) Instruction comment
                  */
                 BuildResult buildNetworkBuiltinInstruction(SIROpcode opcode, std::vector<SIROperand> &argOperands, SadTypeKind returnType, const char *comment)
-                { return builtins_->buildNetworkBuiltinInstruction(opcode, argOperands, returnType, comment); }
-
+                {
+                    return builtins_->buildNetworkBuiltinInstruction(opcode, argOperands, returnType, comment);
+                }
 
                 /**
                  * @brief (AR) بناء إنشاء كائن جديد
@@ -1083,8 +1123,9 @@ namespace Sad
                  * @return (AR) مؤشر للكائن / (EN) Pointer to object
                  */
                 BuildResult buildNewObject(Sad::AST::NewExpr *expr)
-                { return expressions_->buildNewObject(expr); }
-
+                {
+                    return expressions_->buildNewObject(expr);
+                }
 
                 /**
                  * @brief (AR) بناء الوصول لعضو في كائن
@@ -1094,8 +1135,9 @@ namespace Sad
                  * @return (AR) قيمة العضو / (EN) Member value
                  */
                 BuildResult buildMemberAccess(Sad::AST::MemberAccessExpr *expr)
-                { return expressions_->buildMemberAccess(expr); }
-
+                {
+                    return expressions_->buildMemberAccess(expr);
+                }
 
                 /**
                  * @brief (AR) بناء استدعاء طريقة على كائن
@@ -1105,8 +1147,9 @@ namespace Sad
                  * @return (AR) نتيجة الاستدعاء / (EN) Call result
                  */
                 BuildResult buildMethodCall(Sad::AST::MethodCallExpr *methodCallExpr)
-                { return calls_->buildMethodCall(methodCallExpr); }
-
+                {
+                    return calls_->buildMethodCall(methodCallExpr);
+                }
 
                 // ================================================================
                 // (AR) دوال مساعدة لـ buildMethodCall — مستخرجة وفق CW-05/CW-01
@@ -1124,34 +1167,49 @@ namespace Sad
                 // ==================================================================
 
                 std::optional<BuildResult> buildChannelMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult)
-                { return methodCalls_->buildChannelMethodCall(expr, objResult); }
+                {
+                    return methodCalls_->buildChannelMethodCall(expr, objResult);
+                }
 
                 std::optional<BuildResult> buildMutexMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult)
-                { return methodCalls_->buildMutexMethodCall(expr, objResult); }
+                {
+                    return methodCalls_->buildMutexMethodCall(expr, objResult);
+                }
 
                 std::optional<BuildResult> buildFutureMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult)
-                { return methodCalls_->buildFutureMethodCall(expr, objResult); }
+                {
+                    return methodCalls_->buildFutureMethodCall(expr, objResult);
+                }
 
                 std::optional<BuildResult> buildWaitGroupMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult)
-                { return methodCalls_->buildWaitGroupMethodCall(expr, objResult); }
+                {
+                    return methodCalls_->buildWaitGroupMethodCall(expr, objResult);
+                }
 
                 std::optional<BuildResult> buildArrayBasicMethodCall(const BuildResult &objResult,
                                                                      const std::string &methodName, const std::vector<SIROperand> &args)
-                { return methodCalls_->buildArrayBasicMethodCall(objResult, methodName, args); }
+                {
+                    return methodCalls_->buildArrayBasicMethodCall(objResult, methodName, args);
+                }
 
                 std::optional<BuildResult> buildArrayHigherOrderMethodCall(const BuildResult &objResult,
                                                                            const std::string &methodName, const std::vector<SIROperand> &args,
                                                                            const std::string &closureLambdaName, SadTypeKind closureRetType)
-                { return methodCalls_->buildArrayHigherOrderMethodCall(objResult, methodName, args, closureLambdaName, closureRetType); }
+                {
+                    return methodCalls_->buildArrayHigherOrderMethodCall(objResult, methodName, args, closureLambdaName, closureRetType);
+                }
 
                 std::optional<BuildResult> buildStringBuiltinMethodCall(const BuildResult &objResult,
                                                                         const std::string &methodName, const std::vector<SIROperand> &args)
-                { return methodCalls_->buildStringBuiltinMethodCall(objResult, methodName, args); }
+                {
+                    return methodCalls_->buildStringBuiltinMethodCall(objResult, methodName, args);
+                }
 
                 std::optional<BuildResult> buildMapBuiltinMethodCall(const BuildResult &objResult,
                                                                      const std::string &methodName, const std::vector<SIROperand> &args)
-                { return methodCalls_->buildMapBuiltinMethodCall(objResult, methodName, args); }
-
+                {
+                    return methodCalls_->buildMapBuiltinMethodCall(objResult, methodName, args);
+                }
 
                 // ================================================================
                 // (AR) فحص استيراد الوحدات القياسية — توحيد سلوك المترجم مع المفسر
@@ -1184,24 +1242,27 @@ namespace Sad
                  * @brief (EN) Build math builtin calls (sqrt/pow/log/sin/cos/max/min...)
                  */
                 std::optional<BuildResult> buildBuiltinMathCall(const std::string &funcName, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinMathCall(funcName, argResults, argOperands); }
-
+                {
+                    return builtins_->buildBuiltinMathCall(funcName, argResults, argOperands);
+                }
 
                 /**
                  * @brief (AR) بناء دوال النصوص والمصفوفات المضمنة (طول_نص/تقسيم/إضافة_عنصر/ترتيب...)
                  * @brief (EN) Build string & array builtin calls (string_length/split/append/sort...)
                  */
                 std::optional<BuildResult> buildBuiltinStringArrayCall(const std::string &funcName, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinStringArrayCall(funcName, argResults, argOperands); }
-
+                {
+                    return builtins_->buildBuiltinStringArrayCall(funcName, argResults, argOperands);
+                }
 
                 /**
                  * @brief (AR) بناء دوال الملفات والأدوات وفحص الأنواع (اقرأ_ملف/عشوائي/هو_رقم...)
                  * @brief (EN) Build file I/O, utility, and type-checking builtins
                  */
                 std::optional<BuildResult> buildBuiltinIOUtilsCall(const std::string &funcName, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinIOUtilsCall(funcName, argResults, argOperands); }
-
+                {
+                    return builtins_->buildBuiltinIOUtilsCall(funcName, argResults, argOperands);
+                }
 
                 /**
                  * @brief (AR) بناء شرط نمط match — يُرجع اسم سجل الشرط
@@ -1224,16 +1285,18 @@ namespace Sad
                  * @brief (EN) Build class constructor — extracted from buildClass
                  */
                 void buildClassConstructor(Sad::AST::ClassDecl *classDecl, std::shared_ptr<SIRClass> sirClass, Sad::AST::ConstructorDecl *ctorDecl)
-                { classes_->buildClassConstructor(classDecl, sirClass, ctorDecl); }
-
+                {
+                    classes_->buildClassConstructor(classDecl, sirClass, ctorDecl);
+                }
 
                 /**
                  * @brief (AR) بناء عامل زائد في صنف — مستخرج من buildClass (CW-05)
                  * @brief (EN) Build class operator overload — extracted from buildClass
                  */
                 void buildClassOperator(Sad::AST::ClassDecl *classDecl, std::shared_ptr<SIRClass> sirClass, Sad::AST::OperatorDecl *operatorDecl)
-                { classes_->buildClassOperator(classDecl, sirClass, operatorDecl); }
-
+                {
+                    classes_->buildClassOperator(classDecl, sirClass, operatorDecl);
+                }
 
                 /**
                  * @brief (AR) بناء وصول لمتغير
@@ -1243,8 +1306,9 @@ namespace Sad
                  * @return (AR) قيمة المتغير / (EN) Variable value
                  */
                 BuildResult buildVariableAccess(Sad::AST::VariableExpr *varNode)
-                { return expressions_->buildVariableAccess(varNode); }
-
+                {
+                    return expressions_->buildVariableAccess(varNode);
+                }
 
                 /**
                  * @brief (AR) بناء ثابت (رقم، نص، منطقي)
@@ -1254,8 +1318,9 @@ namespace Sad
                  * @return (AR) القيمة الثابتة / (EN) Constant value
                  */
                 BuildResult buildLiteral(Sad::AST::LiteralExpr *literal)
-                { return expressions_->buildLiteral(literal); }
-
+                {
+                    return expressions_->buildLiteral(literal);
+                }
 
                 /**
                  * @brief (AR) بناء استدعاء method على نص
@@ -1276,113 +1341,135 @@ namespace Sad
 
                 /// @brief (AR) بناء تعبير MemberExpr (وصول للعضو) / (EN) Build MemberExpr
                 BuildResult buildExprMember(Sad::AST::MemberExpr *expr)
-                { return expressions_->buildExprMember(expr); }
-
+                {
+                    return expressions_->buildExprMember(expr);
+                }
 
                 /// @brief (AR) بناء تعبير MemberAssignExpr / (EN) Build MemberAssignExpr
                 BuildResult buildExprMemberAssign(Sad::AST::MemberAssignExpr *expr)
-                { return expressions_->buildExprMemberAssign(expr); }
-
+                {
+                    return expressions_->buildExprMemberAssign(expr);
+                }
 
                 /// @brief (AR) بناء تعبير TernaryExpr / (EN) Build TernaryExpr
                 BuildResult buildExprTernary(Sad::AST::TernaryExpr *expr)
-                { return expressions_->buildExprTernary(expr); }
-
+                {
+                    return expressions_->buildExprTernary(expr);
+                }
 
                 /// @brief (AR) بناء تعبير IndexExpr / (EN) Build IndexExpr
                 BuildResult buildExprIndex(Sad::AST::IndexExpr *expr)
-                { return expressions_->buildExprIndex(expr); }
-
+                {
+                    return expressions_->buildExprIndex(expr);
+                }
 
                 /// @brief (AR) بناء تعبير IndexAssignExpr / (EN) Build IndexAssignExpr
                 BuildResult buildExprIndexAssign(Sad::AST::IndexAssignExpr *expr)
-                { return expressions_->buildExprIndexAssign(expr); }
-
+                {
+                    return expressions_->buildExprIndexAssign(expr);
+                }
 
                 /// @brief (AR) بناء تعبير ArrayExpr / (EN) Build ArrayExpr
                 BuildResult buildExprArray(Sad::AST::ArrayExpr *expr)
-                { return expressions_->buildExprArray(expr); }
-
+                {
+                    return expressions_->buildExprArray(expr);
+                }
 
                 /// @brief (AR) بناء تعبير TupleExpr / (EN) Build TupleExpr
                 BuildResult buildExprTuple(Sad::AST::TupleExpr *expr)
-                { return expressions_->buildExprTuple(expr); }
-
+                {
+                    return expressions_->buildExprTuple(expr);
+                }
 
                 /// @brief (AR) بناء تعبير MapExpr / (EN) Build MapExpr
                 BuildResult buildExprMap(Sad::AST::MapExpr *expr)
-                { return expressions_->buildExprMap(expr); }
-
+                {
+                    return expressions_->buildExprMap(expr);
+                }
 
                 /// @brief (AR) بناء تعبير WalrusExpr / (EN) Build WalrusExpr
                 BuildResult buildExprWalrus(Sad::AST::WalrusExpr *expr)
-                { return expressions_->buildExprWalrus(expr); }
-
+                {
+                    return expressions_->buildExprWalrus(expr);
+                }
 
                 /// @brief (AR) بناء تعبير LambdaExpr / (EN) Build LambdaExpr
                 BuildResult buildExprLambda(Sad::AST::LambdaExpr *expr)
-                { return expressions_->buildExprLambda(expr); }
-
+                {
+                    return expressions_->buildExprLambda(expr);
+                }
 
                 /// @brief (AR) بناء تعبير RangeExpr / (EN) Build RangeExpr
                 BuildResult buildExprRange(Sad::AST::RangeExpr *expr)
-                { return expressions_->buildExprRange(expr); }
-
+                {
+                    return expressions_->buildExprRange(expr);
+                }
 
                 /// @brief (AR) بناء تعبير ListComprehensionExpr / (EN) Build ListComprehensionExpr
                 BuildResult buildExprListComp(Sad::AST::ListComprehensionExpr *expr)
-                { return expressions_->buildExprListComp(expr); }
-
+                {
+                    return expressions_->buildExprListComp(expr);
+                }
 
                 /// @brief (AR) بناء تعبير DictComprehensionExpr / (EN) Build DictComprehensionExpr
                 BuildResult buildExprDictComp(Sad::AST::DictComprehensionExpr *expr)
-                { return expressions_->buildExprDictComp(expr); }
-
+                {
+                    return expressions_->buildExprDictComp(expr);
+                }
 
                 /// @brief (AR) بناء تعبير SetComprehensionExpr / (EN) Build SetComprehensionExpr
                 BuildResult buildExprSetComp(Sad::AST::SetComprehensionExpr *expr)
-                { return expressions_->buildExprSetComp(expr); }
-
+                {
+                    return expressions_->buildExprSetComp(expr);
+                }
 
                 /// @brief (AR) بناء تعبير GeneratorExpr / (EN) Build GeneratorExpr
                 BuildResult buildExprGenerator(Sad::AST::GeneratorExpr *expr)
-                { return expressions_->buildExprGenerator(expr); }
-
+                {
+                    return expressions_->buildExprGenerator(expr);
+                }
 
                 /// @brief (AR) بناء تعبير InlineAsmExpr / (EN) Build InlineAsmExpr
                 BuildResult buildExprInlineAsm(Sad::AST::InlineAsmExpr *expr)
-                { return expressions_->buildExprInlineAsm(expr); }
-
+                {
+                    return expressions_->buildExprInlineAsm(expr);
+                }
 
                 /// @brief (AR) بناء تعبير SizeofExpr / (EN) Build SizeofExpr
                 BuildResult buildExprSizeof(Sad::AST::SizeofExpr *expr)
-                { return expressions_->buildExprSizeof(expr); }
-
+                {
+                    return expressions_->buildExprSizeof(expr);
+                }
 
                 /// @brief (AR) بناء تعبير AtomicExpr / (EN) Build AtomicExpr
                 BuildResult buildExprAtomic(Sad::AST::AtomicExpr *expr)
-                { return expressions_->buildExprAtomic(expr); }
-
+                {
+                    return expressions_->buildExprAtomic(expr);
+                }
 
                 /// @brief (AR) بناء تعبير OptionalChainExpr / (EN) Build OptionalChainExpr
                 BuildResult buildExprOptionalChain(Sad::AST::OptionalChainExpr *expr)
-                { return expressions_->buildExprOptionalChain(expr); }
-
+                {
+                    return expressions_->buildExprOptionalChain(expr);
+                }
 
                 /// @brief (AR) بناء تعبير NullCoalesceExpr / (EN) Build NullCoalesceExpr
                 BuildResult buildExprNullCoalesce(Sad::AST::NullCoalesceExpr *expr)
-                { return expressions_->buildExprNullCoalesce(expr); }
-
+                {
+                    return expressions_->buildExprNullCoalesce(expr);
+                }
 
                 /// @brief (AR) بناء تعبير SliceExpr / (EN) Build SliceExpr
                 BuildResult buildExprSlice(Sad::AST::SliceExpr *expr)
-                { return expressions_->buildExprSlice(expr); }
-
+                {
+                    return expressions_->buildExprSlice(expr);
+                }
 
                 /// @brief (AR) بناء تعبير ErrorPropagateExpr / (EN) Build ErrorPropagateExpr
                 BuildResult buildExprErrorPropagate(Sad::AST::ErrorPropagateExpr *expr)
-                { return expressions_->buildExprErrorPropagate(expr); }
-
+                {
+                    return expressions_->buildExprErrorPropagate(expr);
+                }
 
                 // ==================================================================
                 // إدارة السجلات / Register Management
@@ -1639,8 +1726,9 @@ namespace Sad
                  * ثم تجمع أنواع جميع عبارات الإرجاع وتوحّدها
                  */
                 SadTypeKind inferReturnTypeFromBody(const Sad::AST::Statement *body, const Sad::AST::FunctionDecl *funcDecl = nullptr)
-                { return templates_->inferReturnTypeFromBody(body, funcDecl); }
-
+                {
+                    return templates_->inferReturnTypeFromBody(body, funcDecl);
+                }
 
                 /**
                  * @brief (AR) فحص إذا كانت الجملة تحتوي return مع قيمة (تعاودي)
@@ -1655,8 +1743,9 @@ namespace Sad
                  * @return نوع SIR المُستنتج / Inferred SIR type
                  */
                 SadTypeKind inferExprType(const Sad::AST::Expression *expr)
-                { return templates_->inferExprType(expr); }
-
+                {
+                    return templates_->inferExprType(expr);
+                }
 
                 /**
                  * @brief (AR) مسح مواقع الاستدعاء لاستنتاج أنواع المعاملات غير المحددة
@@ -1667,8 +1756,9 @@ namespace Sad
                  * يكون المعامل I64 (من DataType::UNKNOWN) والوسيط الفعلي STRING/F64/BOOL
                  */
                 void inferParamTypesFromCallSites(Sad::AST::StmtList *program)
-                { templates_->inferParamTypesFromCallSites(program); }
-
+                {
+                    templates_->inferParamTypesFromCallSites(program);
+                }
 
                 /**
                  * @brief (AR) استنتاج أنواع معاملات اللامدا من تحليل جسمها وسياق الاستدعاء
@@ -1693,32 +1783,36 @@ namespace Sad
                  * @brief (EN) Analyze expression to infer lambda param types from usage
                  */
                 void inferLambdaParamFromExpr(const Sad::AST::Expression *expr, const std::set<std::string> &paramNames, std::unordered_map<std::string, SadTypeKind> &result)
-                { templates_->inferLambdaParamFromExpr(expr, paramNames, result); }
-
+                {
+                    templates_->inferLambdaParamFromExpr(expr, paramNames, result);
+                }
 
                 /**
                  * @brief (AR) تحليل جملة لاستنتاج أنواع معاملات اللامدا من الاستخدام
                  * @brief (EN) Analyze statement to infer lambda param types from usage
                  */
                 void inferLambdaParamFromStmt(const Sad::AST::Statement *stmt, const std::set<std::string> &paramNames, std::unordered_map<std::string, SadTypeKind> &result)
-                { templates_->inferLambdaParamFromStmt(stmt, paramNames, result); }
-
+                {
+                    templates_->inferLambdaParamFromStmt(stmt, paramNames, result);
+                }
 
                 /**
                  * @brief (AR) مسح تعاودي للجمل للبحث عن استدعاءات الدوال
                  * @brief (EN) Recursively scan statements for function calls
                  */
                 void scanCallSitesInStmt(const Sad::AST::Statement *stmt)
-                { templates_->scanCallSitesInStmt(stmt); }
-
+                {
+                    templates_->scanCallSitesInStmt(stmt);
+                }
 
                 /**
                  * @brief (AR) مسح تعاودي للتعبيرات للبحث عن استدعاءات الدوال
                  * @brief (EN) Recursively scan expressions for function calls
                  */
                 void scanCallSitesInExpr(const Sad::AST::Expression *expr)
-                { templates_->scanCallSitesInExpr(expr); }
-
+                {
+                    templates_->scanCallSitesInExpr(expr);
+                }
 
                 /**
                  * @brief (AR) تحويل عامل ثنائي AST إلى SIR opcode
@@ -1740,54 +1834,80 @@ namespace Sad
                  * @brief (EN) Collect free variables in an expression (for closure capture detection)
                  */
                 void collectFreeVarsExpr(Sad::AST::Expression *expr, const std::set<std::string> &boundNames, std::set<std::string> &freeVars)
-                { templates_->collectFreeVarsExpr(expr, boundNames, freeVars); }
-
+                {
+                    templates_->collectFreeVarsExpr(expr, boundNames, freeVars);
+                }
 
                 /**
                  * @brief (AR) جمع المتغيرات الحرة في جملة (تعاودي)
                  * @brief (EN) Collect free variables in a statement (recursive)
                  */
                 void collectFreeVarsStmt(Sad::AST::Statement *stmt, std::set<std::string> &boundNames, std::set<std::string> &freeVars)
-                { templates_->collectFreeVarsStmt(stmt, boundNames, freeVars); }
-
+                {
+                    templates_->collectFreeVarsStmt(stmt, boundNames, freeVars);
+                }
 
                 // (AR) ملاحظة Phase 6: حُذفت convertType (إعلان بلا تنفيذ ولا استخدام)
                 // (EN) Phase 6 note: removed convertType (declared but never defined or used)
 
                 // ── دوال فرعية لتقسيم buildBuiltinCallSystem ──
                 std::optional<BuildResult> buildBuiltinSystem_Embedded(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinSystem_Embedded(funcName, isUserDefinedFunction, argResults, argOperands); }
+                {
+                    return builtins_->buildBuiltinSystem_Embedded(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
                 std::optional<BuildResult> buildBuiltinSystem_Security(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinSystem_Security(funcName, isUserDefinedFunction, argResults, argOperands); }
+                {
+                    return builtins_->buildBuiltinSystem_Security(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
 
                 std::optional<BuildResult> buildBuiltinSystem_FFI(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinSystem_FFI(funcName, isUserDefinedFunction, argResults, argOperands); }
+                {
+                    return builtins_->buildBuiltinSystem_FFI(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
 
                 std::optional<BuildResult> buildBuiltinSystem_Async(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinSystem_Async(funcName, isUserDefinedFunction, argResults, argOperands); }
+                {
+                    return builtins_->buildBuiltinSystem_Async(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
                 std::optional<BuildResult> buildBuiltinSystem_OsCore(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinSystem_OsCore(funcName, isUserDefinedFunction, argResults, argOperands); }
+                {
+                    return builtins_->buildBuiltinSystem_OsCore(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
                 std::optional<BuildResult> buildBuiltinSystem_OsHardware(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinSystem_OsHardware(funcName, isUserDefinedFunction, argResults, argOperands); }
+                {
+                    return builtins_->buildBuiltinSystem_OsHardware(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
                 std::optional<BuildResult> buildBuiltinSystem_OsSystem(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinSystem_OsSystem(funcName, isUserDefinedFunction, argResults, argOperands); }
+                {
+                    return builtins_->buildBuiltinSystem_OsSystem(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
                 std::optional<BuildResult> buildBuiltinSystem_Uefi(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinSystem_Uefi(funcName, isUserDefinedFunction, argResults, argOperands); }
+                {
+                    return builtins_->buildBuiltinSystem_Uefi(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
                 std::optional<BuildResult> buildBuiltinSystem_UI(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
-                { return builtins_->buildBuiltinSystem_UI(funcName, isUserDefinedFunction, argResults, argOperands); }
-
+                {
+                    return builtins_->buildBuiltinSystem_UI(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
 
                 // ── دوال فرعية لتقسيم buildStatement ──
                 bool buildStatement_Exceptions(Sad::AST::Statement *stmt)
-                { return statements_->buildStatement_Exceptions(stmt); }
+                {
+                    return statements_->buildStatement_Exceptions(stmt);
+                }
                 bool buildStatement_Generators(Sad::AST::Statement *stmt)
-                { return statements_->buildStatement_Generators(stmt); }
+                {
+                    return statements_->buildStatement_Generators(stmt);
+                }
                 bool buildStatement_Types(Sad::AST::Statement *stmt)
-                { return statements_->buildStatement_Types(stmt); }
+                {
+                    return statements_->buildStatement_Types(stmt);
+                }
 
                 bool buildStatement_Advanced(Sad::AST::Statement *stmt)
-                { return statements_->buildStatement_Advanced(stmt); }
-
+                {
+                    return statements_->buildStatement_Advanced(stmt);
+                }
 
                 // ── دوال مساعدة مستخرجة من buildStatement_Advanced (CW-05, CW-03) ──
                 /**
@@ -1795,40 +1915,45 @@ namespace Sad
                  * @brief (EN) Handle TestDecl — normal test and property-based test
                  */
                 bool buildStatement_Test(Sad::AST::Statement *stmt)
-                { return statements_->buildStatement_Test(stmt); }
-
+                {
+                    return statements_->buildStatement_Test(stmt);
+                }
 
                 /**
                  * @brief (AR) معالجة PropertyDecl — getter/setter
                  * @brief (EN) Handle PropertyDecl — getter/setter lowering
                  */
                 bool buildStatement_Property(Sad::AST::Statement *stmt)
-                { return statements_->buildStatement_Property(stmt); }
-
+                {
+                    return statements_->buildStatement_Property(stmt);
+                }
 
                 /**
                  * @brief (AR) معالجة GoStmt — goroutine (أطلق)
                  * @brief (EN) Handle GoStmt — concurrent goroutine spawn
                  */
                 bool buildStatement_Go(Sad::AST::Statement *stmt)
-                { return statements_->buildStatement_Go(stmt); }
-
+                {
+                    return statements_->buildStatement_Go(stmt);
+                }
 
                 /**
                  * @brief (AR) معالجة SelectStmt — اختر من قنوات متعددة
                  * @brief (EN) Handle SelectStmt — channel select multiplexer
                  */
                 bool buildStatement_Select(Sad::AST::Statement *stmt)
-                { return statements_->buildStatement_Select(stmt); }
-
+                {
+                    return statements_->buildStatement_Select(stmt);
+                }
 
                 /**
                  * @brief (AR) معالجة ExtensionDecl — امتداد صنف موجود
                  * @brief (EN) Handle ExtensionDecl — extension methods for existing class
                  */
                 bool buildStatement_Extension(Sad::AST::Statement *stmt)
-                { return statements_->buildStatement_Extension(stmt); }
-
+                {
+                    return statements_->buildStatement_Extension(stmt);
+                }
 
                 /**
                  * @brief (AR) معالجة TypeAliasDecl + ReExportStmt — أسماء مستعارة وإعادة تصدير

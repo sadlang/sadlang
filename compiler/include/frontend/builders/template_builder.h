@@ -26,14 +26,18 @@
 // (EN) StmtList is a using alias in ast_node.h — include it instead of forward-decl
 #include "ast_node.h"
 
-namespace Sad { namespace AST {
-    class Expression;
-    class Statement;
-    class FunctionDecl;
-    class TemplateFunctionDecl;
-    class ImportStmt;
-    class FromImportStmt;
-}}
+namespace Sad
+{
+    namespace AST
+    {
+        class Expression;
+        class Statement;
+        class FunctionDecl;
+        class TemplateFunctionDecl;
+        class ImportStmt;
+        class FromImportStmt;
+    }
+}
 
 namespace Sad
 {
@@ -88,5 +92,5 @@ namespace Sad
             };
 
         } // namespace SIR
-    }     // namespace Compiler
+    } // namespace Compiler
 } // namespace Sad

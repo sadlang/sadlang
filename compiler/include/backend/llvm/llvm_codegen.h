@@ -74,8 +74,8 @@
 
 // Sad LLVM Components (مكونات Sad LLVM)
 #include "llvm_type_mapper.h"
-#include "llvm_optimizer.h" // إضافة محسّن LLVM / Add LLVM optimizer
-#include "llvm_codegen_context.h" // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
+#include "llvm_optimizer.h"              // إضافة محسّن LLVM / Add LLVM optimizer
+#include "llvm_codegen_context.h"        // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
 #include "builders/arithmetic_codegen.h" // (AR) Phase 7 Step 1: ArithmeticCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
@@ -562,7 +562,7 @@ namespace Sad
             // ------------------------------------------------------------------------
 
             llvm::Value *emitAnd(std::shared_ptr<SIRInstruction> inst) { return arith_->emitAnd(inst); }
-            llvm::Value *emitOr(std::shared_ptr<SIRInstruction> inst)  { return arith_->emitOr(inst); }
+            llvm::Value *emitOr(std::shared_ptr<SIRInstruction> inst) { return arith_->emitOr(inst); }
             llvm::Value *emitXor(std::shared_ptr<SIRInstruction> inst) { return arith_->emitXor(inst); }
             llvm::Value *emitNot(std::shared_ptr<SIRInstruction> inst) { return arith_->emitNot(inst); }
             llvm::Value *emitShl(std::shared_ptr<SIRInstruction> inst) { return arith_->emitShl(inst); }
@@ -577,8 +577,8 @@ namespace Sad
             llvm::Value *emitCmpNe(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCmpNe(inst); }
             llvm::Value *emitCmpLt(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCmpLt(inst); }
             llvm::Value *emitCmpLe(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCmpLe(inst); }
-            llvm::Value *emitCmpGt(std::shared_ptr<SIRInstruction> inst); // مؤجلة (لا تزال في memory_control.cpp)
-            llvm::Value *emitCmpGe(std::shared_ptr<SIRInstruction> inst); // مؤجلة (لا تزال في memory_control.cpp)
+            llvm::Value *emitCmpGt(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCmpGt(inst); }
+            llvm::Value *emitCmpGe(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCmpGe(inst); }
 
             // ------------------------------------------------------------------------
             // Memory Instructions / تعليمات الذاكرة
@@ -1185,21 +1185,21 @@ namespace Sad
             // ------------------------------------------------------------------------
 
             llvm::Value *emitCast(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCast(inst); }
-            llvm::Value *emitBitCast(std::shared_ptr<SIRInstruction> inst);  // مؤجل (file_casts.cpp)
-            llvm::Value *emitIntToPtr(std::shared_ptr<SIRInstruction> inst); // مؤجل
-            llvm::Value *emitPtrToInt(std::shared_ptr<SIRInstruction> inst); // مؤجل
-            llvm::Value *emitTrunc(std::shared_ptr<SIRInstruction> inst);    // مؤجل
-            llvm::Value *emitZExt(std::shared_ptr<SIRInstruction> inst);     // مؤجل
-            llvm::Value *emitSExt(std::shared_ptr<SIRInstruction> inst);     // مؤجل
+            llvm::Value *emitBitCast(std::shared_ptr<SIRInstruction> inst)  { return arith_->emitBitCast(inst); }
+            llvm::Value *emitIntToPtr(std::shared_ptr<SIRInstruction> inst) { return arith_->emitIntToPtr(inst); }
+            llvm::Value *emitPtrToInt(std::shared_ptr<SIRInstruction> inst) { return arith_->emitPtrToInt(inst); }
+            llvm::Value *emitTrunc(std::shared_ptr<SIRInstruction> inst)    { return arith_->emitTrunc(inst); }
+            llvm::Value *emitZExt(std::shared_ptr<SIRInstruction> inst)     { return arith_->emitZExt(inst); }
+            llvm::Value *emitSExt(std::shared_ptr<SIRInstruction> inst)     { return arith_->emitSExt(inst); }
 
             // SIR Type Conversion opcodes (Phase 7 Step 1: delegate)
-            llvm::Value *emitI64ToF64(std::shared_ptr<SIRInstruction> inst)      { return arith_->emitI64ToF64(inst); }
-            llvm::Value *emitF64ToI64(std::shared_ptr<SIRInstruction> inst)      { return arith_->emitF64ToI64(inst); }
-            llvm::Value *emitI64ToBool(std::shared_ptr<SIRInstruction> inst)     { return arith_->emitI64ToBool(inst); }
-            llvm::Value *emitBoolToI64(std::shared_ptr<SIRInstruction> inst)     { return arith_->emitBoolToI64(inst); }
-            llvm::Value *emitI64ToString(std::shared_ptr<SIRInstruction> inst)   { return arith_->emitI64ToString(inst); }
-            llvm::Value *emitF64ToString(std::shared_ptr<SIRInstruction> inst)   { return arith_->emitF64ToString(inst); }
-            llvm::Value *emitBoolToString(std::shared_ptr<SIRInstruction> inst)  { return arith_->emitBoolToString(inst); }
+            llvm::Value *emitI64ToF64(std::shared_ptr<SIRInstruction> inst) { return arith_->emitI64ToF64(inst); }
+            llvm::Value *emitF64ToI64(std::shared_ptr<SIRInstruction> inst) { return arith_->emitF64ToI64(inst); }
+            llvm::Value *emitI64ToBool(std::shared_ptr<SIRInstruction> inst) { return arith_->emitI64ToBool(inst); }
+            llvm::Value *emitBoolToI64(std::shared_ptr<SIRInstruction> inst) { return arith_->emitBoolToI64(inst); }
+            llvm::Value *emitI64ToString(std::shared_ptr<SIRInstruction> inst) { return arith_->emitI64ToString(inst); }
+            llvm::Value *emitF64ToString(std::shared_ptr<SIRInstruction> inst) { return arith_->emitF64ToString(inst); }
+            llvm::Value *emitBoolToString(std::shared_ptr<SIRInstruction> inst) { return arith_->emitBoolToString(inst); }
             llvm::Value *emitArrayToString(std::shared_ptr<SIRInstruction> inst) { return arith_->emitArrayToString(inst); }
 
             // ------------------------------------------------------------------------
