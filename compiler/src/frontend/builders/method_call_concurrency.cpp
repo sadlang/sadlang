@@ -3,22 +3,23 @@
 // ============================================================================
 // (AR) تم استخراج هذا الملف من sir_builder_method_call.cpp وفق CW-05/CW-01
 //      يحتوي على دوال بناء استدعاءات طرق التزامن:
-//        - buildChannelMethodCall()   — أرسل/استقبل/أغلق/حجم/سعة/فارغة/...
-//        - buildMutexMethodCall()     — اقفل/افتح/مقفل/حاول_قفل
-//        - buildFutureMethodCall()    — عيّن/احصل/جاهز
-//        - buildWaitGroupMethodCall() — أضف/أنهي/انتظر/العداد
+//        - b_.buildChannelMethodCall()   — أرسل/استقبل/أغلق/حجم/سعة/فارغة/...
+//        - b_.buildMutexMethodCall()     — اقفل/افتح/مقفل/حاول_قفل
+//        - b_.buildFutureMethodCall()    — عيّن/احصل/جاهز
+//        - b_.buildWaitGroupMethodCall() — أضف/أنهي/انتظر/العداد
 //
 // (EN) Extracted from sir_builder_method_call.cpp per CW-05/CW-01
 //      Contains concurrency method call builders:
-//        - buildChannelMethodCall()   — send/recv/close/size/capacity/empty/...
-//        - buildMutexMethodCall()     — lock/unlock/is_locked/try_lock
-//        - buildFutureMethodCall()    — set/get/is_ready
-//        - buildWaitGroupMethodCall() — add/done/wait/count
+//        - b_.buildChannelMethodCall()   — send/recv/close/size/capacity/empty/...
+//        - b_.buildMutexMethodCall()     — lock/unlock/is_locked/try_lock
+//        - b_.buildFutureMethodCall()    — set/get/is_ready
+//        - b_.buildWaitGroupMethodCall() — add/done/wait/count
 // ============================================================================
 
 #include <string>
 #include <optional>
 #include "sir_builder.h"
+#include "builders/method_call_builder.h"
 #include "expressions.h"
 
 namespace Sad
@@ -52,13 +53,13 @@ namespace Sad
                 return SIROperand::Register(result.registerName, result.type);
             }
             // ================================================================
-            // buildChannelMethodCall — طرق القنوات
+            // b_.buildChannelMethodCall — طرق القنوات
             // (AR) أرسل/استقبل/حاول_ارسل/حاول_استقبل/أرسل_بمهلة/استقبل_بمهلة
             //      أغلق/مغلقة/فارغة/الحجم/السعة
             // (EN) send/recv/try_send/try_recv/send_timeout/recv_timeout
             //      close/isClosed/empty/size/capacity
             // ================================================================
-            std::optional<BuildResult> SIRBuilder::buildChannelMethodCall(
+            std::optional<BuildResult> MethodCallBuilder::buildChannelMethodCall(
                 AST::MethodCallExpr *expr, const BuildResult &objResult)
             {
                 std::string methodName = expr->methodName;
@@ -70,26 +71,26 @@ namespace Sad
                     SIROperand valueOp;
                     if (!expr->arguments.empty())
                     {
-                        auto argResult = buildExpression(expr->arguments[0].get());
+                        auto argResult = b_.buildExpression(expr->arguments[0].get());
                         valueOp = toSafeOperand(argResult);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_SEND);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Void);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     inst.operands.push_back(valueOp);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 
                     // (AR) تسجيل نوع العنصر المُرسل عبر القناة لاستخدامه عند recv
                     //      نستخدم اسم المتغير من AST (إن أمكن) واسم السجل كبديل
                     if (valueOp.dataType != SadTypeKind::Unknown)
                     {
-                        channelTypeMap_[objResult.registerName] = valueOp.dataType;
+                        b_.channelTypeMap_[objResult.registerName] = valueOp.dataType;
                         // (AR) أيضاً سجّل باسم المتغير الأصلي من AST
                         if (auto *ident = dynamic_cast<AST::VariableExpr *>(expr->object.get()))
-                            channelTypeMap_[ident->name] = valueOp.dataType;
+                            b_.channelTypeMap_[ident->name] = valueOp.dataType;
                     }
 
                     return BuildResult(resultReg, SadTypeKind::Void);
@@ -101,17 +102,17 @@ namespace Sad
                     SIROperand valueOp = SIROperand::ConstantI64(0);
                     if (!expr->arguments.empty())
                     {
-                        auto argResult = buildExpression(expr->arguments[0].get());
+                        auto argResult = b_.buildExpression(expr->arguments[0].get());
                         valueOp = toSafeOperand(argResult);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_TRY_SEND);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     inst.operands.push_back(valueOp);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
@@ -122,23 +123,23 @@ namespace Sad
                     SIROperand timeoutOp = SIROperand::ConstantI64(0);
                     if (!expr->arguments.empty())
                     {
-                        auto arg0 = buildExpression(expr->arguments[0].get());
+                        auto arg0 = b_.buildExpression(expr->arguments[0].get());
                         valueOp = toSafeOperand(arg0);
                     }
                     if (expr->arguments.size() >= 2)
                     {
-                        auto arg1 = buildExpression(expr->arguments[1].get());
+                        auto arg1 = b_.buildExpression(expr->arguments[1].get());
                         timeoutOp = toSafeOperand(arg1);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_SEND_TIMEOUT);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     inst.operands.push_back(valueOp);
                     inst.operands.push_back(timeoutOp);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
@@ -147,26 +148,26 @@ namespace Sad
                     methodName == "recv")
                 {
                     // (AR) استخدم النوع المسجل من send إذا وُجد، وإلا Integer (الافتراضي)
-                    //      السبب: channelTypeMap_ قد لا يجد النوع عند send/recv عبر دوال مختلفة
+                    //      السبب: b_.channelTypeMap_ قد لا يجد النوع عند send/recv عبر دوال مختلفة
                     //      (اسم المتغير مختلف بين الدالة المُرسلة والمُستقبلة)
                     //      Integer هو النوع الأكثر شيوعاً في القنوات
                     SadTypeKind recvType = SadTypeKind::Integer;
-                    auto it = channelTypeMap_.find(objResult.registerName);
-                    if (it != channelTypeMap_.end())
+                    auto it = b_.channelTypeMap_.find(objResult.registerName);
+                    if (it != b_.channelTypeMap_.end())
                         recvType = it->second;
                     else if (auto *ident = dynamic_cast<AST::VariableExpr *>(expr->object.get()))
                     {
-                        auto it2 = channelTypeMap_.find(ident->name);
-                        if (it2 != channelTypeMap_.end())
+                        auto it2 = b_.channelTypeMap_.find(ident->name);
+                        if (it2 != b_.channelTypeMap_.end())
                             recvType = it2->second;
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_RECV);
                     inst.result = SIROperand::Register(resultReg, recvType);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, recvType);
                 }
 
@@ -177,12 +178,12 @@ namespace Sad
                     //      نستخدم Integer — kSadNullSentinel هو قيمة i64 خاصة
                     //      فحص لاشيء يتم عبر مقارنة مع kSadNullSentinel
                     //      تحويل لنص يتم عبر فحص sentinel في ensureString
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_TRY_RECV);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -192,18 +193,18 @@ namespace Sad
                     SIROperand timeoutOp = SIROperand::ConstantI64(0);
                     if (!expr->arguments.empty())
                     {
-                        auto arg0 = buildExpression(expr->arguments[0].get());
+                        auto arg0 = b_.buildExpression(expr->arguments[0].get());
                         timeoutOp = toSafeOperand(arg0);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_RECV_TIMEOUT);
                     // (AR) recv_timeout قد تُرجع لاشيء (kSadNullSentinel) — نستخدم Integer
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     inst.operands.push_back(timeoutOp);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -211,12 +212,12 @@ namespace Sad
                 if (methodName == "\xD8\xA3\xD8\xBA\xD9\x84\xD9\x82" || methodName == "\xD8\xA7\xD8\xBA\xD9\x84\xD9\x82" ||
                     methodName == "close")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_CLOSE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Void);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Void);
                 }
 
@@ -224,32 +225,32 @@ namespace Sad
                 if (methodName == "\xD9\x85\xD8\xBA\xD9\x84\xD9\x82\xD8\xA9" || methodName == "isClosed" ||
                     methodName == "is_closed")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_IS_CLOSED);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
                 // فارغة / empty — عكس has_data
                 if (methodName == "\xD9\x81\xD8\xA7\xD8\xB1\xD8\xBA\xD8\xA9" || methodName == "empty")
                 {
-                    std::string hasDataReg = newTempRegister();
+                    std::string hasDataReg = b_.newTempRegister();
                     SIRInstruction hasDataInst(SIROpcode::ASYNC_CHANNEL_HAS_DATA);
                     hasDataInst.result = SIROperand::Register(hasDataReg, SadTypeKind::Integer);
                     hasDataInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(hasDataInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(hasDataInst);
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction cmpInst(SIROpcode::EQ);
                     cmpInst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     cmpInst.operands.push_back(SIROperand::Register(hasDataReg, SadTypeKind::Integer));
                     cmpInst.operands.push_back(SIROperand::ConstantI64(0));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(cmpInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(cmpInst);
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
@@ -257,24 +258,24 @@ namespace Sad
                 if (methodName == "\xD8\xA7\xD9\x84\xD8\xAD\xD8\xAC\xD9\x85" || methodName == "size" ||
                     methodName == "getSize" || methodName == "get_size")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_SIZE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
                 // السعة / capacity — السعة القصوى للقناة
                 if (methodName == "\xD8\xA7\xD9\x84\xD8\xB3\xD8\xB9\xD8\xA9" || methodName == "capacity")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_CAPACITY);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -283,11 +284,11 @@ namespace Sad
             }
 
             // ================================================================
-            // buildMutexMethodCall — طرق القفل
+            // b_.buildMutexMethodCall — طرق القفل
             // (AR) اقفل/افتح/مقفل/حاول_قفل
             // (EN) lock/unlock/is_locked/try_lock
             // ================================================================
-            std::optional<BuildResult> SIRBuilder::buildMutexMethodCall(
+            std::optional<BuildResult> MethodCallBuilder::buildMutexMethodCall(
                 AST::MethodCallExpr *expr, const BuildResult &objResult)
             {
                 std::string methodName = expr->methodName;
@@ -298,8 +299,8 @@ namespace Sad
                 {
                     SIRInstruction inst(SIROpcode::ASYNC_MUTEX_LOCK);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -309,8 +310,8 @@ namespace Sad
                 {
                     SIRInstruction inst(SIROpcode::ASYNC_MUTEX_UNLOCK);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -318,12 +319,12 @@ namespace Sad
                 if (methodName == "\xD9\x85\xD9\x82\xD9\x81\xD9\x84" || methodName == "is_locked" ||
                     methodName == "isLocked")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_MUTEX_IS_LOCKED);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
@@ -333,11 +334,11 @@ namespace Sad
                 {
                     SIRInstruction inst(SIROpcode::ASYNC_MUTEX_TRY_LOCK);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     inst.comment = "try_lock";
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
@@ -345,11 +346,11 @@ namespace Sad
             }
 
             // ================================================================
-            // buildFutureMethodCall — طرق المستقبل
+            // b_.buildFutureMethodCall — طرق المستقبل
             // (AR) عيّن/احصل/جاهز
             // (EN) set/get/is_ready
             // ================================================================
-            std::optional<BuildResult> SIRBuilder::buildFutureMethodCall(
+            std::optional<BuildResult> MethodCallBuilder::buildFutureMethodCall(
                 AST::MethodCallExpr *expr, const BuildResult &objResult)
             {
                 std::string methodName = expr->methodName;
@@ -361,26 +362,26 @@ namespace Sad
                     SIROperand valueOp;
                     if (!expr->arguments.empty())
                     {
-                        auto argResult = buildExpression(expr->arguments[0].get());
+                        auto argResult = b_.buildExpression(expr->arguments[0].get());
                         valueOp = toSafeOperand(argResult);
                     }
                     SIRInstruction inst(SIROpcode::ASYNC_RESOLVE_FUTURE);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     inst.operands.push_back(valueOp);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
                 // احصل / get — الحصول على النتيجة (حجب)
                 if (methodName == "\xD8\xA7\xD8\xAD\xD8\xB5\xD9\x84" || methodName == "get")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_GET_FUTURE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -388,12 +389,12 @@ namespace Sad
                 if (methodName == "\xD8\xAC\xD8\xA7\xD9\x87\xD8\xB2" || methodName == "is_ready" ||
                     methodName == "isReady")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_FUTURE_IS_READY);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
@@ -401,11 +402,11 @@ namespace Sad
             }
 
             // ================================================================
-            // buildWaitGroupMethodCall — طرق مجموعة الانتظار
+            // b_.buildWaitGroupMethodCall — طرق مجموعة الانتظار
             // (AR) أضف/أنهي/انتظر/العداد
             // (EN) add/done/wait/count
             // ================================================================
-            std::optional<BuildResult> SIRBuilder::buildWaitGroupMethodCall(
+            std::optional<BuildResult> MethodCallBuilder::buildWaitGroupMethodCall(
                 AST::MethodCallExpr *expr, const BuildResult &objResult)
             {
                 std::string methodName = expr->methodName;
@@ -417,7 +418,7 @@ namespace Sad
                     SIROperand countOp;
                     if (!expr->arguments.empty())
                     {
-                        auto argResult = buildExpression(expr->arguments[0].get());
+                        auto argResult = b_.buildExpression(expr->arguments[0].get());
                         countOp = toSafeOperand(argResult);
                     }
                     else
@@ -427,8 +428,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::ASYNC_WG_ADD);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     inst.operands.push_back(countOp);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -438,8 +439,8 @@ namespace Sad
                 {
                     SIRInstruction inst(SIROpcode::ASYNC_WG_DONE);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -448,8 +449,8 @@ namespace Sad
                 {
                     SIRInstruction inst(SIROpcode::ASYNC_WG_WAIT);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -457,12 +458,12 @@ namespace Sad
                 if (methodName == "\xD8\xA7\xD9\x84\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF" || methodName == "count" ||
                     methodName == "getCount")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_WG_COUNT);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 

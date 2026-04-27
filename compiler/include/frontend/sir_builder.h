@@ -39,6 +39,7 @@
 #include "pattern_nodes.h"
 #include "advanced_expr_nodes.h"
 #include "property_nodes.h"
+#include "builders/method_call_builder.h"
 #include <memory>
 #include <string>
 #include <set>
@@ -1039,67 +1040,44 @@ namespace Sad
                 // (EN) Helper functions for buildMethodCall — extracted per CW-05/CW-01
                 //      Each method group in a separate file for maintainability
                 // ================================================================
+                // ==================================================================
+                // (AR) Phase 6 — Step 2: استدعاءات الطرق على الأنواع المدمجة
+                //      نُقلت إلى class MethodCallBuilder. الـ8 methods أدناه
+                //      هي wrappers inline تُفوّض إلى methodCalls_.
+                // (EN) Phase 6 — Step 2: built-in type method calls were moved
+                //      to class MethodCallBuilder. The 8 inline wrappers below
+                //      delegate to methodCalls_.
+                // ==================================================================
 
-                /**
-                 * @brief (AR) بناء استدعاء طريقة قناة (أرسل/استقبل/أغلق/الحجم...)
-                 * @brief (EN) Build channel method call (send/recv/close/size...)
-                 * @return std::nullopt إذا لم تُتعرف الطريقة / if method not recognized
-                 */
-                std::optional<BuildResult> buildChannelMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult);
+                std::optional<BuildResult> buildChannelMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult)
+                { return methodCalls_->buildChannelMethodCall(expr, objResult); }
 
-                /**
-                 * @brief (AR) بناء استدعاء طريقة قفل (اقفل/افتح/مقفل/حاول_قفل)
-                 * @brief (EN) Build mutex method call (lock/unlock/is_locked/try_lock)
-                 * @return std::nullopt إذا لم تُتعرف الطريقة / if method not recognized
-                 */
-                std::optional<BuildResult> buildMutexMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult);
+                std::optional<BuildResult> buildMutexMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult)
+                { return methodCalls_->buildMutexMethodCall(expr, objResult); }
 
-                /**
-                 * @brief (AR) بناء استدعاء طريقة مستقبل (عيّن/احصل/جاهز)
-                 * @brief (EN) Build future method call (set/get/is_ready)
-                 * @return std::nullopt إذا لم تُتعرف الطريقة / if method not recognized
-                 */
-                std::optional<BuildResult> buildFutureMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult);
+                std::optional<BuildResult> buildFutureMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult)
+                { return methodCalls_->buildFutureMethodCall(expr, objResult); }
 
-                /**
-                 * @brief (AR) بناء استدعاء طريقة مجموعة انتظار (أضف/أنهي/انتظر/العداد)
-                 * @brief (EN) Build waitgroup method call (add/done/wait/count)
-                 * @return std::nullopt إذا لم تُتعرف الطريقة / if method not recognized
-                 */
-                std::optional<BuildResult> buildWaitGroupMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult);
+                std::optional<BuildResult> buildWaitGroupMethodCall(AST::MethodCallExpr *expr, const BuildResult &objResult)
+                { return methodCalls_->buildWaitGroupMethodCall(expr, objResult); }
 
-                /**
-                 * @brief (AR) بناء استدعاء طرق المصفوفات المضمنة (أضف/حجم/أزل/فارغة/يحتوي/رتب...)
-                 * @brief (EN) Build builtin array method call (push/size/remove/empty/contains/sort...)
-                 * @return std::nullopt إذا لم تُتعرف الطريقة / if method not recognized
-                 */
                 std::optional<BuildResult> buildArrayBasicMethodCall(const BuildResult &objResult,
-                                                                     const std::string &methodName, const std::vector<SIROperand> &args);
+                                                                     const std::string &methodName, const std::vector<SIROperand> &args)
+                { return methodCalls_->buildArrayBasicMethodCall(objResult, methodName, args); }
 
-                /**
-                 * @brief (AR) بناء استدعاء طرق المصفوفات العليا (خريطة/رشح/اختزل/لكل)
-                 * @brief (EN) Build higher-order array method call (map/filter/reduce/forEach)
-                 * @return std::nullopt إذا لم تُتعرف الطريقة / if method not recognized
-                 */
                 std::optional<BuildResult> buildArrayHigherOrderMethodCall(const BuildResult &objResult,
                                                                            const std::string &methodName, const std::vector<SIROperand> &args,
-                                                                           const std::string &closureLambdaName, SadTypeKind closureRetType);
+                                                                           const std::string &closureLambdaName, SadTypeKind closureRetType)
+                { return methodCalls_->buildArrayHigherOrderMethodCall(objResult, methodName, args, closureLambdaName, closureRetType); }
 
-                /**
-                 * @brief (AR) بناء استدعاء طرق النصوص المضمنة (قسم/استبدل/يبدأ_بـ/ينتهي_بـ...)
-                 * @brief (EN) Build builtin string method call (split/replace/startsWith/endsWith...)
-                 * @return std::nullopt إذا لم تُتعرف الطريقة / if method not recognized
-                 */
                 std::optional<BuildResult> buildStringBuiltinMethodCall(const BuildResult &objResult,
-                                                                        const std::string &methodName, const std::vector<SIROperand> &args);
+                                                                        const std::string &methodName, const std::vector<SIROperand> &args)
+                { return methodCalls_->buildStringBuiltinMethodCall(objResult, methodName, args); }
 
-                /**
-                 * @brief (AR) بناء استدعاء طرق الخرائط المضمنة (مفاتيح/قيم/حجم/فارغة/يحتوي)
-                 * @brief (EN) Build builtin map method call (keys/values/size/empty/contains)
-                 * @return std::nullopt إذا لم تُتعرف الطريقة / if method not recognized
-                 */
                 std::optional<BuildResult> buildMapBuiltinMethodCall(const BuildResult &objResult,
-                                                                     const std::string &methodName, const std::vector<SIROperand> &args);
+                                                                     const std::string &methodName, const std::vector<SIROperand> &args)
+                { return methodCalls_->buildMapBuiltinMethodCall(objResult, methodName, args); }
+
 
                 // ================================================================
                 // (AR) فحص استيراد الوحدات القياسية — توحيد سلوك المترجم مع المفسر
@@ -1454,6 +1432,11 @@ namespace Sad
                 //      inherits from it; direct field access keeps working unchanged.
                 // ==================================================================
 
+                // ==================================================================
+                // (AR) Phase 6 — Step 2: بنّاء استدعاءات الطرق المنفصل
+                // (EN) Phase 6 — Step 2: separated method-call builder
+                // ==================================================================
+                std::unique_ptr<MethodCallBuilder> methodCalls_;
 
                 /**
                  * @brief (AR) تجميع وحدة وحفظها في الذاكرة المخبئية

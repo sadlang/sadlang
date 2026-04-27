@@ -40,7 +40,13 @@ endif()
 # Frontend Library (SIR)
 # ============================================================================
 file(GLOB FRONTEND_SOURCES "src/frontend/*.cpp")
+# (AR) Phase 6 — Step 2: ضم ملفات builders/ المنفصلة (MethodCallBuilder وغيرها)
+# (EN) Phase 6 — Step 2: include separated builders/ files (MethodCallBuilder etc.)
+file(GLOB FRONTEND_BUILDERS_SOURCES "src/frontend/builders/*.cpp")
+list(APPEND FRONTEND_SOURCES ${FRONTEND_BUILDERS_SOURCES})
 file(GLOB FRONTEND_HEADERS "include/frontend/*.h")
+file(GLOB FRONTEND_BUILDERS_HEADERS "include/frontend/builders/*.h")
+list(APPEND FRONTEND_HEADERS ${FRONTEND_BUILDERS_HEADERS})
 
 # (AR) استبعاد الملف القديم sir_builder.cpp لتجنب التكرار مع الملفات المُقسَّمة
 # (EN) Exclude legacy sir_builder.cpp to avoid duplication with split files

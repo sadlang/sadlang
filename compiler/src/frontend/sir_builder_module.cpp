@@ -53,6 +53,9 @@ namespace Sad
             {
                 // (AR) جميع الحقول مُهيّأة في SIRBuilderContext (base class) بقيم افتراضية
                 // (EN) All fields are default-initialized in SIRBuilderContext (base class)
+                // (AR) تهيئة بنّاء استدعاءات الطرق (Phase 6 Step 2)
+                // (EN) Initialize method-call builder (Phase 6 Step 2)
+                methodCalls_ = std::make_unique<MethodCallBuilder>(*this);
                 // (AR) „״§ ״×ˆ״¬״¯ ״×‡״¦״© ״¥״¶״§״© …״·„ˆ״¨״©
                 // (EN) No additional initialization required
             }

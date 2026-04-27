@@ -8,6 +8,7 @@
 #include <string>
 #include <optional>
 #include "sir_builder.h"
+#include "builders/method_call_builder.h"
 
 namespace Sad
 {
@@ -15,14 +16,14 @@ namespace Sad
     {
         namespace SIR
         {
-            std::optional<BuildResult> SIRBuilder::buildArrayBasicMethodCall(
+            std::optional<BuildResult> MethodCallBuilder::buildArrayBasicMethodCall(
                 const BuildResult &objResult, const std::string &methodName,
                 const std::vector<SIROperand> &args)
             {
                 if (methodName == "أضف" || methodName == "اضف" ||
                     methodName == "push" || methodName == "append")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_APPEND);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Void);
                     // (AR) ??????? ?????: ????????? ??????: ?????? ???????
@@ -32,9 +33,9 @@ namespace Sad
                     {
                         inst.operands.push_back(args[1]); // (AR) ?????? (args[0] ?? self)
                     }
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(inst);
+                        b_.currentBlock_->instructions.push_back(inst);
                     }
                     return BuildResult(resultReg, SadTypeKind::Void);
                 }
@@ -50,22 +51,22 @@ namespace Sad
                     // (EN) Check: is object a string? ? use BUILTIN_STRING_LENGTH
                     if (objResult.type == SadTypeKind::String)
                     {
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIRInstruction inst(SIROpcode::BUILTIN_STRING_LENGTH);
                         inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                         inst.operands.push_back(SIROperand::Register(objResult.registerName, SadTypeKind::String));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(inst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(inst);
                         return BuildResult(resultReg, SadTypeKind::Integer);
                     }
                     // (AR) ???? ???: ?????? ? ARRAY_LEN
                     // (EN) Otherwise: array ? ARRAY_LEN
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ARRAY_LEN);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -74,12 +75,12 @@ namespace Sad
                 if (methodName == "أزل" || methodName == "ازل" ||
                     methodName == "pop" || methodName == "remove_last")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REMOVE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer); // (AR) ?????? ???????
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -92,22 +93,22 @@ namespace Sad
                 {
                     // (AR) ?????? 1: ?????? ??? ?????
                     // (EN) Step 1: Get size
-                    std::string sizeReg = newTempRegister();
+                    std::string sizeReg = b_.newTempRegister();
                     SIRInstruction sizeInst(SIROpcode::ARRAY_LEN);
                     sizeInst.result = SIROperand::Register(sizeReg, SadTypeKind::Integer);
                     sizeInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(sizeInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(sizeInst);
 
                     // (AR) ?????? 2: ?????? size == 0
                     // (EN) Step 2: Compare size == 0
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction cmpInst(SIROpcode::EQ);
                     cmpInst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     cmpInst.operands.push_back(SIROperand::Register(sizeReg, SadTypeKind::Integer));
                     cmpInst.operands.push_back(SIROperand::ConstantI64(0));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(cmpInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(cmpInst);
 
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -133,21 +134,21 @@ namespace Sad
                     // (EN) Check: is object a string? ? use BUILTIN_STRING_CONTAINS
                     if (objResult.type == SadTypeKind::String)
                     {
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIRInstruction inst(SIROpcode::BUILTIN_STRING_CONTAINS);
                         inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                         inst.operands.push_back(SIROperand::Register(objResult.registerName, SadTypeKind::String));
                         if (args.size() > 1)
                             inst.operands.push_back(args[1]);
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(inst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(inst);
                         return BuildResult(resultReg, SadTypeKind::Boolean);
                     }
                     // (AR) ?? ?????? ?????? ? ?????? __sad_map_has
                     // (EN) Is object a map? ? use __sad_map_has
                     if (objResult.type == SadTypeKind::Map)
                     {
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIRInstruction inst;
                         inst.opcode = SIROpcode::CALL;
                         inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
@@ -156,13 +157,13 @@ namespace Sad
                         if (args.size() > 1)
                             inst.operands.push_back(args[1]);
                         inst.comment = "map has key (contains)";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(inst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(inst);
                         return BuildResult(resultReg, SadTypeKind::Boolean);
                     }
                     // (AR) ???? ???: ?????? ? BUILTIN_ARRAY_CONTAINS
                     // (EN) Otherwise: array ? BUILTIN_ARRAY_CONTAINS
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_CONTAINS);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
@@ -170,8 +171,8 @@ namespace Sad
                     {
                         inst.operands.push_back(args[1]); // (AR) ?????? ??????? ????? ???
                     }
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
@@ -187,7 +188,7 @@ namespace Sad
                 //      Fix: same pattern as builtin sort() in sir_builder_builtins_strings_arrays.cpp
                 if (methodName == "رتب" || methodName == "sort")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SORT);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Array);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
@@ -197,8 +198,8 @@ namespace Sad
                     //      String → __sad_str_cmp (strcmp), Integer → __sad_i64_cmp
                     inst.operands.push_back(SIROperand::ConstantI64(
                         static_cast<int64_t>(objResult.elementType)));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     BuildResult result(resultReg, SadTypeKind::Array);
                     result.elementType = objResult.elementType;
                     return result;
@@ -209,12 +210,12 @@ namespace Sad
                 if (methodName == "اعكس" || methodName == "عكس" ||
                     methodName == "عكّس" || methodName == "reverse")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REVERSE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Array);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Array);
                 }
 
@@ -223,7 +224,7 @@ namespace Sad
                 if (methodName == "فهرس" || methodName == "indexOf" ||
                     methodName == "index_of")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_INDEX_OF);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
@@ -231,8 +232,8 @@ namespace Sad
                     {
                         inst.operands.push_back(args[1]); // (AR) ?????? ??????? ????? ???
                     }
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -241,12 +242,12 @@ namespace Sad
                 if (methodName == "أول" || methodName == "اول" ||
                     methodName == "first")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_FIRST);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -255,12 +256,12 @@ namespace Sad
                 if (methodName == "آخر" || methodName == "اخر" ||
                     methodName == "last")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_LAST);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -268,7 +269,7 @@ namespace Sad
                 // (EN) slice � extract a sub-array from start to end
                 if (methodName == "شريحة" || methodName == "slice")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SLICE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Array);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
@@ -278,8 +279,8 @@ namespace Sad
                         inst.operands.push_back(args[1]);
                     if (args.size() > 2)
                         inst.operands.push_back(args[2]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Array);
                 }
 
@@ -288,12 +289,12 @@ namespace Sad
                 if (methodName == "احذف_اخير" || methodName == "احذف_آخر" ||
                     methodName == "pop_back")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REMOVE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -301,19 +302,19 @@ namespace Sad
                 // (EN) length property (aliased)
                 if (methodName == "الطول" || methodName == "الحجم")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ARRAY_LEN);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
                 return std::nullopt;
             }
 
-            // === buildArrayHigherOrderMethodCall ===
+            // === b_.buildArrayHigherOrderMethodCall ===
         } // namespace SIR
     } // namespace Compiler
 } // namespace Sad
