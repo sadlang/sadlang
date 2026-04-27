@@ -163,15 +163,16 @@ set(SAD_BUILTINS_SOURCES
     ${SAD_ROOT_DIR}/interpreter/src/builtins/builtin_core_io.cpp
     ${SAD_BUILTIN_MODULES}
     ${SAD_BUILTIN_KERNELS}
-    ${SAD_ROOT_DIR}/stdlib/core/builtins.cpp
+    # (AR) Phase 5 (F-05): builtins.cpp في shared/builtins/runtime/
+    ${SAD_ROOT_DIR}/shared/builtins/runtime/builtins.cpp
 )
 
 # --- Stdlib (أنواع أساسية + system) ---
 set(SAD_STDLIB_SOURCES
-    ${SAD_ROOT_DIR}/stdlib/core/stdlib_manager.cpp
-    ${SAD_ROOT_DIR}/stdlib/core/type_functions.cpp
-    ${SAD_ROOT_DIR}/stdlib/core/array_functions.cpp
-    ${SAD_ROOT_DIR}/stdlib/core/other_functions.cpp
+    ${SAD_ROOT_DIR}/shared/builtins/runtime/stdlib_manager.cpp
+    ${SAD_ROOT_DIR}/shared/builtins/runtime/type_functions.cpp
+    ${SAD_ROOT_DIR}/shared/builtins/runtime/array_functions.cpp
+    ${SAD_ROOT_DIR}/shared/builtins/runtime/other_functions.cpp
     ${SAD_ROOT_DIR}/stdlib/string/string_functions.cpp
     ${SAD_ROOT_DIR}/stdlib/math/math_functions.cpp
     ${SAD_ROOT_DIR}/stdlib/math/advanced_math.cpp
@@ -251,7 +252,7 @@ target_include_directories(sad_app PRIVATE
     ${SAD_ROOT_DIR}/interpreter/include/visitors
     ${SAD_ROOT_DIR}/interpreter/include/managers
     ${SAD_ROOT_DIR}/interpreter/include/debug
-    ${SAD_ROOT_DIR}/stdlib/core
+    ${SAD_ROOT_DIR}/shared/builtins/runtime
     ${SAD_ROOT_DIR}/stdlib/string
     ${SAD_ROOT_DIR}/stdlib/math
     ${SAD_ROOT_DIR}/stdlib/io

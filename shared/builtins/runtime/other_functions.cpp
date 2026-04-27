@@ -7,7 +7,7 @@
  */
 
 #include "other_functions.h"
-#include "../../interpreter/include/exception.h"
+#include "exception.h"
 #include <iostream>
 #include <string>
 #include <cstdlib>

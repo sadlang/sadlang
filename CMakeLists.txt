@@ -115,7 +115,9 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/stdlib/network
     ${CMAKE_SOURCE_DIR}/stdlib
     ${CMAKE_SOURCE_DIR}/stdlib/network
-    ${CMAKE_SOURCE_DIR}/stdlib/core
+    # (AR) Phase 5 (F-05): runtime الأساسي نُقل إلى shared/builtins/runtime/
+    # (EN) Phase 5 (F-05): core runtime moved to shared/builtins/runtime/
+    ${CMAKE_SOURCE_DIR}/shared/builtins/runtime
     ${CMAKE_SOURCE_DIR}/stdlib/low_level/include
     ${CMAKE_SOURCE_DIR}/stdlib/mobile
     ${CMAKE_SOURCE_DIR}/compiler/frontend/include

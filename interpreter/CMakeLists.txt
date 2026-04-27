@@ -49,8 +49,9 @@ target_include_directories(sad_interpreter
         ${CMAKE_CURRENT_SOURCE_DIR}/include/managers
         ${CMAKE_CURRENT_SOURCE_DIR}/include/builtins
         ${CMAKE_CURRENT_SOURCE_DIR}/include/debug
-        # stdlib headers needed by builtin_registry.cpp
-        ${CMAKE_SOURCE_DIR}/stdlib/core
+        # (AR) Phase 5 (F-05): runtime الأساسي في shared/builtins/runtime/
+        # (EN) Phase 5 (F-05): core runtime in shared/builtins/runtime/
+        ${CMAKE_SOURCE_DIR}/shared/builtins/runtime
         ${CMAKE_SOURCE_DIR}/stdlib
 )
 

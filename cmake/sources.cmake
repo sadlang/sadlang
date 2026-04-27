@@ -177,9 +177,11 @@ set(OOP_INTERPRETER_SOURCES)
 
 # ──────────────────────────────────────────────────────────────────────
 # 8. الدوال المضمنة / Built-in Functions
+# (AR) Phase 5 (F-05): builtins.cpp نُقل إلى shared/builtins/runtime/
+# (EN) Phase 5 (F-05): builtins.cpp moved to shared/builtins/runtime/
 # ──────────────────────────────────────────────────────────────────────
 set(BUILTINS_SOURCES
-    stdlib/core/builtins.cpp
+    shared/builtins/runtime/builtins.cpp
 )
 
 # ──────────────────────────────────────────────────────────────────────
@@ -201,12 +203,14 @@ set(ERROR_SOURCES
 
 # ──────────────────────────────────────────────────────────────────────
 # 10. المكتبة القياسية / Standard Library
+# (AR) Phase 5 (F-05): الجزء الأساسي نُقل إلى shared/builtins/runtime/
+# (EN) Phase 5 (F-05): core runtime moved to shared/builtins/runtime/
 # ──────────────────────────────────────────────────────────────────────
 set(STDLIB_SOURCES
-    stdlib/core/stdlib_manager.cpp
-    stdlib/core/type_functions.cpp
-    stdlib/core/array_functions.cpp
-    stdlib/core/other_functions.cpp
+    shared/builtins/runtime/stdlib_manager.cpp
+    shared/builtins/runtime/type_functions.cpp
+    shared/builtins/runtime/array_functions.cpp
+    shared/builtins/runtime/other_functions.cpp
     stdlib/string/string_functions.cpp
     stdlib/math/math_functions.cpp
     stdlib/math/advanced_math.cpp

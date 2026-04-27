@@ -27,11 +27,11 @@
 #endif
 
 // (AR) المكتبة القياسية / (EN) Standard Library Manager
-#include "../../../stdlib/core/stdlib_manager.h"
+#include "stdlib_manager.h"
 
 // (AR) دوال الإدخال والإخراج — لتسجيل callback عامل نص()
 // (EN) I/O Functions — for registering نص() operator callback
-#include "../../../stdlib/io/io_functions.h"
+#include "io/io_functions.h"
 
 // (AR) مدير الأصناف — للوصول إلى عامل نص() من الـ callback
 // (EN) Class manager — for accessing نص() operator from callback
