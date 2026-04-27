@@ -43,6 +43,7 @@
 #include "builders/builtin_builder.h"
 #include "builders/call_builder.h"
 #include "builders/class_builder.h"
+#include "builders/statement_builder.h"
 #include <memory>
 #include <string>
 #include <set>
@@ -566,6 +567,7 @@ namespace Sad
                 friend class BuiltinBuilder;
                 friend class CallBuilder;
                 friend class ClassBuilder;
+                friend class StatementBuilder;
 
             public:
                 // ==================================================================
@@ -758,7 +760,9 @@ namespace Sad
                  *
                  * @param stmt (AR) عقدة الجملة / (EN) Statement node
                  */
-                void buildStatement(AST::Statement *stmt);
+                void buildStatement(Sad::AST::Statement *stmt)
+                { statements_->buildStatement(stmt); }
+
 
                 /**
                  * @brief (AR) بناء جملة if مع else اختياري
@@ -770,7 +774,9 @@ namespace Sad
                  * (AR) يبني CFG مع basic blocks للشرط وthen وelse
                  * (EN) Builds CFG with basic blocks for condition, then, and else
                  */
-                void buildIfStatement(AST::IfStmt *ifStmt);
+                void buildIfStatement(Sad::AST::IfStmt *ifStmt)
+                { statements_->buildIfStatement(ifStmt); }
+
 
                 /**
                  * @brief (AR) بناء جملة match (مطابقة أنماط)
@@ -782,7 +788,9 @@ namespace Sad
                  * (AR) يحول match إلى سلسلة BR_COND باستخدام SIR الموجود
                  * (EN) Lowers match to chain of BR_COND using existing SIR
                  */
-                void buildMatchStatement(Sad::AST::MatchStmt *matchStmt);
+                void buildMatchStatement(Sad::AST::MatchStmt *matchStmt)
+                { statements_->buildMatchStatement(matchStmt); }
+
 
                 /**
                  * @brief (AR) بناء حلقة while
@@ -790,7 +798,9 @@ namespace Sad
                  *
                  * @param whileLoop (AR) حلقة while / (EN) While loop
                  */
-                void buildWhileLoop(AST::WhileStmt *whileLoop);
+                void buildWhileLoop(Sad::AST::WhileStmt *whileLoop)
+                { statements_->buildWhileLoop(whileLoop); }
+
 
                 /**
                  * @brief (AR) بناء حلقة for
@@ -798,7 +808,9 @@ namespace Sad
                  *
                  * @param forLoop (AR) حلقة for / (EN) For loop
                  */
-                void buildForLoop(AST::ForStmt *forLoop);
+                void buildForLoop(Sad::AST::ForStmt *forLoop)
+                { statements_->buildForLoop(forLoop); }
+
 
                 /**
                  * @brief (AR) بناء حلقة for-range (لكل في)
@@ -806,7 +818,9 @@ namespace Sad
                  *
                  * @param forRange (AR) حلقة لكل في / (EN) For-range loop
                  */
-                void buildForRangeLoop(AST::ForRangeStmt *forRange);
+                void buildForRangeLoop(Sad::AST::ForRangeStmt *forRange)
+                { statements_->buildForRangeLoop(forRange); }
+
 
                 /**
                  * @brief (AR) بناء جملة return
@@ -814,7 +828,9 @@ namespace Sad
                  *
                  * @param retStmt (AR) جملة return / (EN) Return statement
                  */
-                void buildReturnStatement(AST::ReturnStmt *retStmt);
+                void buildReturnStatement(Sad::AST::ReturnStmt *retStmt)
+                { statements_->buildReturnStatement(retStmt); }
+
 
                 /**
                  * @brief (AR) بناء جملة break
@@ -822,7 +838,9 @@ namespace Sad
                  *
                  * @param breakStmt (AR) جملة break / (EN) Break statement
                  */
-                void buildBreakStatement(AST::BreakStmt *breakStmt);
+                void buildBreakStatement(Sad::AST::BreakStmt *breakStmt)
+                { statements_->buildBreakStatement(breakStmt); }
+
 
                 /**
                  * @brief (AR) بناء جملة continue
@@ -830,7 +848,9 @@ namespace Sad
                  *
                  * @param continueStmt (AR) جملة continue / (EN) Continue statement
                  */
-                void buildContinueStatement(AST::ContinueStmt *continueStmt);
+                void buildContinueStatement(Sad::AST::ContinueStmt *continueStmt)
+                { statements_->buildContinueStatement(continueStmt); }
+
 
                 /**
                  * @brief (AR) بناء إسناد متغير
@@ -838,7 +858,9 @@ namespace Sad
                  *
                  * @param assignment (AR) جملة الإسناد / (EN) Assignment statement
                  */
-                void buildAssignment(AST::AssignExpr *assignment);
+                void buildAssignment(Sad::AST::AssignExpr *assignment)
+                { statements_->buildAssignment(assignment); }
+
 
                 /**
                  * @brief (AR) بناء إغلاق مخفي لجسم defer من جملة خام
@@ -847,19 +869,25 @@ namespace Sad
                  * @param stmt (AR) الجملة المؤجلة / (EN) Deferred statement body
                  * @return (AR) الإغلاق الناتج / (EN) Resulting closure value
                  */
-                BuildResult buildDeferredClosure(AST::Statement *stmt);
+                BuildResult buildDeferredClosure(Sad::AST::Statement *stmt)
+                { return statements_->buildDeferredClosure(stmt); }
+
 
                 /**
                  * @brief (AR) تنفيذ كل الإغلاقات المؤجلة للدالة الحالية بترتيب LIFO مرة واحدة فقط
                  * @brief (EN) Execute all deferred closures for the current function in LIFO order exactly once
                  */
-                void emitRunDeferredClosures();
+                void emitRunDeferredClosures()
+                { statements_->emitRunDeferredClosures(); }
+
 
                 /**
                  * @brief (AR) إزالة معالج تنظيف الدالة الحالي إذا كان مفعلاً
                  * @brief (EN) Pop the current function cleanup handler if active
                  */
-                void emitPopFunctionCleanupHandler();
+                void emitPopFunctionCleanupHandler()
+                { statements_->emitPopFunctionCleanupHandler(); }
+
 
                 /**
                  * @brief (AR) بناء تصريح متغير محلي
@@ -867,7 +895,9 @@ namespace Sad
                  *
                  * @param varDecl (AR) تصريح المتغير / (EN) Variable declaration
                  */
-                void buildLocalVariable(AST::VarDeclStmt *varDecl);
+                void buildLocalVariable(Sad::AST::VarDeclStmt *varDecl)
+                { statements_->buildLocalVariable(varDecl); }
+
 
                 // ==================================================================
                 // بناء التعابير / Building Expressions
@@ -1472,6 +1502,12 @@ namespace Sad
                 // ==================================================================
                 std::unique_ptr<ClassBuilder> classes_;
 
+                // ==================================================================
+                // (AR) Phase 6 — Step 6: بنّاء العبارات المنفصل
+                // (EN) Phase 6 — Step 6: separated statement builder
+                // ==================================================================
+                std::unique_ptr<StatementBuilder> statements_;
+
                 /**
                  * @brief (AR) تجميع وحدة وحفظها في الذاكرة المخبئية
                  *        (EN) Compile module and save to cache
@@ -1652,41 +1688,57 @@ namespace Sad
 
 
                 // ── دوال فرعية لتقسيم buildStatement ──
-                bool buildStatement_Exceptions(AST::Statement *stmt);
-                bool buildStatement_Generators(AST::Statement *stmt);
-                bool buildStatement_Types(AST::Statement *stmt);
-                bool buildStatement_Advanced(AST::Statement *stmt);
+                bool buildStatement_Exceptions(Sad::AST::Statement *stmt)
+                { return statements_->buildStatement_Exceptions(stmt); }
+                bool buildStatement_Generators(Sad::AST::Statement *stmt)
+                { return statements_->buildStatement_Generators(stmt); }
+                bool buildStatement_Types(Sad::AST::Statement *stmt)
+                { return statements_->buildStatement_Types(stmt); }
+
+                bool buildStatement_Advanced(Sad::AST::Statement *stmt)
+                { return statements_->buildStatement_Advanced(stmt); }
+
 
                 // ── دوال مساعدة مستخرجة من buildStatement_Advanced (CW-05, CW-03) ──
                 /**
                  * @brief (AR) معالجة TestDecl — اختبار عادي واختبار خصائص
                  * @brief (EN) Handle TestDecl — normal test and property-based test
                  */
-                bool buildStatement_Test(AST::Statement *stmt);
+                bool buildStatement_Test(Sad::AST::Statement *stmt)
+                { return statements_->buildStatement_Test(stmt); }
+
 
                 /**
                  * @brief (AR) معالجة PropertyDecl — getter/setter
                  * @brief (EN) Handle PropertyDecl — getter/setter lowering
                  */
-                bool buildStatement_Property(AST::Statement *stmt);
+                bool buildStatement_Property(Sad::AST::Statement *stmt)
+                { return statements_->buildStatement_Property(stmt); }
+
 
                 /**
                  * @brief (AR) معالجة GoStmt — goroutine (أطلق)
                  * @brief (EN) Handle GoStmt — concurrent goroutine spawn
                  */
-                bool buildStatement_Go(AST::Statement *stmt);
+                bool buildStatement_Go(Sad::AST::Statement *stmt)
+                { return statements_->buildStatement_Go(stmt); }
+
 
                 /**
                  * @brief (AR) معالجة SelectStmt — اختر من قنوات متعددة
                  * @brief (EN) Handle SelectStmt — channel select multiplexer
                  */
-                bool buildStatement_Select(AST::Statement *stmt);
+                bool buildStatement_Select(Sad::AST::Statement *stmt)
+                { return statements_->buildStatement_Select(stmt); }
+
 
                 /**
                  * @brief (AR) معالجة ExtensionDecl — امتداد صنف موجود
                  * @brief (EN) Handle ExtensionDecl — extension methods for existing class
                  */
-                bool buildStatement_Extension(AST::Statement *stmt);
+                bool buildStatement_Extension(Sad::AST::Statement *stmt)
+                { return statements_->buildStatement_Extension(stmt); }
+
 
                 /**
                  * @brief (AR) معالجة TypeAliasDecl + ReExportStmt — أسماء مستعارة وإعادة تصدير

@@ -18,6 +18,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -36,7 +37,7 @@ namespace Sad
         namespace SIR
         {
 
-            BuildResult SIRBuilder::buildDeferredClosure(AST::Statement *stmt)
+            BuildResult StatementBuilder::buildDeferredClosure(AST::Statement *stmt)
             {
                 if (!stmt)
                 {
@@ -48,22 +49,22 @@ namespace Sad
                 //      القائمة الثابتة من AST لا تكفي لهذه الحالة.
                 // (EN) Reuse the existing lambda/closure system with a raw statement body
                 //      because defer must capture runtime values inside loops or before exit.
-                std::string lambdaName = "__defer_" + std::to_string(nextTempRegister_++);
+                std::string lambdaName = "__defer_" + std::to_string(b_.nextTempRegister_++);
 
                 std::set<std::string> freeVars;
                 std::set<std::string> boundNames;
-                collectFreeVarsStmt(stmt, boundNames, freeVars);
+                b_.collectFreeVarsStmt(stmt, boundNames, freeVars);
 
-                std::vector<CaptureInfo> captures;
+                std::vector<SIRBuilderContext::CaptureInfo> captures;
                 for (const auto &freeVar : freeVars)
                 {
-                    auto *varPtr = lookupVariable(freeVar);
+                    auto *varPtr = b_.lookupVariable(freeVar);
                     if (!varPtr)
                     {
                         continue;
                     }
 
-                    CaptureInfo captureInfo;
+                    SIRBuilderContext::CaptureInfo captureInfo;
                     captureInfo.varName = freeVar;
                     captureInfo.registerName = varPtr->registerName;
                     captureInfo.type = varPtr->type;
@@ -72,7 +73,7 @@ namespace Sad
 
                 if (!captures.empty())
                 {
-                    closureCaptures_[lambdaName] = captures;
+                    b_.closureCaptures_[lambdaName] = captures;
                 }
 
                 std::vector<SIRParameter> sirParams;
@@ -81,26 +82,26 @@ namespace Sad
                 auto lambdaFunc = std::make_shared<SIRFunction>(lambdaName, SadTypeKind::Void);
                 lambdaFunc->addParameter(sirParams[0]);
 
-                auto savedCtx = saveContext();
+                auto savedCtx = b_.saveContext();
 
-                currentFunction_ = lambdaFunc;
-                auto entryBlock = createBasicBlock("defer_entry");
+                b_.currentFunction_ = lambdaFunc;
+                auto entryBlock = b_.createBasicBlock("defer_entry");
                 lambdaFunc->addBasicBlock(entryBlock);
-                currentBlock_ = entryBlock;
+                b_.currentBlock_ = entryBlock;
 
-                enterScope();
+                b_.enterScope();
 
                 for (size_t i = 0; i < captures.size(); ++i)
                 {
-                    std::string loadReg = newTempRegister();
+                    std::string loadReg = b_.newTempRegister();
                     SIRInstruction envLoadInst;
                     envLoadInst.opcode = SIROpcode::ENV_LOAD;
                     envLoadInst.result = SIROperand::Register(loadReg, captures[i].type);
                     envLoadInst.operands.push_back(SIROperand::Register("%__env", SadTypeKind::Integer));
                     envLoadInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i)));
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(envLoadInst);
+                        b_.currentBlock_->addInstruction(envLoadInst);
                     }
 
                     std::string allocaName = "%__defer_cap_" + captures[i].varName + "_" + std::to_string(i);
@@ -109,9 +110,9 @@ namespace Sad
                     storeInit.operands.push_back(SIROperand::Register(loadReg, captures[i].type));
                     storeInit.operands.push_back(SIROperand::Register(allocaName, captures[i].type));
                     storeInit.comment = "init deferred capture from env[" + std::to_string(i) + "]";
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(storeInit);
+                        b_.currentBlock_->addInstruction(storeInit);
                     }
 
                     VariableInfo capVar;
@@ -119,21 +120,21 @@ namespace Sad
                     capVar.type = captures[i].type;
                     capVar.registerName = allocaName;
                     capVar.isMutable = true;
-                    capVar.scopeLevel = currentScopeLevel_;
+                    capVar.scopeLevel = b_.currentScopeLevel_;
                     capVar.isCaptured = true;
                     capVar.captureIndex = static_cast<int>(i);
                     capVar.envRegister = "%__env";
-                    addVariable(capVar);
+                    b_.addVariable(capVar);
                 }
 
                 buildStatement(stmt);
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    bool needsRetVoid = currentBlock_->instructions.empty();
+                    bool needsRetVoid = b_.currentBlock_->instructions.empty();
                     if (!needsRetVoid)
                     {
-                        auto lastOpcode = currentBlock_->instructions.back().opcode;
+                        auto lastOpcode = b_.currentBlock_->instructions.back().opcode;
                         needsRetVoid = (lastOpcode != SIROpcode::RET &&
                                         lastOpcode != SIROpcode::RET_VOID &&
                                         lastOpcode != SIROpcode::CORO_RETURN &&
@@ -145,26 +146,26 @@ namespace Sad
                     {
                         SIRInstruction retVoid;
                         retVoid.opcode = SIROpcode::RET_VOID;
-                        currentBlock_->addInstruction(retVoid);
+                        b_.currentBlock_->addInstruction(retVoid);
                     }
                 }
 
-                exitScope();
+                b_.exitScope();
 
-                if (module_)
+                if (b_.module_)
                 {
-                    module_->addFunction(lambdaFunc);
+                    b_.module_->addFunction(lambdaFunc);
                 }
 
                 FunctionInfo lambdaInfo;
                 lambdaInfo.name = lambdaName;
                 lambdaInfo.returnType = SadTypeKind::Void;
                 lambdaInfo.parameters = sirParams;
-                functionTable_[lambdaName] = lambdaInfo;
+                b_.functionTable_[lambdaName] = lambdaInfo;
 
-                restoreContext(std::move(savedCtx));
+                b_.restoreContext(std::move(savedCtx));
 
-                std::string closureReg = newTempRegister();
+                std::string closureReg = b_.newTempRegister();
                 SIRInstruction closureInst;
                 closureInst.opcode = SIROpcode::CLOSURE_CREATE;
                 closureInst.result = SIROperand::Register(closureReg, SadTypeKind::Function);
@@ -172,17 +173,17 @@ namespace Sad
 
                 for (const auto &capture : captures)
                 {
-                    VariableInfo *capVar = lookupVariable(capture.varName);
+                    VariableInfo *capVar = b_.lookupVariable(capture.varName);
                     if (capVar)
                     {
-                        std::string capLoadReg = newTempRegister();
+                        std::string capLoadReg = b_.newTempRegister();
                         SIRInstruction capLoadInst;
                         capLoadInst.opcode = SIROpcode::LOAD;
                         capLoadInst.result = SIROperand::Register(capLoadReg, capVar->type);
                         capLoadInst.operands.push_back(SIROperand::Register(capVar->registerName, capVar->type));
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(capLoadInst);
+                            b_.currentBlock_->addInstruction(capLoadInst);
                         }
                         closureInst.operands.push_back(SIROperand::Register(capLoadReg, capVar->type));
                     }
@@ -192,9 +193,9 @@ namespace Sad
                     }
                 }
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(closureInst);
+                    b_.currentBlock_->addInstruction(closureInst);
                 }
 
                 BuildResult result(closureReg, SadTypeKind::Function);
@@ -204,155 +205,155 @@ namespace Sad
                 return result;
             }
 
-            void SIRBuilder::emitRunDeferredClosures()
+            void StatementBuilder::emitRunDeferredClosures()
             {
-                if (!currentFunction_ || !currentBlock_ || currentDeferStackReg_.empty() || currentDeferExecutedFlagReg_.empty())
+                if (!b_.currentFunction_ || !b_.currentBlock_ || b_.currentDeferStackReg_.empty() || b_.currentDeferExecutedFlagReg_.empty())
                 {
                     return;
                 }
 
-                std::string flagLoadReg = newTempRegister();
+                std::string flagLoadReg = b_.newTempRegister();
                 SIRInstruction loadFlag;
                 loadFlag.opcode = SIROpcode::LOAD;
                 loadFlag.result = SIROperand::Register(flagLoadReg, SadTypeKind::Integer);
-                loadFlag.operands.push_back(SIROperand::Register(currentDeferExecutedFlagReg_, SadTypeKind::Integer));
+                loadFlag.operands.push_back(SIROperand::Register(b_.currentDeferExecutedFlagReg_, SadTypeKind::Integer));
                 loadFlag.comment = "load defer executed flag";
-                currentBlock_->addInstruction(loadFlag);
+                b_.currentBlock_->addInstruction(loadFlag);
 
-                std::string flagCmpReg = newTempRegister();
+                std::string flagCmpReg = b_.newTempRegister();
                 SIRInstruction cmpFlag = SIRInstruction::Binary(
                     SIROpcode::NE,
                     SIROperand::Register(flagCmpReg, SadTypeKind::Boolean),
                     SIROperand::Register(flagLoadReg, SadTypeKind::Integer),
                     SIROperand::ConstantI64(0));
                 cmpFlag.comment = "defer already executed?";
-                currentBlock_->addInstruction(cmpFlag);
+                b_.currentBlock_->addInstruction(cmpFlag);
 
-                std::string runLabel = newLabel("defer_run");
-                std::string skipLabel = newLabel("defer_skip");
-                auto runBlock = createBasicBlock(runLabel);
-                auto skipBlock = createBasicBlock(skipLabel);
-                currentFunction_->addBasicBlock(runBlock);
-                currentFunction_->addBasicBlock(skipBlock);
+                std::string runLabel = b_.newLabel("defer_run");
+                std::string skipLabel = b_.newLabel("defer_skip");
+                auto runBlock = b_.createBasicBlock(runLabel);
+                auto skipBlock = b_.createBasicBlock(skipLabel);
+                b_.currentFunction_->addBasicBlock(runBlock);
+                b_.currentFunction_->addBasicBlock(skipBlock);
 
-                currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                b_.currentBlock_->addInstruction(SIRInstruction::BranchCond(
                     SIROperand::Register(flagCmpReg, SadTypeKind::Boolean),
                     SIROperand::Label(skipLabel),
                     SIROperand::Label(runLabel)));
 
-                currentBlock_ = runBlock;
+                b_.currentBlock_ = runBlock;
 
                 SIRInstruction storeFlag;
                 storeFlag.opcode = SIROpcode::STORE;
                 storeFlag.operands.push_back(SIROperand::ConstantI64(1));
-                storeFlag.operands.push_back(SIROperand::Register(currentDeferExecutedFlagReg_, SadTypeKind::Integer));
+                storeFlag.operands.push_back(SIROperand::Register(b_.currentDeferExecutedFlagReg_, SadTypeKind::Integer));
                 storeFlag.comment = "mark deferred closures executed";
-                currentBlock_->addInstruction(storeFlag);
+                b_.currentBlock_->addInstruction(storeFlag);
 
-                std::string lenReg = newTempRegister();
+                std::string lenReg = b_.newTempRegister();
                 SIRInstruction lenInst;
                 lenInst.opcode = SIROpcode::ARRAY_LEN;
                 lenInst.result = SIROperand::Register(lenReg, SadTypeKind::Integer);
-                lenInst.operands.push_back(SIROperand::Register(currentDeferStackReg_, SadTypeKind::Array));
+                lenInst.operands.push_back(SIROperand::Register(b_.currentDeferStackReg_, SadTypeKind::Array));
                 lenInst.comment = "load defer stack length";
-                currentBlock_->addInstruction(lenInst);
+                b_.currentBlock_->addInstruction(lenInst);
 
-                std::string idxAllocaReg = newTempRegister();
+                std::string idxAllocaReg = b_.newTempRegister();
                 SIRInstruction allocIdx;
                 allocIdx.opcode = SIROpcode::ALLOC;
                 allocIdx.result = SIROperand::Register(idxAllocaReg, SadTypeKind::Integer);
                 allocIdx.comment = "alloca defer reverse index";
-                currentBlock_->addInstruction(allocIdx);
+                b_.currentBlock_->addInstruction(allocIdx);
 
-                std::string startIdxReg = newTempRegister();
+                std::string startIdxReg = b_.newTempRegister();
                 SIRInstruction initIdx = SIRInstruction::Binary(
                     SIROpcode::SUB_I64,
                     SIROperand::Register(startIdxReg, SadTypeKind::Integer),
                     SIROperand::Register(lenReg, SadTypeKind::Integer),
                     SIROperand::ConstantI64(1));
                 initIdx.comment = "start defer index = len - 1";
-                currentBlock_->addInstruction(initIdx);
+                b_.currentBlock_->addInstruction(initIdx);
 
                 SIRInstruction storeIdx;
                 storeIdx.opcode = SIROpcode::STORE;
                 storeIdx.operands.push_back(SIROperand::Register(startIdxReg, SadTypeKind::Integer));
                 storeIdx.operands.push_back(SIROperand::Register(idxAllocaReg, SadTypeKind::Integer));
                 storeIdx.comment = "store initial defer index";
-                currentBlock_->addInstruction(storeIdx);
+                b_.currentBlock_->addInstruction(storeIdx);
 
-                std::string condLabel = newLabel("defer_cond");
-                std::string bodyLabel = newLabel("defer_body");
-                auto condBlock = createBasicBlock(condLabel);
-                auto bodyBlock = createBasicBlock(bodyLabel);
-                currentFunction_->addBasicBlock(condBlock);
-                currentFunction_->addBasicBlock(bodyBlock);
-                currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
+                std::string condLabel = b_.newLabel("defer_cond");
+                std::string bodyLabel = b_.newLabel("defer_body");
+                auto condBlock = b_.createBasicBlock(condLabel);
+                auto bodyBlock = b_.createBasicBlock(bodyLabel);
+                b_.currentFunction_->addBasicBlock(condBlock);
+                b_.currentFunction_->addBasicBlock(bodyBlock);
+                b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
 
-                currentBlock_ = condBlock;
+                b_.currentBlock_ = condBlock;
 
-                std::string idxLoadReg = newTempRegister();
+                std::string idxLoadReg = b_.newTempRegister();
                 SIRInstruction loadIdxInst;
                 loadIdxInst.opcode = SIROpcode::LOAD;
                 loadIdxInst.result = SIROperand::Register(idxLoadReg, SadTypeKind::Integer);
                 loadIdxInst.operands.push_back(SIROperand::Register(idxAllocaReg, SadTypeKind::Integer));
                 loadIdxInst.comment = "load defer loop index";
-                currentBlock_->addInstruction(loadIdxInst);
+                b_.currentBlock_->addInstruction(loadIdxInst);
 
-                std::string condReg = newTempRegister();
+                std::string condReg = b_.newTempRegister();
                 SIRInstruction condInst = SIRInstruction::Binary(
                     SIROpcode::GE,
                     SIROperand::Register(condReg, SadTypeKind::Boolean),
                     SIROperand::Register(idxLoadReg, SadTypeKind::Integer),
                     SIROperand::ConstantI64(0));
                 condInst.comment = "defer loop index >= 0";
-                currentBlock_->addInstruction(condInst);
-                currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                b_.currentBlock_->addInstruction(condInst);
+                b_.currentBlock_->addInstruction(SIRInstruction::BranchCond(
                     SIROperand::Register(condReg, SadTypeKind::Boolean),
                     SIROperand::Label(bodyLabel),
                     SIROperand::Label(skipLabel)));
 
-                currentBlock_ = bodyBlock;
+                b_.currentBlock_ = bodyBlock;
 
-                std::string closureReg = newTempRegister();
+                std::string closureReg = b_.newTempRegister();
                 SIRInstruction getInst;
                 getInst.opcode = SIROpcode::ARRAY_GET;
                 getInst.result = SIROperand::Register(closureReg, SadTypeKind::Function);
-                getInst.operands.push_back(SIROperand::Register(currentDeferStackReg_, SadTypeKind::Array));
+                getInst.operands.push_back(SIROperand::Register(b_.currentDeferStackReg_, SadTypeKind::Array));
                 getInst.operands.push_back(SIROperand::Register(idxLoadReg, SadTypeKind::Integer));
                 getInst.comment = "defer stack get closure";
-                currentBlock_->addInstruction(getInst);
+                b_.currentBlock_->addInstruction(getInst);
 
-                std::string callResultReg = newTempRegister();
+                std::string callResultReg = b_.newTempRegister();
                 SIRInstruction callInst;
                 callInst.opcode = SIROpcode::CLOSURE_CALL;
                 callInst.result = SIROperand::Register(callResultReg, SadTypeKind::Void);
                 callInst.operands.push_back(SIROperand::Register(closureReg, SadTypeKind::Function));
                 callInst.comment = "execute deferred closure";
-                currentBlock_->addInstruction(callInst);
+                b_.currentBlock_->addInstruction(callInst);
 
-                std::string nextIdxReg = newTempRegister();
+                std::string nextIdxReg = b_.newTempRegister();
                 SIRInstruction decInst = SIRInstruction::Binary(
                     SIROpcode::SUB_I64,
                     SIROperand::Register(nextIdxReg, SadTypeKind::Integer),
                     SIROperand::Register(idxLoadReg, SadTypeKind::Integer),
                     SIROperand::ConstantI64(1));
                 decInst.comment = "defer index--";
-                currentBlock_->addInstruction(decInst);
+                b_.currentBlock_->addInstruction(decInst);
 
                 SIRInstruction storeNextIdx;
                 storeNextIdx.opcode = SIROpcode::STORE;
                 storeNextIdx.operands.push_back(SIROperand::Register(nextIdxReg, SadTypeKind::Integer));
                 storeNextIdx.operands.push_back(SIROperand::Register(idxAllocaReg, SadTypeKind::Integer));
                 storeNextIdx.comment = "store next defer index";
-                currentBlock_->addInstruction(storeNextIdx);
-                currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
+                b_.currentBlock_->addInstruction(storeNextIdx);
+                b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(condLabel)));
 
-                currentBlock_ = skipBlock;
+                b_.currentBlock_ = skipBlock;
             }
 
-            void SIRBuilder::emitPopFunctionCleanupHandler()
+            void StatementBuilder::emitPopFunctionCleanupHandler()
             {
-                if (!currentFunctionCleanupHandlerActive_ || !currentBlock_)
+                if (!b_.currentFunctionCleanupHandlerActive_ || !b_.currentBlock_)
                 {
                     return;
                 }
@@ -361,7 +362,7 @@ namespace Sad
                 popInst.opcode = SIROpcode::CALL;
                 popInst.operands.push_back(SIROperand::Function("__sad_pop_handler"));
                 popInst.comment = "pop function-level defer cleanup handler";
-                currentBlock_->addInstruction(popInst);
+                b_.currentBlock_->addInstruction(popInst);
             }
 
             // ============================================================================

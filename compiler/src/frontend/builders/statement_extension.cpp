@@ -3,6 +3,7 @@
 // ============================================================================
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -22,7 +23,7 @@ namespace Sad
         namespace SIR
         {
 
-            bool SIRBuilder::buildStatement_Extension(AST::Statement *stmt)
+            bool StatementBuilder::buildStatement_Extension(AST::Statement *stmt)
             {
 
                 // ========================================================================
@@ -46,8 +47,8 @@ namespace Sad
 #endif
                     // (AR) حفظ اسم الصنف الحالي واستعادته بعد الانتهاء
                     // (EN) Save current class name and restore after finishing
-                    std::string savedClassName = currentClassName_;
-                    currentClassName_ = extensionDecl->targetType;
+                    std::string savedClassName = b_.currentClassName_;
+                    b_.currentClassName_ = extensionDecl->targetType;
 
                     // (AR) معالجة كل دالة في كتلة الامتداد كطريقة في الصنف الهدف
                     // (EN) Process each function in extension block as a method on the target class
@@ -74,7 +75,7 @@ namespace Sad
                         SadTypeKind inferredReturnType = SadTypeKind::Void;
                         if (funcDecl->body)
                         {
-                            inferredReturnType = inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
+                            inferredReturnType = b_.inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
                         }
 
                         // (AR) إنشاء دالة SIR للطريقة
@@ -92,14 +93,14 @@ namespace Sad
                             SadTypeKind paramType = SadTypeKind::Integer;
                             if (param.type != Sad::Data::DataType::UNKNOWN)
                             {
-                                paramType = astTypeToSIRType(param.type);
+                                paramType = b_.astTypeToSIRType(param.type);
                             }
                             sirFunc->addParameter(SIRParameter(param.name, paramType));
                         }
 
                         // (AR) تسجيل الدالة في الوحدة وجدول الدوال
                         // (EN) Register function in module and function table
-                        module_->addFunction(sirFunc);
+                        b_.module_->addFunction(sirFunc);
 
                         FunctionInfo funcInfo;
                         funcInfo.name = fullMethodName;
@@ -107,18 +108,18 @@ namespace Sad
                         funcInfo.parameters = sirFunc->parameters;
                         funcInfo.sirFunction = sirFunc;
                         funcInfo.astDecl = funcDecl;
-                        functionTable_[fullMethodName] = funcInfo;
+                        b_.functionTable_[fullMethodName] = funcInfo;
 
                         // (AR) بناء جسم الطريقة
                         // (EN) Build method body
-                        auto savedCtxExt = saveContext();
+                        auto savedCtxExt = b_.saveContext();
 
-                        currentFunction_ = sirFunc;
-                        auto entryBlock = createBasicBlock(kEntryBlockName);
+                        b_.currentFunction_ = sirFunc;
+                        auto entryBlock = b_.createBasicBlock(kEntryBlockName);
                         sirFunc->addBasicBlock(entryBlock);
-                        currentBlock_ = entryBlock;
+                        b_.currentBlock_ = entryBlock;
 
-                        enterScope();
+                        b_.enterScope();
 
                         // (AR) تسجيل self
                         VariableInfo selfInfo;
@@ -127,8 +128,8 @@ namespace Sad
                         selfInfo.registerName = kSelfRegisterName;
                         selfInfo.isMutable = false;
                         selfInfo.className = extensionDecl->targetType;
-                        addVariable(selfInfo);
-                        classInstanceTypes_[kSelfRegisterName] = extensionDecl->targetType;
+                        b_.addVariable(selfInfo);
+                        b_.classInstanceTypes_[kSelfRegisterName] = extensionDecl->targetType;
 
                         // (AR) تسجيل المعاملات
                         // (EN) Register parameters
@@ -139,7 +140,7 @@ namespace Sad
                             paramInfo.type = sirFunc->parameters[i + 1].type;
                             paramInfo.registerName = "%" + funcDecl->parameters[i].name;
                             paramInfo.isParameter = true;
-                            addVariable(paramInfo);
+                            b_.addVariable(paramInfo);
                         }
 
                         // (AR) بناء الجسم
@@ -149,19 +150,19 @@ namespace Sad
                         }
 
                         // (AR) إضافة return void إذا لم يكن هناك terminator
-                        if (currentBlock_ && !currentBlock_->getTerminator())
+                        if (b_.currentBlock_ && !b_.currentBlock_->getTerminator())
                         {
                             SIRInstruction retInst(SIROpcode::RET);
                             retInst.comment = "implicit return from extension method";
-                            currentBlock_->addInstruction(retInst);
+                            b_.currentBlock_->addInstruction(retInst);
                         }
 
-                        exitScope();
+                        b_.exitScope();
 
-                        restoreContext(std::move(savedCtxExt));
+                        b_.restoreContext(std::move(savedCtxExt));
                     }
 
-                    currentClassName_ = savedClassName;
+                    b_.currentClassName_ = savedClassName;
                     return true;
                 }
 
@@ -195,7 +196,7 @@ namespace Sad
 
                             // (AR) فحص هل الهدف صنف مسجل
                             // (EN) Check if target is a registered class
-                            auto targetClass = module_ ? module_->getClass(targetName) : nullptr;
+                            auto targetClass = b_.module_ ? b_.module_->getClass(targetName) : nullptr;
                             if (targetClass)
                             {
                                 // (AR) إنشاء صنف SIR جديد بنفس البنية
@@ -203,20 +204,20 @@ namespace Sad
                                 auto aliasClass = std::make_shared<SIRClass>(typeAliasDecl->name);
                                 aliasClass->parentClass = targetClass->parentClass;
                                 aliasClass->fields_ = targetClass->fields_;
-                                module_->addClass(aliasClass);
-                                classTable_[typeAliasDecl->name] = aliasClass;
+                                b_.module_->addClass(aliasClass);
+                                b_.classTable_[typeAliasDecl->name] = aliasClass;
 
                                 // (AR) نسخ جميع دوال الصنف الهدف مع الاسم الجديد
                                 //      نجمع الإدخالات أولاً ثم نضيفها (تجنب التعديل أثناء التكرار)
                                 // (EN) Copy all target class functions with the new name
                                 //      Collect entries first then insert (avoid modifying during iteration)
                                 std::vector<std::pair<std::string, FunctionInfo>> newEntries;
-                                for (auto &[funcName, funcInfo] : functionTable_)
+                                for (auto &[funcName, funcInfo] : b_.functionTable_)
                                 {
                                     if (funcName.find(targetName + ".") == 0)
                                     {
                                         std::string newFuncName = typeAliasDecl->name + funcName.substr(targetName.size());
-                                        if (functionTable_.find(newFuncName) == functionTable_.end())
+                                        if (b_.functionTable_.find(newFuncName) == b_.functionTable_.end())
                                         {
                                             FunctionInfo aliasFunc = funcInfo;
                                             aliasFunc.name = newFuncName;
@@ -226,7 +227,7 @@ namespace Sad
                                 }
                                 for (auto &[name, info] : newEntries)
                                 {
-                                    functionTable_[name] = info;
+                                    b_.functionTable_[name] = info;
                                 }
 
                                 // (AR) نسخ دوال SIR الفعلية في الوحدة (مطلوب للربط)
@@ -234,17 +235,17 @@ namespace Sad
                                 //      هذا يضمن أن الرابط يجد حيوان_أليف.بناء / حيوان_أليف.وصف
                                 // (EN) Clone actual SIR functions in module (required for linking)
                                 //      Clone each function from original class with alias class name
-                                if (module_)
+                                if (b_.module_)
                                 {
                                     std::vector<std::shared_ptr<SIRFunction>> newFuncs;
-                                    for (auto &func : module_->getFunctions())
+                                    for (auto &func : b_.module_->getFunctions())
                                     {
                                         if (func && func->name.find(targetName + ".") == 0)
                                         {
                                             std::string newFuncName = typeAliasDecl->name + func->name.substr(targetName.size());
                                             // (AR) تحقق أن الدالة غير موجودة بالفعل
                                             bool exists = false;
-                                            for (auto &f : module_->getFunctions())
+                                            for (auto &f : b_.module_->getFunctions())
                                             {
                                                 if (f && f->name == newFuncName)
                                                 {
@@ -267,7 +268,7 @@ namespace Sad
                                     }
                                     for (auto &f : newFuncs)
                                     {
-                                        module_->addFunction(f);
+                                        b_.module_->addFunction(f);
                                     }
                                 }
 
@@ -315,28 +316,28 @@ namespace Sad
                         fullModuleName += reExportStmt->modulePath[i];
                     }
 
-                    // (AR) تحميل الوحدة عبر محلل الوحدات (نفس منطق buildImportStmt)
-                    // (EN) Load module via module resolver (same logic as buildImportStmt)
-                    if (!moduleResolver_)
+                    // (AR) تحميل الوحدة عبر محلل الوحدات (نفس منطق b_.buildImportStmt)
+                    // (EN) Load module via module resolver (same logic as b_.buildImportStmt)
+                    if (!b_.moduleResolver_)
                     {
-                        moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
+                        b_.moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
                     }
 
                     // (AR) التحقق مما إذا تمت معالجة الوحدة بالفعل
                     // (EN) Check if module was already processed
-                    if (!processedModules_.count(fullModuleName))
+                    if (!b_.processedModules_.count(fullModuleName))
                     {
-                        Modules::Module *resolvedModule = moduleResolver_->resolveModule(
-                            reExportStmt->modulePath, currentFilePath_);
+                        Modules::Module *resolvedModule = b_.moduleResolver_->resolveModule(
+                            reExportStmt->modulePath, b_.currentFilePath_);
 
                         if (resolvedModule)
                         {
                             // (AR) تمييز الوحدة كمعالجة
                             // (EN) Mark module as processed
-                            processedModules_.insert(fullModuleName);
+                            b_.processedModules_.insert(fullModuleName);
 
-                            // (AR) معالجة تصريحات الوحدة — نفس منطق buildImportStmt
-                            // (EN) Process module declarations — same logic as buildImportStmt
+                            // (AR) معالجة تصريحات الوحدة — نفس منطق b_.buildImportStmt
+                            // (EN) Process module declarations — same logic as b_.buildImportStmt
                             for (const auto &modStmt : resolvedModule->ast)
                             {
                                 if (!modStmt)
@@ -400,16 +401,16 @@ namespace Sad
                                 // (AR) بناء SIR للتصريحات
                                 // (EN) Build SIR for declarations
                                 if (funcDecl)
-                                    buildFunction(funcDecl);
+                                    b_.buildFunction(funcDecl);
                                 if (varDecl)
-                                    buildGlobalVariable(varDecl);
+                                    b_.buildGlobalVariable(varDecl);
                                 if (classDecl)
-                                    buildClass(classDecl);
+                                    b_.buildClass(classDecl);
                             }
                         }
                         else
                         {
-                            errors_.push_back(
+                            b_.errors_.push_back(
                                 "خطأ: فشل استيراد الوحدة للتصدير '" + fullModuleName + "' / "
                                                                                        "Error: Failed to import module for re-export '" +
                                 fullModuleName + "'");

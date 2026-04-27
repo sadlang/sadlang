@@ -3,6 +3,7 @@
 // ============================================================================
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "lexer_core.h"
 #include "parser_core.h"
@@ -19,7 +20,7 @@ namespace Sad
         namespace SIR
         {
 
-            bool SIRBuilder::buildStatement_Go(AST::Statement *stmt)
+            bool StatementBuilder::buildStatement_Go(AST::Statement *stmt)
             {
                 // ========================================================================
                 if (auto goStmt = dynamic_cast<Sad::AST::GoStmt *>(stmt))
@@ -31,7 +32,7 @@ namespace Sad
                     {
                         // (AR) أطلق تعبير — نبني التعبير كاستدعاء دالة
                         // (EN) go expression — build expression as function call
-                        auto exprResult = buildExpression(goStmt->expression.get());
+                        auto exprResult = b_.buildExpression(goStmt->expression.get());
 
                         // (AR) إصلاح: بعض تعابير الاستدعاء ذات نوع void لا تُنتج register صالح.
                         //      في هذه الحالة التعبير نفسه يكون قد أضاف تعليماته بالفعل،
@@ -41,14 +42,14 @@ namespace Sad
                         //      so avoid emitting ASYNC_SPAWN with an undefined register.
                         if (!exprResult.registerName.empty())
                         {
-                            std::string resultReg = newTempRegister();
+                            std::string resultReg = b_.newTempRegister();
                             SIRInstruction spawnInst(SIROpcode::ASYNC_SPAWN);
                             spawnInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                             spawnInst.operands.push_back(
                                 SIROperand::Register(exprResult.registerName, exprResult.type));
                             spawnInst.comment = "go expression → ASYNC_SPAWN";
-                            if (currentBlock_)
-                                currentBlock_->instructions.push_back(spawnInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->instructions.push_back(spawnInst);
                         }
                     }
                     else if (goStmt->blockBody)
@@ -71,7 +72,7 @@ namespace Sad
                 return false;
             }
 
-            bool SIRBuilder::buildStatement_Select(AST::Statement *stmt)
+            bool StatementBuilder::buildStatement_Select(AST::Statement *stmt)
             {
 
                 // ========================================================================
@@ -91,24 +92,24 @@ namespace Sad
                     std::cout << "[DEBUG] Found SelectStmt with " << selectStmt->cases.size() << " cases" << std::endl;
 #endif
                     // (AR) إنشاء تسمية الخروج
-                    std::string exitLabel = newLabel("select_exit");
-                    auto exitBlock = createBasicBlock(exitLabel);
+                    std::string exitLabel = b_.newLabel("select_exit");
+                    auto exitBlock = b_.createBasicBlock(exitLabel);
 
                     for (size_t i = 0; i < selectStmt->cases.size(); ++i)
                     {
                         auto &selCase = selectStmt->cases[i];
 
                         // (AR) إنشاء تسميات لجسم الحالة والحالة التالية
-                        std::string bodyLabel = newLabel("select_case_" + std::to_string(i));
-                        std::string nextLabel = newLabel("select_next_" + std::to_string(i));
-                        auto bodyBlock = createBasicBlock(bodyLabel);
-                        auto nextBlock = createBasicBlock(nextLabel);
+                        std::string bodyLabel = b_.newLabel("select_case_" + std::to_string(i));
+                        std::string nextLabel = b_.newLabel("select_next_" + std::to_string(i));
+                        auto bodyBlock = b_.createBasicBlock(bodyLabel);
+                        auto nextBlock = b_.createBasicBlock(nextLabel);
 
                         // (AR) بناء تعبير القناة (عادةً ق.حاول_استقبل() أو ق.استقبل())
                         // (EN) Build channel expression => check if data available
                         if (selCase->channelExpr)
                         {
-                            std::string checkReg = newTempRegister();
+                            std::string checkReg = b_.newTempRegister();
                             bool loweredToTryRecvCompare = false;
 
                             // (AR) إصلاح دلالة select:
@@ -127,7 +128,7 @@ namespace Sad
                                     mn == "try_recv";
                                 if (isTryRecv)
                                 {
-                                    auto recvResult = buildExpression(selCase->channelExpr.get());
+                                    auto recvResult = b_.buildExpression(selCase->channelExpr.get());
                                     if (!recvResult.registerName.empty())
                                     {
                                         SIRInstruction cmpInst = SIRInstruction::Binary(
@@ -136,8 +137,8 @@ namespace Sad
                                             SIROperand::Register(recvResult.registerName, recvResult.type),
                                             SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel));
                                         cmpInst.comment = "select: try_recv != null case " + std::to_string(i);
-                                        if (currentBlock_)
-                                            currentBlock_->addInstruction(cmpInst);
+                                        if (b_.currentBlock_)
+                                            b_.currentBlock_->addInstruction(cmpInst);
                                         loweredToTryRecvCompare = true;
                                     }
                                 }
@@ -146,15 +147,15 @@ namespace Sad
                             if (!loweredToTryRecvCompare)
                             {
                                 // (AR) المسار العام: تقييم التعبير ثم مقارنة != 0
-                                auto chanResult = buildExpression(selCase->channelExpr.get());
+                                auto chanResult = b_.buildExpression(selCase->channelExpr.get());
                                 SIRInstruction cmpInst = SIRInstruction::Binary(
                                     SIROpcode::NE,
                                     SIROperand::Register(checkReg, SadTypeKind::Boolean),
                                     SIROperand::Register(chanResult.registerName, chanResult.type),
                                     SIROperand::ConstantI64(0));
                                 cmpInst.comment = "select: check channel case " + std::to_string(i);
-                                if (currentBlock_)
-                                    currentBlock_->addInstruction(cmpInst);
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->addInstruction(cmpInst);
                             }
 
                             // (AR) تفرع: إذا جاهزة → الجسم، وإلا → الحالة التالية
@@ -162,21 +163,21 @@ namespace Sad
                                 SIROperand::Register(checkReg, SadTypeKind::Boolean),
                                 SIROperand::Label(bodyLabel),
                                 SIROperand::Label(nextLabel));
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(brInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(brInst);
                         }
                         else
                         {
                             // (AR) لا يوجد تعبير — تخطي إلى التالي
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(
                                     SIRInstruction::Branch(SIROperand::Label(nextLabel)));
                         }
 
                         // (AR) كتلة جسم الحالة
-                        if (currentFunction_)
-                            currentFunction_->addBasicBlock(bodyBlock);
-                        currentBlock_ = bodyBlock;
+                        if (b_.currentFunction_)
+                            b_.currentFunction_->addBasicBlock(bodyBlock);
+                        b_.currentBlock_ = bodyBlock;
 
                         // (AR) بناء جسم الحالة
                         for (auto &bodyStmt : selCase->body)
@@ -186,16 +187,16 @@ namespace Sad
                         }
 
                         // (AR) قفز إلى الخروج بعد الجسم
-                        if (currentBlock_ && !currentBlock_->getTerminator())
+                        if (b_.currentBlock_ && !b_.currentBlock_->getTerminator())
                         {
-                            currentBlock_->addInstruction(
+                            b_.currentBlock_->addInstruction(
                                 SIRInstruction::Branch(SIROperand::Label(exitLabel)));
                         }
 
                         // (AR) كتلة الحالة التالية
-                        if (currentFunction_)
-                            currentFunction_->addBasicBlock(nextBlock);
-                        currentBlock_ = nextBlock;
+                        if (b_.currentFunction_)
+                            b_.currentFunction_->addBasicBlock(nextBlock);
+                        b_.currentBlock_ = nextBlock;
                     }
 
                     // (AR) الحالة الافتراضية
@@ -209,16 +210,16 @@ namespace Sad
                     }
 
                     // (AR) قفز إلى الخروج
-                    if (currentBlock_ && !currentBlock_->getTerminator())
+                    if (b_.currentBlock_ && !b_.currentBlock_->getTerminator())
                     {
-                        currentBlock_->addInstruction(
+                        b_.currentBlock_->addInstruction(
                             SIRInstruction::Branch(SIROperand::Label(exitLabel)));
                     }
 
                     // (AR) كتلة الخروج
-                    if (currentFunction_)
-                        currentFunction_->addBasicBlock(exitBlock);
-                    currentBlock_ = exitBlock;
+                    if (b_.currentFunction_)
+                        b_.currentFunction_->addBasicBlock(exitBlock);
+                    b_.currentBlock_ = exitBlock;
 
                     return true;
                 }

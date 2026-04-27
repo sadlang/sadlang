@@ -13,6 +13,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -30,7 +31,7 @@ namespace Sad
     {
         namespace SIR
         {
-            void SIRBuilder::buildWhileLoop(AST::WhileStmt *whileLoop)
+            void StatementBuilder::buildWhileLoop(AST::WhileStmt *whileLoop)
             {
                 if (!whileLoop)
                 {
@@ -44,24 +45,24 @@ namespace Sad
                 // ========================================================================
                 // (AR) ״§„״®״·ˆ״© 1: ״¥†״´״§״¡ ״§„ƒ״×„ ״§„״£״³״§״³״©
                 // (EN) Step 1: Create basic blocks
-                // ״§„…״µ״¯״±: sir_builder.h:501 - createBasicBlock()
-                // ״§„…״µ״¯״±: sir_builder.h:520 - newLabel()
+                // ״§„…״µ״¯״±: sir_builder.h:501 - b_.createBasicBlock()
+                // ״§„…״µ״¯״±: sir_builder.h:520 - b_.newLabel()
                 // ========================================================================
-                std::string condLabel = newLabel("while_cond");
-                std::string bodyLabel = newLabel("while_body");
-                std::string exitLabel = newLabel("while_exit");
+                std::string condLabel = b_.newLabel("while_cond");
+                std::string bodyLabel = b_.newLabel("while_body");
+                std::string exitLabel = b_.newLabel("while_exit");
 
-                auto condBlock = createBasicBlock(condLabel);
-                auto bodyBlock = createBasicBlock(bodyLabel);
-                auto exitBlock = createBasicBlock(exitLabel);
+                auto condBlock = b_.createBasicBlock(condLabel);
+                auto bodyBlock = b_.createBasicBlock(bodyLabel);
+                auto exitBlock = b_.createBasicBlock(exitLabel);
 
                 // (AR) ״¥״¶״§״© ״§„ƒ״×„ ״¥„‰ ״§„״¯״§„״© ״§„״­״§„״©
                 // (EN) Add blocks to current function
-                if (currentFunction_)
+                if (b_.currentFunction_)
                 {
-                    currentFunction_->addBasicBlock(condBlock);
-                    currentFunction_->addBasicBlock(bodyBlock);
-                    currentFunction_->addBasicBlock(exitBlock);
+                    b_.currentFunction_->addBasicBlock(condBlock);
+                    b_.currentFunction_->addBasicBlock(bodyBlock);
+                    b_.currentFunction_->addBasicBlock(exitBlock);
                 }
 
 #ifndef NDEBUG
@@ -77,9 +78,9 @@ namespace Sad
                 SIROperand condLabelOp = SIROperand::Label(condLabel);
                 SIRInstruction brCondBlockInst = SIRInstruction::Branch(condLabelOp);
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(brCondBlockInst);
+                    b_.currentBlock_->instructions.push_back(brCondBlockInst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildWhileLoop: added BR to condition block" << std::endl;
 #endif
@@ -90,15 +91,15 @@ namespace Sad
                 // (EN) Step 3: Build condition expression
                 // ״§„…״µ״¯״±: WhileStmt::condition (statements.h:149)
                 // ========================================================================
-                currentBlock_ = condBlock;
-                auto condResult = buildExpression(whileLoop->condition.get());
+                b_.currentBlock_ = condBlock;
+                auto condResult = b_.buildExpression(whileLoop->condition.get());
 
                 if (condResult.registerName.empty())
                 {
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildWhileLoop: condition build failed!" << std::endl;
 #endif
-                    errors_.push_back("Error: Failed to build while condition");
+                    b_.errors_.push_back("Error: Failed to build while condition");
                     return;
                 }
 
@@ -112,8 +113,8 @@ namespace Sad
                     std::string condClassName = condResult.className;
                     if (condClassName.empty() && !condResult.registerName.empty())
                     {
-                        auto it = classInstanceTypes_.find(condResult.registerName);
-                        if (it != classInstanceTypes_.end())
+                        auto it = b_.classInstanceTypes_.find(condResult.registerName);
+                        if (it != b_.classInstanceTypes_.end())
                             condClassName = it->second;
                     }
                     if (!condClassName.empty())
@@ -126,12 +127,12 @@ namespace Sad
                         while (!searchClass.empty())
                         {
                             toboolName = searchClass + ".__op_tobool__";
-                            if (functionTable_.find(toboolName) != functionTable_.end())
+                            if (b_.functionTable_.find(toboolName) != b_.functionTable_.end())
                             {
                                 foundToBool = true;
                                 break;
                             }
-                            auto classInfo = module_->getClass(searchClass);
+                            auto classInfo = b_.module_->getClass(searchClass);
                             if (classInfo && !classInfo->parentClass.empty())
                                 searchClass = classInfo->parentClass;
                             else
@@ -139,14 +140,14 @@ namespace Sad
                         }
                         if (foundToBool)
                         {
-                            std::string boolReg = newTempRegister();
+                            std::string boolReg = b_.newTempRegister();
                             SIRInstruction callInst;
                             callInst.opcode = SIROpcode::OBJECT_CALL;
                             callInst.result = SIROperand::Register(boolReg, SadTypeKind::Boolean);
                             callInst.operands.push_back(SIROperand::Register(condResult.registerName, condResult.type));
                             callInst.operands.push_back(SIROperand::ConstantString("__op_tobool__"));
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(callInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(callInst);
                             condResult = BuildResult(boolReg, SadTypeKind::Boolean);
                         }
                     }
@@ -179,9 +180,9 @@ namespace Sad
 
                 SIRInstruction brCondInst = SIRInstruction::BranchCond(condOp, bodyLabelOp, exitLabelOp);
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(brCondInst);
+                    b_.currentBlock_->instructions.push_back(brCondInst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildWhileLoop: added BR_COND (body/exit)" << std::endl;
 #endif
@@ -198,14 +199,14 @@ namespace Sad
                 LoopContext whileLoopCtx;
                 whileLoopCtx.continueLabel = condLabel;
                 whileLoopCtx.breakLabel = exitLabel;
-                enterLoop(whileLoopCtx);
+                b_.enterLoop(whileLoopCtx);
 
                 // ========================================================================
                 // (AR) ״§„״®״·ˆ״© 5: ״¨†״§״¡ ״¬״³… ״§„״­„‚״©
                 // (EN) Step 5: Build loop body
                 // ״§„…״µ״¯״±: WhileStmt::body (statements.h:150)
                 // ========================================================================
-                currentBlock_ = bodyBlock;
+                b_.currentBlock_ = bodyBlock;
                 if (whileLoop->body)
                 {
                     buildStatement(whileLoop->body.get());
@@ -213,7 +214,7 @@ namespace Sad
 
                 // (AR) ״§„״®״±ˆ״¬ …† ״³״§‚ ״§„״­„‚״© ״¨״¹״¯ ״¨†״§״¡ ״§„״¬״³…
                 // (EN) Exit loop context after building body
-                exitLoop();
+                b_.exitLoop();
 
                 // ========================================================================
                 // (AR) ״§„״®״·ˆ״© 6: ‚״² „„״¹ˆ״¯״© ״¥„‰ ƒ״×„״© ״§„״´״±״·
@@ -223,16 +224,16 @@ namespace Sad
                 // ========================================================================
                 SIRInstruction brBackInst = SIRInstruction::Branch(condLabelOp);
 
-                if (currentBlock_ && !currentBlock_->instructions.empty())
+                if (b_.currentBlock_ && !b_.currentBlock_->instructions.empty())
                 {
-                    const auto &lastInst = currentBlock_->instructions.back();
+                    const auto &lastInst = b_.currentBlock_->instructions.back();
                     bool hasTerminator = (lastInst.opcode == SIROpcode::RET ||
                                           lastInst.opcode == SIROpcode::RET_VOID ||
                                           lastInst.opcode == SIROpcode::BR ||
                                           lastInst.opcode == SIROpcode::BR_COND);
                     if (!hasTerminator)
                     {
-                        currentBlock_->instructions.push_back(brBackInst);
+                        b_.currentBlock_->instructions.push_back(brBackInst);
 #ifndef NDEBUG
                         std::cout << "[DEBUG] buildWhileLoop: added BR back to condition" << std::endl;
 #endif
@@ -244,9 +245,9 @@ namespace Sad
 #endif
                     }
                 }
-                else if (currentBlock_)
+                else if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(brBackInst);
+                    b_.currentBlock_->instructions.push_back(brBackInst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildWhileLoop: added BR back to condition (empty block)" << std::endl;
 #endif
@@ -256,7 +257,7 @@ namespace Sad
                 // (AR) ״§„״®״·ˆ״© 7: ״§„״§״³״×…״±״§״± ״¨״¹״¯ ״§„״­„‚״©
                 // (EN) Step 7: Continue after loop
                 // ========================================================================
-                currentBlock_ = exitBlock;
+                b_.currentBlock_ = exitBlock;
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildWhileLoop: completed, now at exit block" << std::endl;
 #endif
@@ -278,18 +279,18 @@ namespace Sad
             // - body: StmtPtr (line 196)
             //
             // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
-            // - currentBlock_: sir_builder.h:582 (shared_ptr<SIRBasicBlock>)
-            // - currentScopeLevel_: sir_builder.h:599 (int)
+            // - b_.currentBlock_: sir_builder.h:582 (shared_ptr<SIRBasicBlock>)
+            // - b_.currentScopeLevel_: sir_builder.h:599 (int)
             //
             // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
             // - buildStatement: sir_builder.h:372
-            // - buildExpression: sir_builder.h:432
-            // - createBasicBlock: sir_builder.h:501
-            // - newLabel: sir_builder.h:520
-            // - enterScope: sir_builder.h:587
-            // - exitScope: sir_builder.h:589
+            // - b_.buildExpression: sir_builder.h:432
+            // - b_.createBasicBlock: sir_builder.h:501
+            // - b_.newLabel: sir_builder.h:520
+            // - b_.enterScope: sir_builder.h:587
+            // - b_.exitScope: sir_builder.h:589
             // ============================================================================
-            void SIRBuilder::buildForLoop(AST::ForStmt *forLoop)
+            void StatementBuilder::buildForLoop(AST::ForStmt *forLoop)
             {
                 if (!forLoop)
                 {
@@ -303,9 +304,9 @@ namespace Sad
                 // ========================================================================
                 // (AR) ״§„״®״·ˆ״© 1: ״¯״®ˆ„ †״·״§‚ ״¬״¯״¯ „„״­„‚״©
                 // (EN) Step 1: Enter new scope for loop
-                // ״§„…״µ״¯״±: sir_builder.h:587 - enterScope()
+                // ״§„…״µ״¯״±: sir_builder.h:587 - b_.enterScope()
                 // ========================================================================
-                enterScope();
+                b_.enterScope();
 
                 // ========================================================================
                 // (AR) ״§„״®״·ˆ״© 2: ״×†״° initializer ״¥״°״§ ˆ״¬״¯
@@ -324,24 +325,24 @@ namespace Sad
                 // (AR) ״§„״®״·ˆ״© 3: ״¥†״´״§״¡ ״§„ƒ״×„ ״§„״£״³״§״³״©
                 // (EN) Step 3: Create basic blocks
                 // ========================================================================
-                std::string condLabel = newLabel("for_cond");
-                std::string bodyLabel = newLabel("for_body");
-                std::string incLabel = newLabel("for_inc");
-                std::string exitLabel = newLabel("for_exit");
+                std::string condLabel = b_.newLabel("for_cond");
+                std::string bodyLabel = b_.newLabel("for_body");
+                std::string incLabel = b_.newLabel("for_inc");
+                std::string exitLabel = b_.newLabel("for_exit");
 
-                auto condBlock = createBasicBlock(condLabel);
-                auto bodyBlock = createBasicBlock(bodyLabel);
-                auto incBlock = createBasicBlock(incLabel);
-                auto exitBlock = createBasicBlock(exitLabel);
+                auto condBlock = b_.createBasicBlock(condLabel);
+                auto bodyBlock = b_.createBasicBlock(bodyLabel);
+                auto incBlock = b_.createBasicBlock(incLabel);
+                auto exitBlock = b_.createBasicBlock(exitLabel);
 
                 // (AR) ״¥״¶״§״© ״§„ƒ״×„ ״¥„‰ ״§„״¯״§„״© ״§„״­״§„״©
                 // (EN) Add blocks to current function
-                if (currentFunction_)
+                if (b_.currentFunction_)
                 {
-                    currentFunction_->addBasicBlock(condBlock);
-                    currentFunction_->addBasicBlock(bodyBlock);
-                    currentFunction_->addBasicBlock(incBlock);
-                    currentFunction_->addBasicBlock(exitBlock);
+                    b_.currentFunction_->addBasicBlock(condBlock);
+                    b_.currentFunction_->addBasicBlock(bodyBlock);
+                    b_.currentFunction_->addBasicBlock(incBlock);
+                    b_.currentFunction_->addBasicBlock(exitBlock);
                 }
 
 #ifndef NDEBUG
@@ -357,9 +358,9 @@ namespace Sad
                 SIROperand condLabelOp = SIROperand::Label(condLabel);
                 SIRInstruction brCondBlockInst = SIRInstruction::Branch(condLabelOp);
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(brCondBlockInst);
+                    b_.currentBlock_->instructions.push_back(brCondBlockInst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildForLoop: added BR to condition block" << std::endl;
 #endif
@@ -370,14 +371,14 @@ namespace Sad
                 // (EN) Step 5: Build condition
                 // ״§„…״µ״¯״±: ForStmt::condition (statements.h:194)
                 // ========================================================================
-                currentBlock_ = condBlock;
+                b_.currentBlock_ = condBlock;
 
                 SIROperand bodyLabelOp = SIROperand::Label(bodyLabel);
                 SIROperand exitLabelOp = SIROperand::Label(exitLabel);
 
                 if (forLoop->condition)
                 {
-                    auto condResult = buildExpression(forLoop->condition.get());
+                    auto condResult = b_.buildExpression(forLoop->condition.get());
 
                     if (!condResult.registerName.empty())
                     {
@@ -400,9 +401,9 @@ namespace Sad
                         }
                         SIRInstruction brCondInst = SIRInstruction::BranchCond(condOp, bodyLabelOp, exitLabelOp);
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->instructions.push_back(brCondInst);
+                            b_.currentBlock_->instructions.push_back(brCondInst);
 #ifndef NDEBUG
                             std::cout << "[DEBUG] buildForLoop: added BR_COND (body/exit)" << std::endl;
 #endif
@@ -415,9 +416,9 @@ namespace Sad
                     // (EN) No condition - unconditional jump to body (infinite loop)
                     SIRInstruction brBodyInst = SIRInstruction::Branch(bodyLabelOp);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(brBodyInst);
+                        b_.currentBlock_->instructions.push_back(brBodyInst);
 #ifndef NDEBUG
                         std::cout << "[DEBUG] buildForLoop: no condition, added BR to body" << std::endl;
 #endif
@@ -437,14 +438,14 @@ namespace Sad
                 LoopContext forLoopCtx;
                 forLoopCtx.continueLabel = incLabel;
                 forLoopCtx.breakLabel = exitLabel;
-                enterLoop(forLoopCtx);
+                b_.enterLoop(forLoopCtx);
 
                 // ========================================================================
                 // (AR) ״§„״®״·ˆ״© 6: ״¨†״§״¡ ״¬״³… ״§„״­„‚״©
                 // (EN) Step 6: Build loop body
                 // ״§„…״µ״¯״±: ForStmt::body (statements.h:196)
                 // ========================================================================
-                currentBlock_ = bodyBlock;
+                b_.currentBlock_ = bodyBlock;
                 if (forLoop->body)
                 {
                     buildStatement(forLoop->body.get());
@@ -452,16 +453,16 @@ namespace Sad
 
                 // (AR) ״§„״®״±ˆ״¬ …† ״³״§‚ ״§„״­„‚״© ״¨״¹״¯ ״¨†״§״¡ ״§„״¬״³…
                 // (EN) Exit loop context after building body
-                exitLoop();
+                b_.exitLoop();
 
                 // (AR) ‚״² ״¥„‰ ƒ״×„״© ״§„״²״§״¯״©
                 // (EN) Jump to increment block
                 SIROperand incLabelOp = SIROperand::Label(incLabel);
                 SIRInstruction brIncInst = SIRInstruction::Branch(incLabelOp);
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(brIncInst);
+                    b_.currentBlock_->instructions.push_back(brIncInst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildForLoop: added BR to increment block" << std::endl;
 #endif
@@ -472,10 +473,10 @@ namespace Sad
                 // (EN) Step 7: Build increment
                 // ״§„…״µ״¯״±: ForStmt::increment (statements.h:195)
                 // ========================================================================
-                currentBlock_ = incBlock;
+                b_.currentBlock_ = incBlock;
                 if (forLoop->increment)
                 {
-                    buildExpression(forLoop->increment.get());
+                    b_.buildExpression(forLoop->increment.get());
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildForLoop: built increment expression" << std::endl;
 #endif
@@ -485,9 +486,9 @@ namespace Sad
                 // (EN) Jump back to condition block
                 SIRInstruction brBackInst = SIRInstruction::Branch(condLabelOp);
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(brBackInst);
+                    b_.currentBlock_->instructions.push_back(brBackInst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildForLoop: added BR back to condition" << std::endl;
 #endif
@@ -497,11 +498,11 @@ namespace Sad
                 // (AR) ״§„״®״·ˆ״© 8: ״§„״§״³״×…״±״§״± ״¨״¹״¯ ״§„״­„‚״©
                 // (EN) Step 8: Continue after loop
                 // ========================================================================
-                currentBlock_ = exitBlock;
+                b_.currentBlock_ = exitBlock;
 
                 // (AR) ״§„״®״±ˆ״¬ …† †״·״§‚ ״§„״­„‚״©
                 // (EN) Exit loop scope
-                exitScope();
+                b_.exitScope();
 
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildForLoop: completed, now at exit block" << std::endl;

@@ -4,6 +4,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -23,7 +24,7 @@ namespace Sad
         namespace SIR
         {
 
-            bool SIRBuilder::buildStatement_Test(AST::Statement *stmt)
+            bool StatementBuilder::buildStatement_Test(AST::Statement *stmt)
             {
                 // ========================================================================
                 // (AR) TestDecl - إعلان اختبار (declarations.h:TestDecl)
@@ -50,14 +51,14 @@ namespace Sad
                     std::string testFuncName = "__test_" + testDecl->testName;
                     auto testFunc = std::make_shared<SIRFunction>(testFuncName, SadTypeKind::Boolean);
 
-                    auto entryBlock = createBasicBlock("test_entry");
+                    auto entryBlock = b_.createBasicBlock("test_entry");
                     testFunc->addBasicBlock(entryBlock);
 
-                    auto savedCtx = saveContext();
-                    currentFunction_ = testFunc;
-                    currentBlock_ = entryBlock;
+                    auto savedCtx = b_.saveContext();
+                    b_.currentFunction_ = testFunc;
+                    b_.currentBlock_ = entryBlock;
 
-                    enterScope();
+                    b_.enterScope();
 
                     // ================================================================
                     // (AR) اختبار الخصائص (Property Testing): تكرار الجسم N مرة
@@ -71,10 +72,10 @@ namespace Sad
                     {
                         // (AR) متغير العداد: _iter_counter = 0
                         // (EN) Counter variable: _iter_counter = 0
-                        std::string counterReg = newTempRegister();
-                        if (currentBlock_)
+                        std::string counterReg = b_.newTempRegister();
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(
+                            b_.currentBlock_->addInstruction(
                                 SIRInstruction::Store(
                                     SIROperand::ConstantI64(0),
                                     SIROperand::Register(counterReg, SadTypeKind::Integer)));
@@ -84,41 +85,41 @@ namespace Sad
                         counterVar.type = SadTypeKind::Integer;
                         counterVar.registerName = counterReg;
                         counterVar.isMutable = true;
-                        counterVar.scopeLevel = currentScopeLevel_;
-                        addVariable(counterVar);
+                        counterVar.scopeLevel = b_.currentScopeLevel_;
+                        b_.addVariable(counterVar);
 
                         // (AR) إعداد الحلقة: header → body → increment → exit
                         // (EN) Setup loop: header → body → increment → exit
-                        std::string headerLabel = newLabel("prop_header");
-                        std::string bodyLabel = newLabel("prop_body");
-                        std::string incrLabel = newLabel("prop_incr");
-                        std::string exitLabel = newLabel("prop_exit");
+                        std::string headerLabel = b_.newLabel("prop_header");
+                        std::string bodyLabel = b_.newLabel("prop_body");
+                        std::string incrLabel = b_.newLabel("prop_incr");
+                        std::string exitLabel = b_.newLabel("prop_exit");
 
                         // (AR) قفز إلى header
                         // (EN) Branch to header
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(
+                            b_.currentBlock_->addInstruction(
                                 SIRInstruction::Branch(SIROperand::Label(headerLabel)));
                         }
 
                         // (AR) كتلة Header: فحص العداد < iterations
                         // (EN) Header block: check counter < iterations
-                        auto headerBlock = createBasicBlock(headerLabel);
-                        if (currentFunction_)
-                            currentFunction_->addBasicBlock(headerBlock);
-                        currentBlock_ = headerBlock;
+                        auto headerBlock = b_.createBasicBlock(headerLabel);
+                        if (b_.currentFunction_)
+                            b_.currentFunction_->addBasicBlock(headerBlock);
+                        b_.currentBlock_ = headerBlock;
 
-                        std::string cmpReg = newTempRegister();
-                        if (currentBlock_)
+                        std::string cmpReg = b_.newTempRegister();
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(
+                            b_.currentBlock_->addInstruction(
                                 SIRInstruction::Binary(
                                     SIROpcode::LT,
                                     SIROperand::Register(cmpReg, SadTypeKind::Boolean),
                                     SIROperand::Register(counterReg, SadTypeKind::Integer),
                                     SIROperand::ConstantI64(testDecl->iterations)));
-                            currentBlock_->addInstruction(
+                            b_.currentBlock_->addInstruction(
                                 SIRInstruction::BranchCond(
                                     SIROperand::Register(cmpReg, SadTypeKind::Boolean),
                                     SIROperand::Label(bodyLabel),
@@ -127,12 +128,12 @@ namespace Sad
 
                         // (AR) كتلة Body: تعريف المتغيرات الخاصة + تنفيذ الجسم
                         // (EN) Body block: define special variables + execute body
-                        auto bodyBlock = createBasicBlock(bodyLabel);
-                        if (currentFunction_)
-                            currentFunction_->addBasicBlock(bodyBlock);
-                        currentBlock_ = bodyBlock;
+                        auto bodyBlock = b_.createBasicBlock(bodyLabel);
+                        if (b_.currentFunction_)
+                            b_.currentFunction_->addBasicBlock(bodyBlock);
+                        b_.currentBlock_ = bodyBlock;
 
-                        enterScope();
+                        b_.enterScope();
 
                         // (AR) تعريف _تكرار = counter
                         // (EN) Define _تكرار = counter
@@ -142,17 +143,17 @@ namespace Sad
                             vi.type = SadTypeKind::Integer;
                             vi.registerName = counterReg;
                             vi.isMutable = false;
-                            vi.scopeLevel = currentScopeLevel_;
-                            addVariable(vi);
+                            vi.scopeLevel = b_.currentScopeLevel_;
+                            b_.addVariable(vi);
                         }
 
                         // (AR) تعريف _التكرار_الحالي = counter + 1
                         // (EN) Define _التكرار_الحالي = counter + 1
                         {
-                            std::string curIterReg = newTempRegister();
-                            if (currentBlock_)
+                            std::string curIterReg = b_.newTempRegister();
+                            if (b_.currentBlock_)
                             {
-                                currentBlock_->addInstruction(
+                                b_.currentBlock_->addInstruction(
                                     SIRInstruction::Binary(
                                         SIROpcode::ADD_I64,
                                         SIROperand::Register(curIterReg, SadTypeKind::Integer),
@@ -164,17 +165,17 @@ namespace Sad
                             vi.type = SadTypeKind::Integer;
                             vi.registerName = curIterReg;
                             vi.isMutable = false;
-                            vi.scopeLevel = currentScopeLevel_;
-                            addVariable(vi);
+                            vi.scopeLevel = b_.currentScopeLevel_;
+                            b_.addVariable(vi);
                         }
 
                         // (AR) تعريف _إجمالي_التكرارات = iterations
                         // (EN) Define _إجمالي_التكرارات = iterations
                         {
-                            std::string totalReg = newTempRegister();
-                            if (currentBlock_)
+                            std::string totalReg = b_.newTempRegister();
+                            if (b_.currentBlock_)
                             {
-                                currentBlock_->addInstruction(
+                                b_.currentBlock_->addInstruction(
                                     SIRInstruction::Store(
                                         SIROperand::ConstantI64(testDecl->iterations),
                                         SIROperand::Register(totalReg, SadTypeKind::Integer)));
@@ -184,8 +185,8 @@ namespace Sad
                             vi.type = SadTypeKind::Integer;
                             vi.registerName = totalReg;
                             vi.isMutable = false;
-                            vi.scopeLevel = currentScopeLevel_;
-                            addVariable(vi);
+                            vi.scopeLevel = b_.currentScopeLevel_;
+                            b_.addVariable(vi);
                         }
 
                         // (AR) تعريف _بذرة = seed + counter (بذرة مختلفة لكل تكرار)
@@ -194,10 +195,10 @@ namespace Sad
                         //      Simple LCG: rng = (seed + i) * 1664525 + 1013904223
                         {
                             int baseSeed = (testDecl->seed >= 0) ? testDecl->seed : 0;
-                            std::string seedReg = newTempRegister();
-                            if (currentBlock_)
+                            std::string seedReg = b_.newTempRegister();
+                            if (b_.currentBlock_)
                             {
-                                currentBlock_->addInstruction(
+                                b_.currentBlock_->addInstruction(
                                     SIRInstruction::Binary(
                                         SIROpcode::ADD_I64,
                                         SIROperand::Register(seedReg, SadTypeKind::Integer),
@@ -209,29 +210,29 @@ namespace Sad
                             vi.type = SadTypeKind::Integer;
                             vi.registerName = seedReg;
                             vi.isMutable = false;
-                            vi.scopeLevel = currentScopeLevel_;
-                            addVariable(vi);
+                            vi.scopeLevel = b_.currentScopeLevel_;
+                            b_.addVariable(vi);
 
                             // (AR) _عشوائي_صحيح = (seed * 1664525 + 1013904223) % 1000
                             // (EN) _عشوائي_صحيح = (seed * 1664525 + 1013904223) % 1000
-                            std::string rng1 = newTempRegister();
-                            std::string rng2 = newTempRegister();
-                            std::string randIntReg = newTempRegister();
-                            if (currentBlock_)
+                            std::string rng1 = b_.newTempRegister();
+                            std::string rng2 = b_.newTempRegister();
+                            std::string randIntReg = b_.newTempRegister();
+                            if (b_.currentBlock_)
                             {
-                                currentBlock_->addInstruction(
+                                b_.currentBlock_->addInstruction(
                                     SIRInstruction::Binary(
                                         SIROpcode::MUL_I64,
                                         SIROperand::Register(rng1, SadTypeKind::Integer),
                                         SIROperand::Register(seedReg, SadTypeKind::Integer),
                                         SIROperand::ConstantI64(1664525)));
-                                currentBlock_->addInstruction(
+                                b_.currentBlock_->addInstruction(
                                     SIRInstruction::Binary(
                                         SIROpcode::ADD_I64,
                                         SIROperand::Register(rng2, SadTypeKind::Integer),
                                         SIROperand::Register(rng1, SadTypeKind::Integer),
                                         SIROperand::ConstantI64(1013904223)));
-                                currentBlock_->addInstruction(
+                                b_.currentBlock_->addInstruction(
                                     SIRInstruction::Binary(
                                         SIROpcode::MOD_I64,
                                         SIROperand::Register(randIntReg, SadTypeKind::Integer),
@@ -243,22 +244,22 @@ namespace Sad
                             viRandInt.type = SadTypeKind::Integer;
                             viRandInt.registerName = randIntReg;
                             viRandInt.isMutable = false;
-                            viRandInt.scopeLevel = currentScopeLevel_;
-                            addVariable(viRandInt);
+                            viRandInt.scopeLevel = b_.currentScopeLevel_;
+                            b_.addVariable(viRandInt);
 
                             // (AR) _عشوائي_سالب = (rng % 2001) - 1000
                             // (EN) _عشوائي_سالب = (rng % 2001) - 1000
-                            std::string modReg = newTempRegister();
-                            std::string randNegReg = newTempRegister();
-                            if (currentBlock_)
+                            std::string modReg = b_.newTempRegister();
+                            std::string randNegReg = b_.newTempRegister();
+                            if (b_.currentBlock_)
                             {
-                                currentBlock_->addInstruction(
+                                b_.currentBlock_->addInstruction(
                                     SIRInstruction::Binary(
                                         SIROpcode::MOD_I64,
                                         SIROperand::Register(modReg, SadTypeKind::Integer),
                                         SIROperand::Register(rng2, SadTypeKind::Integer),
                                         SIROperand::ConstantI64(2001)));
-                                currentBlock_->addInstruction(
+                                b_.currentBlock_->addInstruction(
                                     SIRInstruction::Binary(
                                         SIROpcode::SUB_I64,
                                         SIROperand::Register(randNegReg, SadTypeKind::Integer),
@@ -270,8 +271,8 @@ namespace Sad
                             viRandNeg.type = SadTypeKind::Integer;
                             viRandNeg.registerName = randNegReg;
                             viRandNeg.isMutable = false;
-                            viRandNeg.scopeLevel = currentScopeLevel_;
-                            addVariable(viRandNeg);
+                            viRandNeg.scopeLevel = b_.currentScopeLevel_;
+                            b_.addVariable(viRandNeg);
                         }
 
                         // (AR) بناء جسم الاختبار
@@ -281,27 +282,27 @@ namespace Sad
                             buildStatement(testDecl->body.get());
                         }
 
-                        exitScope();
+                        b_.exitScope();
 
                         // (AR) قفز إلى increment
                         // (EN) Branch to increment
-                        if (currentBlock_ && !currentBlock_->getTerminator())
+                        if (b_.currentBlock_ && !b_.currentBlock_->getTerminator())
                         {
-                            currentBlock_->addInstruction(
+                            b_.currentBlock_->addInstruction(
                                 SIRInstruction::Branch(SIROperand::Label(incrLabel)));
                         }
 
                         // (AR) كتلة Increment: counter++
                         // (EN) Increment block: counter++
-                        auto incrBlock = createBasicBlock(incrLabel);
-                        if (currentFunction_)
-                            currentFunction_->addBasicBlock(incrBlock);
-                        currentBlock_ = incrBlock;
+                        auto incrBlock = b_.createBasicBlock(incrLabel);
+                        if (b_.currentFunction_)
+                            b_.currentFunction_->addBasicBlock(incrBlock);
+                        b_.currentBlock_ = incrBlock;
 
-                        std::string newCounterReg = newTempRegister();
-                        if (currentBlock_)
+                        std::string newCounterReg = b_.newTempRegister();
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(
+                            b_.currentBlock_->addInstruction(
                                 SIRInstruction::Binary(
                                     SIROpcode::ADD_I64,
                                     SIROperand::Register(newCounterReg, SadTypeKind::Integer),
@@ -309,24 +310,24 @@ namespace Sad
                                     SIROperand::ConstantI64(1)));
                             // (AR) تحديث العداد
                             // (EN) Update counter
-                            currentBlock_->addInstruction(
+                            b_.currentBlock_->addInstruction(
                                 SIRInstruction::Store(
                                     SIROperand::Register(newCounterReg, SadTypeKind::Integer),
                                     SIROperand::Register(counterReg, SadTypeKind::Integer)));
-                            currentBlock_->addInstruction(
+                            b_.currentBlock_->addInstruction(
                                 SIRInstruction::Branch(SIROperand::Label(headerLabel)));
                         }
 
                         // (AR) كتلة Exit: إرجاع true (نجح)
                         // (EN) Exit block: return true (passed)
-                        auto exitBlock = createBasicBlock(exitLabel);
-                        if (currentFunction_)
-                            currentFunction_->addBasicBlock(exitBlock);
-                        currentBlock_ = exitBlock;
+                        auto exitBlock = b_.createBasicBlock(exitLabel);
+                        if (b_.currentFunction_)
+                            b_.currentFunction_->addBasicBlock(exitBlock);
+                        b_.currentBlock_ = exitBlock;
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(SIRInstruction::Return(
+                            b_.currentBlock_->addInstruction(SIRInstruction::Return(
                                 SIROperand::ConstantBool(true)));
                         }
                     }
@@ -343,25 +344,25 @@ namespace Sad
 
                         // (AR) إرجاع true/false حسب shouldFail
                         // (EN) Return true/false based on shouldFail
-                        if (currentBlock_ && !currentBlock_->getTerminator())
+                        if (b_.currentBlock_ && !b_.currentBlock_->getTerminator())
                         {
                             if (testDecl->shouldFail)
                             {
-                                currentBlock_->addInstruction(SIRInstruction::Return(
+                                b_.currentBlock_->addInstruction(SIRInstruction::Return(
                                     SIROperand::ConstantBool(false)));
                             }
                             else
                             {
-                                currentBlock_->addInstruction(SIRInstruction::Return(
+                                b_.currentBlock_->addInstruction(SIRInstruction::Return(
                                     SIROperand::ConstantBool(true)));
                             }
                         }
                     }
 
-                    exitScope();
+                    b_.exitScope();
 
-                    restoreContext(std::move(savedCtx));
-                    module_->addFunction(testFunc);
+                    b_.restoreContext(std::move(savedCtx));
+                    b_.module_->addFunction(testFunc);
 
                     // (AR) تسجيل دالة الاختبار في جدول الدوال
                     // (EN) Register test function in function table
@@ -369,7 +370,7 @@ namespace Sad
                     fi.name = testFuncName;
                     fi.returnType = SadTypeKind::Boolean;
                     fi.sirFunction = testFunc;
-                    functionTable_[testFuncName] = fi;
+                    b_.functionTable_[testFuncName] = fi;
 
                     // ================================================================
                     // (AR) حقن استدعاء دالة الاختبار في تدفق main + طباعة النتيجة
@@ -382,12 +383,12 @@ namespace Sad
                     {
                         // (AR) استدعاء دالة الاختبار
                         // (EN) Call the test function
-                        std::string callResultReg = newTempRegister();
+                        std::string callResultReg = b_.newTempRegister();
                         SIRInstruction callInst(SIROpcode::CALL);
                         callInst.result = SIROperand::Register(callResultReg, SadTypeKind::Boolean);
                         callInst.operands.push_back(SIROperand::Function(testFuncName));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(callInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(callInst);
 
                         // (AR) بناء رسالة النجاح
                         // (EN) Build success message
@@ -398,24 +399,24 @@ namespace Sad
                                                      " (" + std::to_string(testDecl->iterations) +
                                                      "/" + std::to_string(testDecl->iterations) +
                                                      " \xD8\xAA\xD9\x83\xD8\xB1\xD8\xA7\xD8\xB1 \xD9\x86\xD8\xAC\xD8\xAD)";
-                            std::string msgReg = newTempRegister();
+                            std::string msgReg = b_.newTempRegister();
                             SIRInstruction strInst(SIROpcode::STRING_NEW);
                             strInst.result = SIROperand::Register(msgReg, SadTypeKind::String);
                             strInst.operands.push_back(SIROperand::ConstantString(successMsg));
-                            if (currentBlock_)
-                                currentBlock_->instructions.push_back(strInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->instructions.push_back(strInst);
 
                             SIRInstruction printInst(SIROpcode::BUILTIN_PRINT);
                             printInst.operands.push_back(SIROperand::Register(msgReg, SadTypeKind::String));
-                            if (currentBlock_)
-                                currentBlock_->instructions.push_back(printInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->instructions.push_back(printInst);
 
                             // (AR) طباعة سطر جديد
                             // (EN) Print newline
                             SIRInstruction nlInst(SIROpcode::BUILTIN_PRINT);
                             nlInst.operands.push_back(SIROperand::ConstantString("\n"));
-                            if (currentBlock_)
-                                currentBlock_->instructions.push_back(nlInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->instructions.push_back(nlInst);
                         }
                     }
 

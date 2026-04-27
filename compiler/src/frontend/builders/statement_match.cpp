@@ -6,6 +6,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -24,7 +25,7 @@ namespace Sad
         namespace SIR
         {
 
-            void SIRBuilder::buildMatchStatement(Sad::AST::MatchStmt *matchStmt)
+            void StatementBuilder::buildMatchStatement(Sad::AST::MatchStmt *matchStmt)
             {
                 if (!matchStmt)
                 {
@@ -40,11 +41,11 @@ namespace Sad
                 // (AR) الخطوة 1: تقييم القيمة المُطابقة
                 // (EN) Step 1: Evaluate the match value
                 // ========================================================================
-                auto matchResult = buildExpression(matchStmt->value.get());
+                auto matchResult = b_.buildExpression(matchStmt->value.get());
 
                 if (matchResult.registerName.empty() && !matchResult.isConstant)
                 {
-                    errors_.push_back("Error: Failed to build match expression");
+                    b_.errors_.push_back("Error: Failed to build match expression");
                     return;
                 }
 
@@ -60,7 +61,7 @@ namespace Sad
 
                 if (matchResult.isConstant)
                 {
-                    matchValueReg = newTempRegister();
+                    matchValueReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(matchValueReg, matchResult.type);
                     SIROperand constOp;
                     if (matchResult.type == SadTypeKind::String)
@@ -82,9 +83,9 @@ namespace Sad
                     SIRInstruction moveInst(SIROpcode::MOVE);
                     moveInst.result = resultOp;
                     moveInst.operands = {constOp};
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(moveInst);
+                        b_.currentBlock_->instructions.push_back(moveInst);
                     }
                 }
                 else if (!matchResult.registerName.empty() && matchResult.registerName[0] == '%')
@@ -96,19 +97,19 @@ namespace Sad
                     //      Temp registers (e.g. member access result) contain value directly
                     //      Registered variables (alloca) need LOAD to get the value
                     std::string regNameWithoutPercent = matchResult.registerName.substr(1);
-                    auto *varInfo = lookupVariable(regNameWithoutPercent);
+                    auto *varInfo = b_.lookupVariable(regNameWithoutPercent);
                     bool isAllocaVar = (varInfo != nullptr);
 
                     if (isAllocaVar)
                     {
-                        std::string loadedReg = newTempRegister();
+                        std::string loadedReg = b_.newTempRegister();
                         SIRInstruction loadInst;
                         loadInst.opcode = SIROpcode::LOAD;
                         loadInst.result = SIROperand::Register(loadedReg, matchValueType);
                         loadInst.operands.push_back(SIROperand::Register(matchValueReg, matchValueType));
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(loadInst);
+                            b_.currentBlock_->addInstruction(loadInst);
                         }
                         matchValueReg = loadedReg;
                     }
@@ -120,11 +121,11 @@ namespace Sad
                 // (AR) الخطوة 2: إنشاء كتلة النهاية
                 // (EN) Step 2: Create merge block
                 // ========================================================================
-                std::string mergeLabel = newLabel("match.end");
-                auto mergeBlock = createBasicBlock(mergeLabel);
-                if (currentFunction_)
+                std::string mergeLabel = b_.newLabel("match.end");
+                auto mergeBlock = b_.createBasicBlock(mergeLabel);
+                if (b_.currentFunction_)
                 {
-                    currentFunction_->addBasicBlock(mergeBlock);
+                    b_.currentFunction_->addBasicBlock(mergeBlock);
                 }
 
                 // ========================================================================
@@ -150,12 +151,12 @@ namespace Sad
                 for (size_t i = 0; i < matchStmt->cases.size(); ++i)
                 {
                     CaseBlockInfo info;
-                    info.testLabel = newLabel("match.case" + std::to_string(i) + ".test");
-                    info.bodyLabel = newLabel("match.case" + std::to_string(i) + ".body");
-                    info.testBlock = createBasicBlock(info.testLabel);
-                    info.bodyBlock = createBasicBlock(info.bodyLabel);
+                    info.testLabel = b_.newLabel("match.case" + std::to_string(i) + ".test");
+                    info.bodyLabel = b_.newLabel("match.case" + std::to_string(i) + ".body");
+                    info.testBlock = b_.createBasicBlock(info.testLabel);
+                    info.bodyBlock = b_.createBasicBlock(info.bodyLabel);
 
-                    if (currentFunction_)
+                    if (b_.currentFunction_)
                     {
                         // (AR) أضف فقط testBlock هنا — bodyBlock/guardBlock تُضاف لاحقاً
                         //      عند بناء كل arm مباشرة قبل بدء بنائه (الخطوة 5).
@@ -176,7 +177,7 @@ namespace Sad
                         //      → namedValues["%var"] updated to arm1's alloca → corrupts arm0's while
                         //      Correct order:
                         //        arm0_body, arm0_while_cond, arm0_while_body, arm1_body, ...
-                        currentFunction_->addBasicBlock(info.testBlock);
+                        b_.currentFunction_->addBasicBlock(info.testBlock);
                         // bodyBlock intentionally deferred — see Step 5 below
                     }
 
@@ -184,8 +185,8 @@ namespace Sad
                     // (EN) Guard block if exists — also deferred
                     if (matchStmt->cases[i].guard)
                     {
-                        info.guardLabel = newLabel("match.case" + std::to_string(i) + ".guard");
-                        info.guardBlock = createBasicBlock(info.guardLabel);
+                        info.guardLabel = b_.newLabel("match.case" + std::to_string(i) + ".guard");
+                        info.guardBlock = b_.createBasicBlock(info.guardLabel);
                         // guardBlock تُضاف لاحقاً في الخطوة 5 (مؤجلة مثل bodyBlock)
                         // guardBlock deferred — added in Step 5 below
                     }
@@ -201,9 +202,9 @@ namespace Sad
                 {
                     SIROperand firstLabel = SIROperand::Label(caseBlocks[0].testLabel);
                     SIRInstruction brFirst = SIRInstruction::Branch(firstLabel);
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(brFirst);
+                        b_.currentBlock_->instructions.push_back(brFirst);
                     }
                 }
                 else
@@ -212,11 +213,11 @@ namespace Sad
                     // (EN) No cases, jump directly to merge
                     SIROperand mergeLabelOp = SIROperand::Label(mergeLabel);
                     SIRInstruction brMerge = SIRInstruction::Branch(mergeLabelOp);
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(brMerge);
+                        b_.currentBlock_->instructions.push_back(brMerge);
                     }
-                    currentBlock_ = mergeBlock;
+                    b_.currentBlock_ = mergeBlock;
                     return;
                 }
 
@@ -236,7 +237,7 @@ namespace Sad
                                                 : mergeLabel;
 
                     // === كتلة الاختبار / Test block ===
-                    currentBlock_ = info.testBlock;
+                    b_.currentBlock_ = info.testBlock;
 
                     std::string condReg;
 
@@ -244,7 +245,7 @@ namespace Sad
                     {
                         // (AR) توليد شرط النمط عبر دالة مساعدة — CW-05
                         // (EN) Generate pattern condition via helper — CW-05
-                        condReg = buildMatchPatternCondition(
+                        condReg = b_.buildMatchPatternCondition(
                             caseClause.pattern.get(),
                             matchValueReg,
                             matchValueType,
@@ -261,17 +262,17 @@ namespace Sad
                         SIROperand guardLabelOp = SIROperand::Label(info.guardLabel);
                         SIROperand nextLabelOp = SIROperand::Label(nextLabel);
                         SIRInstruction brCond = SIRInstruction::BranchCond(condOp, guardLabelOp, nextLabelOp);
-                        currentBlock_->instructions.push_back(brCond);
+                        b_.currentBlock_->instructions.push_back(brCond);
 
                         // === كتلة guard / Guard block ===
                         // (AR) إضافة guardBlock هنا (مؤجلة من الخطوة 3) قبل بنائه
                         // (EN) Add guardBlock here (deferred from Step 3) before building it
-                        if (currentFunction_ && info.guardBlock)
+                        if (b_.currentFunction_ && info.guardBlock)
                         {
-                            currentFunction_->addBasicBlock(info.guardBlock);
+                            b_.currentFunction_->addBasicBlock(info.guardBlock);
                         }
-                        currentBlock_ = info.guardBlock;
-                        enterScope();
+                        b_.currentBlock_ = info.guardBlock;
+                        b_.enterScope();
 
                         // (AR) ربط المتغيرات من النمط قبل تقييم الشرط
                         // (EN) Bind pattern variables before evaluating guard
@@ -283,16 +284,16 @@ namespace Sad
                             guardVar.registerName = matchValueReg;
                             guardVar.isGlobal = false;
                             guardVar.isMutable = false;
-                            guardVar.scopeLevel = currentScopeLevel_;
-                            addVariable(guardVar);
+                            guardVar.scopeLevel = b_.currentScopeLevel_;
+                            b_.addVariable(guardVar);
                         }
 
-                        auto guardResult = buildExpression(caseClause.guard.get());
+                        auto guardResult = b_.buildExpression(caseClause.guard.get());
 
                         std::string guardCondReg = guardResult.registerName;
                         if (guardResult.isConstant)
                         {
-                            guardCondReg = newTempRegister();
+                            guardCondReg = b_.newTempRegister();
                             SIROperand gResultOp = SIROperand::Register(guardCondReg, guardResult.type);
                             SIROperand gConstOp;
                             if (guardResult.type == SadTypeKind::Boolean)
@@ -310,16 +311,16 @@ namespace Sad
                             SIRInstruction moveG(SIROpcode::MOVE);
                             moveG.result = gResultOp;
                             moveG.operands = {gConstOp};
-                            currentBlock_->instructions.push_back(moveG);
+                            b_.currentBlock_->instructions.push_back(moveG);
                         }
 
                         SIROperand guardCondOp = SIROperand::Register(guardCondReg, SadTypeKind::Boolean);
                         SIROperand bodyLabelOp = SIROperand::Label(info.bodyLabel);
                         SIROperand nextLabelOp2 = SIROperand::Label(nextLabel);
                         SIRInstruction brGuard = SIRInstruction::BranchCond(guardCondOp, bodyLabelOp, nextLabelOp2);
-                        currentBlock_->instructions.push_back(brGuard);
+                        b_.currentBlock_->instructions.push_back(brGuard);
 
-                        exitScope();
+                        b_.exitScope();
                     }
                     else
                     {
@@ -329,7 +330,7 @@ namespace Sad
                         SIROperand bodyLabelOp = SIROperand::Label(info.bodyLabel);
                         SIROperand nextLabelOp = SIROperand::Label(nextLabel);
                         SIRInstruction brCond = SIRInstruction::BranchCond(condOp, bodyLabelOp, nextLabelOp);
-                        currentBlock_->instructions.push_back(brCond);
+                        b_.currentBlock_->instructions.push_back(brCond);
                     }
 
                     // === كتلة الجسم / Body block ===
@@ -339,12 +340,12 @@ namespace Sad
                     // (EN) Add bodyBlock here (deferred from Step 3) before building it.
                     //      Ensures while sub-blocks generated during this arm's body build
                     //      appear immediately after this bodyBlock, before next arm's bodyBlock.
-                    if (currentFunction_)
+                    if (b_.currentFunction_)
                     {
-                        currentFunction_->addBasicBlock(info.bodyBlock);
+                        b_.currentFunction_->addBasicBlock(info.bodyBlock);
                     }
-                    currentBlock_ = info.bodyBlock;
-                    enterScope();
+                    b_.currentBlock_ = info.bodyBlock;
+                    b_.enterScope();
 
                     // (AR) ربط المتغيرات من النمط في الجسم
                     // (EN) Bind pattern variables in body scope
@@ -356,8 +357,8 @@ namespace Sad
                         bodyVar.registerName = matchValueReg;
                         bodyVar.isGlobal = false;
                         bodyVar.isMutable = false;
-                        bodyVar.scopeLevel = currentScopeLevel_;
-                        addVariable(bodyVar);
+                        bodyVar.scopeLevel = b_.currentScopeLevel_;
+                        b_.addVariable(bodyVar);
                     }
 
                     // (AR) === استخراج حقول ADT المؤجلة ===
@@ -386,7 +387,7 @@ namespace Sad
                                 //      expects elements. Deferral ensures extraction only
                                 //      after length check succeeds.
                                 // ============================================================
-                                std::string elemReg = newTempRegister();
+                                std::string elemReg = b_.newTempRegister();
                                 SIRInstruction getInst;
                                 getInst.opcode = SIROpcode::ARRAY_GET;
                                 getInst.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
@@ -396,8 +397,8 @@ namespace Sad
                                     SIROperand::ConstantI64(static_cast<int64_t>(deferred.fieldIndex)));
                                 getInst.comment = "Deferred list pattern: get element [" +
                                                   std::to_string(deferred.fieldIndex) + "] → " + deferred.varName;
-                                if (currentBlock_)
-                                    currentBlock_->addInstruction(getInst);
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->addInstruction(getInst);
 
                                 // (AR) ربط المتغير بالعنصر المستخرج
                                 // (EN) Bind variable to extracted element
@@ -407,8 +408,8 @@ namespace Sad
                                 elemVarInfo.registerName = elemReg;
                                 elemVarInfo.isGlobal = false;
                                 elemVarInfo.isMutable = false;
-                                elemVarInfo.scopeLevel = currentScopeLevel_;
-                                addVariable(elemVarInfo);
+                                elemVarInfo.scopeLevel = b_.currentScopeLevel_;
+                                b_.addVariable(elemVarInfo);
                             }
                             else if (deferred.enumName == "__list_pattern_literal")
                             {
@@ -428,7 +429,7 @@ namespace Sad
                             {
                                 // (AR) استخراج حقول ADT (التعداد الجبري) — السلوك الأصلي
                                 // (EN) ADT field extraction — original behavior
-                                std::string fieldReg = newTempRegister();
+                                std::string fieldReg = b_.newTempRegister();
                                 SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
                                 getPayload.result = SIROperand::Register(fieldReg, SadTypeKind::Integer);
                                 getPayload.operands.push_back(
@@ -442,8 +443,8 @@ namespace Sad
                                 getPayload.comment = "Deferred extract: field " +
                                                      std::to_string(deferred.fieldIndex) + " (" + deferred.fieldName +
                                                      ") → " + deferred.varName;
-                                if (currentBlock_)
-                                    currentBlock_->addInstruction(getPayload);
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->addInstruction(getPayload);
 
                                 // (AR) ربط المتغير بقيمة الحقل المستخرج
                                 // (EN) Bind variable to extracted field value
@@ -453,8 +454,8 @@ namespace Sad
                                 fieldVarInfo.registerName = fieldReg;
                                 fieldVarInfo.isGlobal = false;
                                 fieldVarInfo.isMutable = false;
-                                fieldVarInfo.scopeLevel = currentScopeLevel_;
-                                addVariable(fieldVarInfo);
+                                fieldVarInfo.scopeLevel = b_.currentScopeLevel_;
+                                b_.addVariable(fieldVarInfo);
                             }
                         }
                     }
@@ -466,15 +467,15 @@ namespace Sad
                         buildStatement(bodyStmt.get());
                     }
 
-                    exitScope();
+                    b_.exitScope();
 
                     // (AR) قفز غير مشروط إلى كتلة النهاية
                     // (EN) Unconditional jump to merge block
                     SIROperand mergeLabelOp = SIROperand::Label(mergeLabel);
                     SIRInstruction brMerge = SIRInstruction::Branch(mergeLabelOp);
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(brMerge);
+                        b_.currentBlock_->instructions.push_back(brMerge);
                     }
 
 #ifndef NDEBUG
@@ -524,8 +525,8 @@ namespace Sad
                     // (EN) If ADT enum and no wildcard — check coverage
                     if (!hasWildcard && !hasVariablePattern && !adtEnumName.empty())
                     {
-                        auto adtIt = adtEnumTable_.find(adtEnumName);
-                        if (adtIt != adtEnumTable_.end())
+                        auto adtIt = b_.adtEnumTable_.find(adtEnumName);
+                        if (adtIt != b_.adtEnumTable_.end())
                         {
                             const ADTEnumInfo &adtInfo = adtIt->second;
                             std::vector<std::string> missingVariants;
@@ -550,7 +551,7 @@ namespace Sad
                                         warning += ", ";
                                     warning += adtEnumName + "." + missingVariants[m];
                                 }
-                                errors_.push_back(warning);
+                                b_.errors_.push_back(warning);
 
 #ifndef NDEBUG
                                 std::cout << "[WARNING] " << warning << std::endl;
@@ -564,7 +565,7 @@ namespace Sad
                 // (AR) الخطوة 6: الاستمرار بعد match
                 // (EN) Step 6: Continue after match statement
                 // ========================================================================
-                currentBlock_ = mergeBlock;
+                b_.currentBlock_ = mergeBlock;
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildMatchStatement: completed" << std::endl;
 #endif
@@ -584,13 +585,13 @@ namespace Sad
             // - body: StmtPtr (line 150)
             //
             // المتغيرات المستخدمة / Used variables:
-            // - currentBlock_: sir_builder.h:582 (shared_ptr<SIRBasicBlock>)
+            // - b_.currentBlock_: sir_builder.h:582 (shared_ptr<SIRBasicBlock>)
             //
             // الدوال المستدعاة / Called functions:
-            // - buildExpression: sir_builder.h:432
+            // - b_.buildExpression: sir_builder.h:432
             // - buildStatement: sir_builder.h:372
-            // - createBasicBlock: sir_builder.h:501
-            // - newLabel: sir_builder.h:520
+            // - b_.createBasicBlock: sir_builder.h:501
+            // - b_.newLabel: sir_builder.h:520
             // ============================================================================
 
         } // namespace SIR

@@ -3,6 +3,7 @@
 // ============================================================================
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -22,7 +23,7 @@ namespace Sad
         namespace SIR
         {
 
-            bool SIRBuilder::buildStatement_Property(AST::Statement *stmt)
+            bool StatementBuilder::buildStatement_Property(AST::Statement *stmt)
             {
                 // ========================================================================
                 // (AR) PropertyDecl - خاصية مع getter/setter (property_nodes.h:PropertyDecl)
@@ -34,9 +35,9 @@ namespace Sad
                     std::cout << "[DEBUG] Found PropertyDecl: " << propDecl->name << std::endl;
 #endif
 
-                    SadTypeKind propType = astTypeToSIRType(propDecl->type);
-                    const bool hasClassContext = !currentClassName_.empty();
-                    const std::string functionPrefix = hasClassContext ? (currentClassName_ + ".") : "";
+                    SadTypeKind propType = b_.astTypeToSIRType(propDecl->type);
+                    const bool hasClassContext = !b_.currentClassName_.empty();
+                    const std::string functionPrefix = hasClassContext ? (b_.currentClassName_ + ".") : "";
 
                     // (AR) بناء دالة getter إن وُجدت
                     // (EN) Build getter function if present
@@ -49,14 +50,14 @@ namespace Sad
                         // (EN) Standard self parameter
                         getterFunc->addParameter(SIRParameter(kSelfParamName, SadTypeKind::Integer));
 
-                        auto entryBlock = createBasicBlock("getter_entry");
+                        auto entryBlock = b_.createBasicBlock("getter_entry");
                         getterFunc->addBasicBlock(entryBlock);
 
-                        auto savedCtxGetter = saveContext();
-                        currentFunction_ = getterFunc;
-                        currentBlock_ = entryBlock;
+                        auto savedCtxGetter = b_.saveContext();
+                        b_.currentFunction_ = getterFunc;
+                        b_.currentBlock_ = entryBlock;
 
-                        enterScope();
+                        b_.enterScope();
 
                         // (AR) تسجيل self + هذا لتمكين هذا.الحقل داخل getter
                         // (EN) Register self + this alias to support this.field inside getter
@@ -67,7 +68,7 @@ namespace Sad
                             selfInfo.registerName = kSelfRegisterName;
                             selfInfo.isGlobal = false;
                             selfInfo.isMutable = false;
-                            addVariable(selfInfo);
+                            b_.addVariable(selfInfo);
 
                             VariableInfo thisInfo;
                             thisInfo.name = kThisAliasName;
@@ -75,12 +76,12 @@ namespace Sad
                             thisInfo.registerName = kSelfRegisterName;
                             thisInfo.isGlobal = false;
                             thisInfo.isMutable = false;
-                            addVariable(thisInfo);
+                            b_.addVariable(thisInfo);
 
                             if (hasClassContext)
                             {
-                                classInstanceTypes_[kSelfRegisterName] = currentClassName_;
-                                classInstanceTypes_[kThisAliasName] = currentClassName_;
+                                b_.classInstanceTypes_[kSelfRegisterName] = b_.currentClassName_;
+                                b_.classInstanceTypes_[kThisAliasName] = b_.currentClassName_;
                             }
                         }
 
@@ -88,14 +89,14 @@ namespace Sad
                         {
                             buildStatement(propDecl->getter->body.get());
                         }
-                        exitScope();
+                        b_.exitScope();
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
                             bool hasTerminator = false;
-                            if (!currentBlock_->instructions.empty())
+                            if (!b_.currentBlock_->instructions.empty())
                             {
-                                auto lastOp = currentBlock_->instructions.back().opcode;
+                                auto lastOp = b_.currentBlock_->instructions.back().opcode;
                                 hasTerminator = (lastOp == SIROpcode::RET || lastOp == SIROpcode::RET_VOID);
                             }
                             if (!hasTerminator)
@@ -117,12 +118,12 @@ namespace Sad
                                         retInst.operands.push_back(SIROperand::ConstantI64(0));
                                     }
                                 }
-                                currentBlock_->addInstruction(retInst);
+                                b_.currentBlock_->addInstruction(retInst);
                             }
                         }
 
-                        restoreContext(std::move(savedCtxGetter));
-                        module_->addFunction(getterFunc);
+                        b_.restoreContext(std::move(savedCtxGetter));
+                        b_.module_->addFunction(getterFunc);
                     }
 
                     // (AR) بناء دالة setter إن وُجدت
@@ -137,14 +138,14 @@ namespace Sad
                         setterFunc->addParameter(SIRParameter(kSelfParamName, SadTypeKind::Integer));
                         setterFunc->addParameter(SIRParameter(propDecl->setter->parameterName, propType));
 
-                        auto entryBlock = createBasicBlock("setter_entry");
+                        auto entryBlock = b_.createBasicBlock("setter_entry");
                         setterFunc->addBasicBlock(entryBlock);
 
-                        auto savedCtxSetter = saveContext();
-                        currentFunction_ = setterFunc;
-                        currentBlock_ = entryBlock;
+                        auto savedCtxSetter = b_.saveContext();
+                        b_.currentFunction_ = setterFunc;
+                        b_.currentBlock_ = entryBlock;
 
-                        enterScope();
+                        b_.enterScope();
 
                         // (AR) تسجيل self + هذا لتمكين هذا.الحقل داخل setter
                         // (EN) Register self + this alias to support this.field inside setter
@@ -155,7 +156,7 @@ namespace Sad
                             selfInfo.registerName = kSelfRegisterName;
                             selfInfo.isGlobal = false;
                             selfInfo.isMutable = false;
-                            addVariable(selfInfo);
+                            b_.addVariable(selfInfo);
 
                             VariableInfo thisInfo;
                             thisInfo.name = kThisAliasName;
@@ -163,12 +164,12 @@ namespace Sad
                             thisInfo.registerName = kSelfRegisterName;
                             thisInfo.isGlobal = false;
                             thisInfo.isMutable = false;
-                            addVariable(thisInfo);
+                            b_.addVariable(thisInfo);
 
                             if (hasClassContext)
                             {
-                                classInstanceTypes_[kSelfRegisterName] = currentClassName_;
-                                classInstanceTypes_[kThisAliasName] = currentClassName_;
+                                b_.classInstanceTypes_[kSelfRegisterName] = b_.currentClassName_;
+                                b_.classInstanceTypes_[kThisAliasName] = b_.currentClassName_;
                             }
                         }
 
@@ -180,30 +181,30 @@ namespace Sad
                         paramInfo.registerName = propDecl->setter->parameterName;
                         paramInfo.isGlobal = false;
                         paramInfo.isMutable = true;
-                        addVariable(paramInfo);
+                        b_.addVariable(paramInfo);
 
                         if (propDecl->setter->body)
                         {
                             buildStatement(propDecl->setter->body.get());
                         }
-                        exitScope();
+                        b_.exitScope();
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
                             bool hasTerminator = false;
-                            if (!currentBlock_->instructions.empty())
+                            if (!b_.currentBlock_->instructions.empty())
                             {
-                                auto lastOp = currentBlock_->instructions.back().opcode;
+                                auto lastOp = b_.currentBlock_->instructions.back().opcode;
                                 hasTerminator = (lastOp == SIROpcode::RET || lastOp == SIROpcode::RET_VOID);
                             }
                             if (!hasTerminator)
                             {
-                                currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
+                                b_.currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
                             }
                         }
 
-                        restoreContext(std::move(savedCtxSetter));
-                        module_->addFunction(setterFunc);
+                        b_.restoreContext(std::move(savedCtxSetter));
+                        b_.module_->addFunction(setterFunc);
                     }
                     return true;
                 }

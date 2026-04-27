@@ -4,6 +4,7 @@
 #include <string>
 #include <set>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -21,7 +22,7 @@ namespace Sad
     {
         namespace SIR
         {
-            void SIRBuilder::buildStatement(AST::Statement *stmt)
+            void StatementBuilder::buildStatement(AST::Statement *stmt)
             {
                 if (!stmt)
                 {
@@ -84,20 +85,20 @@ namespace Sad
                     if (funcDecl->body)
                     {
                         std::set<std::string> boundCopy = paramNames;
-                        collectFreeVarsStmt(funcDecl->body.get(), boundCopy, freeVars);
+                        b_.collectFreeVarsStmt(funcDecl->body.get(), boundCopy, freeVars);
                     }
 
                     // ================================================================
                     // (AR) الخطوة 3: تصفية — فقط المتغيرات الموجودة في النطاق الحالي (الأب)
                     // (EN) Step 3: Filter — only vars that exist in current (parent) scope
                     // ================================================================
-                    std::vector<CaptureInfo> captures;
+                    std::vector<SIRBuilderContext::CaptureInfo> captures;
                     for (const auto &fv : freeVars)
                     {
-                        auto *varPtr = lookupVariable(fv);
+                        auto *varPtr = b_.lookupVariable(fv);
                         if (varPtr)
                         {
-                            CaptureInfo ci;
+                            SIRBuilderContext::CaptureInfo ci;
                             ci.varName = fv;
                             ci.registerName = varPtr->registerName;
                             ci.type = varPtr->type;
@@ -111,9 +112,9 @@ namespace Sad
                         // (AR) لا التقاطات — السلوك القديم: بناء دالة مستقلة
                         // (EN) No captures — old behavior: build standalone function
                         // ================================================================
-                        auto savedCtxNested = saveContext();
-                        buildFunction(funcDecl);
-                        restoreContext(std::move(savedCtxNested));
+                        auto savedCtxNested = b_.saveContext();
+                        b_.buildFunction(funcDecl);
+                        b_.restoreContext(std::move(savedCtxNested));
                     }
                     else
                     {
@@ -125,25 +126,25 @@ namespace Sad
                         //      Create function with hidden __env param + load captured vars
                         //      Then create CLOSURE_CREATE and register function name as local var
                         // ================================================================
-                        std::string innerFuncName = "__inner_" + funcDecl->name + "_" + std::to_string(nextTempRegister_++);
+                        std::string innerFuncName = "__inner_" + funcDecl->name + "_" + std::to_string(b_.nextTempRegister_++);
 
                         // (AR) تخزين التقاطات الإغلاق للـ codegen
                         // (EN) Store closure captures for codegen
-                        closureCaptures_[innerFuncName] = captures;
+                        b_.closureCaptures_[innerFuncName] = captures;
 
                         // (AR) بناء معاملات الدالة: المعاملات الصريحة + __env
                         // (EN) Build function params: explicit params + __env
-                        auto ftIt = functionTable_.find(funcDecl->name);
+                        auto ftIt = b_.functionTable_.find(funcDecl->name);
                         std::vector<SIRParameter> sirParams;
                         for (size_t i = 0; i < funcDecl->parameters.size(); i++)
                         {
                             const auto &param = funcDecl->parameters[i];
-                            SadTypeKind paramType = astTypeToSIRType(param.type);
-                            // (AR) استخدام النوع المُستنتج من functionTable_ إن وُجد
-                            // (EN) Use inferred type from functionTable_ if available
+                            SadTypeKind paramType = b_.astTypeToSIRType(param.type);
+                            // (AR) استخدام النوع المُستنتج من b_.functionTable_ إن وُجد
+                            // (EN) Use inferred type from b_.functionTable_ if available
                             if (paramType == SadTypeKind::Integer &&
                                 param.type == Data::DataType::UNKNOWN &&
-                                ftIt != functionTable_.end() &&
+                                ftIt != b_.functionTable_.end() &&
                                 i < ftIt->second.parameters.size() &&
                                 ftIt->second.parameters[i].type != SadTypeKind::Integer)
                             {
@@ -159,11 +160,11 @@ namespace Sad
                         if (funcDecl->returnType == Data::DataType::UNKNOWN ||
                             funcDecl->returnType == Data::DataType::NONE)
                         {
-                            returnType = inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
+                            returnType = b_.inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
                         }
                         else
                         {
-                            returnType = astTypeToSIRType(funcDecl->returnType);
+                            returnType = b_.astTypeToSIRType(funcDecl->returnType);
                         }
 
                         // (AR) إنشاء دالة SIR
@@ -174,13 +175,13 @@ namespace Sad
 
                         // (AR) حفظ السياق وتعيين سياق الدالة الجديدة
                         // (EN) Save context and set new function context
-                        auto savedCtx = saveContext();
-                        currentFunction_ = innerFunc;
-                        auto entryBlock = createBasicBlock("lambda_entry");
+                        auto savedCtx = b_.saveContext();
+                        b_.currentFunction_ = innerFunc;
+                        auto entryBlock = b_.createBasicBlock("lambda_entry");
                         innerFunc->addBasicBlock(entryBlock);
-                        currentBlock_ = entryBlock;
+                        b_.currentBlock_ = entryBlock;
 
-                        enterScope();
+                        b_.enterScope();
 
                         // (AR) تسجيل المعاملات الصريحة كمتغيرات محلية
                         // (EN) Register explicit parameters as local variables
@@ -193,22 +194,22 @@ namespace Sad
                             paramVar.registerName = paramReg;
                             paramVar.isMutable = true;
                             paramVar.isParameter = true;
-                            paramVar.scopeLevel = currentScopeLevel_;
-                            addVariable(paramVar);
+                            paramVar.scopeLevel = b_.currentScopeLevel_;
+                            b_.addVariable(paramVar);
                         }
 
                         // (AR) تحميل المتغيرات الملتقطة من بيئة الإغلاق __env
                         // (EN) Load captured variables from closure environment __env
                         for (size_t i = 0; i < captures.size(); i++)
                         {
-                            std::string loadReg = newTempRegister();
+                            std::string loadReg = b_.newTempRegister();
                             SIRInstruction envLoadInst;
                             envLoadInst.opcode = SIROpcode::ENV_LOAD;
                             envLoadInst.result = SIROperand::Register(loadReg, captures[i].type);
                             envLoadInst.operands.push_back(SIROperand::Register("%__env", SadTypeKind::Integer));
                             envLoadInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i)));
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(envLoadInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(envLoadInst);
 
                             std::string allocaName = "%__cap_" + captures[i].varName + "_" + std::to_string(i);
                             SIRInstruction storeInit;
@@ -216,19 +217,19 @@ namespace Sad
                             storeInit.operands.push_back(SIROperand::Register(loadReg, captures[i].type));
                             storeInit.operands.push_back(SIROperand::Register(allocaName, captures[i].type));
                             storeInit.comment = "init captured var from env[" + std::to_string(i) + "]";
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(storeInit);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(storeInit);
 
                             VariableInfo capVar;
                             capVar.name = captures[i].varName;
                             capVar.type = captures[i].type;
                             capVar.registerName = allocaName;
                             capVar.isMutable = true;
-                            capVar.scopeLevel = currentScopeLevel_;
+                            capVar.scopeLevel = b_.currentScopeLevel_;
                             capVar.isCaptured = true;
                             capVar.captureIndex = static_cast<int>(i);
                             capVar.envRegister = "%__env";
-                            addVariable(capVar);
+                            b_.addVariable(capVar);
                         }
 
                         // (AR) بناء جسم الدالة
@@ -286,9 +287,9 @@ namespace Sad
 
                         // (AR) إضافة RET_VOID إذا لم يكن هناك return
                         // (EN) Add RET_VOID if no return statement
-                        if (currentBlock_ && !currentBlock_->instructions.empty())
+                        if (b_.currentBlock_ && !b_.currentBlock_->instructions.empty())
                         {
-                            auto &lastInst = currentBlock_->instructions.back();
+                            auto &lastInst = b_.currentBlock_->instructions.back();
                             if (lastInst.opcode != SIROpcode::RET &&
                                 lastInst.opcode != SIROpcode::RET_VOID &&
                                 lastInst.opcode != SIROpcode::BR &&
@@ -296,17 +297,17 @@ namespace Sad
                             {
                                 SIRInstruction retVoid;
                                 retVoid.opcode = SIROpcode::RET_VOID;
-                                currentBlock_->addInstruction(retVoid);
+                                b_.currentBlock_->addInstruction(retVoid);
                             }
                         }
 
-                        exitScope();
+                        b_.exitScope();
 
                         // (AR) إضافة الدالة للوحدة
                         // (EN) Add function to module
-                        if (module_)
+                        if (b_.module_)
                         {
-                            module_->addFunction(innerFunc);
+                            b_.module_->addFunction(innerFunc);
                         }
 
                         // (AR) تسجيل في جدول الدوال
@@ -316,33 +317,33 @@ namespace Sad
                         funcInfo.returnType = returnType;
                         funcInfo.parameters = innerFunc->getParameters();
                         funcInfo.sirFunction = innerFunc;
-                        functionTable_[innerFuncName] = funcInfo;
+                        b_.functionTable_[innerFuncName] = funcInfo;
 
                         // (AR) استعادة السياق السابق
                         // (EN) Restore previous context
-                        restoreContext(std::move(savedCtx));
+                        b_.restoreContext(std::move(savedCtx));
 
                         // ================================================================
                         // (AR) إنشاء CLOSURE_CREATE مع القيم الملتقطة في السياق الأب
                         // (EN) Create CLOSURE_CREATE with captured values in parent context
                         // ================================================================
-                        std::string closureReg = newTempRegister();
+                        std::string closureReg = b_.newTempRegister();
                         SIRInstruction closureInst;
                         closureInst.opcode = SIROpcode::CLOSURE_CREATE;
                         closureInst.result = SIROperand::Register(closureReg, SadTypeKind::Function);
                         closureInst.operands.push_back(SIROperand::Function(innerFuncName));
                         for (const auto &cap : captures)
                         {
-                            VariableInfo *capVar = lookupVariable(cap.varName);
+                            VariableInfo *capVar = b_.lookupVariable(cap.varName);
                             if (capVar)
                             {
-                                std::string capLoadReg = newTempRegister();
+                                std::string capLoadReg = b_.newTempRegister();
                                 SIRInstruction capLoadInst;
                                 capLoadInst.opcode = SIROpcode::LOAD;
                                 capLoadInst.result = SIROperand::Register(capLoadReg, capVar->type);
                                 capLoadInst.operands.push_back(SIROperand::Register(capVar->registerName, capVar->type));
-                                if (currentBlock_)
-                                    currentBlock_->addInstruction(capLoadInst);
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->addInstruction(capLoadInst);
                                 closureInst.operands.push_back(SIROperand::Register(capLoadReg, capVar->type));
                             }
                             else
@@ -350,8 +351,8 @@ namespace Sad
                                 closureInst.operands.push_back(SIROperand::Register(cap.registerName, cap.type));
                             }
                         }
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(closureInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(closureInst);
                         // ================================================================
                         // (AR) تسجيل اسم الدالة الأصلي كمتغير محلي يحمل الإغلاق
                         //      هذا يسمح بـ: جامع = إنشاء_جامع() ثم جامع(5)
@@ -365,16 +366,16 @@ namespace Sad
                         closureVar.type = SadTypeKind::Function;
                         closureVar.registerName = closureReg;
                         closureVar.isMutable = false;
-                        closureVar.scopeLevel = currentScopeLevel_;
+                        closureVar.scopeLevel = b_.currentScopeLevel_;
                         closureVar.closureLambdaName = innerFuncName;
-                        addVariable(closureVar);
+                        b_.addVariable(closureVar);
 
-                        // (AR) لا نُسجّل في functionTable_ باسم الدالة الأصلي
+                        // (AR) لا نُسجّل في b_.functionTable_ باسم الدالة الأصلي
                         //      لأن ذلك يتسبب بأن buildCallExpression يُصدر CALL عادي
                         //      بدلاً من CLOSURE_CALL — مما يسبب خطأ linker
                         //      (unresolved external symbol)
                         //      المتغير المُسجّل أعلاه يكفي لتوجيه الاستدعاء إلى CLOSURE_CALL
-                        // (EN) Do NOT register in functionTable_ with original name
+                        // (EN) Do NOT register in b_.functionTable_ with original name
                         //      because buildCallExpression would emit a direct CALL
                         //      instead of CLOSURE_CALL — causing linker error
                         //      The variable registered above is sufficient for CLOSURE_CALL routing
@@ -455,7 +456,7 @@ namespace Sad
                     // (EN) Execute expression only (ignore result)
                     if (exprStmt->expression)
                     {
-                        buildExpression(exprStmt->expression.get());
+                        b_.buildExpression(exprStmt->expression.get());
                     }
                     return;
                 }
@@ -503,7 +504,7 @@ namespace Sad
 #endif
                     // (AR) بناء تعبير الصف المصدر
                     // (EN) Build source tuple expression
-                    auto tupleResult = buildExpression(tupleDestr->initializer.get());
+                    auto tupleResult = b_.buildExpression(tupleDestr->initializer.get());
 
                     // (AR) استخراج كل عنصر وتسجيله كمتغير محلي
                     // (EN) Extract each element and register as local variable
@@ -515,15 +516,15 @@ namespace Sad
 
                         // (AR) استخراج العنصر من الصف باستخدام TUPLE_GET
                         // (EN) Extract element from tuple using TUPLE_GET
-                        std::string elemReg = newTempRegister();
-                        if (currentBlock_)
+                        std::string elemReg = b_.newTempRegister();
+                        if (b_.currentBlock_)
                         {
                             SIRInstruction getInst(SIROpcode::TUPLE_GET);
                             getInst.result = SIROperand::Register(elemReg, SadTypeKind::Integer);
                             getInst.operands.push_back(SIROperand::Register(tupleResult.registerName, tupleResult.type));
                             getInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i)));
                             getInst.comment = "tuple destructure: " + name + " = tuple[" + std::to_string(i) + "]";
-                            currentBlock_->addInstruction(getInst);
+                            b_.currentBlock_->addInstruction(getInst);
                         }
 
                         // (AR) تسجيل المتغير المحلي
@@ -534,18 +535,18 @@ namespace Sad
                         varInfo.registerName = "%" + name;
                         varInfo.isGlobal = false;
                         varInfo.isMutable = !tupleDestr->isConst;
-                        varInfo.scopeLevel = currentScopeLevel_;
-                        addVariable(varInfo);
+                        varInfo.scopeLevel = b_.currentScopeLevel_;
+                        b_.addVariable(varInfo);
 
                         // (AR) تخزين القيمة المستخرجة في السجل
                         // (EN) Store extracted value in register
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
                             SIRInstruction storeInst(SIROpcode::STORE);
                             storeInst.operands.push_back(SIROperand::Register(varInfo.registerName, SadTypeKind::Integer));
                             storeInst.operands.push_back(SIROperand::Register(elemReg, SadTypeKind::Integer));
                             storeInst.comment = "store destructured: " + name;
-                            currentBlock_->addInstruction(storeInst);
+                            b_.currentBlock_->addInstruction(storeInst);
                         }
                     }
                     return;
@@ -558,7 +559,7 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] Found TemplateFunctionDecl: " << templateDecl->name << std::endl;
 #endif
-                    buildTemplateFunction(templateDecl);
+                    b_.buildTemplateFunction(templateDecl);
                     return;
                 }
 
@@ -573,7 +574,7 @@ namespace Sad
 
                     // (AR) تسجيل صنف القالب — يُنشأ عند TemplateInstantiation
                     // (EN) Register template class — instantiated at TemplateInstantiation
-                    templateClasses_[templateClassDecl->name] = templateClassDecl;
+                    b_.templateClasses_[templateClassDecl->name] = templateClassDecl;
 
                     // (AR) إنشاء SIRClass فارغ بالاسم الأساسي ليُعرف في الجدول
                     // (EN) Create empty SIRClass with base name so it's known
@@ -589,7 +590,7 @@ namespace Sad
                         sirClass->addField(tp.name, SadTypeKind::Pointer);
                     }
 
-                    module_->addClass(sirClass);
+                    b_.module_->addClass(sirClass);
                     return;
                 }
 
@@ -620,26 +621,26 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] Found DeferStmt — registering deferred statement" << std::endl;
 #endif
-                    if (!currentDeferStackReg_.empty())
+                    if (!b_.currentDeferStackReg_.empty())
                     {
                         BuildResult closureResult = buildDeferredClosure(deferStmt->body.get());
-                        if (!closureResult.registerName.empty() && currentBlock_)
+                        if (!closureResult.registerName.empty() && b_.currentBlock_)
                         {
                             SIRInstruction appendInst(SIROpcode::BUILTIN_ARRAY_APPEND);
-                            appendInst.result = SIROperand::Register(newTempRegister(), SadTypeKind::Void);
-                            appendInst.operands.push_back(SIROperand::Register(currentDeferStackReg_, SadTypeKind::Array));
+                            appendInst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Void);
+                            appendInst.operands.push_back(SIROperand::Register(b_.currentDeferStackReg_, SadTypeKind::Array));
                             appendInst.operands.push_back(SIROperand::Register(closureResult.registerName, SadTypeKind::Function));
                             appendInst.comment = "register deferred closure at runtime";
-                            currentBlock_->addInstruction(appendInst);
+                            b_.currentBlock_->addInstruction(appendInst);
                         }
                         return;
                     }
 
                     // (AR) تسجيل الجملة المؤجلة في مكدس الدالة الحالية
                     // (EN) Register deferred statement in current function's stack
-                    if (currentFunction_)
+                    if (b_.currentFunction_)
                     {
-                        deferredStatements_.push_back(deferStmt->body.get());
+                        b_.deferredStatements_.push_back(deferStmt->body.get());
                     }
                     return;
                 }
@@ -656,17 +657,17 @@ namespace Sad
 
                     // (AR) بناء تعبير الحالة
                     // (EN) Build switch expression
-                    auto exprResult = buildExpression(switchStmt->expression.get());
+                    auto exprResult = b_.buildExpression(switchStmt->expression.get());
 
                     // (AR) إنشاء كتل لكل حالة وكتلة الخروج
                     // (EN) Create blocks for each case and exit block
-                    std::string exitLabel = newLabel("switch_exit");
-                    auto exitBlock = createBasicBlock(exitLabel);
+                    std::string exitLabel = b_.newLabel("switch_exit");
+                    auto exitBlock = b_.createBasicBlock(exitLabel);
 
                     std::string defaultLabel = exitLabel;
                     if (switchStmt->defaultCase)
                     {
-                        defaultLabel = newLabel("switch_default");
+                        defaultLabel = b_.newLabel("switch_default");
                     }
 
                     // (AR) بناء سلسلة من فروع شرطية لكل حالة
@@ -675,8 +676,8 @@ namespace Sad
 
                     for (size_t i = 0; i < switchStmt->cases.size(); ++i)
                     {
-                        std::string caseLabel = newLabel("switch_case_" + std::to_string(i));
-                        auto caseBlock = createBasicBlock(caseLabel);
+                        std::string caseLabel = b_.newLabel("switch_case_" + std::to_string(i));
+                        auto caseBlock = b_.createBasicBlock(caseLabel);
                         caseBlocks.push_back({caseLabel, caseBlock});
                     }
 
@@ -688,19 +689,19 @@ namespace Sad
 
                         // (AR) بناء تعبير قيمة الحالة
                         // (EN) Build case value expression
-                        auto caseVal = buildExpression(caseBranch.value.get());
+                        auto caseVal = b_.buildExpression(caseBranch.value.get());
 
                         // (AR) مقارنة المساواة
                         // (EN) Equality comparison
-                        std::string cmpReg = newTempRegister();
+                        std::string cmpReg = b_.newTempRegister();
                         SIRInstruction cmpInst = SIRInstruction::Binary(
                             SIROpcode::EQ,
                             SIROperand::Register(cmpReg, SadTypeKind::Boolean),
                             SIROperand::Register(exprResult.registerName, exprResult.type),
                             SIROperand::Register(caseVal.registerName, caseVal.type));
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(cmpInst);
+                            b_.currentBlock_->addInstruction(cmpInst);
                         }
 
                         // (AR) التحديد: إذا تطابقت القيمة، اذهب لكتلة الحالة
@@ -708,52 +709,52 @@ namespace Sad
                         std::string nextCheckLabel;
                         if (i + 1 < switchStmt->cases.size())
                         {
-                            nextCheckLabel = newLabel("switch_check_" + std::to_string(i + 1));
+                            nextCheckLabel = b_.newLabel("switch_check_" + std::to_string(i + 1));
                         }
                         else
                         {
                             nextCheckLabel = defaultLabel;
                         }
 
-                        auto nextCheckBlock = createBasicBlock(nextCheckLabel);
+                        auto nextCheckBlock = b_.createBasicBlock(nextCheckLabel);
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                            b_.currentBlock_->addInstruction(SIRInstruction::BranchCond(
                                 SIROperand::Register(cmpReg, SadTypeKind::Boolean),
                                 SIROperand::Label(caseBlocks[i].first),
                                 SIROperand::Label(nextCheckLabel)));
                         }
 
-                        if (currentFunction_)
+                        if (b_.currentFunction_)
                         {
-                            currentFunction_->addBasicBlock(nextCheckBlock);
+                            b_.currentFunction_->addBasicBlock(nextCheckBlock);
                         }
-                        currentBlock_ = nextCheckBlock;
+                        b_.currentBlock_ = nextCheckBlock;
                     }
 
                     // (AR) بناء أجسام الحالات
                     // (EN) Build case bodies
                     for (size_t i = 0; i < switchStmt->cases.size(); ++i)
                     {
-                        if (currentFunction_)
+                        if (b_.currentFunction_)
                         {
-                            currentFunction_->addBasicBlock(caseBlocks[i].second);
+                            b_.currentFunction_->addBasicBlock(caseBlocks[i].second);
                         }
-                        currentBlock_ = caseBlocks[i].second;
+                        b_.currentBlock_ = caseBlocks[i].second;
 
-                        enterScope();
+                        b_.enterScope();
                         if (switchStmt->cases[i].body)
                         {
                             buildStatement(switchStmt->cases[i].body.get());
                         }
-                        exitScope();
+                        b_.exitScope();
 
                         // (AR) لا fall-through — القفز مباشرة للخروج
                         // (EN) No fall-through — jump directly to exit
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(exitLabel)));
+                            b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(exitLabel)));
                         }
                     }
 
@@ -761,30 +762,30 @@ namespace Sad
                     // (EN) Build default case
                     if (switchStmt->defaultCase)
                     {
-                        auto defaultBlock = createBasicBlock(defaultLabel);
-                        if (currentFunction_)
+                        auto defaultBlock = b_.createBasicBlock(defaultLabel);
+                        if (b_.currentFunction_)
                         {
-                            currentFunction_->addBasicBlock(defaultBlock);
+                            b_.currentFunction_->addBasicBlock(defaultBlock);
                         }
-                        currentBlock_ = defaultBlock;
+                        b_.currentBlock_ = defaultBlock;
 
-                        enterScope();
+                        b_.enterScope();
                         buildStatement(switchStmt->defaultCase.get());
-                        exitScope();
+                        b_.exitScope();
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(exitLabel)));
+                            b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(exitLabel)));
                         }
                     }
 
                     // (AR) كتلة الخروج
                     // (EN) Exit block
-                    if (currentFunction_)
+                    if (b_.currentFunction_)
                     {
-                        currentFunction_->addBasicBlock(exitBlock);
+                        b_.currentFunction_->addBasicBlock(exitBlock);
                     }
-                    currentBlock_ = exitBlock;
+                    b_.currentBlock_ = exitBlock;
                     return;
                 }
 

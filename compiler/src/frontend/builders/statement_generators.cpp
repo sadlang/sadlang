@@ -6,6 +6,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -25,7 +26,7 @@ namespace Sad
         namespace SIR
         {
 
-            bool SIRBuilder::buildStatement_Generators(AST::Statement *stmt)
+            bool StatementBuilder::buildStatement_Generators(AST::Statement *stmt)
             {
                 // (AR) YieldStmt - جملة yield (مولّد): اعطِ قيمة
                 // (EN) Yield statement (generator)
@@ -39,7 +40,7 @@ namespace Sad
                     BuildResult valResult;
                     if (yieldStmt->value)
                     {
-                        valResult = buildExpression(yieldStmt->value.get());
+                        valResult = b_.buildExpression(yieldStmt->value.get());
                     }
 
                     // ================================================================
@@ -50,77 +51,77 @@ namespace Sad
                     {
                         // (AR) الحصول على طول المصفوفة/المتكرر
                         // (EN) Get length of array/iterable
-                        std::string lenReg = newTempRegister();
+                        std::string lenReg = b_.newTempRegister();
                         {
                             SIRInstruction lenInst;
                             lenInst.opcode = SIROpcode::ARRAY_LEN;
                             lenInst.result = SIROperand::Register(lenReg, SadTypeKind::Integer);
                             lenInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
                             lenInst.comment = "yield from: get iterable length";
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(lenInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(lenInst);
                         }
 
                         // (AR) عداد الحلقة
                         // (EN) Loop counter
-                        std::string idxReg = newTempRegister();
+                        std::string idxReg = b_.newTempRegister();
                         {
                             SIRInstruction initInst;
                             initInst.opcode = SIROpcode::MOVE;
                             initInst.result = SIROperand::Register(idxReg, SadTypeKind::Integer);
                             initInst.operands.push_back(SIROperand::ConstantI64(0));
                             initInst.comment = "yield from: init counter";
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(initInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(initInst);
                         }
 
                         // (AR) إنشاء كتل الحلقة
                         // (EN) Create loop blocks
-                        std::string yieldLoopCondLabel = newLabel("yield_from_cond");
-                        std::string yieldLoopBodyLabel = newLabel("yield_from_body");
-                        std::string yieldLoopExitLabel = newLabel("yield_from_exit");
+                        std::string yieldLoopCondLabel = b_.newLabel("yield_from_cond");
+                        std::string yieldLoopBodyLabel = b_.newLabel("yield_from_body");
+                        std::string yieldLoopExitLabel = b_.newLabel("yield_from_exit");
 
-                        auto yieldCondBlock = createBasicBlock(yieldLoopCondLabel);
-                        auto yieldBodyBlock = createBasicBlock(yieldLoopBodyLabel);
-                        auto yieldExitBlock = createBasicBlock(yieldLoopExitLabel);
+                        auto yieldCondBlock = b_.createBasicBlock(yieldLoopCondLabel);
+                        auto yieldBodyBlock = b_.createBasicBlock(yieldLoopBodyLabel);
+                        auto yieldExitBlock = b_.createBasicBlock(yieldLoopExitLabel);
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(yieldLoopCondLabel)));
+                            b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(yieldLoopCondLabel)));
                         }
 
                         // (AR) كتلة الشرط
                         // (EN) Condition block
-                        if (currentFunction_)
-                            currentFunction_->addBasicBlock(yieldCondBlock);
-                        currentBlock_ = yieldCondBlock;
+                        if (b_.currentFunction_)
+                            b_.currentFunction_->addBasicBlock(yieldCondBlock);
+                        b_.currentBlock_ = yieldCondBlock;
 
-                        std::string cmpReg = newTempRegister();
+                        std::string cmpReg = b_.newTempRegister();
                         {
                             SIRInstruction cmpInst = SIRInstruction::Binary(
                                 SIROpcode::LT,
                                 SIROperand::Register(cmpReg, SadTypeKind::Boolean),
                                 SIROperand::Register(idxReg, SadTypeKind::Integer),
                                 SIROperand::Register(lenReg, SadTypeKind::Integer));
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(cmpInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(cmpInst);
                         }
                         {
                             SIRInstruction brInst = SIRInstruction::BranchCond(
                                 SIROperand::Register(cmpReg, SadTypeKind::Boolean),
                                 SIROperand::Label(yieldLoopBodyLabel),
                                 SIROperand::Label(yieldLoopExitLabel));
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(brInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(brInst);
                         }
 
                         // (AR) كتلة الجسم — استخراج العنصر وإنتاجه
                         // (EN) Body block — extract element and yield it
-                        if (currentFunction_)
-                            currentFunction_->addBasicBlock(yieldBodyBlock);
-                        currentBlock_ = yieldBodyBlock;
+                        if (b_.currentFunction_)
+                            b_.currentFunction_->addBasicBlock(yieldBodyBlock);
+                        b_.currentBlock_ = yieldBodyBlock;
 
-                        std::string elemReg = newTempRegister();
+                        std::string elemReg = b_.newTempRegister();
                         {
                             SIRInstruction getInst;
                             getInst.opcode = SIROpcode::ARRAY_GET;
@@ -128,8 +129,8 @@ namespace Sad
                             getInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
                             getInst.operands.push_back(SIROperand::Register(idxReg, SadTypeKind::Integer));
                             getInst.comment = "yield from: get element at index";
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(getInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(getInst);
                         }
 
                         // (AR) إنتاج العنصر
@@ -139,8 +140,8 @@ namespace Sad
                             yieldInst.opcode = SIROpcode::GENERATOR_YIELD;
                             yieldInst.operands.push_back(SIROperand::Register(elemReg, SadTypeKind::Pointer));
                             yieldInst.comment = "yield from: yield delegated element";
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(yieldInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(yieldInst);
                         }
 
                         // (AR) زيادة العداد
@@ -152,20 +153,20 @@ namespace Sad
                                 SIROperand::Register(idxReg, SadTypeKind::Integer),
                                 SIROperand::ConstantI64(1));
                             incInst.comment = "yield from: increment counter";
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(incInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(incInst);
                         }
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(yieldLoopCondLabel)));
+                            b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(yieldLoopCondLabel)));
                         }
 
                         // (AR) كتلة الخروج من الحلقة
                         // (EN) Loop exit block
-                        if (currentFunction_)
-                            currentFunction_->addBasicBlock(yieldExitBlock);
-                        currentBlock_ = yieldExitBlock;
+                        if (b_.currentFunction_)
+                            b_.currentFunction_->addBasicBlock(yieldExitBlock);
+                        b_.currentBlock_ = yieldExitBlock;
 
                         return true;
                     }
@@ -205,9 +206,9 @@ namespace Sad
                     }
                     yieldInst.comment = "yield";
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(yieldInst);
+                        b_.currentBlock_->addInstruction(yieldInst);
                     }
                     return true;
                 }
@@ -222,11 +223,11 @@ namespace Sad
                     std::cout << "[DEBUG] Found WithStmt" << std::endl;
 #endif
 
-                    enterScope();
+                    b_.enterScope();
 
                     // (AR) بناء تعبير المورد
                     // (EN) Build resource expression
-                    auto resResult = buildExpression(withStmt->resource.get());
+                    auto resResult = b_.buildExpression(withStmt->resource.get());
 
                     // (AR) تسجيل المتغير المستعار
                     // (EN) Register alias variable
@@ -237,8 +238,8 @@ namespace Sad
                         aliasVar.type = resResult.type;
                         aliasVar.registerName = resResult.registerName;
                         aliasVar.isMutable = false;
-                        aliasVar.scopeLevel = currentScopeLevel_;
-                        addVariable(aliasVar);
+                        aliasVar.scopeLevel = b_.currentScopeLevel_;
+                        b_.addVariable(aliasVar);
                     }
 
                     // (AR) استدعاء __دخول__() على المورد
@@ -249,35 +250,35 @@ namespace Sad
                         enterInst.operands.push_back(SIROperand::Function("__sad_context_enter"));
                         enterInst.operands.push_back(SIROperand::Register(resResult.registerName, resResult.type));
                         enterInst.comment = "context manager __enter__";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(enterInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(enterInst);
                     }
 
                     // ================================================================
                     // (AR) حماية الجسم بـ setjmp/longjmp لضمان استدعاء __خروج__ دائماً
                     // (EN) Protect body with setjmp/longjmp to guarantee __exit__ is always called
                     // ================================================================
-                    std::string withBodyLabel = newLabel("with_body");
-                    std::string withCleanupLabel = newLabel("with_cleanup");
-                    std::string withRethrowLabel = newLabel("with_rethrow");
-                    std::string withExitLabel = newLabel("with_exit");
+                    std::string withBodyLabel = b_.newLabel("with_body");
+                    std::string withCleanupLabel = b_.newLabel("with_cleanup");
+                    std::string withRethrowLabel = b_.newLabel("with_rethrow");
+                    std::string withExitLabel = b_.newLabel("with_exit");
 
-                    auto withBodyBlock = createBasicBlock(withBodyLabel);
-                    auto withCleanupBlock = createBasicBlock(withCleanupLabel);
-                    auto withRethrowBlock = createBasicBlock(withRethrowLabel);
-                    auto withExitBlock = createBasicBlock(withExitLabel);
+                    auto withBodyBlock = b_.createBasicBlock(withBodyLabel);
+                    auto withCleanupBlock = b_.createBasicBlock(withCleanupLabel);
+                    auto withRethrowBlock = b_.createBasicBlock(withRethrowLabel);
+                    auto withExitBlock = b_.createBasicBlock(withExitLabel);
 
                     // (AR) إعداد معالج الاستثناء
                     // (EN) Setup exception handler
-                    std::string jmpbufReg = newTempRegister();
+                    std::string jmpbufReg = b_.newTempRegister();
                     {
                         SIRInstruction allocInst;
                         allocInst.opcode = SIROpcode::CALL;
                         allocInst.result = SIROperand::Register(jmpbufReg, SadTypeKind::Pointer);
                         allocInst.operands.push_back(SIROperand::Function("__sad_alloc_jmpbuf"));
                         allocInst.comment = "allocate jmpbuf for with-statement exception safety";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(allocInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(allocInst);
                     }
                     {
                         SIRInstruction pushInst;
@@ -285,10 +286,10 @@ namespace Sad
                         pushInst.operands.push_back(SIROperand::Function("__sad_push_handler"));
                         pushInst.operands.push_back(SIROperand::Register(jmpbufReg, SadTypeKind::Pointer));
                         pushInst.comment = "push handler for with-statement";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(pushInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(pushInst);
                     }
-                    std::string setjmpResultReg = newTempRegister();
+                    std::string setjmpResultReg = b_.newTempRegister();
                     {
                         SIRInstruction setjmpInst;
                         setjmpInst.opcode = SIROpcode::CALL;
@@ -296,33 +297,33 @@ namespace Sad
                         setjmpInst.operands.push_back(SIROperand::Function("__sad_setjmp"));
                         setjmpInst.operands.push_back(SIROperand::Register(jmpbufReg, SadTypeKind::Pointer));
                         setjmpInst.comment = "setjmp: 0=normal, 1=exception in with body";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(setjmpInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(setjmpInst);
                     }
-                    std::string cmpReg = newTempRegister();
+                    std::string cmpReg = b_.newTempRegister();
                     {
                         SIRInstruction cmpInst = SIRInstruction::Binary(
                             SIROpcode::NE,
                             SIROperand::Register(cmpReg, SadTypeKind::Boolean),
                             SIROperand::Register(setjmpResultReg, SadTypeKind::Integer),
                             SIROperand::ConstantI64(0));
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(cmpInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(cmpInst);
                     }
                     {
                         SIRInstruction brInst = SIRInstruction::BranchCond(
                             SIROperand::Register(cmpReg, SadTypeKind::Boolean),
                             SIROperand::Label(withCleanupLabel),
                             SIROperand::Label(withBodyLabel));
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(brInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(brInst);
                     }
 
                     // (AR) كتلة الجسم — المسار الطبيعي
                     // (EN) Body block — normal path
-                    if (currentFunction_)
-                        currentFunction_->addBasicBlock(withBodyBlock);
-                    currentBlock_ = withBodyBlock;
+                    if (b_.currentFunction_)
+                        b_.currentFunction_->addBasicBlock(withBodyBlock);
+                    b_.currentBlock_ = withBodyBlock;
 
                     if (withStmt->body)
                     {
@@ -336,8 +337,8 @@ namespace Sad
                         popInst.opcode = SIROpcode::CALL;
                         popInst.operands.push_back(SIROperand::Function("__sad_pop_handler"));
                         popInst.comment = "pop handler after successful with body";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(popInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(popInst);
                     }
 
                     // (AR) استدعاء __خروج__ — المسار الطبيعي (بدون استثناء)
@@ -349,19 +350,19 @@ namespace Sad
                         exitInst.operands.push_back(SIROperand::Register(resResult.registerName, resResult.type));
                         exitInst.operands.push_back(SIROperand::ConstantI64(0)); // no exception
                         exitInst.comment = "context manager __exit__ (normal)";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(exitInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(exitInst);
                     }
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(withExitLabel)));
+                        b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(withExitLabel)));
                     }
 
                     // (AR) كتلة التنظيف — استثناء في الجسم
                     // (EN) Cleanup block — exception in body
-                    if (currentFunction_)
-                        currentFunction_->addBasicBlock(withCleanupBlock);
-                    currentBlock_ = withCleanupBlock;
+                    if (b_.currentFunction_)
+                        b_.currentFunction_->addBasicBlock(withCleanupBlock);
+                    b_.currentBlock_ = withCleanupBlock;
 
                     // (AR) إزالة المعالج
                     // (EN) Pop the handler
@@ -370,13 +371,13 @@ namespace Sad
                         popInst.opcode = SIROpcode::CALL;
                         popInst.operands.push_back(SIROperand::Function("__sad_pop_handler"));
                         popInst.comment = "pop handler at with-exception cleanup";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(popInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(popInst);
                     }
 
                     // (AR) استدعاء __خروج__ مع معلومات الاستثناء
                     // (EN) Call __exit__ with exception info
-                    std::string exitResultReg = newTempRegister();
+                    std::string exitResultReg = b_.newTempRegister();
                     {
                         SIRInstruction exitInst;
                         exitInst.opcode = SIROpcode::CALL;
@@ -385,61 +386,61 @@ namespace Sad
                         exitInst.operands.push_back(SIROperand::Register(resResult.registerName, resResult.type));
                         exitInst.operands.push_back(SIROperand::ConstantI64(1)); // has exception
                         exitInst.comment = "context manager __exit__ (with exception)";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(exitInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(exitInst);
                     }
 
                     // (AR) إذا أرجع __خروج__ true: تجاهل الاستثناء. وإلا: أعد رميه
                     // (EN) If __exit__ returns true: suppress exception. Otherwise: rethrow
-                    std::string suppressReg = newTempRegister();
+                    std::string suppressReg = b_.newTempRegister();
                     {
                         SIRInstruction cmpInst = SIRInstruction::Binary(
                             SIROpcode::NE,
                             SIROperand::Register(suppressReg, SadTypeKind::Boolean),
                             SIROperand::Register(exitResultReg, SadTypeKind::Integer),
                             SIROperand::ConstantI64(0));
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(cmpInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(cmpInst);
                     }
                     {
                         SIRInstruction brInst = SIRInstruction::BranchCond(
                             SIROperand::Register(suppressReg, SadTypeKind::Boolean),
                             SIROperand::Label(withExitLabel),     // suppress: skip rethrow
                             SIROperand::Label(withRethrowLabel)); // rethrow
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(brInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(brInst);
                     }
 
                     // (AR) كتلة إعادة الرمي — __خروج__ لم يكبت الاستثناء
                     // (EN) Rethrow block — __exit__ didn't suppress exception
-                    if (currentFunction_)
-                        currentFunction_->addBasicBlock(withRethrowBlock);
-                    currentBlock_ = withRethrowBlock;
+                    if (b_.currentFunction_)
+                        b_.currentFunction_->addBasicBlock(withRethrowBlock);
+                    b_.currentBlock_ = withRethrowBlock;
                     {
                         SIRInstruction rethrowInst;
                         rethrowInst.opcode = SIROpcode::CALL;
                         rethrowInst.operands.push_back(SIROperand::Function("__sad_raise_current"));
                         rethrowInst.comment = "rethrow exception not suppressed by __exit__";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(rethrowInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(rethrowInst);
                     }
                     {
                         // (AR) كتلة ميتة بعد إعادة الرمي
                         // (EN) Dead block after rethrow
-                        std::string deadLabel = newLabel("dead_after_with_rethrow");
-                        auto deadBlock = createBasicBlock(deadLabel);
-                        if (currentFunction_)
-                            currentFunction_->addBasicBlock(deadBlock);
-                        currentBlock_ = deadBlock;
+                        std::string deadLabel = b_.newLabel("dead_after_with_rethrow");
+                        auto deadBlock = b_.createBasicBlock(deadLabel);
+                        if (b_.currentFunction_)
+                            b_.currentFunction_->addBasicBlock(deadBlock);
+                        b_.currentBlock_ = deadBlock;
                     }
 
                     // (AR) كتلة الخروج
                     // (EN) Exit block
-                    if (currentFunction_)
-                        currentFunction_->addBasicBlock(withExitBlock);
-                    currentBlock_ = withExitBlock;
+                    if (b_.currentFunction_)
+                        b_.currentFunction_->addBasicBlock(withExitBlock);
+                    b_.currentBlock_ = withExitBlock;
 
-                    exitScope();
+                    b_.exitScope();
                     return true;
                 }
 

@@ -7,6 +7,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -23,7 +24,7 @@ namespace Sad
     {
         namespace SIR
         {
-            void SIRBuilder::buildAssignment(AST::AssignExpr *assignment)
+            void StatementBuilder::buildAssignment(AST::AssignExpr *assignment)
             {
                 if (!assignment)
                 {
@@ -32,12 +33,12 @@ namespace Sad
 
                 // (AR) ״§„״¨״­״« ״¹† ״§„…״×״÷״± (AssignExpr::name: std::string, line 249)
                 // (EN) Lookup variable
-                VariableInfo *varInfo = lookupVariable(assignment->name);
+                VariableInfo *varInfo = b_.lookupVariable(assignment->name);
                 if (!varInfo)
                 {
                     // (AR) …״×״÷״± ״÷״± …״¹״±
                     // (EN) Undefined variable
-                    errors_.push_back("Undefined variable: " + assignment->name);
+                    b_.errors_.push_back("Undefined variable: " + assignment->name);
                     return;
                 }
 
@@ -47,17 +48,17 @@ namespace Sad
                 {
                     // (AR) …״×״÷״± ״«״§״¨״× „״§ …ƒ† ״×״¹״¯„‡
                     // (EN) Constant variable cannot be modified
-                    errors_.push_back("Cannot assign to const variable: " + assignment->name);
+                    b_.errors_.push_back("Cannot assign to const variable: " + assignment->name);
                     return;
                 }
 
                 // (AR) ״¨†״§״¡ ‚…״© ״§„״×״¹״¨״± (AssignExpr::value: ExprPtr, line 250)
                 // (EN) Build value expression
-                auto valueResult = buildExpression(assignment->value.get());
+                auto valueResult = b_.buildExpression(assignment->value.get());
 
                 // (AR) ״×ˆ„״¯ ״×״¹„…״© STORE „״¥״³†״§״¯ ״§„‚…״©
                 // (EN) Generate STORE instruction to assign value
-                if (currentBlock_ && !valueResult.registerName.empty())
+                if (b_.currentBlock_ && !valueResult.registerName.empty())
                 {
                     SIRInstruction storeInst;
                     storeInst.opcode = SIROpcode::STORE;
@@ -103,7 +104,7 @@ namespace Sad
                         // ================================================================
                         // (AR) [Fix #49] …״¹״§„״¬ Boolean ג€” ״¨״¯ˆ† ‡״°״§״ ״µ״­״­/״®״·״£ ״®״²†״§† ״¯״§״¦…״§‹ ƒ€ false
                         //      „״£† intValue ״¨‚‰ 0 (״§„״§״×״±״§״¶) ˆ„״§ ״¹‘† …† constantValue
-                        //      constantValue ‡ "true" ״£ˆ "false" (…† buildLiteral)
+                        //      constantValue ‡ "true" ״£ˆ "false" (…† b_.buildLiteral)
                         //      resolveOperand ״³״×״®״¯… intValue != 0 „״×״­״¯״¯ i1 true/false
                         // (EN) [Fix #49] Boolean handler ג€” without this, true/false always stored as false
                         //      because intValue stays 0 (default) and is not set from constantValue
@@ -136,7 +137,7 @@ namespace Sad
                     ptrOp.dataType = varInfo->type;
                     storeInst.operands.push_back(ptrOp);
 
-                    currentBlock_->instructions.push_back(storeInst);
+                    b_.currentBlock_->instructions.push_back(storeInst);
 
                     // ================================================================
                     // (AR) [Fix #51] ״¥״°״§ ƒ״§† ״§„…״×״÷״± …„״×‚״·״§‹  ״¥״÷„״§‚ ג€” ״£״µ״¯״± ENV_STORE
@@ -155,7 +156,7 @@ namespace Sad
                         envStoreInst.operands.push_back(SIROperand::Register(varInfo->envRegister, SadTypeKind::Integer));
                         envStoreInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(varInfo->captureIndex)));
                         envStoreInst.comment = "closure env_store: " + varInfo->name + " -> env[" + std::to_string(varInfo->captureIndex) + "]";
-                        currentBlock_->addInstruction(envStoreInst);
+                        b_.currentBlock_->addInstruction(envStoreInst);
                     }
 
                     // ================================================================
@@ -166,7 +167,7 @@ namespace Sad
                     //      ״³ = "†״µ"         ג†’  †ˆ״¹: **״¬״¨ ״£† ״µ״¨״­ String**
                     //      ״¨״¯ˆ† ‡״°״§: varInfo->type ״¨‚‰ Integer״ ˆ״§„״·״¨״§״¹״© ״×״·״¨״¹ ״¹†ˆ״§† ״§„…״₪״´״±
                     //      ƒ״±‚… ״¨״¯„״§‹ …† …״­״×ˆ‰ ״§„†״µ.
-                    //      ‡״°״§ ״§„״×״­״¯״« ״¨„‘״÷ buildExpression ˆ emitBuiltinPrint ״¨״§„†ˆ״¹ ״§„״µ״­״­.
+                    //      ‡״°״§ ״§„״×״­״¯״« ״¨„‘״÷ b_.buildExpression ˆ b_.emitBuiltinPrint ״¨״§„†ˆ״¹ ״§„״µ״­״­.
                     // (EN) [Fix #52] Update variable type on cross-type reassignment:
                     //      Sad is dynamically typed ג€” variables can be reassigned to different types.
                     //      Without this: varInfo->type stays Integer, print outputs pointer address
@@ -188,12 +189,12 @@ namespace Sad
                 //      Without this, _†״¸״§….‡״¦() generates ".‡״¦" instead of "†״¸״§…_…„״§״×.‡״¦"
                 if (auto *newExpr = dynamic_cast<Sad::AST::NewExpr *>(assignment->value.get()))
                 {
-                    classInstanceTypes_[assignment->name] = newExpr->className;
+                    b_.classInstanceTypes_[assignment->name] = newExpr->className;
                 }
 
-                // (AR) [†״¸״§… ״§„״¥״÷„״§‚״§״× ״§„״¬״¯״¯] „… †״¹״¯ †״³״¬‘„ lambdaAliases_ ״¹†״¯ ״¥״¹״§״¯״© ״§„״×״¹†
+                // (AR) [†״¸״§… ״§„״¥״÷„״§‚״§״× ״§„״¬״¯״¯] „… †״¹״¯ †״³״¬‘„ b_.lambdaAliases_ ״¹†״¯ ״¥״¹״§״¯״© ״§„״×״¹†
                 //      ״¬…״¹ ״§״³״×״¯״¹״§״¡״§״× ״§„„״§…״¯״§ ״×…״± ״¹״¨״± CLOSURE_CALL
-                // (EN) [New closure system] No longer update lambdaAliases_ on reassignment
+                // (EN) [New closure system] No longer update b_.lambdaAliases_ on reassignment
                 //      All lambda calls go through CLOSURE_CALL
             }
 
@@ -212,7 +213,7 @@ namespace Sad
             // - initializer: ExprPtr (line 78)
             // - isConst: bool (line 79)
             // ============================================================================
-            void SIRBuilder::buildLocalVariable(AST::VarDeclStmt *varDecl)
+            void StatementBuilder::buildLocalVariable(AST::VarDeclStmt *varDecl)
             {
                 if (!varDecl)
                 {
@@ -227,18 +228,18 @@ namespace Sad
                 // ================================================================
                 // (AR) ״×״®״· ״§„״«ˆ״§״¨״× ״§„״¹״§…״© ״§„״× „״¯‡״§ ‚…״© ״£ˆ„״© ״­״±״©:
                 //      ״§„…״×״÷״± …״³״¬‘„ …״³״¨‚״§‹ ƒ…״×״÷״± ״¹״§… ״«״§״¨״×  ״§„…״±״­„״© 1.5 …״¹ ‚…״© ״£ˆ„״©.
-                //      emitGlobalVariables †״´״¦ `@name = internal constant i64 42`.
+                //      b_.emitGlobalVariables †״´״¦ `@name = internal constant i64 42`.
                 //      „״§ †״­״×״§״¬ ALLOC ״£ˆ STORE ג€” ״§„‚…״© …ˆ״¬ˆ״¯״©  ״§„…״×״÷״± ״§„״¹״§….
                 //      ״¨״¯ˆ† ‡״°״§: STORE ״¥„‰ constant = ACCESS_VIOLATION/crash.
                 // (EN) Skip const globals that already have a literal initializer:
                 //      The variable is pre-registered as a constant global in Phase 1.5 with initialValue.
-                //      emitGlobalVariables creates `@name = internal constant i64 42`.
+                //      b_.emitGlobalVariables creates `@name = internal constant i64 42`.
                 //      No ALLOC or STORE needed ג€” value is already in the global.
                 //      Without this: STORE to constant = ACCESS_VIOLATION/crash.
                 // ================================================================
-                if (module_ && varDecl->isConst)
+                if (b_.module_ && varDecl->isConst)
                 {
-                    auto sirGlobal = module_->getGlobalVariable(varDecl->name);
+                    auto sirGlobal = b_.module_->getGlobalVariable(varDecl->name);
                     if (sirGlobal && sirGlobal->isConstant && !sirGlobal->initialValue.empty())
                     {
                         // (AR) ״§„״«״§״¨״× ״§„״¹״§… …‡״£ ״¨״§„״¹„ ג€” „״§ ״­״§״¬״© „ƒˆ״¯ ״¥״¶״§
@@ -249,7 +250,7 @@ namespace Sad
 
                 // (AR) ״×״­ˆ„ ״§„†ˆ״¹ (VarDeclStmt::type: Data::DataType, line 77)
                 // (EN) Convert type
-                SadTypeKind varType = astTypeToSIRType(varDecl->type);
+                SadTypeKind varType = b_.astTypeToSIRType(varDecl->type);
                 bool needsTypeInference = (varDecl->type == Data::DataType::UNKNOWN);
 
                 // (AR) ״¥†״´״§״¡ …״¹„ˆ…״§״× ״§„…״×״÷״± (sir_builder.h:139 - VariableInfo)
@@ -260,12 +261,12 @@ namespace Sad
                 varInfo.registerName = "%" + varDecl->name;
                 varInfo.isGlobal = false;
                 varInfo.isMutable = !varDecl->isConst; // line 79
-                varInfo.scopeLevel = currentScopeLevel_;
+                varInfo.scopeLevel = b_.currentScopeLevel_;
 
                 // (AR) …״¹״§„״¬״© ״§„‚…״© ״§„״£ˆ„״© (VarDeclStmt::initializer: ExprPtr, line 78)
                 // (EN) Handle initializer - process first for type inference
                 BuildResult initResult;
-                bool hasInitializer = varDecl->initializer && currentBlock_;
+                bool hasInitializer = varDecl->initializer && b_.currentBlock_;
 
                 if (hasInitializer)
                 {
@@ -273,7 +274,7 @@ namespace Sad
                     std::cerr << "[SIR-DBG]   building initializer, expr type="
                               << typeid(*varDecl->initializer).name() << std::endl;
 #endif
-                    initResult = buildExpression(varDecl->initializer.get());
+                    initResult = b_.buildExpression(varDecl->initializer.get());
 #ifdef SIR_BUILDER_DEBUG
                     std::cerr << "[SIR-DBG]   initResult: reg='" << initResult.registerName
                               << "' type=" << static_cast<int>(initResult.type)
@@ -290,29 +291,29 @@ namespace Sad
 
                         // ================================================================
                         // (AR) [Fix #44] ״×״­״¯״« ״§„…״×״÷״± ״§„״¹״§…  SIRModule ״¹†״¯…״§ ״×״÷״± ״§„†ˆ״¹:
-                        //      Phase 1.5 ״×״³״¬‘„ ״§„…״×״÷״±״§״× ״§„״¹״§…״© …״¨ƒ״±״§‹ ‚״¨„ ״×†״° buildExpression.
+                        //      Phase 1.5 ״×״³״¬‘„ ״§„…״×״÷״±״§״× ״§„״¹״§…״© …״¨ƒ״±״§‹ ‚״¨„ ״×†״° b_.buildExpression.
                         //      ״¥״°״§ ƒ״§†״× ״§„‚…״© ״§„״£ˆ„״© ״×״¹״¨״±״§‹ …״¹‚״¯״§‹ (BinaryExpr, CallExpr...)
                         //      ‚״¯ ״®״·״¦ Phase 1.5  ״§״³״×†״×״§״¬ ״§„†ˆ״¹ (…״«„״§‹: Integer ״¨״¯„״§‹ …† Float).
-                        //      ‡†״§  Phase 2/3״ ״¨״¹״¯ buildExpression ״§„״¹„״ „״¯†״§ ״§„†ˆ״¹ ״§„״¯‚‚.
+                        //      ‡†״§  Phase 2/3״ ״¨״¹״¯ b_.buildExpression ״§„״¹„״ „״¯†״§ ״§„†ˆ״¹ ״§„״¯‚‚.
                         //      †״­״¯‘״« SIRGlobalVariable ˆ״§„†״·״§‚ „״×״·״§״¨‚״§ …״¹ ״§„†ˆ״¹ ״§„״­‚‚.
                         //      ״¨״¯ˆ† ‡״°״§: …״×״÷״± ״¹״´״± ״®״²†  alloca i64 ג†’ fptosi ג†’ ‚״·״¹ ״¹״´״±!
                         //
                         //      …״«״§„: …״×״÷״± …״¬ = ״¹1 + ״¹2 ״­״« ״¹1=3.14, ״¹2=2.71
                         //      Phase 1.5 ״£†״´״£ SIRGlobalVariable(…״¬, Integer) [‚״¨„ ״§„״¥״µ„״§״­]
-                        //      ״§„״¢† ״¨״¹״¯ inferExprType: SIRGlobalVariable(…״¬, Float)
-                        //      …״¹ ‡״°״§ ״§„״£…״§† ״§„״¥״¶״§: ״­״×‰ „ˆ ״£״®״·״£ inferExprType״
-                        //      buildExpression ״¹״·†״§ ״§„†ˆ״¹ ״§„״¯‚‚ ˆ†״­״¯‘״« ‡†״§.
+                        //      ״§„״¢† ״¨״¹״¯ b_.inferExprType: SIRGlobalVariable(…״¬, Float)
+                        //      …״¹ ‡״°״§ ״§„״£…״§† ״§„״¥״¶״§: ״­״×‰ „ˆ ״£״®״·״£ b_.inferExprType״
+                        //      b_.buildExpression ״¹״·†״§ ״§„†ˆ״¹ ״§„״¯‚‚ ˆ†״­״¯‘״« ‡†״§.
                         // (EN) [Fix #44] Update SIRGlobalVariable when type changes:
-                        //      Phase 1.5 pre-registers globals before buildExpression runs.
+                        //      Phase 1.5 pre-registers globals before b_.buildExpression runs.
                         //      For complex initializers (BinaryExpr, CallExpr...),
                         //      Phase 1.5 may infer wrong type (e.g. Integer instead of Float).
-                        //      Here in Phase 2/3, after real buildExpression, we have exact type.
+                        //      Here in Phase 2/3, after real b_.buildExpression, we have exact type.
                         //      Update SIRGlobalVariable and scope to match the real type.
                         //      Without this: float stored in i64 alloca ג†’ fptosi ג†’ truncation!
                         // ================================================================
-                        if (module_)
+                        if (b_.module_)
                         {
-                            auto sirGlobal = module_->getGlobalVariable(varDecl->name);
+                            auto sirGlobal = b_.module_->getGlobalVariable(varDecl->name);
                             if (sirGlobal && sirGlobal->type != varType)
                             {
                                 sirGlobal->type = varType;
@@ -320,7 +321,7 @@ namespace Sad
                         }
                         // (AR) ״×״­״¯״« VariableInfo ״§„…״³״¬„ …״³״¨‚״§‹  ״§„†״·״§‚ ״§„״¹״§… ״£״¶״§‹
                         // (EN) Also update pre-registered VariableInfo in global scope
-                        VariableInfo *existingVar = lookupVariable(varDecl->name);
+                        VariableInfo *existingVar = b_.lookupVariable(varDecl->name);
                         if (existingVar && existingVar->type != varType)
                         {
                             existingVar->type = varType;
@@ -349,38 +350,38 @@ namespace Sad
                     // (EN) Track class type if expression is new ClassName()
                     if (auto *newExpr = dynamic_cast<Sad::AST::NewExpr *>(varDecl->initializer.get()))
                     {
-                        classInstanceTypes_[varDecl->name] = newExpr->className;
+                        b_.classInstanceTypes_[varDecl->name] = newExpr->className;
                     }
                     // ================================================================
                     // (AR) ״×״×״¨״¹ †ˆ״¹ ״§„״µ† …† ״£ …״µ״¯״± ״¢״®״± (״§״³״×״¯״¹״§״¡ ״¯״§„״©״ ״¹״§…„ …״­…‘„״ ״§„״®):
-                    //      ״¥״°״§ ƒ״§† ״§„״×״¹״¨״± ״§„…״¨״¯״¦ ״­…„ className (…״«„״§‹ …† buildFunctionCall
-                    //      ״£ˆ buildBinaryOp …״¹ operator overloading)״ †״³״¬‘„ ״§„…״×״÷״±
-                    //       classInstanceTypes_ ״­״×‰ ״×…ƒ† ״§„…״×״±״¬… …† …״¹״±״© †ˆ״¹ ״§„״µ†
+                    //      ״¥״°״§ ƒ״§† ״§„״×״¹״¨״± ״§„…״¨״¯״¦ ״­…„ className (…״«„״§‹ …† b_.buildFunctionCall
+                    //      ״£ˆ b_.buildBinaryOp …״¹ operator overloading)״ †״³״¬‘„ ״§„…״×״÷״±
+                    //       b_.classInstanceTypes_ ״­״×‰ ״×…ƒ† ״§„…״×״±״¬… …† …״¹״±״© †ˆ״¹ ״§„״µ†
                     //      ״¹†״¯ ״§„ˆ״µˆ„ „״­‚ˆ„ ״§„ƒ״§״¦† „״§״­‚״§‹.
                     //      …״«״§„: …״×״÷״± ״¬ = ״£ + ״¨ ג†’ ״¥״°״§ ״¹״§…„ + ״±״¬״¹ ƒ״§״¦† †‚״·״© ג†’ ״¬.״³ ״¹…„
                     //      …״«״§„: …״×״÷״± † = ״§״µ†״¹_†‚״·״©() ג†’ †.״³ ״¹…„
                     //      ״¨״¯ˆ† ‡״°״§ ״§„״¥״µ„״§״­: ״§„ˆ״µˆ„ „״­‚ˆ„ ƒ״§״¦† …״±״¬״¹ …† ״¯״§„״© ״£ˆ ״¹״§…„ ״×״¹״·„
                     // (EN) Track class type from any other source (function call, operator, etc):
-                    //      If the initializer expression has className (e.g. from buildFunctionCall
-                    //      or buildBinaryOp with operator overloading), register the variable
-                    //      in classInstanceTypes_ so the compiler knows the class type when
+                    //      If the initializer expression has className (e.g. from b_.buildFunctionCall
+                    //      or b_.buildBinaryOp with operator overloading), register the variable
+                    //      in b_.classInstanceTypes_ so the compiler knows the class type when
                     //      accessing fields later.
                     //      Without this: accessing fields of object from function/operator crashes
                     // ================================================================
                     else if (!initResult.className.empty())
                     {
-                        classInstanceTypes_[varDecl->name] = initResult.className;
+                        b_.classInstanceTypes_[varDecl->name] = initResult.className;
                     }
                 }
 
                 // (AR) ״×ˆ„״¯ ״×״¹„…״© ALLOC „״×״®״µ״µ ״§„״°״§ƒ״±״©
                 // (EN) Generate ALLOC instruction for memory allocation
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
                     SIRInstruction allocInst;
                     allocInst.opcode = SIROpcode::ALLOC;
                     allocInst.result = SIROperand::Register(varInfo.registerName, varType);
-                    currentBlock_->addInstruction(allocInst);
+                    b_.currentBlock_->addInstruction(allocInst);
                 }
 
                 // (AR) ״×ˆ„״¯ ״×״¹„…״© STORE „״¥״³†״§״¯ ״§„‚…״© ״§„״£ˆ„״©
@@ -393,13 +394,13 @@ namespace Sad
                                                                  !initResult.constantValue.empty());
 
                     // (AR) ״×״®״· STORE ״¥״°״§ „… ״×ƒ† ״§„‚…״© ״«״§״¨״×״© ˆ„״§  ״³״¬„ ״µ״§„״­
-                    //      ‡״°״§ ״­״¯״« ״¹†״¯ ״´„ buildExpression (…״«„״§‹: …״×״÷״± ״÷״± …״¹״±‘)
+                    //      ‡״°״§ ״­״¯״« ״¹†״¯ ״´„ b_.buildExpression (…״«„״§‹: …״×״÷״± ״÷״± …״¹״±‘)
                     // (EN) Skip STORE if value is neither a usable constant nor in a valid register.
-                    //      This happens when buildExpression fails (e.g., undefined variable).
+                    //      This happens when b_.buildExpression fails (e.g., undefined variable).
                     if (!useConstant && initResult.registerName.empty())
                     {
                         // Just register the variable without initialization
-                        addVariable(varInfo);
+                        b_.addVariable(varInfo);
                         return;
                     }
 
@@ -451,17 +452,17 @@ namespace Sad
                     // (EN) Second operand: variable address
                     storeInst.operands.push_back(SIROperand::Register(varInfo.registerName, varType));
 
-                    currentBlock_->addInstruction(storeInst);
+                    b_.currentBlock_->addInstruction(storeInst);
                 }
 
-                // (AR) ״¥״¶״§״© ״§„…״×״÷״± „„†״·״§‚ (sir_builder.h:591 - addVariable)
+                // (AR) ״¥״¶״§״© ״§„…״×״÷״± „„†״·״§‚ (sir_builder.h:591 - b_.addVariable)
                 // (EN) Add variable to scope
-                addVariable(varInfo);
+                b_.addVariable(varInfo);
 
-                // (AR) [†״¸״§… ״§„״¥״÷„״§‚״§״× ״§„״¬״¯״¯] „… †״¹״¯ †״³״¬‘„ lambdaAliases_ ‡†״§
+                // (AR) [†״¸״§… ״§„״¥״÷„״§‚״§״× ״§„״¬״¯״¯] „… †״¹״¯ †״³״¬‘„ b_.lambdaAliases_ ‡†״§
                 //      ״¬…״¹ ״§״³״×״¯״¹״§״¡״§״× ״§„„״§…״¯״§ ״×…״± ״¹״¨״± CLOSURE_CALL (״§„״®״·ˆ״© 3.5)
                 //      ״¨״¯„״§‹ …† ״§„״§״³״×״¯״¹״§״¡ ״§„…״¨״§״´״± ״¹״¨״± ״§„״§״³… ״§„…״³״×״¹״§״± (״§„״®״·ˆ״© 2.7)
-                // (EN) [New closure system] No longer register lambdaAliases_ here
+                // (EN) [New closure system] No longer register b_.lambdaAliases_ here
                 //      All lambda calls go through CLOSURE_CALL (Step 3.5)
                 //      instead of direct call via alias (Step 2.7)
             }
@@ -481,15 +482,15 @@ namespace Sad
             // - elseBranch: StmtPtr (line 109) - optional, can be nullptr
             //
             // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
-            // - currentBlock_: sir_builder.h:582 (shared_ptr<SIRBasicBlock>)
+            // - b_.currentBlock_: sir_builder.h:582 (shared_ptr<SIRBasicBlock>)
             //
             // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
-            // - buildExpression: sir_builder.h:432
+            // - b_.buildExpression: sir_builder.h:432
             // - buildStatement: sir_builder.h:372
-            // - createBasicBlock: sir_builder.h:501
-            // - newLabel: sir_builder.h:520
+            // - b_.createBasicBlock: sir_builder.h:501
+            // - b_.newLabel: sir_builder.h:520
             // ============================================================================
-            void SIRBuilder::buildIfStatement(AST::IfStmt *ifStmt)
+            void StatementBuilder::buildIfStatement(AST::IfStmt *ifStmt)
             {
                 if (!ifStmt)
                 {
@@ -503,28 +504,28 @@ namespace Sad
                 // ========================================================================
                 // (AR) ״§„״®״·ˆ״© 1: ״¥†״´״§״¡ ״§„ƒ״×„ ״§„״£״³״§״³״©
                 // (EN) Step 1: Create basic blocks
-                // ״§„…״µ״¯״±: sir_builder.h:501 - createBasicBlock()
-                // ״§„…״µ״¯״±: sir_builder.h:520 - newLabel()
+                // ״§„…״µ״¯״±: sir_builder.h:501 - b_.createBasicBlock()
+                // ״§„…״µ״¯״±: sir_builder.h:520 - b_.newLabel()
                 // ========================================================================
-                std::string thenLabel = newLabel("then");
-                std::string mergeLabel = newLabel("merge");
+                std::string thenLabel = b_.newLabel("then");
+                std::string mergeLabel = b_.newLabel("merge");
 
                 // (AR) ƒ״×„״© else ‚״· ״¥״°״§ ƒ״§† ‡†״§ƒ ״±״¹ else
                 // (EN) Else block only if there's an else branch
-                std::string elseLabel = ifStmt->elseBranch ? newLabel("else") : mergeLabel;
+                std::string elseLabel = ifStmt->elseBranch ? b_.newLabel("else") : mergeLabel;
 
-                auto thenBlock = createBasicBlock(thenLabel);
-                auto elseBlock = ifStmt->elseBranch ? createBasicBlock(elseLabel) : nullptr;
-                auto mergeBlock = createBasicBlock(mergeLabel);
+                auto thenBlock = b_.createBasicBlock(thenLabel);
+                auto elseBlock = ifStmt->elseBranch ? b_.createBasicBlock(elseLabel) : nullptr;
+                auto mergeBlock = b_.createBasicBlock(mergeLabel);
 
                 // (AR) ״¥״¶״§״© ״§„ƒ״×„ ״¥„‰ ״§„״¯״§„״© ״§„״­״§„״©
                 // (EN) Add blocks to current function
-                if (currentFunction_)
+                if (b_.currentFunction_)
                 {
-                    currentFunction_->addBasicBlock(thenBlock);
+                    b_.currentFunction_->addBasicBlock(thenBlock);
                     if (elseBlock)
-                        currentFunction_->addBasicBlock(elseBlock);
-                    currentFunction_->addBasicBlock(mergeBlock);
+                        b_.currentFunction_->addBasicBlock(elseBlock);
+                    b_.currentFunction_->addBasicBlock(mergeBlock);
                 }
 
 #ifndef NDEBUG
@@ -537,14 +538,14 @@ namespace Sad
                 // (EN) Step 2: Build condition expression
                 // ״§„…״µ״¯״±: IfStmt::condition (statements.h:107)
                 // ========================================================================
-                auto condResult = buildExpression(ifStmt->condition.get());
+                auto condResult = b_.buildExpression(ifStmt->condition.get());
 
                 if (condResult.registerName.empty())
                 {
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildIfStatement: condition build failed!" << std::endl;
 #endif
-                    errors_.push_back("Error: Failed to build if condition");
+                    b_.errors_.push_back("Error: Failed to build if condition");
                     return;
                 }
 
@@ -564,8 +565,8 @@ namespace Sad
                     std::string condClassName = condResult.className;
                     if (condClassName.empty() && !condResult.registerName.empty())
                     {
-                        auto it = classInstanceTypes_.find(condResult.registerName);
-                        if (it != classInstanceTypes_.end())
+                        auto it = b_.classInstanceTypes_.find(condResult.registerName);
+                        if (it != b_.classInstanceTypes_.end())
                             condClassName = it->second;
                     }
                     if (!condClassName.empty())
@@ -578,12 +579,12 @@ namespace Sad
                         while (!searchClass.empty())
                         {
                             toboolName = searchClass + ".__op_tobool__";
-                            if (functionTable_.find(toboolName) != functionTable_.end())
+                            if (b_.functionTable_.find(toboolName) != b_.functionTable_.end())
                             {
                                 foundToBool = true;
                                 break;
                             }
-                            auto classInfo = module_->getClass(searchClass);
+                            auto classInfo = b_.module_->getClass(searchClass);
                             if (classInfo && !classInfo->parentClass.empty())
                                 searchClass = classInfo->parentClass;
                             else
@@ -591,14 +592,14 @@ namespace Sad
                         }
                         if (foundToBool)
                         {
-                            std::string boolReg = newTempRegister();
+                            std::string boolReg = b_.newTempRegister();
                             SIRInstruction callInst;
                             callInst.opcode = SIROpcode::OBJECT_CALL;
                             callInst.result = SIROperand::Register(boolReg, SadTypeKind::Boolean);
                             callInst.operands.push_back(SIROperand::Register(condResult.registerName, condResult.type));
                             callInst.operands.push_back(SIROperand::ConstantString("__op_tobool__"));
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(callInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(callInst);
                             condResult = BuildResult(boolReg, SadTypeKind::Boolean);
                         }
                     }
@@ -632,9 +633,9 @@ namespace Sad
 
                 SIRInstruction brCondInst = SIRInstruction::BranchCond(condOp, thenLabelOp, elseLabelOp);
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(brCondInst);
+                    b_.currentBlock_->instructions.push_back(brCondInst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildIfStatement: added BR_COND to current block" << std::endl;
 #endif
@@ -645,7 +646,7 @@ namespace Sad
                 // (EN) Step 4: Build then branch
                 // ״§„…״µ״¯״±: IfStmt::thenBranch (statements.h:108)
                 // ========================================================================
-                currentBlock_ = thenBlock;
+                b_.currentBlock_ = thenBlock;
                 if (ifStmt->thenBranch)
                 {
                     buildStatement(ifStmt->thenBranch.get());
@@ -658,16 +659,16 @@ namespace Sad
                 SIROperand mergeLabelOp = SIROperand::Label(mergeLabel);
                 SIRInstruction brMergeInst = SIRInstruction::Branch(mergeLabelOp);
 
-                if (currentBlock_ && !currentBlock_->instructions.empty())
+                if (b_.currentBlock_ && !b_.currentBlock_->instructions.empty())
                 {
-                    const auto &lastInst = currentBlock_->instructions.back();
+                    const auto &lastInst = b_.currentBlock_->instructions.back();
                     bool hasTerminator = (lastInst.opcode == SIROpcode::RET ||
                                           lastInst.opcode == SIROpcode::RET_VOID ||
                                           lastInst.opcode == SIROpcode::BR ||
                                           lastInst.opcode == SIROpcode::BR_COND);
                     if (!hasTerminator)
                     {
-                        currentBlock_->instructions.push_back(brMergeInst);
+                        b_.currentBlock_->instructions.push_back(brMergeInst);
 #ifndef NDEBUG
                         std::cout << "[DEBUG] buildIfStatement: added BR to merge from then" << std::endl;
 #endif
@@ -679,9 +680,9 @@ namespace Sad
 #endif
                     }
                 }
-                else if (currentBlock_)
+                else if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(brMergeInst);
+                    b_.currentBlock_->instructions.push_back(brMergeInst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildIfStatement: added BR to merge from then (empty block)" << std::endl;
 #endif
@@ -694,23 +695,23 @@ namespace Sad
                 // ========================================================================
                 if (ifStmt->elseBranch && elseBlock)
                 {
-                    currentBlock_ = elseBlock;
+                    b_.currentBlock_ = elseBlock;
                     buildStatement(ifStmt->elseBranch.get());
 
                     // (AR) ‚״² ״÷״± ״´״±״· ״¥„‰ merge
                     // (EN) Unconditional jump to merge
                     // (AR) „״§ †״¶ ״§„‚״² ״¥״°״§ ƒ״§† ״§„״±״¹ ‚״¯ ״§†״×‡‰ ״¨€ RET ״£ˆ BR ״£ˆ BR_COND
                     // (EN) Don't add branch if the block already ends with RET or BR or BR_COND
-                    if (currentBlock_ && !currentBlock_->instructions.empty())
+                    if (b_.currentBlock_ && !b_.currentBlock_->instructions.empty())
                     {
-                        const auto &lastInst = currentBlock_->instructions.back();
+                        const auto &lastInst = b_.currentBlock_->instructions.back();
                         bool hasTerminator = (lastInst.opcode == SIROpcode::RET ||
                                               lastInst.opcode == SIROpcode::RET_VOID ||
                                               lastInst.opcode == SIROpcode::BR ||
                                               lastInst.opcode == SIROpcode::BR_COND);
                         if (!hasTerminator)
                         {
-                            currentBlock_->instructions.push_back(brMergeInst);
+                            b_.currentBlock_->instructions.push_back(brMergeInst);
 #ifndef NDEBUG
                             std::cout << "[DEBUG] buildIfStatement: added BR to merge from else" << std::endl;
 #endif
@@ -722,9 +723,9 @@ namespace Sad
 #endif
                         }
                     }
-                    else if (currentBlock_)
+                    else if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(brMergeInst);
+                        b_.currentBlock_->instructions.push_back(brMergeInst);
 #ifndef NDEBUG
                         std::cout << "[DEBUG] buildIfStatement: added BR to merge from else (empty block)" << std::endl;
 #endif
@@ -735,7 +736,7 @@ namespace Sad
                 // (AR) ״§„״®״·ˆ״© 6: ״§„״§״³״×…״±״§״± ״¨״¹״¯ if
                 // (EN) Step 6: Continue after if statement
                 // ========================================================================
-                currentBlock_ = mergeBlock;
+                b_.currentBlock_ = mergeBlock;
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildIfStatement: completed, now at merge block" << std::endl;
 #endif

@@ -6,6 +6,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -25,7 +26,7 @@ namespace Sad
         namespace SIR
         {
 
-            bool SIRBuilder::buildStatement_Types(AST::Statement *stmt)
+            bool StatementBuilder::buildStatement_Types(AST::Statement *stmt)
             {
                 // ========================================================================
                 // (AR) EnumDecl - تصريح تعداد بسيط أو جبري (ADT)
@@ -98,11 +99,11 @@ namespace Sad
                             sirClass->addField("__f" + std::to_string(f), SadTypeKind::Pointer);
                         }
 
-                        if (module_)
+                        if (b_.module_)
                         {
-                            module_->addClass(sirClass);
+                            b_.module_->addClass(sirClass);
                         }
-                        classTable_[adtInfo.structName] = sirClass;
+                        b_.classTable_[adtInfo.structName] = sirClass;
 
                         // (AR) الخطوة 3: لكل حالة، إنشاء دالة باني أو ثابت عام
                         // (EN) Step 3: For each variant, create constructor function or global constant
@@ -119,11 +120,11 @@ namespace Sad
                                 //      This maintains compatibility with simple enums
                                 //      Also registered as zero-arg constructor for match support
 
-                                if (module_)
+                                if (b_.module_)
                                 {
                                     auto global = std::make_shared<SIRGlobalVariable>(
                                         fullName, SadTypeKind::Integer, std::to_string(variant.tag), true);
-                                    module_->addGlobalVariable(global);
+                                    b_.module_->addGlobalVariable(global);
                                 }
 
                                 VariableInfo enumVar;
@@ -133,7 +134,7 @@ namespace Sad
                                 enumVar.isGlobal = true;
                                 enumVar.isMutable = false;
                                 enumVar.scopeLevel = 0;
-                                addVariable(enumVar);
+                                b_.addVariable(enumVar);
 
                                 // (AR) أيضاً: تسجيل دالة باني بدون معاملات
                                 //      حتى يمكن استدعاء شكل.نقطة() كدالة أو استخدامها في match
@@ -142,7 +143,7 @@ namespace Sad
                                 std::string ctorName = "__adt_ctor_" + enumDecl->name + "_" + variant.name;
 
                                 auto ctorFunc = std::make_shared<SIRFunction>(ctorName, SadTypeKind::Struct);
-                                auto entryBlock = createBasicBlock(ctorName + ".entry");
+                                auto entryBlock = b_.createBasicBlock(ctorName + ".entry");
                                 ctorFunc->addBasicBlock(entryBlock);
 
                                 // (AR) جسم الباني: ENUM_CONSTRUCT بدون حقول
@@ -161,9 +162,9 @@ namespace Sad
                                 retInst.operands.push_back(SIROperand::Register(resultReg, SadTypeKind::Struct));
                                 entryBlock->addInstruction(retInst);
 
-                                if (module_)
+                                if (b_.module_)
                                 {
-                                    module_->addFunction(ctorFunc);
+                                    b_.module_->addFunction(ctorFunc);
                                 }
 
                                 // (AR) تسجيل الباني في جدول الدوال
@@ -173,7 +174,7 @@ namespace Sad
                                 ctorInfo.returnType = SadTypeKind::Struct;
                                 ctorInfo.returnClassName = adtInfo.structName;
                                 ctorInfo.sirFunction = ctorFunc;
-                                functionTable_[fullName] = ctorInfo;
+                                b_.functionTable_[fullName] = ctorInfo;
                             }
                             else
                             {
@@ -195,7 +196,7 @@ namespace Sad
                                     ctorFunc->addParameter(param);
                                 }
 
-                                auto entryBlock = createBasicBlock(ctorName + ".entry");
+                                auto entryBlock = b_.createBasicBlock(ctorName + ".entry");
                                 ctorFunc->addBasicBlock(entryBlock);
 
                                 // (AR) جسم الباني: ENUM_CONSTRUCT مع الحقول
@@ -224,9 +225,9 @@ namespace Sad
                                 retInst.operands.push_back(SIROperand::Register(resultReg, SadTypeKind::Struct));
                                 entryBlock->addInstruction(retInst);
 
-                                if (module_)
+                                if (b_.module_)
                                 {
-                                    module_->addFunction(ctorFunc);
+                                    b_.module_->addFunction(ctorFunc);
                                 }
 
                                 // (AR) تسجيل الباني في جدول الدوال
@@ -240,13 +241,13 @@ namespace Sad
                                 {
                                     ctorInfo.parameters.push_back(SIRParameter(variant.fields[fi], SadTypeKind::Pointer));
                                 }
-                                functionTable_[fullName] = ctorInfo;
+                                b_.functionTable_[fullName] = ctorInfo;
                             }
                         }
 
                         // (AR) الخطوة 4: تسجيل معلومات ADT في الجدول العام
                         // (EN) Step 4: Register ADT info in global table
-                        adtEnumTable_[enumDecl->name] = std::move(adtInfo);
+                        b_.adtEnumTable_[enumDecl->name] = std::move(adtInfo);
 
 #ifndef NDEBUG
                         std::cout << "[DEBUG] ADT enum '" << enumDecl->name
@@ -277,7 +278,7 @@ namespace Sad
                             int64_t enumValue = static_cast<int64_t>(i);
                             if (member.value)
                             {
-                                auto valResult = buildExpression(member.value.get());
+                                auto valResult = b_.buildExpression(member.value.get());
                                 if (valResult.isConstant)
                                 {
                                     try
@@ -296,11 +297,11 @@ namespace Sad
                             // (EN) Create global variable for constant
                             std::string regName = "%" + fullName;
 
-                            if (module_)
+                            if (b_.module_)
                             {
                                 auto global = std::make_shared<SIRGlobalVariable>(
                                     fullName, SadTypeKind::Integer, std::to_string(enumValue), true);
-                                module_->addGlobalVariable(global);
+                                b_.module_->addGlobalVariable(global);
                             }
 
                             // (AR) تسجيل كثابت في النطاق
@@ -312,7 +313,7 @@ namespace Sad
                             enumVar.isGlobal = true;
                             enumVar.isMutable = false;
                             enumVar.scopeLevel = 0;
-                            addVariable(enumVar);
+                            b_.addVariable(enumVar);
                         }
                     }
                     return true;
@@ -368,14 +369,14 @@ namespace Sad
                         buildStatement(methodStmt.get());
                     }
 
-                    if (module_)
+                    if (b_.module_)
                     {
-                        module_->addClass(sirClass);
+                        b_.module_->addClass(sirClass);
                     }
 
                     // (AR) تسجيل الصنف في الجدول
                     // (EN) Register class in table
-                    classTable_[structDecl->name] = sirClass;
+                    b_.classTable_[structDecl->name] = sirClass;
                     return true;
                 }
 
@@ -390,12 +391,12 @@ namespace Sad
 #endif
 
                     // (AR) بناء أعضاء الفضاء (الدوال، الأصناف، المتغيرات)
-                    //      نحفظ السياق قبل بناء الدوال لأن buildFunction يكتب على
-                    //      currentFunction_ و currentBlock_ ثم يُصفّرهما
+                    //      نحفظ السياق قبل بناء الدوال لأن b_.buildFunction يكتب على
+                    //      b_.currentFunction_ و b_.currentBlock_ ثم يُصفّرهما
                     // (EN) Build namespace members (functions, classes, variables)
-                    //      Save context before building functions because buildFunction
-                    //      overwrites currentFunction_ and currentBlock_ then nullifies them
-                    enterScope();
+                    //      Save context before building functions because b_.buildFunction
+                    //      overwrites b_.currentFunction_ and b_.currentBlock_ then nullifies them
+                    b_.enterScope();
 
                     for (const auto &member : nsDecl->members)
                     {
@@ -413,16 +414,16 @@ namespace Sad
                             std::string originalName = funcDecl->name;
                             funcDecl->name = nsDecl->name + "::" + originalName;
 
-                            auto savedCtxNs = saveContext();
-                            buildFunction(funcDecl);
-                            restoreContext(std::move(savedCtxNs));
+                            auto savedCtxNs = b_.saveContext();
+                            b_.buildFunction(funcDecl);
+                            b_.restoreContext(std::move(savedCtxNs));
 
                             // (AR) تسجيل العضو في خريطة الفضاء
                             // (EN) Register member in namespace map
-                            NamespaceMemberInfo info;
+                            SIRBuilderContext::NamespaceMemberInfo info;
                             info.kind = "func";
                             info.sirName = funcDecl->name;
-                            namespaceMembers_[nsDecl->name][originalName] = info;
+                            b_.namespaceMembers_[nsDecl->name][originalName] = info;
 
                             funcDecl->name = originalName;
                         }
@@ -432,7 +433,7 @@ namespace Sad
                             // (EN) Build global variable with namespace prefix
                             std::string originalName = varDecl->name;
                             varDecl->name = nsDecl->name + "::" + originalName;
-                            buildGlobalVariable(varDecl);
+                            b_.buildGlobalVariable(varDecl);
 
                             // (AR) تحديد نوع المتغير من المُهيئ
                             // (EN) Determine variable type from initializer
@@ -454,11 +455,11 @@ namespace Sad
 
                             // (AR) تسجيل العضو في خريطة الفضاء
                             // (EN) Register member in namespace map
-                            NamespaceMemberInfo info;
+                            SIRBuilderContext::NamespaceMemberInfo info;
                             info.kind = "var";
                             info.sirName = varDecl->name;
                             info.type = varType;
-                            namespaceMembers_[nsDecl->name][originalName] = info;
+                            b_.namespaceMembers_[nsDecl->name][originalName] = info;
 
                             varDecl->name = originalName;
                         }
@@ -467,16 +468,16 @@ namespace Sad
                             std::string originalName = classDecl->name;
                             classDecl->name = nsDecl->name + "::" + originalName;
 
-                            auto savedCtxNs = saveContext();
-                            buildClass(classDecl);
-                            restoreContext(std::move(savedCtxNs));
+                            auto savedCtxNs = b_.saveContext();
+                            b_.buildClass(classDecl);
+                            b_.restoreContext(std::move(savedCtxNs));
 
                             // (AR) تسجيل العضو في خريطة الفضاء
                             // (EN) Register member in namespace map
-                            NamespaceMemberInfo info;
+                            SIRBuilderContext::NamespaceMemberInfo info;
                             info.kind = "class";
                             info.sirName = classDecl->name;
-                            namespaceMembers_[nsDecl->name][originalName] = info;
+                            b_.namespaceMembers_[nsDecl->name][originalName] = info;
 
                             classDecl->name = originalName;
                         }
@@ -486,7 +487,7 @@ namespace Sad
                         }
                     }
 
-                    exitScope();
+                    b_.exitScope();
                     return true;
                 }
 
@@ -551,16 +552,16 @@ namespace Sad
                             globalVar.type = fieldType;
                             globalVar.registerName = "@" + globalName;
                             globalVar.isGlobal = true;
-                            addVariable(globalVar);
+                            b_.addVariable(globalVar);
 
                             // (AR) تعيين القيمة الابتدائية
                             // (EN) Set initial value
-                            if (module_)
+                            if (b_.module_)
                             {
                                 std::string initVal = "0";
                                 if (field->initializer)
                                 {
-                                    auto initResult = buildExpression(field->initializer.get());
+                                    auto initResult = b_.buildExpression(field->initializer.get());
                                     if (initResult.isConstant && !initResult.constantValue.empty())
                                     {
                                         initVal = initResult.constantValue;
@@ -568,12 +569,12 @@ namespace Sad
                                 }
                                 auto globalVar = std::make_shared<SIRGlobalVariable>(
                                     globalName, fieldType, initVal, false);
-                                module_->addGlobalVariable(globalVar);
+                                b_.module_->addGlobalVariable(globalVar);
                             }
 
                             // (AR) تسجيل الحقل الساكن لاكتشافه لاحقاً
                             // (EN) Register static field for later detection
-                            staticFields_[globalName] = fieldType;
+                            b_.staticFields_[globalName] = fieldType;
                             continue;
                         }
 
@@ -582,8 +583,8 @@ namespace Sad
 
                     // (AR) حفظ السياق
                     // (EN) Save context
-                    std::string savedClassName = currentClassName_;
-                    currentClassName_ = classDeclStmt->name;
+                    std::string savedClassName = b_.currentClassName_;
+                    b_.currentClassName_ = classDeclStmt->name;
 
                     // (AR) معالجة الباني
                     // (EN) Process constructor
@@ -605,19 +606,19 @@ namespace Sad
                         auto ctorFunc = std::make_shared<SIRFunction>(ctorName, SadTypeKind::Void);
                         for (const auto &cp : ctorParams)
                             ctorFunc->addParameter(cp);
-                        auto savedCtxCtor = saveContext();
+                        auto savedCtxCtor = b_.saveContext();
 
-                        currentFunction_ = ctorFunc;
-                        auto entryBlock = createBasicBlock("ctor_entry");
+                        b_.currentFunction_ = ctorFunc;
+                        auto entryBlock = b_.createBasicBlock("ctor_entry");
                         ctorFunc->addBasicBlock(entryBlock);
-                        currentBlock_ = entryBlock;
+                        b_.currentBlock_ = entryBlock;
 
-                        enterScope();
+                        b_.enterScope();
                         VariableInfo selfVar;
                         selfVar.name = kSelfParamName;
                         selfVar.type = SadTypeKind::Pointer;
                         selfVar.registerName = kSelfRegisterName;
-                        addVariable(selfVar);
+                        b_.addVariable(selfVar);
 
                         if (auto ctor = dynamic_cast<Sad::AST::ConstructorDecl *>(ctorDecl))
                         {
@@ -625,17 +626,17 @@ namespace Sad
                                 buildStatement(ctor->body.get());
                         }
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
+                            b_.currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
                         }
-                        exitScope();
+                        b_.exitScope();
 
-                        if (module_)
-                            module_->addFunction(ctorFunc);
+                        if (b_.module_)
+                            b_.module_->addFunction(ctorFunc);
                         sirClass->addMethod(ctorFunc);
 
-                        restoreContext(std::move(savedCtxCtor));
+                        b_.restoreContext(std::move(savedCtxCtor));
                     }
 
                     // (AR) معالجة الدوال
@@ -662,14 +663,14 @@ namespace Sad
                             auto methodFunc = std::make_shared<SIRFunction>(methodName, SadTypeKind::Integer);
                             for (const auto &mp : methodParams)
                                 methodFunc->addParameter(mp);
-                            auto savedCtxMethod = saveContext();
+                            auto savedCtxMethod = b_.saveContext();
 
-                            currentFunction_ = methodFunc;
-                            auto entryBlock = createBasicBlock("method_entry");
+                            b_.currentFunction_ = methodFunc;
+                            auto entryBlock = b_.createBasicBlock("method_entry");
                             methodFunc->addBasicBlock(entryBlock);
-                            currentBlock_ = entryBlock;
+                            b_.currentBlock_ = entryBlock;
 
-                            enterScope();
+                            b_.enterScope();
 
                             // (AR) الدوال الساكنة لا تحتاج self في النطاق
                             // (EN) Static methods don't need self in scope
@@ -679,7 +680,7 @@ namespace Sad
                                 selfVar.name = kSelfParamName;
                                 selfVar.type = SadTypeKind::Pointer;
                                 selfVar.registerName = kSelfRegisterName;
-                                addVariable(selfVar);
+                                b_.addVariable(selfVar);
                             }
 
                             for (const auto &p : methodDecl->parameters)
@@ -688,41 +689,41 @@ namespace Sad
                                 pVar.name = p.name;
                                 pVar.type = SadTypeKind::Integer;
                                 pVar.registerName = "%" + p.name;
-                                addVariable(pVar);
+                                b_.addVariable(pVar);
                             }
 
                             if (methodDecl->body)
                                 buildStatement(methodDecl->body.get());
-                            exitScope();
+                            b_.exitScope();
 
-                            if (module_)
-                                module_->addFunction(methodFunc);
+                            if (b_.module_)
+                                b_.module_->addFunction(methodFunc);
                             sirClass->addMethod(methodFunc);
 
-                            // (AR) تسجيل الدالة في functionTable_ بصيغة النقطة (للبحث الذكي)
-                            // (EN) Register method in functionTable_ with dot notation (for smart lookup)
+                            // (AR) تسجيل الدالة في b_.functionTable_ بصيغة النقطة (للبحث الذكي)
+                            // (EN) Register method in b_.functionTable_ with dot notation (for smart lookup)
                             std::string dotName = classDeclStmt->name + "." + methodDecl->name;
                             FunctionInfo fInfo;
                             fInfo.name = methodName;
                             fInfo.returnType = SadTypeKind::Integer;
-                            functionTable_[dotName] = fInfo;
+                            b_.functionTable_[dotName] = fInfo;
 
                             // (AR) تسجيل الدالة الساكنة لتمييزها عند الاستدعاء
                             // (EN) Register static method for identification during calls
                             if (isStaticMethod)
                             {
-                                staticMethods_.insert(dotName);
+                                b_.staticMethods_.insert(dotName);
                             }
 
-                            restoreContext(std::move(savedCtxMethod));
+                            b_.restoreContext(std::move(savedCtxMethod));
                         }
                     }
 
-                    currentClassName_ = savedClassName;
+                    b_.currentClassName_ = savedClassName;
 
-                    if (module_)
-                        module_->addClass(sirClass);
-                    classTable_[classDeclStmt->name] = sirClass;
+                    if (b_.module_)
+                        b_.module_->addClass(sirClass);
+                    b_.classTable_[classDeclStmt->name] = sirClass;
                     return true;
                 }
 
@@ -735,7 +736,7 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] Found nested FunctionDecl: " << funcDecl->name << std::endl;
 #endif
-                    buildFunction(funcDecl);
+                    b_.buildFunction(funcDecl);
                     return true;
                 }
 
@@ -748,7 +749,7 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] Found nested ClassDecl: " << classDecl->name << std::endl;
 #endif
-                    buildClass(classDecl);
+                    b_.buildClass(classDecl);
                     return true;
                 }
 
@@ -771,27 +772,27 @@ namespace Sad
                     // (EN) Add 'this' parameter
                     dtorFunc->addParameter(SIRParameter("this", SadTypeKind::Pointer));
 
-                    auto entryBlock = createBasicBlock("destructor_entry");
+                    auto entryBlock = b_.createBasicBlock("destructor_entry");
                     dtorFunc->addBasicBlock(entryBlock);
 
-                    auto savedCtxDtor = saveContext();
-                    currentFunction_ = dtorFunc;
-                    currentBlock_ = entryBlock;
+                    auto savedCtxDtor = b_.saveContext();
+                    b_.currentFunction_ = dtorFunc;
+                    b_.currentBlock_ = entryBlock;
 
-                    enterScope();
+                    b_.enterScope();
                     if (destructorDecl->body)
                     {
                         buildStatement(destructorDecl->body.get());
                     }
-                    exitScope();
+                    b_.exitScope();
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
+                        b_.currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
                     }
 
-                    restoreContext(std::move(savedCtxDtor));
-                    module_->addFunction(dtorFunc);
+                    b_.restoreContext(std::move(savedCtxDtor));
+                    b_.module_->addFunction(dtorFunc);
                     return true;
                 }
 

@@ -6,6 +6,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -25,7 +26,7 @@ namespace Sad
         namespace SIR
         {
 
-            bool SIRBuilder::buildStatement_Advanced(AST::Statement *stmt)
+            bool StatementBuilder::buildStatement_Advanced(AST::Statement *stmt)
             {
                 // ================================================================
                 // (AR) مرحلة 1: اختبارات (TestDecl) — مستخرجة إلى sir_builder_stmt_test.cpp
@@ -53,27 +54,27 @@ namespace Sad
 
                     // (AR) تحويل النوع الداخلي إلى SadTypeKind
                     // (EN) Convert inner type to SadTypeKind
-                    SadTypeKind varType = astTypeToSIRType(atomicDecl->innerType);
+                    SadTypeKind varType = b_.astTypeToSIRType(atomicDecl->innerType);
 
                     // (AR) تخصيص مكان في الذاكرة
                     // (EN) Allocate memory
-                    std::string reg = newTempRegister();
-                    if (currentBlock_)
+                    std::string reg = b_.newTempRegister();
+                    if (b_.currentBlock_)
                     {
                         SIRInstruction allocInst;
                         allocInst.opcode = SIROpcode::ALLOC;
                         allocInst.result = SIROperand::Register(reg, varType);
-                        currentBlock_->addInstruction(allocInst);
+                        b_.currentBlock_->addInstruction(allocInst);
                     }
 
                     // (AR) تهيئة القيمة إن وُجدت
                     // (EN) Initialize value if present
                     if (atomicDecl->initialValue)
                     {
-                        auto initResult = buildExpression(atomicDecl->initialValue.get());
-                        if (currentBlock_)
+                        auto initResult = b_.buildExpression(atomicDecl->initialValue.get());
+                        if (b_.currentBlock_)
                         {
-                            currentBlock_->addInstruction(SIRInstruction::Store(
+                            b_.currentBlock_->addInstruction(SIRInstruction::Store(
                                 SIROperand::Register(reg, varType),
                                 SIROperand::Register(initResult.registerName, initResult.type)));
                         }
@@ -87,7 +88,7 @@ namespace Sad
                     varInfo.registerName = reg;
                     varInfo.isGlobal = false;
                     varInfo.isMutable = true;
-                    addVariable(varInfo);
+                    b_.addVariable(varInfo);
                     return true;
                 }
 
@@ -169,10 +170,10 @@ namespace Sad
 
                 // ========================================================================
                 // (AR) MacroDecl - تصريح ماكرو: ماكرو اسم(معاملات) ... نهاية
-                //      نُسجّل الماكرو في خريطة macros_ فقط — يُوسَّع عند الاستدعاء
+                //      نُسجّل الماكرو في خريطة b_.macros_ فقط — يُوسَّع عند الاستدعاء
                 //      (مشابه لـ StatementExecutor::visitMacroDecl في المفسر)
                 // (EN) MacroDecl - macro declaration: macro name(params) ... end
-                //      We register the macro in macros_ map only — expanded at call site
+                //      We register the macro in b_.macros_ map only — expanded at call site
                 //      (mirrors StatementExecutor::visitMacroDecl in interpreter)
                 // ========================================================================
                 if (auto macroDecl = dynamic_cast<Sad::AST::MacroDecl *>(stmt))
@@ -184,7 +185,7 @@ namespace Sad
 #endif
                     // (AR) تخزين مؤشر الماكرو (AST يملك الذاكرة)
                     // (EN) Store macro pointer (AST owns memory)
-                    macros_[macroDecl->name] = macroDecl;
+                    b_.macros_[macroDecl->name] = macroDecl;
                     return true;
                 }
 

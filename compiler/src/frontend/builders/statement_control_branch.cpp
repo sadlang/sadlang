@@ -6,6 +6,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/statement_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -37,9 +38,9 @@ namespace Sad
             // - value: ExprPtr (line 268) - optional, can be nullptr
             //
             // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
-            // - buildExpression: sir_builder.h:432
+            // - b_.buildExpression: sir_builder.h:432
             // ============================================================================
-            void SIRBuilder::buildReturnStatement(AST::ReturnStmt *retStmt)
+            void StatementBuilder::buildReturnStatement(AST::ReturnStmt *retStmt)
             {
                 if (!retStmt)
                 {
@@ -48,14 +49,14 @@ namespace Sad
 
                 // ================================================================
                 // (AR) FIX X06: بناء تعبير الإرجاع قبل defer
-                //      المشكلة: emitRunDeferredClosures() يغير currentBlock_ الى defer_skip،
+                //      المشكلة: emitRunDeferredClosures() يغير b_.currentBlock_ الى defer_skip،
                 //      وعند بناء التعبير بعده، namedValues تشير الى alloca من نطاق مختلف.
                 //      مثال: في match، متغير "ضريبة" لكل case له alloca منفصل. عند بناء
                 //      ارجع "..." + ضريبة في defer_skip، يجد المترجم آخر alloca لـ ضريبة
                 //      (من آخر case) بدلاً من alloca الـ case الحالي، فتكون القيمة 0.
                 //      الحل: بناء التعبير في body block + تخزينه في alloca فريد لضمان SSA.
                 // (EN) FIX X06: Build return expression BEFORE defer
-                //      Problem: emitRunDeferredClosures() changes currentBlock_ to defer_skip,
+                //      Problem: emitRunDeferredClosures() changes b_.currentBlock_ to defer_skip,
                 //      and building the expression after it uses wrong alloca from another scope.
                 //      In match: each case has its own "var" alloca. Building "..." + var
                 //      in defer_skip finds the LAST case's alloca (value=0) not current case's.
@@ -65,31 +66,31 @@ namespace Sad
                 SadTypeKind prebuiltRetType = SadTypeKind::Void;
                 bool hasPrebuiltRet = false;
 
-                if (retStmt->value && !currentDeferStackReg_.empty() && finallyStack_.empty() &&
-                    (!currentFunction_ || !currentFunction_->isCoroutine))
+                if (retStmt->value && !b_.currentDeferStackReg_.empty() && b_.finallyStack_.empty() &&
+                    (!b_.currentFunction_ || !b_.currentFunction_->isCoroutine))
                 {
-                    BuildResult preResult = buildExpression(retStmt->value.get());
+                    BuildResult preResult = b_.buildExpression(retStmt->value.get());
                     if (!preResult.registerName.empty() && !preResult.isConstant)
                     {
                         // (AR) تخزين القيمة في alloca مؤقت قبل defer لضمان SSA correctness
                         // (EN) Store value in temp alloca before defer for SSA correctness
-                        std::string tempAllocaReg = newTempRegister();
+                        std::string tempAllocaReg = b_.newTempRegister();
                         SadTypeKind storeType = preResult.type;
 
                         SIRInstruction allocInst;
                         allocInst.opcode = SIROpcode::ALLOC;
                         allocInst.result = SIROperand::Register(tempAllocaReg, storeType);
                         allocInst.comment = "temp alloca for return value (FIX X06: before defer)";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(allocInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(allocInst);
 
                         SIRInstruction storeInst;
                         storeInst.opcode = SIROpcode::STORE;
                         storeInst.operands.push_back(SIROperand::Register(preResult.registerName, storeType));
                         storeInst.operands.push_back(SIROperand::Register(tempAllocaReg, storeType));
                         storeInst.comment = "store return value before defer cleanup (FIX X06)";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(storeInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(storeInst);
 
                         prebuiltRetReg = tempAllocaReg;
                         prebuiltRetType = storeType;
@@ -101,13 +102,13 @@ namespace Sad
                 // (AR) ״×†״° ״§„״¬…„ ״§„…״₪״¬„״© (״£״¬‘„/defer) ‚״¨„ RET ״¨״×״±״×״¨ LIFO
                 // (EN) Execute deferred statements (defer) before RET in LIFO order
                 // ================================================================
-                if (!currentDeferStackReg_.empty())
+                if (!b_.currentDeferStackReg_.empty())
                 {
                     emitRunDeferredClosures();
                 }
-                else if (!deferredStatements_.empty())
+                else if (!b_.deferredStatements_.empty())
                 {
-                    for (auto it = deferredStatements_.rbegin(); it != deferredStatements_.rend(); ++it)
+                    for (auto it = b_.deferredStatements_.rbegin(); it != b_.deferredStatements_.rend(); ++it)
                     {
                         if (*it)
                             buildStatement(*it);
@@ -124,15 +125,15 @@ namespace Sad
                 //      Supported types: 0=void, 1=integer/bool, 2=string/ptr, 3=float
                 //      This check must come after defer processing and before everything else
                 // ================================================================
-                if (!finallyStack_.empty())
+                if (!b_.finallyStack_.empty())
                 {
-                    auto &ctx = finallyStack_.back();
+                    auto &ctx = b_.finallyStack_.back();
 
                     if (retStmt->value)
                     {
                         // (AR) ״¨†״§״¡ ‚…״© ״§„״¥״±״¬״§״¹
                         // (EN) Build return value expression
-                        BuildResult valResult = buildExpression(retStmt->value.get());
+                        BuildResult valResult = b_.buildExpression(retStmt->value.get());
 
                         // (AR) ״¥״°״§ ƒ״§†״× ״§„‚…״©  alloca (…״×״÷״± …״­„) ג†’ †״­״×״§״¬ LOAD ״£ˆ„״§‹
                         // (EN) If value is in alloca (local variable) ג†’ need LOAD first
@@ -147,16 +148,16 @@ namespace Sad
                             std::string vn = actualReg;
                             if (!vn.empty() && vn[0] == '%')
                                 vn = vn.substr(1);
-                            if (lookupVariable(vn))
+                            if (b_.lookupVariable(vn))
                             {
-                                std::string loadedReg = newTempRegister();
+                                std::string loadedReg = b_.newTempRegister();
                                 SIRInstruction loadInst;
                                 loadInst.opcode = SIROpcode::LOAD;
                                 loadInst.result = SIROperand::Register(loadedReg, actualType);
                                 loadInst.operands.push_back(SIROperand::Register(actualReg, actualType));
                                 loadInst.comment = "load variable for finally return";
-                                if (currentBlock_)
-                                    currentBlock_->addInstruction(loadInst);
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->addInstruction(loadInst);
                                 actualReg = loadedReg;
                             }
                         }
@@ -180,8 +181,8 @@ namespace Sad
                                 stI.operands.push_back(SIROperand::Register(actualReg, actualType));
                             stI.operands.push_back(SIROperand::Register(ctx.retValI64Reg, SadTypeKind::Integer));
                             stI.comment = "store integer finally return value";
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(stI);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(stI);
                         }
                         else if (actualType == SadTypeKind::String || actualType == SadTypeKind::Pointer)
                         {
@@ -194,8 +195,8 @@ namespace Sad
                                 stP.operands.push_back(SIROperand::Register(actualReg, actualType));
                             stP.operands.push_back(SIROperand::Register(ctx.retValPtrReg, SadTypeKind::String));
                             stP.comment = "store string/ptr finally return value";
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(stP);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(stP);
                         }
                         else if (actualType == SadTypeKind::Float)
                         {
@@ -208,8 +209,8 @@ namespace Sad
                                 stF.operands.push_back(SIROperand::Register(actualReg, actualType));
                             stF.operands.push_back(SIROperand::Register(ctx.retValI64Reg, SadTypeKind::Float));
                             stF.comment = "store float finally return value";
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(stF);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(stF);
                         }
                         else if (!valResult.registerName.empty())
                         {
@@ -221,8 +222,8 @@ namespace Sad
                             stU.operands.push_back(SIROperand::Register(actualReg, actualType));
                             stU.operands.push_back(SIROperand::Register(ctx.retValI64Reg, SadTypeKind::Integer));
                             stU.comment = "store unknown-type finally return value as i64";
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(stU);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(stU);
                         }
 
                         // (AR) ״×״®״²† typeCode  ״³״¬„ ״§„†ˆ״¹
@@ -233,8 +234,8 @@ namespace Sad
                             stTC.operands.push_back(SIROperand::ConstantI64(typeCode));
                             stTC.operands.push_back(SIROperand::Register(ctx.retTypeReg, SadTypeKind::Integer));
                             stTC.comment = "store finally return type code = " + std::to_string(typeCode);
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(stTC);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(stTC);
                         }
                     }
                     // (AR) ״§״±״¬״¹ ״¨״¯ˆ† ‚…״© ג†’ type = 0 (void) ג€” …״¨״¯״¦״§‹ 0 …† ״§„״×‡״¦״©
@@ -248,24 +249,24 @@ namespace Sad
                         stHR.operands.push_back(SIROperand::ConstantI64(1));
                         stHR.operands.push_back(SIROperand::Register(ctx.hasReturnReg, SadTypeKind::Integer));
                         stHR.comment = "set finally has_return = 1 (״§״±״¬״¹ intercepted by finally)";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(stHR);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(stHR);
                     }
 
                     // (AR) ״§„‚״² ״¥„‰ ƒ״×„״© finally ״¨״¯„״§‹ …† ״¥״µ״¯״§״± RET …״¨״§״´״±
                     // (EN) Branch to finally block instead of emitting direct RET
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(ctx.finallyLabel)));
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(ctx.finallyLabel)));
 
                     return; // (AR) „״§ †״µ״¯״± RET ג€” finally ״³״µ״¯״±‡ ״¨״¹״¯ ״×†״°‡
                 }
 
                 // (AR) ״¥״°״§ ƒ†״§ ״¯״§״®„ ƒˆ״±ˆ״×†״ †״³״×״®״¯… CORO_RETURN ״¨״¯„״§‹ …† RET
                 // (EN) Inside a coroutine, use CORO_RETURN instead of RET
-                if (currentFunction_ && currentFunction_->isCoroutine && retStmt->value)
+                if (b_.currentFunction_ && b_.currentFunction_->isCoroutine && retStmt->value)
                 {
                     emitPopFunctionCleanupHandler();
-                    BuildResult valueResult = buildExpression(retStmt->value.get());
+                    BuildResult valueResult = b_.buildExpression(retStmt->value.get());
                     SIRInstruction coroRet;
                     coroRet.opcode = SIROpcode::CORO_RETURN;
                     if (valueResult.isConstant && !valueResult.constantValue.empty())
@@ -289,8 +290,8 @@ namespace Sad
                     {
                         coroRet.operands.push_back(SIROperand::Register(valueResult.registerName, valueResult.type));
                     }
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(coroRet);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(coroRet);
                     return;
                 }
 
@@ -307,42 +308,42 @@ namespace Sad
                     {
                         // (AR) تحميل القيمة من الـ alloca المؤقت (محسوب في body block قبل defer)
                         // (EN) Load value from temp alloca (computed in body block before defer)
-                        std::string loadedRetReg = newTempRegister();
+                        std::string loadedRetReg = b_.newTempRegister();
                         SIRInstruction loadRetInst;
                         loadRetInst.opcode = SIROpcode::LOAD;
                         loadRetInst.result = SIROperand::Register(loadedRetReg, prebuiltRetType);
                         loadRetInst.operands.push_back(SIROperand::Register(prebuiltRetReg, prebuiltRetType));
                         loadRetInst.comment = "load prebuilt return value (FIX X06)";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(loadRetInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(loadRetInst);
                         valueResult.registerName = loadedRetReg;
                         valueResult.type = prebuiltRetType;
                         valueResult.isDirectValue = true;
                     }
                     else
                     {
-                        valueResult = buildExpression(retStmt->value.get());
+                        valueResult = b_.buildExpression(retStmt->value.get());
                     }
 
                     // ================================================================
                     // (AR) ״×״×״¨״¹ †ˆ״¹ ״§„״µ† ״§„…״±״¬״¹:
                     //      ״¥״°״§ ƒ״§†״× ״§„‚…״© ״§„…״±״¬״¹״© ƒ״§״¦† („״¯‡״§ className)״ †״³״¬‘„ ״°„ƒ 
-                    //      functionTable_ ״­״×‰ ״×…ƒ† buildFunctionCall „״§״­‚״§‹ …† …״¹״±״© ״£†
+                    //      b_.functionTable_ ״­״×‰ ״×…ƒ† b_.buildFunctionCall „״§״­‚״§‹ …† …״¹״±״© ״£†
                     //      ‡״°‡ ״§„״¯״§„״© ״×״±״¬״¹ ƒ״§״¦†״§‹ …† ״µ† …״¹‘†.
                     //      ‡״°״§ ״¶״±ˆ״± „״×״×״¨״¹ †ˆ״¹ ״§„ƒ״§״¦† ״¹״¨״± ״§״³״×״¯״¹״§״¡״§״× ״§„״¯ˆ״§„.
                     //      …״«״§„: ״¯״§„״© ״§״µ†״¹_†‚״·״©() ג†’ ״§״±״¬״¹ ״¬״¯״¯ †‚״·״©(1,2) ג†’ returnClassName = "†‚״·״©"
                     //      ״¨״¯ˆ† ‡״°״§: …״×״÷״± † = ״§״µ†״¹_†‚״·״©() ג†’ †.״³ ״×״¹״·„ „״£† ״§„…״×״±״¬… „״§ ״¹״± ״£† † ƒ״§״¦†
                     // (EN) Track return class type:
                     //      If the returned value is an object (has className), record it in
-                    //      functionTable_ so buildFunctionCall can later know this function
+                    //      b_.functionTable_ so b_.buildFunctionCall can later know this function
                     //      returns an object of a specific class.
                     //      Without this: var p = makePoint() ג†’ p.x crashes because compiler
                     //      doesn't know p is an object.
                     // ================================================================
-                    if (!valueResult.className.empty() && currentFunction_)
+                    if (!valueResult.className.empty() && b_.currentFunction_)
                     {
-                        auto ftIt = functionTable_.find(currentFunction_->name);
-                        if (ftIt != functionTable_.end())
+                        auto ftIt = b_.functionTable_.find(b_.currentFunction_->name);
+                        if (ftIt != b_.functionTable_.end())
                         {
                             ftIt->second.returnClassName = valueResult.className;
                         }
@@ -351,31 +352,31 @@ namespace Sad
                     // (EN) Also: if the return expression is directly new ClassName()
                     if (auto *newExpr = dynamic_cast<Sad::AST::NewExpr *>(retStmt->value.get()))
                     {
-                        if (currentFunction_)
+                        if (b_.currentFunction_)
                         {
-                            auto ftIt = functionTable_.find(currentFunction_->name);
-                            if (ftIt != functionTable_.end() && ftIt->second.returnClassName.empty())
+                            auto ftIt = b_.functionTable_.find(b_.currentFunction_->name);
+                            if (ftIt != b_.functionTable_.end() && ftIt->second.returnClassName.empty())
                             {
                                 ftIt->second.returnClassName = newExpr->className;
                             }
                         }
                     }
-                    // (AR) ˆ״£״¶״§‹: ״¥״°״§ ƒ״§† ״§„…״×״÷״± ״§„…״±״¬״¹ …״³״¬‘„  classInstanceTypes_
-                    // (EN) Also: if returned variable is tracked in classInstanceTypes_
-                    if (valueResult.className.empty() && currentFunction_)
+                    // (AR) ˆ״£״¶״§‹: ״¥״°״§ ƒ״§† ״§„…״×״÷״± ״§„…״±״¬״¹ …״³״¬‘„  b_.classInstanceTypes_
+                    // (EN) Also: if returned variable is tracked in b_.classInstanceTypes_
+                    if (valueResult.className.empty() && b_.currentFunction_)
                     {
-                        // (AR) ״§„״×״­‚‚ …† classInstanceTypes_ ״¨״§„״§״³… ״¨״¯ˆ† %
-                        // (EN) Check classInstanceTypes_ by name without %
+                        // (AR) ״§„״×״­‚‚ …† b_.classInstanceTypes_ ״¨״§„״§״³… ״¨״¯ˆ† %
+                        // (EN) Check b_.classInstanceTypes_ by name without %
                         std::string varName = valueResult.registerName;
                         if (!varName.empty() && varName[0] == '%')
                         {
                             varName = varName.substr(1);
                         }
-                        auto ciIt = classInstanceTypes_.find(varName);
-                        if (ciIt != classInstanceTypes_.end())
+                        auto ciIt = b_.classInstanceTypes_.find(varName);
+                        if (ciIt != b_.classInstanceTypes_.end())
                         {
-                            auto ftIt = functionTable_.find(currentFunction_->name);
-                            if (ftIt != functionTable_.end() && ftIt->second.returnClassName.empty())
+                            auto ftIt = b_.functionTable_.find(b_.currentFunction_->name);
+                            if (ftIt != b_.functionTable_.end() && ftIt->second.returnClassName.empty())
                             {
                                 ftIt->second.returnClassName = ciIt->second;
                             }
@@ -445,7 +446,7 @@ namespace Sad
                         //      Local variables: %variableName (non-numeric)
                         //      Temp registers: %N (numeric) ג€” no LOAD needed
                         std::string varName = valueResult.registerName.substr(1); // ״¥״²״§„״© %
-                        VariableInfo *maybeVar = lookupVariable(varName);
+                        VariableInfo *maybeVar = b_.lookupVariable(varName);
                         bool isAllocaVar = maybeVar != nullptr;
 
                         // (AR) ״×״­‚‚ ״¥״¶״§: ״¥״°״§ „… ƒ† …״×״÷״±״§‹ „ƒ†‡ ״¨״§״¯״¦״© inlining
@@ -458,7 +459,7 @@ namespace Sad
                             if (underscorePos != std::string::npos && underscorePos + 1 < varName.size())
                             {
                                 std::string originalName = varName.substr(underscorePos + 1);
-                                VariableInfo *inlinedVar = lookupVariable(originalName);
+                                VariableInfo *inlinedVar = b_.lookupVariable(originalName);
                                 isAllocaVar = inlinedVar != nullptr;
                             }
                         }
@@ -467,16 +468,16 @@ namespace Sad
                         {
                             // (AR) ״§„‚…״©  ״¹†ˆ״§† alloca …״­„ ג€” †״­״×״§״¬ „״×״­…„‡״§
                             // (EN) Value is in local alloca address ג€” need to load it
-                            std::string loadedReg = newTempRegister();
+                            std::string loadedReg = b_.newTempRegister();
 
                             SIRInstruction loadInst;
                             loadInst.opcode = SIROpcode::LOAD;
                             loadInst.result = SIROperand::Register(loadedReg, valueResult.type);
                             loadInst.operands.push_back(SIROperand::Register(valueResult.registerName, valueResult.type));
 
-                            if (currentBlock_)
+                            if (b_.currentBlock_)
                             {
-                                currentBlock_->addInstruction(loadInst);
+                                b_.currentBlock_->addInstruction(loadInst);
                             }
 
                             SIROperand retOperand = SIROperand::Register(loadedReg, valueResult.type);
@@ -498,13 +499,13 @@ namespace Sad
                         retInst.operands.push_back(retOperand);
                     }
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        if (finallyStack_.empty())
+                        if (b_.finallyStack_.empty())
                         {
                             emitPopFunctionCleanupHandler();
                         }
-                        currentBlock_->addInstruction(retInst);
+                        b_.currentBlock_->addInstruction(retInst);
                     }
                 }
                 else
@@ -513,13 +514,13 @@ namespace Sad
                     // (EN) Generate RET_VOID instruction
                     SIRInstruction retInst;
                     retInst.opcode = SIROpcode::RET_VOID;
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        if (finallyStack_.empty())
+                        if (b_.finallyStack_.empty())
                         {
                             emitPopFunctionCleanupHandler();
                         }
-                        currentBlock_->addInstruction(retInst);
+                        b_.currentBlock_->addInstruction(retInst);
                     }
                 }
             }
@@ -534,7 +535,7 @@ namespace Sad
             // - „״§ ״×ˆ״¬״¯ ״£״¹״¶״§״¡ ״¥״¶״§״©
             // - No additional members
             // ============================================================================
-            void SIRBuilder::buildBreakStatement(AST::BreakStmt *breakStmt)
+            void StatementBuilder::buildBreakStatement(AST::BreakStmt *breakStmt)
             {
                 if (!breakStmt)
                 {
@@ -543,17 +544,17 @@ namespace Sad
 
                 // ========================================================================
                 // (AR) ״¬…„״© break: ״§„‚״² ״¥„‰ †‡״§״© ״§„״­„‚״© ״§„״­״§„״©
-                //      †״³״×״®״¯… …ƒ״¯״³ ״§„״­„‚״§״× (loopStack_) „„״­״µˆ„ ״¹„‰ ״×״³…״© ƒ״×„״© ״§„״®״±ˆ״¬
+                //      †״³״×״®״¯… …ƒ״¯״³ ״§„״­„‚״§״× (b_.loopStack_) „„״­״µˆ„ ״¹„‰ ״×״³…״© ƒ״×„״© ״§„״®״±ˆ״¬
                 //      ״«… †ˆ„‘״¯ ״×״¹„…״© ‚״² ״÷״± ״´״±״· (BR) ״¥„‰ ״×„ƒ ״§„ƒ״×„״©
                 //
                 // (EN) break statement: Jump to the end of current loop
-                //      We use the loop stack (loopStack_) to get the exit block label
+                //      We use the loop stack (b_.loopStack_) to get the exit block label
                 //      Then generate an unconditional branch (BR) to that block
                 // ========================================================================
-                LoopContext *loop = getCurrentLoop();
+                LoopContext *loop = b_.getCurrentLoop();
                 if (!loop)
                 {
-                    errors_.push_back("(AR) ״®״·״£: ״¬…„״© '‚' ״®״§״±״¬ ״­„‚״©. (EN) Error: 'break' outside of loop.");
+                    b_.errors_.push_back("(AR) ״®״·״£: ״¬…„״© '‚' ״®״§״±״¬ ״­„‚״©. (EN) Error: 'break' outside of loop.");
                     return;
                 }
 
@@ -562,22 +563,22 @@ namespace Sad
                 SIROperand exitLabel = SIROperand::Label(loop->breakLabel);
                 SIRInstruction brInst = SIRInstruction::Branch(exitLabel);
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(brInst);
+                    b_.currentBlock_->instructions.push_back(brInst);
                 }
 
                 // (AR) ״¥†״´״§״¡ ƒ״×„״© ״¬״¯״¯״© „„ƒˆ״¯ ״¨״¹״¯ break (ƒˆ״¯ …״×)
                 //      ‡״°״§ ״¶״±ˆ״± „״£† LLVM ״×״·„״¨ ״£† ƒ„ ƒ״×„״© ״×†״×‡ ״¨…†‡ ˆ״§״­״¯ ‚״·
                 // (EN) Create new block for code after break (dead code)
                 //      Required because LLVM needs each block to end with exactly one terminator
-                std::string afterBreakLabel = newLabel("after_break");
-                auto afterBreakBlock = createBasicBlock(afterBreakLabel);
-                if (currentFunction_)
+                std::string afterBreakLabel = b_.newLabel("after_break");
+                auto afterBreakBlock = b_.createBasicBlock(afterBreakLabel);
+                if (b_.currentFunction_)
                 {
-                    currentFunction_->addBasicBlock(afterBreakBlock);
+                    b_.currentFunction_->addBasicBlock(afterBreakBlock);
                 }
-                currentBlock_ = afterBreakBlock;
+                b_.currentBlock_ = afterBreakBlock;
             }
 
             // ============================================================================
@@ -590,7 +591,7 @@ namespace Sad
             // - „״§ ״×ˆ״¬״¯ ״£״¹״¶״§״¡ ״¥״¶״§״©
             // - No additional members
             // ============================================================================
-            void SIRBuilder::buildContinueStatement(AST::ContinueStmt *continueStmt)
+            void StatementBuilder::buildContinueStatement(AST::ContinueStmt *continueStmt)
             {
                 if (!continueStmt)
                 {
@@ -610,10 +611,10 @@ namespace Sad
                 //        then increment jumps to condition
                 //      We use continueLabel from the loop stack
                 // ========================================================================
-                LoopContext *loop = getCurrentLoop();
+                LoopContext *loop = b_.getCurrentLoop();
                 if (!loop)
                 {
-                    errors_.push_back("(AR) ״®״·״£: ״¬…„״© '״£ƒ…„' ״®״§״±״¬ ״­„‚״©. (EN) Error: 'continue' outside of loop.");
+                    b_.errors_.push_back("(AR) ״®״·״£: ״¬…„״© '״£ƒ…„' ״®״§״±״¬ ״­„‚״©. (EN) Error: 'continue' outside of loop.");
                     return;
                 }
 
@@ -622,22 +623,22 @@ namespace Sad
                 SIROperand continueLabel = SIROperand::Label(loop->continueLabel);
                 SIRInstruction brInst = SIRInstruction::Branch(continueLabel);
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(brInst);
+                    b_.currentBlock_->instructions.push_back(brInst);
                 }
 
                 // (AR) ״¥†״´״§״¡ ƒ״×„״© ״¬״¯״¯״© „„ƒˆ״¯ ״¨״¹״¯ continue (ƒˆ״¯ …״×)
                 //      ‡״°״§ ״¶״±ˆ״± „״£† LLVM ״×״·„״¨ ״£† ƒ„ ƒ״×„״© ״×†״×‡ ״¨…†‡ ˆ״§״­״¯ ‚״·
                 // (EN) Create new block for code after continue (dead code)
                 //      Required because LLVM needs each block to end with exactly one terminator
-                std::string afterContinueLabel = newLabel("after_continue");
-                auto afterContinueBlock = createBasicBlock(afterContinueLabel);
-                if (currentFunction_)
+                std::string afterContinueLabel = b_.newLabel("after_continue");
+                auto afterContinueBlock = b_.createBasicBlock(afterContinueLabel);
+                if (b_.currentFunction_)
                 {
-                    currentFunction_->addBasicBlock(afterContinueBlock);
+                    b_.currentFunction_->addBasicBlock(afterContinueBlock);
                 }
-                currentBlock_ = afterContinueBlock;
+                b_.currentBlock_ = afterContinueBlock;
             }
 
             // ============================================================================
@@ -654,8 +655,8 @@ namespace Sad
             // - value: ExprPtr (line 250)
             //
             // ״§„״¯ˆ״§„ ״§„…״³״×״¯״¹״§״© / Called functions:
-            // - buildExpression: sir_builder.h:432
-            // - lookupVariable: sir_builder.h:597
+            // - b_.buildExpression: sir_builder.h:432
+            // - b_.lookupVariable: sir_builder.h:597
             // ============================================================================
 
         } // namespace SIR
