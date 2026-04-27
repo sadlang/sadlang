@@ -102,6 +102,7 @@ namespace Sad
             // (EN) Phase 7 Step 3: instantiate ControlFlowCodeGen sub-codegen
             cf_ = std::make_unique<ControlFlowCodeGen>(*this);
             agg_ = std::make_unique<AggregateOpsCodeGen>(*this);
+            arr_ = std::make_unique<ArrayOpsCodeGen>(*this);
         }
 
         /**

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ============================================================================
  * LLVM IR Code Generator - Array Operations
  * ============================================================================
@@ -19,6 +19,8 @@
 #include <llvm/IR/InlineAsm.h>
 #include <iostream>
 #include <fstream>
+#include "builders/array_ops_codegen.h" // (Phase 7 Step 5)
+#include "llvm_codegen.h"
 
 using namespace Sad::Compiler::SIR;
 
@@ -69,7 +71,7 @@ namespace Sad
         //      3. Raw i64 value (from register) → inttoptr directly
         //      4. Ready pointer (ptr) → returned as-is
         // ============================================================================
-        llvm::Value *LLVMCodeGen::normalizeArrayPtr(llvm::Value *arrPtr, const char *label)
+        llvm::Value *ArrayOpsCodeGen::normalizeArrayPtr(llvm::Value *arrPtr, const char *label)
         {
             if (!arrPtr)
                 return nullptr;
@@ -82,8 +84,8 @@ namespace Sad
                 {
                     std::string loadName = std::string(label) + ".ptr.int";
                     std::string ptrName = std::string(label) + ".ptr";
-                    llvm::Value *ptrAsInt = builder_->CreateLoad(getInt64Type(), allocaInst, loadName);
-                    arrPtr = builder_->CreateIntToPtr(ptrAsInt, llvm::PointerType::getUnqual(*context_), ptrName);
+                    llvm::Value *ptrAsInt = cg_.builder_->CreateLoad(cg_.getInt64Type(), allocaInst, loadName);
+                    arrPtr = cg_.builder_->CreateIntToPtr(ptrAsInt, llvm::PointerType::getUnqual(*cg_.context_), ptrName);
                 }
             }
             // (AR) الحالة 2: GlobalVariable بنوع i64 — متغير عام يحمل مؤشر مصفوفة محوّل
@@ -96,8 +98,8 @@ namespace Sad
                 {
                     std::string loadName = std::string(label) + ".glob.int";
                     std::string ptrName = std::string(label) + ".glob.ptr";
-                    llvm::Value *ptrAsInt = builder_->CreateLoad(getInt64Type(), gvInst, loadName);
-                    arrPtr = builder_->CreateIntToPtr(ptrAsInt, llvm::PointerType::getUnqual(*context_), ptrName);
+                    llvm::Value *ptrAsInt = cg_.builder_->CreateLoad(cg_.getInt64Type(), gvInst, loadName);
+                    arrPtr = cg_.builder_->CreateIntToPtr(ptrAsInt, llvm::PointerType::getUnqual(*cg_.context_), ptrName);
                 }
             }
             // (AR) الحالة 3: قيمة i64 خام — نتيجة من تسجيل SIR أو عملية سابقة
@@ -105,7 +107,7 @@ namespace Sad
             else if (arrPtr->getType()->isIntegerTy(64))
             {
                 std::string ptrName = std::string(label) + ".ptr.raw";
-                arrPtr = builder_->CreateIntToPtr(arrPtr, llvm::PointerType::getUnqual(*context_), ptrName);
+                arrPtr = cg_.builder_->CreateIntToPtr(arrPtr, llvm::PointerType::getUnqual(*cg_.context_), ptrName);
             }
             // (AR) الحالة 4: مؤشر جاهز — لا حاجة لتحويل
             // (EN) Case 4: already a pointer — no conversion needed
@@ -127,35 +129,35 @@ namespace Sad
         //      Requires normalized array pointer (after normalizeArrayPtr)
         //      Implementation: if (index < 0) index = len + index
         // ============================================================================
-        llvm::Value *LLVMCodeGen::normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label)
+        llvm::Value *ArrayOpsCodeGen::normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label)
         {
             if (!index || !arrPtr)
                 return index;
 
-            auto i64Ty = getInt64Type();
+            auto i64Ty = cg_.getInt64Type();
 
             // (AR) التحقق: هل الفهرس سالب؟
             // (EN) Check: is index negative?
             std::string negName = std::string(label) + ".is.neg";
-            llvm::Value *isNeg = builder_->CreateICmpSLT(index, llvm::ConstantInt::get(i64Ty, 0), negName);
+            llvm::Value *isNeg = cg_.builder_->CreateICmpSLT(index, llvm::ConstantInt::get(i64Ty, 0), negName);
 
             // (AR) تحميل طول المصفوفة
             // (EN) Load array length
-            llvm::StructType *arrTy = getArrayStructType(*context_);
+            llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
             std::string lenGepName = std::string(label) + ".len.gep";
             std::string lenName = std::string(label) + ".len";
-            llvm::Value *lenGep = builder_->CreateStructGEP(arrTy, arrPtr, 0, lenGepName);
-            llvm::Value *len = builder_->CreateLoad(i64Ty, lenGep, lenName);
+            llvm::Value *lenGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 0, lenGepName);
+            llvm::Value *len = cg_.builder_->CreateLoad(i64Ty, lenGep, lenName);
 
             // (AR) الفهرس الموجب: len + index (عندما index سالب، مثلاً: 5 + (-1) = 4)
             // (EN) Positive index: len + index (when index is negative, e.g.: 5 + (-1) = 4)
             std::string posName = std::string(label) + ".pos";
-            llvm::Value *posIdx = builder_->CreateAdd(len, index, posName);
+            llvm::Value *posIdx = cg_.builder_->CreateAdd(len, index, posName);
 
             // (AR) اختيار: إذا سالب → الفهرس المحوّل، وإلا → الفهرس الأصلي
             // (EN) Select: if negative → converted index, else → original index
             std::string resolvedName = std::string(label) + ".resolved";
-            return builder_->CreateSelect(isNeg, posIdx, index, resolvedName);
+            return cg_.builder_->CreateSelect(isNeg, posIdx, index, resolvedName);
         }
 
         // ====================================================================
@@ -166,65 +168,65 @@ namespace Sad
         //      If out of bounds → prints clear error message then exit(1)
         //      Must be called after normalizeArrayIndex (index is already positive)
         // ====================================================================
-        void LLVMCodeGen::emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr,
+        void ArrayOpsCodeGen::emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr,
                                           const char *label)
         {
-            auto i64Ty = getInt64Type();
-            llvm::StructType *arrTy = getArrayStructType(*context_);
+            auto i64Ty = cg_.getInt64Type();
+            llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
 
             // (AR) تحميل طول المصفوفة
             // (EN) Load array length
             std::string lenGepName = std::string(label) + ".bc.len.gep";
             std::string lenName = std::string(label) + ".bc.len";
-            llvm::Value *lenGep = builder_->CreateStructGEP(arrTy, arrPtr, 0, lenGepName);
-            llvm::Value *len = builder_->CreateLoad(i64Ty, lenGep, lenName);
+            llvm::Value *lenGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 0, lenGepName);
+            llvm::Value *len = cg_.builder_->CreateLoad(i64Ty, lenGep, lenName);
 
             // (AR) التحقق: index < 0 أو index >= len
             // (EN) Check: index < 0 or index >= len
             std::string negName = std::string(label) + ".bc.neg";
             std::string ovfName = std::string(label) + ".bc.ovf";
             std::string oobName = std::string(label) + ".bc.oob";
-            llvm::Value *isNeg = builder_->CreateICmpSLT(index, llvm::ConstantInt::get(i64Ty, 0), negName);
-            llvm::Value *isOverflow = builder_->CreateICmpSGE(index, len, ovfName);
-            llvm::Value *isOOB = builder_->CreateOr(isNeg, isOverflow, oobName);
+            llvm::Value *isNeg = cg_.builder_->CreateICmpSLT(index, llvm::ConstantInt::get(i64Ty, 0), negName);
+            llvm::Value *isOverflow = cg_.builder_->CreateICmpSGE(index, len, ovfName);
+            llvm::Value *isOOB = cg_.builder_->CreateOr(isNeg, isOverflow, oobName);
 
             // (AR) إنشاء الكتل: فشل + استمرار
             // (EN) Create blocks: fail + continue
-            llvm::Function *curFunc = builder_->GetInsertBlock()->getParent();
+            llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
             std::string failBBName = std::string(label) + ".bc.fail";
             std::string contBBName = std::string(label) + ".bc.ok";
-            llvm::BasicBlock *failBB = llvm::BasicBlock::Create(*context_, failBBName, curFunc);
-            llvm::BasicBlock *contBB = llvm::BasicBlock::Create(*context_, contBBName, curFunc);
+            llvm::BasicBlock *failBB = llvm::BasicBlock::Create(*cg_.context_, failBBName, curFunc);
+            llvm::BasicBlock *contBB = llvm::BasicBlock::Create(*cg_.context_, contBBName, curFunc);
 
-            builder_->CreateCondBr(isOOB, failBB, contBB);
+            cg_.builder_->CreateCondBr(isOOB, failBB, contBB);
 
             // (AR) كتلة الفشل: طباعة رسالة خطأ ثم exit(1)
             // (EN) Fail block: print error message then exit(1)
-            builder_->SetInsertPoint(failBB);
+            cg_.builder_->SetInsertPoint(failBB);
 
-            auto ptrTy = llvm::PointerType::getUnqual(*context_);
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
             auto *printfType = llvm::FunctionType::get(
-                llvm::Type::getInt32Ty(*context_), {ptrTy}, true);
-            auto printfFunc = module_->getOrInsertFunction("printf", printfType);
+                llvm::Type::getInt32Ty(*cg_.context_), {ptrTy}, true);
+            auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
 
             // (AR) رسالة: "خطأ: فهرس %lld خارج نطاق المصفوفة (الطول: %lld)\n"
             // (EN) Message: "Error: index %lld out of array bounds (length: %lld)\n"
-            llvm::Value *fmtStr = builder_->CreateGlobalStringPtr(
+            llvm::Value *fmtStr = cg_.builder_->CreateGlobalStringPtr(
                 "Error: array index %lld out of bounds (length: %lld)\n", "bc.fmt");
-            builder_->CreateCall(printfFunc, {fmtStr, index, len});
+            cg_.builder_->CreateCall(printfFunc, {fmtStr, index, len});
 
             auto *exitType = llvm::FunctionType::get(
-                llvm::Type::getVoidTy(*context_), {llvm::Type::getInt32Ty(*context_)}, false);
-            auto exitFunc = module_->getOrInsertFunction("exit", exitType);
-            builder_->CreateCall(exitFunc, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 1)});
-            builder_->CreateUnreachable();
+                llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
+            auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
+            cg_.builder_->CreateCall(exitFunc, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 1)});
+            cg_.builder_->CreateUnreachable();
 
             // (AR) كتلة الاستمرار: الفهرس ضمن النطاق
             // (EN) Continue block: index is within bounds
-            builder_->SetInsertPoint(contBB);
+            cg_.builder_->SetInsertPoint(contBB);
         }
 
-        llvm::Value *LLVMCodeGen::emitArrayNew(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ArrayOpsCodeGen::emitArrayNew(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
                 return nullptr;
@@ -242,12 +244,12 @@ namespace Sad
             }
 
             // Allocate array struct on heap
-            llvm::StructType *arrTy = getArrayStructType(*context_);
+            llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
             auto *dlSize = llvm::ConstantExpr::getSizeOf(arrTy);
             auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*context_), {getInt64Type()}, false);
-            auto mallocFunc = module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *arrPtr = builder_->CreateCall(mallocFunc, {dlSize}, "arr_new");
+                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
+            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
+            llvm::Value *arrPtr = cg_.builder_->CreateCall(mallocFunc, {dlSize}, "arr_new");
 
             // Set length (0 by default, or initial length from operand[1])
             int64_t initialLength = 0;
@@ -255,49 +257,49 @@ namespace Sad
             {
                 initialLength = inst->operands[1].intValue;
             }
-            llvm::Value *lenGep = builder_->CreateStructGEP(arrTy, arrPtr, 0, "arr.len.gep");
-            builder_->CreateStore(llvm::ConstantInt::get(getInt64Type(), initialLength), lenGep);
+            llvm::Value *lenGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 0, "arr.len.gep");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(cg_.getInt64Type(), initialLength), lenGep);
 
             // Set capacity
-            llvm::Value *capGep = builder_->CreateStructGEP(arrTy, arrPtr, 1, "arr.cap.gep");
-            builder_->CreateStore(llvm::ConstantInt::get(getInt64Type(), capacity), capGep);
+            llvm::Value *capGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 1, "arr.cap.gep");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(cg_.getInt64Type(), capacity), capGep);
 
             // Allocate data buffer: capacity * sizeof(ptr) bytes (pointer-width elements for nested array support)
             // (AR) تخصيص مخزن البيانات: السعة × حجم المؤشر (لدعم المصفوفات المتداخلة)
-            auto *ptrSize = llvm::ConstantExpr::getSizeOf(llvm::PointerType::getUnqual(*context_));
-            llvm::Value *dataSize = builder_->CreateMul(
-                llvm::ConstantInt::get(getInt64Type(), capacity),
-                builder_->CreateIntCast(ptrSize, getInt64Type(), false), "arr.data.size");
-            llvm::Value *dataPtr = builder_->CreateCall(mallocFunc, {dataSize}, "arr.data");
-            llvm::Value *dataGep = builder_->CreateStructGEP(arrTy, arrPtr, 2, "arr.data.gep");
-            builder_->CreateStore(dataPtr, dataGep);
+            auto *ptrSize = llvm::ConstantExpr::getSizeOf(llvm::PointerType::getUnqual(*cg_.context_));
+            llvm::Value *dataSize = cg_.builder_->CreateMul(
+                llvm::ConstantInt::get(cg_.getInt64Type(), capacity),
+                cg_.builder_->CreateIntCast(ptrSize, cg_.getInt64Type(), false), "arr.data.size");
+            llvm::Value *dataPtr = cg_.builder_->CreateCall(mallocFunc, {dataSize}, "arr.data");
+            llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "arr.data.gep");
+            cg_.builder_->CreateStore(dataPtr, dataGep);
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = arrPtr;
+                cg_.context_info_.namedValues[inst->result->name] = arrPtr;
             }
             return arrPtr;
         }
 
-        llvm::Value *LLVMCodeGen::emitArrayGet(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ArrayOpsCodeGen::emitArrayGet(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
             {
-                reportError("ARRAY_GET requires 2 operands (array, index)");
+                cg_.reportError("ARRAY_GET requires 2 operands (array, index)");
                 return nullptr;
             }
 
             // (AR) إصلاح: استخدام find() بدلاً من [] لتجنب إدخال nullptr في الخريطة
             // (EN) Fix: use find() instead of [] to avoid inserting nullptr into the map
             llvm::Value *arrPtr = nullptr;
-            auto arrIt = context_info_.namedValues.find(inst->operands[0].name);
-            if (arrIt != context_info_.namedValues.end() && arrIt->second != nullptr)
+            auto arrIt = cg_.context_info_.namedValues.find(inst->operands[0].name);
+            if (arrIt != cg_.context_info_.namedValues.end() && arrIt->second != nullptr)
             {
                 arrPtr = arrIt->second;
             }
             if (!arrPtr)
-                arrPtr = resolveOperand(inst->operands[0]);
-            llvm::Value *index = resolveOperand(inst->operands[1]);
+                arrPtr = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *index = cg_.resolveOperand(inst->operands[1]);
             if (!arrPtr || !index)
                 return nullptr;
 
@@ -313,13 +315,13 @@ namespace Sad
             // (EN) Bounds check: exit(1) if index is out of range
             emitBoundsCheck(index, arrPtr, "get");
 
-            llvm::StructType *arrTy = getArrayStructType(*context_);
+            llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
 
             // (AR) تحميل مؤشر البيانات من الحقل الثالث في بنية المصفوفة
             // (EN) Load data pointer from struct field 2
-            llvm::Value *dataGep = builder_->CreateStructGEP(arrTy, arrPtr, 2, "arr.data.gep");
-            llvm::Value *dataPtr = builder_->CreateLoad(
-                llvm::PointerType::getUnqual(*context_), dataGep, "arr.data");
+            llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "arr.data.gep");
+            llvm::Value *dataPtr = cg_.builder_->CreateLoad(
+                llvm::PointerType::getUnqual(*cg_.context_), dataGep, "arr.data");
 
             // (AR) تحديد نوع العنصر: إذا كانت النتيجة مصفوفة/مؤشر → حمِّل كـ ptr (مصفوفات متداخلة)
             //      وإلا حمِّل كـ i64 (عدد صحيح / عشري مُحوَّل)
@@ -345,17 +347,17 @@ namespace Sad
             {
                 // (AR) العنصر مؤشر (مصفوفة متداخلة / نص / بنية)
                 // (EN) Element is a pointer (nested array / string / struct)
-                llvm::Value *elemPtr = builder_->CreateGEP(
-                    llvm::PointerType::getUnqual(*context_), dataPtr, {index}, "arr.elem.ptr");
-                result = builder_->CreateLoad(
-                    llvm::PointerType::getUnqual(*context_), elemPtr, "arr.get.ptr");
+                llvm::Value *elemPtr = cg_.builder_->CreateGEP(
+                    llvm::PointerType::getUnqual(*cg_.context_), dataPtr, {index}, "arr.elem.ptr");
+                result = cg_.builder_->CreateLoad(
+                    llvm::PointerType::getUnqual(*cg_.context_), elemPtr, "arr.get.ptr");
             }
             else
             {
                 // (AR) العنصر i64 (رقم / منطقي)
                 // (EN) Element is i64 (number / boolean)
-                llvm::Value *elemPtr = builder_->CreateGEP(getInt64Type(), dataPtr, {index}, "arr.elem");
-                result = builder_->CreateLoad(getInt64Type(), elemPtr, "arr.get");
+                llvm::Value *elemPtr = cg_.builder_->CreateGEP(cg_.getInt64Type(), dataPtr, {index}, "arr.elem");
+                result = cg_.builder_->CreateLoad(cg_.getInt64Type(), elemPtr, "arr.get");
 
                 // (AR) وسم MSB لعناصر الصفوف:
                 //      نحفظ __is_ptr flag بناءً على bit 63:
@@ -367,46 +369,46 @@ namespace Sad
                 if (isTupleSource)
                 {
                     // (AR) وسم 2-bit: bit63=1 → ليس مؤشر، bit63=0 → مؤشر
-                    llvm::Value *msbMask = llvm::ConstantInt::get(getInt64Type(), 1ULL << 63);
-                    llvm::Value *msbBit = builder_->CreateAnd(result, msbMask, "tup.get.msb");
-                    llvm::Value *isInt = builder_->CreateICmpNE(msbBit, llvm::ConstantInt::get(getInt64Type(), 0), "tup.get.isint");
-                    llvm::Value *isPtr = builder_->CreateNot(isInt, "tup.get.isptr");
+                    llvm::Value *msbMask = llvm::ConstantInt::get(cg_.getInt64Type(), 1ULL << 63);
+                    llvm::Value *msbBit = cg_.builder_->CreateAnd(result, msbMask, "tup.get.msb");
+                    llvm::Value *isInt = cg_.builder_->CreateICmpNE(msbBit, llvm::ConstantInt::get(cg_.getInt64Type(), 0), "tup.get.isint");
+                    llvm::Value *isPtr = cg_.builder_->CreateNot(isInt, "tup.get.isptr");
 
                     if (inst->result.has_value())
                     {
                         std::string flagName = inst->result->name + ".__is_ptr";
-                        context_info_.namedValues[flagName] = isPtr;
+                        cg_.context_info_.namedValues[flagName] = isPtr;
                     }
                 }
             }
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
 
-        llvm::Value *LLVMCodeGen::emitArraySet(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ArrayOpsCodeGen::emitArraySet(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 3)
             {
-                reportError("ARRAY_SET requires 3 operands (array, index, value)");
+                cg_.reportError("ARRAY_SET requires 3 operands (array, index, value)");
                 return nullptr;
             }
 
             // (AR) إصلاح: استخدام find() بدلاً من [] لتجنب إدخال nullptr في الخريطة
             // (EN) Fix: use find() instead of [] to avoid inserting nullptr into the map
             llvm::Value *arrPtr = nullptr;
-            auto arrIt = context_info_.namedValues.find(inst->operands[0].name);
-            if (arrIt != context_info_.namedValues.end() && arrIt->second != nullptr)
+            auto arrIt = cg_.context_info_.namedValues.find(inst->operands[0].name);
+            if (arrIt != cg_.context_info_.namedValues.end() && arrIt->second != nullptr)
             {
                 arrPtr = arrIt->second;
             }
             if (!arrPtr)
-                arrPtr = resolveOperand(inst->operands[0]);
-            llvm::Value *index = resolveOperand(inst->operands[1]);
-            llvm::Value *value = resolveOperand(inst->operands[2]);
+                arrPtr = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *index = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *value = cg_.resolveOperand(inst->operands[2]);
             if (!arrPtr || !index || !value)
                 return nullptr;
 
@@ -422,12 +424,12 @@ namespace Sad
             // (EN) Bounds check: exit(1) if index is out of range
             emitBoundsCheck(index, arrPtr, "set");
 
-            llvm::StructType *arrTy = getArrayStructType(*context_);
+            llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
 
             // Load data pointer
-            llvm::Value *dataGep = builder_->CreateStructGEP(arrTy, arrPtr, 2, "arr.data.gep");
-            llvm::Value *dataPtr = builder_->CreateLoad(
-                llvm::PointerType::getUnqual(*context_), dataGep, "arr.data");
+            llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "arr.data.gep");
+            llvm::Value *dataPtr = cg_.builder_->CreateLoad(
+                llvm::PointerType::getUnqual(*cg_.context_), dataGep, "arr.data");
 
             // (AR) تحديد نوع العنصر: إذا كانت القيمة مؤشراً (مصفوفة/نص/بنية) → خزِّن كمؤشر
             // (EN) Determine element type: if value is pointer type → store as pointer
@@ -447,7 +449,7 @@ namespace Sad
                 if (isPointerValue)
                 {
                     // (AR) ptr → ptrtoint → i64 (bit 63 = 0 في userspace)
-                    i64Val = builder_->CreatePtrToInt(value, getInt64Type(), "tup.p2i");
+                    i64Val = cg_.builder_->CreatePtrToInt(value, cg_.getInt64Type(), "tup.p2i");
                 }
                 else
                 {
@@ -469,29 +471,29 @@ namespace Sad
                         if (i64Val->getType()->isDoubleTy() || i64Val->getType()->isFloatTy())
                         {
                             if (i64Val->getType()->isFloatTy())
-                                i64Val = builder_->CreateFPExt(i64Val, llvm::Type::getDoubleTy(*context_), "tup.f2d");
-                            i64Val = builder_->CreateBitCast(i64Val, getInt64Type(), "tup.dcast");
+                                i64Val = cg_.builder_->CreateFPExt(i64Val, llvm::Type::getDoubleTy(*cg_.context_), "tup.f2d");
+                            i64Val = cg_.builder_->CreateBitCast(i64Val, cg_.getInt64Type(), "tup.dcast");
                         }
                         else
                         {
-                            i64Val = builder_->CreateZExt(i64Val, getInt64Type(), "tup.zext");
+                            i64Val = cg_.builder_->CreateZExt(i64Val, cg_.getInt64Type(), "tup.zext");
                         }
                     }
                     // (AR) وسم: bit63 للأرقام/منطقي + bit62 إضافي للمنطقي
                     uint64_t tag = isBoolVal ? (3ULL << 62) : (1ULL << 63); // 0xC0... أو 0x80...
-                    llvm::Value *tagVal = llvm::ConstantInt::get(getInt64Type(), tag);
-                    i64Val = builder_->CreateOr(i64Val, tagVal, "tup.tag");
+                    llvm::Value *tagVal = llvm::ConstantInt::get(cg_.getInt64Type(), tag);
+                    i64Val = cg_.builder_->CreateOr(i64Val, tagVal, "tup.tag");
                 }
-                llvm::Value *elemPtr = builder_->CreateGEP(getInt64Type(), dataPtr, {index}, "tup.elem");
-                builder_->CreateStore(i64Val, elemPtr);
+                llvm::Value *elemPtr = cg_.builder_->CreateGEP(cg_.getInt64Type(), dataPtr, {index}, "tup.elem");
+                cg_.builder_->CreateStore(i64Val, elemPtr);
             }
             else if (isPointerValue)
             {
                 // (AR) تخزين مؤشر (مصفوفة متداخلة / نص / بنية)
                 // (EN) Store pointer (nested array / string / struct)
-                llvm::Value *elemPtr = builder_->CreateGEP(
-                    llvm::PointerType::getUnqual(*context_), dataPtr, {index}, "arr.elem.ptr");
-                builder_->CreateStore(value, elemPtr);
+                llvm::Value *elemPtr = cg_.builder_->CreateGEP(
+                    llvm::PointerType::getUnqual(*cg_.context_), dataPtr, {index}, "arr.elem.ptr");
+                cg_.builder_->CreateStore(value, elemPtr);
             }
             else
             {
@@ -503,40 +505,40 @@ namespace Sad
                     {
                         if (value->getType()->isFloatTy())
                         {
-                            value = builder_->CreateFPExt(value, llvm::Type::getDoubleTy(*context_), "arr.elem.f2d");
+                            value = cg_.builder_->CreateFPExt(value, llvm::Type::getDoubleTy(*cg_.context_), "arr.elem.f2d");
                         }
-                        value = builder_->CreateBitCast(value, getInt64Type(), "arr.elem.dcast");
+                        value = cg_.builder_->CreateBitCast(value, cg_.getInt64Type(), "arr.elem.dcast");
                     }
                     else
                     {
-                        value = builder_->CreateIntCast(value, getInt64Type(), true, "arr.elem.cast");
+                        value = cg_.builder_->CreateIntCast(value, cg_.getInt64Type(), true, "arr.elem.cast");
                     }
                 }
-                llvm::Value *elemPtr = builder_->CreateGEP(getInt64Type(), dataPtr, {index}, "arr.elem");
-                builder_->CreateStore(value, elemPtr);
+                llvm::Value *elemPtr = cg_.builder_->CreateGEP(cg_.getInt64Type(), dataPtr, {index}, "arr.elem");
+                cg_.builder_->CreateStore(value, elemPtr);
             }
 
             return value;
         }
 
-        llvm::Value *LLVMCodeGen::emitArrayLen(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ArrayOpsCodeGen::emitArrayLen(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
             {
-                reportError("ARRAY_LEN requires 1 operand (array)");
+                cg_.reportError("ARRAY_LEN requires 1 operand (array)");
                 return nullptr;
             }
 
             // (AR) إصلاح: استخدام find() بدلاً من [] لتجنب إدخال nullptr في الخريطة
             // (EN) Fix: use find() instead of [] to avoid inserting nullptr into the map
             llvm::Value *arrPtr = nullptr;
-            auto arrIt = context_info_.namedValues.find(inst->operands[0].name);
-            if (arrIt != context_info_.namedValues.end() && arrIt->second != nullptr)
+            auto arrIt = cg_.context_info_.namedValues.find(inst->operands[0].name);
+            if (arrIt != cg_.context_info_.namedValues.end() && arrIt->second != nullptr)
             {
                 arrPtr = arrIt->second;
             }
             if (!arrPtr)
-                arrPtr = resolveOperand(inst->operands[0]);
+                arrPtr = cg_.resolveOperand(inst->operands[0]);
             if (!arrPtr)
                 return nullptr;
 
@@ -544,13 +546,13 @@ namespace Sad
             // (EN) Normalize arrPtr via unified helper
             arrPtr = normalizeArrayPtr(arrPtr, "arr");
 
-            llvm::StructType *arrTy = getArrayStructType(*context_);
-            llvm::Value *lenGep = builder_->CreateStructGEP(arrTy, arrPtr, 0, "arr.len.gep");
-            llvm::Value *result = builder_->CreateLoad(getInt64Type(), lenGep, "arr.len");
+            llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
+            llvm::Value *lenGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 0, "arr.len.gep");
+            llvm::Value *result = cg_.builder_->CreateLoad(cg_.getInt64Type(), lenGep, "arr.len");
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
@@ -559,90 +561,90 @@ namespace Sad
         // دمج مصفوفتين (ARRAY_CONCAT) — array1 + array2
         // Concatenate two arrays — array1 + array2
         // ============================================================================
-        llvm::Value *LLVMCodeGen::emitArrayConcat(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ArrayOpsCodeGen::emitArrayConcat(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
             {
-                reportError("ARRAY_CONCAT requires 2 operands (array1, array2)");
+                cg_.reportError("ARRAY_CONCAT requires 2 operands (array1, array2)");
                 return nullptr;
             }
 
             // (AR) الحصول على المعاملين (المصفوفتين)
             // (EN) Get both operands (the two arrays)
-            llvm::Value *arr1 = resolveOperand(inst->operands[0]);
-            llvm::Value *arr2 = resolveOperand(inst->operands[1]);
+            llvm::Value *arr1 = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *arr2 = cg_.resolveOperand(inst->operands[1]);
 
             if (!arr1 || !arr2)
             {
-                reportError("ARRAY_CONCAT: could not resolve operands");
+                cg_.reportError("ARRAY_CONCAT: could not resolve operands");
                 return nullptr;
             }
 
             // (AR) تطبيع المؤشرات — إذا كانت i64 حوّلها إلى ptr
             // (EN) Normalize pointers — if i64 convert to ptr
-            auto *ptrTy = llvm::PointerType::getUnqual(*context_);
-            auto i64Ty = getInt64Type();
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto i64Ty = cg_.getInt64Type();
 
             if (arr1->getType()->isIntegerTy(64))
-                arr1 = builder_->CreateIntToPtr(arr1, ptrTy, "concat.arr1.ptr");
+                arr1 = cg_.builder_->CreateIntToPtr(arr1, ptrTy, "concat.arr1.ptr");
             if (arr2->getType()->isIntegerTy(64))
-                arr2 = builder_->CreateIntToPtr(arr2, ptrTy, "concat.arr2.ptr");
+                arr2 = cg_.builder_->CreateIntToPtr(arr2, ptrTy, "concat.arr2.ptr");
 
             // (AR) تحميل الأطوال والبيانات من المصفوفتين
             // (EN) Load lengths and data pointers from both arrays
-            llvm::StructType *arrTy = getArrayStructType(*context_);
+            llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
 
-            llvm::Value *len1Gep = builder_->CreateStructGEP(arrTy, arr1, 0, "concat.len1.gep");
-            llvm::Value *len1 = builder_->CreateLoad(i64Ty, len1Gep, "concat.len1");
-            llvm::Value *data1Gep = builder_->CreateStructGEP(arrTy, arr1, 2, "concat.data1.gep");
-            llvm::Value *data1 = builder_->CreateLoad(ptrTy, data1Gep, "concat.data1");
+            llvm::Value *len1Gep = cg_.builder_->CreateStructGEP(arrTy, arr1, 0, "concat.len1.gep");
+            llvm::Value *len1 = cg_.builder_->CreateLoad(i64Ty, len1Gep, "concat.len1");
+            llvm::Value *data1Gep = cg_.builder_->CreateStructGEP(arrTy, arr1, 2, "concat.data1.gep");
+            llvm::Value *data1 = cg_.builder_->CreateLoad(ptrTy, data1Gep, "concat.data1");
 
-            llvm::Value *len2Gep = builder_->CreateStructGEP(arrTy, arr2, 0, "concat.len2.gep");
-            llvm::Value *len2 = builder_->CreateLoad(i64Ty, len2Gep, "concat.len2");
-            llvm::Value *data2Gep = builder_->CreateStructGEP(arrTy, arr2, 2, "concat.data2.gep");
-            llvm::Value *data2 = builder_->CreateLoad(ptrTy, data2Gep, "concat.data2");
+            llvm::Value *len2Gep = cg_.builder_->CreateStructGEP(arrTy, arr2, 0, "concat.len2.gep");
+            llvm::Value *len2 = cg_.builder_->CreateLoad(i64Ty, len2Gep, "concat.len2");
+            llvm::Value *data2Gep = cg_.builder_->CreateStructGEP(arrTy, arr2, 2, "concat.data2.gep");
+            llvm::Value *data2 = cg_.builder_->CreateLoad(ptrTy, data2Gep, "concat.data2");
 
             // (AR) حساب الطول الكلي
             // (EN) Calculate total length
-            llvm::Value *totalLen = builder_->CreateAdd(len1, len2, "concat.total");
+            llvm::Value *totalLen = cg_.builder_->CreateAdd(len1, len2, "concat.total");
 
             // (AR) إنشاء مصفوفة جديدة بالطول الكلي
             // (EN) Allocate new array with total length
             auto *dlSize = llvm::ConstantExpr::getSizeOf(arrTy);
             auto *mallocType = llvm::FunctionType::get(ptrTy, {i64Ty}, false);
-            auto mallocFn = module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *newArr = builder_->CreateCall(mallocFn, {dlSize}, "concat.arr");
+            auto mallocFn = cg_.module_->getOrInsertFunction("malloc", mallocType);
+            llvm::Value *newArr = cg_.builder_->CreateCall(mallocFn, {dlSize}, "concat.arr");
 
             // (AR) تعيين الطول والسعة
             // (EN) Set length and capacity
-            llvm::Value *newLenGep = builder_->CreateStructGEP(arrTy, newArr, 0, "concat.new.len.gep");
-            builder_->CreateStore(totalLen, newLenGep);
-            llvm::Value *newCapGep = builder_->CreateStructGEP(arrTy, newArr, 1, "concat.new.cap.gep");
-            builder_->CreateStore(totalLen, newCapGep);
+            llvm::Value *newLenGep = cg_.builder_->CreateStructGEP(arrTy, newArr, 0, "concat.new.len.gep");
+            cg_.builder_->CreateStore(totalLen, newLenGep);
+            llvm::Value *newCapGep = cg_.builder_->CreateStructGEP(arrTy, newArr, 1, "concat.new.cap.gep");
+            cg_.builder_->CreateStore(totalLen, newCapGep);
 
             // (AR) تخصيص مخزن البيانات: الطول × حجم المؤشر
             // (EN) Allocate data buffer: total * sizeof(ptr)
             auto *ptrSize = llvm::ConstantExpr::getSizeOf(ptrTy);
-            llvm::Value *ptrSize64 = builder_->CreateIntCast(ptrSize, i64Ty, false);
-            llvm::Value *dataSize = builder_->CreateMul(totalLen, ptrSize64, "concat.data.size");
-            llvm::Value *newData = builder_->CreateCall(mallocFn, {dataSize}, "concat.data");
-            llvm::Value *newDataGep = builder_->CreateStructGEP(arrTy, newArr, 2, "concat.new.data.gep");
-            builder_->CreateStore(newData, newDataGep);
+            llvm::Value *ptrSize64 = cg_.builder_->CreateIntCast(ptrSize, i64Ty, false);
+            llvm::Value *dataSize = cg_.builder_->CreateMul(totalLen, ptrSize64, "concat.data.size");
+            llvm::Value *newData = cg_.builder_->CreateCall(mallocFn, {dataSize}, "concat.data");
+            llvm::Value *newDataGep = cg_.builder_->CreateStructGEP(arrTy, newArr, 2, "concat.new.data.gep");
+            cg_.builder_->CreateStore(newData, newDataGep);
 
             // (AR) نسخ عناصر المصفوفة الأولى
             // (EN) Copy elements from first array
-            llvm::Value *bytes1 = builder_->CreateMul(len1, ptrSize64, "concat.bytes1");
-            builder_->CreateMemCpy(newData, llvm::MaybeAlign(8), data1, llvm::MaybeAlign(8), bytes1);
+            llvm::Value *bytes1 = cg_.builder_->CreateMul(len1, ptrSize64, "concat.bytes1");
+            cg_.builder_->CreateMemCpy(newData, llvm::MaybeAlign(8), data1, llvm::MaybeAlign(8), bytes1);
 
             // (AR) نسخ عناصر المصفوفة الثانية بعد الأولى
             // (EN) Copy elements from second array after the first
-            llvm::Value *dst2 = builder_->CreateGEP(llvm::Type::getInt8Ty(*context_), newData, {bytes1}, "concat.dst2");
-            llvm::Value *bytes2 = builder_->CreateMul(len2, ptrSize64, "concat.bytes2");
-            builder_->CreateMemCpy(dst2, llvm::MaybeAlign(8), data2, llvm::MaybeAlign(8), bytes2);
+            llvm::Value *dst2 = cg_.builder_->CreateGEP(llvm::Type::getInt8Ty(*cg_.context_), newData, {bytes1}, "concat.dst2");
+            llvm::Value *bytes2 = cg_.builder_->CreateMul(len2, ptrSize64, "concat.bytes2");
+            cg_.builder_->CreateMemCpy(dst2, llvm::MaybeAlign(8), data2, llvm::MaybeAlign(8), bytes2);
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = newArr;
+                cg_.context_info_.namedValues[inst->result->name] = newArr;
             }
             return newArr;
         }
@@ -651,7 +653,7 @@ namespace Sad
         // Phase N: String Core / عمليات النصوص الأساسية
         // ============================================================================
 
-        llvm::Value *LLVMCodeGen::emitStringNew(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ArrayOpsCodeGen::emitStringNew(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
                 return nullptr;
@@ -660,17 +662,17 @@ namespace Sad
             if (!inst->operands.empty())
             {
                 // Create from existing string/constant
-                result = resolveOperand(inst->operands[0]);
+                result = cg_.resolveOperand(inst->operands[0]);
             }
             else
             {
                 // Create empty string
-                result = builder_->CreateGlobalStringPtr("", "empty_str");
+                result = cg_.builder_->CreateGlobalStringPtr("", "empty_str");
             }
 
             if (inst->result.has_value() && result)
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }

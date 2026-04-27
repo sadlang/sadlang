@@ -74,12 +74,13 @@
 
 // Sad LLVM Components (مكونات Sad LLVM)
 #include "llvm_type_mapper.h"
-#include "llvm_optimizer.h"              // إضافة محسّن LLVM / Add LLVM optimizer
-#include "llvm_codegen_context.h"        // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
-#include "builders/arithmetic_codegen.h" // (AR) Phase 7 Step 1: ArithmeticCodeGen
-#include "builders/memory_codegen.h"     // (AR) Phase 7 Step 2: MemoryCodeGen
-#include "builders/controlflow_codegen.h" // (AR) Phase 7 Step 3: ControlFlowCodeGen
+#include "llvm_optimizer.h"                 // إضافة محسّن LLVM / Add LLVM optimizer
+#include "llvm_codegen_context.h"           // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
+#include "builders/arithmetic_codegen.h"    // (AR) Phase 7 Step 1: ArithmeticCodeGen
+#include "builders/memory_codegen.h"        // (AR) Phase 7 Step 2: MemoryCodeGen
+#include "builders/controlflow_codegen.h"   // (AR) Phase 7 Step 3: ControlFlowCodeGen
 #include "builders/aggregate_ops_codegen.h" // (AR) Phase 7 Step 4: AggregateOpsCodeGen
+#include "builders/array_ops_codegen.h"     // (AR) Phase 7 Step 5: ArrayOpsCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -247,6 +248,8 @@ namespace Sad
             friend class ControlFlowCodeGen;
             // (AR) Phase 7 Step 4: AggregateOpsCodeGen
             friend class AggregateOpsCodeGen;
+            // (AR) Phase 7 Step 5: ArrayOpsCodeGen
+            friend class ArrayOpsCodeGen;
 
         public:
             // ========================================================================
@@ -594,22 +597,22 @@ namespace Sad
             // ------------------------------------------------------------------------
 
             // (AR) Phase 7 Step 2: delegate إلى MemoryCodeGen
-            llvm::Value *emitLoad(std::shared_ptr<SIRInstruction> inst)   { return mem_->emitLoad(inst); }
-            llvm::Value *emitStore(std::shared_ptr<SIRInstruction> inst)  { return mem_->emitStore(inst); }
+            llvm::Value *emitLoad(std::shared_ptr<SIRInstruction> inst) { return mem_->emitLoad(inst); }
+            llvm::Value *emitStore(std::shared_ptr<SIRInstruction> inst) { return mem_->emitStore(inst); }
             llvm::Value *emitAlloca(std::shared_ptr<SIRInstruction> inst) { return mem_->emitAlloca(inst); }
-            llvm::Value *emitGEP(std::shared_ptr<SIRInstruction> inst)    { return mem_->emitGEP(inst); }
-            llvm::Value *emitMove(std::shared_ptr<SIRInstruction> inst)   { return mem_->emitMove(inst); }
+            llvm::Value *emitGEP(std::shared_ptr<SIRInstruction> inst) { return mem_->emitGEP(inst); }
+            llvm::Value *emitMove(std::shared_ptr<SIRInstruction> inst) { return mem_->emitMove(inst); }
 
             // ------------------------------------------------------------------------
             // Control Flow Instructions / تعليمات تدفق التحكم
             // ------------------------------------------------------------------------
 
             // (AR) Phase 7 Step 3: delegate إلى ControlFlowCodeGen
-            llvm::Value *emitBranch(std::shared_ptr<SIRInstruction> inst)     { return cf_->emitBranch(inst); }
+            llvm::Value *emitBranch(std::shared_ptr<SIRInstruction> inst) { return cf_->emitBranch(inst); }
             llvm::Value *emitCondBranch(std::shared_ptr<SIRInstruction> inst) { return cf_->emitCondBranch(inst); }
-            llvm::Value *emitCall(std::shared_ptr<SIRInstruction> inst)       { return cf_->emitCall(inst); }
-            llvm::Value *emitReturn(std::shared_ptr<SIRInstruction> inst)     { return cf_->emitReturn(inst); }
-            llvm::Value *emitSwitch(std::shared_ptr<SIRInstruction> inst)     { return cf_->emitSwitch(inst); }
+            llvm::Value *emitCall(std::shared_ptr<SIRInstruction> inst) { return cf_->emitCall(inst); }
+            llvm::Value *emitReturn(std::shared_ptr<SIRInstruction> inst) { return cf_->emitReturn(inst); }
+            llvm::Value *emitSwitch(std::shared_ptr<SIRInstruction> inst) { return cf_->emitSwitch(inst); }
 
             // ------------------------------------------------------------------------
             // Builtin Functions / الدوال المضمنة
@@ -735,29 +738,10 @@ namespace Sad
                 llvm::Type *returnType,
                 const std::vector<llvm::Type *> &paramTypes);
 
-            // (AR) دالة مساعدة موحّدة: تطبيع مؤشر المصفوفة من أيّ تمثيل داخلي
-            //      (AllocaInst i64 / GlobalVariable i64 / قيمة i64 خام) إلى مؤشر SadArray*
-            //      تُستخدم في جميع دوال المصفوفات لضمان التوافق
-            // (EN) Unified helper: normalize array pointer from any internal representation
-            //      (AllocaInst i64 / GlobalVariable i64 / raw i64 value) to SadArray*
-            //      Used by ALL array functions to ensure consistency
-            llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr");
-
-            // (AR) دالة مساعدة: تحويل فهرس سالب إلى موجب بإضافة طول المصفوفة
-            //      إذا كان index < 0 → index = len + index (مثل Python)
-            //      تتطلب مؤشر المصفوفة المطبّع (بعد normalizeArrayPtr)
-            // (EN) Helper: convert negative index to positive by adding array length
-            //      If index < 0 → index = len + index (Python-like)
-            //      Requires normalized array pointer (after normalizeArrayPtr)
-            llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx");
-
-            // (AR) دالة مساعدة: فحص حدود الفهرس في المصفوفة
-            //      إذا كان index < 0 أو index >= len → طباعة رسالة خطأ + exit(1)
-            //      تتطلب الفهرس المطبّع (بعد normalizeArrayIndex) ومؤشر المصفوفة المطبّع
-            // (EN) Helper: bounds check array index
-            //      If index < 0 or index >= len → print error message + exit(1)
-            //      Requires normalized index (after normalizeArrayIndex) and normalized arrPtr
-            void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc");
+            // (AR) Phase 7 Step 5: delegate إلى ArrayOpsCodeGen (تبقى wrappers لأن array_file_coro.cpp يستدعيها)
+            llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr")                                       { return arr_->normalizeArrayPtr(arrPtr, label); }
+            llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx")                { return arr_->normalizeArrayIndex(index, arrPtr, label); }
+            void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc")                              { arr_->emitBoundsCheck(index, arrPtr, label); }
 
             // Array Functions (10)
             llvm::Value *emitBuiltinArrayAppend(std::shared_ptr<SIRInstruction> inst);
@@ -1196,12 +1180,12 @@ namespace Sad
             // ------------------------------------------------------------------------
 
             llvm::Value *emitCast(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCast(inst); }
-            llvm::Value *emitBitCast(std::shared_ptr<SIRInstruction> inst)  { return arith_->emitBitCast(inst); }
+            llvm::Value *emitBitCast(std::shared_ptr<SIRInstruction> inst) { return arith_->emitBitCast(inst); }
             llvm::Value *emitIntToPtr(std::shared_ptr<SIRInstruction> inst) { return arith_->emitIntToPtr(inst); }
             llvm::Value *emitPtrToInt(std::shared_ptr<SIRInstruction> inst) { return arith_->emitPtrToInt(inst); }
-            llvm::Value *emitTrunc(std::shared_ptr<SIRInstruction> inst)    { return arith_->emitTrunc(inst); }
-            llvm::Value *emitZExt(std::shared_ptr<SIRInstruction> inst)     { return arith_->emitZExt(inst); }
-            llvm::Value *emitSExt(std::shared_ptr<SIRInstruction> inst)     { return arith_->emitSExt(inst); }
+            llvm::Value *emitTrunc(std::shared_ptr<SIRInstruction> inst) { return arith_->emitTrunc(inst); }
+            llvm::Value *emitZExt(std::shared_ptr<SIRInstruction> inst) { return arith_->emitZExt(inst); }
+            llvm::Value *emitSExt(std::shared_ptr<SIRInstruction> inst) { return arith_->emitSExt(inst); }
 
             // SIR Type Conversion opcodes (Phase 7 Step 1: delegate)
             llvm::Value *emitI64ToF64(std::shared_ptr<SIRInstruction> inst) { return arith_->emitI64ToF64(inst); }
@@ -1294,14 +1278,15 @@ namespace Sad
             // ------------------------------------------------------------------------
             // Array core / عمليات المصفوفات الأساسية
             // ------------------------------------------------------------------------
-            llvm::Value *emitArrayNew(std::shared_ptr<SIRInstruction> inst);    // إنشاء مصفوفة
-            llvm::Value *emitArrayGet(std::shared_ptr<SIRInstruction> inst);    // قراءة عنصر
-            llvm::Value *emitArraySet(std::shared_ptr<SIRInstruction> inst);    // تعيين عنصر
-            llvm::Value *emitArrayLen(std::shared_ptr<SIRInstruction> inst);    // طول مصفوفة
-            llvm::Value *emitArrayConcat(std::shared_ptr<SIRInstruction> inst); // دمج مصفوفتين
+            // (AR) Phase 7 Step 5: delegate إلى ArrayOpsCodeGen
+            llvm::Value *emitArrayNew(std::shared_ptr<SIRInstruction> inst)    { return arr_->emitArrayNew(inst); }
+            llvm::Value *emitArrayGet(std::shared_ptr<SIRInstruction> inst)    { return arr_->emitArrayGet(inst); }
+            llvm::Value *emitArraySet(std::shared_ptr<SIRInstruction> inst)    { return arr_->emitArraySet(inst); }
+            llvm::Value *emitArrayLen(std::shared_ptr<SIRInstruction> inst)    { return arr_->emitArrayLen(inst); }
+            llvm::Value *emitArrayConcat(std::shared_ptr<SIRInstruction> inst) { return arr_->emitArrayConcat(inst); }
 
             // String core
-            llvm::Value *emitStringNew(std::shared_ptr<SIRInstruction> inst); // إنشاء نص
+            llvm::Value *emitStringNew(std::shared_ptr<SIRInstruction> inst)   { return arr_->emitStringNew(inst); }
 
             // Builtin Extra
             llvm::Value *emitBuiltinMin(std::shared_ptr<SIRInstruction> inst);    // الأصغر
@@ -1314,16 +1299,16 @@ namespace Sad
             // ------------------------------------------------------------------------
 
             // (AR) Phase 7 Step 4: delegate إلى AggregateOpsCodeGen
-            llvm::Value *emitExtractValue(std::shared_ptr<SIRInstruction> inst)   { return agg_->emitExtractValue(inst); }
-            llvm::Value *emitInsertValue(std::shared_ptr<SIRInstruction> inst)    { return agg_->emitInsertValue(inst); }
+            llvm::Value *emitExtractValue(std::shared_ptr<SIRInstruction> inst) { return agg_->emitExtractValue(inst); }
+            llvm::Value *emitInsertValue(std::shared_ptr<SIRInstruction> inst) { return agg_->emitInsertValue(inst); }
             llvm::Value *emitExtractElement(std::shared_ptr<SIRInstruction> inst) { return agg_->emitExtractElement(inst); }
-            llvm::Value *emitInsertElement(std::shared_ptr<SIRInstruction> inst)  { return agg_->emitInsertElement(inst); }
+            llvm::Value *emitInsertElement(std::shared_ptr<SIRInstruction> inst) { return agg_->emitInsertElement(inst); }
 
             // ------------------------------------------------------------------------
             // Phi & Select / فاي والاختيار
             // ------------------------------------------------------------------------
 
-            llvm::Value *emitPhi(std::shared_ptr<SIRInstruction> inst);    // عقدة فاي / Phi node
+            llvm::Value *emitPhi(std::shared_ptr<SIRInstruction> inst); // عقدة فاي / Phi node
             llvm::Value *emitSelect(std::shared_ptr<SIRInstruction> inst) { return agg_->emitSelect(inst); }
 
             // ========================================================================
@@ -1474,6 +1459,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 4: مكوّن فرعي لعمليات التجميع (ExtractValue/InsertValue/ExtractElement/InsertElement/Select)
             std::unique_ptr<AggregateOpsCodeGen> agg_;
+
+            // (AR) Phase 7 Step 5: مكوّن فرعي لعمليات المصفوفات (Array New/Get/Set/Len/Concat + StringNew + bounds helpers)
+            std::unique_ptr<ArrayOpsCodeGen> arr_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
