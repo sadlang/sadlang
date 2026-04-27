@@ -76,6 +76,7 @@
 #include "llvm_type_mapper.h"
 #include "llvm_optimizer.h" // إضافة محسّن LLVM / Add LLVM optimizer
 #include "llvm_codegen_context.h" // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
+#include "builders/arithmetic_codegen.h" // (AR) Phase 7 Step 1: ArithmeticCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -234,6 +235,10 @@ namespace Sad
         //      Shared state (context_, module_, builder_, ...) defined in the base.
         class LLVMCodeGen : public LLVMCodeGenContext
         {
+            // (AR) Phase 7 Step 1: ArithmeticCodeGen يصل للحقول الخاصة عبر friend
+            // (EN) Phase 7 Step 1: ArithmeticCodeGen accesses private state via friend
+            friend class ArithmeticCodeGen;
+
         public:
             // ========================================================================
             // Constructor & Destructor / المنشئ والمدمر
@@ -542,36 +547,38 @@ namespace Sad
 
             // ------------------------------------------------------------------------
             // Arithmetic Instructions / التعليمات الحسابية
+            // (AR) Phase 7 Step 1: delegate إلى ArithmeticCodeGen
             // ------------------------------------------------------------------------
 
-            llvm::Value *emitAdd(std::shared_ptr<SIRInstruction> inst); // جمع / Add
-            llvm::Value *emitSub(std::shared_ptr<SIRInstruction> inst); // طرح / Subtract
-            llvm::Value *emitMul(std::shared_ptr<SIRInstruction> inst); // ضرب / Multiply
-            llvm::Value *emitDiv(std::shared_ptr<SIRInstruction> inst); // قسمة / Divide
-            llvm::Value *emitMod(std::shared_ptr<SIRInstruction> inst); // باقي القسمة / Modulo
-            llvm::Value *emitNeg(std::shared_ptr<SIRInstruction> inst); // نفي / Negate
+            llvm::Value *emitAdd(std::shared_ptr<SIRInstruction> inst) { return arith_->emitAdd(inst); }
+            llvm::Value *emitSub(std::shared_ptr<SIRInstruction> inst) { return arith_->emitSub(inst); }
+            llvm::Value *emitMul(std::shared_ptr<SIRInstruction> inst) { return arith_->emitMul(inst); }
+            llvm::Value *emitDiv(std::shared_ptr<SIRInstruction> inst) { return arith_->emitDiv(inst); }
+            llvm::Value *emitMod(std::shared_ptr<SIRInstruction> inst) { return arith_->emitMod(inst); }
+            llvm::Value *emitNeg(std::shared_ptr<SIRInstruction> inst) { return arith_->emitNeg(inst); }
 
             // ------------------------------------------------------------------------
-            // Bitwise Instructions / التعليمات الثنائية
+            // Bitwise Instructions / التعليمات الثنائية (Phase 7 Step 1: delegate)
             // ------------------------------------------------------------------------
 
-            llvm::Value *emitAnd(std::shared_ptr<SIRInstruction> inst); // AND ثنائي
-            llvm::Value *emitOr(std::shared_ptr<SIRInstruction> inst);  // OR ثنائي
-            llvm::Value *emitXor(std::shared_ptr<SIRInstruction> inst); // XOR ثنائي
-            llvm::Value *emitNot(std::shared_ptr<SIRInstruction> inst); // NOT ثنائي
-            llvm::Value *emitShl(std::shared_ptr<SIRInstruction> inst); // إزاحة يسار / Shift left
-            llvm::Value *emitShr(std::shared_ptr<SIRInstruction> inst); // إزاحة يمين / Shift right
+            llvm::Value *emitAnd(std::shared_ptr<SIRInstruction> inst) { return arith_->emitAnd(inst); }
+            llvm::Value *emitOr(std::shared_ptr<SIRInstruction> inst)  { return arith_->emitOr(inst); }
+            llvm::Value *emitXor(std::shared_ptr<SIRInstruction> inst) { return arith_->emitXor(inst); }
+            llvm::Value *emitNot(std::shared_ptr<SIRInstruction> inst) { return arith_->emitNot(inst); }
+            llvm::Value *emitShl(std::shared_ptr<SIRInstruction> inst) { return arith_->emitShl(inst); }
+            llvm::Value *emitShr(std::shared_ptr<SIRInstruction> inst) { return arith_->emitShr(inst); }
 
             // ------------------------------------------------------------------------
-            // Comparison Instructions / تعليمات المقارنة
+            // Comparison Instructions / تعليمات المقارنة (Phase 7 Step 1: delegate Eq/Ne/Lt/Le)
+            // (AR) Gt/Ge باقيتان في llvm_codegen_memory_control.cpp — لخطوة لاحقة
             // ------------------------------------------------------------------------
 
-            llvm::Value *emitCmpEq(std::shared_ptr<SIRInstruction> inst); // يساوي / Equal
-            llvm::Value *emitCmpNe(std::shared_ptr<SIRInstruction> inst); // لا يساوي / Not equal
-            llvm::Value *emitCmpLt(std::shared_ptr<SIRInstruction> inst); // أصغر من / Less than
-            llvm::Value *emitCmpLe(std::shared_ptr<SIRInstruction> inst); // أصغر أو يساوي / Less or equal
-            llvm::Value *emitCmpGt(std::shared_ptr<SIRInstruction> inst); // أكبر من / Greater than
-            llvm::Value *emitCmpGe(std::shared_ptr<SIRInstruction> inst); // أكبر أو يساوي / Greater or equal
+            llvm::Value *emitCmpEq(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCmpEq(inst); }
+            llvm::Value *emitCmpNe(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCmpNe(inst); }
+            llvm::Value *emitCmpLt(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCmpLt(inst); }
+            llvm::Value *emitCmpLe(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCmpLe(inst); }
+            llvm::Value *emitCmpGt(std::shared_ptr<SIRInstruction> inst); // مؤجلة (لا تزال في memory_control.cpp)
+            llvm::Value *emitCmpGe(std::shared_ptr<SIRInstruction> inst); // مؤجلة (لا تزال في memory_control.cpp)
 
             // ------------------------------------------------------------------------
             // Memory Instructions / تعليمات الذاكرة
@@ -1169,30 +1176,31 @@ namespace Sad
                                                    llvm::Type *returnType,
                                                    const std::vector<llvm::Type *> &argTypes);
 
-            // Helper for resolving SIR operands to LLVM values (constants + registers)
-            llvm::Value *resolveOperand(const SIROperand &operand);
+            // Helper for resolving SIR operands to LLVM values (Phase 7 Step 1: delegate)
+            llvm::Value *resolveOperand(const SIROperand &operand) { return arith_->resolveOperand(operand); }
 
             // ------------------------------------------------------------------------
             // Type Conversion Instructions / تعليمات تحويل الأنواع
+            // (AR) Phase 7 Step 1: emitCast + 8 SIR conversions delegated
             // ------------------------------------------------------------------------
 
-            llvm::Value *emitCast(std::shared_ptr<SIRInstruction> inst);     // تحويل عام / Cast
-            llvm::Value *emitBitCast(std::shared_ptr<SIRInstruction> inst);  // تحويل ثنائي / Bitcast
-            llvm::Value *emitIntToPtr(std::shared_ptr<SIRInstruction> inst); // عدد إلى مؤشر
-            llvm::Value *emitPtrToInt(std::shared_ptr<SIRInstruction> inst); // مؤشر إلى عدد
-            llvm::Value *emitTrunc(std::shared_ptr<SIRInstruction> inst);    // اقتطاع / Truncate
-            llvm::Value *emitZExt(std::shared_ptr<SIRInstruction> inst);     // توسيع بصفر / Zero extend
-            llvm::Value *emitSExt(std::shared_ptr<SIRInstruction> inst);     // توسيع بإشارة / Sign extend
+            llvm::Value *emitCast(std::shared_ptr<SIRInstruction> inst) { return arith_->emitCast(inst); }
+            llvm::Value *emitBitCast(std::shared_ptr<SIRInstruction> inst);  // مؤجل (file_casts.cpp)
+            llvm::Value *emitIntToPtr(std::shared_ptr<SIRInstruction> inst); // مؤجل
+            llvm::Value *emitPtrToInt(std::shared_ptr<SIRInstruction> inst); // مؤجل
+            llvm::Value *emitTrunc(std::shared_ptr<SIRInstruction> inst);    // مؤجل
+            llvm::Value *emitZExt(std::shared_ptr<SIRInstruction> inst);     // مؤجل
+            llvm::Value *emitSExt(std::shared_ptr<SIRInstruction> inst);     // مؤجل
 
-            // SIR Type Conversion opcodes / أكواد تحويل الأنواع
-            llvm::Value *emitI64ToF64(std::shared_ptr<SIRInstruction> inst);      // صحيح → عشري
-            llvm::Value *emitF64ToI64(std::shared_ptr<SIRInstruction> inst);      // عشري → صحيح
-            llvm::Value *emitI64ToBool(std::shared_ptr<SIRInstruction> inst);     // صحيح → منطقي
-            llvm::Value *emitBoolToI64(std::shared_ptr<SIRInstruction> inst);     // منطقي → صحيح
-            llvm::Value *emitI64ToString(std::shared_ptr<SIRInstruction> inst);   // صحيح → نص
-            llvm::Value *emitF64ToString(std::shared_ptr<SIRInstruction> inst);   // عشري → نص
-            llvm::Value *emitBoolToString(std::shared_ptr<SIRInstruction> inst);  // منطقي → نص
-            llvm::Value *emitArrayToString(std::shared_ptr<SIRInstruction> inst); // مصفوفة → نص
+            // SIR Type Conversion opcodes (Phase 7 Step 1: delegate)
+            llvm::Value *emitI64ToF64(std::shared_ptr<SIRInstruction> inst)      { return arith_->emitI64ToF64(inst); }
+            llvm::Value *emitF64ToI64(std::shared_ptr<SIRInstruction> inst)      { return arith_->emitF64ToI64(inst); }
+            llvm::Value *emitI64ToBool(std::shared_ptr<SIRInstruction> inst)     { return arith_->emitI64ToBool(inst); }
+            llvm::Value *emitBoolToI64(std::shared_ptr<SIRInstruction> inst)     { return arith_->emitBoolToI64(inst); }
+            llvm::Value *emitI64ToString(std::shared_ptr<SIRInstruction> inst)   { return arith_->emitI64ToString(inst); }
+            llvm::Value *emitF64ToString(std::shared_ptr<SIRInstruction> inst)   { return arith_->emitF64ToString(inst); }
+            llvm::Value *emitBoolToString(std::shared_ptr<SIRInstruction> inst)  { return arith_->emitBoolToString(inst); }
+            llvm::Value *emitArrayToString(std::shared_ptr<SIRInstruction> inst) { return arith_->emitArrayToString(inst); }
 
             // ------------------------------------------------------------------------
             // OOP Instructions / تعليمات البرمجة الكائنية
@@ -1440,6 +1448,10 @@ namespace Sad
 
             // Code Generation Context (سياق التوليد) — يبقى هنا لأنه per-function state
             CodeGenContext context_info_;
+
+            // (AR) Phase 7 Step 1: مكوّن فرعي للعمليات الحسابية والمقارنات والتحويلات
+            // (EN) Phase 7 Step 1: sub-codegen for arithmetic, comparisons & conversions
+            std::unique_ptr<ArithmeticCodeGen> arith_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة

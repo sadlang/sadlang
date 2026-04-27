@@ -89,6 +89,10 @@ namespace Sad
             llvm::InitializeAllTargetMCs();
             llvm::InitializeAllAsmParsers();
             llvm::InitializeAllAsmPrinters();
+
+            // (AR) Phase 7 Step 1: تهيئة المكوّن الفرعي ArithmeticCodeGen
+            // (EN) Phase 7 Step 1: instantiate ArithmeticCodeGen sub-codegen
+            arith_ = std::make_unique<ArithmeticCodeGen>(*this);
         }
 
         /**
