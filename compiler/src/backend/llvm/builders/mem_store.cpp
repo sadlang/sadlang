@@ -19,6 +19,8 @@
 #include <llvm/IR/InlineAsm.h>
 #include <iostream>
 #include <fstream>
+#include "builders/memory_codegen.h" // (Phase 7 Step 2)
+#include "llvm_codegen.h"
 
 using namespace Sad::Compiler::SIR;
 
@@ -31,14 +33,14 @@ namespace Sad
          *
          * Source: llvm_codegen.h:445
          */
-        llvm::Value *LLVMCodeGen::emitStore(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *MemoryCodeGen::emitStore(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
                 return nullptr;
 
             if (inst->operands.size() < 2)
             {
-                reportError("Store instruction requires 2 operands");
+                cg_.reportError("Store instruction requires 2 operands");
                 return nullptr;
             }
 
@@ -55,12 +57,12 @@ namespace Sad
                 objectSetInst->operands.push_back(inst->operands[1]); // object
                 objectSetInst->operands.push_back(inst->operands[2]); // field name
                 objectSetInst->operands.push_back(inst->operands[0]); // value
-                return emitObjectSet(objectSetInst);
+                return cg_.emitObjectSet(objectSetInst);
 
-                llvm::Value *value = resolveOperand(inst->operands[0]);
+                llvm::Value *value = cg_.resolveOperand(inst->operands[0]);
                 if (!value)
                 {
-                    reportError("emitStore: cannot resolve value operand: " + inst->operands[0].name);
+                    cg_.reportError("emitStore: cannot resolve value operand: " + inst->operands[0].name);
                     return nullptr;
                 }
 
@@ -82,32 +84,32 @@ namespace Sad
 #endif
 
                 // البحث عن الكائن في namedValues
-                auto objIt = context_info_.namedValues.find(objName);
-                if (objIt == context_info_.namedValues.end())
+                auto objIt = cg_.context_info_.namedValues.find(objName);
+                if (objIt == cg_.context_info_.namedValues.end())
                 {
                     // (AR) Fallback: البحث في المتغيرات العامة LLVM
                     // (EN) Fallback: search in LLVM global variables
-                    auto *globalVar = module_->getNamedGlobal(objName);
+                    auto *globalVar = cg_.module_->getNamedGlobal(objName);
                     // (AR) إذا لم نجد، نحاول بإزالة % من المقدمة
                     // (EN) If not found, try without leading %
                     if (!globalVar && !objName.empty() && objName[0] == '%')
                     {
                         std::string cleanName = objName.substr(1);
-                        globalVar = module_->getNamedGlobal(cleanName);
+                        globalVar = cg_.module_->getNamedGlobal(cleanName);
                     }
                     if (globalVar)
                     {
                         // (AR) تحميل القيمة من المتغير العام وتحويلها إلى مؤشر
                         // (EN) Load value from global and convert to pointer
-                        llvm::Value *loaded = builder_->CreateLoad(getInt64Type(), globalVar, objName + ".glob.load");
-                        llvm::Value *ptr = builder_->CreateIntToPtr(loaded,
-                                                                    llvm::PointerType::getUnqual(*context_), objName + ".glob.ptr");
-                        context_info_.namedValues[objName] = ptr;
-                        objIt = context_info_.namedValues.find(objName);
+                        llvm::Value *loaded = cg_.builder_->CreateLoad(cg_.getInt64Type(), globalVar, objName + ".glob.load");
+                        llvm::Value *ptr = cg_.builder_->CreateIntToPtr(loaded,
+                                                                    llvm::PointerType::getUnqual(*cg_.context_), objName + ".glob.ptr");
+                        cg_.context_info_.namedValues[objName] = ptr;
+                        objIt = cg_.context_info_.namedValues.find(objName);
                     }
                     else
                     {
-                        reportError("emitStore: object not found: " + objName);
+                        cg_.reportError("emitStore: object not found: " + objName);
                         return nullptr;
                     }
                 }
@@ -122,9 +124,9 @@ namespace Sad
                     if (allocaInst->getAllocatedType()->isIntegerTy(64))
                     {
                         // تحميل قيمة i64 من alloca
-                        llvm::Value *ptrVal = builder_->CreateLoad(getInt64Type(), allocaInst, objName + ".ptrval");
+                        llvm::Value *ptrVal = cg_.builder_->CreateLoad(cg_.getInt64Type(), allocaInst, objName + ".ptrval");
                         // تحويل i64 إلى ptr
-                        objPtr = builder_->CreateIntToPtr(ptrVal, llvm::PointerType::get(*context_, 0), objName + ".objptr");
+                        objPtr = cg_.builder_->CreateIntToPtr(ptrVal, llvm::PointerType::get(*cg_.context_, 0), objName + ".objptr");
 #ifndef NDEBUG
                         std::cout << "[DEBUG] emitStore: converted i64 to ptr for " << objName << std::endl;
 #endif
@@ -134,8 +136,8 @@ namespace Sad
                 {
                     // (AR) متغير عام يحمل مؤشر كائن — يجب تحميل المؤشر أولاً ثم التحويل
                     // (EN) Global variable holding object pointer — must load pointer first then cast
-                    llvm::Value *ptrVal = builder_->CreateLoad(getInt64Type(), objPtr, objName + ".glob.ptrval");
-                    objPtr = builder_->CreateIntToPtr(ptrVal, llvm::PointerType::get(*context_, 0), objName + ".glob.objptr");
+                    llvm::Value *ptrVal = cg_.builder_->CreateLoad(cg_.getInt64Type(), objPtr, objName + ".glob.ptrval");
+                    objPtr = cg_.builder_->CreateIntToPtr(ptrVal, llvm::PointerType::get(*cg_.context_, 0), objName + ".glob.objptr");
 #ifndef NDEBUG
                     std::cout << "[DEBUG] emitStore: converted global i64 to ptr for " << objName << std::endl;
 #endif
@@ -143,8 +145,8 @@ namespace Sad
 
                 // البحث عن اسم الصنف في objectClassMap
                 std::string className;
-                auto classIt = context_info_.objectClassMap.find(objName);
-                if (classIt != context_info_.objectClassMap.end())
+                auto classIt = cg_.context_info_.objectClassMap.find(objName);
+                if (classIt != cg_.context_info_.objectClassMap.end())
                 {
                     className = classIt->second;
                 }
@@ -155,11 +157,11 @@ namespace Sad
                 // ================================================================
                 if (className.empty() && !objName.empty() && objName[0] == '%')
                 {
-                    auto classIt2 = context_info_.objectClassMap.find(objName.substr(1));
-                    if (classIt2 != context_info_.objectClassMap.end())
+                    auto classIt2 = cg_.context_info_.objectClassMap.find(objName.substr(1));
+                    if (classIt2 != cg_.context_info_.objectClassMap.end())
                     {
                         className = classIt2->second;
-                        context_info_.objectClassMap[objName] = className;
+                        cg_.context_info_.objectClassMap[objName] = className;
                     }
                 }
 
@@ -174,12 +176,12 @@ namespace Sad
                     {
                         if (auto *st = llvm::dyn_cast<llvm::StructType>(allocaInst->getAllocatedType()))
                         {
-                            for (const auto &[clsName, clsSt] : context_info_.classStructTypes)
+                            for (const auto &[clsName, clsSt] : cg_.context_info_.classStructTypes)
                             {
                                 if (clsSt == st)
                                 {
                                     className = clsName;
-                                    context_info_.objectClassMap[objName] = className;
+                                    cg_.context_info_.objectClassMap[objName] = className;
                                     break;
                                 }
                             }
@@ -193,14 +195,14 @@ namespace Sad
                 // ================================================================
                 if (className.empty())
                 {
-                    for (const auto &[clsName, fieldVec] : context_info_.classFieldNames)
+                    for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                     {
                         for (const auto &fn : fieldVec)
                         {
                             if (fn == fieldName)
                             {
                                 className = clsName;
-                                context_info_.objectClassMap[objName] = className;
+                                cg_.context_info_.objectClassMap[objName] = className;
 #ifndef NDEBUG
                                 std::cout << "[DEBUG] emitStore: inferred class '" << className
                                           << "' for object '" << objName << "' by field '" << fieldName << "'" << std::endl;
@@ -223,23 +225,23 @@ namespace Sad
 #endif
                     // (AR) نرجع null لكن لا نوقف الترجمة
                     // (EN) Return null but don't stop compilation
-                    return llvm::Constant::getNullValue(getInt64Type());
+                    return llvm::Constant::getNullValue(cg_.getInt64Type());
                 }
 
                 // البحث عن نوع الهيكل
-                auto structIt = context_info_.classStructTypes.find(className);
-                if (structIt == context_info_.classStructTypes.end())
+                auto structIt = cg_.context_info_.classStructTypes.find(className);
+                if (structIt == cg_.context_info_.classStructTypes.end())
                 {
-                    reportError("emitStore: struct type not found for class: " + className);
+                    cg_.reportError("emitStore: struct type not found for class: " + className);
                     return nullptr;
                 }
                 llvm::StructType *structType = structIt->second;
 
                 // البحث عن ترتيب الحقل
-                auto fieldNamesIt = context_info_.classFieldNames.find(className);
-                if (fieldNamesIt == context_info_.classFieldNames.end())
+                auto fieldNamesIt = cg_.context_info_.classFieldNames.find(className);
+                if (fieldNamesIt == cg_.context_info_.classFieldNames.end())
                 {
-                    reportError("emitStore: field names not found for class: " + className);
+                    cg_.reportError("emitStore: field names not found for class: " + className);
                     return nullptr;
                 }
 
@@ -263,12 +265,12 @@ namespace Sad
                     // (AR) البحث في الأصناف الأب
                     while (true)
                     {
-                        auto parentIt = context_info_.classParentMap.find(searchClass);
-                        if (parentIt == context_info_.classParentMap.end() || parentIt->second.empty())
+                        auto parentIt = cg_.context_info_.classParentMap.find(searchClass);
+                        if (parentIt == cg_.context_info_.classParentMap.end() || parentIt->second.empty())
                             break;
                         searchClass = parentIt->second;
-                        auto pFieldIt = context_info_.classFieldNames.find(searchClass);
-                        if (pFieldIt != context_info_.classFieldNames.end())
+                        auto pFieldIt = cg_.context_info_.classFieldNames.find(searchClass);
+                        if (pFieldIt != cg_.context_info_.classFieldNames.end())
                         {
                             for (size_t i = 0; i < pFieldIt->second.size(); i++)
                             {
@@ -287,7 +289,7 @@ namespace Sad
                     // (AR) البحث في كل الأصناف كـ fallback
                     if (!foundField)
                     {
-                        for (const auto &[clsName, fieldVec] : context_info_.classFieldNames)
+                        for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                         {
                             if (clsName == className)
                                 continue;
@@ -307,14 +309,14 @@ namespace Sad
                     }
                     if (!foundField)
                     {
-                        reportError("emitStore: field '" + fieldName + "' not found in class: " + className);
+                        cg_.reportError("emitStore: field '" + fieldName + "' not found in class: " + className);
                         return nullptr;
                     }
                     // (AR) تحديث نوع الهيكل مع الصنف الجديد
-                    structIt = context_info_.classStructTypes.find(className);
-                    if (structIt == context_info_.classStructTypes.end())
+                    structIt = cg_.context_info_.classStructTypes.find(className);
+                    if (structIt == cg_.context_info_.classStructTypes.end())
                     {
-                        reportError("emitStore: struct type not found for class: " + className);
+                        cg_.reportError("emitStore: struct type not found for class: " + className);
                         return nullptr;
                     }
                     structType = structIt->second;
@@ -322,18 +324,18 @@ namespace Sad
 
                 // (AR) إضافة إزاحة vtable — الحقل 0 في الهيكل هو مؤشر vtable
                 // (EN) Add vtable offset — field 0 in struct is vtable pointer
-                fieldIndex = getFieldStructIndex(className, fieldIndex);
+                fieldIndex = cg_.getFieldStructIndex(className, fieldIndex);
 
                 // (AR) إذا كان الكائن لا يزال i64 — حوّله إلى ptr
                 // (EN) If object is still i64 — cast to ptr for GEP
                 if (objPtr->getType()->isIntegerTy())
                 {
-                    objPtr = builder_->CreateIntToPtr(objPtr,
-                                                      llvm::PointerType::getUnqual(*context_), objName + ".i2p");
+                    objPtr = cg_.builder_->CreateIntToPtr(objPtr,
+                                                      llvm::PointerType::getUnqual(*cg_.context_), objName + ".i2p");
                 }
 
                 // إنشاء GEP للحقل
-                llvm::Value *gep = builder_->CreateStructGEP(structType, objPtr, fieldIndex, fieldName + "_gep");
+                llvm::Value *gep = cg_.builder_->CreateStructGEP(structType, objPtr, fieldIndex, fieldName + "_gep");
 
                 // تحويل النوع إذا لزم الأمر
                 llvm::Type *fieldType = structType->getElementType(fieldIndex);
@@ -341,19 +343,19 @@ namespace Sad
                 {
                     if (value->getType()->isIntegerTy() && fieldType->isIntegerTy())
                     {
-                        value = builder_->CreateIntCast(value, fieldType, true, "cast");
+                        value = cg_.builder_->CreateIntCast(value, fieldType, true, "cast");
                     }
                     else if (value->getType()->isPointerTy() && fieldType->isIntegerTy(64))
                     {
-                        value = builder_->CreatePtrToInt(value, fieldType, "ptr2int");
+                        value = cg_.builder_->CreatePtrToInt(value, fieldType, "ptr2int");
                     }
                     else if (value->getType()->isIntegerTy() && fieldType->isPointerTy())
                     {
-                        value = builder_->CreateIntToPtr(value, fieldType, "int2ptr");
+                        value = cg_.builder_->CreateIntToPtr(value, fieldType, "int2ptr");
                     }
                 }
 
-                auto *storeResult = builder_->CreateStore(value, gep);
+                auto *storeResult = cg_.builder_->CreateStore(value, gep);
 #ifndef NDEBUG
                 std::cout << "[DEBUG] emitStore: field '" << fieldName << "' stored via GEP index " << fieldIndex << std::endl;
 #endif
@@ -366,8 +368,8 @@ namespace Sad
             // ================================================================
 
             // (AR) احصل على القيمة المراد تخزينها
-            // (EN) Get value to store - use resolveOperand for all types
-            llvm::Value *value = resolveOperand(inst->operands[0]);
+            // (EN) Get value to store - use cg_.resolveOperand for all types
+            llvm::Value *value = cg_.resolveOperand(inst->operands[0]);
             const auto &valueOp = inst->operands[0];
 
             // (AR) احصل على المؤشر للتخزين فيه
@@ -377,8 +379,8 @@ namespace Sad
 
             // (AR) البحث بـ find() بدلاً من [] لتجنب إدخال nullptr في الخريطة
             // (EN) Use find() instead of [] to avoid inserting nullptr into the map
-            auto ptrIt = context_info_.namedValues.find(ptrName);
-            if (ptrIt != context_info_.namedValues.end())
+            auto ptrIt = cg_.context_info_.namedValues.find(ptrName);
+            if (ptrIt != cg_.context_info_.namedValues.end())
             {
                 ptr = ptrIt->second;
             }
@@ -389,12 +391,12 @@ namespace Sad
             {
                 // (AR) البحث بالاسم الأصلي أولاً
                 // (EN) Search with original name first
-                llvm::GlobalVariable *gv = module_->getGlobalVariable(ptrName);
+                llvm::GlobalVariable *gv = cg_.module_->getGlobalVariable(ptrName);
                 // (AR) إذا لم نجد، نحاول بإزالة % من المقدمة (السجلات تبدأ بـ % لكن المتغيرات العامة لا)
                 // (EN) If not found, try without leading % (registers start with % but globals don't)
                 if (!gv && !ptrName.empty() && ptrName[0] == '%')
                 {
-                    gv = module_->getGlobalVariable(ptrName.substr(1));
+                    gv = cg_.module_->getGlobalVariable(ptrName.substr(1));
                 }
                 if (gv)
                 {
@@ -411,12 +413,12 @@ namespace Sad
                 {
                     cleanName = cleanName.substr(1);
                 }
-                auto git = context_info_.globalValues.find(cleanName);
-                if (git == context_info_.globalValues.end())
+                auto git = cg_.context_info_.globalValues.find(cleanName);
+                if (git == cg_.context_info_.globalValues.end())
                 {
-                    git = context_info_.globalValues.find(ptrName);
+                    git = cg_.context_info_.globalValues.find(ptrName);
                 }
-                if (git != context_info_.globalValues.end() && git->second != nullptr)
+                if (git != cg_.context_info_.globalValues.end() && git->second != nullptr)
                 {
                     ptr = git->second;
                 }
@@ -428,7 +430,7 @@ namespace Sad
                 // (EN) If pointer not found, create a new alloca — local variable without prior ALLOCA instruction
                 if (value && !ptr && !ptrName.empty())
                 {
-                    llvm::Function *currentFunc = builder_->GetInsertBlock()->getParent();
+                    llvm::Function *currentFunc = cg_.builder_->GetInsertBlock()->getParent();
                     llvm::IRBuilder<> entryBuilder(&currentFunc->getEntryBlock(),
                                                    currentFunc->getEntryBlock().begin());
                     // (AR) استخدام نوع القيمة الفعلي بدلاً من تحويل ptr إلى i64
@@ -439,12 +441,12 @@ namespace Sad
                     //      Strings (ptr) must remain ptr not i64
                     llvm::Type *allocType = value->getType();
                     llvm::AllocaInst *newAlloca = entryBuilder.CreateAlloca(allocType, nullptr, ptrName);
-                    context_info_.namedValues[ptrName] = newAlloca;
+                    cg_.context_info_.namedValues[ptrName] = newAlloca;
                     ptr = newAlloca;
                 }
                 if (!value || !ptr)
                 {
-                    reportError("Operands not found for store: value=" + valueOp.name + ", ptr=" + ptrName);
+                    cg_.reportError("Operands not found for store: value=" + valueOp.name + ", ptr=" + ptrName);
                     return nullptr;
                 }
             }
@@ -462,7 +464,7 @@ namespace Sad
                     if (value->getType()->isPointerTy() &&
                         allocaInst->getAllocatedType()->isIntegerTy(64))
                     {
-                        value = builder_->CreatePtrToInt(value, getInt64Type(), "obj.ptrtoint");
+                        value = cg_.builder_->CreatePtrToInt(value, cg_.getInt64Type(), "obj.ptrtoint");
                     }
                 }
                 else if (auto *gv = llvm::dyn_cast<llvm::GlobalVariable>(ptr))
@@ -471,7 +473,7 @@ namespace Sad
                     // (EN) Storing pointer into global i64 variable — convert ptr→i64
                     if (value->getType()->isPointerTy() && gv->getValueType()->isIntegerTy(64))
                     {
-                        value = builder_->CreatePtrToInt(value, getInt64Type(), "obj.glob.ptrtoint");
+                        value = cg_.builder_->CreatePtrToInt(value, cg_.getInt64Type(), "obj.glob.ptrtoint");
                     }
                     // ================================================================
                     // (AR) [Fix #46] تخزين double في متغير عام i64 — ترقية المتغير العام إلى double
@@ -485,24 +487,24 @@ namespace Sad
                         // (AR) ترقية المتغير العام: حذف القديم + إنشاء جديد بنفس الاسم بنوع double
                         // (EN) Promote global: create new global with double type
                         std::string globalName = gv->getName().str();
-                        llvm::Value *oldVal = builder_->CreateLoad(getInt64Type(), gv, "old.glob.i64");
+                        llvm::Value *oldVal = cg_.builder_->CreateLoad(cg_.getInt64Type(), gv, "old.glob.i64");
 
                         // (AR) إنشاء متغير عام جديد بنوع double
                         // (EN) Create new global variable with double type
                         auto *newGV = new llvm::GlobalVariable(
-                            *module_, builder_->getDoubleTy(), false,
+                            *cg_.module_, cg_.builder_->getDoubleTy(), false,
                             llvm::GlobalValue::InternalLinkage,
-                            llvm::ConstantFP::get(builder_->getDoubleTy(), 0.0),
+                            llvm::ConstantFP::get(cg_.builder_->getDoubleTy(), 0.0),
                             globalName + ".f64");
 
                         // (AR) نقل القيمة القديمة إلى المتغير الجديد
                         // (EN) Migrate old value to new global
-                        llvm::Value *oldAsF64 = builder_->CreateSIToFP(oldVal, builder_->getDoubleTy(), "old.glob.f64");
-                        builder_->CreateStore(oldAsF64, newGV);
+                        llvm::Value *oldAsF64 = cg_.builder_->CreateSIToFP(oldVal, cg_.builder_->getDoubleTy(), "old.glob.f64");
+                        cg_.builder_->CreateStore(oldAsF64, newGV);
 
                         // (AR) استبدال المرجع في globalValues و namedValues
                         // (EN) Replace references in globalValues and namedValues
-                        for (auto &kv : context_info_.globalValues)
+                        for (auto &kv : cg_.context_info_.globalValues)
                         {
                             if (kv.second == gv)
                             {
@@ -510,7 +512,7 @@ namespace Sad
                                 break;
                             }
                         }
-                        for (auto &kv : context_info_.namedValues)
+                        for (auto &kv : cg_.context_info_.namedValues)
                         {
                             if (kv.second == gv)
                             {
@@ -526,7 +528,7 @@ namespace Sad
                     // (EN) Storing i64 into global double variable — convert i64→double (SIToFP)
                     else if (value->getType()->isIntegerTy(64) && gv->getValueType()->isDoubleTy())
                     {
-                        value = builder_->CreateSIToFP(value, builder_->getDoubleTy(), "i64.to.f64.store");
+                        value = cg_.builder_->CreateSIToFP(value, cg_.builder_->getDoubleTy(), "i64.to.f64.store");
                     }
                 }
 
@@ -549,7 +551,7 @@ namespace Sad
                     if (value->getType()->isVectorTy() &&
                         !allocaInst->getAllocatedType()->isVectorTy())
                     {
-                        llvm::Function *currentFunc = builder_->GetInsertBlock()->getParent();
+                        llvm::Function *currentFunc = cg_.builder_->GetInsertBlock()->getParent();
                         llvm::IRBuilder<> entryBuilder(&currentFunc->getEntryBlock(),
                                                        currentFunc->getEntryBlock().begin());
                         std::string allocaName = allocaInst->getName().str();
@@ -563,7 +565,7 @@ namespace Sad
                             newAlloca->setAlignment(llvm::Align(alignBytes));
 
                         // (AR) استبدال المرجع في namedValues
-                        for (auto &kv : context_info_.namedValues)
+                        for (auto &kv : cg_.context_info_.namedValues)
                         {
                             if (kv.second == allocaInst)
                             {
@@ -590,22 +592,22 @@ namespace Sad
                     {
                         // (AR) ترقية نوع alloca: إنشاء alloca جديد double واستبدال القديم
                         // (EN) Promote alloca type: create new double alloca and replace old one
-                        llvm::Function *currentFunc = builder_->GetInsertBlock()->getParent();
+                        llvm::Function *currentFunc = cg_.builder_->GetInsertBlock()->getParent();
                         llvm::IRBuilder<> entryBuilder(&currentFunc->getEntryBlock(),
                                                        currentFunc->getEntryBlock().begin());
                         std::string allocaName = allocaInst->getName().str();
                         llvm::AllocaInst *newAlloca = entryBuilder.CreateAlloca(
-                            builder_->getDoubleTy(), nullptr, allocaName + ".f64");
+                            cg_.builder_->getDoubleTy(), nullptr, allocaName + ".f64");
 
                         // (AR) نقل القيمة القديمة (i64) إلى الـ alloca الجديد (double)
                         // (EN) Migrate old value (i64) to new alloca (double)
-                        llvm::Value *oldVal = builder_->CreateLoad(getInt64Type(), allocaInst, "old.i64.val");
-                        llvm::Value *oldAsF64 = builder_->CreateSIToFP(oldVal, builder_->getDoubleTy(), "old.as.f64");
-                        builder_->CreateStore(oldAsF64, newAlloca);
+                        llvm::Value *oldVal = cg_.builder_->CreateLoad(cg_.getInt64Type(), allocaInst, "old.i64.val");
+                        llvm::Value *oldAsF64 = cg_.builder_->CreateSIToFP(oldVal, cg_.builder_->getDoubleTy(), "old.as.f64");
+                        cg_.builder_->CreateStore(oldAsF64, newAlloca);
 
                         // (AR) استبدال المرجع في namedValues + تحديث ptr
                         // (EN) Replace reference in namedValues + update ptr
-                        for (auto &kv : context_info_.namedValues)
+                        for (auto &kv : cg_.context_info_.namedValues)
                         {
                             if (kv.second == allocaInst)
                             {
@@ -622,31 +624,31 @@ namespace Sad
                     else if (value->getType()->isIntegerTy(64) &&
                              allocaInst->getAllocatedType()->isDoubleTy())
                     {
-                        value = builder_->CreateSIToFP(value, builder_->getDoubleTy(), "i64.to.f64.alloca");
+                        value = cg_.builder_->CreateSIToFP(value, cg_.builder_->getDoubleTy(), "i64.to.f64.alloca");
                     }
                     // (AR) تخزين i1 (bool) في alloca i64 — توسيع i1→i64
                     // (EN) Storing i1 (bool) into i64 alloca — zero-extend i1→i64
                     else if (value->getType()->isIntegerTy(1) &&
                              allocaInst->getAllocatedType()->isIntegerTy(64))
                     {
-                        value = builder_->CreateZExt(value, getInt64Type(), "i1.to.i64.alloca");
+                        value = cg_.builder_->CreateZExt(value, cg_.getInt64Type(), "i1.to.i64.alloca");
                     }
                 }
             }
 
-            auto *storeResult = builder_->CreateStore(value, ptr);
+            auto *storeResult = cg_.builder_->CreateStore(value, ptr);
 
             // ================================================================
             // نشر خريطة الأصناف عند تخزين كائن في متغير
             // Propagate class map when storing object into variable
             // ================================================================
-            if (context_info_.objectClassMap.count(valueOp.name) &&
-                !context_info_.objectClassMap.count(ptrName))
+            if (cg_.context_info_.objectClassMap.count(valueOp.name) &&
+                !cg_.context_info_.objectClassMap.count(ptrName))
             {
-                context_info_.objectClassMap[ptrName] = context_info_.objectClassMap[valueOp.name];
+                cg_.context_info_.objectClassMap[ptrName] = cg_.context_info_.objectClassMap[valueOp.name];
 #ifndef NDEBUG
                 std::cout << "[DEBUG] emitStore: propagated class '"
-                          << context_info_.objectClassMap[valueOp.name]
+                          << cg_.context_info_.objectClassMap[valueOp.name]
                           << "' from " << valueOp.name << " to " << ptrName << std::endl;
 #endif
             }

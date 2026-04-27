@@ -93,6 +93,10 @@ namespace Sad
             // (AR) Phase 7 Step 1: تهيئة المكوّن الفرعي ArithmeticCodeGen
             // (EN) Phase 7 Step 1: instantiate ArithmeticCodeGen sub-codegen
             arith_ = std::make_unique<ArithmeticCodeGen>(*this);
+
+            // (AR) Phase 7 Step 2: تهيئة المكوّن الفرعي MemoryCodeGen
+            // (EN) Phase 7 Step 2: instantiate MemoryCodeGen sub-codegen
+            mem_ = std::make_unique<MemoryCodeGen>(*this);
         }
 
         /**

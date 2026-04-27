@@ -40,6 +40,8 @@
 #include <llvm/IR/InlineAsm.h>
 #include <iostream>
 #include <fstream>
+#include "builders/memory_codegen.h" // (Phase 7 Step 2)
+#include "llvm_codegen.h"
 
 // Source: llvm_codegen.h:103-108 - using declarations
 using namespace Sad::Compiler::SIR; // For SIRModule, SIRFunction, SIRBasicBlock, SIRInstruction, SadTypeKind
@@ -55,14 +57,14 @@ namespace Sad
          *
          * Source: llvm_codegen.h:444
          */
-        llvm::Value *LLVMCodeGen::emitLoad(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *MemoryCodeGen::emitLoad(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
                 return nullptr;
 
             if (inst->operands.empty())
             {
-                reportError("Load instruction requires 1 operand");
+                cg_.reportError("Load instruction requires 1 operand");
                 return nullptr;
             }
 
@@ -77,56 +79,56 @@ namespace Sad
                 auto objectGetInst = std::make_shared<SIRInstruction>(SIROpcode::OBJECT_GET);
                 objectGetInst->operands = inst->operands;
                 objectGetInst->result = inst->result;
-                return emitObjectGet(objectGetInst);
+                return cg_.emitObjectGet(objectGetInst);
             }
 
             // (AR) حالة كائن heap مخزن كمؤشر مباشر: ارجع عنوانه كـ i64
             // (EN) Heap-object direct pointer case: return pointer address as i64
             {
                 std::string opName = inst->operands[0].name;
-                auto objIt = context_info_.objectClassMap.find(opName);
-                if (objIt != context_info_.objectClassMap.end())
+                auto objIt = cg_.context_info_.objectClassMap.find(opName);
+                if (objIt != cg_.context_info_.objectClassMap.end())
                 {
-                    llvm::Value *objVal = context_info_.namedValues[opName];
+                    llvm::Value *objVal = cg_.context_info_.namedValues[opName];
                     if (objVal && objVal->getType()->isPointerTy() && !llvm::isa<llvm::AllocaInst>(objVal) && !llvm::isa<llvm::GlobalVariable>(objVal))
                     {
-                        llvm::Value *result = builder_->CreatePtrToInt(objVal, getInt64Type(), "obj.ptr2i");
+                        llvm::Value *result = cg_.builder_->CreatePtrToInt(objVal, cg_.getInt64Type(), "obj.ptr2i");
                         if (inst->result.has_value())
                         {
-                            context_info_.namedValues[inst->result->name] = result;
-                            context_info_.objectClassMap[inst->result->name] = objIt->second;
+                            cg_.context_info_.namedValues[inst->result->name] = result;
+                            cg_.context_info_.objectClassMap[inst->result->name] = objIt->second;
                         }
                         return result;
                     }
                 }
             }
 
-            // (AR) إذا كان المعامل متغير عالمي (GLOBAL)، استخدم resolveOperand مباشرة —
-            //      resolveOperand يتعامل مع النوع الصحيح (نص، رقم، منطقي) ويُرجع القيمة
+            // (AR) إذا كان المعامل متغير عالمي (GLOBAL)، استخدم cg_.resolveOperand مباشرة —
+            //      cg_.resolveOperand يتعامل مع النوع الصحيح (نص، رقم، منطقي) ويُرجع القيمة
             //      المُحمَّلة جاهزة. لا نحتاج تحميل ثانٍ هنا.
-            // (EN) If operand is a GLOBAL variable, use resolveOperand directly —
+            // (EN) If operand is a GLOBAL variable, use cg_.resolveOperand directly —
             //      it handles the correct type (string, int, bool) and returns the loaded value.
             //      No second load needed here.
             if (inst->operands[0].type == SIROperandType::GLOBAL)
             {
-                llvm::Value *resolved = resolveOperand(inst->operands[0]);
+                llvm::Value *resolved = cg_.resolveOperand(inst->operands[0]);
                 if (resolved && inst->result.has_value())
                 {
-                    context_info_.namedValues[inst->result->name] = resolved;
+                    cg_.context_info_.namedValues[inst->result->name] = resolved;
                 }
                 return resolved;
             }
 
-            // Try namedValues first (for alloca pointers), then resolveOperand
-            llvm::Value *ptr = context_info_.namedValues[inst->operands[0].name];
+            // Try namedValues first (for alloca pointers), then cg_.resolveOperand
+            llvm::Value *ptr = cg_.context_info_.namedValues[inst->operands[0].name];
             if (!ptr)
             {
-                ptr = resolveOperand(inst->operands[0]);
+                ptr = cg_.resolveOperand(inst->operands[0]);
             }
 
             if (!ptr)
             {
-                reportError("Pointer not found for load");
+                cg_.reportError("Pointer not found for load");
                 return nullptr;
             }
 
@@ -136,14 +138,14 @@ namespace Sad
             {
                 if (inst->result.has_value())
                 {
-                    context_info_.namedValues[inst->result->name] = ptr;
+                    cg_.context_info_.namedValues[inst->result->name] = ptr;
                 }
                 return ptr;
             }
 
             // (AR) تحديد نوع التحميل
             // (EN) Determine load type
-            llvm::Type *loadType = getInt64Type();
+            llvm::Type *loadType = cg_.getInt64Type();
             if (auto *allocaInst = llvm::dyn_cast<llvm::AllocaInst>(ptr))
             {
                 loadType = allocaInst->getAllocatedType();
@@ -154,19 +156,19 @@ namespace Sad
             }
             else if (inst->operands[0].dataType == SadTypeKind::Float)
             {
-                loadType = getDoubleType();
+                loadType = cg_.getDoubleType();
             }
             else if (inst->operands[0].dataType == SadTypeKind::Boolean)
             {
-                loadType = llvm::Type::getInt1Ty(*context_);
+                loadType = llvm::Type::getInt1Ty(*cg_.context_);
             }
             else if (inst->operands[0].dataType == SadTypeKind::String ||
                      inst->operands[0].dataType == SadTypeKind::Pointer)
             {
-                loadType = llvm::PointerType::getUnqual(*context_);
+                loadType = llvm::PointerType::getUnqual(*cg_.context_);
             }
 
-            llvm::Value *result = builder_->CreateLoad(loadType, ptr, "loadtmp");
+            llvm::Value *result = cg_.builder_->CreateLoad(loadType, ptr, "loadtmp");
 
             if (inst->operands[0].name.find("volatile") != std::string::npos ||
                 inst->operands[0].name.find("\xd9\x85\xd8\xaa\xd8\xb7\xd8\xa7\xd9\x8a\xd8\xb1") != std::string::npos)
@@ -179,13 +181,13 @@ namespace Sad
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
 
                 std::string srcName = inst->operands[0].name;
-                auto classIt = context_info_.objectClassMap.find(srcName);
-                if (classIt != context_info_.objectClassMap.end())
+                auto classIt = cg_.context_info_.objectClassMap.find(srcName);
+                if (classIt != cg_.context_info_.objectClassMap.end())
                 {
-                    context_info_.objectClassMap[inst->result->name] = classIt->second;
+                    cg_.context_info_.objectClassMap[inst->result->name] = classIt->second;
                 }
             }
 

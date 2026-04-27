@@ -77,6 +77,7 @@
 #include "llvm_optimizer.h"              // إضافة محسّن LLVM / Add LLVM optimizer
 #include "llvm_codegen_context.h"        // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
 #include "builders/arithmetic_codegen.h" // (AR) Phase 7 Step 1: ArithmeticCodeGen
+#include "builders/memory_codegen.h"     // (AR) Phase 7 Step 2: MemoryCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -238,6 +239,8 @@ namespace Sad
             // (AR) Phase 7 Step 1: ArithmeticCodeGen يصل للحقول الخاصة عبر friend
             // (EN) Phase 7 Step 1: ArithmeticCodeGen accesses private state via friend
             friend class ArithmeticCodeGen;
+            // (AR) Phase 7 Step 2: MemoryCodeGen
+            friend class MemoryCodeGen;
 
         public:
             // ========================================================================
@@ -584,11 +587,12 @@ namespace Sad
             // Memory Instructions / تعليمات الذاكرة
             // ------------------------------------------------------------------------
 
-            llvm::Value *emitLoad(std::shared_ptr<SIRInstruction> inst);   // تحميل / Load
-            llvm::Value *emitStore(std::shared_ptr<SIRInstruction> inst);  // تخزين / Store
-            llvm::Value *emitAlloca(std::shared_ptr<SIRInstruction> inst); // تخصيص / Allocate
-            llvm::Value *emitGEP(std::shared_ptr<SIRInstruction> inst);    // Get Element Ptr
-            llvm::Value *emitMove(std::shared_ptr<SIRInstruction> inst);   // نقل / Move (register assignment)
+            // (AR) Phase 7 Step 2: delegate إلى MemoryCodeGen
+            llvm::Value *emitLoad(std::shared_ptr<SIRInstruction> inst)   { return mem_->emitLoad(inst); }
+            llvm::Value *emitStore(std::shared_ptr<SIRInstruction> inst)  { return mem_->emitStore(inst); }
+            llvm::Value *emitAlloca(std::shared_ptr<SIRInstruction> inst) { return mem_->emitAlloca(inst); }
+            llvm::Value *emitGEP(std::shared_ptr<SIRInstruction> inst)    { return mem_->emitGEP(inst); }
+            llvm::Value *emitMove(std::shared_ptr<SIRInstruction> inst)   { return mem_->emitMove(inst); }
 
             // ------------------------------------------------------------------------
             // Control Flow Instructions / تعليمات تدفق التحكم
@@ -1452,6 +1456,10 @@ namespace Sad
             // (AR) Phase 7 Step 1: مكوّن فرعي للعمليات الحسابية والمقارنات والتحويلات
             // (EN) Phase 7 Step 1: sub-codegen for arithmetic, comparisons & conversions
             std::unique_ptr<ArithmeticCodeGen> arith_;
+
+            // (AR) Phase 7 Step 2: مكوّن فرعي لعمليات الذاكرة (Load/Store/Alloca/GEP/Move)
+            // (EN) Phase 7 Step 2: sub-codegen for memory operations
+            std::unique_ptr<MemoryCodeGen> mem_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
