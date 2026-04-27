@@ -81,6 +81,7 @@
 #include "builders/controlflow_codegen.h"   // (AR) Phase 7 Step 3: ControlFlowCodeGen
 #include "builders/aggregate_ops_codegen.h" // (AR) Phase 7 Step 4: AggregateOpsCodeGen
 #include "builders/array_ops_codegen.h"     // (AR) Phase 7 Step 5: ArrayOpsCodeGen
+#include "builders/string_ops_codegen.h"    // (AR) Phase 7 Step 6: StringOpsCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -250,6 +251,8 @@ namespace Sad
             friend class AggregateOpsCodeGen;
             // (AR) Phase 7 Step 5: ArrayOpsCodeGen
             friend class ArrayOpsCodeGen;
+            // (AR) Phase 7 Step 6: StringOpsCodeGen
+            friend class StringOpsCodeGen;
 
         public:
             // ========================================================================
@@ -620,17 +623,18 @@ namespace Sad
 
             llvm::Value *emitBuiltinPrint(std::shared_ptr<SIRInstruction> inst); // اطبع / Print
             llvm::Value *emitBuiltinRead(std::shared_ptr<SIRInstruction> inst);  // اقرأ / Read/Input
-            llvm::Value *emitStringConcat(std::shared_ptr<SIRInstruction> inst); // دمج نص / String concat
+            // (AR) Phase 7 Step 6: delegate إلى StringOpsCodeGen
+            llvm::Value *emitStringConcat(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringConcat(inst); }
             void ensureArrayToStringHelper();                                    // توليد دالة __sad_array_to_string / Generate array-to-string helper
-            llvm::Value *emitStringCharAt(std::shared_ptr<SIRInstruction> inst); // رمز_حرف / Char at index
-            llvm::Value *emitStringCmp(std::shared_ptr<SIRInstruction> inst);    // مقارنة نصوص / String compare
+            llvm::Value *emitStringCharAt(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCharAt(inst); }
+            llvm::Value *emitStringCmp(std::shared_ptr<SIRInstruction> inst)    { return strops_->emitStringCmp(inst); }
 
             // (AR) دالة مساعدة: تحميل القيمة تلقائياً من alloca إذا لزم الأمر
             // (EN) Helper: Auto-load value from alloca pointer if needed
             llvm::Value *resolveValue(llvm::Value *val, SadTypeKind sirType);
 
-            llvm::Value *emitStringToI64(std::shared_ptr<SIRInstruction> inst);  // لرقم / String to I64
-            llvm::Value *emitStringToF64(std::shared_ptr<SIRInstruction> inst);  // لعشري / String to F64
+            llvm::Value *emitStringToI64(std::shared_ptr<SIRInstruction> inst)  { return strops_->emitStringToI64(inst); }
+            llvm::Value *emitStringToF64(std::shared_ptr<SIRInstruction> inst)  { return strops_->emitStringToF64(inst); }
             llvm::Value *emitBuiltinSqrt(std::shared_ptr<SIRInstruction> inst);  // جذر / Sqrt
             llvm::Value *emitBuiltinLog(std::shared_ptr<SIRInstruction> inst);   // لوغ / Natural log
             llvm::Value *emitBuiltinPow(std::shared_ptr<SIRInstruction> inst);   // أس / Power
@@ -650,19 +654,19 @@ namespace Sad
             llvm::Value *emitBuiltinFmod(std::shared_ptr<SIRInstruction> inst);  // باقي / Fmod
             llvm::Value *emitBuiltinClamp(std::shared_ptr<SIRInstruction> inst); // قيد / Clamp
 
-            // String Functions (12)
-            llvm::Value *emitBuiltinStringLength(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinStringToUpper(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinStringToLower(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinStringFind(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinStringReplace(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinStringSubstring(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinStringTrim(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinStringSplit(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinStringJoin(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinStringStartsWith(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinStringEndsWith(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinStringContains(std::shared_ptr<SIRInstruction> inst);
+            // String Functions (12) — (AR) Phase 7 Step 6: delegate إلى StringOpsCodeGen
+            llvm::Value *emitBuiltinStringLength(std::shared_ptr<SIRInstruction> inst)     { return strops_->emitBuiltinStringLength(inst); }
+            llvm::Value *emitBuiltinStringToUpper(std::shared_ptr<SIRInstruction> inst)    { return strops_->emitBuiltinStringToUpper(inst); }
+            llvm::Value *emitBuiltinStringToLower(std::shared_ptr<SIRInstruction> inst)    { return strops_->emitBuiltinStringToLower(inst); }
+            llvm::Value *emitBuiltinStringFind(std::shared_ptr<SIRInstruction> inst)       { return strops_->emitBuiltinStringFind(inst); }
+            llvm::Value *emitBuiltinStringReplace(std::shared_ptr<SIRInstruction> inst)    { return strops_->emitBuiltinStringReplace(inst); }
+            llvm::Value *emitBuiltinStringSubstring(std::shared_ptr<SIRInstruction> inst)  { return strops_->emitBuiltinStringSubstring(inst); }
+            llvm::Value *emitBuiltinStringTrim(std::shared_ptr<SIRInstruction> inst)       { return strops_->emitBuiltinStringTrim(inst); }
+            llvm::Value *emitBuiltinStringSplit(std::shared_ptr<SIRInstruction> inst)      { return strops_->emitBuiltinStringSplit(inst); }
+            llvm::Value *emitBuiltinStringJoin(std::shared_ptr<SIRInstruction> inst)       { return strops_->emitBuiltinStringJoin(inst); }
+            llvm::Value *emitBuiltinStringStartsWith(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringStartsWith(inst); }
+            llvm::Value *emitBuiltinStringEndsWith(std::shared_ptr<SIRInstruction> inst)   { return strops_->emitBuiltinStringEndsWith(inst); }
+            llvm::Value *emitBuiltinStringContains(std::shared_ptr<SIRInstruction> inst)   { return strops_->emitBuiltinStringContains(inst); }
 
             // ================================================================
             // (AR) دوال مساعدة للخرائط (Maps) — تُنشأ كدوال LLVM داخلية عند الحاجة
@@ -1462,6 +1466,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 5: مكوّن فرعي لعمليات المصفوفات (Array New/Get/Set/Len/Concat + StringNew + bounds helpers)
             std::unique_ptr<ArrayOpsCodeGen> arr_;
+
+            // (AR) Phase 7 Step 6: مكوّن فرعي لعمليات النصوص (17 method)
+            std::unique_ptr<StringOpsCodeGen> strops_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
