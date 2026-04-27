@@ -16,6 +16,8 @@
 // - AST headers (ast_node.h, expressions.h, statements.h, declarations.h)
 // ============================================================================
 
+#include "sir_builder.h"
+#include "builders/call_builder.h"
 #include <string>
 #include <cstdio>
 #include <set>
@@ -57,7 +59,7 @@ namespace Sad
             // - إلى_رقم() / to_int: STRING_TO_I64
             // - إلى_نص() / to_string: I64_TO_STRING / F64_TO_STRING
             // ============================================================================
-            BuildResult SIRBuilder::buildFunctionCall(AST::FunctionCallNode *call)
+            BuildResult CallBuilder::buildFunctionCall(AST::FunctionCallNode *call)
             {
                 if (!call)
                 {
@@ -101,7 +103,7 @@ namespace Sad
                     std::vector<SadTypeKind> typeArgs;
                     typeArgs.reserve(tInst->typeArguments.size());
                     for (const auto &t : tInst->typeArguments)
-                        typeArgs.push_back(astTypeToSIRType(t));
+                        typeArgs.push_back(b_.astTypeToSIRType(t));
 
                     // (AR) تقييم وسائط الثوابت كـ SIROperand مباشرة من الحرفيات
                     // (EN) Lower const-generic args from AST literals into SIROperands
@@ -112,7 +114,7 @@ namespace Sad
                         auto *lit = dynamic_cast<Sad::AST::LiteralExpr *>(cExpr.get());
                         if (!lit)
                         {
-                            errors_.push_back("Error: const-generic argument must be a literal in '" + tInst->templateName + "'");
+                            b_.errors_.push_back("Error: const-generic argument must be a literal in '" + tInst->templateName + "'");
                             return BuildResult();
                         }
                         const auto &tok = lit->token;
@@ -135,12 +137,12 @@ namespace Sad
                             constArgs.push_back(SIROperand::ConstantBool(false));
                             break;
                         default:
-                            errors_.push_back("Error: unsupported const-generic literal kind in '" + tInst->templateName + "'");
+                            b_.errors_.push_back("Error: unsupported const-generic literal kind in '" + tInst->templateName + "'");
                             return BuildResult();
                         }
                     }
 
-                    std::string instName = instantiateTemplate(tInst->templateName, typeArgs, constArgs);
+                    std::string instName = b_.instantiateTemplate(tInst->templateName, typeArgs, constArgs);
                     if (instName.empty())
                         return BuildResult();
                     funcName = instName;
@@ -153,7 +155,7 @@ namespace Sad
                     // (EN) Indirect call: callee is IndexExpr (e.g. ops[0](2) or calc["add"](3,5))
                     //      Build IndexExpr first → returns closure pointer
                     //      Then build arguments and emit CLOSURE_CALL
-                    BuildResult closureResult = buildExprIndex(indexExpr);
+                    BuildResult closureResult = b_.buildExprIndex(indexExpr);
                     if (closureResult.registerName.empty())
                         return BuildResult();
 
@@ -161,13 +163,13 @@ namespace Sad
                     std::vector<SIROperand> argOps;
                     for (auto &arg : call->arguments)
                     {
-                        BuildResult argRes = buildExpression(arg.get());
+                        BuildResult argRes = b_.buildExpression(arg.get());
                         if (!argRes.registerName.empty())
                             argOps.push_back(SIROperand::Register(argRes.registerName, argRes.type));
                     }
 
                     // (AR) إصدار CLOSURE_CALL
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction closureCallInst;
                     closureCallInst.opcode = SIROpcode::CLOSURE_CALL;
                     closureCallInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -177,8 +179,8 @@ namespace Sad
                         closureCallInst.operands.push_back(argOp);
                     }
                     closureCallInst.comment = "indexed closure call";
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(closureCallInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(closureCallInst);
 
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -186,7 +188,7 @@ namespace Sad
                 {
                     // (AR) لا ندعم استدعاءات غير مباشرة حالياً
                     // (EN) We don't support indirect calls currently
-                    errors_.push_back("Error: Only direct function calls are supported");
+                    b_.errors_.push_back("Error: Only direct function calls are supported");
                     return BuildResult();
                 }
 
@@ -229,28 +231,28 @@ namespace Sad
                 // ========================================================================
                 // (AR) مرحلة 3.5: فحص إنشاء كائن بدون 'جديد' (class-as-function)
                 //      القاعدة: اسم_صنف(معاملات) بدون 'جديد' يُنشئ كائناً
-                //      يُفحص قبل بناء الوسائط لأننا نفوّض لـ buildNewObject
+                //      يُفحص قبل بناء الوسائط لأننا نفوّض لـ b_.buildNewObject
                 //      الذي يبني الوسائط ويستنتج أنواع الحقول بنفسه
                 //      هذا يتوافق مع المفسر الذي يدعم نفس القاعدة
                 // (EN) Phase 3.5: Check for class-as-function (create object without 'new')
                 //      Rule: ClassName(args) without 'new' creates an object
-                //      Checked BEFORE building arguments because we delegate to buildNewObject
+                //      Checked BEFORE building arguments because we delegate to b_.buildNewObject
                 //      which builds arguments and infers field types itself
                 // ========================================================================
                 {
-                    auto sirClass = module_->getClass(funcName);
+                    auto sirClass = b_.module_->getClass(funcName);
                     if (sirClass)
                     {
-                        // (AR) الاسم صنف → إنشاء NewExpr مؤقت وتفويض لـ buildNewObject
+                        // (AR) الاسم صنف → إنشاء NewExpr مؤقت وتفويض لـ b_.buildNewObject
                         //      نستخدم الوسائط الأصلية من AST (لم تُبنَ بعد)
-                        // (EN) Name is a class → create temp NewExpr and delegate to buildNewObject
+                        // (EN) Name is a class → create temp NewExpr and delegate to b_.buildNewObject
                         //      Using original AST arguments (not yet built)
                         Sad::AST::NewExpr tempNewExpr(funcName);
                         for (auto &arg : call->arguments)
                         {
                             tempNewExpr.arguments.push_back(std::move(arg));
                         }
-                        auto result = buildNewObject(&tempNewExpr);
+                        auto result = b_.buildNewObject(&tempNewExpr);
                         // (AR) إعادة الوسائط إلى call node الأصلي (تجنب تدمير AST)
                         // (EN) Restore arguments to original call node (avoid AST corruption)
                         for (auto &arg : tempNewExpr.arguments)
@@ -289,21 +291,21 @@ namespace Sad
                 // (EN) Also check lambda aliases — a lambda assigned to a variable (e.g. جمع = lambda...)
                 //       must take priority over builtins with the same name
                 // (AR) [إصلاح] فحص المتغيرات أيضاً — لامدا مُسندة لمتغير (مثل: تحقق = لامدا...)
-                //       لا تُسجّل في lambdaAliases_ في نظام الإغلاقات الجديد (CLOSURE_CALL)
+                //       لا تُسجّل في b_.lambdaAliases_ في نظام الإغلاقات الجديد (CLOSURE_CALL)
                 //       لكن المتغير يحمل closure، فيجب أن يأخذ الأولوية على الدوال المضمنة
                 //       بدون هذا: "تحقق" كـ builtin verify يطغى على لامدا المستخدم بنفس الاسم
                 //       نفحص فقط المتغيرات من نوع Function لتجنب طغيان متغير عادي (رقم/نص)
                 //       على دالة مضمنة بنفس الاسم (مثلاً: متغير طول = 5 لا يطغى على طول())
                 // (EN) [Fix] Also check variables — lambda assigned to variable (e.g. check = lambda...)
-                //       is NOT registered in lambdaAliases_ in new closure system (CLOSURE_CALL)
+                //       is NOT registered in b_.lambdaAliases_ in new closure system (CLOSURE_CALL)
                 //       but the variable holds a closure, so it must take priority over builtins
                 //       Without this: builtin "تحقق" (verify) shadows user's lambda with same name
                 //       Only check Function-typed variables to avoid shadowing builtins with int/string vars
                 // ========================================================================
-                VariableInfo *closureVarCheck = lookupVariable(funcName);
+                VariableInfo *closureVarCheck = b_.lookupVariable(funcName);
                 bool isClosureVariable = (closureVarCheck != nullptr && closureVarCheck->type == SadTypeKind::Function);
-                bool isUserDefinedFunction = (functionTable_.find(funcName) != functionTable_.end()) ||
-                                             (lambdaAliases_.find(funcName) != lambdaAliases_.end()) ||
+                bool isUserDefinedFunction = (b_.functionTable_.find(funcName) != b_.functionTable_.end()) ||
+                                             (b_.lambdaAliases_.find(funcName) != b_.lambdaAliases_.end()) ||
                                              isClosureVariable;
 
                 // (AR) دالة طول() - STRING_LEN للنصوص، ARRAY_LEN للمصفوفات
@@ -317,7 +319,7 @@ namespace Sad
                 //      أسماء صنوف محتملة. نعتمد على isUserDefinedFunction لتجاوزنا.
                 // (EN) First: SIMD vectors — must be checked before others because "متجه"
                 //      may conflict with potential class names. We rely on isUserDefinedFunction.
-                auto simdResult = buildBuiltinCallSimd(funcName, isUserDefinedFunction, argResults, argOperands);
+                auto simdResult = b_.buildBuiltinCallSimd(funcName, isUserDefinedFunction, argResults, argOperands);
                 if (simdResult.has_value())
                 {
 #ifdef SIR_BUILDER_DEBUG
@@ -326,7 +328,7 @@ namespace Sad
 #endif
                     return simdResult.value();
                 }
-                auto builtinResult = buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands);
+                auto builtinResult = b_.buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands);
                 if (builtinResult.has_value())
                 {
 #ifdef SIR_BUILDER_DEBUG
@@ -335,7 +337,7 @@ namespace Sad
 #endif
                     return builtinResult.value();
                 }
-                builtinResult = buildBuiltinCallSystem(funcName, isUserDefinedFunction, argResults, argOperands);
+                builtinResult = b_.buildBuiltinCallSystem(funcName, isUserDefinedFunction, argResults, argOperands);
                 if (builtinResult.has_value())
                 {
 #ifdef SIR_BUILDER_DEBUG
@@ -351,7 +353,7 @@ namespace Sad
                 // (EN) Step 2.6: Check network builtin functions
                 //      TCP/UDP sockets, HTTP client, HTTP server, network utilities
                 // ========================================================================
-                builtinResult = buildBuiltinCallNetwork(funcName, isUserDefinedFunction, argResults, argOperands);
+                builtinResult = b_.buildBuiltinCallNetwork(funcName, isUserDefinedFunction, argResults, argOperands);
                 if (builtinResult.has_value())
                 {
 #ifdef SIR_BUILDER_DEBUG
@@ -367,8 +369,8 @@ namespace Sad
                 // مثال: ف(5) حيث ف = لامدا(س): س + 1 → funcName = "__lambda_0"
                 // ========================================================================
                 {
-                    auto aliasIt = lambdaAliases_.find(funcName);
-                    if (aliasIt != lambdaAliases_.end())
+                    auto aliasIt = b_.lambdaAliases_.find(funcName);
+                    if (aliasIt != b_.lambdaAliases_.end())
                     {
                         std::string realLambdaName = aliasIt->second;
 #ifdef SIR_BUILDER_DEBUG
@@ -379,23 +381,23 @@ namespace Sad
 
                         // (AR) إضافة المتغيرات المُلتقطة كمعاملات إضافية مخفية
                         // (EN) Append captured variables as extra hidden arguments
-                        auto capIt = closureCaptures_.find(realLambdaName);
-                        if (capIt != closureCaptures_.end())
+                        auto capIt = b_.closureCaptures_.find(realLambdaName);
+                        if (capIt != b_.closureCaptures_.end())
                         {
                             for (const auto &cap : capIt->second)
                             {
-                                VariableInfo *capVar = lookupVariable(cap.varName);
+                                VariableInfo *capVar = b_.lookupVariable(cap.varName);
                                 if (capVar)
                                 {
                                     // (AR) تحميل القيمة الحالية للمتغير المُلتقط
                                     // (EN) Load current value of captured variable
-                                    std::string loadReg = newTempRegister();
+                                    std::string loadReg = b_.newTempRegister();
                                     SIRInstruction loadInst;
                                     loadInst.opcode = SIROpcode::LOAD;
                                     loadInst.result = SIROperand::Register(loadReg, capVar->type);
                                     loadInst.operands.push_back(SIROperand::Register(capVar->registerName, capVar->type));
-                                    if (currentBlock_)
-                                        currentBlock_->addInstruction(loadInst);
+                                    if (b_.currentBlock_)
+                                        b_.currentBlock_->addInstruction(loadInst);
 
                                     argOperands.push_back(SIROperand::Register(loadReg, capVar->type));
                                 }
@@ -431,13 +433,13 @@ namespace Sad
                 // ========================================================================
                 // (AR) الخطوة 3: البحث عن الدالة والحصول على نوع الإرجاع
                 // (EN) Step 3: Look up function and get return type
-                // المصدر: sir_builder.h:719 - functionTable_
+                // المصدر: sir_builder.h:719 - b_.functionTable_
                 // المصدر: sir_builder.h:162-175 - FunctionInfo struct
                 // ========================================================================
                 SadTypeKind returnType = SadTypeKind::Void; // (AR) افتراضياً void
 
-                auto it = functionTable_.find(funcName);
-                if (it != functionTable_.end())
+                auto it = b_.functionTable_.find(funcName);
+                if (it != b_.functionTable_.end())
                 {
                     // (AR) الدالة موجودة - استخدم نوع الإرجاع (sir_builder.h:165)
                     // (EN) Function found - use return type
@@ -450,11 +452,11 @@ namespace Sad
                     // ================================================================
                     // (AR) استنتاج أنواع المعاملات من موقع الاستدعاء
                     //      إذا كان المعامل I64 (افتراضي/غير محدد) والوسيط STRING/F64/BOOL
-                    //      نحدّث نوع المعامل في functionTable_ فقط (ليس في SIRFunction المبنية)
+                    //      نحدّث نوع المعامل في b_.functionTable_ فقط (ليس في SIRFunction المبنية)
                     //      لأن SIRFunction قد تكون بُنيت بالفعل بأنواع مستنتجة صحيحة
                     // (EN) Infer parameter types from call-site arguments
                     //      If param is I64 (default/unknown) and arg is STRING/F64/BOOL,
-                    //      update param type in functionTable_ only (not in built SIRFunction)
+                    //      update param type in b_.functionTable_ only (not in built SIRFunction)
                     //      because SIRFunction may already have correct inferred types
                     // ================================================================
                     auto &funcInfo = it->second;
@@ -551,13 +553,13 @@ namespace Sad
                                 {
                                     continue; // (AR) لا يمكن تحويل هذا النوع
                                 }
-                                std::string strReg = newTempRegister();
+                                std::string strReg = b_.newTempRegister();
                                 SIRInstruction convInst;
                                 convInst.opcode = convOp;
                                 convInst.result = SIROperand::Register(strReg, SadTypeKind::String);
                                 convInst.operands.push_back(argOperands[i]);
-                                if (currentBlock_)
-                                    currentBlock_->addInstruction(convInst);
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->addInstruction(convInst);
                                 argOperands[i] = SIROperand::Register(strReg, SadTypeKind::String);
                             }
                         }
@@ -572,7 +574,7 @@ namespace Sad
                 {
                     // (AR) الدالة غير موجودة - تحقق إذا كانت قالباً
                     // (EN) Function not found - check if it's a template
-                    if (templateFunctions_.find(funcName) != templateFunctions_.end())
+                    if (b_.templateFunctions_.find(funcName) != b_.templateFunctions_.end())
                     {
                         std::cout << "[Template] Found template function: " << funcName << std::endl;
 
@@ -586,12 +588,12 @@ namespace Sad
 
                         // (AR) إنشاء نسخة من القالب مع الأنواع المستنتجة
                         // (EN) Instantiate template with inferred types
-                        std::string instanceName = instantiateTemplate(funcName, inferredTypes);
+                        std::string instanceName = b_.instantiateTemplate(funcName, inferredTypes);
 
                         if (instanceName.empty())
                         {
                             std::cerr << "[Template Error] Failed to instantiate template: " << funcName << std::endl;
-                            errors_.push_back("Error: Failed to instantiate template '" + funcName + "'");
+                            b_.errors_.push_back("Error: Failed to instantiate template '" + funcName + "'");
                             return BuildResult();
                         }
 
@@ -601,8 +603,8 @@ namespace Sad
 
                         // (AR) ابحث عن نوع الإرجاع للنسخة المُنشأة
                         // (EN) Look up return type for instantiated function
-                        auto instIt = functionTable_.find(funcName);
-                        if (instIt != functionTable_.end())
+                        auto instIt = b_.functionTable_.find(funcName);
+                        if (instIt != b_.functionTable_.end())
                         {
                             returnType = instIt->second.returnType;
                         }
@@ -626,20 +628,20 @@ namespace Sad
 
                 // ========================================================================
                 // (AR) الخطوة 3.5: فحص الاستدعاء عبر بنية إغلاق (Closure)
-                //      إذا كان الاسم ليس في functionTable_ ولا lambdaAliases_ ولا templateFunctions_
+                //      إذا كان الاسم ليس في b_.functionTable_ ولا b_.lambdaAliases_ ولا b_.templateFunctions_
                 //      لكنه متغير معروف → يحمل مؤشر بنية إغلاق (closure struct)
                 //      نُصدر CLOSURE_CALL الذي يستخرج fn_ptr و env_ptr من البنية
                 //      ويستدعي fn_ptr(args..., env_ptr) — يعمل مع/بدون التقاطات
                 // (EN) Step 3.5: Check for closure call via closure struct
-                //      If name is not in functionTable_, lambdaAliases_, or templateFunctions_
+                //      If name is not in b_.functionTable_, b_.lambdaAliases_, or b_.templateFunctions_
                 //      but IS a known variable → it holds a closure struct pointer
                 //      Emit CLOSURE_CALL which extracts fn_ptr + env_ptr and calls fn(args, env)
                 // ========================================================================
-                if (functionTable_.find(funcName) == functionTable_.end() &&
-                    lambdaAliases_.find(funcName) == lambdaAliases_.end() &&
-                    templateFunctions_.find(funcName) == templateFunctions_.end())
+                if (b_.functionTable_.find(funcName) == b_.functionTable_.end() &&
+                    b_.lambdaAliases_.find(funcName) == b_.lambdaAliases_.end() &&
+                    b_.templateFunctions_.find(funcName) == b_.templateFunctions_.end())
                 {
-                    VariableInfo *varInfo = lookupVariable(funcName);
+                    VariableInfo *varInfo = b_.lookupVariable(funcName);
                     if (varInfo)
                     {
 #ifndef NDEBUG
@@ -648,30 +650,30 @@ namespace Sad
 #endif
                         // (AR) تحميل مؤشر بنية الإغلاق من المتغير
                         // (EN) Load the closure struct pointer from the variable
-                        std::string loadReg = newTempRegister();
+                        std::string loadReg = b_.newTempRegister();
                         SIRInstruction loadInst;
                         loadInst.opcode = SIROpcode::LOAD;
                         loadInst.result = SIROperand::Register(loadReg, SadTypeKind::Function);
                         loadInst.operands.push_back(SIROperand::Register(varInfo->registerName, SadTypeKind::Function));
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(loadInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(loadInst);
 
                         // (AR) تحديد نوع إرجاع الإغلاق:
-                        //      الإغلاقات ليست في functionTable_ لذا returnType قد يكون Void خطأً.
+                        //      الإغلاقات ليست في b_.functionTable_ لذا returnType قد يكون Void خطأً.
                         //      [إصلاح] نبحث أولاً عن اسم دالة اللامدا المرتبطة بالمتغير
-                        //      ونأخذ نوع الإرجاع من functionTable_ — هذا يحافظ على Boolean
+                        //      ونأخذ نوع الإرجاع من b_.functionTable_ — هذا يحافظ على Boolean
                         //      بدلاً من التراجع للافتراضي Integer.
                         //      مثال: تحقق = لامدا(س) => س > 10 → closureLambdaName = "__lambda_0"
-                        //             → functionTable_["__lambda_0"].returnType = Boolean
+                        //             → b_.functionTable_["__lambda_0"].returnType = Boolean
                         //             → CLOSURE_CALL result.dataType = Boolean → يطبع صحيح/خطأ
                         // (EN) Determine closure return type:
                         //      [Fix] First look up the associated lambda function name from VariableInfo
-                        //      and get return type from functionTable_ — preserves Boolean type
+                        //      and get return type from b_.functionTable_ — preserves Boolean type
                         SadTypeKind closureRetType = returnType;
                         if (!varInfo->closureLambdaName.empty())
                         {
-                            auto lambdaIt = functionTable_.find(varInfo->closureLambdaName);
-                            if (lambdaIt != functionTable_.end())
+                            auto lambdaIt = b_.functionTable_.find(varInfo->closureLambdaName);
+                            if (lambdaIt != b_.functionTable_.end())
                             {
                                 closureRetType = lambdaIt->second.returnType;
                             }
@@ -689,7 +691,7 @@ namespace Sad
                         //      First operand = closure struct pointer
                         //      Rest = explicit call arguments
                         //      CLOSURE_CALL extracts fn_ptr + env_ptr and calls fn(args, env)
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIRInstruction closureCallInst;
                         closureCallInst.opcode = SIROpcode::CLOSURE_CALL;
                         closureCallInst.result = SIROperand::Register(resultReg, closureRetType);
@@ -706,8 +708,8 @@ namespace Sad
                         {
                             closureCallInst.comment = "lambda:" + varInfo->closureLambdaName;
                         }
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(closureCallInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(closureCallInst);
 
                         BuildResult closureResult(resultReg, closureRetType);
                         closureResult.isDirectValue = true;
@@ -731,7 +733,7 @@ namespace Sad
                 //      - If yes: function is "pass-through", returns the lambda's result
                 //      - Use the passed lambda's return type instead of default Integer
                 // ================================================================
-                if (returnType == SadTypeKind::Integer && it != functionTable_.end() &&
+                if (returnType == SadTypeKind::Integer && it != b_.functionTable_.end() &&
                     it->second.sirFunction)
                 {
                     auto &funcInfo = it->second;
@@ -830,11 +832,11 @@ namespace Sad
                                 if (auto *argVarExpr = dynamic_cast<const Sad::AST::VariableExpr *>(
                                         call->arguments[i].get()))
                                 {
-                                    VariableInfo *argVarInfo = lookupVariable(argVarExpr->name);
+                                    VariableInfo *argVarInfo = b_.lookupVariable(argVarExpr->name);
                                     if (argVarInfo && !argVarInfo->closureLambdaName.empty())
                                     {
-                                        auto lambdaIt = functionTable_.find(argVarInfo->closureLambdaName);
-                                        if (lambdaIt != functionTable_.end() &&
+                                        auto lambdaIt = b_.functionTable_.find(argVarInfo->closureLambdaName);
+                                        if (lambdaIt != b_.functionTable_.end() &&
                                             lambdaIt->second.returnType != SadTypeKind::Integer &&
                                             lambdaIt->second.returnType != SadTypeKind::Void)
                                         {
@@ -860,7 +862,7 @@ namespace Sad
                 // المصدر: sir_instruction.h:231-238 - SIRInstruction::Call()
                 // المصدر: sir_types.h:390-395 - SIROperand::Function()
                 // ========================================================================
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
 
                 // (AR) إنشاء معامل الدالة (sir_types.h:390)
                 // (EN) Create function operand
@@ -877,16 +879,16 @@ namespace Sad
 
                 // ================================================================
                 // (AR) تمرير اسم الصنف المُرجع إلى الباكند عبر حقل comment:
-                //      إذا كانت الدالة تُرجع كائناً (لديها returnClassName في functionTable_)،
+                //      إذا كانت الدالة تُرجع كائناً (لديها returnClassName في b_.functionTable_)،
                 //      نُخزّن اسم الصنف في comment بتنسيق "__return_class__:ClassName"
                 //      حتى يتمكن emitCall في الباكند من تحديث objectClassMap.
                 //      هذا ضروري لأن SIRInstruction لا يحمل metadata للأنواع المركبة.
                 // (EN) Pass return class name to backend via comment field:
-                //      If function returns an object (has returnClassName in functionTable_),
+                //      If function returns an object (has returnClassName in b_.functionTable_),
                 //      store class name in comment as "__return_class__:ClassName"
                 //      so emitCall in backend can update objectClassMap.
                 // ================================================================
-                if (it != functionTable_.end() && !it->second.returnClassName.empty())
+                if (it != b_.functionTable_.end() && !it->second.returnClassName.empty())
                 {
                     callInst.comment = "__return_class__:" + it->second.returnClassName;
                 }
@@ -894,11 +896,11 @@ namespace Sad
                 // ========================================================================
                 // (AR) الخطوة 5: إضافة التعليمة إلى الكتلة الحالية
                 // (EN) Step 5: Add instruction to current block
-                // المصدر: sir_builder.h:712 - currentBlock_
+                // المصدر: sir_builder.h:712 - b_.currentBlock_
                 // ========================================================================
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(callInst);
+                    b_.currentBlock_->instructions.push_back(callInst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildFunctionCall: added CALL instruction to block" << std::endl;
 #endif
@@ -914,7 +916,7 @@ namespace Sad
                 // (AR) الخطوة 6: إذا كانت الدالة مولّد، أضف GENERATOR_CONSUME لجمع القيم
                 // (EN) Step 6: If callee is a generator, add GENERATOR_CONSUME to collect values
                 // ========================================================================
-                if (it != functionTable_.end() && it->second.isGenerator)
+                if (it != b_.functionTable_.end() && it->second.isGenerator)
                 {
 #ifdef SIR_BUILDER_DEBUG
                     std::cerr << "[GEN] Emitting GENERATOR_CONSUME for generator '" << funcName << "'" << std::endl;
@@ -922,16 +924,16 @@ namespace Sad
 
                     // (AR) CALL أعاد المقبض (PTR) — الآن نستهلكه
                     // (EN) CALL returned the handle (PTR) — now consume it
-                    std::string consumeReg = newTempRegister();
+                    std::string consumeReg = b_.newTempRegister();
                     SIRInstruction consumeInst;
                     consumeInst.opcode = SIROpcode::GENERATOR_CONSUME;
                     consumeInst.result = SIROperand::Register(consumeReg, SadTypeKind::Integer);
                     consumeInst.operands.push_back(SIROperand::Register(resultReg, SadTypeKind::Pointer));
                     consumeInst.comment = "consume generator yields";
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(consumeInst);
+                        b_.currentBlock_->addInstruction(consumeInst);
                     }
 
                     return BuildResult(consumeReg, SadTypeKind::Integer);
@@ -944,28 +946,28 @@ namespace Sad
 
                 // ================================================================
                 // (AR) تتبع نوع الصنف المُرجع من الدالة:
-                //      إذا كانت الدالة مُسجّلة في functionTable_ وتحمل returnClassName،
+                //      إذا كانت الدالة مُسجّلة في b_.functionTable_ وتحمل returnClassName،
                 //      ننقل هذه المعلومة إلى BuildResult حتى يتمكن buildLocalVariable
-                //      من تسجيل المتغير في classInstanceTypes_.
+                //      من تسجيل المتغير في b_.classInstanceTypes_.
                 //      مثال: متغير ن = اصنع_نقطة() → result.className = "نقطة"
                 //      هذا يحل مشكلة: الوصول لحقول كائن مُرجع من دالة كان يتعطل (segfault)
                 //      لأن المترجم لم يكن يعرف أن المتغير يحمل كائناً
                 // (EN) Track return class type from function:
-                //      If function is in functionTable_ and has returnClassName,
+                //      If function is in b_.functionTable_ and has returnClassName,
                 //      transfer this info to BuildResult so buildLocalVariable can
-                //      register the variable in classInstanceTypes_.
+                //      register the variable in b_.classInstanceTypes_.
                 //      This fixes: accessing fields of object returned from function was crashing
                 //      because compiler didn't know the variable holds an object
                 // ================================================================
                 BuildResult result(resultReg, returnType);
-                if (it != functionTable_.end() && !it->second.returnClassName.empty())
+                if (it != b_.functionTable_.end() && !it->second.returnClassName.empty())
                 {
                     result.className = it->second.returnClassName;
-                    // (AR) سجّل أيضاً في classInstanceTypes_ بالسجل المؤقت
+                    // (AR) سجّل أيضاً في b_.classInstanceTypes_ بالسجل المؤقت
                     //      حتى لو لم يُخزّن في متغير مباشرة
-                    // (EN) Also register in classInstanceTypes_ by temp register
+                    // (EN) Also register in b_.classInstanceTypes_ by temp register
                     //      even if not stored in variable directly
-                    classInstanceTypes_[resultReg] = it->second.returnClassName;
+                    b_.classInstanceTypes_[resultReg] = it->second.returnClassName;
                 }
 
                 // ================================================================
@@ -983,7 +985,7 @@ namespace Sad
                 //      then a() was returning i64 as number because closureLambdaName
                 //      was not propagated from FunctionInfo.returnLambdaName.
                 // ================================================================
-                if (it != functionTable_.end() && !it->second.returnLambdaName.empty())
+                if (it != b_.functionTable_.end() && !it->second.returnLambdaName.empty())
                 {
                     result.closureLambdaName = it->second.returnLambdaName;
                 }
@@ -991,37 +993,37 @@ namespace Sad
                 // ================================================================
                 // (AR) [Fix #099] نشر أنواع القنوات من معاملات الدالة إلى وسائط الاستدعاء
                 //      عندما تُمرر قناة كوسيط لدالة تُرسل إليها (أرسل)، يُسجّل
-                //      نوع العنصر في channelTypeMap_ باسم المعامل (داخل الدالة).
+                //      نوع العنصر في b_.channelTypeMap_ باسم المعامل (داخل الدالة).
                 //      لكن عند الاستقبال (استقبل) من نفس القناة في النطاق الخارجي،
                 //      الاسم مختلف (ق_تحيات vs ق) فلا يُعثر على النوع.
-                //      الحل: عند الاستدعاء، ننشر channelTypeMap_ من أسماء المعاملات
+                //      الحل: عند الاستدعاء، ننشر b_.channelTypeMap_ من أسماء المعاملات
                 //      إلى أسماء الوسائط في موقع الاستدعاء.
                 // (EN) [Fix #099] Propagate channel types from function params to call-site args
                 //      When a channel is passed to a function that sends to it,
                 //      the element type is registered under the parameter name.
                 //      But when receiving from the same channel in the outer scope,
                 //      the variable name differs, so type lookup fails.
-                //      Fix: at call site, propagate channelTypeMap_ entries from
+                //      Fix: at call site, propagate b_.channelTypeMap_ entries from
                 //      parameter names to argument variable names.
                 // ================================================================
-                if (it != functionTable_.end())
+                if (it != b_.functionTable_.end())
                 {
                     auto &funcInfo = it->second;
                     for (size_t i = 0; i < funcInfo.parameters.size() && i < call->arguments.size(); i++)
                     {
-                        auto ctIt = channelTypeMap_.find(funcInfo.parameters[i].name);
-                        if (ctIt != channelTypeMap_.end())
+                        auto ctIt = b_.channelTypeMap_.find(funcInfo.parameters[i].name);
+                        if (ctIt != b_.channelTypeMap_.end())
                         {
                             // (AR) وُجد نوع قناة مُسجّل باسم المعامل — ننشره لاسم الوسيط
                             // (EN) Found channel type registered under param name — propagate to arg name
                             if (auto *argVar = dynamic_cast<const AST::VariableExpr *>(
                                     call->arguments[i].get()))
                             {
-                                channelTypeMap_[argVar->name] = ctIt->second;
+                                b_.channelTypeMap_[argVar->name] = ctIt->second;
                             }
                             if (i < argOperands.size())
                             {
-                                channelTypeMap_[argOperands[i].name] = ctIt->second;
+                                b_.channelTypeMap_[argOperands[i].name] = ctIt->second;
                             }
                         }
                     }

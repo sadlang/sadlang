@@ -21,6 +21,8 @@
 //   - compiler/include/frontend/sir_builder.h — التصريحات
 // ============================================================================
 
+#include "sir_builder.h"
+#include "builders/call_builder.h"
 #include <string>
 #include <cstdio>
 #include "sir_builder.h"
@@ -55,13 +57,13 @@ namespace Sad
             //   nullopt = ليس كائناً قابلاً للاستدعاء، يتابع المستدعي
             //   some(result) = تم الاستدعاء، يجب الإرجاع الفوري بهذه النتيجة
             // ============================================================================
-            std::optional<BuildResult> SIRBuilder::buildCallableObjectInvoke(
+            std::optional<BuildResult> CallBuilder::buildCallableObjectInvoke(
                 AST::FunctionCallNode *call, const std::string &funcName)
             {
                 // (AR) البحث عن اسم الدالة في جدول نوع كائنات الصنف
                 // (EN) Search for function name in class instance types table
-                auto classIt = classInstanceTypes_.find(funcName);
-                if (classIt == classInstanceTypes_.end())
+                auto classIt = b_.classInstanceTypes_.find(funcName);
+                if (classIt == b_.classInstanceTypes_.end())
                     return std::nullopt;
 
                 std::string objClassName = classIt->second;
@@ -75,13 +77,13 @@ namespace Sad
                 while (!searchClass.empty())
                 {
                     fullOpName = searchClass + ".__op_call__";
-                    auto funcIt = functionTable_.find(fullOpName);
-                    if (funcIt != functionTable_.end())
+                    auto funcIt = b_.functionTable_.find(fullOpName);
+                    if (funcIt != b_.functionTable_.end())
                     {
                         found = true;
                         break;
                     }
-                    auto parentClass = module_->getClass(searchClass);
+                    auto parentClass = b_.module_->getClass(searchClass);
                     if (parentClass && !parentClass->parentClass.empty())
                     {
                         searchClass = parentClass->parentClass;
@@ -104,7 +106,7 @@ namespace Sad
                 std::vector<SIROperand> callArgOps;
                 for (const auto &arg : call->arguments)
                 {
-                    BuildResult argResult = buildExpression(arg.get());
+                    BuildResult argResult = b_.buildExpression(arg.get());
                     if (argResult.isConstant && !argResult.constantValue.empty())
                     {
                         switch (argResult.type)
@@ -133,11 +135,11 @@ namespace Sad
                 // (AR) إصدار OBJECT_CALL — استدعاء العامل على الكائن
                 // (EN) Emit OBJECT_CALL — invoke operator on object
                 // ====================================================================
-                std::string resultReg = newTempRegister();
-                auto &opInfo = functionTable_[fullOpName];
+                std::string resultReg = b_.newTempRegister();
+                auto &opInfo = b_.functionTable_[fullOpName];
                 SadTypeKind returnType = opInfo.returnType;
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
                     SIRInstruction callInst;
                     callInst.opcode = SIROpcode::OBJECT_CALL;
@@ -145,7 +147,7 @@ namespace Sad
 
                     // (AR) البحث عن سجل الكائن من جدول المتغيرات
                     // (EN) Look up object register from variable table
-                    VariableInfo *varInfo = lookupVariable(funcName);
+                    VariableInfo *varInfo = b_.lookupVariable(funcName);
                     std::string objReg = varInfo ? varInfo->registerName : ("%" + funcName);
 
                     callInst.operands.push_back(SIROperand::Register(objReg, SadTypeKind::Integer));
@@ -154,7 +156,7 @@ namespace Sad
                     {
                         callInst.operands.push_back(op);
                     }
-                    currentBlock_->addInstruction(callInst);
+                    b_.currentBlock_->addInstruction(callInst);
                 }
 
                 BuildResult result(resultReg, returnType);
@@ -177,7 +179,7 @@ namespace Sad
             //   nullopt = ليس استدعاء باني الأب، يتابع المستدعي
             //   some(result) = تم استدعاء الباني، يجب الإرجاع الفوري بهذه النتيجة
             // ============================================================================
-            std::optional<BuildResult> SIRBuilder::buildSuperConstructorCall(
+            std::optional<BuildResult> CallBuilder::buildSuperConstructorCall(
                 AST::FunctionCallNode *call, const std::string &funcName)
             {
                 // (AR) التحقق: هل هو استدعاء باني الأب وهل نحن داخل صنف؟
@@ -188,7 +190,7 @@ namespace Sad
                      funcName == "\xD8\xA7\xD8\xB3\xD8\xA7\xD8\xB3" ||                 // اساس
                      funcName == "\xD8\xA7\xD9\x84\xD8\xA7\xD8\xB3\xD8\xA7\xD8\xB3" || // الاساس
                      funcName == "super") &&
-                    !currentClassName_.empty();
+                    !b_.currentClassName_.empty();
 
                 if (!isSuperCall)
                     return std::nullopt;
@@ -197,7 +199,7 @@ namespace Sad
                 // (AR) البحث عن الصنف الأب وإصدار CALL لبانيه
                 // (EN) Find parent class and emit CALL to its constructor
                 // ====================================================================
-                auto sirClass = module_->getClass(currentClassName_);
+                auto sirClass = b_.module_->getClass(b_.currentClassName_);
                 if (sirClass && !sirClass->parentClass.empty())
                 {
                     // (AR) اسم باني الأب: اسم_الصنف.بناء
@@ -211,13 +213,13 @@ namespace Sad
 
                     for (const auto &arg : call->arguments)
                     {
-                        BuildResult argResult = buildExpression(arg.get());
+                        BuildResult argResult = b_.buildExpression(arg.get());
                         superArgs.push_back(SIROperand::Register(argResult.registerName, argResult.type));
                     }
 
                     // (AR) إصدار تعليمة CALL لباني الأب
                     // (EN) Emit CALL instruction for parent constructor
-                    std::string superResultReg = newTempRegister();
+                    std::string superResultReg = b_.newTempRegister();
                     SIRInstruction callInst;
                     callInst.opcode = SIROpcode::CALL;
                     callInst.result = SIROperand::Register(superResultReg, SadTypeKind::Void);
@@ -226,8 +228,8 @@ namespace Sad
                     {
                         callInst.operands.push_back(op);
                     }
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(callInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(callInst);
 
                     return BuildResult(superResultReg, SadTypeKind::Void);
                 }

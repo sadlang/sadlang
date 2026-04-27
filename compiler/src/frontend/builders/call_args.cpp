@@ -21,6 +21,8 @@
 //   - compiler/include/frontend/sir_builder.h — التصريحات
 // ============================================================================
 
+#include "sir_builder.h"
+#include "builders/call_builder.h"
 #include <string>
 #include <cstdio>
 #include "sir_builder.h"
@@ -44,28 +46,28 @@ namespace Sad
             // ============================================================================
             // buildCallArgumentsList — بناء قائمة الوسائط لاستدعاء دالة
             // ============================================================================
-            // (AR) يُقيّم كل وسيط باستخدام buildExpression ثم يحوّله إلى SIROperand
+            // (AR) يُقيّم كل وسيط باستخدام b_.buildExpression ثم يحوّله إلى SIROperand
             //      مع الأخذ بعين الاعتبار الثوابت (Integer, Float, String, Boolean)
             //      مقابل السجلات (registers)
             //
-            // (EN) Evaluates each argument using buildExpression then converts to SIROperand
+            // (EN) Evaluates each argument using b_.buildExpression then converts to SIROperand
             //      Handles constants (Integer, Float, String, Boolean)
             //      vs registers correctly
             //
             // الإرجاع / Return:
             //   true = نجح بناء جميع الوسائط
-            //   false = فشل بناء أحد الوسائط (تم تسجيل الخطأ في errors_)
+            //   false = فشل بناء أحد الوسائط (تم تسجيل الخطأ في b_.errors_)
             // ============================================================================
-            bool SIRBuilder::buildCallArgumentsList(
+            bool CallBuilder::buildCallArgumentsList(
                 AST::FunctionCallNode *call,
                 std::vector<SIROperand> &outArgOperands,
                 std::vector<BuildResult> &outArgResults)
             {
                 for (const auto &arg : call->arguments)
                 {
-                    // (AR) بناء كل وسيط باستخدام buildExpression
-                    // (EN) Build each argument using buildExpression
-                    BuildResult argResult = buildExpression(arg.get());
+                    // (AR) بناء كل وسيط باستخدام b_.buildExpression
+                    // (EN) Build each argument using b_.buildExpression
+                    BuildResult argResult = b_.buildExpression(arg.get());
 
                     // (AR) فحص الفشل: إذا كان فارغاً وليس ثابتاً
                     // (EN) Check failure: if empty and not a constant
@@ -74,7 +76,7 @@ namespace Sad
 #ifndef NDEBUG
                         std::cout << "[DEBUG] buildCallArgumentsList: failed to build argument" << std::endl;
 #endif
-                        errors_.push_back("Error: Failed to build function argument");
+                        b_.errors_.push_back("Error: Failed to build function argument");
                         return false;
                     }
 
@@ -176,7 +178,7 @@ namespace Sad
             //      looks up default values in AST and builds them as additional arguments.
             //      Supports: function calc(a, b = 0) → calc(5)
             // ============================================================================
-            void SIRBuilder::fillDefaultCallArguments(
+            void CallBuilder::fillDefaultCallArguments(
                 AST::FunctionCallNode *call,
                 const std::string &funcName,
                 std::vector<SIROperand> &argOperands,
@@ -184,8 +186,8 @@ namespace Sad
             {
                 // (AR) البحث عن تعريف الدالة في جدول الدوال
                 // (EN) Look up function definition in function table
-                auto ftIt = functionTable_.find(funcName);
-                if (ftIt == functionTable_.end() || !ftIt->second.astDecl)
+                auto ftIt = b_.functionTable_.find(funcName);
+                if (ftIt == b_.functionTable_.end() || !ftIt->second.astDecl)
                     return;
 
                 auto *astDecl = ftIt->second.astDecl;
@@ -206,7 +208,7 @@ namespace Sad
 
                     // (AR) بناء التعبير الافتراضي من AST
                     // (EN) Build default value expression from AST
-                    auto defResult = buildExpression(astDecl->parameters[i].defaultValue.get());
+                    auto defResult = b_.buildExpression(astDecl->parameters[i].defaultValue.get());
                     argResults.push_back(defResult);
 
                     SIROperand defOp;

@@ -15,6 +15,8 @@
 // (EN) Split from sir_builder_calls_objects.cpp per CW-05 rule
 // ============================================================================
 
+#include "sir_builder.h"
+#include "builders/call_builder.h"
 #include <string>
 #include <cstdio>
 #include "sir_builder.h"
@@ -46,7 +48,7 @@ namespace Sad
             // - methodName: std::string (line 248)
             // - arguments: std::vector<std::unique_ptr<Expr>> (line 249)
             // ============================================================================
-            BuildResult SIRBuilder::buildMethodCall(AST::MethodCallExpr *methodCallExpr)
+            BuildResult CallBuilder::buildMethodCall(AST::MethodCallExpr *methodCallExpr)
             {
                 if (!methodCallExpr)
                 {
@@ -60,15 +62,15 @@ namespace Sad
                 // ================================================================
                 // (AR) ?????? ????: ??????? ???? ????? ??? ??? ?????
                 //      ????: ????.??() � "????" ??? ??? ???? ?????
-                //      ????? ??? ??? staticMethods_ ??????? ???? self
+                //      ????? ??? ??? b_.staticMethods_ ??????? ???? self
                 // (EN) Early intercept: static method call via class name
                 //      Example: Counter.increment() � "Counter" is class, not variable
-                //      Detect via staticMethods_ and call without self
+                //      Detect via b_.staticMethods_ and call without self
                 // ================================================================
                 if (auto *varExpr = dynamic_cast<Sad::AST::VariableExpr *>(methodCallExpr->object.get()))
                 {
                     std::string staticMethodKey = varExpr->name + "." + methodCallExpr->methodName;
-                    if (staticMethods_.count(staticMethodKey) > 0)
+                    if (b_.staticMethods_.count(staticMethodKey) > 0)
                     {
                         // (AR) ???? ????? � ??????? ???? self
                         // (EN) Static method � call without self
@@ -79,7 +81,7 @@ namespace Sad
                         std::vector<SIROperand> args;
                         for (const auto &arg : methodCallExpr->arguments)
                         {
-                            auto argResult = buildExpression(arg.get());
+                            auto argResult = b_.buildExpression(arg.get());
                             if (argResult.isConstant && !argResult.constantValue.empty())
                             {
                                 if (argResult.type == SadTypeKind::String)
@@ -107,13 +109,13 @@ namespace Sad
                         // (AR) ????? ??? ???????
                         // (EN) Determine return type
                         SadTypeKind returnType = SadTypeKind::Integer;
-                        auto ftIt = functionTable_.find(staticMethodKey);
-                        if (ftIt != functionTable_.end())
+                        auto ftIt = b_.functionTable_.find(staticMethodKey);
+                        if (ftIt != b_.functionTable_.end())
                         {
                             returnType = ftIt->second.returnType;
                         }
 
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIRInstruction callInst(SIROpcode::CALL);
                         callInst.result = SIROperand::Register(resultReg, returnType);
                         callInst.operands.push_back(SIROperand::Function(fullName));
@@ -121,8 +123,8 @@ namespace Sad
                             callInst.operands.push_back(a);
                         callInst.comment = "Static method call: " + staticMethodKey;
 
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(callInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(callInst);
 
                         return BuildResult(resultReg, returnType);
                     }
@@ -130,7 +132,7 @@ namespace Sad
 
                 // (AR) ?????? 1: ???? ????? ??????
                 // (EN) Step 1: Build object expression
-                auto objResult = buildExpression(methodCallExpr->object.get());
+                auto objResult = b_.buildExpression(methodCallExpr->object.get());
 
                 // (AR) ?????? 2: ????? ??? ????? ?? ???????
                 // (EN) Step 2: Determine class name from variable
@@ -140,15 +142,15 @@ namespace Sad
                 // (EN) Try to find class name from VariableExpr
                 if (auto varExpr = dynamic_cast<Sad::AST::VariableExpr *>(methodCallExpr->object.get()))
                 {
-                    // (AR) ????? ?? ??????? ??????? ?? classInstanceTypes_
-                    // (EN) Look up variable info in classInstanceTypes_
-                    if (classInstanceTypes_.find(varExpr->name) != classInstanceTypes_.end())
+                    // (AR) ????? ?? ??????? ??????? ?? b_.classInstanceTypes_
+                    // (EN) Look up variable info in b_.classInstanceTypes_
+                    if (b_.classInstanceTypes_.find(varExpr->name) != b_.classInstanceTypes_.end())
                     {
-                        className = classInstanceTypes_[varExpr->name];
+                        className = b_.classInstanceTypes_[varExpr->name];
                     }
                     else
                     {
-                        VariableInfo *objVar = lookupVariable(varExpr->name);
+                        VariableInfo *objVar = b_.lookupVariable(varExpr->name);
                         if (objVar && !objVar->className.empty())
                         {
                             className = objVar->className;
@@ -156,11 +158,11 @@ namespace Sad
                     }
                 }
 
-                // (AR) ??? '???' (this), ?????? currentClassName_
-                // (EN) If 'this', use currentClassName_
+                // (AR) ??? '???' (this), ?????? b_.currentClassName_
+                // (EN) If 'this', use b_.currentClassName_
                 if (auto thisExpr = dynamic_cast<Sad::AST::ThisExpr *>(methodCallExpr->object.get()))
                 {
-                    className = currentClassName_;
+                    className = b_.currentClassName_;
                 }
 
                 // ================================================================
@@ -173,10 +175,10 @@ namespace Sad
                 //      Must be before smart lookup block which would clear className
                 // ================================================================
                 // (AR) استدلال نوع الكائن عند غياب className (شائع مع معاملات الدوال)
-                //      مثال: دالة f(ق) ثم ق.أرسل(...) حيث لا يوجد classInstanceTypes_ للمعامل.
+                //      مثال: دالة f(ق) ثم ق.أرسل(...) حيث لا يوجد b_.classInstanceTypes_ للمعامل.
                 //      نحدد القناة من اسم الطريقة لتفعيل اعتراض ASYNC_CHANNEL_*.
                 // (EN) Infer pseudo object class when className is missing (common for parameters).
-                //      Example: f(ch) then ch.send(...), no classInstanceTypes_ entry for parameter.
+                //      Example: f(ch) then ch.send(...), no b_.classInstanceTypes_ entry for parameter.
                 //      Classify as channel from method name to enable ASYNC_CHANNEL_* intercepts.
                 if (className.empty())
                 {
@@ -205,7 +207,7 @@ namespace Sad
                 if (className == "__channel__")
                 {
 
-                    auto chanResult = buildChannelMethodCall(methodCallExpr, objResult);
+                    auto chanResult = b_.buildChannelMethodCall(methodCallExpr, objResult);
 
                     if (chanResult)
                         return *chanResult;
@@ -218,7 +220,7 @@ namespace Sad
                 if (className == "__mutex__")
                 {
 
-                    auto mutResult = buildMutexMethodCall(methodCallExpr, objResult);
+                    auto mutResult = b_.buildMutexMethodCall(methodCallExpr, objResult);
 
                     if (mutResult)
                         return *mutResult;
@@ -231,7 +233,7 @@ namespace Sad
                 if (className == "__future__")
                 {
 
-                    auto futResult = buildFutureMethodCall(methodCallExpr, objResult);
+                    auto futResult = b_.buildFutureMethodCall(methodCallExpr, objResult);
 
                     if (futResult)
                         return *futResult;
@@ -244,7 +246,7 @@ namespace Sad
                 if (className == "__waitgroup__")
                 {
 
-                    auto wgResult = buildWaitGroupMethodCall(methodCallExpr, objResult);
+                    auto wgResult = b_.buildWaitGroupMethodCall(methodCallExpr, objResult);
 
                     if (wgResult)
                         return *wgResult;
@@ -258,9 +260,9 @@ namespace Sad
                 int methodClassCount = 0;
 
                 // (AR) بحث ذكي عن الصنف: بحث في جميع الأصناف المعروفة عن الطريقة المطلوبة.
-                //      أفضل من استخدام currentClassName_ الذي قد يكون الصنف الخاطئ.
+                //      أفضل من استخدام b_.currentClassName_ الذي قد يكون الصنف الخاطئ.
                 // (EN) Smart class lookup: search all known classes for matching method.
-                //      Better than currentClassName_ fallback which may be the wrong class.
+                //      Better than b_.currentClassName_ fallback which may be the wrong class.
                 {
                     std::string methodToFind = methodCallExpr->methodName;
                     // (AR) أولاً: تحقق أن الصنف الحالي/المعروف يملك الطريقة فعلاً
@@ -268,23 +270,23 @@ namespace Sad
                     if (!className.empty())
                     {
                         std::string candidate = className + "." + methodToFind;
-                        if (functionTable_.find(candidate) == functionTable_.end())
+                        if (b_.functionTable_.find(candidate) == b_.functionTable_.end())
                         {
                             // (AR) ????? ?????? ?? ????? ??? ??? ??????? � ???? ?? ????? ???????
                             //      ????: ???? ?? ???? ???() ? ???? ?? ??? (????) ? ???.???()
-                            //      ???: ?? ?????? classInstanceTypes_ ??? ?????? ?? ???? ?? ??? ?????
+                            //      ???: ?? ?????? b_.classInstanceTypes_ ??? ?????? ?? ???? ?? ??? ?????
                             // (EN) Current class doesn't have this method � search inheritance chain
                             //      e.g.: ???? doesn't have ???() ? search ??? (parent) ? ???.???()
-                            //      Important: don't change classInstanceTypes_ � object is still child type
+                            //      Important: don't change b_.classInstanceTypes_ � object is still child type
                             std::string searchClass = className;
                             bool foundInParent = false;
-                            while (module_)
+                            while (b_.module_)
                             {
-                                auto classInfo = module_->getClass(searchClass);
+                                auto classInfo = b_.module_->getClass(searchClass);
                                 if (!classInfo || classInfo->parentClass.empty())
                                     break;
                                 std::string parentCandidate = classInfo->parentClass + "." + methodToFind;
-                                if (functionTable_.find(parentCandidate) != functionTable_.end())
+                                if (b_.functionTable_.find(parentCandidate) != b_.functionTable_.end())
                                 {
                                     // (AR) ???? ??????? ?? ???? � ???????? ???? ????? ??? ??????
                                     // (EN) Found method in parent � use it without changing object type
@@ -306,7 +308,7 @@ namespace Sad
                     {
                         // (AR) أولاً: عدّ الأصناف التي تملك هذه الطريقة
                         // (EN) First: count how many classes have this method
-                        for (const auto &[fname, finfo] : functionTable_)
+                        for (const auto &[fname, finfo] : b_.functionTable_)
                         {
                             auto dotPos = fname.find('.');
                             if (dotPos != std::string::npos && fname.substr(dotPos + 1) == methodToFind)
@@ -323,7 +325,7 @@ namespace Sad
                             classNameWasInferred = true;
                             if (auto varExpr = dynamic_cast<Sad::AST::VariableExpr *>(methodCallExpr->object.get()))
                             {
-                                classInstanceTypes_[varExpr->name] = className;
+                                b_.classInstanceTypes_[varExpr->name] = className;
                             }
                         }
                     }
@@ -340,9 +342,9 @@ namespace Sad
                 // (AR) تحديد نوع الإرجاع
                 // (EN) Determine return type
                 SadTypeKind returnType = SadTypeKind::Void;
-                if (functionTable_.find(fullMethodName) != functionTable_.end())
+                if (b_.functionTable_.find(fullMethodName) != b_.functionTable_.end())
                 {
-                    returnType = functionTable_[fullMethodName].returnType;
+                    returnType = b_.functionTable_[fullMethodName].returnType;
                 }
 
                 // (AR) الخطوة 3: بناء المعاملات
@@ -363,14 +365,14 @@ namespace Sad
                 SadTypeKind firstClosureRetType = SadTypeKind::Void;
                 for (const auto &arg : methodCallExpr->arguments)
                 {
-                    auto argResult = buildExpression(arg.get());
+                    auto argResult = b_.buildExpression(arg.get());
                     // (AR) ???? ??? ????? (?????) ?????
                     // (EN) Track first closure (lambda) built
                     if (!argResult.closureLambdaName.empty() && firstClosureLambdaName.empty())
                     {
                         firstClosureLambdaName = argResult.closureLambdaName;
-                        auto lambdaIt = functionTable_.find(argResult.closureLambdaName);
-                        if (lambdaIt != functionTable_.end())
+                        auto lambdaIt = b_.functionTable_.find(argResult.closureLambdaName);
+                        if (lambdaIt != b_.functionTable_.end())
                             firstClosureRetType = lambdaIt->second.returnType;
                     }
                     if (argResult.isConstant && !argResult.constantValue.empty())
@@ -410,13 +412,13 @@ namespace Sad
                 // (AR) ???: ?? ??? ????? ??? ??????? ??? ??? ????? ??? ????? ???????
                 // (EN) Check: is this a registered class method? If so, skip builtin checks
                 bool isRegisteredClassMethod = (!className.empty() &&
-                                                functionTable_.find(fullMethodName) != functionTable_.end());
+                                                b_.functionTable_.find(fullMethodName) != b_.functionTable_.end());
 
                 if (!isRegisteredClassMethod)
                 {
                     // (AR) محاولة طرق المصفوفات الأساسية (أضف/حجم/أزل/فارغة/يحتوي/رتب/...)
                     // (EN) Try basic array methods (push/size/remove/empty/contains/sort/...)
-                    auto arrBasicResult = buildArrayBasicMethodCall(objResult, methodName, args);
+                    auto arrBasicResult = b_.buildArrayBasicMethodCall(objResult, methodName, args);
                     if (arrBasicResult)
                     {
                         // ================================================================
@@ -440,7 +442,7 @@ namespace Sad
                             if (auto *varExpr = dynamic_cast<Sad::AST::VariableExpr *>(
                                     methodCallExpr->object.get()))
                             {
-                                VariableInfo *arrVar = lookupVariable(varExpr->name);
+                                VariableInfo *arrVar = b_.lookupVariable(varExpr->name);
                                 if (arrVar && arrVar->elementType == SadTypeKind::Void &&
                                     args.size() > 1 && args[1].dataType != SadTypeKind::Void)
                                 {
@@ -453,20 +455,20 @@ namespace Sad
 
                     // (AR) محاولة طرق المصفوفات العليا (خريطة/رشح/اختزل/لكل)
                     // (EN) Try higher-order array methods (map/filter/reduce/forEach)
-                    auto arrHOResult = buildArrayHigherOrderMethodCall(
+                    auto arrHOResult = b_.buildArrayHigherOrderMethodCall(
                         objResult, methodName, args, firstClosureLambdaName, firstClosureRetType);
                     if (arrHOResult)
                         return *arrHOResult;
 
                     // (AR) محاولة طرق النصوص المضمنة (قسم/استبدل/يبدأ_بـ/ينتهي_بـ/...)
                     // (EN) Try string builtin methods (split/replace/startsWith/endsWith/...)
-                    auto strResult = buildStringBuiltinMethodCall(objResult, methodName, args);
+                    auto strResult = b_.buildStringBuiltinMethodCall(objResult, methodName, args);
                     if (strResult)
                         return *strResult;
 
                     // (AR) محاولة طرق الخرائط المضمنة (مفاتيح/قيم/حجم/فارغة/يحتوي)
                     // (EN) Try map builtin methods (keys/values/size/empty/contains)
-                    auto mapResult = buildMapBuiltinMethodCall(objResult, methodName, args);
+                    auto mapResult = b_.buildMapBuiltinMethodCall(objResult, methodName, args);
                     if (mapResult)
                         return *mapResult;
                 } // (AR) نهاية if (!isRegisteredClassMethod)
@@ -479,8 +481,8 @@ namespace Sad
                 //      use the real name and remove self from arguments
                 std::string callTargetName = fullMethodName;
                 bool isADTCtor = false;
-                auto ftIt = functionTable_.find(fullMethodName);
-                if (ftIt != functionTable_.end())
+                auto ftIt = b_.functionTable_.find(fullMethodName);
+                if (ftIt != b_.functionTable_.end())
                 {
                     const auto &fInfo = ftIt->second;
                     // (AR) ??? ????? ??????? ???? ?? __adt_ctor_ ??? ???? ADT
@@ -494,7 +496,7 @@ namespace Sad
 
                 // (AR) ?????? 5: ????? ?????? CALL
                 // (EN) Step 5: Create CALL instruction
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
 
                 // (AR) ???: ?? ????????? ??? �???� ? ??? ??????? OBJECT_CALL ??????? ?????????
                 //      ??? ??????? ??????? ?? ???? ????? ??? ??????? (???? ???????)
@@ -529,7 +531,7 @@ namespace Sad
                 {
                     // (AR) الفحص الأول: أصناف ابنة ترث مباشرة من className
                     // (EN) Check 1: subclasses that inherit directly from className
-                    for (const auto &[fname, _finfo] : functionTable_)
+                    for (const auto &[fname, _finfo] : b_.functionTable_)
                     {
                         auto dotPos = fname.find('.');
                         if (dotPos == std::string::npos)
@@ -541,9 +543,9 @@ namespace Sad
                             continue;
 
                         std::string walkClass = candClass;
-                        while (module_)
+                        while (b_.module_)
                         {
-                            auto ci = module_->getClass(walkClass);
+                            auto ci = b_.module_->getClass(walkClass);
                             if (!ci || ci->parentClass.empty())
                                 break;
                             if (ci->parentClass == className)
@@ -564,7 +566,7 @@ namespace Sad
                     // (EN) [Fix #063-1] Check 2: sibling classes via inheritance chain
                     //      Find the highest ancestor with the same method, then check
                     //      if other classes inherit from it and have the same method
-                    if (!hasOverridingSubclassMethod && module_)
+                    if (!hasOverridingSubclassMethod && b_.module_)
                     {
                         const std::string &methodNameToFind = methodCallExpr->methodName;
 
@@ -575,11 +577,11 @@ namespace Sad
                             std::string walk = className;
                             while (true)
                             {
-                                auto ci = module_->getClass(walk);
+                                auto ci = b_.module_->getClass(walk);
                                 if (!ci || ci->parentClass.empty())
                                     break;
                                 std::string parentKey = ci->parentClass + "." + methodNameToFind;
-                                if (functionTable_.find(parentKey) != functionTable_.end())
+                                if (b_.functionTable_.find(parentKey) != b_.functionTable_.end())
                                 {
                                     ancestor = ci->parentClass;
                                 }
@@ -593,7 +595,7 @@ namespace Sad
                         //      that inherit from the same ancestor and have the same method
                         if (ancestor != className)
                         {
-                            for (const auto &[fname, _finfo2] : functionTable_)
+                            for (const auto &[fname, _finfo2] : b_.functionTable_)
                             {
                                 auto dotPos = fname.find('.');
                                 if (dotPos == std::string::npos)
@@ -606,9 +608,9 @@ namespace Sad
                                 // (AR) تحقق إن كان candClass يرث من ancestor
                                 // (EN) Check if candClass inherits from ancestor
                                 std::string walk = candClass;
-                                while (module_)
+                                while (b_.module_)
                                 {
-                                    auto ci = module_->getClass(walk);
+                                    auto ci = b_.module_->getClass(walk);
                                     if (!ci || ci->parentClass.empty())
                                         break;
                                     if (ci->parentClass == ancestor)
@@ -642,7 +644,7 @@ namespace Sad
                     isObjectCall = true;
                 }
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
                     if ((isThisCall || isObjectCall) && !isADTCtor)
                     {
@@ -660,7 +662,7 @@ namespace Sad
                         {
                             callInst.operands.push_back(args[i]);
                         }
-                        currentBlock_->addInstruction(callInst);
+                        b_.currentBlock_->addInstruction(callInst);
                     }
                     else
                     {
@@ -678,7 +680,7 @@ namespace Sad
                         {
                             callInst.operands.push_back(args[i]);
                         }
-                        currentBlock_->addInstruction(callInst);
+                        b_.currentBlock_->addInstruction(callInst);
                     }
                 }
 
@@ -699,10 +701,10 @@ namespace Sad
                 //      Works for ADT constructors and regular class methods
                 // ================================================================
                 BuildResult methodResult(resultReg, returnType);
-                if (ftIt != functionTable_.end() && !ftIt->second.returnClassName.empty())
+                if (ftIt != b_.functionTable_.end() && !ftIt->second.returnClassName.empty())
                 {
                     methodResult.className = ftIt->second.returnClassName;
-                    classInstanceTypes_[resultReg] = ftIt->second.returnClassName;
+                    b_.classInstanceTypes_[resultReg] = ftIt->second.returnClassName;
                 }
                 return methodResult;
             }

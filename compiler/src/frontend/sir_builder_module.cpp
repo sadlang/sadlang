@@ -59,6 +59,9 @@ namespace Sad
                 // (AR) تهيئة بنّاء الدوال المدمجة (Phase 6 Step 3)
                 // (EN) Initialize builtin function builder (Phase 6 Step 3)
                 builtins_ = std::make_unique<BuiltinBuilder>(*this);
+                // (AR) تهيئة بنّاء استدعاءات الدوال (Phase 6 Step 4)
+                // (EN) Initialize function call builder (Phase 6 Step 4)
+                calls_ = std::make_unique<CallBuilder>(*this);
                 // (AR) „״§ ״×ˆ״¬״¯ ״×‡״¦״© ״¥״¶״§״© …״·„ˆ״¨״©
                 // (EN) No additional initialization required
             }

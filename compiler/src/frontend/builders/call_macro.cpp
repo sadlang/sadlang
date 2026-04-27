@@ -12,7 +12,7 @@
 //        name!(arguments)
 //
 // المسؤولية / Responsibility:
-//   - SIRBuilder::buildMacroCallExpansion — مسار inline + مسار الدالة المؤقتة
+//   - CallBuilder::buildMacroCallExpansion — مسار inline + مسار الدالة المؤقتة
 //
 // الملفات المرتبطة / Related files:
 //   - sir_builder_calls.cpp       — الدالة الرئيسية buildFunctionCall
@@ -21,6 +21,8 @@
 //   - compiler/include/frontend/sir_builder.h — التصريحات
 // ============================================================================
 
+#include "sir_builder.h"
+#include "builders/call_builder.h"
 #include <string>
 #include <cstdio>
 #include "sir_builder.h"
@@ -57,7 +59,7 @@ namespace Sad
             //   nullopt = ليس استدعاء ماكرو، يتابع buildFunctionCall المعالجة
             //   some(result) = كان ماكرو، يجب الإرجاع الفوري بهذه النتيجة
             // ============================================================================
-            std::optional<BuildResult> SIRBuilder::buildMacroCallExpansion(
+            std::optional<BuildResult> CallBuilder::buildMacroCallExpansion(
                 AST::FunctionCallNode *call, const std::string &funcName)
             {
                 // (AR) إذا لم يكن استدعاء ماكرو → لا شيء يُعالج، يتابع المستدعي
@@ -69,10 +71,10 @@ namespace Sad
                 // (AR) البحث عن تعريف الماكرو في جدول الماكروز
                 // (EN) Look up macro definition in macro table
                 // ====================================================================
-                auto macroIt = macros_.find(funcName);
-                if (macroIt == macros_.end())
+                auto macroIt = b_.macros_.find(funcName);
+                if (macroIt == b_.macros_.end())
                 {
-                    errors_.push_back("Error: Macro '" + funcName + "' is not defined / الماكرو غير معرّف");
+                    b_.errors_.push_back("Error: Macro '" + funcName + "' is not defined / الماكرو غير معرّف");
                     return BuildResult();
                 }
 
@@ -92,14 +94,14 @@ namespace Sad
 
                 if (!macroDef->isVariadic && call->arguments.size() != requiredParams)
                 {
-                    errors_.push_back("Error: Macro '" + funcName + "' expects " +
+                    b_.errors_.push_back("Error: Macro '" + funcName + "' expects " +
                                       std::to_string(requiredParams) + " arguments, got " +
                                       std::to_string(call->arguments.size()));
                     return BuildResult();
                 }
                 if (macroDef->isVariadic && call->arguments.size() < requiredParams)
                 {
-                    errors_.push_back("Error: Macro '" + funcName + "' requires at least " +
+                    b_.errors_.push_back("Error: Macro '" + funcName + "' requires at least " +
                                       std::to_string(requiredParams) + " arguments, got " +
                                       std::to_string(call->arguments.size()));
                     return BuildResult();
@@ -116,14 +118,14 @@ namespace Sad
                 //      to original variable allocas — supports copy-back automatically
                 // ====================================================================
                 bool useInlineExpansion = !macroDef->isVariadic && macroDef->body &&
-                                          !hasReturnWithValue(macroDef->body.get());
+                                          !b_.hasReturnWithValue(macroDef->body.get());
 
                 if (useInlineExpansion)
                 {
 #ifndef NDEBUG
                     std::cout << "[DEBUG] Macro '" << funcName << "' using inline expansion (copy-back)" << std::endl;
 #endif
-                    enterScope();
+                    b_.enterScope();
 
                     for (size_t i = 0; i < requiredParams; ++i)
                     {
@@ -134,7 +136,7 @@ namespace Sad
                             {
                                 // (AR) الوسيط identifier — نربط اسم المعامل بعنوان المتغير الأصلي
                                 // (EN) Argument is identifier — bind param name to original variable alloca
-                                auto *origVar = lookupVariable(identExpr->name);
+                                auto *origVar = b_.lookupVariable(identExpr->name);
                                 if (origVar)
                                 {
                                     VariableInfo vi;
@@ -143,9 +145,9 @@ namespace Sad
                                     vi.registerName = origVar->registerName;
                                     vi.isMutable = true;
                                     vi.isParameter = false;
-                                    vi.scopeLevel = currentScopeLevel_;
+                                    vi.scopeLevel = b_.currentScopeLevel_;
                                     vi.elementType = origVar->elementType;
-                                    addVariable(vi);
+                                    b_.addVariable(vi);
                                     continue;
                                 }
                             }
@@ -153,13 +155,13 @@ namespace Sad
 
                         // (AR) الوسيط تعبير أو متغير غير موجود — ننشئ alloca محلي
                         // (EN) Argument is expression or unknown variable — create local alloca
-                        auto argResult = buildExpression(argExpr);
+                        auto argResult = b_.buildExpression(argExpr);
 
                         std::string allocName = "%" + macroDef->params[i] + "_inline";
                         SIRInstruction allocInst(SIROpcode::ALLOC);
                         allocInst.result = SIROperand::Register(allocName, argResult.type);
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(allocInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(allocInst);
 
                         // (AR) تخزين القيمة في alloca
                         // (EN) Store value in alloca
@@ -180,8 +182,8 @@ namespace Sad
                             storeInst.operands.push_back(SIROperand::Register(argResult.registerName, argResult.type));
                         }
                         storeInst.operands.push_back(SIROperand::Register(allocName, argResult.type));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(storeInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(storeInst);
 
                         VariableInfo vi;
                         vi.name = macroDef->params[i];
@@ -189,15 +191,15 @@ namespace Sad
                         vi.registerName = allocName;
                         vi.isMutable = true;
                         vi.isParameter = false;
-                        vi.scopeLevel = currentScopeLevel_;
-                        addVariable(vi);
+                        vi.scopeLevel = b_.currentScopeLevel_;
+                        b_.addVariable(vi);
                     }
 
                     // (AR) بناء جسم الماكرو مباشرة في الدالة الحالية
                     // (EN) Build macro body directly in current function
-                    buildStatement(macroDef->body.get());
+                    b_.buildStatement(macroDef->body.get());
 
-                    exitScope();
+                    b_.exitScope();
 
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -212,19 +214,19 @@ namespace Sad
                 std::vector<BuildResult> argResults;
                 for (size_t i = 0; i < call->arguments.size(); ++i)
                 {
-                    argResults.push_back(buildExpression(call->arguments[i].get()));
+                    argResults.push_back(b_.buildExpression(call->arguments[i].get()));
                 }
 
                 // (AR) الخطوة 3: إنشاء دالة SIR مؤقتة للماكرو باسم فريد __macro_اسم_N
                 // (EN) Step 3: Create temporary SIR function with unique name __macro_name_N
-                std::string macroFuncName = "__macro_" + funcName + "_" + std::to_string(nextTempRegister_++);
+                std::string macroFuncName = "__macro_" + funcName + "_" + std::to_string(b_.nextTempRegister_++);
 
                 // (AR) استنتاج نوع الإرجاع من جسم الماكرو
                 // (EN) Infer return type from macro body
                 SadTypeKind macroRetType = SadTypeKind::Void;
-                if (macroDef->body && hasReturnWithValue(macroDef->body.get()))
+                if (macroDef->body && b_.hasReturnWithValue(macroDef->body.get()))
                 {
-                    macroRetType = inferReturnTypeFromBody(macroDef->body.get());
+                    macroRetType = b_.inferReturnTypeFromBody(macroDef->body.get());
                     if (macroRetType == SadTypeKind::Void)
                     {
                         macroRetType = SadTypeKind::Integer; // (AR) افتراضي / (EN) default
@@ -250,14 +252,14 @@ namespace Sad
 
                 // (AR) الخطوة 5: حفظ السياق وبناء جسم الماكرو في الدالة المؤقتة
                 // (EN) Step 5: Save context and build macro body in temporary function
-                auto savedCtx = saveContext();
+                auto savedCtx = b_.saveContext();
 
-                currentFunction_ = macroFunc;
-                auto entryBlock = createBasicBlock("macro_entry");
+                b_.currentFunction_ = macroFunc;
+                auto entryBlock = b_.createBasicBlock("macro_entry");
                 macroFunc->addBasicBlock(entryBlock);
-                currentBlock_ = entryBlock;
+                b_.currentBlock_ = entryBlock;
 
-                enterScope();
+                b_.enterScope();
 
                 // (AR) ربط المعاملات العادية
                 // (EN) Bind regular parameters
@@ -269,8 +271,8 @@ namespace Sad
                     vi.registerName = "%" + macroDef->params[i];
                     vi.isMutable = true;
                     vi.isParameter = true;
-                    vi.scopeLevel = currentScopeLevel_;
-                    addVariable(vi);
+                    vi.scopeLevel = b_.currentScopeLevel_;
+                    b_.addVariable(vi);
                 }
 
                 // (AR) المعامل المتغير — نحفظ نوع العنصر من أول وسيط متغير
@@ -283,43 +285,43 @@ namespace Sad
                     vi.registerName = "%" + macroDef->params.back();
                     vi.isMutable = true;
                     vi.isParameter = true;
-                    vi.scopeLevel = currentScopeLevel_;
+                    vi.scopeLevel = b_.currentScopeLevel_;
                     if (argResults.size() > requiredParams)
                     {
                         vi.elementType = argResults[requiredParams].type;
                     }
-                    addVariable(vi);
+                    b_.addVariable(vi);
                 }
 
                 // (AR) بناء جسم الماكرو
                 // (EN) Build macro body
                 if (macroDef->body)
                 {
-                    buildStatement(macroDef->body.get());
+                    b_.buildStatement(macroDef->body.get());
                 }
 
                 // (AR) إضافة ReturnVoid إذا لم يكن هناك terminator
                 // (EN) Add ReturnVoid if no terminator
-                if (currentBlock_ && !currentBlock_->getTerminator())
+                if (b_.currentBlock_ && !b_.currentBlock_->getTerminator())
                 {
-                    currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
+                    b_.currentBlock_->addInstruction(SIRInstruction::ReturnVoid());
                 }
 
-                exitScope();
+                b_.exitScope();
 
                 // (AR) إضافة الدالة المؤقتة إلى الوحدة وتسجيلها في جدول الدوال
                 // (EN) Add temporary function to module and register in function table
-                module_->addFunction(macroFunc);
+                b_.module_->addFunction(macroFunc);
 
                 FunctionInfo fi;
                 fi.name = macroFuncName;
                 fi.returnType = macroRetType;
                 fi.sirFunction = macroFunc;
-                functionTable_[macroFuncName] = fi;
+                b_.functionTable_[macroFuncName] = fi;
 
                 // (AR) الخطوة 6: استعادة السياق السابق
                 // (EN) Step 6: Restore previous context
-                restoreContext(std::move(savedCtx));
+                b_.restoreContext(std::move(savedCtx));
 
                 // ====================================================================
                 // (AR) الخطوة 7: إصدار استدعاء الدالة المؤقتة
@@ -360,15 +362,15 @@ namespace Sad
 
                     // (AR) إنشاء مصفوفة جديدة بحجم الوسائط المتغيرة
                     // (EN) Create new array with variadic count
-                    std::string arrReg = newTempRegister();
+                    std::string arrReg = b_.newTempRegister();
                     SIRInstruction allocInst;
                     allocInst.opcode = SIROpcode::ARRAY_NEW;
                     allocInst.result = SIROperand::Register(arrReg, SadTypeKind::Array);
                     allocInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(variadicCount)));
                     allocInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(variadicCount)));
                     allocInst.comment = "variadic args array [" + std::to_string(variadicCount) + "]";
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(allocInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(allocInst);
 
                     // (AR) تخزين كل وسيط في المصفوفة
                     // (EN) Store each variadic arg in array
@@ -378,9 +380,9 @@ namespace Sad
 
                         // (AR) تجسيد الثوابت قبل التخزين
                         // (EN) Materialize constants before storing
-                        if (ar.isConstant && ar.type != SadTypeKind::Array && currentBlock_)
+                        if (ar.isConstant && ar.type != SadTypeKind::Array && b_.currentBlock_)
                         {
-                            std::string reg = newTempRegister();
+                            std::string reg = b_.newTempRegister();
                             SIRInstruction moveInst(SIROpcode::MOVE);
                             moveInst.result = SIROperand::Register(reg, ar.type);
                             if (ar.type == SadTypeKind::String)
@@ -398,7 +400,7 @@ namespace Sad
                                     moveInst.operands.push_back(SIROperand::ConstantI64(0));
                                 }
                             }
-                            currentBlock_->addInstruction(moveInst);
+                            b_.currentBlock_->addInstruction(moveInst);
                             ar.registerName = reg;
                             ar.isConstant = false;
                         }
@@ -409,8 +411,8 @@ namespace Sad
                         storeInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i - requiredParams)));
                         storeInst.operands.push_back(SIROperand::Register(ar.registerName, ar.type));
                         storeInst.comment = "variadic[" + std::to_string(i - requiredParams) + "]";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(storeInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(storeInst);
                     }
 
                     // (AR) تمرير المصفوفة كوسيط واحد
@@ -420,9 +422,9 @@ namespace Sad
 
                 // (AR) إصدار تعليمة CALL للدالة المؤقتة
                 // (EN) Emit CALL instruction for temporary function
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
                     SIRInstruction callInst;
                     callInst.opcode = SIROpcode::CALL;
@@ -432,11 +434,11 @@ namespace Sad
                     {
                         callInst.operands.push_back(arg);
                     }
-                    currentBlock_->addInstruction(callInst);
+                    b_.currentBlock_->addInstruction(callInst);
                 }
                 else
                 {
-                    errors_.push_back("Error: currentBlock_ is null during macro call emission");
+                    b_.errors_.push_back("Error: b_.currentBlock_ is null during macro call emission");
                 }
 
                 return BuildResult(resultReg, macroRetType);

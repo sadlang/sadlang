@@ -41,6 +41,7 @@
 #include "property_nodes.h"
 #include "builders/method_call_builder.h"
 #include "builders/builtin_builder.h"
+#include "builders/call_builder.h"
 #include <memory>
 #include <string>
 #include <set>
@@ -555,6 +556,15 @@ namespace Sad
              */
             class SIRBuilder : public SIRBuilderContext
             {
+                // ==================================================================
+                // (AR) أصدقاء — sub-builders تحتاج وصولاً للحقول والـhelpers الخاصة
+                // (EN) Friends — sub-builders need access to private fields/helpers
+                //      أُضيفت في Phase 6 (Steps 2/3/4 وما بعدها)
+                // ==================================================================
+                friend class MethodCallBuilder;
+                friend class BuiltinBuilder;
+                friend class CallBuilder;
+
             public:
                 // ==================================================================
                 // المنشئ والمدمر / Constructor & Destructor
@@ -908,7 +918,9 @@ namespace Sad
                  * @param call (AR) استدعاء دالة / (EN) Function call
                  * @return (AR) قيمة الإرجاع / (EN) Return value
                  */
-                BuildResult buildFunctionCall(AST::FunctionCallNode *call);
+                BuildResult buildFunctionCall(Sad::AST::CallExpr *call)
+                { return calls_->buildFunctionCall(call); }
+
 
                 // ── دوال مساعدة مستخرجة من buildFunctionCall (CW-05, CW-03) ──
                 // ── Helper methods extracted from buildFunctionCall (CW-05, CW-03) ──
@@ -917,22 +929,25 @@ namespace Sad
                  * @brief (AR) معالجة توسيع استدعاء الماكرو — يُرجع nullopt إذا لم يكن ماكرو
                  * @brief (EN) Handle macro call expansion — returns nullopt if not a macro call
                  */
-                std::optional<BuildResult> buildMacroCallExpansion(
-                    AST::FunctionCallNode *call, const std::string &funcName);
+                std::optional<BuildResult> buildMacroCallExpansion(Sad::AST::CallExpr *call, const std::string &funcName)
+                { return calls_->buildMacroCallExpansion(call, funcName); }
+
 
                 /**
                  * @brief (AR) معالجة استدعاء الكائن القابل للاستدعاء operator() — يُرجع nullopt إذا لم ينطبق
                  * @brief (EN) Handle callable object operator() invocation — returns nullopt if not applicable
                  */
-                std::optional<BuildResult> buildCallableObjectInvoke(
-                    AST::FunctionCallNode *call, const std::string &funcName);
+                std::optional<BuildResult> buildCallableObjectInvoke(Sad::AST::CallExpr *call, const std::string &funcName)
+                { return calls_->buildCallableObjectInvoke(call, funcName); }
+
 
                 /**
                  * @brief (AR) معالجة استدعاء باني الأب أساس/الأساس/super — يُرجع nullopt إذا لم ينطبق
                  * @brief (EN) Handle super constructor call أساس/الأساس/super — returns nullopt if not applicable
                  */
-                std::optional<BuildResult> buildSuperConstructorCall(
-                    AST::FunctionCallNode *call, const std::string &funcName);
+                std::optional<BuildResult> buildSuperConstructorCall(Sad::AST::CallExpr *call, const std::string &funcName)
+                { return calls_->buildSuperConstructorCall(call, funcName); }
+
 
                 /**
                  * @brief (AR) بناء قائمة الوسائط لاستدعاء دالة عادي
@@ -942,20 +957,17 @@ namespace Sad
                  * @return (AR) true = نجح / false = فشل (خطأ مسجّل في errors_)
                  * @return (EN) true = success / false = failure (error recorded in errors_)
                  */
-                bool buildCallArgumentsList(
-                    AST::FunctionCallNode *call,
-                    std::vector<SIROperand> &outArgOperands,
-                    std::vector<BuildResult> &outArgResults);
+                bool buildCallArgumentsList(Sad::AST::CallExpr *call, std::vector<SIROperand> &outArgOperands, std::vector<BuildResult> &outArgResults)
+                { return calls_->buildCallArgumentsList(call, outArgOperands, outArgResults); }
+
 
                 /**
                  * @brief (AR) تعبئة قيم الوسائط الافتراضية الناقصة
                  * @brief (EN) Fill in missing default argument values
                  */
-                void fillDefaultCallArguments(
-                    AST::FunctionCallNode *call,
-                    const std::string &funcName,
-                    std::vector<SIROperand> &argOperands,
-                    std::vector<BuildResult> &argResults);
+                void fillDefaultCallArguments(Sad::AST::CallExpr *call, const std::string &funcName, std::vector<SIROperand> &argOperands, std::vector<BuildResult> &argResults)
+                { calls_->fillDefaultCallArguments(call, funcName, argOperands, argResults); }
+
 
                 /**
                  * @brief (AR) معالجة استدعاء دالة مدمجة أساسية
@@ -1031,7 +1043,9 @@ namespace Sad
                  * @param methodCallExpr (AR) تعبير استدعاء الطريقة / (EN) Method call expression
                  * @return (AR) نتيجة الاستدعاء / (EN) Call result
                  */
-                BuildResult buildMethodCall(AST::MethodCallExpr *methodCallExpr);
+                BuildResult buildMethodCall(Sad::AST::MethodCallExpr *methodCallExpr)
+                { return calls_->buildMethodCall(methodCallExpr); }
+
 
                 // ================================================================
                 // (AR) دوال مساعدة لـ buildMethodCall — مستخرجة وفق CW-05/CW-01
@@ -1439,6 +1453,12 @@ namespace Sad
                 // (EN) Phase 6 — Step 3: separated builtin function builder
                 // ==================================================================
                 std::unique_ptr<BuiltinBuilder> builtins_;
+
+                // ==================================================================
+                // (AR) Phase 6 — Step 4: بنّاء استدعاءات الدوال المنفصل
+                // (EN) Phase 6 — Step 4: separated function call builder
+                // ==================================================================
+                std::unique_ptr<CallBuilder> calls_;
 
                 /**
                  * @brief (AR) تجميع وحدة وحفظها في الذاكرة المخبئية
