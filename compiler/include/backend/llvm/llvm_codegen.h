@@ -83,6 +83,7 @@
 #include "builders/array_ops_codegen.h"     // (AR) Phase 7 Step 5: ArrayOpsCodeGen
 #include "builders/string_ops_codegen.h"    // (AR) Phase 7 Step 6: StringOpsCodeGen
 #include "builders/array_builtins_codegen.h" // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
+#include "builders/math_builtins_codegen.h"  // (AR) Phase 7 Step 8: MathBuiltinsCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -256,6 +257,8 @@ namespace Sad
             friend class StringOpsCodeGen;
             // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
             friend class ArrayBuiltinsCodeGen;
+            // (AR) Phase 7 Step 8: MathBuiltinsCodeGen
+            friend class MathBuiltinsCodeGen;
 
         public:
             // ========================================================================
@@ -638,24 +641,25 @@ namespace Sad
 
             llvm::Value *emitStringToI64(std::shared_ptr<SIRInstruction> inst)  { return strops_->emitStringToI64(inst); }
             llvm::Value *emitStringToF64(std::shared_ptr<SIRInstruction> inst)  { return strops_->emitStringToF64(inst); }
-            llvm::Value *emitBuiltinSqrt(std::shared_ptr<SIRInstruction> inst);  // جذر / Sqrt
-            llvm::Value *emitBuiltinLog(std::shared_ptr<SIRInstruction> inst);   // لوغ / Natural log
-            llvm::Value *emitBuiltinPow(std::shared_ptr<SIRInstruction> inst);   // أس / Power
-            llvm::Value *emitBuiltinAbs(std::shared_ptr<SIRInstruction> inst);   // مطلق / Abs
-            llvm::Value *emitBuiltinRound(std::shared_ptr<SIRInstruction> inst); // تقريب / Round
-            llvm::Value *emitBuiltinFloor(std::shared_ptr<SIRInstruction> inst); // أرضية / Floor
-            llvm::Value *emitBuiltinCeil(std::shared_ptr<SIRInstruction> inst);  // سقف / Ceil
-            llvm::Value *emitBuiltinSin(std::shared_ptr<SIRInstruction> inst);   // جيب / Sin
-            llvm::Value *emitBuiltinCos(std::shared_ptr<SIRInstruction> inst);   // جيب_تمام / Cos
-            llvm::Value *emitBuiltinTan(std::shared_ptr<SIRInstruction> inst);   // ظل / Tan
-            llvm::Value *emitBuiltinLog10(std::shared_ptr<SIRInstruction> inst); // لوغ10 / Log base 10
-            llvm::Value *emitBuiltinLog2(std::shared_ptr<SIRInstruction> inst);  // لوغ2 / Log base 2
-            llvm::Value *emitBuiltinAsin(std::shared_ptr<SIRInstruction> inst);  // قوس_جيب / Arc sine
-            llvm::Value *emitBuiltinAcos(std::shared_ptr<SIRInstruction> inst);  // قوس_جيب_تمام / Arc cosine
-            llvm::Value *emitBuiltinAtan(std::shared_ptr<SIRInstruction> inst);  // قوس_ظل / Arc tangent
-            llvm::Value *emitBuiltinTrunc(std::shared_ptr<SIRInstruction> inst); // اقتطاع / Truncate
-            llvm::Value *emitBuiltinFmod(std::shared_ptr<SIRInstruction> inst);  // باقي / Fmod
-            llvm::Value *emitBuiltinClamp(std::shared_ptr<SIRInstruction> inst); // قيد / Clamp
+            // (AR) Phase 7 Step 8: 19 math builtins delegate إلى MathBuiltinsCodeGen
+            llvm::Value *emitBuiltinSqrt(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinSqrt(inst); }
+            llvm::Value *emitBuiltinLog(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinLog(inst); }
+            llvm::Value *emitBuiltinPow(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinPow(inst); }
+            llvm::Value *emitBuiltinAbs(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinAbs(inst); }
+            llvm::Value *emitBuiltinRound(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinRound(inst); }
+            llvm::Value *emitBuiltinFloor(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinFloor(inst); }
+            llvm::Value *emitBuiltinCeil(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinCeil(inst); }
+            llvm::Value *emitBuiltinSin(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinSin(inst); }
+            llvm::Value *emitBuiltinCos(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinCos(inst); }
+            llvm::Value *emitBuiltinTan(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinTan(inst); }
+            llvm::Value *emitBuiltinLog10(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinLog10(inst); }
+            llvm::Value *emitBuiltinLog2(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinLog2(inst); }
+            llvm::Value *emitBuiltinAsin(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinAsin(inst); }
+            llvm::Value *emitBuiltinAcos(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinAcos(inst); }
+            llvm::Value *emitBuiltinAtan(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinAtan(inst); }
+            llvm::Value *emitBuiltinTrunc(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinTrunc(inst); }
+            llvm::Value *emitBuiltinFmod(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinFmod(inst); }
+            llvm::Value *emitBuiltinClamp(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinClamp(inst); }
 
             // String Functions (12) — (AR) Phase 7 Step 6: delegate إلى StringOpsCodeGen
             llvm::Value *emitBuiltinStringLength(std::shared_ptr<SIRInstruction> inst)     { return strops_->emitBuiltinStringLength(inst); }
@@ -773,7 +777,8 @@ namespace Sad
             llvm::Value *emitBuiltinFileListDir(std::shared_ptr<SIRInstruction> inst);
 
             // Utility Functions (4)
-            llvm::Value *emitBuiltinRandom(std::shared_ptr<SIRInstruction> inst);
+            // (AR) Phase 7 Step 8: emitBuiltinRandom delegate إلى MathBuiltinsCodeGen
+            llvm::Value *emitBuiltinRandom(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinRandom(inst); }
             llvm::Value *emitBuiltinSleep(std::shared_ptr<SIRInstruction> inst);
             llvm::Value *emitBuiltinExit(std::shared_ptr<SIRInstruction> inst);
             llvm::Value *emitBuiltinTypeOf(std::shared_ptr<SIRInstruction> inst);
@@ -1295,9 +1300,9 @@ namespace Sad
             // String core
             llvm::Value *emitStringNew(std::shared_ptr<SIRInstruction> inst)   { return arr_->emitStringNew(inst); }
 
-            // Builtin Extra
-            llvm::Value *emitBuiltinMin(std::shared_ptr<SIRInstruction> inst);    // الأصغر
-            llvm::Value *emitBuiltinMax(std::shared_ptr<SIRInstruction> inst);    // الأكبر
+            // Builtin Extra — (AR) Phase 7 Step 8: Min/Max delegate إلى MathBuiltinsCodeGen
+            llvm::Value *emitBuiltinMin(std::shared_ptr<SIRInstruction> inst)     { return mathb_->emitBuiltinMin(inst); }
+            llvm::Value *emitBuiltinMax(std::shared_ptr<SIRInstruction> inst)     { return mathb_->emitBuiltinMax(inst); }
             llvm::Value *emitBuiltinAssert(std::shared_ptr<SIRInstruction> inst); // تأكيد
             llvm::Value *emitBuiltinDebug(std::shared_ptr<SIRInstruction> inst);  // تنقيح
 
@@ -1475,6 +1480,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 7: مكوّن فرعي لدوال المصفوفات المضمنة (8 methods)
             std::unique_ptr<ArrayBuiltinsCodeGen> arrb_;
+
+            // (AR) Phase 7 Step 8: مكوّن فرعي لدوال الرياضيات (21 methods: Min/Max + Sqrt..Clamp + Random)
+            std::unique_ptr<MathBuiltinsCodeGen> mathb_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
