@@ -104,6 +104,7 @@ namespace Sad
             agg_ = std::make_unique<AggregateOpsCodeGen>(*this);
             arr_ = std::make_unique<ArrayOpsCodeGen>(*this);
             strops_ = std::make_unique<StringOpsCodeGen>(*this);
+            arrb_ = std::make_unique<ArrayBuiltinsCodeGen>(*this);
         }
 
         /**

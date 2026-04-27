@@ -82,6 +82,7 @@
 #include "builders/aggregate_ops_codegen.h" // (AR) Phase 7 Step 4: AggregateOpsCodeGen
 #include "builders/array_ops_codegen.h"     // (AR) Phase 7 Step 5: ArrayOpsCodeGen
 #include "builders/string_ops_codegen.h"    // (AR) Phase 7 Step 6: StringOpsCodeGen
+#include "builders/array_builtins_codegen.h" // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -253,6 +254,8 @@ namespace Sad
             friend class ArrayOpsCodeGen;
             // (AR) Phase 7 Step 6: StringOpsCodeGen
             friend class StringOpsCodeGen;
+            // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
+            friend class ArrayBuiltinsCodeGen;
 
         public:
             // ========================================================================
@@ -747,17 +750,17 @@ namespace Sad
             llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx")                { return arr_->normalizeArrayIndex(index, arrPtr, label); }
             void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc")                              { arr_->emitBoundsCheck(index, arrPtr, label); }
 
-            // Array Functions (10)
+            // Array Functions (10) — (AR) Phase 7 Step 7: 8 مفوّضة إلى ArrayBuiltinsCodeGen (Append/Remove تبقى)
             llvm::Value *emitBuiltinArrayAppend(std::shared_ptr<SIRInstruction> inst);
             llvm::Value *emitBuiltinArrayRemove(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinArraySize(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinArrayIndexOf(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinArrayContains(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinArrayReverse(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinArraySort(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinArrayFirst(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinArrayLast(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinArraySlice(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitBuiltinArraySize(std::shared_ptr<SIRInstruction> inst)     { return arrb_->emitBuiltinArraySize(inst); }
+            llvm::Value *emitBuiltinArrayIndexOf(std::shared_ptr<SIRInstruction> inst)  { return arrb_->emitBuiltinArrayIndexOf(inst); }
+            llvm::Value *emitBuiltinArrayContains(std::shared_ptr<SIRInstruction> inst) { return arrb_->emitBuiltinArrayContains(inst); }
+            llvm::Value *emitBuiltinArrayReverse(std::shared_ptr<SIRInstruction> inst)  { return arrb_->emitBuiltinArrayReverse(inst); }
+            llvm::Value *emitBuiltinArraySort(std::shared_ptr<SIRInstruction> inst)     { return arrb_->emitBuiltinArraySort(inst); }
+            llvm::Value *emitBuiltinArrayFirst(std::shared_ptr<SIRInstruction> inst)    { return arrb_->emitBuiltinArrayFirst(inst); }
+            llvm::Value *emitBuiltinArrayLast(std::shared_ptr<SIRInstruction> inst)     { return arrb_->emitBuiltinArrayLast(inst); }
+            llvm::Value *emitBuiltinArraySlice(std::shared_ptr<SIRInstruction> inst)    { return arrb_->emitBuiltinArraySlice(inst); }
 
             // File I/O Functions (8)
             llvm::Value *emitBuiltinFileRead(std::shared_ptr<SIRInstruction> inst);
@@ -1469,6 +1472,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 6: مكوّن فرعي لعمليات النصوص (17 method)
             std::unique_ptr<StringOpsCodeGen> strops_;
+
+            // (AR) Phase 7 Step 7: مكوّن فرعي لدوال المصفوفات المضمنة (8 methods)
+            std::unique_ptr<ArrayBuiltinsCodeGen> arrb_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
