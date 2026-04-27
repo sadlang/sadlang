@@ -674,7 +674,7 @@ namespace Sad
                 return std::nullopt;
             }
 
-            // === b_.buildStringBuiltinMethodCall ===
+            // === buildStringBuiltinMethodCall ===
         } // namespace SIR
     } // namespace Compiler
 } // namespace Sad

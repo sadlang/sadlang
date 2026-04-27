@@ -3,17 +3,17 @@
 // ============================================================================
 // (AR) تم استخراج هذا الملف من sir_builder_method_call.cpp وفق CW-05/CW-01
 //      يحتوي على دوال بناء استدعاءات طرق التزامن:
-//        - b_.buildChannelMethodCall()   — أرسل/استقبل/أغلق/حجم/سعة/فارغة/...
-//        - b_.buildMutexMethodCall()     — اقفل/افتح/مقفل/حاول_قفل
-//        - b_.buildFutureMethodCall()    — عيّن/احصل/جاهز
-//        - b_.buildWaitGroupMethodCall() — أضف/أنهي/انتظر/العداد
+//        - buildChannelMethodCall()   — أرسل/استقبل/أغلق/حجم/سعة/فارغة/...
+//        - buildMutexMethodCall()     — اقفل/افتح/مقفل/حاول_قفل
+//        - buildFutureMethodCall()    — عيّن/احصل/جاهز
+//        - buildWaitGroupMethodCall() — أضف/أنهي/انتظر/العداد
 //
 // (EN) Extracted from sir_builder_method_call.cpp per CW-05/CW-01
 //      Contains concurrency method call builders:
-//        - b_.buildChannelMethodCall()   — send/recv/close/size/capacity/empty/...
-//        - b_.buildMutexMethodCall()     — lock/unlock/is_locked/try_lock
-//        - b_.buildFutureMethodCall()    — set/get/is_ready
-//        - b_.buildWaitGroupMethodCall() — add/done/wait/count
+//        - buildChannelMethodCall()   — send/recv/close/size/capacity/empty/...
+//        - buildMutexMethodCall()     — lock/unlock/is_locked/try_lock
+//        - buildFutureMethodCall()    — set/get/is_ready
+//        - buildWaitGroupMethodCall() — add/done/wait/count
 // ============================================================================
 
 #include <string>
@@ -53,7 +53,7 @@ namespace Sad
                 return SIROperand::Register(result.registerName, result.type);
             }
             // ================================================================
-            // b_.buildChannelMethodCall — طرق القنوات
+            // buildChannelMethodCall — طرق القنوات
             // (AR) أرسل/استقبل/حاول_ارسل/حاول_استقبل/أرسل_بمهلة/استقبل_بمهلة
             //      أغلق/مغلقة/فارغة/الحجم/السعة
             // (EN) send/recv/try_send/try_recv/send_timeout/recv_timeout
@@ -148,7 +148,7 @@ namespace Sad
                     methodName == "recv")
                 {
                     // (AR) استخدم النوع المسجل من send إذا وُجد، وإلا Integer (الافتراضي)
-                    //      السبب: b_.channelTypeMap_ قد لا يجد النوع عند send/recv عبر دوال مختلفة
+                    //      السبب: channelTypeMap_ قد لا يجد النوع عند send/recv عبر دوال مختلفة
                     //      (اسم المتغير مختلف بين الدالة المُرسلة والمُستقبلة)
                     //      Integer هو النوع الأكثر شيوعاً في القنوات
                     SadTypeKind recvType = SadTypeKind::Integer;
@@ -284,7 +284,7 @@ namespace Sad
             }
 
             // ================================================================
-            // b_.buildMutexMethodCall — طرق القفل
+            // buildMutexMethodCall — طرق القفل
             // (AR) اقفل/افتح/مقفل/حاول_قفل
             // (EN) lock/unlock/is_locked/try_lock
             // ================================================================
@@ -346,7 +346,7 @@ namespace Sad
             }
 
             // ================================================================
-            // b_.buildFutureMethodCall — طرق المستقبل
+            // buildFutureMethodCall — طرق المستقبل
             // (AR) عيّن/احصل/جاهز
             // (EN) set/get/is_ready
             // ================================================================
@@ -402,7 +402,7 @@ namespace Sad
             }
 
             // ================================================================
-            // b_.buildWaitGroupMethodCall — طرق مجموعة الانتظار
+            // buildWaitGroupMethodCall — طرق مجموعة الانتظار
             // (AR) أضف/أنهي/انتظر/العداد
             // (EN) add/done/wait/count
             // ================================================================

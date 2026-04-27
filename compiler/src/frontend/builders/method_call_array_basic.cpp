@@ -314,7 +314,7 @@ namespace Sad
                 return std::nullopt;
             }
 
-            // === b_.buildArrayHigherOrderMethodCall ===
+            // === buildArrayHigherOrderMethodCall ===
         } // namespace SIR
     } // namespace Compiler
 } // namespace Sad

@@ -120,7 +120,7 @@ namespace Sad
                 return std::nullopt;
             }
 
-            // === b_.buildMapBuiltinMethodCall ===
+            // === buildMapBuiltinMethodCall ===
             std::optional<BuildResult> MethodCallBuilder::buildMapBuiltinMethodCall(
                 const BuildResult &objResult, const std::string &methodName,
                 const std::vector<SIROperand> &args)
