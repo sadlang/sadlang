@@ -78,6 +78,7 @@
 #include "llvm_codegen_context.h"        // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
 #include "builders/arithmetic_codegen.h" // (AR) Phase 7 Step 1: ArithmeticCodeGen
 #include "builders/memory_codegen.h"     // (AR) Phase 7 Step 2: MemoryCodeGen
+#include "builders/controlflow_codegen.h" // (AR) Phase 7 Step 3: ControlFlowCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -241,6 +242,8 @@ namespace Sad
             friend class ArithmeticCodeGen;
             // (AR) Phase 7 Step 2: MemoryCodeGen
             friend class MemoryCodeGen;
+            // (AR) Phase 7 Step 3: ControlFlowCodeGen
+            friend class ControlFlowCodeGen;
 
         public:
             // ========================================================================
@@ -598,11 +601,12 @@ namespace Sad
             // Control Flow Instructions / تعليمات تدفق التحكم
             // ------------------------------------------------------------------------
 
-            llvm::Value *emitBranch(std::shared_ptr<SIRInstruction> inst);     // فرع / Branch
-            llvm::Value *emitCondBranch(std::shared_ptr<SIRInstruction> inst); // فرع شرطي / Conditional branch
-            llvm::Value *emitCall(std::shared_ptr<SIRInstruction> inst);       // استدعاء / Call
-            llvm::Value *emitReturn(std::shared_ptr<SIRInstruction> inst);     // رجوع / Return
-            llvm::Value *emitSwitch(std::shared_ptr<SIRInstruction> inst);     // تبديل / Switch
+            // (AR) Phase 7 Step 3: delegate إلى ControlFlowCodeGen
+            llvm::Value *emitBranch(std::shared_ptr<SIRInstruction> inst)     { return cf_->emitBranch(inst); }
+            llvm::Value *emitCondBranch(std::shared_ptr<SIRInstruction> inst) { return cf_->emitCondBranch(inst); }
+            llvm::Value *emitCall(std::shared_ptr<SIRInstruction> inst)       { return cf_->emitCall(inst); }
+            llvm::Value *emitReturn(std::shared_ptr<SIRInstruction> inst)     { return cf_->emitReturn(inst); }
+            llvm::Value *emitSwitch(std::shared_ptr<SIRInstruction> inst)     { return cf_->emitSwitch(inst); }
 
             // ------------------------------------------------------------------------
             // Builtin Functions / الدوال المضمنة
@@ -1460,6 +1464,9 @@ namespace Sad
             // (AR) Phase 7 Step 2: مكوّن فرعي لعمليات الذاكرة (Load/Store/Alloca/GEP/Move)
             // (EN) Phase 7 Step 2: sub-codegen for memory operations
             std::unique_ptr<MemoryCodeGen> mem_;
+
+            // (AR) Phase 7 Step 3: مكوّن فرعي لتدفق التحكم (Branch/CondBranch/Call/Return/Switch)
+            std::unique_ptr<ControlFlowCodeGen> cf_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة

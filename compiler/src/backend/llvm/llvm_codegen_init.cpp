@@ -97,6 +97,10 @@ namespace Sad
             // (AR) Phase 7 Step 2: تهيئة المكوّن الفرعي MemoryCodeGen
             // (EN) Phase 7 Step 2: instantiate MemoryCodeGen sub-codegen
             mem_ = std::make_unique<MemoryCodeGen>(*this);
+
+            // (AR) Phase 7 Step 3: تهيئة المكوّن الفرعي ControlFlowCodeGen
+            // (EN) Phase 7 Step 3: instantiate ControlFlowCodeGen sub-codegen
+            cf_ = std::make_unique<ControlFlowCodeGen>(*this);
         }
 
         /**

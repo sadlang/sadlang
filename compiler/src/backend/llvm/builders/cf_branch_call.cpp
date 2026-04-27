@@ -1,4 +1,4 @@
-/*
+﻿/*
  * ============================================================================
  * LLVM IR Code Generator - Branch and Call Operations
  * ============================================================================
@@ -22,6 +22,8 @@
 #include <optional>
 #include <iostream>
 #include <fstream>
+#include "builders/controlflow_codegen.h" // (Phase 7 Step 3)
+#include "llvm_codegen.h"
 
 using namespace Sad::Compiler::SIR;
 using namespace Sad::Compiler; // (AR) للوصول لثوابت sir_constants.h
@@ -30,14 +32,14 @@ namespace Sad
 {
     namespace LLVM
     {
-        llvm::Value *LLVMCodeGen::emitBranch(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ControlFlowCodeGen::emitBranch(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
                 return nullptr;
 
             // (AR) لا نضيف branch إذا كان البلوك الحالي ينتهي بـ ret
             // (EN) Skip branch if current block already has a terminator (e.g. ret)
-            llvm::BasicBlock *currentBB = builder_->GetInsertBlock();
+            llvm::BasicBlock *currentBB = cg_.builder_->GetInsertBlock();
             if (currentBB && currentBB->getTerminator())
             {
                 return nullptr; // Block already terminated
@@ -45,21 +47,21 @@ namespace Sad
 
             if (inst->operands.empty())
             {
-                reportError("Branch instruction requires target label");
+                cg_.reportError("Branch instruction requires target label");
                 return nullptr;
             }
 
             // Source: SIROperand::name is PUBLIC member at sir_types.h:293
             std::string targetLabel = inst->operands[0].name;
 
-            auto it = context_info_.basicBlocks.find(targetLabel);
-            if (it == context_info_.basicBlocks.end())
+            auto it = cg_.context_info_.basicBlocks.find(targetLabel);
+            if (it == cg_.context_info_.basicBlocks.end())
             {
-                reportError("Target block not found for branch: " + targetLabel);
+                cg_.reportError("Target block not found for branch: " + targetLabel);
                 return nullptr;
             }
 
-            return builder_->CreateBr(it->second);
+            return cg_.builder_->CreateBr(it->second);
         }
 
         /**
@@ -68,14 +70,14 @@ namespace Sad
          *
          * Source: llvm_codegen.h:454
          */
-        llvm::Value *LLVMCodeGen::emitCondBranch(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ControlFlowCodeGen::emitCondBranch(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
                 return nullptr;
 
             // (AR) لا نضيف branch إذا كان البلوك الحالي ينتهي بـ ret
             // (EN) Skip conditional branch if current block already has a terminator
-            llvm::BasicBlock *currentBB = builder_->GetInsertBlock();
+            llvm::BasicBlock *currentBB = cg_.builder_->GetInsertBlock();
             if (currentBB && currentBB->getTerminator())
             {
                 return nullptr; // Block already terminated
@@ -83,19 +85,19 @@ namespace Sad
 
             if (inst->operands.size() < 3)
             {
-                reportError("Conditional branch requires 3 operands");
+                cg_.reportError("Conditional branch requires 3 operands");
                 return nullptr;
             }
 
-            llvm::Value *condition = resolveOperand(inst->operands[0]);
+            llvm::Value *condition = cg_.resolveOperand(inst->operands[0]);
             std::string trueLabel = inst->operands[1].name;
             std::string falseLabel = inst->operands[2].name;
 
 #ifndef NDEBUG
             std::cout << "[DEBUG] emitCondBranch: looking for trueLabel='" << trueLabel
                       << "', falseLabel='" << falseLabel << "'" << std::endl;
-            std::cout << "[DEBUG] emitCondBranch: registered blocks count=" << context_info_.basicBlocks.size() << std::endl;
-            for (const auto &[name, bb] : context_info_.basicBlocks)
+            std::cout << "[DEBUG] emitCondBranch: registered blocks count=" << cg_.context_info_.basicBlocks.size() << std::endl;
+            for (const auto &[name, bb] : cg_.context_info_.basicBlocks)
             {
                 std::cout << "[DEBUG] emitCondBranch: registered block '" << name << "'" << std::endl;
             }
@@ -103,7 +105,7 @@ namespace Sad
 
             if (!condition)
             {
-                reportError("Condition not found for conditional branch");
+                cg_.reportError("Condition not found for conditional branch");
                 return nullptr;
             }
 
@@ -121,7 +123,7 @@ namespace Sad
                 {
                     // (AR) الشرط من نوع مؤشر — نقارنه بـ null
                     // (EN) Condition is pointer type — compare with null
-                    condition = builder_->CreateICmpNE(
+                    condition = cg_.builder_->CreateICmpNE(
                         condition,
                         llvm::ConstantPointerNull::get(
                             llvm::cast<llvm::PointerType>(condition->getType())),
@@ -141,15 +143,15 @@ namespace Sad
                     //      Unified semantics with interpreter: null and 0 are falsy.
                     //      Root fix: for i64, check `cond != 0 && cond != kSadNullSentinel`.
                     auto *zeroConst = llvm::ConstantInt::get(condition->getType(), 0);
-                    llvm::Value *neZero = builder_->CreateICmpNE(condition, zeroConst, "tobool.nz");
+                    llvm::Value *neZero = cg_.builder_->CreateICmpNE(condition, zeroConst, "tobool.nz");
 
                     if (condition->getType()->isIntegerTy(64))
                     {
                         auto *nullSentinel = llvm::ConstantInt::get(condition->getType(),
                                                                     static_cast<uint64_t>(kSadNullSentinel),
                                                                     /*isSigned=*/true);
-                        llvm::Value *neNull = builder_->CreateICmpNE(condition, nullSentinel, "tobool.nn");
-                        condition = builder_->CreateAnd(neZero, neNull, "tobool");
+                        llvm::Value *neNull = cg_.builder_->CreateICmpNE(condition, nullSentinel, "tobool.nn");
+                        condition = cg_.builder_->CreateAnd(neZero, neNull, "tobool");
                     }
                     else
                     {
@@ -158,17 +160,17 @@ namespace Sad
                 }
             }
 
-            auto trueIt = context_info_.basicBlocks.find(trueLabel);
-            auto falseIt = context_info_.basicBlocks.find(falseLabel);
+            auto trueIt = cg_.context_info_.basicBlocks.find(trueLabel);
+            auto falseIt = cg_.context_info_.basicBlocks.find(falseLabel);
 
-            if (trueIt == context_info_.basicBlocks.end() ||
-                falseIt == context_info_.basicBlocks.end())
+            if (trueIt == cg_.context_info_.basicBlocks.end() ||
+                falseIt == cg_.context_info_.basicBlocks.end())
             {
-                reportError("Target blocks not found for conditional branch");
+                cg_.reportError("Target blocks not found for conditional branch");
                 return nullptr;
             }
 
-            return builder_->CreateCondBr(condition, trueIt->second, falseIt->second);
+            return cg_.builder_->CreateCondBr(condition, trueIt->second, falseIt->second);
         }
 
         /**
@@ -177,14 +179,14 @@ namespace Sad
          *
          * Source: llvm_codegen.h:455
          */
-        llvm::Value *LLVMCodeGen::emitCall(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *ControlFlowCodeGen::emitCall(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
                 return nullptr;
 
             if (inst->operands.empty())
             {
-                reportError("Call instruction requires function name");
+                cg_.reportError("Call instruction requires function name");
                 return nullptr;
             }
 
@@ -195,7 +197,7 @@ namespace Sad
             std::vector<llvm::Value *> args;
             for (size_t i = 1; i < inst->operands.size(); ++i)
             {
-                llvm::Value *arg = resolveOperand(inst->operands[i]);
+                llvm::Value *arg = cg_.resolveOperand(inst->operands[i]);
                 if (arg)
                 {
                     args.push_back(arg);
@@ -207,7 +209,7 @@ namespace Sad
             //      مُستخرجة في llvm_codegen_exceptions.cpp (CW-05)
             // (EN) Delegate to exception handlers — extracted to llvm_codegen_exceptions.cpp
             // ================================================================
-            if (auto r = emitCallException(funcName, args, inst))
+            if (auto r = cg_.emitCallException(funcName, args, inst))
                 return *r;
 
             // ================================================================
@@ -215,7 +217,7 @@ namespace Sad
             //      مُستخرجة في llvm_codegen_maps.cpp (CW-05)
             // (EN) Delegate to map handlers — extracted to llvm_codegen_maps.cpp
             // ================================================================
-            if (auto r = emitCallMap(funcName, args, inst))
+            if (auto r = cg_.emitCallMap(funcName, args, inst))
                 return *r;
 
             // ================================================================
@@ -228,44 +230,44 @@ namespace Sad
             {
                 if (args.empty())
                 {
-                    reportError(funcName + " requires 1 argument (condition)");
+                    cg_.reportError(funcName + " requires 1 argument (condition)");
                     return nullptr;
                 }
                 llvm::Value *cond = args[0];
                 // (AR) تحويل القيمة إلى i1 إن لم تكن كذلك
-                llvm::Type *i1Ty = llvm::Type::getInt1Ty(*context_);
+                llvm::Type *i1Ty = llvm::Type::getInt1Ty(*cg_.context_);
                 if (cond->getType() != i1Ty)
                 {
                     if (cond->getType()->isIntegerTy())
                     {
-                        cond = builder_->CreateICmpNE(
+                        cond = cg_.builder_->CreateICmpNE(
                             cond, llvm::ConstantInt::get(cond->getType(), 0), "branch_hint.cond");
                     }
                     else
                     {
                         // (AR) نوع غير متوقع — لا تطبق التلميح
                         if (inst->result.has_value())
-                            context_info_.namedValues[inst->result->name] = args[0];
+                            cg_.context_info_.namedValues[inst->result->name] = args[0];
                         return args[0];
                     }
                 }
                 // (AR) القيمة المتوقعة: true لـ متوقع، false لـ غير_متوقع
                 llvm::Value *expectedVal = (funcName == "متوقع")
-                                               ? llvm::ConstantInt::getTrue(*context_)
-                                               : llvm::ConstantInt::getFalse(*context_);
+                                               ? llvm::ConstantInt::getTrue(*cg_.context_)
+                                               : llvm::ConstantInt::getFalse(*cg_.context_);
                 // (AR) استدعاء intrinsic llvm.expect.i1
                 llvm::Function *expectFn = llvm::Intrinsic::getDeclaration(
-                    module_.get(), llvm::Intrinsic::expect, {i1Ty});
-                llvm::Value *result = builder_->CreateCall(
+                    cg_.module_.get(), llvm::Intrinsic::expect, {i1Ty});
+                llvm::Value *result = cg_.builder_->CreateCall(
                     expectFn, {cond, expectedVal}, "branch_hint");
                 if (inst->result.has_value())
-                    context_info_.namedValues[inst->result->name] = result;
+                    cg_.context_info_.namedValues[inst->result->name] = result;
                 return result;
             }
 
             llvm::Function *callee = nullptr;
-            auto funcIt = context_info_.functions.find(funcName);
-            if (funcIt != context_info_.functions.end())
+            auto funcIt = cg_.context_info_.functions.find(funcName);
+            if (funcIt != cg_.context_info_.functions.end())
             {
                 callee = funcIt->second;
             }
@@ -286,26 +288,26 @@ namespace Sad
                     std::string searchClass = className;
                     while (!searchClass.empty())
                     {
-                        auto parentIt = context_info_.classParentMap.find(searchClass);
-                        if (parentIt != context_info_.classParentMap.end() && !parentIt->second.empty())
+                        auto parentIt = cg_.context_info_.classParentMap.find(searchClass);
+                        if (parentIt != cg_.context_info_.classParentMap.end() && !parentIt->second.empty())
                         {
                             searchClass = parentIt->second;
                             std::string parentMethodName = searchClass + "." + methodName;
-                            auto parentFuncIt = context_info_.functions.find(parentMethodName);
-                            if (parentFuncIt != context_info_.functions.end())
+                            auto parentFuncIt = cg_.context_info_.functions.find(parentMethodName);
+                            if (parentFuncIt != cg_.context_info_.functions.end())
                             {
                                 callee = parentFuncIt->second;
                                 // (AR) حفظ في السياق لتسريع الاستدعاءات اللاحقة
                                 // (EN) Cache for future calls
-                                context_info_.functions[funcName] = callee;
+                                cg_.context_info_.functions[funcName] = callee;
                                 break;
                             }
                             // (AR) محاولة البحث في LLVM module مباشرة
                             // (EN) Try searching LLVM module directly
-                            callee = module_->getFunction(parentMethodName);
+                            callee = cg_.module_->getFunction(parentMethodName);
                             if (callee)
                             {
-                                context_info_.functions[funcName] = callee;
+                                cg_.context_info_.functions[funcName] = callee;
                                 break;
                             }
                         }
@@ -338,32 +340,32 @@ namespace Sad
 
                 // استنتاج نوع الإرجاع من نتيجة التعليمة
                 // Infer return type from instruction result
-                llvm::Type *returnType = getVoidType();
+                llvm::Type *returnType = cg_.getVoidType();
                 if (inst->result.has_value())
                 {
                     switch (inst->result->dataType)
                     {
                     case SadTypeKind::Integer:
-                        returnType = getInt64Type();
+                        returnType = cg_.getInt64Type();
                         break;
                     case SadTypeKind::Float:
-                        returnType = getDoubleType();
+                        returnType = cg_.getDoubleType();
                         break;
                     case SadTypeKind::Boolean:
-                        returnType = getInt1Type();
+                        returnType = cg_.getInt1Type();
                         break;
                     case SadTypeKind::Pointer:
                     case SadTypeKind::String:
                     case SadTypeKind::Array:
                     case SadTypeKind::Struct:
                     case SadTypeKind::Class:
-                        returnType = getInt8PtrType();
+                        returnType = cg_.getInt8PtrType();
                         break;
                     case SadTypeKind::Void:
-                        returnType = getVoidType();
+                        returnType = cg_.getVoidType();
                         break;
                     default:
-                        returnType = getInt64Type();
+                        returnType = cg_.getInt64Type();
                         break;
                     }
                 }
@@ -373,18 +375,18 @@ namespace Sad
                 llvm::FunctionType *funcType = llvm::FunctionType::get(
                     returnType, paramTypes, false);
 
-                llvm::FunctionCallee fc = module_->getOrInsertFunction(funcName, funcType);
+                llvm::FunctionCallee fc = cg_.module_->getOrInsertFunction(funcName, funcType);
                 callee = llvm::dyn_cast<llvm::Function>(fc.getCallee());
 
                 if (!callee)
                 {
-                    reportError("Failed to create extern declaration for: " + funcName);
+                    cg_.reportError("Failed to create extern declaration for: " + funcName);
                     return nullptr;
                 }
 
                 // حفظ في السياق لاستخدامات لاحقة
                 // Cache in context for future calls
-                context_info_.functions[funcName] = callee;
+                cg_.context_info_.functions[funcName] = callee;
             }
 
             // إنشاء تعليمة الاستدعاء
@@ -426,46 +428,46 @@ namespace Sad
                     {
                         // (AR) تحويل مؤشر → i64 (لتمرير كائنات للبناة)
                         // (EN) Convert ptr → i64 (for passing objects to constructors)
-                        args[i] = builder_->CreatePtrToInt(args[i], getInt64Type(), "arg.ptrtoint");
+                        args[i] = cg_.builder_->CreatePtrToInt(args[i], cg_.getInt64Type(), "arg.ptrtoint");
                     }
                     else if (expectedType->isPointerTy() && actualType->isIntegerTy(64))
                     {
                         // (AR) تحويل i64 → مؤشر
                         // (EN) Convert i64 → ptr
-                        args[i] = builder_->CreateIntToPtr(args[i],
-                                                           llvm::PointerType::getUnqual(*context_), "arg.inttoptr");
+                        args[i] = cg_.builder_->CreateIntToPtr(args[i],
+                                                           llvm::PointerType::getUnqual(*cg_.context_), "arg.inttoptr");
                     }
                     else if (expectedType->isIntegerTy(64) && actualType->isIntegerTy(1))
                     {
                         // (AR) تحويل i1 (منطقي) → i64
                         // (EN) Convert i1 (bool) → i64
-                        args[i] = builder_->CreateZExt(args[i], getInt64Type(), "arg.i1toi64");
+                        args[i] = cg_.builder_->CreateZExt(args[i], cg_.getInt64Type(), "arg.i1toi64");
                     }
                     else if (expectedType->isIntegerTy(1) && actualType->isIntegerTy(64))
                     {
                         // (AR) تحويل i64 → i1 (منطقي)
                         // (EN) Convert i64 → i1 (bool)
-                        args[i] = builder_->CreateTrunc(args[i], getInt1Type(), "arg.i64toi1");
+                        args[i] = cg_.builder_->CreateTrunc(args[i], cg_.getInt1Type(), "arg.i64toi1");
                     }
                     else if (expectedType->isPointerTy() && actualType->isIntegerTy(1))
                     {
                         // (AR) تحويل i1 → مؤشر (عبر i64)
                         // (EN) Convert i1 → ptr (via i64)
-                        llvm::Value *ext = builder_->CreateZExt(args[i], getInt64Type(), "arg.i1toi64");
-                        args[i] = builder_->CreateIntToPtr(ext,
-                                                           llvm::PointerType::getUnqual(*context_), "arg.i1toptr");
+                        llvm::Value *ext = cg_.builder_->CreateZExt(args[i], cg_.getInt64Type(), "arg.i1toi64");
+                        args[i] = cg_.builder_->CreateIntToPtr(ext,
+                                                           llvm::PointerType::getUnqual(*cg_.context_), "arg.i1toptr");
                     }
                     else if (expectedType->isDoubleTy() && actualType->isIntegerTy())
                     {
                         // (AR) تحويل عدد صحيح → عشري
                         // (EN) Convert integer → double
-                        args[i] = builder_->CreateSIToFP(args[i], getDoubleType(), "arg.itofp");
+                        args[i] = cg_.builder_->CreateSIToFP(args[i], cg_.getDoubleType(), "arg.itofp");
                     }
                     else if (expectedType->isIntegerTy() && actualType->isDoubleTy())
                     {
                         // (AR) تحويل عشري → عدد صحيح
                         // (EN) Convert double → integer
-                        args[i] = builder_->CreateFPToSI(args[i], expectedType, "arg.fptoi");
+                        args[i] = cg_.builder_->CreateFPToSI(args[i], expectedType, "arg.fptoi");
                     }
                 }
             }
@@ -484,21 +486,21 @@ namespace Sad
                 if (needsReturnValue)
                 {
                     // (AR) تحديد نوع الإرجاع المطلوب
-                    llvm::Type *wantedRetType = getInt64Type();
+                    llvm::Type *wantedRetType = cg_.getInt64Type();
                     switch (inst->result->dataType)
                     {
                     case SadTypeKind::Float:
-                        wantedRetType = getDoubleType();
+                        wantedRetType = cg_.getDoubleType();
                         break;
                     case SadTypeKind::Boolean:
-                        wantedRetType = getInt1Type();
+                        wantedRetType = cg_.getInt1Type();
                         break;
                     case SadTypeKind::Pointer:
                     case SadTypeKind::String:
-                        wantedRetType = getInt8PtrType();
+                        wantedRetType = cg_.getInt8PtrType();
                         break;
                     default:
-                        wantedRetType = getInt64Type();
+                        wantedRetType = cg_.getInt64Type();
                         break;
                     }
                     // (AR) إعادة بناء نوع الدالة مع نوع إرجاع صحيح
@@ -514,17 +516,17 @@ namespace Sad
                     // (EN) Create direct call with new function type via FunctionCallee
                     //      Don't delete old function — use FunctionCallee with different type
                     llvm::FunctionCallee fc(newFuncType, callee);
-                    result = builder_->CreateCall(fc, args, "calltmp");
+                    result = cg_.builder_->CreateCall(fc, args, "calltmp");
                 }
                 else
                 {
-                    builder_->CreateCall(callee, args);
-                    result = llvm::ConstantInt::get(getInt64Type(), 0);
+                    cg_.builder_->CreateCall(callee, args);
+                    result = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
                 }
             }
             else
             {
-                result = builder_->CreateCall(callee, args, "calltmp");
+                result = cg_.builder_->CreateCall(callee, args, "calltmp");
             }
 
             if (inst->result.has_value())
@@ -548,10 +550,10 @@ namespace Sad
                     (inst->result->dataType == SadTypeKind::String ||
                      inst->result->dataType == SadTypeKind::Pointer))
                 {
-                    storeVal = builder_->CreateIntToPtr(
-                        result, llvm::PointerType::getUnqual(*context_), "ret.i64toptr");
+                    storeVal = cg_.builder_->CreateIntToPtr(
+                        result, llvm::PointerType::getUnqual(*cg_.context_), "ret.i64toptr");
                 }
-                context_info_.namedValues[inst->result->name] = storeVal;
+                cg_.context_info_.namedValues[inst->result->name] = storeVal;
             }
 
             return result;
