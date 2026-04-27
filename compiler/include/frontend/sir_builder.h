@@ -44,6 +44,7 @@
 #include "builders/call_builder.h"
 #include "builders/class_builder.h"
 #include "builders/statement_builder.h"
+#include "builders/expression_builder.h"
 #include <memory>
 #include <string>
 #include <set>
@@ -568,6 +569,7 @@ namespace Sad
                 friend class CallBuilder;
                 friend class ClassBuilder;
                 friend class StatementBuilder;
+                friend class ExpressionBuilder;
 
             public:
                 // ==================================================================
@@ -910,7 +912,9 @@ namespace Sad
                  * @param expr (AR) عقدة التعبير / (EN) Expression node
                  * @return (AR) نتيجة البناء مع السجل والنوع / (EN) Build result with register and type
                  */
-                BuildResult buildExpression(AST::ExpressionNode *expr);
+                BuildResult buildExpression(Sad::AST::Expression *expr)
+                { return expressions_->buildExpression(expr); }
+
 
                 /**
                  * @brief (AR) بناء عملية ثنائية (+ - * / % < > == && ||)
@@ -919,7 +923,9 @@ namespace Sad
                  * @param binOp (AR) عملية ثنائية / (EN) Binary operation
                  * @return (AR) نتيجة العملية / (EN) Operation result
                  */
-                BuildResult buildBinaryOp(AST::BinaryOpNode *binOp);
+                BuildResult buildBinaryOp(Sad::AST::BinaryExpr *binOp)
+                { return expressions_->buildBinaryOp(binOp); }
+
 
                 /**
                  * @brief (AR) بناء تقييم كسول (short-circuit) للعوامل المنطقية و/أو
@@ -938,7 +944,9 @@ namespace Sad
                  * @param binOp (AR) عملية ثنائية منطقية (&&/||) / (EN) Logical binary operation (&&/||)
                  * @return (AR) نتيجة العملية المنطقية / (EN) Logical operation result
                  */
-                BuildResult buildShortCircuitLogical(AST::BinaryOpNode *binOp);
+                BuildResult buildShortCircuitLogical(Sad::AST::BinaryExpr *binOp)
+                { return expressions_->buildShortCircuitLogical(binOp); }
+
 
                 /**
                  * @brief (AR) بناء عملية أحادية (- !)
@@ -947,7 +955,9 @@ namespace Sad
                  * @param unOp (AR) عملية أحادية / (EN) Unary operation
                  * @return (AR) نتيجة العملية / (EN) Operation result
                  */
-                BuildResult buildUnaryOp(AST::UnaryOpNode *unOp);
+                BuildResult buildUnaryOp(Sad::AST::UnaryExpr *unOp)
+                { return expressions_->buildUnaryOp(unOp); }
+
 
                 /**
                  * @brief (AR) بناء استدعاء دالة
@@ -1063,7 +1073,9 @@ namespace Sad
                  * @param newExpr (AR) تعبير جديد / (EN) New expression
                  * @return (AR) مؤشر للكائن / (EN) Pointer to object
                  */
-                BuildResult buildNewObject(AST::NewExpr *newExpr);
+                BuildResult buildNewObject(Sad::AST::NewExpr *expr)
+                { return expressions_->buildNewObject(expr); }
+
 
                 /**
                  * @brief (AR) بناء الوصول لعضو في كائن
@@ -1072,7 +1084,9 @@ namespace Sad
                  * @param memberExpr (AR) تعبير الوصول للعضو / (EN) Member access expression
                  * @return (AR) قيمة العضو / (EN) Member value
                  */
-                BuildResult buildMemberAccess(AST::MemberAccessExpr *memberExpr);
+                BuildResult buildMemberAccess(Sad::AST::MemberAccessExpr *expr)
+                { return expressions_->buildMemberAccess(expr); }
+
 
                 /**
                  * @brief (AR) بناء استدعاء طريقة على كائن
@@ -1219,7 +1233,9 @@ namespace Sad
                  * @param var (AR) متغير / (EN) Variable
                  * @return (AR) قيمة المتغير / (EN) Variable value
                  */
-                BuildResult buildVariableAccess(AST::VariableNode *var);
+                BuildResult buildVariableAccess(Sad::AST::VariableExpr *varNode)
+                { return expressions_->buildVariableAccess(varNode); }
+
 
                 /**
                  * @brief (AR) بناء ثابت (رقم، نص، منطقي)
@@ -1228,7 +1244,9 @@ namespace Sad
                  * @param literal (AR) ثابت / (EN) Literal
                  * @return (AR) القيمة الثابتة / (EN) Constant value
                  */
-                BuildResult buildLiteral(AST::LiteralNode *literal);
+                BuildResult buildLiteral(Sad::AST::LiteralExpr *literal)
+                { return expressions_->buildLiteral(literal); }
+
 
                 /**
                  * @brief (AR) بناء استدعاء method على نص
@@ -1248,70 +1266,114 @@ namespace Sad
                 // ==================================================================
 
                 /// @brief (AR) بناء تعبير MemberExpr (وصول للعضو) / (EN) Build MemberExpr
-                BuildResult buildExprMember(AST::MemberExpr *memberExpr);
+                BuildResult buildExprMember(Sad::AST::MemberExpr *expr)
+                { return expressions_->buildExprMember(expr); }
+
 
                 /// @brief (AR) بناء تعبير MemberAssignExpr / (EN) Build MemberAssignExpr
-                BuildResult buildExprMemberAssign(AST::MemberAssignExpr *memberAssignExpr);
+                BuildResult buildExprMemberAssign(Sad::AST::MemberAssignExpr *expr)
+                { return expressions_->buildExprMemberAssign(expr); }
+
 
                 /// @brief (AR) بناء تعبير TernaryExpr / (EN) Build TernaryExpr
-                BuildResult buildExprTernary(AST::TernaryExpr *ternaryExpr);
+                BuildResult buildExprTernary(Sad::AST::TernaryExpr *expr)
+                { return expressions_->buildExprTernary(expr); }
+
 
                 /// @brief (AR) بناء تعبير IndexExpr / (EN) Build IndexExpr
-                BuildResult buildExprIndex(AST::IndexExpr *indexExpr);
+                BuildResult buildExprIndex(Sad::AST::IndexExpr *expr)
+                { return expressions_->buildExprIndex(expr); }
+
 
                 /// @brief (AR) بناء تعبير IndexAssignExpr / (EN) Build IndexAssignExpr
-                BuildResult buildExprIndexAssign(AST::IndexAssignExpr *indexAssignExpr);
+                BuildResult buildExprIndexAssign(Sad::AST::IndexAssignExpr *expr)
+                { return expressions_->buildExprIndexAssign(expr); }
+
 
                 /// @brief (AR) بناء تعبير ArrayExpr / (EN) Build ArrayExpr
-                BuildResult buildExprArray(AST::ArrayExpr *arrayExpr);
+                BuildResult buildExprArray(Sad::AST::ArrayExpr *expr)
+                { return expressions_->buildExprArray(expr); }
+
 
                 /// @brief (AR) بناء تعبير TupleExpr / (EN) Build TupleExpr
-                BuildResult buildExprTuple(AST::TupleExpr *tupleExpr);
+                BuildResult buildExprTuple(Sad::AST::TupleExpr *expr)
+                { return expressions_->buildExprTuple(expr); }
+
 
                 /// @brief (AR) بناء تعبير MapExpr / (EN) Build MapExpr
-                BuildResult buildExprMap(AST::MapExpr *mapExpr);
+                BuildResult buildExprMap(Sad::AST::MapExpr *expr)
+                { return expressions_->buildExprMap(expr); }
+
 
                 /// @brief (AR) بناء تعبير WalrusExpr / (EN) Build WalrusExpr
-                BuildResult buildExprWalrus(AST::WalrusExpr *walrusExpr);
+                BuildResult buildExprWalrus(Sad::AST::WalrusExpr *expr)
+                { return expressions_->buildExprWalrus(expr); }
+
 
                 /// @brief (AR) بناء تعبير LambdaExpr / (EN) Build LambdaExpr
-                BuildResult buildExprLambda(AST::LambdaExpr *lambdaExpr);
+                BuildResult buildExprLambda(Sad::AST::LambdaExpr *expr)
+                { return expressions_->buildExprLambda(expr); }
+
 
                 /// @brief (AR) بناء تعبير RangeExpr / (EN) Build RangeExpr
-                BuildResult buildExprRange(AST::RangeExpr *rangeExpr);
+                BuildResult buildExprRange(Sad::AST::RangeExpr *expr)
+                { return expressions_->buildExprRange(expr); }
+
 
                 /// @brief (AR) بناء تعبير ListComprehensionExpr / (EN) Build ListComprehensionExpr
-                BuildResult buildExprListComp(AST::ListComprehensionExpr *listCompExpr);
+                BuildResult buildExprListComp(Sad::AST::ListComprehensionExpr *expr)
+                { return expressions_->buildExprListComp(expr); }
+
 
                 /// @brief (AR) بناء تعبير DictComprehensionExpr / (EN) Build DictComprehensionExpr
-                BuildResult buildExprDictComp(AST::DictComprehensionExpr *dictCompExpr);
+                BuildResult buildExprDictComp(Sad::AST::DictComprehensionExpr *expr)
+                { return expressions_->buildExprDictComp(expr); }
+
 
                 /// @brief (AR) بناء تعبير SetComprehensionExpr / (EN) Build SetComprehensionExpr
-                BuildResult buildExprSetComp(AST::SetComprehensionExpr *setCompExpr);
+                BuildResult buildExprSetComp(Sad::AST::SetComprehensionExpr *expr)
+                { return expressions_->buildExprSetComp(expr); }
+
 
                 /// @brief (AR) بناء تعبير GeneratorExpr / (EN) Build GeneratorExpr
-                BuildResult buildExprGenerator(AST::GeneratorExpr *genExpr);
+                BuildResult buildExprGenerator(Sad::AST::GeneratorExpr *expr)
+                { return expressions_->buildExprGenerator(expr); }
+
 
                 /// @brief (AR) بناء تعبير InlineAsmExpr / (EN) Build InlineAsmExpr
-                BuildResult buildExprInlineAsm(AST::InlineAsmExpr *inlineAsm);
+                BuildResult buildExprInlineAsm(Sad::AST::InlineAsmExpr *expr)
+                { return expressions_->buildExprInlineAsm(expr); }
+
 
                 /// @brief (AR) بناء تعبير SizeofExpr / (EN) Build SizeofExpr
-                BuildResult buildExprSizeof(AST::SizeofExpr *sizeofExpr);
+                BuildResult buildExprSizeof(Sad::AST::SizeofExpr *expr)
+                { return expressions_->buildExprSizeof(expr); }
+
 
                 /// @brief (AR) بناء تعبير AtomicExpr / (EN) Build AtomicExpr
-                BuildResult buildExprAtomic(AST::AtomicExpr *atomicExpr);
+                BuildResult buildExprAtomic(Sad::AST::AtomicExpr *expr)
+                { return expressions_->buildExprAtomic(expr); }
+
 
                 /// @brief (AR) بناء تعبير OptionalChainExpr / (EN) Build OptionalChainExpr
-                BuildResult buildExprOptionalChain(AST::OptionalChainExpr *optChainExpr);
+                BuildResult buildExprOptionalChain(Sad::AST::OptionalChainExpr *expr)
+                { return expressions_->buildExprOptionalChain(expr); }
+
 
                 /// @brief (AR) بناء تعبير NullCoalesceExpr / (EN) Build NullCoalesceExpr
-                BuildResult buildExprNullCoalesce(AST::NullCoalesceExpr *nullCoalExpr);
+                BuildResult buildExprNullCoalesce(Sad::AST::NullCoalesceExpr *expr)
+                { return expressions_->buildExprNullCoalesce(expr); }
+
 
                 /// @brief (AR) بناء تعبير SliceExpr / (EN) Build SliceExpr
-                BuildResult buildExprSlice(AST::SliceExpr *sliceExpr);
+                BuildResult buildExprSlice(Sad::AST::SliceExpr *expr)
+                { return expressions_->buildExprSlice(expr); }
+
 
                 /// @brief (AR) بناء تعبير ErrorPropagateExpr / (EN) Build ErrorPropagateExpr
-                BuildResult buildExprErrorPropagate(AST::ErrorPropagateExpr *errorPropExpr);
+                BuildResult buildExprErrorPropagate(Sad::AST::ErrorPropagateExpr *expr)
+                { return expressions_->buildExprErrorPropagate(expr); }
+
 
                 // ==================================================================
                 // إدارة السجلات / Register Management
@@ -1507,6 +1569,12 @@ namespace Sad
                 // (EN) Phase 6 — Step 6: separated statement builder
                 // ==================================================================
                 std::unique_ptr<StatementBuilder> statements_;
+
+                // ==================================================================
+                // (AR) Phase 6 — Step 7: بنّاء التعابير المنفصل
+                // (EN) Phase 6 — Step 7: separated expression builder
+                // ==================================================================
+                std::unique_ptr<ExpressionBuilder> expressions_;
 
                 /**
                  * @brief (AR) تجميع وحدة وحفظها في الذاكرة المخبئية

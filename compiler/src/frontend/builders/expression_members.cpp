@@ -7,6 +7,7 @@
 //      Extracted from sir_builder_expressions_dispatch.cpp
 // ============================================================================
 #include "sir_builder.h"
+#include "builders/expression_builder.h"
 #include "class_nodes.h"
 
 #include <iostream>
@@ -21,7 +22,7 @@ namespace Sad
             // ============================================================================
             // buildExprMember — بناء تعبير MemberExpr (وصول للعضو في كائن)
             // ============================================================================
-            BuildResult SIRBuilder::buildExprMember(AST::MemberExpr *memberExpr)
+            BuildResult ExpressionBuilder::buildExprMember(AST::MemberExpr *memberExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found MemberExpr for member '"
@@ -40,8 +41,8 @@ namespace Sad
                 // ================================================================
                 if (auto *varExpr = dynamic_cast<Sad::AST::VariableExpr *>(memberExpr->object.get()))
                 {
-                    auto nsIt = namespaceMembers_.find(varExpr->name);
-                    if (nsIt != namespaceMembers_.end())
+                    auto nsIt = b_.namespaceMembers_.find(varExpr->name);
+                    if (nsIt != b_.namespaceMembers_.end())
                     {
                         auto memIt = nsIt->second.find(memberExpr->member);
                         if (memIt != nsIt->second.end())
@@ -49,15 +50,15 @@ namespace Sad
                             const auto &nsInfo = memIt->second;
                             if (nsInfo.kind == "var")
                             {
-                                std::string loadReg = newTempRegister();
-                                if (currentBlock_)
+                                std::string loadReg = b_.newTempRegister();
+                                if (b_.currentBlock_)
                                 {
                                     SIRInstruction loadInst(SIROpcode::LOAD);
                                     loadInst.result = SIROperand::Register(loadReg, nsInfo.type);
                                     loadInst.operands.push_back(
                                         SIROperand::Global(nsInfo.sirName, nsInfo.type));
                                     loadInst.comment = "Load namespace member: " + nsInfo.sirName;
-                                    currentBlock_->addInstruction(loadInst);
+                                    b_.currentBlock_->addInstruction(loadInst);
                                 }
                                 return BuildResult(loadReg, nsInfo.type);
                             }
@@ -89,18 +90,18 @@ namespace Sad
 
                         // (AR) الخطوة 1.25أ: فحص ما إذا كان unit variant في تعداد جبري (ADT)
                         // (EN) Step 1.25a: Check if this is a unit variant in an ADT enum
-                        auto funcIt = functionTable_.find(fullName);
-                        if (funcIt != functionTable_.end() && currentBlock_)
+                        auto funcIt = b_.functionTable_.find(fullName);
+                        if (funcIt != b_.functionTable_.end() && b_.currentBlock_)
                         {
-                            std::string callReg = newTempRegister();
+                            std::string callReg = b_.newTempRegister();
                             SIRInstruction callInst(SIROpcode::CALL);
                             callInst.result = SIROperand::Register(callReg, SadTypeKind::Integer);
                             callInst.operands.push_back(
                                 SIROperand::Function(funcIt->second.name));
                             callInst.comment = "Call unit variant constructor: " + fullName;
-                            currentBlock_->addInstruction(callInst);
+                            b_.currentBlock_->addInstruction(callInst);
 
-                            classInstanceTypes_[callReg] = objName;
+                            b_.classInstanceTypes_[callReg] = objName;
 
                             BuildResult result(callReg, SadTypeKind::Integer);
                             result.className = objName;
@@ -109,18 +110,18 @@ namespace Sad
 
                         // (AR) الخطوة 1.25ب: تحميل ثابت عام (تعداد بسيط أو C-style enum)
                         // (EN) Step 1.25b: Load global constant (simple enum or C-style enum)
-                        auto *varInfo = lookupVariable(fullName);
+                        auto *varInfo = b_.lookupVariable(fullName);
                         if (varInfo)
                         {
-                            if (varInfo->isGlobal && currentBlock_)
+                            if (varInfo->isGlobal && b_.currentBlock_)
                             {
-                                std::string loadReg = newTempRegister();
+                                std::string loadReg = b_.newTempRegister();
                                 SIRInstruction loadInst(SIROpcode::LOAD);
                                 loadInst.result = SIROperand::Register(loadReg, varInfo->type);
                                 loadInst.operands.push_back(
                                     SIROperand::Global(fullName, varInfo->type));
                                 loadInst.comment = "Load unit variant: " + fullName;
-                                currentBlock_->addInstruction(loadInst);
+                                b_.currentBlock_->addInstruction(loadInst);
                                 return BuildResult(loadReg, varInfo->type);
                             }
                             return BuildResult(varInfo->registerName, varInfo->type);
@@ -134,11 +135,11 @@ namespace Sad
                 std::string className = objResult.className;
                 if (className.empty() && dynamic_cast<Sad::AST::ThisExpr *>(memberExpr->object.get()))
                 {
-                    className = currentClassName_;
+                    className = b_.currentClassName_;
                 }
-                if (!className.empty() && module_)
+                if (!className.empty() && b_.module_)
                 {
-                    auto sirClass = module_->getClass(className);
+                    auto sirClass = b_.module_->getClass(className);
                     if (sirClass)
                     {
                         auto fieldIt = sirClass->fields_.find(memberExpr->member);
@@ -158,16 +159,16 @@ namespace Sad
 
                 // (AR) الخطوة 2: إنشاء تعليمة الوصول للعضو
                 // (EN) Step 2: Create member access instruction
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
                     SIRInstruction loadInst;
                     loadInst.opcode = SIROpcode::LOAD;
                     loadInst.result = SIROperand::Register(resultReg, memberType);
                     loadInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     loadInst.operands.push_back(SIROperand::ConstantString(memberExpr->member));
-                    currentBlock_->addInstruction(loadInst);
+                    b_.currentBlock_->addInstruction(loadInst);
                 }
 
                 BuildResult memberResult(resultReg, memberType);
@@ -178,7 +179,7 @@ namespace Sad
             // ============================================================================
             // buildExprMemberAssign — بناء تعبير MemberAssignExpr (إسناد لعضو في كائن)
             // ============================================================================
-            BuildResult SIRBuilder::buildExprMemberAssign(AST::MemberAssignExpr *memberAssignExpr)
+            BuildResult ExpressionBuilder::buildExprMemberAssign(AST::MemberAssignExpr *memberAssignExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found MemberAssignExpr" << std::endl;
@@ -189,14 +190,14 @@ namespace Sad
                 if (auto *varExpr = dynamic_cast<Sad::AST::VariableExpr *>(memberAssignExpr->object.get()))
                 {
                     std::string staticFieldName = varExpr->name + "." + memberAssignExpr->member;
-                    auto sfIt = staticFields_.find(staticFieldName);
-                    if (sfIt != staticFields_.end())
+                    auto sfIt = b_.staticFields_.find(staticFieldName);
+                    if (sfIt != b_.staticFields_.end())
                     {
                         auto valResult = buildExpression(memberAssignExpr->value.get());
 
-                        if (valResult.isConstant && currentBlock_)
+                        if (valResult.isConstant && b_.currentBlock_)
                         {
-                            std::string reg = newTempRegister();
+                            std::string reg = b_.newTempRegister();
                             SIRInstruction moveInst(SIROpcode::MOVE);
                             moveInst.result = SIROperand::Register(reg, valResult.type);
                             if (valResult.type == SadTypeKind::Float)
@@ -225,18 +226,18 @@ namespace Sad
                                     moveInst.operands.push_back(SIROperand::ConstantI64(0));
                                 }
                             }
-                            currentBlock_->addInstruction(moveInst);
+                            b_.currentBlock_->addInstruction(moveInst);
                             valResult.registerName = reg;
                             valResult.isConstant = false;
                         }
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
                             SIRInstruction storeInst(SIROpcode::STORE);
                             storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
                             storeInst.operands.push_back(SIROperand::Global(staticFieldName, sfIt->second));
                             storeInst.comment = "Store static field: " + staticFieldName;
-                            currentBlock_->addInstruction(storeInst);
+                            b_.currentBlock_->addInstruction(storeInst);
                         }
                         return BuildResult(valResult.registerName, valResult.type);
                     }
@@ -249,9 +250,9 @@ namespace Sad
 
                 // (AR) تجسيد القيمة إذا كانت ثابتة
                 // (EN) Materialize value if constant
-                if (valResult.isConstant && currentBlock_)
+                if (valResult.isConstant && b_.currentBlock_)
                 {
-                    std::string reg = newTempRegister();
+                    std::string reg = b_.newTempRegister();
                     SIRInstruction moveInst(SIROpcode::MOVE);
                     moveInst.result = SIROperand::Register(reg, valResult.type);
                     if (valResult.type == SadTypeKind::String)
@@ -280,7 +281,7 @@ namespace Sad
                             moveInst.operands.push_back(SIROperand::ConstantI64(0));
                         }
                     }
-                    currentBlock_->addInstruction(moveInst);
+                    b_.currentBlock_->addInstruction(moveInst);
                     valResult.registerName = reg;
                     valResult.isConstant = false;
                 }
@@ -294,9 +295,9 @@ namespace Sad
                 storeInst.operands.push_back(SIROperand::ConstantString(memberAssignExpr->member));
                 storeInst.comment = "member assign: " + memberAssignExpr->member;
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(storeInst);
+                    b_.currentBlock_->addInstruction(storeInst);
                 }
 
                 return BuildResult(valResult.registerName, valResult.type);

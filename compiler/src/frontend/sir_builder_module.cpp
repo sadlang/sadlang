@@ -68,6 +68,9 @@ namespace Sad
                 // (AR) تهيئة بنّاء العبارات (Phase 6 Step 6)
                 // (EN) Initialize statement builder (Phase 6 Step 6)
                 statements_ = std::make_unique<StatementBuilder>(*this);
+                // (AR) تهيئة بنّاء التعابير (Phase 6 Step 7)
+                // (EN) Initialize expression builder (Phase 6 Step 7)
+                expressions_ = std::make_unique<ExpressionBuilder>(*this);
                 // (AR) „״§ ״×ˆ״¬״¯ ״×‡״¦״© ״¥״¶״§״© …״·„ˆ״¨״©
                 // (EN) No additional initialization required
             }

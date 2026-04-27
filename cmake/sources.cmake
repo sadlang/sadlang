@@ -273,9 +273,7 @@ set(COMPILER_FRONTEND_SOURCES
     compiler/src/frontend/sir_instruction.cpp
     compiler/src/frontend/sir_builder_module.cpp
     compiler/src/frontend/sir_builder_helpers.cpp
-    compiler/src/frontend/sir_builder_expressions_dispatch.cpp
     compiler/src/frontend/sir_builder_type_inference.cpp
-    compiler/src/frontend/sir_builder_operators.cpp
     # (AR) Phase 6 — Step 3: ملفات sir_builder_builtins_*.cpp نُقلت إلى
     #      compiler/src/frontend/builders/builtins_*.cpp وتُلتقط عبر GLOB
     #      في compiler/CMakeLists.txt — لا حاجة لإضافتها هنا.

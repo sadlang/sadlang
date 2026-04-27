@@ -3,6 +3,7 @@
 // ============================================================================
 #include <string>
 #include "sir_builder.h"
+#include "builders/expression_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -46,7 +47,7 @@ namespace Sad
             // - CallExpr (line 276): callee, arguments
             // - MemberExpr (line 353): object, member
             // ============================================================================
-            BuildResult SIRBuilder::buildExpression(AST::ExpressionNode *expr)
+            BuildResult ExpressionBuilder::buildExpression(AST::ExpressionNode *expr)
             {
                 if (!expr)
                 {
@@ -102,7 +103,7 @@ namespace Sad
 
                     if (!possibleVarName.empty())
                     {
-                        VariableInfo *varInfo = lookupVariable(possibleVarName);
+                        VariableInfo *varInfo = b_.lookupVariable(possibleVarName);
                         if (varInfo)
                         {
                             // (AR) وُجد متغير بهذا الاسم → استخدمه كمتغير
@@ -128,17 +129,17 @@ namespace Sad
                 // (EN) Function call
                 if (auto callExpr = dynamic_cast<Sad::AST::CallExpr *>(expr))
                 {
-                    return buildFunctionCall(callExpr);
+                    return b_.buildFunctionCall(callExpr);
                 }
 
                 // (AR) AssignExpr - إسناد متغير (expressions.h:247)
                 // (EN) Variable assignment
                 if (auto assignExpr = dynamic_cast<Sad::AST::AssignExpr *>(expr))
                 {
-                    buildAssignment(assignExpr);
+                    b_.buildAssignment(assignExpr);
                     // (AR) بعد الإسناد، نرجع معلومات المتغير المُسند إليه
                     // (EN) After assignment, return the assigned variable info
-                    VariableInfo *varInfo = lookupVariable(assignExpr->name);
+                    VariableInfo *varInfo = b_.lookupVariable(assignExpr->name);
                     if (varInfo)
                     {
                         return BuildResult(varInfo->registerName, varInfo->type);
@@ -168,7 +169,7 @@ namespace Sad
                 // (EN) Method call on object
                 if (auto methodCallExpr = dynamic_cast<Sad::AST::MethodCallExpr *>(expr))
                 {
-                    return buildMethodCall(methodCallExpr);
+                    return b_.buildMethodCall(methodCallExpr);
                 }
 
                 // (AR) ThisExpr - مرجع ذاتي 'هذا' (class_nodes.h:288)
@@ -177,7 +178,7 @@ namespace Sad
                 {
                     // (AR) 'هذا' يشير إلى self في سياق الصنف
                     // (EN) 'this' refers to self in class context
-                    VariableInfo *selfInfo = lookupVariable(kSelfParamName);
+                    VariableInfo *selfInfo = b_.lookupVariable(kSelfParamName);
                     if (selfInfo)
                     {
                         return BuildResult(selfInfo->registerName, selfInfo->type);
@@ -191,7 +192,7 @@ namespace Sad
                 {
                     // (AR) في سياق المترجم، الأساس يشير إلى self (لأن الكائن واحد)
                     // (EN) In compiler context, super refers to self (single object)
-                    VariableInfo *selfInfo = lookupVariable(kSelfParamName);
+                    VariableInfo *selfInfo = b_.lookupVariable(kSelfParamName);
                     if (selfInfo)
                     {
                         return BuildResult(selfInfo->registerName, selfInfo->type);
@@ -267,7 +268,7 @@ namespace Sad
 
                     // (AR) المُزخرف يُحوّل لاستدعاء دالة بالاسم
                     // (EN) Decorator is lowered to a function call by name
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction callInst;
                     callInst.opcode = SIROpcode::CALL;
                     callInst.result = SIROperand::Register(resultReg, SadTypeKind::Function);
@@ -285,9 +286,9 @@ namespace Sad
                     }
                     callInst.comment = "decorator: " + decoratorExpr->name;
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(callInst);
+                        b_.currentBlock_->addInstruction(callInst);
                     }
 
                     return BuildResult(resultReg, SadTypeKind::Function);
@@ -305,11 +306,11 @@ namespace Sad
 
                     // (AR) البحث عن المتغير المُستعار
                     // (EN) Look up the borrowed variable
-                    VariableInfo *varInfo = lookupVariable(borrowExpr->variableName);
+                    VariableInfo *varInfo = b_.lookupVariable(borrowExpr->variableName);
                     std::string sourceReg = varInfo ? varInfo->registerName : "%" + borrowExpr->variableName;
                     SadTypeKind sourceType = varInfo ? varInfo->type : SadTypeKind::Integer;
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction borrowInst;
                     // (AR) استعارة تُترجم إلى أخذ عنوان (ADDR) — SIR لا يحتوي BORROW مباشرة
                     // (EN) Borrow lowered to address-of (ADDR) — SIR has no direct BORROW opcode
@@ -318,9 +319,9 @@ namespace Sad
                     borrowInst.operands.push_back(SIROperand::Register(sourceReg, sourceType));
                     borrowInst.comment = borrowExpr->isMutable ? "borrow_mut" : "borrow";
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(borrowInst);
+                        b_.currentBlock_->addInstruction(borrowInst);
                     }
 
                     return BuildResult(resultReg, SadTypeKind::Pointer);
@@ -342,24 +343,24 @@ namespace Sad
                     std::vector<SadTypeKind> typeArgs;
                     for (const auto &arg : templateInst->typeArguments)
                     {
-                        typeArgs.push_back(astTypeToSIRType(arg));
+                        typeArgs.push_back(b_.astTypeToSIRType(arg));
                     }
 
                     // (AR) محاولة إنشاء نسخة من القالب
                     // (EN) Attempt to instantiate the template
-                    std::string instName = instantiateTemplate(templateInst->templateName, typeArgs);
+                    std::string instName = b_.instantiateTemplate(templateInst->templateName, typeArgs);
 
                     // (AR) استدعاء الدالة/الصنف المُنشأ بدون وسائط (القالب لا يحمل وسائط قيم)
                     // (EN) Call the instantiated function/class with no args (template has no value args)
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction callInst = SIRInstruction::Call(
                         SIROperand::Register(resultReg, SadTypeKind::Integer),
                         SIROperand::ConstantString(instName),
                         {});
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(callInst);
+                        b_.currentBlock_->addInstruction(callInst);
                     }
 
                     return BuildResult(resultReg, SadTypeKind::Integer);
@@ -385,15 +386,15 @@ namespace Sad
 
                     // (AR) إصدار تعليمة CORO_SUSPEND: انتظر الكوروتين الداخلي
                     // (EN) Emit CORO_SUSPEND: await the inner coroutine
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction suspendInst;
                     suspendInst.opcode = SIROpcode::CORO_SUSPEND;
                     suspendInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     suspendInst.operands.push_back(SIROperand::Register(innerResult.registerName, innerResult.type));
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(suspendInst);
+                        b_.currentBlock_->addInstruction(suspendInst);
                     }
 
                     return BuildResult(resultReg, SadTypeKind::Integer);

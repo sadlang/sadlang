@@ -4,6 +4,7 @@
 // Null safety, slice, and error propagation expression builders
 // ============================================================================
 #include "sir_builder.h"
+#include "builders/expression_builder.h"
 
 #include <iostream>
 
@@ -17,7 +18,7 @@ namespace Sad
             // ============================================================================
             // buildExprOptionalChain
             // ============================================================================
-            BuildResult SIRBuilder::buildExprOptionalChain(AST::OptionalChainExpr *optChainExpr)
+            BuildResult ExpressionBuilder::buildExprOptionalChain(AST::OptionalChainExpr *optChainExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found OptionalChainExpr for member '"
@@ -30,26 +31,26 @@ namespace Sad
 
                 // (AR) إنشاء الكتل: فحص null → وصول العضو / null
                 // (EN) Create blocks: null check → member access / null
-                std::string accessLabel = newLabel("optchain_access");
-                std::string nullLabel = newLabel("optchain_null");
-                std::string mergeLabel = newLabel("optchain_merge");
+                std::string accessLabel = b_.newLabel("optchain_access");
+                std::string nullLabel = b_.newLabel("optchain_null");
+                std::string mergeLabel = b_.newLabel("optchain_merge");
 
-                auto accessBlock = createBasicBlock(accessLabel);
-                auto nullBlock = createBasicBlock(nullLabel);
-                auto mergeBlock = createBasicBlock(mergeLabel);
+                auto accessBlock = b_.createBasicBlock(accessLabel);
+                auto nullBlock = b_.createBasicBlock(nullLabel);
+                auto mergeBlock = b_.createBasicBlock(mergeLabel);
 
                 // (AR) فحص: هل الكائن != null (!=0)
                 // (EN) Check: is object != null (!=0)
-                std::string cmpReg = newTempRegister();
-                if (currentBlock_)
+                std::string cmpReg = b_.newTempRegister();
+                if (b_.currentBlock_)
                 {
                     SIRInstruction cmpInst(SIROpcode::NE);
                     cmpInst.result = SIROperand::Register(cmpReg, SadTypeKind::Boolean);
                     cmpInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     cmpInst.operands.push_back(SIROperand::ConstantI64(0));
-                    currentBlock_->addInstruction(cmpInst);
+                    b_.currentBlock_->addInstruction(cmpInst);
 
-                    currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                    b_.currentBlock_->addInstruction(SIRInstruction::BranchCond(
                         SIROperand::Register(cmpReg, SadTypeKind::Boolean),
                         SIROperand::Label(accessLabel),
                         SIROperand::Label(nullLabel)));
@@ -57,11 +58,11 @@ namespace Sad
 
                 // (AR) فرع الوصول: الكائن موجود → LOAD العضو
                 // (EN) Access branch: object exists → LOAD member
-                if (currentFunction_)
-                    currentFunction_->addBasicBlock(accessBlock);
-                currentBlock_ = accessBlock;
-                std::string memberReg = newTempRegister();
-                if (currentBlock_)
+                if (b_.currentFunction_)
+                    b_.currentFunction_->addBasicBlock(accessBlock);
+                b_.currentBlock_ = accessBlock;
+                std::string memberReg = b_.newTempRegister();
+                if (b_.currentBlock_)
                 {
                     SIRInstruction loadInst;
                     loadInst.opcode = SIROpcode::LOAD;
@@ -69,37 +70,37 @@ namespace Sad
                     loadInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     loadInst.operands.push_back(SIROperand::ConstantString(optChainExpr->member));
                     loadInst.comment = "optional chain member: " + optChainExpr->member;
-                    currentBlock_->addInstruction(loadInst);
-                    currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+                    b_.currentBlock_->addInstruction(loadInst);
+                    b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
                 }
 
                 // (AR) فرع null: إرجاع 0 (null)
                 // (EN) Null branch: return 0 (null)
-                if (currentFunction_)
-                    currentFunction_->addBasicBlock(nullBlock);
-                currentBlock_ = nullBlock;
-                std::string nullReg = newTempRegister();
-                if (currentBlock_)
+                if (b_.currentFunction_)
+                    b_.currentFunction_->addBasicBlock(nullBlock);
+                b_.currentBlock_ = nullBlock;
+                std::string nullReg = b_.newTempRegister();
+                if (b_.currentBlock_)
                 {
                     SIRInstruction moveInst(SIROpcode::MOVE);
                     moveInst.result = SIROperand::Register(nullReg, SadTypeKind::Integer);
                     moveInst.operands.push_back(SIROperand::ConstantI64(0));
-                    currentBlock_->addInstruction(moveInst);
-                    currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+                    b_.currentBlock_->addInstruction(moveInst);
+                    b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
                 }
 
                 // (AR) كتلة الدمج مع PHI
                 // (EN) Merge block with PHI
-                if (currentFunction_)
-                    currentFunction_->addBasicBlock(mergeBlock);
-                currentBlock_ = mergeBlock;
-                std::string phiReg = newTempRegister();
+                if (b_.currentFunction_)
+                    b_.currentFunction_->addBasicBlock(mergeBlock);
+                b_.currentBlock_ = mergeBlock;
+                std::string phiReg = b_.newTempRegister();
                 SIRInstruction phiInst = SIRInstruction::Phi(
                     SIROperand::Register(phiReg, SadTypeKind::Integer),
                     {{SIROperand::Register(memberReg, SadTypeKind::Integer), SIROperand::Label(accessLabel)},
                      {SIROperand::Register(nullReg, SadTypeKind::Integer), SIROperand::Label(nullLabel)}});
-                if (currentBlock_)
-                    currentBlock_->addInstruction(phiInst);
+                if (b_.currentBlock_)
+                    b_.currentBlock_->addInstruction(phiInst);
 
                 return BuildResult(phiReg, SadTypeKind::Integer);
             }
@@ -107,7 +108,7 @@ namespace Sad
             // ============================================================================
             // buildExprNullCoalesce
             // ============================================================================
-            BuildResult SIRBuilder::buildExprNullCoalesce(AST::NullCoalesceExpr *nullCoalExpr)
+            BuildResult ExpressionBuilder::buildExprNullCoalesce(AST::NullCoalesceExpr *nullCoalExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found NullCoalesceExpr" << std::endl;
@@ -119,13 +120,13 @@ namespace Sad
 
                 // (AR) إنشاء الكتل: فحص null → يسار / يمين
                 // (EN) Create blocks: null check → left / right
-                std::string leftLabel = newLabel("nc_left");
-                std::string rightLabel = newLabel("nc_right");
-                std::string mergeLabel = newLabel("nc_merge");
+                std::string leftLabel = b_.newLabel("nc_left");
+                std::string rightLabel = b_.newLabel("nc_right");
+                std::string mergeLabel = b_.newLabel("nc_merge");
 
-                auto leftBlock = createBasicBlock(leftLabel);
-                auto rightBlock = createBasicBlock(rightLabel);
-                auto mergeBlock = createBasicBlock(mergeLabel);
+                auto leftBlock = b_.createBasicBlock(leftLabel);
+                auto rightBlock = b_.createBasicBlock(rightLabel);
+                auto mergeBlock = b_.createBasicBlock(mergeLabel);
 
                 // (AR) فحص: هل اليسار != لاشيء (null-sentinel)
                 //      اللغة تمثل لاشيء بقيمة sentinel خاصة وليست 0، لذلك
@@ -133,16 +134,16 @@ namespace Sad
                 // (EN) Check: is left != null sentinel
                 //      The language represents null with a dedicated sentinel, not 0,
                 //      so comparing against 0 breaks ?? for real null values.
-                std::string cmpReg = newTempRegister();
-                if (currentBlock_)
+                std::string cmpReg = b_.newTempRegister();
+                if (b_.currentBlock_)
                 {
                     SIRInstruction cmpInst(SIROpcode::NE);
                     cmpInst.result = SIROperand::Register(cmpReg, SadTypeKind::Boolean);
                     cmpInst.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
                     cmpInst.operands.push_back(SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel));
-                    currentBlock_->addInstruction(cmpInst);
+                    b_.currentBlock_->addInstruction(cmpInst);
 
-                    currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                    b_.currentBlock_->addInstruction(SIRInstruction::BranchCond(
                         SIROperand::Register(cmpReg, SadTypeKind::Boolean),
                         SIROperand::Label(leftLabel),
                         SIROperand::Label(rightLabel)));
@@ -152,13 +153,13 @@ namespace Sad
 
                 // (AR) فرع اليسار: القيمة موجودة
                 // (EN) Left branch: value exists
-                if (currentFunction_)
-                    currentFunction_->addBasicBlock(leftBlock);
-                currentBlock_ = leftBlock;
+                if (b_.currentFunction_)
+                    b_.currentFunction_->addBasicBlock(leftBlock);
+                b_.currentBlock_ = leftBlock;
                 // (AR) دائماً MOVE محلي في nc_left لضمان صلاحية leftReg في PHI
                 // (EN) Always emit local MOVE in nc_left so PHI has a locally-defined value
-                std::string leftReg = newTempRegister();
-                if (currentBlock_)
+                std::string leftReg = b_.newTempRegister();
+                if (b_.currentBlock_)
                 {
                     SIRInstruction moveInst(SIROpcode::MOVE);
                     moveInst.result = SIROperand::Register(leftReg, leftResult.type);
@@ -193,14 +194,14 @@ namespace Sad
                         // (EN) Register: add as source operand
                         moveInst.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
                     }
-                    currentBlock_->addInstruction(moveInst);
+                    b_.currentBlock_->addInstruction(moveInst);
                 }
 
                 // (AR) فرع اليمين: القيمة البديلة
                 // (EN) Right branch: fallback value
-                if (currentFunction_)
-                    currentFunction_->addBasicBlock(rightBlock);
-                currentBlock_ = rightBlock;
+                if (b_.currentFunction_)
+                    b_.currentFunction_->addBasicBlock(rightBlock);
+                b_.currentBlock_ = rightBlock;
                 auto rightResult = buildExpression(nullCoalExpr->right.get());
                 SadTypeKind resultType = leftResult.type;
                 if (resultType == SadTypeKind::Void || resultType == SadTypeKind::Unknown)
@@ -218,34 +219,34 @@ namespace Sad
 
                 // (AR) توحيد فرع اليسار إلى resultType عند الحاجة قبل القفز إلى الدمج.
                 // (EN) Normalize left branch to resultType when needed before jumping to merge.
-                if (leftResult.type != resultType && currentBlock_)
+                if (leftResult.type != resultType && b_.currentBlock_)
                 {
-                    currentBlock_ = leftBlock;
+                    b_.currentBlock_ = leftBlock;
 
                     if (resultType == SadTypeKind::String)
                     {
-                        std::string leftCastReg = newTempRegister();
+                        std::string leftCastReg = b_.newTempRegister();
                         SIROpcode castOpcode = (leftResult.type == SadTypeKind::Float)
                                                    ? SIROpcode::F64_TO_STRING
                                                    : SIROpcode::I64_TO_STRING;
                         SIRInstruction castInst(castOpcode);
                         castInst.result = SIROperand::Register(leftCastReg, SadTypeKind::String);
                         castInst.operands.push_back(SIROperand::Register(leftReg, leftResult.type));
-                        currentBlock_->addInstruction(castInst);
+                        b_.currentBlock_->addInstruction(castInst);
                         leftReg = leftCastReg;
                     }
                 }
                 if (leftBlock)
                 {
-                    currentBlock_ = leftBlock;
-                    currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+                    b_.currentBlock_ = leftBlock;
+                    b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
                 }
 
-                currentBlock_ = rightBlock;
+                b_.currentBlock_ = rightBlock;
                 std::string rightReg = rightResult.registerName;
-                if (rightResult.isConstant && currentBlock_)
+                if (rightResult.isConstant && b_.currentBlock_)
                 {
-                    rightReg = newTempRegister();
+                    rightReg = b_.newTempRegister();
                     SIRInstruction moveInst(SIROpcode::MOVE);
                     moveInst.result = SIROperand::Register(rightReg, resultType);
                     switch (resultType)
@@ -270,23 +271,23 @@ namespace Sad
                         }
                         break;
                     }
-                    currentBlock_->addInstruction(moveInst);
+                    b_.currentBlock_->addInstruction(moveInst);
                 }
-                if (currentBlock_)
-                    currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+                if (b_.currentBlock_)
+                    b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
 
                 // (AR) كتلة الدمج مع PHI
                 // (EN) Merge block with PHI
-                if (currentFunction_)
-                    currentFunction_->addBasicBlock(mergeBlock);
-                currentBlock_ = mergeBlock;
-                std::string phiReg = newTempRegister();
+                if (b_.currentFunction_)
+                    b_.currentFunction_->addBasicBlock(mergeBlock);
+                b_.currentBlock_ = mergeBlock;
+                std::string phiReg = b_.newTempRegister();
                 SIRInstruction phiInst = SIRInstruction::Phi(
                     SIROperand::Register(phiReg, resultType),
                     {{SIROperand::Register(leftReg, resultType), SIROperand::Label(leftLabel)},
                      {SIROperand::Register(rightReg, resultType), SIROperand::Label(rightLabel)}});
-                if (currentBlock_)
-                    currentBlock_->addInstruction(phiInst);
+                if (b_.currentBlock_)
+                    b_.currentBlock_->addInstruction(phiInst);
 
                 return BuildResult(phiReg, resultType);
             }
@@ -294,7 +295,7 @@ namespace Sad
             // ============================================================================
             // buildExprSlice — بناء تعبير الشريحة [:] على المصفوفات
             // ============================================================================
-            BuildResult SIRBuilder::buildExprSlice(AST::SliceExpr *sliceExpr)
+            BuildResult ExpressionBuilder::buildExprSlice(AST::SliceExpr *sliceExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found SliceExpr" << std::endl;
@@ -352,7 +353,7 @@ namespace Sad
 
                 // (AR) إنشاء تعليمة BUILTIN_ARRAY_SLICE: (array, start, end)
                 // (EN) Create BUILTIN_ARRAY_SLICE instruction: (array, start, end)
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
                 SIRInstruction sliceInst(SIROpcode::BUILTIN_ARRAY_SLICE);
                 sliceInst.result = SIROperand::Register(resultReg, SadTypeKind::Array);
                 // (AR) المعامل الأول: المصفوفة المصدر
@@ -386,8 +387,8 @@ namespace Sad
                     }
                 }
 
-                if (currentBlock_)
-                    currentBlock_->addInstruction(sliceInst);
+                if (b_.currentBlock_)
+                    b_.currentBlock_->addInstruction(sliceInst);
 
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExprSlice -> " << resultReg << std::endl;
@@ -398,7 +399,7 @@ namespace Sad
             // ============================================================================
             // buildExprErrorPropagate
             // ============================================================================
-            BuildResult SIRBuilder::buildExprErrorPropagate(AST::ErrorPropagateExpr *errorPropExpr)
+            BuildResult ExpressionBuilder::buildExprErrorPropagate(AST::ErrorPropagateExpr *errorPropExpr)
             {
                 // (AR) تنفيذ أولي آمن: نبني التعبير الداخلي كما هو ونُرجع نتيجته.
                 //      هذا يحافظ على تماسك الـ SIR ويمنع فشل الربط عند وجود "انشر".

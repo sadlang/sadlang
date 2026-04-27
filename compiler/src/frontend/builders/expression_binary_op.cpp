@@ -18,6 +18,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/expression_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -41,7 +42,7 @@ namespace Sad
             // (EN) buildLiteral, buildVariableAccess, buildShortCircuitLogical, buildUnaryOp
             //      moved to sir_builder_expressions.cpp (CW-05)
             // ============================================================================
-            BuildResult SIRBuilder::buildBinaryOp(AST::BinaryOpNode *binOp)
+            BuildResult ExpressionBuilder::buildBinaryOp(AST::BinaryOpNode *binOp)
             {
                 if (!binOp)
                 {
@@ -96,8 +97,8 @@ namespace Sad
                 std::string leftClassName = leftResult.className;
                 if (leftClassName.empty() && !leftResult.registerName.empty())
                 {
-                    auto it = classInstanceTypes_.find(leftResult.registerName);
-                    if (it != classInstanceTypes_.end())
+                    auto it = b_.classInstanceTypes_.find(leftResult.registerName);
+                    if (it != b_.classInstanceTypes_.end())
                     {
                         leftClassName = it->second;
                     }
@@ -182,15 +183,15 @@ namespace Sad
                         while (!searchClass.empty())
                         {
                             fullOpName = searchClass + "." + opSafeName;
-                            auto funcIt = functionTable_.find(fullOpName);
-                            if (funcIt != functionTable_.end())
+                            auto funcIt = b_.functionTable_.find(fullOpName);
+                            if (funcIt != b_.functionTable_.end())
                             {
                                 found = true;
                                 break;
                             }
                             // (AR) البحث في الأب
                             // (EN) Search in parent
-                            auto parentClass = module_->getClass(searchClass);
+                            auto parentClass = b_.module_->getClass(searchClass);
                             if (parentClass && !parentClass->parentClass.empty())
                             {
                                 searchClass = parentClass->parentClass;
@@ -208,11 +209,11 @@ namespace Sad
                                       << fullOpName << "'" << std::endl;
 #endif
 
-                            std::string resultReg = newTempRegister();
-                            auto &opInfo = functionTable_[fullOpName];
+                            std::string resultReg = b_.newTempRegister();
+                            auto &opInfo = b_.functionTable_[fullOpName];
                             SadTypeKind returnType = opInfo.returnType;
 
-                            if (currentBlock_)
+                            if (b_.currentBlock_)
                             {
                                 SIRInstruction callInst;
                                 callInst.opcode = SIROpcode::OBJECT_CALL;
@@ -243,7 +244,7 @@ namespace Sad
                                 {
                                     callInst.operands.push_back(SIROperand::Register(rightResult.registerName, rightResult.type));
                                 }
-                                currentBlock_->addInstruction(callInst);
+                                b_.currentBlock_->addInstruction(callInst);
                             }
 
                             BuildResult result(resultReg, returnType);
@@ -262,9 +263,9 @@ namespace Sad
                     }
                 }
 
-                // (AR) إنشاء سجل للنتيجة (sir_builder.h:511 - newTempRegister)
+                // (AR) إنشاء سجل للنتيجة (sir_builder.h:511 - b_.newTempRegister)
                 // (EN) Create result register
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
 
                 // ================================================================
                 // (AR) تحويل تلقائي: نص + كائن → نص + __op_tostring__(كائن)
@@ -281,8 +282,8 @@ namespace Sad
                     std::string rightClassName = rightResult.className;
                     if (rightClassName.empty() && !rightResult.registerName.empty())
                     {
-                        auto it = classInstanceTypes_.find(rightResult.registerName);
-                        if (it != classInstanceTypes_.end())
+                        auto it = b_.classInstanceTypes_.find(rightResult.registerName);
+                        if (it != b_.classInstanceTypes_.end())
                             rightClassName = it->second;
                     }
                     if ((leftResult.type == SadTypeKind::String || (leftResult.isConstant && leftResult.type == SadTypeKind::String)) && !rightClassName.empty())
@@ -295,12 +296,12 @@ namespace Sad
                         while (!searchClass.empty())
                         {
                             tostrName = searchClass + ".__op_tostring__";
-                            if (functionTable_.find(tostrName) != functionTable_.end())
+                            if (b_.functionTable_.find(tostrName) != b_.functionTable_.end())
                             {
                                 foundToStr = true;
                                 break;
                             }
-                            auto classInfo = module_->getClass(searchClass);
+                            auto classInfo = b_.module_->getClass(searchClass);
                             if (classInfo && !classInfo->parentClass.empty())
                                 searchClass = classInfo->parentClass;
                             else
@@ -308,14 +309,14 @@ namespace Sad
                         }
                         if (foundToStr)
                         {
-                            std::string strReg = newTempRegister();
+                            std::string strReg = b_.newTempRegister();
                             SIRInstruction callInst;
                             callInst.opcode = SIROpcode::OBJECT_CALL;
                             callInst.result = SIROperand::Register(strReg, SadTypeKind::String);
                             callInst.operands.push_back(SIROperand::Register(rightResult.registerName, rightResult.type));
                             callInst.operands.push_back(SIROperand::ConstantString("__op_tostring__"));
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(callInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(callInst);
                             // (AR) استبدال المعامل الأيمن بالنتيجة النصية
                             rightResult = BuildResult(strReg, SadTypeKind::String);
                         }
@@ -333,12 +334,12 @@ namespace Sad
                         while (!searchClassL.empty())
                         {
                             tostrName = searchClassL + ".__op_tostring__";
-                            if (functionTable_.find(tostrName) != functionTable_.end())
+                            if (b_.functionTable_.find(tostrName) != b_.functionTable_.end())
                             {
                                 foundToStrL = true;
                                 break;
                             }
-                            auto classInfo = module_->getClass(searchClassL);
+                            auto classInfo = b_.module_->getClass(searchClassL);
                             if (classInfo && !classInfo->parentClass.empty())
                                 searchClassL = classInfo->parentClass;
                             else
@@ -346,14 +347,14 @@ namespace Sad
                         }
                         if (foundToStrL)
                         {
-                            std::string strReg = newTempRegister();
+                            std::string strReg = b_.newTempRegister();
                             SIRInstruction callInst;
                             callInst.opcode = SIROpcode::OBJECT_CALL;
                             callInst.result = SIROperand::Register(strReg, SadTypeKind::String);
                             callInst.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
                             callInst.operands.push_back(SIROperand::ConstantString("__op_tostring__"));
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(callInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(callInst);
                             leftResult = BuildResult(strReg, SadTypeKind::String);
                         }
                     }
@@ -758,14 +759,14 @@ namespace Sad
 #ifndef NDEBUG
                         std::cout << "[DEBUG] في: نص في نص → BUILTIN_STRING_CONTAINS" << std::endl;
 #endif
-                        std::string containsReg = newTempRegister();
+                        std::string containsReg = b_.newTempRegister();
                         SIRInstruction inst(SIROpcode::BUILTIN_STRING_CONTAINS);
                         inst.result = SIROperand::Register(containsReg, SadTypeKind::Boolean);
                         // (AR) المعامل 0 = النص الأصلي (haystack)، المعامل 1 = النص المبحوث عنه (needle)
                         inst.operands.push_back(SIROperand::Register(rightResult.registerName, SadTypeKind::String));
                         inst.operands.push_back(SIROperand::Register(leftResult.registerName, SadTypeKind::String));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(inst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(inst);
                         return BuildResult(containsReg, SadTypeKind::Boolean);
                     }
 
@@ -780,15 +781,15 @@ namespace Sad
 #ifndef NDEBUG
                         std::cout << "[DEBUG] في: مفتاح في خريطة → CALL __sad_map_has" << std::endl;
 #endif
-                        std::string hasReg = newTempRegister();
+                        std::string hasReg = b_.newTempRegister();
                         SIRInstruction inst(SIROpcode::CALL);
                         inst.result = SIROperand::Register(hasReg, SadTypeKind::Boolean);
                         inst.operands.push_back(SIROperand::Label("__sad_map_has"));
                         // (AR) المعامل 0 = الخريطة، المعامل 1 = المفتاح (نص)
                         inst.operands.push_back(SIROperand::Register(rightResult.registerName, SadTypeKind::Map));
                         inst.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(inst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(inst);
                         return BuildResult(hasReg, SadTypeKind::Boolean);
                     }
 
@@ -803,127 +804,127 @@ namespace Sad
                     // (EN) Left = value to search, Right = array
 
                     // (AR) إنشاء متغير نتيجة منطقي (مبدئياً false)
-                    std::string inResultReg = newTempRegister();
+                    std::string inResultReg = b_.newTempRegister();
                     {
                         SIRInstruction allocResult(SIROpcode::ALLOC);
                         allocResult.result = SIROperand::Register(inResultReg, SadTypeKind::Boolean);
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(allocResult);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(allocResult);
                     }
                     {
                         SIRInstruction storeInit(SIROpcode::STORE);
                         storeInit.operands.push_back(SIROperand::ConstantBool(false));
                         storeInit.operands.push_back(SIROperand::Register(inResultReg, SadTypeKind::Boolean));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(storeInit);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(storeInit);
                     }
 
                     // (AR) إنشاء عداد الفهرس
-                    std::string inIdxReg = newTempRegister();
+                    std::string inIdxReg = b_.newTempRegister();
                     {
                         SIRInstruction allocIdx(SIROpcode::ALLOC);
                         allocIdx.result = SIROperand::Register(inIdxReg, SadTypeKind::Integer);
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(allocIdx);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(allocIdx);
                     }
                     {
                         SIRInstruction storeZero(SIROpcode::STORE);
                         storeZero.operands.push_back(SIROperand::ConstantI64(0));
                         storeZero.operands.push_back(SIROperand::Register(inIdxReg, SadTypeKind::Integer));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(storeZero);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(storeZero);
                     }
 
                     // (AR) حساب طول المصفوفة
-                    std::string inLenReg = newTempRegister();
+                    std::string inLenReg = b_.newTempRegister();
                     {
                         SIRInstruction lenInst(SIROpcode::ARRAY_LEN);
                         lenInst.result = SIROperand::Register(inLenReg, SadTypeKind::Integer);
                         SIROperand arrOp = SIROperand::Register(rightResult.registerName, rightResult.type);
                         lenInst.operands.push_back(arrOp);
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(lenInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(lenInst);
                     }
 
                     // (AR) إنشاء الكتل الأساسية للحلقة
-                    std::string condLabel = newLabel("in_cond");
-                    std::string bodyLabel = newLabel("in_body");
-                    std::string foundLabel = newLabel("in_found");
-                    std::string incLabel = newLabel("in_inc");
-                    std::string exitLabel = newLabel("in_exit");
+                    std::string condLabel = b_.newLabel("in_cond");
+                    std::string bodyLabel = b_.newLabel("in_body");
+                    std::string foundLabel = b_.newLabel("in_found");
+                    std::string incLabel = b_.newLabel("in_inc");
+                    std::string exitLabel = b_.newLabel("in_exit");
 
-                    auto condBlock = createBasicBlock(condLabel);
-                    auto bodyBlock = createBasicBlock(bodyLabel);
-                    auto foundBlock = createBasicBlock(foundLabel);
-                    auto incBlock = createBasicBlock(incLabel);
-                    auto exitBlock = createBasicBlock(exitLabel);
+                    auto condBlock = b_.createBasicBlock(condLabel);
+                    auto bodyBlock = b_.createBasicBlock(bodyLabel);
+                    auto foundBlock = b_.createBasicBlock(foundLabel);
+                    auto incBlock = b_.createBasicBlock(incLabel);
+                    auto exitBlock = b_.createBasicBlock(exitLabel);
 
                     // (AR) قفز إلى كتلة الشرط
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(
                             SIRInstruction::Branch(SIROperand::Label(condLabel)));
 
                     // (AR) كتلة الشرط: index < length
-                    if (currentFunction_)
-                        currentFunction_->addBasicBlock(condBlock);
-                    currentBlock_ = condBlock;
+                    if (b_.currentFunction_)
+                        b_.currentFunction_->addBasicBlock(condBlock);
+                    b_.currentBlock_ = condBlock;
 
-                    std::string loadedIdx = newTempRegister();
+                    std::string loadedIdx = b_.newTempRegister();
                     {
                         SIRInstruction loadIdx(SIROpcode::LOAD);
                         loadIdx.result = SIROperand::Register(loadedIdx, SadTypeKind::Integer);
                         loadIdx.operands.push_back(SIROperand::Register(inIdxReg, SadTypeKind::Integer));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(loadIdx);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(loadIdx);
                     }
 
-                    std::string inCmpReg = newTempRegister();
+                    std::string inCmpReg = b_.newTempRegister();
                     {
                         SIRInstruction cmpInst(SIROpcode::LT);
                         cmpInst.result = SIROperand::Register(inCmpReg, SadTypeKind::Boolean);
                         cmpInst.operands.push_back(SIROperand::Register(loadedIdx, SadTypeKind::Integer));
                         cmpInst.operands.push_back(SIROperand::Register(inLenReg, SadTypeKind::Integer));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(cmpInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(cmpInst);
                     }
 
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(
                             SIRInstruction::BranchCond(
                                 SIROperand::Register(inCmpReg, SadTypeKind::Boolean),
                                 SIROperand::Label(bodyLabel),
                                 SIROperand::Label(exitLabel)));
 
                     // (AR) كتلة الجسم: elem = array[index]; if elem == value → found
-                    if (currentFunction_)
-                        currentFunction_->addBasicBlock(bodyBlock);
-                    currentBlock_ = bodyBlock;
+                    if (b_.currentFunction_)
+                        b_.currentFunction_->addBasicBlock(bodyBlock);
+                    b_.currentBlock_ = bodyBlock;
 
                     // (AR) تحديد نوع العنصر من نوع عناصر المصفوفة أو من نوع المعامل الأيسر
                     SadTypeKind inElemType = (rightResult.elementType != SadTypeKind::Void)
                                                  ? rightResult.elementType
                                                  : leftResult.type;
 
-                    std::string inElemReg = newTempRegister();
+                    std::string inElemReg = b_.newTempRegister();
                     {
                         SIRInstruction getInst(SIROpcode::ARRAY_GET);
                         getInst.result = SIROperand::Register(inElemReg, inElemType);
                         getInst.operands.push_back(SIROperand::Register(rightResult.registerName, rightResult.type));
                         getInst.operands.push_back(SIROperand::Register(loadedIdx, SadTypeKind::Integer));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(getInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(getInst);
                     }
 
                     // (AR) مقارنة: elem == value — نصوص تستخدم STRING_CMP، أرقام تستخدم EQ
-                    std::string inEqReg = newTempRegister();
+                    std::string inEqReg = b_.newTempRegister();
                     if (inElemType == SadTypeKind::String)
                     {
                         SIRInstruction cmpStr(SIROpcode::STRING_CMP);
                         cmpStr.result = SIROperand::Register(inEqReg, SadTypeKind::Boolean);
                         cmpStr.operands.push_back(SIROperand::Register(inElemReg, SadTypeKind::String));
                         cmpStr.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(cmpStr);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(cmpStr);
                     }
                     else
                     {
@@ -931,67 +932,67 @@ namespace Sad
                         eqInst.result = SIROperand::Register(inEqReg, SadTypeKind::Boolean);
                         eqInst.operands.push_back(SIROperand::Register(inElemReg, inElemType));
                         eqInst.operands.push_back(SIROperand::Register(leftResult.registerName, leftResult.type));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(eqInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(eqInst);
                     }
 
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(
                             SIRInstruction::BranchCond(
                                 SIROperand::Register(inEqReg, SadTypeKind::Boolean),
                                 SIROperand::Label(foundLabel),
                                 SIROperand::Label(incLabel)));
 
                     // (AR) كتلة الوجود: result = true → exit
-                    if (currentFunction_)
-                        currentFunction_->addBasicBlock(foundBlock);
-                    currentBlock_ = foundBlock;
+                    if (b_.currentFunction_)
+                        b_.currentFunction_->addBasicBlock(foundBlock);
+                    b_.currentBlock_ = foundBlock;
                     {
                         SIRInstruction storeTrue(SIROpcode::STORE);
                         storeTrue.operands.push_back(SIROperand::ConstantBool(true));
                         storeTrue.operands.push_back(SIROperand::Register(inResultReg, SadTypeKind::Boolean));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(storeTrue);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(storeTrue);
                     }
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(
                             SIRInstruction::Branch(SIROperand::Label(exitLabel)));
 
                     // (AR) كتلة الزيادة: index++ → cond
-                    if (currentFunction_)
-                        currentFunction_->addBasicBlock(incBlock);
-                    currentBlock_ = incBlock;
+                    if (b_.currentFunction_)
+                        b_.currentFunction_->addBasicBlock(incBlock);
+                    b_.currentBlock_ = incBlock;
                     {
-                        std::string incReg = newTempRegister();
+                        std::string incReg = b_.newTempRegister();
                         SIRInstruction addInst(SIROpcode::ADD_I64);
                         addInst.result = SIROperand::Register(incReg, SadTypeKind::Integer);
                         addInst.operands.push_back(SIROperand::Register(loadedIdx, SadTypeKind::Integer));
                         addInst.operands.push_back(SIROperand::ConstantI64(1));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(addInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(addInst);
 
                         SIRInstruction storeInc(SIROpcode::STORE);
                         storeInc.operands.push_back(SIROperand::Register(incReg, SadTypeKind::Integer));
                         storeInc.operands.push_back(SIROperand::Register(inIdxReg, SadTypeKind::Integer));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(storeInc);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(storeInc);
                     }
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(
                             SIRInstruction::Branch(SIROperand::Label(condLabel)));
 
                     // (AR) كتلة الخروج: تحميل النتيجة النهائية
-                    if (currentFunction_)
-                        currentFunction_->addBasicBlock(exitBlock);
-                    currentBlock_ = exitBlock;
+                    if (b_.currentFunction_)
+                        b_.currentFunction_->addBasicBlock(exitBlock);
+                    b_.currentBlock_ = exitBlock;
 
-                    std::string inLoadResult = newTempRegister();
+                    std::string inLoadResult = b_.newTempRegister();
                     {
                         SIRInstruction loadRes(SIROpcode::LOAD);
                         loadRes.result = SIROperand::Register(inLoadResult, SadTypeKind::Boolean);
                         loadRes.operands.push_back(SIROperand::Register(inResultReg, SadTypeKind::Boolean));
-                        if (currentBlock_)
-                            currentBlock_->instructions.push_back(loadRes);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(loadRes);
                     }
 
                     return BuildResult(inLoadResult, SadTypeKind::Boolean);
@@ -1003,7 +1004,7 @@ namespace Sad
                     std::cout << "[DEBUG] buildBinaryOp: عملية غير مدعومة: "
                               << static_cast<int>(binOp->op) << std::endl;
 #endif
-                    errors_.push_back("عملية ثنائية غير مدعومة / Unsupported binary operation");
+                    b_.errors_.push_back("عملية ثنائية غير مدعومة / Unsupported binary operation");
                     return BuildResult(resultReg, resultType);
                 }
 
@@ -1091,13 +1092,13 @@ namespace Sad
                 {
                     if (leftOp.dataType == SadTypeKind::Integer && !leftResult.isConstant)
                     {
-                        std::string convReg = newTempRegister();
+                        std::string convReg = b_.newTempRegister();
                         SIRInstruction convInst;
                         convInst.opcode = SIROpcode::I64_TO_F64;
                         convInst.result = SIROperand::Register(convReg, SadTypeKind::Float);
                         convInst.operands.push_back(leftOp);
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(convInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(convInst);
                         leftOp = SIROperand::Register(convReg, SadTypeKind::Float);
                     }
                     else if (leftResult.isConstant && leftResult.type == SadTypeKind::Integer)
@@ -1107,13 +1108,13 @@ namespace Sad
                     }
                     if (rightOp.dataType == SadTypeKind::Integer && !rightResult.isConstant)
                     {
-                        std::string convReg = newTempRegister();
+                        std::string convReg = b_.newTempRegister();
                         SIRInstruction convInst;
                         convInst.opcode = SIROpcode::I64_TO_F64;
                         convInst.result = SIROperand::Register(convReg, SadTypeKind::Float);
                         convInst.operands.push_back(rightOp);
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(convInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(convInst);
                         rightOp = SIROperand::Register(convReg, SadTypeKind::Float);
                     }
                     else if (rightResult.isConstant && rightResult.type == SadTypeKind::Integer)
@@ -1129,9 +1130,9 @@ namespace Sad
 
                 // (AR) إضافة التعليمة للكتلة الحالية
                 // (EN) Add instruction to current block
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(inst);
+                    b_.currentBlock_->addInstruction(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: تمت إضافة التعليمة للكتلة الحالية" << std::endl;
 #endif
@@ -1149,13 +1150,13 @@ namespace Sad
                 //      STRING_CMP returns true if equal, so != needs NOT
                 if (opcode == SIROpcode::STRING_CMP && binOp->op == Lexer::TokenType::OP_NOT_EQUAL)
                 {
-                    std::string negReg = newTempRegister();
+                    std::string negReg = b_.newTempRegister();
                     SIRInstruction notInst;
                     notInst.opcode = SIROpcode::NOT;
                     notInst.result = SIROperand::Register(negReg, SadTypeKind::Boolean);
                     notInst.operands.push_back(SIROperand::Register(resultReg, SadTypeKind::Boolean));
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(notInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(notInst);
                     resultReg = negReg;
                     resultType = SadTypeKind::Boolean;
                 }

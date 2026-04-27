@@ -6,15 +6,16 @@
 //   ??? ????? ????? ?????? ???? SIR ???????? ?????????:
 //   - buildNewObject: ????? ???? ???? (???? ???_?????(...))
 //   - buildMemberAccess: ?????? ????? ?????? (????.???)
-//   - buildMethodCall: ??????? ????? ??? ???? (????.?????(...))
+//   - b_.buildMethodCall: ??????? ????? ??? ???? (????.?????(...))
 //
 //   ?? ??? ??? ?????? ?? sir_builder_calls.cpp ???? ????? ??:
-//   - buildFunctionCall: ??????? ???? ????? ?????? ??????
+//   - b_.buildFunctionCall: ??????? ???? ????? ?????? ??????
 // ============================================================================
 
 #include <string>
 #include <cstdio>
 #include "sir_builder.h"
+#include "builders/expression_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -45,7 +46,7 @@ namespace Sad
             // - className: std::string (line 167)
             // - arguments: std::vector<std::unique_ptr<Expr>> (line 168)
             // ============================================================================
-            BuildResult SIRBuilder::buildNewObject(AST::NewExpr *newExpr)
+            BuildResult ExpressionBuilder::buildNewObject(AST::NewExpr *newExpr)
             {
                 if (!newExpr)
                 {
@@ -54,18 +55,18 @@ namespace Sad
 
                 // (AR) ?????? 1: ????? ?? ????? ?? ??????
                 // (EN) Step 1: Find class in module
-                auto sirClass = module_->getClass(newExpr->className);
+                auto sirClass = b_.module_->getClass(newExpr->className);
                 if (!sirClass)
                 {
-                    errors_.push_back("Class not found: " + newExpr->className);
+                    b_.errors_.push_back("Class not found: " + newExpr->className);
                     return BuildResult();
                 }
 
                 // (AR) ?????? 2: ????? ????? ??????
                 // (EN) Step 2: Allocate memory for object
-                std::string objReg = newTempRegister();
+                std::string objReg = b_.newTempRegister();
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
                     SIRInstruction allocInst;
                     allocInst.opcode = SIROpcode::ALLOC;
@@ -73,7 +74,7 @@ namespace Sad
                     // (AR) ????? ??? ????? ?? metadata
                     // (EN) Add class name as metadata
                     allocInst.operands.push_back(SIROperand::ConstantString(newExpr->className));
-                    currentBlock_->addInstruction(allocInst);
+                    b_.currentBlock_->addInstruction(allocInst);
                 }
 
                 // (AR) ?????? 3: ??????? ???? ?????? (constructor) ?? ????
@@ -123,17 +124,17 @@ namespace Sad
 
                     // (AR) ????? ?????? ??????? ??????
                     // (EN) Create constructor call instruction
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
                         SIRInstruction callInst;
                         callInst.opcode = SIROpcode::CALL;
-                        callInst.result = SIROperand::Register(newTempRegister(), SadTypeKind::Void);
+                        callInst.result = SIROperand::Register(b_.newTempRegister(), SadTypeKind::Void);
                         callInst.operands.push_back(SIROperand::Function(constructorName));
                         for (const auto &arg : args)
                         {
                             callInst.operands.push_back(arg);
                         }
-                        currentBlock_->addInstruction(callInst);
+                        b_.currentBlock_->addInstruction(callInst);
                     }
 
                     // ???????????????????????????????????????????????????????????????
@@ -190,7 +191,7 @@ namespace Sad
                         while (currentClass && !currentClass->parentClass.empty() &&
                                !currentClass->superParamMapping_.empty())
                         {
-                            auto parentSirClass = module_->getClass(currentClass->parentClass);
+                            auto parentSirClass = b_.module_->getClass(currentClass->parentClass);
                             if (!parentSirClass)
                                 break;
 
@@ -266,7 +267,7 @@ namespace Sad
 
                 // (AR) ???? ??? ?????? ???? ????? ????????? ??????
                 // (EN) Track object type for operator overloading support
-                classInstanceTypes_[objReg] = newExpr->className;
+                b_.classInstanceTypes_[objReg] = newExpr->className;
 
                 // (AR) ????? ???? ?????? ?? ??? ????? � ??? STRUCT ???? I64
                 // (EN) Return pointer to object with class name � STRUCT type not I64
@@ -288,7 +289,7 @@ namespace Sad
             // - object: std::unique_ptr<Expr> (line 209)
             // - memberName: std::string (line 210)
             // ============================================================================
-            BuildResult SIRBuilder::buildMemberAccess(AST::MemberAccessExpr *memberExpr)
+            BuildResult ExpressionBuilder::buildMemberAccess(AST::MemberAccessExpr *memberExpr)
             {
                 if (!memberExpr)
                 {
@@ -303,10 +304,10 @@ namespace Sad
                 // ================================================================
                 // (AR) ??? ????: ?????? ???? ???? ??? ??? ?????
                 //      ????: ????.?????? � "????" ??? ??? ???? ?????
-                //      ???? ?? staticFields_ ?? "????.??????" ?????? ???
+                //      ???? ?? b_.staticFields_ ?? "????.??????" ?????? ???
                 // (EN) Early check: static field access via class name
                 //      Example: Counter.value � "Counter" is class name, not variable
-                //      Look up "Counter.value" in staticFields_ as global variable
+                //      Look up "Counter.value" in b_.staticFields_ as global variable
                 // ================================================================
                 if (auto *varExpr = dynamic_cast<Sad::AST::VariableExpr *>(memberExpr->object.get()))
                 {
@@ -316,8 +317,8 @@ namespace Sad
                     // (EN) Early check: namespace member access (namespace.member)
                     //      Example: math.PI → load global math::PI
                     // ================================================================
-                    auto nsIt = namespaceMembers_.find(varExpr->name);
-                    if (nsIt != namespaceMembers_.end())
+                    auto nsIt = b_.namespaceMembers_.find(varExpr->name);
+                    if (nsIt != b_.namespaceMembers_.end())
                     {
                         auto memIt = nsIt->second.find(memberExpr->memberName);
                         if (memIt != nsIt->second.end())
@@ -327,44 +328,44 @@ namespace Sad
                             {
                                 // (AR) متغير فضاء → تحميل من المتغير العام
                                 // (EN) Namespace variable → load from global
-                                std::string loadReg = newTempRegister();
-                                if (currentBlock_)
+                                std::string loadReg = b_.newTempRegister();
+                                if (b_.currentBlock_)
                                 {
                                     SIRInstruction loadInst(SIROpcode::LOAD);
                                     loadInst.result = SIROperand::Register(loadReg, nsInfo.type);
                                     loadInst.operands.push_back(
                                         SIROperand::Global(nsInfo.sirName, nsInfo.type));
                                     loadInst.comment = "Load namespace member: " + nsInfo.sirName;
-                                    currentBlock_->addInstruction(loadInst);
+                                    b_.currentBlock_->addInstruction(loadInst);
                                 }
                                 return BuildResult(loadReg, nsInfo.type);
                             }
                             else if (nsInfo.kind == "func")
                             {
                                 // (AR) دالة فضاء → نُرجع مرجع الدالة بالاسم الكامل
-                                //      الاستدعاء الفعلي يتم في buildMethodCall أو buildCallExpr
+                                //      الاستدعاء الفعلي يتم في b_.buildMethodCall أو buildCallExpr
                                 // (EN) Namespace function → return function reference with full name
-                                //      Actual call happens in buildMethodCall or buildCallExpr
+                                //      Actual call happens in b_.buildMethodCall or buildCallExpr
                                 return BuildResult(nsInfo.sirName, SadTypeKind::Function);
                             }
                         }
                     }
 
                     std::string staticFieldName = varExpr->name + "." + memberExpr->memberName;
-                    auto sfIt = staticFields_.find(staticFieldName);
-                    if (sfIt != staticFields_.end())
+                    auto sfIt = b_.staticFields_.find(staticFieldName);
+                    if (sfIt != b_.staticFields_.end())
                     {
                         // (AR) ??? ???? � ????? ?? ????? ???
                         // (EN) Static field � load from global variable
-                        std::string loadReg = newTempRegister();
-                        if (currentBlock_)
+                        std::string loadReg = b_.newTempRegister();
+                        if (b_.currentBlock_)
                         {
                             SIRInstruction loadInst(SIROpcode::LOAD);
                             loadInst.result = SIROperand::Register(loadReg, sfIt->second);
                             loadInst.operands.push_back(
                                 SIROperand::Global(staticFieldName, sfIt->second));
                             loadInst.comment = "Load static field: " + staticFieldName;
-                            currentBlock_->addInstruction(loadInst);
+                            b_.currentBlock_->addInstruction(loadInst);
                         }
                         return BuildResult(loadReg, sfIt->second);
                     }
@@ -403,22 +404,22 @@ namespace Sad
 
                         // (AR) ?????: ??? ??? ??? ????? ?????? ??????? ?????? (Unit variant ???)
                         // (EN) First: check if full name is a registered variable (global unit variant)
-                        auto *varInfo = lookupVariable(fullName);
+                        auto *varInfo = b_.lookupVariable(fullName);
                         if (varInfo)
                         {
                             // (AR) ????? ??????? ?????? � ????? ?????
                             //      ????: ???.???? ????? ?? global constant i64 2
                             // (EN) Found variable directly � load its value
                             //      Example: Shape.Point registered as global constant i64 2
-                            if (varInfo->isGlobal && currentBlock_)
+                            if (varInfo->isGlobal && b_.currentBlock_)
                             {
-                                std::string loadReg = newTempRegister();
+                                std::string loadReg = b_.newTempRegister();
                                 SIRInstruction loadInst(SIROpcode::LOAD);
                                 loadInst.result = SIROperand::Register(loadReg, varInfo->type);
                                 loadInst.operands.push_back(
                                     SIROperand::Global(fullName, varInfo->type));
                                 loadInst.comment = "Load unit variant: " + fullName;
-                                currentBlock_->addInstruction(loadInst);
+                                b_.currentBlock_->addInstruction(loadInst);
                                 return BuildResult(loadReg, varInfo->type);
                             }
                             return BuildResult(varInfo->registerName, varInfo->type);
@@ -436,8 +437,8 @@ namespace Sad
                 //      Example: s.radius where s = Shape.Circle(5)
                 if (!objResult.className.empty())
                 {
-                    auto adtIt = adtEnumTable_.find(objResult.className);
-                    if (adtIt != adtEnumTable_.end())
+                    auto adtIt = b_.adtEnumTable_.find(objResult.className);
+                    if (adtIt != b_.adtEnumTable_.end())
                     {
                         // (AR) ??? ???? ADT � ???? ?? ????? ??????
                         // (EN) This is an ADT object � look up field by name
@@ -448,9 +449,9 @@ namespace Sad
                         {
                             // (AR) ????? ????? � ??????? ??? ENUM_GET_PAYLOAD
                             // (EN) Found the field � extract via ENUM_GET_PAYLOAD
-                            std::string resultReg = newTempRegister();
+                            std::string resultReg = b_.newTempRegister();
 
-                            if (currentBlock_)
+                            if (b_.currentBlock_)
                             {
                                 SIRInstruction getPayload(SIROpcode::ENUM_GET_PAYLOAD);
                                 getPayload.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -460,7 +461,7 @@ namespace Sad
                                     SIROperand::ConstantI64(static_cast<int64_t>(fieldIdx)));
                                 getPayload.comment = "ADT field access: " + objResult.className +
                                                      "." + memberExpr->memberName + " (index=" + std::to_string(fieldIdx) + ")";
-                                currentBlock_->addInstruction(getPayload);
+                                b_.currentBlock_->addInstruction(getPayload);
                             }
 
 #ifndef NDEBUG
@@ -481,14 +482,14 @@ namespace Sad
 
                 // (AR) ?????? 2: ????? ?????? ?????? ????? (?????? ?????? ???????)
                 // (EN) Step 2: Create member access instruction (regular path for classes)
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
 
                 // (AR) ?????? ??????? ??? ????? ?? module
                 // (EN) Try to infer member type from module
                 SadTypeKind memberType = SadTypeKind::Integer; // (AR) ???????
-                if (!objResult.className.empty() && module_)
+                if (!objResult.className.empty() && b_.module_)
                 {
-                    auto sirClass = module_->getClass(objResult.className);
+                    auto sirClass = b_.module_->getClass(objResult.className);
                     if (sirClass)
                     {
                         auto fieldIt = sirClass->fields_.find(memberExpr->memberName);
@@ -504,7 +505,7 @@ namespace Sad
                     }
                 }
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
                     SIRInstruction loadInst;
                     loadInst.opcode = SIROpcode::LOAD;
@@ -518,7 +519,7 @@ namespace Sad
                     // (EN) Second operand: member name (as offset or name)
                     loadInst.operands.push_back(SIROperand::ConstantString(memberExpr->memberName));
 
-                    currentBlock_->addInstruction(loadInst);
+                    b_.currentBlock_->addInstruction(loadInst);
                 }
 
 #ifndef NDEBUG
@@ -531,8 +532,8 @@ namespace Sad
                 result.isFieldAccess = true;
                 return result;
             }
-            // (AR) تم نقل buildMethodCall إلى sir_builder_method_call.cpp (CW-05)
-            // (EN) buildMethodCall moved to sir_builder_method_call.cpp (CW-05)
+            // (AR) تم نقل b_.buildMethodCall إلى sir_builder_method_call.cpp (CW-05)
+            // (EN) b_.buildMethodCall moved to sir_builder_method_call.cpp (CW-05)
         } // namespace SIR
     } // namespace Compiler
 } // namespace Sad

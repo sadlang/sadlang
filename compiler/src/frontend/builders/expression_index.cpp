@@ -4,6 +4,7 @@
 // Index access, index assignment, and ternary expression builders
 // ============================================================================
 #include "sir_builder.h"
+#include "builders/expression_builder.h"
 
 #include <iostream>
 
@@ -17,7 +18,7 @@ namespace Sad
             // ============================================================================
             // buildExprTernary
             // ============================================================================
-            BuildResult SIRBuilder::buildExprTernary(AST::TernaryExpr *ternaryExpr)
+            BuildResult ExpressionBuilder::buildExprTernary(AST::TernaryExpr *ternaryExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found TernaryExpr" << std::endl;
@@ -35,51 +36,51 @@ namespace Sad
 
                 // (AR) الخطوة 3: إنشاء الكتل الأساسية والفرع الشرطي
                 // (EN) Step 3: Create basic blocks and conditional branch
-                std::string thenLabel = newLabel("ternary_then");
-                std::string elseLabel = newLabel("ternary_else");
-                std::string mergeLabel = newLabel("ternary_merge");
+                std::string thenLabel = b_.newLabel("ternary_then");
+                std::string elseLabel = b_.newLabel("ternary_else");
+                std::string mergeLabel = b_.newLabel("ternary_merge");
 
-                auto thenBlock = createBasicBlock(thenLabel);
-                auto elseBlock = createBasicBlock(elseLabel);
-                auto mergeBlock = createBasicBlock(mergeLabel);
+                auto thenBlock = b_.createBasicBlock(thenLabel);
+                auto elseBlock = b_.createBasicBlock(elseLabel);
+                auto mergeBlock = b_.createBasicBlock(mergeLabel);
 
                 // (AR) حفظ الكتلة الحالية لبناء الفرعين مؤقتاً لاستنتاج النوع
                 // (EN) Save current block; build branches temporarily to infer type
-                auto savedBlock = currentBlock_;
+                auto savedBlock = b_.currentBlock_;
 
                 // (AR) بناء فرع then مؤقتاً لاستنتاج النوع
-                if (currentFunction_)
+                if (b_.currentFunction_)
                 {
-                    currentFunction_->addBasicBlock(thenBlock);
+                    b_.currentFunction_->addBasicBlock(thenBlock);
                 }
-                currentBlock_ = thenBlock;
+                b_.currentBlock_ = thenBlock;
                 auto trueResult = buildExpression(ternaryExpr->trueExpr.get());
 
                 // (AR) حفظ الكتلة النشطة بعد بناء trueExpr
-                //      إذا كان trueExpr عاملاً ثلاثياً متداخلاً، فـ currentBlock_ الآن
+                //      إذا كان trueExpr عاملاً ثلاثياً متداخلاً، فـ b_.currentBlock_ الآن
                 //      يشير إلى mergeBlock الداخلي (وليس thenBlock الخارجي).
                 // (EN) Save active block after building trueExpr.
-                //      If trueExpr was a nested ternary, currentBlock_ now points to
+                //      If trueExpr was a nested ternary, b_.currentBlock_ now points to
                 //      the inner mergeBlock (not the outer thenBlock).
-                auto thenExitBlock = currentBlock_;
+                auto thenExitBlock = b_.currentBlock_;
 
                 // (AR) بناء فرع else مؤقتاً لاستنتاج النوع
-                if (currentFunction_)
+                if (b_.currentFunction_)
                 {
-                    currentFunction_->addBasicBlock(elseBlock);
+                    b_.currentFunction_->addBasicBlock(elseBlock);
                 }
-                currentBlock_ = elseBlock;
+                b_.currentBlock_ = elseBlock;
                 auto falseResult = buildExpression(ternaryExpr->falseExpr.get());
 
                 // (AR) حفظ الكتلة النشطة بعد بناء falseExpr
-                //      إذا كان falseExpr عاملاً ثلاثياً متداخلاً، فـ currentBlock_ الآن
+                //      إذا كان falseExpr عاملاً ثلاثياً متداخلاً، فـ b_.currentBlock_ الآن
                 //      يشير إلى mergeBlock الداخلي (وليس elseBlock الخارجي).
                 //      نحتاج هذه الكتلة في الخطوة 7 لإضافة STORE + BR بشكل صحيح.
                 // (EN) Save active block after building falseExpr.
-                //      If falseExpr was a nested ternary, currentBlock_ now points to
+                //      If falseExpr was a nested ternary, b_.currentBlock_ now points to
                 //      the inner mergeBlock (not the outer elseBlock).
                 //      We need this block in step 7 to add STORE + BR correctly.
-                auto elseExitBlock = currentBlock_;
+                auto elseExitBlock = b_.currentBlock_;
 
                 // (AR) تحديد النوع الفعلي بناءً على الفرعين
                 //      إذا كان أحدهما نصاً، يكون النوع STRING
@@ -102,18 +103,18 @@ namespace Sad
 
                 // (AR) الآن نعود للكتلة الأصلية لإصدار ALLOC والفرع الشرطي
                 // (EN) Now return to original block to emit ALLOC and conditional branch
-                currentBlock_ = savedBlock;
+                b_.currentBlock_ = savedBlock;
 
                 // (AR) تسجيل متغير مؤقت بالنوع الفعلي المستنتج
                 // (EN) Register temp variable with inferred type
-                std::string ternaryAllocaReg = newTempRegister();
+                std::string ternaryAllocaReg = b_.newTempRegister();
 
                 VariableInfo ternaryVarInfo;
                 ternaryVarInfo.name = ternaryAllocaReg;
                 ternaryVarInfo.type = allocType;
                 ternaryVarInfo.registerName = ternaryAllocaReg;
                 ternaryVarInfo.isMutable = true;
-                addVariable(ternaryVarInfo);
+                b_.addVariable(ternaryVarInfo);
 
                 // (AR) الخطوة 4: إصدار ALLOC **في الكتلة الحالية قبل br.cond**
                 //      هذا يضمن أن alloca يُنشأ دائماً بغض النظر عن الفروع
@@ -124,21 +125,21 @@ namespace Sad
                     allocInst.result = SIROperand::Register(ternaryAllocaReg, allocType);
                     allocInst.operands.push_back(SIROperand::ConstantI64(1));
                     allocInst.comment = "ternary result alloca (type-aware)";
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(allocInst);
+                        b_.currentBlock_->addInstruction(allocInst);
                     }
                 }
 
                 // (AR) الخطوة 5: الفرع الشرطي
                 // (EN) Step 5: Conditional branch
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
                     SIRInstruction brInst = SIRInstruction::BranchCond(
                         SIROperand::Register(condResult.registerName, SadTypeKind::Boolean),
                         SIROperand::Label(thenLabel),
                         SIROperand::Label(elseLabel));
-                    currentBlock_->addInstruction(brInst);
+                    b_.currentBlock_->addInstruction(brInst);
                 }
 
                 // (AR) الخطوة 6: إكمال فرع then — STORE + BR merge
@@ -147,16 +148,16 @@ namespace Sad
                 //      ينتهي بالفعل بـ BR_COND من العامل الداخلي.
                 // (EN) Step 6: Complete then branch — STORE + BR merge
                 //      Use thenExitBlock instead of thenBlock for the same reason.
-                currentBlock_ = thenExitBlock;
-                if (currentBlock_)
+                b_.currentBlock_ = thenExitBlock;
+                if (b_.currentBlock_)
                 {
                     SIRInstruction storeTrue;
                     storeTrue.opcode = SIROpcode::STORE;
                     storeTrue.operands.push_back(SIROperand::Register(trueResult.registerName, trueResult.type));
                     storeTrue.operands.push_back(SIROperand::Register(ternaryAllocaReg, allocType));
                     storeTrue.comment = "ternary true -> temp";
-                    currentBlock_->addInstruction(storeTrue);
-                    currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+                    b_.currentBlock_->addInstruction(storeTrue);
+                    b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
                 }
 
                 // (AR) الخطوة 7: إكمال فرع else — STORE + BR merge
@@ -170,35 +171,35 @@ namespace Sad
                 //      was a nested ternary, elseBlock already ends with BR_COND.
                 //      Adding instructions after BR_COND makes them dead code.
                 //      The fix: add STORE + BR in the inner merge block.
-                currentBlock_ = elseExitBlock;
-                if (currentBlock_)
+                b_.currentBlock_ = elseExitBlock;
+                if (b_.currentBlock_)
                 {
                     SIRInstruction storeFalse;
                     storeFalse.opcode = SIROpcode::STORE;
                     storeFalse.operands.push_back(SIROperand::Register(falseResult.registerName, falseResult.type));
                     storeFalse.operands.push_back(SIROperand::Register(ternaryAllocaReg, allocType));
                     storeFalse.comment = "ternary false -> temp";
-                    currentBlock_->addInstruction(storeFalse);
-                    currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+                    b_.currentBlock_->addInstruction(storeFalse);
+                    b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
                 }
 
                 // (AR) الخطوة 8: كتلة الدمج — LOAD النتيجة بالنوع الصحيح
                 // (EN) Step 8: Merge block — LOAD result with correct type
-                if (currentFunction_)
+                if (b_.currentFunction_)
                 {
-                    currentFunction_->addBasicBlock(mergeBlock);
+                    b_.currentFunction_->addBasicBlock(mergeBlock);
                 }
-                currentBlock_ = mergeBlock;
+                b_.currentBlock_ = mergeBlock;
 
-                std::string loadReg = newTempRegister();
+                std::string loadReg = b_.newTempRegister();
                 SIRInstruction loadInst;
                 loadInst.opcode = SIROpcode::LOAD;
                 loadInst.result = SIROperand::Register(loadReg, allocType);
                 loadInst.operands.push_back(SIROperand::Register(ternaryAllocaReg, allocType));
                 loadInst.comment = "ternary result load";
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(loadInst);
+                    b_.currentBlock_->addInstruction(loadInst);
                 }
 
                 // (AR) نُرجع النتيجة بالنوع الفعلي المستنتج
@@ -209,7 +210,7 @@ namespace Sad
             // ============================================================================
             // buildExprIndex
             // ============================================================================
-            BuildResult SIRBuilder::buildExprIndex(AST::IndexExpr *indexExpr)
+            BuildResult ExpressionBuilder::buildExprIndex(AST::IndexExpr *indexExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found IndexExpr" << std::endl;
@@ -229,8 +230,8 @@ namespace Sad
                 std::string objClassName = objResult.className;
                 if (objClassName.empty() && !objResult.registerName.empty())
                 {
-                    auto it = classInstanceTypes_.find(objResult.registerName);
-                    if (it != classInstanceTypes_.end())
+                    auto it = b_.classInstanceTypes_.find(objResult.registerName);
+                    if (it != b_.classInstanceTypes_.end())
                     {
                         objClassName = it->second;
                     }
@@ -246,13 +247,13 @@ namespace Sad
                     while (!searchClass.empty())
                     {
                         fullOpName = searchClass + ".__op_index__";
-                        auto funcIt = functionTable_.find(fullOpName);
-                        if (funcIt != functionTable_.end())
+                        auto funcIt = b_.functionTable_.find(fullOpName);
+                        if (funcIt != b_.functionTable_.end())
                         {
                             found = true;
                             break;
                         }
-                        auto parentClass = module_->getClass(searchClass);
+                        auto parentClass = b_.module_->getClass(searchClass);
                         if (parentClass && !parentClass->parentClass.empty())
                         {
                             searchClass = parentClass->parentClass;
@@ -270,11 +271,11 @@ namespace Sad
                                   << fullOpName << "'" << std::endl;
 #endif
 
-                        std::string resultReg = newTempRegister();
-                        auto &opInfo = functionTable_[fullOpName];
+                        std::string resultReg = b_.newTempRegister();
+                        auto &opInfo = b_.functionTable_[fullOpName];
                         SadTypeKind returnType = opInfo.returnType;
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
                             SIRInstruction callInst;
                             callInst.opcode = SIROpcode::OBJECT_CALL;
@@ -302,7 +303,7 @@ namespace Sad
                             {
                                 callInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
                             }
-                            currentBlock_->addInstruction(callInst);
+                            b_.currentBlock_->addInstruction(callInst);
                         }
 
                         BuildResult result(resultReg, returnType);
@@ -322,9 +323,9 @@ namespace Sad
 
                 // (AR) تجسيد الفهرس إذا كان ثابتاً
                 // (EN) Materialize index if constant
-                if (idxResult.isConstant && currentBlock_)
+                if (idxResult.isConstant && b_.currentBlock_)
                 {
-                    std::string reg = newTempRegister();
+                    std::string reg = b_.newTempRegister();
                     idxResult.registerName = reg;
                     SIRInstruction moveInst(SIROpcode::MOVE);
                     moveInst.result = SIROperand::Register(reg, idxResult.type);
@@ -352,7 +353,7 @@ namespace Sad
                             moveInst.operands.push_back(SIROperand::ConstantI64(0));
                         }
                     }
-                    currentBlock_->addInstruction(moveInst);
+                    b_.currentBlock_->addInstruction(moveInst);
                     idxResult.isConstant = false;
                 }
 
@@ -374,7 +375,7 @@ namespace Sad
                 {
                     // (AR) فهرسة نص — استدعاء sad_llvm_string_utf8_char_at لإرجاع حرف UTF-8 كنص
                     // (EN) String indexing — call sad_llvm_string_utf8_char_at to return UTF-8 char as string
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction callInst;
                     callInst.opcode = SIROpcode::CALL;
                     callInst.result = SIROperand::Register(resultReg, SadTypeKind::String);
@@ -382,8 +383,8 @@ namespace Sad
                     callInst.operands.push_back(SIROperand::Register(objResult.registerName, SadTypeKind::String));
                     callInst.operands.push_back(SIROperand::Register(idxResult.registerName, SadTypeKind::Integer));
                     callInst.comment = "string UTF-8 char at index";
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(callInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(callInst);
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
                 else if (objResult.type == SadTypeKind::Map || objResult.type == SadTypeKind::Struct)
@@ -400,7 +401,7 @@ namespace Sad
                     {
                         // (AR) القيم رقمية/منطقية — نستدعي __sad_map_get_i64 ونُرجع i64
                         // (EN) Numeric/boolean values — call __sad_map_get_i64, return i64
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIRInstruction getInst;
                         getInst.opcode = SIROpcode::CALL;
                         getInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -408,8 +409,8 @@ namespace Sad
                         getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                         getInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
                         getInst.comment = "map get i64 by key";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(getInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(getInst);
 
                         BuildResult res(resultReg, mapElemType);
                         res.isDirectValue = true;
@@ -419,7 +420,7 @@ namespace Sad
                     {
                         // (AR) القيم عشرية — نستدعي __sad_map_get (نصي) ثم نحوّل لعشري
                         // (EN) Float values — call __sad_map_get (string) then convert to float
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIRInstruction getInst;
                         getInst.opcode = SIROpcode::CALL;
                         getInst.result = SIROperand::Register(resultReg, SadTypeKind::String);
@@ -427,15 +428,15 @@ namespace Sad
                         getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                         getInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
                         getInst.comment = "map get string for float by key";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(getInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(getInst);
 
-                        std::string dblReg = newTempRegister();
+                        std::string dblReg = b_.newTempRegister();
                         SIRInstruction toF64Inst(SIROpcode::STRING_TO_F64);
                         toF64Inst.result = SIROperand::Register(dblReg, SadTypeKind::Float);
                         toF64Inst.operands.push_back(SIROperand::Register(resultReg, SadTypeKind::String));
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(toF64Inst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(toF64Inst);
 
                         BuildResult res(dblReg, SadTypeKind::Float);
                         res.isDirectValue = true;
@@ -448,7 +449,7 @@ namespace Sad
                         //      النتيجة دائماً نص (ptr) — للمقارنة مع أرقام يجب تحويل النوع
                         // (EN) Heterogeneous map — use smart __sad_map_get that reads type tag
                         //      Result is always string (ptr)
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIRInstruction getInst;
                         getInst.opcode = SIROpcode::CALL;
                         getInst.result = SIROperand::Register(resultReg, SadTypeKind::String);
@@ -456,8 +457,8 @@ namespace Sad
                         getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                         getInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
                         getInst.comment = "map get (heterogeneous) by key";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(getInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(getInst);
 
                         return BuildResult(resultReg, SadTypeKind::String);
                     }
@@ -465,7 +466,7 @@ namespace Sad
                     {
                         // (AR) نصوص — نستدعي __sad_map_get (يُرجع نصاً)
                         // (EN) Strings — call __sad_map_get (returns string)
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIRInstruction getInst;
                         getInst.opcode = SIROpcode::CALL;
                         getInst.result = SIROperand::Register(resultReg, SadTypeKind::String);
@@ -473,8 +474,8 @@ namespace Sad
                         getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                         getInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
                         getInst.comment = "map get string by key";
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(getInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(getInst);
 
                         return BuildResult(resultReg, SadTypeKind::String);
                     }
@@ -482,7 +483,7 @@ namespace Sad
 
                 // (AR) تعليمة ARRAY_GET للوصول بالفهرس
                 // (EN) ARRAY_GET instruction for indexed access
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
                 SIRInstruction takeInst;
                 takeInst.opcode = SIROpcode::ARRAY_GET;
                 takeInst.result = SIROperand::Register(resultReg, resultType);
@@ -490,9 +491,9 @@ namespace Sad
                 takeInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
                 takeInst.comment = "array element get";
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(takeInst);
+                    b_.currentBlock_->addInstruction(takeInst);
                 }
 
                 BuildResult result(resultReg, resultType);
@@ -508,7 +509,7 @@ namespace Sad
             // ============================================================================
             // buildExprIndexAssign
             // ============================================================================
-            BuildResult SIRBuilder::buildExprIndexAssign(AST::IndexAssignExpr *indexAssignExpr)
+            BuildResult ExpressionBuilder::buildExprIndexAssign(AST::IndexAssignExpr *indexAssignExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found IndexAssignExpr" << std::endl;
@@ -531,8 +532,8 @@ namespace Sad
                 std::string objClassName = objResult.className;
                 if (objClassName.empty() && !objResult.registerName.empty())
                 {
-                    auto it = classInstanceTypes_.find(objResult.registerName);
-                    if (it != classInstanceTypes_.end())
+                    auto it = b_.classInstanceTypes_.find(objResult.registerName);
+                    if (it != b_.classInstanceTypes_.end())
                     {
                         objClassName = it->second;
                     }
@@ -548,13 +549,13 @@ namespace Sad
                     while (!searchClass.empty())
                     {
                         fullOpName = searchClass + ".__op_index_set__";
-                        auto funcIt = functionTable_.find(fullOpName);
-                        if (funcIt != functionTable_.end())
+                        auto funcIt = b_.functionTable_.find(fullOpName);
+                        if (funcIt != b_.functionTable_.end())
                         {
                             found = true;
                             break;
                         }
-                        auto parentClass = module_->getClass(searchClass);
+                        auto parentClass = b_.module_->getClass(searchClass);
                         if (parentClass && !parentClass->parentClass.empty())
                         {
                             searchClass = parentClass->parentClass;
@@ -572,11 +573,11 @@ namespace Sad
                                   << fullOpName << "'" << std::endl;
 #endif
 
-                        std::string resultReg = newTempRegister();
-                        auto &opInfo = functionTable_[fullOpName];
+                        std::string resultReg = b_.newTempRegister();
+                        auto &opInfo = b_.functionTable_[fullOpName];
                         SadTypeKind returnType = opInfo.returnType;
 
-                        if (currentBlock_)
+                        if (b_.currentBlock_)
                         {
                             // (AR) استدعاء عامل []=: OBJECT_CALL(self, __op_index_set__, فهرس, قيمة)
                             // (EN) Index-assign op call: OBJECT_CALL(self, __op_index_set__, index, value)
@@ -593,7 +594,7 @@ namespace Sad
                             callInst.operands.push_back(valResult.isConstant
                                                             ? SIROperand::ConstantI64(std::stoll(valResult.constantValue))
                                                             : SIROperand::Register(valResult.registerName, valResult.type));
-                            currentBlock_->addInstruction(callInst);
+                            b_.currentBlock_->addInstruction(callInst);
                         }
 
                         BuildResult result(resultReg, returnType);
@@ -611,9 +612,9 @@ namespace Sad
 
                 // (AR) تجسيد الفهرس إذا كان ثابتاً
                 // (EN) Materialize index if constant
-                if (idxResult.isConstant && currentBlock_)
+                if (idxResult.isConstant && b_.currentBlock_)
                 {
-                    std::string reg = newTempRegister();
+                    std::string reg = b_.newTempRegister();
                     idxResult.registerName = reg;
                     SIRInstruction moveInst(SIROpcode::MOVE);
                     moveInst.result = SIROperand::Register(reg, idxResult.type);
@@ -641,15 +642,15 @@ namespace Sad
                             moveInst.operands.push_back(SIROperand::ConstantI64(0));
                         }
                     }
-                    currentBlock_->addInstruction(moveInst);
+                    b_.currentBlock_->addInstruction(moveInst);
                     idxResult.isConstant = false;
                 }
 
                 // (AR) تجسيد القيمة إذا كانت ثابتة
                 // (EN) Materialize value if constant
-                if (valResult.isConstant && currentBlock_)
+                if (valResult.isConstant && b_.currentBlock_)
                 {
-                    std::string reg = newTempRegister();
+                    std::string reg = b_.newTempRegister();
                     valResult.registerName = reg;
                     SIRInstruction moveInst(SIROpcode::MOVE);
                     moveInst.result = SIROperand::Register(reg, valResult.type);
@@ -676,7 +677,7 @@ namespace Sad
                             moveInst.operands.push_back(SIROperand::ConstantI64(0));
                         }
                     }
-                    currentBlock_->addInstruction(moveInst);
+                    b_.currentBlock_->addInstruction(moveInst);
                     valResult.isConstant = false;
                 }
 
@@ -700,7 +701,7 @@ namespace Sad
                     // ================================================================
                     if (auto *varExpr = dynamic_cast<AST::VariableExpr *>(indexAssignExpr->object.get()))
                     {
-                        VariableInfo *mapVar = lookupVariable(varExpr->name);
+                        VariableInfo *mapVar = b_.lookupVariable(varExpr->name);
                         if (mapVar && mapVar->elementType == SadTypeKind::Void &&
                             valResult.type != SadTypeKind::Void)
                         {
@@ -728,12 +729,12 @@ namespace Sad
                     {
                         // (AR) عشري — نحوّل لنص ونخزن كنص (type=0)
                         // (EN) Float — convert to string, store as string (type=0)
-                        std::string strReg = newTempRegister();
+                        std::string strReg = b_.newTempRegister();
                         SIRInstruction toStrInst(SIROpcode::F64_TO_STRING);
                         toStrInst.result = SIROperand::Register(strReg, SadTypeKind::String);
                         toStrInst.operands.push_back(valOp);
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(toStrInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(toStrInst);
                         setInst.operands.push_back(SIROperand::Register(strReg, SadTypeKind::String));
                         typeTag = 0;
                     }
@@ -749,8 +750,8 @@ namespace Sad
                     }
                     setInst.operands.push_back(SIROperand::ConstantI64(typeTag));
                     setInst.comment = "map index-assign set typed";
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(setInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(setInst);
 
                     return BuildResult(valResult.registerName, valResult.type);
                 }
@@ -764,9 +765,9 @@ namespace Sad
                 storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
                 storeInst.comment = "array element set";
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(storeInst);
+                    b_.currentBlock_->addInstruction(storeInst);
                 }
 
                 return BuildResult(valResult.registerName, valResult.type);

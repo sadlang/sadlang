@@ -4,6 +4,7 @@
 // Collection expression builders (arrays, tuples, maps, walrus)
 // ============================================================================
 #include "sir_builder.h"
+#include "builders/expression_builder.h"
 
 #include <iostream>
 
@@ -17,7 +18,7 @@ namespace Sad
             // ============================================================================
             // buildExprArray
             // ============================================================================
-            BuildResult SIRBuilder::buildExprArray(AST::ArrayExpr *arrayExpr)
+            BuildResult ExpressionBuilder::buildExprArray(AST::ArrayExpr *arrayExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found ArrayExpr with "
@@ -26,7 +27,7 @@ namespace Sad
 
                 // (AR) تخصيص مصفوفة جديدة
                 // (EN) Allocate new array
-                std::string arrReg = newTempRegister();
+                std::string arrReg = b_.newTempRegister();
                 SIRInstruction allocInst;
                 allocInst.opcode = SIROpcode::ARRAY_NEW;
                 allocInst.result = SIROperand::Register(arrReg, SadTypeKind::Array);
@@ -34,9 +35,9 @@ namespace Sad
                 allocInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(arrayExpr->elements.size())));
                 allocInst.comment = "array new [" + std::to_string(arrayExpr->elements.size()) + "]";
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(allocInst);
+                    b_.currentBlock_->addInstruction(allocInst);
                 }
 
                 // (AR) تخزين العناصر واحداً تلو الآخر
@@ -62,9 +63,9 @@ namespace Sad
                     //      ملاحظة: عناصر المصفوفات المتداخلة (ARRAY) لا تحتاج تجسيداً — هي بالفعل في سجلات
                     // (EN) Materialize constants before storing (same fix applied to MapExpr)
                     //      Note: Nested array elements (ARRAY type) don't need materialization — already in registers
-                    if (elemResult.isConstant && elemResult.type != SadTypeKind::Array && currentBlock_)
+                    if (elemResult.isConstant && elemResult.type != SadTypeKind::Array && b_.currentBlock_)
                     {
-                        std::string reg = newTempRegister();
+                        std::string reg = b_.newTempRegister();
                         elemResult.registerName = reg;
                         SIRInstruction moveInst(SIROpcode::MOVE);
                         moveInst.result = SIROperand::Register(reg, elemResult.type);
@@ -94,7 +95,7 @@ namespace Sad
                                 moveInst.operands.push_back(SIROperand::ConstantI64(0));
                             }
                         }
-                        currentBlock_->addInstruction(moveInst);
+                        b_.currentBlock_->addInstruction(moveInst);
                         elemResult.isConstant = false;
                     }
 
@@ -105,9 +106,9 @@ namespace Sad
                     storeInst.operands.push_back(SIROperand::Register(elemResult.registerName, elemResult.type));
                     storeInst.comment = "array[" + std::to_string(i) + "] = ...";
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(storeInst);
+                        b_.currentBlock_->addInstruction(storeInst);
                     }
                 }
 
@@ -128,7 +129,7 @@ namespace Sad
             // ============================================================================
             // buildExprTuple
             // ============================================================================
-            BuildResult SIRBuilder::buildExprTuple(AST::TupleExpr *tupleExpr)
+            BuildResult ExpressionBuilder::buildExprTuple(AST::TupleExpr *tupleExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found TupleExpr with "
@@ -137,7 +138,7 @@ namespace Sad
 
                 // (AR) تخصيص صف جديد
                 // (EN) Allocate new tuple
-                std::string tupleReg = newTempRegister();
+                std::string tupleReg = b_.newTempRegister();
                 SIRInstruction allocInst;
                 allocInst.opcode = SIROpcode::TUPLE_NEW;
                 allocInst.result = SIROperand::Register(tupleReg, SadTypeKind::Tuple);
@@ -147,9 +148,9 @@ namespace Sad
                 allocInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(tupleExpr->elements.size())));
                 allocInst.comment = "tuple new (" + std::to_string(tupleExpr->elements.size()) + ")";
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(allocInst);
+                    b_.currentBlock_->addInstruction(allocInst);
                 }
 
                 // (AR) تخزين العناصر واحداً تلو الآخر (نفس منطق المصفوفة)
@@ -160,9 +161,9 @@ namespace Sad
 
                     // (AR) تجسيد الثوابت قبل تخزينها
                     // (EN) Materialize constants before storing
-                    if (elemResult.isConstant && elemResult.type != SadTypeKind::Tuple && elemResult.type != SadTypeKind::Array && currentBlock_)
+                    if (elemResult.isConstant && elemResult.type != SadTypeKind::Tuple && elemResult.type != SadTypeKind::Array && b_.currentBlock_)
                     {
-                        std::string reg = newTempRegister();
+                        std::string reg = b_.newTempRegister();
                         elemResult.registerName = reg;
                         SIRInstruction moveInst(SIROpcode::MOVE);
                         moveInst.result = SIROperand::Register(reg, elemResult.type);
@@ -189,7 +190,7 @@ namespace Sad
                                 moveInst.operands.push_back(SIROperand::ConstantI64(0));
                             }
                         }
-                        currentBlock_->addInstruction(moveInst);
+                        b_.currentBlock_->addInstruction(moveInst);
                         elemResult.isConstant = false;
                     }
 
@@ -204,9 +205,9 @@ namespace Sad
                     storeInst.operands.push_back(SIROperand::Register(elemResult.registerName, elemResult.type));
                     storeInst.comment = "tuple[" + std::to_string(i) + "] = ...";
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(storeInst);
+                        b_.currentBlock_->addInstruction(storeInst);
                     }
                 }
 
@@ -216,7 +217,7 @@ namespace Sad
             // ============================================================================
             // buildExprMap
             // ============================================================================
-            BuildResult SIRBuilder::buildExprMap(AST::MapExpr *mapExpr)
+            BuildResult ExpressionBuilder::buildExprMap(AST::MapExpr *mapExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found MapExpr with "
@@ -225,15 +226,15 @@ namespace Sad
 
                 // (AR) إنشاء خريطة عبر استدعاء runtime
                 // (EN) Create map via runtime call
-                std::string mapReg = newTempRegister();
+                std::string mapReg = b_.newTempRegister();
                 SIRInstruction createInst;
                 createInst.opcode = SIROpcode::CALL;
                 createInst.result = SIROperand::Register(mapReg, SadTypeKind::Map);
                 createInst.operands.push_back(SIROperand::ConstantString("__sad_map_create"));
                 createInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(mapExpr->pairs.size())));
                 createInst.comment = "map create {" + std::to_string(mapExpr->pairs.size()) + " pairs}";
-                if (currentBlock_)
-                    currentBlock_->addInstruction(createInst);
+                if (b_.currentBlock_)
+                    b_.currentBlock_->addInstruction(createInst);
 
                 // (AR) تتبع نوع عنصر الخريطة — يُستخدم لاحقاً عند القراءة
                 // (EN) Track map element type — used later for typed get
@@ -253,8 +254,8 @@ namespace Sad
                         mergeInst.operands.push_back(SIROperand::ConstantString("__sad_map_merge"));
                         mergeInst.operands.push_back(SIROperand::Register(mapReg, SadTypeKind::Map));
                         mergeInst.operands.push_back(SIROperand::Register(spreadResult.registerName, spreadResult.type));
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(mergeInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(mergeInst);
                         continue;
                     }
 
@@ -267,7 +268,7 @@ namespace Sad
                     {
                         if (res.isConstant)
                         {
-                            std::string reg = newTempRegister();
+                            std::string reg = b_.newTempRegister();
                             res.registerName = reg;
                             SIRInstruction moveInst(SIROpcode::MOVE);
                             moveInst.result = SIROperand::Register(reg, res.type);
@@ -297,8 +298,8 @@ namespace Sad
                                     moveInst.operands.push_back(SIROperand::ConstantI64(0));
                                 }
                             }
-                            if (currentBlock_)
-                                currentBlock_->addInstruction(moveInst);
+                            if (b_.currentBlock_)
+                                b_.currentBlock_->addInstruction(moveInst);
                             res.isConstant = false;
                         }
                         return SIROperand::Register(res.registerName, res.type);
@@ -338,12 +339,12 @@ namespace Sad
                         // (AR) عشري — نحوّل لنص ثم نستخدم __sad_map_set العادي بنوع 0
                         //      لتجنب bitcast غير المدعوم في SIR حالياً
                         // (EN) Float — convert to string, use __sad_map_set via typed with type 0
-                        std::string strReg = newTempRegister();
+                        std::string strReg = b_.newTempRegister();
                         SIRInstruction toStrInst(SIROpcode::F64_TO_STRING);
                         toStrInst.result = SIROperand::Register(strReg, SadTypeKind::String);
                         toStrInst.operands.push_back(valOp);
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(toStrInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(toStrInst);
                         setInst.operands.push_back(SIROperand::Register(strReg, SadTypeKind::String));
                         typeTag = 0;
                     }
@@ -361,8 +362,8 @@ namespace Sad
                     }
                     setInst.operands.push_back(SIROperand::ConstantI64(typeTag));
                     setInst.comment = "map set typed [" + std::to_string(i) + "]";
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(setInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(setInst);
                 }
 
                 // (AR) إرجاع نتيجة الخريطة مع نوع العنصر المحفوظ
@@ -375,7 +376,7 @@ namespace Sad
             // ============================================================================
             // buildExprWalrus
             // ============================================================================
-            BuildResult SIRBuilder::buildExprWalrus(AST::WalrusExpr *walrusExpr)
+            BuildResult ExpressionBuilder::buildExprWalrus(AST::WalrusExpr *walrusExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found WalrusExpr: " << walrusExpr->variable << std::endl;
@@ -387,16 +388,16 @@ namespace Sad
 
                 // (AR) تخصيص متغير جديد وتخزين القيمة فيه
                 // (EN) Allocate new variable and store value
-                std::string varReg = newTempRegister();
+                std::string varReg = b_.newTempRegister();
 
                 SIRInstruction allocInst;
                 allocInst.opcode = SIROpcode::ALLOC;
                 allocInst.result = SIROperand::Register(varReg, valResult.type);
                 allocInst.operands.push_back(SIROperand::ConstantI64(1));
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(allocInst);
+                    b_.currentBlock_->addInstruction(allocInst);
                 }
 
                 SIRInstruction storeInst;
@@ -404,9 +405,9 @@ namespace Sad
                 storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
                 storeInst.operands.push_back(SIROperand::Register(varReg, valResult.type));
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(storeInst);
+                    b_.currentBlock_->addInstruction(storeInst);
                 }
 
                 // (AR) تسجيل المتغير في النطاق الحالي
@@ -416,8 +417,8 @@ namespace Sad
                 varInfo.type = valResult.type;
                 varInfo.registerName = varReg;
                 varInfo.isMutable = true;
-                varInfo.scopeLevel = currentScopeLevel_;
-                addVariable(varInfo);
+                varInfo.scopeLevel = b_.currentScopeLevel_;
+                b_.addVariable(varInfo);
 
                 // (AR) Walrus يرجع القيمة نفسها
                 // (EN) Walrus returns the value itself

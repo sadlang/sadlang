@@ -4,6 +4,7 @@
 // Low-level expression builders (inline asm, sizeof, atomic)
 // ============================================================================
 #include "sir_builder.h"
+#include "builders/expression_builder.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
 
@@ -19,7 +20,7 @@ namespace Sad
             // ============================================================================
             // buildExprInlineAsm
             // ============================================================================
-            BuildResult SIRBuilder::buildExprInlineAsm(AST::InlineAsmExpr *inlineAsm)
+            BuildResult ExpressionBuilder::buildExprInlineAsm(AST::InlineAsmExpr *inlineAsm)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found InlineAsmExpr" << std::endl;
@@ -27,7 +28,7 @@ namespace Sad
 
                 // (AR) إصدار تعليمة INLINE_ASM مباشرة — يتحول إلى llvm::InlineAsm في codegen
                 // (EN) Emit INLINE_ASM instruction directly — becomes llvm::InlineAsm in codegen
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
 
                 SIRInstruction asmInst(SIROpcode::INLINE_ASM);
                 // operands[0] = نص التجميع / assembly text
@@ -90,9 +91,9 @@ namespace Sad
                     std::vector<std::string> inputRegs;
                     std::vector<SadTypeKind> inputRegTypes;
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        auto &instructions = currentBlock_->instructions;
+                        auto &instructions = b_.currentBlock_->instructions;
                         int skip = inlineAsm->outputConstraints.empty() ? 0 : 1;
                         int found = 0;
 
@@ -131,9 +132,9 @@ namespace Sad
                     //  ترتيب الربط: المعاملات أولاً (بترتيب التصريح)، ثم المحليات
                     //  Binding order: parameters first (declaration order), then locals
                     // ====================================================================
-                    if ((int)inputRegs.size() < inputCount && currentFunction_)
+                    if ((int)inputRegs.size() < inputCount && b_.currentFunction_)
                     {
-                        const auto &params = currentFunction_->getParameters();
+                        const auto &params = b_.currentFunction_->getParameters();
                         // (AR) نبني قائمة من معاملات الدالة ونضعها قبل المحليات
                         // (EN) Build list from function parameters and prepend before locals
                         std::vector<std::string> paramRegs;
@@ -169,9 +170,9 @@ namespace Sad
                     asmInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                 }
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(asmInst);
+                    b_.currentBlock_->addInstruction(asmInst);
                 }
 
                 // ====================================================================
@@ -181,10 +182,10 @@ namespace Sad
                 // النمط: متغير قيمة = 0 ← @تجميع("mov %%crX, %0", "=r", "", "") ← ارجع قيمة
                 // Pattern: var val = 0 ← @asm("mov %%crX, %0", "=r", "", "") ← return val
                 // ====================================================================
-                if (!inlineAsm->outputConstraints.empty() && currentBlock_)
+                if (!inlineAsm->outputConstraints.empty() && b_.currentBlock_)
                 {
                     std::string lastAllocReg;
-                    auto &instructions = currentBlock_->instructions;
+                    auto &instructions = b_.currentBlock_->instructions;
                     for (auto it = instructions.rbegin(); it != instructions.rend(); ++it)
                     {
                         // (AR) تخطي تعليمة INLINE_ASM التي أضفناها للتو
@@ -206,7 +207,7 @@ namespace Sad
                             SIROperand::Register(resultReg, SadTypeKind::Integer));
                         storeInst.operands.push_back(
                             SIROperand::Register(lastAllocReg, SadTypeKind::Integer));
-                        currentBlock_->addInstruction(storeInst);
+                        b_.currentBlock_->addInstruction(storeInst);
                     }
                 }
 
@@ -216,7 +217,7 @@ namespace Sad
             // ============================================================================
             // buildExprSizeof
             // ============================================================================
-            BuildResult SIRBuilder::buildExprSizeof(AST::SizeofExpr *sizeofExpr)
+            BuildResult ExpressionBuilder::buildExprSizeof(AST::SizeofExpr *sizeofExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found SizeofExpr for type: "
@@ -269,7 +270,7 @@ namespace Sad
 
                 // (AR) إنشاء تعليمة Sizeof
                 // (EN) Create Sizeof instruction
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
                 SIRInstruction sizeofInst;
                 sizeofInst.opcode = SIROpcode::Sizeof;
                 sizeofInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -277,9 +278,9 @@ namespace Sad
                 sizeofInst.operands.push_back(SIROperand::ConstantString(typeName));
                 sizeofInst.comment = "@حجم(" + typeName + ") = " + std::to_string(typeSize);
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(sizeofInst);
+                    b_.currentBlock_->addInstruction(sizeofInst);
                 }
 
                 // (AR) إرجاع القيمة كثابت
@@ -293,7 +294,7 @@ namespace Sad
             // ============================================================================
             // buildExprAtomic
             // ============================================================================
-            BuildResult SIRBuilder::buildExprAtomic(AST::AtomicExpr *atomicExpr)
+            BuildResult ExpressionBuilder::buildExprAtomic(AST::AtomicExpr *atomicExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found AtomicExpr, operation: "
@@ -301,7 +302,7 @@ namespace Sad
 #endif
 
                 std::string op = atomicExpr->operation;
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
 
                 // (AR) بناء المعاملات
                 // (EN) Build operands
@@ -402,9 +403,9 @@ namespace Sad
                     atomicInst.comment = "@ذري(" + op + ")";
                 }
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(atomicInst);
+                    b_.currentBlock_->addInstruction(atomicInst);
                 }
 
                 return BuildResult(resultReg, SadTypeKind::Integer);

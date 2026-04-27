@@ -4,6 +4,7 @@
 // Functional expression builders (lambda, range, list/dict/set comprehension, generators)
 // ============================================================================
 #include "sir_builder.h"
+#include "builders/expression_builder.h"
 #include <set>
 #include <functional>
 #include <iostream>
@@ -18,7 +19,7 @@ namespace Sad
             // ============================================================================
             // buildExprLambda
             // ============================================================================
-            BuildResult SIRBuilder::buildExprLambda(AST::LambdaExpr *lambdaExpr)
+            BuildResult ExpressionBuilder::buildExprLambda(AST::LambdaExpr *lambdaExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found LambdaExpr with "
@@ -27,7 +28,7 @@ namespace Sad
 
                 // (AR) إنشاء اسم فريد للدالة المجهولة
                 // (EN) Create unique name for anonymous function
-                std::string lambdaName = "__lambda_" + std::to_string(nextTempRegister_++);
+                std::string lambdaName = "__lambda_" + std::to_string(b_.nextTempRegister_++);
 
                 // (AR) جمع أسماء المعاملات
                 // (EN) Collect parameter names
@@ -42,23 +43,23 @@ namespace Sad
                 std::set<std::string> freeVars;
                 if (lambdaExpr->body)
                 {
-                    collectFreeVarsExpr(lambdaExpr->body.get(), paramNames, freeVars);
+                    b_.collectFreeVarsExpr(lambdaExpr->body.get(), paramNames, freeVars);
                 }
                 if (lambdaExpr->blockBody)
                 {
                     std::set<std::string> boundCopy = paramNames;
-                    collectFreeVarsStmt(lambdaExpr->blockBody.get(), boundCopy, freeVars);
+                    b_.collectFreeVarsStmt(lambdaExpr->blockBody.get(), boundCopy, freeVars);
                 }
 
                 // (AR) البحث عن المتغيرات الملتقطة في النطاق الحالي
                 // (EN) Look up captured variables in current scope
-                std::vector<CaptureInfo> captures;
+                std::vector<SIRBuilderContext::CaptureInfo> captures;
                 for (const auto &fv : freeVars)
                 {
-                    auto *varPtr = lookupVariable(fv);
+                    auto *varPtr = b_.lookupVariable(fv);
                     if (varPtr)
                     {
-                        CaptureInfo ci;
+                        SIRBuilderContext::CaptureInfo ci;
                         ci.varName = fv;
                         ci.registerName = varPtr->registerName;
                         ci.type = varPtr->type;
@@ -75,7 +76,7 @@ namespace Sad
                 // (EN) Store closure captures
                 if (!captures.empty())
                 {
-                    closureCaptures_[lambdaName] = captures;
+                    b_.closureCaptures_[lambdaName] = captures;
                 }
 
                 // ================================================================
@@ -101,7 +102,7 @@ namespace Sad
                 //      we analyze how each param is used in the body to infer its correct type
                 //      This ensures LLVM generates correct signature (ptr for strings, i64 for ints)
                 // ────────────────────────────────────────────────────────
-                auto inferredParamTypes = inferLambdaParamTypes(lambdaExpr, paramNames);
+                auto inferredParamTypes = b_.inferLambdaParamTypes(lambdaExpr, paramNames);
 
                 std::vector<SIRParameter> sirParams;
                 for (const auto &param : lambdaExpr->parameters)
@@ -111,7 +112,7 @@ namespace Sad
                     // (EN) Priority 1: explicit AST type (programmer specified)
                     if (param.type != Data::DataType::UNKNOWN)
                     {
-                        paramType = astTypeToSIRType(param.type);
+                        paramType = b_.astTypeToSIRType(param.type);
                     }
                     // (AR) الأولوية 2: نوع مُستنتج من تحليل الجسم
                     // (EN) Priority 2: type inferred from body analysis
@@ -134,7 +135,7 @@ namespace Sad
                 SadTypeKind retType = SadTypeKind::Integer;
                 if (lambdaExpr->blockBody)
                 {
-                    retType = inferReturnTypeFromBody(lambdaExpr->blockBody.get());
+                    retType = b_.inferReturnTypeFromBody(lambdaExpr->blockBody.get());
                 }
 
                 // (AR) إنشاء دالة SIR للـ lambda
@@ -145,16 +146,16 @@ namespace Sad
 
                 // (AR) حفظ السياق الحالي
                 // (EN) Save current context
-                auto savedCtx = saveContext();
+                auto savedCtx = b_.saveContext();
 
                 // (AR) تعيين سياق الدالة الجديدة
                 // (EN) Set new function context
-                currentFunction_ = lambdaFunc;
-                auto entryBlock = createBasicBlock("lambda_entry");
+                b_.currentFunction_ = lambdaFunc;
+                auto entryBlock = b_.createBasicBlock("lambda_entry");
                 lambdaFunc->addBasicBlock(entryBlock);
-                currentBlock_ = entryBlock;
+                b_.currentBlock_ = entryBlock;
 
-                enterScope();
+                b_.enterScope();
 
                 // (AR) تسجيل المعاملات الصريحة كمتغيرات محلية
                 //      نستخدم الأنواع المُستنتجة من sirParams (وليس Integer ثابت)
@@ -170,8 +171,8 @@ namespace Sad
                     paramVar.type = sirParams[i].type; // (AR) النوع المُستنتج / (EN) Inferred type
                     paramVar.registerName = paramReg;
                     paramVar.isMutable = false;
-                    paramVar.scopeLevel = currentScopeLevel_;
-                    addVariable(paramVar);
+                    paramVar.scopeLevel = b_.currentScopeLevel_;
+                    b_.addVariable(paramVar);
                 }
 
                 // ================================================================
@@ -186,14 +187,14 @@ namespace Sad
                 {
                     // (AR) [Fix #51] تحميل القيمة من env[i] عبر ENV_LOAD
                     // (EN) [Fix #51] Load value from env[i] via ENV_LOAD
-                    std::string loadReg = newTempRegister();
+                    std::string loadReg = b_.newTempRegister();
                     SIRInstruction envLoadInst;
                     envLoadInst.opcode = SIROpcode::ENV_LOAD;
                     envLoadInst.result = SIROperand::Register(loadReg, captures[i].type);
                     envLoadInst.operands.push_back(SIROperand::Register("%__env", SadTypeKind::Integer));
                     envLoadInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i)));
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(envLoadInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(envLoadInst);
 
                     // ================================================================
                     // (AR) [Fix #51] إنشاء متغير محلي عبر STORE لتخزين القيمة من env
@@ -210,8 +211,8 @@ namespace Sad
                     storeInit.operands.push_back(SIROperand::Register(loadReg, captures[i].type));
                     storeInit.operands.push_back(SIROperand::Register(allocaName, captures[i].type));
                     storeInit.comment = "init captured var from env[" + std::to_string(i) + "]";
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(storeInit);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(storeInit);
 
                     // (AR) [Fix #51] تسجيل المتغير مع alloca كـ registerName
                     // (EN) [Fix #51] Register captured variable with alloca as registerName
@@ -220,11 +221,11 @@ namespace Sad
                     capVar.type = captures[i].type;
                     capVar.registerName = allocaName;
                     capVar.isMutable = true;
-                    capVar.scopeLevel = currentScopeLevel_;
+                    capVar.scopeLevel = b_.currentScopeLevel_;
                     capVar.isCaptured = true;
                     capVar.captureIndex = static_cast<int>(i);
                     capVar.envRegister = "%__env";
-                    addVariable(capVar);
+                    b_.addVariable(capVar);
                 }
 
                 // (AR) بناء جسم الـ lambda
@@ -248,31 +249,31 @@ namespace Sad
                     {
                         retType = bodyResult.type;
                         lambdaFunc->returnType = retType;
-                        // (AR) تحديث FunctionInfo سيتم لاحقاً عند التسجيل في functionTable_
+                        // (AR) تحديث FunctionInfo سيتم لاحقاً عند التسجيل في b_.functionTable_
                     }
 
                     SIRInstruction retInst;
                     retInst.opcode = SIROpcode::RET;
                     retInst.operands.push_back(SIROperand::Register(bodyResult.registerName, bodyResult.type));
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->addInstruction(retInst);
+                        b_.currentBlock_->addInstruction(retInst);
                     }
                 }
                 else if (lambdaExpr->blockBody)
                 {
                     // (AR) جسم كتلي - بناء الجمل
                     // (EN) Block body - build statements
-                    buildStatement(lambdaExpr->blockBody.get());
+                    b_.buildStatement(lambdaExpr->blockBody.get());
 
                     // ================================================================
                     // (AR) [Fix #52] تحديث نوع الإرجاع من تعليمات RET الفعلية
-                    //      inferReturnTypeFromBody يعمل على AST قبل بناء المتغيرات الملتقطة
+                    //      b_.inferReturnTypeFromBody يعمل على AST قبل بناء المتغيرات الملتقطة
                     //      لذا لا يعرف أنواعها. بعد بناء الجسم، المتغيرات مسجلة بأنواعها
                     //      الصحيحة، فنفحص تعليمات RET الفعلية ونأخذ النوع منها.
                     //      هذا يصلح مشكلة إرجاع مؤشر بدل نص من الإغلاقات.
                     // (EN) [Fix #52] Update return type from actual RET instructions
-                    //      inferReturnTypeFromBody works on AST before captured vars are built,
+                    //      b_.inferReturnTypeFromBody works on AST before captured vars are built,
                     //      so it doesn't know their types. After building body, vars are registered
                     //      with correct types, so we scan actual RET instructions for the real type.
                     //      This fixes closures returning pointer instead of string.
@@ -329,31 +330,31 @@ namespace Sad
 
                     // (AR) إضافة RET_VOID في نهاية الكتلة إن لم يكن هناك return
                     // (EN) Add RET_VOID at end if no return
-                    if (currentBlock_ && !currentBlock_->instructions.empty())
+                    if (b_.currentBlock_ && !b_.currentBlock_->instructions.empty())
                     {
-                        auto &lastInst = currentBlock_->instructions.back();
+                        auto &lastInst = b_.currentBlock_->instructions.back();
                         if (lastInst.opcode != SIROpcode::RET && lastInst.opcode != SIROpcode::RET_VOID)
                         {
                             SIRInstruction retVoid;
                             retVoid.opcode = SIROpcode::RET_VOID;
-                            currentBlock_->addInstruction(retVoid);
+                            b_.currentBlock_->addInstruction(retVoid);
                         }
                     }
-                    else if (currentBlock_)
+                    else if (b_.currentBlock_)
                     {
                         SIRInstruction retVoid;
                         retVoid.opcode = SIROpcode::RET_VOID;
-                        currentBlock_->addInstruction(retVoid);
+                        b_.currentBlock_->addInstruction(retVoid);
                     }
                 }
 
-                exitScope();
+                b_.exitScope();
 
                 // (AR) إضافة الدالة للوحدة
                 // (EN) Add function to module
-                if (module_)
+                if (b_.module_)
                 {
-                    module_->addFunction(lambdaFunc);
+                    b_.module_->addFunction(lambdaFunc);
                 }
 
                 // (AR) تسجيل في جدول الدوال
@@ -365,11 +366,11 @@ namespace Sad
                 {
                     lambdaInfo.parameters.push_back(sp);
                 }
-                functionTable_[lambdaName] = lambdaInfo;
+                b_.functionTable_[lambdaName] = lambdaInfo;
 
                 // (AR) استعادة السياق السابق
                 // (EN) Restore previous context
-                restoreContext(std::move(savedCtx));
+                b_.restoreContext(std::move(savedCtx));
 
                 // ================================================================
                 // (AR) إنشاء بنية الإغلاق (Closure) على الكومة
@@ -382,7 +383,7 @@ namespace Sad
                 //      CLOSURE_CREATE creates {fn_ptr, env_ptr} on heap
                 //      Returns a real register (not constant) holding closure pointer
                 // ================================================================
-                std::string closureReg = newTempRegister();
+                std::string closureReg = b_.newTempRegister();
                 SIRInstruction closureInst;
                 closureInst.opcode = SIROpcode::CLOSURE_CREATE;
                 closureInst.result = SIROperand::Register(closureReg, SadTypeKind::Function);
@@ -395,16 +396,16 @@ namespace Sad
                 {
                     // (AR) تحميل القيمة الحالية للمتغير الملتقط من النطاق الخارجي
                     // (EN) Load current value of captured variable from outer scope
-                    VariableInfo *capVar = lookupVariable(cap.varName);
+                    VariableInfo *capVar = b_.lookupVariable(cap.varName);
                     if (capVar)
                     {
-                        std::string capLoadReg = newTempRegister();
+                        std::string capLoadReg = b_.newTempRegister();
                         SIRInstruction capLoadInst;
                         capLoadInst.opcode = SIROpcode::LOAD;
                         capLoadInst.result = SIROperand::Register(capLoadReg, capVar->type);
                         capLoadInst.operands.push_back(SIROperand::Register(capVar->registerName, capVar->type));
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(capLoadInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(capLoadInst);
                         closureInst.operands.push_back(SIROperand::Register(capLoadReg, capVar->type));
                     }
                     else
@@ -412,8 +413,8 @@ namespace Sad
                         closureInst.operands.push_back(SIROperand::Register(cap.registerName, cap.type));
                     }
                 }
-                if (currentBlock_)
-                    currentBlock_->addInstruction(closureInst);
+                if (b_.currentBlock_)
+                    b_.currentBlock_->addInstruction(closureInst);
 
                 // (AR) إرجاع سجل الإغلاق — سجل حقيقي مُعرَّف بواسطة CLOSURE_CREATE
                 //      constantValue يحمل اسم اللامدا للاستخدام في التتبع فقط
@@ -431,7 +432,7 @@ namespace Sad
             // ============================================================================
             // buildExprRange
             // ============================================================================
-            BuildResult SIRBuilder::buildExprRange(AST::RangeExpr *rangeExpr)
+            BuildResult ExpressionBuilder::buildExprRange(AST::RangeExpr *rangeExpr)
             {
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildExpression: found RangeExpr" << std::endl;
@@ -444,16 +445,16 @@ namespace Sad
 
                 // (AR) تمثيل المدى كخريطة بسيطة تحتوي على بداية ونهاية
                 // (EN) Represent range as a simple struct with start and end
-                std::string rangeReg = newTempRegister();
+                std::string rangeReg = b_.newTempRegister();
                 SIRInstruction allocInst;
                 allocInst.opcode = SIROpcode::ALLOC;
                 allocInst.result = SIROperand::Register(rangeReg, SadTypeKind::Struct);
                 allocInst.operands.push_back(SIROperand::ConstantI64(2));
                 allocInst.comment = "range alloc";
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(allocInst);
+                    b_.currentBlock_->addInstruction(allocInst);
                 }
 
                 // (AR) تخزين البداية
@@ -464,9 +465,9 @@ namespace Sad
                 storeStartInst.operands.push_back(SIROperand::Register(rangeReg, SadTypeKind::Struct));
                 storeStartInst.operands.push_back(SIROperand::ConstantString("start"));
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(storeStartInst);
+                    b_.currentBlock_->addInstruction(storeStartInst);
                 }
 
                 // (AR) تخزين النهاية
@@ -477,9 +478,9 @@ namespace Sad
                 storeEndInst.operands.push_back(SIROperand::Register(rangeReg, SadTypeKind::Struct));
                 storeEndInst.operands.push_back(SIROperand::ConstantString("end"));
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(storeEndInst);
+                    b_.currentBlock_->addInstruction(storeEndInst);
                 }
 
                 return BuildResult(rangeReg, SadTypeKind::Struct);

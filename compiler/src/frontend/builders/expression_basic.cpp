@@ -11,6 +11,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/expression_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -27,7 +28,7 @@ namespace Sad
     {
         namespace SIR
         {
-            BuildResult SIRBuilder::buildLiteral(AST::LiteralNode *literal)
+            BuildResult ExpressionBuilder::buildLiteral(AST::LiteralNode *literal)
             {
                 if (!literal)
                 {
@@ -42,7 +43,7 @@ namespace Sad
 
                 // (AR) إنشاء سجل مؤقت للنتيجة
                 // (EN) Create temporary register for result
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
 
                 // (AR) تحديد النوع بناءً على نوع Token
                 // (EN) Determine type based on token type
@@ -160,8 +161,8 @@ namespace Sad
                         moveInst.operands.push_back(SIROperand::ConstantI64(0));
                         break;
                     }
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(moveInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(moveInst);
                 }
 
                 return result;
@@ -180,12 +181,12 @@ namespace Sad
             // - name: std::string (line 208)
             //
             // الدوال المستدعاة / Called functions:
-            // - lookupVariable: sir_builder.h:597 (returns VariableInfo*)
+            // - b_.lookupVariable: sir_builder.h:597 (returns VariableInfo*)
             //
             // الإرجاع / Returns:
             // - BuildResult with variable register and type
             // ============================================================================
-            BuildResult SIRBuilder::buildVariableAccess(AST::VariableNode *var)
+            BuildResult ExpressionBuilder::buildVariableAccess(AST::VariableNode *var)
             {
                 if (!var)
                 {
@@ -212,9 +213,9 @@ namespace Sad
                 //      core of monomorphization: the const becomes an inlined
                 //      literal enabling full constant folding by the optimizer.
                 // ================================================================
-                if (!genericScopeStack_.empty())
+                if (!b_.genericScopeStack_.empty())
                 {
-                    const auto &topScope = genericScopeStack_.back();
+                    const auto &topScope = b_.genericScopeStack_.back();
                     auto cIt = topScope.constSubstitutions.find(var->name);
                     if (cIt != topScope.constSubstitutions.end())
                     {
@@ -224,13 +225,13 @@ namespace Sad
                         // (EN) Materialize the constant into a fresh register so
                         //      downstream SIR consumers (which expect a register)
                         //      keep working uniformly.
-                        std::string reg = newTempRegister();
+                        std::string reg = b_.newTempRegister();
                         SIRInstruction movInst(SIROpcode::MOVE);
                         movInst.result = SIROperand::Register(reg, constOp.dataType);
                         movInst.operands.push_back(constOp);
                         movInst.comment = "const-generic-subst:" + var->name;
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(movInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(movInst);
                         BuildResult result(reg, constOp.dataType);
                         // (AR) لا نضع isConstant=true لتجنب اعتماد المستهلكات
                         //      على constantValue؛ MOVE من ثابت يتم طيّه لاحقاً
@@ -244,7 +245,7 @@ namespace Sad
 
                 // (AR) البحث عن المتغير في النطاقات (expressions.h:208 - name member)
                 // (EN) Lookup variable in scopes
-                VariableInfo *varInfo = lookupVariable(var->name);
+                VariableInfo *varInfo = b_.lookupVariable(var->name);
 
                 if (!varInfo)
                 {
@@ -260,22 +261,22 @@ namespace Sad
                     //      the function pointer, enabling CLOSURE_CALL later.
                     //      We mark the function ref for wrapper generation in codegen.
                     // ================================================================
-                    auto funcIt = functionTable_.find(var->name);
-                    if (funcIt != functionTable_.end())
+                    auto funcIt = b_.functionTable_.find(var->name);
+                    if (funcIt != b_.functionTable_.end())
                     {
                         // (AR) إصدار CLOSURE_CREATE لبناء بنية إغلاق حقيقية
                         // (EN) Emit CLOSURE_CREATE to build real closure struct
-                        std::string closureReg = newTempRegister();
+                        std::string closureReg = b_.newTempRegister();
                         SIRInstruction closureInst;
                         closureInst.opcode = SIROpcode::CLOSURE_CREATE;
                         closureInst.result = SIROperand::Register(closureReg, SadTypeKind::Function);
                         closureInst.operands.push_back(SIROperand::Register(var->name, SadTypeKind::Function));
                         closureInst.comment = "func-ref:" + var->name;
-                        if (currentBlock_)
-                            currentBlock_->addInstruction(closureInst);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->addInstruction(closureInst);
 
                         // (AR) تسجيل أن هذه الدالة تُستخدم كمرجع (للحاجة لإنشاء wrapper)
-                        funcRefNames_.insert(var->name);
+                        b_.funcRefNames_.insert(var->name);
 
                         BuildResult result;
                         result.type = SadTypeKind::Function;
@@ -286,7 +287,7 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildVariableAccess: variable NOT FOUND!" << std::endl;
 #endif
-                    errors_.push_back("Error: Undefined variable '" + var->name + "'");
+                    b_.errors_.push_back("Error: Undefined variable '" + var->name + "'");
                     return BuildResult();
                 }
 
@@ -311,14 +312,14 @@ namespace Sad
                 //      we need LOAD from global to get the actual value.
                 //      Without this: returns "%Shape.Point" as local register → undefined in LLVM
                 // ================================================================
-                if (varInfo->isGlobal && !varInfo->isMutable && currentBlock_)
+                if (varInfo->isGlobal && !varInfo->isMutable && b_.currentBlock_)
                 {
-                    std::string loadReg = newTempRegister();
+                    std::string loadReg = b_.newTempRegister();
                     SIRInstruction loadInst(SIROpcode::LOAD);
                     loadInst.result = SIROperand::Register(loadReg, varInfo->type);
                     loadInst.operands.push_back(SIROperand::Global(var->name, varInfo->type));
                     loadInst.comment = "Load global constant: " + var->name;
-                    currentBlock_->addInstruction(loadInst);
+                    b_.currentBlock_->addInstruction(loadInst);
 
                     BuildResult result(loadReg, varInfo->type);
                     result.isParameter = varInfo->isParameter;
@@ -330,8 +331,8 @@ namespace Sad
                     {
                         result.elementClassName = varInfo->elementClassName;
                     }
-                    auto cit = classInstanceTypes_.find(var->name);
-                    if (cit != classInstanceTypes_.end())
+                    auto cit = b_.classInstanceTypes_.find(var->name);
+                    if (cit != b_.classInstanceTypes_.end())
                     {
                         result.className = cit->second;
                     }
@@ -342,8 +343,8 @@ namespace Sad
 
                 // (AR) تتبع اسم الصنف إذا كان المتغير يحمل كائناً
                 // (EN) Track class name if variable holds an object
-                auto cit = classInstanceTypes_.find(var->name);
-                if (cit != classInstanceTypes_.end())
+                auto cit = b_.classInstanceTypes_.find(var->name);
+                if (cit != b_.classInstanceTypes_.end())
                 {
                     result.className = cit->second;
                 }
@@ -351,8 +352,8 @@ namespace Sad
                 // (EN) Also try register name lookup
                 if (result.className.empty())
                 {
-                    cit = classInstanceTypes_.find(varInfo->registerName);
-                    if (cit != classInstanceTypes_.end())
+                    cit = b_.classInstanceTypes_.find(varInfo->registerName);
+                    if (cit != b_.classInstanceTypes_.end())
                     {
                         result.className = cit->second;
                     }
@@ -410,7 +411,7 @@ namespace Sad
             //     %result = ALLOC bool
             //     STORE (came from current ? true : %right), %result
             // ============================================================================
-            BuildResult SIRBuilder::buildShortCircuitLogical(AST::BinaryOpNode *binOp)
+            BuildResult ExpressionBuilder::buildShortCircuitLogical(AST::BinaryOpNode *binOp)
             {
                 if (!binOp)
                 {
@@ -452,16 +453,16 @@ namespace Sad
                 //      - evalRightBlock: block for evaluating right operand
                 //      - mergeBlock: block for merging the result
                 // ================================================================
-                std::string evalRightLabel = newLabel("sc_eval_right");
-                std::string mergeLabel = newLabel("sc_merge");
+                std::string evalRightLabel = b_.newLabel("sc_eval_right");
+                std::string mergeLabel = b_.newLabel("sc_merge");
 
-                auto evalRightBlock = createBasicBlock(evalRightLabel);
-                auto mergeBlock = createBasicBlock(mergeLabel);
+                auto evalRightBlock = b_.createBasicBlock(evalRightLabel);
+                auto mergeBlock = b_.createBasicBlock(mergeLabel);
 
-                if (currentFunction_)
+                if (b_.currentFunction_)
                 {
-                    currentFunction_->addBasicBlock(evalRightBlock);
-                    currentFunction_->addBasicBlock(mergeBlock);
+                    b_.currentFunction_->addBasicBlock(evalRightBlock);
+                    b_.currentFunction_->addBasicBlock(mergeBlock);
                 }
 
                 // ================================================================
@@ -472,12 +473,12 @@ namespace Sad
                 //      AND: default result = false (if left is false, skip right)
                 //      OR: default result = true (if left is true, skip right)
                 // ================================================================
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
                 {
                     SIRInstruction allocResult(SIROpcode::ALLOC);
                     allocResult.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(allocResult);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(allocResult);
                 }
                 {
                     // (AR) تخزين القيمة المبدئية: false لـ AND، true لـ OR
@@ -485,8 +486,8 @@ namespace Sad
                     SIRInstruction storeDefault(SIROpcode::STORE);
                     storeDefault.operands.push_back(SIROperand::ConstantBool(!isAnd));
                     storeDefault.operands.push_back(SIROperand::Register(resultReg, SadTypeKind::Boolean));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(storeDefault);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(storeDefault);
                 }
 
                 // ================================================================
@@ -497,13 +498,13 @@ namespace Sad
                 //      AND: if true → eval right, if false → merge (result stays false)
                 //      OR: if true → merge (result stays true), if false → eval right
                 // ================================================================
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
                     SIROperand condOp = SIROperand::Register(leftResult.registerName, leftResult.type);
                     if (isAnd)
                     {
                         // (AR) AND: إذا الأيسر صحيح → نقيّم الأيمن، وإلا → merge
-                        currentBlock_->instructions.push_back(
+                        b_.currentBlock_->instructions.push_back(
                             SIRInstruction::BranchCond(condOp,
                                                        SIROperand::Label(evalRightLabel),
                                                        SIROperand::Label(mergeLabel)));
@@ -511,7 +512,7 @@ namespace Sad
                     else
                     {
                         // (AR) OR: إذا الأيسر صحيح → merge، وإلا → نقيّم الأيمن
-                        currentBlock_->instructions.push_back(
+                        b_.currentBlock_->instructions.push_back(
                             SIRInstruction::BranchCond(condOp,
                                                        SIROperand::Label(mergeLabel),
                                                        SIROperand::Label(evalRightLabel)));
@@ -526,7 +527,7 @@ namespace Sad
                 //      Right is evaluated only if we reach this block
                 //      Result is stored and we jump to merge
                 // ================================================================
-                currentBlock_ = evalRightBlock;
+                b_.currentBlock_ = evalRightBlock;
                 auto rightResult = buildExpression(binOp->right.get());
 
                 if (!rightResult.registerName.empty())
@@ -538,15 +539,15 @@ namespace Sad
                         SIROperand::Register(rightResult.registerName, rightResult.type));
                     storeRight.operands.push_back(
                         SIROperand::Register(resultReg, SadTypeKind::Boolean));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(storeRight);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(storeRight);
                 }
 
                 // (AR) قفز غير مشروط إلى كتلة الدمج
                 // (EN) Unconditional jump to merge block
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(
+                    b_.currentBlock_->instructions.push_back(
                         SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
                 }
 
@@ -554,15 +555,15 @@ namespace Sad
                 // (AR) الخطوة 6: كتلة الدمج — تحميل النتيجة النهائية
                 // (EN) Step 6: Merge block — load final result
                 // ================================================================
-                currentBlock_ = mergeBlock;
+                b_.currentBlock_ = mergeBlock;
 
-                std::string finalReg = newTempRegister();
+                std::string finalReg = b_.newTempRegister();
                 {
                     SIRInstruction loadResult(SIROpcode::LOAD);
                     loadResult.result = SIROperand::Register(finalReg, SadTypeKind::Boolean);
                     loadResult.operands.push_back(SIROperand::Register(resultReg, SadTypeKind::Boolean));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(loadResult);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(loadResult);
                 }
 
 #ifndef NDEBUG
@@ -610,7 +611,7 @@ namespace Sad
             // - BuildResult (sir_builder.h:103-132): registerName, type
             // ============================================================================
 
-            BuildResult SIRBuilder::buildUnaryOp(AST::UnaryOpNode *unaryOp)
+            BuildResult ExpressionBuilder::buildUnaryOp(AST::UnaryOpNode *unaryOp)
             {
                 if (!unaryOp)
                 {
@@ -640,8 +641,8 @@ namespace Sad
                 std::string operandClassName = operandResult.className;
                 if (operandClassName.empty() && !operandResult.registerName.empty())
                 {
-                    auto it = classInstanceTypes_.find(operandResult.registerName);
-                    if (it != classInstanceTypes_.end())
+                    auto it = b_.classInstanceTypes_.find(operandResult.registerName);
+                    if (it != b_.classInstanceTypes_.end())
                     {
                         operandClassName = it->second;
                     }
@@ -677,13 +678,13 @@ namespace Sad
                         while (!searchClass.empty())
                         {
                             fullOpName = searchClass + "." + opSafeName;
-                            auto funcIt = functionTable_.find(fullOpName);
-                            if (funcIt != functionTable_.end())
+                            auto funcIt = b_.functionTable_.find(fullOpName);
+                            if (funcIt != b_.functionTable_.end())
                             {
                                 found = true;
                                 break;
                             }
-                            auto parentClass = module_->getClass(searchClass);
+                            auto parentClass = b_.module_->getClass(searchClass);
                             if (parentClass && !parentClass->parentClass.empty())
                             {
                                 searchClass = parentClass->parentClass;
@@ -701,11 +702,11 @@ namespace Sad
                                       << fullOpName << "'" << std::endl;
 #endif
 
-                            std::string resultReg = newTempRegister();
-                            auto &opInfo = functionTable_[fullOpName];
+                            std::string resultReg = b_.newTempRegister();
+                            auto &opInfo = b_.functionTable_[fullOpName];
                             SadTypeKind returnType = opInfo.returnType;
 
-                            if (currentBlock_)
+                            if (b_.currentBlock_)
                             {
                                 // (AR) استدعاء عامل أحادي: OBJECT_CALL(self, اسم_العامل) — بدون معامل إضافي
                                 // (EN) Unary operator call: OBJECT_CALL(self, op_name) — no extra operand
@@ -714,7 +715,7 @@ namespace Sad
                                 callInst.result = SIROperand::Register(resultReg, returnType);
                                 callInst.operands.push_back(SIROperand::Register(operandResult.registerName, operandResult.type));
                                 callInst.operands.push_back(SIROperand::ConstantString(opSafeName));
-                                currentBlock_->addInstruction(callInst);
+                                b_.currentBlock_->addInstruction(callInst);
                             }
 
                             BuildResult result(resultReg, returnType);
@@ -724,9 +725,9 @@ namespace Sad
                     }
                 }
 
-                // (AR) إنشاء سجل للنتيجة (sir_builder.h:511 - newTempRegister)
+                // (AR) إنشاء سجل للنتيجة (sir_builder.h:511 - b_.newTempRegister)
                 // (EN) Create result register
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
 
                 // (AR) تحديد نوع النتيجة
                 // (EN) Determine result type
@@ -771,7 +772,7 @@ namespace Sad
                     std::cout << "[DEBUG] buildUnaryOp: عملية غير مدعومة: "
                               << static_cast<int>(unaryOp->op) << std::endl;
 #endif
-                    errors_.push_back("عملية أحادية غير مدعومة / Unsupported unary operation");
+                    b_.errors_.push_back("عملية أحادية غير مدعومة / Unsupported unary operation");
                     return BuildResult(resultReg, resultType);
                 }
 
@@ -809,9 +810,9 @@ namespace Sad
 
                 // (AR) إضافة التعليمة للكتلة الحالية
                 // (EN) Add instruction to current block
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->addInstruction(inst);
+                    b_.currentBlock_->addInstruction(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildUnaryOp: تمت إضافة التعليمة للكتلة الحالية" << std::endl;
 #endif
