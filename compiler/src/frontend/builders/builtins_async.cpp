@@ -5,6 +5,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_builder.h"
+#include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -23,7 +25,7 @@ namespace Sad
         namespace SIR
         {
 
-            std::optional<BuildResult> SIRBuilder::buildBuiltinSystem_Async(
+            std::optional<BuildResult> BuiltinBuilder::buildBuiltinSystem_Async(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
                 std::vector<BuildResult> &argResults,
@@ -43,14 +45,14 @@ namespace Sad
                         std::cerr << "[ERROR] spawn requires at least 1 argument (function name)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_SPAWN);
                     inst.result = resultOp;
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] async spawn() -> " << resultReg << std::endl;
 #endif
@@ -65,13 +67,13 @@ namespace Sad
                         std::cerr << "[ERROR] await requires 1 argument (task/future id)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_AWAIT);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] async await() -> " << resultReg << std::endl;
 #endif
@@ -84,8 +86,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::ASYNC_YIELD);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] async yield()" << std::endl;
 #endif
@@ -102,8 +104,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::ASYNC_SLEEP);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] async_sleep()" << std::endl;
 #endif
@@ -113,12 +115,12 @@ namespace Sad
                 // 5. create_future
                 if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84" || funcName == "create_future" || funcName == "\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_CREATE_FUTURE);
                     inst.result = resultOp;
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] create_future() -> " << resultReg << std::endl;
 #endif
@@ -140,8 +142,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::ASYNC_RESOLVE_FUTURE);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] resolve_future()" << std::endl;
 #endif
@@ -156,13 +158,13 @@ namespace Sad
                         std::cerr << "[ERROR] get_future requires 1 argument (future_id)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_GET_FUTURE);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] get_future() -> " << resultReg << std::endl;
 #endif
@@ -172,14 +174,14 @@ namespace Sad
                 // 8. create_channel
                 if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "create_channel" || funcName == "\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_CREATE_CHANNEL);
                     inst.result = resultOp;
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] create_channel() -> " << resultReg << std::endl;
 #endif
@@ -201,9 +203,9 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_SEND);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(inst);
+                        b_.currentBlock_->instructions.push_back(inst);
                     }
 #ifndef NDEBUG
                     std::cout << "[DEBUG] channel_send()" << std::endl;
@@ -219,13 +221,13 @@ namespace Sad
                         std::cerr << "[ERROR] channel_recv requires 1 argument (channel_id)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_RECV);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] channel_recv() -> " << resultReg << std::endl;
 #endif
@@ -242,8 +244,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_CLOSE);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] channel_close()" << std::endl;
 #endif
@@ -253,12 +255,12 @@ namespace Sad
                 // 12. create_mutex
                 if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x82\xd9\x81\xd9\x84" || funcName == "create_mutex" || funcName == "\xd9\x82\xd9\x81\xd9\x84")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_MUTEX_CREATE);
                     inst.result = resultOp;
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] create_mutex() -> " << resultReg << std::endl;
 #endif
@@ -279,8 +281,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::ASYNC_MUTEX_LOCK);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] mutex_lock()" << std::endl;
 #endif
@@ -297,8 +299,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::ASYNC_MUTEX_UNLOCK);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] mutex_unlock()" << std::endl;
 #endif
@@ -313,14 +315,14 @@ namespace Sad
                         std::cerr << "[ERROR] thread_spawn requires at least 1 argument" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_THREAD_SPAWN);
                     inst.result = resultOp;
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] thread_spawn() -> " << resultReg << std::endl;
 #endif
@@ -335,13 +337,13 @@ namespace Sad
                         std::cerr << "[ERROR] thread_join requires 1 argument (thread_id)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_THREAD_JOIN);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] thread_join() -> " << resultReg << std::endl;
 #endif
@@ -356,13 +358,13 @@ namespace Sad
                         std::cerr << "[ERROR] atomic_load requires 1 argument (address)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_LOAD);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] atomic_load() -> " << resultReg << std::endl;
 #endif
@@ -380,8 +382,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_STORE);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] atomic_store()" << std::endl;
 #endif
@@ -396,14 +398,14 @@ namespace Sad
                         std::cerr << "[ERROR] atomic_add requires 2 args (address, value)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_ADD);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] atomic_add() -> " << resultReg << std::endl;
 #endif
@@ -418,15 +420,15 @@ namespace Sad
                         std::cerr << "[ERROR] CAS requires 3 args (addr, expected, desired)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_CAS);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     inst.operands.push_back(argOperands[2]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] compare_and_swap() -> " << resultReg << std::endl;
 #endif
@@ -436,14 +438,14 @@ namespace Sad
                 // 21. wait_all
                 if (funcName == "\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1_\xd8\xa7\xd9\x84\xd9\x83\xd9\x84" || funcName == "wait_all")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_WAIT_ALL);
                     inst.result = resultOp;
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] wait_all() -> " << resultReg << std::endl;
 #endif
@@ -453,14 +455,14 @@ namespace Sad
                 // 22. wait_any
                 if (funcName == "\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1_\xd8\xa3\xd9\x8a" || funcName == "wait_any")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_WAIT_ANY);
                     inst.result = resultOp;
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] wait_any() -> " << resultReg << std::endl;
 #endif
@@ -470,14 +472,14 @@ namespace Sad
                 // 23. select / channel_select
                 if (funcName == "\xd8\xa7\xd8\xae\xd8\xaa\xd8\xb1_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "select" || funcName == "channel_select")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_SELECT);
                     inst.result = resultOp;
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] select() -> " << resultReg << std::endl;
 #endif
@@ -491,12 +493,12 @@ namespace Sad
                 // ========================================================================
                 if (funcName == "\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9\xd8\xa9_\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xa7\xd8\xb1" || funcName == "waitgroup_create")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_WG_CREATE);
                     inst.result = resultOp;
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] waitgroup_create() -> " << resultReg << std::endl;
 #endif

@@ -30,6 +30,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_builder.h"
+#include "sir_builder.h"
 #include "builtin_registry.h"
 #include <optional>
 #include <iostream>
@@ -62,13 +64,13 @@ namespace Sad
             //      and returns BuildResult with specified return type.
             //      Reduces repetition across 68 builtin functions.
             // ============================================================================
-            BuildResult SIRBuilder::buildNetworkBuiltinInstruction(
+            BuildResult BuiltinBuilder::buildNetworkBuiltinInstruction(
                 SIROpcode opcode,
                 std::vector<SIROperand> &argOperands,
                 SadTypeKind returnType,
                 const char *comment)
             {
-                std::string resultReg = newTempRegister();
+                std::string resultReg = b_.newTempRegister();
                 SIRInstruction inst(opcode);
                 inst.result = SIROperand::Register(resultReg, returnType);
 
@@ -79,9 +81,9 @@ namespace Sad
 
                 inst.comment = comment;
 
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    currentBlock_->instructions.push_back(inst);
+                    b_.currentBlock_->instructions.push_back(inst);
                 }
 
                 return BuildResult(resultReg, returnType);
@@ -89,15 +91,15 @@ namespace Sad
 
             // ============================================================================
             // (AR) الدالة الرئيسية: معالجة استدعاء دالة مدمجة للشبكة
-            //      تُستدعى من sir_builder_calls.cpp بعد buildBuiltinCallSystem.
+            //      تُستدعى من sir_builder_calls.cpp بعد b_.buildBuiltinCallSystem.
             //      تتحقق من اسم الدالة مقابل أسماء builtin_registry.h وتُصدر
             //      تعليمة SIR المناسبة.
             // (EN) Main function: handle network builtin function call.
-            //      Called from sir_builder_calls.cpp after buildBuiltinCallSystem.
+            //      Called from sir_builder_calls.cpp after b_.buildBuiltinCallSystem.
             //      Checks function name against builtin_registry.h names and emits
             //      the appropriate SIR instruction.
             // ============================================================================
-            std::optional<BuildResult> SIRBuilder::buildBuiltinCallNetwork(
+            std::optional<BuildResult> BuiltinBuilder::buildBuiltinCallNetwork(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
                 std::vector<BuildResult> &argResults,
@@ -116,7 +118,7 @@ namespace Sad
                 // (EN) Create new TCP socket — returns handle (i64)
                 if (funcName == Bsk::TCP_NEW)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_NEW, argOperands,
                         SadTypeKind::Integer, "أنشئ_وصلة / tcp_socket_new");
                 }
@@ -125,7 +127,7 @@ namespace Sad
                 // (EN) Connect TCP socket to server — returns i64 (0=ok, -1=error)
                 if (funcName == Bsk::TCP_CONNECT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_CONNECT, argOperands,
                         SadTypeKind::Boolean, "اتصل_بـ / tcp_connect");
                 }
@@ -134,7 +136,7 @@ namespace Sad
                 // (EN) Send data through TCP socket — returns bytes sent (i64)
                 if (funcName == Bsk::TCP_SEND)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_SEND, argOperands,
                         SadTypeKind::Integer, "أرسل_عبر_وصلة / tcp_send");
                 }
@@ -143,7 +145,7 @@ namespace Sad
                 // (EN) Receive data from TCP socket — returns string
                 if (funcName == Bsk::TCP_RECV)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_RECV, argOperands,
                         SadTypeKind::String, "استقبل_عبر_وصلة / tcp_recv");
                 }
@@ -152,7 +154,7 @@ namespace Sad
                 // (EN) Close TCP socket
                 if (funcName == Bsk::TCP_CLOSE)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_CLOSE, argOperands,
                         SadTypeKind::Boolean, "أغلق_وصلة / tcp_close");
                 }
@@ -161,7 +163,7 @@ namespace Sad
                 // (EN) Bind TCP socket to address and port
                 if (funcName == Bsk::TCP_BIND)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_BIND, argOperands,
                         SadTypeKind::Boolean, "خصص_منفذ / tcp_bind");
                 }
@@ -170,7 +172,7 @@ namespace Sad
                 // (EN) Start listening for connections
                 if (funcName == Bsk::TCP_LISTEN)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_LISTEN, argOperands,
                         SadTypeKind::Boolean, "انتظر_اتصالات / tcp_listen");
                 }
@@ -179,7 +181,7 @@ namespace Sad
                 // (EN) Accept incoming connection — returns new socket handle
                 if (funcName == Bsk::TCP_ACCEPT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_ACCEPT, argOperands,
                         SadTypeKind::Integer, "اقبل_متصل / tcp_accept");
                 }
@@ -188,7 +190,7 @@ namespace Sad
                 // (EN) Is TCP socket connected — returns boolean (i64: 0/1)
                 if (funcName == Bsk::TCP_CONNECTED)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_CONNECTED, argOperands,
                         SadTypeKind::Boolean, "هل_متصلة / tcp_is_connected");
                 }
@@ -197,7 +199,7 @@ namespace Sad
                 // (EN) Get remote peer address — returns string
                 if (funcName == Bsk::TCP_REMOTE_ADDR)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_REMOTE_ADDR, argOperands,
                         SadTypeKind::String, "عنوان_الطرف_الآخر / tcp_remote_addr");
                 }
@@ -208,35 +210,35 @@ namespace Sad
 
                 if (funcName == Bsk::UDP_NEW)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_UDP_NEW, argOperands,
                         SadTypeKind::Integer, "أنشئ_مرسال / udp_socket_new");
                 }
 
                 if (funcName == Bsk::UDP_BIND)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_UDP_BIND, argOperands,
                         SadTypeKind::Boolean, "خصص_منفذ_رسائل / udp_bind");
                 }
 
                 if (funcName == Bsk::UDP_SEND)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_UDP_SEND, argOperands,
                         SadTypeKind::Integer, "أرسل_رسالة / udp_send_to");
                 }
 
                 if (funcName == Bsk::UDP_RECV)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_UDP_RECV, argOperands,
                         SadTypeKind::String, "استقبل_رسالة / udp_recv_from");
                 }
 
                 if (funcName == Bsk::UDP_CLOSE)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_UDP_CLOSE, argOperands,
                         SadTypeKind::Boolean, "أغلق_مرسال / udp_close");
                 }
@@ -247,28 +249,28 @@ namespace Sad
 
                 if (funcName == Bsk::RECV_TIMEOUT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RECV_TIMEOUT, argOperands,
                         SadTypeKind::Boolean, "حدد_انتظار_الاستقبال / set_recv_timeout");
                 }
 
                 if (funcName == Bsk::SEND_TIMEOUT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SEND_TIMEOUT, argOperands,
                         SadTypeKind::Boolean, "حدد_انتظار_الإرسال / set_send_timeout");
                 }
 
                 if (funcName == Bsk::NO_DELAY)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_NO_DELAY, argOperands,
                         SadTypeKind::Boolean, "أرسل_فوراً / set_nodelay");
                 }
 
                 if (funcName == Bsk::LOCAL_PORT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_LOCAL_PORT, argOperands,
                         SadTypeKind::Integer, "منفذ_محلي / local_port");
                 }
@@ -279,91 +281,91 @@ namespace Sad
 
                 if (funcName == Bhc::NEW_CLIENT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_NEW_CLIENT, argOperands,
                         SadTypeKind::Integer, "أنشئ_متصفح / http_client_new");
                 }
 
                 if (funcName == Bhc::FREE_CLIENT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_FREE_CLIENT, argOperands,
                         SadTypeKind::Boolean, "أغلق_متصفح / http_client_free");
                 }
 
                 if (funcName == Bhc::GET)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_GET, argOperands,
                         SadTypeKind::Integer, "اجلب / http_get");
                 }
 
                 if (funcName == Bhc::POST)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_POST, argOperands,
                         SadTypeKind::Integer, "أرسل / http_post");
                 }
 
                 if (funcName == Bhc::PUT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_PUT, argOperands,
                         SadTypeKind::Integer, "استبدل / http_put");
                 }
 
                 if (funcName == Bhc::DELETE_REQ)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_DELETE, argOperands,
                         SadTypeKind::Integer, "احذف_مورد / http_delete");
                 }
 
                 if (funcName == Bhc::PATCH)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_PATCH, argOperands,
                         SadTypeKind::Integer, "عدّل_مورد / http_patch");
                 }
 
                 if (funcName == Bhc::SET_BASE_URL)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_SET_BASE, argOperands,
                         SadTypeKind::Boolean, "حدد_الموقع / set_base_url");
                 }
 
                 if (funcName == Bhc::SET_HEADER)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_SET_HEADER, argOperands,
                         SadTypeKind::Boolean, "أضف_ترويسة / set_header");
                 }
 
                 if (funcName == Bhc::SET_TIMEOUT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_SET_TIMEOUT, argOperands,
                         SadTypeKind::Boolean, "حدد_الانتظار / set_timeout");
                 }
 
                 if (funcName == Bhc::SET_BEARER)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_SET_BEARER, argOperands,
                         SadTypeKind::Boolean, "سجّل_دخول_برمز / set_bearer_token");
                 }
 
                 if (funcName == Bhc::LAST_ERROR)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_LAST_ERROR, argOperands,
                         SadTypeKind::String, "سبب_الفشل / last_error");
                 }
 
                 if (funcName == Bhc::IS_OK)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_IS_OK, argOperands,
                         SadTypeKind::Boolean, "هل_نجح / is_ok");
                 }
@@ -374,35 +376,35 @@ namespace Sad
 
                 if (funcName == Bhc::RESP_FREE)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_FREE, argOperands,
                         SadTypeKind::Boolean, "تجاهل_الرد / response_free");
                 }
 
                 if (funcName == Bhc::RESP_STATUS)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_STATUS, argOperands,
                         SadTypeKind::Integer, "رمز_الحالة / response_status");
                 }
 
                 if (funcName == Bhc::RESP_BODY)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_BODY, argOperands,
                         SadTypeKind::String, "نص_الرد / response_body");
                 }
 
                 if (funcName == Bhc::RESP_HEADER)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_HEADER, argOperands,
                         SadTypeKind::String, "معلومة_الرد / response_header");
                 }
 
                 if (funcName == Bhc::RESP_SUCCESS)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SUCCESS, argOperands,
                         SadTypeKind::Boolean, "هل_الرد_ناجح / response_is_success");
                 }
@@ -413,63 +415,63 @@ namespace Sad
 
                 if (funcName == Bhs::NEW_SERVER)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_NEW, argOperands,
                         SadTypeKind::Integer, "أنشئ_خادم / http_server_new");
                 }
 
                 if (funcName == Bhs::FREE_SERVER)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_FREE, argOperands,
                         SadTypeKind::Boolean, "أزل_خادم / http_server_free");
                 }
 
                 if (funcName == Bhs::ON_GET)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_ON_GET, argOperands,
                         SadTypeKind::Boolean, "عند_طلب_جلب / server_get_cb");
                 }
 
                 if (funcName == Bhs::ON_POST)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_ON_POST, argOperands,
                         SadTypeKind::Boolean, "عند_طلب_إرسال / server_post_cb");
                 }
 
                 if (funcName == Bhs::ON_PUT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_ON_PUT, argOperands,
                         SadTypeKind::Boolean, "عند_طلب_استبدال / server_put_cb");
                 }
 
                 if (funcName == Bhs::ON_DELETE)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_ON_DELETE, argOperands,
                         SadTypeKind::Boolean, "عند_طلب_حذف / server_delete_cb");
                 }
 
                 if (funcName == Bhs::LISTEN)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_LISTEN, argOperands,
                         SadTypeKind::Boolean, "ابدأ_الاستماع / server_listen");
                 }
 
                 if (funcName == Bhs::STOP)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_STOP, argOperands,
                         SadTypeKind::Boolean, "أوقف_الخادم / server_stop");
                 }
 
                 if (funcName == Bhs::ENABLE_CORS)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_CORS, argOperands,
                         SadTypeKind::Boolean, "اسمح_بالوصول_الخارجي / server_enable_cors");
                 }
@@ -480,35 +482,35 @@ namespace Sad
 
                 if (funcName == Bhs::REQ_METHOD)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_REQ_METHOD, argOperands,
                         SadTypeKind::String, "نوع_الطلب / request_method");
                 }
 
                 if (funcName == Bhs::REQ_PATH)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_REQ_PATH, argOperands,
                         SadTypeKind::String, "وجهة_الطلب / request_path");
                 }
 
                 if (funcName == Bhs::REQ_BODY)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_REQ_BODY, argOperands,
                         SadTypeKind::String, "بيانات_الطلب / request_body");
                 }
 
                 if (funcName == Bhs::REQ_HEADER)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_REQ_HEADER, argOperands,
                         SadTypeKind::String, "معلومة_الطلب / request_header");
                 }
 
                 if (funcName == Bhs::REQ_QUERY)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_REQ_QUERY, argOperands,
                         SadTypeKind::String, "قيمة_من_الرابط / request_query_param");
                 }
@@ -519,35 +521,35 @@ namespace Sad
 
                 if (funcName == Bhs::RESP_SET_STATUS)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SET_STATUS, argOperands,
                         SadTypeKind::Boolean, "عيّن_حالة_الرد / response_set_status");
                 }
 
                 if (funcName == Bhs::RESP_SET_BODY)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SET_BODY, argOperands,
                         SadTypeKind::Boolean, "عيّن_نص_الرد / response_set_body");
                 }
 
                 if (funcName == Bhs::RESP_SET_JSON)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SET_JSON, argOperands,
                         SadTypeKind::Boolean, "عيّن_رد_جيسون / response_set_json");
                 }
 
                 if (funcName == Bhs::RESP_SET_HTML)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SET_HTML, argOperands,
                         SadTypeKind::Boolean, "عيّن_رد_صفحة / response_set_html");
                 }
 
                 if (funcName == Bhs::RESP_SET_HEADER)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SET_HEADER, argOperands,
                         SadTypeKind::Boolean, "عيّن_ترويسة_الرد / response_set_header");
                 }
@@ -558,28 +560,28 @@ namespace Sad
 
                 if (funcName == Bnu::INIT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_INIT, argOperands,
                         SadTypeKind::Boolean, "جهّز_الشبكة / network_init");
                 }
 
                 if (funcName == Bnu::CLEANUP)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_CLEANUP, argOperands,
                         SadTypeKind::Boolean, "نظّف_الشبكة / network_cleanup");
                 }
 
                 if (funcName == Bnu::LAST_ERROR_CODE)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ERROR_CODE, argOperands,
                         SadTypeKind::Integer, "رمز_آخر_خطأ / last_error_code");
                 }
 
                 if (funcName == Bnu::LAST_ERROR_MSG)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ERROR_MSG, argOperands,
                         SadTypeKind::String, "وصف_آخر_خطأ / last_error_message");
                 }
@@ -590,56 +592,56 @@ namespace Sad
 
                 if (funcName == Bnu::ADDR_NEW)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_NEW, argOperands,
                         SadTypeKind::Integer, "عنوان / address_new");
                 }
 
                 if (funcName == Bnu::ADDR_NEW_V6)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_NEW_V6, argOperands,
                         SadTypeKind::Integer, "عنوان_حديث / address_new_v6");
                 }
 
                 if (funcName == Bnu::ADDR_FREE)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_FREE, argOperands,
                         SadTypeKind::Boolean, "حرر_عنوان / address_free");
                 }
 
                 if (funcName == Bnu::ADDR_IP)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_IP, argOperands,
                         SadTypeKind::String, "رقم_الجهاز / address_ip");
                 }
 
                 if (funcName == Bnu::ADDR_PORT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_PORT, argOperands,
                         SadTypeKind::Integer, "رقم_المنفذ / address_port");
                 }
 
                 if (funcName == Bnu::ADDR_IS_V4)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_IS_V4, argOperands,
                         SadTypeKind::Boolean, "هل_عنوان_قديم / address_is_v4");
                 }
 
                 if (funcName == Bnu::ADDR_IS_V6)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_IS_V6, argOperands,
                         SadTypeKind::Boolean, "هل_عنوان_حديث / address_is_v6");
                 }
 
                 if (funcName == Bnu::ADDR_STR)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_STR, argOperands,
                         SadTypeKind::String, "العنوان_كنص / address_to_string");
                 }
@@ -650,79 +652,79 @@ namespace Sad
 
                 if (funcName == Bwsc::NEW_CLIENT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_NEW, argOperands,
                         SadTypeKind::Integer, "أنشئ_عميل_ويبسوكت / ws_client_new");
                 }
                 if (funcName == Bwsc::FREE_CLIENT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_FREE, argOperands,
                         SadTypeKind::Boolean, "أزل_عميل_ويبسوكت / ws_client_free");
                 }
                 if (funcName == Bwsc::CONNECT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_CONNECT, argOperands,
                         SadTypeKind::Boolean, "اتصل_بويبسوكت / ws_client_connect");
                 }
                 if (funcName == Bwsc::CLOSE)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_CLOSE, argOperands,
                         SadTypeKind::Boolean, "أغلق_ويبسوكت / ws_client_close");
                 }
                 if (funcName == Bwsc::IS_CONNECTED)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_IS_CONNECTED, argOperands,
                         SadTypeKind::Boolean, "هل_متصل_ويبسوكت / ws_client_is_connected");
                 }
                 if (funcName == Bwsc::SEND)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_SEND, argOperands,
                         SadTypeKind::Boolean, "أرسل_ويبسوكت / ws_client_send");
                 }
                 if (funcName == Bwsc::PING)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_PING, argOperands,
                         SadTypeKind::Boolean, "نبض_ويبسوكت / ws_client_ping");
                 }
                 if (funcName == Bwsc::RECEIVE)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_RECEIVE, argOperands,
                         SadTypeKind::String, "استقبل_ويبسوكت / ws_client_receive");
                 }
                 if (funcName == Bwsc::HAS_MESSAGE)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_HAS_MESSAGE, argOperands,
                         SadTypeKind::Boolean, "يوجد_رسالة_ويبسوكت / ws_client_has_message");
                 }
                 if (funcName == Bwsc::GET_URL)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_GET_URL, argOperands,
                         SadTypeKind::String, "رابط_ويبسوكت / ws_client_get_url");
                 }
                 if (funcName == Bwsc::LAST_ERROR)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_LAST_ERROR, argOperands,
                         SadTypeKind::String, "خطأ_ويبسوكت / ws_client_last_error");
                 }
                 if (funcName == Bwsc::SET_RECV_TIMEOUT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_RECV_TIMEOUT, argOperands,
                         SadTypeKind::Boolean, "حدد_مهلة_استقبال_ويبسوكت / ws_client_set_recv_timeout");
                 }
                 if (funcName == Bwsc::SET_SEND_TIMEOUT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_CLIENT_SEND_TIMEOUT, argOperands,
                         SadTypeKind::Boolean, "حدد_مهلة_إرسال_ويبسوكت / ws_client_set_send_timeout");
                 }
@@ -733,73 +735,73 @@ namespace Sad
 
                 if (funcName == Bwss::NEW_SERVER)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_NEW, argOperands,
                         SadTypeKind::Integer, "أنشئ_خادم_ويبسوكت / ws_server_new");
                 }
                 if (funcName == Bwss::FREE_SERVER)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_FREE, argOperands,
                         SadTypeKind::Boolean, "أزل_خادم_ويبسوكت / ws_server_free");
                 }
                 if (funcName == Bwss::START)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_START, argOperands,
                         SadTypeKind::Boolean, "ابدأ_خادم_ويبسوكت / ws_server_start");
                 }
                 if (funcName == Bwss::STOP)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_STOP, argOperands,
                         SadTypeKind::Boolean, "أوقف_خادم_ويبسوكت / ws_server_stop");
                 }
                 if (funcName == Bwss::IS_RUNNING)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_IS_RUNNING, argOperands,
                         SadTypeKind::Boolean, "هل_يعمل_خادم_ويبسوكت / ws_server_is_running");
                 }
                 if (funcName == Bwss::CONN_COUNT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_CONN_COUNT, argOperands,
                         SadTypeKind::Integer, "عدد_اتصالات_ويبسوكت / ws_server_connection_count");
                 }
                 if (funcName == Bwss::GET_PORT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_GET_PORT, argOperands,
                         SadTypeKind::Integer, "منفذ_خادم_ويبسوكت / ws_server_get_port");
                 }
                 if (funcName == Bwss::BROADCAST)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_BROADCAST, argOperands,
                         SadTypeKind::Integer, "بث_ويبسوكت / ws_server_broadcast");
                 }
                 if (funcName == Bwss::BROADCAST_ROOM)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_BROADCAST_ROOM, argOperands,
                         SadTypeKind::Integer, "بث_لغرفة_ويبسوكت / ws_server_broadcast_to_room");
                 }
                 if (funcName == Bwss::ROOM_COUNT)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_ROOM_COUNT, argOperands,
                         SadTypeKind::Integer, "عدد_غرف_ويبسوكت / ws_server_room_count");
                 }
                 if (funcName == Bwss::ROOM_SIZE)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_ROOM_SIZE, argOperands,
                         SadTypeKind::Integer, "حجم_غرفة_ويبسوكت / ws_server_room_size");
                 }
                 if (funcName == Bwss::CLOSE_ALL)
                 {
-                    return buildNetworkBuiltinInstruction(
+                    return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_WS_SERVER_CLOSE_ALL, argOperands,
                         SadTypeKind::Boolean, "أغلق_كل_اتصالات_ويبسوكت / ws_server_close_all");
                 }

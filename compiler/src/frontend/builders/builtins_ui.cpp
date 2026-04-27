@@ -5,6 +5,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_builder.h"
+#include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -23,7 +25,7 @@ namespace Sad
         namespace SIR
         {
 
-            std::optional<BuildResult> SIRBuilder::buildBuiltinSystem_UI(
+            std::optional<BuildResult> BuiltinBuilder::buildBuiltinSystem_UI(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
                 std::vector<BuildResult> &argResults,
@@ -38,244 +40,244 @@ namespace Sad
                 // ─── عمود() / sad_column() ───
                 if (funcName == "عمود" || funcName == "ui_column")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_COLUMN);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── صف() / sad_row() ───
                 if (funcName == "صف" || funcName == "ui_row")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_ROW);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── مكدس() / sad_stack() ───
                 if (funcName == "مكدس" || funcName == "ui_stack")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_STACK);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── حاوية() / sad_container() ───
                 if (funcName == "حاوية" || funcName == "ui_container")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CONTAINER);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── نص_عرض(نص) / sad_text(text) ───
                 if (funcName == "نص_عرض" || funcName == "ui_text")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── نص_منسق(نص,حجم,أحمر,أخضر,أزرق,شفافية) / sad_text_styled(...) ───
                 if (funcName == "نص_منسق" || funcName == "ui_text_styled")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT_STYLED);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── زر(عنوان,دالة_ضغط,بيانات) / sad_button(label,cb,data) ───
                 if (funcName == "زر" || funcName == "ui_button")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_BUTTON);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── زر_نوع(عنوان,نوع,لون,دالة,بيانات) / sad_button_variant(...) ───
                 if (funcName == "زر_نوع" || funcName == "ui_button_variant")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_BUTTON_VARIANT);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── زر_ايقونة(ايقونة,دالة,بيانات) / sad_icon_button(icon,cb,data) ───
                 if (funcName == "زر_ايقونة" || funcName == "ui_icon_button")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_ICON_BUTTON);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── زر_عائم(ايقونة,لون_r,لون_g,لون_b,لون_a,دالة,بيانات) / sad_fab(...) ───
                 if (funcName == "زر_عائم" || funcName == "ui_fab")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_FAB);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── حقل_نص(تلميح,دالة,بيانات) / sad_text_field(hint,cb,data) ───
                 if (funcName == "حقل_نص" || funcName == "ui_text_field")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT_FIELD);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── مربع_تحقق(دالة,بيانات) / sad_checkbox(cb,data) ───
                 if (funcName == "مربع_تحقق" || funcName == "ui_checkbox")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CHECKBOX);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── مبدل(دالة,بيانات) / sad_switch_toggle(cb,data) ───
                 if (funcName == "مبدل" || funcName == "ui_switch")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SWITCH);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── منزلق(حد_أدنى,حد_أقصى,دالة,بيانات) / sad_slider(min,max,cb,data) ───
                 if (funcName == "منزلق" || funcName == "ui_slider")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SLIDER);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── بطاقة() / sad_card() ───
                 if (funcName == "بطاقة" || funcName == "ui_card")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CARD);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── هيكل() / sad_scaffold() ───
                 if (funcName == "هيكل" || funcName == "ui_scaffold")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SCAFFOLD);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── شريط_تطبيق(عنوان) / sad_app_bar(title) ───
                 if (funcName == "شريط_تطبيق" || funcName == "ui_app_bar")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_BAR);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── فاصل() / sad_spacer() ───
                 if (funcName == "فاصل" || funcName == "ui_spacer")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SPACER);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── خط_فاصل() / sad_divider() ───
                 if (funcName == "خط_فاصل" || funcName == "ui_divider")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_DIVIDER);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── حوار(عنوان,رسالة) / sad_dialog(title,msg) ───
                 if (funcName == "حوار" || funcName == "ui_dialog")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_DIALOG);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
@@ -294,8 +296,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_ADD_CHILD);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -310,8 +312,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_REMOVE_CHILD);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -325,8 +327,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CLEAR_CHILDREN);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -345,8 +347,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_TEXT);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -361,8 +363,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_SIZE);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -377,8 +379,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_FLEX);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -393,8 +395,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_BACKGROUND);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -409,8 +411,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_FOREGROUND);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -425,8 +427,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_SPACING);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -441,8 +443,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_PADDING);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -457,8 +459,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_ALIGNMENT);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -473,8 +475,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_BORDER);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -489,8 +491,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_ELEVATION);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -505,8 +507,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_OPACITY);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -521,8 +523,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_VISIBILITY);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -533,11 +535,11 @@ namespace Sad
                 // ─── انشئ_تطبيق() / sad_app_create() ───
                 if (funcName == "انشئ_تطبيق" || funcName == "ui_app_create")
                 {
-                    std::string r = newTempRegister();
+                    std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_CREATE);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
@@ -552,8 +554,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_SET_ROOT);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -568,8 +570,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_LAYOUT);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -583,8 +585,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_RENDER);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -598,8 +600,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_DESTROY);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -613,8 +615,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_WIDGET_DESTROY);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 

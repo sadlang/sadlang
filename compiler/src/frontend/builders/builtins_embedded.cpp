@@ -5,6 +5,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_builder.h"
+#include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -23,7 +25,7 @@ namespace Sad
         namespace SIR
         {
 
-            std::optional<BuildResult> SIRBuilder::buildBuiltinSystem_Embedded(
+            std::optional<BuildResult> BuiltinBuilder::buildBuiltinSystem_Embedded(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
                 std::vector<BuildResult> &argResults,
@@ -55,8 +57,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_INIT);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin تسلسلي_هيئ()" << std::endl;
 #endif
@@ -77,9 +79,9 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_WRITE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(inst);
+                        b_.currentBlock_->instructions.push_back(inst);
                     }
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -95,13 +97,13 @@ namespace Sad
                         std::cerr << "[خطأ] دالة تسلسلي_استقبل تتطلب معامل: منفذ" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_READ);
                     inst.operands.push_back(argOperands[0]);
                     inst.result = resultOp;
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin تسلسلي_استقبل()" << std::endl;
 #endif
@@ -119,13 +121,13 @@ namespace Sad
                         std::cerr << "[خطأ] دالة تسلسلي_جاهز تتطلب معامل: منفذ" << std::endl;
                         return BuildResult("", SadTypeKind::Boolean);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_READY);
                     inst.operands.push_back(argOperands[0]);
                     inst.result = resultOp;
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin تسلسلي_جاهز()" << std::endl;
 #endif
@@ -146,8 +148,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_GPIO_WRITE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin منفذ_رقمي_اكتب()" << std::endl;
 #endif
@@ -165,13 +167,13 @@ namespace Sad
                         std::cerr << "[خطأ] دالة منفذ_رقمي_اقرأ تتطلب معامل: رقم_المنفذ" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_GPIO_READ);
                     inst.operands.push_back(argOperands[0]);
                     inst.result = resultOp;
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin منفذ_رقمي_اقرأ()" << std::endl;
 #endif
@@ -192,8 +194,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_GPIO_MODE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin حدد_وضع_منفذ()" << std::endl;
 #endif
@@ -213,8 +215,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_TIMER_INIT);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin مؤقت_هيئ()" << std::endl;
 #endif
@@ -227,12 +229,12 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == "مؤقت_قراءة" || funcName == "timer_read")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_TIMER_READ);
                     inst.result = resultOp;
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin مؤقت_قراءة()" << std::endl;
 #endif
@@ -252,8 +254,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_TIMER_WAIT);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin مؤقت_انتظر()" << std::endl;
 #endif
@@ -267,8 +269,8 @@ namespace Sad
                 if (funcName == "اعد_تشغيل" || funcName == "reset" || funcName == "reboot")
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_RESET);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin اعد_تشغيل()" << std::endl;
 #endif
@@ -281,14 +283,14 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == "معرف_المعالج" || funcName == "cpu_id" || funcName == "cpuid")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_CPUID);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
                     inst.result = resultOp;
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin معرف_المعالج()" << std::endl;
 #endif
@@ -301,12 +303,12 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == "عداد_الدورات" || funcName == "rdtsc" || funcName == "cycle_count")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_RDTSC);
                     inst.result = resultOp;
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin عداد_الدورات()" << std::endl;
 #endif
@@ -320,8 +322,8 @@ namespace Sad
                 if (funcName == "حاجز_ذاكرة" || funcName == "memory_barrier" || funcName == "mfence")
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_MFENCE);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin حاجز_ذاكرة()" << std::endl;
 #endif
@@ -335,8 +337,8 @@ namespace Sad
                 if (funcName == "حاجز_قراءة" || funcName == "read_barrier" || funcName == "lfence")
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_LFENCE);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin حاجز_قراءة()" << std::endl;
 #endif
@@ -350,8 +352,8 @@ namespace Sad
                 if (funcName == "حاجز_كتابة" || funcName == "write_barrier" || funcName == "sfence")
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_SFENCE);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin حاجز_كتابة()" << std::endl;
 #endif
@@ -372,8 +374,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_DMA_INIT);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin نقل_مباشر_هيئ()" << std::endl;
 #endif
@@ -393,8 +395,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_DMA_START);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin نقل_مباشر_ابدأ()" << std::endl;
 #endif

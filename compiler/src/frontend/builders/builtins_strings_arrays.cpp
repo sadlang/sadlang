@@ -7,6 +7,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_builder.h"
+#include "sir_builder.h"
 #include "builtin_registry.h"
 #include <stdexcept>
 #include <iostream>
@@ -22,7 +24,7 @@ namespace Sad
     {
         namespace SIR
         {
-            std::optional<BuildResult> SIRBuilder::buildBuiltinStringArrayCall(
+            std::optional<BuildResult> BuiltinBuilder::buildBuiltinStringArrayCall(
                 const std::string &funcName,
                 std::vector<BuildResult> &argResults,
                 std::vector<SIROperand> &argOperands)
@@ -39,13 +41,13 @@ namespace Sad
                         std::cerr << "[Error] دالة طول_نص تتطلب معامل واحد (نص)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_LENGTH);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -60,14 +62,14 @@ namespace Sad
                         std::cerr << "[Error] دالة رمز_حرف تتطلب معاملين (نص, فهرس)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_CHAR_AT);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]); // string
                     inst.operands.push_back(argOperands[1]); // index
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -82,13 +84,13 @@ namespace Sad
                         std::cerr << "[Error] دالة تحويل_كبير تتطلب معامل واحد (نص)" << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_TO_UPPER);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -103,13 +105,13 @@ namespace Sad
                         std::cerr << "[Error] دالة تحويل_صغير تتطلب معامل واحد (نص)" << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_TO_LOWER);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -124,14 +126,14 @@ namespace Sad
                         std::cerr << "[Error] دالة بحث تتطلب معاملين (نص, نص للبحث عنه)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_FIND);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -146,15 +148,15 @@ namespace Sad
                         std::cerr << "[Error] دالة استبدل تتطلب 3 معاملات (نص, قديم, جديد)" << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_REPLACE);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     inst.operands.push_back(argOperands[2]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -169,7 +171,7 @@ namespace Sad
                         std::cerr << "[Error] دالة استخراج تتطلب على الأقل معاملين (نص, بداية)" << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_SUBSTRING);
                     inst.result = resultOp;
@@ -179,8 +181,8 @@ namespace Sad
                     {
                         inst.operands.push_back(argOperands[2]); // end (optional)
                     }
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -195,13 +197,13 @@ namespace Sad
                         std::cerr << "[Error] دالة قص_أطراف تتطلب معامل واحد (نص)" << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_TRIM);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -216,14 +218,14 @@ namespace Sad
                         std::cerr << "[Error] دالة تقسيم تتطلب معاملين (نص, فاصل)" << std::endl;
                         return BuildResult("", SadTypeKind::Array);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Array);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_SPLIT);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -245,14 +247,14 @@ namespace Sad
                         std::cerr << "[Error] دالة دمج تتطلب معاملين (مصفوفة, فاصل)" << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_JOIN);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -267,14 +269,14 @@ namespace Sad
                         std::cerr << "[Error] دالة يبدأ_ب تتطلب معاملين (نص, بادئة)" << std::endl;
                         return BuildResult("", SadTypeKind::Boolean);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_STARTS_WITH);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -289,14 +291,14 @@ namespace Sad
                         std::cerr << "[Error] دالة ينتهي_ب تتطلب معاملين (نص, لاحقة)" << std::endl;
                         return BuildResult("", SadTypeKind::Boolean);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_ENDS_WITH);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -311,14 +313,14 @@ namespace Sad
                         std::cerr << "[Error] دالة يحتوي_على تتطلب معاملين (نص, نص للبحث عنه)" << std::endl;
                         return BuildResult("", SadTypeKind::Boolean);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_CONTAINS);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -340,8 +342,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_APPEND);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
 #endif
@@ -359,8 +361,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REMOVE);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
 #endif
@@ -375,13 +377,13 @@ namespace Sad
                         std::cerr << "[Error] دالة حجم_مصفوفة تتطلب معامل واحد (مصفوفة)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SIZE);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -396,14 +398,14 @@ namespace Sad
                         std::cerr << "[Error] دالة فهرس تتطلب معاملين (مصفوفة, عنصر)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_INDEX_OF);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -418,14 +420,14 @@ namespace Sad
                         std::cerr << "[Error] دالة يحتوي_عنصر تتطلب معاملين (مصفوفة, عنصر)" << std::endl;
                         return BuildResult("", SadTypeKind::Boolean);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_CONTAINS);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -440,13 +442,13 @@ namespace Sad
                         std::cerr << "[Error] دالة قلب تتطلب معامل واحد (مصفوفة)" << std::endl;
                         return BuildResult("", SadTypeKind::Array);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Array);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REVERSE);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -461,7 +463,7 @@ namespace Sad
                         std::cerr << "[Error] دالة رتب تتطلب معامل واحد (مصفوفة)" << std::endl;
                         return BuildResult("", SadTypeKind::Array);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Array);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SORT);
                     inst.result = resultOp;
@@ -470,8 +472,8 @@ namespace Sad
                     //      حتى لا يُفترض الفرز الرقمي لجميع المصفوفات.
                     inst.operands.push_back(SIROperand::ConstantI64(
                         static_cast<int64_t>(argResults[0].elementType)));
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -488,13 +490,13 @@ namespace Sad
                         std::cerr << "[Error] دالة الأول تتطلب معامل واحد (مصفوفة)" << std::endl;
                         return BuildResult("", SadTypeKind::Void);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_FIRST);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -509,13 +511,13 @@ namespace Sad
                         std::cerr << "[Error] دالة الأخير تتطلب معامل واحد (مصفوفة)" << std::endl;
                         return BuildResult("", SadTypeKind::Void);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_LAST);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -530,7 +532,7 @@ namespace Sad
                         std::cerr << "[Error] دالة شريحة تتطلب على الأقل معاملين (مصفوفة, بداية)" << std::endl;
                         return BuildResult("", SadTypeKind::Array);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Array);
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_SLICE);
                     inst.result = resultOp;
@@ -540,8 +542,8 @@ namespace Sad
                     {
                         inst.operands.push_back(argOperands[2]); // end (optional)
                     }
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif

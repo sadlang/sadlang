@@ -17,6 +17,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_builder.h"
+#include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -41,7 +43,7 @@ namespace Sad
             // (EN) System builtins: hardware, ports, timers, atomic ops, async, security
             // ============================================================================
 
-            std::optional<BuildResult> SIRBuilder::buildBuiltinCallSystem(
+            std::optional<BuildResult> BuiltinBuilder::buildBuiltinCallSystem(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
                 std::vector<BuildResult> &argResults,
@@ -62,8 +64,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_WRITE);
                     inst.operands.push_back(argOperands[0]); // (AR) رقم المنفذ / (EN) port number
                     inst.operands.push_back(argOperands[1]); // (AR) القيمة المكتوبة / (EN) value to write
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin منفذ_اكتب()" << std::endl;
 #endif
@@ -78,8 +80,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_WRITE_16);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
                 if (funcName == "منفذ_اكتب32" || funcName == "port_write32" || funcName == "outl")
@@ -89,8 +91,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_WRITE_32);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -105,13 +107,13 @@ namespace Sad
                         std::cerr << "[خطأ] دالة منفذ_اقرأ تتطلب معامل واحد: رقم المنفذ" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_READ);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin منفذ_اقرأ() -> " << resultReg << std::endl;
 #endif
@@ -123,24 +125,24 @@ namespace Sad
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_READ_16);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
                 if (funcName == "منفذ_اقرأ32" || funcName == "port_read32" || funcName == "inl")
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_READ_32);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -159,8 +161,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_WRITE_8);
                     inst.operands.push_back(argOperands[0]); // (AR) عنوان الذاكرة / (EN) memory address
                     inst.operands.push_back(argOperands[1]); // (AR) القيمة / (EN) value
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin ذاكرة_اكتب()" << std::endl;
 #endif
@@ -175,8 +177,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_WRITE_16);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
                 if (funcName == "ذاكرة_اكتب32" || funcName == "mem_write32" || funcName == "poke32")
@@ -186,8 +188,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_WRITE_32);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
                 if (funcName == "ذاكرة_اكتب64" || funcName == "mem_write64" || funcName == "poke64")
@@ -197,8 +199,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_WRITE_64);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -213,13 +215,13 @@ namespace Sad
                         std::cerr << "[خطأ] دالة ذاكرة_اقرأ تتطلب معامل واحد: العنوان" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_READ_8);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin ذاكرة_اقرأ() -> " << resultReg << std::endl;
 #endif
@@ -231,36 +233,36 @@ namespace Sad
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_READ_16);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
                 if (funcName == "ذاكرة_اقرأ32" || funcName == "mem_read32" || funcName == "peek32")
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_READ_32);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
                 if (funcName == "ذاكرة_اقرأ64" || funcName == "mem_read64" || funcName == "peek64")
                 {
                     if (argResults.empty())
                         return BuildResult("", SadTypeKind::Integer);
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_READ_64);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -278,8 +280,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_INTERRUPT);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin مقاطعة()" << std::endl;
 #endif
@@ -294,8 +296,8 @@ namespace Sad
                 if (funcName == "توقف" || funcName == "halt" || funcName == "hlt")
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_HALT);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin توقف()" << std::endl;
 #endif
@@ -310,8 +312,8 @@ namespace Sad
                 if (funcName == "تعطيل_مقاطعات" || funcName == "disable_interrupts" || funcName == "cli")
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_CLI);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin تعطيل_مقاطعات()" << std::endl;
 #endif
@@ -325,8 +327,8 @@ namespace Sad
                 if (funcName == "تفعيل_مقاطعات" || funcName == "enable_interrupts" || funcName == "sti")
                 {
                     SIRInstruction inst(SIROpcode::BUILTIN_STI);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin تفعيل_مقاطعات()" << std::endl;
 #endif
@@ -348,8 +350,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_VGA_WRITE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin شاشة_اكتب()" << std::endl;
 #endif
@@ -365,8 +367,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_VGA_CLEAR);
                     if (!argOperands.empty())
                         inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin شاشة_امسح()" << std::endl;
 #endif
@@ -387,8 +389,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_COPY);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin انسخ_ذاكرة()" << std::endl;
 #endif
@@ -409,8 +411,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_SET);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin املأ_ذاكرة()" << std::endl;
 #endif
@@ -431,8 +433,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_FILL_32);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 
@@ -450,8 +452,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_COPY_32);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
 

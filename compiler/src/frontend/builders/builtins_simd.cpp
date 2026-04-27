@@ -38,6 +38,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_builder.h"
+#include "sir_builder.h"
 #include "utf8_utils.h"
 #include <iostream>
 #include <optional>
@@ -106,7 +108,7 @@ namespace Sad
             // (AR) المعالج الرئيسي للدوال المضمنة الخاصة بـ SIMD
             // (EN) Main dispatcher for SIMD vector builtin calls
             // ============================================================================
-            std::optional<BuildResult> SIRBuilder::buildBuiltinCallSimd(
+            std::optional<BuildResult> BuiltinBuilder::buildBuiltinCallSimd(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
                 std::vector<BuildResult> &argResults,
@@ -128,22 +130,22 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        errors_.push_back("Error: متجه() requires at least 1 element");
+                        b_.errors_.push_back("Error: متجه() requires at least 1 element");
                         return BuildResult();
                     }
                     int laneCount = static_cast<int>(argResults.size());
                     if (!isValidLaneCount(laneCount))
                     {
-                        errors_.push_back("Error: متجه() lane count must be one of {2,4,8,16,32,64}, got " +
+                        b_.errors_.push_back("Error: متجه() lane count must be one of {2,4,8,16,32,64}, got " +
                                           std::to_string(laneCount));
                         return BuildResult();
                     }
                     SadTypeKind elemType = inferVectorElementType(argResults);
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Vector);
 
-                    emitVectorOp(this, currentBlock_, SIROpcode::VECTOR_BUILD,
+                    emitVectorOp(&b_, b_.currentBlock_, SIROpcode::VECTOR_BUILD,
                                  resultOp, argOperands, elemType, laneCount,
                                  "build SIMD vector with " + std::to_string(laneCount) + " lanes");
                     return BuildResult(resultReg, SadTypeKind::Vector);
@@ -158,7 +160,7 @@ namespace Sad
                 {
                     if (argResults.size() != 2)
                     {
-                        errors_.push_back("Error: متجه_بث(قيمة، N) requires exactly 2 arguments");
+                        b_.errors_.push_back("Error: متجه_بث(قيمة، N) requires exactly 2 arguments");
                         return BuildResult();
                     }
                     // (AR) المعامل الثاني يجب أن يكون ثابتاً صحيحاً (لتحديد عدد lanes وقت الترجمة)
@@ -166,22 +168,22 @@ namespace Sad
                     if (argOperands[1].type != SIROperandType::CONSTANT ||
                         argOperands[1].dataType != SadTypeKind::Integer)
                     {
-                        errors_.push_back("Error: متجه_بث() lane count must be a compile-time integer constant");
+                        b_.errors_.push_back("Error: متجه_بث() lane count must be a compile-time integer constant");
                         return BuildResult();
                     }
                     int laneCount = static_cast<int>(argOperands[1].intValue);
                     if (!isValidLaneCount(laneCount))
                     {
-                        errors_.push_back("Error: متجه_بث() lane count must be one of {2,4,8,16,32,64}");
+                        b_.errors_.push_back("Error: متجه_بث() lane count must be one of {2,4,8,16,32,64}");
                         return BuildResult();
                     }
                     SadTypeKind elemType = argResults[0].type;
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Vector);
 
                     // (AR) نمرر فقط القيمة المُبثّة كمعامل (lane count يخزن في metadata)
-                    emitVectorOp(this, currentBlock_, SIROpcode::VECTOR_SPLAT,
+                    emitVectorOp(&b_, b_.currentBlock_, SIROpcode::VECTOR_SPLAT,
                                  resultOp, {argOperands[0]}, elemType, laneCount,
                                  "splat to " + std::to_string(laneCount) + " lanes");
                     return BuildResult(resultReg, SadTypeKind::Vector);
@@ -214,20 +216,20 @@ namespace Sad
                     {
                         if (argResults.size() != 2)
                         {
-                            errors_.push_back(std::string("Error: ") + bop.arabic + "() requires 2 vector arguments");
+                            b_.errors_.push_back(std::string("Error: ") + bop.arabic + "() requires 2 vector arguments");
                             return BuildResult();
                         }
                         if (argResults[0].type != SadTypeKind::Vector ||
                             argResults[1].type != SadTypeKind::Vector)
                         {
-                            errors_.push_back(std::string("Error: ") + bop.arabic + "() arguments must be vectors");
+                            b_.errors_.push_back(std::string("Error: ") + bop.arabic + "() arguments must be vectors");
                             return BuildResult();
                         }
 
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Vector);
                         // (AR) الـ metadata (نوع/عدد lanes) ستُملأ من المعامل في LLVM codegen
-                        emitVectorOp(this, currentBlock_, bop.opcode,
+                        emitVectorOp(&b_, b_.currentBlock_, bop.opcode,
                                      resultOp, {argOperands[0], argOperands[1]},
                                      SadTypeKind::Float, 0, std::string(bop.english));
                         return BuildResult(resultReg, SadTypeKind::Vector);
@@ -255,17 +257,17 @@ namespace Sad
                     {
                         if (argResults.size() != 1)
                         {
-                            errors_.push_back(std::string("Error: ") + uop.arabic + "() requires 1 vector argument");
+                            b_.errors_.push_back(std::string("Error: ") + uop.arabic + "() requires 1 vector argument");
                             return BuildResult();
                         }
                         if (argResults[0].type != SadTypeKind::Vector)
                         {
-                            errors_.push_back(std::string("Error: ") + uop.arabic + "() argument must be a vector");
+                            b_.errors_.push_back(std::string("Error: ") + uop.arabic + "() argument must be a vector");
                             return BuildResult();
                         }
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Vector);
-                        emitVectorOp(this, currentBlock_, uop.opcode,
+                        emitVectorOp(&b_, b_.currentBlock_, uop.opcode,
                                      resultOp, {argOperands[0]},
                                      SadTypeKind::Float, 0, std::string(uop.english));
                         return BuildResult(resultReg, SadTypeKind::Vector);
@@ -280,20 +282,20 @@ namespace Sad
                 {
                     if (argResults.size() != 3)
                     {
-                        errors_.push_back("Error: متجه_ضرب_جمع(أ،ب،ج) requires 3 vector arguments");
+                        b_.errors_.push_back("Error: متجه_ضرب_جمع(أ،ب،ج) requires 3 vector arguments");
                         return BuildResult();
                     }
                     for (int i = 0; i < 3; ++i)
                     {
                         if (argResults[i].type != SadTypeKind::Vector)
                         {
-                            errors_.push_back("Error: متجه_ضرب_جمع() all arguments must be vectors");
+                            b_.errors_.push_back("Error: متجه_ضرب_جمع() all arguments must be vectors");
                             return BuildResult();
                         }
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Vector);
-                    emitVectorOp(this, currentBlock_, SIROpcode::VECTOR_FMA,
+                    emitVectorOp(&b_, b_.currentBlock_, SIROpcode::VECTOR_FMA,
                                  resultOp, {argOperands[0], argOperands[1], argOperands[2]},
                                  SadTypeKind::Float, 0, "fused multiply-add");
                     return BuildResult(resultReg, SadTypeKind::Vector);
@@ -321,18 +323,18 @@ namespace Sad
                     {
                         if (argResults.size() != 1)
                         {
-                            errors_.push_back(std::string("Error: ") + rop.arabic + "() requires 1 vector argument");
+                            b_.errors_.push_back(std::string("Error: ") + rop.arabic + "() requires 1 vector argument");
                             return BuildResult();
                         }
                         if (argResults[0].type != SadTypeKind::Vector)
                         {
-                            errors_.push_back(std::string("Error: ") + rop.arabic + "() argument must be a vector");
+                            b_.errors_.push_back(std::string("Error: ") + rop.arabic + "() argument must be a vector");
                             return BuildResult();
                         }
                         // (AR) النتيجة عشري (نفترض متجهات عشرية في الغالب — LLVM codegen سيتعامل مع الأنواع)
-                        std::string resultReg = newTempRegister();
+                        std::string resultReg = b_.newTempRegister();
                         SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
-                        emitVectorOp(this, currentBlock_, rop.opcode,
+                        emitVectorOp(&b_, b_.currentBlock_, rop.opcode,
                                      resultOp, {argOperands[0]},
                                      SadTypeKind::Float, 0, std::string(rop.english));
                         return BuildResult(resultReg, SadTypeKind::Float);
@@ -348,18 +350,18 @@ namespace Sad
                 {
                     if (argResults.size() != 2)
                     {
-                        errors_.push_back("Error: متجه_جداء_قياسي(أ،ب) requires 2 vector arguments");
+                        b_.errors_.push_back("Error: متجه_جداء_قياسي(أ،ب) requires 2 vector arguments");
                         return BuildResult();
                     }
                     if (argResults[0].type != SadTypeKind::Vector ||
                         argResults[1].type != SadTypeKind::Vector)
                     {
-                        errors_.push_back("Error: متجه_جداء_قياسي() arguments must be vectors");
+                        b_.errors_.push_back("Error: متجه_جداء_قياسي() arguments must be vectors");
                         return BuildResult();
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
-                    emitVectorOp(this, currentBlock_, SIROpcode::VECTOR_DOT,
+                    emitVectorOp(&b_, b_.currentBlock_, SIROpcode::VECTOR_DOT,
                                  resultOp, {argOperands[0], argOperands[1]},
                                  SadTypeKind::Float, 0, "dot product");
                     return BuildResult(resultReg, SadTypeKind::Float);
@@ -373,18 +375,18 @@ namespace Sad
                 {
                     if (argResults.size() != 2)
                     {
-                        errors_.push_back("Error: متجه_عنصر(م، فهرس) requires 2 arguments");
+                        b_.errors_.push_back("Error: متجه_عنصر(م، فهرس) requires 2 arguments");
                         return BuildResult();
                     }
                     if (argResults[0].type != SadTypeKind::Vector)
                     {
-                        errors_.push_back("Error: متجه_عنصر() first argument must be a vector");
+                        b_.errors_.push_back("Error: متجه_عنصر() first argument must be a vector");
                         return BuildResult();
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     // (AR) النوع المرتجع نستنتجه عشري كافتراضي — LLVM codegen سيفحص النوع الفعلي
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
-                    emitVectorOp(this, currentBlock_, SIROpcode::VECTOR_EXTRACT,
+                    emitVectorOp(&b_, b_.currentBlock_, SIROpcode::VECTOR_EXTRACT,
                                  resultOp, {argOperands[0], argOperands[1]},
                                  SadTypeKind::Float, 0, "extract element");
                     return BuildResult(resultReg, SadTypeKind::Float);
@@ -398,17 +400,17 @@ namespace Sad
                 {
                     if (argResults.size() != 3)
                     {
-                        errors_.push_back("Error: متجه_ضع(م، فهرس، ق) requires 3 arguments");
+                        b_.errors_.push_back("Error: متجه_ضع(م، فهرس، ق) requires 3 arguments");
                         return BuildResult();
                     }
                     if (argResults[0].type != SadTypeKind::Vector)
                     {
-                        errors_.push_back("Error: متجه_ضع() first argument must be a vector");
+                        b_.errors_.push_back("Error: متجه_ضع() first argument must be a vector");
                         return BuildResult();
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Vector);
-                    emitVectorOp(this, currentBlock_, SIROpcode::VECTOR_INSERT,
+                    emitVectorOp(&b_, b_.currentBlock_, SIROpcode::VECTOR_INSERT,
                                  resultOp, {argOperands[0], argOperands[1], argOperands[2]},
                                  SadTypeKind::Float, 0, "insert element");
                     return BuildResult(resultReg, SadTypeKind::Vector);

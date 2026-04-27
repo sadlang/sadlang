@@ -40,6 +40,7 @@
 #include "advanced_expr_nodes.h"
 #include "property_nodes.h"
 #include "builders/method_call_builder.h"
+#include "builders/builtin_builder.h"
 #include <memory>
 #include <string>
 #include <set>
@@ -960,9 +961,9 @@ namespace Sad
                  * @brief (AR) معالجة استدعاء دالة مدمجة أساسية
                  * @brief (EN) Handle core builtin function call (type conv, print, math, string, array, file)
                  */
-                std::optional<BuildResult> buildBuiltinCallCore(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
+                std::optional<BuildResult> buildBuiltinCallCore(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands); }
+
 
                 /**
                  * @brief (AR) معالجة استدعاءات SIMD للمتجهات (Phase 3)
@@ -971,17 +972,17 @@ namespace Sad
                  * @brief (EN) Handle SIMD vector builtin calls (Phase 3)
                  *        vector(), splat, hsum, sqrt, abs, min, max, fma, dot, etc.
                  */
-                std::optional<BuildResult> buildBuiltinCallSimd(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
+                std::optional<BuildResult> buildBuiltinCallSimd(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinCallSimd(funcName, isUserDefinedFunction, argResults, argOperands); }
+
 
                 /**
                  * @brief (AR) معالجة استدعاء دالة مدمجة للنظام
                  * @brief (EN) Handle system builtin function call (hardware, GPIO, timer, atomic, async, security)
                  */
-                std::optional<BuildResult> buildBuiltinCallSystem(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
+                std::optional<BuildResult> buildBuiltinCallSystem(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinCallSystem(funcName, isUserDefinedFunction, argResults, argOperands); }
+
 
                 /**
                  * @brief (AR) معالجة استدعاء دالة مدمجة للشبكة
@@ -989,9 +990,9 @@ namespace Sad
                  * @brief (EN) Handle network builtin function call
                  *        TCP/UDP sockets, HTTP client, HTTP server, network utilities, addresses
                  */
-                std::optional<BuildResult> buildBuiltinCallNetwork(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
+                std::optional<BuildResult> buildBuiltinCallNetwork(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinCallNetwork(funcName, isUserDefinedFunction, argResults, argOperands); }
+
 
                 /**
                  * @brief (AR) دالة مساعدة: بناء تعليمة SIR لدالة شبكة
@@ -1001,11 +1002,9 @@ namespace Sad
                  * @param returnType (AR) نوع القيمة المُرجعة / (EN) Return type
                  * @param comment (AR) تعليق التعليمة / (EN) Instruction comment
                  */
-                BuildResult buildNetworkBuiltinInstruction(
-                    SIROpcode opcode,
-                    std::vector<SIROperand> &argOperands,
-                    SadTypeKind returnType,
-                    const char *comment);
+                BuildResult buildNetworkBuiltinInstruction(SIROpcode opcode, std::vector<SIROperand> &argOperands, SadTypeKind returnType, const char *comment)
+                { return builtins_->buildNetworkBuiltinInstruction(opcode, argOperands, returnType, comment); }
+
 
                 /**
                  * @brief (AR) بناء إنشاء كائن جديد
@@ -1109,28 +1108,25 @@ namespace Sad
                  * @brief (AR) بناء دوال الرياضيات المضمنة (جذر/أس/لوغاريتم/sin/cos/أكبر/أصغر...)
                  * @brief (EN) Build math builtin calls (sqrt/pow/log/sin/cos/max/min...)
                  */
-                std::optional<BuildResult> buildBuiltinMathCall(
-                    const std::string &funcName,
-                    std::vector<BuildResult> &argResults,
-                    std::vector<SIROperand> &argOperands);
+                std::optional<BuildResult> buildBuiltinMathCall(const std::string &funcName, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinMathCall(funcName, argResults, argOperands); }
+
 
                 /**
                  * @brief (AR) بناء دوال النصوص والمصفوفات المضمنة (طول_نص/تقسيم/إضافة_عنصر/ترتيب...)
                  * @brief (EN) Build string & array builtin calls (string_length/split/append/sort...)
                  */
-                std::optional<BuildResult> buildBuiltinStringArrayCall(
-                    const std::string &funcName,
-                    std::vector<BuildResult> &argResults,
-                    std::vector<SIROperand> &argOperands);
+                std::optional<BuildResult> buildBuiltinStringArrayCall(const std::string &funcName, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinStringArrayCall(funcName, argResults, argOperands); }
+
 
                 /**
                  * @brief (AR) بناء دوال الملفات والأدوات وفحص الأنواع (اقرأ_ملف/عشوائي/هو_رقم...)
                  * @brief (EN) Build file I/O, utility, and type-checking builtins
                  */
-                std::optional<BuildResult> buildBuiltinIOUtilsCall(
-                    const std::string &funcName,
-                    std::vector<BuildResult> &argResults,
-                    std::vector<SIROperand> &argOperands);
+                std::optional<BuildResult> buildBuiltinIOUtilsCall(const std::string &funcName, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinIOUtilsCall(funcName, argResults, argOperands); }
+
 
                 /**
                  * @brief (AR) بناء شرط نمط match — يُرجع اسم سجل الشرط
@@ -1438,6 +1434,12 @@ namespace Sad
                 // ==================================================================
                 std::unique_ptr<MethodCallBuilder> methodCalls_;
 
+                // ==================================================================
+                // (AR) Phase 6 — Step 3: بنّاء الدوال المدمجة المنفصل
+                // (EN) Phase 6 — Step 3: separated builtin function builder
+                // ==================================================================
+                std::unique_ptr<BuiltinBuilder> builtins_;
+
                 /**
                  * @brief (AR) تجميع وحدة وحفظها في الذاكرة المخبئية
                  *        (EN) Compile module and save to cache
@@ -1595,33 +1597,27 @@ namespace Sad
                 // (EN) Phase 6 note: removed convertType (declared but never defined or used)
 
                 // ── دوال فرعية لتقسيم buildBuiltinCallSystem ──
-                std::optional<BuildResult> buildBuiltinSystem_Embedded(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
-                std::optional<BuildResult> buildBuiltinSystem_Security(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
-                std::optional<BuildResult> buildBuiltinSystem_FFI(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
-                std::optional<BuildResult> buildBuiltinSystem_Async(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
-                std::optional<BuildResult> buildBuiltinSystem_OsCore(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
-                std::optional<BuildResult> buildBuiltinSystem_OsHardware(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
-                std::optional<BuildResult> buildBuiltinSystem_OsSystem(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
-                std::optional<BuildResult> buildBuiltinSystem_Uefi(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
-                std::optional<BuildResult> buildBuiltinSystem_UI(
-                    const std::string &funcName, bool isUserDefinedFunction,
-                    std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
+                std::optional<BuildResult> buildBuiltinSystem_Embedded(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinSystem_Embedded(funcName, isUserDefinedFunction, argResults, argOperands); }
+                std::optional<BuildResult> buildBuiltinSystem_Security(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinSystem_Security(funcName, isUserDefinedFunction, argResults, argOperands); }
+
+                std::optional<BuildResult> buildBuiltinSystem_FFI(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinSystem_FFI(funcName, isUserDefinedFunction, argResults, argOperands); }
+
+                std::optional<BuildResult> buildBuiltinSystem_Async(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinSystem_Async(funcName, isUserDefinedFunction, argResults, argOperands); }
+                std::optional<BuildResult> buildBuiltinSystem_OsCore(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinSystem_OsCore(funcName, isUserDefinedFunction, argResults, argOperands); }
+                std::optional<BuildResult> buildBuiltinSystem_OsHardware(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinSystem_OsHardware(funcName, isUserDefinedFunction, argResults, argOperands); }
+                std::optional<BuildResult> buildBuiltinSystem_OsSystem(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinSystem_OsSystem(funcName, isUserDefinedFunction, argResults, argOperands); }
+                std::optional<BuildResult> buildBuiltinSystem_Uefi(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinSystem_Uefi(funcName, isUserDefinedFunction, argResults, argOperands); }
+                std::optional<BuildResult> buildBuiltinSystem_UI(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                { return builtins_->buildBuiltinSystem_UI(funcName, isUserDefinedFunction, argResults, argOperands); }
+
 
                 // ── دوال فرعية لتقسيم buildStatement ──
                 bool buildStatement_Exceptions(AST::Statement *stmt);

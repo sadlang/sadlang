@@ -5,6 +5,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_builder.h"
+#include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -23,7 +25,7 @@ namespace Sad
         namespace SIR
         {
 
-            std::optional<BuildResult> SIRBuilder::buildBuiltinSystem_FFI(
+            std::optional<BuildResult> BuiltinBuilder::buildBuiltinSystem_FFI(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
                 std::vector<BuildResult> &argResults,
@@ -43,7 +45,7 @@ namespace Sad
                         std::cerr << "[ERROR] printf requires at least 1 argument (format string)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_PRINTF);
                     inst.result = resultOp;
@@ -51,8 +53,8 @@ namespace Sad
                     {
                         inst.operands.push_back(argOperands[i]);
                     }
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin printf() -> " << resultReg << std::endl;
 #endif
@@ -67,13 +69,13 @@ namespace Sad
                         std::cerr << "[ERROR] malloc requires 1 argument (size)" << std::endl;
                         return BuildResult("", SadTypeKind::Pointer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_MALLOC);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin malloc() -> " << resultReg << std::endl;
 #endif
@@ -90,8 +92,8 @@ namespace Sad
                     }
                     SIRInstruction inst(SIROpcode::FFI_FREE);
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin free()" << std::endl;
 #endif
@@ -106,14 +108,14 @@ namespace Sad
                         std::cerr << "[ERROR] realloc requires 2 arguments (ptr, size)" << std::endl;
                         return BuildResult("", SadTypeKind::Pointer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_REALLOC);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Pointer);
                 }
 
@@ -125,14 +127,14 @@ namespace Sad
                         std::cerr << "[ERROR] calloc requires 2 arguments (count, size)" << std::endl;
                         return BuildResult("", SadTypeKind::Pointer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_CALLOC);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Pointer);
                 }
 
@@ -144,13 +146,13 @@ namespace Sad
                         std::cerr << "[ERROR] strlen requires 1 argument (string)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_STRLEN);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -162,14 +164,14 @@ namespace Sad
                         std::cerr << "[ERROR] strcpy requires 2 arguments (dest, src)" << std::endl;
                         return BuildResult("", SadTypeKind::Pointer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_STRCPY);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Pointer);
                 }
 
@@ -181,14 +183,14 @@ namespace Sad
                         std::cerr << "[ERROR] strcmp requires 2 arguments (s1, s2)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_STRCMP);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -200,14 +202,14 @@ namespace Sad
                         std::cerr << "[ERROR] strcat requires 2 arguments (dest, src)" << std::endl;
                         return BuildResult("", SadTypeKind::Pointer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_STRCAT);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Pointer);
                 }
 
@@ -219,15 +221,15 @@ namespace Sad
                         std::cerr << "[ERROR] memcpy requires 3 arguments (dest, src, size)" << std::endl;
                         return BuildResult("", SadTypeKind::Pointer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_MEMCPY);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     inst.operands.push_back(argOperands[2]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Pointer);
                 }
 
@@ -239,15 +241,15 @@ namespace Sad
                         std::cerr << "[ERROR] memset requires 3 arguments (ptr, value, size)" << std::endl;
                         return BuildResult("", SadTypeKind::Pointer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_MEMSET);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     inst.operands.push_back(argOperands[2]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Pointer);
                 }
 
@@ -259,14 +261,14 @@ namespace Sad
                         std::cerr << "[ERROR] fopen requires 2 arguments (filename, mode)" << std::endl;
                         return BuildResult("", SadTypeKind::Pointer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_FOPEN);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Pointer);
                 }
 
@@ -278,13 +280,13 @@ namespace Sad
                         std::cerr << "[ERROR] fclose requires 1 argument (file pointer)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_FCLOSE);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -296,14 +298,14 @@ namespace Sad
                         std::cerr << "[ERROR] fputs requires 2 arguments (string, file)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_FWRITE);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -315,15 +317,15 @@ namespace Sad
                         std::cerr << "[ERROR] fgets requires 3 arguments (buffer, size, file)" << std::endl;
                         return BuildResult("", SadTypeKind::Pointer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_FREAD);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     inst.operands.push_back(argOperands[2]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Pointer);
                 }
 
@@ -335,13 +337,13 @@ namespace Sad
                         std::cerr << "[ERROR] system requires 1 argument (command)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_SYSTEM);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -353,13 +355,13 @@ namespace Sad
                         std::cerr << "[ERROR] getenv requires 1 argument (name)" << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::FFI_GETENV);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
 
@@ -371,13 +373,13 @@ namespace Sad
                         std::cerr << "[ERROR] atoi requires 1 argument (string)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_ATOI);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -389,13 +391,13 @@ namespace Sad
                         std::cerr << "[ERROR] atof requires 1 argument (string)" << std::endl;
                         return BuildResult("", SadTypeKind::Float);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::FFI_ATOF);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
@@ -407,7 +409,7 @@ namespace Sad
                         std::cerr << "[ERROR] snprintf requires at least 3 arguments (buf, size, fmt)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_SNPRINTF);
                     inst.result = resultOp;
@@ -415,8 +417,8 @@ namespace Sad
                     {
                         inst.operands.push_back(argOperands[i]);
                     }
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 

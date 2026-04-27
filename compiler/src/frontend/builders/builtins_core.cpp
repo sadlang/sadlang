@@ -17,6 +17,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_builder.h"
+#include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -41,7 +43,7 @@ namespace Sad
             // (EN) Core builtins: type conversion, print, math, string, array, file operations
             // ============================================================================
 
-            std::optional<BuildResult> SIRBuilder::buildBuiltinCallCore(
+            std::optional<BuildResult> BuiltinBuilder::buildBuiltinCallCore(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
                 std::vector<BuildResult> &argResults,
@@ -56,11 +58,11 @@ namespace Sad
                 {
                     if (argResults.size() != 1)
                     {
-                        errors_.push_back("Error: طول() requires exactly 1 argument");
+                        b_.errors_.push_back("Error: طول() requires exactly 1 argument");
                         return BuildResult();
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
 
                     // (AR) تحديد نوع العملية بناءً على نوع المعامل
@@ -81,9 +83,9 @@ namespace Sad
                     lenInst.result = resultOp;
                     lenInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(lenInst);
+                        b_.currentBlock_->instructions.push_back(lenInst);
                     }
 
 #ifndef NDEBUG
@@ -99,7 +101,7 @@ namespace Sad
                 {
                     if (argResults.size() != 1)
                     {
-                        errors_.push_back("Error: لرقم() requires exactly 1 argument");
+                        b_.errors_.push_back("Error: لرقم() requires exactly 1 argument");
                         return BuildResult();
                     }
 
@@ -108,7 +110,7 @@ namespace Sad
                         return argResults[0];
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
 
                     SIROpcode convOpcode = SIROpcode::STRING_TO_I64;
@@ -125,9 +127,9 @@ namespace Sad
                     convInst.result = resultOp;
                     convInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(convInst);
+                        b_.currentBlock_->instructions.push_back(convInst);
                     }
 
 #ifndef NDEBUG
@@ -143,7 +145,7 @@ namespace Sad
                 {
                     if (argResults.size() != 1)
                     {
-                        errors_.push_back("Error: لعشري() requires exactly 1 argument");
+                        b_.errors_.push_back("Error: لعشري() requires exactly 1 argument");
                         return BuildResult();
                     }
 
@@ -152,7 +154,7 @@ namespace Sad
                         return argResults[0];
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
 
                     SIROpcode convOpcode = SIROpcode::STRING_TO_F64;
@@ -165,9 +167,9 @@ namespace Sad
                     convInst.result = resultOp;
                     convInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(convInst);
+                        b_.currentBlock_->instructions.push_back(convInst);
                     }
 
 #ifndef NDEBUG
@@ -184,7 +186,7 @@ namespace Sad
                 {
                     if (argResults.size() != 1)
                     {
-                        errors_.push_back("Error: لنص() requires exactly 1 argument");
+                        b_.errors_.push_back("Error: لنص() requires exactly 1 argument");
                         return BuildResult();
                     }
 
@@ -199,7 +201,7 @@ namespace Sad
                         return argResults[0];
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
 
                     // (AR) تحديد opcode التحويل حسب نوع المعامل:
@@ -232,9 +234,9 @@ namespace Sad
                     convInst.result = resultOp;
                     convInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(convInst);
+                        b_.currentBlock_->instructions.push_back(convInst);
                     }
 
 #ifndef NDEBUG
@@ -266,12 +268,12 @@ namespace Sad
                             while (!searchClass.empty())
                             {
                                 tostrName = searchClass + ".__op_tostring__";
-                                if (functionTable_.find(tostrName) != functionTable_.end())
+                                if (b_.functionTable_.find(tostrName) != b_.functionTable_.end())
                                 {
                                     foundToStr = true;
                                     break;
                                 }
-                                auto parentClass = module_->getClass(searchClass);
+                                auto parentClass = b_.module_->getClass(searchClass);
                                 if (parentClass && !parentClass->parentClass.empty())
                                 {
                                     searchClass = parentClass->parentClass;
@@ -283,14 +285,14 @@ namespace Sad
                             }
                             if (foundToStr)
                             {
-                                std::string strReg = newTempRegister();
+                                std::string strReg = b_.newTempRegister();
                                 SIRInstruction callInst;
                                 callInst.opcode = SIROpcode::OBJECT_CALL;
                                 callInst.result = SIROperand::Register(strReg, SadTypeKind::String);
                                 callInst.operands.push_back(argOperands[i]);
                                 callInst.operands.push_back(SIROperand::ConstantString("__op_tostring__"));
-                                if (currentBlock_)
-                                    currentBlock_->addInstruction(callInst);
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->addInstruction(callInst);
                                 resolvedOps.push_back(SIROperand::Register(strReg, SadTypeKind::String));
                                 continue;
                             }
@@ -301,9 +303,9 @@ namespace Sad
                     SIRInstruction printInst(SIROpcode::BUILTIN_PRINT); // (sir_types.h:221)
                     printInst.operands = resolvedOps;
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(printInst);
+                        b_.currentBlock_->instructions.push_back(printInst);
                     }
 
 #ifndef NDEBUG
@@ -334,12 +336,12 @@ namespace Sad
                             while (!searchClass.empty())
                             {
                                 tostrName = searchClass + ".__op_tostring__";
-                                if (functionTable_.find(tostrName) != functionTable_.end())
+                                if (b_.functionTable_.find(tostrName) != b_.functionTable_.end())
                                 {
                                     foundToStr = true;
                                     break;
                                 }
-                                auto parentClass = module_->getClass(searchClass);
+                                auto parentClass = b_.module_->getClass(searchClass);
                                 if (parentClass && !parentClass->parentClass.empty())
                                 {
                                     searchClass = parentClass->parentClass;
@@ -351,14 +353,14 @@ namespace Sad
                             }
                             if (foundToStr)
                             {
-                                std::string strReg = newTempRegister();
+                                std::string strReg = b_.newTempRegister();
                                 SIRInstruction callInst;
                                 callInst.opcode = SIROpcode::OBJECT_CALL;
                                 callInst.result = SIROperand::Register(strReg, SadTypeKind::String);
                                 callInst.operands.push_back(argOperands[i]);
                                 callInst.operands.push_back(SIROperand::ConstantString("__op_tostring__"));
-                                if (currentBlock_)
-                                    currentBlock_->addInstruction(callInst);
+                                if (b_.currentBlock_)
+                                    b_.currentBlock_->addInstruction(callInst);
                                 resolvedOps.push_back(SIROperand::Register(strReg, SadTypeKind::String));
                                 continue;
                             }
@@ -370,18 +372,18 @@ namespace Sad
                     SIRInstruction printInst(SIROpcode::BUILTIN_PRINT);
                     printInst.operands = resolvedOps;
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(printInst);
+                        b_.currentBlock_->instructions.push_back(printInst);
                     }
 
                     // ثم إضافة سطر جديد
                     SIRInstruction newlineInst(SIROpcode::BUILTIN_PRINT);
                     newlineInst.operands.push_back(SIROperand::ConstantString("\n"));
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(newlineInst);
+                        b_.currentBlock_->instructions.push_back(newlineInst);
                     }
 
 #ifndef NDEBUG
@@ -395,16 +397,16 @@ namespace Sad
                 // الأسماء المدعومة: اقرأ, input
                 if (funcName == "اقرأ" || funcName == "input")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
 
                     SIRInstruction readInst(SIROpcode::BUILTIN_READ); // (sir_types.h:222)
                     readInst.result = resultOp;
                     readInst.operands = argOperands;
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(readInst);
+                        b_.currentBlock_->instructions.push_back(readInst);
                     }
 
 #ifndef NDEBUG
@@ -427,7 +429,7 @@ namespace Sad
                 //      If function requires an unimported module, don't treat as builtin
                 //      Supports multi-module with "|" separator (any one is sufficient)
                 {
-                    std::string requiredModule = getRequiredModuleForBuiltin(funcName);
+                    std::string requiredModule = b_.getRequiredModuleForBuiltin(funcName);
                     if (!requiredModule.empty())
                     {
                         bool moduleFound = false;
@@ -440,7 +442,7 @@ namespace Sad
                             std::string mod = (pos == std::string::npos)
                                                   ? requiredModule.substr(start)
                                                   : requiredModule.substr(start, pos - start);
-                            if (isStdlibModuleImported(mod))
+                            if (b_.isStdlibModuleImported(mod))
                             {
                                 moduleFound = true;
                                 break;
@@ -472,7 +474,7 @@ namespace Sad
                 {
                     // (AR) فحص استيراد وحدة أساسيات — توحيد مع المفسر
                     // (EN) Check أساسيات module import — unify with interpreter
-                    if (!isStdlibModuleImported("أساسيات"))
+                    if (!b_.isStdlibModuleImported("أساسيات"))
                     {
                         // (AR) لا تعامل كدالة مضمنة — ستُعالج كدالة مستخدم → خطأ واضح
                         // (EN) Don't treat as builtin — will be handled as user function → clear error
@@ -480,7 +482,7 @@ namespace Sad
                     }
                     if (argResults.empty() || argResults.size() > 3)
                     {
-                        errors_.push_back("Error: مدى() requires 1-3 arguments (stop) or (start, stop) or (start, stop, step)");
+                        b_.errors_.push_back("Error: مدى() requires 1-3 arguments (stop) or (start, stop) or (start, stop, step)");
                         return BuildResult();
                     }
 
@@ -509,7 +511,7 @@ namespace Sad
                         stepOp = argOperands[2];
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Array);
 
                     SIRInstruction callInst(SIROpcode::CALL);
@@ -519,23 +521,23 @@ namespace Sad
                     callInst.operands.push_back(endOp);
                     callInst.operands.push_back(stepOp);
 
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(callInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(callInst);
 
                     BuildResult result(resultReg, SadTypeKind::Array);
                     result.elementType = SadTypeKind::Integer;
                     return result;
                 }
 
-                auto mathResult = buildBuiltinMathCall(funcName, argResults, argOperands);
+                auto mathResult = b_.buildBuiltinMathCall(funcName, argResults, argOperands);
                 if (mathResult)
                     return *mathResult;
 
-                auto strArrResult = buildBuiltinStringArrayCall(funcName, argResults, argOperands);
+                auto strArrResult = b_.buildBuiltinStringArrayCall(funcName, argResults, argOperands);
                 if (strArrResult)
                     return *strArrResult;
 
-                auto ioResult = buildBuiltinIOUtilsCall(funcName, argResults, argOperands);
+                auto ioResult = b_.buildBuiltinIOUtilsCall(funcName, argResults, argOperands);
                 if (ioResult)
                     return *ioResult;
 
@@ -543,26 +545,26 @@ namespace Sad
                 // (AR) خريطة() — إنشاء خريطة فارغة عبر __sad_map_create
                 //      معالجة خريطة() كدالة مضمنة (type constructor) بدلاً من external call
                 //      يضمن أن المتغير المُسنَد يحصل على نوع Map الصحيح
-                //      مما يُتيح لـ .عيّن() و.احصل() وغيرها العمل عبر buildMapBuiltinMethodCall
+                //      مما يُتيح لـ .عيّن() و.احصل() وغيرها العمل عبر b_.buildMapBuiltinMethodCall
                 // (EN) خريطة() — create empty map via __sad_map_create
                 //      Handle خريطة() as a builtin (type constructor) instead of external call
                 //      Ensures the assigned variable gets the correct Map type
-                //      allowing .عيّن()/.احصل() and others to work via buildMapBuiltinMethodCall
+                //      allowing .عيّن()/.احصل() and others to work via b_.buildMapBuiltinMethodCall
                 // ================================================================
                 if (funcName == "\xd8\xae\xd8\xb1\xd9\x8a\xd8\xb7\xd8\xa9" || funcName == "map")
                 {
                     // (AR) hint = عدد الوسائط إذا مُررت (اختياري)
                     // (EN) hint = number of arguments if provided (optional)
                     int64_t hint = static_cast<int64_t>(argOperands.size());
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction createInst;
                     createInst.opcode = SIROpcode::CALL;
                     createInst.result = SIROperand::Register(resultReg, SadTypeKind::Map);
                     createInst.operands.push_back(SIROperand::ConstantString("__sad_map_create"));
                     createInst.operands.push_back(SIROperand::ConstantI64(hint));
                     createInst.comment = "\xd8\xae\xd8\xb1\xd9\x8a\xd8\xb7\xd8\xa9() \xe2\x86\x92 __sad_map_create";
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(createInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(createInst);
                     return BuildResult(resultReg, SadTypeKind::Map);
                 }
 
@@ -570,12 +572,12 @@ namespace Sad
                 // (AR) مصفوفة() — إنشاء مصفوفة فارغة عبر SIROpcode::ARRAY_NEW
                 //      معالجة مصفوفة() كدالة مضمنة (type constructor) بدلاً من external call
                 //      يضمن أن المتغير المُسنَد يحصل على نوع Array الصحيح
-                //      مما يُتيح لـ .أضف() و.طول() وغيرها العمل عبر buildArrayBasicMethodCall
+                //      مما يُتيح لـ .أضف() و.طول() وغيرها العمل عبر b_.buildArrayBasicMethodCall
                 //      emitArrayNew تُولِّد SadArray مباشرة بدون استدعاء دالة خارجية
                 // (EN) مصفوفة() — create empty array via SIROpcode::ARRAY_NEW
                 //      Handle مصفوفة() as a builtin (type constructor) instead of external call
                 //      Ensures the assigned variable gets the correct Array type
-                //      allowing .أضف()/.طول() and others to work via buildArrayBasicMethodCall
+                //      allowing .أضف()/.طول() and others to work via b_.buildArrayBasicMethodCall
                 //      emitArrayNew generates SadArray inline without external function call
                 // ================================================================
                 if (funcName == "\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9" || funcName == "array")
@@ -585,14 +587,14 @@ namespace Sad
                     int64_t capacity = 8;
                     if (!argOperands.empty() && argOperands[0].type == SIROperandType::CONSTANT)
                         capacity = argOperands[0].intValue > 0 ? argOperands[0].intValue : 8;
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction arrInst;
                     arrInst.opcode = SIROpcode::ARRAY_NEW;
                     arrInst.result = SIROperand::Register(resultReg, SadTypeKind::Array);
                     arrInst.operands.push_back(SIROperand::ConstantI64(capacity));
                     arrInst.comment = "\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9() \xe2\x86\x92 ARRAY_NEW";
-                    if (currentBlock_)
-                        currentBlock_->addInstruction(arrInst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(arrInst);
                     // (AR) تسجيل المتغير بنوع Array لدعم استدعاء .أضف()/.طول() لاحقاً
                     // (EN) Register variable as Array type so method dispatch works
                     return BuildResult(resultReg, SadTypeKind::Array);

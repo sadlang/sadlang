@@ -56,6 +56,9 @@ namespace Sad
                 // (AR) تهيئة بنّاء استدعاءات الطرق (Phase 6 Step 2)
                 // (EN) Initialize method-call builder (Phase 6 Step 2)
                 methodCalls_ = std::make_unique<MethodCallBuilder>(*this);
+                // (AR) تهيئة بنّاء الدوال المدمجة (Phase 6 Step 3)
+                // (EN) Initialize builtin function builder (Phase 6 Step 3)
+                builtins_ = std::make_unique<BuiltinBuilder>(*this);
                 // (AR) „״§ ״×ˆ״¬״¯ ״×‡״¦״© ״¥״¶״§״© …״·„ˆ״¨״©
                 // (EN) No additional initialization required
             }

@@ -5,6 +5,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_builder.h"
+#include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -23,7 +25,7 @@ namespace Sad
         namespace SIR
         {
 
-            std::optional<BuildResult> SIRBuilder::buildBuiltinSystem_Security(
+            std::optional<BuildResult> BuiltinBuilder::buildBuiltinSystem_Security(
                 const std::string &funcName,
                 bool isUserDefinedFunction,
                 std::vector<BuildResult> &argResults,
@@ -57,8 +59,8 @@ namespace Sad
                     {
                         inst.operands.push_back(argOperands[1]); // optional message
                     }
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
 #endif
@@ -73,13 +75,13 @@ namespace Sad
                         std::cerr << "[خطأ] دالة تحقق تتطلب معامل واحد (الشرط)" << std::endl;
                         return BuildResult("", SadTypeKind::Boolean);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_VERIFY);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -94,13 +96,13 @@ namespace Sad
                         std::cerr << "[خطأ] دالة آمن تتطلب معامل واحد" << std::endl;
                         return BuildResult("", SadTypeKind::Boolean);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_IS_SAFE);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -115,8 +117,8 @@ namespace Sad
                     {
                         inst.operands.push_back(argOperands[0]); // message
                     }
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
 #endif
@@ -131,13 +133,13 @@ namespace Sad
                         std::cerr << "[خطأ] دالة هاش تتطلب معامل واحد (النص)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_HASH);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -152,14 +154,14 @@ namespace Sad
                         std::cerr << "[خطأ] دالة شفّر تتطلب معاملين (النص، المفتاح)" << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ENCRYPT);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -174,14 +176,14 @@ namespace Sad
                         std::cerr << "[خطأ] دالة فك_تشفير تتطلب معاملين (النص، المفتاح)" << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_DECRYPT);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -199,8 +201,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_TYPE);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
 #endif
@@ -218,8 +220,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_EQUAL);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
 #endif
@@ -237,8 +239,8 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_GREATER);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
 #endif
@@ -253,13 +255,13 @@ namespace Sad
                         std::cerr << "[خطأ] دالة نظّف تتطلب معامل واحد (النص)" << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_SANITIZE);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -273,12 +275,12 @@ namespace Sad
                     funcName == "الآن" || funcName == "الان" ||
                     funcName == "timestamp" || funcName == "now")
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_TIMESTAMP);
                     inst.result = resultOp;
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -293,14 +295,14 @@ namespace Sad
                         std::cerr << "[خطأ] دالة عشوائي_آمن تتطلب معاملين (الحد_الأدنى، الحد_الأقصى)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_SECURE_RANDOM);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif
@@ -315,13 +317,13 @@ namespace Sad
                         std::cerr << "[خطأ] دالة ترميز_64 تتطلب معامل واحد (النص)" << std::endl;
                         return BuildResult("", SadTypeKind::String);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_BASE64_ENCODE);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
                     std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
 #endif

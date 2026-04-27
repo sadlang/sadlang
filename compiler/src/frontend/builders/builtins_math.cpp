@@ -7,6 +7,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_builder.h"
+#include "sir_builder.h"
 #include "builtin_registry.h"
 #include <stdexcept>
 #include <iostream>
@@ -21,7 +23,7 @@ namespace Sad
     {
         namespace SIR
         {
-            std::optional<BuildResult> SIRBuilder::buildBuiltinMathCall(
+            std::optional<BuildResult> BuiltinBuilder::buildBuiltinMathCall(
                 const std::string &funcName,
                 std::vector<BuildResult> &argResults,
                 std::vector<SIROperand> &argOperands)
@@ -42,16 +44,16 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Float);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
 
                     SIRInstruction sqrtInst(SIROpcode::BUILTIN_SQRT);
                     sqrtInst.result = resultOp;
                     sqrtInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(sqrtInst);
+                        b_.currentBlock_->instructions.push_back(sqrtInst);
                     }
 
 #ifndef NDEBUG
@@ -71,16 +73,16 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Float);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
 
                     SIRInstruction logInst(SIROpcode::BUILTIN_LOG);
                     logInst.result = resultOp;
                     logInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(logInst);
+                        b_.currentBlock_->instructions.push_back(logInst);
                     }
 
 #ifndef NDEBUG
@@ -100,99 +102,99 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Integer);
                     }
 
-                    std::string resultPtrReg = newTempRegister();
+                    std::string resultPtrReg = b_.newTempRegister();
                     SIRInstruction allocInst(SIROpcode::ALLOC);
                     allocInst.result = SIROperand::Register(resultPtrReg, SadTypeKind::Integer);
                     allocInst.comment = "alloca sign result";
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(allocInst);
+                        b_.currentBlock_->instructions.push_back(allocInst);
                     }
 
                     SIRInstruction initInst(SIROpcode::STORE);
                     initInst.operands.push_back(SIROperand::ConstantI64(0));
                     initInst.operands.push_back(SIROperand::Register(resultPtrReg, SadTypeKind::Integer));
                     initInst.comment = "default sign result = 0";
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(initInst);
+                        b_.currentBlock_->instructions.push_back(initInst);
                     }
 
-                    std::string isPositiveReg = newTempRegister();
+                    std::string isPositiveReg = b_.newTempRegister();
                     SIRInstruction gtZeroInst(SIROpcode::GT);
                     gtZeroInst.result = SIROperand::Register(isPositiveReg, SadTypeKind::Boolean);
                     gtZeroInst.operands.push_back(argOperands[0]);
                     gtZeroInst.operands.push_back(SIROperand::ConstantI64(0));
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(gtZeroInst);
+                        b_.currentBlock_->instructions.push_back(gtZeroInst);
                     }
 
-                    std::string positiveLabel = newLabel("sign_positive");
-                    std::string checkNegativeLabel = newLabel("sign_check_negative");
-                    std::string negativeLabel = newLabel("sign_negative");
-                    std::string mergeLabel = newLabel("sign_merge");
-                    auto positiveBlock = createBasicBlock(positiveLabel);
-                    auto checkNegativeBlock = createBasicBlock(checkNegativeLabel);
-                    auto negativeBlock = createBasicBlock(negativeLabel);
-                    auto mergeBlock = createBasicBlock(mergeLabel);
-                    if (currentFunction_)
+                    std::string positiveLabel = b_.newLabel("sign_positive");
+                    std::string checkNegativeLabel = b_.newLabel("sign_check_negative");
+                    std::string negativeLabel = b_.newLabel("sign_negative");
+                    std::string mergeLabel = b_.newLabel("sign_merge");
+                    auto positiveBlock = b_.createBasicBlock(positiveLabel);
+                    auto checkNegativeBlock = b_.createBasicBlock(checkNegativeLabel);
+                    auto negativeBlock = b_.createBasicBlock(negativeLabel);
+                    auto mergeBlock = b_.createBasicBlock(mergeLabel);
+                    if (b_.currentFunction_)
                     {
-                        currentFunction_->addBasicBlock(positiveBlock);
-                        currentFunction_->addBasicBlock(checkNegativeBlock);
-                        currentFunction_->addBasicBlock(negativeBlock);
-                        currentFunction_->addBasicBlock(mergeBlock);
+                        b_.currentFunction_->addBasicBlock(positiveBlock);
+                        b_.currentFunction_->addBasicBlock(checkNegativeBlock);
+                        b_.currentFunction_->addBasicBlock(negativeBlock);
+                        b_.currentFunction_->addBasicBlock(mergeBlock);
                     }
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(SIRInstruction::BranchCond(
+                        b_.currentBlock_->instructions.push_back(SIRInstruction::BranchCond(
                             SIROperand::Register(isPositiveReg, SadTypeKind::Boolean),
                             SIROperand::Label(positiveLabel),
                             SIROperand::Label(checkNegativeLabel)));
                     }
 
-                    currentBlock_ = positiveBlock;
+                    b_.currentBlock_ = positiveBlock;
                     {
                         SIRInstruction storePosInst(SIROpcode::STORE);
                         storePosInst.operands.push_back(SIROperand::ConstantI64(1));
                         storePosInst.operands.push_back(SIROperand::Register(resultPtrReg, SadTypeKind::Integer));
                         storePosInst.comment = "sign result = 1";
-                        currentBlock_->instructions.push_back(storePosInst);
-                        currentBlock_->instructions.push_back(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+                        b_.currentBlock_->instructions.push_back(storePosInst);
+                        b_.currentBlock_->instructions.push_back(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
                     }
 
-                    currentBlock_ = checkNegativeBlock;
-                    std::string isNegativeReg = newTempRegister();
+                    b_.currentBlock_ = checkNegativeBlock;
+                    std::string isNegativeReg = b_.newTempRegister();
                     {
                         SIRInstruction ltZeroInst(SIROpcode::LT);
                         ltZeroInst.result = SIROperand::Register(isNegativeReg, SadTypeKind::Boolean);
                         ltZeroInst.operands.push_back(argOperands[0]);
                         ltZeroInst.operands.push_back(SIROperand::ConstantI64(0));
-                        currentBlock_->instructions.push_back(ltZeroInst);
-                        currentBlock_->instructions.push_back(SIRInstruction::BranchCond(
+                        b_.currentBlock_->instructions.push_back(ltZeroInst);
+                        b_.currentBlock_->instructions.push_back(SIRInstruction::BranchCond(
                             SIROperand::Register(isNegativeReg, SadTypeKind::Boolean),
                             SIROperand::Label(negativeLabel),
                             SIROperand::Label(mergeLabel)));
                     }
 
-                    currentBlock_ = negativeBlock;
+                    b_.currentBlock_ = negativeBlock;
                     {
                         SIRInstruction storeNegInst(SIROpcode::STORE);
                         storeNegInst.operands.push_back(SIROperand::ConstantI64(-1));
                         storeNegInst.operands.push_back(SIROperand::Register(resultPtrReg, SadTypeKind::Integer));
                         storeNegInst.comment = "sign result = -1";
-                        currentBlock_->instructions.push_back(storeNegInst);
-                        currentBlock_->instructions.push_back(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+                        b_.currentBlock_->instructions.push_back(storeNegInst);
+                        b_.currentBlock_->instructions.push_back(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
                     }
 
-                    currentBlock_ = mergeBlock;
-                    std::string resultReg = newTempRegister();
+                    b_.currentBlock_ = mergeBlock;
+                    std::string resultReg = b_.newTempRegister();
                     SIRInstruction loadInst(SIROpcode::LOAD);
                     loadInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     loadInst.operands.push_back(SIROperand::Register(resultPtrReg, SadTypeKind::Integer));
                     loadInst.comment = "load sign result";
-                    currentBlock_->instructions.push_back(loadInst);
+                    b_.currentBlock_->instructions.push_back(loadInst);
 
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -208,7 +210,7 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Float);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
 
                     SIRInstruction powInst(SIROpcode::BUILTIN_POW);
@@ -216,9 +218,9 @@ namespace Sad
                     powInst.operands.push_back(argOperands[0]); // base
                     powInst.operands.push_back(argOperands[1]); // exponent
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(powInst);
+                        b_.currentBlock_->instructions.push_back(powInst);
                     }
 
 #ifndef NDEBUG
@@ -238,7 +240,7 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Float);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SadTypeKind resultType = argResults[0].type; // preserve type (I64 or F64)
                     SIROperand resultOp = SIROperand::Register(resultReg, resultType);
 
@@ -246,9 +248,9 @@ namespace Sad
                     absInst.result = resultOp;
                     absInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(absInst);
+                        b_.currentBlock_->instructions.push_back(absInst);
                     }
 
 #ifndef NDEBUG
@@ -268,16 +270,16 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Integer);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
 
                     SIRInstruction roundInst(SIROpcode::BUILTIN_ROUND);
                     roundInst.result = resultOp;
                     roundInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(roundInst);
+                        b_.currentBlock_->instructions.push_back(roundInst);
                     }
 
 #ifndef NDEBUG
@@ -297,16 +299,16 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Integer);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
 
                     SIRInstruction floorInst(SIROpcode::BUILTIN_FLOOR);
                     floorInst.result = resultOp;
                     floorInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(floorInst);
+                        b_.currentBlock_->instructions.push_back(floorInst);
                     }
 
 #ifndef NDEBUG
@@ -326,16 +328,16 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Integer);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
 
                     SIRInstruction ceilInst(SIROpcode::BUILTIN_CEIL);
                     ceilInst.result = resultOp;
                     ceilInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(ceilInst);
+                        b_.currentBlock_->instructions.push_back(ceilInst);
                     }
 
 #ifndef NDEBUG
@@ -355,7 +357,7 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Float);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
 
                     SIRInstruction sqInst(SIROpcode::BUILTIN_POW);
@@ -363,9 +365,9 @@ namespace Sad
                     sqInst.operands.push_back(argOperands[0]);
                     sqInst.operands.push_back(SIROperand::ConstantF64(2.0));
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(sqInst);
+                        b_.currentBlock_->instructions.push_back(sqInst);
                     }
 
 #ifndef NDEBUG
@@ -385,16 +387,16 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Float);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
 
                     SIRInstruction sinInst(SIROpcode::BUILTIN_SIN);
                     sinInst.result = resultOp;
                     sinInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(sinInst);
+                        b_.currentBlock_->instructions.push_back(sinInst);
                     }
 
 #ifndef NDEBUG
@@ -414,16 +416,16 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Float);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
 
                     SIRInstruction cosInst(SIROpcode::BUILTIN_COS);
                     cosInst.result = resultOp;
                     cosInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(cosInst);
+                        b_.currentBlock_->instructions.push_back(cosInst);
                     }
 
 #ifndef NDEBUG
@@ -443,16 +445,16 @@ namespace Sad
                         return BuildResult("", SadTypeKind::Float);
                     }
 
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
 
                     SIRInstruction tanInst(SIROpcode::BUILTIN_TAN);
                     tanInst.result = resultOp;
                     tanInst.operands.push_back(argOperands[0]);
 
-                    if (currentBlock_)
+                    if (b_.currentBlock_)
                     {
-                        currentBlock_->instructions.push_back(tanInst);
+                        b_.currentBlock_->instructions.push_back(tanInst);
                     }
 
 #ifndef NDEBUG
@@ -473,14 +475,14 @@ namespace Sad
                         std::cerr << "[Error] دالة أكبر تتطلب معاملين" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_MAX);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -492,14 +494,14 @@ namespace Sad
                         std::cerr << "[Error] دالة أصغر تتطلب معاملين" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_MIN);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -511,13 +513,13 @@ namespace Sad
                         std::cerr << "[Error] دالة جمع تتطلب معامل واحد (مصفوفة)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_SUM);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -535,13 +537,13 @@ namespace Sad
                         std::cerr << "[Error] دالة لوغ10 تتطلب معامل واحد" << std::endl;
                         return BuildResult("", SadTypeKind::Float);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_LOG10);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
@@ -554,13 +556,13 @@ namespace Sad
                         std::cerr << "[Error] دالة لوغ2 تتطلب معامل واحد" << std::endl;
                         return BuildResult("", SadTypeKind::Float);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_LOG2);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
@@ -573,13 +575,13 @@ namespace Sad
                         std::cerr << "[Error] دالة قوس_جيب تتطلب معامل واحد" << std::endl;
                         return BuildResult("", SadTypeKind::Float);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_ASIN);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
@@ -592,13 +594,13 @@ namespace Sad
                         std::cerr << "[Error] دالة قوس_جيب_تمام تتطلب معامل واحد" << std::endl;
                         return BuildResult("", SadTypeKind::Float);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_ACOS);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
@@ -611,13 +613,13 @@ namespace Sad
                         std::cerr << "[Error] دالة قوس_ظل تتطلب معامل واحد" << std::endl;
                         return BuildResult("", SadTypeKind::Float);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_ATAN);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
@@ -630,13 +632,13 @@ namespace Sad
                         std::cerr << "[Error] دالة اقتطاع تتطلب معامل واحد" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_TRUNC);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
@@ -649,14 +651,14 @@ namespace Sad
                         std::cerr << "[Error] دالة باقي تتطلب معاملين (البسط والمقام)" << std::endl;
                         return BuildResult("", SadTypeKind::Float);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_FMOD);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
@@ -669,15 +671,15 @@ namespace Sad
                         std::cerr << "[Error] دالة حصر تتطلب 3 معاملات (القيمة، الحد_الأدنى، الحد_الأعلى)" << std::endl;
                         return BuildResult("", SadTypeKind::Float);
                     }
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_CLAMP);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]); // value
                     inst.operands.push_back(argOperands[1]); // min
                     inst.operands.push_back(argOperands[2]); // max
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
@@ -685,14 +687,14 @@ namespace Sad
                 // (EN) Pi constant — returns 3.141592653589793
                 if (funcName == Bm::PI || funcName == Bm::PI_ALT)
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::MOVE);
                     inst.result = resultOp;
                     inst.operands.push_back(SIROperand::ConstantF64(3.141592653589793));
                     inst.comment = "π constant";
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
@@ -700,14 +702,14 @@ namespace Sad
                 // (EN) Euler's number constant — returns 2.718281828459045
                 if (funcName == Bm::E)
                 {
-                    std::string resultReg = newTempRegister();
+                    std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::MOVE);
                     inst.result = resultOp;
                     inst.operands.push_back(SIROperand::ConstantF64(2.718281828459045));
                     inst.comment = "e constant (Euler)";
-                    if (currentBlock_)
-                        currentBlock_->instructions.push_back(inst);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
 
