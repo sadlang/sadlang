@@ -18,6 +18,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/template_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -91,7 +92,7 @@ namespace Sad
             // - returnType: Data::DataType (line 475)
             // - body: StmtPtr (line 476)
             // ============================================================================
-            void SIRBuilder::buildTemplateFunction(AST::TemplateFunctionDecl *templateDecl)
+            void TemplateBuilder::buildTemplateFunction(AST::TemplateFunctionDecl *templateDecl)
             {
                 if (!templateDecl)
                 {
@@ -108,7 +109,7 @@ namespace Sad
 
                 // (AR) حفظ دالة القالب في الجدول
                 // (EN) Store template function in table
-                templateFunctions_[templateDecl->name] = templateDecl;
+                b_.templateFunctions_[templateDecl->name] = templateDecl;
 
                 std::cout << "[Template] Template function '" << templateDecl->name
                           << "' stored for later instantiation" << std::endl;
@@ -125,7 +126,7 @@ namespace Sad
             // - Call: أكبر<رقم>(5, 10)
             // - Instantiation: أكبر_i64(رقم أ، رقم ب) رقم
             // ============================================================================
-            std::string SIRBuilder::instantiateTemplate(const std::string &templateName,
+            std::string TemplateBuilder::instantiateTemplate(const std::string &templateName,
                                                         const std::vector<SadTypeKind> &typeArguments)
             {
                 // (AR) [Phase 4] واجهة قديمة — تفويض للنسخة الجديدة بدون const args
@@ -137,7 +138,7 @@ namespace Sad
             // (AR) [Phase 4 — Monomorphization] إنشاء نسخة قالب مع const-generics
             // (EN) [Phase 4 — Monomorphization] Template instantiation with const-generics
             // ============================================================================
-            std::string SIRBuilder::instantiateTemplate(const std::string &templateName,
+            std::string TemplateBuilder::instantiateTemplate(const std::string &templateName,
                                                         const std::vector<SadTypeKind> &typeArguments,
                                                         const std::vector<SIROperand> &constArguments)
             {
@@ -145,14 +146,14 @@ namespace Sad
 
                 // (AR) البحث عن دالة القالب
                 // (EN) Find template function
-                auto it = templateFunctions_.find(templateName);
-                if (it == templateFunctions_.end())
+                auto it = b_.templateFunctions_.find(templateName);
+                if (it == b_.templateFunctions_.end())
                 {
                     // (AR) تسجيل الخطأ في قائمة الأخطاء بدلاً من stderr فقط
                     // (EN) Record error in error list instead of only stderr
                     std::string errMsg = "دالة القالب غير موجودة / Template function not found: '" + templateName + "'";
                     std::cerr << "[Template Error] " << errMsg << std::endl;
-                    errors_.push_back(errMsg);
+                    b_.errors_.push_back(errMsg);
                     return "";
                 }
 
@@ -183,7 +184,7 @@ namespace Sad
                 {
                     std::string errMsg = "عدد معاملات الأنواع غير متطابق / Type argument count mismatch for '" + templateName + "': expected " + std::to_string(typeParamNames.size()) + ", got " + std::to_string(typeArguments.size());
                     std::cerr << "[Template Error] " << errMsg << std::endl;
-                    errors_.push_back(errMsg);
+                    b_.errors_.push_back(errMsg);
                     return "";
                 }
 
@@ -193,7 +194,7 @@ namespace Sad
                 {
                     std::string errMsg = "عدد معاملات الثوابت غير متطابق / Const-arg count mismatch for '" + templateName + "': expected " + std::to_string(constParamNames.size()) + ", got " + std::to_string(constArguments.size());
                     std::cerr << "[Template Error] " << errMsg << std::endl;
-                    errors_.push_back(errMsg);
+                    b_.errors_.push_back(errMsg);
                     return "";
                 }
 
@@ -267,7 +268,7 @@ namespace Sad
 
                 // (AR) التحقق من وجود النسخة بالفعل
                 // (EN) Check if already instantiated
-                if (instantiatedTemplates_.find(instantiatedName) != instantiatedTemplates_.end())
+                if (b_.instantiatedTemplates_.find(instantiatedName) != b_.instantiatedTemplates_.end())
                 {
                     std::cout << "[Template] Already instantiated, reusing" << std::endl;
                     return instantiatedName;
@@ -284,10 +285,10 @@ namespace Sad
                 }
 
                 // ================================================================
-                // (AR) [Phase 4] جدول استبدال الثوابت — يُستخدم في buildVariableAccess
+                // (AR) [Phase 4] جدول استبدال الثوابت — يُستخدم في b_.buildVariableAccess
                 //      لاعتراض أي مرجع لمعامل ثابت وإصدار قيمة ثابتة فوراً.
                 // (EN) [Phase 4] Const substitution table — consumed by
-                //      buildVariableAccess to short-circuit any reference to a
+                //      b_.buildVariableAccess to short-circuit any reference to a
                 //      const-generic param into an immediate Constant operand.
                 // ================================================================
                 std::unordered_map<std::string, SIROperand> constSubstitutions;
@@ -299,7 +300,7 @@ namespace Sad
 
                 // (AR) استبدال نوع الإرجاع
                 // (EN) Substitute return type
-                SadTypeKind returnType = astTypeToSIRType(templateDecl->returnType);
+                SadTypeKind returnType = b_.astTypeToSIRType(templateDecl->returnType);
 
                 // (AR) إذا كان نوع الإرجاع OBJECT نستخدم أول استبدال نوع متاح كحل عملي
                 // (EN) If return type is OBJECT, use the first available type substitution pragmatically
@@ -350,7 +351,7 @@ namespace Sad
                 // (EN) Substitute parameter types
                 for (const auto &param : templateDecl->parameters)
                 {
-                    SadTypeKind paramType = astTypeToSIRType(param.type);
+                    SadTypeKind paramType = b_.astTypeToSIRType(param.type);
 
                     // (AR) إذا كان نوع المعامل هو OBJECT، قد يكون معامل قالب
                     // (EN) If parameter type is OBJECT, might be template parameter
@@ -389,27 +390,27 @@ namespace Sad
                 // (EN) Build function body with type substitution
                 //
                 // (AR) [إصلاح علة codegen — defer state leak]
-                //      نستخدم saveContext()/restoreContext() بدلاً من حفظ
-                //      currentFunction_/currentBlock_ يدوياً. السبب الجذري: defer
-                //      infrastructure (currentDeferStackReg_, currentDeferExecutedFlagReg_,
-                //      deferredStatements_) كانت تتسرّب من الدالة الخارجية إلى دالة
+                //      نستخدم b_.saveContext()/b_.restoreContext() بدلاً من حفظ
+                //      b_.currentFunction_/b_.currentBlock_ يدوياً. السبب الجذري: defer
+                //      infrastructure (b_.currentDeferStackReg_, b_.currentDeferExecutedFlagReg_,
+                //      b_.deferredStatements_) كانت تتسرّب من الدالة الخارجية إلى دالة
                 //      القالب instantiated، فعند ترجمة `ارجع` كان codegen يولّد
                 //      تعليمات تشير إلى سجلات defer من نطاق آخر → "Undefined register"
-                //      وتعطل وقت تشغيل. saveContext يصفّر الحالة بالكامل.
+                //      وتعطل وقت تشغيل. b_.saveContext يصفّر الحالة بالكامل.
                 // (EN) [Codegen bug fix — defer state leak]
-                //      Use saveContext()/restoreContext() instead of manually saving
-                //      currentFunction_/currentBlock_. Root cause: defer infrastructure
+                //      Use b_.saveContext()/b_.restoreContext() instead of manually saving
+                //      b_.currentFunction_/b_.currentBlock_. Root cause: defer infrastructure
                 //      (defer stack/done regs, deferred stmts) leaked from outer
                 //      function into instantiated template, causing return codegen
                 //      to emit refs to defer registers from a different scope →
-                //      "Undefined register" + runtime crash. saveContext fully resets.
-                auto savedCtx = saveContext();
+                //      "Undefined register" + runtime crash. b_.saveContext fully resets.
+                auto savedCtx = b_.saveContext();
 
-                currentFunction_ = sirFunction;
+                b_.currentFunction_ = sirFunction;
 
                 // (AR) إنشاء نطاق جديد
                 // (EN) Create new scope
-                enterScope();
+                b_.enterScope();
 
                 // (AR) إضافة استبدالات الأنواع للنطاق الحالي (للاستخدام عند بناء الجسم)
                 // (EN) Add type substitutions to current scope
@@ -427,13 +428,13 @@ namespace Sad
                 // (AR) [Phase 4] دفع جدول الثوابت لاستخدامه أثناء بناء الجسم
                 // (EN) [Phase 4] Push const substitutions for use during body building
                 genericScope.constSubstitutions = constSubstitutions;
-                genericScopeStack_.push_back(genericScope);
+                b_.genericScopeStack_.push_back(genericScope);
 
                 // (AR) إنشاء basic block للدخول
                 // (EN) Create entry basic block
-                auto entryBlock = createBasicBlock(kEntryBlockName);
+                auto entryBlock = b_.createBasicBlock(kEntryBlockName);
                 sirFunction->addBasicBlock(entryBlock);
-                currentBlock_ = entryBlock;
+                b_.currentBlock_ = entryBlock;
 
                 // ================================================================
                 // (AR) [إصلاح علة Phase 5] تسجيل معاملات الدالة كمتغيرات محلية
@@ -461,8 +462,8 @@ namespace Sad
                         paramVar.registerName = "%" + sirParams[i].name;
                         paramVar.isMutable = true;
                         paramVar.isParameter = true;
-                        paramVar.scopeLevel = currentScopeLevel_;
-                        addVariable(paramVar);
+                        paramVar.scopeLevel = b_.currentScopeLevel_;
+                        b_.addVariable(paramVar);
                     }
                 }
 
@@ -470,48 +471,48 @@ namespace Sad
                 // (EN) Build function body
                 if (templateDecl->body)
                 {
-                    buildStatement(templateDecl->body.get());
+                    b_.buildStatement(templateDecl->body.get());
                 }
 
                 // (AR) إزالة نطاق الأنواع العامة
                 // (EN) Remove generic scope
-                genericScopeStack_.pop_back();
+                b_.genericScopeStack_.pop_back();
 
                 // (AR) الخروج من النطاق
                 // (EN) Exit scope
-                exitScope();
+                b_.exitScope();
 
                 // (AR) التأكد من وجود terminator
                 // (EN) Ensure terminator exists
-                if (currentBlock_ && !currentBlock_->instructions.empty())
+                if (b_.currentBlock_ && !b_.currentBlock_->instructions.empty())
                 {
-                    const auto &lastInst = currentBlock_->instructions.back();
+                    const auto &lastInst = b_.currentBlock_->instructions.back();
                     if (lastInst.opcode != SIROpcode::RET && lastInst.opcode != SIROpcode::RET_VOID)
                     {
                         if (returnType == SadTypeKind::Void)
                         {
                             SIRInstruction retInst;
                             retInst.opcode = SIROpcode::RET_VOID;
-                            currentBlock_->addInstruction(retInst);
+                            b_.currentBlock_->addInstruction(retInst);
                         }
                         else
                         {
                             SIRInstruction retInst;
                             retInst.opcode = SIROpcode::RET;
                             retInst.operands.push_back(SIROperand::ConstantI64(0));
-                            currentBlock_->addInstruction(retInst);
+                            b_.currentBlock_->addInstruction(retInst);
                         }
                     }
                 }
 
                 // (AR) استعادة السياق
                 // (EN) Restore context
-                restoreContext(std::move(savedCtx));
+                b_.restoreContext(std::move(savedCtx));
 
                 // (AR) حفظ الدالة المُنشأة
                 // (EN) Store instantiated function
-                instantiatedTemplates_[instantiatedName] = sirFunction;
-                module_->addFunction(sirFunction);
+                b_.instantiatedTemplates_[instantiatedName] = sirFunction;
+                b_.module_->addFunction(sirFunction);
 
                 // (AR) إضافة الدالة المُنشأة إلى جدول الدوال
                 // (EN) Add instantiated function to function table
@@ -520,7 +521,7 @@ namespace Sad
                 funcInfo.returnType = returnType;
                 funcInfo.parameters = sirFunction->getParameters();
                 funcInfo.sirFunction = sirFunction;
-                functionTable_[instantiatedName] = funcInfo;
+                b_.functionTable_[instantiatedName] = funcInfo;
 
                 std::cout << "[Template] Instantiation complete: " << instantiatedName << std::endl;
 
@@ -536,15 +537,15 @@ namespace Sad
              * @brief (AR) تعيين مسار الملف الحالي - يُستخدم لحل مسارات الاستيراد النسبية
              * @brief (EN) Set current file path - used for resolving relative import paths
              */
-            void SIRBuilder::setCurrentFilePath(const std::string &filePath)
+            void TemplateBuilder::setCurrentFilePath(const std::string &filePath)
             {
-                currentFilePath_ = filePath;
+                b_.currentFilePath_ = filePath;
 
                 // (AR) إنشاء محلل الوحدات إذا لم يكن موجوداً
                 // (EN) Create module resolver if it doesn't exist
-                if (!moduleResolver_)
+                if (!b_.moduleResolver_)
                 {
-                    moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
+                    b_.moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
 
                     // (AR) إضافة مجلد الملف الحالي كمسار بحث
                     // (EN) Add current file's directory as search path
@@ -558,7 +559,7 @@ namespace Sad
                             {
                                 // (AR) نستخدم filesystem::path مباشرة لتجنب مشاكل ترميز UTF-8 مع ANSI
                                 // (EN) Push filesystem::path directly to avoid UTF-8/ANSI encoding issues
-                                moduleResolver_->addSearchPathDirect(parentDir);
+                                b_.moduleResolver_->addSearchPathDirect(parentDir);
                             }
                         }
                         catch (const std::exception &e)
@@ -588,23 +589,23 @@ namespace Sad
              *      3. Extract exported functions
              *      4. Build SIR for each exported function and add to current module
              */
-            void SIRBuilder::buildImportStmt(AST::ImportStmt *importStmt)
+            void TemplateBuilder::buildImportStmt(AST::ImportStmt *importStmt)
             {
                 if (!importStmt)
                     return;
 
                 // (AR) التحقق من وجود محلل الوحدات
                 // (EN) Check module resolver exists
-                if (!moduleResolver_)
+                if (!b_.moduleResolver_)
                 {
-                    moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
+                    b_.moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
                 }
 
                 std::string fullModuleName = importStmt->getFullModuleName();
 
                 // (AR) التحقق مما إذا تمت معالجة الوحدة بالفعل
                 // (EN) Check if module was already processed
-                if (processedModules_.count(fullModuleName))
+                if (b_.processedModules_.count(fullModuleName))
                 {
                     return;
                 }
@@ -623,38 +624,38 @@ namespace Sad
                 {
                     // (AR) تسجيل الوحدة كمعالجة — دوالها مضمنة في المترجم
                     // (EN) Mark module as processed — its functions are compiler builtins
-                    processedModules_.insert(fullModuleName);
+                    b_.processedModules_.insert(fullModuleName);
                     return;
                 }
 
                 // (AR) إصدار تعليمة تحميل الوحدة في SIR
                 // (EN) Emit MODULE_LOAD SIR instruction for linker tracking
-                if (currentBlock_)
+                if (b_.currentBlock_)
                 {
-                    std::string moduleReg = newTempRegister();
+                    std::string moduleReg = b_.newTempRegister();
                     SIRInstruction loadInst(SIROpcode::MODULE_LOAD);
                     loadInst.result = SIROperand::Register(moduleReg, SadTypeKind::Integer);
                     loadInst.operands.push_back(SIROperand::ConstantString(fullModuleName));
                     loadInst.comment = "استيراد وحدة / import module: " + fullModuleName;
-                    currentBlock_->addInstruction(loadInst);
+                    b_.currentBlock_->addInstruction(loadInst);
 
                     // (AR) إصدار تعليمة تهيئة الوحدة
                     // (EN) Emit MODULE_INIT instruction
                     SIRInstruction initInst(SIROpcode::MODULE_INIT);
                     initInst.operands.push_back(SIROperand::Register(moduleReg, SadTypeKind::Integer));
                     initInst.comment = "تهيئة وحدة / init module: " + fullModuleName;
-                    currentBlock_->addInstruction(initInst);
+                    b_.currentBlock_->addInstruction(initInst);
                 }
 
                 // (AR) تحميل الوحدة
                 // (EN) Load module
-                Modules::Module *module = moduleResolver_->resolveModule(
+                Modules::Module *module = b_.moduleResolver_->resolveModule(
                     importStmt->modulePath,
-                    currentFilePath_);
+                    b_.currentFilePath_);
 
                 if (!module)
                 {
-                    errors_.push_back(
+                    b_.errors_.push_back(
                         "خطأ: لم يُعثر على الوحدة '" + fullModuleName + "' / "
                                                                        "Error: Module '" +
                         fullModuleName + "' not found");
@@ -663,7 +664,7 @@ namespace Sad
 
                 // (AR) تمييز الوحدة كمعالجة
                 // (EN) Mark module as processed
-                processedModules_.insert(fullModuleName);
+                b_.processedModules_.insert(fullModuleName);
 
                 // (AR) معالجة كل تصريح في الوحدة
                 // (EN) Process each declaration in module
@@ -726,15 +727,15 @@ namespace Sad
                     // (EN) Build SIR for discovered declarations
                     if (funcDecl)
                     {
-                        buildFunction(funcDecl);
+                        b_.buildFunction(funcDecl);
                     }
                     if (varDecl)
                     {
-                        buildGlobalVariable(varDecl);
+                        b_.buildGlobalVariable(varDecl);
                     }
                     if (classDecl)
                     {
-                        buildClass(classDecl);
+                        b_.buildClass(classDecl);
                     }
                 }
             }
@@ -743,14 +744,14 @@ namespace Sad
              * @brief (AR) معالجة استيراد انتقائي: من وحدة استورد ...
              * @brief (EN) Process selective import: from module import ...
              */
-            void SIRBuilder::buildFromImportStmt(AST::FromImportStmt *fromImportStmt)
+            void TemplateBuilder::buildFromImportStmt(AST::FromImportStmt *fromImportStmt)
             {
                 if (!fromImportStmt)
                     return;
 
-                if (!moduleResolver_)
+                if (!b_.moduleResolver_)
                 {
-                    moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
+                    b_.moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
                 }
 
                 std::string fullModuleName = fromImportStmt->getFullModuleName();
@@ -766,7 +767,7 @@ namespace Sad
                 {
                     // (AR) وحدة قياسية — جميع دوالها مضمنة، لا حاجة لتحميل الملف
                     // (EN) Stdlib module — all functions are builtins, skip file loading
-                    processedModules_.insert(fullModuleName);
+                    b_.processedModules_.insert(fullModuleName);
                     return;
                 }
 
@@ -774,22 +775,22 @@ namespace Sad
                 //      للاستيراد الانتقائي: لا نتوقف — نكمل لاستيراد رموز جديدة
                 // (EN) Check if module was already processed
                 //      For selective import: don't stop — continue to import new symbols
-                bool moduleAlreadyLoaded = processedModules_.count(fullModuleName) > 0;
+                bool moduleAlreadyLoaded = b_.processedModules_.count(fullModuleName) > 0;
 
                 // (AR) إصدار تعليمات SIR (فقط أول مرة)
                 // (EN) Emit SIR instructions (first time only)
-                if (!moduleAlreadyLoaded && currentBlock_)
+                if (!moduleAlreadyLoaded && b_.currentBlock_)
                 {
-                    std::string moduleReg = newTempRegister();
+                    std::string moduleReg = b_.newTempRegister();
                     SIRInstruction loadInst(SIROpcode::MODULE_LOAD);
                     loadInst.result = SIROperand::Register(moduleReg, SadTypeKind::Integer);
                     loadInst.operands.push_back(SIROperand::ConstantString(fullModuleName));
                     loadInst.comment = "تحميل وحدة انتقائي / selective import from: " + fullModuleName;
-                    currentBlock_->addInstruction(loadInst);
+                    b_.currentBlock_->addInstruction(loadInst);
 
                     SIRInstruction initInst(SIROpcode::MODULE_INIT);
                     initInst.operands.push_back(SIROperand::Register(moduleReg, SadTypeKind::Integer));
-                    currentBlock_->addInstruction(initInst);
+                    b_.currentBlock_->addInstruction(initInst);
 
                     // (AR) إصدار MODULE_SYMBOL لكل رمز مطلوب
                     // (EN) Emit MODULE_SYMBOL for each requested symbol
@@ -797,28 +798,28 @@ namespace Sad
                     {
                         for (const auto &item : fromImportStmt->items)
                         {
-                            std::string symReg = newTempRegister();
+                            std::string symReg = b_.newTempRegister();
                             SIRInstruction symInst(SIROpcode::MODULE_SYMBOL);
                             symInst.result = SIROperand::Register(symReg, SadTypeKind::Integer);
                             symInst.operands.push_back(SIROperand::Register(moduleReg, SadTypeKind::Integer));
                             symInst.operands.push_back(SIROperand::ConstantString(item.name));
                             symInst.comment = "استيراد رمز / import symbol: " + item.name;
-                            currentBlock_->addInstruction(symInst);
+                            b_.currentBlock_->addInstruction(symInst);
                         }
                     }
                 }
 
                 // (AR) تحميل الوحدة (ModuleResolver يخبئ النتائج)
                 // (EN) Load module (ModuleResolver caches results)
-                Modules::Module *module = moduleResolver_->resolveModule(
+                Modules::Module *module = b_.moduleResolver_->resolveModule(
                     fromImportStmt->modulePath,
-                    currentFilePath_);
+                    b_.currentFilePath_);
 
                 if (!module)
                 {
                     if (!moduleAlreadyLoaded)
                     {
-                        errors_.push_back(
+                        b_.errors_.push_back(
                             "خطأ: لم يُعثر على الوحدة '" + fullModuleName + "' / "
                                                                            "Error: Module '" +
                             fullModuleName + "' not found");
@@ -826,7 +827,7 @@ namespace Sad
                     return;
                 }
 
-                processedModules_.insert(fullModuleName);
+                b_.processedModules_.insert(fullModuleName);
 
                 // (AR) جمع أسماء الرموز المطلوبة (للاستيراد الانتقائي)
                 // (EN) Collect requested symbol names (for selective import)
@@ -914,11 +915,11 @@ namespace Sad
 
                     // (AR) تخطي الرموز المبنية مسبقاً (لمنع التكرار عند إعادة معالجة الوحدة)
                     // (EN) Skip already-built symbols (prevent duplication when re-processing module)
-                    if (funcDecl && functionTable_.find(symbolName) != functionTable_.end())
+                    if (funcDecl && b_.functionTable_.find(symbolName) != b_.functionTable_.end())
                     {
                         continue;
                     }
-                    if (classDecl && module_->getClass(symbolName))
+                    if (classDecl && b_.module_->getClass(symbolName))
                     {
                         continue;
                     }
@@ -927,15 +928,15 @@ namespace Sad
                     // (EN) Build SIR
                     if (funcDecl)
                     {
-                        buildFunction(funcDecl);
+                        b_.buildFunction(funcDecl);
                     }
                     if (varDecl)
                     {
-                        buildGlobalVariable(varDecl);
+                        b_.buildGlobalVariable(varDecl);
                     }
                     if (classDecl)
                     {
-                        buildClass(classDecl);
+                        b_.buildClass(classDecl);
                     }
                 }
             }

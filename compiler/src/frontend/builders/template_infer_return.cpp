@@ -3,6 +3,7 @@
 // ============================================================================
 #include <string>
 #include "sir_builder.h"
+#include "builders/template_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -23,13 +24,13 @@ namespace Sad
     {
         namespace SIR
         {
-            SadTypeKind SIRBuilder::inferReturnTypeFromBody(const Sad::AST::Statement *body,
+            SadTypeKind TemplateBuilder::inferReturnTypeFromBody(const Sad::AST::Statement *body,
                                                             const Sad::AST::FunctionDecl *funcDecl)
             {
                 if (!body)
                     return SadTypeKind::Void;
 
-                if (!hasReturnWithValue(body))
+                if (!b_.hasReturnWithValue(body))
                 {
                     return SadTypeKind::Void;
                 }
@@ -40,12 +41,12 @@ namespace Sad
                 // ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•
                 std::unordered_map<std::string, SadTypeKind> localVarTypes;
 
-                // (AR) ״§„״®״·ˆ״© 1: ״×״¹״¨״¦״© ״£†ˆ״§״¹ …״¹״§…„״§״× ״§„״¯״§„״© …† functionTable_ (״§„…״±״­„״© 1.7)
-                // (EN) Step 1: Populate function parameter types from functionTable_ (Phase 1.7)
+                // (AR) ״§„״®״·ˆ״© 1: ״×״¹״¨״¦״© ״£†ˆ״§״¹ …״¹״§…„״§״× ״§„״¯״§„״© …† b_.functionTable_ (״§„…״±״­„״© 1.7)
+                // (EN) Step 1: Populate function parameter types from b_.functionTable_ (Phase 1.7)
                 if (funcDecl)
                 {
-                    auto ftIt = functionTable_.find(funcDecl->name);
-                    if (ftIt != functionTable_.end())
+                    auto ftIt = b_.functionTable_.find(funcDecl->name);
+                    if (ftIt != b_.functionTable_.end())
                     {
                         for (size_t i = 0; i < funcDecl->parameters.size() &&
                                            i < ftIt->second.parameters.size();
@@ -61,7 +62,7 @@ namespace Sad
                         // (EN) If not in table, use AST types
                         for (const auto &param : funcDecl->parameters)
                         {
-                            SadTypeKind paramType = astTypeToSIRType(param.type);
+                            SadTypeKind paramType = b_.astTypeToSIRType(param.type);
                             localVarTypes[param.name] = paramType;
                         }
                     }
@@ -152,16 +153,16 @@ namespace Sad
                         return inferExprType(unary->operand.get());
                     }
 
-                    // (AR) استدعاء دالة: نحاول استنتاج نوع الإرجاع من functionTable_
+                    // (AR) استدعاء دالة: نحاول استنتاج نوع الإرجاع من b_.functionTable_
                     //      مع دعم استدعاءات الأعضاء (obj.method()) حتى داخل اللامدا.
-                    // (EN) Function call: infer return type from functionTable_,
+                    // (EN) Function call: infer return type from b_.functionTable_,
                     //      with support for member calls (obj.method()) even inside lambdas.
                     if (auto call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
                     {
                         if (auto varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
                         {
-                            auto it = functionTable_.find(varExpr->name);
-                            if (it != functionTable_.end())
+                            auto it = b_.functionTable_.find(varExpr->name);
+                            if (it != b_.functionTable_.end())
                             {
                                 return it->second.returnType;
                             }
@@ -173,12 +174,12 @@ namespace Sad
 
                             if (dynamic_cast<const Sad::AST::ThisExpr *>(memberCallee->object.get()))
                             {
-                                className = currentClassName_;
+                                className = b_.currentClassName_;
                             }
                             else if (auto varObj = dynamic_cast<const Sad::AST::VariableExpr *>(memberCallee->object.get()))
                             {
-                                auto ciIt = classInstanceTypes_.find(varObj->name);
-                                if (ciIt != classInstanceTypes_.end())
+                                auto ciIt = b_.classInstanceTypes_.find(varObj->name);
+                                if (ciIt != b_.classInstanceTypes_.end())
                                 {
                                     className = ciIt->second;
                                 }
@@ -190,17 +191,17 @@ namespace Sad
                                 while (!searchClass.empty())
                                 {
                                     std::string fullMethodName = searchClass + "." + memberCallee->member;
-                                    auto fit = functionTable_.find(fullMethodName);
-                                    if (fit != functionTable_.end())
+                                    auto fit = b_.functionTable_.find(fullMethodName);
+                                    if (fit != b_.functionTable_.end())
                                     {
                                         return fit->second.returnType;
                                     }
 
-                                    if (!module_)
+                                    if (!b_.module_)
                                     {
                                         break;
                                     }
-                                    auto sirClass = module_->getClass(searchClass);
+                                    auto sirClass = b_.module_->getClass(searchClass);
                                     if (!sirClass || sirClass->parentClass.empty())
                                     {
                                         break;
@@ -217,7 +218,7 @@ namespace Sad
                             bool conflict = false;
                             SadTypeKind unifiedType = SadTypeKind::Integer;
                             std::string suffix = "." + memberCallee->member;
-                            for (const auto &entry : functionTable_)
+                            for (const auto &entry : b_.functionTable_)
                             {
                                 const auto &name = entry.first;
                                 if (name.size() >= suffix.size() &&
@@ -265,17 +266,17 @@ namespace Sad
                         return inferExprType(assign->value.get());
                     }
 
-                    // (AR) ˆ״µˆ„ „״­‚„ ״¹״¨״± ‡״°״§.״­‚„ ג€” †״¨״­״« ״¹† †ˆ״¹ ״§„״­‚„  module_->getClass
-                    // (EN) Member access via this.field ג€” look up field type in module_->getClass
+                    // (AR) ˆ״µˆ„ „״­‚„ ״¹״¨״± ‡״°״§.״­‚„ ג€” †״¨״­״« ״¹† †ˆ״¹ ״§„״­‚„  b_.module_->getClass
+                    // (EN) Member access via this.field ג€” look up field type in b_.module_->getClass
                     // (AR) …„״§״­״¸״©: AST ״­״×ˆ ״¹„‰ †ˆ״¹†: MemberExpr (expressions.h) ˆ MemberAccessExpr (class_nodes.h)
                     // (EN) Note: AST has two types: MemberExpr (expressions.h) and MemberAccessExpr (class_nodes.h)
                     if (auto memberExpr = dynamic_cast<const Sad::AST::MemberExpr *>(expr))
                     {
                         if (dynamic_cast<const Sad::AST::ThisExpr *>(memberExpr->object.get()))
                         {
-                            if (!currentClassName_.empty() && module_)
+                            if (!b_.currentClassName_.empty() && b_.module_)
                             {
-                                auto sirClass = module_->getClass(currentClassName_);
+                                auto sirClass = b_.module_->getClass(b_.currentClassName_);
                                 if (sirClass)
                                 {
                                     auto fieldIt = sirClass->fields_.find(memberExpr->member);
@@ -289,7 +290,7 @@ namespace Sad
                                         // ═══════════════════════════════════════════════════
                                         // (AR) إصلاح: إذا كان الحقل Pointer (مجهول النوع)،
                                         //      نبحث عبر paramToFieldMap_ عن المعامل المرتبط
-                                        //      ثم نتحقق من نوعه في functionTable_ (باني الصنف)
+                                        //      ثم نتحقق من نوعه في b_.functionTable_ (باني الصنف)
                                         //      Phase 1.7 حدّث نوع المعامل، وPhase 2 حفظه
                                         //      بدون هذا: ارجع هذا.حقل يُستنتج كـ Integer
                                         // (EN) Fix: If field is Pointer (unknown), infer from
@@ -302,9 +303,9 @@ namespace Sad
                                             {
                                                 if (fieldName == memberExpr->member)
                                                 {
-                                                    std::string ctorName = currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
-                                                    auto ctorIt = functionTable_.find(ctorName);
-                                                    if (ctorIt != functionTable_.end())
+                                                    std::string ctorName = b_.currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                                                    auto ctorIt = b_.functionTable_.find(ctorName);
+                                                    if (ctorIt != b_.functionTable_.end())
                                                     {
                                                         for (const auto &param : ctorIt->second.parameters)
                                                         {
@@ -329,10 +330,10 @@ namespace Sad
                         }
                         if (auto varObj = dynamic_cast<const Sad::AST::VariableExpr *>(memberExpr->object.get()))
                         {
-                            auto ciIt = classInstanceTypes_.find(varObj->name);
-                            if (ciIt != classInstanceTypes_.end() && module_)
+                            auto ciIt = b_.classInstanceTypes_.find(varObj->name);
+                            if (ciIt != b_.classInstanceTypes_.end() && b_.module_)
                             {
-                                auto sirClass = module_->getClass(ciIt->second);
+                                auto sirClass = b_.module_->getClass(ciIt->second);
                                 if (sirClass)
                                 {
                                     auto fieldIt = sirClass->fields_.find(memberExpr->member);
@@ -346,7 +347,7 @@ namespace Sad
                                         // ═══════════════════════════════════════════════════
                                         // (AR) إصلاح: إذا كان الحقل Pointer (مجهول النوع)،
                                         //      نبحث عبر paramToFieldMap_ عن المعامل المرتبط
-                                        //      ثم نتحقق من نوعه في functionTable_ (باني الصنف)
+                                        //      ثم نتحقق من نوعه في b_.functionTable_ (باني الصنف)
                                         //      بدون هذا: ارجع هذا.حقل يُستنتج كـ Integer
                                         //      بدلاً من String عندما الحقل بلا مُهيئ
                                         // (EN) Fix: If field is Pointer (unknown type), try to
@@ -360,9 +361,9 @@ namespace Sad
                                             {
                                                 if (fieldName == memberExpr->member)
                                                 {
-                                                    std::string ctorName = currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
-                                                    auto ctorIt = functionTable_.find(ctorName);
-                                                    if (ctorIt != functionTable_.end())
+                                                    std::string ctorName = b_.currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                                                    auto ctorIt = b_.functionTable_.find(ctorName);
+                                                    if (ctorIt != b_.functionTable_.end())
                                                     {
                                                         for (const auto &param : ctorIt->second.parameters)
                                                         {
@@ -383,7 +384,7 @@ namespace Sad
                                         }
                                         // (EN) If field is Pointer (unknown), try to infer from constructor
                                         //      Find param linked to this field via paramToFieldMap_
-                                        //      then check its type in functionTable_ (updated in Phase 1.7)
+                                        //      then check its type in b_.functionTable_ (updated in Phase 1.7)
                                         if (ft == SadTypeKind::Pointer)
                                         {
                                             // (AR) ״¨״­״« ״¹ƒ״³: ״£ …״¹״§…„ ‚״§״¨„ ‡״°״§ ״§„״­‚„״
@@ -395,8 +396,8 @@ namespace Sad
                                                     // (AR) ˆ״¬״¯†״§ ״§„…״¹״§…„ ג€” ״§„״¢† †״¨״­״« ״¹† †ˆ״¹‡  ״§„״¨״§†
                                                     // (EN) Found param ג€” now look up its type in constructor
                                                     std::string ctorName = ciIt->second + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .״¨״§†
-                                                    auto ctorIt = functionTable_.find(ctorName);
-                                                    if (ctorIt != functionTable_.end())
+                                                    auto ctorIt = b_.functionTable_.find(ctorName);
+                                                    if (ctorIt != b_.functionTable_.end())
                                                     {
                                                         // (AR) params[0] = self, ״§״¨״­״« ״¹† ״§„…״¹״§…„ ״¨״§„״§״³…
                                                         for (const auto &param : ctorIt->second.parameters)
@@ -426,9 +427,9 @@ namespace Sad
                     {
                         if (dynamic_cast<const Sad::AST::ThisExpr *>(memberAccessExpr->object.get()))
                         {
-                            if (!currentClassName_.empty() && module_)
+                            if (!b_.currentClassName_.empty() && b_.module_)
                             {
-                                auto sirClass = module_->getClass(currentClassName_);
+                                auto sirClass = b_.module_->getClass(b_.currentClassName_);
                                 if (sirClass)
                                 {
                                     auto fieldIt = sirClass->fields_.find(memberAccessExpr->memberName);
@@ -446,9 +447,9 @@ namespace Sad
                                             {
                                                 if (fieldName == memberAccessExpr->memberName)
                                                 {
-                                                    std::string ctorName = currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
-                                                    auto ctorIt = functionTable_.find(ctorName);
-                                                    if (ctorIt != functionTable_.end())
+                                                    std::string ctorName = b_.currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+                                                    auto ctorIt = b_.functionTable_.find(ctorName);
+                                                    if (ctorIt != b_.functionTable_.end())
                                                     {
                                                         for (const auto &param : ctorIt->second.parameters)
                                                         {
@@ -473,10 +474,10 @@ namespace Sad
                         }
                         if (auto varObj = dynamic_cast<const Sad::AST::VariableExpr *>(memberAccessExpr->object.get()))
                         {
-                            auto ciIt = classInstanceTypes_.find(varObj->name);
-                            if (ciIt != classInstanceTypes_.end() && module_)
+                            auto ciIt = b_.classInstanceTypes_.find(varObj->name);
+                            if (ciIt != b_.classInstanceTypes_.end() && b_.module_)
                             {
-                                auto sirClass = module_->getClass(ciIt->second);
+                                auto sirClass = b_.module_->getClass(ciIt->second);
                                 if (sirClass)
                                 {
                                     auto fieldIt = sirClass->fields_.find(memberAccessExpr->memberName);
@@ -505,11 +506,11 @@ namespace Sad
                     // (AR) [Fix #52] تعبير لامدا — يُرجع دائماً نوع Function
                     //      بدون هذا الفحص، inferReturnTypeFromBody يُعيد Integer
                     //      لدالة مثل: دالة صانع() ارجع لامدا()...نهاية نهاية
-                    //      مما يمنع تتبع returnLambdaName في functionTable_
+                    //      مما يمنع تتبع returnLambdaName في b_.functionTable_
                     // (EN) [Fix #52] Lambda expression — always returns Function type
                     //      Without this check, inferReturnTypeFromBody returns Integer
                     //      for functions like: function maker() return lambda()...end end
-                    //      which prevents returnLambdaName tracking in functionTable_
+                    //      which prevents returnLambdaName tracking in b_.functionTable_
                     // ================================================================
                     if (dynamic_cast<const Sad::AST::LambdaExpr *>(expr))
                         return SadTypeKind::Function;
@@ -554,7 +555,7 @@ namespace Sad
                         else
                         {
                             // (AR) …״×״÷״± ״¨״¯ˆ† …‡‘״¦ ג€” ††״¸״± ״¥„‰ †ˆ״¹ AST
-                            SadTypeKind astType = astTypeToSIRType(varDecl->type);
+                            SadTypeKind astType = b_.astTypeToSIRType(varDecl->type);
                             localVarTypes[varDecl->name] = astType;
                         }
                         return;
@@ -725,13 +726,13 @@ namespace Sad
             }
 
             // ============================================================================
-            // enterScope - ״¯״®ˆ„ †״·״§‚ ״¬״¯״¯
+            // b_.enterScope - ״¯״®ˆ„ †״·״§‚ ״¬״¯״¯
             // ============================================================================
             // …״µ״¯״± ״§„״×״¹״± / Source: sir_builder.h:587
-            // ״§„״×ˆ‚״¹ / Signature: void enterScope();
+            // ״§„״×ˆ‚״¹ / Signature: void b_.enterScope();
             //
             // ״§„…״×״÷״±״§״× ״§„…״³״×״®״¯…״© / Used variables:
-            // - currentScopeLevel_: sir_builder.h:599 (int)
+            // - b_.currentScopeLevel_: sir_builder.h:599 (int)
             // - scopes_: sir_builder.h:630 (std::vector<std::vector<VariableInfo>>)
             // ============================================================================
 

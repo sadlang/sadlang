@@ -3,6 +3,7 @@
 // ============================================================================
 #include <string>
 #include "sir_builder.h"
+#include "builders/template_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -59,7 +60,7 @@ namespace Sad
             // (AR) ??? ????????? ????? ?? ????? (??????? ???????? ?????????)
             // (EN) Collect free variables in an expression (for closure capture detection)
             // ============================================================================
-            void SIRBuilder::collectFreeVarsExpr(Sad::AST::Expression *expr,
+            void TemplateBuilder::collectFreeVarsExpr(Sad::AST::Expression *expr,
                                                  const std::set<std::string> &boundNames,
                                                  std::set<std::string> &freeVars)
             {
@@ -74,7 +75,7 @@ namespace Sad
                     {
                         // (AR) ???? ?? ????? ?? ?????? ???????
                         // (EN) Check if it exists in the outer scope
-                        auto *varOpt = lookupVariable(var->name);
+                        auto *varOpt = b_.lookupVariable(var->name);
                         if (varOpt)
                         {
                             freeVars.insert(var->name);
@@ -197,7 +198,7 @@ namespace Sad
                     {
                         if (boundNames.find(nfv) == boundNames.end())
                         {
-                            auto *varOpt = lookupVariable(nfv);
+                            auto *varOpt = b_.lookupVariable(nfv);
                             if (varOpt)
                             {
                                 freeVars.insert(nfv);
@@ -232,14 +233,14 @@ namespace Sad
                 // ================================================================
                 // (AR) AssignExpr — تعبير إسناد (متغير = قيمة)
                 //      مهم: لا نزور تعبيرات الإسناد لاكتشاف المتغيرات الحرة.
-                //      السبب: saveContext() لا تحفظ/تستعيد scope stack، لذا الدوال المستقلة
+                //      السبب: b_.saveContext() لا تحفظ/تستعيد scope stack، لذا الدوال المستقلة
                 //      تصل للمتغيرات الخارجية عبر scope stack المشترك بشكل صحيح.
                 //      زيارة الإسناد تكشف المتغير عبر VariableExpr في الجانب الأيمن
                 //      (مثل: عداد + 1) → يحوّل الدالة لإغلاق → التقاط بالقيمة → كسر الدلالات.
                 //      MethodCallExpr والتعبيرات الأخرى تُكتشف من مواقعها الأصلية (ExprStmt).
                 // (EN) AssignExpr — assignment expression (variable = value)
                 //      Important: We do NOT visit assignment expressions for free var detection.
-                //      Reason: saveContext() doesn't save/restore scope stack, so standalone
+                //      Reason: b_.saveContext() doesn't save/restore scope stack, so standalone
                 //      functions access outer variables correctly through the shared scope stack.
                 //      Visiting the RHS detects vars via VariableExpr (e.g. counter + 1)
                 //      → converts function to closure → capture by value → breaks semantics.
@@ -252,7 +253,7 @@ namespace Sad
             // (AR) ??? ????????? ????? ?? ???? (??????)
             // (EN) Collect free variables in a statement (recursive)
             // ============================================================================
-            void SIRBuilder::collectFreeVarsStmt(Sad::AST::Statement *stmt,
+            void TemplateBuilder::collectFreeVarsStmt(Sad::AST::Statement *stmt,
                                                  std::set<std::string> &boundNames,
                                                  std::set<std::string> &freeVars)
             {
@@ -440,7 +441,7 @@ namespace Sad
             // (EN) Used in type inference phase (Phase 1.7) to determine
             //      argument types at call sites
             // ============================================================================
-            SadTypeKind SIRBuilder::inferExprType(const Sad::AST::Expression *expr)
+            SadTypeKind TemplateBuilder::inferExprType(const Sad::AST::Expression *expr)
             {
                 if (!expr)
                     return SadTypeKind::Integer;
@@ -470,7 +471,7 @@ namespace Sad
                 {
                     // (AR) ??? ?? ???????? ???????
                     // (EN) Look up in current scopes
-                    for (auto scopeIt = scopeStack_.rbegin(); scopeIt != scopeStack_.rend(); ++scopeIt)
+                    for (auto scopeIt = b_.scopeStack_.rbegin(); scopeIt != b_.scopeStack_.rend(); ++scopeIt)
                     {
                         auto it = scopeIt->find(var->name);
                         if (it != scopeIt->end())
@@ -480,10 +481,10 @@ namespace Sad
                     }
                     // (AR) ??? ?? ??????? ?????? ??????? ????? ??? ????? ????????? (Phase 1.7)
                     // (EN) Look up in current scanning function's parameters (Phase 1.7)
-                    if (!currentScanFuncName_.empty())
+                    if (!b_.currentScanFuncName_.empty())
                     {
-                        auto funcIt = functionTable_.find(currentScanFuncName_);
-                        if (funcIt != functionTable_.end())
+                        auto funcIt = b_.functionTable_.find(b_.currentScanFuncName_);
+                        if (funcIt != b_.functionTable_.end())
                         {
                             for (const auto &param : funcIt->second.parameters)
                             {
@@ -496,9 +497,9 @@ namespace Sad
                     }
                     // (AR) ??? ?? ????????? ?????? (???????)
                     // (EN) Look up in global variables (constants)
-                    if (module_)
+                    if (b_.module_)
                     {
-                        auto gv = module_->getGlobalVariable(var->name);
+                        auto gv = b_.module_->getGlobalVariable(var->name);
                         if (gv)
                         {
                             return gv->type;
@@ -559,20 +560,20 @@ namespace Sad
                 if (dynamic_cast<const Sad::AST::NewExpr *>(expr))
                     return SadTypeKind::Struct;
 
-                // (AR) ??????? ???? � ???? ?? ??? ??????? ?? functionTable_
-                // (EN) Function call � look up return type in functionTable_
+                // (AR) ??????? ???? � ???? ?? ??? ??????? ?? b_.functionTable_
+                // (EN) Function call � look up return type in b_.functionTable_
                 if (auto *call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
                 {
                     if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
                     {
                         // ================================================================
                         // (AR) الدوال المضمنة التي تُنشئ أنواعاً خاصة — يجب معالجتها قبل
-                        //      البحث في functionTable_ لأنها غير مسجّلة فيها.
+                        //      البحث في b_.functionTable_ لأنها غير مسجّلة فيها.
                         //      بدون هذا: varType = Integer → objResult.type = Integer
-                        //      → buildArrayBasicMethodCall يُولِّد BUILTIN_ARRAY_CONTAINS
+                        //      → b_.buildArrayBasicMethodCall يُولِّد BUILTIN_ARRAY_CONTAINS
                         //      بدلاً من __sad_map_has → type mismatch في LLVM IR
                         // (EN) Builtin constructors that create special types — must be handled
-                        //      before functionTable_ lookup since they are not registered there.
+                        //      before b_.functionTable_ lookup since they are not registered there.
                         //      Without this: global var gets Integer type → method dispatch breaks.
                         // ================================================================
                         const auto &fname = varExpr->name;
@@ -583,8 +584,8 @@ namespace Sad
                         if (fname == "\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9" || fname == "array")
                             return SadTypeKind::Array;
 
-                        auto it = functionTable_.find(fname);
-                        if (it != functionTable_.end())
+                        auto it = b_.functionTable_.find(fname);
+                        if (it != b_.functionTable_.end())
                         {
                             return it->second.returnType;
                         }

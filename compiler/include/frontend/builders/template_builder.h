@@ -1,0 +1,92 @@
+// ======================================================================
+// template_builder.h - بنّاء القوالب والاستيراد والاستنتاج
+// ======================================================================
+// (AR) Phase 6 — Step 8 (الأخيرة): صنف منفصل يجمع 15 method:
+//      6 templates/import (buildTemplateFunction, instantiateTemplate x2,
+//      setCurrentFilePath, buildImportStmt, buildFromImportStmt)
+//      + 1 inferReturnTypeFromBody
+//      + 5 lambda inference (scanCallSitesIn{Expr,Stmt}, inferLambdaParamFrom{Expr,Stmt}, inferParamTypesFromCallSites)
+//      + 3 type inference (collectFreeVars{Expr,Stmt}, inferExprType).
+// (EN) Phase 6 — Step 8 (final): standalone class for templates, imports,
+//      and inference (15 methods).
+// ======================================================================
+
+#pragma once
+
+#include "../sir_types.h"
+#include "../sir_instruction.h"
+
+#include <memory>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+// (AR) StmtList هو using alias في ast_node.h — نضمنه بدلاً من forward-decl
+// (EN) StmtList is a using alias in ast_node.h — include it instead of forward-decl
+#include "ast_node.h"
+
+namespace Sad { namespace AST {
+    class Expression;
+    class Statement;
+    class FunctionDecl;
+    class TemplateFunctionDecl;
+    class ImportStmt;
+    class FromImportStmt;
+}}
+
+namespace Sad
+{
+    namespace Compiler
+    {
+        namespace SIR
+        {
+            class SIRBuilder;
+            struct BuildResult;
+
+            /**
+             * @brief (AR) بنّاء القوالب والاستيراد والاستنتاج (15 method)
+             * @brief (EN) Templates, imports & inference builder (15 methods)
+             */
+            class TemplateBuilder
+            {
+            public:
+                explicit TemplateBuilder(SIRBuilder &b) : b_(b) {}
+
+                void buildTemplateFunction(Sad::AST::TemplateFunctionDecl *templateDecl);
+
+                void setCurrentFilePath(const std::string &filePath);
+
+                void buildImportStmt(Sad::AST::ImportStmt *importStmt);
+
+                void buildFromImportStmt(Sad::AST::FromImportStmt *fromImportStmt);
+
+                SadTypeKind inferReturnTypeFromBody(const Sad::AST::Statement *body, const Sad::AST::FunctionDecl *funcDecl);
+
+                void scanCallSitesInExpr(const Sad::AST::Expression *expr);
+
+                void scanCallSitesInStmt(const Sad::AST::Statement *stmt);
+
+                void inferLambdaParamFromExpr(const Sad::AST::Expression *expr, const std::set<std::string> &paramNames, std::unordered_map<std::string, SadTypeKind> &result);
+
+                void inferLambdaParamFromStmt(const Sad::AST::Statement *stmt, const std::set<std::string> &paramNames, std::unordered_map<std::string, SadTypeKind> &result);
+
+                void inferParamTypesFromCallSites(Sad::AST::StmtList *program);
+
+                void collectFreeVarsExpr(Sad::AST::Expression *expr, const std::set<std::string> &boundNames, std::set<std::string> &freeVars);
+
+                void collectFreeVarsStmt(Sad::AST::Statement *stmt, std::set<std::string> &boundNames, std::set<std::string> &freeVars);
+
+                SadTypeKind inferExprType(const Sad::AST::Expression *expr);
+
+                std::string instantiateTemplate(const std::string &templateName, const std::vector<SadTypeKind> &typeArguments);
+
+                std::string instantiateTemplate(const std::string &templateName, const std::vector<SadTypeKind> &typeArguments, const std::vector<SIROperand> &constArguments);
+
+            private:
+                SIRBuilder &b_;
+            };
+
+        } // namespace SIR
+    }     // namespace Compiler
+} // namespace Sad

@@ -71,6 +71,9 @@ namespace Sad
                 // (AR) تهيئة بنّاء التعابير (Phase 6 Step 7)
                 // (EN) Initialize expression builder (Phase 6 Step 7)
                 expressions_ = std::make_unique<ExpressionBuilder>(*this);
+                // (AR) تهيئة بنّاء القوالب (Phase 6 Step 8 - الأخيرة)
+                // (EN) Initialize template builder (Phase 6 Step 8 - final)
+                templates_ = std::make_unique<TemplateBuilder>(*this);
                 // (AR) „״§ ״×ˆ״¬״¯ ״×‡״¦״© ״¥״¶״§״© …״·„ˆ״¨״©
                 // (EN) No additional initialization required
             }

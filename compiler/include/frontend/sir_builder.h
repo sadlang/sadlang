@@ -45,6 +45,7 @@
 #include "builders/class_builder.h"
 #include "builders/statement_builder.h"
 #include "builders/expression_builder.h"
+#include "builders/template_builder.h"
 #include <memory>
 #include <string>
 #include <set>
@@ -570,6 +571,7 @@ namespace Sad
                 friend class ClassBuilder;
                 friend class StatementBuilder;
                 friend class ExpressionBuilder;
+                friend class TemplateBuilder;
 
             public:
                 // ==================================================================
@@ -640,7 +642,9 @@ namespace Sad
                  * (EN) Stores template function in template table
                  * Will instantiate copies when called with specific types
                  */
-                void buildTemplateFunction(AST::TemplateFunctionDecl *templateDecl);
+                void buildTemplateFunction(Sad::AST::TemplateFunctionDecl *templateDecl)
+                { templates_->buildTemplateFunction(templateDecl); }
+
 
                 /**
                  * @brief (AR) إنشاء نسخة محددة من دالة قالب
@@ -656,8 +660,8 @@ namespace Sad
                  * (EN) Creates copy of template function with type parameters substituted
                  * Example: max<int> creates max_i64
                  */
-                std::string instantiateTemplate(const std::string &templateName,
-                                                const std::vector<SadTypeKind> &typeArguments);
+                std::string instantiateTemplate(const std::string &templateName, const std::vector<SadTypeKind> &typeArguments)
+                { return templates_->instantiateTemplate(templateName, typeArguments); }
 
                 /**
                  * @brief (AR) إنشاء قالب مع وسائط أنواع ووسائط ثوابت (const-generics).
@@ -674,9 +678,8 @@ namespace Sad
                  *      constArguments (each must be SIROperandType::CONSTANT) for
                  *      `const` params. Generated name combines both (e.g. f_i64_4).
                  */
-                std::string instantiateTemplate(const std::string &templateName,
-                                                const std::vector<SadTypeKind> &typeArguments,
-                                                const std::vector<SIROperand> &constArguments);
+                std::string instantiateTemplate(const std::string &templateName, const std::vector<SadTypeKind> &typeArguments, const std::vector<SIROperand> &constArguments)
+                { return templates_->instantiateTemplate(templateName, typeArguments, constArguments); }
 
                 /**
                  * @brief (AR) بناء متغير عام
@@ -726,7 +729,9 @@ namespace Sad
                  *
                  * @param importStmt (AR) عقدة الاستيراد / (EN) Import statement node
                  */
-                void buildImportStmt(AST::ImportStmt *importStmt);
+                void buildImportStmt(Sad::AST::ImportStmt *importStmt)
+                { templates_->buildImportStmt(importStmt); }
+
 
                 /**
                  * @brief (AR) بناء جملة استيراد انتقائي: من وحدة استورد ...
@@ -734,7 +739,9 @@ namespace Sad
                  *
                  * @param fromImportStmt (AR) عقدة الاستيراد الانتقائي / (EN) From-import statement node
                  */
-                void buildFromImportStmt(AST::FromImportStmt *fromImportStmt);
+                void buildFromImportStmt(Sad::AST::FromImportStmt *fromImportStmt)
+                { templates_->buildFromImportStmt(fromImportStmt); }
+
 
                 /**
                  * @brief (AR) تعيين مسار الملف الحالي (لحل مسارات الاستيراد النسبية)
@@ -742,7 +749,9 @@ namespace Sad
                  *
                  * @param filePath (AR) مسار الملف / (EN) File path
                  */
-                void setCurrentFilePath(const std::string &filePath);
+                void setCurrentFilePath(const std::string &filePath)
+                { templates_->setCurrentFilePath(filePath); }
+
 
                 /**
                  * @brief (AR) تعيين وضع الوحدة — تخطي إنشاء __sad_main ودالة main wrapper
@@ -1576,6 +1585,12 @@ namespace Sad
                 // ==================================================================
                 std::unique_ptr<ExpressionBuilder> expressions_;
 
+                // ==================================================================
+                // (AR) Phase 6 — Step 8 (الأخيرة): بنّاء القوالب والاستيراد والاستنتاج
+                // (EN) Phase 6 — Step 8 (final): templates/imports/inference builder
+                // ==================================================================
+                std::unique_ptr<TemplateBuilder> templates_;
+
                 /**
                  * @brief (AR) تجميع وحدة وحفظها في الذاكرة المخبئية
                  *        (EN) Compile module and save to cache
@@ -1623,8 +1638,9 @@ namespace Sad
                  * هذه الدالة تمسح جسم الدالة تسلسلياً لتتبع أنواع المتغيرات المحلية
                  * ثم تجمع أنواع جميع عبارات الإرجاع وتوحّدها
                  */
-                SadTypeKind inferReturnTypeFromBody(const Sad::AST::Statement *body,
-                                                    const Sad::AST::FunctionDecl *funcDecl = nullptr);
+                SadTypeKind inferReturnTypeFromBody(const Sad::AST::Statement *body, const Sad::AST::FunctionDecl *funcDecl = nullptr)
+                { return templates_->inferReturnTypeFromBody(body, funcDecl); }
+
 
                 /**
                  * @brief (AR) فحص إذا كانت الجملة تحتوي return مع قيمة (تعاودي)
@@ -1638,7 +1654,9 @@ namespace Sad
                  * @param expr التعبير / Expression to analyze
                  * @return نوع SIR المُستنتج / Inferred SIR type
                  */
-                SadTypeKind inferExprType(const Sad::AST::Expression *expr);
+                SadTypeKind inferExprType(const Sad::AST::Expression *expr)
+                { return templates_->inferExprType(expr); }
+
 
                 /**
                  * @brief (AR) مسح مواقع الاستدعاء لاستنتاج أنواع المعاملات غير المحددة
@@ -1648,7 +1666,9 @@ namespace Sad
                  * يمسح جميع CallExpr في البرنامج ويحدّث functionTable_ عندما
                  * يكون المعامل I64 (من DataType::UNKNOWN) والوسيط الفعلي STRING/F64/BOOL
                  */
-                void inferParamTypesFromCallSites(AST::ProgramNode *program);
+                void inferParamTypesFromCallSites(Sad::AST::StmtList *program)
+                { templates_->inferParamTypesFromCallSites(program); }
+
 
                 /**
                  * @brief (AR) استنتاج أنواع معاملات اللامدا من تحليل جسمها وسياق الاستدعاء
@@ -1672,31 +1692,33 @@ namespace Sad
                  * @brief (AR) تحليل تعبير لاستنتاج أنواع معاملات اللامدا من الاستخدام
                  * @brief (EN) Analyze expression to infer lambda param types from usage
                  */
-                void inferLambdaParamFromExpr(
-                    const Sad::AST::Expression *expr,
-                    const std::set<std::string> &paramNames,
-                    std::unordered_map<std::string, SadTypeKind> &result);
+                void inferLambdaParamFromExpr(const Sad::AST::Expression *expr, const std::set<std::string> &paramNames, std::unordered_map<std::string, SadTypeKind> &result)
+                { templates_->inferLambdaParamFromExpr(expr, paramNames, result); }
+
 
                 /**
                  * @brief (AR) تحليل جملة لاستنتاج أنواع معاملات اللامدا من الاستخدام
                  * @brief (EN) Analyze statement to infer lambda param types from usage
                  */
-                void inferLambdaParamFromStmt(
-                    const Sad::AST::Statement *stmt,
-                    const std::set<std::string> &paramNames,
-                    std::unordered_map<std::string, SadTypeKind> &result);
+                void inferLambdaParamFromStmt(const Sad::AST::Statement *stmt, const std::set<std::string> &paramNames, std::unordered_map<std::string, SadTypeKind> &result)
+                { templates_->inferLambdaParamFromStmt(stmt, paramNames, result); }
+
 
                 /**
                  * @brief (AR) مسح تعاودي للجمل للبحث عن استدعاءات الدوال
                  * @brief (EN) Recursively scan statements for function calls
                  */
-                void scanCallSitesInStmt(const Sad::AST::Statement *stmt);
+                void scanCallSitesInStmt(const Sad::AST::Statement *stmt)
+                { templates_->scanCallSitesInStmt(stmt); }
+
 
                 /**
                  * @brief (AR) مسح تعاودي للتعبيرات للبحث عن استدعاءات الدوال
                  * @brief (EN) Recursively scan expressions for function calls
                  */
-                void scanCallSitesInExpr(const Sad::AST::Expression *expr);
+                void scanCallSitesInExpr(const Sad::AST::Expression *expr)
+                { templates_->scanCallSitesInExpr(expr); }
+
 
                 /**
                  * @brief (AR) تحويل عامل ثنائي AST إلى SIR opcode
@@ -1717,17 +1739,17 @@ namespace Sad
                  * @brief (AR) جمع المتغيرات الحرة في تعبير (لاكتشاف التقاطات الإغلاقات)
                  * @brief (EN) Collect free variables in an expression (for closure capture detection)
                  */
-                void collectFreeVarsExpr(Sad::AST::Expression *expr,
-                                         const std::set<std::string> &boundNames,
-                                         std::set<std::string> &freeVars);
+                void collectFreeVarsExpr(Sad::AST::Expression *expr, const std::set<std::string> &boundNames, std::set<std::string> &freeVars)
+                { templates_->collectFreeVarsExpr(expr, boundNames, freeVars); }
+
 
                 /**
                  * @brief (AR) جمع المتغيرات الحرة في جملة (تعاودي)
                  * @brief (EN) Collect free variables in a statement (recursive)
                  */
-                void collectFreeVarsStmt(Sad::AST::Statement *stmt,
-                                         std::set<std::string> &boundNames,
-                                         std::set<std::string> &freeVars);
+                void collectFreeVarsStmt(Sad::AST::Statement *stmt, std::set<std::string> &boundNames, std::set<std::string> &freeVars)
+                { templates_->collectFreeVarsStmt(stmt, boundNames, freeVars); }
+
 
                 // (AR) ملاحظة Phase 6: حُذفت convertType (إعلان بلا تنفيذ ولا استخدام)
                 // (EN) Phase 6 note: removed convertType (declared but never defined or used)

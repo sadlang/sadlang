@@ -7,6 +7,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "builders/template_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -53,13 +54,13 @@ namespace Sad
                 "\xD8\xB4\xD8\xB1\xD9\x8A\xD8\xAD\xD8\xA9",                          // شريحة
             };
 
-            void SIRBuilder::scanCallSitesInExpr(const Sad::AST::Expression *expr)
+            void TemplateBuilder::scanCallSitesInExpr(const Sad::AST::Expression *expr)
             {
                 if (!expr)
                     return;
 
-                // (AR) ??????? ???? � ?????? ????? ??????? ?????? functionTable_
-                // (EN) Function call � infer arg types and update functionTable_
+                // (AR) ??????? ???? � ?????? ????? ??????? ?????? b_.functionTable_
+                // (EN) Function call � infer arg types and update b_.functionTable_
                 if (auto *call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
                 {
                     // (AR) ??????? ??? ??????
@@ -72,12 +73,12 @@ namespace Sad
 
                     if (!funcName.empty())
                     {
-                        auto it = functionTable_.find(funcName);
+                        auto it = b_.functionTable_.find(funcName);
 
                         // ═══════════════════════════════════════════════════════════════
                         // (AR) إصلاح: إذا لم نجد الدالة، نتحقق إذا كان استدعاء باني صنف
                         //      بدون كلمة "جديد". في لغة ص، كائن_حي("حي") يُحلَّل كـ CallExpr
-                        //      لكن الباني مسجّل كـ "كائن_حي.باني" في functionTable_
+                        //      لكن الباني مسجّل كـ "كائن_حي.باني" في b_.functionTable_
                         //      بدون هذا: أنواع معاملات الباني لا تُحدَّث من call-site
                         //      مما يؤدي لبقاء المعاملات كـ Integer بدلاً من String
                         // (EN) Fix: If function not found, check if it's a class constructor
@@ -87,20 +88,20 @@ namespace Sad
                         //      causing params to remain Integer instead of String
                         // ═══════════════════════════════════════════════════════════════
                         bool isImplicitCtorCall = false;
-                        if (it == functionTable_.end())
+                        if (it == b_.functionTable_.end())
                         {
-                            // (AR) إصلاح: بدلاً من module_->getClass() (غير متاح في Phase 1.7)
-                            //      نبحث مباشرة عن "اسم.باني" في functionTable_
+                            // (AR) إصلاح: بدلاً من b_.module_->getClass() (غير متاح في Phase 1.7)
+                            //      نبحث مباشرة عن "اسم.باني" في b_.functionTable_
                             //      مسجّل في Phase 1.35 قبل Phase 1.7
-                            // (EN) Fix: Instead of module_->getClass() (unavailable in Phase 1.7)
-                            //      look directly for "name.باني" in functionTable_
+                            // (EN) Fix: Instead of b_.module_->getClass() (unavailable in Phase 1.7)
+                            //      look directly for "name.باني" in b_.functionTable_
                             //      registered in Phase 1.35 before Phase 1.7
                             std::string ctorName = funcName + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
-                            it = functionTable_.find(ctorName);
-                            isImplicitCtorCall = (it != functionTable_.end());
+                            it = b_.functionTable_.find(ctorName);
+                            isImplicitCtorCall = (it != b_.functionTable_.end());
                         }
 
-                        if (it != functionTable_.end())
+                        if (it != b_.functionTable_.end())
                         {
                             auto &funcInfo = it->second;
                             // (AR) عند استدعاء الباني ضمنياً، المعامل الأول هو self → نزيح بـ 1
@@ -187,25 +188,25 @@ namespace Sad
 
                             // ================================================================
                             // (AR) ??????? 1.75: ??????? ????? ??????? ?????????
-                            //      ????? ????? ???? (???? ?? classInstanceTypes_) ?????
-                            //      ?????? ??? ????? ?? paramClassTypes_ ????????? ??????
-                            //      ?? buildFunction ??? ???? ??? ?????? + inferReturnTypeFromBody
+                            //      ????? ????? ???? (???? ?? b_.classInstanceTypes_) ?????
+                            //      ?????? ??? ????? ?? b_.paramClassTypes_ ????????? ??????
+                            //      ?? b_.buildFunction ??? ???? ??? ?????? + inferReturnTypeFromBody
                             // (EN) Phase 1.75: Infer class names for function parameters
-                            //      When an object (tracked in classInstanceTypes_) is passed as arg
-                            //      register class name in paramClassTypes_ for later use
-                            //      in buildFunction when building body + inferReturnTypeFromBody
+                            //      When an object (tracked in b_.classInstanceTypes_) is passed as arg
+                            //      register class name in b_.paramClassTypes_ for later use
+                            //      in b_.buildFunction when building body + inferReturnTypeFromBody
                             // ================================================================
                             for (size_t i = 0; i < call->arguments.size() && (i + paramOffset) < funcInfo.parameters.size(); i++)
                             {
                                 const auto &arg = call->arguments[i];
                                 if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(arg.get()))
                                 {
-                                    // (AR) تحقق: هل هذا المتغير كائن مسجل في classInstanceTypes_?
-                                    // (EN) Check: is this variable an object tracked in classInstanceTypes_?
-                                    auto ciIt = classInstanceTypes_.find(varExpr->name);
-                                    if (ciIt != classInstanceTypes_.end())
+                                    // (AR) تحقق: هل هذا المتغير كائن مسجل في b_.classInstanceTypes_?
+                                    // (EN) Check: is this variable an object tracked in b_.classInstanceTypes_?
+                                    auto ciIt = b_.classInstanceTypes_.find(varExpr->name);
+                                    if (ciIt != b_.classInstanceTypes_.end())
                                     {
-                                        paramClassTypes_[funcName][funcInfo.parameters[i + paramOffset].name] = ciIt->second;
+                                        b_.paramClassTypes_[funcName][funcInfo.parameters[i + paramOffset].name] = ciIt->second;
                                     }
                                 }
                             }
@@ -230,8 +231,8 @@ namespace Sad
                 if (auto *newExpr = dynamic_cast<const Sad::AST::NewExpr *>(expr))
                 {
                     std::string ctorName = newExpr->className + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .????
-                    auto it = functionTable_.find(ctorName);
-                    if (it != functionTable_.end())
+                    auto it = b_.functionTable_.find(ctorName);
+                    if (it != b_.functionTable_.end())
                     {
                         auto &funcInfo = it->second;
                         // params[0] = self, params[1..N] = user params
@@ -264,10 +265,10 @@ namespace Sad
                 // ================================================================
                 // (AR) ??????? ????? � MethodCallExpr
                 //      ???????? ????? ??????? ?????? ??????? ???: ???.????("???")
-                //      ????? ?? functionTable_ ???? "???.?????"
+                //      ????? ?? b_.functionTable_ ???? "???.?????"
                 // (EN) Method call � MethodCallExpr
                 //      Infer param types for static methods like: Class.method("arg")
-                //      Name in functionTable_ is "Class.method"
+                //      Name in b_.functionTable_ is "Class.method"
                 // ================================================================
                 if (auto *methodCall = dynamic_cast<const Sad::AST::MethodCallExpr *>(expr))
                 {
@@ -279,8 +280,8 @@ namespace Sad
 
                     if (!funcName.empty())
                     {
-                        auto it = functionTable_.find(funcName);
-                        if (it != functionTable_.end())
+                        auto it = b_.functionTable_.find(funcName);
+                        if (it != b_.functionTable_.end())
                         {
                             auto &funcInfo = it->second;
 
@@ -350,7 +351,7 @@ namespace Sad
             // ============================================================================
             // scanCallSitesInStmt - ??? ?????? ????? ????? ?? ????????? ??????
             // ============================================================================
-            void SIRBuilder::scanCallSitesInStmt(const Sad::AST::Statement *stmt)
+            void TemplateBuilder::scanCallSitesInStmt(const Sad::AST::Statement *stmt)
             {
                 if (!stmt)
                     return;
@@ -438,7 +439,7 @@ namespace Sad
                     // (EN) Or from a global variable registered with elementType
                     else if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(forStmt->iterable.get()))
                     {
-                        for (auto scopeIt = scopeStack_.rbegin(); scopeIt != scopeStack_.rend(); ++scopeIt)
+                        for (auto scopeIt = b_.scopeStack_.rbegin(); scopeIt != b_.scopeStack_.rend(); ++scopeIt)
                         {
                             auto it = scopeIt->find(varExpr->name);
                             if (it != scopeIt->end())
@@ -457,14 +458,14 @@ namespace Sad
                     // (EN) Register loop variable in a temporary scope during scanning
                     if (iterVarType != SadTypeKind::Integer) // فقط إذا استنتجنا نوعاً محدداً
                     {
-                        enterScope();
+                        b_.enterScope();
                         VariableInfo iterVarInfo;
                         iterVarInfo.name = forStmt->variable;
                         iterVarInfo.type = iterVarType;
                         iterVarInfo.registerName = "%" + forStmt->variable;
-                        addVariable(iterVarInfo);
+                        b_.addVariable(iterVarInfo);
                         scanCallSitesInStmt(forStmt->body.get());
-                        exitScope();
+                        b_.exitScope();
                     }
                     else
                     {
@@ -521,7 +522,7 @@ namespace Sad
             // ============================================================================
             // inferLambdaParamFromExpr � ????? ????? ???????? ????? ??????? ???????
             // ============================================================================
-            void SIRBuilder::inferLambdaParamFromExpr(
+            void TemplateBuilder::inferLambdaParamFromExpr(
                 const ::Sad::AST::Expression *expr,
                 const std::set<std::string> &paramNames,
                 std::unordered_map<std::string, SadTypeKind> &result)
@@ -603,8 +604,8 @@ namespace Sad
 
                     if (!funcName.empty())
                     {
-                        auto funcIt = functionTable_.find(funcName);
-                        if (funcIt != functionTable_.end())
+                        auto funcIt = b_.functionTable_.find(funcName);
+                        if (funcIt != b_.functionTable_.end())
                         {
                             const auto &funcInfo = funcIt->second;
                             for (size_t i = 0; i < call->arguments.size() && i < funcInfo.parameters.size(); i++)
@@ -682,7 +683,7 @@ namespace Sad
             // ============================================================================
             // inferLambdaParamFromStmt � ????? ???? ???????? ????? ??????? ???????
             // ============================================================================
-            void SIRBuilder::inferLambdaParamFromStmt(
+            void TemplateBuilder::inferLambdaParamFromStmt(
                 const ::Sad::AST::Statement *stmt,
                 const std::set<std::string> &paramNames,
                 std::unordered_map<std::string, SadTypeKind> &result)
@@ -737,7 +738,7 @@ namespace Sad
             }
 
             // ============================================================================
-            // inferLambdaParamTypes � ??????? ????? ??????? ??????? ?? ?????
+            // b_.inferLambdaParamTypes � ??????? ????? ??????? ??????? ?? ?????
             // ============================================================================
             std::unordered_map<std::string, SadTypeKind> SIRBuilder::inferLambdaParamTypes(
                 ::Sad::AST::LambdaExpr *lambdaExpr,
@@ -775,13 +776,13 @@ namespace Sad
             // inferParamTypesFromCallSites - ??????? 1.7: ??????? ????? ?????????
             // ============================================================================
             // (AR) ???? ???????? ?????? ????? ?? ????? ????????? ??????
-            //      ????? ????????? ?? functionTable_ ????? ???? ????? I64
+            //      ????? ????????? ?? b_.functionTable_ ????? ???? ????? I64
             //      (?? DataType::UNKNOWN) ??????? ?????? ???? ???????
             // (EN) Scans the entire program for call sites and updates parameter
-            //      types in functionTable_ when type is I64 (from DataType::UNKNOWN)
+            //      types in b_.functionTable_ when type is I64 (from DataType::UNKNOWN)
             //      and actual argument is more specific
             // ============================================================================
-            void SIRBuilder::inferParamTypesFromCallSites(AST::ProgramNode *program)
+            void TemplateBuilder::inferParamTypesFromCallSites(AST::ProgramNode *program)
             {
                 if (!program)
                     return;
@@ -819,9 +820,9 @@ namespace Sad
 
                         if (funcDecl && funcDecl->body)
                         {
-                            currentScanFuncName_ = funcDecl->name;
+                            b_.currentScanFuncName_ = funcDecl->name;
                             scanCallSitesInStmt(funcDecl->body.get());
-                            currentScanFuncName_.clear();
+                            b_.currentScanFuncName_.clear();
                         }
 
                         // (AR) ??? ????? ????????? ?? ??????? ??????
