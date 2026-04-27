@@ -74,18 +74,19 @@
 
 // Sad LLVM Components (مكونات Sad LLVM)
 #include "llvm_type_mapper.h"
-#include "llvm_optimizer.h"                 // إضافة محسّن LLVM / Add LLVM optimizer
-#include "llvm_codegen_context.h"           // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
-#include "builders/arithmetic_codegen.h"    // (AR) Phase 7 Step 1: ArithmeticCodeGen
-#include "builders/memory_codegen.h"        // (AR) Phase 7 Step 2: MemoryCodeGen
-#include "builders/controlflow_codegen.h"   // (AR) Phase 7 Step 3: ControlFlowCodeGen
-#include "builders/aggregate_ops_codegen.h" // (AR) Phase 7 Step 4: AggregateOpsCodeGen
-#include "builders/array_ops_codegen.h"     // (AR) Phase 7 Step 5: ArrayOpsCodeGen
-#include "builders/string_ops_codegen.h"    // (AR) Phase 7 Step 6: StringOpsCodeGen
+#include "llvm_optimizer.h"                  // إضافة محسّن LLVM / Add LLVM optimizer
+#include "llvm_codegen_context.h"            // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
+#include "builders/arithmetic_codegen.h"     // (AR) Phase 7 Step 1: ArithmeticCodeGen
+#include "builders/memory_codegen.h"         // (AR) Phase 7 Step 2: MemoryCodeGen
+#include "builders/controlflow_codegen.h"    // (AR) Phase 7 Step 3: ControlFlowCodeGen
+#include "builders/aggregate_ops_codegen.h"  // (AR) Phase 7 Step 4: AggregateOpsCodeGen
+#include "builders/array_ops_codegen.h"      // (AR) Phase 7 Step 5: ArrayOpsCodeGen
+#include "builders/string_ops_codegen.h"     // (AR) Phase 7 Step 6: StringOpsCodeGen
 #include "builders/array_builtins_codegen.h" // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
 #include "builders/math_builtins_codegen.h"  // (AR) Phase 7 Step 8: MathBuiltinsCodeGen
 #include "builders/map_ops_codegen.h"        // (AR) Phase 7 Step 9: MapOpsCodeGen
 #include "builders/exception_codegen.h"      // (AR) Phase 7 Step 10: ExceptionCodeGen
+#include "builders/lowlevel_codegen.h"       // (AR) Phase 7 Step 11: LowlevelCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -265,6 +266,8 @@ namespace Sad
             friend class MapOpsCodeGen;
             // (AR) Phase 7 Step 10: ExceptionCodeGen
             friend class ExceptionCodeGen;
+            // (AR) Phase 7 Step 11: LowlevelCodeGen
+            friend class LowlevelCodeGen;
 
         public:
             // ========================================================================
@@ -637,49 +640,49 @@ namespace Sad
             llvm::Value *emitBuiltinRead(std::shared_ptr<SIRInstruction> inst);  // اقرأ / Read/Input
             // (AR) Phase 7 Step 6: delegate إلى StringOpsCodeGen
             llvm::Value *emitStringConcat(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringConcat(inst); }
-            void ensureArrayToStringHelper();                                    // توليد دالة __sad_array_to_string / Generate array-to-string helper
+            void ensureArrayToStringHelper(); // توليد دالة __sad_array_to_string / Generate array-to-string helper
             llvm::Value *emitStringCharAt(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCharAt(inst); }
-            llvm::Value *emitStringCmp(std::shared_ptr<SIRInstruction> inst)    { return strops_->emitStringCmp(inst); }
+            llvm::Value *emitStringCmp(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCmp(inst); }
 
             // (AR) دالة مساعدة: تحميل القيمة تلقائياً من alloca إذا لزم الأمر
             // (EN) Helper: Auto-load value from alloca pointer if needed
             llvm::Value *resolveValue(llvm::Value *val, SadTypeKind sirType);
 
-            llvm::Value *emitStringToI64(std::shared_ptr<SIRInstruction> inst)  { return strops_->emitStringToI64(inst); }
-            llvm::Value *emitStringToF64(std::shared_ptr<SIRInstruction> inst)  { return strops_->emitStringToF64(inst); }
+            llvm::Value *emitStringToI64(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringToI64(inst); }
+            llvm::Value *emitStringToF64(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringToF64(inst); }
             // (AR) Phase 7 Step 8: 19 math builtins delegate إلى MathBuiltinsCodeGen
-            llvm::Value *emitBuiltinSqrt(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinSqrt(inst); }
-            llvm::Value *emitBuiltinLog(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinLog(inst); }
-            llvm::Value *emitBuiltinPow(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinPow(inst); }
-            llvm::Value *emitBuiltinAbs(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinAbs(inst); }
+            llvm::Value *emitBuiltinSqrt(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinSqrt(inst); }
+            llvm::Value *emitBuiltinLog(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinLog(inst); }
+            llvm::Value *emitBuiltinPow(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinPow(inst); }
+            llvm::Value *emitBuiltinAbs(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinAbs(inst); }
             llvm::Value *emitBuiltinRound(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinRound(inst); }
             llvm::Value *emitBuiltinFloor(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinFloor(inst); }
-            llvm::Value *emitBuiltinCeil(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinCeil(inst); }
-            llvm::Value *emitBuiltinSin(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinSin(inst); }
-            llvm::Value *emitBuiltinCos(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinCos(inst); }
-            llvm::Value *emitBuiltinTan(std::shared_ptr<SIRInstruction> inst)   { return mathb_->emitBuiltinTan(inst); }
+            llvm::Value *emitBuiltinCeil(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinCeil(inst); }
+            llvm::Value *emitBuiltinSin(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinSin(inst); }
+            llvm::Value *emitBuiltinCos(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinCos(inst); }
+            llvm::Value *emitBuiltinTan(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinTan(inst); }
             llvm::Value *emitBuiltinLog10(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinLog10(inst); }
-            llvm::Value *emitBuiltinLog2(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinLog2(inst); }
-            llvm::Value *emitBuiltinAsin(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinAsin(inst); }
-            llvm::Value *emitBuiltinAcos(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinAcos(inst); }
-            llvm::Value *emitBuiltinAtan(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinAtan(inst); }
+            llvm::Value *emitBuiltinLog2(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinLog2(inst); }
+            llvm::Value *emitBuiltinAsin(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinAsin(inst); }
+            llvm::Value *emitBuiltinAcos(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinAcos(inst); }
+            llvm::Value *emitBuiltinAtan(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinAtan(inst); }
             llvm::Value *emitBuiltinTrunc(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinTrunc(inst); }
-            llvm::Value *emitBuiltinFmod(std::shared_ptr<SIRInstruction> inst)  { return mathb_->emitBuiltinFmod(inst); }
+            llvm::Value *emitBuiltinFmod(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinFmod(inst); }
             llvm::Value *emitBuiltinClamp(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinClamp(inst); }
 
             // String Functions (12) — (AR) Phase 7 Step 6: delegate إلى StringOpsCodeGen
-            llvm::Value *emitBuiltinStringLength(std::shared_ptr<SIRInstruction> inst)     { return strops_->emitBuiltinStringLength(inst); }
-            llvm::Value *emitBuiltinStringToUpper(std::shared_ptr<SIRInstruction> inst)    { return strops_->emitBuiltinStringToUpper(inst); }
-            llvm::Value *emitBuiltinStringToLower(std::shared_ptr<SIRInstruction> inst)    { return strops_->emitBuiltinStringToLower(inst); }
-            llvm::Value *emitBuiltinStringFind(std::shared_ptr<SIRInstruction> inst)       { return strops_->emitBuiltinStringFind(inst); }
-            llvm::Value *emitBuiltinStringReplace(std::shared_ptr<SIRInstruction> inst)    { return strops_->emitBuiltinStringReplace(inst); }
-            llvm::Value *emitBuiltinStringSubstring(std::shared_ptr<SIRInstruction> inst)  { return strops_->emitBuiltinStringSubstring(inst); }
-            llvm::Value *emitBuiltinStringTrim(std::shared_ptr<SIRInstruction> inst)       { return strops_->emitBuiltinStringTrim(inst); }
-            llvm::Value *emitBuiltinStringSplit(std::shared_ptr<SIRInstruction> inst)      { return strops_->emitBuiltinStringSplit(inst); }
-            llvm::Value *emitBuiltinStringJoin(std::shared_ptr<SIRInstruction> inst)       { return strops_->emitBuiltinStringJoin(inst); }
+            llvm::Value *emitBuiltinStringLength(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringLength(inst); }
+            llvm::Value *emitBuiltinStringToUpper(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringToUpper(inst); }
+            llvm::Value *emitBuiltinStringToLower(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringToLower(inst); }
+            llvm::Value *emitBuiltinStringFind(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringFind(inst); }
+            llvm::Value *emitBuiltinStringReplace(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringReplace(inst); }
+            llvm::Value *emitBuiltinStringSubstring(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringSubstring(inst); }
+            llvm::Value *emitBuiltinStringTrim(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringTrim(inst); }
+            llvm::Value *emitBuiltinStringSplit(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringSplit(inst); }
+            llvm::Value *emitBuiltinStringJoin(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringJoin(inst); }
             llvm::Value *emitBuiltinStringStartsWith(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringStartsWith(inst); }
-            llvm::Value *emitBuiltinStringEndsWith(std::shared_ptr<SIRInstruction> inst)   { return strops_->emitBuiltinStringEndsWith(inst); }
-            llvm::Value *emitBuiltinStringContains(std::shared_ptr<SIRInstruction> inst)   { return strops_->emitBuiltinStringContains(inst); }
+            llvm::Value *emitBuiltinStringEndsWith(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringEndsWith(inst); }
+            llvm::Value *emitBuiltinStringContains(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringContains(inst); }
 
             // ================================================================
             // (AR) دوال مساعدة للخرائط (Maps) — تُنشأ كدوال LLVM داخلية عند الحاجة
@@ -690,7 +693,7 @@ namespace Sad
             //      getOrCreateMapCollect: collect non-null entries into array
             // ================================================================
             llvm::Function *getOrCreateMapFindSlot() { return mapops_->getOrCreateMapFindSlot(); }
-            llvm::Function *getOrCreateMapCollect()  { return mapops_->getOrCreateMapCollect(); }
+            llvm::Function *getOrCreateMapCollect() { return mapops_->getOrCreateMapCollect(); }
 
             // ================================================================
             // (AR) إصلاح setjmp/longjmp مع optimizer:
@@ -718,10 +721,14 @@ namespace Sad
             //      emitCallMap: handle map runtime functions
             std::optional<llvm::Value *> emitCallException(const std::string &funcName,
                                                            std::vector<llvm::Value *> &args, std::shared_ptr<SIRInstruction> inst)
-            { return exc_->emitCallException(funcName, args, inst); }
+            {
+                return exc_->emitCallException(funcName, args, inst);
+            }
             std::optional<llvm::Value *> emitCallMap(const std::string &funcName,
                                                      std::vector<llvm::Value *> &args, std::shared_ptr<SIRInstruction> inst)
-            { return mapops_->emitCallMap(funcName, args, inst); }
+            {
+                return mapops_->emitCallMap(funcName, args, inst);
+            }
 
             // (AR) دوال dispatcher الفرعية للتعليمات — مستخرجة من emitInstruction (Strangler Fig v3.1)
             //      emitInstructionCore     : الجوهر (حساب، async، كائنات، سلاسل، FFI، مصفوفات...)
@@ -758,21 +765,21 @@ namespace Sad
                 const std::vector<llvm::Type *> &paramTypes);
 
             // (AR) Phase 7 Step 5: delegate إلى ArrayOpsCodeGen (تبقى wrappers لأن array_file_coro.cpp يستدعيها)
-            llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr")                                       { return arr_->normalizeArrayPtr(arrPtr, label); }
-            llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx")                { return arr_->normalizeArrayIndex(index, arrPtr, label); }
-            void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc")                              { arr_->emitBoundsCheck(index, arrPtr, label); }
+            llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr") { return arr_->normalizeArrayPtr(arrPtr, label); }
+            llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx") { return arr_->normalizeArrayIndex(index, arrPtr, label); }
+            void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc") { arr_->emitBoundsCheck(index, arrPtr, label); }
 
             // Array Functions (10) — (AR) Phase 7 Step 7: 8 مفوّضة إلى ArrayBuiltinsCodeGen (Append/Remove تبقى)
             llvm::Value *emitBuiltinArrayAppend(std::shared_ptr<SIRInstruction> inst);
             llvm::Value *emitBuiltinArrayRemove(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinArraySize(std::shared_ptr<SIRInstruction> inst)     { return arrb_->emitBuiltinArraySize(inst); }
-            llvm::Value *emitBuiltinArrayIndexOf(std::shared_ptr<SIRInstruction> inst)  { return arrb_->emitBuiltinArrayIndexOf(inst); }
+            llvm::Value *emitBuiltinArraySize(std::shared_ptr<SIRInstruction> inst) { return arrb_->emitBuiltinArraySize(inst); }
+            llvm::Value *emitBuiltinArrayIndexOf(std::shared_ptr<SIRInstruction> inst) { return arrb_->emitBuiltinArrayIndexOf(inst); }
             llvm::Value *emitBuiltinArrayContains(std::shared_ptr<SIRInstruction> inst) { return arrb_->emitBuiltinArrayContains(inst); }
-            llvm::Value *emitBuiltinArrayReverse(std::shared_ptr<SIRInstruction> inst)  { return arrb_->emitBuiltinArrayReverse(inst); }
-            llvm::Value *emitBuiltinArraySort(std::shared_ptr<SIRInstruction> inst)     { return arrb_->emitBuiltinArraySort(inst); }
-            llvm::Value *emitBuiltinArrayFirst(std::shared_ptr<SIRInstruction> inst)    { return arrb_->emitBuiltinArrayFirst(inst); }
-            llvm::Value *emitBuiltinArrayLast(std::shared_ptr<SIRInstruction> inst)     { return arrb_->emitBuiltinArrayLast(inst); }
-            llvm::Value *emitBuiltinArraySlice(std::shared_ptr<SIRInstruction> inst)    { return arrb_->emitBuiltinArraySlice(inst); }
+            llvm::Value *emitBuiltinArrayReverse(std::shared_ptr<SIRInstruction> inst) { return arrb_->emitBuiltinArrayReverse(inst); }
+            llvm::Value *emitBuiltinArraySort(std::shared_ptr<SIRInstruction> inst) { return arrb_->emitBuiltinArraySort(inst); }
+            llvm::Value *emitBuiltinArrayFirst(std::shared_ptr<SIRInstruction> inst) { return arrb_->emitBuiltinArrayFirst(inst); }
+            llvm::Value *emitBuiltinArrayLast(std::shared_ptr<SIRInstruction> inst) { return arrb_->emitBuiltinArrayLast(inst); }
+            llvm::Value *emitBuiltinArraySlice(std::shared_ptr<SIRInstruction> inst) { return arrb_->emitBuiltinArraySlice(inst); }
 
             // File I/O Functions (8)
             llvm::Value *emitBuiltinFileRead(std::shared_ptr<SIRInstruction> inst);
@@ -982,209 +989,209 @@ namespace Sad
             // ================================================================
 
             // 15a. وحدة المعالج المتقدمة / Advanced CPU Module (8)
-            llvm::Value *emitLowlevelCpuGetInfo(std::shared_ptr<SIRInstruction> inst);     // معلومات_المعالج
-            llvm::Value *emitLowlevelCpuGetFeatures(std::shared_ptr<SIRInstruction> inst); // ميزات_المعالج
-            llvm::Value *emitLowlevelCpuReadMSR(std::shared_ptr<SIRInstruction> inst);     // اقرأ_سجل_نموذج
-            llvm::Value *emitLowlevelCpuWriteMSR(std::shared_ptr<SIRInstruction> inst);    // اكتب_سجل_نموذج
-            llvm::Value *emitLowlevelCpuReadCR(std::shared_ptr<SIRInstruction> inst);      // اقرأ_سجل_تحكم
-            llvm::Value *emitLowlevelCpuWriteCR(std::shared_ptr<SIRInstruction> inst);     // اكتب_سجل_تحكم
-            llvm::Value *emitLowlevelCpuInvlpg(std::shared_ptr<SIRInstruction> inst);      // ابطل_صفحة
-            llvm::Value *emitLowlevelCpuGetReport(std::shared_ptr<SIRInstruction> inst);   // تقرير_المعالج
+            llvm::Value *emitLowlevelCpuGetInfo(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelCpuGetInfo(inst); }         // معلومات_المعالج
+            llvm::Value *emitLowlevelCpuGetFeatures(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelCpuGetFeatures(inst); } // ميزات_المعالج
+            llvm::Value *emitLowlevelCpuReadMSR(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelCpuReadMSR(inst); }         // اقرأ_سجل_نموذج
+            llvm::Value *emitLowlevelCpuWriteMSR(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelCpuWriteMSR(inst); }       // اكتب_سجل_نموذج
+            llvm::Value *emitLowlevelCpuReadCR(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelCpuReadCR(inst); }           // اقرأ_سجل_تحكم
+            llvm::Value *emitLowlevelCpuWriteCR(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelCpuWriteCR(inst); }         // اكتب_سجل_تحكم
+            llvm::Value *emitLowlevelCpuInvlpg(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelCpuInvlpg(inst); }           // ابطل_صفحة
+            llvm::Value *emitLowlevelCpuGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelCpuGetReport(inst); }     // تقرير_المعالج
 
             // 15b. وحدة GDT (3)
-            llvm::Value *emitLowlevelGdtInit(std::shared_ptr<SIRInstruction> inst);      // هيئ_جدول_واصفات
-            llvm::Value *emitLowlevelGdtLoad(std::shared_ptr<SIRInstruction> inst);      // حمل_جدول_واصفات
-            llvm::Value *emitLowlevelGdtGetReport(std::shared_ptr<SIRInstruction> inst); // تقرير_واصفات
+            llvm::Value *emitLowlevelGdtInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelGdtInit(inst); }           // هيئ_جدول_واصفات
+            llvm::Value *emitLowlevelGdtLoad(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelGdtLoad(inst); }           // حمل_جدول_واصفات
+            llvm::Value *emitLowlevelGdtGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelGdtGetReport(inst); } // تقرير_واصفات
 
             // 15c. وحدة الترحيل / Paging (5)
-            llvm::Value *emitLowlevelPagingInit(std::shared_ptr<SIRInstruction> inst);      // هيئ_ترحيل
-            llvm::Value *emitLowlevelPagingMap(std::shared_ptr<SIRInstruction> inst);       // رحل_صفحة
-            llvm::Value *emitLowlevelPagingUnmap(std::shared_ptr<SIRInstruction> inst);     // الغ_ترحيل
-            llvm::Value *emitLowlevelPagingFlushTlb(std::shared_ptr<SIRInstruction> inst);  // افرغ_ذاكرة_ترجمة
-            llvm::Value *emitLowlevelPagingGetReport(std::shared_ptr<SIRInstruction> inst); // تقرير_ترحيل
+            llvm::Value *emitLowlevelPagingInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelPagingInit(inst); }           // هيئ_ترحيل
+            llvm::Value *emitLowlevelPagingMap(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelPagingMap(inst); }             // رحل_صفحة
+            llvm::Value *emitLowlevelPagingUnmap(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelPagingUnmap(inst); }         // الغ_ترحيل
+            llvm::Value *emitLowlevelPagingFlushTlb(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelPagingFlushTlb(inst); }   // افرغ_ذاكرة_ترجمة
+            llvm::Value *emitLowlevelPagingGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelPagingGetReport(inst); } // تقرير_ترحيل
 
             // 15d. وحدة المقاطعات المتقدمة / Advanced Interrupts/IDT (5)
-            llvm::Value *emitLowlevelIdtInit(std::shared_ptr<SIRInstruction> inst);        // هيئ_جدول_مقاطعات
-            llvm::Value *emitLowlevelIdtLoad(std::shared_ptr<SIRInstruction> inst);        // حمل_جدول_مقاطعات
-            llvm::Value *emitLowlevelIdtRegisterIsr(std::shared_ptr<SIRInstruction> inst); // سجل_معالج_مقاطعة
-            llvm::Value *emitLowlevelIdtEnableIrq(std::shared_ptr<SIRInstruction> inst);   // فعل_طلب_مقاطعة
-            llvm::Value *emitLowlevelIdtGetReport(std::shared_ptr<SIRInstruction> inst);   // تقرير_مقاطعات
+            llvm::Value *emitLowlevelIdtInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelIdtInit(inst); }               // هيئ_جدول_مقاطعات
+            llvm::Value *emitLowlevelIdtLoad(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelIdtLoad(inst); }               // حمل_جدول_مقاطعات
+            llvm::Value *emitLowlevelIdtRegisterIsr(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelIdtRegisterIsr(inst); } // سجل_معالج_مقاطعة
+            llvm::Value *emitLowlevelIdtEnableIrq(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelIdtEnableIrq(inst); }     // فعل_طلب_مقاطعة
+            llvm::Value *emitLowlevelIdtGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelIdtGetReport(inst); }     // تقرير_مقاطعات
 
             // 15e. وحدة PCI (5)
-            llvm::Value *emitLowlevelPciEnumerate(std::shared_ptr<SIRInstruction> inst);      // عدد_أجهزة_ناقل
-            llvm::Value *emitLowlevelPciReadConfig(std::shared_ptr<SIRInstruction> inst);     // اقرأ_اعدادات_ناقل
-            llvm::Value *emitLowlevelPciWriteConfig(std::shared_ptr<SIRInstruction> inst);    // اكتب_اعدادات_ناقل
-            llvm::Value *emitLowlevelPciGetDeviceCount(std::shared_ptr<SIRInstruction> inst); // عدد_الأجهزة
-            llvm::Value *emitLowlevelPciGetReport(std::shared_ptr<SIRInstruction> inst);      // تقرير_ناقل
+            llvm::Value *emitLowlevelPciEnumerate(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelPciEnumerate(inst); }           // عدد_أجهزة_ناقل
+            llvm::Value *emitLowlevelPciReadConfig(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelPciReadConfig(inst); }         // اقرأ_اعدادات_ناقل
+            llvm::Value *emitLowlevelPciWriteConfig(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelPciWriteConfig(inst); }       // اكتب_اعدادات_ناقل
+            llvm::Value *emitLowlevelPciGetDeviceCount(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelPciGetDeviceCount(inst); } // عدد_الأجهزة
+            llvm::Value *emitLowlevelPciGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelPciGetReport(inst); }           // تقرير_ناقل
 
             // 15f. وحدة DMA المتقدمة (4)
-            llvm::Value *emitLowlevelDmaInit(std::shared_ptr<SIRInstruction> inst);      // هيئ_نقل_مباشر
-            llvm::Value *emitLowlevelDmaTransfer(std::shared_ptr<SIRInstruction> inst);  // ابدأ_نقل
-            llvm::Value *emitLowlevelDmaStatus(std::shared_ptr<SIRInstruction> inst);    // حالة_نقل
-            llvm::Value *emitLowlevelDmaGetReport(std::shared_ptr<SIRInstruction> inst); // تقرير_نقل
+            llvm::Value *emitLowlevelDmaInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelDmaInit(inst); }           // هيئ_نقل_مباشر
+            llvm::Value *emitLowlevelDmaTransfer(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelDmaTransfer(inst); }   // ابدأ_نقل
+            llvm::Value *emitLowlevelDmaStatus(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelDmaStatus(inst); }       // حالة_نقل
+            llvm::Value *emitLowlevelDmaGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelDmaGetReport(inst); } // تقرير_نقل
 
             // 15g. وحدة الشاشة / Framebuffer (8)
-            llvm::Value *emitLowlevelFbInit(std::shared_ptr<SIRInstruction> inst);       // هيئ_شاشة
-            llvm::Value *emitLowlevelFbSetPixel(std::shared_ptr<SIRInstruction> inst);   // ارسم_نقطة
-            llvm::Value *emitLowlevelFbDrawRect(std::shared_ptr<SIRInstruction> inst);   // ارسم_مستطيل
-            llvm::Value *emitLowlevelFbFillRect(std::shared_ptr<SIRInstruction> inst);   // املأ_مستطيل
-            llvm::Value *emitLowlevelFbDrawLine(std::shared_ptr<SIRInstruction> inst);   // ارسم_خط
-            llvm::Value *emitLowlevelFbDrawString(std::shared_ptr<SIRInstruction> inst); // ارسم_نص
-            llvm::Value *emitLowlevelFbClear(std::shared_ptr<SIRInstruction> inst);      // امسح_شاشة
-            llvm::Value *emitLowlevelFbGetReport(std::shared_ptr<SIRInstruction> inst);  // تقرير_شاشة
+            llvm::Value *emitLowlevelFbInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelFbInit(inst); }             // هيئ_شاشة
+            llvm::Value *emitLowlevelFbSetPixel(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelFbSetPixel(inst); }     // ارسم_نقطة
+            llvm::Value *emitLowlevelFbDrawRect(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelFbDrawRect(inst); }     // ارسم_مستطيل
+            llvm::Value *emitLowlevelFbFillRect(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelFbFillRect(inst); }     // املأ_مستطيل
+            llvm::Value *emitLowlevelFbDrawLine(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelFbDrawLine(inst); }     // ارسم_خط
+            llvm::Value *emitLowlevelFbDrawString(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelFbDrawString(inst); } // ارسم_نص
+            llvm::Value *emitLowlevelFbClear(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelFbClear(inst); }           // امسح_شاشة
+            llvm::Value *emitLowlevelFbGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelFbGetReport(inst); }   // تقرير_شاشة
 
             // 15h. وحدة ACPI (4)
-            llvm::Value *emitLowlevelAcpiInit(std::shared_ptr<SIRInstruction> inst);      // هيئ_طاقة
-            llvm::Value *emitLowlevelAcpiFindTable(std::shared_ptr<SIRInstruction> inst); // ابحث_جدول_طاقة
-            llvm::Value *emitLowlevelAcpiShutdown(std::shared_ptr<SIRInstruction> inst);  // اطفئ
-            llvm::Value *emitLowlevelAcpiGetReport(std::shared_ptr<SIRInstruction> inst); // تقرير_طاقة
+            llvm::Value *emitLowlevelAcpiInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiInit(inst); }           // هيئ_طاقة
+            llvm::Value *emitLowlevelAcpiFindTable(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiFindTable(inst); } // ابحث_جدول_طاقة
+            llvm::Value *emitLowlevelAcpiShutdown(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiShutdown(inst); }   // اطفئ
+            llvm::Value *emitLowlevelAcpiGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiGetReport(inst); } // تقرير_طاقة
 
             // 15i. وحدة التزامن / Sync (8)
-            llvm::Value *emitLowlevelSpinlockInit(std::shared_ptr<SIRInstruction> inst);   // هيئ_قفل_دوار
-            llvm::Value *emitLowlevelSpinlockLock(std::shared_ptr<SIRInstruction> inst);   // اقفل_دوار
-            llvm::Value *emitLowlevelSpinlockUnlock(std::shared_ptr<SIRInstruction> inst); // افتح_قفل_دوار
-            llvm::Value *emitLowlevelMutexInit(std::shared_ptr<SIRInstruction> inst);      // هيئ_كابح
-            llvm::Value *emitLowlevelMutexLock(std::shared_ptr<SIRInstruction> inst);      // اقفل_كابح
-            llvm::Value *emitLowlevelMutexUnlock(std::shared_ptr<SIRInstruction> inst);    // افتح_كابح
-            llvm::Value *emitLowlevelSemaphoreInit(std::shared_ptr<SIRInstruction> inst);  // هيئ_اشارة
-            llvm::Value *emitLowlevelBarrierInit(std::shared_ptr<SIRInstruction> inst);    // هيئ_حاجز
+            llvm::Value *emitLowlevelSpinlockInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSpinlockInit(inst); }     // هيئ_قفل_دوار
+            llvm::Value *emitLowlevelSpinlockLock(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSpinlockLock(inst); }     // اقفل_دوار
+            llvm::Value *emitLowlevelSpinlockUnlock(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSpinlockUnlock(inst); } // افتح_قفل_دوار
+            llvm::Value *emitLowlevelMutexInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelMutexInit(inst); }           // هيئ_كابح
+            llvm::Value *emitLowlevelMutexLock(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelMutexLock(inst); }           // اقفل_كابح
+            llvm::Value *emitLowlevelMutexUnlock(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelMutexUnlock(inst); }       // افتح_كابح
+            llvm::Value *emitLowlevelSemaphoreInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSemaphoreInit(inst); }   // هيئ_اشارة
+            llvm::Value *emitLowlevelBarrierInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelBarrierInit(inst); }       // هيئ_حاجز
 
             // 15j. وحدة المجدول / Scheduler (6)
-            llvm::Value *emitLowlevelSchedInit(std::shared_ptr<SIRInstruction> inst);         // هيئ_مجدول
-            llvm::Value *emitLowlevelSchedCreateProc(std::shared_ptr<SIRInstruction> inst);   // انشئ_عملية
-            llvm::Value *emitLowlevelSchedCreateThread(std::shared_ptr<SIRInstruction> inst); // انشئ_خيط_نواة
-            llvm::Value *emitLowlevelSchedYield(std::shared_ptr<SIRInstruction> inst);        // تنازل
-            llvm::Value *emitLowlevelSchedSleep(std::shared_ptr<SIRInstruction> inst);        // نوم_مجدول
-            llvm::Value *emitLowlevelSchedGetReport(std::shared_ptr<SIRInstruction> inst);    // تقرير_مجدول
+            llvm::Value *emitLowlevelSchedInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSchedInit(inst); }                 // هيئ_مجدول
+            llvm::Value *emitLowlevelSchedCreateProc(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSchedCreateProc(inst); }     // انشئ_عملية
+            llvm::Value *emitLowlevelSchedCreateThread(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSchedCreateThread(inst); } // انشئ_خيط_نواة
+            llvm::Value *emitLowlevelSchedYield(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSchedYield(inst); }               // تنازل
+            llvm::Value *emitLowlevelSchedSleep(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSchedSleep(inst); }               // نوم_مجدول
+            llvm::Value *emitLowlevelSchedGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSchedGetReport(inst); }       // تقرير_مجدول
 
             // 15k. وحدة الإقلاع / Boot (3)
-            llvm::Value *emitLowlevelBootGetInfo(std::shared_ptr<SIRInstruction> inst);      // معلومات_اقلاع
-            llvm::Value *emitLowlevelBootGetMemoryMap(std::shared_ptr<SIRInstruction> inst); // خريطة_ذاكرة_اقلاع
-            llvm::Value *emitLowlevelBootGetReport(std::shared_ptr<SIRInstruction> inst);    // تقرير_اقلاع
+            llvm::Value *emitLowlevelBootGetInfo(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelBootGetInfo(inst); }           // معلومات_اقلاع
+            llvm::Value *emitLowlevelBootGetMemoryMap(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelBootGetMemoryMap(inst); } // خريطة_ذاكرة_اقلاع
+            llvm::Value *emitLowlevelBootGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelBootGetReport(inst); }       // تقرير_اقلاع
 
             // 15l. وحدة نظام الملفات / VFS (7)
-            llvm::Value *emitLowlevelVfsMount(std::shared_ptr<SIRInstruction> inst);     // حمل_قرص
-            llvm::Value *emitLowlevelVfsUnmount(std::shared_ptr<SIRInstruction> inst);   // افصل_قرص
-            llvm::Value *emitLowlevelVfsOpen(std::shared_ptr<SIRInstruction> inst);      // افتح_ملف_نواة
-            llvm::Value *emitLowlevelVfsRead(std::shared_ptr<SIRInstruction> inst);      // اقرأ_ملف_نواة
-            llvm::Value *emitLowlevelVfsWrite(std::shared_ptr<SIRInstruction> inst);     // اكتب_ملف_نواة
-            llvm::Value *emitLowlevelVfsClose(std::shared_ptr<SIRInstruction> inst);     // اغلق_ملف_نواة
-            llvm::Value *emitLowlevelVfsGetReport(std::shared_ptr<SIRInstruction> inst); // تقرير_ملفات
+            llvm::Value *emitLowlevelVfsMount(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelVfsMount(inst); }         // حمل_قرص
+            llvm::Value *emitLowlevelVfsUnmount(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelVfsUnmount(inst); }     // افصل_قرص
+            llvm::Value *emitLowlevelVfsOpen(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelVfsOpen(inst); }           // افتح_ملف_نواة
+            llvm::Value *emitLowlevelVfsRead(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelVfsRead(inst); }           // اقرأ_ملف_نواة
+            llvm::Value *emitLowlevelVfsWrite(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelVfsWrite(inst); }         // اكتب_ملف_نواة
+            llvm::Value *emitLowlevelVfsClose(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelVfsClose(inst); }         // اغلق_ملف_نواة
+            llvm::Value *emitLowlevelVfsGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelVfsGetReport(inst); } // تقرير_ملفات
 
             // 15m. وحدة APIC (5)
-            llvm::Value *emitLowlevelApicInit(std::shared_ptr<SIRInstruction> inst);      // هيئ_متحكم_مقاطعات
-            llvm::Value *emitLowlevelApicSendEoi(std::shared_ptr<SIRInstruction> inst);   // ارسل_نهاية_مقاطعة
-            llvm::Value *emitLowlevelApicSendIpi(std::shared_ptr<SIRInstruction> inst);   // ارسل_مقاطعة_معالج
-            llvm::Value *emitLowlevelApicSetTimer(std::shared_ptr<SIRInstruction> inst);  // اضبط_مؤقت_متحكم
-            llvm::Value *emitLowlevelApicGetReport(std::shared_ptr<SIRInstruction> inst); // تقرير_متحكم_مقاطعات
+            llvm::Value *emitLowlevelApicInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicInit(inst); }           // هيئ_متحكم_مقاطعات
+            llvm::Value *emitLowlevelApicSendEoi(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicSendEoi(inst); }     // ارسل_نهاية_مقاطعة
+            llvm::Value *emitLowlevelApicSendIpi(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicSendIpi(inst); }     // ارسل_مقاطعة_معالج
+            llvm::Value *emitLowlevelApicSetTimer(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicSetTimer(inst); }   // اضبط_مؤقت_متحكم
+            llvm::Value *emitLowlevelApicGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicGetReport(inst); } // تقرير_متحكم_مقاطعات
 
             // 15n. وحدة HPET (4)
-            llvm::Value *emitLowlevelHpetInit(std::shared_ptr<SIRInstruction> inst);      // هيئ_مؤقت_دقيق
-            llvm::Value *emitLowlevelHpetRead(std::shared_ptr<SIRInstruction> inst);      // اقرأ_مؤقت_دقيق
-            llvm::Value *emitLowlevelHpetSleep(std::shared_ptr<SIRInstruction> inst);     // نوم_دقيق
-            llvm::Value *emitLowlevelHpetGetReport(std::shared_ptr<SIRInstruction> inst); // تقرير_مؤقت_دقيق
+            llvm::Value *emitLowlevelHpetInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelHpetInit(inst); }           // هيئ_مؤقت_دقيق
+            llvm::Value *emitLowlevelHpetRead(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelHpetRead(inst); }           // اقرأ_مؤقت_دقيق
+            llvm::Value *emitLowlevelHpetSleep(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelHpetSleep(inst); }         // نوم_دقيق
+            llvm::Value *emitLowlevelHpetGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelHpetGetReport(inst); } // تقرير_مؤقت_دقيق
 
             // 15o. وحدة استدعاءات النظام / Syscall (4)
-            llvm::Value *emitLowlevelSyscallInit(std::shared_ptr<SIRInstruction> inst);      // هيئ_استدعاءات
-            llvm::Value *emitLowlevelSyscallRegister(std::shared_ptr<SIRInstruction> inst);  // سجل_استدعاء
-            llvm::Value *emitLowlevelSyscallInvoke(std::shared_ptr<SIRInstruction> inst);    // نفذ_استدعاء
-            llvm::Value *emitLowlevelSyscallGetReport(std::shared_ptr<SIRInstruction> inst); // تقرير_استدعاءات
+            llvm::Value *emitLowlevelSyscallInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSyscallInit(inst); }           // هيئ_استدعاءات
+            llvm::Value *emitLowlevelSyscallRegister(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSyscallRegister(inst); }   // سجل_استدعاء
+            llvm::Value *emitLowlevelSyscallInvoke(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSyscallInvoke(inst); }       // نفذ_استدعاء
+            llvm::Value *emitLowlevelSyscallGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelSyscallGetReport(inst); } // تقرير_استدعاءات
 
             // 15p. عمليات الذاكرة المتقدمة / Advanced Memory (4)
-            llvm::Value *emitLowlevelMemAllocPhys(std::shared_ptr<SIRInstruction> inst); // خصص_فيزيائي
-            llvm::Value *emitLowlevelMemFreePhys(std::shared_ptr<SIRInstruction> inst);  // حرر_فيزيائي
-            llvm::Value *emitLowlevelMemMapRegion(std::shared_ptr<SIRInstruction> inst); // رحل_منطقة
-            llvm::Value *emitLowlevelMemGetReport(std::shared_ptr<SIRInstruction> inst); // تقرير_ذاكرة_نواة
+            llvm::Value *emitLowlevelMemAllocPhys(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelMemAllocPhys(inst); } // خصص_فيزيائي
+            llvm::Value *emitLowlevelMemFreePhys(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelMemFreePhys(inst); }   // حرر_فيزيائي
+            llvm::Value *emitLowlevelMemMapRegion(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelMemMapRegion(inst); } // رحل_منطقة
+            llvm::Value *emitLowlevelMemGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelMemGetReport(inst); } // تقرير_ذاكرة_نواة
 
             // =================================================================
             // القسم 16: بروتوكول UEFI / UEFI Boot Protocol (37 دالة)
             // =================================================================
 
             // 16a. التهيئة والتحكم (5)
-            llvm::Value *emitLowlevelUefiInit(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiExitBootServices(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiIsInitialized(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiBsExited(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiResetSystem(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitLowlevelUefiInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiInit(inst); }
+            llvm::Value *emitLowlevelUefiExitBootServices(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiExitBootServices(inst); }
+            llvm::Value *emitLowlevelUefiIsInitialized(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiIsInitialized(inst); }
+            llvm::Value *emitLowlevelUefiBsExited(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiBsExited(inst); }
+            llvm::Value *emitLowlevelUefiResetSystem(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiResetSystem(inst); }
 
             // 16b. إدارة الذاكرة (7)
-            llvm::Value *emitLowlevelUefiAllocPages(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiFreePages(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiAllocPool(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiFreePool(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiGetMemoryMap(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiGetMemmapKey(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiTotalMemory(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitLowlevelUefiAllocPages(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiAllocPages(inst); }
+            llvm::Value *emitLowlevelUefiFreePages(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiFreePages(inst); }
+            llvm::Value *emitLowlevelUefiAllocPool(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiAllocPool(inst); }
+            llvm::Value *emitLowlevelUefiFreePool(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiFreePool(inst); }
+            llvm::Value *emitLowlevelUefiGetMemoryMap(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiGetMemoryMap(inst); }
+            llvm::Value *emitLowlevelUefiGetMemmapKey(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiGetMemmapKey(inst); }
+            llvm::Value *emitLowlevelUefiTotalMemory(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiTotalMemory(inst); }
 
             // 16c. بروتوكول الرسوميات GOP (10)
-            llvm::Value *emitLowlevelUefiInitGop(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiSetGopMode(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiQueryGopMode(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiGopModeCount(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiCurrentGopMode(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiFramebufferBase(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiFramebufferSize(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiFillScreen(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiDrawRect(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiGopBlt(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitLowlevelUefiInitGop(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiInitGop(inst); }
+            llvm::Value *emitLowlevelUefiSetGopMode(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiSetGopMode(inst); }
+            llvm::Value *emitLowlevelUefiQueryGopMode(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiQueryGopMode(inst); }
+            llvm::Value *emitLowlevelUefiGopModeCount(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiGopModeCount(inst); }
+            llvm::Value *emitLowlevelUefiCurrentGopMode(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiCurrentGopMode(inst); }
+            llvm::Value *emitLowlevelUefiFramebufferBase(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiFramebufferBase(inst); }
+            llvm::Value *emitLowlevelUefiFramebufferSize(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiFramebufferSize(inst); }
+            llvm::Value *emitLowlevelUefiFillScreen(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiFillScreen(inst); }
+            llvm::Value *emitLowlevelUefiDrawRect(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiDrawRect(inst); }
+            llvm::Value *emitLowlevelUefiGopBlt(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiGopBlt(inst); }
 
             // 16d. خدمات وقت التشغيل (4)
-            llvm::Value *emitLowlevelUefiGetTime(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiSetTime(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiGetVariable(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiSetVariable(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitLowlevelUefiGetTime(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiGetTime(inst); }
+            llvm::Value *emitLowlevelUefiSetTime(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiSetTime(inst); }
+            llvm::Value *emitLowlevelUefiGetVariable(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiGetVariable(inst); }
+            llvm::Value *emitLowlevelUefiSetVariable(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiSetVariable(inst); }
 
             // 16e. نظام الملفات (6)
-            llvm::Value *emitLowlevelUefiOpenVolume(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiOpenFile(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiReadFile(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiWriteFile(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiCloseFile(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiFileInfo(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitLowlevelUefiOpenVolume(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiOpenVolume(inst); }
+            llvm::Value *emitLowlevelUefiOpenFile(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiOpenFile(inst); }
+            llvm::Value *emitLowlevelUefiReadFile(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiReadFile(inst); }
+            llvm::Value *emitLowlevelUefiWriteFile(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiWriteFile(inst); }
+            llvm::Value *emitLowlevelUefiCloseFile(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiCloseFile(inst); }
+            llvm::Value *emitLowlevelUefiFileInfo(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiFileInfo(inst); }
 
             // 16f. بروتوكولات ومعلومات (5)
-            llvm::Value *emitLowlevelUefiLocateProtocol(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiRevision(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiVendor(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiFwRevision(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelUefiReport(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitLowlevelUefiLocateProtocol(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiLocateProtocol(inst); }
+            llvm::Value *emitLowlevelUefiRevision(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiRevision(inst); }
+            llvm::Value *emitLowlevelUefiVendor(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiVendor(inst); }
+            llvm::Value *emitLowlevelUefiFwRevision(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiFwRevision(inst); }
+            llvm::Value *emitLowlevelUefiReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelUefiReport(inst); }
 
             // --- القسم 17: ACPI الموسّع / Extended ACPI ---
-            llvm::Value *emitLowlevelAcpiInitFull(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiInitRsdp(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiEnable(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiDisable(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiIsInitialized(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiVersion(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiReboot(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiSleep(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiDelayUs(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiReadPmTimer(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiIsPm32bit(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiProcessorCount(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiLocalApicAddr(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelAcpiEcamBase(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitLowlevelAcpiInitFull(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiInitFull(inst); }
+            llvm::Value *emitLowlevelAcpiInitRsdp(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiInitRsdp(inst); }
+            llvm::Value *emitLowlevelAcpiEnable(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiEnable(inst); }
+            llvm::Value *emitLowlevelAcpiDisable(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiDisable(inst); }
+            llvm::Value *emitLowlevelAcpiIsInitialized(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiIsInitialized(inst); }
+            llvm::Value *emitLowlevelAcpiVersion(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiVersion(inst); }
+            llvm::Value *emitLowlevelAcpiReboot(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiReboot(inst); }
+            llvm::Value *emitLowlevelAcpiSleep(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiSleep(inst); }
+            llvm::Value *emitLowlevelAcpiDelayUs(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiDelayUs(inst); }
+            llvm::Value *emitLowlevelAcpiReadPmTimer(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiReadPmTimer(inst); }
+            llvm::Value *emitLowlevelAcpiIsPm32bit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiIsPm32bit(inst); }
+            llvm::Value *emitLowlevelAcpiProcessorCount(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiProcessorCount(inst); }
+            llvm::Value *emitLowlevelAcpiLocalApicAddr(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiLocalApicAddr(inst); }
+            llvm::Value *emitLowlevelAcpiEcamBase(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelAcpiEcamBase(inst); }
 
             // --- القسم 18: APIC الموسّع / Extended APIC ---
-            llvm::Value *emitLowlevelApicSupported(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicX2Supported(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicId(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicIoCount(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicInitTimer(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicStartTimer(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicStopTimer(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicTimerCount(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicCalibrate(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicSetPriority(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicDisablePic(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicMaskIrq(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicUnmaskIrq(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicRouteIrq(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicSendIpiAll(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicSendInitIpi(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicSendSipi(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicWaitDelivery(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitLowlevelApicInitIo(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitLowlevelApicSupported(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicSupported(inst); }
+            llvm::Value *emitLowlevelApicX2Supported(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicX2Supported(inst); }
+            llvm::Value *emitLowlevelApicId(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicId(inst); }
+            llvm::Value *emitLowlevelApicIoCount(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicIoCount(inst); }
+            llvm::Value *emitLowlevelApicInitTimer(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicInitTimer(inst); }
+            llvm::Value *emitLowlevelApicStartTimer(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicStartTimer(inst); }
+            llvm::Value *emitLowlevelApicStopTimer(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicStopTimer(inst); }
+            llvm::Value *emitLowlevelApicTimerCount(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicTimerCount(inst); }
+            llvm::Value *emitLowlevelApicCalibrate(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicCalibrate(inst); }
+            llvm::Value *emitLowlevelApicSetPriority(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicSetPriority(inst); }
+            llvm::Value *emitLowlevelApicDisablePic(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicDisablePic(inst); }
+            llvm::Value *emitLowlevelApicMaskIrq(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicMaskIrq(inst); }
+            llvm::Value *emitLowlevelApicUnmaskIrq(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicUnmaskIrq(inst); }
+            llvm::Value *emitLowlevelApicRouteIrq(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicRouteIrq(inst); }
+            llvm::Value *emitLowlevelApicSendIpiAll(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicSendIpiAll(inst); }
+            llvm::Value *emitLowlevelApicSendInitIpi(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicSendInitIpi(inst); }
+            llvm::Value *emitLowlevelApicSendSipi(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicSendSipi(inst); }
+            llvm::Value *emitLowlevelApicWaitDelivery(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicWaitDelivery(inst); }
+            llvm::Value *emitLowlevelApicInitIo(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelApicInitIo(inst); }
 
             // Helper for declaring runtime functions
             llvm::Function *declareRuntimeFunction(const std::string &name,
@@ -1299,18 +1306,18 @@ namespace Sad
             // Array core / عمليات المصفوفات الأساسية
             // ------------------------------------------------------------------------
             // (AR) Phase 7 Step 5: delegate إلى ArrayOpsCodeGen
-            llvm::Value *emitArrayNew(std::shared_ptr<SIRInstruction> inst)    { return arr_->emitArrayNew(inst); }
-            llvm::Value *emitArrayGet(std::shared_ptr<SIRInstruction> inst)    { return arr_->emitArrayGet(inst); }
-            llvm::Value *emitArraySet(std::shared_ptr<SIRInstruction> inst)    { return arr_->emitArraySet(inst); }
-            llvm::Value *emitArrayLen(std::shared_ptr<SIRInstruction> inst)    { return arr_->emitArrayLen(inst); }
+            llvm::Value *emitArrayNew(std::shared_ptr<SIRInstruction> inst) { return arr_->emitArrayNew(inst); }
+            llvm::Value *emitArrayGet(std::shared_ptr<SIRInstruction> inst) { return arr_->emitArrayGet(inst); }
+            llvm::Value *emitArraySet(std::shared_ptr<SIRInstruction> inst) { return arr_->emitArraySet(inst); }
+            llvm::Value *emitArrayLen(std::shared_ptr<SIRInstruction> inst) { return arr_->emitArrayLen(inst); }
             llvm::Value *emitArrayConcat(std::shared_ptr<SIRInstruction> inst) { return arr_->emitArrayConcat(inst); }
 
             // String core
-            llvm::Value *emitStringNew(std::shared_ptr<SIRInstruction> inst)   { return arr_->emitStringNew(inst); }
+            llvm::Value *emitStringNew(std::shared_ptr<SIRInstruction> inst) { return arr_->emitStringNew(inst); }
 
             // Builtin Extra — (AR) Phase 7 Step 8: Min/Max delegate إلى MathBuiltinsCodeGen
-            llvm::Value *emitBuiltinMin(std::shared_ptr<SIRInstruction> inst)     { return mathb_->emitBuiltinMin(inst); }
-            llvm::Value *emitBuiltinMax(std::shared_ptr<SIRInstruction> inst)     { return mathb_->emitBuiltinMax(inst); }
+            llvm::Value *emitBuiltinMin(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinMin(inst); }
+            llvm::Value *emitBuiltinMax(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinMax(inst); }
             llvm::Value *emitBuiltinAssert(std::shared_ptr<SIRInstruction> inst); // تأكيد
             llvm::Value *emitBuiltinDebug(std::shared_ptr<SIRInstruction> inst);  // تنقيح
 
@@ -1497,6 +1504,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 10: مكوّن فرعي للاستثناءات (2 methods: emitCallException + markSetjmpGlobalsVolatile)
             std::unique_ptr<ExceptionCodeGen> exc_;
+
+            // (AR) Phase 7 Step 11: مكوّن فرعي لتعليمات منخفضة المستوى (153 methods: CPU/UEFI/ACPI/APIC/...)
+            std::unique_ptr<LowlevelCodeGen> ll_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة

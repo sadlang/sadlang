@@ -14,34 +14,39 @@
 #include <llvm/IR/Value.h>
 #include "sir_instruction.h"
 
-namespace Sad { namespace LLVM {
-
-class LLVMCodeGen;
-using SIRInstruction = Compiler::SIR::SIRInstruction;
-
-class ArrayOpsCodeGen
+namespace Sad
 {
-    LLVMCodeGen &cg_;
-public:
-    explicit ArrayOpsCodeGen(LLVMCodeGen &cg) : cg_(cg) {}
-    ArrayOpsCodeGen(const ArrayOpsCodeGen &) = delete;
-    ArrayOpsCodeGen &operator=(const ArrayOpsCodeGen &) = delete;
+    namespace LLVM
+    {
 
-    // (AR) دوال مساعدة داخلية
-    llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr");
-    llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx");
-    void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc");
+        class LLVMCodeGen;
+        using SIRInstruction = Compiler::SIR::SIRInstruction;
 
-    // (AR) عمليات المصفوفات
-    llvm::Value *emitArrayNew(std::shared_ptr<SIRInstruction>);
-    llvm::Value *emitArrayGet(std::shared_ptr<SIRInstruction>);
-    llvm::Value *emitArraySet(std::shared_ptr<SIRInstruction>);
-    llvm::Value *emitArrayLen(std::shared_ptr<SIRInstruction>);
-    llvm::Value *emitArrayConcat(std::shared_ptr<SIRInstruction>);
+        class ArrayOpsCodeGen
+        {
+            LLVMCodeGen &cg_;
 
-    // (AR) إنشاء النصوص
-    llvm::Value *emitStringNew(std::shared_ptr<SIRInstruction>);
-};
+        public:
+            explicit ArrayOpsCodeGen(LLVMCodeGen &cg) : cg_(cg) {}
+            ArrayOpsCodeGen(const ArrayOpsCodeGen &) = delete;
+            ArrayOpsCodeGen &operator=(const ArrayOpsCodeGen &) = delete;
 
-}} // namespace Sad::LLVM
+            // (AR) دوال مساعدة داخلية
+            llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr");
+            llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx");
+            void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc");
+
+            // (AR) عمليات المصفوفات
+            llvm::Value *emitArrayNew(std::shared_ptr<SIRInstruction>);
+            llvm::Value *emitArrayGet(std::shared_ptr<SIRInstruction>);
+            llvm::Value *emitArraySet(std::shared_ptr<SIRInstruction>);
+            llvm::Value *emitArrayLen(std::shared_ptr<SIRInstruction>);
+            llvm::Value *emitArrayConcat(std::shared_ptr<SIRInstruction>);
+
+            // (AR) إنشاء النصوص
+            llvm::Value *emitStringNew(std::shared_ptr<SIRInstruction>);
+        };
+
+    }
+} // namespace Sad::LLVM
 #endif

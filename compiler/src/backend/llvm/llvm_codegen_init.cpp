@@ -108,6 +108,7 @@ namespace Sad
             mathb_ = std::make_unique<MathBuiltinsCodeGen>(*this);
             mapops_ = std::make_unique<MapOpsCodeGen>(*this);
             exc_ = std::make_unique<ExceptionCodeGen>(*this);
+            ll_ = std::make_unique<LowlevelCodeGen>(*this);
         }
 
         /**
