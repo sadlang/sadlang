@@ -95,6 +95,7 @@
 #include "builders/ffi_remain_codegen.h"        // (AR) Phase 7 Step 15: FFIRemainCodeGen
 #include "builders/freestanding_codegen.h"      // (AR) Phase 7 Step 16: FreestandingCodeGen
 #include "builders/objects_arrays_codegen.h"    // (AR) Phase 7 Step 17: ObjectsArraysCodeGen
+#include "builders/oop_ops_codegen.h"            // (AR) Phase 7 Step 18: OOPOpsCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -290,6 +291,8 @@ namespace Sad
             friend class FreestandingCodeGen;
             // (AR) Phase 7 Step 17: ObjectsArraysCodeGen
             friend class ObjectsArraysCodeGen;
+            // (AR) Phase 7 Step 18: OOPOpsCodeGen
+            friend class OOPOpsCodeGen;
 
         public:
             // ========================================================================
@@ -1249,9 +1252,9 @@ namespace Sad
             // ------------------------------------------------------------------------
             // OOP Instructions / تعليمات البرمجة الكائنية
             // ------------------------------------------------------------------------
-            llvm::Value *emitObjectNew(std::shared_ptr<SIRInstruction> inst);                                                     // إنشاء كائن
-            llvm::Value *emitObjectGet(std::shared_ptr<SIRInstruction> inst);                                                     // قراءة خاصية
-            llvm::Value *emitObjectSet(std::shared_ptr<SIRInstruction> inst);                                                     // تعيين خاصية
+            llvm::Value *emitObjectNew(std::shared_ptr<SIRInstruction> inst) { return oop_->emitObjectNew(inst); }                 // إنشاء كائن
+            llvm::Value *emitObjectGet(std::shared_ptr<SIRInstruction> inst) { return oop_->emitObjectGet(inst); }                 // قراءة خاصية
+            llvm::Value *emitObjectSet(std::shared_ptr<SIRInstruction> inst) { return oop_->emitObjectSet(inst); }                 // تعيين خاصية
             llvm::Value *emitObjectCall(std::shared_ptr<SIRInstruction> inst) { return objarr_->emitObjectCall(inst); }           // استدعاء طريقة
             llvm::Value *emitInstanceOf(std::shared_ptr<SIRInstruction> inst) { return objarr_->emitInstanceOf(inst); }           // تحقق النوع
             llvm::Value *emitObjectCast(std::shared_ptr<SIRInstruction> inst) { return objarr_->emitObjectCast(inst); }           // تحويل كائن
@@ -1312,9 +1315,9 @@ namespace Sad
             llvm::Value *emitCallIndirect(std::shared_ptr<SIRInstruction> inst) { return closure_->emitCallIndirect(inst); } // استدعاء غير مباشر
             llvm::Value *emitAllocHeap(std::shared_ptr<SIRInstruction> inst) { return closure_->emitAllocHeap(inst); }       // تخصيص كومة
             llvm::Value *emitFreeMem(std::shared_ptr<SIRInstruction> inst) { return closure_->emitFreeMem(inst); }           // تحرير ذاكرة
-            llvm::Value *emitAddr(std::shared_ptr<SIRInstruction> inst);                                                     // عنوان متغير
-            llvm::Value *emitPtrAdd(std::shared_ptr<SIRInstruction> inst);                                                   // حساب مؤشرات
-            llvm::Value *emitPtrCast(std::shared_ptr<SIRInstruction> inst);                                                  // تحويل مؤشر
+            llvm::Value *emitAddr(std::shared_ptr<SIRInstruction> inst) { return oop_->emitAddr(inst); }                     // عنوان متغير
+            llvm::Value *emitPtrAdd(std::shared_ptr<SIRInstruction> inst) { return oop_->emitPtrAdd(inst); }                 // حساب مؤشرات
+            llvm::Value *emitPtrCast(std::shared_ptr<SIRInstruction> inst) { return oop_->emitPtrCast(inst); }               // تحويل مؤشر
 
             // ------------------------------------------------------------------------
             // Closures / الإغلاقات
@@ -1549,6 +1552,8 @@ namespace Sad
 
             // (AR) Phase 7 Step 17: عمليات الكائنات (7 methods)
             std::unique_ptr<ObjectsArraysCodeGen> objarr_;
+            // (AR) Phase 7 Step 18: عمليات OOP والمؤشرات (6 methods)
+            std::unique_ptr<OOPOpsCodeGen> oop_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة

@@ -6,6 +6,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "builders/oop_ops_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
@@ -34,18 +35,18 @@ namespace Sad
         // (EN) Object and pointer operations - ObjectNew, ObjectGet, ObjectSet, Addr, PtrAdd, PtrCast
         // (AR) تم فصل هذا الملف عن llvm_codegen_concurrency.cpp وفق قاعدة CW-05
         // ============================================================================
-        llvm::Value *LLVMCodeGen::emitAddr(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *OOPOpsCodeGen::emitAddr(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
             {
-                reportError("ADDR requires 1 operand");
+                cg_.reportError("ADDR requires 1 operand");
                 return nullptr;
             }
             // Return the alloca pointer itself (not loading the value)
-            llvm::Value *ptr = context_info_.namedValues[inst->operands[0].name];
+            llvm::Value *ptr = cg_.context_info_.namedValues[inst->operands[0].name];
             if (!ptr)
             {
-                ptr = resolveOperand(inst->operands[0]);
+                ptr = cg_.resolveOperand(inst->operands[0]);
             }
             if (!ptr)
                 return nullptr;
@@ -54,53 +55,53 @@ namespace Sad
             llvm::Value *result = ptr;
             if (ptr->getType()->isPointerTy())
             {
-                result = builder_->CreatePtrToInt(ptr, getInt64Type(), "addr");
+                result = cg_.builder_->CreatePtrToInt(ptr, cg_.getInt64Type(), "addr");
             }
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
 
-        llvm::Value *LLVMCodeGen::emitPtrAdd(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *OOPOpsCodeGen::emitPtrAdd(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
             {
-                reportError("PTR_ADD requires 2 operands (ptr, offset)");
+                cg_.reportError("PTR_ADD requires 2 operands (ptr, offset)");
                 return nullptr;
             }
-            llvm::Value *ptr = resolveOperand(inst->operands[0]);
-            llvm::Value *offset = resolveOperand(inst->operands[1]);
+            llvm::Value *ptr = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *offset = cg_.resolveOperand(inst->operands[1]);
             if (!ptr || !offset)
                 return nullptr;
 
             // If ptr is an integer, convert to pointer
             if (ptr->getType()->isIntegerTy())
             {
-                ptr = builder_->CreateIntToPtr(ptr, llvm::PointerType::getUnqual(*context_), "ptr.conv");
+                ptr = cg_.builder_->CreateIntToPtr(ptr, llvm::PointerType::getUnqual(*cg_.context_), "ptr.conv");
             }
 
             // GEP with i8 element type for byte-level offset
-            llvm::Value *result = builder_->CreateGEP(
-                llvm::Type::getInt8Ty(*context_), ptr, {offset}, "ptr_add");
+            llvm::Value *result = cg_.builder_->CreateGEP(
+                llvm::Type::getInt8Ty(*cg_.context_), ptr, {offset}, "ptr_add");
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
 
-        llvm::Value *LLVMCodeGen::emitPtrCast(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *OOPOpsCodeGen::emitPtrCast(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
             {
-                reportError("PTR_CAST requires 1 operand");
+                cg_.reportError("PTR_CAST requires 1 operand");
                 return nullptr;
             }
-            llvm::Value *val = resolveOperand(inst->operands[0]);
+            llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
             if (!val)
                 return nullptr;
 
@@ -109,12 +110,12 @@ namespace Sad
             llvm::Value *result = val;
             if (val->getType()->isIntegerTy())
             {
-                result = builder_->CreateIntToPtr(val, llvm::PointerType::getUnqual(*context_), "ptr_cast");
+                result = cg_.builder_->CreateIntToPtr(val, llvm::PointerType::getUnqual(*cg_.context_), "ptr_cast");
             }
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
@@ -123,21 +124,21 @@ namespace Sad
         // Phase N: OOP Instructions / تعليمات البرمجة الكائنية
         // ============================================================================
 
-        llvm::Value *LLVMCodeGen::emitObjectNew(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *OOPOpsCodeGen::emitObjectNew(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
             {
-                reportError("OBJECT_NEW requires class name operand");
+                cg_.reportError("OBJECT_NEW requires class name operand");
                 return nullptr;
             }
 
             std::string className = inst->operands[0].name;
 
             // Look up class struct type
-            auto structIt = context_info_.classStructTypes.find(className);
-            if (structIt == context_info_.classStructTypes.end())
+            auto structIt = cg_.context_info_.classStructTypes.find(className);
+            if (structIt == cg_.context_info_.classStructTypes.end())
             {
-                reportError("Class not found: " + className);
+                cg_.reportError("Class not found: " + className);
                 return nullptr;
             }
 
@@ -146,19 +147,19 @@ namespace Sad
             // Allocate on heap using malloc for objects (they may outlive the scope)
             auto *dlSize = llvm::ConstantExpr::getSizeOf(structType);
             auto *mallocType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*context_), {getInt64Type()}, false);
-            auto mallocFunc = module_->getOrInsertFunction("malloc", mallocType);
-            llvm::Value *rawPtr = builder_->CreateCall(mallocFunc, {dlSize}, className + "_new");
+                llvm::PointerType::getUnqual(*cg_.context_), {cg_.getInt64Type()}, false);
+            auto mallocFunc = cg_.module_->getOrInsertFunction("malloc", mallocType);
+            llvm::Value *rawPtr = cg_.builder_->CreateCall(mallocFunc, {dlSize}, className + "_new");
 
             // Zero-initialize the object
             auto *memsetType = llvm::FunctionType::get(
-                llvm::PointerType::getUnqual(*context_),
-                {llvm::PointerType::getUnqual(*context_),
-                 llvm::Type::getInt32Ty(*context_), getInt64Type()},
+                llvm::PointerType::getUnqual(*cg_.context_),
+                {llvm::PointerType::getUnqual(*cg_.context_),
+                 llvm::Type::getInt32Ty(*cg_.context_), cg_.getInt64Type()},
                 false);
-            auto memsetFunc = module_->getOrInsertFunction("memset", memsetType);
-            builder_->CreateCall(memsetFunc, {rawPtr,
-                                              llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 0),
+            auto memsetFunc = cg_.module_->getOrInsertFunction("memset", memsetType);
+            cg_.builder_->CreateCall(memsetFunc, {rawPtr,
+                                              llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 0),
                                               dlSize});
 
             // ═══════════════════════════════════════════════════════════════════════
@@ -169,17 +170,17 @@ namespace Sad
             //      Array fields initialized with [] need actual SadArray allocation
             //      instead of leaving the pointer null after memset(0)
             // ═══════════════════════════════════════════════════════════════════════
-            if (sirModule_)
+            if (cg_.sirModule_)
             {
-                auto sirClass = sirModule_->getClass(className);
+                auto sirClass = cg_.sirModule_->getClass(className);
                 if (sirClass && !sirClass->arrayFields_.empty())
                 {
                     // (AR) بنية SadArray: {i64 length, i64 capacity, ptr data}
                     // (EN) SadArray struct: {i64 length, i64 capacity, ptr data}
-                    llvm::StructType *arrTy = llvm::StructType::create(*context_, {getInt64Type(), getInt64Type(), llvm::PointerType::getUnqual(*context_)}, "SadArray.init");
+                    llvm::StructType *arrTy = llvm::StructType::create(*cg_.context_, {cg_.getInt64Type(), cg_.getInt64Type(), llvm::PointerType::getUnqual(*cg_.context_)}, "SadArray.init");
                     auto *arrStructSize = llvm::ConstantExpr::getSizeOf(arrTy);
-                    auto i64Ty = getInt64Type();
-                    auto *ptrTy = llvm::PointerType::getUnqual(*context_);
+                    auto i64Ty = cg_.getInt64Type();
+                    auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                     int fieldIdx = 0;
                     for (const auto &fieldName : sirClass->fieldOrder_)
@@ -188,34 +189,34 @@ namespace Sad
                         {
                             // (AR) تخصيص SadArray {length=0, capacity=8, data=malloc(8*ptrsize)}
                             // (EN) Allocate SadArray {length=0, capacity=8, data=malloc(8*ptrsize)}
-                            llvm::Value *arrPtr = builder_->CreateCall(
-                                mallocFunc, {builder_->CreateIntCast(arrStructSize, i64Ty, false)},
+                            llvm::Value *arrPtr = cg_.builder_->CreateCall(
+                                mallocFunc, {cg_.builder_->CreateIntCast(arrStructSize, i64Ty, false)},
                                 fieldName + ".arr");
 
                             // length = 0
-                            llvm::Value *lenGep = builder_->CreateStructGEP(arrTy, arrPtr, 0, fieldName + ".len");
-                            builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), lenGep);
+                            llvm::Value *lenGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 0, fieldName + ".len");
+                            cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0), lenGep);
 
                             // capacity = 8
-                            llvm::Value *capGep = builder_->CreateStructGEP(arrTy, arrPtr, 1, fieldName + ".cap");
-                            builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 8), capGep);
+                            llvm::Value *capGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 1, fieldName + ".cap");
+                            cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 8), capGep);
 
                             // data = malloc(8 * sizeof(ptr))
                             auto *ptrSize = llvm::ConstantExpr::getSizeOf(ptrTy);
-                            llvm::Value *dataSize = builder_->CreateMul(
+                            llvm::Value *dataSize = cg_.builder_->CreateMul(
                                 llvm::ConstantInt::get(i64Ty, 8),
-                                builder_->CreateIntCast(ptrSize, i64Ty, false),
+                                cg_.builder_->CreateIntCast(ptrSize, i64Ty, false),
                                 fieldName + ".datasz");
-                            llvm::Value *dataPtr = builder_->CreateCall(
+                            llvm::Value *dataPtr = cg_.builder_->CreateCall(
                                 mallocFunc, {dataSize}, fieldName + ".data");
-                            llvm::Value *dataGep = builder_->CreateStructGEP(arrTy, arrPtr, 2, fieldName + ".datagep");
-                            builder_->CreateStore(dataPtr, dataGep);
+                            llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, fieldName + ".datagep");
+                            cg_.builder_->CreateStore(dataPtr, dataGep);
 
                             // (AR) تخزين مؤشر المصفوفة في حقل الكائن (fieldIdx + 1 بسبب vtable في الحقل 0)
                             // (EN) Store array pointer in object field (fieldIdx + 1 because vtable is field 0)
-                            llvm::Value *objFieldGep = builder_->CreateStructGEP(
+                            llvm::Value *objFieldGep = cg_.builder_->CreateStructGEP(
                                 structType, rawPtr, fieldIdx + 1, fieldName + ".objfield");
-                            builder_->CreateStore(arrPtr, objFieldGep);
+                            cg_.builder_->CreateStore(arrPtr, objFieldGep);
                         }
                         fieldIdx++;
                     }
@@ -224,23 +225,23 @@ namespace Sad
 
             // (AR) تخزين مؤشر vtable في الحقل 0
             // (EN) Store vtable pointer in field 0
-            storeVtablePtr(rawPtr, className);
+            cg_.storeVtablePtr(rawPtr, className);
 
             // Track class association
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = rawPtr;
-                context_info_.objectClassMap[inst->result->name] = className;
+                cg_.context_info_.namedValues[inst->result->name] = rawPtr;
+                cg_.context_info_.objectClassMap[inst->result->name] = className;
             }
 
             return rawPtr;
         }
 
-        llvm::Value *LLVMCodeGen::emitObjectGet(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *OOPOpsCodeGen::emitObjectGet(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
             {
-                reportError("OBJECT_GET requires 2 operands (object, field_name)");
+                cg_.reportError("OBJECT_GET requires 2 operands (object, field_name)");
                 return nullptr;
             }
 
@@ -248,36 +249,36 @@ namespace Sad
             std::string fieldName = inst->operands[1].name;
 
             // Find object pointer
-            llvm::Value *objPtr = context_info_.namedValues[objRegName];
+            llvm::Value *objPtr = cg_.context_info_.namedValues[objRegName];
             if (!objPtr)
             {
                 // (AR) Fallback: البحث في المتغيرات العامة LLVM
                 // (EN) Fallback: search in LLVM global variables
-                auto *globalVar = module_->getNamedGlobal(objRegName);
+                auto *globalVar = cg_.module_->getNamedGlobal(objRegName);
                 // (AR) إذا لم نجد، نحاول بإزالة % من المقدمة
                 // (EN) If not found, try without leading %
                 if (!globalVar && !objRegName.empty() && objRegName[0] == '%')
                 {
-                    globalVar = module_->getNamedGlobal(objRegName.substr(1));
+                    globalVar = cg_.module_->getNamedGlobal(objRegName.substr(1));
                 }
                 if (globalVar)
                 {
-                    llvm::Value *loaded = builder_->CreateLoad(getInt64Type(), globalVar, objRegName + ".glob.load");
-                    objPtr = builder_->CreateIntToPtr(loaded,
-                                                      llvm::PointerType::getUnqual(*context_), objRegName + ".glob.ptr");
-                    context_info_.namedValues[objRegName] = objPtr;
+                    llvm::Value *loaded = cg_.builder_->CreateLoad(cg_.getInt64Type(), globalVar, objRegName + ".glob.load");
+                    objPtr = cg_.builder_->CreateIntToPtr(loaded,
+                                                      llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".glob.ptr");
+                    cg_.context_info_.namedValues[objRegName] = objPtr;
                 }
                 else
                 {
-                    reportError("Object not found: " + objRegName);
+                    cg_.reportError("Object not found: " + objRegName);
                     return nullptr;
                 }
             }
 
             // Look up class mapping
-            auto classIt = context_info_.objectClassMap.find(objRegName);
+            auto classIt = cg_.context_info_.objectClassMap.find(objRegName);
             std::string className;
-            if (classIt != context_info_.objectClassMap.end())
+            if (classIt != cg_.context_info_.objectClassMap.end())
             {
                 className = classIt->second;
             }
@@ -286,11 +287,11 @@ namespace Sad
             // (EN) Fallback 0: search objectClassMap without leading %
             if (className.empty() && !objRegName.empty() && objRegName[0] == '%')
             {
-                auto classIt2 = context_info_.objectClassMap.find(objRegName.substr(1));
-                if (classIt2 != context_info_.objectClassMap.end())
+                auto classIt2 = cg_.context_info_.objectClassMap.find(objRegName.substr(1));
+                if (classIt2 != cg_.context_info_.objectClassMap.end())
                 {
                     className = classIt2->second;
-                    context_info_.objectClassMap[objRegName] = className;
+                    cg_.context_info_.objectClassMap[objRegName] = className;
                 }
             }
 
@@ -298,19 +299,19 @@ namespace Sad
             // (EN) Fallback 0b: if alloca of StructType, infer class from struct type
             if (className.empty())
             {
-                llvm::Value *objCheck = context_info_.namedValues[objRegName];
+                llvm::Value *objCheck = cg_.context_info_.namedValues[objRegName];
                 if (objCheck)
                 {
                     if (auto *allocaInst = llvm::dyn_cast<llvm::AllocaInst>(objCheck))
                     {
                         if (auto *st = llvm::dyn_cast<llvm::StructType>(allocaInst->getAllocatedType()))
                         {
-                            for (const auto &[clsName, clsSt] : context_info_.classStructTypes)
+                            for (const auto &[clsName, clsSt] : cg_.context_info_.classStructTypes)
                             {
                                 if (clsSt == st)
                                 {
                                     className = clsName;
-                                    context_info_.objectClassMap[objRegName] = className;
+                                    cg_.context_info_.objectClassMap[objRegName] = className;
                                     break;
                                 }
                             }
@@ -323,14 +324,14 @@ namespace Sad
             // (EN) Fallback: infer class from field name
             if (className.empty())
             {
-                for (const auto &[clsName, fieldVec] : context_info_.classFieldNames)
+                for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                 {
                     for (const auto &fn : fieldVec)
                     {
                         if (fn == fieldName)
                         {
                             className = clsName;
-                            context_info_.objectClassMap[objRegName] = className;
+                            cg_.context_info_.objectClassMap[objRegName] = className;
                             break;
                         }
                     }
@@ -341,7 +342,7 @@ namespace Sad
 
             if (className.empty())
             {
-                reportError("No class mapping for: " + objRegName);
+                cg_.reportError("No class mapping for: " + objRegName);
                 return nullptr;
             }
 
@@ -352,11 +353,11 @@ namespace Sad
             {
                 if (!allocaInst->getAllocatedType()->isStructTy())
                 {
-                    llvm::Value *loaded = builder_->CreateLoad(allocaInst->getAllocatedType(), allocaInst, objRegName + ".self.load");
+                    llvm::Value *loaded = cg_.builder_->CreateLoad(allocaInst->getAllocatedType(), allocaInst, objRegName + ".self.load");
                     if (loaded->getType()->isIntegerTy())
                     {
-                        normalizedObjPtr = builder_->CreateIntToPtr(loaded,
-                                                                    llvm::PointerType::getUnqual(*context_), objRegName + ".self.ptr");
+                        normalizedObjPtr = cg_.builder_->CreateIntToPtr(loaded,
+                                                                    llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".self.ptr");
                     }
                     else if (loaded->getType()->isPointerTy())
                     {
@@ -366,11 +367,11 @@ namespace Sad
             }
             else if (auto *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(normalizedObjPtr))
             {
-                llvm::Value *loaded = builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".self.gload");
+                llvm::Value *loaded = cg_.builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".self.gload");
                 if (loaded->getType()->isIntegerTy())
                 {
-                    normalizedObjPtr = builder_->CreateIntToPtr(loaded,
-                                                                llvm::PointerType::getUnqual(*context_), objRegName + ".self.gptr");
+                    normalizedObjPtr = cg_.builder_->CreateIntToPtr(loaded,
+                                                                llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".self.gptr");
                 }
                 else if (loaded->getType()->isPointerTy())
                 {
@@ -379,8 +380,8 @@ namespace Sad
             }
             if (normalizedObjPtr->getType()->isIntegerTy())
             {
-                normalizedObjPtr = builder_->CreateIntToPtr(normalizedObjPtr,
-                                                            llvm::PointerType::getUnqual(*context_), objRegName + ".self.i2p");
+                normalizedObjPtr = cg_.builder_->CreateIntToPtr(normalizedObjPtr,
+                                                            llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".self.i2p");
             }
 
             // (AR) فحص الخاصية: إذا وُجدت دالة __get_fieldName → استدعاؤها بدلاً من الوصول المباشر
@@ -392,19 +393,19 @@ namespace Sad
                     fieldName = fieldName.substr(0, fieldName.size() - 1);
 
                 std::string getterName = className + ".__get_" + fieldName;
-                llvm::Function *getter = module_->getFunction(getterName);
+                llvm::Function *getter = cg_.module_->getFunction(getterName);
                 if (!getter)
                 {
-                    auto it = context_info_.functions.find(getterName);
-                    if (it != context_info_.functions.end())
+                    auto it = cg_.context_info_.functions.find(getterName);
+                    if (it != cg_.context_info_.functions.end())
                         getter = it->second;
                 }
                 if (!getter)
-                    getter = module_->getFunction("__get_" + fieldName);
+                    getter = cg_.module_->getFunction("__get_" + fieldName);
                 if (!getter)
                 {
-                    auto it = context_info_.functions.find("__get_" + fieldName);
-                    if (it != context_info_.functions.end())
+                    auto it = cg_.context_info_.functions.find("__get_" + fieldName);
+                    if (it != cg_.context_info_.functions.end())
                         getter = it->second;
                 }
                 if (getter)
@@ -415,31 +416,31 @@ namespace Sad
                         llvm::Type *expectedSelfTy = getter->getFunctionType()->getParamType(0);
                         if (expectedSelfTy->isIntegerTy() && selfArg->getType()->isPointerTy())
                         {
-                            selfArg = builder_->CreatePtrToInt(selfArg, expectedSelfTy, "prop.get.self.p2i");
+                            selfArg = cg_.builder_->CreatePtrToInt(selfArg, expectedSelfTy, "prop.get.self.p2i");
                         }
                         else if (expectedSelfTy->isPointerTy() && selfArg->getType()->isIntegerTy())
                         {
-                            selfArg = builder_->CreateIntToPtr(selfArg, expectedSelfTy, "prop.get.self.i2p");
+                            selfArg = cg_.builder_->CreateIntToPtr(selfArg, expectedSelfTy, "prop.get.self.i2p");
                         }
                     }
 
-                    llvm::Value *result = builder_->CreateCall(getter, {selfArg},
+                    llvm::Value *result = cg_.builder_->CreateCall(getter, {selfArg},
                                                                getter->getReturnType()->isVoidTy() ? "" : (fieldName + ".prop"));
                     if (inst->result.has_value())
                     {
-                        context_info_.namedValues[inst->result->name] = result;
+                        cg_.context_info_.namedValues[inst->result->name] = result;
                     }
                     return result;
                 }
             }
 
-            auto structIt = context_info_.classStructTypes.find(className);
-            auto fieldNamesIt = context_info_.classFieldNames.find(className);
+            auto structIt = cg_.context_info_.classStructTypes.find(className);
+            auto fieldNamesIt = cg_.context_info_.classFieldNames.find(className);
 
-            if (structIt == context_info_.classStructTypes.end() ||
-                fieldNamesIt == context_info_.classFieldNames.end())
+            if (structIt == cg_.context_info_.classStructTypes.end() ||
+                fieldNamesIt == cg_.context_info_.classFieldNames.end())
             {
-                reportError("Class struct not found: " + className);
+                cg_.reportError("Class struct not found: " + className);
                 return nullptr;
             }
 
@@ -464,15 +465,15 @@ namespace Sad
                 std::string parentClass = className;
                 while (fieldIndex < 0)
                 {
-                    auto parentIt = context_info_.classParentMap.find(parentClass);
-                    if (parentIt == context_info_.classParentMap.end())
+                    auto parentIt = cg_.context_info_.classParentMap.find(parentClass);
+                    if (parentIt == cg_.context_info_.classParentMap.end())
                         break;
                     parentClass = parentIt->second;
 
-                    auto parentFieldsIt = context_info_.classFieldNames.find(parentClass);
-                    auto parentStructIt = context_info_.classStructTypes.find(parentClass);
-                    if (parentFieldsIt == context_info_.classFieldNames.end() ||
-                        parentStructIt == context_info_.classStructTypes.end())
+                    auto parentFieldsIt = cg_.context_info_.classFieldNames.find(parentClass);
+                    auto parentStructIt = cg_.context_info_.classStructTypes.find(parentClass);
+                    if (parentFieldsIt == cg_.context_info_.classFieldNames.end() ||
+                        parentStructIt == cg_.context_info_.classStructTypes.end())
                         break;
 
                     const auto &parentFieldNames = parentFieldsIt->second;
@@ -493,7 +494,7 @@ namespace Sad
             // (EN) Field not found — search all classes as fallback
             if (fieldIndex < 0)
             {
-                for (const auto &[clsName, fieldVec] : context_info_.classFieldNames)
+                for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                 {
                     if (clsName == className)
                         continue;
@@ -503,8 +504,8 @@ namespace Sad
                         {
                             fieldIndex = static_cast<int>(i);
                             className = clsName;
-                            auto newStructIt = context_info_.classStructTypes.find(clsName);
-                            if (newStructIt != context_info_.classStructTypes.end())
+                            auto newStructIt = cg_.context_info_.classStructTypes.find(clsName);
+                            if (newStructIt != cg_.context_info_.classStructTypes.end())
                             {
                                 structType = newStructIt->second;
                             }
@@ -518,7 +519,7 @@ namespace Sad
 
             if (fieldIndex < 0)
             {
-                reportError("Field '" + fieldName + "' not found in class '" + className + "' or its parents");
+                cg_.reportError("Field '" + fieldName + "' not found in class '" + className + "' or its parents");
                 return nullptr;
             }
 
@@ -528,22 +529,22 @@ namespace Sad
             {
                 if (!allocaInst->getAllocatedType()->isStructTy())
                 {
-                    llvm::Value *loaded = builder_->CreateLoad(
+                    llvm::Value *loaded = cg_.builder_->CreateLoad(
                         allocaInst->getAllocatedType(), allocaInst, objRegName + ".load");
                     if (loaded->getType()->isIntegerTy())
                     {
-                        actualObj = builder_->CreateIntToPtr(loaded,
-                                                             llvm::PointerType::getUnqual(*context_), objRegName + ".ptr");
+                        actualObj = cg_.builder_->CreateIntToPtr(loaded,
+                                                             llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".ptr");
                     }
                 }
             }
             else if (auto *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(objPtr))
             {
-                llvm::Value *loaded = builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".load.g");
+                llvm::Value *loaded = cg_.builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".load.g");
                 if (loaded->getType()->isIntegerTy())
                 {
-                    actualObj = builder_->CreateIntToPtr(loaded,
-                                                         llvm::PointerType::getUnqual(*context_), objRegName + ".ptr.g");
+                    actualObj = cg_.builder_->CreateIntToPtr(loaded,
+                                                         llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".ptr.g");
                 }
                 else if (loaded->getType()->isPointerTy())
                 {
@@ -554,67 +555,67 @@ namespace Sad
             // (EN) If object is still i64 (e.g. from array_get) — cast to ptr
             if (actualObj->getType()->isIntegerTy())
             {
-                actualObj = builder_->CreateIntToPtr(actualObj,
-                                                     llvm::PointerType::getUnqual(*context_), objRegName + ".i2p");
+                actualObj = cg_.builder_->CreateIntToPtr(actualObj,
+                                                     llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".i2p");
             }
 
             // (AR) إزاحة vtable: الحقل 0 في الهيكل محجوز لمؤشر vtable
             // (EN) vtable offset: field 0 in struct is reserved for vtable ptr
-            int structIndex = getFieldStructIndex(className, fieldIndex);
+            int structIndex = cg_.getFieldStructIndex(className, fieldIndex);
 
             // GEP + Load
-            llvm::Value *gep = builder_->CreateStructGEP(structType, actualObj, structIndex,
+            llvm::Value *gep = cg_.builder_->CreateStructGEP(structType, actualObj, structIndex,
                                                          fieldName + "_gep");
             llvm::Type *fieldType = structType->getElementType(structIndex);
-            llvm::Value *result = builder_->CreateLoad(fieldType, gep, fieldName + ".val");
+            llvm::Value *result = cg_.builder_->CreateLoad(fieldType, gep, fieldName + ".val");
 
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }
 
-        llvm::Value *LLVMCodeGen::emitObjectSet(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *OOPOpsCodeGen::emitObjectSet(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 3)
             {
-                reportError("OBJECT_SET requires 3 operands (object, field_name, value)");
+                cg_.reportError("OBJECT_SET requires 3 operands (object, field_name, value)");
                 return nullptr;
             }
 
             std::string objRegName = inst->operands[0].name;
             std::string fieldName = inst->operands[1].name;
-            llvm::Value *value = resolveOperand(inst->operands[2]);
+            llvm::Value *value = cg_.resolveOperand(inst->operands[2]);
 
-            llvm::Value *objPtr = context_info_.namedValues[objRegName];
+            llvm::Value *objPtr = cg_.context_info_.namedValues[objRegName];
             if (!objPtr)
             {
                 // (AR) Fallback: البحث عن الكائن في المتغيرات العامة LLVM
                 // (EN) Fallback: resolve object from LLVM globals
-                auto *globalVar = module_->getNamedGlobal(objRegName);
+                auto *globalVar = cg_.module_->getNamedGlobal(objRegName);
                 if (!globalVar && !objRegName.empty() && objRegName[0] == '%')
                 {
-                    globalVar = module_->getNamedGlobal(objRegName.substr(1));
+                    globalVar = cg_.module_->getNamedGlobal(objRegName.substr(1));
                 }
                 if (globalVar)
                 {
-                    llvm::Value *loaded = builder_->CreateLoad(getInt64Type(), globalVar, objRegName + ".glob.load");
-                    objPtr = builder_->CreateIntToPtr(loaded,
-                                                      llvm::PointerType::getUnqual(*context_), objRegName + ".glob.ptr");
-                    context_info_.namedValues[objRegName] = objPtr;
+                    llvm::Value *loaded = cg_.builder_->CreateLoad(cg_.getInt64Type(), globalVar, objRegName + ".glob.load");
+                    objPtr = cg_.builder_->CreateIntToPtr(loaded,
+                                                      llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".glob.ptr");
+                    cg_.context_info_.namedValues[objRegName] = objPtr;
                 }
             }
 
             if (!objPtr || !value)
             {
-                reportError("Operands not found for OBJECT_SET");
+                cg_.reportError("Operands not found for OBJECT_SET");
                 return nullptr;
             }
 
-            auto classIt = context_info_.objectClassMap.find(objRegName);
+            auto classIt = cg_.context_info_.objectClassMap.find(objRegName);
             std::string className;
-            if (classIt != context_info_.objectClassMap.end())
+            if (classIt != cg_.context_info_.objectClassMap.end())
             {
                 className = classIt->second;
             }
@@ -623,11 +624,11 @@ namespace Sad
             // (EN) Fallback 0: search objectClassMap without leading %
             if (className.empty() && !objRegName.empty() && objRegName[0] == '%')
             {
-                auto classIt2 = context_info_.objectClassMap.find(objRegName.substr(1));
-                if (classIt2 != context_info_.objectClassMap.end())
+                auto classIt2 = cg_.context_info_.objectClassMap.find(objRegName.substr(1));
+                if (classIt2 != cg_.context_info_.objectClassMap.end())
                 {
                     className = classIt2->second;
-                    context_info_.objectClassMap[objRegName] = className;
+                    cg_.context_info_.objectClassMap[objRegName] = className;
                 }
             }
 
@@ -639,12 +640,12 @@ namespace Sad
                 {
                     if (auto *st = llvm::dyn_cast<llvm::StructType>(allocaInst->getAllocatedType()))
                     {
-                        for (const auto &[clsName, clsSt] : context_info_.classStructTypes)
+                        for (const auto &[clsName, clsSt] : cg_.context_info_.classStructTypes)
                         {
                             if (clsSt == st)
                             {
                                 className = clsName;
-                                context_info_.objectClassMap[objRegName] = className;
+                                cg_.context_info_.objectClassMap[objRegName] = className;
                                 break;
                             }
                         }
@@ -656,14 +657,14 @@ namespace Sad
             // (EN) Fallback: infer class from field name
             if (className.empty())
             {
-                for (const auto &[clsName, fieldVec] : context_info_.classFieldNames)
+                for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                 {
                     for (const auto &fn : fieldVec)
                     {
                         if (fn == fieldName)
                         {
                             className = clsName;
-                            context_info_.objectClassMap[objRegName] = className;
+                            cg_.context_info_.objectClassMap[objRegName] = className;
                             break;
                         }
                     }
@@ -674,7 +675,7 @@ namespace Sad
 
             if (className.empty())
             {
-                reportError("No class mapping for: " + objRegName);
+                cg_.reportError("No class mapping for: " + objRegName);
                 return nullptr;
             }
 
@@ -685,11 +686,11 @@ namespace Sad
             {
                 if (!allocaInst->getAllocatedType()->isStructTy())
                 {
-                    llvm::Value *loaded = builder_->CreateLoad(allocaInst->getAllocatedType(), allocaInst, objRegName + ".self.load");
+                    llvm::Value *loaded = cg_.builder_->CreateLoad(allocaInst->getAllocatedType(), allocaInst, objRegName + ".self.load");
                     if (loaded->getType()->isIntegerTy())
                     {
-                        normalizedObjPtr = builder_->CreateIntToPtr(loaded,
-                                                                    llvm::PointerType::getUnqual(*context_), objRegName + ".self.ptr");
+                        normalizedObjPtr = cg_.builder_->CreateIntToPtr(loaded,
+                                                                    llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".self.ptr");
                     }
                     else if (loaded->getType()->isPointerTy())
                     {
@@ -699,11 +700,11 @@ namespace Sad
             }
             else if (auto *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(normalizedObjPtr))
             {
-                llvm::Value *loaded = builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".self.gload");
+                llvm::Value *loaded = cg_.builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".self.gload");
                 if (loaded->getType()->isIntegerTy())
                 {
-                    normalizedObjPtr = builder_->CreateIntToPtr(loaded,
-                                                                llvm::PointerType::getUnqual(*context_), objRegName + ".self.gptr");
+                    normalizedObjPtr = cg_.builder_->CreateIntToPtr(loaded,
+                                                                llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".self.gptr");
                 }
                 else if (loaded->getType()->isPointerTy())
                 {
@@ -712,8 +713,8 @@ namespace Sad
             }
             if (normalizedObjPtr->getType()->isIntegerTy())
             {
-                normalizedObjPtr = builder_->CreateIntToPtr(normalizedObjPtr,
-                                                            llvm::PointerType::getUnqual(*context_), objRegName + ".self.i2p");
+                normalizedObjPtr = cg_.builder_->CreateIntToPtr(normalizedObjPtr,
+                                                            llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".self.i2p");
             }
 
             // (AR) فحص الخاصية: إذا وُجدت دالة __set_fieldName → استدعاؤها بدلاً من التعيين المباشر
@@ -725,19 +726,19 @@ namespace Sad
                     fieldName = fieldName.substr(0, fieldName.size() - 1);
 
                 std::string setterName = className + ".__set_" + fieldName;
-                llvm::Function *setter = module_->getFunction(setterName);
+                llvm::Function *setter = cg_.module_->getFunction(setterName);
                 if (!setter)
                 {
-                    auto it = context_info_.functions.find(setterName);
-                    if (it != context_info_.functions.end())
+                    auto it = cg_.context_info_.functions.find(setterName);
+                    if (it != cg_.context_info_.functions.end())
                         setter = it->second;
                 }
                 if (!setter)
-                    setter = module_->getFunction("__set_" + fieldName);
+                    setter = cg_.module_->getFunction("__set_" + fieldName);
                 if (!setter)
                 {
-                    auto it = context_info_.functions.find("__set_" + fieldName);
-                    if (it != context_info_.functions.end())
+                    auto it = cg_.context_info_.functions.find("__set_" + fieldName);
+                    if (it != cg_.context_info_.functions.end())
                         setter = it->second;
                 }
                 if (setter)
@@ -750,11 +751,11 @@ namespace Sad
                         llvm::Type *expectedSelfTy = setter->getFunctionType()->getParamType(0);
                         if (expectedSelfTy->isIntegerTy() && selfArg->getType()->isPointerTy())
                         {
-                            selfArg = builder_->CreatePtrToInt(selfArg, expectedSelfTy, "prop.set.self.p2i");
+                            selfArg = cg_.builder_->CreatePtrToInt(selfArg, expectedSelfTy, "prop.set.self.p2i");
                         }
                         else if (expectedSelfTy->isPointerTy() && selfArg->getType()->isIntegerTy())
                         {
-                            selfArg = builder_->CreateIntToPtr(selfArg, expectedSelfTy, "prop.set.self.i2p");
+                            selfArg = cg_.builder_->CreateIntToPtr(selfArg, expectedSelfTy, "prop.set.self.i2p");
                         }
                     }
 
@@ -766,39 +767,39 @@ namespace Sad
                         {
                             if (expectedValTy->isIntegerTy() && actualValTy->isIntegerTy())
                             {
-                                valueArg = builder_->CreateIntCast(valueArg, expectedValTy, true, "prop.set.val.icast");
+                                valueArg = cg_.builder_->CreateIntCast(valueArg, expectedValTy, true, "prop.set.val.icast");
                             }
                             else if (expectedValTy->isDoubleTy() && actualValTy->isIntegerTy())
                             {
-                                valueArg = builder_->CreateSIToFP(valueArg, expectedValTy, "prop.set.val.i2f");
+                                valueArg = cg_.builder_->CreateSIToFP(valueArg, expectedValTy, "prop.set.val.i2f");
                             }
                             else if (expectedValTy->isIntegerTy() && actualValTy->isDoubleTy())
                             {
-                                valueArg = builder_->CreateFPToSI(valueArg, expectedValTy, "prop.set.val.f2i");
+                                valueArg = cg_.builder_->CreateFPToSI(valueArg, expectedValTy, "prop.set.val.f2i");
                             }
                             else if (expectedValTy->isPointerTy() && actualValTy->isIntegerTy())
                             {
-                                valueArg = builder_->CreateIntToPtr(valueArg, expectedValTy, "prop.set.val.i2p");
+                                valueArg = cg_.builder_->CreateIntToPtr(valueArg, expectedValTy, "prop.set.val.i2p");
                             }
                             else if (expectedValTy->isIntegerTy() && actualValTy->isPointerTy())
                             {
-                                valueArg = builder_->CreatePtrToInt(valueArg, expectedValTy, "prop.set.val.p2i");
+                                valueArg = cg_.builder_->CreatePtrToInt(valueArg, expectedValTy, "prop.set.val.p2i");
                             }
                         }
                     }
 
-                    builder_->CreateCall(setter, {selfArg, valueArg});
+                    cg_.builder_->CreateCall(setter, {selfArg, valueArg});
                     return value;
                 }
             }
 
-            auto structIt = context_info_.classStructTypes.find(className);
-            auto fieldNamesIt = context_info_.classFieldNames.find(className);
+            auto structIt = cg_.context_info_.classStructTypes.find(className);
+            auto fieldNamesIt = cg_.context_info_.classFieldNames.find(className);
 
-            if (structIt == context_info_.classStructTypes.end() ||
-                fieldNamesIt == context_info_.classFieldNames.end())
+            if (structIt == cg_.context_info_.classStructTypes.end() ||
+                fieldNamesIt == cg_.context_info_.classFieldNames.end())
             {
-                reportError("Class struct not found: " + className);
+                cg_.reportError("Class struct not found: " + className);
                 return nullptr;
             }
 
@@ -822,13 +823,13 @@ namespace Sad
                 std::string parentClass = className;
                 while (fieldIndex < 0)
                 {
-                    auto parentIt = context_info_.classParentMap.find(parentClass);
-                    if (parentIt == context_info_.classParentMap.end())
+                    auto parentIt = cg_.context_info_.classParentMap.find(parentClass);
+                    if (parentIt == cg_.context_info_.classParentMap.end())
                         break;
                     parentClass = parentIt->second;
 
-                    auto parentFieldsIt = context_info_.classFieldNames.find(parentClass);
-                    if (parentFieldsIt == context_info_.classFieldNames.end())
+                    auto parentFieldsIt = cg_.context_info_.classFieldNames.find(parentClass);
+                    if (parentFieldsIt == cg_.context_info_.classFieldNames.end())
                         break;
 
                     const auto &parentFieldNames = parentFieldsIt->second;
@@ -847,7 +848,7 @@ namespace Sad
             // (EN) Field not found — search all classes as fallback
             if (fieldIndex < 0)
             {
-                for (const auto &[clsName, fieldVec] : context_info_.classFieldNames)
+                for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
                 {
                     if (clsName == className)
                         continue;
@@ -857,8 +858,8 @@ namespace Sad
                         {
                             fieldIndex = static_cast<int>(i);
                             className = clsName;
-                            auto newStructIt = context_info_.classStructTypes.find(clsName);
-                            if (newStructIt != context_info_.classStructTypes.end())
+                            auto newStructIt = cg_.context_info_.classStructTypes.find(clsName);
+                            if (newStructIt != cg_.context_info_.classStructTypes.end())
                             {
                                 structType = newStructIt->second;
                             }
@@ -872,7 +873,7 @@ namespace Sad
 
             if (fieldIndex < 0)
             {
-                reportError("Field '" + fieldName + "' not found in class '" + className + "' or its parents");
+                cg_.reportError("Field '" + fieldName + "' not found in class '" + className + "' or its parents");
                 return nullptr;
             }
 
@@ -882,22 +883,22 @@ namespace Sad
             {
                 if (!allocaInst->getAllocatedType()->isStructTy())
                 {
-                    llvm::Value *loaded = builder_->CreateLoad(
+                    llvm::Value *loaded = cg_.builder_->CreateLoad(
                         allocaInst->getAllocatedType(), allocaInst, objRegName + ".load");
                     if (loaded->getType()->isIntegerTy())
                     {
-                        actualObj = builder_->CreateIntToPtr(loaded,
-                                                             llvm::PointerType::getUnqual(*context_), objRegName + ".ptr");
+                        actualObj = cg_.builder_->CreateIntToPtr(loaded,
+                                                             llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".ptr");
                     }
                 }
             }
             else if (auto *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(objPtr))
             {
-                llvm::Value *loaded = builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".load.g");
+                llvm::Value *loaded = cg_.builder_->CreateLoad(globalVar->getValueType(), globalVar, objRegName + ".load.g");
                 if (loaded->getType()->isIntegerTy())
                 {
-                    actualObj = builder_->CreateIntToPtr(loaded,
-                                                         llvm::PointerType::getUnqual(*context_), objRegName + ".ptr.g");
+                    actualObj = cg_.builder_->CreateIntToPtr(loaded,
+                                                         llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".ptr.g");
                 }
                 else if (loaded->getType()->isPointerTy())
                 {
@@ -908,18 +909,18 @@ namespace Sad
             // (EN) If object is still i64 — cast to ptr
             if (actualObj->getType()->isIntegerTy())
             {
-                actualObj = builder_->CreateIntToPtr(actualObj,
-                                                     llvm::PointerType::getUnqual(*context_), objRegName + ".i2p");
+                actualObj = cg_.builder_->CreateIntToPtr(actualObj,
+                                                     llvm::PointerType::getUnqual(*cg_.context_), objRegName + ".i2p");
             }
 
             // (AR) إزاحة vtable: الحقل 0 في الهيكل محجوز لمؤشر vtable
             // (EN) vtable offset: field 0 in struct is reserved for vtable ptr
-            int structIndex = getFieldStructIndex(className, fieldIndex);
+            int structIndex = cg_.getFieldStructIndex(className, fieldIndex);
 
             // GEP + Store
-            llvm::Value *gep = builder_->CreateStructGEP(structType, actualObj, structIndex,
+            llvm::Value *gep = cg_.builder_->CreateStructGEP(structType, actualObj, structIndex,
                                                          fieldName + "_gep");
-            builder_->CreateStore(value, gep);
+            cg_.builder_->CreateStore(value, gep);
 
             return value;
         }
