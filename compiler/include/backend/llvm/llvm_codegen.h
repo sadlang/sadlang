@@ -105,6 +105,12 @@
 #include "builders/coroutines_codegen.h"        // (AR) Phase 8 Step 7: CoroutinesCodeGen
 #include "builders/strings_codegen.h"           // (AR) Phase 8 Step 8: StringsCodeGen
 #include "builders/instr_core_codegen.h"        // (AR) Phase 8 Step 9: InstrCoreCodeGen
+#include "builders/simd_codegen.h"              // (AR) Phase 8 Step 10
+#include "builders/instr_lowlevel_codegen.h"    // (AR) Phase 8 Step 10
+#include "builders/file_casts_codegen.h"        // (AR) Phase 8 Step 10
+#include "builders/directives_codegen.h"        // (AR) Phase 8 Step 10
+#include "builders/instr_platform_codegen.h"    // (AR) Phase 8 Step 10
+#include "builders/output_codegen.h"            // (AR) Phase 8 Step 10
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -320,6 +326,13 @@ namespace Sad
             friend class StringsCodeGen;
             // (AR) Phase 8 Step 9: InstrCoreCodeGen
             friend class InstrCoreCodeGen;
+            // (AR) Phase 8 Step 10: 6 sub-codegens
+            friend class SimdCodeGen;
+            friend class InstrLowlevelCodeGen;
+            friend class FileCastsCodeGen;
+            friend class DirectivesCodeGen;
+            friend class InstrPlatformCodeGen;
+            friend class OutputCodeGen;
 
         public:
             // ========================================================================
@@ -791,8 +804,8 @@ namespace Sad
             //      emitInstructionLowlevel : low-level (CPU, UEFI, APIC, GDT, Paging...)
             //      emitInstructionPlatform : platform (Android, UI, @sizeof/@atomic directives, modules)
             llvm::Value *emitInstructionCore(std::shared_ptr<SIRInstruction> inst) { return ic_->emitInstructionCore(inst); }
-            llvm::Value *emitInstructionLowlevel(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitInstructionPlatform(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitInstructionLowlevel(std::shared_ptr<SIRInstruction> inst) { return ill_->emitInstructionLowlevel(inst); }
+            llvm::Value *emitInstructionPlatform(std::shared_ptr<SIRInstruction> inst) { return ip_->emitInstructionPlatform(inst); }
 
             // (AR) الطبقة الرابعة: دوال الشبكة (TCP/UDP، HTTP، عناوين)
             //      تُصدر استدعاءات لدوال C API من stdlib/network
@@ -806,7 +819,7 @@ namespace Sad
             // (EN) Tier 5: SIMD vector instructions (Phase 3)
             //      Emits native LLVM <N x T> instructions: FMA, sqrt.v8f64,
             //      vector.reduce.fadd, etc. Performance exceeds C++ scalar.
-            llvm::Value *emitInstructionSimd(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitInstructionSimd(std::shared_ptr<SIRInstruction> inst) { return simd_->emitInstructionSimd(inst); }
 
             // (AR) دالة مساعدة: إصدار استدعاء دالة C خارجية للشبكة
             // (EN) Helper: emit call to an extern C network function
@@ -830,14 +843,14 @@ namespace Sad
             llvm::Value *emitBuiltinArraySlice(std::shared_ptr<SIRInstruction> inst) { return arrb_->emitBuiltinArraySlice(inst); }
 
             // File I/O Functions (8)
-            llvm::Value *emitBuiltinFileRead(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinFileWrite(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinFileAppend(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinFileDelete(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinFileCopy(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinFileMove(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinFileCreateDir(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinFileListDir(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitBuiltinFileRead(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileRead(inst); }
+            llvm::Value *emitBuiltinFileWrite(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileWrite(inst); }
+            llvm::Value *emitBuiltinFileAppend(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileAppend(inst); }
+            llvm::Value *emitBuiltinFileDelete(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileDelete(inst); }
+            llvm::Value *emitBuiltinFileCopy(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileCopy(inst); }
+            llvm::Value *emitBuiltinFileMove(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileMove(inst); }
+            llvm::Value *emitBuiltinFileCreateDir(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileCreateDir(inst); }
+            llvm::Value *emitBuiltinFileListDir(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileListDir(inst); }
 
             // Utility Functions (4)
             // (AR) Phase 7 Step 8: emitBuiltinRandom delegate إلى MathBuiltinsCodeGen
@@ -1449,7 +1462,7 @@ namespace Sad
              * @param filename اسم الملف / File name
              * @return true إذا نجح الحفظ / true if save succeeded
              */
-            bool emitToFile(const std::string &filename) const;
+            bool emitToFile(const std::string &filename) const { return out_->emitToFile(filename); }
 
             /**
              * حفظ LLVM IR إلى نص
@@ -1457,7 +1470,7 @@ namespace Sad
              *
              * @return نص LLVM IR / LLVM IR text
              */
-            std::string emitToString() const;
+            std::string emitToString() const { return out_->emitToString(); }
 
             /**
              * إصدار ملف assembly
@@ -1466,7 +1479,7 @@ namespace Sad
              * @param filename اسم الملف / File name
              * @return true if successful
              */
-            bool emitAssembly(const std::string &filename);
+            bool emitAssembly(const std::string &filename) { return out_->emitAssembly(filename); }
 
             /**
              * إصدار ملف assembly من وحدة خارجية
@@ -1476,7 +1489,7 @@ namespace Sad
              * @param module الوحدة / Module
              * @return true if successful
              */
-            bool emitAssembly(const std::string &filename, llvm::Module *module);
+            bool emitAssembly(const std::string &filename, llvm::Module *module) { return out_->emitAssembly(filename, module); }
 
             /**
              * إصدار ملف object
@@ -1485,7 +1498,7 @@ namespace Sad
              * @param filename اسم الملف / File name
              * @return true if successful
              */
-            bool emitObjectFile(const std::string &filename);
+            bool emitObjectFile(const std::string &filename) { return out_->emitObjectFile(filename); }
 
             /**
              * إصدار ملف object من وحدة خارجية
@@ -1495,13 +1508,13 @@ namespace Sad
              * @param module الوحدة / Module
              * @return true if successful
              */
-            bool emitObjectFile(const std::string &filename, llvm::Module *module);
+            bool emitObjectFile(const std::string &filename, llvm::Module *module) { return out_->emitObjectFile(filename, module); }
 
             /**
              * طباعة LLVM IR إلى stderr
              * Print LLVM IR to stderr
              */
-            void dump() const;
+            void dump() const { out_->dump(); }
 
             // ========================================================================
             // Error Handling / معالجة الأخطاء
@@ -1598,6 +1611,13 @@ namespace Sad
             std::unique_ptr<StringsCodeGen> strs_;
             // (AR) Phase 8 Step 9: emitInstructionCore (29KB switch)
             std::unique_ptr<InstrCoreCodeGen> ic_;
+            // (AR) Phase 8 Step 10
+            std::unique_ptr<SimdCodeGen> simd_;
+            std::unique_ptr<InstrLowlevelCodeGen> ill_;
+            std::unique_ptr<FileCastsCodeGen> fc_;
+            std::unique_ptr<DirectivesCodeGen> dir_;
+            std::unique_ptr<InstrPlatformCodeGen> ip_;
+            std::unique_ptr<OutputCodeGen> out_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
@@ -1758,13 +1778,13 @@ namespace Sad
             // (AR) دعم توجيهات اللغة منخفضة المستوى
             // (EN) Support for low-level language directives
             // ================================================================
-            llvm::Value *emitSizeof(std::shared_ptr<SIRInstruction> inst);         // @حجم
-            llvm::Value *emitAtomicLoad(std::shared_ptr<SIRInstruction> inst);     // @ذري(تحميل)
-            llvm::Value *emitAtomicStore(std::shared_ptr<SIRInstruction> inst);    // @ذري(تخزين)
-            llvm::Value *emitAtomicAdd(std::shared_ptr<SIRInstruction> inst);      // @ذري(إضافة)
-            llvm::Value *emitAtomicSub(std::shared_ptr<SIRInstruction> inst);      // @ذري(طرح)
-            llvm::Value *emitAtomicExchange(std::shared_ptr<SIRInstruction> inst); // @ذري(تبادل)
-            llvm::Value *emitAtomicCmpXchg(std::shared_ptr<SIRInstruction> inst);  // @ذري(مقارنة_وتبديل)
+            llvm::Value *emitSizeof(std::shared_ptr<SIRInstruction> inst) { return dir_->emitSizeof(inst); }
+            llvm::Value *emitAtomicLoad(std::shared_ptr<SIRInstruction> inst) { return dir_->emitAtomicLoad(inst); }
+            llvm::Value *emitAtomicStore(std::shared_ptr<SIRInstruction> inst) { return dir_->emitAtomicStore(inst); }
+            llvm::Value *emitAtomicAdd(std::shared_ptr<SIRInstruction> inst) { return dir_->emitAtomicAdd(inst); }
+            llvm::Value *emitAtomicSub(std::shared_ptr<SIRInstruction> inst) { return dir_->emitAtomicSub(inst); }
+            llvm::Value *emitAtomicExchange(std::shared_ptr<SIRInstruction> inst) { return dir_->emitAtomicExchange(inst); }
+            llvm::Value *emitAtomicCmpXchg(std::shared_ptr<SIRInstruction> inst) { return dir_->emitAtomicCmpXchg(inst); }
         };
 
     } // namespace LLVM

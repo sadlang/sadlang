@@ -5,6 +5,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "builders/instr_lowlevel_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -32,208 +33,208 @@ namespace Sad
          * (EN) Emit low-level OS instructions (CPU, GDT, Paging, IDT, PCI, DMA, FB, ACPI, Sync, Sched, Boot, VFS, APIC, HPET, Syscall, Mem, UEFI)
          * @return nullptr إذا لم يتعرف على الـ opcode / nullptr if opcode not handled
          */
-        llvm::Value *LLVMCodeGen::emitInstructionLowlevel(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *InstrLowlevelCodeGen::emitInstructionLowlevel(std::shared_ptr<SIRInstruction> inst)
         {
             switch (inst->opcode)
             {
 
             // --- 15a: CPU ---
             case SIROpcode::LOWLEVEL_CPU_GET_INFO:
-                return emitLowlevelCpuGetInfo(inst);
+                return cg_.emitLowlevelCpuGetInfo(inst);
             case SIROpcode::LOWLEVEL_CPU_GET_FEATURES:
-                return emitLowlevelCpuGetFeatures(inst);
+                return cg_.emitLowlevelCpuGetFeatures(inst);
             case SIROpcode::LOWLEVEL_CPU_READ_MSR:
-                return emitLowlevelCpuReadMSR(inst);
+                return cg_.emitLowlevelCpuReadMSR(inst);
             case SIROpcode::LOWLEVEL_CPU_WRITE_MSR:
-                return emitLowlevelCpuWriteMSR(inst);
+                return cg_.emitLowlevelCpuWriteMSR(inst);
             case SIROpcode::LOWLEVEL_CPU_READ_CR:
-                return emitLowlevelCpuReadCR(inst);
+                return cg_.emitLowlevelCpuReadCR(inst);
             case SIROpcode::LOWLEVEL_CPU_WRITE_CR:
-                return emitLowlevelCpuWriteCR(inst);
+                return cg_.emitLowlevelCpuWriteCR(inst);
             case SIROpcode::LOWLEVEL_CPU_INVLPG:
-                return emitLowlevelCpuInvlpg(inst);
+                return cg_.emitLowlevelCpuInvlpg(inst);
             case SIROpcode::LOWLEVEL_CPU_GET_REPORT:
-                return emitLowlevelCpuGetReport(inst);
+                return cg_.emitLowlevelCpuGetReport(inst);
 
             // --- 15b: GDT ---
             case SIROpcode::LOWLEVEL_GDT_INIT:
-                return emitLowlevelGdtInit(inst);
+                return cg_.emitLowlevelGdtInit(inst);
             case SIROpcode::LOWLEVEL_GDT_LOAD:
-                return emitLowlevelGdtLoad(inst);
+                return cg_.emitLowlevelGdtLoad(inst);
             case SIROpcode::LOWLEVEL_GDT_GET_REPORT:
-                return emitLowlevelGdtGetReport(inst);
+                return cg_.emitLowlevelGdtGetReport(inst);
 
             // --- 15c: Paging ---
             case SIROpcode::LOWLEVEL_PAGING_INIT:
-                return emitLowlevelPagingInit(inst);
+                return cg_.emitLowlevelPagingInit(inst);
             case SIROpcode::LOWLEVEL_PAGING_MAP:
-                return emitLowlevelPagingMap(inst);
+                return cg_.emitLowlevelPagingMap(inst);
             case SIROpcode::LOWLEVEL_PAGING_UNMAP:
-                return emitLowlevelPagingUnmap(inst);
+                return cg_.emitLowlevelPagingUnmap(inst);
             case SIROpcode::LOWLEVEL_PAGING_FLUSH_TLB:
-                return emitLowlevelPagingFlushTlb(inst);
+                return cg_.emitLowlevelPagingFlushTlb(inst);
             case SIROpcode::LOWLEVEL_PAGING_GET_REPORT:
-                return emitLowlevelPagingGetReport(inst);
+                return cg_.emitLowlevelPagingGetReport(inst);
 
             // --- 15d: IDT ---
             case SIROpcode::LOWLEVEL_IDT_INIT:
-                return emitLowlevelIdtInit(inst);
+                return cg_.emitLowlevelIdtInit(inst);
             case SIROpcode::LOWLEVEL_IDT_LOAD:
-                return emitLowlevelIdtLoad(inst);
+                return cg_.emitLowlevelIdtLoad(inst);
             case SIROpcode::LOWLEVEL_IDT_REGISTER_ISR:
-                return emitLowlevelIdtRegisterIsr(inst);
+                return cg_.emitLowlevelIdtRegisterIsr(inst);
             case SIROpcode::LOWLEVEL_IDT_ENABLE_IRQ:
-                return emitLowlevelIdtEnableIrq(inst);
+                return cg_.emitLowlevelIdtEnableIrq(inst);
             case SIROpcode::LOWLEVEL_IDT_GET_REPORT:
-                return emitLowlevelIdtGetReport(inst);
+                return cg_.emitLowlevelIdtGetReport(inst);
 
             // --- 15e: PCI ---
             case SIROpcode::LOWLEVEL_PCI_ENUMERATE:
-                return emitLowlevelPciEnumerate(inst);
+                return cg_.emitLowlevelPciEnumerate(inst);
             case SIROpcode::LOWLEVEL_PCI_READ_CONFIG:
-                return emitLowlevelPciReadConfig(inst);
+                return cg_.emitLowlevelPciReadConfig(inst);
             case SIROpcode::LOWLEVEL_PCI_WRITE_CONFIG:
-                return emitLowlevelPciWriteConfig(inst);
+                return cg_.emitLowlevelPciWriteConfig(inst);
             case SIROpcode::LOWLEVEL_PCI_GET_DEVICE_COUNT:
-                return emitLowlevelPciGetDeviceCount(inst);
+                return cg_.emitLowlevelPciGetDeviceCount(inst);
             case SIROpcode::LOWLEVEL_PCI_GET_REPORT:
-                return emitLowlevelPciGetReport(inst);
+                return cg_.emitLowlevelPciGetReport(inst);
 
             // --- 15f: DMA ---
             case SIROpcode::LOWLEVEL_DMA_INIT:
-                return emitLowlevelDmaInit(inst);
+                return cg_.emitLowlevelDmaInit(inst);
             case SIROpcode::LOWLEVEL_DMA_TRANSFER:
-                return emitLowlevelDmaTransfer(inst);
+                return cg_.emitLowlevelDmaTransfer(inst);
             case SIROpcode::LOWLEVEL_DMA_STATUS:
-                return emitLowlevelDmaStatus(inst);
+                return cg_.emitLowlevelDmaStatus(inst);
             case SIROpcode::LOWLEVEL_DMA_GET_REPORT:
-                return emitLowlevelDmaGetReport(inst);
+                return cg_.emitLowlevelDmaGetReport(inst);
 
             // --- 15g: Framebuffer ---
             case SIROpcode::LOWLEVEL_FB_INIT:
-                return emitLowlevelFbInit(inst);
+                return cg_.emitLowlevelFbInit(inst);
             case SIROpcode::LOWLEVEL_FB_SET_PIXEL:
-                return emitLowlevelFbSetPixel(inst);
+                return cg_.emitLowlevelFbSetPixel(inst);
             case SIROpcode::LOWLEVEL_FB_DRAW_RECT:
-                return emitLowlevelFbDrawRect(inst);
+                return cg_.emitLowlevelFbDrawRect(inst);
             case SIROpcode::LOWLEVEL_FB_FILL_RECT:
-                return emitLowlevelFbFillRect(inst);
+                return cg_.emitLowlevelFbFillRect(inst);
             case SIROpcode::LOWLEVEL_FB_DRAW_LINE:
-                return emitLowlevelFbDrawLine(inst);
+                return cg_.emitLowlevelFbDrawLine(inst);
             case SIROpcode::LOWLEVEL_FB_DRAW_STRING:
-                return emitLowlevelFbDrawString(inst);
+                return cg_.emitLowlevelFbDrawString(inst);
             case SIROpcode::LOWLEVEL_FB_CLEAR:
-                return emitLowlevelFbClear(inst);
+                return cg_.emitLowlevelFbClear(inst);
             case SIROpcode::LOWLEVEL_FB_GET_REPORT:
-                return emitLowlevelFbGetReport(inst);
+                return cg_.emitLowlevelFbGetReport(inst);
 
             // --- 15h: ACPI ---
             case SIROpcode::LOWLEVEL_ACPI_INIT:
-                return emitLowlevelAcpiInit(inst);
+                return cg_.emitLowlevelAcpiInit(inst);
             case SIROpcode::LOWLEVEL_ACPI_FIND_TABLE:
-                return emitLowlevelAcpiFindTable(inst);
+                return cg_.emitLowlevelAcpiFindTable(inst);
             case SIROpcode::LOWLEVEL_ACPI_SHUTDOWN:
-                return emitLowlevelAcpiShutdown(inst);
+                return cg_.emitLowlevelAcpiShutdown(inst);
             case SIROpcode::LOWLEVEL_ACPI_GET_REPORT:
-                return emitLowlevelAcpiGetReport(inst);
+                return cg_.emitLowlevelAcpiGetReport(inst);
 
             // --- 15i: Sync ---
             case SIROpcode::LOWLEVEL_SPINLOCK_INIT:
-                return emitLowlevelSpinlockInit(inst);
+                return cg_.emitLowlevelSpinlockInit(inst);
             case SIROpcode::LOWLEVEL_SPINLOCK_LOCK:
-                return emitLowlevelSpinlockLock(inst);
+                return cg_.emitLowlevelSpinlockLock(inst);
             case SIROpcode::LOWLEVEL_SPINLOCK_UNLOCK:
-                return emitLowlevelSpinlockUnlock(inst);
+                return cg_.emitLowlevelSpinlockUnlock(inst);
             case SIROpcode::LOWLEVEL_MUTEX_INIT:
-                return emitLowlevelMutexInit(inst);
+                return cg_.emitLowlevelMutexInit(inst);
             case SIROpcode::LOWLEVEL_MUTEX_LOCK:
-                return emitLowlevelMutexLock(inst);
+                return cg_.emitLowlevelMutexLock(inst);
             case SIROpcode::LOWLEVEL_MUTEX_UNLOCK:
-                return emitLowlevelMutexUnlock(inst);
+                return cg_.emitLowlevelMutexUnlock(inst);
             case SIROpcode::LOWLEVEL_SEMAPHORE_INIT:
-                return emitLowlevelSemaphoreInit(inst);
+                return cg_.emitLowlevelSemaphoreInit(inst);
             case SIROpcode::LOWLEVEL_BARRIER_INIT:
-                return emitLowlevelBarrierInit(inst);
+                return cg_.emitLowlevelBarrierInit(inst);
 
             // --- 15j: Scheduler ---
             case SIROpcode::LOWLEVEL_SCHED_INIT:
-                return emitLowlevelSchedInit(inst);
+                return cg_.emitLowlevelSchedInit(inst);
             case SIROpcode::LOWLEVEL_SCHED_CREATE_PROC:
-                return emitLowlevelSchedCreateProc(inst);
+                return cg_.emitLowlevelSchedCreateProc(inst);
             case SIROpcode::LOWLEVEL_SCHED_CREATE_THREAD:
-                return emitLowlevelSchedCreateThread(inst);
+                return cg_.emitLowlevelSchedCreateThread(inst);
             case SIROpcode::LOWLEVEL_SCHED_YIELD:
-                return emitLowlevelSchedYield(inst);
+                return cg_.emitLowlevelSchedYield(inst);
             case SIROpcode::LOWLEVEL_SCHED_SLEEP:
-                return emitLowlevelSchedSleep(inst);
+                return cg_.emitLowlevelSchedSleep(inst);
             case SIROpcode::LOWLEVEL_SCHED_GET_REPORT:
-                return emitLowlevelSchedGetReport(inst);
+                return cg_.emitLowlevelSchedGetReport(inst);
 
             // --- 15k: Boot ---
             case SIROpcode::LOWLEVEL_BOOT_GET_INFO:
-                return emitLowlevelBootGetInfo(inst);
+                return cg_.emitLowlevelBootGetInfo(inst);
             case SIROpcode::LOWLEVEL_BOOT_GET_MEMORY_MAP:
-                return emitLowlevelBootGetMemoryMap(inst);
+                return cg_.emitLowlevelBootGetMemoryMap(inst);
             case SIROpcode::LOWLEVEL_BOOT_GET_REPORT:
-                return emitLowlevelBootGetReport(inst);
+                return cg_.emitLowlevelBootGetReport(inst);
 
             // --- 15l: VFS ---
             case SIROpcode::LOWLEVEL_VFS_MOUNT:
-                return emitLowlevelVfsMount(inst);
+                return cg_.emitLowlevelVfsMount(inst);
             case SIROpcode::LOWLEVEL_VFS_UNMOUNT:
-                return emitLowlevelVfsUnmount(inst);
+                return cg_.emitLowlevelVfsUnmount(inst);
             case SIROpcode::LOWLEVEL_VFS_OPEN:
-                return emitLowlevelVfsOpen(inst);
+                return cg_.emitLowlevelVfsOpen(inst);
             case SIROpcode::LOWLEVEL_VFS_READ:
-                return emitLowlevelVfsRead(inst);
+                return cg_.emitLowlevelVfsRead(inst);
             case SIROpcode::LOWLEVEL_VFS_WRITE:
-                return emitLowlevelVfsWrite(inst);
+                return cg_.emitLowlevelVfsWrite(inst);
             case SIROpcode::LOWLEVEL_VFS_CLOSE:
-                return emitLowlevelVfsClose(inst);
+                return cg_.emitLowlevelVfsClose(inst);
             case SIROpcode::LOWLEVEL_VFS_GET_REPORT:
-                return emitLowlevelVfsGetReport(inst);
+                return cg_.emitLowlevelVfsGetReport(inst);
 
             // --- 15m: APIC ---
             case SIROpcode::LOWLEVEL_APIC_INIT:
-                return emitLowlevelApicInit(inst);
+                return cg_.emitLowlevelApicInit(inst);
             case SIROpcode::LOWLEVEL_APIC_SEND_EOI:
-                return emitLowlevelApicSendEoi(inst);
+                return cg_.emitLowlevelApicSendEoi(inst);
             case SIROpcode::LOWLEVEL_APIC_SEND_IPI:
-                return emitLowlevelApicSendIpi(inst);
+                return cg_.emitLowlevelApicSendIpi(inst);
             case SIROpcode::LOWLEVEL_APIC_SET_TIMER:
-                return emitLowlevelApicSetTimer(inst);
+                return cg_.emitLowlevelApicSetTimer(inst);
             case SIROpcode::LOWLEVEL_APIC_GET_REPORT:
-                return emitLowlevelApicGetReport(inst);
+                return cg_.emitLowlevelApicGetReport(inst);
 
             // --- 15n: HPET ---
             case SIROpcode::LOWLEVEL_HPET_INIT:
-                return emitLowlevelHpetInit(inst);
+                return cg_.emitLowlevelHpetInit(inst);
             case SIROpcode::LOWLEVEL_HPET_READ:
-                return emitLowlevelHpetRead(inst);
+                return cg_.emitLowlevelHpetRead(inst);
             case SIROpcode::LOWLEVEL_HPET_SLEEP:
-                return emitLowlevelHpetSleep(inst);
+                return cg_.emitLowlevelHpetSleep(inst);
             case SIROpcode::LOWLEVEL_HPET_GET_REPORT:
-                return emitLowlevelHpetGetReport(inst);
+                return cg_.emitLowlevelHpetGetReport(inst);
 
             // --- 15o: Syscall ---
             case SIROpcode::LOWLEVEL_SYSCALL_INIT:
-                return emitLowlevelSyscallInit(inst);
+                return cg_.emitLowlevelSyscallInit(inst);
             case SIROpcode::LOWLEVEL_SYSCALL_REGISTER:
-                return emitLowlevelSyscallRegister(inst);
+                return cg_.emitLowlevelSyscallRegister(inst);
             case SIROpcode::LOWLEVEL_SYSCALL_INVOKE:
-                return emitLowlevelSyscallInvoke(inst);
+                return cg_.emitLowlevelSyscallInvoke(inst);
             case SIROpcode::LOWLEVEL_SYSCALL_GET_REPORT:
-                return emitLowlevelSyscallGetReport(inst);
+                return cg_.emitLowlevelSyscallGetReport(inst);
 
             // --- 15p: Memory ---
             case SIROpcode::LOWLEVEL_MEM_ALLOC_PHYS:
-                return emitLowlevelMemAllocPhys(inst);
+                return cg_.emitLowlevelMemAllocPhys(inst);
             case SIROpcode::LOWLEVEL_MEM_FREE_PHYS:
-                return emitLowlevelMemFreePhys(inst);
+                return cg_.emitLowlevelMemFreePhys(inst);
             case SIROpcode::LOWLEVEL_MEM_MAP_REGION:
-                return emitLowlevelMemMapRegion(inst);
+                return cg_.emitLowlevelMemMapRegion(inst);
             case SIROpcode::LOWLEVEL_MEM_GET_REPORT:
-                return emitLowlevelMemGetReport(inst);
+                return cg_.emitLowlevelMemGetReport(inst);
 
             // =================================================================
             // القسم 16: بروتوكول UEFI / UEFI Boot Protocol
@@ -241,159 +242,159 @@ namespace Sad
 
             // 16a. التهيئة والتحكم
             case SIROpcode::LOWLEVEL_UEFI_INIT:
-                return emitLowlevelUefiInit(inst);
+                return cg_.emitLowlevelUefiInit(inst);
             case SIROpcode::LOWLEVEL_UEFI_EXIT_BOOT_SERVICES:
-                return emitLowlevelUefiExitBootServices(inst);
+                return cg_.emitLowlevelUefiExitBootServices(inst);
             case SIROpcode::LOWLEVEL_UEFI_IS_INITIALIZED:
-                return emitLowlevelUefiIsInitialized(inst);
+                return cg_.emitLowlevelUefiIsInitialized(inst);
             case SIROpcode::LOWLEVEL_UEFI_BS_EXITED:
-                return emitLowlevelUefiBsExited(inst);
+                return cg_.emitLowlevelUefiBsExited(inst);
             case SIROpcode::LOWLEVEL_UEFI_RESET_SYSTEM:
-                return emitLowlevelUefiResetSystem(inst);
+                return cg_.emitLowlevelUefiResetSystem(inst);
 
             // 16b. إدارة الذاكرة
             case SIROpcode::LOWLEVEL_UEFI_ALLOC_PAGES:
-                return emitLowlevelUefiAllocPages(inst);
+                return cg_.emitLowlevelUefiAllocPages(inst);
             case SIROpcode::LOWLEVEL_UEFI_FREE_PAGES:
-                return emitLowlevelUefiFreePages(inst);
+                return cg_.emitLowlevelUefiFreePages(inst);
             case SIROpcode::LOWLEVEL_UEFI_ALLOC_POOL:
-                return emitLowlevelUefiAllocPool(inst);
+                return cg_.emitLowlevelUefiAllocPool(inst);
             case SIROpcode::LOWLEVEL_UEFI_FREE_POOL:
-                return emitLowlevelUefiFreePool(inst);
+                return cg_.emitLowlevelUefiFreePool(inst);
             case SIROpcode::LOWLEVEL_UEFI_GET_MEMORY_MAP:
-                return emitLowlevelUefiGetMemoryMap(inst);
+                return cg_.emitLowlevelUefiGetMemoryMap(inst);
             case SIROpcode::LOWLEVEL_UEFI_GET_MEMMAP_KEY:
-                return emitLowlevelUefiGetMemmapKey(inst);
+                return cg_.emitLowlevelUefiGetMemmapKey(inst);
             case SIROpcode::LOWLEVEL_UEFI_TOTAL_MEMORY:
-                return emitLowlevelUefiTotalMemory(inst);
+                return cg_.emitLowlevelUefiTotalMemory(inst);
 
             // 16c. بروتوكول الرسوميات GOP
             case SIROpcode::LOWLEVEL_UEFI_INIT_GOP:
-                return emitLowlevelUefiInitGop(inst);
+                return cg_.emitLowlevelUefiInitGop(inst);
             case SIROpcode::LOWLEVEL_UEFI_SET_GOP_MODE:
-                return emitLowlevelUefiSetGopMode(inst);
+                return cg_.emitLowlevelUefiSetGopMode(inst);
             case SIROpcode::LOWLEVEL_UEFI_QUERY_GOP_MODE:
-                return emitLowlevelUefiQueryGopMode(inst);
+                return cg_.emitLowlevelUefiQueryGopMode(inst);
             case SIROpcode::LOWLEVEL_UEFI_GOP_MODE_COUNT:
-                return emitLowlevelUefiGopModeCount(inst);
+                return cg_.emitLowlevelUefiGopModeCount(inst);
             case SIROpcode::LOWLEVEL_UEFI_CURRENT_GOP_MODE:
-                return emitLowlevelUefiCurrentGopMode(inst);
+                return cg_.emitLowlevelUefiCurrentGopMode(inst);
             case SIROpcode::LOWLEVEL_UEFI_FRAMEBUFFER_BASE:
-                return emitLowlevelUefiFramebufferBase(inst);
+                return cg_.emitLowlevelUefiFramebufferBase(inst);
             case SIROpcode::LOWLEVEL_UEFI_FRAMEBUFFER_SIZE:
-                return emitLowlevelUefiFramebufferSize(inst);
+                return cg_.emitLowlevelUefiFramebufferSize(inst);
             case SIROpcode::LOWLEVEL_UEFI_FILL_SCREEN:
-                return emitLowlevelUefiFillScreen(inst);
+                return cg_.emitLowlevelUefiFillScreen(inst);
             case SIROpcode::LOWLEVEL_UEFI_DRAW_RECT:
-                return emitLowlevelUefiDrawRect(inst);
+                return cg_.emitLowlevelUefiDrawRect(inst);
             case SIROpcode::LOWLEVEL_UEFI_GOP_BLT:
-                return emitLowlevelUefiGopBlt(inst);
+                return cg_.emitLowlevelUefiGopBlt(inst);
 
             // 16d. خدمات وقت التشغيل
             case SIROpcode::LOWLEVEL_UEFI_GET_TIME:
-                return emitLowlevelUefiGetTime(inst);
+                return cg_.emitLowlevelUefiGetTime(inst);
             case SIROpcode::LOWLEVEL_UEFI_SET_TIME:
-                return emitLowlevelUefiSetTime(inst);
+                return cg_.emitLowlevelUefiSetTime(inst);
             case SIROpcode::LOWLEVEL_UEFI_GET_VARIABLE:
-                return emitLowlevelUefiGetVariable(inst);
+                return cg_.emitLowlevelUefiGetVariable(inst);
             case SIROpcode::LOWLEVEL_UEFI_SET_VARIABLE:
-                return emitLowlevelUefiSetVariable(inst);
+                return cg_.emitLowlevelUefiSetVariable(inst);
 
             // 16e. نظام الملفات
             case SIROpcode::LOWLEVEL_UEFI_OPEN_VOLUME:
-                return emitLowlevelUefiOpenVolume(inst);
+                return cg_.emitLowlevelUefiOpenVolume(inst);
             case SIROpcode::LOWLEVEL_UEFI_OPEN_FILE:
-                return emitLowlevelUefiOpenFile(inst);
+                return cg_.emitLowlevelUefiOpenFile(inst);
             case SIROpcode::LOWLEVEL_UEFI_READ_FILE:
-                return emitLowlevelUefiReadFile(inst);
+                return cg_.emitLowlevelUefiReadFile(inst);
             case SIROpcode::LOWLEVEL_UEFI_WRITE_FILE:
-                return emitLowlevelUefiWriteFile(inst);
+                return cg_.emitLowlevelUefiWriteFile(inst);
             case SIROpcode::LOWLEVEL_UEFI_CLOSE_FILE:
-                return emitLowlevelUefiCloseFile(inst);
+                return cg_.emitLowlevelUefiCloseFile(inst);
             case SIROpcode::LOWLEVEL_UEFI_FILE_INFO:
-                return emitLowlevelUefiFileInfo(inst);
+                return cg_.emitLowlevelUefiFileInfo(inst);
 
             // 16f. بروتوكولات ومعلومات
             case SIROpcode::LOWLEVEL_UEFI_LOCATE_PROTOCOL:
-                return emitLowlevelUefiLocateProtocol(inst);
+                return cg_.emitLowlevelUefiLocateProtocol(inst);
             case SIROpcode::LOWLEVEL_UEFI_REVISION:
-                return emitLowlevelUefiRevision(inst);
+                return cg_.emitLowlevelUefiRevision(inst);
             case SIROpcode::LOWLEVEL_UEFI_VENDOR:
-                return emitLowlevelUefiVendor(inst);
+                return cg_.emitLowlevelUefiVendor(inst);
             case SIROpcode::LOWLEVEL_UEFI_FW_REVISION:
-                return emitLowlevelUefiFwRevision(inst);
+                return cg_.emitLowlevelUefiFwRevision(inst);
             case SIROpcode::LOWLEVEL_UEFI_REPORT:
-                return emitLowlevelUefiReport(inst);
+                return cg_.emitLowlevelUefiReport(inst);
 
             // --- القسم 17: ACPI الموسّع ---
             case SIROpcode::LOWLEVEL_ACPI_INIT_FULL:
-                return emitLowlevelAcpiInitFull(inst);
+                return cg_.emitLowlevelAcpiInitFull(inst);
             case SIROpcode::LOWLEVEL_ACPI_INIT_RSDP:
-                return emitLowlevelAcpiInitRsdp(inst);
+                return cg_.emitLowlevelAcpiInitRsdp(inst);
             case SIROpcode::LOWLEVEL_ACPI_ENABLE:
-                return emitLowlevelAcpiEnable(inst);
+                return cg_.emitLowlevelAcpiEnable(inst);
             case SIROpcode::LOWLEVEL_ACPI_DISABLE:
-                return emitLowlevelAcpiDisable(inst);
+                return cg_.emitLowlevelAcpiDisable(inst);
             case SIROpcode::LOWLEVEL_ACPI_IS_INITIALIZED:
-                return emitLowlevelAcpiIsInitialized(inst);
+                return cg_.emitLowlevelAcpiIsInitialized(inst);
             case SIROpcode::LOWLEVEL_ACPI_VERSION:
-                return emitLowlevelAcpiVersion(inst);
+                return cg_.emitLowlevelAcpiVersion(inst);
             case SIROpcode::LOWLEVEL_ACPI_REBOOT:
-                return emitLowlevelAcpiReboot(inst);
+                return cg_.emitLowlevelAcpiReboot(inst);
             case SIROpcode::LOWLEVEL_ACPI_SLEEP:
-                return emitLowlevelAcpiSleep(inst);
+                return cg_.emitLowlevelAcpiSleep(inst);
             case SIROpcode::LOWLEVEL_ACPI_DELAY_US:
-                return emitLowlevelAcpiDelayUs(inst);
+                return cg_.emitLowlevelAcpiDelayUs(inst);
             case SIROpcode::LOWLEVEL_ACPI_READ_PM_TIMER:
-                return emitLowlevelAcpiReadPmTimer(inst);
+                return cg_.emitLowlevelAcpiReadPmTimer(inst);
             case SIROpcode::LOWLEVEL_ACPI_IS_PM_32BIT:
-                return emitLowlevelAcpiIsPm32bit(inst);
+                return cg_.emitLowlevelAcpiIsPm32bit(inst);
             case SIROpcode::LOWLEVEL_ACPI_PROCESSOR_COUNT:
-                return emitLowlevelAcpiProcessorCount(inst);
+                return cg_.emitLowlevelAcpiProcessorCount(inst);
             case SIROpcode::LOWLEVEL_ACPI_LOCAL_APIC_ADDR:
-                return emitLowlevelAcpiLocalApicAddr(inst);
+                return cg_.emitLowlevelAcpiLocalApicAddr(inst);
             case SIROpcode::LOWLEVEL_ACPI_ECAM_BASE:
-                return emitLowlevelAcpiEcamBase(inst);
+                return cg_.emitLowlevelAcpiEcamBase(inst);
 
             // --- القسم 18: APIC الموسّع ---
             case SIROpcode::LOWLEVEL_APIC_SUPPORTED:
-                return emitLowlevelApicSupported(inst);
+                return cg_.emitLowlevelApicSupported(inst);
             case SIROpcode::LOWLEVEL_APIC_X2_SUPPORTED:
-                return emitLowlevelApicX2Supported(inst);
+                return cg_.emitLowlevelApicX2Supported(inst);
             case SIROpcode::LOWLEVEL_APIC_ID:
-                return emitLowlevelApicId(inst);
+                return cg_.emitLowlevelApicId(inst);
             case SIROpcode::LOWLEVEL_APIC_IO_COUNT:
-                return emitLowlevelApicIoCount(inst);
+                return cg_.emitLowlevelApicIoCount(inst);
             case SIROpcode::LOWLEVEL_APIC_INIT_TIMER:
-                return emitLowlevelApicInitTimer(inst);
+                return cg_.emitLowlevelApicInitTimer(inst);
             case SIROpcode::LOWLEVEL_APIC_START_TIMER:
-                return emitLowlevelApicStartTimer(inst);
+                return cg_.emitLowlevelApicStartTimer(inst);
             case SIROpcode::LOWLEVEL_APIC_STOP_TIMER:
-                return emitLowlevelApicStopTimer(inst);
+                return cg_.emitLowlevelApicStopTimer(inst);
             case SIROpcode::LOWLEVEL_APIC_TIMER_COUNT:
-                return emitLowlevelApicTimerCount(inst);
+                return cg_.emitLowlevelApicTimerCount(inst);
             case SIROpcode::LOWLEVEL_APIC_CALIBRATE:
-                return emitLowlevelApicCalibrate(inst);
+                return cg_.emitLowlevelApicCalibrate(inst);
             case SIROpcode::LOWLEVEL_APIC_SET_PRIORITY:
-                return emitLowlevelApicSetPriority(inst);
+                return cg_.emitLowlevelApicSetPriority(inst);
             case SIROpcode::LOWLEVEL_APIC_DISABLE_PIC:
-                return emitLowlevelApicDisablePic(inst);
+                return cg_.emitLowlevelApicDisablePic(inst);
             case SIROpcode::LOWLEVEL_APIC_MASK_IRQ:
-                return emitLowlevelApicMaskIrq(inst);
+                return cg_.emitLowlevelApicMaskIrq(inst);
             case SIROpcode::LOWLEVEL_APIC_UNMASK_IRQ:
-                return emitLowlevelApicUnmaskIrq(inst);
+                return cg_.emitLowlevelApicUnmaskIrq(inst);
             case SIROpcode::LOWLEVEL_APIC_ROUTE_IRQ:
-                return emitLowlevelApicRouteIrq(inst);
+                return cg_.emitLowlevelApicRouteIrq(inst);
             case SIROpcode::LOWLEVEL_APIC_SEND_IPI_ALL:
-                return emitLowlevelApicSendIpiAll(inst);
+                return cg_.emitLowlevelApicSendIpiAll(inst);
             case SIROpcode::LOWLEVEL_APIC_SEND_INIT_IPI:
-                return emitLowlevelApicSendInitIpi(inst);
+                return cg_.emitLowlevelApicSendInitIpi(inst);
             case SIROpcode::LOWLEVEL_APIC_SEND_SIPI:
-                return emitLowlevelApicSendSipi(inst);
+                return cg_.emitLowlevelApicSendSipi(inst);
             case SIROpcode::LOWLEVEL_APIC_WAIT_DELIVERY:
-                return emitLowlevelApicWaitDelivery(inst);
+                return cg_.emitLowlevelApicWaitDelivery(inst);
             case SIROpcode::LOWLEVEL_APIC_INIT_IO:
-                return emitLowlevelApicInitIo(inst);
+                return cg_.emitLowlevelApicInitIo(inst);
 
 
             default:

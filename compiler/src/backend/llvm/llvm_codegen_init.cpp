@@ -127,6 +127,13 @@ namespace Sad
             coro_ = std::make_unique<CoroutinesCodeGen>(*this);
             strs_ = std::make_unique<StringsCodeGen>(*this);
             ic_ = std::make_unique<InstrCoreCodeGen>(*this);
+            // (AR) Phase 8 Step 10
+            simd_ = std::make_unique<SimdCodeGen>(*this);
+            ill_ = std::make_unique<InstrLowlevelCodeGen>(*this);
+            fc_ = std::make_unique<FileCastsCodeGen>(*this);
+            dir_ = std::make_unique<DirectivesCodeGen>(*this);
+            ip_ = std::make_unique<InstrPlatformCodeGen>(*this);
+            out_ = std::make_unique<OutputCodeGen>(*this);
         }
 
         /**

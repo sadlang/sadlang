@@ -25,6 +25,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "builders/output_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -149,9 +150,9 @@ namespace Sad
          * @param filename اسم الملف / Filename
          * @return true إذا نجحت الكتابة / true if write succeeded
          */
-        bool LLVMCodeGen::emitToFile(const std::string &filename) const
+        bool OutputCodeGen::emitToFile(const std::string &filename) const
         {
-            if (!module_)
+            if (!cg_.module_)
             {
                 std::cerr << "Module is null" << std::endl;
                 return false;
@@ -166,7 +167,7 @@ namespace Sad
                 return false;
             }
 
-            module_->print(dest, nullptr);
+            cg_.module_->print(dest, nullptr);
             return true;
         }
 
@@ -177,16 +178,16 @@ namespace Sad
          * Source: llvm_codegen.h:554
          * @return نص LLVM IR / LLVM IR text
          */
-        std::string LLVMCodeGen::emitToString() const
+        std::string OutputCodeGen::emitToString() const
         {
-            if (!module_)
+            if (!cg_.module_)
             {
                 return "";
             }
 
             std::string str;
             llvm::raw_string_ostream os(str);
-            module_->print(os, nullptr);
+            cg_.module_->print(os, nullptr);
             return os.str();
         }
 
@@ -198,16 +199,16 @@ namespace Sad
          * @param filename اسم الملف / File name
          * @return true if successful
          */
-        bool LLVMCodeGen::emitAssembly(const std::string &filename)
+        bool OutputCodeGen::emitAssembly(const std::string &filename)
         {
             // (AR) التحقق من وجود الوحدة / (EN) Check module exists
-            if (!module_ || !targetMachine_)
+            if (!cg_.module_ || !cg_.targetMachine_)
             {
-                reportError("Module or target machine not initialized for emitAssembly");
+                cg_.reportError("Module or target machine not initialized for emitAssembly");
                 return false;
             }
 
-            return emitAssembly(filename, module_.get());
+            return emitAssembly(filename, cg_.module_.get());
         }
 
         /**
@@ -216,11 +217,11 @@ namespace Sad
          *
          * Source: llvm_codegen.h
          */
-        bool LLVMCodeGen::emitAssembly(const std::string &filename, llvm::Module *module)
+        bool OutputCodeGen::emitAssembly(const std::string &filename, llvm::Module *module)
         {
-            if (!module || !targetMachine_)
+            if (!module || !cg_.targetMachine_)
             {
-                reportError("Module or target machine not initialized for emitAssembly");
+                cg_.reportError("Module or target machine not initialized for emitAssembly");
                 return false;
             }
 
@@ -241,16 +242,16 @@ namespace Sad
 
             if (EC)
             {
-                reportError("Could not open file for assembly: " + EC.message());
+                cg_.reportError("Could not open file for assembly: " + EC.message());
                 return false;
             }
 
             llvm::legacy::PassManager pass;
             auto FileType = llvm::CodeGenFileType::AssemblyFile;
 
-            if (targetMachine_->addPassesToEmitFile(pass, dest, nullptr, FileType))
+            if (cg_.targetMachine_->addPassesToEmitFile(pass, dest, nullptr, FileType))
             {
-                reportError("Target machine cannot emit assembly file");
+                cg_.reportError("Target machine cannot emit assembly file");
                 return false;
             }
 
@@ -261,7 +262,7 @@ namespace Sad
             {
                 if (!moveFileToFinal(writePath, filename))
                 {
-                    reportError("Failed to move assembly file to final path: " + filename);
+                    cg_.reportError("Failed to move assembly file to final path: " + filename);
                     return false;
                 }
             }
@@ -277,16 +278,16 @@ namespace Sad
          * @param filename اسم الملف / File name
          * @return true if successful
          */
-        bool LLVMCodeGen::emitObjectFile(const std::string &filename)
+        bool OutputCodeGen::emitObjectFile(const std::string &filename)
         {
             // (AR) التحقق من وجود الوحدة / (EN) Check module exists
-            if (!module_ || !targetMachine_)
+            if (!cg_.module_ || !cg_.targetMachine_)
             {
-                reportError("Module or target machine not initialized for emitObjectFile");
+                cg_.reportError("Module or target machine not initialized for emitObjectFile");
                 return false;
             }
 
-            return emitObjectFile(filename, module_.get());
+            return emitObjectFile(filename, cg_.module_.get());
         }
 
         /**
@@ -295,11 +296,11 @@ namespace Sad
          *
          * Source: llvm_codegen.h
          */
-        bool LLVMCodeGen::emitObjectFile(const std::string &filename, llvm::Module *module)
+        bool OutputCodeGen::emitObjectFile(const std::string &filename, llvm::Module *module)
         {
-            if (!module || !targetMachine_)
+            if (!module || !cg_.targetMachine_)
             {
-                reportError("Module or target machine not initialized for emitObjectFile");
+                cg_.reportError("Module or target machine not initialized for emitObjectFile");
                 return false;
             }
 
@@ -322,16 +323,16 @@ namespace Sad
 
             if (EC)
             {
-                reportError("Could not open file for object: " + EC.message());
+                cg_.reportError("Could not open file for object: " + EC.message());
                 return false;
             }
 
             llvm::legacy::PassManager pass;
             auto FileType = llvm::CodeGenFileType::ObjectFile;
 
-            if (targetMachine_->addPassesToEmitFile(pass, dest, nullptr, FileType))
+            if (cg_.targetMachine_->addPassesToEmitFile(pass, dest, nullptr, FileType))
             {
-                reportError("Target machine cannot emit object file");
+                cg_.reportError("Target machine cannot emit object file");
                 return false;
             }
 
@@ -343,7 +344,7 @@ namespace Sad
             {
                 if (!moveFileToFinal(writePath, filename))
                 {
-                    reportError("Failed to move object file to final path: " + filename);
+                    cg_.reportError("Failed to move object file to final path: " + filename);
                     return false;
                 }
             }
@@ -357,11 +358,11 @@ namespace Sad
          *
          * Source: llvm_codegen.h:603
          */
-        void LLVMCodeGen::dump() const
+        void OutputCodeGen::dump() const
         {
-            if (module_)
+            if (cg_.module_)
             {
-                module_->print(llvm::errs(), nullptr);
+                cg_.module_->print(llvm::errs(), nullptr);
             }
         }
 
@@ -373,9 +374,9 @@ namespace Sad
         // Operand Resolution
         // ============================================================================
         // ============================================================================
-        // (AR) تم نقل resolveOperand إلى llvm_codegen_resolve.cpp (CW-05)
+        // (AR) تم نقل cg_.resolveOperand إلى llvm_codegen_resolve.cpp (CW-05)
         //      تم نقل emitStringConcat/emitStringCharAt/emitStringCmp/emitInlineAsm
-        //      + ensureArrayToStringHelper إلى llvm_codegen_strings.cpp (CW-05)
+        //      + cg_.ensureArrayToStringHelper إلى llvm_codegen_strings.cpp (CW-05)
         // ============================================================================
     } // namespace LLVM
 } // namespace Sad

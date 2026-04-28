@@ -1,10 +1,11 @@
-/*
- * (AR) مولد تعليمات LLVM — المنصات: Android / UI / توجيهات (@حجم، @ذري) / وحدات
- * (EN) LLVM instruction emitter — Platform: Android / UI / Directives (@sizeof, @atomic) / Modules
- * مستخرج من: llvm_codegen_instructions.cpp (سطور 1100-1375)
+﻿/*
+ * (AR) …ˆ„״¯ ״×״¹„…״§״× LLVM ג€” ״§„…†״µ״§״×: Android / UI / ״×ˆ״¬‡״§״× (@״­״¬…״ @״°״±) / ˆ״­״¯״§״×
+ * (EN) LLVM instruction emitter ג€” Platform: Android / UI / Directives (@sizeof, @atomic) / Modules
+ * …״³״×״®״±״¬ …†: llvm_codegen_instructions.cpp (״³״·ˆ״± 1100-1375)
  */
 
 #include "llvm_codegen.h"
+#include "builders/instr_platform_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -28,16 +29,16 @@ namespace Sad
     {
 
         /**
-         * (AR) تنفيذ تعليمات المنصات والتوجيهات (Android، UI، @حجم، @ذري، وحدات)
+         * (AR) ״×†״° ״×״¹„…״§״× ״§„…†״µ״§״× ˆ״§„״×ˆ״¬‡״§״× (Android״ UI״ @״­״¬…״ @״°״±״ ˆ״­״¯״§״×)
          * (EN) Emit platform and directive instructions (Android, UI, @sizeof, @atomic, modules)
-         * @return nullptr إذا لم يتعرف على الـ opcode / nullptr if opcode not handled
+         * @return nullptr ״¥״°״§ „… ״×״¹״± ״¹„‰ ״§„€ opcode / nullptr if opcode not handled
          */
-        llvm::Value *LLVMCodeGen::emitInstructionPlatform(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *InstrPlatformCodeGen::emitInstructionPlatform(std::shared_ptr<SIRInstruction> inst)
         {
             switch (inst->opcode)
             {
                 // ====================================================================
-                // القسم 19: عمليات أندرويد / Android Operations
+                // ״§„‚״³… 19: ״¹…„״§״× ״£†״¯״±ˆ״¯ / Android Operations
                 // ====================================================================
 #ifdef ENABLE_ANDROID_CODEGEN
             case SIROpcode::ANDROID_ALLOC:
@@ -139,167 +140,167 @@ namespace Sad
 #endif // ENABLE_ANDROID_CODEGEN
 
             // ====================================================================
-            // القسم 20: نظام الواجهة الموحد / Unified UI System (Always enabled)
+            // ״§„‚״³… 20: †״¸״§… ״§„ˆ״§״¬‡״© ״§„…ˆ״­״¯ / Unified UI System (Always enabled)
             // ====================================================================
             case SIROpcode::BUILTIN_UI_COLUMN:
-                return emitUiColumn(inst);
+                return cg_.emitUiColumn(inst);
             case SIROpcode::BUILTIN_UI_ROW:
-                return emitUiRow(inst);
+                return cg_.emitUiRow(inst);
             case SIROpcode::BUILTIN_UI_STACK:
-                return emitUiStack(inst);
+                return cg_.emitUiStack(inst);
             case SIROpcode::BUILTIN_UI_CONTAINER:
-                return emitUiContainer(inst);
+                return cg_.emitUiContainer(inst);
             case SIROpcode::BUILTIN_UI_TEXT:
-                return emitUiText(inst);
+                return cg_.emitUiText(inst);
             case SIROpcode::BUILTIN_UI_TEXT_STYLED:
-                return emitUiTextStyled(inst);
+                return cg_.emitUiTextStyled(inst);
             case SIROpcode::BUILTIN_UI_BUTTON:
-                return emitUiButton(inst);
+                return cg_.emitUiButton(inst);
             case SIROpcode::BUILTIN_UI_BUTTON_VARIANT:
-                return emitUiButtonVariant(inst);
+                return cg_.emitUiButtonVariant(inst);
             case SIROpcode::BUILTIN_UI_ICON_BUTTON:
-                return emitUiIconButton(inst);
+                return cg_.emitUiIconButton(inst);
             case SIROpcode::BUILTIN_UI_FAB:
-                return emitUiFab(inst);
+                return cg_.emitUiFab(inst);
             case SIROpcode::BUILTIN_UI_TEXT_FIELD:
-                return emitUiTextField(inst);
+                return cg_.emitUiTextField(inst);
             case SIROpcode::BUILTIN_UI_CHECKBOX:
-                return emitUiCheckbox(inst);
+                return cg_.emitUiCheckbox(inst);
             case SIROpcode::BUILTIN_UI_SWITCH:
-                return emitUiSwitch(inst);
+                return cg_.emitUiSwitch(inst);
             case SIROpcode::BUILTIN_UI_SLIDER:
-                return emitUiSlider(inst);
+                return cg_.emitUiSlider(inst);
             case SIROpcode::BUILTIN_UI_CARD:
-                return emitUiCard(inst);
+                return cg_.emitUiCard(inst);
             case SIROpcode::BUILTIN_UI_SCAFFOLD:
-                return emitUiScaffold(inst);
+                return cg_.emitUiScaffold(inst);
             case SIROpcode::BUILTIN_UI_APP_BAR:
-                return emitUiAppBar(inst);
+                return cg_.emitUiAppBar(inst);
             case SIROpcode::BUILTIN_UI_SPACER:
-                return emitUiSpacer(inst);
+                return cg_.emitUiSpacer(inst);
             case SIROpcode::BUILTIN_UI_DIVIDER:
-                return emitUiDivider(inst);
+                return cg_.emitUiDivider(inst);
             case SIROpcode::BUILTIN_UI_DIALOG:
-                return emitUiDialog(inst);
+                return cg_.emitUiDialog(inst);
             case SIROpcode::BUILTIN_UI_ADD_CHILD:
-                return emitUiAddChild(inst);
+                return cg_.emitUiAddChild(inst);
             case SIROpcode::BUILTIN_UI_REMOVE_CHILD:
-                return emitUiRemoveChild(inst);
+                return cg_.emitUiRemoveChild(inst);
             case SIROpcode::BUILTIN_UI_CLEAR_CHILDREN:
-                return emitUiClearChildren(inst);
+                return cg_.emitUiClearChildren(inst);
             case SIROpcode::BUILTIN_UI_SET_TEXT:
-                return emitUiSetText(inst);
+                return cg_.emitUiSetText(inst);
             case SIROpcode::BUILTIN_UI_SET_SIZE:
-                return emitUiSetSize(inst);
+                return cg_.emitUiSetSize(inst);
             case SIROpcode::BUILTIN_UI_SET_FLEX:
-                return emitUiSetFlex(inst);
+                return cg_.emitUiSetFlex(inst);
             case SIROpcode::BUILTIN_UI_SET_BACKGROUND:
-                return emitUiSetBackground(inst);
+                return cg_.emitUiSetBackground(inst);
             case SIROpcode::BUILTIN_UI_SET_FOREGROUND:
-                return emitUiSetForeground(inst);
+                return cg_.emitUiSetForeground(inst);
             case SIROpcode::BUILTIN_UI_SET_SPACING:
-                return emitUiSetSpacing(inst);
+                return cg_.emitUiSetSpacing(inst);
             case SIROpcode::BUILTIN_UI_SET_PADDING:
-                return emitUiSetPadding(inst);
+                return cg_.emitUiSetPadding(inst);
             case SIROpcode::BUILTIN_UI_SET_ALIGNMENT:
-                return emitUiSetAlignment(inst);
+                return cg_.emitUiSetAlignment(inst);
             case SIROpcode::BUILTIN_UI_SET_BORDER:
-                return emitUiSetBorder(inst);
+                return cg_.emitUiSetBorder(inst);
             case SIROpcode::BUILTIN_UI_SET_ELEVATION:
-                return emitUiSetElevation(inst);
+                return cg_.emitUiSetElevation(inst);
             case SIROpcode::BUILTIN_UI_SET_OPACITY:
-                return emitUiSetOpacity(inst);
+                return cg_.emitUiSetOpacity(inst);
             case SIROpcode::BUILTIN_UI_SET_VISIBILITY:
-                return emitUiSetVisibility(inst);
+                return cg_.emitUiSetVisibility(inst);
             case SIROpcode::BUILTIN_UI_APP_CREATE:
-                return emitUiAppCreate(inst);
+                return cg_.emitUiAppCreate(inst);
             case SIROpcode::BUILTIN_UI_APP_SET_ROOT:
-                return emitUiAppSetRoot(inst);
+                return cg_.emitUiAppSetRoot(inst);
             case SIROpcode::BUILTIN_UI_APP_LAYOUT:
-                return emitUiAppLayout(inst);
+                return cg_.emitUiAppLayout(inst);
             case SIROpcode::BUILTIN_UI_APP_RENDER:
-                return emitUiAppRender(inst);
+                return cg_.emitUiAppRender(inst);
             case SIROpcode::BUILTIN_UI_APP_DESTROY:
-                return emitUiAppDestroy(inst);
+                return cg_.emitUiAppDestroy(inst);
             case SIROpcode::BUILTIN_UI_WIDGET_DESTROY:
-                return emitUiWidgetDestroy(inst);
+                return cg_.emitUiWidgetDestroy(inst);
 
             // ====================================================================
-            // القسم 21: التوجيهات / Directives (@حجم, @ذري)
+            // ״§„‚״³… 21: ״§„״×ˆ״¬‡״§״× / Directives (@״­״¬…, @״°״±)
             // ====================================================================
             case SIROpcode::Sizeof:
-                return emitSizeof(inst);
+                return cg_.emitSizeof(inst);
             case SIROpcode::AtomicLoad:
-                return emitAtomicLoad(inst);
+                return cg_.emitAtomicLoad(inst);
             case SIROpcode::AtomicStore:
-                return emitAtomicStore(inst);
+                return cg_.emitAtomicStore(inst);
             case SIROpcode::AtomicAdd:
-                return emitAtomicAdd(inst);
+                return cg_.emitAtomicAdd(inst);
             case SIROpcode::AtomicSub:
-                return emitAtomicSub(inst);
+                return cg_.emitAtomicSub(inst);
             case SIROpcode::AtomicExchange:
-                return emitAtomicExchange(inst);
+                return cg_.emitAtomicExchange(inst);
             case SIROpcode::AtomicCmpXchg:
-                return emitAtomicCmpXchg(inst);
+                return cg_.emitAtomicCmpXchg(inst);
 
             // ====================================================================
-            // القسم 22: نظام الوحدات / Module System
+            // ״§„‚״³… 22: †״¸״§… ״§„ˆ״­״¯״§״× / Module System
             // ====================================================================
             case SIROpcode::MODULE_LOAD:
             {
-                // (AR) تحميل وحدة — يُنشئ تعريفاً خارجياً لدالة تهيئة الوحدة
-                // (EN) Module load — creates extern declaration for module init function
+                // (AR) ״×״­…„ ˆ״­״¯״© ג€” †״´״¦ ״×״¹״±״§‹ ״®״§״±״¬״§‹ „״¯״§„״© ״×‡״¦״© ״§„ˆ״­״¯״©
+                // (EN) Module load ג€” creates extern declaration for module init function
                 if (!inst->operands.empty())
                 {
                     std::string moduleName = inst->operands[0].name;
-                    // تحويل اسم الوحدة لاسم دالة تهيئة صالح
+                    // ״×״­ˆ„ ״§״³… ״§„ˆ״­״¯״© „״§״³… ״¯״§„״© ״×‡״¦״© ״µ״§„״­
                     std::string initFnName = "__sad_module_init_" + moduleName;
-                    // تعريف خارجي لدالة التهيئة
+                    // ״×״¹״± ״®״§״±״¬ „״¯״§„״© ״§„״×‡״¦״©
                     auto *fnType = llvm::FunctionType::get(
-                        llvm::Type::getVoidTy(*context_), false);
-                    module_->getOrInsertFunction(initFnName, fnType);
+                        llvm::Type::getVoidTy(*cg_.context_), false);
+                    cg_.module_->getOrInsertFunction(initFnName, fnType);
                 }
                 return nullptr;
             }
             case SIROpcode::MODULE_INIT:
             {
-                // (AR) تهيئة وحدة — يستدعي دالة تهيئة الوحدة المستوردة
-                // (EN) Module init — calls the imported module's init function
+                // (AR) ״×‡״¦״© ˆ״­״¯״© ג€” ״³״×״¯״¹ ״¯״§„״© ״×‡״¦״© ״§„ˆ״­״¯״© ״§„…״³״×ˆ״±״¯״©
+                // (EN) Module init ג€” calls the imported module's init function
                 if (!inst->operands.empty())
                 {
                     std::string moduleName = inst->operands[0].name;
                     std::string initFnName = "__sad_module_init_" + moduleName;
-                    auto *fn = module_->getFunction(initFnName);
+                    auto *fn = cg_.module_->getFunction(initFnName);
                     if (fn)
                     {
-                        builder_->CreateCall(fn);
+                        cg_.builder_->CreateCall(fn);
                     }
                 }
                 return nullptr;
             }
             case SIROpcode::MODULE_SYMBOL:
             {
-                // (AR) رمز وحدة — يُعلن عن رمز خارجي مستورد من وحدة أخرى
-                // (EN) Module symbol — declares external symbol imported from another module
+                // (AR) ״±…״² ˆ״­״¯״© ג€” ״¹„† ״¹† ״±…״² ״®״§״±״¬ …״³״×ˆ״±״¯ …† ˆ״­״¯״© ״£״®״±‰
+                // (EN) Module symbol ג€” declares external symbol imported from another module
                 if (inst->operands.size() >= 2)
                 {
                     std::string symbolName = inst->operands[0].name;
-                    // تعريف خارجي للرمز — سيحلّه الرابط لاحقاً
+                    // ״×״¹״± ״®״§״±״¬ „„״±…״² ג€” ״³״­„‘‡ ״§„״±״§״¨״· „״§״­‚״§‹
                     auto *fnType = llvm::FunctionType::get(
-                        llvm::Type::getInt64Ty(*context_),
-                        {}, true); // variadic للمرونة
-                    module_->getOrInsertFunction(symbolName, fnType);
+                        llvm::Type::getInt64Ty(*cg_.context_),
+                        {}, true); // variadic „„…״±ˆ†״©
+                    cg_.module_->getOrInsertFunction(symbolName, fnType);
                 }
                 return nullptr;
             }
             case SIROpcode::MODULE_EXPORT:
             {
-                // (AR) تصدير وحدة — يضع ربطاً خارجياً على الدالة المصدّرة
-                // (EN) Module export — sets external linkage on exported function
+                // (AR) ״×״µ״¯״± ˆ״­״¯״© ג€” ״¶״¹ ״±״¨״·״§‹ ״®״§״±״¬״§‹ ״¹„‰ ״§„״¯״§„״© ״§„…״µ״¯‘״±״©
+                // (EN) Module export ג€” sets external linkage on exported function
                 if (!inst->operands.empty())
                 {
                     std::string symbolName = inst->operands[0].name;
-                    auto *fn = module_->getFunction(symbolName);
+                    auto *fn = cg_.module_->getFunction(symbolName);
                     if (fn)
                     {
                         fn->setLinkage(llvm::GlobalValue::ExternalLinkage);
@@ -309,7 +310,7 @@ namespace Sad
             }
 
             default:
-                return nullptr; // (AR) غير مدعوم هنا / (EN) not handled here
+                return nullptr; // (AR) ״÷״± …״¯״¹ˆ… ‡†״§ / (EN) not handled here
             }
         }
 

@@ -25,6 +25,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "builders/directives_codegen.h"
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/InlineAsm.h>
@@ -49,9 +50,9 @@ namespace LLVM {
  * @param inst SIR instruction
  * @return LLVM value (i64 constant)
  */
-llvm::Value* LLVMCodeGen::emitSizeof(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* DirectivesCodeGen::emitSizeof(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.empty()) {
-        reportError("emitSizeof: invalid instruction");
+        cg_.reportError("emitSizeof: invalid instruction");
         return nullptr;
     }
     
@@ -66,14 +67,14 @@ llvm::Value* LLVMCodeGen::emitSizeof(std::shared_ptr<SIRInstruction> inst) {
     // (AR) إنشاء ثابت i64
     // (EN) Create i64 constant
     llvm::Value* result = llvm::ConstantInt::get(
-        llvm::Type::getInt64Ty(*context_), 
+        llvm::Type::getInt64Ty(*cg_.context_), 
         sizeValue
     );
     
     // (AR) تسجيل النتيجة إذا كان هناك result register
     // (EN) Register result if there's a result register
     if (inst->result.has_value()) {
-        context_info_.namedValues[inst->result->name] = result;
+        cg_.context_info_.namedValues[inst->result->name] = result;
     }
     
     #ifndef NDEBUG
@@ -95,17 +96,17 @@ llvm::Value* LLVMCodeGen::emitSizeof(std::shared_ptr<SIRInstruction> inst) {
  * @param inst SIR instruction
  * @return LLVM value (loaded value)
  */
-llvm::Value* LLVMCodeGen::emitAtomicLoad(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* DirectivesCodeGen::emitAtomicLoad(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.empty()) {
-        reportError("emitAtomicLoad: invalid instruction");
+        cg_.reportError("emitAtomicLoad: invalid instruction");
         return nullptr;
     }
     
     // (AR) الحصول على المؤشر
     // (EN) Get pointer operand
-    llvm::Value* ptr = resolveOperand(inst->operands[0]);
+    llvm::Value* ptr = cg_.resolveOperand(inst->operands[0]);
     if (!ptr) {
-        reportError("emitAtomicLoad: could not resolve pointer operand");
+        cg_.reportError("emitAtomicLoad: could not resolve pointer operand");
         return nullptr;
     }
     
@@ -115,15 +116,15 @@ llvm::Value* LLVMCodeGen::emitAtomicLoad(std::shared_ptr<SIRInstruction> inst) {
         // (AR) إذا لم يكن pointer، نحاول تحميله كقيمة مباشرة
         // (EN) If not pointer, try to treat as direct value
         if (inst->result.has_value()) {
-            context_info_.namedValues[inst->result->name] = ptr;
+            cg_.context_info_.namedValues[inst->result->name] = ptr;
         }
         return ptr;
     }
     
     // (AR) توليد تحميل ذري مع ترتيب seq_cst
     // (EN) Generate atomic load with seq_cst ordering
-    llvm::LoadInst* loadInst = builder_->CreateLoad(
-        llvm::Type::getInt64Ty(*context_),
+    llvm::LoadInst* loadInst = cg_.builder_->CreateLoad(
+        llvm::Type::getInt64Ty(*cg_.context_),
         ptr,
         "atomic_load"
     );
@@ -133,7 +134,7 @@ llvm::Value* LLVMCodeGen::emitAtomicLoad(std::shared_ptr<SIRInstruction> inst) {
     // (AR) تسجيل النتيجة
     // (EN) Register result
     if (inst->result.has_value()) {
-        context_info_.namedValues[inst->result->name] = loadInst;
+        cg_.context_info_.namedValues[inst->result->name] = loadInst;
     }
     
     #ifndef NDEBUG
@@ -155,26 +156,26 @@ llvm::Value* LLVMCodeGen::emitAtomicLoad(std::shared_ptr<SIRInstruction> inst) {
  * @param inst SIR instruction
  * @return LLVM value (nullptr, store has no result)
  */
-llvm::Value* LLVMCodeGen::emitAtomicStore(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* DirectivesCodeGen::emitAtomicStore(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 2) {
-        reportError("emitAtomicStore: invalid instruction (need 2 operands)");
+        cg_.reportError("emitAtomicStore: invalid instruction (need 2 operands)");
         return nullptr;
     }
     
     // (AR) الحصول على المؤشر والقيمة
     // (EN) Get pointer and value operands
-    llvm::Value* ptr = resolveOperand(inst->operands[0]);
-    llvm::Value* value = resolveOperand(inst->operands[1]);
+    llvm::Value* ptr = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* value = cg_.resolveOperand(inst->operands[1]);
     
     if (!ptr || !value) {
-        reportError("emitAtomicStore: could not resolve operands");
+        cg_.reportError("emitAtomicStore: could not resolve operands");
         return nullptr;
     }
     
     // (AR) التأكد من أن المؤشر من نوع pointer
     // (EN) Ensure pointer is a pointer type
     if (!ptr->getType()->isPointerTy()) {
-        reportError("emitAtomicStore: first operand must be a pointer");
+        cg_.reportError("emitAtomicStore: first operand must be a pointer");
         return nullptr;
     }
     
@@ -182,15 +183,15 @@ llvm::Value* LLVMCodeGen::emitAtomicStore(std::shared_ptr<SIRInstruction> inst) 
     // (EN) Convert value to i64 if necessary
     if (!value->getType()->isIntegerTy(64)) {
         if (value->getType()->isIntegerTy()) {
-            value = builder_->CreateZExt(value, llvm::Type::getInt64Ty(*context_), "zext_val");
+            value = cg_.builder_->CreateZExt(value, llvm::Type::getInt64Ty(*cg_.context_), "zext_val");
         } else if (value->getType()->isDoubleTy()) {
-            value = builder_->CreateBitCast(value, llvm::Type::getInt64Ty(*context_), "bitcast_val");
+            value = cg_.builder_->CreateBitCast(value, llvm::Type::getInt64Ty(*cg_.context_), "bitcast_val");
         }
     }
     
     // (AR) توليد تخزين ذري مع ترتيب seq_cst
     // (EN) Generate atomic store with seq_cst ordering
-    llvm::StoreInst* storeInst = builder_->CreateStore(value, ptr);
+    llvm::StoreInst* storeInst = cg_.builder_->CreateStore(value, ptr);
     storeInst->setAtomic(llvm::AtomicOrdering::SequentiallyConsistent);
     storeInst->setAlignment(llvm::Align(8));
     
@@ -214,26 +215,26 @@ llvm::Value* LLVMCodeGen::emitAtomicStore(std::shared_ptr<SIRInstruction> inst) 
  * @param inst SIR instruction
  * @return LLVM value (old value)
  */
-llvm::Value* LLVMCodeGen::emitAtomicAdd(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* DirectivesCodeGen::emitAtomicAdd(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 2) {
-        reportError("emitAtomicAdd: invalid instruction (need 2 operands)");
+        cg_.reportError("emitAtomicAdd: invalid instruction (need 2 operands)");
         return nullptr;
     }
     
     // (AR) الحصول على المؤشر والقيمة
     // (EN) Get pointer and value operands
-    llvm::Value* ptr = resolveOperand(inst->operands[0]);
-    llvm::Value* value = resolveOperand(inst->operands[1]);
+    llvm::Value* ptr = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* value = cg_.resolveOperand(inst->operands[1]);
     
     if (!ptr || !value) {
-        reportError("emitAtomicAdd: could not resolve operands");
+        cg_.reportError("emitAtomicAdd: could not resolve operands");
         return nullptr;
     }
     
     // (AR) التأكد من أن المؤشر من نوع pointer
     // (EN) Ensure pointer is a pointer type
     if (!ptr->getType()->isPointerTy()) {
-        reportError("emitAtomicAdd: first operand must be a pointer");
+        cg_.reportError("emitAtomicAdd: first operand must be a pointer");
         return nullptr;
     }
     
@@ -241,13 +242,13 @@ llvm::Value* LLVMCodeGen::emitAtomicAdd(std::shared_ptr<SIRInstruction> inst) {
     // (EN) Convert value to i64 if necessary
     if (!value->getType()->isIntegerTy(64)) {
         if (value->getType()->isIntegerTy()) {
-            value = builder_->CreateZExt(value, llvm::Type::getInt64Ty(*context_), "zext_val");
+            value = cg_.builder_->CreateZExt(value, llvm::Type::getInt64Ty(*cg_.context_), "zext_val");
         }
     }
     
     // (AR) توليد atomicrmw add
     // (EN) Generate atomicrmw add
-    llvm::Value* result = builder_->CreateAtomicRMW(
+    llvm::Value* result = cg_.builder_->CreateAtomicRMW(
         llvm::AtomicRMWInst::Add,
         ptr,
         value,
@@ -258,7 +259,7 @@ llvm::Value* LLVMCodeGen::emitAtomicAdd(std::shared_ptr<SIRInstruction> inst) {
     // (AR) تسجيل النتيجة (القيمة القديمة قبل الإضافة)
     // (EN) Register result (old value before add)
     if (inst->result.has_value()) {
-        context_info_.namedValues[inst->result->name] = result;
+        cg_.context_info_.namedValues[inst->result->name] = result;
     }
     
     #ifndef NDEBUG
@@ -281,32 +282,32 @@ llvm::Value* LLVMCodeGen::emitAtomicAdd(std::shared_ptr<SIRInstruction> inst) {
  * @param inst SIR instruction
  * @return LLVM value (old value)
  */
-llvm::Value* LLVMCodeGen::emitAtomicSub(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* DirectivesCodeGen::emitAtomicSub(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 2) {
-        reportError("emitAtomicSub: invalid instruction (need 2 operands)");
+        cg_.reportError("emitAtomicSub: invalid instruction (need 2 operands)");
         return nullptr;
     }
     
-    llvm::Value* ptr = resolveOperand(inst->operands[0]);
-    llvm::Value* value = resolveOperand(inst->operands[1]);
+    llvm::Value* ptr = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* value = cg_.resolveOperand(inst->operands[1]);
     
     if (!ptr || !value) {
-        reportError("emitAtomicSub: could not resolve operands");
+        cg_.reportError("emitAtomicSub: could not resolve operands");
         return nullptr;
     }
     
     if (!ptr->getType()->isPointerTy()) {
-        reportError("emitAtomicSub: first operand must be a pointer");
+        cg_.reportError("emitAtomicSub: first operand must be a pointer");
         return nullptr;
     }
     
     if (!value->getType()->isIntegerTy(64)) {
         if (value->getType()->isIntegerTy()) {
-            value = builder_->CreateZExt(value, llvm::Type::getInt64Ty(*context_), "zext_val");
+            value = cg_.builder_->CreateZExt(value, llvm::Type::getInt64Ty(*cg_.context_), "zext_val");
         }
     }
     
-    llvm::Value* result = builder_->CreateAtomicRMW(
+    llvm::Value* result = cg_.builder_->CreateAtomicRMW(
         llvm::AtomicRMWInst::Sub,
         ptr,
         value,
@@ -315,7 +316,7 @@ llvm::Value* LLVMCodeGen::emitAtomicSub(std::shared_ptr<SIRInstruction> inst) {
     );
     
     if (inst->result.has_value()) {
-        context_info_.namedValues[inst->result->name] = result;
+        cg_.context_info_.namedValues[inst->result->name] = result;
     }
     
     #ifndef NDEBUG
@@ -338,32 +339,32 @@ llvm::Value* LLVMCodeGen::emitAtomicSub(std::shared_ptr<SIRInstruction> inst) {
  * @param inst SIR instruction
  * @return LLVM value (old value)
  */
-llvm::Value* LLVMCodeGen::emitAtomicExchange(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* DirectivesCodeGen::emitAtomicExchange(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 2) {
-        reportError("emitAtomicExchange: invalid instruction (need 2 operands)");
+        cg_.reportError("emitAtomicExchange: invalid instruction (need 2 operands)");
         return nullptr;
     }
     
-    llvm::Value* ptr = resolveOperand(inst->operands[0]);
-    llvm::Value* value = resolveOperand(inst->operands[1]);
+    llvm::Value* ptr = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* value = cg_.resolveOperand(inst->operands[1]);
     
     if (!ptr || !value) {
-        reportError("emitAtomicExchange: could not resolve operands");
+        cg_.reportError("emitAtomicExchange: could not resolve operands");
         return nullptr;
     }
     
     if (!ptr->getType()->isPointerTy()) {
-        reportError("emitAtomicExchange: first operand must be a pointer");
+        cg_.reportError("emitAtomicExchange: first operand must be a pointer");
         return nullptr;
     }
     
     if (!value->getType()->isIntegerTy(64)) {
         if (value->getType()->isIntegerTy()) {
-            value = builder_->CreateZExt(value, llvm::Type::getInt64Ty(*context_), "zext_val");
+            value = cg_.builder_->CreateZExt(value, llvm::Type::getInt64Ty(*cg_.context_), "zext_val");
         }
     }
     
-    llvm::Value* result = builder_->CreateAtomicRMW(
+    llvm::Value* result = cg_.builder_->CreateAtomicRMW(
         llvm::AtomicRMWInst::Xchg,
         ptr,
         value,
@@ -372,7 +373,7 @@ llvm::Value* LLVMCodeGen::emitAtomicExchange(std::shared_ptr<SIRInstruction> ins
     );
     
     if (inst->result.has_value()) {
-        context_info_.namedValues[inst->result->name] = result;
+        cg_.context_info_.namedValues[inst->result->name] = result;
     }
     
     #ifndef NDEBUG
@@ -396,43 +397,43 @@ llvm::Value* LLVMCodeGen::emitAtomicExchange(std::shared_ptr<SIRInstruction> ins
  * @param inst SIR instruction
  * @return LLVM value (old value)
  */
-llvm::Value* LLVMCodeGen::emitAtomicCmpXchg(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* DirectivesCodeGen::emitAtomicCmpXchg(std::shared_ptr<SIRInstruction> inst) {
     if (!inst || inst->operands.size() < 3) {
-        reportError("emitAtomicCmpXchg: invalid instruction (need 3 operands)");
+        cg_.reportError("emitAtomicCmpXchg: invalid instruction (need 3 operands)");
         return nullptr;
     }
     
-    llvm::Value* ptr = resolveOperand(inst->operands[0]);
-    llvm::Value* expected = resolveOperand(inst->operands[1]);
-    llvm::Value* desired = resolveOperand(inst->operands[2]);
+    llvm::Value* ptr = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* expected = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* desired = cg_.resolveOperand(inst->operands[2]);
     
     if (!ptr || !expected || !desired) {
-        reportError("emitAtomicCmpXchg: could not resolve operands");
+        cg_.reportError("emitAtomicCmpXchg: could not resolve operands");
         return nullptr;
     }
     
     if (!ptr->getType()->isPointerTy()) {
-        reportError("emitAtomicCmpXchg: first operand must be a pointer");
+        cg_.reportError("emitAtomicCmpXchg: first operand must be a pointer");
         return nullptr;
     }
     
     // (AR) تحويل القيم إلى i64 إذا لزم الأمر
     // (EN) Convert values to i64 if necessary
-    llvm::Type* i64Type = llvm::Type::getInt64Ty(*context_);
+    llvm::Type* i64Type = llvm::Type::getInt64Ty(*cg_.context_);
     if (!expected->getType()->isIntegerTy(64)) {
         if (expected->getType()->isIntegerTy()) {
-            expected = builder_->CreateZExt(expected, i64Type, "zext_expected");
+            expected = cg_.builder_->CreateZExt(expected, i64Type, "zext_expected");
         }
     }
     if (!desired->getType()->isIntegerTy(64)) {
         if (desired->getType()->isIntegerTy()) {
-            desired = builder_->CreateZExt(desired, i64Type, "zext_desired");
+            desired = cg_.builder_->CreateZExt(desired, i64Type, "zext_desired");
         }
     }
     
     // (AR) توليد cmpxchg
     // (EN) Generate cmpxchg
-    llvm::Value* casResult = builder_->CreateAtomicCmpXchg(
+    llvm::Value* casResult = cg_.builder_->CreateAtomicCmpXchg(
         ptr,
         expected,
         desired,
@@ -443,10 +444,10 @@ llvm::Value* LLVMCodeGen::emitAtomicCmpXchg(std::shared_ptr<SIRInstruction> inst
     
     // (AR) استخراج القيمة القديمة من نتيجة cmpxchg (عنصر 0)
     // (EN) Extract old value from cmpxchg result (element 0)
-    llvm::Value* oldValue = builder_->CreateExtractValue(casResult, {0}, "cas_old");
+    llvm::Value* oldValue = cg_.builder_->CreateExtractValue(casResult, {0}, "cas_old");
     
     if (inst->result.has_value()) {
-        context_info_.namedValues[inst->result->name] = oldValue;
+        cg_.context_info_.namedValues[inst->result->name] = oldValue;
     }
     
     #ifndef NDEBUG
