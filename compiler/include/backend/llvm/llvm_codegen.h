@@ -96,6 +96,7 @@
 #include "builders/freestanding_codegen.h"      // (AR) Phase 7 Step 16: FreestandingCodeGen
 #include "builders/objects_arrays_codegen.h"    // (AR) Phase 7 Step 17: ObjectsArraysCodeGen
 #include "builders/oop_ops_codegen.h"            // (AR) Phase 7 Step 18: OOPOpsCodeGen
+#include "builders/concurrency_codegen.h"        // (AR) Phase 8 Step 1: ConcurrencyCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -293,6 +294,8 @@ namespace Sad
             friend class ObjectsArraysCodeGen;
             // (AR) Phase 7 Step 18: OOPOpsCodeGen
             friend class OOPOpsCodeGen;
+            // (AR) Phase 8 Step 1: ConcurrencyCodeGen
+            friend class ConcurrencyCodeGen;
 
         public:
             // ========================================================================
@@ -956,42 +959,42 @@ namespace Sad
             llvm::Value *emitAsyncCreateFuture(std::shared_ptr<SIRInstruction> inst);       // أنشئ_مستقبل
             llvm::Value *emitAsyncResolveFuture(std::shared_ptr<SIRInstruction> inst);      // أوفِ_مستقبل
             llvm::Value *emitAsyncGetFuture(std::shared_ptr<SIRInstruction> inst);          // احصل_مستقبل
-            llvm::Value *emitAsyncCreateChannel(std::shared_ptr<SIRInstruction> inst);      // أنشئ_قناة
-            llvm::Value *emitAsyncChannelSend(std::shared_ptr<SIRInstruction> inst);        // أرسل_قناة
-            llvm::Value *emitAsyncChannelRecv(std::shared_ptr<SIRInstruction> inst);        // استقبل_قناة
-            llvm::Value *emitAsyncChannelClose(std::shared_ptr<SIRInstruction> inst);       // أغلق_قناة
-            llvm::Value *emitAsyncChannelIsClosed(std::shared_ptr<SIRInstruction> inst);    // هل_القناة_مغلقة
-            llvm::Value *emitAsyncChannelHasData(std::shared_ptr<SIRInstruction> inst);     // هل_القناة_تحتوي_بيانات
-            llvm::Value *emitAsyncChannelSize(std::shared_ptr<SIRInstruction> inst);        // حجم_القناة
-            llvm::Value *emitAsyncChannelCapacity(std::shared_ptr<SIRInstruction> inst);    // سعة_القناة
-            llvm::Value *emitAsyncChannelTrySend(std::shared_ptr<SIRInstruction> inst);     // حاول_ارسل
-            llvm::Value *emitAsyncChannelTryRecv(std::shared_ptr<SIRInstruction> inst);     // حاول_استقبل
-            llvm::Value *emitAsyncChannelSendTimeout(std::shared_ptr<SIRInstruction> inst); // أرسل_بمهلة
-            llvm::Value *emitAsyncChannelRecvTimeout(std::shared_ptr<SIRInstruction> inst); // استقبل_بمهلة
-            llvm::Value *emitAsyncMutexCreate(std::shared_ptr<SIRInstruction> inst);        // أنشئ_قفل
-            llvm::Value *emitAsyncMutexLock(std::shared_ptr<SIRInstruction> inst);          // اقفل
-            llvm::Value *emitAsyncMutexUnlock(std::shared_ptr<SIRInstruction> inst);        // افتح_قفل
-            llvm::Value *emitAsyncMutexTryLock(std::shared_ptr<SIRInstruction> inst);       // حاول_قفل
-            llvm::Value *emitAsyncMutexIsLocked(std::shared_ptr<SIRInstruction> inst);      // مقفل
+            llvm::Value *emitAsyncCreateChannel(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncCreateChannel(inst); }      // أنشئ_قناة
+            llvm::Value *emitAsyncChannelSend(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelSend(inst); }        // أرسل_قناة
+            llvm::Value *emitAsyncChannelRecv(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelRecv(inst); }        // استقبل_قناة
+            llvm::Value *emitAsyncChannelClose(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelClose(inst); }       // أغلق_قناة
+            llvm::Value *emitAsyncChannelIsClosed(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelIsClosed(inst); }    // هل_القناة_مغلقة
+            llvm::Value *emitAsyncChannelHasData(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelHasData(inst); }     // هل_القناة_تحتوي_بيانات
+            llvm::Value *emitAsyncChannelSize(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelSize(inst); }        // حجم_القناة
+            llvm::Value *emitAsyncChannelCapacity(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelCapacity(inst); }    // سعة_القناة
+            llvm::Value *emitAsyncChannelTrySend(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelTrySend(inst); }     // حاول_ارسل
+            llvm::Value *emitAsyncChannelTryRecv(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelTryRecv(inst); }     // حاول_استقبل
+            llvm::Value *emitAsyncChannelSendTimeout(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelSendTimeout(inst); } // أرسل_بمهلة
+            llvm::Value *emitAsyncChannelRecvTimeout(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelRecvTimeout(inst); } // استقبل_بمهلة
+            llvm::Value *emitAsyncMutexCreate(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncMutexCreate(inst); }        // أنشئ_قفل
+            llvm::Value *emitAsyncMutexLock(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncMutexLock(inst); }          // اقفل
+            llvm::Value *emitAsyncMutexUnlock(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncMutexUnlock(inst); }        // افتح_قفل
+            llvm::Value *emitAsyncMutexTryLock(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncMutexTryLock(inst); }       // حاول_قفل
+            llvm::Value *emitAsyncMutexIsLocked(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncMutexIsLocked(inst); }      // مقفل
             llvm::Value *emitAsyncFutureIsReady(std::shared_ptr<SIRInstruction> inst);      // جاهز
-            llvm::Value *emitAsyncThreadSpawn(std::shared_ptr<SIRInstruction> inst);        // أنشئ_خيط
-            llvm::Value *emitAsyncThreadJoin(std::shared_ptr<SIRInstruction> inst);         // انضم_خيط
-            llvm::Value *emitAsyncAtomicLoad(std::shared_ptr<SIRInstruction> inst);         // حمّل_ذري
-            llvm::Value *emitAsyncAtomicStore(std::shared_ptr<SIRInstruction> inst);        // خزّن_ذري
-            llvm::Value *emitAsyncAtomicAdd(std::shared_ptr<SIRInstruction> inst);          // أضف_ذري
-            llvm::Value *emitAsyncAtomicCAS(std::shared_ptr<SIRInstruction> inst);          // قارن_وبدّل
-            llvm::Value *emitAsyncWaitAll(std::shared_ptr<SIRInstruction> inst);            // انتظر_الكل
-            llvm::Value *emitAsyncWaitAny(std::shared_ptr<SIRInstruction> inst);            // انتظر_أي
-            llvm::Value *emitAsyncSelect(std::shared_ptr<SIRInstruction> inst);             // اختر_قناة
+            llvm::Value *emitAsyncThreadSpawn(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncThreadSpawn(inst); }        // أنشئ_خيط
+            llvm::Value *emitAsyncThreadJoin(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncThreadJoin(inst); }         // انضم_خيط
+            llvm::Value *emitAsyncAtomicLoad(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncAtomicLoad(inst); }         // حمّل_ذري
+            llvm::Value *emitAsyncAtomicStore(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncAtomicStore(inst); }        // خزّن_ذري
+            llvm::Value *emitAsyncAtomicAdd(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncAtomicAdd(inst); }          // أضف_ذري
+            llvm::Value *emitAsyncAtomicCAS(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncAtomicCAS(inst); }          // قارن_وبدّل
+            llvm::Value *emitAsyncWaitAll(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncWaitAll(inst); }            // انتظر_الكل
+            llvm::Value *emitAsyncWaitAny(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncWaitAny(inst); }            // انتظر_أي
+            llvm::Value *emitAsyncSelect(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncSelect(inst); }             // اختر_قناة
 
             // ================================================================
             // Section 14c: WaitGroup Emit Functions / دوال إصدار مجموعة الانتظار
             // ================================================================
-            llvm::Value *emitAsyncWgCreate(std::shared_ptr<SIRInstruction> inst); // مجموعة_انتظار
-            llvm::Value *emitAsyncWgAdd(std::shared_ptr<SIRInstruction> inst);    // أضف (عداد)
-            llvm::Value *emitAsyncWgDone(std::shared_ptr<SIRInstruction> inst);   // أنهي (عداد--)
-            llvm::Value *emitAsyncWgWait(std::shared_ptr<SIRInstruction> inst);   // انتظر
-            llvm::Value *emitAsyncWgCount(std::shared_ptr<SIRInstruction> inst);  // العداد
+            llvm::Value *emitAsyncWgCreate(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncWgCreate(inst); } // مجموعة_انتظار
+            llvm::Value *emitAsyncWgAdd(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncWgAdd(inst); }    // أضف (عداد)
+            llvm::Value *emitAsyncWgDone(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncWgDone(inst); }   // أنهي (عداد--)
+            llvm::Value *emitAsyncWgWait(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncWgWait(inst); }   // انتظر
+            llvm::Value *emitAsyncWgCount(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncWgCount(inst); }  // العداد
 
             // ================================================================
             // Section 14b: LLVM Coroutine Emit Functions / دوال إصدار الكوروتين
@@ -1554,6 +1557,8 @@ namespace Sad
             std::unique_ptr<ObjectsArraysCodeGen> objarr_;
             // (AR) Phase 7 Step 18: عمليات OOP والمؤشرات (6 methods)
             std::unique_ptr<OOPOpsCodeGen> oop_;
+            // (AR) Phase 8 Step 1: تزامن وقنوات (31 methods)
+            std::unique_ptr<ConcurrencyCodeGen> concur_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
