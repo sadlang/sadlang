@@ -102,6 +102,7 @@
 #include "builders/functions_codegen.h"           // (AR) Phase 8 Step 4: FunctionsCodeGen
 #include "builders/builtin_funcs_codegen.h"       // (AR) Phase 8 Step 5: BuiltinFuncsCodeGen
 #include "builders/network_builtins_codegen.h"    // (AR) Phase 8 Step 6: NetworkBuiltinsCodeGen
+#include "builders/coroutines_codegen.h"           // (AR) Phase 8 Step 7: CoroutinesCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -311,6 +312,8 @@ namespace Sad
             friend class BuiltinFuncsCodeGen;
             // (AR) Phase 8 Step 6: NetworkBuiltinsCodeGen
             friend class NetworkBuiltinsCodeGen;
+            // (AR) Phase 8 Step 7: CoroutinesCodeGen
+            friend class CoroutinesCodeGen;
 
         public:
             // ========================================================================
@@ -1010,16 +1013,16 @@ namespace Sad
             // ================================================================
             // Section 14b: LLVM Coroutine Emit Functions / دوال إصدار الكوروتين
             // ================================================================
-            void emitCoroutinePreamble(std::shared_ptr<SIRFunction> sirFunc, llvm::Function *llvmFunc);
-            void emitCoroutineEpilogue();
-            llvm::Value *emitCoroSuspend(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitCoroReturn(std::shared_ptr<SIRInstruction> inst);
+            void emitCoroutinePreamble(std::shared_ptr<SIRFunction> sirFunc, llvm::Function *llvmFunc) { coro_->emitCoroutinePreamble(sirFunc, llvmFunc); }
+            void emitCoroutineEpilogue() { coro_->emitCoroutineEpilogue(); }
+            llvm::Value *emitCoroSuspend(std::shared_ptr<SIRInstruction> inst) { return coro_->emitCoroSuspend(inst); }
+            llvm::Value *emitCoroReturn(std::shared_ptr<SIRInstruction> inst) { return coro_->emitCoroReturn(inst); }
 
             // ================================================================
             // Section 14c: Generator Emit Functions / دوال إصدار المولّد
             // ================================================================
-            llvm::Value *emitGeneratorYield(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitGeneratorConsume(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitGeneratorYield(std::shared_ptr<SIRInstruction> inst) { return coro_->emitGeneratorYield(inst); }
+            llvm::Value *emitGeneratorConsume(std::shared_ptr<SIRInstruction> inst) { return coro_->emitGeneratorConsume(inst); }
 
             // ================================================================
             // Section 15: عمليات وحدات نظام التشغيل المتقدمة / Advanced OS Module Operations
@@ -1581,6 +1584,8 @@ namespace Sad
             std::unique_ptr<BuiltinFuncsCodeGen> baf_;
             // (AR) Phase 8 Step 6: دوال الشبكة المدمجة (2 methods كبيرة)
             std::unique_ptr<NetworkBuiltinsCodeGen> nb_;
+            // (AR) Phase 8 Step 7: الكوروتينات والمولّدات (6 methods)
+            std::unique_ptr<CoroutinesCodeGen> coro_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
