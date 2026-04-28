@@ -122,6 +122,7 @@ namespace Sad
             ui_ = std::make_unique<UICodeGen>(*this);
             cls_ = std::make_unique<ClassesVtablesCodeGen>(*this);
             fns_ = std::make_unique<FunctionsCodeGen>(*this);
+            baf_ = std::make_unique<BuiltinFuncsCodeGen>(*this);
         }
 
         /**

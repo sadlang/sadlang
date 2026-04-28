@@ -100,6 +100,7 @@
 #include "builders/ui_codegen.h"                  // (AR) Phase 8 Step 2: UICodeGen
 #include "builders/classes_vtables_codegen.h"    // (AR) Phase 8 Step 3: ClassesVtablesCodeGen
 #include "builders/functions_codegen.h"           // (AR) Phase 8 Step 4: FunctionsCodeGen
+#include "builders/builtin_funcs_codegen.h"       // (AR) Phase 8 Step 5: BuiltinFuncsCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -305,6 +306,8 @@ namespace Sad
             friend class ClassesVtablesCodeGen;
             // (AR) Phase 8 Step 4: FunctionsCodeGen
             friend class FunctionsCodeGen;
+            // (AR) Phase 8 Step 5: BuiltinFuncsCodeGen
+            friend class BuiltinFuncsCodeGen;
 
         public:
             // ========================================================================
@@ -674,7 +677,7 @@ namespace Sad
             // ------------------------------------------------------------------------
 
             llvm::Value *emitBuiltinPrint(std::shared_ptr<SIRInstruction> inst) { return iob_->emitBuiltinPrint(inst); } // اطبع / Print
-            llvm::Value *emitBuiltinRead(std::shared_ptr<SIRInstruction> inst);                                          // اقرأ / Read/Input
+            llvm::Value *emitBuiltinRead(std::shared_ptr<SIRInstruction> inst) { return baf_->emitBuiltinRead(inst); }                                          // اقرأ / Read/Input
             // (AR) Phase 7 Step 6: delegate إلى StringOpsCodeGen
             llvm::Value *emitStringConcat(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringConcat(inst); }
             void ensureArrayToStringHelper(); // توليد دالة __sad_array_to_string / Generate array-to-string helper
@@ -831,16 +834,16 @@ namespace Sad
             // Utility Functions (4)
             // (AR) Phase 7 Step 8: emitBuiltinRandom delegate إلى MathBuiltinsCodeGen
             llvm::Value *emitBuiltinRandom(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinRandom(inst); }
-            llvm::Value *emitBuiltinSleep(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinExit(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitBuiltinSleep(std::shared_ptr<SIRInstruction> inst) { return baf_->emitBuiltinSleep(inst); }
+            llvm::Value *emitBuiltinExit(std::shared_ptr<SIRInstruction> inst) { return baf_->emitBuiltinExit(inst); }
             llvm::Value *emitBuiltinTypeOf(std::shared_ptr<SIRInstruction> inst);
 
             // New stdlib builtins - دوال المكتبة القياسية الجديدة
-            llvm::Value *emitBuiltinIsType(std::shared_ptr<SIRInstruction> inst, const std::string &typeName);
-            llvm::Value *emitBuiltinToBool(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinReadLine(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinClearScreen(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitBuiltinSum(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitBuiltinIsType(std::shared_ptr<SIRInstruction> inst, const std::string &typeName) { return baf_->emitBuiltinIsType(inst, typeName); }
+            llvm::Value *emitBuiltinToBool(std::shared_ptr<SIRInstruction> inst) { return baf_->emitBuiltinToBool(inst); }
+            llvm::Value *emitBuiltinReadLine(std::shared_ptr<SIRInstruction> inst) { return baf_->emitBuiltinReadLine(inst); }
+            llvm::Value *emitBuiltinClearScreen(std::shared_ptr<SIRInstruction> inst) { return baf_->emitBuiltinClearScreen(inst); }
+            llvm::Value *emitBuiltinSum(std::shared_ptr<SIRInstruction> inst) { return baf_->emitBuiltinSum(inst); }
 
             // ================================================================
             // عمليات برمجة أنظمة التشغيل — OS Development Operations
@@ -961,13 +964,13 @@ namespace Sad
             // ========================================================================
             // Async/Await & Concurrency / تعليمات التزامن
             // ========================================================================
-            llvm::Value *emitAsyncSpawn(std::shared_ptr<SIRInstruction> inst);              // أنشئ_مهمة
-            llvm::Value *emitAsyncAwait(std::shared_ptr<SIRInstruction> inst);              // انتظر_مهمة
-            llvm::Value *emitAsyncYield(std::shared_ptr<SIRInstruction> inst);              // أنتج
-            llvm::Value *emitAsyncSleep(std::shared_ptr<SIRInstruction> inst);              // نوم_غير_متزامن
-            llvm::Value *emitAsyncCreateFuture(std::shared_ptr<SIRInstruction> inst);       // أنشئ_مستقبل
-            llvm::Value *emitAsyncResolveFuture(std::shared_ptr<SIRInstruction> inst);      // أوفِ_مستقبل
-            llvm::Value *emitAsyncGetFuture(std::shared_ptr<SIRInstruction> inst);          // احصل_مستقبل
+            llvm::Value *emitAsyncSpawn(std::shared_ptr<SIRInstruction> inst) { return baf_->emitAsyncSpawn(inst); }              // أنشئ_مهمة
+            llvm::Value *emitAsyncAwait(std::shared_ptr<SIRInstruction> inst) { return baf_->emitAsyncAwait(inst); }              // انتظر_مهمة
+            llvm::Value *emitAsyncYield(std::shared_ptr<SIRInstruction> inst) { return baf_->emitAsyncYield(inst); }              // أنتج
+            llvm::Value *emitAsyncSleep(std::shared_ptr<SIRInstruction> inst) { return baf_->emitAsyncSleep(inst); }              // نوم_غير_متزامن
+            llvm::Value *emitAsyncCreateFuture(std::shared_ptr<SIRInstruction> inst) { return baf_->emitAsyncCreateFuture(inst); }       // أنشئ_مستقبل
+            llvm::Value *emitAsyncResolveFuture(std::shared_ptr<SIRInstruction> inst) { return baf_->emitAsyncResolveFuture(inst); }      // أوفِ_مستقبل
+            llvm::Value *emitAsyncGetFuture(std::shared_ptr<SIRInstruction> inst) { return baf_->emitAsyncGetFuture(inst); }          // احصل_مستقبل
             llvm::Value *emitAsyncCreateChannel(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncCreateChannel(inst); }      // أنشئ_قناة
             llvm::Value *emitAsyncChannelSend(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelSend(inst); }        // أرسل_قناة
             llvm::Value *emitAsyncChannelRecv(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncChannelRecv(inst); }        // استقبل_قناة
@@ -985,7 +988,7 @@ namespace Sad
             llvm::Value *emitAsyncMutexUnlock(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncMutexUnlock(inst); }        // افتح_قفل
             llvm::Value *emitAsyncMutexTryLock(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncMutexTryLock(inst); }       // حاول_قفل
             llvm::Value *emitAsyncMutexIsLocked(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncMutexIsLocked(inst); }      // مقفل
-            llvm::Value *emitAsyncFutureIsReady(std::shared_ptr<SIRInstruction> inst);      // جاهز
+            llvm::Value *emitAsyncFutureIsReady(std::shared_ptr<SIRInstruction> inst) { return baf_->emitAsyncFutureIsReady(inst); }      // جاهز
             llvm::Value *emitAsyncThreadSpawn(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncThreadSpawn(inst); }        // أنشئ_خيط
             llvm::Value *emitAsyncThreadJoin(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncThreadJoin(inst); }         // انضم_خيط
             llvm::Value *emitAsyncAtomicLoad(std::shared_ptr<SIRInstruction> inst) { return concur_->emitAsyncAtomicLoad(inst); }         // حمّل_ذري
@@ -1356,8 +1359,8 @@ namespace Sad
             // Builtin Extra — (AR) Phase 7 Step 8: Min/Max delegate إلى MathBuiltinsCodeGen
             llvm::Value *emitBuiltinMin(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinMin(inst); }
             llvm::Value *emitBuiltinMax(std::shared_ptr<SIRInstruction> inst) { return mathb_->emitBuiltinMax(inst); }
-            llvm::Value *emitBuiltinAssert(std::shared_ptr<SIRInstruction> inst); // تأكيد
-            llvm::Value *emitBuiltinDebug(std::shared_ptr<SIRInstruction> inst);  // تنقيح
+            llvm::Value *emitBuiltinAssert(std::shared_ptr<SIRInstruction> inst) { return baf_->emitBuiltinAssert(inst); } // تأكيد
+            llvm::Value *emitBuiltinDebug(std::shared_ptr<SIRInstruction> inst) { return baf_->emitBuiltinDebug(inst); }  // تنقيح
 
             // ------------------------------------------------------------------------
             // Aggregate Instructions / تعليمات التجميع
@@ -1373,7 +1376,7 @@ namespace Sad
             // Phi & Select / فاي والاختيار
             // ------------------------------------------------------------------------
 
-            llvm::Value *emitPhi(std::shared_ptr<SIRInstruction> inst); // عقدة فاي / Phi node
+            llvm::Value *emitPhi(std::shared_ptr<SIRInstruction> inst) { return baf_->emitPhi(inst); } // عقدة فاي / Phi node
             llvm::Value *emitSelect(std::shared_ptr<SIRInstruction> inst) { return agg_->emitSelect(inst); }
 
             // ========================================================================
@@ -1575,6 +1578,8 @@ namespace Sad
             std::unique_ptr<ClassesVtablesCodeGen> cls_;
             // (AR) Phase 8 Step 4: إصدار الدوال والتحسين والتحقق (12 methods)
             std::unique_ptr<FunctionsCodeGen> fns_;
+            // (AR) Phase 8 Step 5: دوال مدمجة + رياضيات/غير متزامن (19 methods)
+            std::unique_ptr<BuiltinFuncsCodeGen> baf_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
