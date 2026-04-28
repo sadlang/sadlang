@@ -76,42 +76,42 @@
 #include "llvm_type_mapper.h"
 #include "llvm_optimizer.h"                     // إضافة محسّن LLVM / Add LLVM optimizer
 #include "llvm_codegen_context.h"               // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
-#include "builders/arithmetic_codegen.h"        // (AR) Phase 7 Step 1: ArithmeticCodeGen
-#include "builders/memory_codegen.h"            // (AR) Phase 7 Step 2: MemoryCodeGen
-#include "builders/controlflow_codegen.h"       // (AR) Phase 7 Step 3: ControlFlowCodeGen
-#include "builders/aggregate_ops_codegen.h"     // (AR) Phase 7 Step 4: AggregateOpsCodeGen
-#include "builders/array_ops_codegen.h"         // (AR) Phase 7 Step 5: ArrayOpsCodeGen
-#include "builders/string_ops_codegen.h"        // (AR) Phase 7 Step 6: StringOpsCodeGen
-#include "builders/array_builtins_codegen.h"    // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
-#include "builders/math_builtins_codegen.h"     // (AR) Phase 7 Step 8: MathBuiltinsCodeGen
-#include "builders/map_ops_codegen.h"           // (AR) Phase 7 Step 9: MapOpsCodeGen
-#include "builders/exception_codegen.h"         // (AR) Phase 7 Step 10: ExceptionCodeGen
-#include "builders/lowlevel_codegen.h"          // (AR) Phase 7 Step 11: LowlevelCodeGen
-#include "builders/enum_ops_codegen.h"          // (AR) Phase 7 Step 12: EnumOpsCodeGen
-#include "builders/hardware_ffi_codegen.h"      // (AR) Phase 7 Step 13: HardwareFFICodeGen
-#include "builders/closure_codegen.h"           // (AR) Phase 7 Step 14: ClosureCodeGen
-#include "builders/io_builtins_codegen.h"       // (AR) Phase 7 Step 15: IOBuiltinsCodeGen
-#include "builders/security_builtins_codegen.h" // (AR) Phase 7 Step 15: SecurityBuiltinsCodeGen
-#include "builders/ffi_remain_codegen.h"        // (AR) Phase 7 Step 15: FFIRemainCodeGen
-#include "builders/freestanding_codegen.h"      // (AR) Phase 7 Step 16: FreestandingCodeGen
-#include "builders/objects_arrays_codegen.h"    // (AR) Phase 7 Step 17: ObjectsArraysCodeGen
-#include "builders/oop_ops_codegen.h"           // (AR) Phase 7 Step 18: OOPOpsCodeGen
-#include "builders/concurrency_codegen.h"       // (AR) Phase 8 Step 1: ConcurrencyCodeGen
-#include "builders/ui_codegen.h"                // (AR) Phase 8 Step 2: UICodeGen
-#include "builders/classes_vtables_codegen.h"   // (AR) Phase 8 Step 3: ClassesVtablesCodeGen
-#include "builders/functions_codegen.h"         // (AR) Phase 8 Step 4: FunctionsCodeGen
-#include "builders/builtin_funcs_codegen.h"     // (AR) Phase 8 Step 5: BuiltinFuncsCodeGen
-#include "builders/network_builtins_codegen.h"  // (AR) Phase 8 Step 6: NetworkBuiltinsCodeGen
-#include "builders/coroutines_codegen.h"        // (AR) Phase 8 Step 7: CoroutinesCodeGen
-#include "builders/strings_codegen.h"           // (AR) Phase 8 Step 8: StringsCodeGen
-#include "builders/instr_core_codegen.h"        // (AR) Phase 8 Step 9: InstrCoreCodeGen
-#include "builders/simd_codegen.h"              // (AR) Phase 8 Step 10
-#include "builders/instr_lowlevel_codegen.h"    // (AR) Phase 8 Step 10
-#include "builders/file_casts_codegen.h"        // (AR) Phase 8 Step 10
-#include "builders/directives_codegen.h"        // (AR) Phase 8 Step 10
-#include "builders/instr_platform_codegen.h"    // (AR) Phase 8 Step 10
-#include "builders/output_codegen.h"            // (AR) Phase 8 Step 10
-#include "builders/types_codegen.h"             // (AR) Phase 9: TypesCodeGen
+#include "builders/arithmetic/arithmetic_codegen.h"        // (AR) Phase 7 Step 1: ArithmeticCodeGen
+#include "builders/memory/memory_codegen.h"            // (AR) Phase 7 Step 2: MemoryCodeGen
+#include "builders/arithmetic/controlflow_codegen.h"       // (AR) Phase 7 Step 3: ControlFlowCodeGen
+#include "builders/memory/aggregate_ops_codegen.h"     // (AR) Phase 7 Step 4: AggregateOpsCodeGen
+#include "builders/collections/array_ops_codegen.h"         // (AR) Phase 7 Step 5: ArrayOpsCodeGen
+#include "builders/collections/string_ops_codegen.h"        // (AR) Phase 7 Step 6: StringOpsCodeGen
+#include "builders/collections/array_builtins_codegen.h"    // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
+#include "builders/builtins/math_builtins_codegen.h"     // (AR) Phase 7 Step 8: MathBuiltinsCodeGen
+#include "builders/collections/map_ops_codegen.h"           // (AR) Phase 7 Step 9: MapOpsCodeGen
+#include "builders/arithmetic/exception_codegen.h"         // (AR) Phase 7 Step 10: ExceptionCodeGen
+#include "builders/platform/lowlevel_codegen.h"          // (AR) Phase 7 Step 11: LowlevelCodeGen
+#include "builders/oop/enum_ops_codegen.h"          // (AR) Phase 7 Step 12: EnumOpsCodeGen
+#include "builders/platform/hardware_ffi_codegen.h"      // (AR) Phase 7 Step 13: HardwareFFICodeGen
+#include "builders/memory/closure_codegen.h"           // (AR) Phase 7 Step 14: ClosureCodeGen
+#include "builders/builtins/io_builtins_codegen.h"       // (AR) Phase 7 Step 15: IOBuiltinsCodeGen
+#include "builders/builtins/security_builtins_codegen.h" // (AR) Phase 7 Step 15: SecurityBuiltinsCodeGen
+#include "builders/platform/ffi_remain_codegen.h"        // (AR) Phase 7 Step 15: FFIRemainCodeGen
+#include "builders/core/freestanding_codegen.h"      // (AR) Phase 7 Step 16: FreestandingCodeGen
+#include "builders/oop/objects_arrays_codegen.h"    // (AR) Phase 7 Step 17: ObjectsArraysCodeGen
+#include "builders/oop/oop_ops_codegen.h"           // (AR) Phase 7 Step 18: OOPOpsCodeGen
+#include "builders/directives/concurrency_codegen.h"       // (AR) Phase 8 Step 1: ConcurrencyCodeGen
+#include "builders/platform/ui_codegen.h"                // (AR) Phase 8 Step 2: UICodeGen
+#include "builders/oop/classes_vtables_codegen.h"   // (AR) Phase 8 Step 3: ClassesVtablesCodeGen
+#include "builders/oop/functions_codegen.h"         // (AR) Phase 8 Step 4: FunctionsCodeGen
+#include "builders/builtins/builtin_funcs_codegen.h"     // (AR) Phase 8 Step 5: BuiltinFuncsCodeGen
+#include "builders/builtins/network_builtins_codegen.h"  // (AR) Phase 8 Step 6: NetworkBuiltinsCodeGen
+#include "builders/directives/coroutines_codegen.h"        // (AR) Phase 8 Step 7: CoroutinesCodeGen
+#include "builders/collections/strings_codegen.h"           // (AR) Phase 8 Step 8: StringsCodeGen
+#include "builders/core/instr_core_codegen.h"        // (AR) Phase 8 Step 9: InstrCoreCodeGen
+#include "builders/directives/simd_codegen.h"              // (AR) Phase 8 Step 10
+#include "builders/platform/instr_lowlevel_codegen.h"    // (AR) Phase 8 Step 10
+#include "builders/platform/file_casts_codegen.h"        // (AR) Phase 8 Step 10
+#include "builders/directives/directives_codegen.h"        // (AR) Phase 8 Step 10
+#include "builders/platform/instr_platform_codegen.h"    // (AR) Phase 8 Step 10
+#include "builders/core/output_codegen.h"            // (AR) Phase 8 Step 10
+#include "builders/core/types_codegen.h"             // (AR) Phase 9: TypesCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
