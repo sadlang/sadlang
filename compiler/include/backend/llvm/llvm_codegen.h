@@ -111,6 +111,7 @@
 #include "builders/directives_codegen.h"        // (AR) Phase 8 Step 10
 #include "builders/instr_platform_codegen.h"    // (AR) Phase 8 Step 10
 #include "builders/output_codegen.h"            // (AR) Phase 8 Step 10
+#include "builders/types_codegen.h"             // (AR) Phase 9: TypesCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -1367,43 +1368,41 @@ namespace Sad
              * @param sadType نوع Sad / Sad type
              * @return نوع LLVM / LLVM type
              */
-            llvm::Type *convertType(std::shared_ptr<Type> sadType);
+            // ====================================================================
+            // (AR) Phase 9: تحويل الأنواع — مفوّض إلى TypesCodeGen
+            // (EN) Phase 9: Type conversions — delegated to TypesCodeGen
+            // ====================================================================
+            llvm::Type *convertType(std::shared_ptr<Type> sadType) { return types_->convertType(sadType); }
 
-            /**
-             * تحويل نوع دالة Sad إلى نوع دالة LLVM
-             * Convert Sad function type to LLVM function type
-             *
-             * @param returnType نوع الرجوع / Return type
-             * @param paramTypes أنواع المعاملات / Parameter types
-             * @param isVarArg هل الدالة متغيرة المعاملات / Is variadic
-             * @return نوع دالة LLVM / LLVM function type
-             */
             llvm::FunctionType *convertFunctionType(std::shared_ptr<Type> returnType,
                                                     const std::vector<std::shared_ptr<Type>> &paramTypes,
-                                                    bool isVarArg = false);
+                                                    bool isVarArg = false)
+            {
+                return types_->convertFunctionType(returnType, paramTypes, isVarArg);
+            }
 
             /**
-             * الحصول على الأنواع الأساسية / Get primitive types
+             * الحصول على الأنواع الأساسية / Get primitive types (Phase 9 → TypesCodeGen)
              */
-            llvm::Type *getVoidType();    // نوع فارغ / Void type
-            llvm::Type *getInt1Type();    // منطقي (1 bit) / Boolean
-            llvm::Type *getInt8Type();    // صحيح 8 بت / 8-bit integer
-            llvm::Type *getInt16Type();   // صحيح 16 بت / 16-bit integer
-            llvm::Type *getInt32Type();   // صحيح 32 بت / 32-bit integer
-            llvm::Type *getInt64Type();   // صحيح 64 بت / 64-bit integer
-            llvm::Type *getFloatType();   // عشري 32 بت / 32-bit float
-            llvm::Type *getDoubleType();  // عشري 64 بت / 64-bit double
-            llvm::Type *getInt8PtrType(); // مؤشر حرف / Char pointer (i8*)
+            llvm::Type *getVoidType()    { return types_->getVoidType(); }
+            llvm::Type *getInt1Type()    { return types_->getInt1Type(); }
+            llvm::Type *getInt8Type()    { return types_->getInt8Type(); }
+            llvm::Type *getInt16Type()   { return types_->getInt16Type(); }
+            llvm::Type *getInt32Type()   { return types_->getInt32Type(); }
+            llvm::Type *getInt64Type()   { return types_->getInt64Type(); }
+            llvm::Type *getFloatType()   { return types_->getFloatType(); }
+            llvm::Type *getDoubleType()  { return types_->getDoubleType(); }
+            llvm::Type *getInt8PtrType() { return types_->getInt8PtrType(); }
 
             // ========================================================================
-            // Constants / الثوابت
+            // Constants / الثوابت — Phase 9 → TypesCodeGen
             // ========================================================================
 
-            llvm::Constant *getConstantInt(int64_t value, int bits = 64);
-            llvm::Constant *getConstantFloat(double value, bool isDouble = false);
-            llvm::Constant *getConstantString(const std::string &value);
-            llvm::Constant *getConstantBool(bool value);
-            llvm::Constant *getNullPtr(llvm::Type *ptrType);
+            llvm::Constant *getConstantInt(int64_t value, int bits = 64)        { return types_->getConstantInt(value, bits); }
+            llvm::Constant *getConstantFloat(double value, bool isDouble = false) { return types_->getConstantFloat(value, isDouble); }
+            llvm::Constant *getConstantString(const std::string &value)         { return types_->getConstantString(value); }
+            llvm::Constant *getConstantBool(bool value)                          { return types_->getConstantBool(value); }
+            llvm::Constant *getNullPtr(llvm::Type *ptrType)                      { return types_->getNullPtr(ptrType); }
 
             // ========================================================================
             // Output / الإخراج
@@ -1581,6 +1580,9 @@ namespace Sad
             std::unique_ptr<DirectivesCodeGen> dir_;
             std::unique_ptr<InstrPlatformCodeGen> ip_;
             std::unique_ptr<OutputCodeGen> out_;
+            // (AR) Phase 9: مكوّن فرعي للأنواع والثوابت والتحويلات
+            // (EN) Phase 9: Types, constants & conversions sub-codegen
+            std::unique_ptr<TypesCodeGen> types_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
