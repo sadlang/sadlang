@@ -116,6 +116,7 @@ namespace Sad
             secb_ = std::make_unique<SecurityBuiltinsCodeGen>(*this);
             ffir_ = std::make_unique<FFIRemainCodeGen>(*this);
             freest_ = std::make_unique<FreestandingCodeGen>(*this);
+            objarr_ = std::make_unique<ObjectsArraysCodeGen>(*this);
         }
 
         /**
