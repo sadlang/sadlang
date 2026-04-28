@@ -123,6 +123,7 @@ namespace Sad
             cls_ = std::make_unique<ClassesVtablesCodeGen>(*this);
             fns_ = std::make_unique<FunctionsCodeGen>(*this);
             baf_ = std::make_unique<BuiltinFuncsCodeGen>(*this);
+            nb_ = std::make_unique<NetworkBuiltinsCodeGen>(*this);
         }
 
         /**

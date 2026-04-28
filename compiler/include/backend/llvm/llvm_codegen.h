@@ -101,6 +101,7 @@
 #include "builders/classes_vtables_codegen.h"    // (AR) Phase 8 Step 3: ClassesVtablesCodeGen
 #include "builders/functions_codegen.h"           // (AR) Phase 8 Step 4: FunctionsCodeGen
 #include "builders/builtin_funcs_codegen.h"       // (AR) Phase 8 Step 5: BuiltinFuncsCodeGen
+#include "builders/network_builtins_codegen.h"    // (AR) Phase 8 Step 6: NetworkBuiltinsCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -308,6 +309,8 @@ namespace Sad
             friend class FunctionsCodeGen;
             // (AR) Phase 8 Step 5: BuiltinFuncsCodeGen
             friend class BuiltinFuncsCodeGen;
+            // (AR) Phase 8 Step 6: NetworkBuiltinsCodeGen
+            friend class NetworkBuiltinsCodeGen;
 
         public:
             // ========================================================================
@@ -786,7 +789,7 @@ namespace Sad
             //      تُصدر استدعاءات لدوال C API من stdlib/network
             // (EN) Tier 4: Network functions (TCP/UDP, HTTP, addresses)
             //      Emits calls to C API functions from stdlib/network
-            llvm::Value *emitNetworkBuiltin(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitNetworkBuiltin(std::shared_ptr<SIRInstruction> inst) { return nb_->emitNetworkBuiltin(inst); }
 
             // (AR) الطبقة الخامسة: تعليمات SIMD المتجهات (Phase 3)
             //      تنتج تعليمات LLVM متجهة <N x T> أصلية: FMA, sqrt.v8f64,
@@ -798,11 +801,7 @@ namespace Sad
 
             // (AR) دالة مساعدة: إصدار استدعاء دالة C خارجية للشبكة
             // (EN) Helper: emit call to an extern C network function
-            llvm::Value *emitNetworkCall(
-                std::shared_ptr<SIRInstruction> inst,
-                const char *cFuncName,
-                llvm::Type *returnType,
-                const std::vector<llvm::Type *> &paramTypes);
+            llvm::Value *emitNetworkCall(std::shared_ptr<SIRInstruction> inst, const char *cFuncName, llvm::Type *returnType, const std::vector<llvm::Type *> &paramTypes) { return nb_->emitNetworkCall(inst, cFuncName, returnType, paramTypes); }
 
             // (AR) Phase 7 Step 5: delegate إلى ArrayOpsCodeGen (تبقى wrappers لأن array_file_coro.cpp يستدعيها)
             llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr") { return arr_->normalizeArrayPtr(arrPtr, label); }
@@ -1580,6 +1579,8 @@ namespace Sad
             std::unique_ptr<FunctionsCodeGen> fns_;
             // (AR) Phase 8 Step 5: دوال مدمجة + رياضيات/غير متزامن (19 methods)
             std::unique_ptr<BuiltinFuncsCodeGen> baf_;
+            // (AR) Phase 8 Step 6: دوال الشبكة المدمجة (2 methods كبيرة)
+            std::unique_ptr<NetworkBuiltinsCodeGen> nb_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة

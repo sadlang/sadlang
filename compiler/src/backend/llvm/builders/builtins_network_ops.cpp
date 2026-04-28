@@ -24,6 +24,7 @@
 // ============================================================================
 
 #include "llvm_codegen.h"
+#include "builders/network_builtins_codegen.h"
 #include <iostream>
 
 using namespace Sad::Compiler::SIR;
@@ -164,7 +165,7 @@ namespace Sad
         //      Supports returning i64, i8*, or void.
         //      Arguments are auto-resolved from SIR operands to LLVM values.
         // ============================================================================
-        llvm::Value *LLVMCodeGen::emitNetworkCall(
+        llvm::Value *NetworkBuiltinsCodeGen::emitNetworkCall(
             std::shared_ptr<SIRInstruction> inst,
             const char *cFuncName,
             llvm::Type *returnType,
@@ -178,10 +179,10 @@ namespace Sad
             std::vector<llvm::Value *> args;
             for (size_t i = 0; i < inst->operands.size(); i++)
             {
-                llvm::Value *val = resolveOperand(inst->operands[i]);
+                llvm::Value *val = cg_.resolveOperand(inst->operands[i]);
                 if (!val)
                 {
-                    reportError(std::string("خطأ: معامل فارغ في دالة شبكة / "
+                    cg_.reportError(std::string("خطأ: معامل فارغ في دالة شبكة / "
                                             "Error: null operand in network function ") +
                                 cFuncName);
                     return nullptr;
@@ -195,7 +196,7 @@ namespace Sad
                 //      ptr → i64: PtrToInt (for handles returned from C functions)
                 if (i < paramTypes.size())
                 {
-                    val = adaptNetworkArgument(builder_.get(), *context_, val, paramTypes[i]);
+                    val = adaptNetworkArgument(cg_.builder_.get(), *cg_.context_, val, paramTypes[i]);
                 }
 
                 args.push_back(val);
@@ -227,20 +228,20 @@ namespace Sad
             // (AR) الحصول على أو إنشاء تعريف الدالة الخارجية
             // (EN) Get or create the extern function declaration
             llvm::FunctionType *ft = llvm::FunctionType::get(returnType, paramTypes, false);
-            llvm::FunctionCallee fn = module_->getOrInsertFunction(cFuncName, ft);
+            llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction(cFuncName, ft);
 
             // (AR) إصدار استدعاء LLVM IR
             // (EN) Emit LLVM IR call
             llvm::Value *result = nullptr;
             if (returnType->isVoidTy())
             {
-                builder_->CreateCall(fn, args);
-                result = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0);
+                cg_.builder_->CreateCall(fn, args);
+                result = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 0);
             }
             else
             {
                 std::string label = std::string(cFuncName) + ".ret";
-                result = builder_->CreateCall(fn, args, label);
+                result = cg_.builder_->CreateCall(fn, args, label);
 
                 // (AR) الإرجاعات الصحيحة تُطبَّع إلى i64 بينما تُترك المؤشرات كما هي.
                 //      هذا يسمح لنا بتمييز مؤشرات النصوص عن مقابض الكائنات؛
@@ -266,9 +267,9 @@ namespace Sad
                 //      SExt was incorrectly converting uint16_t=65535 to -1 (Bug 1).
                 else if (result->getType()->isIntegerTy() && !result->getType()->isIntegerTy(64))
                 {
-                    result = builder_->CreateZExt(
+                    result = cg_.builder_->CreateZExt(
                         result,
-                        llvm::Type::getInt64Ty(*context_),
+                        llvm::Type::getInt64Ty(*cg_.context_),
                         result->getType()->isIntegerTy(1) ? "net.ret.bool" : "net.ret.zext");
                 }
             }
@@ -277,7 +278,7 @@ namespace Sad
             // (EN) Register result in named values table
             if (inst->result.has_value() && result)
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
 
             return result;
@@ -291,18 +292,18 @@ namespace Sad
         //      Called from emitInstructionCore via switch on opcode.
         //      Returns nullptr if opcode doesn't match any network opcode.
         // ============================================================================
-        llvm::Value *LLVMCodeGen::emitNetworkBuiltin(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *NetworkBuiltinsCodeGen::emitNetworkBuiltin(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
                 return nullptr;
 
-            llvm::Type *i64 = llvm::Type::getInt64Ty(*context_);
-            llvm::Type *i32 = llvm::Type::getInt32Ty(*context_);
-            llvm::Type *i16 = llvm::Type::getInt16Ty(*context_);
-            llvm::Type *i1 = llvm::Type::getInt1Ty(*context_);
-            llvm::Type *i8p = getI8PtrTy(*context_);
-            llvm::Type *voidTy = llvm::Type::getVoidTy(*context_);
-            llvm::Type *ptr = llvm::PointerType::getUnqual(*context_);
+            llvm::Type *i64 = llvm::Type::getInt64Ty(*cg_.context_);
+            llvm::Type *i32 = llvm::Type::getInt32Ty(*cg_.context_);
+            llvm::Type *i16 = llvm::Type::getInt16Ty(*cg_.context_);
+            llvm::Type *i1 = llvm::Type::getInt1Ty(*cg_.context_);
+            llvm::Type *i8p = getI8PtrTy(*cg_.context_);
+            llvm::Type *voidTy = llvm::Type::getVoidTy(*cg_.context_);
+            llvm::Type *ptr = llvm::PointerType::getUnqual(*cg_.context_);
 
             auto emitHandleCall = [&](const char *cFuncName, const std::vector<llvm::Type *> &paramTypes) -> llvm::Value *
             {
@@ -312,12 +313,12 @@ namespace Sad
                     return nullptr;
                 }
 
-                llvm::Value *handleValue = builder_->CreatePtrToInt(raw, i64, "net.ret.handle");
-                llvm::Value *isNull = builder_->CreateICmpEQ(
+                llvm::Value *handleValue = cg_.builder_->CreatePtrToInt(raw, i64, "net.ret.handle");
+                llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
                     raw,
                     llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(raw->getType())),
                     "net.ret.is_null");
-                llvm::Value *result = builder_->CreateSelect(
+                llvm::Value *result = cg_.builder_->CreateSelect(
                     isNull,
                     llvm::ConstantInt::getSigned(i64, -1),
                     handleValue,
@@ -325,7 +326,7 @@ namespace Sad
 
                 if (inst->result.has_value())
                 {
-                    context_info_.namedValues[inst->result->name] = result;
+                    cg_.context_info_.namedValues[inst->result->name] = result;
                 }
                 return result;
             };
@@ -338,16 +339,16 @@ namespace Sad
                     return nullptr;
                 }
 
-                llvm::Value *empty = builder_->CreateGlobalStringPtr("", "net.empty");
-                llvm::Value *isNull = builder_->CreateICmpEQ(
+                llvm::Value *empty = cg_.builder_->CreateGlobalStringPtr("", "net.empty");
+                llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
                     raw,
                     llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(raw->getType())),
                     "net.str.is_null");
-                llvm::Value *result = builder_->CreateSelect(isNull, empty, raw, "net.str.safe");
+                llvm::Value *result = cg_.builder_->CreateSelect(isNull, empty, raw, "net.str.safe");
 
                 if (inst->result.has_value())
                 {
-                    context_info_.namedValues[inst->result->name] = result;
+                    cg_.context_info_.namedValues[inst->result->name] = result;
                 }
                 return result;
             };
@@ -363,7 +364,7 @@ namespace Sad
                 llvm::Value *result = llvm::ConstantInt::get(i64, 1);
                 if (inst->result.has_value())
                 {
-                    context_info_.namedValues[inst->result->name] = result;
+                    cg_.context_info_.namedValues[inst->result->name] = result;
                 }
                 return result;
             };
@@ -375,7 +376,7 @@ namespace Sad
             {
                 if (preparedArgs.size() != paramTypes.size())
                 {
-                    reportError(std::string("خطأ: عدد معاملات غير متطابق في دالة شبكة / ") +
+                    cg_.reportError(std::string("خطأ: عدد معاملات غير متطابق في دالة شبكة / ") +
                                 "Error: mismatched network argument count for " + cFuncName);
                     return nullptr;
                 }
@@ -384,10 +385,10 @@ namespace Sad
                 args.reserve(preparedArgs.size());
                 for (size_t i = 0; i < preparedArgs.size(); ++i)
                 {
-                    llvm::Value *arg = adaptNetworkArgument(builder_.get(), *context_, preparedArgs[i], paramTypes[i]);
+                    llvm::Value *arg = adaptNetworkArgument(cg_.builder_.get(), *cg_.context_, preparedArgs[i], paramTypes[i]);
                     if (!arg)
                     {
-                        reportError(std::string("خطأ: معامل مُحضَّر فارغ في دالة شبكة / ") +
+                        cg_.reportError(std::string("خطأ: معامل مُحضَّر فارغ في دالة شبكة / ") +
                                     "Error: null prepared network argument in " + cFuncName);
                         return nullptr;
                     }
@@ -395,30 +396,30 @@ namespace Sad
                 }
 
                 llvm::FunctionType *ft = llvm::FunctionType::get(returnType, paramTypes, false);
-                llvm::FunctionCallee fn = module_->getOrInsertFunction(cFuncName, ft);
+                llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction(cFuncName, ft);
 
                 llvm::Value *result = nullptr;
                 if (returnType->isVoidTy())
                 {
-                    builder_->CreateCall(fn, args);
+                    cg_.builder_->CreateCall(fn, args);
                     result = llvm::ConstantInt::get(i64, 0);
                 }
                 else
                 {
                     std::string label = std::string(cFuncName) + ".ret";
-                    result = builder_->CreateCall(fn, args, label);
+                    result = cg_.builder_->CreateCall(fn, args, label);
 
                     if (result->getType()->isIntegerTy() && !result->getType()->isIntegerTy(64))
                     {
                         result = result->getType()->isIntegerTy(1)
-                                     ? builder_->CreateZExt(result, i64, "net.ret.bool")
-                                     : builder_->CreateSExtOrTrunc(result, i64, "net.ret.ext");
+                                     ? cg_.builder_->CreateZExt(result, i64, "net.ret.bool")
+                                     : cg_.builder_->CreateSExtOrTrunc(result, i64, "net.ret.ext");
                     }
                 }
 
                 if (inst->result.has_value() && result)
                 {
-                    context_info_.namedValues[inst->result->name] = result;
+                    cg_.context_info_.namedValues[inst->result->name] = result;
                 }
 
                 return result;
@@ -434,12 +435,12 @@ namespace Sad
                     return nullptr;
                 }
 
-                llvm::Value *handleValue = builder_->CreatePtrToInt(raw, i64, "net.ret.handle");
-                llvm::Value *isNull = builder_->CreateICmpEQ(
+                llvm::Value *handleValue = cg_.builder_->CreatePtrToInt(raw, i64, "net.ret.handle");
+                llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
                     raw,
                     llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(raw->getType())),
                     "net.ret.is_null");
-                llvm::Value *result = builder_->CreateSelect(
+                llvm::Value *result = cg_.builder_->CreateSelect(
                     isNull,
                     llvm::ConstantInt::getSigned(i64, -1),
                     handleValue,
@@ -447,7 +448,7 @@ namespace Sad
 
                 if (inst->result.has_value())
                 {
-                    context_info_.namedValues[inst->result->name] = result;
+                    cg_.context_info_.namedValues[inst->result->name] = result;
                 }
                 return result;
             };
@@ -462,36 +463,36 @@ namespace Sad
                     return nullptr;
                 }
 
-                llvm::Value *empty = builder_->CreateGlobalStringPtr("", "net.empty");
-                llvm::Value *isNull = builder_->CreateICmpEQ(
+                llvm::Value *empty = cg_.builder_->CreateGlobalStringPtr("", "net.empty");
+                llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
                     raw,
                     llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(raw->getType())),
                     "net.str.is_null");
-                llvm::Value *result = builder_->CreateSelect(isNull, empty, raw, "net.str.safe");
+                llvm::Value *result = cg_.builder_->CreateSelect(isNull, empty, raw, "net.str.safe");
 
                 if (inst->result.has_value())
                 {
-                    context_info_.namedValues[inst->result->name] = result;
+                    cg_.context_info_.namedValues[inst->result->name] = result;
                 }
                 return result;
             };
 
             auto getPreparedCStringLength = [&](llvm::Value *rawString) -> llvm::Value *
             {
-                llvm::Value *stringValue = adaptNetworkArgument(builder_.get(), *context_, rawString, i8p);
+                llvm::Value *stringValue = adaptNetworkArgument(cg_.builder_.get(), *cg_.context_, rawString, i8p);
                 if (!stringValue)
                 {
                     return llvm::ConstantInt::get(i64, 0);
                 }
 
                 llvm::FunctionType *strlenType = llvm::FunctionType::get(i64, {i8p}, false);
-                llvm::FunctionCallee strlenFn = module_->getOrInsertFunction("strlen", strlenType);
-                llvm::Value *isNull = builder_->CreateICmpEQ(
+                llvm::FunctionCallee strlenFn = cg_.module_->getOrInsertFunction("strlen", strlenType);
+                llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
                     stringValue,
                     llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(stringValue->getType())),
                     "net.strlen.is_null");
-                llvm::Value *measured = builder_->CreateCall(strlenFn, {stringValue}, "net.strlen");
-                return builder_->CreateSelect(isNull, llvm::ConstantInt::get(i64, 0), measured, "net.strlen.safe");
+                llvm::Value *measured = cg_.builder_->CreateCall(strlenFn, {stringValue}, "net.strlen");
+                return cg_.builder_->CreateSelect(isNull, llvm::ConstantInt::get(i64, 0), measured, "net.strlen.safe");
             };
 
             switch (inst->opcode)
@@ -510,10 +511,10 @@ namespace Sad
             case SIROpcode::BUILTIN_NET_TCP_SEND:
                 if (inst->operands.size() >= 2)
                 {
-                    llvm::Value *socket = resolveOperand(inst->operands[0]);
-                    llvm::Value *data = resolveOperand(inst->operands[1]);
+                    llvm::Value *socket = cg_.resolveOperand(inst->operands[0]);
+                    llvm::Value *data = cg_.resolveOperand(inst->operands[1]);
                     llvm::Value *size = (inst->operands.size() >= 3)
-                                            ? resolveOperand(inst->operands[2])
+                                            ? cg_.resolveOperand(inst->operands[2])
                                             : getPreparedCStringLength(data);
                     return emitPreparedCall("sad_tcp_socket_send", i32, {socket, data, size}, {ptr, i8p, i64});
                 }
@@ -522,9 +523,9 @@ namespace Sad
             case SIROpcode::BUILTIN_NET_TCP_RECV:
                 if (!inst->operands.empty())
                 {
-                    llvm::Value *socket = resolveOperand(inst->operands[0]);
+                    llvm::Value *socket = cg_.resolveOperand(inst->operands[0]);
                     llvm::Value *size = (inst->operands.size() >= 2)
-                                            ? resolveOperand(inst->operands[1])
+                                            ? cg_.resolveOperand(inst->operands[1])
                                             : llvm::ConstantInt::get(i64, 4096);
                     return emitPreparedCStringCall("sad_tcp_socket_receive_string", {socket, size}, {ptr, i64});
                 }
@@ -543,9 +544,9 @@ namespace Sad
             case SIROpcode::BUILTIN_NET_TCP_LISTEN:
                 if (!inst->operands.empty())
                 {
-                    llvm::Value *socket = resolveOperand(inst->operands[0]);
+                    llvm::Value *socket = cg_.resolveOperand(inst->operands[0]);
                     llvm::Value *backlog = (inst->operands.size() >= 2)
-                                               ? resolveOperand(inst->operands[1])
+                                               ? cg_.resolveOperand(inst->operands[1])
                                                : llvm::ConstantInt::get(i32, 10);
                     return emitPreparedCall("sad_tcp_socket_listen", i1, {socket, backlog}, {ptr, i32});
                 }
@@ -577,13 +578,13 @@ namespace Sad
             case SIROpcode::BUILTIN_NET_UDP_SEND:
                 if (inst->operands.size() >= 4)
                 {
-                    llvm::Value *socket = resolveOperand(inst->operands[0]);
-                    llvm::Value *data = resolveOperand(inst->operands[1]);
+                    llvm::Value *socket = cg_.resolveOperand(inst->operands[0]);
+                    llvm::Value *data = cg_.resolveOperand(inst->operands[1]);
                     llvm::Value *size = (inst->operands.size() >= 5)
-                                            ? resolveOperand(inst->operands[2])
+                                            ? cg_.resolveOperand(inst->operands[2])
                                             : getPreparedCStringLength(data);
-                    llvm::Value *host = resolveOperand(inst->operands[inst->operands.size() >= 5 ? 3 : 2]);
-                    llvm::Value *port = resolveOperand(inst->operands[inst->operands.size() >= 5 ? 4 : 3]);
+                    llvm::Value *host = cg_.resolveOperand(inst->operands[inst->operands.size() >= 5 ? 3 : 2]);
+                    llvm::Value *port = cg_.resolveOperand(inst->operands[inst->operands.size() >= 5 ? 4 : 3]);
                     return emitPreparedCall("sad_udp_socket_send_to", i32, {socket, data, size, host, port}, {ptr, i8p, i64, i8p, i16});
                 }
                 return emitNetworkCall(inst, "sad_udp_socket_send_to", i32, {ptr, i8p, i64, i8p, i16});
@@ -591,9 +592,9 @@ namespace Sad
             case SIROpcode::BUILTIN_NET_UDP_RECV:
                 if (!inst->operands.empty())
                 {
-                    llvm::Value *socket = resolveOperand(inst->operands[0]);
+                    llvm::Value *socket = cg_.resolveOperand(inst->operands[0]);
                     llvm::Value *size = (inst->operands.size() >= 2)
-                                            ? resolveOperand(inst->operands[1])
+                                            ? cg_.resolveOperand(inst->operands[1])
                                             : llvm::ConstantInt::get(i64, 4096);
                     return emitPreparedCStringCall("sad_udp_socket_receive_string", {socket, size}, {ptr, i64});
                 }
