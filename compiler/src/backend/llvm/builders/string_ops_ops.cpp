@@ -25,6 +25,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "builders/strings_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -65,11 +66,11 @@ namespace Sad
             return arrTy;
         }
 
-        llvm::Value *LLVMCodeGen::emitBuiltinTypeOf(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *StringsCodeGen::emitBuiltinTypeOf(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
             {
-                return builder_->CreateGlobalStringPtr("مجهول", "typeof_unknown");
+                return cg_.builder_->CreateGlobalStringPtr("مجهول", "typeof_unknown");
             }
 
             // Determine type from operand's dataType at compile time
@@ -105,10 +106,10 @@ namespace Sad
                 break;
             }
 
-            llvm::Value *result = builder_->CreateGlobalStringPtr(typeName, "typeof_str");
+            llvm::Value *result = cg_.builder_->CreateGlobalStringPtr(typeName, "typeof_str");
             if (inst->result.has_value())
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
             return result;
         }

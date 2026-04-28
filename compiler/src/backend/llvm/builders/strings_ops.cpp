@@ -6,6 +6,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "builders/strings_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
@@ -35,7 +36,7 @@ namespace Sad
     namespace LLVM
     {
 
-        llvm::Value *LLVMCodeGen::emitInlineAsm(std::shared_ptr<SIRInstruction> inst)
+        llvm::Value *StringsCodeGen::emitInlineAsm(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
                 return nullptr;
@@ -57,7 +58,7 @@ namespace Sad
 
             if (inst->operands.empty())
             {
-                reportError("INLINE_ASM: requires at least 1 operand (assembly text)");
+                cg_.reportError("INLINE_ASM: requires at least 1 operand (assembly text)");
                 return nullptr;
             }
 
@@ -71,7 +72,7 @@ namespace Sad
             }
             else
             {
-                reportError("INLINE_ASM: first operand must be a string constant (assembly text)");
+                cg_.reportError("INLINE_ASM: first operand must be a string constant (assembly text)");
                 return nullptr;
             }
 
@@ -128,7 +129,7 @@ namespace Sad
             std::vector<llvm::Type *> inputTypes;
             for (size_t i = 2; i < inst->operands.size(); i++)
             {
-                llvm::Value *val = resolveOperand(inst->operands[i]);
+                llvm::Value *val = cg_.resolveOperand(inst->operands[i]);
                 if (val)
                 {
                     inputValues.push_back(val);
@@ -138,13 +139,13 @@ namespace Sad
 
             // (AR) تحديد نوع الرجوع
             // (EN) Determine return type
-            llvm::Type *retType = llvm::Type::getVoidTy(*context_);
+            llvm::Type *retType = llvm::Type::getVoidTy(*cg_.context_);
             bool hasResult = inst->result.has_value();
             if (hasResult)
             {
                 // (AR) إذا كان هناك نتيجة، نستخدم i64 كنوع افتراضي
                 // (EN) If there's a result, use i64 as default type
-                retType = llvm::Type::getInt64Ty(*context_);
+                retType = llvm::Type::getInt64Ty(*cg_.context_);
             }
 
             // (AR) بناء نوع الدالة
@@ -160,11 +161,11 @@ namespace Sad
 
             // (AR) استدعاء الأسمبلي
             // (EN) Call inline assembly
-            llvm::Value *result = builder_->CreateCall(asmFuncType, inlineAsm, inputValues);
+            llvm::Value *result = cg_.builder_->CreateCall(asmFuncType, inlineAsm, inputValues);
 
             if (hasResult)
             {
-                context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = result;
             }
 
             return result;
@@ -176,25 +177,25 @@ namespace Sad
         // (EN) Generate __sad_array_to_string function in the module
         //      Converts SadArray to readable string: "[elem1, elem2, ...]"
         // ============================================================================
-        void LLVMCodeGen::ensureArrayToStringHelper()
+        void StringsCodeGen::ensureArrayToStringHelper()
         {
             // (AR) إذا الدالة موجودة ولها جسم، لا تُنشئها مرة أخرى
             // (EN) If function exists and has a body, don't recreate
-            llvm::Function *existing = module_->getFunction("__sad_array_to_string");
+            llvm::Function *existing = cg_.module_->getFunction("__sad_array_to_string");
             if (existing && !existing->empty())
             {
                 return;
             }
 
-            auto i64Ty = llvm::Type::getInt64Ty(*context_);
-            auto i32Ty = llvm::Type::getInt32Ty(*context_);
-            auto i8Ty = llvm::Type::getInt8Ty(*context_);
-            auto ptrTy = llvm::PointerType::getUnqual(*context_);
+            auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+            auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+            auto i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
             // Function signature: i8* __sad_array_to_string(i8* buf, i64 len, i8* data)
             llvm::FunctionType *fnTy = llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty, ptrTy}, false);
             llvm::Function *fn = llvm::Function::Create(
-                fnTy, llvm::Function::InternalLinkage, "__sad_array_to_string", module_.get());
+                fnTy, llvm::Function::InternalLinkage, "__sad_array_to_string", cg_.module_.get());
 
             llvm::Argument *bufArg = fn->getArg(0);
             llvm::Argument *lenArg = fn->getArg(1);
@@ -204,88 +205,88 @@ namespace Sad
             dataArg->setName("data");
 
             // Save current insertion point
-            llvm::BasicBlock *savedBB = builder_->GetInsertBlock();
-            llvm::BasicBlock::iterator savedPoint = builder_->GetInsertPoint();
+            llvm::BasicBlock *savedBB = cg_.builder_->GetInsertBlock();
+            llvm::BasicBlock::iterator savedPoint = cg_.builder_->GetInsertPoint();
 
             // Create basic blocks
-            llvm::BasicBlock *entryBB = llvm::BasicBlock::Create(*context_, "entry", fn);
-            llvm::BasicBlock *loopCheckBB = llvm::BasicBlock::Create(*context_, "loop.check", fn);
-            llvm::BasicBlock *loopBodyBB = llvm::BasicBlock::Create(*context_, "loop.body", fn);
-            llvm::BasicBlock *commaWriteBB = llvm::BasicBlock::Create(*context_, "comma.write", fn);
-            llvm::BasicBlock *elemWriteBB = llvm::BasicBlock::Create(*context_, "elem.write", fn);
-            llvm::BasicBlock *loopEndBB = llvm::BasicBlock::Create(*context_, "loop.end", fn);
+            llvm::BasicBlock *entryBB = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+            llvm::BasicBlock *loopCheckBB = llvm::BasicBlock::Create(*cg_.context_, "loop.check", fn);
+            llvm::BasicBlock *loopBodyBB = llvm::BasicBlock::Create(*cg_.context_, "loop.body", fn);
+            llvm::BasicBlock *commaWriteBB = llvm::BasicBlock::Create(*cg_.context_, "comma.write", fn);
+            llvm::BasicBlock *elemWriteBB = llvm::BasicBlock::Create(*cg_.context_, "elem.write", fn);
+            llvm::BasicBlock *loopEndBB = llvm::BasicBlock::Create(*cg_.context_, "loop.end", fn);
 
             // Declare sprintf
             llvm::FunctionType *sprintfTy = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, true);
-            llvm::FunctionCallee sprintfFn = module_->getOrInsertFunction("sprintf", sprintfTy);
+            llvm::FunctionCallee sprintfFn = cg_.module_->getOrInsertFunction("sprintf", sprintfTy);
 
             // entry: write '[' at buf[0], pos = 1
-            builder_->SetInsertPoint(entryBB);
-            builder_->CreateStore(llvm::ConstantInt::get(i8Ty, '['), bufArg);
+            cg_.builder_->SetInsertPoint(entryBB);
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, '['), bufArg);
             llvm::Value *initPos = llvm::ConstantInt::get(i64Ty, 1);
-            builder_->CreateBr(loopCheckBB);
+            cg_.builder_->CreateBr(loopCheckBB);
 
             // loop.check: i = phi, pos = phi; if i < len goto body else goto end
-            builder_->SetInsertPoint(loopCheckBB);
-            llvm::PHINode *iPhi = builder_->CreatePHI(i64Ty, 2, "i");
-            llvm::PHINode *posPhi = builder_->CreatePHI(i64Ty, 2, "pos");
+            cg_.builder_->SetInsertPoint(loopCheckBB);
+            llvm::PHINode *iPhi = cg_.builder_->CreatePHI(i64Ty, 2, "i");
+            llvm::PHINode *posPhi = cg_.builder_->CreatePHI(i64Ty, 2, "pos");
             iPhi->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entryBB);
             posPhi->addIncoming(initPos, entryBB);
-            llvm::Value *cmp = builder_->CreateICmpSLT(iPhi, lenArg, "i.lt.len");
-            builder_->CreateCondBr(cmp, loopBodyBB, loopEndBB);
+            llvm::Value *cmp = cg_.builder_->CreateICmpSLT(iPhi, lenArg, "i.lt.len");
+            cg_.builder_->CreateCondBr(cmp, loopBodyBB, loopEndBB);
 
             // loop.body: if i > 0, write ", "
-            builder_->SetInsertPoint(loopBodyBB);
-            llvm::Value *needComma = builder_->CreateICmpSGT(iPhi, llvm::ConstantInt::get(i64Ty, 0), "need.comma");
-            builder_->CreateCondBr(needComma, commaWriteBB, elemWriteBB);
+            cg_.builder_->SetInsertPoint(loopBodyBB);
+            llvm::Value *needComma = cg_.builder_->CreateICmpSGT(iPhi, llvm::ConstantInt::get(i64Ty, 0), "need.comma");
+            cg_.builder_->CreateCondBr(needComma, commaWriteBB, elemWriteBB);
 
             // comma.write: write ", " at buf+pos
-            builder_->SetInsertPoint(commaWriteBB);
-            llvm::Value *commaFmt = builder_->CreateGlobalStringPtr(", ", "comma.fmt");
-            llvm::Value *commaPos = builder_->CreateGEP(i8Ty, bufArg, posPhi, "comma.ptr");
-            llvm::Value *commaLen = builder_->CreateCall(sprintfFn, {commaPos, commaFmt}, "comma.len");
-            llvm::Value *commaLen64 = builder_->CreateSExt(commaLen, i64Ty, "comma.len64");
-            llvm::Value *posAfterComma = builder_->CreateAdd(posPhi, commaLen64, "pos.after.comma");
-            builder_->CreateBr(elemWriteBB);
+            cg_.builder_->SetInsertPoint(commaWriteBB);
+            llvm::Value *commaFmt = cg_.builder_->CreateGlobalStringPtr(", ", "comma.fmt");
+            llvm::Value *commaPos = cg_.builder_->CreateGEP(i8Ty, bufArg, posPhi, "comma.ptr");
+            llvm::Value *commaLen = cg_.builder_->CreateCall(sprintfFn, {commaPos, commaFmt}, "comma.len");
+            llvm::Value *commaLen64 = cg_.builder_->CreateSExt(commaLen, i64Ty, "comma.len64");
+            llvm::Value *posAfterComma = cg_.builder_->CreateAdd(posPhi, commaLen64, "pos.after.comma");
+            cg_.builder_->CreateBr(elemWriteBB);
 
             // elem.write: load element, sprintf it, advance pos
-            builder_->SetInsertPoint(elemWriteBB);
-            llvm::PHINode *elemPosPhi = builder_->CreatePHI(i64Ty, 2, "elem.pos");
+            cg_.builder_->SetInsertPoint(elemWriteBB);
+            llvm::PHINode *elemPosPhi = cg_.builder_->CreatePHI(i64Ty, 2, "elem.pos");
             elemPosPhi->addIncoming(posPhi, loopBodyBB);
             elemPosPhi->addIncoming(posAfterComma, commaWriteBB);
 
             // Load element as i64 (all array elements stored as i64 or ptr-sized values)
-            llvm::Value *elemGep = builder_->CreateGEP(i64Ty, dataArg, iPhi, "elem.gep");
-            llvm::Value *elemVal = builder_->CreateLoad(i64Ty, elemGep, "elem.val");
+            llvm::Value *elemGep = cg_.builder_->CreateGEP(i64Ty, dataArg, iPhi, "elem.gep");
+            llvm::Value *elemVal = cg_.builder_->CreateLoad(i64Ty, elemGep, "elem.val");
 
             // sprintf(buf+pos, "%lld", elem)
-            llvm::Value *elemFmt = builder_->CreateGlobalStringPtr("%lld", "elem.fmt");
-            llvm::Value *elemDst = builder_->CreateGEP(i8Ty, bufArg, elemPosPhi, "elem.dst");
-            llvm::Value *elemLen = builder_->CreateCall(sprintfFn, {elemDst, elemFmt, elemVal}, "elem.len");
-            llvm::Value *elemLen64 = builder_->CreateSExt(elemLen, i64Ty, "elem.len64");
-            llvm::Value *newPos = builder_->CreateAdd(elemPosPhi, elemLen64, "new.pos");
+            llvm::Value *elemFmt = cg_.builder_->CreateGlobalStringPtr("%lld", "elem.fmt");
+            llvm::Value *elemDst = cg_.builder_->CreateGEP(i8Ty, bufArg, elemPosPhi, "elem.dst");
+            llvm::Value *elemLen = cg_.builder_->CreateCall(sprintfFn, {elemDst, elemFmt, elemVal}, "elem.len");
+            llvm::Value *elemLen64 = cg_.builder_->CreateSExt(elemLen, i64Ty, "elem.len64");
+            llvm::Value *newPos = cg_.builder_->CreateAdd(elemPosPhi, elemLen64, "new.pos");
 
             // i++
-            llvm::Value *nextI = builder_->CreateAdd(iPhi, llvm::ConstantInt::get(i64Ty, 1), "next.i");
+            llvm::Value *nextI = cg_.builder_->CreateAdd(iPhi, llvm::ConstantInt::get(i64Ty, 1), "next.i");
 
             // Back to loop check
             iPhi->addIncoming(nextI, elemWriteBB);
             posPhi->addIncoming(newPos, elemWriteBB);
-            builder_->CreateBr(loopCheckBB);
+            cg_.builder_->CreateBr(loopCheckBB);
 
             // loop.end: write ']' and '\0'
-            builder_->SetInsertPoint(loopEndBB);
-            llvm::Value *closeBracketPtr = builder_->CreateGEP(i8Ty, bufArg, posPhi, "close.ptr");
-            builder_->CreateStore(llvm::ConstantInt::get(i8Ty, ']'), closeBracketPtr);
-            llvm::Value *endPos = builder_->CreateAdd(posPhi, llvm::ConstantInt::get(i64Ty, 1), "end.pos");
-            llvm::Value *nullPtr = builder_->CreateGEP(i8Ty, bufArg, endPos, "null.ptr");
-            builder_->CreateStore(llvm::ConstantInt::get(i8Ty, 0), nullPtr);
-            builder_->CreateRet(bufArg);
+            cg_.builder_->SetInsertPoint(loopEndBB);
+            llvm::Value *closeBracketPtr = cg_.builder_->CreateGEP(i8Ty, bufArg, posPhi, "close.ptr");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, ']'), closeBracketPtr);
+            llvm::Value *endPos = cg_.builder_->CreateAdd(posPhi, llvm::ConstantInt::get(i64Ty, 1), "end.pos");
+            llvm::Value *nullPtr = cg_.builder_->CreateGEP(i8Ty, bufArg, endPos, "null.ptr");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, 0), nullPtr);
+            cg_.builder_->CreateRet(bufArg);
 
             // Restore insertion point
             if (savedBB)
             {
-                builder_->SetInsertPoint(savedBB, savedPoint);
+                cg_.builder_->SetInsertPoint(savedBB, savedPoint);
             }
         }
     } // namespace LLVM
