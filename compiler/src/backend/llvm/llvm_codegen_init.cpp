@@ -126,6 +126,7 @@ namespace Sad
             nb_ = std::make_unique<NetworkBuiltinsCodeGen>(*this);
             coro_ = std::make_unique<CoroutinesCodeGen>(*this);
             strs_ = std::make_unique<StringsCodeGen>(*this);
+            ic_ = std::make_unique<InstrCoreCodeGen>(*this);
         }
 
         /**

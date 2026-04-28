@@ -104,6 +104,7 @@
 #include "builders/network_builtins_codegen.h"  // (AR) Phase 8 Step 6: NetworkBuiltinsCodeGen
 #include "builders/coroutines_codegen.h"        // (AR) Phase 8 Step 7: CoroutinesCodeGen
 #include "builders/strings_codegen.h"           // (AR) Phase 8 Step 8: StringsCodeGen
+#include "builders/instr_core_codegen.h"        // (AR) Phase 8 Step 9: InstrCoreCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -317,6 +318,8 @@ namespace Sad
             friend class CoroutinesCodeGen;
             // (AR) Phase 8 Step 8: StringsCodeGen
             friend class StringsCodeGen;
+            // (AR) Phase 8 Step 9: InstrCoreCodeGen
+            friend class InstrCoreCodeGen;
 
         public:
             // ========================================================================
@@ -787,7 +790,7 @@ namespace Sad
             //      emitInstructionCore     : core (arithmetic, async, objects, strings, FFI, arrays...)
             //      emitInstructionLowlevel : low-level (CPU, UEFI, APIC, GDT, Paging...)
             //      emitInstructionPlatform : platform (Android, UI, @sizeof/@atomic directives, modules)
-            llvm::Value *emitInstructionCore(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitInstructionCore(std::shared_ptr<SIRInstruction> inst) { return ic_->emitInstructionCore(inst); }
             llvm::Value *emitInstructionLowlevel(std::shared_ptr<SIRInstruction> inst);
             llvm::Value *emitInstructionPlatform(std::shared_ptr<SIRInstruction> inst);
 
@@ -1593,6 +1596,8 @@ namespace Sad
             std::unique_ptr<CoroutinesCodeGen> coro_;
             // (AR) Phase 8 Step 8: نصوص + helpers (5 methods)
             std::unique_ptr<StringsCodeGen> strs_;
+            // (AR) Phase 8 Step 9: emitInstructionCore (29KB switch)
+            std::unique_ptr<InstrCoreCodeGen> ic_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
