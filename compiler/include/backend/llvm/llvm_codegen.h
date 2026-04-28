@@ -98,6 +98,7 @@
 #include "builders/oop_ops_codegen.h"            // (AR) Phase 7 Step 18: OOPOpsCodeGen
 #include "builders/concurrency_codegen.h"        // (AR) Phase 8 Step 1: ConcurrencyCodeGen
 #include "builders/ui_codegen.h"                  // (AR) Phase 8 Step 2: UICodeGen
+#include "builders/classes_vtables_codegen.h"    // (AR) Phase 8 Step 3: ClassesVtablesCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -299,6 +300,8 @@ namespace Sad
             friend class ConcurrencyCodeGen;
             // (AR) Phase 8 Step 2: UICodeGen
             friend class UICodeGen;
+            // (AR) Phase 8 Step 3: ClassesVtablesCodeGen
+            friend class ClassesVtablesCodeGen;
 
         public:
             // ========================================================================
@@ -461,7 +464,7 @@ namespace Sad
              *
              * @param sirModule وحدة SIR / SIR module
              */
-            void emitModule(std::shared_ptr<SIRModule> sirModule);
+            void emitModule(std::shared_ptr<SIRModule> sirModule) { cls_->emitModule(sirModule); }
 
             /**
              * معالجة الأصناف وإنشاء أنواع الهياكل
@@ -469,7 +472,7 @@ namespace Sad
              *
              * @param sirModule وحدة SIR / SIR module
              */
-            void preprocessClasses(std::shared_ptr<SIRModule> sirModule);
+            void preprocessClasses(std::shared_ptr<SIRModule> sirModule) { cls_->preprocessClasses(sirModule); }
 
             /**
              * إصدار الدوال العامة / Global functions
@@ -518,7 +521,7 @@ namespace Sad
              *
              * @param sirModule وحدة SIR / SIR module
              */
-            void emitGlobalVariables(std::shared_ptr<SIRModule> sirModule);
+            void emitGlobalVariables(std::shared_ptr<SIRModule> sirModule) { cls_->emitGlobalVariables(sirModule); }
 
             /**
              * إصدار الثوابت
@@ -1285,29 +1288,30 @@ namespace Sad
 
             /// (AR) بناء vtables لجميع الأصناف بعد preprocessClasses
             /// (EN) Build vtables for all classes after preprocessClasses
-            void buildClassVtables(std::shared_ptr<SIRModule> sirModule);
+            void buildClassVtables(std::shared_ptr<SIRModule> sirModule) { cls_->buildClassVtables(sirModule); }
 
             /// (AR) تحديث مداخل vtable المؤجلة بعد إصدار جميع الدوال
             /// (EN) Patch deferred vtable entries after all functions are emitted
-            void patchClassVtables();
+            void patchClassVtables() { cls_->patchClassVtables(); }
 
             /// (AR) استدعاء افتراضي عبر vtable
             /// (EN) Virtual dispatch via vtable
             llvm::Value *emitVirtualCall(llvm::Value *objPtr, const std::string &className,
                                          const std::string &methodName,
-                                         const std::vector<llvm::Value *> &extraArgs);
+                                         const std::vector<llvm::Value *> &extraArgs)
+            { return cls_->emitVirtualCall(objPtr, className, methodName, extraArgs); }
 
             /// (AR) تخزين مؤشر vtable في الحقل 0 من الكائن
             /// (EN) Store vtable pointer in field 0 of object
-            void storeVtablePtr(llvm::Value *objPtr, const std::string &className);
+            void storeVtablePtr(llvm::Value *objPtr, const std::string &className) { cls_->storeVtablePtr(objPtr, className); }
 
             /// (AR) استدعاء دالة الهدم للكائن
             /// (EN) Call destructor for object
-            void emitDestructorCall(llvm::Value *objPtr, const std::string &className);
+            void emitDestructorCall(llvm::Value *objPtr, const std::string &className) { cls_->emitDestructorCall(objPtr, className); }
 
             /// (AR) الحصول على إزاحة الحقول بسبب vtable
             /// (EN) Get field offset due to vtable pointer at index 0
-            int getFieldStructIndex(const std::string &className, int userFieldIndex) const;
+            int getFieldStructIndex(const std::string &className, int userFieldIndex) const { return cls_->getFieldStructIndex(className, userFieldIndex); }
 
             // ------------------------------------------------------------------------
             // Missing Bitwise / عمليات ثنائية ناقصة
@@ -1564,6 +1568,8 @@ namespace Sad
             std::unique_ptr<ConcurrencyCodeGen> concur_;
             // (AR) Phase 8 Step 2: عناصر واجهة المستخدم (40 methods)
             std::unique_ptr<UICodeGen> ui_;
+            // (AR) Phase 8 Step 3: دورة حياة الأصناف وvtables (9 methods)
+            std::unique_ptr<ClassesVtablesCodeGen> cls_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة

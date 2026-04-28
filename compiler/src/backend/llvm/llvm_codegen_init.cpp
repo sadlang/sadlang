@@ -120,6 +120,7 @@ namespace Sad
             oop_ = std::make_unique<OOPOpsCodeGen>(*this);
             concur_ = std::make_unique<ConcurrencyCodeGen>(*this);
             ui_ = std::make_unique<UICodeGen>(*this);
+            cls_ = std::make_unique<ClassesVtablesCodeGen>(*this);
         }
 
         /**

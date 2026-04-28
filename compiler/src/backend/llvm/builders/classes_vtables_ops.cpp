@@ -13,6 +13,7 @@
 // ============================================================================
 
 #include "llvm_codegen.h"
+#include "builders/classes_vtables_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -40,7 +41,7 @@ namespace Sad
         // معالجة الأصناف - إنشاء أنواع الهياكل LLVM
         // Pre-process classes - create LLVM struct types
         // ============================================================================
-        void LLVMCodeGen::preprocessClasses(std::shared_ptr<SIRModule> sirModule)
+        void ClassesVtablesCodeGen::preprocessClasses(std::shared_ptr<SIRModule> sirModule)
         {
             if (!sirModule)
                 return;
@@ -93,7 +94,7 @@ namespace Sad
                 // (EN) Register inheritance relationship
                 if (!sirClass->parentClass.empty())
                 {
-                    context_info_.classParentMap[className] = sirClass->parentClass;
+                    cg_.context_info_.classParentMap[className] = sirClass->parentClass;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] preprocessClasses: '" << className
                               << "' inherits from '" << sirClass->parentClass << "'" << std::endl;
@@ -104,7 +105,7 @@ namespace Sad
                 // (EN) Register abstract class
                 if (sirClass->isAbstract)
                 {
-                    context_info_.abstractClasses.insert(className);
+                    cg_.context_info_.abstractClasses.insert(className);
                 }
 
                 // (AR) جمع أنواع الحقول بالترتيب
@@ -123,7 +124,7 @@ namespace Sad
                 {
                     // (AR) الحقل 0: مؤشر vtable (ptr) — لدعم الاستدعاء الافتراضي
                     // (EN) Field 0: vtable pointer (ptr) — for virtual dispatch
-                    fieldTypes.push_back(llvm::PointerType::getUnqual(*context_));
+                    fieldTypes.push_back(llvm::PointerType::getUnqual(*cg_.context_));
                 }
 
                 for (const auto &fieldName : sirClass->fieldOrder_)
@@ -136,36 +137,36 @@ namespace Sad
                         switch (fieldIt->second)
                         {
                         case SadTypeKind::Integer:
-                            fieldTypes.push_back(getInt64Type());
+                            fieldTypes.push_back(cg_.getInt64Type());
                             break;
                         case SadTypeKind::Float:
-                            fieldTypes.push_back(getDoubleType());
+                            fieldTypes.push_back(cg_.getDoubleType());
                             break;
                         case SadTypeKind::Boolean:
-                            fieldTypes.push_back(getInt1Type());
+                            fieldTypes.push_back(cg_.getInt1Type());
                             break;
                         case SadTypeKind::String:
                         case SadTypeKind::Pointer:
-                            fieldTypes.push_back(llvm::PointerType::getUnqual(*context_));
+                            fieldTypes.push_back(llvm::PointerType::getUnqual(*cg_.context_));
                             break;
                         case SadTypeKind::Struct:
                         {
                             // (AR) بحث عن نوع هيكل الصنف المُرجع
                             // (EN) Look up referenced class struct type
                             // حالياً نستخدم مؤشر عام للكائنات المتداخلة
-                            fieldTypes.push_back(llvm::PointerType::getUnqual(*context_));
+                            fieldTypes.push_back(llvm::PointerType::getUnqual(*cg_.context_));
                             break;
                         }
                         default:
                             // (AR) احتياطي: i64 للأنواع غير المعروفة
                             // (EN) Fallback: i64 for unknown types
-                            fieldTypes.push_back(getInt64Type());
+                            fieldTypes.push_back(cg_.getInt64Type());
                             break;
                         }
                     }
                     else
                     {
-                        fieldTypes.push_back(getInt64Type()); // احتياطي / fallback
+                        fieldTypes.push_back(cg_.getInt64Type()); // احتياطي / fallback
                     }
                     fieldNames.push_back(fieldName);
                 }
@@ -178,9 +179,9 @@ namespace Sad
                     // (EN) ADT structs use class name directly, regular classes use "class." prefix
                     std::string structTypeName = isADTStruct ? className : ("class." + className);
                     llvm::StructType *structType = llvm::StructType::create(
-                        *context_, fieldTypes, structTypeName);
-                    context_info_.classStructTypes[className] = structType;
-                    context_info_.classFieldNames[className] = fieldNames;
+                        *cg_.context_, fieldTypes, structTypeName);
+                    cg_.context_info_.classStructTypes[className] = structType;
+                    cg_.context_info_.classFieldNames[className] = fieldNames;
 
 #ifndef NDEBUG
                     std::cout << "[DEBUG] preprocessClasses: created struct type for class '"
@@ -197,11 +198,11 @@ namespace Sad
          * Source: llvm_codegen.h:316
          * @param sirModule وحدة SIR / SIR module
          */
-        void LLVMCodeGen::emitModule(std::shared_ptr<SIRModule> sirModule)
+        void ClassesVtablesCodeGen::emitModule(std::shared_ptr<SIRModule> sirModule)
         {
             if (!sirModule)
             {
-                reportError("SIR module is null in emitModule");
+                cg_.reportError("SIR module is null in emitModule");
                 return;
             }
 
@@ -211,17 +212,17 @@ namespace Sad
 
             // إصدار الثوابت
             // Emit constants
-            emitConstants(sirModule);
+            cg_.emitConstants(sirModule);
 
             // (AR) إصدار الدوال العامة
             // (EN) Emit global functions
-            emitGlobalFunctions(sirModule);
+            cg_.emitGlobalFunctions(sirModule);
 
             // (AR) في الوضع المستقل: توليد تطبيقات مدمجة لدوال C الأساسية
             // (EN) In freestanding mode: emit built-in C runtime implementations
-            if (freestanding_)
+            if (cg_.freestanding_)
             {
-                emitFreestandingRuntime();
+                cg_.emitFreestandingRuntime();
             }
         }
 
@@ -232,7 +233,7 @@ namespace Sad
          * Source: llvm_codegen.h:329
          * @param sirModule وحدة SIR / SIR module
          */
-        void LLVMCodeGen::emitGlobalVariables(std::shared_ptr<SIRModule> sirModule)
+        void ClassesVtablesCodeGen::emitGlobalVariables(std::shared_ptr<SIRModule> sirModule)
         {
             if (!sirModule)
             {
@@ -265,28 +266,28 @@ namespace Sad
                 switch (varType)
                 {
                 case SadTypeKind::Integer:
-                    llvmType = getInt64Type();
+                    llvmType = cg_.getInt64Type();
                     break;
                 case SadTypeKind::Float:
-                    llvmType = getDoubleType();
+                    llvmType = cg_.getDoubleType();
                     break;
                 case SadTypeKind::Boolean:
-                    llvmType = getInt1Type();
+                    llvmType = cg_.getInt1Type();
                     break;
                 case SadTypeKind::Pointer:
-                    llvmType = getInt8PtrType();
+                    llvmType = cg_.getInt8PtrType();
                     break;
                 case SadTypeKind::Void:
-                    llvmType = getVoidType();
+                    llvmType = cg_.getVoidType();
                     break;
                 default:
-                    llvmType = getInt64Type(); // افتراضي / Default
+                    llvmType = cg_.getInt64Type(); // افتراضي / Default
                     break;
                 }
 
                 if (!llvmType)
                 {
-                    reportError("Failed to convert type for global variable: " + varName);
+                    cg_.reportError("Failed to convert type for global variable: " + varName);
                     continue;
                 }
 
@@ -321,9 +322,9 @@ namespace Sad
                             //      its address as i64 using ConstantExpr::getPtrToInt so the
                             //      initializer is correct and inttoptr works later for proper printing
                             auto *strData = llvm::ConstantDataArray::getString(
-                                *context_, globalVar->initialValue, true);
+                                *cg_.context_, globalVar->initialValue, true);
                             auto *strGlobal = new llvm::GlobalVariable(
-                                *module_,
+                                *cg_.module_,
                                 strData->getType(),
                                 true, // constant
                                 llvm::GlobalValue::PrivateLinkage,
@@ -332,7 +333,7 @@ namespace Sad
                             strGlobal->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
                             // تحويل المؤشر إلى i64 كقيمة أولية ثابتة
                             initializer = llvm::ConstantExpr::getPtrToInt(
-                                strGlobal, llvm::Type::getInt64Ty(*context_));
+                                strGlobal, llvm::Type::getInt64Ty(*cg_.context_));
                             break;
                         }
                         default:
@@ -352,7 +353,7 @@ namespace Sad
 
                 // إنشاء المتغير العام
                 // Create global variable
-                // Source: module_ is defined at llvm_codegen.h:634
+                // Source: cg_.module_ is defined at llvm_codegen.h:634
                 // (AR) الربط الداخلي يمنع تضارب الرموز المتكررة بين ملفات LLVM المدمجة.
                 // (EN) Internal linkage prevents duplicate symbol conflicts across merged LLVM units.
                 // (AR) إذا كان ثابتاً بدون قيمة أولية حرفية، ننشئه كـ global (قابل للكتابة)
@@ -363,7 +364,7 @@ namespace Sad
                 //      Constness is enforced at language level (parser), not LLVM level.
                 bool llvmConstant = isConstant && !globalVar->initialValue.empty();
                 auto *globalLLVM = new llvm::GlobalVariable(
-                    *module_,
+                    *cg_.module_,
                     llvmType,
                     llvmConstant,
                     llvm::GlobalValue::InternalLinkage,
@@ -372,12 +373,12 @@ namespace Sad
 
                 // حفظ في السياق
                 // Save to context
-                // Source: context_info_ is defined at llvm_codegen.h:643
+                // Source: cg_.context_info_ is defined at llvm_codegen.h:643
                 // Source: CodeGenContext::namedValues is at llvm_codegen.h:617
-                context_info_.namedValues[varName] = globalLLVM;
+                cg_.context_info_.namedValues[varName] = globalLLVM;
                 // (AR) حفظ في الخريطة الدائمة للمتغيرات العالمية (لا تُمسح عند دخول الدوال)
                 // (EN) Save in persistent global variables map (not cleared on function entry)
-                context_info_.globalValues[varName] = globalLLVM;
+                cg_.context_info_.globalValues[varName] = globalLLVM;
             }
         }
 
@@ -402,12 +403,12 @@ namespace Sad
          *   - الصنف الابن يرث vtable الأب وينسخها مع استبدال الدوال المُعاد تعريفها
          *   - الحقل 0 في كل كائن يُشير إلى vtable الخاص بصنفه الحقيقي
          */
-        void LLVMCodeGen::buildClassVtables(std::shared_ptr<SIRModule> sirModule)
+        void ClassesVtablesCodeGen::buildClassVtables(std::shared_ptr<SIRModule> sirModule)
         {
             if (!sirModule)
                 return;
 
-            auto ptrTy = llvm::PointerType::getUnqual(*context_);
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
             // (AR) ترتيب الأصناف: الأب قبل الابن (نفس الترتيب في preprocessClasses)
             // (EN) Process in topo order: parents before children
@@ -448,8 +449,8 @@ namespace Sad
                 std::vector<std::string> vtableSlots;
                 if (!cls->parentClass.empty())
                 {
-                    auto parentIt = context_info_.classVtableLayout.find(cls->parentClass);
-                    if (parentIt != context_info_.classVtableLayout.end())
+                    auto parentIt = cg_.context_info_.classVtableLayout.find(cls->parentClass);
+                    if (parentIt != cg_.context_info_.classVtableLayout.end())
                     {
                         vtableSlots = parentIt->second; // نسخ vtable الأب
                     }
@@ -489,7 +490,7 @@ namespace Sad
                         shortMethodName == "__del__" || shortMethodName == "__destroy__")
                     {
                         // تسجيل الهدم
-                        context_info_.classDestructors[className] = fullName;
+                        cg_.context_info_.classDestructors[className] = fullName;
                         continue;
                     }
 
@@ -516,7 +517,7 @@ namespace Sad
                 }
 
                 // تسجيل التخطيط
-                context_info_.classVtableLayout[className] = vtableSlots;
+                cg_.context_info_.classVtableLayout[className] = vtableSlots;
 
                 // (AR) إنشاء متغير عام ثابت لـ vtable
                 // (EN) Create constant global for vtable
@@ -527,7 +528,7 @@ namespace Sad
                     std::vector<llvm::Constant *> vtableEntries;
                     for (const auto &fullMethodName : vtableSlots)
                     {
-                        llvm::Function *fn = module_->getFunction(fullMethodName);
+                        llvm::Function *fn = cg_.module_->getFunction(fullMethodName);
                         if (fn)
                         {
                             vtableEntries.push_back(fn);
@@ -541,11 +542,11 @@ namespace Sad
 
                     auto vtableInit = llvm::ConstantArray::get(vtableArrayTy, vtableEntries);
                     auto vtableGlobal = new llvm::GlobalVariable(
-                        *module_, vtableArrayTy, true, // isConstant=true
+                        *cg_.module_, vtableArrayTy, true, // isConstant=true
                         llvm::GlobalValue::PrivateLinkage, vtableInit,
                         "vtable." + className);
 
-                    context_info_.classVtableGlobals[className] = vtableGlobal;
+                    cg_.context_info_.classVtableGlobals[className] = vtableGlobal;
 
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildVtable: '" << className
@@ -559,14 +560,14 @@ namespace Sad
          * (AR) تحديث مداخل vtable المؤجلة بعد إصدار جميع الدوال.
          * (EN) Patch deferred vtable entries after all functions have been emitted.
          */
-        void LLVMCodeGen::patchClassVtables()
+        void ClassesVtablesCodeGen::patchClassVtables()
         {
-            auto ptrTy = llvm::PointerType::getUnqual(*context_);
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
-            for (const auto &[className, vtableGlobal] : context_info_.classVtableGlobals)
+            for (const auto &[className, vtableGlobal] : cg_.context_info_.classVtableGlobals)
             {
-                auto layoutIt = context_info_.classVtableLayout.find(className);
-                if (layoutIt == context_info_.classVtableLayout.end() || !vtableGlobal)
+                auto layoutIt = cg_.context_info_.classVtableLayout.find(className);
+                if (layoutIt == cg_.context_info_.classVtableLayout.end() || !vtableGlobal)
                 {
                     continue;
                 }
@@ -582,7 +583,7 @@ namespace Sad
 
                 for (const auto &fullMethodName : slots)
                 {
-                    llvm::Function *fn = module_->getFunction(fullMethodName);
+                    llvm::Function *fn = cg_.module_->getFunction(fullMethodName);
                     if (fn)
                     {
                         entries.push_back(fn);
@@ -590,7 +591,7 @@ namespace Sad
                     else
                     {
                         // Keep null as defensive fallback, but report missing entry.
-                        reportError("Missing vtable method at patch time: " + fullMethodName);
+                        cg_.reportError("Missing vtable method at patch time: " + fullMethodName);
                         entries.push_back(llvm::ConstantPointerNull::get(ptrTy));
                     }
                 }
@@ -604,40 +605,40 @@ namespace Sad
          * (AR) تخزين مؤشر vtable في الحقل 0 من الكائن
          * (EN) Store vtable pointer in field 0 of the object
          */
-        void LLVMCodeGen::storeVtablePtr(llvm::Value *objPtr, const std::string &className)
+        void ClassesVtablesCodeGen::storeVtablePtr(llvm::Value *objPtr, const std::string &className)
         {
-            auto vtableIt = context_info_.classVtableGlobals.find(className);
-            if (vtableIt == context_info_.classVtableGlobals.end())
+            auto vtableIt = cg_.context_info_.classVtableGlobals.find(className);
+            if (vtableIt == cg_.context_info_.classVtableGlobals.end())
                 return; // لا vtable
 
-            auto structIt = context_info_.classStructTypes.find(className);
-            if (structIt == context_info_.classStructTypes.end())
+            auto structIt = cg_.context_info_.classStructTypes.find(className);
+            if (structIt == cg_.context_info_.classStructTypes.end())
                 return;
 
             llvm::StructType *structType = structIt->second;
 
             // GEP إلى الحقل 0 (مؤشر vtable)
-            llvm::Value *vtablePtrSlot = builder_->CreateStructGEP(structType, objPtr, 0, "vtable.slot");
+            llvm::Value *vtablePtrSlot = cg_.builder_->CreateStructGEP(structType, objPtr, 0, "vtable.slot");
 
             // تحويل المصفوفة العامة إلى مؤشر (decay)
-            auto ptrTy = llvm::PointerType::getUnqual(*context_);
-            llvm::Value *vtablePtr = builder_->CreateBitCast(vtableIt->second, ptrTy, "vtable.ptr");
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            llvm::Value *vtablePtr = cg_.builder_->CreateBitCast(vtableIt->second, ptrTy, "vtable.ptr");
 
-            builder_->CreateStore(vtablePtr, vtablePtrSlot);
+            cg_.builder_->CreateStore(vtablePtr, vtablePtrSlot);
         }
 
         /**
          * (AR) الاستدعاء الافتراضي: تحميل مؤشر الدالة من vtable + استدعاء غير مباشر
          * (EN) Virtual dispatch: load function pointer from vtable + indirect call
          */
-        llvm::Value *LLVMCodeGen::emitVirtualCall(llvm::Value *objPtr, const std::string &className,
+        llvm::Value *ClassesVtablesCodeGen::emitVirtualCall(llvm::Value *objPtr, const std::string &className,
                                                   const std::string &methodName,
                                                   const std::vector<llvm::Value *> &extraArgs)
         {
             // (AR) البحث عن رقم الفتحة (slot) في vtable
             // (EN) Find the vtable slot index
-            auto layoutIt = context_info_.classVtableLayout.find(className);
-            if (layoutIt == context_info_.classVtableLayout.end())
+            auto layoutIt = cg_.context_info_.classVtableLayout.find(className);
+            if (layoutIt == cg_.context_info_.classVtableLayout.end())
                 return nullptr;
 
             const auto &layout = layoutIt->second;
@@ -658,28 +659,28 @@ namespace Sad
             if (slotIndex < 0)
                 return nullptr; // ليست في vtable
 
-            auto structIt = context_info_.classStructTypes.find(className);
-            if (structIt == context_info_.classStructTypes.end())
+            auto structIt = cg_.context_info_.classStructTypes.find(className);
+            if (structIt == cg_.context_info_.classStructTypes.end())
                 return nullptr;
 
             llvm::StructType *structType = structIt->second;
-            auto ptrTy = llvm::PointerType::getUnqual(*context_);
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
             // (AR) الخطوة 1: تحميل مؤشر vtable من الحقل 0
             // (EN) Step 1: Load vtable pointer from field 0
-            llvm::Value *vtableSlotAddr = builder_->CreateStructGEP(structType, objPtr, 0, "vtable.addr");
-            llvm::Value *vtablePtr = builder_->CreateLoad(ptrTy, vtableSlotAddr, "vtable.load");
+            llvm::Value *vtableSlotAddr = cg_.builder_->CreateStructGEP(structType, objPtr, 0, "vtable.addr");
+            llvm::Value *vtablePtr = cg_.builder_->CreateLoad(ptrTy, vtableSlotAddr, "vtable.load");
 
             // (AR) الخطوة 2: حساب عنوان الفتحة في vtable
             // (EN) Step 2: GEP into vtable array at slot index
-            llvm::Value *slotAddr = builder_->CreateGEP(
+            llvm::Value *slotAddr = cg_.builder_->CreateGEP(
                 ptrTy, vtablePtr,
-                {llvm::ConstantInt::get(getInt64Type(), slotIndex)},
+                {llvm::ConstantInt::get(cg_.getInt64Type(), slotIndex)},
                 "vslot.addr");
 
             // (AR) الخطوة 3: تحميل مؤشر الدالة
             // (EN) Step 3: Load function pointer
-            llvm::Value *fnPtr = builder_->CreateLoad(ptrTy, slotAddr, "vfn.ptr");
+            llvm::Value *fnPtr = cg_.builder_->CreateLoad(ptrTy, slotAddr, "vfn.ptr");
 
             // (AR) الخطوة 4: بناء المعاملات (self + extra)
             // (EN) Step 4: Build args (self + extra)
@@ -690,7 +691,7 @@ namespace Sad
             // (EN) Step 5: Build function type — need to know the signature
             // البحث عن الدالة الأصلية لمعرفة نوعها
             std::string origFuncName = layout[slotIndex];
-            llvm::Function *origFunc = module_->getFunction(origFuncName);
+            llvm::Function *origFunc = cg_.module_->getFunction(origFuncName);
 
             llvm::FunctionType *fnType = nullptr;
             if (origFunc)
@@ -703,7 +704,7 @@ namespace Sad
                 std::vector<llvm::Type *> argTypes;
                 for (auto *a : callArgs)
                     argTypes.push_back(a->getType());
-                fnType = llvm::FunctionType::get(getInt64Type(), argTypes, false);
+                fnType = llvm::FunctionType::get(cg_.getInt64Type(), argTypes, false);
             }
 
             // (AR) الخطوة 6: تحويل أنواع الوسائط لتتطابق مع توقيع الدالة
@@ -716,22 +717,22 @@ namespace Sad
                 {
                     if (expected->isIntegerTy(64) && callArgs[i]->getType()->isPointerTy())
                     {
-                        callArgs[i] = builder_->CreatePtrToInt(callArgs[i], expected, "varg.p2i");
+                        callArgs[i] = cg_.builder_->CreatePtrToInt(callArgs[i], expected, "varg.p2i");
                     }
                     else if (expected->isPointerTy() && callArgs[i]->getType()->isIntegerTy(64))
                     {
-                        callArgs[i] = builder_->CreateIntToPtr(callArgs[i], expected, "varg.i2p");
+                        callArgs[i] = cg_.builder_->CreateIntToPtr(callArgs[i], expected, "varg.i2p");
                     }
                     else if (expected->isIntegerTy(64) && callArgs[i]->getType()->isIntegerTy(1))
                     {
-                        callArgs[i] = builder_->CreateZExt(callArgs[i], expected, "varg.zext");
+                        callArgs[i] = cg_.builder_->CreateZExt(callArgs[i], expected, "varg.zext");
                     }
                 }
             }
 
             // (AR) الخطوة 7: الاستدعاء غير المباشر
             // (EN) Step 7: Indirect call
-            llvm::Value *result = builder_->CreateCall(fnType, fnPtr, callArgs,
+            llvm::Value *result = cg_.builder_->CreateCall(fnType, fnPtr, callArgs,
                                                        fnType->getReturnType()->isVoidTy() ? "" : (methodName + "_virt"));
 
             return result;
@@ -741,24 +742,24 @@ namespace Sad
          * (AR) استدعاء دالة الهدم للكائن (إن وُجدت)
          * (EN) Call destructor for object (if exists)
          */
-        void LLVMCodeGen::emitDestructorCall(llvm::Value *objPtr, const std::string &className)
+        void ClassesVtablesCodeGen::emitDestructorCall(llvm::Value *objPtr, const std::string &className)
         {
             // البحث في سلسلة الوراثة عن أول هدم
             std::string searchClass = className;
             while (!searchClass.empty())
             {
-                auto dtorIt = context_info_.classDestructors.find(searchClass);
-                if (dtorIt != context_info_.classDestructors.end())
+                auto dtorIt = cg_.context_info_.classDestructors.find(searchClass);
+                if (dtorIt != cg_.context_info_.classDestructors.end())
                 {
-                    llvm::Function *dtorFunc = module_->getFunction(dtorIt->second);
+                    llvm::Function *dtorFunc = cg_.module_->getFunction(dtorIt->second);
                     if (dtorFunc)
                     {
-                        builder_->CreateCall(dtorFunc, {objPtr});
+                        cg_.builder_->CreateCall(dtorFunc, {objPtr});
                     }
                     return;
                 }
-                auto parentIt = context_info_.classParentMap.find(searchClass);
-                if (parentIt != context_info_.classParentMap.end())
+                auto parentIt = cg_.context_info_.classParentMap.find(searchClass);
+                if (parentIt != cg_.context_info_.classParentMap.end())
                 {
                     searchClass = parentIt->second;
                 }
@@ -776,7 +777,7 @@ namespace Sad
          * الحقل 0 في الهيكل → مؤشر vtable (محجوز)
          * الحقل 1 في الهيكل → أول حقل للمستخدم (الفهرس 0 في classFieldNames)
          */
-        int LLVMCodeGen::getFieldStructIndex(const std::string &className, int userFieldIndex) const
+        int ClassesVtablesCodeGen::getFieldStructIndex(const std::string &className, int userFieldIndex) const
         {
             // كل صنف يملك vtable pointer في الحقل 0
             return userFieldIndex + 1;
