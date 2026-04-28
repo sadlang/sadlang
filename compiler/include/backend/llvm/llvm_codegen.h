@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ============================================================================
  * مولد كود LLVM IR - رأس الملف
  * LLVM IR Code Generator - Header File
@@ -271,69 +271,23 @@ namespace Sad
         {
             // (AR) Phase 7 Step 1: ArithmeticCodeGen يصل للحقول الخاصة عبر friend
             // (EN) Phase 7 Step 1: ArithmeticCodeGen accesses private state via friend
-            friend class ArithmeticCodeGen;
             // (AR) Phase 7 Step 2: MemoryCodeGen
-            friend class MemoryCodeGen;
             // (AR) Phase 7 Step 3: ControlFlowCodeGen
-            friend class ControlFlowCodeGen;
             // (AR) Phase 7 Step 4: AggregateOpsCodeGen
-            friend class AggregateOpsCodeGen;
             // (AR) Phase 7 Step 5: ArrayOpsCodeGen
-            friend class ArrayOpsCodeGen;
             // (AR) Phase 7 Step 6: StringOpsCodeGen
-            friend class StringOpsCodeGen;
             // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
-            friend class ArrayBuiltinsCodeGen;
             // (AR) Phase 7 Step 8: MathBuiltinsCodeGen
-            friend class MathBuiltinsCodeGen;
             // (AR) Phase 7 Step 9: MapOpsCodeGen
-            friend class MapOpsCodeGen;
             // (AR) Phase 7 Step 10: ExceptionCodeGen
-            friend class ExceptionCodeGen;
             // (AR) Phase 7 Step 11: LowlevelCodeGen
-            friend class LowlevelCodeGen;
             // (AR) Phase 7 Step 12: EnumOpsCodeGen
-            friend class EnumOpsCodeGen;
             // (AR) Phase 7 Step 13: HardwareFFICodeGen
-            friend class HardwareFFICodeGen;
             // (AR) Phase 7 Step 14: ClosureCodeGen
-            friend class ClosureCodeGen;
             // (AR) Phase 7 Step 15: IO/Security/FFI builtins
-            friend class IOBuiltinsCodeGen;
-            friend class SecurityBuiltinsCodeGen;
-            friend class FFIRemainCodeGen;
             // (AR) Phase 7 Step 16: FreestandingCodeGen
-            friend class FreestandingCodeGen;
             // (AR) Phase 7 Step 17: ObjectsArraysCodeGen
-            friend class ObjectsArraysCodeGen;
             // (AR) Phase 7 Step 18: OOPOpsCodeGen
-            friend class OOPOpsCodeGen;
-            // (AR) Phase 8 Step 1: ConcurrencyCodeGen
-            friend class ConcurrencyCodeGen;
-            // (AR) Phase 8 Step 2: UICodeGen
-            friend class UICodeGen;
-            // (AR) Phase 8 Step 3: ClassesVtablesCodeGen
-            friend class ClassesVtablesCodeGen;
-            // (AR) Phase 8 Step 4: FunctionsCodeGen
-            friend class FunctionsCodeGen;
-            // (AR) Phase 8 Step 5: BuiltinFuncsCodeGen
-            friend class BuiltinFuncsCodeGen;
-            // (AR) Phase 8 Step 6: NetworkBuiltinsCodeGen
-            friend class NetworkBuiltinsCodeGen;
-            // (AR) Phase 8 Step 7: CoroutinesCodeGen
-            friend class CoroutinesCodeGen;
-            // (AR) Phase 8 Step 8: StringsCodeGen
-            friend class StringsCodeGen;
-            // (AR) Phase 8 Step 9: InstrCoreCodeGen
-            friend class InstrCoreCodeGen;
-            // (AR) Phase 8 Step 10: 6 sub-codegens
-            friend class SimdCodeGen;
-            friend class InstrLowlevelCodeGen;
-            friend class FileCastsCodeGen;
-            friend class DirectivesCodeGen;
-            friend class InstrPlatformCodeGen;
-            friend class OutputCodeGen;
-
         public:
             // ========================================================================
             // Constructor & Destructor / المنشئ والمدمر
@@ -1534,9 +1488,18 @@ namespace Sad
             //      moduleMode_, freestanding_, hasErrors_, errors_
             // (EN) Fields relocated to LLVMCodeGenContext (Phase 7 Step 0).
 
-            // Code Generation Context (سياق التوليد) — يبقى هنا لأنه per-function state
+        public:
+            // (AR) Phase 8 Cleanup: نُقل context_info_ إلى public ليصل إليه
+            //      sub-codegens مباشرة بدون الحاجة إلى friend declarations.
+            //      هو per-function state وليس shared state، لذا يبقى في
+            //      LLVMCodeGen وليس في LLVMCodeGenContext base.
+            // (EN) Phase 8 Cleanup: context_info_ moved to public so sub-codegens
+            //      can access it directly without needing friend declarations.
+            //      It's per-function state (not shared base state), so it stays
+            //      in LLVMCodeGen rather than LLVMCodeGenContext.
             CodeGenContext context_info_;
 
+        private:
             // (AR) Phase 7 Step 1: مكوّن فرعي للعمليات الحسابية والمقارنات والتحويلات
             // (EN) Phase 7 Step 1: sub-codegen for arithmetic, comparisons & conversions
             std::unique_ptr<ArithmeticCodeGen> arith_;
@@ -1723,6 +1686,14 @@ namespace Sad
             // 20h. الطباعة والتنقيح / Logging
             llvm::Value *emitAndroidLog(std::shared_ptr<SIRInstruction> inst);
             llvm::Value *emitAndroidPrint(std::shared_ptr<SIRInstruction> inst);
+
+        public:
+            // (AR) Phase 8 Cleanup: نُقلت دوال UI/Atomic/Sizeof إلى public
+            //      لأنها inline wrappers تُستدعى من sub-codegens (instr_platform_ops)
+            //      عبر الـ dispatcher بدون الحاجة إلى friend declarations.
+            // (EN) Phase 8 Cleanup: UI/Atomic/Sizeof methods moved to public
+            //      because they are inline wrappers called from sub-codegens
+            //      (instr_platform_ops) via dispatcher — eliminates friend need.
 
             // =====================================================================
             // 21. نظام الواجهة الموحد / Unified UI System (sad_ui.h)
