@@ -97,6 +97,7 @@
 #include "builders/objects_arrays_codegen.h"    // (AR) Phase 7 Step 17: ObjectsArraysCodeGen
 #include "builders/oop_ops_codegen.h"            // (AR) Phase 7 Step 18: OOPOpsCodeGen
 #include "builders/concurrency_codegen.h"        // (AR) Phase 8 Step 1: ConcurrencyCodeGen
+#include "builders/ui_codegen.h"                  // (AR) Phase 8 Step 2: UICodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -296,6 +297,8 @@ namespace Sad
             friend class OOPOpsCodeGen;
             // (AR) Phase 8 Step 1: ConcurrencyCodeGen
             friend class ConcurrencyCodeGen;
+            // (AR) Phase 8 Step 2: UICodeGen
+            friend class UICodeGen;
 
         public:
             // ========================================================================
@@ -1559,6 +1562,8 @@ namespace Sad
             std::unique_ptr<OOPOpsCodeGen> oop_;
             // (AR) Phase 8 Step 1: تزامن وقنوات (31 methods)
             std::unique_ptr<ConcurrencyCodeGen> concur_;
+            // (AR) Phase 8 Step 2: عناصر واجهة المستخدم (40 methods)
+            std::unique_ptr<UICodeGen> ui_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
@@ -1669,50 +1674,50 @@ namespace Sad
             // 21. نظام الواجهة الموحد / Unified UI System (sad_ui.h)
             // =====================================================================
             // 21a. مصانع العناصر / Widget Factories
-            llvm::Value *emitUiColumn(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiRow(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiStack(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiContainer(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiText(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiTextStyled(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiButton(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiButtonVariant(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiIconButton(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiFab(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiTextField(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiCheckbox(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSwitch(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSlider(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiCard(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiScaffold(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiAppBar(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSpacer(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiDivider(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiDialog(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitUiColumn(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiColumn(inst); }
+            llvm::Value *emitUiRow(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiRow(inst); }
+            llvm::Value *emitUiStack(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiStack(inst); }
+            llvm::Value *emitUiContainer(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiContainer(inst); }
+            llvm::Value *emitUiText(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiText(inst); }
+            llvm::Value *emitUiTextStyled(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiTextStyled(inst); }
+            llvm::Value *emitUiButton(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiButton(inst); }
+            llvm::Value *emitUiButtonVariant(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiButtonVariant(inst); }
+            llvm::Value *emitUiIconButton(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiIconButton(inst); }
+            llvm::Value *emitUiFab(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiFab(inst); }
+            llvm::Value *emitUiTextField(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiTextField(inst); }
+            llvm::Value *emitUiCheckbox(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiCheckbox(inst); }
+            llvm::Value *emitUiSwitch(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSwitch(inst); }
+            llvm::Value *emitUiSlider(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSlider(inst); }
+            llvm::Value *emitUiCard(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiCard(inst); }
+            llvm::Value *emitUiScaffold(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiScaffold(inst); }
+            llvm::Value *emitUiAppBar(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppBar(inst); }
+            llvm::Value *emitUiSpacer(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSpacer(inst); }
+            llvm::Value *emitUiDivider(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDivider(inst); }
+            llvm::Value *emitUiDialog(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiDialog(inst); }
             // 21b. إدارة الشجرة / Tree Management
-            llvm::Value *emitUiAddChild(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiRemoveChild(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiClearChildren(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitUiAddChild(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAddChild(inst); }
+            llvm::Value *emitUiRemoveChild(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiRemoveChild(inst); }
+            llvm::Value *emitUiClearChildren(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiClearChildren(inst); }
             // 21c. ضبط الخصائص / Property Setters
-            llvm::Value *emitUiSetText(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSetSize(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSetFlex(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSetBackground(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSetForeground(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSetSpacing(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSetPadding(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSetAlignment(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSetBorder(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSetElevation(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSetOpacity(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiSetVisibility(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitUiSetText(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetText(inst); }
+            llvm::Value *emitUiSetSize(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetSize(inst); }
+            llvm::Value *emitUiSetFlex(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetFlex(inst); }
+            llvm::Value *emitUiSetBackground(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetBackground(inst); }
+            llvm::Value *emitUiSetForeground(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetForeground(inst); }
+            llvm::Value *emitUiSetSpacing(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetSpacing(inst); }
+            llvm::Value *emitUiSetPadding(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetPadding(inst); }
+            llvm::Value *emitUiSetAlignment(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetAlignment(inst); }
+            llvm::Value *emitUiSetBorder(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetBorder(inst); }
+            llvm::Value *emitUiSetElevation(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetElevation(inst); }
+            llvm::Value *emitUiSetOpacity(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetOpacity(inst); }
+            llvm::Value *emitUiSetVisibility(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetVisibility(inst); }
             // 21d. إدارة التطبيق / App Management
-            llvm::Value *emitUiAppCreate(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiAppSetRoot(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiAppLayout(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiAppRender(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiAppDestroy(std::shared_ptr<SIRInstruction> inst);
-            llvm::Value *emitUiWidgetDestroy(std::shared_ptr<SIRInstruction> inst);
+            llvm::Value *emitUiAppCreate(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppCreate(inst); }
+            llvm::Value *emitUiAppSetRoot(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppSetRoot(inst); }
+            llvm::Value *emitUiAppLayout(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppLayout(inst); }
+            llvm::Value *emitUiAppRender(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppRender(inst); }
+            llvm::Value *emitUiAppDestroy(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppDestroy(inst); }
+            llvm::Value *emitUiWidgetDestroy(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiWidgetDestroy(inst); }
 
             // ================================================================
             // Section 21: التوجيهات / Directives (@حجم, @ذري)

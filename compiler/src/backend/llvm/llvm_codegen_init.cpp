@@ -119,6 +119,7 @@ namespace Sad
             objarr_ = std::make_unique<ObjectsArraysCodeGen>(*this);
             oop_ = std::make_unique<OOPOpsCodeGen>(*this);
             concur_ = std::make_unique<ConcurrencyCodeGen>(*this);
+            ui_ = std::make_unique<UICodeGen>(*this);
         }
 
         /**
