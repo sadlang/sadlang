@@ -6,6 +6,7 @@
 // ============================================================================
 
 #include "llvm_codegen.h"
+#include "builders/functions_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/IR/LLVMContext.h>
@@ -29,11 +30,11 @@ namespace Sad
 {
     namespace LLVM
     {
-        llvm::Function *LLVMCodeGen::emitFunction(std::shared_ptr<SIRFunction> sirFunc)
+        llvm::Function *FunctionsCodeGen::emitFunction(std::shared_ptr<SIRFunction> sirFunc)
         {
             if (!sirFunc)
             {
-                reportError("SIR function is null in emitFunction");
+                cg_.reportError("SIR function is null in emitFunction");
                 return nullptr;
             }
 
@@ -61,11 +62,11 @@ namespace Sad
          * @param sirFunc دالة SIR / SIR function
          * @return دالة LLVM / LLVM function
          */
-        llvm::Function *LLVMCodeGen::emitFunctionPrototype(std::shared_ptr<SIRFunction> sirFunc)
+        llvm::Function *FunctionsCodeGen::emitFunctionPrototype(std::shared_ptr<SIRFunction> sirFunc)
         {
             if (!sirFunc)
             {
-                reportError("SIR function is null in emitFunctionPrototype");
+                cg_.reportError("SIR function is null in emitFunctionPrototype");
                 return nullptr;
             }
 
@@ -85,35 +86,35 @@ namespace Sad
             switch (returnSIRType)
             {
             case SadTypeKind::Void:
-                returnType = getVoidType();
+                returnType = cg_.getVoidType();
                 break;
             case SadTypeKind::Integer:
-                returnType = getInt64Type();
+                returnType = cg_.getInt64Type();
                 break;
             case SadTypeKind::Float:
-                returnType = getDoubleType();
+                returnType = cg_.getDoubleType();
                 break;
             case SadTypeKind::Boolean:
-                returnType = getInt1Type();
+                returnType = cg_.getInt1Type();
                 break;
             case SadTypeKind::Pointer:
-                returnType = getInt8PtrType();
+                returnType = cg_.getInt8PtrType();
                 break;
             case SadTypeKind::String:
-                returnType = getInt8PtrType();
+                returnType = cg_.getInt8PtrType();
                 break;
             // (AR) الكائنات والبنى تُرجع كمؤشرات — ptr في LLVM opaque pointer mode
             // (EN) Objects and structs returned as pointers — ptr in LLVM opaque pointer mode
             case SadTypeKind::Struct:
-                returnType = llvm::PointerType::getUnqual(*context_);
+                returnType = llvm::PointerType::getUnqual(*cg_.context_);
                 break;
             case SadTypeKind::Array:
-                returnType = llvm::PointerType::getUnqual(*context_);
+                returnType = llvm::PointerType::getUnqual(*cg_.context_);
                 break;
             // (AR) الصفوف تُرجع كمؤشرات — نفس بنية SadArray
             // (EN) Tuples returned as pointers — same SadArray structure
             case SadTypeKind::Tuple:
-                returnType = llvm::PointerType::getUnqual(*context_);
+                returnType = llvm::PointerType::getUnqual(*cg_.context_);
                 break;
             // ================================================================
             // (AR) [إصلاح الإغلاقات المتداخلة] الدوال التي تُرجع إغلاقاً (closure)
@@ -126,10 +127,10 @@ namespace Sad
             //      causing "Undefined register" when using the returned closure.
             // ================================================================
             case SadTypeKind::Function:
-                returnType = getInt64Type();
+                returnType = cg_.getInt64Type();
                 break;
             default:
-                returnType = getVoidType();
+                returnType = cg_.getVoidType();
                 break;
             }
 
@@ -149,11 +150,11 @@ namespace Sad
                     effectiveName == "strcpy" || effectiveName == "strncpy" ||
                     effectiveName == "strcat" || effectiveName == "strncat")
                 {
-                    returnType = llvm::PointerType::getUnqual(*context_);
+                    returnType = llvm::PointerType::getUnqual(*cg_.context_);
                 }
                 else if (effectiveName == "free")
                 {
-                    returnType = llvm::Type::getVoidTy(*context_);
+                    returnType = llvm::Type::getVoidTy(*cg_.context_);
                 }
             }
 
@@ -172,22 +173,22 @@ namespace Sad
                 switch (param.type)
                 {
                 case SadTypeKind::Integer:
-                    paramType = getInt64Type();
+                    paramType = cg_.getInt64Type();
                     break;
                 case SadTypeKind::Float:
-                    paramType = getDoubleType();
+                    paramType = cg_.getDoubleType();
                     break;
                 case SadTypeKind::Boolean:
-                    paramType = getInt1Type();
+                    paramType = cg_.getInt1Type();
                     break;
                 case SadTypeKind::Pointer:
-                    paramType = getInt8PtrType();
+                    paramType = cg_.getInt8PtrType();
                     break;
                 case SadTypeKind::String:
-                    paramType = getInt8PtrType();
+                    paramType = cg_.getInt8PtrType();
                     break;
                 default:
-                    paramType = getInt64Type();
+                    paramType = cg_.getInt64Type();
                     break;
                 }
 
@@ -204,7 +205,7 @@ namespace Sad
 
             // إنشاء الدالة
             // Create function
-            // Source: module_ is defined at llvm_codegen.h:634
+            // Source: cg_.module_ is defined at llvm_codegen.h:634
             // (AR) في وضع الوحدة: كل الدوال المحلية InternalLinkage لتجنب تعارضات الربط.
             //      الدوال المعلنة بـ خارجي (FFI) تبقى ExternalLinkage لأنها declarations.
             //      في وضع غير الوحدة: __sad_main يحتاج ExternalLinkage كنقطة دخول.
@@ -212,7 +213,7 @@ namespace Sad
             //      duplicate symbol conflicts. FFI-declared functions stay ExternalLinkage.
             //      In non-module mode: __sad_main needs ExternalLinkage as entry point.
             llvm::GlobalValue::LinkageTypes linkage = llvm::Function::ExternalLinkage;
-            if (moduleMode_)
+            if (cg_.moduleMode_)
             {
                 // (AR) تحقق: هل هذه دالة FFI (لديها linkName مختلف عن name)؟
                 // (EN) Check: is this an FFI function (has linkName different from name)?
@@ -233,7 +234,7 @@ namespace Sad
             // (EN) Fix: If function already exists in the module (from freestanding or prior declaration),
             //      reuse it instead of creating a new one with ".1" suffix
             llvm::Function *llvmFunc = nullptr;
-            llvm::Function *existingFunc = module_->getFunction(llvmSymbolName);
+            llvm::Function *existingFunc = cg_.module_->getFunction(llvmSymbolName);
             if (existingFunc)
             {
                 if (existingFunc->getFunctionType() == funcType)
@@ -263,13 +264,13 @@ namespace Sad
                         llvm::UndefValue::get(existingFunc->getType()));
                     existingFunc->eraseFromParent();
                     llvmFunc = llvm::Function::Create(
-                        funcType, linkage, llvmSymbolName, module_.get());
+                        funcType, linkage, llvmSymbolName, cg_.module_.get());
                 }
             }
             else
             {
                 llvmFunc = llvm::Function::Create(
-                    funcType, linkage, llvmSymbolName, module_.get());
+                    funcType, linkage, llvmSymbolName, cg_.module_.get());
             }
 
             // تسمية المعاملات
@@ -399,51 +400,51 @@ namespace Sad
          * @param sirFunc دالة SIR / SIR function
          * @param llvmFunc دالة LLVM / LLVM function
          */
-        void LLVMCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::Function *llvmFunc)
+        void FunctionsCodeGen::emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::Function *llvmFunc)
         {
             if (!sirFunc || !llvmFunc)
             {
-                reportError("Null function in emitFunctionBody");
+                cg_.reportError("Null function in emitFunctionBody");
                 return;
             }
 
             // حفظ الدالة الحالية في السياق
             // Save current function in context
-            // Source: context_info_ is defined at llvm_codegen.h:643
+            // Source: cg_.context_info_ is defined at llvm_codegen.h:643
             // Source: CodeGenContext::currentFunction is at llvm_codegen.h:615
-            context_info_.currentFunction = llvmFunc;
+            cg_.context_info_.currentFunction = llvmFunc;
 
             // مسح القيم المسماة للدالة الجديدة
             // Clear named values for new function
             // Source: CodeGenContext::namedValues is at llvm_codegen.h:617
-            context_info_.namedValues.clear();
+            cg_.context_info_.namedValues.clear();
 
             // (AR) تنظيف خرائط الأصناف المحلية — تمنع تلوث بين الدوال
             // (EN) Clear per-function class maps — prevents cross-function pollution
-            context_info_.objectClassMap.clear();
-            context_info_.objectFieldsAccessed.clear();
+            cg_.context_info_.objectClassMap.clear();
+            cg_.context_info_.objectFieldsAccessed.clear();
 
             // ================================================================
             // كشف الباني: إذا كان اسم الدالة يحتوي ".بناء"
             // Detect constructor: if function name contains ".بناء"
             // ================================================================
-            context_info_.currentConstructorClass.clear();
-            context_info_.currentMethodClass.clear();
+            cg_.context_info_.currentConstructorClass.clear();
+            cg_.context_info_.currentMethodClass.clear();
             std::string funcName = sirFunc->getName();
             // بناء = \xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1
             std::string ctorSuffix = ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
             size_t ctorPos = funcName.find(ctorSuffix);
             if (ctorPos != std::string::npos)
             {
-                context_info_.currentConstructorClass = funcName.substr(0, ctorPos);
+                cg_.context_info_.currentConstructorClass = funcName.substr(0, ctorPos);
 #ifndef NDEBUG
                 std::cout << "[DEBUG] emitFunctionBody: detected constructor for class '"
-                          << context_info_.currentConstructorClass << "'" << std::endl;
+                          << cg_.context_info_.currentConstructorClass << "'" << std::endl;
 #endif
                 // (AR) تسجيل %self في objectClassMap للباني
                 // (EN) Register %self in objectClassMap for constructor
-                context_info_.objectClassMap["%self"] = context_info_.currentConstructorClass;
-                context_info_.objectClassMap["self"] = context_info_.currentConstructorClass;
+                cg_.context_info_.objectClassMap["%self"] = cg_.context_info_.currentConstructorClass;
+                cg_.context_info_.objectClassMap["self"] = cg_.context_info_.currentConstructorClass;
             }
             else
             {
@@ -455,17 +456,17 @@ namespace Sad
                 if (dotPos != std::string::npos)
                 {
                     std::string prefix = funcName.substr(0, dotPos);
-                    if (context_info_.classStructTypes.find(prefix) != context_info_.classStructTypes.end())
+                    if (cg_.context_info_.classStructTypes.find(prefix) != cg_.context_info_.classStructTypes.end())
                     {
-                        context_info_.currentMethodClass = prefix;
+                        cg_.context_info_.currentMethodClass = prefix;
 #ifndef NDEBUG
                         std::cout << "[DEBUG] emitFunctionBody: detected method for class '"
-                                  << context_info_.currentMethodClass << "'" << std::endl;
+                                  << cg_.context_info_.currentMethodClass << "'" << std::endl;
 #endif
                         // (AR) تسجيل %self في objectClassMap للدالة
                         // (EN) Register %self in objectClassMap for method
-                        context_info_.objectClassMap["%self"] = context_info_.currentMethodClass;
-                        context_info_.objectClassMap["self"] = context_info_.currentMethodClass;
+                        cg_.context_info_.objectClassMap["%self"] = cg_.context_info_.currentMethodClass;
+                        cg_.context_info_.objectClassMap["self"] = cg_.context_info_.currentMethodClass;
                     }
                 }
             }
@@ -482,13 +483,13 @@ namespace Sad
 
             // المرحلة 1: إنشاء جميع الكتل الأساسية أولاً (قبل المعاملات)
             // Phase 1: Create all basic blocks FIRST (before parameters)
-            // Source: context_info_.basicBlocks is at llvm_codegen.h:619
-            context_info_.basicBlocks.clear();
+            // Source: cg_.context_info_.basicBlocks is at llvm_codegen.h:619
+            cg_.context_info_.basicBlocks.clear();
 
             // ========================================================================
             // FIX: Pre-scan all instructions to discover referenced labels
             // This fixes the bug where buildIfStatement creates blocks that aren't
-            // registered in SIRFunction (currentFunction_ issue)
+            // registered in SIRFunction (cg_.currentFunction_ issue)
             // ========================================================================
             std::set<std::string> allLabels;
             for (const auto &sirBlock : basicBlocks)
@@ -536,8 +537,8 @@ namespace Sad
             std::string entryBlockName = basicBlocks[0] ? basicBlocks[0]->name : "entry";
             {
                 llvm::BasicBlock *entryBlock = llvm::BasicBlock::Create(
-                    *context_, entryBlockName, llvmFunc);
-                context_info_.basicBlocks[entryBlockName] = entryBlock;
+                    *cg_.context_, entryBlockName, llvmFunc);
+                cg_.context_info_.basicBlocks[entryBlockName] = entryBlock;
             }
             for (const auto &labelName : allLabels)
             {
@@ -548,28 +549,28 @@ namespace Sad
 #endif
 
                 llvm::BasicBlock *llvmBlock = llvm::BasicBlock::Create(
-                    *context_, // Source: context_ is at llvm_codegen.h:631
+                    *cg_.context_, // Source: cg_.context_ is at llvm_codegen.h:631
                     labelName,
                     llvmFunc);
 
-                context_info_.basicBlocks[labelName] = llvmBlock;
+                cg_.context_info_.basicBlocks[labelName] = llvmBlock;
             }
 
             // Phase 2: Add parameters to named values (after blocks are created)
-            emitFunctionParameters(sirFunc, llvmFunc);
+            cg_.emitFunctionParameters(sirFunc, llvmFunc);
 
             // (AR) إذا كانت كوروتين، أضف مقدمة الكوروتين (coro.id, coro.begin...)
             // (EN) If coroutine, emit coroutine preamble
             if (sirFunc->isCoroutine)
             {
-                context_info_.isCoroutineFunction = true;
-                context_info_.isGeneratorFunction = sirFunc->isGenerator;
-                emitCoroutinePreamble(sirFunc, llvmFunc);
+                cg_.context_info_.isCoroutineFunction = true;
+                cg_.context_info_.isGeneratorFunction = sirFunc->isGenerator;
+                cg_.emitCoroutinePreamble(sirFunc, llvmFunc);
             }
             else
             {
-                context_info_.isCoroutineFunction = false;
-                context_info_.isGeneratorFunction = false;
+                cg_.context_info_.isCoroutineFunction = false;
+                cg_.context_info_.isGeneratorFunction = false;
             }
 
             // Phase 2: Emit instructions for each block
@@ -582,10 +583,10 @@ namespace Sad
                 // Source: SIRBasicBlock::name is PUBLIC member at sir_instruction.h:355
                 std::string blockName = sirBlock->name;
 
-                auto it = context_info_.basicBlocks.find(blockName);
-                if (it == context_info_.basicBlocks.end())
+                auto it = cg_.context_info_.basicBlocks.find(blockName);
+                if (it == cg_.context_info_.basicBlocks.end())
                 {
-                    reportError("Basic block not found: " + blockName);
+                    cg_.reportError("Basic block not found: " + blockName);
                     continue;
                 }
 
@@ -595,18 +596,18 @@ namespace Sad
                 // (EN) For coroutines: entry block instructions go into coro.init.resume
                 // The entry block already has preamble + initial suspend (terminated by switch).
                 // Body instructions must go into the init resume block instead.
-                if (context_info_.isCoroutineFunction && blockName == "entry" && context_info_.currentBlock)
+                if (cg_.context_info_.isCoroutineFunction && blockName == "entry" && cg_.context_info_.currentBlock)
                 {
-                    llvmBlock = context_info_.currentBlock; // coro.init.resume
+                    llvmBlock = cg_.context_info_.currentBlock; // coro.init.resume
                 }
 
                 // تعيين نقطة الإدراج
                 // Set insertion point
-                // Source: builder_ is defined at llvm_codegen.h:637
-                builder_->SetInsertPoint(llvmBlock);
+                // Source: cg_.builder_ is defined at llvm_codegen.h:637
+                cg_.builder_->SetInsertPoint(llvmBlock);
 
                 // Source: CodeGenContext::currentBlock is at llvm_codegen.h:616
-                context_info_.currentBlock = llvmBlock;
+                cg_.context_info_.currentBlock = llvmBlock;
 
                 // إصدار تعليمات الكتلة
                 // Emit block instructions
@@ -623,13 +624,13 @@ namespace Sad
                 {
                     // (AR) إذا كانت الكتلة الحالية تحتوي بالفعل على terminator، نتوقف
                     // (EN) If current block already has a terminator, stop emitting
-                    if (builder_->GetInsertBlock() && builder_->GetInsertBlock()->getTerminator())
+                    if (cg_.builder_->GetInsertBlock() && cg_.builder_->GetInsertBlock()->getTerminator())
                     {
                         break;
                     }
 
                     auto instPtr = std::make_shared<SIRInstruction>(inst);
-                    emitInstruction(instPtr);
+                    cg_.emitInstruction(instPtr);
                 }
             }
 
@@ -638,7 +639,7 @@ namespace Sad
             // FIX: Iterate ALL function blocks (not just SIR-named ones) to catch
             // dynamically-created blocks (gen.yield.X.resume, await.X.cont, etc.)
             // IMPORTANT: Skip coroutine infrastructure blocks (coro.final, coro.cleanup,
-            // coro.suspend) — those get their terminators from emitCoroutineEpilogue().
+            // coro.suspend) — those get their terminators from cg_.emitCoroutineEpilogue().
             // ========================================================================
             for (auto &llvmBlock : *llvmFunc)
             {
@@ -655,21 +656,21 @@ namespace Sad
                         }
                     }
 
-                    builder_->SetInsertPoint(&llvmBlock);
+                    cg_.builder_->SetInsertPoint(&llvmBlock);
                     // (AR) للكوروتين/المولد: الكتل بدون terminator تقفز لـ coroFinalBB
                     // (EN) For coroutine/generator: unterminated blocks branch to coroFinalBB
-                    if (sirFunc->isCoroutine && context_info_.coroFinalBB)
+                    if (sirFunc->isCoroutine && cg_.context_info_.coroFinalBB)
                     {
-                        builder_->CreateBr(context_info_.coroFinalBB);
+                        cg_.builder_->CreateBr(cg_.context_info_.coroFinalBB);
                     }
                     else if (llvmFunc->getReturnType()->isVoidTy())
                     {
-                        builder_->CreateRetVoid();
+                        cg_.builder_->CreateRetVoid();
                     }
                     else
                     {
                         // Return default value for non-void functions
-                        builder_->CreateRet(llvm::Constant::getNullValue(llvmFunc->getReturnType()));
+                        cg_.builder_->CreateRet(llvm::Constant::getNullValue(llvmFunc->getReturnType()));
                     }
                 }
             }
@@ -678,9 +679,9 @@ namespace Sad
             // (EN) If coroutine, emit epilogue (cleanup + suspend blocks)
             if (sirFunc->isCoroutine)
             {
-                emitCoroutineEpilogue();
-                context_info_.isCoroutineFunction = false;
-                context_info_.isGeneratorFunction = false;
+                cg_.emitCoroutineEpilogue();
+                cg_.context_info_.isCoroutineFunction = false;
+                cg_.context_info_.isGeneratorFunction = false;
             }
         }
 

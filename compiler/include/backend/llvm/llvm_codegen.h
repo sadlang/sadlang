@@ -99,6 +99,7 @@
 #include "builders/concurrency_codegen.h"        // (AR) Phase 8 Step 1: ConcurrencyCodeGen
 #include "builders/ui_codegen.h"                  // (AR) Phase 8 Step 2: UICodeGen
 #include "builders/classes_vtables_codegen.h"    // (AR) Phase 8 Step 3: ClassesVtablesCodeGen
+#include "builders/functions_codegen.h"           // (AR) Phase 8 Step 4: FunctionsCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -302,6 +303,8 @@ namespace Sad
             friend class UICodeGen;
             // (AR) Phase 8 Step 3: ClassesVtablesCodeGen
             friend class ClassesVtablesCodeGen;
+            // (AR) Phase 8 Step 4: FunctionsCodeGen
+            friend class FunctionsCodeGen;
 
         public:
             // ========================================================================
@@ -381,7 +384,7 @@ namespace Sad
              *
              * @return true إذا كانت الوحدة صحيحة / true if module is valid
              */
-            bool verify() const;
+            bool verify() const { return fns_->verify(); }
 
             // ========================================================================
             // Optimization / التحسين
@@ -393,13 +396,13 @@ namespace Sad
              *
              * @param level مستوى التحسين (O0, O1, O2, O3, Os, Oz)
              */
-            void setOptimizationLevel(sad::OptimizationLevel level);
+            void setOptimizationLevel(sad::OptimizationLevel level) { fns_->setOptimizationLevel(level); }
 
             /**
              * (AR) ضبط وضع LTO — يفعل FullLTO أو ThinLTO
              * (EN) Set LTO mode — enable Full or Thin LTO
              */
-            void setLTOMode(bool enable_full, bool enable_thin);
+            void setLTOMode(bool enable_full, bool enable_thin) { fns_->setLTOMode(enable_full, enable_thin); }
 
             /**
              * الحصول على مستوى التحسين الحالي
@@ -430,7 +433,7 @@ namespace Sad
              *      - O3: Aggressive optimizations (max performance)
              *      - Os/Oz: Size optimizations
              */
-            bool optimize();
+            bool optimize() { return fns_->optimize(); }
 
             /**
              * تمكين/تعطيل التحسين التلقائي بعد التوليد
@@ -446,13 +449,13 @@ namespace Sad
              *
              * @return إحصائيات التحسين / Optimization statistics
              */
-            const sad::OptimizationStats &getOptimizationStats() const;
+            const sad::OptimizationStats &getOptimizationStats() const { return fns_->getOptimizationStats(); }
 
             /**
              * طباعة إحصائيات التحسين
              * Print optimization statistics
              */
-            void printOptimizationStats() const;
+            void printOptimizationStats() const { fns_->printOptimizationStats(); }
 
             // ========================================================================
             // Module Emission / إصدار الوحدة
@@ -480,7 +483,7 @@ namespace Sad
              *
              * @param sirModule وحدة SIR / SIR module
              */
-            void emitGlobalFunctions(std::shared_ptr<SIRModule> sirModule);
+            void emitGlobalFunctions(std::shared_ptr<SIRModule> sirModule) { fns_->emitGlobalFunctions(sirModule); }
 
             /**
              * إضافة دالة main كـ wrapper للدالة الرئيسية العربية
@@ -488,7 +491,7 @@ namespace Sad
              *
              * @param sirModule وحدة SIR / SIR module
              */
-            void emitMainWrapper(std::shared_ptr<SIRModule> sirModule);
+            void emitMainWrapper(std::shared_ptr<SIRModule> sirModule) { fns_->emitMainWrapper(sirModule); }
 
             /**
              * (AR) تعيين وضع الوحدة — تخطي إنشاء دالة main wrapper
@@ -529,7 +532,7 @@ namespace Sad
              *
              * @param sirModule وحدة SIR / SIR module
              */
-            void emitConstants(std::shared_ptr<SIRModule> sirModule);
+            void emitConstants(std::shared_ptr<SIRModule> sirModule) { fns_->emitConstants(sirModule); }
 
             // ========================================================================
             // Function Emission / إصدار الدوال
@@ -542,7 +545,7 @@ namespace Sad
              * @param sirFunc دالة SIR / SIR function
              * @return دالة LLVM / LLVM function
              */
-            llvm::Function *emitFunction(std::shared_ptr<SIRFunction> sirFunc);
+            llvm::Function *emitFunction(std::shared_ptr<SIRFunction> sirFunc) { return fns_->emitFunction(sirFunc); }
 
             /**
              * إصدار جسم الدالة
@@ -551,7 +554,7 @@ namespace Sad
              * @param sirFunc دالة SIR / SIR function
              * @param llvmFunc دالة LLVM / LLVM function
              */
-            void emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::Function *llvmFunc);
+            void emitFunctionBody(std::shared_ptr<SIRFunction> sirFunc, llvm::Function *llvmFunc) { fns_->emitFunctionBody(sirFunc, llvmFunc); }
 
             /**
              * إصدار توقيع الدالة فقط (بدون جسم)
@@ -560,7 +563,7 @@ namespace Sad
              * @param sirFunc دالة SIR / SIR function
              * @return دالة LLVM / LLVM function
              */
-            llvm::Function *emitFunctionPrototype(std::shared_ptr<SIRFunction> sirFunc);
+            llvm::Function *emitFunctionPrototype(std::shared_ptr<SIRFunction> sirFunc) { return fns_->emitFunctionPrototype(sirFunc); }
 
             /**
              * إصدار معاملات الدالة
@@ -1570,6 +1573,8 @@ namespace Sad
             std::unique_ptr<UICodeGen> ui_;
             // (AR) Phase 8 Step 3: دورة حياة الأصناف وvtables (9 methods)
             std::unique_ptr<ClassesVtablesCodeGen> cls_;
+            // (AR) Phase 8 Step 4: إصدار الدوال والتحسين والتحقق (12 methods)
+            std::unique_ptr<FunctionsCodeGen> fns_;
 
             // ========================================================================
             // Helper Methods / دوال مساعدة
