@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <cstring>
 #include <algorithm>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad {
 namespace LowLevel {
@@ -112,11 +113,11 @@ int NetworkManager::scanNICs() {
     nic2.linkSpeed = 100;
     nics_.push_back(nic2);
 
-    return static_cast<int>(nics_.size());
+    return Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size");
 }
 
 NICInfo NetworkManager::getNICInfo(int nicId) const {
-    if (nicId >= 0 && nicId < static_cast<int>(nics_.size()))
+    if (nicId >= 0 && nicId < Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size"))
         return nics_[nicId];
     NICInfo empty;
     empty.id = -1;
@@ -137,7 +138,7 @@ NICInfo NetworkManager::getNICInfo(int nicId) const {
 }
 
 int NetworkManager::initNIC(int nicId) {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return -1;
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return -1;
     nics_[nicId].nicState = NICState::LINK_UP;
     return 0;
 }
@@ -162,40 +163,40 @@ std::string NetworkManager::generateReport() const {
 // ============================================================================
 
 int NetworkManager::setIP(int nicId, const std::string& ip) {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return -1;
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return -1;
     if (!parseIP(ip, nics_[nicId].ip)) return -1;
     return 0;
 }
 
 int NetworkManager::setSubnet(int nicId, const std::string& mask) {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return -1;
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return -1;
     if (!parseIP(mask, nics_[nicId].subnet)) return -1;
     return 0;
 }
 
 int NetworkManager::setGateway(int nicId, const std::string& gw) {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return -1;
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return -1;
     if (!parseIP(gw, nics_[nicId].gateway)) return -1;
     return 0;
 }
 
 std::string NetworkManager::getIP(int nicId) const {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return "0.0.0.0";
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return "0.0.0.0";
     return formatIP(nics_[nicId].ip);
 }
 
 std::string NetworkManager::getMAC(int nicId) const {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return "00:00:00:00:00:00";
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return "00:00:00:00:00:00";
     return formatMAC(nics_[nicId].mac);
 }
 
 std::string NetworkManager::getSubnet(int nicId) const {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return "0.0.0.0";
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return "0.0.0.0";
     return formatIP(nics_[nicId].subnet);
 }
 
 std::string NetworkManager::getGateway(int nicId) const {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return "0.0.0.0";
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return "0.0.0.0";
     return formatIP(nics_[nicId].gateway);
 }
 
@@ -204,7 +205,7 @@ std::string NetworkManager::getGateway(int nicId) const {
 // ============================================================================
 
 int NetworkManager::arpRequest(int nicId, const std::string& targetIP) {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return -1;
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return -1;
     stats_.arpRequests++;
 
     uint8_t ip[4];
@@ -247,7 +248,7 @@ std::string NetworkManager::arpLookup(const std::string& ip) const {
 }
 
 int NetworkManager::clearARPTable() {
-    int count = static_cast<int>(arpTable_.size());
+    int count = Sad::Security::SafeArithmetic::assertSafeCast<int>(arpTable_.size(), "network_stack_size");
     arpTable_.clear();
     return count;
 }
@@ -257,7 +258,7 @@ int NetworkManager::clearARPTable() {
 // ============================================================================
 
 int NetworkManager::ping(int nicId, const std::string& targetIP) {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return -1;
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return -1;
     if (nics_[nicId].nicState < NICState::INITIALIZED) return -1;
 
     uint8_t ip[4];
@@ -285,13 +286,13 @@ int NetworkManager::ping(int nicId, const std::string& targetIP) {
 
 int NetworkManager::udpSend(int nicId, const std::string& destIP, int destPort,
                             int srcPort, const std::string& data) {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return -1;
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return -1;
     (void)destIP; (void)destPort; (void)srcPort;
     stats_.udpSent++;
     nics_[nicId].txPackets++;
     nics_[nicId].txBytes += NetConstants::ETH_HEADER_SIZE + NetConstants::IPV4_HEADER_SIZE
                           + NetConstants::UDP_HEADER_SIZE + data.size();
-    return static_cast<int>(data.size());
+    return Sad::Security::SafeArithmetic::assertSafeCast<int>(data.size(), "network_stack_size");
 }
 
 std::string NetworkManager::udpReceive(int nicId, int port) {
@@ -325,8 +326,8 @@ int NetworkManager::udpUnbind(int nicId, int port) {
 // ============================================================================
 
 int NetworkManager::sendRawFrame(int nicId, const std::string& hexData) {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return -1;
-    int bytes = static_cast<int>(hexData.size() / 2);
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return -1;
+    int bytes = Sad::Security::SafeArithmetic::assertSafeCast<int>(hexData.size() / 2, "network_stack_hexbytes");
     nics_[nicId].txPackets++;
     nics_[nicId].txBytes += bytes;
     stats_.totalTx++;
@@ -338,13 +339,13 @@ int NetworkManager::sendRawFrame(int nicId, const std::string& hexData) {
 // ============================================================================
 
 bool NetworkManager::isLinkUp(int nicId) const {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return false;
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return false;
     return nics_[nicId].nicState == NICState::LINK_UP ||
            nics_[nicId].nicState == NICState::INITIALIZED;
 }
 
 int NetworkManager::getLinkSpeed(int nicId) const {
-    if (nicId < 0 || nicId >= static_cast<int>(nics_.size())) return 0;
+    if (nicId < 0 || nicId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(nics_.size(), "network_stack_size")) return 0;
     return nics_[nicId].linkSpeed;
 }
 

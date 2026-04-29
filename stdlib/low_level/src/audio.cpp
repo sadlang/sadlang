@@ -10,6 +10,7 @@
 #include <sstream>
 #include <cstring>
 #include <algorithm>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad {
 namespace LowLevel {
@@ -83,11 +84,11 @@ int AudioManager::scanDevices() {
     balances_.push_back(0);
     recordedSamples_.push_back(0);
 
-    return static_cast<int>(devices_.size());
+    return Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size");
 }
 
 AudioDeviceInfo AudioManager::getDeviceInfo(int devId) const {
-    if (devId >= 0 && devId < static_cast<int>(devices_.size()))
+    if (devId >= 0 && devId < Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size"))
         return devices_[devId];
     AudioDeviceInfo empty;
     empty.id = -1;
@@ -106,7 +107,7 @@ AudioDeviceInfo AudioManager::getDeviceInfo(int devId) const {
 }
 
 int AudioManager::initDevice(int devId) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     devices_[devId].audioState = AudioState::INITIALIZED;
     return 0;
 }
@@ -137,7 +138,7 @@ std::string AudioManager::generateReport() const {
 // ============================================================================
 
 int AudioManager::playTone(int devId, int freqHz, int durationMs) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     if (devices_[devId].muted) return 0;
     (void)freqHz; (void)durationMs;
     devices_[devId].audioState = AudioState::PLAYING;
@@ -149,7 +150,7 @@ int AudioManager::playSilence(int devId, int durationMs) {
 }
 
 int AudioManager::stopPlayback(int devId) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     if (devices_[devId].audioState == AudioState::PLAYING ||
         devices_[devId].audioState == AudioState::PAUSED)
         devices_[devId].audioState = AudioState::INITIALIZED;
@@ -157,21 +158,21 @@ int AudioManager::stopPlayback(int devId) {
 }
 
 int AudioManager::pausePlayback(int devId) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     if (devices_[devId].audioState == AudioState::PLAYING)
         devices_[devId].audioState = AudioState::PAUSED;
     return 0;
 }
 
 int AudioManager::resumePlayback(int devId) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     if (devices_[devId].audioState == AudioState::PAUSED)
         devices_[devId].audioState = AudioState::PLAYING;
     return 0;
 }
 
 bool AudioManager::isPlaying(int devId) const {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return false;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return false;
     return devices_[devId].audioState == AudioState::PLAYING;
 }
 
@@ -180,29 +181,29 @@ bool AudioManager::isPlaying(int devId) const {
 // ============================================================================
 
 int AudioManager::setVolume(int devId, int vol) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     devices_[devId].volume = std::max(0, std::min(vol, AudioConstants::MAX_VOLUME));
     return 0;
 }
 
 int AudioManager::getVolume(int devId) const {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     return devices_[devId].volume;
 }
 
 int AudioManager::setMute(int devId, bool mute) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     devices_[devId].muted = mute;
     return 0;
 }
 
 bool AudioManager::isMuted(int devId) const {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return true;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return true;
     return devices_[devId].muted;
 }
 
 int AudioManager::setBalance(int devId, int leftRight) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     balances_[devId] = std::max(-100, std::min(leftRight, 100));
     return 0;
 }
@@ -212,14 +213,14 @@ int AudioManager::setBalance(int devId, int leftRight) {
 // ============================================================================
 
 int AudioManager::startRecording(int devId) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     devices_[devId].audioState = AudioState::RECORDING;
     recordedSamples_[devId] = 0;
     return 0;
 }
 
 int AudioManager::stopRecording(int devId) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     if (devices_[devId].audioState == AudioState::RECORDING) {
         // (AR) محاكاة: 1000 عينة مسجلة / (EN) Simulation: 1000 samples recorded
         recordedSamples_[devId] = 1000;
@@ -229,12 +230,12 @@ int AudioManager::stopRecording(int devId) {
 }
 
 bool AudioManager::isRecording(int devId) const {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return false;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return false;
     return devices_[devId].audioState == AudioState::RECORDING;
 }
 
 int AudioManager::getRecordedSamples(int devId) const {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return 0;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return 0;
     return recordedSamples_[devId];
 }
 
@@ -258,35 +259,35 @@ int AudioManager::beepOff() {
 // ============================================================================
 
 int AudioManager::setSampleRate(int devId, int rate) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     devices_[devId].sampleRate = rate;
     return 0;
 }
 
 int AudioManager::getSampleRate(int devId) const {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return 0;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return 0;
     return devices_[devId].sampleRate;
 }
 
 int AudioManager::setChannels(int devId, int ch) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     devices_[devId].channels = std::max(1, std::min(ch, 8));
     return 0;
 }
 
 int AudioManager::getChannels(int devId) const {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return 0;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return 0;
     return devices_[devId].channels;
 }
 
 int AudioManager::setBitsPerSample(int devId, int bits) {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return -1;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return -1;
     devices_[devId].bitsPerSample = bits;
     return 0;
 }
 
 int AudioManager::getBitsPerSample(int devId) const {
-    if (devId < 0 || devId >= static_cast<int>(devices_.size())) return 0;
+    if (devId < 0 || devId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "audio_size")) return 0;
     return devices_[devId].bitsPerSample;
 }
 

@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <cstring>
 #include <algorithm>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad {
 namespace LowLevel {
@@ -67,7 +68,7 @@ int SerialManager::getPortCount() const {
 }
 
 SerialPortInfo SerialManager::getPortInfo(int portId) const {
-    if (portId >= 0 && portId < static_cast<int>(ports_.size()))
+    if (portId >= 0 && portId < Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size"))
         return ports_[portId];
     SerialPortInfo empty;
     empty.id = -1;
@@ -84,7 +85,7 @@ SerialPortInfo SerialManager::getPortInfo(int portId) const {
 }
 
 int SerialManager::initPort(int portId, int baudRate) {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return -1;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return -1;
     if (!ports_[portId].exists) return -1;
 
     ports_[portId].baudRate = baudRate;
@@ -98,13 +99,13 @@ int SerialManager::initPort(int portId, int baudRate) {
 }
 
 int SerialManager::closePort(int portId) {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return -1;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return -1;
     ports_[portId].serialState = SerialState::CLOSED;
     return 0;
 }
 
 bool SerialManager::isPortOpen(int portId) const {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return false;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return false;
     return ports_[portId].serialState == SerialState::OPEN;
 }
 
@@ -127,7 +128,7 @@ std::string SerialManager::generateReport() const {
 // ============================================================================
 
 int SerialManager::sendByte(int portId, uint8_t byte) {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return -1;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return -1;
     if (ports_[portId].serialState != SerialState::OPEN) return -1;
 
     // (AR) محاكاة: البيانات المرسلة تظهر في المخزن المؤقت للاستقبال (loopback)
@@ -157,7 +158,7 @@ int SerialManager::sendHex(int portId, const std::string& hexData) {
 }
 
 bool SerialManager::isTxReady(int portId) const {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return false;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return false;
     return ports_[portId].serialState == SerialState::OPEN;
 }
 
@@ -166,7 +167,7 @@ bool SerialManager::isTxReady(int portId) const {
 // ============================================================================
 
 int SerialManager::receiveByte(int portId) {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return -1;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return -1;
     if (rxBuffers_[portId].empty()) return -1;
     uint8_t byte = rxBuffers_[portId].front();
     rxBuffers_[portId].pop_front();
@@ -185,8 +186,8 @@ std::string SerialManager::receiveString(int portId, int maxLen) {
 }
 
 int SerialManager::available(int portId) const {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return 0;
-    return static_cast<int>(rxBuffers_[portId].size());
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return 0;
+    return Sad::Security::SafeArithmetic::assertSafeCast<int>(rxBuffers_[portId].size(), "serial_size");
 }
 
 bool SerialManager::isRxReady(int portId) const {
@@ -198,31 +199,31 @@ bool SerialManager::isRxReady(int portId) const {
 // ============================================================================
 
 int SerialManager::setBaudRate(int portId, int baud) {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return -1;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return -1;
     ports_[portId].baudRate = baud;
     return 0;
 }
 
 int SerialManager::getBaudRate(int portId) const {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return 0;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return 0;
     return ports_[portId].baudRate;
 }
 
 int SerialManager::setDataBits(int portId, int bits) {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return -1;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return -1;
     if (bits < 5 || bits > 8) return -1;
     ports_[portId].dataBits = static_cast<DataBits>(bits);
     return 0;
 }
 
 int SerialManager::setStopBits(int portId, int bits) {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return -1;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return -1;
     ports_[portId].stopBits = (bits == 2) ? StopBits::TWO : StopBits::ONE;
     return 0;
 }
 
 int SerialManager::setParity(int portId, int par) {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return -1;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return -1;
     ports_[portId].parity = static_cast<Parity>(std::min(par, 2));
     return 0;
 }
@@ -238,7 +239,7 @@ int SerialManager::setFlowControl(int portId, bool rtscts) {
 // ============================================================================
 
 int SerialManager::getLineStatus(int portId) const {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return 0;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return 0;
     int lsr = 0;
     if (!rxBuffers_[portId].empty())
         lsr |= SerialConstants::LSR_DATA_READY;
@@ -248,18 +249,18 @@ int SerialManager::getLineStatus(int portId) const {
 }
 
 int SerialManager::getModemStatus(int portId) const {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return 0;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return 0;
     // (AR) محاكاة: CTS + DSR مفعلان / (EN) Simulation: CTS + DSR set
     return 0x30;
 }
 
 uint64_t SerialManager::getTxCount(int portId) const {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return 0;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return 0;
     return ports_[portId].txCount;
 }
 
 uint64_t SerialManager::getRxCount(int portId) const {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return 0;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return 0;
     return ports_[portId].rxCount;
 }
 
@@ -268,7 +269,7 @@ uint64_t SerialManager::getRxCount(int portId) const {
 // ============================================================================
 
 int SerialManager::loopbackTest(int portId) {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return -1;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return -1;
     if (ports_[portId].serialState != SerialState::OPEN) return -1;
 
     // (AR) إرسال 0xAA واستقباله / (EN) Send 0xAA and receive it
@@ -278,7 +279,7 @@ int SerialManager::loopbackTest(int portId) {
 }
 
 int SerialManager::clearBuffers(int portId) {
-    if (portId < 0 || portId >= static_cast<int>(ports_.size())) return -1;
+    if (portId < 0 || portId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ports_.size(), "serial_size")) return -1;
     rxBuffers_[portId].clear();
     txBuffers_[portId].clear();
     return 0;

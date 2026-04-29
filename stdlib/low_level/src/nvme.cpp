@@ -19,6 +19,7 @@
 #include <cstring>
 #include <iomanip>
 #include <sstream>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad {
 namespace LowLevel {
@@ -44,7 +45,7 @@ inline uint8_t hexCharToNibble(char c) {
 int findRamdiskIndex(const std::vector<DriveInfo>& drives, int driveId) {
     int ramdiskIdx = 0;
     for (int i = 0; i < driveId; ++i) {
-        if (i < static_cast<int>(drives.size()) &&
+        if (i < Sad::Security::SafeArithmetic::assertSafeCast<int>(drives.size(), "nvme_size") &&
             drives[i].type == StorageType::RAMDISK) {
             ++ramdiskIdx;
         }
@@ -126,14 +127,14 @@ int StorageManager::scanDrives() {
     scanned_ = true;
 
     // (AR) إرجاع عدد الأقراص المكتشفة / (EN) Return number of discovered drives
-    return static_cast<int>(drives_.size());
+    return Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size");
 }
 
 /// (AR) الحصول على معلومات قرص بمعرّفه
 /// (EN) Get drive info by its ID
 DriveInfo StorageManager::getDriveInfo(int driveId) const {
     // (AR) التحقق من صلاحية المعرّف / (EN) Validate ID
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         DriveInfo empty;
         empty.id            = -1;
         empty.type          = StorageType::UNKNOWN;
@@ -212,7 +213,7 @@ std::string StorageManager::generateReport() const {
 
         // (AR) عرض عدد الأقسام إن وجدت / (EN) Show partition count if available
         if (drive.id >= 0 &&
-            drive.id < static_cast<int>(partitions_.size())) {
+            drive.id < Sad::Security::SafeArithmetic::assertSafeCast<int>(partitions_.size(), "nvme_size")) {
             oss << "  الأقسام / Partitions: "
                 << partitions_[drive.id].size() << "\n";
         }
@@ -233,7 +234,7 @@ std::string StorageManager::generateReport() const {
 ///      Non-ramdisk simulated drives return an empty string
 std::string StorageManager::readSector(int driveId, uint64_t lba) const {
     // (AR) التحقق من صلاحية المعرّف / (EN) Validate drive ID
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         return "";
     }
 
@@ -245,7 +246,7 @@ std::string StorageManager::readSector(int driveId, uint64_t lba) const {
         // (AR) حساب فهرس القرص الذاكري / (EN) Calculate ramdisk index
         int ramdiskIdx = findRamdiskIndex(drives_, driveId);
         if (ramdiskIdx < 0 ||
-            ramdiskIdx >= static_cast<int>(ramdisks_.size())) {
+            ramdiskIdx >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ramdisks_.size(), "nvme_size")) {
             return "";
         }
 
@@ -277,7 +278,7 @@ std::string StorageManager::readSector(int driveId, uint64_t lba) const {
 int StorageManager::writeSector(int driveId, uint64_t lba,
                                 const std::string& data) {
     // (AR) التحقق من صلاحية المعرّف / (EN) Validate drive ID
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         return -1;
     }
 
@@ -291,7 +292,7 @@ int StorageManager::writeSector(int driveId, uint64_t lba,
 
     int ramdiskIdx = findRamdiskIndex(drives_, driveId);
     if (ramdiskIdx < 0 ||
-        ramdiskIdx >= static_cast<int>(ramdisks_.size())) {
+        ramdiskIdx >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ramdisks_.size(), "nvme_size")) {
         return -1;
     }
 
@@ -330,7 +331,7 @@ int StorageManager::writeSector(int driveId, uint64_t lba,
 /// (EN) Read multiple consecutive sectors
 std::string StorageManager::readSectors(int driveId, uint64_t startLBA,
                                         int count) const {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size()) ||
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size") ||
         count <= 0) {
         return "";
     }
@@ -350,7 +351,7 @@ std::string StorageManager::readSectors(int driveId, uint64_t startLBA,
 /// (AR) مسح (تصفير) قطاعات — تعمل فقط لأقراص الذاكرة
 /// (EN) Zero-fill sectors — only works for RAM disks
 int StorageManager::zeroSectors(int driveId, uint64_t startLBA, int count) {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size()) ||
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size") ||
         count <= 0) {
         return -1;
     }
@@ -365,7 +366,7 @@ int StorageManager::zeroSectors(int driveId, uint64_t startLBA, int count) {
 
     int ramdiskIdx = findRamdiskIndex(drives_, driveId);
     if (ramdiskIdx < 0 ||
-        ramdiskIdx >= static_cast<int>(ramdisks_.size())) {
+        ramdiskIdx >= Sad::Security::SafeArithmetic::assertSafeCast<int>(ramdisks_.size(), "nvme_size")) {
         return -1;
     }
 
@@ -393,7 +394,7 @@ SmartInfo StorageManager::getSmartInfo(int driveId) const {
     SmartInfo info;
 
     // (AR) قرص غير صالح / (EN) Invalid drive
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         info.supported         = false;
         info.healthy           = false;
         info.temperature       = 0;
@@ -471,7 +472,7 @@ SmartInfo StorageManager::getSmartInfo(int driveId) const {
 
 /// (AR) هل القرص بصحة جيدة؟ / (EN) Is drive healthy?
 bool StorageManager::isDriveHealthy(int driveId) const {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         return false;
     }
     // (AR) أقراص الذاكرة دائماً سليمة / (EN) RAM disks are always healthy
@@ -484,7 +485,7 @@ bool StorageManager::isDriveHealthy(int driveId) const {
 
 /// (AR) درجة حرارة القرص / (EN) Drive temperature
 int StorageManager::getDriveTemperature(int driveId) const {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         return -1;
     }
     return drives_[driveId].temperature;
@@ -497,13 +498,13 @@ int StorageManager::getDriveTemperature(int driveId) const {
 /// (AR) قراءة جدول الأقسام — محاكاة قسمين على القرص الأول
 /// (EN) Read partition table — simulates 2 partitions on the first drive
 int StorageManager::readPartitionTable(int driveId) {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         return -1;
     }
 
     // (AR) توسيع مصفوفة الأقسام إن لزم، ثم تنظيف
     // (EN) Expand partitions array if needed, then clear
-    if (driveId >= static_cast<int>(partitions_.size())) {
+    if (driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(partitions_.size(), "nvme_size")) {
         partitions_.resize(driveId + 1);
     }
     partitions_[driveId].clear();
@@ -567,25 +568,25 @@ int StorageManager::readPartitionTable(int driveId) {
     }
 
     // (AR) إرجاع عدد الأقسام المقروءة / (EN) Return number of partitions read
-    return static_cast<int>(partitions_[driveId].size());
+    return Sad::Security::SafeArithmetic::assertSafeCast<int>(partitions_[driveId].size(), "nvme_size");
 }
 
 /// (AR) عدد الأقسام لقرص معين / (EN) Number of partitions for a given drive
 int StorageManager::getPartitionCount(int driveId) const {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size()) ||
-        driveId >= static_cast<int>(partitions_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size") ||
+        driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(partitions_.size(), "nvme_size")) {
         return 0;
     }
-    return static_cast<int>(partitions_[driveId].size());
+    return Sad::Security::SafeArithmetic::assertSafeCast<int>(partitions_[driveId].size(), "nvme_size");
 }
 
 /// (AR) معلومات قسم معين / (EN) Specific partition info
 PartitionInfo StorageManager::getPartitionInfo(int driveId,
                                                int partIndex) const {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size()) ||
-        driveId >= static_cast<int>(partitions_.size()) ||
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size") ||
+        driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(partitions_.size(), "nvme_size") ||
         partIndex < 0 ||
-        partIndex >= static_cast<int>(partitions_[driveId].size())) {
+        partIndex >= Sad::Security::SafeArithmetic::assertSafeCast<int>(partitions_[driveId].size(), "nvme_size")) {
         PartitionInfo empty;
         empty.index     = -1;
         empty.label     = "";
@@ -602,7 +603,7 @@ PartitionInfo StorageManager::getPartitionInfo(int driveId,
 
 /// (AR) نظام الأقسام (MBR/GPT) / (EN) Partition scheme (MBR/GPT)
 PartitionScheme StorageManager::getPartitionScheme(int driveId) const {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         return PartitionScheme::NONE;
     }
     return drives_[driveId].scheme;
@@ -610,7 +611,7 @@ PartitionScheme StorageManager::getPartitionScheme(int driveId) const {
 
 /// (AR) إجمالي سعة القرص بالميغابايت / (EN) Total drive capacity in MB
 uint64_t StorageManager::getDriveCapacityMB(int driveId) const {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         return 0;
     }
     return drives_[driveId].capacityBytes / (1024ULL * 1024ULL);
@@ -623,7 +624,7 @@ uint64_t StorageManager::getDriveCapacityMB(int driveId) const {
 /// (AR) مزامنة ذاكرة التخزين المؤقت — عملية وهمية في المحاكاة
 /// (EN) Flush cache — no-op in simulation
 int StorageManager::flushCache(int driveId) {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         return -1;
     }
     // (AR) في المحاكاة لا يوجد ذاكرة مؤقتة للمزامنة
@@ -633,7 +634,7 @@ int StorageManager::flushCache(int driveId) {
 
 /// (AR) هل القرص من نوع NVMe؟ / (EN) Is drive NVMe?
 bool StorageManager::isNVMe(int driveId) const {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         return false;
     }
     return drives_[driveId].type == StorageType::NVME;
@@ -641,7 +642,7 @@ bool StorageManager::isNVMe(int driveId) const {
 
 /// (AR) هل القرص من نوع AHCI؟ / (EN) Is drive AHCI?
 bool StorageManager::isAHCI(int driveId) const {
-    if (driveId < 0 || driveId >= static_cast<int>(drives_.size())) {
+    if (driveId < 0 || driveId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size")) {
         return false;
     }
     return drives_[driveId].type == StorageType::AHCI;
@@ -669,7 +670,7 @@ int StorageManager::createRamdisk(uint64_t sizeBytes) {
     ramdisks_.push_back(std::move(buffer));
 
     // (AR) إنشاء معلومات القرص / (EN) Create drive info entry
-    int newId = static_cast<int>(drives_.size());
+    int newId = Sad::Security::SafeArithmetic::assertSafeCast<int>(drives_.size(), "nvme_size");
 
     DriveInfo ramdisk;
     ramdisk.id            = newId;

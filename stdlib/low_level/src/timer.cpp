@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <ctime>
 #include <chrono>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad {
 namespace LowLevel {
@@ -137,7 +138,7 @@ int TimerManager::setTickRate(int hz) {
 
 int TimerManager::createStopwatch() {
     StopwatchInfo sw;
-    sw.id = static_cast<int>(stopwatches_.size());
+    sw.id = Sad::Security::SafeArithmetic::assertSafeCast<int>(stopwatches_.size(), "timer_size");
     sw.running = false;
     sw.startTick = 0;
     sw.elapsedMs = 0;
@@ -146,14 +147,14 @@ int TimerManager::createStopwatch() {
 }
 
 int TimerManager::startStopwatch(int swId) {
-    if (swId < 0 || swId >= static_cast<int>(stopwatches_.size())) return -1;
+    if (swId < 0 || swId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(stopwatches_.size(), "timer_size")) return -1;
     stopwatches_[swId].running = true;
     stopwatches_[swId].startTick = sysTicks_;
     return 0;
 }
 
 int TimerManager::stopStopwatch(int swId) {
-    if (swId < 0 || swId >= static_cast<int>(stopwatches_.size())) return -1;
+    if (swId < 0 || swId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(stopwatches_.size(), "timer_size")) return -1;
     if (stopwatches_[swId].running) {
         uint64_t elapsed = sysTicks_ - stopwatches_[swId].startTick;
         if (tickRate_ > 0)
@@ -164,7 +165,7 @@ int TimerManager::stopStopwatch(int swId) {
 }
 
 int TimerManager::resetStopwatch(int swId) {
-    if (swId < 0 || swId >= static_cast<int>(stopwatches_.size())) return -1;
+    if (swId < 0 || swId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(stopwatches_.size(), "timer_size")) return -1;
     stopwatches_[swId].running = false;
     stopwatches_[swId].startTick = 0;
     stopwatches_[swId].elapsedMs = 0;
@@ -172,7 +173,7 @@ int TimerManager::resetStopwatch(int swId) {
 }
 
 uint64_t TimerManager::getStopwatchMs(int swId) const {
-    if (swId < 0 || swId >= static_cast<int>(stopwatches_.size())) return 0;
+    if (swId < 0 || swId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(stopwatches_.size(), "timer_size")) return 0;
     uint64_t total = stopwatches_[swId].elapsedMs;
     if (stopwatches_[swId].running && tickRate_ > 0) {
         uint64_t running = sysTicks_ - stopwatches_[swId].startTick;
@@ -182,7 +183,7 @@ uint64_t TimerManager::getStopwatchMs(int swId) const {
 }
 
 bool TimerManager::isStopwatchRunning(int swId) const {
-    if (swId < 0 || swId >= static_cast<int>(stopwatches_.size())) return false;
+    if (swId < 0 || swId >= Sad::Security::SafeArithmetic::assertSafeCast<int>(stopwatches_.size(), "timer_size")) return false;
     return stopwatches_[swId].running;
 }
 

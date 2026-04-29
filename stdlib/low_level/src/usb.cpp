@@ -9,6 +9,7 @@
 #include "io_ports.h"
 #include <sstream>
 #include <algorithm>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -147,7 +148,7 @@ int USBManager::scanControllers() {
         }
     }
 
-    return static_cast<int>(controllers_.size());
+    return Sad::Security::SafeArithmetic::assertSafeCast<int>(controllers_.size(), "usb_size");
 }
 
 USBControllerInfo USBManager::getControllerInfo(size_t index) const {
@@ -394,7 +395,7 @@ int USBManager::enumerateDevices() {
         }
     }
 
-    return static_cast<int>(devices_.size());
+    return Sad::Security::SafeArithmetic::assertSafeCast<int>(devices_.size(), "usb_size");
 }
 
 USBDeviceInfo USBManager::getDeviceInfo(size_t index) const {
