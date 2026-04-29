@@ -16,7 +16,7 @@
 #include <fstream>
 #include <filesystem>
 
-#include "security/security_scanner.h"
+#include "security_scanner.h"
 
 using namespace Sad::Security;
 namespace fs = std::filesystem;

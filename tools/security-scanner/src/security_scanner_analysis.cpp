@@ -5,7 +5,7 @@
 // تم استخراج هذا الملف من security_scanner.cpp وفقاً لقاعدة CW-05
 // ============================================================================
 
-#include "security/security_scanner.h"
+#include "security_scanner.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>

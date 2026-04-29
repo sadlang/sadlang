@@ -281,12 +281,19 @@ endif()
 # Phase 92: T1031-T1034 (Triple Guard)
 # Phase 94: T1041, T1043 (Permission checker + Arabic errors)
 # ============================================================================
+# (AR) ملاحظة: نُقل compiler_security.cpp + compiler_security_arithmetic_mem.cpp
+#      إلى shared/security/ (مكتبة sad_security_core) في إعادة هيكلة الأمن
+#      الموحَّدة. مجلدات guard_*/permission_*/diagnostics لم تُنشأ بعد، لذا
+#      الكتلة هنا أصبحت no-op وتُترك مرجعاً للمراحل المستقبلية (Triple Guard).
+# (EN) Note: compiler_security.cpp + compiler_security_arithmetic_mem.cpp were
+#      relocated to shared/security/ (sad_security_core) in the unified security
+#      refactor. The guard_*/permission_*/diagnostics directories don't exist
+#      yet, so this block is currently a no-op kept as a hook for future phases.
 file(GLOB SECURITY_CODEGEN_SOURCES "src/codegen/guard_*.cpp")
 file(GLOB SECURITY_SEMA_SOURCES "src/sema/permission_*.cpp")
 file(GLOB SECURITY_DIAG_SOURCES "src/diagnostics/*.cpp")
-file(GLOB SECURITY_SECURITY_SOURCES "src/security/compiler_security.cpp")
 
-set(SECURITY_ALL_SOURCES ${SECURITY_CODEGEN_SOURCES} ${SECURITY_SEMA_SOURCES} ${SECURITY_DIAG_SOURCES} ${SECURITY_SECURITY_SOURCES})
+set(SECURITY_ALL_SOURCES ${SECURITY_CODEGEN_SOURCES} ${SECURITY_SEMA_SOURCES} ${SECURITY_DIAG_SOURCES})
 
 if(SECURITY_ALL_SOURCES)
  add_library(sad_security STATIC ${SECURITY_ALL_SOURCES})
@@ -302,6 +309,7 @@ if(SECURITY_ALL_SOURCES)
  ${SAD_SHARED_DIR}/shared/errors/include
  ${SAD_SHARED_DIR}/shared/lexer/include
  )
+ target_link_libraries(sad_security PUBLIC sad_security_core)
  if(MSVC)
  target_compile_options(sad_security PRIVATE /utf-8 /wd4819 /FS)
  endif()
@@ -362,14 +370,15 @@ target_include_directories(sad_type_system
 
 # ============================================================================
 # Tools Library ( : )
-# Merged tools: formatter, security scanner, docs emitter, build system
+# Merged tools: formatter, docs emitter, build system
+# (AR) أُزيلت ملفات security_scanner*/taint_tracker.cpp — انتقلت إلى
+#      tools/security-scanner/ (sad_security_scanner_lib + sad-guard).
+# (EN) Removed security_scanner*/taint_tracker.cpp — moved to
+#      tools/security-scanner/ (sad_security_scanner_lib + sad-guard).
 # ============================================================================
 set(TOOLS_SOURCES
  src/format/sad_formatter.cpp
  src/format/sad_formatter_rebuild.cpp
- src/security/security_scanner.cpp
- src/security/security_scanner_analysis.cpp
- src/security/taint_tracker.cpp
  src/meta/docs_emitter.cpp
  src/meta/docs_emitter_html.cpp
  src/build/build_system.cpp
@@ -391,7 +400,6 @@ if(TOOLS_VERIFIED_SOURCES)
  PUBLIC
  ${CMAKE_CURRENT_SOURCE_DIR}/include
  ${CMAKE_CURRENT_SOURCE_DIR}/include/format
- ${CMAKE_CURRENT_SOURCE_DIR}/include/security
  ${CMAKE_CURRENT_SOURCE_DIR}/include/meta
  ${CMAKE_CURRENT_SOURCE_DIR}/include/build
  ${CMAKE_SOURCE_DIR}/include
@@ -404,7 +412,7 @@ if(TOOLS_VERIFIED_SOURCES)
  if(MSVC)
  target_compile_options(sad_tools PRIVATE /utf-8 /wd4819 /FS)
  endif()
- message(STATUS "Configured sad_tools library (formatter, guard, docs, build)")
+ message(STATUS "Configured sad_tools library (formatter, docs, build)")
 else()
  message(STATUS " [tools] No verified source files €” sad_tools skipped")
 endif()
@@ -615,6 +623,11 @@ if(LLVM_FOUND)
  sad_semantic
  sad_memory
  )
+ # (AR) الطبقة الأمنية المشتركة (BoundsChecker/SafeArithmetic/InputSanitizer/...)
+ # (EN) Shared security primitives (BoundsChecker/SafeArithmetic/InputSanitizer/...)
+ if(TARGET sad_security_core)
+ target_link_libraries(sad_compiler INTERFACE sad_security_core)
+ endif()
  # - 04: ( Unicode /utf-8)
  if(TARGET sad_security)
  target_link_libraries(sad_compiler INTERFACE sad_security)
@@ -647,6 +660,11 @@ else()
  sad_semantic
  sad_memory
  )
+ # (AR) الطبقة الأمنية المشتركة (BoundsChecker/SafeArithmetic/InputSanitizer/...)
+ # (EN) Shared security primitives (BoundsChecker/SafeArithmetic/InputSanitizer/...)
+ if(TARGET sad_security_core)
+ target_link_libraries(sad_compiler INTERFACE sad_security_core)
+ endif()
  if(TARGET sad_security)
  target_link_libraries(sad_compiler INTERFACE sad_security)
  endif()
@@ -723,21 +741,10 @@ endif()
 # Tool Tests ( )
 # ============================================================================
 if(TARGET sad_tools)
- #
- if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_security_scanner.cpp")
- add_executable(test_security_scanner tests/test_security_scanner.cpp)
- target_link_libraries(test_security_scanner PRIVATE sad_tools)
- target_include_directories(test_security_scanner PRIVATE
- ${CMAKE_CURRENT_SOURCE_DIR}/include
- ${CMAKE_SOURCE_DIR}/include
- )
- if(MSVC)
- target_compile_options(test_security_scanner PRIVATE /utf-8 /wd4819 /FS)
- endif()
- set_target_properties(test_security_scanner PROPERTIES
- RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
- message(STATUS "Configured test: test_security_scanner")
- endif()
+ # (AR) test_security_scanner نُقل إلى tools/security-scanner/tests/ ضمن نقل
+ #      الماسح كاملاً إلى أداة مستقلة. يُبنى الآن من tools/security-scanner/CMakeLists.txt.
+ # (EN) test_security_scanner moved to tools/security-scanner/tests/ alongside
+ #      the scanner relocation. It's now built by tools/security-scanner/CMakeLists.txt.
 
  #
  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_formatter.cpp")
@@ -838,31 +845,14 @@ if(SIR_VERIFIED_SOURCES)
 endif()
 
 # ============================================================================
-# Compiler Security Library (Phase 95: 200+ )
+# Compiler Security Library (Phase 95)
 # ============================================================================
-set(SECURITY_EXT_SOURCES
- src/security/compiler_security.cpp
-)
-
-set(SECURITY_EXT_VERIFIED "")
-foreach(src ${SECURITY_EXT_SOURCES})
- if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
- list(APPEND SECURITY_EXT_VERIFIED "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
- endif()
-endforeach()
-
-if(SECURITY_EXT_VERIFIED)
- add_library(sad_compiler_security STATIC ${SECURITY_EXT_VERIFIED})
- target_include_directories(sad_compiler_security
- PUBLIC
- ${CMAKE_CURRENT_SOURCE_DIR}/include
- ${CMAKE_SOURCE_DIR}/include
- )
- if(MSVC)
- target_compile_options(sad_compiler_security PRIVATE /utf-8 /wd4819 /FS)
- endif()
- message(STATUS "Configured sad_compiler_security library (200+ security fixes)")
-endif()
+# (AR) أُلغيت كتلة sad_compiler_security بالكامل: مصدرها الوحيد
+#      (compiler_security.cpp) انتقل إلى shared/security/ كجزء من
+#      sad_security_core. أي مستهلك سابق يجب أن يربط الآن sad_security_core.
+# (EN) The sad_compiler_security block was removed entirely: its only source
+#      (compiler_security.cpp) moved to shared/security/ as part of
+#      sad_security_core. Former consumers should now link sad_security_core.
 
 # ============================================================================
 # Graphics Backend Support (Phase 95: sadc)

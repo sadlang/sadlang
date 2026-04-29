@@ -138,3 +138,16 @@ add_subdirectory(semantic)
 # ============================================================================
 add_subdirectory(ownership)
 
+# ============================================================================
+# (AR) المكتبة الفرعية: الطبقة الأمنية المشتركة (sad_security_core)
+# (EN) Sub-library: shared security layer (sad_security_core)
+# (AR) نُقلت من compiler/src/security/ لتكون متاحة لكل المسارات (المترجم،
+#      المفسر، VM، runtime، tools). توحّد BoundsChecker, SafeArithmetic,
+#      InputSanitizer, SafeAllocator, TaintTracker تحت Sad::Security.
+# (EN) Moved from compiler/src/security/ so all paths (compiler, interpreter,
+#      VM, runtime, tools) can use it. Unifies BoundsChecker, SafeArithmetic,
+#      InputSanitizer, SafeAllocator, TaintTracker under namespace Sad::Security.
+# @phase Architecture Refactor: Security Layer Unification
+# ============================================================================
+add_subdirectory(security)
+

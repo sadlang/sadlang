@@ -25,6 +25,19 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/tools/check/CMakeLists.txt")
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
+# (AR) الماسح الأمني الساكن — يعتمد فقط على shared/security
+# (EN) Static security scanner — depends only on shared/security
+# (AR) نُقل من compiler/src/security/ ليصبح أداة مستقلة (sad-guard) بدون
+#      الاعتماد على المترجم.
+# (EN) Moved from compiler/src/security/ to be a standalone tool (sad-guard)
+#      with no compiler dependency.
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tools/security-scanner/CMakeLists.txt")
+    add_subdirectory(tools/security-scanner)
+    message(STATUS "✓ الماسح الأمني / Security Scanner: sad-guard")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
 # خادم LSP / Language Server Protocol
 # ──────────────────────────────────────────────────────────────────────
 option(BUILD_LSP_SERVER "بناء خادم LSP / Build LSP server" ON)

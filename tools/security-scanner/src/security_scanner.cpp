@@ -4,7 +4,7 @@
 // Comprehensive Security Scanner Implementation
 // ============================================================================
 
-#include "security/security_scanner.h"
+#include "security_scanner.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
