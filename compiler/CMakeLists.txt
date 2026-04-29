@@ -476,26 +476,14 @@ endif()
 # ============================================================================
 
 # ============================================================================
-# Cross-Compilation Targets Library ( )
+# Cross-Compilation Targets Library — REMOVED
 # ============================================================================
-file(GLOB TARGETS_SOURCES "src/targets/*.cpp")
-
-if(TARGETS_SOURCES)
- add_library(sad_targets STATIC ${TARGETS_SOURCES})
- target_include_directories(sad_targets
- PUBLIC
- ${CMAKE_CURRENT_SOURCE_DIR}/include
- ${CMAKE_CURRENT_SOURCE_DIR}/src/targets
- ${CMAKE_SOURCE_DIR}/include
- ${SAD_SHARED_DIR}/shared/ast/include
- ${SAD_SHARED_DIR}/shared/types/include
- ${SAD_SHARED_DIR}/shared/errors/include
- )
- if(MSVC)
- target_compile_options(sad_targets PRIVATE /utf-8 /FS /std:c++20)
- endif()
- message(STATUS "Configured sad_targets library (cross-compilation)")
-endif()
+# (AR) حُذف compiler/src/targets/ بالكامل: نموذج Phase 24 (T235/T236/T241) لم يُربط بالسائق.
+#      الفعلي: tools/compiler/compiler_driver.h::TargetTriple +
+#      compiler/src/backend/llvm/llvm_target.cpp::LLVMTargetManager.
+# (EN) compiler/src/targets/ deleted: Phase 24 prototype never wired into the driver.
+#      Real path: tools/compiler/compiler_driver.h::TargetTriple + LLVMTargetManager.
+# ============================================================================
 
 # ============================================================================
 # Advanced Optimizer Library ( AST)
@@ -638,9 +626,6 @@ if(LLVM_FOUND)
  target_link_libraries(sad_compiler INTERFACE sad_ui_ir)
  endif()
  # (Phase 96)
- if(TARGET sad_targets)
- target_link_libraries(sad_compiler INTERFACE sad_targets)
- endif()
  if(TARGET sad_advanced_optimizer)
  target_link_libraries(sad_compiler INTERFACE sad_advanced_optimizer)
  endif()
@@ -672,9 +657,6 @@ else()
  target_link_libraries(sad_compiler INTERFACE sad_ui_ir)
  endif()
  # (Phase 96) LLVM
- if(TARGET sad_targets)
- target_link_libraries(sad_compiler INTERFACE sad_targets)
- endif()
  if(TARGET sad_advanced_optimizer)
  target_link_libraries(sad_compiler INTERFACE sad_advanced_optimizer)
  endif()
