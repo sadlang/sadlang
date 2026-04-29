@@ -78,6 +78,9 @@ target_link_libraries(sad_interpreter
         sad_shared
         # (AR) Phase 3 (F-01): ربط فاحص الأنواع المشترك / (EN) Link shared type checker
         sad_semantic_shared
+        # (AR) الطبقة الأمنية المشتركة (BoundsChecker/SafeArithmetic/InputSanitizer/SafeAllocator/TaintTracker)
+        # (EN) Shared security primitives (BoundsChecker/SafeArithmetic/InputSanitizer/SafeAllocator/TaintTracker)
+        sad_security_core
 )
 
 target_compile_features(sad_interpreter PUBLIC cxx_std_17)

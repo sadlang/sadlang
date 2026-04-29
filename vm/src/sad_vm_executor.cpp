@@ -21,6 +21,10 @@
 #include "sad_vm_executor.h"
 #include "sad_vm_debug.h"
 
+// (AR) الطبقة الأمنية المشتركة: فحص حدود المصفوفات والمكدس.
+// (EN) Shared security layer: array/stack bounds checks via BoundsChecker.
+#include "bounds_checker.h"
+
 #include <iostream>
 #include <algorithm>
 #include <cmath>
@@ -535,7 +539,11 @@ void آلة_افتراضية::أعد_التهيئة() {
                     int64_t ف = فهرس.كـ_صحيح();
                     auto& م = *مصف.كـ_مصفوفة();
                     if (ف < 0) ف += static_cast<int64_t>(م.size()); // فهرسة سالبة
-                    if (ف >= 0 && ف < static_cast<int64_t>(م.size())) {
+                    // (AR) فحص حدود موحَّد عبر BoundsChecker (Sad::Security).
+                    // (EN) Unified bounds check via BoundsChecker (Sad::Security).
+                    if (ف >= 0 &&
+                        Sad::Security::BoundsChecker::checkArrayIndex(
+                            static_cast<size_t>(ف), م.size())) {
                         ادفع(م[static_cast<size_t>(ف)]);
                     } else {
                         return خطأ_تشغيل("فهرس خارج النطاق: " + std::to_string(فهرس.كـ_صحيح()));
@@ -556,7 +564,11 @@ void آلة_افتراضية::أعد_التهيئة() {
                 int64_t ف = فهرس.كـ_صحيح();
                 auto& م = *مصف.كـ_مصفوفة();
                 if (ف < 0) ف += static_cast<int64_t>(م.size());
-                if (ف >= 0 && ف < static_cast<int64_t>(م.size())) {
+                // (AR) فحص حدود موحَّد عبر BoundsChecker (Sad::Security).
+                // (EN) Unified bounds check via BoundsChecker (Sad::Security).
+                if (ف >= 0 &&
+                    Sad::Security::BoundsChecker::checkArrayIndex(
+                        static_cast<size_t>(ف), م.size())) {
                     م[static_cast<size_t>(ف)] = std::move(ق);
                 } else {
                     return خطأ_تشغيل("فهرس كتابة خارج النطاق");
@@ -763,7 +775,9 @@ void آلة_افتراضية::أعد_التهيئة() {
                 // (AR) الحصول على "هذا" من الخانة المحلية 0
                 // (EN) Get "this" from local slot 0
                 size_t موقع_هذا = إطار.قاعدة_المكدس;
-                if (موقع_هذا >= المكدس_.size()) {
+                // (AR) فحص حدود مكدس موحَّد عبر BoundsChecker (Sad::Security).
+                // (EN) Unified stack-bounds check via BoundsChecker (Sad::Security).
+                if (!Sad::Security::BoundsChecker::checkArrayIndex(موقع_هذا, المكدس_.size())) {
                     return خطأ_تشغيل("لا يمكن استخدام 'الأساس' خارج سياق كائن");
                 }
                 قيمة& كائن_ق = المكدس_[موقع_هذا];

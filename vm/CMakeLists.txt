@@ -59,6 +59,12 @@ target_include_directories(sad_vm
 # المكونات المشتركة (AST, Parser, Lexer, Types)
 target_link_libraries(sad_vm PUBLIC sad_shared)
 
+# (AR) الطبقة الأمنية المشتركة (BoundsChecker لفحص حدود المكدس/المصفوفات،
+#      SafeArithmetic لمنع فيض حساب الفهارس).
+# (EN) Shared security layer (BoundsChecker for stack/array index checks,
+#      SafeArithmetic to prevent index arithmetic overflow).
+target_link_libraries(sad_vm PUBLIC sad_security_core)
+
 # ============================================================================
 # دعم LLVM (اختياري — لمحرك JIT)
 # ============================================================================
