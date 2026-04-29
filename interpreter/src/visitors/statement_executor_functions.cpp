@@ -23,6 +23,7 @@
 #include <sstream>
 #include <map>
 
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 namespace Sad
 {
     namespace Interpreter
@@ -246,7 +247,7 @@ namespace Sad
                         node.name,                           // displayName (اسم العرض)
                         effectiveName,                       // registeredName (اسم فريد)
                         Data::FunctionRefKind::USER_DEFINED, // kind
-                        static_cast<int>(params.size())      // arity
+                        ::Sad::Security::SafeArithmetic::assertSafeCast<int>(params.size(), "statement_executor_functions_size")      // arity
                     );
                     for (const auto &p : params)
                     {

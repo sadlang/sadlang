@@ -42,6 +42,7 @@ namespace Sad
 #include <cctype>
 #include <set>
 
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 namespace Sad
 {
     namespace Interpreter
@@ -337,7 +338,7 @@ namespace Sad
                                     args.push_back(lastResult_);
                                 }
 
-                                if (static_cast<int>(args.size()) != expectedCount)
+                                if (::Sad::Security::SafeArithmetic::assertSafeCast<int>(args.size(), "expression_evaluator_calls_invoke_size") != expectedCount)
                                 {
                                     throw Interpreter::RuntimeError(
                                         "(AR) باني النموذج '" + enumName + "." + memberName +
@@ -478,7 +479,7 @@ namespace Sad
 
                             // (AR) التحقق من عدد الوسائط
                             // (EN) Check argument count
-                            if (static_cast<int>(args.size()) != expectedCount)
+                            if (::Sad::Security::SafeArithmetic::assertSafeCast<int>(args.size(), "expression_evaluator_calls_invoke_size") != expectedCount)
                             {
                                 throw Interpreter::RuntimeError(
                                     "(AR) باني النموذج '" + enumName + "." + memberName +

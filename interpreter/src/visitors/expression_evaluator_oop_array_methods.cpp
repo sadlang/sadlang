@@ -28,6 +28,7 @@
 #include <functional>
 #include <vector>
 
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 namespace Sad
 {
     namespace Interpreter
@@ -61,7 +62,7 @@ namespace Sad
                 // ─── الطول / الحجم ───
                 if (m == "الطول" || m == "الحجم" || m == "طول")
                 {
-                    lastResult_ = Value(static_cast<int>(arr.size()));
+                    lastResult_ = Value(::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"));
                     return;
                 }
                 // ─── إضافة عنصر (تعديل موضعي) ───
@@ -95,8 +96,8 @@ namespace Sad
                         throw RuntimeError("(AR) احذف() يتطلب فهرس العنصر. (EN) remove() requires an index.", node.position);
                     int idx = args[0].toInt();
                     if (idx < 0)
-                        idx = static_cast<int>(arr.size()) + idx;
-                    if (idx < 0 || idx >= static_cast<int>(arr.size()))
+                        idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size") + idx;
+                    if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"))
                         throw RuntimeError("(AR) الفهرس " + std::to_string(idx) + " خارج النطاق. (EN) Index out of range.", node.position);
                     Value removed = arr[idx];
                     arr.erase(arr.begin() + idx);
@@ -112,11 +113,11 @@ namespace Sad
                         throw RuntimeError("(AR) ادخل() يتطلب فهرساً وعنصراً. (EN) insert() requires index and value.", node.position);
                     int idx = args[0].toInt();
                     if (idx < 0)
-                        idx = static_cast<int>(arr.size()) + idx;
+                        idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size") + idx;
                     if (idx < 0)
                         idx = 0;
-                    if (idx > static_cast<int>(arr.size()))
-                        idx = static_cast<int>(arr.size());
+                    if (idx > ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"))
+                        idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size");
                     arr.insert(arr.begin() + idx, args[1]);
                     Value newArr(arr);
                     writeBackChain(node.object.get(), newArr);
@@ -161,7 +162,7 @@ namespace Sad
                 {
                     if (args.empty())
                         throw RuntimeError("(AR) فهرس() يتطلب معاملاً. (EN) indexOf() requires argument.", node.position);
-                    for (int i = 0; i < static_cast<int>(arr.size()); ++i)
+                    for (int i = 0; i < ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"); ++i)
                     {
                         if ((arr[i] == args[0]).toBool())
                         {
@@ -209,15 +210,15 @@ namespace Sad
                 if (m == "شريحة")
                 {
                     int start = args.empty() ? 0 : args[0].toInt();
-                    int end = args.size() < 2 ? static_cast<int>(arr.size()) : args[1].toInt();
+                    int end = args.size() < 2 ? ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size") : args[1].toInt();
                     if (start < 0)
-                        start = std::max(0, static_cast<int>(arr.size()) + start);
+                        start = std::max(0, ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size") + start);
                     if (end < 0)
-                        end = std::max(0, static_cast<int>(arr.size()) + end);
-                    if (start > static_cast<int>(arr.size()))
-                        start = static_cast<int>(arr.size());
-                    if (end > static_cast<int>(arr.size()))
-                        end = static_cast<int>(arr.size());
+                        end = std::max(0, ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size") + end);
+                    if (start > ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"))
+                        start = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size");
+                    if (end > ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"))
+                        end = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size");
                     if (start >= end)
                     {
                         lastResult_ = Value(Value::ArrayType{});
@@ -316,7 +317,7 @@ namespace Sad
                 {
                     if (args.empty())
                     {
-                        lastResult_ = Value(static_cast<int>(arr.size()));
+                        lastResult_ = Value(::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"));
                         return;
                     }
                     int cnt = 0;
@@ -523,7 +524,7 @@ namespace Sad
                     if (args.empty() || !args[0].isFunctionOrString())
                         throw RuntimeError("(AR) جد_فهرس() يتطلب دالة أو اسم دالة. (EN) findIndex() requires a function or function name.", node.position);
                     std::string funcName = args[0].getFunctionName();
-                    for (int i = 0; i < static_cast<int>(arr.size()); ++i)
+                    for (int i = 0; i < ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"); ++i)
                     {
                         if (callFunction(funcName, {arr[i]}).toBool())
                         {
@@ -884,8 +885,8 @@ namespace Sad
                         // (AR) تطبيع الفهرس السالب: -1 = آخر عنصر
                         // (EN) Normalize negative index: -1 = last element
                         if (idx < 0)
-                            idx = static_cast<int>(currentArr.size()) + idx;
-                        if (idx < 0 || idx >= static_cast<int>(currentArr.size()))
+                            idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(currentArr.size(), "expression_evaluator_oop_array_methods_size") + idx;
+                        if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(currentArr.size(), "expression_evaluator_oop_array_methods_size"))
                         {
                             throw RuntimeError("(AR) فهرس خارج النطاق: " + std::to_string(idx) + ". (EN) Index out of bounds.", node.position);
                         }
@@ -913,8 +914,8 @@ namespace Sad
                             // (EN) Normalize negative index: -1 = last column
                             int resolvedCol = colIdx;
                             if (resolvedCol < 0)
-                                resolvedCol = static_cast<int>(row.size()) + resolvedCol;
-                            if (resolvedCol >= 0 && resolvedCol < static_cast<int>(row.size()))
+                                resolvedCol = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(row.size(), "expression_evaluator_oop_array_methods_size") + resolvedCol;
+                            if (resolvedCol >= 0 && resolvedCol < ::Sad::Security::SafeArithmetic::assertSafeCast<int>(row.size(), "expression_evaluator_oop_array_methods_size"))
                             {
                                 col.push_back(row[resolvedCol]);
                             }
@@ -939,8 +940,8 @@ namespace Sad
                     // (AR) تطبيع الفهرس السالب: -1 = آخر صف
                     // (EN) Normalize negative index: -1 = last row
                     if (rowIdx < 0)
-                        rowIdx = static_cast<int>(arr.size()) + rowIdx;
-                    if (rowIdx < 0 || rowIdx >= static_cast<int>(arr.size()))
+                        rowIdx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size") + rowIdx;
+                    if (rowIdx < 0 || rowIdx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_oop_array_methods_size"))
                     {
                         throw RuntimeError("(AR) فهرس الصف خارج النطاق. (EN) Row index out of bounds.", node.position);
                     }

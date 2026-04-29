@@ -15,6 +15,7 @@
 #include "ui_nodes.h"     // For UIDeclarationNode
 #include <iostream>
 
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 namespace Sad
 {
     namespace Interpreter
@@ -450,7 +451,7 @@ namespace Sad
                         fieldNamesArr.push_back(Data::Value(fn));
                     }
                     constructorMap["__حقول_أسماء__"] = Data::Value(fieldNamesArr);
-                    constructorMap["__عدد_حقول__"] = Data::Value(static_cast<int>(member.fields.size()));
+                    constructorMap["__عدد_حقول__"] = Data::Value(::Sad::Security::SafeArithmetic::assertSafeCast<int>(member.fields.size(), "statement_executor_oop_types_size"));
 
                     Data::Value constructorVal(constructorMap);
                     variableManager_.defineOrAssign(qualifiedName, constructorVal);
@@ -529,7 +530,7 @@ namespace Sad
             enumMap["__أسماء__"] = Data::Value(allNames);
             enumMap["__قيم__"] = Data::Value(allValues);
             enumMap["__عكسي__"] = Data::Value(reverseMap);
-            enumMap["__عدد__"] = Data::Value(static_cast<int>(node.members.size()));
+            enumMap["__عدد__"] = Data::Value(::Sad::Security::SafeArithmetic::assertSafeCast<int>(node.members.size(), "statement_executor_oop_types_size"));
             enumMap["__جبري__"] = Data::Value(isADT);
 
             // (AR) تسجيل التعداد نفسه كخريطة / (EN) Register the enum itself as a map
@@ -545,7 +546,7 @@ namespace Sad
             variableManager_.defineOrAssign(valuesFunc, namesList);
 
             std::string countVar = node.name + ".عدد";
-            Data::Value countVal(static_cast<int>(node.members.size()));
+            Data::Value countVal(::Sad::Security::SafeArithmetic::assertSafeCast<int>(node.members.size(), "statement_executor_oop_types_size"));
             variableManager_.defineOrAssign(countVar, countVal);
         }
 

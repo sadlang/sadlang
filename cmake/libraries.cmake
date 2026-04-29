@@ -44,6 +44,15 @@ target_link_libraries(sad_core PUBLIC sad_shared)
 #      interpreter/src/managers/ownership_manager.cpp
 target_link_libraries(sad_core PUBLIC sad_ownership)
 
+# (AR) الطبقة الأمنية المشتركة (BoundsChecker, SafeArithmetic, InputSanitizer,
+#      SafeAllocator, TaintTracker). sad_core يجمّع مصادر المفسر التي تستخدم
+#      assertSafeCast<int>(...) في أي تحويل size_t→int، فلا بد من الربط هنا
+#      أيضاً (موازٍ لربط sad_interpreter PUBLIC sad_security_core).
+# (EN) Shared security primitives. sad_core compiles interpreter sources that
+#      call assertSafeCast<int>(...), so it must link sad_security_core too,
+#      mirroring the sad_interpreter linkage.
+target_link_libraries(sad_core PUBLIC sad_security_core)
+
 if(MSVC)
     target_compile_options(sad_core PRIVATE /FS /utf-8 /Z7)
 endif()

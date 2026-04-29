@@ -32,6 +32,7 @@
 #include <cctype>
 #include <set>
 
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 namespace Sad
 {
     namespace Interpreter
@@ -164,7 +165,7 @@ namespace Sad
                 if (node.member == "حجم" || node.member == "طول")
                 {
                     // (AR) إرجاع حجم الصف كقيمة — سيُستدعى كدالة لاحقاً إذا أُضيف ()
-                    lastResult_ = Value(static_cast<int>(tupleElements.size()));
+                    lastResult_ = Value(::Sad::Security::SafeArithmetic::assertSafeCast<int>(tupleElements.size(), "expression_evaluator_members_size"));
                     return;
                 }
 
@@ -438,7 +439,7 @@ namespace Sad
                 // (EN) Check built-in tuple methods
                 if (node.memberName == "حجم" || node.memberName == "طول")
                 {
-                    lastResult_ = Value(static_cast<int>(tupleElements.size()));
+                    lastResult_ = Value(::Sad::Security::SafeArithmetic::assertSafeCast<int>(tupleElements.size(), "expression_evaluator_members_size"));
                     return;
                 }
 
@@ -651,8 +652,8 @@ namespace Sad
                     auto &arr = containerValue.toArrayMut();
                     int idx = idxValue.toInt();
                     if (idx < 0)
-                        idx = static_cast<int>(arr.size()) + idx;
-                    if (idx >= 0 && idx < static_cast<int>(arr.size()))
+                        idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_members_size") + idx;
+                    if (idx >= 0 && idx < ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_members_size"))
                     {
                         arr[idx] = value;
                     }

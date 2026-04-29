@@ -19,6 +19,7 @@
 #include "channel.h"
 #include <vector>
 
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 namespace Sad
 {
     namespace Interpreter
@@ -130,7 +131,7 @@ namespace Sad
                 // ─── الحجم (size) ───
                 if (m == "\xD8\xA7\xD9\x84\xD8\xAD\xD8\xAC\xD9\x85" || m == "\xD8\xB7\xD9\x88\xD9\x84")
                 {
-                    lastResult_ = Value(static_cast<int>(channel->size()));
+                    lastResult_ = Value(::Sad::Security::SafeArithmetic::assertSafeCast<int>(channel->size(), "expression_evaluator_oop_concurrency_size"));
                     return true;
                 }
 

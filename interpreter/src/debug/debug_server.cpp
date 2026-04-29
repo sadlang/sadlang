@@ -21,6 +21,11 @@
 #include <cstring>
 #include <regex>
 #include "sad_type_system.h"
+// (AR) تحويل آمن مع كشف الفيض (size_t→int) — يجب أن يكون خارج #ifdef _WIN32
+//      لأن الكود الذي يستخدمه يُجمَّع على كل المنصات.
+// (EN) Bounds-checked size_t→int — must live outside #ifdef _WIN32 because
+//      the call sites are compiled on all platforms.
+#include "safe_arithmetic.h"
 
 #ifdef _WIN32
 #include <io.h>
@@ -512,7 +517,7 @@ namespace Sad
                 std::lock_guard<std::mutex> lock(mutex_);
                 pendingAction_ = DebugAction::STEP_OVER;
                 stepping_ = true;
-                stepOverDepth_ = static_cast<int>(callStack_.size());
+                stepOverDepth_ = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(callStack_.size(), "debug_server_size");
             }
             cv_.notify_all();
         }
@@ -537,7 +542,7 @@ namespace Sad
                 std::lock_guard<std::mutex> lock(mutex_);
                 pendingAction_ = DebugAction::STEP_OUT;
                 stepping_ = true;
-                stepOutDepth_ = static_cast<int>(callStack_.size()) - 1;
+                stepOutDepth_ = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(callStack_.size(), "debug_server_size") - 1;
             }
             cv_.notify_all();
         }
@@ -587,7 +592,7 @@ namespace Sad
 
             sendResponse(seq, "stackTrace",
                          "{\"stackFrames\":" + framesJson + "," +
-                             jsonPairNum("totalFrames", static_cast<int>(frames.size())) + "}");
+                             jsonPairNum("totalFrames", ::Sad::Security::SafeArithmetic::assertSafeCast<int>(frames.size(), "debug_server_size")) + "}");
         }
 
         std::vector<DebugStackFrame> DebugServer::collectStackFrames()
@@ -604,14 +609,14 @@ namespace Sad
             frames.push_back(top);
 
             // (AR) إطارات الاستدعاء السابقة
-            for (int i = static_cast<int>(callStack_.size()) - 1; i >= 0; i--)
+            for (int i = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(callStack_.size(), "debug_server_size") - 1; i >= 0; i--)
             {
                 // (AR) تخطي الإطار الأخير (مُدرج كإطار أعلى)
-                if (i == static_cast<int>(callStack_.size()) - 1 && !callStack_.empty())
+                if (i == ::Sad::Security::SafeArithmetic::assertSafeCast<int>(callStack_.size(), "debug_server_size") - 1 && !callStack_.empty())
                     continue;
 
                 DebugStackFrame sf;
-                sf.id = static_cast<int>(frames.size());
+                sf.id = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(frames.size(), "debug_server_size");
                 sf.name = callStack_[i].functionName;
                 sf.file = callStack_[i].file;
                 sf.line = callStack_[i].line;
@@ -690,15 +695,15 @@ namespace Sad
                         // (AR) للكائنات والمصفوفات والخرائط، يمكن أن يكون لها فروع
                         if (val->getKind() == Types::SadTypeKind::Array)
                         {
-                            dv.variablesReference = 100 + static_cast<int>(vars.size());
+                            dv.variablesReference = 100 + ::Sad::Security::SafeArithmetic::assertSafeCast<int>(vars.size(), "debug_server_size");
                         }
                         else if (val->getKind() == Types::SadTypeKind::Map)
                         {
-                            dv.variablesReference = 200 + static_cast<int>(vars.size());
+                            dv.variablesReference = 200 + ::Sad::Security::SafeArithmetic::assertSafeCast<int>(vars.size(), "debug_server_size");
                         }
                         else if (val->getKind() == Types::SadTypeKind::Class)
                         {
-                            dv.variablesReference = 300 + static_cast<int>(vars.size());
+                            dv.variablesReference = 300 + ::Sad::Security::SafeArithmetic::assertSafeCast<int>(vars.size(), "debug_server_size");
                         }
 
                         vars.push_back(dv);
@@ -854,7 +859,7 @@ namespace Sad
                 }
                 else if (pendingAction_ == DebugAction::STEP_OVER)
                 {
-                    int currentDepth = static_cast<int>(callStack_.size());
+                    int currentDepth = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(callStack_.size(), "debug_server_size");
                     if (currentDepth <= stepOverDepth_)
                     {
                         shouldPause = true;
@@ -862,7 +867,7 @@ namespace Sad
                 }
                 else if (pendingAction_ == DebugAction::STEP_OUT)
                 {
-                    int currentDepth = static_cast<int>(callStack_.size());
+                    int currentDepth = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(callStack_.size(), "debug_server_size");
                     if (currentDepth <= stepOutDepth_)
                     {
                         shouldPause = true;

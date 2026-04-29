@@ -19,6 +19,7 @@
 #include <cctype>
 #include <vector>
 
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 namespace Sad
 {
     namespace Interpreter
@@ -132,15 +133,15 @@ namespace Sad
                     }
                 }
                 int start = args.empty() ? 0 : args[0].toInt();
-                int len = args.size() < 2 ? static_cast<int>(chars.size()) - start : args[1].toInt();
+                int len = args.size() < 2 ? ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_oop_string_map_methods_size") - start : args[1].toInt();
                 if (start < 0)
-                    start = std::max(0, static_cast<int>(chars.size()) + start);
-                if (start > static_cast<int>(chars.size()))
-                    start = static_cast<int>(chars.size());
+                    start = std::max(0, ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_oop_string_map_methods_size") + start);
+                if (start > ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_oop_string_map_methods_size"))
+                    start = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_oop_string_map_methods_size");
                 if (len < 0)
                     len = 0;
-                if (start + len > static_cast<int>(chars.size()))
-                    len = static_cast<int>(chars.size()) - start;
+                if (start + len > ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_oop_string_map_methods_size"))
+                    len = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_oop_string_map_methods_size") - start;
                 std::string result;
                 for (int ci = start; ci < start + len; ++ci)
                     result += chars[ci];
@@ -174,8 +175,8 @@ namespace Sad
                 }
                 int idx = args[0].toInt();
                 if (idx < 0)
-                    idx = static_cast<int>(chars.size()) + idx;
-                if (idx < 0 || idx >= static_cast<int>(chars.size()))
+                    idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_oop_string_map_methods_size") + idx;
+                if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_oop_string_map_methods_size"))
                     throw RuntimeError("(AR) الفهرس خارج النطاق. (EN) Index out of range.", node.position);
                 lastResult_ = Value(chars[idx]);
                 return;
@@ -236,7 +237,7 @@ namespace Sad
                     i += charLen;
                 }
                 std::string result;
-                for (int ci = static_cast<int>(chars.size()) - 1; ci >= 0; --ci)
+                for (int ci = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_oop_string_map_methods_size") - 1; ci >= 0; --ci)
                 {
                     result += chars[ci];
                 }
@@ -354,7 +355,7 @@ namespace Sad
             // ─── الطول / الحجم ───
             if (m == "الطول" || m == "الحجم" || m == "طول" || m == "حجم")
             {
-                lastResult_ = Value(static_cast<int>(mapData.size()));
+                lastResult_ = Value(::Sad::Security::SafeArithmetic::assertSafeCast<int>(mapData.size(), "expression_evaluator_oop_string_map_methods_size"));
                 return;
             }
             // ─── يحتوي (على مفتاح) ───
@@ -452,7 +453,7 @@ namespace Sad
                         auto fieldNamesArr = variantCtorMap["__حقول_أسماء__"].toArray();
                         int expectedCount = variantCtorMap["__عدد_حقول__"].toInt();
 
-                        if (static_cast<int>(args.size()) != expectedCount)
+                        if (::Sad::Security::SafeArithmetic::assertSafeCast<int>(args.size(), "expression_evaluator_oop_string_map_methods_size") != expectedCount)
                         {
                             throw RuntimeError(
                                 "(AR) باني النموذج '" + enumName + "." + memberName +

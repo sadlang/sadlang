@@ -27,6 +27,11 @@
 #include <unordered_map>
 #include <vector>
 
+// (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+// يجب أن يكون خارج كتلة #ifdef _WIN32/#else لأن النص المُجمَّع يستخدم
+// SecurityNS::SafeArithmetic على كل المنصات.
+#include "safe_arithmetic.h"
+
 // ═══════════════════════════════════════════════════════════════════════
 // (AR) واجهة نظام التشغيل للمقابس — WinSock2 أو POSIX
 // (EN) OS-level socket interface — WinSock2 or POSIX
@@ -63,6 +68,12 @@ namespace Sad
 
         // (AR) اختصار لفضاء أسماء ثوابت المقابس
         namespace Bsk = Sad::Builtins::Names::Sockets;
+
+        // (AR) اختصار للطبقة الأمنية المشتركة — يتجنب مشكلة dependent name
+        //      في lambda المتداخلة داخل namespace Sad في MSVC strict parser.
+        // (EN) Alias for shared security primitives — sidesteps MSVC dependent
+        //      name issue inside nested lambdas within namespace Sad.
+        namespace SecurityNS = ::Sad::Security;
 
 // ═══════════════════════════════════════════════════════════════════════
 // (AR) تهيئة WinSock — تلقائية عند أول استخدام
@@ -254,7 +265,8 @@ namespace Sad
                     {
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
                     }
-                    int sent = ::send(entry->handle, data.c_str(), static_cast<int>(data.size()), 0);
+                    const int dataLen = SecurityNS::SafeArithmetic::assertSafeCast<int>(data.size(), "builtin_module_sockets_tcp_send_size");
+                    int sent = ::send(entry->handle, data.c_str(), dataLen, 0);
                     return std::make_shared<Data::Value>(static_cast<double>(sent));
                 };
                 fm.registerBuiltinFunction(std::string(Bsk::TCP_SEND), f); // مقبس_ارسال
@@ -542,7 +554,8 @@ namespace Sad
                     {
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
                     }
-                    int sent = ::sendto(entry->handle, data.c_str(), static_cast<int>(data.size()), 0,
+                    const int dataLen = SecurityNS::SafeArithmetic::assertSafeCast<int>(data.size(), "builtin_module_sockets_udp_send_size");
+                    int sent = ::sendto(entry->handle, data.c_str(), dataLen, 0,
                                         reinterpret_cast<sockaddr *>(&destAddr), sizeof(destAddr));
                     return std::make_shared<Data::Value>(static_cast<double>(sent));
                 };

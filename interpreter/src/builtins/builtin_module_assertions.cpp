@@ -29,6 +29,7 @@
 #include <sstream>
 #include <unordered_map>
 
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 namespace Sad
 {
     namespace Interpreter
@@ -746,7 +747,7 @@ namespace Sad
                     }
                 }
                 std::cout << result;
-                return std::make_shared<Data::Value>(static_cast<int>(result.size()));
+                return std::make_shared<Data::Value>(::Sad::Security::SafeArithmetic::assertSafeCast<int>(result.size(), "builtin_module_assertions_size"));
             };
             interpreter.getFunctionManager().registerBuiltinFunction("طباعة_تنسيق", ffi_printf_func);
 

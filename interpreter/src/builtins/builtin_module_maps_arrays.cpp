@@ -20,6 +20,7 @@
 #include <random>
 
 // (AR) إلغاء ماكرو VOID الخاص بويندوز إن وُجد
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 #ifdef VOID
 #undef VOID
 #endif
@@ -106,7 +107,7 @@ namespace Sad
                 const auto &arr = args[0]->toArrayRef();
                 int n = args[1]->toInt();
                 Data::Value::ArrayType result;
-                for (int i = 0; i < n && i < static_cast<int>(arr.size()); i++)
+                for (int i = 0; i < n && i < ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "builtin_module_maps_arrays_size"); i++)
                 {
                     result.push_back(arr[i]);
                 }
@@ -122,7 +123,7 @@ namespace Sad
                 const auto &arr = args[0]->toArrayRef();
                 int n = args[1]->toInt();
                 Data::Value::ArrayType result;
-                for (int i = n; i < static_cast<int>(arr.size()); i++)
+                for (int i = n; i < ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "builtin_module_maps_arrays_size"); i++)
                 {
                     result.push_back(arr[i]);
                 }

@@ -20,6 +20,7 @@
 #include <sstream>
 
 // (AR) إلغاء ماكرو VOID الخاص بويندوز إن وُجد
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 #ifdef VOID
 #undef VOID
 #endif
@@ -167,11 +168,11 @@ namespace Sad
                 std::string pad = " ";
                 if (args.size() >= 3)
                     pad = args[2]->toString();
-                while (static_cast<int>(text.size()) < targetLen)
+                while (::Sad::Security::SafeArithmetic::assertSafeCast<int>(text.size(), "builtin_module_maps_text_size") < targetLen)
                 {
                     text = pad + text;
                 }
-                if (static_cast<int>(text.size()) > targetLen)
+                if (::Sad::Security::SafeArithmetic::assertSafeCast<int>(text.size(), "builtin_module_maps_text_size") > targetLen)
                     text = text.substr(text.size() - targetLen);
                 return makeVal(text);
             };
@@ -187,11 +188,11 @@ namespace Sad
                 std::string pad = " ";
                 if (args.size() >= 3)
                     pad = args[2]->toString();
-                while (static_cast<int>(text.size()) < targetLen)
+                while (::Sad::Security::SafeArithmetic::assertSafeCast<int>(text.size(), "builtin_module_maps_text_size") < targetLen)
                 {
                     text += pad;
                 }
-                if (static_cast<int>(text.size()) > targetLen)
+                if (::Sad::Security::SafeArithmetic::assertSafeCast<int>(text.size(), "builtin_module_maps_text_size") > targetLen)
                     text = text.substr(0, targetLen);
                 return makeVal(text);
             };
@@ -215,7 +216,7 @@ namespace Sad
                     throw std::runtime_error("(AR) رمز_حرف تتطلب نص وموضع");
                 std::string text = args[0]->toString();
                 int idx = args[1]->toInt();
-                if (idx < 0 || idx >= static_cast<int>(text.size()))
+                if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(text.size(), "builtin_module_maps_text_size"))
                     throw std::runtime_error("(AR) الموضع خارج النطاق");
                 return makeVal(static_cast<int>(static_cast<unsigned char>(text[idx])));
             };

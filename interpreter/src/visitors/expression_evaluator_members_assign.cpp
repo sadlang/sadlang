@@ -29,6 +29,7 @@
 #include <cctype>
 #include <set>
 
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 namespace Sad
 {
     namespace Interpreter
@@ -360,7 +361,7 @@ namespace Sad
 
                 auto arr = objectValue.toArray();
                 int idx = indexValue.isInteger() ? indexValue.toInt() : static_cast<int>(indexValue.toDouble());
-                int size = static_cast<int>(arr.size());
+                int size = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_members_assign_size");
 
                 // دعم الفهارس السالبة: -1 = آخر عنصر، -2 = ما قبل الأخير...
                 if (idx < 0)
@@ -584,7 +585,7 @@ namespace Sad
                 lambdaName,                      // displayName
                 lambdaName,                      // registeredName
                 Data::FunctionRefKind::LAMBDA,   // kind
-                static_cast<int>(params.size()), // arity
+                ::Sad::Security::SafeArithmetic::assertSafeCast<int>(params.size(), "expression_evaluator_members_assign_size"), // arity
                 std::vector<std::string>()       // parameterNames (filled below)
             );
             // (AR) ملء أسماء المعاملات / (EN) Fill parameter names

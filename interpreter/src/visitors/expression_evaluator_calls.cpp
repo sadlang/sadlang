@@ -45,6 +45,7 @@ namespace Sad
 #include <cctype>
 #include <set>
 
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 namespace Sad
 {
     namespace Interpreter
@@ -393,11 +394,11 @@ namespace Sad
                 // (AR) دعم الفهرسة السالبة على نمط بايثون: -1 = آخر عنصر
                 // (EN) Support Python-style negative indexing: -1 = last element
                 if (idx < 0)
-                    idx = static_cast<int>(arr.size()) + idx;
+                    idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_calls_size") + idx;
 
-                if (idx < 0 || idx >= static_cast<int>(arr.size()))
+                if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_calls_size"))
                 {
-                    int sz = static_cast<int>(arr.size());
+                    int sz = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_calls_size");
                     throw IndexOutOfRangeError(
                         "(AR) الفهرس " + std::to_string(idx) + " خارج النطاق. الفهارس الصالحة: 0 إلى " + std::to_string(sz - 1) + " (أو -" + std::to_string(sz) + " إلى -1). الحجم: " + std::to_string(sz) + " / " +
                             "(EN) Index " + std::to_string(idx) + " out of range. Valid indices: 0 to " + std::to_string(sz - 1) + " (or -" + std::to_string(sz) + " to -1). Size: " + std::to_string(sz),
@@ -453,8 +454,8 @@ namespace Sad
                 }
                 int idx = index.toInt();
                 if (idx < 0)
-                    idx = static_cast<int>(chars.size()) + idx;
-                if (idx < 0 || idx >= static_cast<int>(chars.size()))
+                    idx = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_calls_size") + idx;
+                if (idx < 0 || idx >= ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_calls_size"))
                 {
                     throw RuntimeError(
                         "(AR) فهرس النص " + std::to_string(idx) + " خارج النطاق (الطول: " + std::to_string(chars.size()) + "). " +
@@ -475,7 +476,7 @@ namespace Sad
 
                 int idx = index.isInteger() ? index.toInt() : static_cast<int>(index.toDouble());
                 const auto &tupleElements = obj.toTupleRef();
-                int sz = static_cast<int>(tupleElements.size());
+                int sz = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(tupleElements.size(), "expression_evaluator_calls_size");
 
                 // (AR) دعم الفهرسة السالبة / (EN) Support negative indexing
                 if (idx < 0)
@@ -555,7 +556,7 @@ namespace Sad
             if (obj.isArray())
             {
                 const Value::ArrayType &arr = obj.toArrayRef();
-                int size = static_cast<int>(arr.size());
+                int size = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(arr.size(), "expression_evaluator_calls_size");
 
                 // (AR) حساب البداية / (EN) Compute start
                 int start = 0;
@@ -634,7 +635,7 @@ namespace Sad
                     chars.push_back(str.substr(i, charLen));
                     i += charLen;
                 }
-                int size = static_cast<int>(chars.size());
+                int size = ::Sad::Security::SafeArithmetic::assertSafeCast<int>(chars.size(), "expression_evaluator_calls_size");
 
                 int start = 0;
                 if (node.start)
