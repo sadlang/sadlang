@@ -5,6 +5,26 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ──────────────────────────────────────────────────────────────────────
+# (AR) مركز الأدوات الموحَّد — تنفيذي مستقل لا يعتمد على المفسّر/المترجم
+# (EN) Unified Tool Hub — standalone executable, no interpreter/compiler dep
+# (AR) يُبنى دائماً لأنه نقطة الدخول الجديدة للمستخدم (sad <cmd>)
+# (EN) Always built as it's the new user entry point (sad <cmd>)
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tools/hub/CMakeLists.txt")
+    add_subdirectory(tools/hub)
+    message(STATUS "✓ مركز الأدوات / Tool Hub: sad-hub")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
+# (AR) فاحص الملكية الثابت — يستخدم shared/ownership فقط (لا مفسّر/مترجم)
+# (EN) Static ownership checker — uses only shared/ownership
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tools/check/CMakeLists.txt")
+    add_subdirectory(tools/check)
+    message(STATUS "✓ فاحص الملكية / Ownership Checker: sad-check")
+endif()
+
+# ──────────────────────────────────────────────────────────────────────
 # خادم LSP / Language Server Protocol
 # ──────────────────────────────────────────────────────────────────────
 option(BUILD_LSP_SERVER "بناء خادم LSP / Build LSP server" ON)
@@ -38,9 +58,9 @@ if(BUILD_LSP_SERVER)
         add_subdirectory(tools/formatter)
     endif()
 
-    # المحلل المتقدم / Advanced Analizer
-    if(EXISTS "${CMAKE_SOURCE_DIR}/tools/analizer/CMakeLists.txt")
-        add_subdirectory(tools/analizer)
+    # المحلل المتقدم / Advanced Analyzer
+    if(EXISTS "${CMAKE_SOURCE_DIR}/tools/analyze/CMakeLists.txt")
+        add_subdirectory(tools/analyze)
     endif()
 
     # (AR) قواعد التثبيت مُجمّعة في cmake/install.cmake
@@ -48,7 +68,7 @@ if(BUILD_LSP_SERVER)
 
     message(STATUS "✓ خادم LSP / LSP Server: sad-lsp-server")
     message(STATUS "✓ أداة التنسيق / Formatter: sad-fmt")
-    message(STATUS "✓ المحلل المتقدم / Advanced Analizer: sad-analizer")
+    message(STATUS "✓ المحلل المتقدم / Advanced Analyzer: sad-analyze")
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
@@ -60,7 +80,8 @@ if(BUILD_PKG_MANAGER)
     add_executable(sad-pkg tools/pkg/cli_v2.cpp)
 
     target_include_directories(sad-pkg PRIVATE
-        ${CMAKE_SOURCE_DIR}/tools/pkg ${CMAKE_SOURCE_DIR}/include)
+        ${CMAKE_SOURCE_DIR}/tools/pkg ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/shared/utils/include)
 
     if(WIN32)
         target_link_libraries(sad-pkg PRIVATE winhttp)

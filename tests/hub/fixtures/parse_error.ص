@@ -1,0 +1,5 @@
+# (AR) ملف اختبار: خطأ نحوي متعمَّد غير قابل للتعافي (نص غير منتهٍ)
+# (EN) Fixture: intentional unrecoverable parse error (unterminated string)
+
+متغير س = "hello world without closing quote
+اطبع_سطر(س)

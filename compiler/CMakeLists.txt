@@ -259,44 +259,23 @@ endif()
 # تنسيق توزيع .sadbc لم يُكمَل، 0 استدعاءات داخلية، مكتبة ميتة.
 
 # ============================================================================
-# Semantic Analysis Library ( )
+# Semantic Analysis Library — نُقلت إلى shared/ownership/ (Ownership Unification)
 # ============================================================================
-# (AR) ملاحظة (Phase 3 F-01): type_checker.{h,cpp,*_visitors.cpp} نُقلت إلى
-#      shared/semantic/ كمكتبة sad_semantic_shared، لأن المفسر يحتاجها أيضاً.
-#      هنا نضم باقي ملفات الفحص الدلالي الخاصة بالمترجم فقط (borrow checker،
-#      lifetime analyzer، إلخ) ونربط sad_semantic_shared كـ PUBLIC dep ليظل
-#      العملاء قادرين على استعمال type_checker عبر sad_semantic.
-# (EN) Note (Phase 3 F-01): type_checker.{h,cpp,*_visitors.cpp} moved to
-#      shared/semantic/ as sad_semantic_shared, since the interpreter needs
-#      it too. Here we keep only compiler-specific semantic files (borrow
-#      checker, lifetime analyzer, etc.) and link sad_semantic_shared as a
-#      PUBLIC dep so consumers can still reach type_checker via sad_semantic.
+# (AR) إعادة هيكلة معمارية: ملفات الفحص الدلالي الخاصة بالملكية والاستعارة
+#      (borrow_checker, lifetime_analyzer, move_analyzer, ownership_tracker,
+#      unsafe_checker, pattern_ownership, exhaustiveness, this_binding,
+#      cascade_prevention) نُقلت من compiler/src/semantic/ إلى
+#      shared/ownership/src/ لتُستخدم من جميع المسارات (المفسّر، VM، المترجم،
+#      WASM، أداة الفحص المستقلة).
+#
+#      المكتبة الجديدة هي sad_ownership، ويوجد alias قديم باسم sad_semantic
+#      للتوافق الخلفي. الإضافة الفعلية تتم عبر cmake/libraries.cmake.
+#
+# (EN) Architecture refactor: ownership/borrow checking files moved from
+#      compiler/src/semantic/ to shared/ownership/src/ to be consumed by all
+#      execution paths. New library: sad_ownership (with legacy sad_semantic
+#      alias). Actual add_subdirectory done via cmake/libraries.cmake.
 # ============================================================================
-file(GLOB SEMANTIC_SOURCES "src/semantic/*.cpp")
-file(GLOB SEMANTIC_HEADERS "include/semantic/*.h")
-
-add_library(sad_semantic STATIC ${SEMANTIC_SOURCES})
-
-if(MSVC)
- target_compile_options(sad_semantic PRIVATE /utf-8 /wd4819 /FS)
-endif()
-
-target_include_directories(sad_semantic
- PUBLIC
- ${SAD_SHARED_DIR}/shared/types/include
- ${SAD_SHARED_DIR}/shared/ast/include
- ${SAD_SHARED_DIR}/shared/lexer/include
- ${SAD_SHARED_DIR}/shared/parser/include
- ${SAD_SHARED_DIR}/shared/errors/include
- ${CMAKE_CURRENT_SOURCE_DIR}/include
- ${CMAKE_CURRENT_SOURCE_DIR}/include/semantic
- ${CMAKE_CURRENT_SOURCE_DIR}/include/frontend
- ${CMAKE_SOURCE_DIR}/include
-)
-
-# (AR) sad_semantic_shared يصدر type_checker للعملاء عبر هذه المكتبة.
-# (EN) sad_semantic_shared re-exports type_checker for clients via this lib.
-target_link_libraries(sad_semantic PUBLIC sad_shared sad_type_system sad_semantic_shared)
 
 
 # ============================================================================

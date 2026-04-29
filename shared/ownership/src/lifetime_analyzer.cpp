@@ -1,4 +1,4 @@
-// Disable Unicode warning for Arabic comments
+﻿// Disable Unicode warning for Arabic comments
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -12,7 +12,7 @@
  * @phase Phase 4: US2 - Memory Safety
  */
 
-#include "semantic/lifetime_analyzer.h"
+#include "ownership/lifetime_analyzer.h"
 #include <iostream>
 #include <algorithm>
 

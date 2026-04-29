@@ -142,12 +142,10 @@ set(INTERPRETER_SOURCES
 
 # ──────────────────────────────────────────────────────────────────────
 # 6. إدارة البيانات والأنواع / Data & Type Management
+# (AR) ملفات shared/types/* أصبحت تأتي عبر sad_shared (إزالة الازدواج)
+# (EN) shared/types/* now come via sad_shared (de-duplicated)
 # ──────────────────────────────────────────────────────────────────────
 set(DATA_SOURCES
-    shared/types/src/value.cpp
-    shared/types/src/generator.cpp
-    shared/types/src/sad_type_system.cpp
-    shared/types/src/type_bridge.cpp         # ADR-01 Phase 1: جسر SadType ↔ Value
     interpreter/src/managers/variable_manager.cpp
     interpreter/src/managers/function_manager.cpp
     interpreter/src/managers/scope_manager.cpp
@@ -156,20 +154,18 @@ set(DATA_SOURCES
 
 # ──────────────────────────────────────────────────────────────────────
 # 7. البرمجة الكائنية / OOP (Object-Oriented Programming)
+# (AR) OOP_TYPES_SOURCES و OOP_AST_SOURCES و class_manager نُقلت إلى sad_shared
+#      للقضاء على ازدواج البناء (Phase: dedup sad_shared/sad_core).
+# (EN) OOP_TYPES_SOURCES, OOP_AST_SOURCES, and class_manager moved to sad_shared
+#      to eliminate build duplication (Phase: dedup sad_shared/sad_core).
 # ──────────────────────────────────────────────────────────────────────
-set(OOP_TYPES_SOURCES
-    shared/types/src/class_type.cpp
-    shared/types/src/object_instance.cpp
-)
+set(OOP_TYPES_SOURCES)
 
 set(OOP_MANAGERS_SOURCES
-    interpreter/src/managers/class_manager.cpp
     interpreter/src/managers/object_manager.cpp
 )
 
-set(OOP_AST_SOURCES
-    shared/ast/src/class_nodes.cpp
-)
+set(OOP_AST_SOURCES)
 
 # معطل - تم نقله إلى parser_core_oop.cpp
 set(OOP_PARSER_SOURCES)
@@ -326,25 +322,27 @@ set(HOT_RELOAD_SOURCES
 # ──────────────────────────────────────────────────────────────────────
 # تجميع جميع المصادر / Aggregate all sources
 # ──────────────────────────────────────────────────────────────────────
+# (AR) المجموعات التالية أُزيلت لأنها تُبنى عبر مكتبة sad_shared:
+#       UTILS_SOURCES, LEXER_SOURCES, PARSER_SOURCES, AST_SOURCES,
+#       OOP_TYPES_SOURCES, OOP_AST_SOURCES, ERROR_SOURCES, MODULES_SOURCES،
+#       بالإضافة إلى ملفات shared/types من DATA_SOURCES و class_manager.
+#       sad_core يربط sad_shared كـ PUBLIC في cmake/libraries.cmake.
+# (EN) The following groups were removed because sad_shared already builds them:
+#       UTILS_SOURCES, LEXER_SOURCES, PARSER_SOURCES, AST_SOURCES,
+#       OOP_TYPES_SOURCES, OOP_AST_SOURCES, ERROR_SOURCES, MODULES_SOURCES,
+#       plus shared/types files from DATA_SOURCES and class_manager.
+#       sad_core links sad_shared PUBLIC in cmake/libraries.cmake.
 set(ALL_SOURCES
-    ${UTILS_SOURCES}
-    ${LEXER_SOURCES}
-    ${PARSER_SOURCES}
-    ${AST_SOURCES}
     ${INTERPRETER_SOURCES}
     ${DATA_SOURCES}
-    ${OOP_TYPES_SOURCES}
     ${OOP_MANAGERS_SOURCES}
-    ${OOP_AST_SOURCES}
     ${OOP_PARSER_SOURCES}
     ${OOP_INTERPRETER_SOURCES}
-    ${ERROR_SOURCES}
     ${STDLIB_SOURCES}
     ${BUILTINS_SOURCES}
     ${OPTIMIZER_SOURCES}
     ${LOW_LEVEL_SOURCES}
     ${COMPILER_FRONTEND_SOURCES}
-    ${MODULES_SOURCES}
     ${HOT_RELOAD_SOURCES}
 )
 

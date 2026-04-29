@@ -7,6 +7,10 @@ add_executable(sad-apk
 
 target_compile_features(sad-apk PRIVATE cxx_std_17)
 
+target_include_directories(sad-apk PRIVATE
+    ${CMAKE_SOURCE_DIR}/shared/utils/include
+)
+
 # Windows-specific settings
 if(WIN32)
     target_compile_definitions(sad-apk PRIVATE

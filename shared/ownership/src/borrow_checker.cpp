@@ -12,7 +12,7 @@
  * @phase Phase 4: US2 - Memory Safety
  */
 
-#include "semantic/borrow_checker.h"
+#include "ownership/borrow_checker.h"
 #include <iostream>
 #include <sstream>
 

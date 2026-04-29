@@ -34,7 +34,7 @@ endif()
 target_include_directories(sad PRIVATE
     ${CMAKE_SOURCE_DIR}/vm/include
     ${CMAKE_SOURCE_DIR}/compiler/include
-    ${CMAKE_SOURCE_DIR}/compiler/include/semantic
+    ${CMAKE_SOURCE_DIR}/shared/ownership/include
     ${CMAKE_SOURCE_DIR}/compiler/include/types
     ${CMAKE_SOURCE_DIR}/compiler/include/backend
     ${CMAKE_SOURCE_DIR}/tools/compiler/src
@@ -54,11 +54,11 @@ target_include_directories(sad PRIVATE
 )
 
 set_target_properties(sad PROPERTIES
-    OUTPUT_NAME "sad"
+    OUTPUT_NAME "sad-run"
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 )
 
-message(STATUS "✓ المفسر / Interpreter: sad")
+message(STATUS "✓ المفسر / Interpreter: sad-run")
 
 # ──────────────────────────────────────────────────────────────────────
 # مكتبة المنسّق / Formatter Library
@@ -119,13 +119,19 @@ target_include_directories(sad_mobile PUBLIC
     ${CMAKE_SOURCE_DIR}/shared/types/include
     ${CMAKE_SOURCE_DIR}/shared/lexer/include
     ${CMAKE_SOURCE_DIR}/shared/errors/include
+    ${CMAKE_SOURCE_DIR}/shared/ownership/include
+    ${CMAKE_SOURCE_DIR}/shared/utils/include
     ${CMAKE_SOURCE_DIR}/compiler/include
     ${CMAKE_SOURCE_DIR}/compiler/include/backend
 )
 
 target_compile_features(sad_mobile PUBLIC cxx_std_17)
 
-target_link_libraries(sad_mobile PUBLIC sad_formatter)
+# (AR) Ownership Unification: sad_mobile يستهلك ownership_manager.h ضمن sad_core
+#      لذا يحتاج include path الجديد ورابط sad_ownership
+# (EN) Ownership Unification: sad_mobile transitively consumes ownership_manager.h
+#      so it needs the new include path and the sad_ownership link
+target_link_libraries(sad_mobile PUBLIC sad_formatter sad_ownership)
 
 set_target_properties(sad_mobile PROPERTIES
     OUTPUT_NAME "sad_mobile"
@@ -222,7 +228,7 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         ${CMAKE_SOURCE_DIR}/shared/hot_reload/include
         ${CMAKE_SOURCE_DIR}/compiler/include
         ${CMAKE_SOURCE_DIR}/compiler/include/frontend
-        ${CMAKE_SOURCE_DIR}/compiler/include/semantic
+        ${CMAKE_SOURCE_DIR}/shared/ownership/include
         ${CMAKE_SOURCE_DIR}/compiler/include/types
         ${CMAKE_SOURCE_DIR}/compiler/include/backend/llvm
         ${SAD_LLVM_INCLUDES}
@@ -249,7 +255,7 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     endif()
 
     set_target_properties(sadc PROPERTIES
-        OUTPUT_NAME "sadc"
+        OUTPUT_NAME "sad-build"
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
     )
 
@@ -261,7 +267,7 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         target_link_options(sadc PRIVATE -Wl,-z,stacksize=134217728)
     endif()
 
-    message(STATUS "✓ المترجم / Compiler: sadc (LLVM ${LLVM_PACKAGE_VERSION})")
+    message(STATUS "✓ المترجم / Compiler: sad-build (LLVM ${LLVM_PACKAGE_VERSION})")
 else()
     message(STATUS "⊘ المترجم sadc معطّل (LLVM غير متوفر) / sadc disabled")
 endif()

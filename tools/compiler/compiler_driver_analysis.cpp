@@ -49,7 +49,7 @@
 #include "../../compiler/include/frontend/sir_frontend_optimizer.h"
 
 // Borrow Checker / فاحص الاستعارة
-#include "../../compiler/include/semantic/borrow_checker.h"
+#include "ownership/borrow_checker.h"
 #include "statements.h"
 
 // (AR) عقد الوحدات — ImportStmt و FromImportStmt لحل التبعيات تلقائياً

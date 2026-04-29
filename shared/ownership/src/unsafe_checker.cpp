@@ -1,4 +1,4 @@
-// تعطيل تحذير Unicode للتعليقات العربية
+﻿// تعطيل تحذير Unicode للتعليقات العربية
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -22,7 +22,7 @@
  *     4. تتبع مستوى الكتل غير الآمنة المتداخلة
  */
 
-#include "semantic/unsafe_checker.h"
+#include "ownership/unsafe_checker.h"
 #include <iostream>
 #include <sstream>
 

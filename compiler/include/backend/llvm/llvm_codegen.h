@@ -74,44 +74,44 @@
 
 // Sad LLVM Components (مكونات Sad LLVM)
 #include "llvm_type_mapper.h"
-#include "llvm_optimizer.h"                     // إضافة محسّن LLVM / Add LLVM optimizer
-#include "llvm_codegen_context.h"               // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
-#include "builders/arithmetic/arithmetic_codegen.h"        // (AR) Phase 7 Step 1: ArithmeticCodeGen
-#include "builders/memory/memory_codegen.h"            // (AR) Phase 7 Step 2: MemoryCodeGen
-#include "builders/arithmetic/controlflow_codegen.h"       // (AR) Phase 7 Step 3: ControlFlowCodeGen
-#include "builders/memory/aggregate_ops_codegen.h"     // (AR) Phase 7 Step 4: AggregateOpsCodeGen
-#include "builders/collections/array_ops_codegen.h"         // (AR) Phase 7 Step 5: ArrayOpsCodeGen
-#include "builders/collections/string_ops_codegen.h"        // (AR) Phase 7 Step 6: StringOpsCodeGen
-#include "builders/collections/array_builtins_codegen.h"    // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
+#include "llvm_optimizer.h"                              // إضافة محسّن LLVM / Add LLVM optimizer
+#include "llvm_codegen_context.h"                        // (AR) قاعدة الحالة (Phase 7 Step 0) / (EN) State base
+#include "builders/arithmetic/arithmetic_codegen.h"      // (AR) Phase 7 Step 1: ArithmeticCodeGen
+#include "builders/memory/memory_codegen.h"              // (AR) Phase 7 Step 2: MemoryCodeGen
+#include "builders/arithmetic/controlflow_codegen.h"     // (AR) Phase 7 Step 3: ControlFlowCodeGen
+#include "builders/memory/aggregate_ops_codegen.h"       // (AR) Phase 7 Step 4: AggregateOpsCodeGen
+#include "builders/collections/array_ops_codegen.h"      // (AR) Phase 7 Step 5: ArrayOpsCodeGen
+#include "builders/collections/string_ops_codegen.h"     // (AR) Phase 7 Step 6: StringOpsCodeGen
+#include "builders/collections/array_builtins_codegen.h" // (AR) Phase 7 Step 7: ArrayBuiltinsCodeGen
 #include "builders/builtins/math_builtins_codegen.h"     // (AR) Phase 7 Step 8: MathBuiltinsCodeGen
-#include "builders/collections/map_ops_codegen.h"           // (AR) Phase 7 Step 9: MapOpsCodeGen
-#include "builders/arithmetic/exception_codegen.h"         // (AR) Phase 7 Step 10: ExceptionCodeGen
+#include "builders/collections/map_ops_codegen.h"        // (AR) Phase 7 Step 9: MapOpsCodeGen
+#include "builders/arithmetic/exception_codegen.h"       // (AR) Phase 7 Step 10: ExceptionCodeGen
 #include "builders/platform/lowlevel_codegen.h"          // (AR) Phase 7 Step 11: LowlevelCodeGen
-#include "builders/oop/enum_ops_codegen.h"          // (AR) Phase 7 Step 12: EnumOpsCodeGen
+#include "builders/oop/enum_ops_codegen.h"               // (AR) Phase 7 Step 12: EnumOpsCodeGen
 #include "builders/platform/hardware_ffi_codegen.h"      // (AR) Phase 7 Step 13: HardwareFFICodeGen
-#include "builders/memory/closure_codegen.h"           // (AR) Phase 7 Step 14: ClosureCodeGen
+#include "builders/memory/closure_codegen.h"             // (AR) Phase 7 Step 14: ClosureCodeGen
 #include "builders/builtins/io_builtins_codegen.h"       // (AR) Phase 7 Step 15: IOBuiltinsCodeGen
 #include "builders/builtins/security_builtins_codegen.h" // (AR) Phase 7 Step 15: SecurityBuiltinsCodeGen
 #include "builders/platform/ffi_remain_codegen.h"        // (AR) Phase 7 Step 15: FFIRemainCodeGen
-#include "builders/core/freestanding_codegen.h"      // (AR) Phase 7 Step 16: FreestandingCodeGen
-#include "builders/oop/objects_arrays_codegen.h"    // (AR) Phase 7 Step 17: ObjectsArraysCodeGen
-#include "builders/oop/oop_ops_codegen.h"           // (AR) Phase 7 Step 18: OOPOpsCodeGen
-#include "builders/directives/concurrency_codegen.h"       // (AR) Phase 8 Step 1: ConcurrencyCodeGen
+#include "builders/core/freestanding_codegen.h"          // (AR) Phase 7 Step 16: FreestandingCodeGen
+#include "builders/oop/objects_arrays_codegen.h"         // (AR) Phase 7 Step 17: ObjectsArraysCodeGen
+#include "builders/oop/oop_ops_codegen.h"                // (AR) Phase 7 Step 18: OOPOpsCodeGen
+#include "builders/directives/concurrency_codegen.h"     // (AR) Phase 8 Step 1: ConcurrencyCodeGen
 #include "builders/platform/ui_codegen.h"                // (AR) Phase 8 Step 2: UICodeGen
-#include "builders/oop/classes_vtables_codegen.h"   // (AR) Phase 8 Step 3: ClassesVtablesCodeGen
-#include "builders/oop/functions_codegen.h"         // (AR) Phase 8 Step 4: FunctionsCodeGen
+#include "builders/oop/classes_vtables_codegen.h"        // (AR) Phase 8 Step 3: ClassesVtablesCodeGen
+#include "builders/oop/functions_codegen.h"              // (AR) Phase 8 Step 4: FunctionsCodeGen
 #include "builders/builtins/builtin_funcs_codegen.h"     // (AR) Phase 8 Step 5: BuiltinFuncsCodeGen
 #include "builders/builtins/network_builtins_codegen.h"  // (AR) Phase 8 Step 6: NetworkBuiltinsCodeGen
-#include "builders/directives/coroutines_codegen.h"        // (AR) Phase 8 Step 7: CoroutinesCodeGen
-#include "builders/collections/strings_codegen.h"           // (AR) Phase 8 Step 8: StringsCodeGen
-#include "builders/core/instr_core_codegen.h"        // (AR) Phase 8 Step 9: InstrCoreCodeGen
-#include "builders/directives/simd_codegen.h"              // (AR) Phase 8 Step 10
+#include "builders/directives/coroutines_codegen.h"      // (AR) Phase 8 Step 7: CoroutinesCodeGen
+#include "builders/collections/strings_codegen.h"        // (AR) Phase 8 Step 8: StringsCodeGen
+#include "builders/core/instr_core_codegen.h"            // (AR) Phase 8 Step 9: InstrCoreCodeGen
+#include "builders/directives/simd_codegen.h"            // (AR) Phase 8 Step 10
 #include "builders/platform/instr_lowlevel_codegen.h"    // (AR) Phase 8 Step 10
 #include "builders/platform/file_casts_codegen.h"        // (AR) Phase 8 Step 10
-#include "builders/directives/directives_codegen.h"        // (AR) Phase 8 Step 10
+#include "builders/directives/directives_codegen.h"      // (AR) Phase 8 Step 10
 #include "builders/platform/instr_platform_codegen.h"    // (AR) Phase 8 Step 10
-#include "builders/core/output_codegen.h"            // (AR) Phase 8 Step 10
-#include "builders/core/types_codegen.h"             // (AR) Phase 9: TypesCodeGen
+#include "builders/core/output_codegen.h"                // (AR) Phase 8 Step 10
+#include "builders/core/types_codegen.h"                 // (AR) Phase 9: TypesCodeGen
 
 // Sad SIR Components (مكونات Sad SIR)
 // Source: compiler/frontend/include/sir_*.h - مضاف في CMake include_directories line 27
@@ -824,7 +824,7 @@ namespace Sad
             // ================================================================
             // عمليات برمجة أنظمة التشغيل — OS Development Operations
             // ================================================================
-            llvm::Value *emitInlineAsm(std::shared_ptr<SIRInstruction> inst) { return strs_->emitInlineAsm(inst); }                                        // تجميع مضمّن
+            llvm::Value *emitInlineAsm(std::shared_ptr<SIRInstruction> inst) { return strs_->emitInlineAsm(inst); }  // تجميع مضمّن
             llvm::Value *emitPortWrite(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitPortWrite(inst); } // منفذ_اكتب / outb/outw/outl
             llvm::Value *emitPortRead(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitPortRead(inst); }   // منفذ_اقرأ / inb/inw/inl
             llvm::Value *emitMemWrite(std::shared_ptr<SIRInstruction> inst) { return hwffi_->emitMemWrite(inst); }   // ذاكرة_اكتب / poke
@@ -1384,25 +1384,25 @@ namespace Sad
             /**
              * الحصول على الأنواع الأساسية / Get primitive types (Phase 9 → TypesCodeGen)
              */
-            llvm::Type *getVoidType()    { return types_->getVoidType(); }
-            llvm::Type *getInt1Type()    { return types_->getInt1Type(); }
-            llvm::Type *getInt8Type()    { return types_->getInt8Type(); }
-            llvm::Type *getInt16Type()   { return types_->getInt16Type(); }
-            llvm::Type *getInt32Type()   { return types_->getInt32Type(); }
-            llvm::Type *getInt64Type()   { return types_->getInt64Type(); }
-            llvm::Type *getFloatType()   { return types_->getFloatType(); }
-            llvm::Type *getDoubleType()  { return types_->getDoubleType(); }
+            llvm::Type *getVoidType() { return types_->getVoidType(); }
+            llvm::Type *getInt1Type() { return types_->getInt1Type(); }
+            llvm::Type *getInt8Type() { return types_->getInt8Type(); }
+            llvm::Type *getInt16Type() { return types_->getInt16Type(); }
+            llvm::Type *getInt32Type() { return types_->getInt32Type(); }
+            llvm::Type *getInt64Type() { return types_->getInt64Type(); }
+            llvm::Type *getFloatType() { return types_->getFloatType(); }
+            llvm::Type *getDoubleType() { return types_->getDoubleType(); }
             llvm::Type *getInt8PtrType() { return types_->getInt8PtrType(); }
 
             // ========================================================================
             // Constants / الثوابت — Phase 9 → TypesCodeGen
             // ========================================================================
 
-            llvm::Constant *getConstantInt(int64_t value, int bits = 64)        { return types_->getConstantInt(value, bits); }
+            llvm::Constant *getConstantInt(int64_t value, int bits = 64) { return types_->getConstantInt(value, bits); }
             llvm::Constant *getConstantFloat(double value, bool isDouble = false) { return types_->getConstantFloat(value, isDouble); }
-            llvm::Constant *getConstantString(const std::string &value)         { return types_->getConstantString(value); }
-            llvm::Constant *getConstantBool(bool value)                          { return types_->getConstantBool(value); }
-            llvm::Constant *getNullPtr(llvm::Type *ptrType)                      { return types_->getNullPtr(ptrType); }
+            llvm::Constant *getConstantString(const std::string &value) { return types_->getConstantString(value); }
+            llvm::Constant *getConstantBool(bool value) { return types_->getConstantBool(value); }
+            llvm::Constant *getNullPtr(llvm::Type *ptrType) { return types_->getNullPtr(ptrType); }
 
             // ========================================================================
             // Output / الإخراج

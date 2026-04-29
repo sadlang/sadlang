@@ -17,7 +17,7 @@
 #include "statements.h"
 
 // Borrow Checker / فاحص الاستعارة
-#include "semantic/borrow_checker.h"
+#include "ownership/borrow_checker.h"
 
 // Type Checker / فاحص الأنواع
 #include "semantic/type_checker.h"

@@ -31,6 +31,22 @@ endif()
 
 add_library(sad_core STATIC ${ALL_SOURCES})
 
+# (AR) Phase: dedup sad_shared/sad_core — sad_core يربط sad_shared كـ PUBLIC
+#      ليُمرّر includes ويتجنب ازدواج بناء (lexer/parser/ast/types/errors/modules/utils
+#      + class_manager). كان كل ملف من 49 ملفاً مشتركاً يُترجَم مرتين قبل هذا الإصلاح.
+# (EN) Phase: dedup sad_shared/sad_core — sad_core links sad_shared PUBLIC to
+#      forward includes and avoid build duplication (lexer/parser/ast/types/errors/
+#      modules/utils + class_manager). Each of 49 shared files used to compile twice
+#      before this fix.
+target_link_libraries(sad_core PUBLIC sad_shared)
+
+# (AR) Ownership Unification: sad_core يربط sad_ownership ليستهلك المفسّر
+#      نظام الملكية الموحَّد عبر wrapper في interpreter/src/managers/ownership_manager.cpp
+# (EN) Ownership Unification: sad_core links sad_ownership so the interpreter
+#      consumes the unified ownership system via the wrapper in
+#      interpreter/src/managers/ownership_manager.cpp
+target_link_libraries(sad_core PUBLIC sad_ownership)
+
 if(MSVC)
     target_compile_options(sad_core PRIVATE /FS /utf-8 /Z7)
 endif()
@@ -39,17 +55,11 @@ endif()
 #      حتى تتوفر دوال stdlib/network للمفسر ولكل المستهلكين لـ sad_core.
 # (EN) Enable the real HTTP path inside sad_core and link network libraries
 #      so stdlib/network builtins are available to the interpreter and all sad_core consumers.
-if(TARGET sad_network AND TARGET sad_http)
-    target_link_libraries(sad_core PUBLIC sad_network sad_http)
-    target_compile_definitions(sad_core PRIVATE HAS_NETWORK_LIB)
-    message(STATUS "✓ دعم الشبكة HTTP بالمفسر / Enabled HTTP network support in interpreter")
-endif()
-
-# ربط مكتبة WebSocket بالمفسر / Link sad_websocket to interpreter
-if(TARGET sad_websocket)
-    target_link_libraries(sad_core PUBLIC sad_websocket)
-    message(STATUS "✓ ربط WebSocket بالمفسر / Linked WebSocket to interpreter")
-endif()
+# ملاحظة (AR): الربط الفعلي يتم في cmake/network.cmake لأن أهداف sad_network/
+#              sad_http/sad_websocket تُعرَّف هناك بعد تحميل هذا الملف.
+# Note (EN): Actual linking happens in cmake/network.cmake because the
+#            sad_network/sad_http/sad_websocket targets are defined there
+#            AFTER this file has been included.
 
 # ربط مكتبة وقت التشغيل بالمفسر / Link runtime to interpreter
 # (AR) sad_rt_runtime معرّف في runtime/CMakeLists.txt كمكتبة INTERFACE تجمع abi + ffi + ui

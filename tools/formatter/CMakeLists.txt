@@ -40,6 +40,7 @@ target_include_directories(sad-fmt PRIVATE
     ${CMAKE_SOURCE_DIR}/shared/parser/include
     ${CMAKE_SOURCE_DIR}/shared/types/include
     ${CMAKE_SOURCE_DIR}/shared/errors/include
+    ${CMAKE_SOURCE_DIR}/shared/utils/include
 )
 
 # تعطيل تحذيرات Unicode على Windows / Disable Unicode warnings on Windows

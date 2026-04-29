@@ -404,4 +404,11 @@ else()
     message(STATUS "⚠ اختبارات Type Checker غير متاحة / Type Checker tests not available")
 endif()
 
+# ──────────────────────────────────────────────────────────────────────
+# (AR) اختبارات الهب و sad-check / (EN) Hub & sad-check tests
+# ──────────────────────────────────────────────────────────────────────
+if(EXISTS "${CMAKE_SOURCE_DIR}/tests/hub/CMakeLists.txt")
+    add_subdirectory(tests/hub)
+endif()
+
 message(STATUS "✓ الاختبارات مفعلة / Tests enabled")

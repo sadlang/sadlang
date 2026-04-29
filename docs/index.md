@@ -49,6 +49,21 @@
 
 ## 🏗️ البنية الداخلية
 
+### 🔬 وثائق التفكيك المعماري (29 أبريل 2026 — أحدث)
+
+> هذه السلسلة تُفكّك كل مكوّن في المشروع بدقة عالية وتربطه بمسار التنفيذ الفعلي والكود.
+
+| المستند | المحتوى |
+|---------|---------|
+| [نظرة عامة على المشروع v1.3.0](project-overview.md) | **البنية الكاملة لـ 4 مسارات متوازية** + مخططات Mermaid + جدول مقارنة |
+| [خارطة ميزات CLI](architecture-cli-features.md) | **كل خيار** في `sad` و `sadc` مع موقعه في الكود |
+| [تفكيك أدوات tools/](architecture-tools-breakdown.md) | جميع الـ 11 برنامج تنفيذي في `tools/` (sad-lsp, sad-fmt, sad-repl, sad-pkg, ...) مع تبعياتهم |
+| [دليل sad-check](sad-check-guide.md) | **فاحص الملكية الثابت** — جميع الأوضاع (--watch, --recursive, --summary, --json) + سيناريوهات CI |
+| [تفكيك المكتبة القياسية stdlib/](architecture-stdlib-breakdown.md) | كل وحدة في `stdlib/` (string/math/io/network/low_level/...) — أي مكتبة C++ تجمعها وأي مسار يخدمها |
+| [تفكيك النواة المشتركة shared/](architecture-shared-breakdown.md) | كل مكون في `shared/` (lexer/parser/ast/types/errors/semantic/modules/builtins/profiler/...) + اكتشافات الازدواج |
+| [تفكيك المسارين 1 و 2 (Interpreter + VM)](architecture-interpreter-vm-breakdown.md) | تفكيك `interpreter/` و `vm/` مع مقارنة كاملة بين المحرّكَين |
+| [📘 الملخص الشامل للتفكيك المعماري](architecture-summary.md) | **نقطة الدخول الموحَّدة** لكل وثائق التفكيك + 10 ديون تقنية + توصيات + إحصائيات |
+
 ### تحليل المشروع
 
 | المستند | الوصف |

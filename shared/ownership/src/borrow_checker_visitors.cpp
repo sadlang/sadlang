@@ -9,7 +9,7 @@
 #pragma warning(disable : 4819)
 #endif
 
-#include "semantic/borrow_checker.h"
+#include "ownership/borrow_checker.h"
 #include <iostream>
 #include <sstream>
 

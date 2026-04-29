@@ -41,6 +41,7 @@
 
 #include "lsp_engine.h"
 #include "json_rpc_transport.h"
+#include "utf8_args.h"
 
 #include <iostream>
 #include <cstring>
@@ -53,14 +54,16 @@ using namespace sad::lsp;
 using namespace sad::lsp::transport;
 
 /// طباعة معلومات الإصدار
-static void print_version() {
+static void print_version()
+{
     std::cerr << "خادم لغة ص الثوري (SAD LSP Server) v2.0.0" << std::endl;
     std::cerr << "بروتوكول LSP 3.17" << std::endl;
     std::cerr << "الحمد لله رب العالمين" << std::endl;
 }
 
 /// طباعة المساعدة
-static void print_help() {
+static void print_help()
+{
     std::cerr << R"(
 ╔═══════════════════════════════════════════════════════════════════╗
 ║            خادم بروتوكول اللغة الثوري للغة ص                     ║
@@ -89,24 +92,31 @@ static void print_help() {
 )" << std::endl;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
 #ifdef _WIN32
     // تعيين صفحة الترميز إلى UTF-8
     SetConsoleCP(65001);
     SetConsoleOutputCP(65001);
 #endif
+    // (AR) ربط argv بـUTF-8 لدعم الأسماء العربية على ويندوز
+    Sad::Utils::Utf8ArgvHolder _argvHolder(argc, argv);
 
     // معالجة وسائط سطر الأوامر
-    for (int i = 1; i < argc; ++i) {
-        if (std::strcmp(argv[i], "--version") == 0 || std::strcmp(argv[i], "-v") == 0) {
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::strcmp(argv[i], "--version") == 0 || std::strcmp(argv[i], "-v") == 0)
+        {
             print_version();
             return 0;
         }
-        if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
+        if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0)
+        {
             print_help();
             return 0;
         }
-        if (std::strcmp(argv[i], "--stdio") == 0) {
+        if (std::strcmp(argv[i], "--stdio") == 0)
+        {
             // الوضع الافتراضي - لا شيء مطلوب
             continue;
         }

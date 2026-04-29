@@ -1,4 +1,4 @@
-// ════════════════════════════════════════════════════════════════════════════════
+﻿// ════════════════════════════════════════════════════════════════════════════════
 // ملف: pattern_ownership.cpp
 // File: pattern_ownership.cpp
 //
@@ -30,8 +30,8 @@
 #endif
 
 #include "pattern_nodes.h"
-#include "semantic/ownership_tracker.h"
-#include "semantic/borrow_checker.h"
+#include "ownership/ownership_tracker.h"
+#include "ownership/borrow_checker.h"
 #include <iostream>
 #include <sstream>
 #include <unordered_map>

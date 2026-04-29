@@ -1,4 +1,4 @@
-// Disable Unicode warning for Arabic comments
+﻿// Disable Unicode warning for Arabic comments
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4819)
@@ -32,7 +32,7 @@
 #ifndef SAD_BORROW_CHECKER_H
 #define SAD_BORROW_CHECKER_H
 
-#include "semantic/ownership_tracker.h"
+#include "ownership/ownership_tracker.h"
 #include "ast_visitor.h"
 #include "ast_node.h"
 #include "expressions.h"

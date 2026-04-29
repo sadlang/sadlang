@@ -1,4 +1,4 @@
-// Disable Unicode warning for Arabic comments
+﻿// Disable Unicode warning for Arabic comments
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -12,7 +12,7 @@
  * @phase Phase 4: US2 - Memory Safety
  */
 
-#include "semantic/ownership_tracker.h"
+#include "ownership/ownership_tracker.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>

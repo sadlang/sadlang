@@ -127,3 +127,14 @@ message(STATUS "Configured sad_shared library")
 # ============================================================================
 add_subdirectory(semantic)
 
+# ============================================================================
+# (AR) المكتبة الفرعية: نظام الملكية الموحَّد (sad_ownership)
+# (EN) Sub-library: unified ownership system (sad_ownership)
+# (AR) نُقلت من compiler/src/semantic/ لتُستخدم من جميع المسارات (المفسّر/VM/
+#      المترجم/WASM/أداة الفحص). تنشئ alias قديم باسم sad_semantic للتوافق.
+# (EN) Moved from compiler/src/semantic/ to be consumed by all execution paths.
+#      Creates legacy sad_semantic alias for backward compatibility.
+# @phase Architecture Refactor: Ownership Unification
+# ============================================================================
+add_subdirectory(ownership)
+

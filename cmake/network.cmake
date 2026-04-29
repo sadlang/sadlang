@@ -114,3 +114,14 @@ set_target_properties(sad_websocket PROPERTIES
 )
 
 message(STATUS "✓ WebSocket: Client + Server")
+
+# (AR) ربط sad_websocket بـ sad_core (يجب أن يتم هنا لأن libraries.cmake
+#      تُحمَّل قبل network.cmake، فالشرط `if(TARGET sad_websocket)` هناك
+#      يكون false دائماً ولا يُربط شيء).
+# (EN) Link sad_websocket into sad_core here. libraries.cmake runs before
+#      network.cmake so its `if(TARGET sad_websocket)` guard is always false.
+if(TARGET sad_core)
+    target_link_libraries(sad_core PUBLIC sad_websocket)
+    target_compile_definitions(sad_core PRIVATE HAS_WEBSOCKET_LIB)
+    message(STATUS "✓ ربط WebSocket بالمفسر / Linked WebSocket to interpreter")
+endif()

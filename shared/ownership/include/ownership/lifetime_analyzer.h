@@ -1,4 +1,4 @@
-// Disable Unicode warning for Arabic comments
+﻿// Disable Unicode warning for Arabic comments
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4819)
@@ -27,7 +27,7 @@
 #ifndef SAD_LIFETIME_ANALYZER_H
 #define SAD_LIFETIME_ANALYZER_H
 
-#include "semantic/ownership_tracker.h"
+#include "ownership/ownership_tracker.h"
 #include <string>
 #include <vector>
 #include <unordered_map>

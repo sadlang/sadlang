@@ -1,4 +1,4 @@
-// Disable Unicode warning for Arabic comments
+﻿// Disable Unicode warning for Arabic comments
 #ifdef _MSC_VER
 #pragma warning(disable: 4819)
 #endif
@@ -30,7 +30,7 @@
  *      4. **Closure analysis**: Tracks move captures
  */
 
-#include "semantic/move_analyzer.h"
+#include "ownership/move_analyzer.h"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
