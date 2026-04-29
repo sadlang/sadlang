@@ -24,6 +24,9 @@
 // (AR) الطبقة الأمنية المشتركة: فحص حدود المصفوفات والمكدس.
 // (EN) Shared security layer: array/stack bounds checks via BoundsChecker.
 #include "bounds_checker.h"
+// (AR) تحويل عددي آمن مع كشف الفيض (size_t → int) لمنع البَتر الصامت.
+// (EN) Bounds-checked integer cast (size_t → int) to prevent silent truncation.
+#include "safe_arithmetic.h"
 
 #include <iostream>
 #include <algorithm>
@@ -1541,7 +1544,7 @@ uint32_t آلة_افتراضية::السطر_الحالي() const {
 
 void آلة_افتراضية::اطبع_تتبع_المكدس() const {
     std::cerr << "║\n║ تتبع الاستدعاءات:\n";
-    for (int ف = static_cast<int>(الإطارات_.size()) - 1; ف >= 0; ف--) {
+    for (int ف = Sad::Security::SafeArithmetic::assertSafeCast<int>(الإطارات_.size(), "frames_index") - 1; ف >= 0; ف--) {
         const auto& إطار = الإطارات_[ف];
         std::cerr << "║   [" << ف << "] ";
         if (إطار.الدالة) {

@@ -20,6 +20,8 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <stdexcept>
+#include <string>
 #include <type_traits>
 
 namespace Sad {
@@ -122,12 +124,43 @@ public:
     /// @brief (EN) Safe cast between integral types (bounds-checked)
     template <typename To, typename From>
     static bool safeCast(From value, To& result) noexcept {
-        if (value < std::numeric_limits<To>::min() ||
-            value > std::numeric_limits<To>::max()) {
-            return false;
+        static_assert(std::is_integral_v<From>, "Integral source required");
+        static_assert(std::is_integral_v<To>,   "Integral target required");
+
+        // (AR) المقارنة الآمنة بين أنواع مختلفة الإشارة عبر تقسيم الحالات.
+        // (EN) Sign-aware comparison split into cases to avoid mixed-sign warnings.
+        if constexpr (std::is_signed_v<From> == std::is_signed_v<To>) {
+            if (value < static_cast<From>(std::numeric_limits<To>::min()) ||
+                value > static_cast<From>(std::numeric_limits<To>::max())) {
+                return false;
+            }
+        } else if constexpr (std::is_signed_v<From> && !std::is_signed_v<To>) {
+            // (AR) From موقعة، To غير موقعة → يجب أن تكون value ≥ 0.
+            if (value < 0) return false;
+            using UFrom = std::make_unsigned_t<From>;
+            if (static_cast<UFrom>(value) > std::numeric_limits<To>::max()) return false;
+        } else {
+            // (AR) From غير موقعة، To موقعة → max(To) قد يكون أصغر.
+            if (value > static_cast<From>(std::numeric_limits<To>::max())) return false;
         }
         result = static_cast<To>(value);
         return true;
+    }
+
+    /// @brief (AR) تحويل آمن مع رمي std::overflow_error عند الفيض.
+    /// @brief (EN) Bounds-checked cast that throws std::overflow_error on overflow.
+    /// (AR) مفيد في hot paths حيث الفيض يعني خطأ منطقي يستحق إيقاف التنفيذ
+    ///      (مثل arity دالة > INT_MAX، أو فهرس حلقة عكسية تجاوز int).
+    /// (EN) Suitable when overflow signals a logic bug worth aborting (e.g.
+    ///      function arity > INT_MAX, reverse-loop counter exceeding int).
+    template <typename To, typename From>
+    static To assertSafeCast(From value, const char* contextName) {
+        To result{};
+        if (!safeCast<To>(value, result)) {
+            throw std::overflow_error(
+                std::string("safeCast overflow: ") + contextName);
+        }
+        return result;
     }
 
     /// @brief (AR) تحويل آمن من عشري إلى صحيح (يرفض NaN/Inf والقيم خارج النطاق)

@@ -25,6 +25,10 @@
 #include <sstream>
 #include <algorithm>
 
+// (AR) تحويل عددي آمن (size_t → int) لإرسال عدد المعاملات للدالة المجمَّعة JIT.
+// (EN) Bounds-checked size_t → int conversion for the JIT-compiled function arity argument.
+#include "safe_arithmetic.h"
+
 // ============================================================================
 // تضمين LLVM المشروط / Conditional LLVM includes
 // ============================================================================
@@ -307,7 +311,7 @@ int64_t محرك_JIT::نفّذ(const std::string& الاسم,
         // الشكل المتوقع: int64_t (*)(int64_t*, int)
         using نوع_الدالة = int64_t(*)(const int64_t*, int);
         auto دالة = reinterpret_cast<نوع_الدالة>(it->second.مؤشر_الكود);
-        return دالة(المعاملات.data(), static_cast<int>(المعاملات.size()));
+        return دالة(المعاملات.data(), Sad::Security::SafeArithmetic::assertSafeCast<int>(المعاملات.size(), "jit_call_arity"));
     }
     
     // لا يوجد كود أصلي — تسجيل استدعاء مفسّر

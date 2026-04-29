@@ -33,6 +33,10 @@
 #include <cstdlib>
 #include <cassert>
 
+// (AR) تحويل عددي آمن (size_t → int) لتسجيل arity الدوال وفهارس المحليات/العلويات.
+// (EN) Bounds-checked size_t → int for function arity registration and local/upvalue indexing.
+#include "safe_arithmetic.h"
+
 namespace sad {
 namespace vm {
 
@@ -542,7 +546,7 @@ void مُترجم_بايت_كود::ترجم_تصريح_دالة(Sad::AST::Functi
     // تسجيل الدالة في الوحدة
     الوحدة_->سجّل_دالة(
         تصريح->name,
-        static_cast<int>(تصريح->parameters.size()),
+        Sad::Security::SafeArithmetic::assertSafeCast<int>(تصريح->parameters.size(), "function_arity"),
         سياق_الدالة.عدد_المحليات_القصوى,
         بداية_الدالة
     );
@@ -557,7 +561,7 @@ void مُترجم_بايت_كود::ترجم_تصريح_دالة(Sad::AST::Functi
     uint16_t فهرس_الاسم = الوحدة_->أضف_ثابت(قيمة::نص(تصريح->name));
     auto كائن_د = std::make_shared<كائن_دالة>(
         تصريح->name,
-        static_cast<int>(تصريح->parameters.size()),
+        Sad::Security::SafeArithmetic::assertSafeCast<int>(تصريح->parameters.size(), "function_arity"),
         سياق_الدالة.عدد_المحليات_القصوى,
         بداية_الدالة
     );
@@ -615,7 +619,7 @@ void مُترجم_بايت_كود::ترجم_تصريح_صنف(Sad::AST::ClassDec
 
             الوحدة_->سجّل_دالة(
                 تصريح->name + "." + طريقة_م->name,
-                static_cast<int>(طريقة_م->parameters.size()) + 1, // +1 لـ "هذا"
+                Sad::Security::SafeArithmetic::assertSafeCast<int>(طريقة_م->parameters.size(), "method_arity") + 1, // +1 لـ "هذا"
                 سياق_طريقة.عدد_المحليات_القصوى,
                 بداية
             );
@@ -1142,7 +1146,7 @@ void مُترجم_بايت_كود::ترجم_لامدا(Sad::AST::LambdaExpr* ت�
     std::string اسم_لامدا = "<لامدا_" + std::to_string(عداد_لامدا++) + ">";
     الوحدة_->سجّل_دالة(
         اسم_لامدا,
-        static_cast<int>(تعبير->parameters.size()),
+        Sad::Security::SafeArithmetic::assertSafeCast<int>(تعبير->parameters.size(), "lambda_arity"),
         سياق_لامدا.عدد_المحليات_القصوى,
         بداية
     );
@@ -1153,7 +1157,7 @@ void مُترجم_بايت_كود::ترجم_لامدا(Sad::AST::LambdaExpr* ت�
     // إنشاء كائن الدالة ودفعه على المكدس
     auto كائن_د = std::make_shared<كائن_دالة>(
         اسم_لامدا,
-        static_cast<int>(تعبير->parameters.size()),
+        Sad::Security::SafeArithmetic::assertSafeCast<int>(تعبير->parameters.size(), "lambda_arity"),
         سياق_لامدا.عدد_المحليات_القصوى,
         بداية
     );
@@ -1201,7 +1205,7 @@ void مُترجم_بايت_كود::اخرج_من_نطاق() {
 
 int مُترجم_بايت_كود::عرّف_محلي(const std::string& اسم, bool ثابت) {
     // التأكد من عدم تكرار الاسم في نفس النطاق
-    for (int ف = static_cast<int>(السياق_->المحليات.size()) - 1; ف >= 0; ف--) {
+    for (int ف = Sad::Security::SafeArithmetic::assertSafeCast<int>(السياق_->المحليات.size(), "locals_index") - 1; ف >= 0; ف--) {
         if (السياق_->المحليات[ف].العمق < السياق_->عمق_النطاق) break;
         if (السياق_->المحليات[ف].الاسم == اسم) {
             خطأ("المتغير '" + اسم + "' مُعرّف مسبقاً في هذا النطاق");
@@ -1210,7 +1214,7 @@ int مُترجم_بايت_كود::عرّف_محلي(const std::string& اسم, b
     }
 
     السياق_->المحليات.emplace_back(اسم, السياق_->عمق_النطاق, ثابت);
-    int فهرس = static_cast<int>(السياق_->المحليات.size()) - 1;
+    int فهرس = Sad::Security::SafeArithmetic::assertSafeCast<int>(السياق_->المحليات.size(), "locals_index") - 1;
 
     // تحديث العدد الأقصى للمحليات
     if (فهرس + 1 > السياق_->عدد_المحليات_القصوى) {
@@ -1222,7 +1226,7 @@ int مُترجم_بايت_كود::عرّف_محلي(const std::string& اسم, b
 
 int مُترجم_بايت_كود::ابحث_محلي(const std::string& اسم) const {
     // البحث من الأعلى (النطاق الأعمق) إلى الأسفل
-    for (int ف = static_cast<int>(السياق_->المحليات.size()) - 1; ف >= 0; ف--) {
+    for (int ف = Sad::Security::SafeArithmetic::assertSafeCast<int>(السياق_->المحليات.size(), "locals_index") - 1; ف >= 0; ف--) {
         if (السياق_->المحليات[ف].الاسم == اسم) {
             return ف;
         }
@@ -1236,7 +1240,7 @@ int مُترجم_بايت_كود::ابحث_علوي(const std::string& اسم) {
 
     // البحث في المحليات المحيطة
     سياق_الترجمة* السياق_المحيط = السياق_->الأب;
-    for (int ف = static_cast<int>(السياق_المحيط->المحليات.size()) - 1; ف >= 0; ف--) {
+    for (int ف = Sad::Security::SafeArithmetic::assertSafeCast<int>(السياق_المحيط->المحليات.size(), "enclosing_locals_index") - 1; ف >= 0; ف--) {
         if (السياق_المحيط->المحليات[ف].الاسم == اسم) {
             // وجدناه! أنشئ قيمة علوية
             السياق_المحيط->المحليات[ف].محتجز = true;
@@ -1244,7 +1248,7 @@ int مُترجم_بايت_كود::ابحث_علوي(const std::string& اسم) {
             علوية.الفهرس = static_cast<uint8_t>(ف);
             علوية.محلي = true;
             السياق_->العلويات.push_back(علوية);
-            return static_cast<int>(السياق_->العلويات.size()) - 1;
+            return Sad::Security::SafeArithmetic::assertSafeCast<int>(السياق_->العلويات.size(), "upvalues_index") - 1;
         }
     }
 
