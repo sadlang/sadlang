@@ -656,6 +656,38 @@ namespace Sad
 
         int formatter_main(int argc, char *argv[])
         {
+            // (AR) معالجة الأعلام القياسية أولاً: --version / --help
+            // (EN) Standard flags first: --version / --help
+            for (int i = 1; i < argc; ++i)
+            {
+                std::string a = argv[i];
+                if (a == "--version" || a == "-v")
+                {
+                    std::cout << "sad-fmt version 1.0.0\n"
+                              << "Sad Language Code Formatter\n";
+                    return 0;
+                }
+                if (a == "--help" || a == "-h")
+                {
+                    std::cout
+                        << "sad-fmt 1.0.0 - Sad Language Code Formatter\n\n"
+                        << "Usage:\n"
+                        << "  sad-fmt <file>             Format a single file\n"
+                        << "  sad-fmt <directory>        Format a directory recursively\n"
+                        << "  sad-fmt --check <path>     Check only (no write)\n"
+                        << "  sad-fmt --diff <path>      Show diff\n"
+                        << "  sad-fmt --stdin            Read source from stdin\n"
+                        << "  sad-fmt --config <file>    Use custom config file\n"
+                        << "  sad-fmt --init             Create default config file\n"
+                        << "  sad-fmt --compact <path>   Apply compact profile\n"
+                        << "  sad-fmt --verbose <path>   Apply verbose profile\n"
+                        << "  sad-fmt --dry-run <dir>    Dry-run a directory\n"
+                        << "  sad-fmt --version          Show version\n"
+                        << "  sad-fmt --help             Show this help\n";
+                    return 0;
+                }
+            }
+
             if (argc < 2)
             {
                 std::cout << "ג•”ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•ג•—\n"
@@ -699,6 +731,14 @@ namespace Sad
                 else if (arg == "--config" && i + 1 < argc)
                 {
                     options = FormatterOptions::fromFile(argv[++i]);
+                }
+                else if (arg.size() > 1 && arg[0] == '-')
+                {
+                    // (AR) رفض الأعلام غير المعروفة بدلاً من معاملتها كمسار
+                    // (EN) Reject unknown flags instead of treating them as a path
+                    std::cerr << "sad-fmt: unknown option: " << arg << "\n"
+                              << "Use --help for usage.\n";
+                    return 1;
                 }
                 else
                     path = arg;

@@ -158,19 +158,17 @@ if(LLVM_FOUND)
  # (EN) All WASM paths archived in archived/wasm_dead_paths/
  # المسار الحي الوحيد لتشغيل لغة ص في المتصفح: cmake/wasm.cmake (Emscripten → sad_wasm)
  )
- 
+
  # - 02: pipeline
- set(PIPELINE_SOURCES
- src/pipeline/no_std_mode.cpp
- src/pipeline/no_std_integration.cpp
- src/pipeline/llvm_compiler_pipeline.cpp
- src/pipeline/freestanding_codegen_new.cpp
- )
+ # (AR) المجلد compiler/src/pipeline/ بأكمله أُرشف إلى archived/compiler_pipeline_legacy/
+ #      السبب: كل رموزه (LLVMCompilerPipeline, NoStdModeManager, ...) كانت ميتة في وقت التشغيل
+ #      (0 مستدعون خارج المجلد). راجع archived/compiler_pipeline_legacy/README.md
+ # (EN) compiler/src/pipeline/ archived to archived/compiler_pipeline_legacy/ (all symbols
+ #      were dead at runtime — 0 external callers). See archive README for details.
 
  add_library(sad_llvm_backend STATIC 
  ${LLVM_BACKEND_SOURCES}
  ${BACKEND_COMMON_SOURCES}
- ${PIPELINE_SOURCES}
  )
 
  target_include_directories(sad_llvm_backend

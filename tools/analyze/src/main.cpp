@@ -173,6 +173,24 @@ int main(int argc, char *argv[])
         return 2;
     }
 
+    // (AR) معالجة الأعلام القياسية أولاً قبل أي تحليل
+    // (EN) Handle standard flags first before any analysis work
+    for (int i = 1; i < argc; ++i)
+    {
+        const std::string a = argv[i];
+        if (a == "--version" || a == "-v")
+        {
+            std::cout << "sad-analyze version 1.0.0\n"
+                      << "Sad Language Static Analyzer\n";
+            return 0;
+        }
+        if (a == "--help" || a == "-h")
+        {
+            printUsage();
+            return 0;
+        }
+    }
+
     AnalyzerOptions options;
     std::vector<std::string> files;
     bool jsonOutput = false;

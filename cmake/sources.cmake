@@ -283,19 +283,12 @@ set(COMPILER_FRONTEND_SOURCES
 # (AR) دعم شامل لتوليد كود وضع بلا_مكتبة_قياسية (bare-metal)
 # (EN) Comprehensive support for no_std / freestanding code generation
 # ──────────────────────────────────────────────────────────────────────
-set(FREESTANDING_SOURCES
-    # ─── runtime: بيئة التشغيل الحرة ───────────────────────────────
-    runtime/freestanding/sad_core.cpp       # دوال الذاكرة الأساسية
-    runtime/freestanding/sad_panic.cpp      # معالج الذعر
-    runtime/freestanding/sad_allocator.cpp  # واجهة المُخصّص
-    runtime/freestanding/sad_bump_allocator.cpp   # مُخصّص bump
-    runtime/freestanding/sad_port_io.cpp    # منافذ I/O للـ bare-metal
-
-    # ─── مولّد الكود للمترجم ────────────────────────────────────────
-    compiler/src/pipeline/freestanding_codegen.cpp  # مولّد كود freestanding
-    compiler/src/pipeline/no_std_mode.cpp           # وضع بلا_مكتبة_قياسية
-    compiler/src/pipeline/no_std_integration.cpp    # تكامل مع خط الترجمة
-)
+# (AR) أُرشف FREESTANDING_SOURCES إلى archived/compiler_pipeline_legacy/
+#      السبب: ENABLE_FREESTANDING لم يُعرَّف أبداً عبر option() فكان الفرع ميتاً،
+#      ومصادر compiler/src/pipeline/* لها 0 مستدعون خارجيون.
+# (EN) FREESTANDING_SOURCES archived: ENABLE_FREESTANDING was never defined
+#      and compiler/src/pipeline/* had 0 external callers.
+set(FREESTANDING_SOURCES "")
 
 # ──────────────────────────────────────────────────────────────────────
 # 14. نظام الوحدات / Module System

@@ -23,11 +23,8 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 # مكتبة النواة / Core Library (sad_core)
 # ──────────────────────────────────────────────────────────────────────
-# (AR) مصادر freestanding تُضاف فقط عند الطلب (تحتوي على معرّفات عربية غير مدعومة في MSVC)
-# (EN) Freestanding sources only added when requested (Arabic identifiers unsupported by MSVC without special setup)
-if(ENABLE_FREESTANDING)
-    set(ALL_SOURCES ${ALL_SOURCES} ${FREESTANDING_SOURCES})
-endif()
+# (AR) تمّ حذف فرع ENABLE_FREESTANDING (لم يُعرّف أبداً ومصادره أُرشفت)
+# (EN) ENABLE_FREESTANDING branch removed (never defined; sources archived)
 
 add_library(sad_core STATIC ${ALL_SOURCES})
 

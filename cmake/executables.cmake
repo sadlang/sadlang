@@ -58,7 +58,11 @@ set_target_properties(sad PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 )
 
-message(STATUS "✓ المفسر / Interpreter: sad-run")
+# (AR) هدف وهمي للاكتشاف: يسمح بـ `cmake --build build --target sad-run`
+# (EN) Discoverability alias: enables `cmake --build build --target sad-run`
+add_custom_target(sad-run DEPENDS sad)
+
+message(STATUS "✓ المفسر / Interpreter: sad-run (الهدف: sad)")
 
 # ──────────────────────────────────────────────────────────────────────
 # مكتبة المنسّق / Formatter Library

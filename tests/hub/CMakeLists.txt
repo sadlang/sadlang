@@ -226,4 +226,87 @@ else()
     message(STATUS "⚠ اختبارات الهب: تخطّي اختبارات sad-repl (الهدف غير موجود)")
 endif()
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# (AR) القسم 5: اختبارات smoke لباقي الأدوات (fmt, pkg, apk, analyze, profiler, run)
+# (EN) Section 5: smoke tests for remaining tools
+#
+# (AR) لكل أداة موجودة كـ TARGET نضيف 3 اختبارات قياسية:
+#      - Version: --version يطبع سطر إصدار ويعيد 0
+#      - Help:    --help يعيد 0 (لا نُقيّد المحتوى لتفادي مشاكل ترميز الكونسول)
+#      - Symmetry: استدعاء عبر sad-hub يعطي نفس مخرج --version (التماثل)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# (AR) دالة مساعدة (ماكرو CMake) لإضافة الثلاثية القياسية لأداة
+# (EN) Helper macro to register the standard triplet for a tool
+macro(sad_add_tool_smoke_tests _target _hub_name _version_regex)
+    if(TARGET ${_target})
+        set(_bin "$<TARGET_FILE:${_target}>")
+
+        add_test(NAME HubSmoke_${_hub_name}_Version
+            COMMAND ${_bin} --version)
+        set_tests_properties(HubSmoke_${_hub_name}_Version PROPERTIES
+            PASS_REGULAR_EXPRESSION "${_version_regex}"
+            LABELS "hub;smoke;${_target}")
+
+        add_test(NAME HubSmoke_${_hub_name}_Help
+            COMMAND ${_bin} --help)
+        set_tests_properties(HubSmoke_${_hub_name}_Help PROPERTIES
+            LABELS "hub;smoke;${_target}")
+
+        add_test(NAME HubSymmetry_${_hub_name}_Version
+            COMMAND ${SAD_HUB_BIN} ${_hub_name} --version)
+        set_tests_properties(HubSymmetry_${_hub_name}_Version PROPERTIES
+            PASS_REGULAR_EXPRESSION "${_version_regex}"
+            LABELS "hub;smoke;symmetry;${_target}")
+    else()
+        message(STATUS "⚠ اختبارات smoke: تخطّي ${_target} (الهدف غير موجود)")
+    endif()
+endmacro()
+
+# (AR) sad-fmt: المُنسّق
+sad_add_tool_smoke_tests(sad-fmt    fmt      "sad-fmt version")
+
+# (AR) sad-fmt: علم غير معروف يجب أن يفشل (تحقق إضافي)
+if(TARGET sad-fmt)
+    add_test(NAME HubSmoke_fmt_BadFlag
+        COMMAND $<TARGET_FILE:sad-fmt> --not-a-real-flag)
+    set_tests_properties(HubSmoke_fmt_BadFlag PROPERTIES
+        WILL_FAIL TRUE
+        LABELS "hub;smoke;sad-fmt")
+endif()
+
+# (AR) sad-pkg: مدير الحزم
+sad_add_tool_smoke_tests(sad-pkg    pkg      "sad-pkg v")
+
+# (AR) sad-apk: باني APK
+sad_add_tool_smoke_tests(sad-apk    apk      "sad-apk version")
+
+# (AR) sad-analyze: المحلل الستاتيكي
+sad_add_tool_smoke_tests(sad-analyze analyze "sad-analyze version")
+
+# (AR) sad-profiler: المُحلّل
+sad_add_tool_smoke_tests(sad-profiler profiler "sad-profiler v")
+
+# (AR) sad-run: مشغّل المفسر
+#      ملاحظة: اسم الهدف في CMake هو `sad` (مع OUTPUT_NAME="sad-run")،
+#      لذلك نمرر "sad" للماكرو لا "sad-run".
+sad_add_tool_smoke_tests(sad         run      "sad version")
+
+# (AR) تحقق نهائي: sad-hub --list يكتشف الأدوات الموجودة في نفس المجلد
+if(TARGET sad-fmt)
+    add_test(NAME HubMain_ListContainsFmt
+        COMMAND ${SAD_HUB_BIN} --list)
+    set_tests_properties(HubMain_ListContainsFmt PROPERTIES
+        PASS_REGULAR_EXPRESSION "fmt"
+        LABELS "hub;smoke;sad-hub")
+endif()
+
+if(TARGET sad-pkg)
+    add_test(NAME HubMain_ListContainsPkg
+        COMMAND ${SAD_HUB_BIN} --list)
+    set_tests_properties(HubMain_ListContainsPkg PROPERTIES
+        PASS_REGULAR_EXPRESSION "pkg"
+        LABELS "hub;smoke;sad-hub")
+endif()
+
 message(STATUS "✓ اختبارات الهب: ${CMAKE_CURRENT_LIST_FILE} مفعّلة")

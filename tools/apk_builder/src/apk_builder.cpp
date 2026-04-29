@@ -987,25 +987,33 @@ private:
 
 int main(int argc, char *argv[])
 {
-    // Debug: early output test
-    printf("sad-apk starting...\n");
-    fflush(stdout);
-
     setUTF8Console();
     // (AR) ربط argv بـUTF-8 لدعم المسارات/الأسماء العربية
     Sad::Utils::Utf8ArgvHolder _argvHolder(argc, argv);
 
-    printf("argc=%d\n", argc);
-    fflush(stdout);
+    // (AR) الأعلام القياسية أولاً (قبل أي إخراج تشخيصي)
+    // (EN) Standard flags first (before any diagnostic output)
+    for (int i = 1; i < argc; ++i)
+    {
+        std::string a = argv[i];
+        if (a == "--version" || a == "-v")
+        {
+            std::cout << "sad-apk version 1.0.0\n"
+                      << "Sad Language APK Builder\n";
+            return 0;
+        }
+        if (a == "--help" || a == "-h")
+        {
+            printUsage();
+            return 0;
+        }
+    }
 
     if (argc < 2)
     {
         printUsage();
         return 1;
     }
-
-    printf("Parsing args...\n");
-    fflush(stdout);
 
     BuildOptions options;
 
