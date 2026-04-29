@@ -467,27 +467,13 @@ else()
 endif()
 
 # ============================================================================
-# Borrow Checker / Lifetime Library ( )
-# Phase 20: T204-T206 (Lifetime Annotations)
+# Borrow Checker / Lifetime Library — REMOVED
 # ============================================================================
-file(GLOB BORROW_SOURCES "src/borrow/*.cpp")
-
-if(BORROW_SOURCES)
- add_library(sad_borrow STATIC ${BORROW_SOURCES})
- target_include_directories(sad_borrow
- PUBLIC
- ${CMAKE_CURRENT_SOURCE_DIR}/include
- ${CMAKE_CURRENT_SOURCE_DIR}/src/borrow
- ${CMAKE_SOURCE_DIR}/include
- ${SAD_SHARED_DIR}/shared/ast/include
- ${SAD_SHARED_DIR}/shared/types/include
- ${SAD_SHARED_DIR}/shared/errors/include
- )
- if(MSVC)
- target_compile_options(sad_borrow PRIVATE /utf-8 /FS)
- endif()
- message(STATUS "Configured sad_borrow library (lifetime analysis)")
-endif()
+# (AR) حُذف compiler/src/borrow/ بالكامل: نموذج Phase 20 (T204-T206) لم يُستخدم
+#      قط (0 مستدعون). الفحص الفعلي للملكية والـlifetimes في shared/ownership/.
+# (EN) compiler/src/borrow/ deleted entirely: Phase 20 prototype with zero
+#      external callers. Real ownership/lifetime checking in shared/ownership/.
+# ============================================================================
 
 # ============================================================================
 # Cross-Compilation Targets Library ( )
@@ -652,9 +638,6 @@ if(LLVM_FOUND)
  target_link_libraries(sad_compiler INTERFACE sad_ui_ir)
  endif()
  # (Phase 96)
- if(TARGET sad_borrow)
- target_link_libraries(sad_compiler INTERFACE sad_borrow)
- endif()
  if(TARGET sad_targets)
  target_link_libraries(sad_compiler INTERFACE sad_targets)
  endif()
@@ -689,9 +672,6 @@ else()
  target_link_libraries(sad_compiler INTERFACE sad_ui_ir)
  endif()
  # (Phase 96) LLVM
- if(TARGET sad_borrow)
- target_link_libraries(sad_compiler INTERFACE sad_borrow)
- endif()
  if(TARGET sad_targets)
  target_link_libraries(sad_compiler INTERFACE sad_targets)
  endif()
