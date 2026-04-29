@@ -71,6 +71,13 @@ target_include_directories(sad_interpreter
         #      Removed compiler/include + compiler/include/semantic (F-10) — interpreter
         #      must not depend on compiler headers. type_checker.h comes via sad_shared.
         ${CMAKE_SOURCE_DIR}/shared/semantic/include
+        # (AR) Ownership Unification: نظام الملكية الموحَّد في shared/ownership/.
+        #      ownership_manager.h يضمّن "ownership/ownership_tracker.h" بمسار نسبي.
+        # (EN) Ownership Unification: unified ownership system in shared/ownership/.
+        ${CMAKE_SOURCE_DIR}/shared/ownership/include
+        # (AR) خطافات مصحح الأداء (profiler_hooks.h) المشتركة في shared/profiler/.
+        # (EN) Shared profiler hooks (profiler_hooks.h) in shared/profiler/.
+        ${CMAKE_SOURCE_DIR}/shared/profiler/include
 )
 
 target_link_libraries(sad_interpreter
@@ -81,6 +88,9 @@ target_link_libraries(sad_interpreter
         # (AR) الطبقة الأمنية المشتركة (BoundsChecker/SafeArithmetic/InputSanitizer/SafeAllocator/TaintTracker)
         # (EN) Shared security primitives (BoundsChecker/SafeArithmetic/InputSanitizer/SafeAllocator/TaintTracker)
         sad_security_core
+        # (AR) Ownership Unification: نظام الملكية الموحَّد (OwnershipTracker, BorrowChecker, ...)
+        # (EN) Ownership Unification: unified ownership system
+        sad_ownership
 )
 
 target_compile_features(sad_interpreter PUBLIC cxx_std_17)
