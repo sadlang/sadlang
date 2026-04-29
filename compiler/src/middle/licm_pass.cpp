@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <iostream>
 #include <stack>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad {
 namespace Compiler {
@@ -47,7 +48,7 @@ bool LICMPass::runOnFunction(SIR::SIRFunction* function) {
     // (AR) اكتشاف جميع الحلقات في الدالة
     // (EN) Detect all loops in function
     auto loops = detectLoops(function);
-    loopsFound_ = static_cast<int>(loops.size());
+    loopsFound_ = Sad::Security::SafeArithmetic::assertSafeCast<int>(loops.size(), "licm_pass_size");
     
     // (AR) لكل حلقة، نقل التعليمات الثابتة خارجها
     // (EN) For each loop, hoist invariant instructions out

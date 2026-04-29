@@ -21,6 +21,7 @@
 #include <sstream>              // لـ ostringstream / For ostringstream
 #include <algorithm>            // لـ std::find / For std::find
 #include <iostream>             // لـ std::cout / For std::cout
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad {
 namespace TypeSystem {
@@ -269,7 +270,7 @@ SolverResult ConstraintSolver::solve(const ConstraintSet& constraints,
             }
         }
         
-        failedCount_ += static_cast<int>(remaining.size());
+        failedCount_ += Sad::Security::SafeArithmetic::assertSafeCast<int>(remaining.size(), "constraint_solver_size");
         SolverError error(
             SolverErrorKind::UnsolvableConstraint,
             remaining[0],

@@ -22,6 +22,7 @@
 #include <llvm/IR/Module.h>
 #include <iostream>
 #include <vector>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 using namespace Sad::Compiler::SIR;
 
@@ -95,7 +96,7 @@ namespace Sad
             {
                 int laneCount = inst->vectorLaneCount;
                 if (laneCount <= 0)
-                    laneCount = static_cast<int>(inst->operands.size());
+                    laneCount = Sad::Security::SafeArithmetic::assertSafeCast<int>(inst->operands.size(), "simd_ops_size");
 
                 llvm::FixedVectorType *vTy = vectorType(cg_.builder_.get(), inst->vectorElementType, laneCount);
                 llvm::Type *elemTy = vTy->getElementType();

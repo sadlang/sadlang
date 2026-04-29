@@ -25,6 +25,7 @@
 #include "middle/inlining_pass.h"
 #include <iostream>
 #include <sstream>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad
 {
@@ -134,7 +135,7 @@ namespace Sad
                 {
                     if (block)
                     {
-                        count += static_cast<int>(block->instructions.size());
+                        count += Sad::Security::SafeArithmetic::assertSafeCast<int>(block->instructions.size(), "inlining_pass_size");
                     }
                 }
                 return count;

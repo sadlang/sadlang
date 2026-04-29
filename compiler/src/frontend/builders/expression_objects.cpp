@@ -26,6 +26,7 @@
 #include <iostream>
 #include <filesystem>
 #include <optional>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad
 {
@@ -210,7 +211,7 @@ namespace Sad
                             for (auto &[superIdx, childParamName] : currentClass->superParamMapping_)
                             {
                                 int parentIdx = superIdx + 1; // +1 (skip self)
-                                if (parentIdx < static_cast<int>(parentParams.size()))
+                                if (parentIdx < Sad::Security::SafeArithmetic::assertSafeCast<int>(parentParams.size(), "expression_objects_size"))
                                 {
                                     auto it = currentParamTypes.find(childParamName);
                                     if (it != currentParamTypes.end())

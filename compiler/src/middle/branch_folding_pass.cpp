@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <queue>
 #include <iostream>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad
 {
@@ -237,7 +238,7 @@ namespace Sad
                                    }),
                     blocks.end());
 
-                removedBlockCount_ = static_cast<int>(originalSize - blocks.size());
+                removedBlockCount_ = Sad::Security::SafeArithmetic::assertSafeCast<int>(originalSize - blocks.size(), "branch_folding_pass_size");
                 if (removedBlockCount_ > 0)
                 {
                     recordModification();

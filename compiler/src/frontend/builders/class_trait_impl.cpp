@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <functional>
 #include <unordered_set>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad
 {
@@ -212,7 +213,7 @@ namespace Sad
                             selfInfo.registerName = kSelfRegisterName;
                             selfInfo.isGlobal = false;
                             selfInfo.isMutable = false;
-                            selfInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                            selfInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_trait_impl_size");
                             b_.addVariable(selfInfo);
                         }
 
@@ -228,7 +229,7 @@ namespace Sad
                             thisInfo.registerName = kSelfRegisterName;
                             thisInfo.isGlobal = false;
                             thisInfo.isMutable = false;
-                            thisInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                            thisInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_trait_impl_size");
                             b_.addVariable(thisInfo);
                         }
 
@@ -242,7 +243,7 @@ namespace Sad
                             paramInfo.registerName = "%" + param.name;
                             paramInfo.isGlobal = false;
                             paramInfo.isMutable = true;
-                            paramInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                            paramInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_trait_impl_size");
                             b_.addVariable(paramInfo);
                         }
 
@@ -449,7 +450,7 @@ namespace Sad
                                                 selfInfo.registerName = kSelfRegisterName;
                                                 selfInfo.isGlobal = false;
                                                 selfInfo.isMutable = false;
-                                                selfInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                                selfInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_trait_impl_size");
                                                 b_.addVariable(selfInfo);
                                             }
 
@@ -461,7 +462,7 @@ namespace Sad
                                                 paramInfo.registerName = "%" + param.name;
                                                 paramInfo.isGlobal = false;
                                                 paramInfo.isMutable = true;
-                                                paramInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                                                paramInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_trait_impl_size");
                                                 b_.addVariable(paramInfo);
                                             }
 

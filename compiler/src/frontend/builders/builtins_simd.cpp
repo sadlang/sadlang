@@ -43,6 +43,7 @@
 #include "utf8_utils.h"
 #include <iostream>
 #include <optional>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad
 {
@@ -133,7 +134,7 @@ namespace Sad
                         b_.errors_.push_back("Error: متجه() requires at least 1 element");
                         return BuildResult();
                     }
-                    int laneCount = static_cast<int>(argResults.size());
+                    int laneCount = Sad::Security::SafeArithmetic::assertSafeCast<int>(argResults.size(), "builtins_simd_size");
                     if (!isValidLaneCount(laneCount))
                     {
                         b_.errors_.push_back("Error: متجه() lane count must be one of {2,4,8,16,32,64}, got " +

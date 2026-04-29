@@ -17,6 +17,7 @@
 #include "module_nodes.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad
 {
@@ -177,7 +178,7 @@ namespace Sad
                         selfInfo.registerName = kSelfRegisterName;
                         selfInfo.isGlobal = false;
                         selfInfo.isMutable = false;
-                        selfInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        selfInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_operator_size");
                         b_.addVariable(selfInfo);
                         // (AR) self هو كائن من نوع الصنف الحالي
                         // (EN) self is an object of the current class type
@@ -194,7 +195,7 @@ namespace Sad
                         thisInfo.registerName = kSelfRegisterName;
                         thisInfo.isGlobal = false;
                         thisInfo.isMutable = false;
-                        thisInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        thisInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_operator_size");
                         b_.addVariable(thisInfo);
                         // (AR) هذا أيضاً يشير للصنف الحالي
                         // (EN) this also points to the current class
@@ -216,7 +217,7 @@ namespace Sad
                         paramInfo.isGlobal = false;
                         paramInfo.isMutable = true;
                         paramInfo.isParameter = true;
-                        paramInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        paramInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_operator_size");
                         b_.addVariable(paramInfo);
 
                         // (AR) إذا كان المعامل بدون نوع صريح (UNKNOWN/NONE)، نفترض أنه كائن من نفس الصنف
@@ -246,7 +247,7 @@ namespace Sad
                         fieldInfo.registerName = "%" + field.first;
                         fieldInfo.isGlobal = false;
                         fieldInfo.isMutable = true;
-                        fieldInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        fieldInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_operator_size");
                         b_.addVariable(fieldInfo);
                     }
 

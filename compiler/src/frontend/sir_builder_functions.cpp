@@ -23,6 +23,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad
 {
@@ -250,7 +251,7 @@ namespace Sad
                     //      Without this: buildAssignment silently skips assignment ג†’ infinite loop
                     paramInfo.isMutable = true;
                     paramInfo.isParameter = true;
-                    paramInfo.scopeLevel = static_cast<int>(scopeStack_.size());
+                    paramInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(scopeStack_.size(), "sir_builder_functions_size");
 
                     // ═══════════════════════════════════════════════════════════════
                     // (AR) نقل نوع عنصر المصفوفة من FunctionInfo إلى VariableInfo

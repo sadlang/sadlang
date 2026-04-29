@@ -54,6 +54,13 @@ list(FILTER FRONTEND_SOURCES EXCLUDE REGEX "sir_builder\\.cpp$")
 
 add_library(sad_frontend STATIC ${FRONTEND_SOURCES})
 
+# (AR) الطبقة الأمنية المشتركة (assertSafeCast<int> في class_main, class_constructor,
+#      class_trait_impl, class_operator, builtins_simd, expression_objects, sir_builder_functions).
+# (EN) Shared security primitives (assertSafeCast<int> used in builders).
+if(TARGET sad_security_core)
+    target_link_libraries(sad_frontend PUBLIC sad_security_core)
+endif()
+
 target_include_directories(sad_frontend
  PUBLIC
  ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -100,6 +107,12 @@ target_include_directories(sad_optimizer
 )
 
 target_link_libraries(sad_optimizer PUBLIC sad_frontend)
+
+# (AR) الطبقة الأمنية المشتركة (assertSafeCast<int> في async_transform/branch_folding/cse/inlining/licm).
+# (EN) Shared security primitives.
+if(TARGET sad_security_core)
+    target_link_libraries(sad_optimizer PUBLIC sad_security_core)
+endif()
 
 # (AR) م-ب03: إصلاح PDB locking بإضافة /FS
 if(MSVC)
@@ -352,6 +365,12 @@ list(FILTER TYPE_SYSTEM_SOURCES EXCLUDE REGEX "c_types.*\\.cpp")
 
 add_library(sad_type_system STATIC ${TYPE_SYSTEM_SOURCES})
 
+# (AR) الطبقة الأمنية المشتركة (assertSafeCast<int> في constraint_solver).
+# (EN) Shared security primitives.
+if(TARGET sad_security_core)
+    target_link_libraries(sad_type_system PUBLIC sad_security_core)
+endif()
+
 # Unicode / Disable Unicode warnings for Arabic text
 if(MSVC)
  target_compile_options(sad_type_system PRIVATE /utf-8 /wd4819 /FS)
@@ -367,6 +386,12 @@ target_include_directories(sad_type_system
  ${SAD_SHARED_DIR}/shared/types/include
  ${SAD_SHARED_DIR}/shared/errors/include
 )
+
+# (AR) الطبقة الأمنية المشتركة (assertSafeCast<int> في constraint_solver).
+# (EN) Shared security primitives.
+if(TARGET sad_security_core)
+    target_link_libraries(sad_type_system PUBLIC sad_security_core)
+endif()
 
 # ============================================================================
 # Tools Library ( : )
@@ -411,6 +436,11 @@ if(TOOLS_VERIFIED_SOURCES)
  )
  if(MSVC)
  target_compile_options(sad_tools PRIVATE /utf-8 /wd4819 /FS)
+ endif()
+ # (AR) الطبقة الأمنية المشتركة (assertSafeCast<int> في docs_emitter_html).
+ # (EN) Shared security primitives.
+ if(TARGET sad_security_core)
+     target_link_libraries(sad_tools PUBLIC sad_security_core)
  endif()
  message(STATUS "Configured sad_tools library (formatter, docs, build)")
 else()

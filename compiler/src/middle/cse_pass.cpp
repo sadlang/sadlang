@@ -10,6 +10,7 @@
 #include "middle/cse_pass.h"
 #include <algorithm>
 #include <sstream>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad
 {
@@ -404,7 +405,7 @@ namespace Sad
 
                 // Only replace within the SAME basic block to avoid dominance issues.
                 // Cross-block replacement can cause "Instruction does not dominate all uses!"
-                if (startBlock >= 0 && startBlock < static_cast<int>(blocks.size()))
+                if (startBlock >= 0 && startBlock < Sad::Security::SafeArithmetic::assertSafeCast<int>(blocks.size(), "cse_pass_size"))
                 {
                     auto &block = blocks[startBlock];
                     if (!block)

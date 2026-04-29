@@ -66,6 +66,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace sad::middle {
 
@@ -155,7 +156,7 @@ public:
      */
     int addState(AsyncStateKind kind, const std::string& name = "") {
         AsyncState state;
-        state.id = static_cast<int>(states.size());
+        state.id = Sad::Security::SafeArithmetic::assertSafeCast<int>(states.size(), "async_transform_size");
         state.kind = kind;
         state.name = name.empty() ? "حالة_" + std::to_string(state.id) : name;
         states.push_back(std::move(state));
@@ -550,7 +551,7 @@ private:
      * (AR) إضافة عقدة للحالة الحالية
      */
     void addToCurrentState(ast::ASTNode* node) {
-        if (current_state_id_ < static_cast<int>(current_machine_->states.size())) {
+        if (current_state_id_ < Sad::Security::SafeArithmetic::assertSafeCast<int>(current_machine_->states.size(), "async_transform_size")) {
             current_machine_->states[current_state_id_].code.push_back(node);
         }
     }
@@ -778,7 +779,7 @@ public:
      * (AR) توليد انتقال الحالة
      */
     void generateStateTransition(ast::BlockNode* body, int next_state) {
-        if (next_state >= 0 && next_state < static_cast<int>(machine_.states.size())) {
+        if (next_state >= 0 && next_state < Sad::Security::SafeArithmetic::assertSafeCast<int>(machine_.states.size(), "async_transform_size")) {
             // ذاتي.حالة = حالة_جديدة;
             auto assign = std::make_unique<ast::AssignNode>();
             assign->target = std::make_unique<ast::FieldAccessNode>(

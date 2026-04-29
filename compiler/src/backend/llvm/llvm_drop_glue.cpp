@@ -35,6 +35,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad {
 namespace LLVM {
@@ -494,7 +495,7 @@ void LLVMDropGlue::emitStructDrop(llvm::IRBuilder<>& builder,
     
     const auto& fields = info.fieldTypes;
     
-    for (int i = static_cast<int>(fields.size()) - 1; i >= 0; --i) {
+    for (int i = Sad::Security::SafeArithmetic::assertSafeCast<int>(fields.size(), "llvm_drop_glue_size") - 1; i >= 0; --i) {
         const DropTypeInfo& field = fields[i];
         
         if (field.isPrimitive()) {

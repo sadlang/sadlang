@@ -12,6 +12,7 @@
 #include <iostream>
 #include <algorithm>
 #include <regex>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace fs = std::filesystem;
 
@@ -65,7 +66,7 @@ int HtmlDocGenerator::generate(
         generateSearchScript();
     }
     generateStylesheet();
-    result.itemsDocumented = static_cast<int>(entries.size());
+    result.itemsDocumented = Sad::Security::SafeArithmetic::assertSafeCast<int>(entries.size(), "docs_emitter_html_size");
     return 0;
 }
 
@@ -370,7 +371,7 @@ int MarkdownDocGenerator::generate(const std::vector<DocEntry>& entries, DocsRes
         result.pagesGenerated++;
         result.generatedFiles.push_back(config_.outputDir + "/api/" + filename);
     }
-    result.itemsDocumented = static_cast<int>(entries.size());
+    result.itemsDocumented = Sad::Security::SafeArithmetic::assertSafeCast<int>(entries.size(), "docs_emitter_html_size");
     return 0;
 }
 
@@ -449,7 +450,7 @@ int JsonDocGenerator::generate(const std::vector<DocEntry>& entries, DocsResult&
     }
     f << "  ]\n}\n";
     result.pagesGenerated = 1;
-    result.itemsDocumented = static_cast<int>(entries.size());
+    result.itemsDocumented = Sad::Security::SafeArithmetic::assertSafeCast<int>(entries.size(), "docs_emitter_html_size");
     result.generatedFiles.push_back(config_.outputDir + "/docs.json");
     return 0;
 }
@@ -508,7 +509,7 @@ void DocsEmitter::addEntry(const DocEntry& entry) {
 
 int DocsEmitter::addFromFile(const std::string& filePath) {
     auto items = parser_.parseFile(filePath);
-    int count = static_cast<int>(items.size());
+    int count = Sad::Security::SafeArithmetic::assertSafeCast<int>(items.size(), "docs_emitter_html_size");
     for (auto& item : items) entries_.push_back(std::move(item));
     if (count > 0) rebuildIndices();
     return count;
@@ -516,7 +517,7 @@ int DocsEmitter::addFromFile(const std::string& filePath) {
 
 int DocsEmitter::addFromSource(const std::string& source, const std::string& filename) {
     auto items = parser_.parseSource(source, filename);
-    int count = static_cast<int>(items.size());
+    int count = Sad::Security::SafeArithmetic::assertSafeCast<int>(items.size(), "docs_emitter_html_size");
     for (auto& item : items) entries_.push_back(std::move(item));
     if (count > 0) rebuildIndices();
     return count;

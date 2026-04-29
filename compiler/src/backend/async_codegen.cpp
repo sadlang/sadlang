@@ -71,6 +71,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace sad::backend {
 
@@ -387,7 +388,7 @@ public:
         );
         
         if (state.next_state >= 0 && 
-            state.next_state < static_cast<int>(state_blocks.size())) {
+            state.next_state < Sad::Security::SafeArithmetic::assertSafeCast<int>(state_blocks.size(), "async_codegen_size")) {
             builder_.CreateStore(
                 llvm::ConstantInt::get(
                     llvm::Type::getInt8Ty(context_),

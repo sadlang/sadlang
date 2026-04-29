@@ -17,6 +17,7 @@
 #include "module_nodes.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 namespace Sad
 {
@@ -218,7 +219,7 @@ namespace Sad
                         selfInfo.registerName = kSelfRegisterName;
                         selfInfo.isGlobal = false;
                         selfInfo.isMutable = false;
-                        selfInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        selfInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_constructor_size");
                         b_.addVariable(selfInfo);
                     }
 
@@ -231,7 +232,7 @@ namespace Sad
                         thisInfo.registerName = kSelfRegisterName;
                         thisInfo.isGlobal = false;
                         thisInfo.isMutable = false;
-                        thisInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        thisInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_constructor_size");
                         b_.addVariable(thisInfo);
                     }
 
@@ -259,7 +260,7 @@ namespace Sad
                         paramInfo.isGlobal = false;
                         paramInfo.isMutable = false;
                         paramInfo.isParameter = true;
-                        paramInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        paramInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_constructor_size");
                         b_.addVariable(paramInfo);
                     }
 
@@ -281,7 +282,7 @@ namespace Sad
                         fieldInfo.registerName = "%" + field.first;
                         fieldInfo.isGlobal = false;
                         fieldInfo.isMutable = true;
-                        fieldInfo.scopeLevel = static_cast<int>(b_.scopeStack_.size());
+                        fieldInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_constructor_size");
                         b_.addVariable(fieldInfo);
                     }
 
@@ -324,7 +325,7 @@ namespace Sad
                         // (AR) بناء خريطة وسائط الأساس → معاملات الباني
                         // (EN) Build super arg mapping: classify each as param ref or constant
                         // ═══════════════════════════════════════════════════════════════
-                        for (int superIdx = 0; superIdx < static_cast<int>(ctorDecl->superArgs.size()); superIdx++)
+                        for (int superIdx = 0; superIdx < Sad::Security::SafeArithmetic::assertSafeCast<int>(ctorDecl->superArgs.size(), "class_constructor_size"); superIdx++)
                         {
                             auto &arg = ctorDecl->superArgs[superIdx];
 
@@ -426,7 +427,7 @@ namespace Sad
                                     for (auto &[superIdx, typeAndVal] : sirClass->superConstantMapping_)
                                     {
                                         int parentParamIdx = superIdx + 1; // +1 (skip self)
-                                        if (parentParamIdx < static_cast<int>(parentParams.size()))
+                                        if (parentParamIdx < Sad::Security::SafeArithmetic::assertSafeCast<int>(parentParams.size(), "class_constructor_size"))
                                         {
                                             const std::string &parentParamName = parentParams[parentParamIdx].name;
                                             auto pFieldIt = parentSirClass->paramToFieldMap_.find(parentParamName);
