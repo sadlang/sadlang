@@ -91,6 +91,7 @@ target_include_directories(sad_shared
         ${CMAKE_CURRENT_SOURCE_DIR}/modules/include
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/include
         ${CMAKE_CURRENT_SOURCE_DIR}/builtins/include           # السجل المركزي الموحّد (ADR-003)
+        ${CMAKE_CURRENT_SOURCE_DIR}/memory_gc/include          # B-step5b: pin.h يحتاج garbage_collector.h
         ${CMAKE_SOURCE_DIR}/interpreter/include/managers   # ClassManager header
 )
 

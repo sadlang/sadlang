@@ -178,6 +178,17 @@ namespace Sad
              */
             ~ObjectInstance();
 
+            /**
+             * @brief (AR) تعداد المؤشرات للكائنات الأبناء (للاستخدام من mark phase في GC).
+             * @brief (EN) Visit child object pointers (used by GC mark phase).
+             *
+             * (AR) يستدعي visitor لكل مؤشر ObjectInstance* داخل fields_ و baseInstance.
+             *      هذا يُمكّن GC الدقيق من تتبّع رسم بياني الكائنات بدلاً من المسح المحافظ.
+             * (EN) Invokes visitor on every ObjectInstance* inside fields_ and baseInstance.
+             *      Enables precise GC tracing instead of conservative scanning.
+             */
+            void visitChildren(const std::function<void(void *)> &visitor) const;
+
             // منع النسخ لتجنب مشاكل الذاكرة
             // Prevent copying to avoid memory issues
             ObjectInstance(const ObjectInstance &) = delete;

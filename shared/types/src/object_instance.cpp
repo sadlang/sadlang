@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <atomic>
 #include <mutex>
+#include <type_traits>
 
 namespace Sad
 {
@@ -26,6 +27,17 @@ namespace Sad
         // عداد عام لتوليد معرفات فريدة
         // Global counter for generating unique IDs
         static std::atomic<size_t> globalObjectIdCounter{1};
+
+        // ──────────────────────────────────────────────────────────────────────
+        // (AR) محوّل داخلي لاستخراج المؤشر الخام من ObjectPtr بشكل شفاف.
+        //      أثناء B-step5b ObjectPtr قد يكون shared_ptr<ObjectInstance> أو
+        //      ObjectInstance* خام. التحميل الزائد يختار التطبيق المناسب.
+        // (EN) Internal helper to extract raw ObjectInstance* from ObjectPtr
+        //      transparently. During B-step5b ObjectPtr may be shared_ptr or
+        //      raw — overload resolution picks the right one.
+        // ──────────────────────────────────────────────────────────────────────
+        static inline ObjectInstance *rawFromObjectPtr(const std::shared_ptr<ObjectInstance> &p) { return p.get(); }
+        static inline ObjectInstance *rawFromObjectPtr(ObjectInstance *p) { return p; }
 
         // ──────────────────────────────────────────────────────────────────────
         // (AR) خطّافات تتبّع التخصيص (B-step4)
@@ -145,6 +157,37 @@ namespace Sad
                     // (AR) ابتلاع الاستثناء — dtor لا يجوز أن يرمي
                     // (EN) Swallow — dtor must not throw
                 }
+            }
+        }
+
+        // ======================================================================
+        // (AR) تعداد الأطفال للـ GC mark phase
+        // (EN) Visit child pointers for GC mark phase
+        // ======================================================================
+
+        void ObjectInstance::visitChildren(const std::function<void(void *)> &visitor) const
+        {
+            // (AR) لكل حقل من نوع OBJECT، استدعِ visitor على المؤشر الخام.
+            //      نستخرج المؤشر من ObjectPtr بطريقة شفافة بصرف النظر عن
+            //      كونها shared_ptr (لها .get()) أو raw pointer (هي نفسها مؤشر).
+            // (EN) For each OBJECT-typed field, invoke visitor on the raw pointer.
+            for (const auto &kv : fields)
+            {
+                const Value &v = kv.second;
+                if (v.isObject())
+                {
+                    auto child = v.toObject();
+                    ObjectInstance *raw = rawFromObjectPtr(child);
+                    if (raw != nullptr)
+                    {
+                        visitor(static_cast<void *>(raw));
+                    }
+                }
+            }
+            // (AR) تعداد الكائن الأساسي (وراثة) — unique_ptr يبقى خاماً عبر get().
+            if (baseInstance)
+            {
+                visitor(static_cast<void *>(baseInstance.get()));
             }
         }
 

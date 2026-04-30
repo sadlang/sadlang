@@ -27,43 +27,46 @@
 
 #pragma once
 
-#include "memory/policy/gc_mode.h"   // (AR) MemoryModeSettings + GCStrategy
-                                      // (EN) MemoryModeSettings + GCStrategy
+#include "memory/policy/gc_mode.h" // (AR) MemoryModeSettings + GCStrategy
+                                   // (EN) MemoryModeSettings + GCStrategy
 
-namespace Sad {
-namespace Memory {
-namespace GC {
+namespace Sad
+{
+    namespace Memory
+    {
+        namespace GC
+        {
 
-// ─────────────────────────────────────────────────────────────────────────────
-// (AR) applyMemoryPolicyGlobal — تطبيق سياسة وضع الذاكرة على المحرك العام.
-//
-// (AR) المعاملات:
-//        settings   — إعدادات الوضع (--dev/--prod/--learn) المُحلَّلة من CLI.
-//        policySet  — هل وُجدت أعلام CLI فعلاً؟ إذا false → الدالة no-op
-//                     (تحفظ التوافق مع المنفذين بدون أعلام: REPL، LSP).
-//        debugMode  — هل نطبع سطر التشخيص الموحَّد؟ يُمرَّر من
-//                     `enableDebugMode` لكل منفذ.
-//
-// (AR) الأثر الجانبي:
-//        - عند gcStrategy == None : pause() على defaultEngine + clearHooks().
-//        - وإلا                  : resume() على defaultEngine + setAllocHook +
-//                                  setFreeHook (يحوّلان إلى register/unregister).
-//        - عند debugMode         : سطر `[memory] GC engine: ...` على std::cerr.
-//
-// (AR) ملاحظات أمان الخيوط:
-//        - defaultEngine() يستخدم Meyer's singleton (آمن للخيوط في C++17).
-//        - hooks على ObjectInstance محمية بـ mutex داخلي (B-step4).
-//        - الدالة نفسها idempotent: استدعاؤها مرتين بنفس الإعدادات يعطي نفس
-//          الحالة بدون آثار جانبية إضافية.
-//
-// (EN) Applies the resolved memory policy to the global GC engine and the
-//      ObjectInstance lifecycle hooks. No-op when `policySet == false` to
-//      preserve legacy behaviour for callers that don't yet parse CLI flags.
-// ─────────────────────────────────────────────────────────────────────────────
-void applyMemoryPolicyGlobal(const ::Sad::Memory::MemoryModeSettings& settings,
-                             bool policySet,
-                             bool debugMode);
+            // ─────────────────────────────────────────────────────────────────────────────
+            // (AR) applyMemoryPolicyGlobal — تطبيق سياسة وضع الذاكرة على المحرك العام.
+            //
+            // (AR) المعاملات:
+            //        settings   — إعدادات الوضع (--dev/--prod/--learn) المُحلَّلة من CLI.
+            //        policySet  — هل وُجدت أعلام CLI فعلاً؟ إذا false → الدالة no-op
+            //                     (تحفظ التوافق مع المنفذين بدون أعلام: REPL، LSP).
+            //        debugMode  — هل نطبع سطر التشخيص الموحَّد؟ يُمرَّر من
+            //                     `enableDebugMode` لكل منفذ.
+            //
+            // (AR) الأثر الجانبي:
+            //        - عند gcStrategy == None : pause() على defaultEngine + clearHooks().
+            //        - وإلا                  : resume() على defaultEngine + setAllocHook +
+            //                                  setFreeHook (يحوّلان إلى register/unregister).
+            //        - عند debugMode         : سطر `[memory] GC engine: ...` على std::cerr.
+            //
+            // (AR) ملاحظات أمان الخيوط:
+            //        - defaultEngine() يستخدم Meyer's singleton (آمن للخيوط في C++17).
+            //        - hooks على ObjectInstance محمية بـ mutex داخلي (B-step4).
+            //        - الدالة نفسها idempotent: استدعاؤها مرتين بنفس الإعدادات يعطي نفس
+            //          الحالة بدون آثار جانبية إضافية.
+            //
+            // (EN) Applies the resolved memory policy to the global GC engine and the
+            //      ObjectInstance lifecycle hooks. No-op when `policySet == false` to
+            //      preserve legacy behaviour for callers that don't yet parse CLI flags.
+            // ─────────────────────────────────────────────────────────────────────────────
+            void applyMemoryPolicyGlobal(const ::Sad::Memory::MemoryModeSettings &settings,
+                                         bool policySet,
+                                         bool debugMode);
 
-} // namespace GC
-} // namespace Memory
+        } // namespace GC
+    } // namespace Memory
 } // namespace Sad
